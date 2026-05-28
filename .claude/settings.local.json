@@ -1,0 +1,21 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node .claude/statusline.js",
+    "padding": 0,
+    "refreshInterval": 30
+  },
+  "permissions": {
+    "allow": [
+      "Bash(cat)",
+      "Read(//Users/julianwaibel/.claude/plans/**)",
+      "WebFetch(domain:)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git reset *)",
+      "Bash(git restore *)",
+      "Bash(git push *)",
+      "Bash(git fetch *)"
+    ]
+  }
+}
