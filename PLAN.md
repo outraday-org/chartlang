@@ -265,9 +265,40 @@ Three constructor types:
 | `defineIndicator({ … })` | Emits plots, drawings, alerts. Re-runs per bar. | `indicators` |
 | `defineDrawing({ … })` | Imperatively places drawings (interactive tools). | `drawings` |
 | `defineAlert({ … })` | Headless alert-only — no plot/draw side effects. | `alerts` |
+| `defineAlertCondition({ … })` | User-wired alert (script declares a named condition; user manually creates the alert in the adapter UI from it). Distinct from `defineAlert` — see §11. | `alerts` |
 
 A repo can contain `chartlang.config.ts` that declares default `apiVersion`,
 license header, formatter rules. Optional. The compiler reads it if present.
+
+**Indicator options (script-author overrides).** Beyond `name`, `apiVersion`,
+`overlay`, and `inputs`, `defineIndicator` accepts:
+
+```ts
+defineIndicator({
+    // ...
+    /** Lookback override — script declares it needs N bars even if the compiler
+     *  can't statically infer that. Capped by Capabilities.maxLookback. */
+    maxBarsBack: 1000,
+    /** Per-script drawing budget — script's self-imposed cap. Runtime takes the
+     *  min of this and Capabilities.maxDrawingsPerScript. */
+    maxDrawings: { lines: 200, labels: 200, boxes: 50, polylines: 50, other: 100 },
+    /** Y-axis display format hint. Adapter renders the indicator's pane scale
+     *  accordingly. "inherit" = same as price; "percent" = "%" suffix;
+     *  "volume" = compact notation (K/M/B); "mintick" = round to syminfo.mintick. */
+    format: "inherit" | "percent" | "volume" | "mintick",
+    /** Decimal places for y-axis labels. Default: adapter-decided. */
+    precision: 2,
+    /** Y-axis placement. "right" (default) | "left" | "none" (no axis). */
+    scale: "right" | "left" | "none",
+    /** Required intervals. Script load fails if current bar's interval ∉ this set.
+     *  Empty / omitted = any. See §4.5. */
+    requiresIntervals: ["1D", "1W"],
+})
+```
+
+All script-side options are optional. Defaults match Pine: `format: "inherit"`,
+`scale: "right"`, no precision pin, no lookback override, no drawing budget
+(adapter's `maxDrawingsPerScript` applies as-is).
 
 ### 4.2 The `compute` contract
 
@@ -304,6 +335,22 @@ export type Bar = {
     readonly low: Price;
     readonly close: Price;
     readonly volume: Volume;
+    /** Adapter-defined symbol id this bar belongs to (e.g. "AAPL", "BTC-USD"). */
+    readonly symbol: string;
+    /** Adapter-defined interval id this bar belongs to (e.g. "1m", "5m", "1D"). */
+    readonly interval: string;
+};
+
+/**
+ * Adapter-defined timeframe descriptor. The `value` is the canonical string id
+ * scripts use in `request.security` and `input.interval`; `label` and `group` are
+ * editor-facing only. chartlang itself does not enumerate intervals — each
+ * adapter ships its own list.
+ */
+export type IntervalDescriptor = {
+    readonly value: string;       // "1D" — opaque adapter-defined id
+    readonly label: string;       // "1 day" — human-readable
+    readonly group: string;       // "daily" — for picker grouping
 };
 
 export type Series<T> = {
@@ -326,6 +373,18 @@ export type ScriptManifest = {
     name: string;
     inputs: InputSchema;              // declared via `input.*` builders
     capabilities: ReadonlyArray<CapabilityId>;  // computed by the compiler
+    /**
+     * Distinct interval ids referenced by `request.security({ interval })` calls
+     * in this script. String-literal-only — see §5.4. Empty if the script never
+     * calls request.security.
+     */
+    requestedIntervals: ReadonlyArray<string>;
+    /**
+     * True if the script declares an `input.interval(...)` input — meaning the
+     * end-user picks the main timeframe per-instance. The host uses this to
+     * decide whether to render a timeframe picker in the script-settings UI.
+     */
+    userPickableInterval: boolean;
 };
 ```
 
@@ -333,20 +392,465 @@ export type ScriptManifest = {
 
 ```ts
 // barrel: @invinite-org/chartlang-core
-export { defineIndicator, defineDrawing, defineAlert } from "./define";
-export { ta } from "./ta";            // technical analysis primitives
-export { plot, hline, vline, fill } from "./plot";
-export { draw } from "./draw";        // drawing primitives namespace
+export { defineIndicator, defineDrawing, defineAlert, defineAlertCondition } from "./define";
+export { ta } from "./ta";            // technical analysis primitives + ta.nz
+export { plot, hline, vline, fill, bgcolor, barcolor,
+         plotshape, plotchar, plotcandle, plotbar, plotarrow } from "./plot";
+export { draw } from "./draw";        // drawing primitives namespace + draw.table
 export { alert } from "./alert";
-export { input } from "./input";      // input builders
-export { color, style } from "./style";
+export { input } from "./input";      // input builders + input.interval
+export { request } from "./request";  // multi-timeframe primitives + request.lowerTf
+export { state } from "./state";      // var/varip equivalent (§4.6)
+export { barstate } from "./barstate"; // barstate.* (§4.7)
+export { syminfo } from "./syminfo";  // symbol metadata (§4.8)
+export { timeframe } from "./timeframe"; // timeframe.* helpers (§4.9)
+export { runtime } from "./runtime";  // runtime.log.*, runtime.error()
+export { color, style } from "./style"; // + color.fromGradient, color.withAlpha
 export type { … }                     // see §4.3
+
+// subpath: @invinite-org/chartlang-core/time
+// Time-zone and session helpers — bar times are UTC ms always; display TZ
+// is the adapter's problem. Bundled helpers:
+//   import { nyDayKey, nySessionBounds, weekKey, session, weekday } from "@invinite-org/chartlang-core/time";
+// Ported from invinite's existing `time/nyDayKey.ts` (see §3.1).
+//
+//   session.regular(tz: string, t: Time): { open: Time; close: Time };  // regular trading hours
+//   session.extended(tz: string, t: Time): { open: Time; close: Time }; // pre + after hours
+//   session.isOpen(tz: string, t: Time, type: "regular" | "extended"): boolean;
+//   weekday(tz: string, t: Time): 0-6;                                  // 0 = Sunday
+//   nyDayKey(t: Time): string;                                          // "2026-05-29"
+//   nySessionBounds(t: Time): { open: Time; close: Time };              // 9:30-16:00 ET
+//   weekKey(tz: string, t: Time): string;                               // "2026-W22"
 ```
 
 The `ta`, `plot`, `draw`, `alert`, `input` namespaces are populated entirely
 from `@invinite-org/chartlang-runtime` primitive registries (see §9 / §10) so adding a new
 indicator is one entry in the registry, with the typed surface picked up
 automatically by TS declaration merging.
+
+### 4.5 Timeframe primitives
+
+Two orthogonal concepts. Scripts can use either, both, or neither.
+
+**Main timeframe — `input.interval(default, opts?)`.** The end-user picks the
+script's main timeframe per-instance in the script-settings UI. The set of
+pickable values comes from `Capabilities.intervals` (§7.2). Default
+`"chart"` means "follow the chart pane's current interval and re-bind when
+the user changes it." A concrete adapter-defined string like `"1D"` means
+"always pin to that interval, regardless of chart pane." Only one
+`input.interval()` per script.
+
+```ts
+defineIndicator({
+    inputs: {
+        timeframe: input.interval("chart"),        // user can override
+        length: input.int(20),
+    },
+    compute({ inputs, bar, ta, plot }) {
+        const ema = ta.ema(bar.close, inputs.length);
+        plot(ema);                                  // bar comes from inputs.timeframe's stream
+    },
+});
+```
+
+**Secondary timeframes — `request.security({ interval })`.** Read additional
+candle streams at script-author-fixed intervals, alongside the main stream.
+Pine's `request.security()` equivalent. Returns a `Bar`-shaped object whose
+fields are `Series<number>` reads from the requested interval, time-aligned
+to the current main-stream bar (§6.8). Multiple calls per script allowed.
+
+```ts
+defineIndicator({
+    name: "Intraday with daily anchor",
+    compute({ bar, ta, plot, color, request }) {
+        // Main stream — chart's interval (e.g. 5m).
+        const intraEma = ta.ema(bar.close, 20);
+        plot(intraEma, { color: color.blue, title: "EMA (chart)" });
+
+        // Secondary stream — daily, regardless of chart.
+        const daily = request.security({ interval: "1D" });
+        const dailyEma = ta.ema(daily.close, 20);
+        plot(dailyEma, { color: color.purple, title: "EMA (daily)" });
+
+        if (ta.crossover(bar.close, dailyEma)) {
+            alert("Intraday crossed above daily EMA", { severity: "info" });
+        }
+    },
+});
+```
+
+The `interval` arg to `request.security` MUST be a string literal or an
+`input.enum` value — never a dynamic expression. The compiler enforces this
+(§5.4) so the set of secondary streams is statically known at compile time
+and the host can open them upfront. Mirrors Pine's identical restriction.
+
+Both primitives gate against `Capabilities.intervals`. If a script
+references an interval the target adapter doesn't list, the editor emits
+`unsupported-interval` at compile time and the runtime drops the call with
+a NaN-series fallback (§7.4). `request.security` additionally gates against
+`Capabilities.multiTimeframe`: when `false`, the call returns an all-NaN
+secondary bar and the runtime emits `multi-timeframe-not-supported`.
+
+**Lower-timeframe arrays — `request.lowerTf({ interval })`.** Pine's
+`request.security_lower_tf()` equivalent. Read N **lower-timeframe**
+bars contained inside the current main bar. Returns a `Series<ReadonlyArray<Bar>>` —
+each main-bar slot holds an array of secondary bars whose times fall
+within the main bar's window.
+
+```ts
+defineIndicator({
+    name: "5m volume histogram on 1h chart",
+    compute({ bar, request, plot, color }) {
+        // Returns array of 5m bars contained in each 1h bar (typically 12).
+        const lower = request.lowerTf({ interval: "5m" });
+        const totalVol = lower.current.reduce((s, b) => s + b.volume, 0);
+        plot(totalVol, { color: color.cyan, pane: "vol-sub" });
+    },
+});
+```
+
+Gated by `Capabilities.multiTimeframe` (same flag as `request.security`).
+Additionally requires the lower-timeframe value to be **smaller** than
+the main interval — `request.lowerTf({ interval: "1D" })` on a `5m`
+chart fails compilation with `lower-tf-not-lower`. Compile-time check
+uses `IntervalDescriptor` ordering (§7.2). When supported, the adapter
+delivers the lower-timeframe stream just like a secondary in
+`request.security`, but the runtime buckets emissions by main-bar
+containment instead of taking the most-recent.
+
+### 4.6 User-defined persistent state — `state.*` / `state.tick.*`
+
+Equivalent of Pine's `var` / `varip` keywords. Lets a script declare
+cross-bar mutable state without writing a custom stateful primitive.
+Without this, common idioms ("highest close since session open", "last
+crossover bar index", "accumulated VWAP numerator") force authors into
+`ta.*` workarounds or input misuse — same gap Pine fills with `var`.
+
+```ts
+import { defineIndicator, state, bar, ta, plot, alert, color } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Session-high alert",
+    apiVersion: 1,
+    compute({ bar, state, alert, plot, color, ta, barstate }) {
+        // var float sessionHigh = na
+        const sessionHigh = state.float(NaN);
+
+        // Reset on new session day.
+        if (barstate.isfirst || bar.time % 86_400_000 === 0) {
+            sessionHigh.value = bar.high;
+        } else if (Number.isNaN(sessionHigh.value) || bar.high > sessionHigh.value) {
+            sessionHigh.value = bar.high;
+        }
+
+        plot(sessionHigh.value, { color: color.orange, title: "Session high" });
+
+        if (ta.crossover(bar.close, sessionHigh.value)) {
+            alert("Crossed session high", { severity: "info" });
+        }
+    },
+});
+```
+
+**Two flavours.**
+
+| API | Pine equivalent | Tick semantics |
+|---|---|---|
+| `state.float(init)` / `state.int(init)` / `state.bool(init)` / `state.string(init)` | `var` | Writes during a `tick` event are **tentative** — discarded if a later tick replaces the head bar. Committed when the bar closes. Reads see the committed value. |
+| `state.tick.float(init)` / `state.tick.int(init)` / `state.tick.bool(init)` / `state.tick.string(init)` | `varip` | Writes during a `tick` event are **committed immediately**. No tentative phase. Use for "running per-tick counter" kinds of state. |
+
+**Why two.** Pine's `var` vs `varip` distinction exists because some
+state ("last confirmed swing high") should only advance when a bar
+closes — otherwise an intraday wick that gets retraced corrupts the
+state. Other state ("tick counter for this bar") should advance every
+tick. Same reasoning applies here.
+
+**API shape.**
+
+```ts
+// @invinite-org/chartlang-core
+export namespace state {
+    export function float(init: number): MutableSlot<number>;
+    export function int(init: number): MutableSlot<number>;
+    export function bool(init: boolean): MutableSlot<boolean>;
+    export function string(init: string): MutableSlot<string>;
+
+    export namespace tick {
+        export function float(init: number): MutableSlot<number>;
+        export function int(init: number): MutableSlot<number>;
+        export function bool(init: boolean): MutableSlot<boolean>;
+        export function string(init: string): MutableSlot<string>;
+    }
+}
+
+export type MutableSlot<T> = {
+    /** Current committed value. */
+    get value(): T;
+    /**
+     * Assign the slot. In `state.*`, writes are tentative during ticks and
+     * committed at bar close. In `state.tick.*`, writes commit immediately.
+     */
+    set value(v: T);
+};
+```
+
+The `MutableSlot<T>` interface is intentionally minimal — no
+`.history()`, no `.previous()`, no `[N]` indexing. If a script needs the
+previous bar's value, it stores it explicitly in a second slot, or uses
+the `ta.*` series-indexing primitives. This keeps the slot lifecycle
+trivially auditable.
+
+**Compiler treatment.** `state.float()`, `state.int()`, etc. and their
+`state.tick.*` variants land in the `STATEFUL_PRIMITIVES` registry
+(§5.5). The compiler injects a callsite slot id, identical to how
+`ta.ema(...)` is handled. Same loop restriction applies: a `state.*`
+call inside a loop body fails compilation with
+`stateful-call-inside-loop`. Writers who need N slots write N
+declarations or build an indexable structure outside `state.*`.
+
+**Runtime: committed vs tentative.** Every `state.*` (non-`.tick`) slot
+holds two values: `committed` and `tentative`. Reads return
+`tentative`. Writes update `tentative`. On `onBarClose`,
+`tentative → committed` for every slot. On `onBarTick`, the slot's
+`tentative` is reset to `committed` at the START of the tick step so
+within-bar tick assignments don't leak. `state.tick.*` slots have only
+`committed`; reads and writes both touch it directly.
+
+```ts
+// Inside the runtime, per state slot.
+class StateSlot<T> {
+    private committed: T;
+    private tentative: T;
+    private readonly tickPersistent: boolean;
+
+    constructor(init: T, tickPersistent: boolean) {
+        this.committed = init;
+        this.tentative = init;
+        this.tickPersistent = tickPersistent;
+    }
+
+    get(): T { return this.tickPersistent ? this.committed : this.tentative; }
+    set(v: T): void {
+        if (this.tickPersistent) { this.committed = v; }
+        else { this.tentative = v; }
+    }
+
+    onBarClose(): void {
+        if (!this.tickPersistent) { this.committed = this.tentative; }
+    }
+    onBarTick(): void {
+        if (!this.tickPersistent) { this.tentative = this.committed; }
+    }
+}
+```
+
+**Persistence.** `state.*` slot values are part of the `StateSnapshot`
+(§6.9 — `slots: Record<string, JsonValue>`). Both `committed` and
+`tentative` survive snapshot/restore; the slot id key for snapshot
+storage is `${slotId}:state` with `value: { committed, tentative }`.
+`state.tick.*` slots store only `committed`. Warm-start determinism
+applies the same way as for `ta.*` — same script same bars produces
+byte-identical emissions whether cold or warm.
+
+**Initialisation lifetime.** The `init` argument is evaluated **once per
+script mount**, at slot construction. Subsequent calls to
+`state.float(init)` on the same callsite return the **existing** slot
+with its existing value — `init` is ignored. This matches Pine's
+"initialise once" semantics. Authors who want to reset on a condition
+do `if (cond) { slot.value = newInit; }` explicitly.
+
+**Out of scope.** `state.array(...)` / `state.map(...)` — collections
+of persistent state. v1 ships only scalar slots; collections work via
+JS arrays whose identity is held in a `state.*` slot but with no
+chartlang-level persistence guarantee. Land in v1.x once a clear
+collection-serialisation policy is agreed.
+
+### 4.7 Bar state — `barstate.*`
+
+Equivalent of Pine's `barstate.*`. Lets `compute` distinguish the
+runtime mode it's running in. Without this, scripts that emit alerts
+can't tell "fire on every tick" from "fire only on bar close" — a real
+bug magnet.
+
+```ts
+defineIndicator({
+    name: "Confirmed crossover only",
+    compute({ bar, ta, alert, barstate }) {
+        if (!barstate.isconfirmed) return;        // skip ticks
+        const sma = ta.sma(bar.close, 50);
+        if (ta.crossover(bar.close, sma)) {
+            alert("Close confirmed cross", { severity: "info" });
+        }
+    },
+});
+```
+
+**API.** Read-only object whose fields the runtime mutates each step.
+Identity is stable across bars.
+
+```ts
+// @invinite-org/chartlang-core
+export const barstate: {
+    /** True on the first historical bar of this script mount. */
+    readonly isfirst: boolean;
+    /** True on the most recent bar (live or replay). */
+    readonly islast: boolean;
+    /** True if a new bar opened on this step. (false on ticks within a bar.) */
+    readonly isnew: boolean;
+    /** True if the runtime is in the historical-replay phase. */
+    readonly ishistory: boolean;
+    /** True if the runtime is processing a realtime feed. */
+    readonly isrealtime: boolean;
+    /** True if this step is a `kind: "close"` event (bar finalised). False on ticks. */
+    readonly isconfirmed: boolean;
+};
+```
+
+**Derivation, not a new event channel.** All six fields are derived
+from the runtime's existing event-type discrimination (`kind: "history"
+| "close" | "tick"`) and bar-index bookkeeping. No new adapter contract
+surface. The runtime updates the `barstate` view at the same point it
+updates `bar` (§6.7 step 2).
+
+**Cross-stream behavior.** `barstate.*` reflects the **main stream's**
+state. Secondary streams from `request.security` have their own
+implicit close/tick semantics governed by the time-alignment policy
+(§6.8) — scripts can't see those directly. If a use case needs it, a
+future `barstate.security(handle)` could expose secondary-stream state,
+but v1 ships main-stream-only.
+
+**No `barstate.isconfirmed` for ticks-as-confirmed.** Some Pine
+scripts abuse `barstate.isconfirmed` as "is this a finalised bar I'm
+seeing." We expose it the same way: `true` only on `kind: "close"`
+events. Authors who want "always treat as confirmed" simply don't gate
+on it.
+
+### 4.8 Symbol info — `syminfo.*`
+
+Pine's `syminfo.*` exposes per-symbol metadata: tick size, currency,
+exchange, session times. Scripts that round entries to tick size,
+filter by exchange, or check session boundaries need this. Without it,
+"round to mintick" is impossible.
+
+```ts
+defineIndicator({
+    name: "Tick-snapped entry",
+    compute({ bar, syminfo, plot, color }) {
+        const target = bar.close * 1.02;
+        const snapped = Math.round(target / syminfo.mintick) * syminfo.mintick;
+        plot(snapped, { color: color.green, title: "Entry +2% (ticked)" });
+    },
+});
+```
+
+**API.** Read-only object, identity stable across bars. Fields filled
+by the adapter at script load.
+
+```ts
+// @invinite-org/chartlang-core
+export const syminfo: {
+    /** Adapter-defined ticker id. Matches bar.symbol. */
+    readonly ticker: string;
+    /** Symbol type: equity, futures, forex, crypto, index, fund, custom. */
+    readonly type: SymbolType;
+    /** Smallest price increment. NaN if adapter doesn't supply it. */
+    readonly mintick: number;
+    /** Quote currency code (ISO-4217 or adapter-defined). Empty string if unknown. */
+    readonly currency: string;
+    /** Base currency for FX pairs, empty otherwise. */
+    readonly basecurrency: string;
+    /** Adapter-defined exchange id ("NASDAQ", "BINANCE", "OANDA"). Empty if N/A. */
+    readonly exchange: string;
+    /** IANA TZ name for the symbol's primary trading session ("America/New_York"). Empty if unknown. */
+    readonly timezone: string;
+    /** Session regular-hours descriptor, opaque adapter-defined string ("0930-1600:23456"). */
+    readonly session: string;
+    /** Free-form metadata bag for adapter-specific fields. JsonValue-clean. */
+    readonly meta: Readonly<Record<string, JsonValue>>;
+};
+
+export type SymbolType =
+    | "equity" | "futures" | "forex" | "crypto"
+    | "index" | "fund" | "bond" | "commodity"
+    | "custom";
+```
+
+**Capability gate.** Not every adapter has every field. We expose the
+shape always (script source is portable) but declare what's actually
+populated via:
+
+```ts
+readonly symInfoFields: ReadonlySet<keyof SymInfoView>;
+// e.g. new Set(["ticker", "type", "mintick", "currency", "exchange"])
+```
+
+(Added to `Capabilities` in §7.2 alongside `intervals`.) Unsupplied
+fields evaluate to their type's empty sentinel: empty string for
+`string`, `NaN` for `number`, `{}` for `meta`. No diagnostic — scripts
+gate their own logic on `Number.isFinite(syminfo.mintick)` etc.
+
+**Why not throw on missing fields.** Same posture as
+`Capabilities.plots` — silent degradation keeps scripts portable. A
+script using `syminfo.mintick` for tick-snapping works on adapters that
+supply it and produces NaN (which propagates harmlessly) on those that
+don't.
+
+### 4.9 Timeframe helpers — `timeframe.*`
+
+Convenience helpers that derive from `bar.interval` and the adapter's
+`IntervalDescriptor.group` (§7.2). Without these, scripts that branch
+on intraday-vs-daily hardcode interval strings, which doesn't port
+across adapters.
+
+```ts
+defineIndicator({
+    name: "Daily-only RSI divergence",
+    compute({ bar, ta, timeframe, plot, color }) {
+        if (!timeframe.isdaily) return;          // skip intraday
+        const rsi = ta.rsi(bar.close, 14);
+        plot(rsi, { color: color.purple, title: "RSI", pane: "rsi" });
+    },
+});
+```
+
+**API.**
+
+```ts
+// @invinite-org/chartlang-core
+export const timeframe: {
+    /** Same as bar.interval. */
+    readonly period: string;
+    /** True iff IntervalDescriptor.group is "second" or "minute" or "hour". */
+    readonly isintraday: boolean;
+    /** True iff IntervalDescriptor.group is "daily". */
+    readonly isdaily: boolean;
+    /** True iff IntervalDescriptor.group is "weekly". */
+    readonly isweekly: boolean;
+    /** True iff IntervalDescriptor.group is "monthly" or longer. */
+    readonly ismonthly: boolean;
+    /** Approximate seconds per bar at this interval. Used for time-budget math. */
+    readonly inSeconds: number;
+};
+```
+
+**Group→helper mapping.** The runtime derives `isintraday`/`isdaily`/
+etc. from the matching `IntervalDescriptor.group` value at script
+mount. Adapters that use custom group names (`"weekly-friday"`,
+`"quarterly"`) get `isweekly: false` and `ismonthly: false` unless
+they map to the canonical groups documented for chartlang.
+
+**Canonical group names.** Adapters SHOULD use the documented set
+(`"second"`, `"minute"`, `"hour"`, `"daily"`, `"weekly"`, `"monthly"`,
+`"quarterly"`, `"yearly"`) for portability. Custom groups are allowed
+but won't trigger `timeframe.*` helpers — scripts that need a custom
+group check on `bar.interval` directly.
+
+**`inSeconds` for time-budget math.** The runtime computes
+`inSeconds` from `IntervalDescriptor.group` plus a numeric prefix in
+`value` ("5m" → 300, "1D" → 86400). Adapters can override by adding
+`intervalSeconds: number` to `IntervalDescriptor` — useful for
+non-standard intervals like "3D" or "1Q" where the group inference
+isn't precise.
 
 ---
 
@@ -365,8 +869,13 @@ transformer + bundler** that does three jobs:
    instance explicitly upfront (annoying).
 2. **Static analysis.** Walk the AST and extract:
    - Declared inputs schema (`input.*` calls at module scope or top of
-     `compute`).
+     `compute`). Set `userPickableInterval = true` iff any `input.interval()`
+     call is present.
    - Set of primitive ids used → emit a `Capabilities` set into the manifest.
+   - Set of distinct interval string literals referenced inside
+     `request.security({ interval })` calls → emit `requestedIntervals` so
+     the host can open the right candle streams upfront and the editor can
+     gate against `Capabilities.intervals` at compile time.
    - Forbidden constructs: unbounded loops, `while`, recursion, hostile
      globals (`Math.random`, `Date.*`, `fetch`, `setTimeout`, `require`,
      dynamic `import`). Hard error.
@@ -388,8 +897,10 @@ foo.chart.ts
    │     - rewrite series-indexing to ring-buffer reads
    │     - hoist inputs to module scope
    │     - emit `__manifest` with capabilities + maxLookback
+   │                              + requestedIntervals + userPickableInterval
    │
    ├─►  Static analysis pass: reject forbidden constructs
+   │     - reject dynamic `interval` arg to request.security (must be literal)
    │
    ├─►  esbuild bundle: resolve imports, tree-shake, emit ESM
    │
@@ -459,7 +970,10 @@ makes `const ema = ta.ema(close, 20)` work like Pine.
 
 The runtime exports a `STATEFUL_PRIMITIVES` registry — a frozen string set
 of fully-qualified call names (`"ta.ema"`, `"ta.sma"`, `"plot"`,
-`"draw.line"`, `"alert"`, etc., one entry per primitive in §9 / §10 / §11).
+`"draw.line"`, `"alert"`, `"state.float"`, `"state.int"`, `"state.bool"`,
+`"state.string"`, `"state.tick.float"`, `"state.tick.int"`,
+`"state.tick.bool"`, `"state.tick.string"`, etc., one entry per primitive
+in §4.6 / §9 / §10 / §11).
 The compiler walks the AST, uses TypeScript's type checker to resolve each
 `CallExpression`'s callee, and rewrites only the calls whose resolved
 fully-qualified name is in the set.
@@ -502,6 +1016,32 @@ via `@invinite-org/chartlang-core/extend` and the compiler picks it up through t
 project's `chartlang.config.ts`. v1 ships with the registry frozen; this
 escape hatch lands in v1.1.
 
+### 5.6 `request.security` Interval-Literal Pass
+
+`request.security({ interval })` opens a secondary candle stream. The host
+needs to know which intervals to fetch *before* the script's `compute` runs,
+so the runtime can hand the script a pre-warmed `Bar`-shaped view per
+secondary interval. That means the set of secondary intervals must be
+statically discoverable.
+
+The compiler's static-analysis pass rejects any `request.security` call
+whose `interval` argument is not one of:
+
+- A **string literal**: `request.security({ interval: "1D" })`.
+- A reference to an **`input.enum`** input whose `values` are all string
+  literals: `request.security({ interval: inputs.tf })` where
+  `inputs.tf = input.enum("1D", ["1D", "1W"])`. In this case the compiler
+  unions the enum values into `requestedIntervals`.
+
+Anything else — a variable, a template string, a function-call result, a
+ternary — fails compilation with diagnostic
+`request-security-interval-not-literal`. Mirrors Pine's identical
+restriction.
+
+Discovered intervals land in `manifest.requestedIntervals` deduplicated.
+The host iterates that array to call `Adapter.candles({ interval })` once
+per distinct value at script load.
+
 ---
 
 ## 6. The Runtime
@@ -538,9 +1078,58 @@ export function createScriptRunner(args: {
     compiled: CompiledScript;
     host: ScriptHost;
     capabilities: Capabilities;
-    /** Where the runner gets state slots from. Default: in-memory Map. */
+    /**
+     * Where the runner gets state slots from. Default: in-memory Map (no
+     * persistence). Hosts that want warm restarts pass an IDB- or
+     * server-backed implementation. See §6.9 for the persistence contract.
+     */
     stateStore?: StateStore;
 }): ScriptRunner;
+
+/** Persistence contract — see §6.9. */
+export type StateStore = {
+    /**
+     * Identity of the in-flight script instance. The runtime computes this from
+     * the compiled script, capabilities, intervals, symbol, and main timeframe.
+     * Stores use it as the persistence key.
+     */
+    readonly key: StateStoreKey;
+    /** Load a snapshot if one exists. Called once at script load. */
+    load(): Promise<StateSnapshot | null>;
+    /** Persist the current snapshot. Called on `dispose()` and on cadence (see §6.9). */
+    save(snapshot: StateSnapshot): Promise<void>;
+    /** Drop the snapshot — explicit invalidation. */
+    clear(): Promise<void>;
+};
+
+export type StateStoreKey = {
+    readonly scriptHash: string;          // sha256(compiled.moduleSource)
+    readonly compilerVersion: string;
+    readonly apiVersion: number;
+    readonly capabilitiesHash: string;    // sha256 of normalised capabilities
+    readonly symbol: string;
+    readonly mainInterval: string;        // resolved value of input.interval, not "chart"
+    readonly requestedIntervals: ReadonlyArray<string>;
+};
+
+export type StateSnapshot = {
+    /** Last main-bar time reflected in this snapshot. Resume bar = lastBarTime + 1 step. */
+    readonly lastBarTime: number;
+    /** Per-stream ring buffer contents at head, one set per interval. JsonValue-clean. */
+    readonly streams: Readonly<Record<string, StreamSnapshot>>;
+    /** Slot id → opaque state value. Stateful primitive payloads. */
+    readonly slots: Readonly<Record<string, JsonValue>>;
+    readonly savedAt: number;             // wall-clock ms, advisory only
+    readonly snapshotVersion: 1;
+};
+
+export type StreamSnapshot = {
+    readonly interval: string;
+    readonly headIndex: number;
+    readonly filled: number;
+    /** OHLCV ring buffer contents at the head — JSON arrays, NaN→null. */
+    readonly buffers: Readonly<Record<"time" | "open" | "high" | "low" | "close" | "volume", ReadonlyArray<number | null>>>;
+};
 ```
 
 ### 6.2 The `Series<T>` implementation
@@ -569,6 +1158,17 @@ intuition transfers.
 Same input → same output, always. The runtime forbids non-deterministic
 host calls. The execution order inside `compute` is the source order. No
 async. No threads. This is what makes alerts trustworthy.
+
+**Numeric precision: Float64 everywhere.** All prices, volumes, and
+indicator outputs are IEEE 754 doubles. No `Decimal`, no fixed-point.
+This matches Pine, matches every JS chart in production, and survives
+JSON / structuredClone / QuickJS membranes without conversion. The
+trade-off: cumulative indicators (`vwap`, `obv`, `adl`, `cmf`) accumulate
+floating-point rounding error proportional to bar count. Each cumulative
+primitive's docstring documents the expected error envelope at typical
+lookbacks (e.g. `obv`: ~1e-9 relative error per 10⁶ bars). Adapter-side
+display formatting (currency rounding, tick-size snapping) is the
+adapter's problem, not the runtime's.
 
 ### 6.5 No unbounded growth
 
@@ -764,6 +1364,205 @@ function onBarTick(rawBar: Bar): RunnerEmissions {
 The `@invinite-org/chartlang-runtime` test suite pins all four invariants as
 property tests (`fast-check` over arbitrary bar sequences) — see §16.2.
 
+### 6.8 Multi-Stream Time Alignment
+
+When `manifest.requestedIntervals` is non-empty, the runtime owns one
+ring-buffer set per distinct interval, not one. Streams advance
+independently because secondary candles close at their own cadence
+(a `"1D"` bar closes once per chart day; the `"chart"` 5m bars close 78
+times per chart day).
+
+**Per-stream state.** For every interval in
+`{ mainInterval } ∪ requestedIntervals`, the runtime owns a
+`StreamState` with:
+
+```ts
+type StreamState = {
+    readonly interval: string;                    // "1D"
+    readonly ohlcv: OhlcvRingBufferSet;           // ring buffers per source field
+    readonly bar: BarView;                        // mutable scalar view, identity stable
+    readonly taSlots: Map<string, unknown>;       // ta.* state keyed by slotId
+};
+```
+
+The main stream's `bar`/`series` view is what `compute` sees as `bar` and
+the OHLC series. Secondary streams are exposed only through the proxy
+returned by `request.security({ interval })`:
+
+```ts
+function makeSecondaryBarView(state: StreamState): SecondaryBarView {
+    return {
+        get time()     { return state.ohlcv.time.at(0); },
+        get open()     { return state.ohlcv.open.at(0); },
+        get high()     { return state.ohlcv.high.at(0); },
+        get low()      { return state.ohlcv.low.at(0); },
+        get close()    { return state.ohlcv.close.at(0); },
+        get volume()   { return state.ohlcv.volume.at(0); },
+        // Series accessors — daily.close[N] reads daily ring buffer.
+        get series()   { return { open: ..., high: ..., low: ..., close: ..., volume: ... }; },
+        // Sugar identical to the main bar.
+        symbol:        state.bar.symbol,
+        interval:      state.interval,
+    };
+}
+```
+
+`request.security` is **stateless from the script's perspective** — it
+returns the same `SecondaryBarView` instance every call within the same
+`compute` run, identified by the compiler-injected slot id. The runtime
+caches it.
+
+**Time-alignment policy (pin this — adapters depend on it).**
+
+The script's `compute` runs on the **main stream's** cadence. On every main
+step at chart-time `T`, the runtime guarantees:
+
+- Every secondary `StreamState.bar` reflects the **most recent secondary
+  bar whose `[start, end)` window contains `T`** — i.e. the secondary bar
+  the chart would draw "behind" the current main bar.
+- Until a secondary bar closes, its `bar.close` / `bar.high` / `bar.low` /
+  `bar.volume` are **the running values inside the in-progress secondary
+  bar**, not the prior closed bar's values. This is how Pine works and
+  matches user intuition ("the daily high so far" while the trading day is
+  open).
+- `secondary.close[1]` reads the **most recent closed secondary bar before
+  the current in-progress one**, regardless of how many main bars
+  accumulated inside the current secondary bar.
+
+The runtime advances secondary ring buffers exactly when a secondary bar
+closes (the adapter signals this on its secondary `candles({ interval })`
+stream via `{ kind: "close", bar }`). The "in-progress" head slot is
+mutated in place by `{ kind: "tick", bar }` events — same `replaceHead`
+mechanism as the main stream's tick path.
+
+**No look-ahead.** A script reading `daily.close[0]` on a chart bar at
+14:00 sees the daily high-water close as of 14:00 — NOT the daily close
+that will be printed at the day's end. This is enforced by the host: it
+never delivers a secondary `close` event with a `bar.time` greater than
+the main-stream cursor. Adapters that fetch secondary streams in bulk
+ahead of time must hold them back and release them in time order.
+
+**Adapter contract:** the adapter delivers candles for each requested
+interval through independent `AsyncIterable<CandleEvent>` instances — one
+per `candles({ interval })` call. The host multiplexes them and feeds the
+runtime in time order. See §7.1 for the multi-stream `candles()` shape.
+
+**Invariants (assertable in tests):**
+
+- After `compute` on a main bar at `T`, every secondary stream's
+  `bar.time + intervalDuration > T >= bar.time`. (Containment.)
+- `secondary.series.close[1]` never changes value within a single main bar
+  step. (Closed-history immutability.)
+- Sum of secondary bars seen since the first main bar equals the count of
+  `kind: "close"` events the adapter delivered on that stream. (Lockstep
+  with adapter signals.)
+
+### 6.9 State Persistence
+
+Pine recomputes the entire script from history on every load. chartlang
+supports the same fallback — and *also* an opt-in persistence path that
+skips the warmup. Same script source either way; the difference is
+whether the runtime restores prior state or starts from scratch.
+
+**The contract.** `StateStore` (§6.1) is the persistence boundary. If
+the runtime is constructed without one, behaviour is Pine-identical:
+every load replays full history. If a `stateStore` is supplied, the
+runtime tries to restore on load and writes back on dispose and on a
+write-cadence policy (see below). The script does **not** know which
+mode is active — same `compute`, same outputs, same emissions.
+
+**Cache key.** `StateStoreKey` (§6.1) is the canonical identity tuple.
+The runtime computes it at script-mount; the store treats it opaquely as
+a string key (typical implementation: `JSON.stringify(key)` with sorted
+fields). Any change in any field invalidates the snapshot — a script
+edit (`scriptHash`), compiler bump (`compilerVersion`), capability
+change (`capabilitiesHash`), symbol switch, interval change, or new
+secondary stream all force a full replay. This is deliberate: the
+keying mirrors the actual state-dependence surface so a stale snapshot
+can never produce wrong outputs.
+
+**Restore + gap-replay flow.**
+
+```
+mount(compiled, capabilities, stateStore, currentMainBarTime):
+  key  = computeKey(compiled, capabilities, symbol, mainInterval, requestedIntervals)
+  snap = await stateStore.load()                 // null if absent or key mismatch
+  if (snap == null || snap.lastBarTime >= currentMainBarTime):
+    fall through to full-history replay (Pine fallback)
+    return
+  for stream in snap.streams:
+    rehydrate ring buffer from buffers[]         // O(maxLookback)
+  for slotId, value in snap.slots:
+    seed primitive state slot                    // O(slots)
+  warmStartBarTime = snap.lastBarTime + 1 step
+  fetch and feed bars from warmStartBarTime → currentMainBarTime
+  (typically <100 bars vs 5000 cold)
+```
+
+**Future-snapshot guard.** `snap.lastBarTime >= currentMainBarTime`
+means the snapshot is ahead of the bar cursor — happens when the user
+rewinds the chart, replays history, or jumps to a past time. The
+runtime cannot apply a future snapshot to a past cursor, so it falls
+back to full replay (and overwrites the snapshot on next save).
+
+**Write cadence.**
+
+- Always on `dispose()`. The host calls dispose on unmount, page hide,
+  worker termination — every snapshot write is a "last good state."
+- On every `kind: "close"` main-bar event when the snapshot is
+  >`PERSISTENCE_INTERVAL_MS` (default 60s wall-clock) stale. Crash-
+  resilience: a tab kill mid-session loses at most one minute of warm
+  cache, not the whole session.
+- Never on `kind: "tick"`. Realtime tick state is reconstructable from
+  the most recent `close` snapshot + the live tick stream.
+
+**No partial snapshots.** Either the whole snapshot is written or none
+of it. A torn write that loses one stream's buffer but keeps another
+would produce stale-vs-fresh lockstep violations on the next load. The
+runtime serialises the snapshot in one `StateStore.save(snapshot)`
+call; the store implementation guarantees atomicity (IDB transactions,
+Convex single-document writes, server-side write-temp-then-rename, etc.).
+
+**Determinism guarantee.** A warm-started script produces **byte-identical
+emissions** to a cold-started one for every bar from `warmStartBarTime`
+forward. This is testable: the conformance suite runs every script
+twice — once cold, once with a snapshot taken at bar 4000 of 5000 —
+and asserts every emission past bar 4000 matches. A determinism failure
+fails the conformance gate.
+
+**JsonValue purity.** Slot payloads MUST be `JsonValue` (§7.3) for
+serialisation. Primitive authors who keep `Float64Array` or `Map`
+internal state are responsible for marshalling to/from JSON in their
+serialise/deserialise hooks — a primitive registers
+`{ serialiseState, deserialiseState }` callbacks alongside its
+compute function. The runtime drops snapshots that fail
+`validateEmission`-shaped checks at save time with diagnostic
+`state-snapshot-malformed`, and falls back to cold replay.
+
+**Storage backings.**
+
+- **Browser, `host-worker`:** `idbStateStore({ dbName })` (shipped from
+  `@invinite-org/chartlang-host-worker`). One IDB record per `StateStoreKey`.
+  Auto-evicts oldest snapshots when total store exceeds 50 MB; the
+  cap is configurable. Reads on mount, writes on dispose + 60s cadence.
+- **Server, `host-quickjs`:** the host accepts a caller-supplied
+  `StateStore`. The OSS repo ships **no** server backing — host
+  consumers wire their own. Typical implementations: Convex document
+  per key (idiomatic for our cron alert-eval), R2 / S3 blob, Postgres
+  row, in-memory LRU for one-shot evaluations. See §15 for why this
+  responsibility lives outside the OSS package.
+- **Tests / CLI:** `inMemoryStateStore()` (shipped from
+  `@invinite-org/chartlang-runtime`). Identity-keyed Map. Used by the
+  conformance suite's warm-start determinism test.
+
+**Why this matters for server-side alerts.** Without persistence, every
+cron tick re-runs the script from 500-bar history (per the §11 alert
+eval action). With persistence, the prior tick's snapshot loads, the
+runtime fetches only the 1–N bars since the last evaluation, and the
+script computes incrementally. For a script evaluated every minute on
+1m bars, that's 1 bar of work per tick vs 500. Same answer, ~500×
+less Convex compute. Bills proportionally.
+
 ---
 
 ## 7. The Adapter Contract
@@ -784,8 +1583,21 @@ export type Adapter = {
     readonly name: string;
     /** Declares what the adapter actually does. Unsupported primitives no-op. */
     readonly capabilities: Capabilities;
-    /** Yields bars in order. May be infinite (realtime feed). */
-    candles(): AsyncIterable<CandleEvent>;
+    /**
+     * Yields bars for the requested interval. May be infinite (realtime feed).
+     *
+     * - `interval: "chart"` — the chart pane's current interval. Adapter resolves to
+     *   whatever its current timeframe is and re-emits if the user changes it.
+     * - `interval: <adapter-defined string>` — bars at exactly that interval, regardless
+     *   of chart pane. Must be a member of `capabilities.intervals`; the host validates
+     *   before calling.
+     *
+     * The host calls this once per distinct interval the loaded script needs
+     * (main timeframe + every `manifest.requestedIntervals` entry). Adapters that
+     * cannot serve a particular `interval` should throw at the first iteration; the
+     * host converts that into a load-time error.
+     */
+    candles(opts: { interval: string | "chart" }): AsyncIterable<CandleEvent>;
     /** Receives renderable output. Unsupported categories: pass-through no-op. */
     onEmissions(emissions: RunnerEmissions): void;
     /** Lifecycle. */
@@ -797,6 +1609,10 @@ export type CandleEvent =
     | { kind: "close"; bar: Bar }
     | { kind: "tick"; bar: Bar };
 ```
+
+Note: each `Bar` carries its own `interval` field (§4.3), so the host can
+sanity-check that the stream really yields bars at the requested interval.
+A mismatch is a hard error — not a silent diagnostic.
 
 ### 7.2 `Capabilities`
 
@@ -813,18 +1629,85 @@ export type Capabilities = {
     readonly drawings: ReadonlySet<DrawingKind>;
     /** Alert delivery. If empty, alert() is a silent no-op. */
     readonly alerts: ReadonlySet<AlertChannel>;
+    /**
+     * Whether the adapter can route `defineAlertCondition` user-wired alerts
+     * (§11.2). When `false`, `signal()` is a silent no-op + `alert-conditions-not-supported`.
+     */
+    readonly alertConditions: boolean;
+    /**
+     * Whether the adapter renders `runtime.log.*` messages (§11.3). When `false`,
+     * logs are silently dropped — no diagnostic, logs are debug-only.
+     */
+    readonly logs: boolean;
     /** Inputs the adapter can prompt the user for at runtime. */
     readonly inputs: ReadonlySet<InputKind>;
+    /**
+     * Timeframes this adapter can deliver candles for. Order is meaningful — drives
+     * the editor's timeframe picker order. Each descriptor's `value` is the canonical
+     * id scripts use in `request.security` and `input.interval`. chartlang does NOT
+     * enumerate intervals; each adapter ships its own set with adapter-defined strings.
+     */
+    readonly intervals: ReadonlyArray<IntervalDescriptor>;
+    /**
+     * Whether the adapter can deliver more than one parallel candle stream per script
+     * load. When `false`, `request.security` is a silent no-op (returns all-NaN
+     * secondary bars + `multi-timeframe-not-supported` diagnostic); `input.interval`
+     * still works because it's single-stream. Adapters typically ship `false` first
+     * and flip to `true` once multi-stream fetching is wired.
+     */
+    readonly multiTimeframe: boolean;
+    /**
+     * Max number of sub-panes (below the price pane) this adapter can render
+     * concurrently for one script. `0` = overlay-only; any `plot({ pane: "new" })`
+     * or `plot({ pane: <id> })` call falls back to overlay with an
+     * `unsupported-pane` diagnostic. Adapters that support unlimited sub-panes
+     * declare a sentinel like `Number.MAX_SAFE_INTEGER`.
+     */
+    readonly subPanes: number;
+    /**
+     * Which `syminfo.*` fields this adapter populates (§4.8). Fields not in the
+     * set evaluate to their type's empty sentinel — empty string for `string`,
+     * `NaN` for `number`. Scripts gate logic on `Number.isFinite(syminfo.mintick)`
+     * rather than presence-checking the capability — silent degradation, same
+     * posture as `plots`/`drawings`.
+     */
+    readonly symInfoFields: ReadonlySet<SymInfoField>;
+    /**
+     * Per-script drawing-emission budget. Excess `draw.*` calls beyond these
+     * caps fall back to no-op with `drawing-budget-exceeded` diagnostic. Mirrors
+     * Pine's `max_lines_count` / `max_labels_count` / `max_boxes_count` /
+     * `max_polylines_count`. Scripts can request a smaller budget per-script via
+     * `defineIndicator({ maxDrawings: ... })`; the runtime takes the min of
+     * script-requested and adapter-supplied.
+     */
+    readonly maxDrawingsPerScript: {
+        readonly lines: number;
+        readonly labels: number;
+        readonly boxes: number;
+        readonly polylines: number;
+        readonly other: number;        // catch-all for fib/gann/elliott/etc.
+    };
     /** Max bars of lookback the adapter promises to keep available. */
     readonly maxLookback: number;
     /** Max realtime tick rate the adapter will deliver. */
     readonly maxTickHz: number;
 };
 
+export type SymInfoField =
+    | "ticker" | "type" | "mintick" | "currency" | "basecurrency"
+    | "exchange" | "timezone" | "session" | "meta";
+
 export type PlotKind =
     | "line" | "step-line" | "area" | "histogram" | "bars"
     | "horizontal-line" | "vertical-line" | "filled-band"
-    | "label" | "marker" | "cursors";
+    | "label" | "marker" | "cursors"
+    | "shape"                                  // plotshape — geometric symbol at bar
+    | "character"                              // plotchar — single character/emoji at bar
+    | "arrow"                                  // plotarrow — directional indicator (long/short magnitude)
+    | "candle-override"                        // plotcandle — override main candle rendering
+    | "bar-override"                           // plotbar — override main bar rendering
+    | "bg-color"                               // bgcolor — paint vertical band behind bar
+    | "bar-color";                             // barcolor — recolor the bar/candle itself
 
 export type DrawingKind =                // see §10 — full list
     | "line" | "ray" | "extended-line" | "horizontal-line" | "horizontal-ray"
@@ -845,7 +1728,8 @@ export type DrawingKind =                // see §10 — full list
     | "head-and-shoulders" | "triangle-pattern" | "abcd-pattern" | "xabcd-pattern"
     | "cypher-pattern" | "three-drives-pattern"
     | "cyclic-lines" | "time-cycles"
-    | "group" | "frame";
+    | "group" | "frame"
+    | "table";                                     // §10.2 — dashboard/status panel
 
 export type AlertChannel =
     | "log"            // console
@@ -889,6 +1773,13 @@ type PlotEmission = {
     readonly value: number | null;       // null = NaN, "skip slot"
     readonly color: string | null;       // CSS color, or null = adapter default
     readonly meta: Readonly<Record<string, JsonValue>>;
+    /**
+     * Target pane. "overlay" = price pane (default for indicators marked
+     * `overlay: true`). "new" = open a fresh sub-pane keyed by `slotId`.
+     * A literal string id like "rsi" = explicit named sub-pane shared across
+     * plots that use the same id. Capability-gated: see Capabilities.subPanes.
+     */
+    readonly pane: "overlay" | "new" | string;
 };
 
 type PlotStyle =
@@ -904,7 +1795,26 @@ type PlotStyle =
     | { kind: "marker";
         shape: "circle" | "triangle-up" | "triangle-down" | "square" | "diamond";
         size: number }
-    | { kind: "cursors"; radius: number };
+    | { kind: "cursors"; radius: number }
+    | { kind: "shape";
+        shape: "circle" | "triangle-up" | "triangle-down" | "square"
+             | "diamond" | "cross" | "x" | "flag" | "arrow-up" | "arrow-down";
+        size: "tiny" | "small" | "normal" | "large" | "huge";
+        location: "above-bar" | "below-bar" | "at-price"; }
+    | { kind: "character";
+        character: string;                       // single code point — character or emoji
+        size: "tiny" | "small" | "normal" | "large" | "huge";
+        location: "above-bar" | "below-bar" | "at-price"; }
+    | { kind: "arrow";
+        direction: number;                       // signed magnitude — sign = direction, abs = arrow length
+        baseline?: number; }
+    | { kind: "candle-override";
+        open: number; high: number; low: number; close: number;
+        wickColor?: string; borderColor?: string; }
+    | { kind: "bar-override";
+        open: number; high: number; low: number; close: number; }
+    | { kind: "bg-color"; alpha: number }
+    | { kind: "bar-color"; replaceCandleColor: boolean };
 ```
 
 `PlotStyle.kind` is the value compared against `Capabilities.plots`.
@@ -990,14 +1900,25 @@ type DiagnosticCode =
     | "unsupported-plot-kind"
     | "unsupported-drawing-kind"
     | "unsupported-alert-channel"
+    | "unsupported-pane"                           // plot requested sub-pane beyond subPanes budget
+    | "unsupported-interval"                       // adapter doesn't list this interval value
+    | "interval-not-supported-by-script"           // current bar's interval not in script's set
+    | "multi-timeframe-not-supported"              // adapter's multiTimeframe = false
+    | "lower-tf-not-lower"                          // request.lowerTf interval >= main interval (compile-time)
+    | "request-security-interval-not-literal"     // compile-time only, never runtime
     | "lookback-exceeded"
     | "drawing-handle-out-of-order"
+    | "drawing-budget-exceeded"                    // §4.6 / §7.2 maxDrawingsPerScript
     | "dropped-by-policy"
     | "stateful-call-inside-loop"        // compile-time only, never runtime
     | "input-coercion-failed"
     | "alert-rate-limited"
     | "runtime-cpu-budget-exceeded"
-    | "runtime-memory-budget-exceeded";
+    | "runtime-memory-budget-exceeded"
+    | "runtime-log-budget-exceeded"                // §11.3 — log volume cap hit
+    | "alert-conditions-not-supported"             // §11.2 — adapter alertConditions = false
+    | "runtime-error"                              // §11.3 — user-thrown via runtime.error()
+    | "state-snapshot-malformed";                  // §6.9 — snapshot dropped, cold-replay fallback
 ```
 
 #### `RunnerEmissions`
@@ -1009,10 +1930,31 @@ type RunnerEmissions = {
     readonly plots: ReadonlyArray<PlotEmission>;
     readonly drawings: ReadonlyArray<DrawingEmission>;
     readonly alerts: ReadonlyArray<AlertEmission>;
+    readonly alertConditions: ReadonlyArray<AlertConditionEmission>;
+    readonly logs: ReadonlyArray<LogEmission>;
     readonly diagnostics: ReadonlyArray<RuntimeDiagnostic>;
     /** Bar index range covered by this drain. */
     readonly fromBar: number;
     readonly toBar: number;
+};
+
+type AlertConditionEmission = {
+    readonly kind: "alert-condition";
+    readonly conditionId: string;            // matches a key in defineAlertCondition.conditions
+    readonly fired: boolean;                  // edge — true only on the bar the signal flipped
+    readonly bar: number;
+    readonly time: number;
+    readonly meta: Readonly<Record<string, JsonValue>>;
+};
+
+type LogEmission = {
+    readonly kind: "log";
+    readonly level: "info" | "warn" | "error";
+    readonly message: string;
+    readonly slotId: string | null;
+    readonly bar: number;
+    readonly time: number;
+    readonly meta: Readonly<Record<string, JsonValue>>;
 };
 ```
 
@@ -1046,9 +1988,12 @@ Drop policy by category:
 | Category | Adapter missing capability | Outcome |
 |---|---|---|
 | `plot` | `plotKind` ∉ `plots` | Drop emission; record diagnostic. Other plots in the same script still render. |
+| `plot.pane` | distinct sub-panes used > `subPanes` | Fall back to overlay for the excess pane; record `unsupported-pane` diagnostic. Plot still renders, just in the price pane. |
 | `drawing` | `drawingKind` ∉ `drawings` | Drop emission; diagnostic. Other drawings still render. |
 | `alert` | adapter's `alerts` empty | Drop alert; diagnostic only. Script still produces plots/drawings. |
 | `input` | `inputKind` ∉ `inputs` | Substitute the input's `defaultValue`; diagnostic. |
+| `interval` (literal) | value ∉ `intervals` | Script load fails — caught at compile time by the editor, never reaches runtime if the editor's `targetCapabilities` is set. If the runtime sees it anyway, the offending `request.security` returns an all-NaN secondary bar; `input.interval` falls back to its default; diagnostic emitted. |
+| `multi-timeframe` | `request.security` called when `multiTimeframe: false` | Return all-NaN secondary bar; diagnostic. Script's main-stream emissions still render normally. |
 
 The script does NOT know whether an emission was dropped. This is intentional:
 the script is portable. The editor surfaces dropped categories as
@@ -1095,6 +2040,10 @@ export type HostLimits = {
   available; otherwise heuristic.
 - One worker per script instance. Multiple scripts → multiple workers.
 - Fast path: no QuickJS overhead, native V8 speed.
+- **Ships `idbStateStore({ dbName })`** — IndexedDB-backed `StateStore`
+  (§6.9) for warm restarts across page reloads. One IDB record per
+  `StateStoreKey`; LRU eviction at 50 MB (configurable). Callers pass
+  the store into the runner; the host doesn't enforce its use.
 
 ### 8.3 `@invinite-org/chartlang-host-quickjs` (untrusted / server)
 
@@ -1107,6 +2056,9 @@ export type HostLimits = {
   alert-class workloads (one step per bar at minute resolution).
 - This is what you run **server-side for alerts** against untrusted user
   scripts.
+- **No bundled `StateStore`.** Server consumers wire their own (Convex
+  document per key, R2/S3 blob, Postgres row — see §6.9). The host is
+  a runtime, not an opinion about persistence.
 
 ### 8.4 Picking a host
 
@@ -1177,6 +2129,10 @@ follow TradingView's canonical nine-category catalogue.
 - `ta.valuewhen(condition, src, n)` — "value of `src` the n-th most recent
   time `condition` was true".
 - `ta.barssince(condition)` — bars since `condition` last true.
+- `ta.nz(value, replacement?)` — NaN-to-default. Returns `replacement`
+  (default `0`) if `value` is NaN, else `value`. Mirrors Pine's `nz()`.
+  One of the most common idioms in real scripts; without it, authors
+  scatter `Number.isNaN(x) ? 0 : x` everywhere.
 
 ### 9.3 Source-field helpers
 
@@ -1347,8 +2303,35 @@ namespace draw {
     // Containers
     function group(children: ReadonlyArray<DrawingHandle>): DrawingHandle;
     function frame(a: WorldPoint, b: WorldPoint, opts?: FrameOpts): DrawingHandle;
+
+    // Tables — dashboard / status panel
+    function table(opts: {
+        position: "top-left" | "top-center" | "top-right"
+                | "middle-left" | "middle-center" | "middle-right"
+                | "bottom-left" | "bottom-center" | "bottom-right";
+        cells: ReadonlyArray<ReadonlyArray<TableCell>>;
+        borderColor?: Color;
+        borderWidth?: number;
+        frame?: { color: Color; width: number };
+    }): DrawingHandle;
 }
+
+export type TableCell = {
+    readonly text: string;
+    readonly bgColor?: Color;
+    readonly textColor?: Color;
+    readonly textHalign?: "left" | "center" | "right";
+    readonly textValign?: "top" | "middle" | "bottom";
+    readonly textSize?: "tiny" | "small" | "normal" | "large" | "huge";
+};
 ```
+
+`table` drawings position absolutely in the chart's CSS-pixel viewport
+(NOT in world space) — they're status panels, not chart objects. Same
+DrawingHandle ergonomics for updates: `tableHandle.update({ cells: [[…]] })`.
+Capability-gated via `DrawingKind = "table"` in `Capabilities.drawings`.
+Common Pine pattern (status dashboards, P&L panels, trade ledgers) we
+shouldn't make users hand-roll.
 
 ### 10.3 `DrawingHandle`
 
@@ -1391,6 +2374,16 @@ provides `decodeDrawing()` typed against `kind`.
 
 ## 11. Alert Primitives
 
+Two distinct paths — same Pine reasoning. **`alert()` fires immediately**;
+the runtime emits, the adapter routes through declared channels. Useful
+when the script knows the right time to alert.
+**`defineAlertCondition` declares a named condition the user wires up
+manually** in the adapter's alert-creation UI; the alert metadata, target
+channels, and message template all come from the user. Useful when the
+script just provides signals.
+
+### 11.1 Immediate-fire — `alert()`
+
 ```ts
 namespace alert {
     function fire(message: string, opts?: {
@@ -1426,6 +2419,155 @@ via the channels declared in `Capabilities.alerts`. Webhook channel posts:
 
 Alert deduplication is enforced inside the runtime, not the adapter, so
 behaviour is consistent across hosts.
+
+### 11.2 User-wired — `defineAlertCondition`
+
+Pine's `alertcondition()` equivalent. The script declares one or more
+named conditions. The adapter's alert-creation UI lists every declared
+condition for the loaded script; users select a condition, configure
+delivery channels and message themselves, and the runtime fires the
+alert when the condition becomes true on a confirmed bar.
+
+```ts
+import { defineAlertCondition } from "@invinite-org/chartlang-core";
+
+export default defineAlertCondition({
+    name: "EMA cross signals",
+    apiVersion: 1,
+    inputs: {
+        length: input.int(20),
+    },
+    conditions: {
+        bullishCross: {
+            title: "Bullish EMA cross",
+            description: "Close crossed above the EMA",
+            defaultMessage: "{{ticker}} bullish cross at {{close}}",
+        },
+        bearishCross: {
+            title: "Bearish EMA cross",
+            description: "Close crossed below the EMA",
+            defaultMessage: "{{ticker}} bearish cross at {{close}}",
+        },
+    },
+    compute({ inputs, bar, ta, signal }) {
+        const ema = ta.ema(bar.close, inputs.length);
+        signal("bullishCross", ta.crossover(bar.close, ema));
+        signal("bearishCross", ta.crossunder(bar.close, ema));
+    },
+});
+```
+
+**Emission shape** (new `AlertConditionEmission` in §7.3, additive):
+
+```ts
+type AlertConditionEmission = {
+    readonly kind: "alert-condition";
+    readonly conditionId: string;
+    readonly fired: boolean;
+    readonly bar: number;
+    readonly time: number;
+};
+```
+
+The adapter consumes these via `RunnerEmissions.alertConditions` and
+routes to whatever destinations the user has wired in their UI.
+Capability-gated: `Capabilities.alertConditions: boolean`. When `false`,
+`defineAlertCondition` scripts load but `signal()` is a silent no-op
+with `alert-conditions-not-supported` diagnostic.
+
+**Why two modes.** `alert()` fires through script-declared channels
+(`{ channels: ["webhook"] }`) on the script's own schedule. Users have
+no input. `defineAlertCondition` is the inverse: the script declares
+the signal; the user chooses delivery. Pine ships both because real
+users want both — backtest-style scripts auto-fire, signal-broadcast
+scripts give the user the picker.
+
+### 11.3 Logging — `runtime.log.*`
+
+Pine's `runtime.log.info/warn/error()` equivalent. Lets scripts emit
+debug-grade messages surfaced in the editor's log pane. Without this,
+authors misuse `alert()` for debugging and pollute their inbox.
+
+```ts
+import { runtime } from "@invinite-org/chartlang-core";
+
+defineIndicator({
+    compute({ bar, runtime, ta }) {
+        const ema = ta.ema(bar.close, 20);
+        runtime.log.info(`ema=${ema.current} close=${bar.close}`, { ema: ema.current });
+        if (Number.isNaN(ema.current)) {
+            runtime.log.warn("EMA still NaN — warmup not complete");
+        }
+    },
+});
+```
+
+**API.**
+
+```ts
+// @invinite-org/chartlang-core
+export namespace runtime {
+    export namespace log {
+        export function info(message: string, meta?: Record<string, JsonValue>): void;
+        export function warn(message: string, meta?: Record<string, JsonValue>): void;
+        export function error(message: string, meta?: Record<string, JsonValue>): void;
+    }
+
+    /**
+     * Script-throwable error. Halts compute for the current bar (subsequent
+     * primitives are no-ops), emits a fatal RuntimeDiagnostic, and surfaces in
+     * the script-settings UI as a red banner. Use for "input invariant violated"
+     * states where the script genuinely can't continue. Pine's runtime.error().
+     */
+    export function error(message: string): never;
+}
+```
+
+**LogEmission shape** — pinned in §7.3. Capability-gated:
+`Capabilities.logs: boolean`. When `false`, `runtime.log.*` calls are
+silent no-ops (no diagnostic — logs are debugging, not signal). Browser
+host's reference editor (§14.2) displays the log pane unconditionally
+when present.
+
+**Volume cap.** The runtime caps logs at 1000 per `compute` step. The
+1001th log is dropped with `runtime-log-budget-exceeded` diagnostic.
+Same posture as drawing budget — prevents pathological scripts from
+flooding the host with strings.
+
+### 11.4 Color helpers — `color.*` extensions
+
+Mirror Pine's dynamic-color idioms.
+
+```ts
+// @invinite-org/chartlang-core/style
+export namespace color {
+    // Existing static palette: color.red, color.green, color.blue, etc.
+
+    /**
+     * Dynamic color from a normalised position. `t` in [0, 1] interpolates
+     * linearly between stops; out-of-range clamps. Pine's color.from_gradient().
+     */
+    export function fromGradient(
+        t: number,
+        stops: ReadonlyArray<{ at: number; color: Color }>
+    ): Color;
+
+    /**
+     * Take an existing color and override its alpha (transparency). `alpha` in
+     * [0, 1] — 0 = fully transparent, 1 = fully opaque. Pine's color.new(c, transp).
+     */
+    export function withAlpha(c: Color, alpha: number): Color;
+
+    /** Construct from RGB(A) components. */
+    export function rgb(r: number, g: number, b: number, alpha?: number): Color;
+    /** Construct from HSL(A) components. */
+    export function hsl(h: number, s: number, l: number, alpha?: number): Color;
+}
+```
+
+All return CSS-string-clean `Color` values (existing `Color = string`
+contract — no new type). Adapters that downstream-parse colors get
+nothing new to do.
 
 ---
 
@@ -1542,6 +2684,13 @@ export function createLanguageService(opts?: LanguageServiceOptions): {
     getSignatureHelp(source: string, offset: number): SignatureHelp | null;
     /** Jump-to-definition for primitives — points into the core package's .d.ts. */
     getDefinition(source: string, offset: number): DefinitionLocation | null;
+    /**
+     * Adapter's full interval list — drives the editor's timeframe picker, the
+     * inputs UI's `input.interval` dropdown, and string-literal autocomplete inside
+     * `request.security({ interval: "…" })`. Empty array if no `targetCapabilities`
+     * was supplied.
+     */
+    getAvailableIntervals(): ReadonlyArray<IntervalDescriptor>;
 };
 ```
 
@@ -1552,13 +2701,18 @@ Where the data comes from:
   keyed by fully-qualified name (`"ta.ema"`). The registry is a generated
   TS module shipped inside `@invinite-org/chartlang-language-service/dist/hover-registry.js`.
 - **Completions** read from the same registry plus the live source's
-  in-scope identifiers (resolved via the TS LanguageService API).
+  in-scope identifiers (resolved via the TS LanguageService API). When the
+  cursor is inside a `request.security({ interval: "▮" })` literal or an
+  `input.interval("▮")` literal, the completion source returns one
+  `CompletionItem` per `targetCapabilities.intervals` entry with the
+  descriptor's `label` as the doc string and `group` as the grouping hint.
 - **Diagnostics** call `@invinite-org/chartlang-compiler`'s `compile()` and map
   every emitted error to an `LspDiagnostic`. When
   `targetCapabilities` is supplied, the service also lints for
   `unsupported-plot-kind` / `unsupported-drawing-kind` /
-  `unsupported-alert-channel` against that bag — so the editor can warn
-  "this won't render on your target adapter" before the script ever
+  `unsupported-alert-channel` / `unsupported-interval` /
+  `multi-timeframe-not-supported` against that bag — so the editor can
+  warn "this won't render on your target adapter" before the script ever
   runs.
 
 ### 14.2 `@invinite-org/chartlang-editor` (reference CodeMirror 6 shell)
@@ -2206,63 +3360,117 @@ adds rendering support for each new `DrawingKind` so the conformance suite
 covers them. Consumer adapters add support at their own pace; unsupported
 kinds remain silent no-ops with diagnostics.
 
-### Phase 4 — `0.4` Editor + inputs
+### Phase 4 — `0.4` Editor + inputs + timeframes + Tier-1 Pine parity
 
-`@invinite-org/chartlang-language-service` ships first (headless: hover,
-completions, diagnostics, signature help). `@invinite-org/chartlang-editor`
-ships on top as the reference CodeMirror 6 shell. Inline diagnostics.
-Inputs UI generated from manifest. First-class developer experience for
-end-users writing scripts in our app — and a documented integration
-path for any host that prefers Monaco or a different editor.
+Editor:
+- `@invinite-org/chartlang-language-service` ships first (headless: hover,
+  completions, diagnostics, signature help, `getAvailableIntervals`).
+  `@invinite-org/chartlang-editor` ships on top as the reference CodeMirror 6
+  shell. Inline diagnostics. Inputs UI generated from manifest.
 
-### Phase 5 — `0.5` Alerts (server-side hosts)
+Multi-timeframe (Pine `request.security` parity):
+- `request.security({ interval })` lands as part of apiVersion 1.
+- Adapters declare `Capabilities.intervals` and `Capabilities.multiTimeframe`.
+- Adapters that ship 0.4 with `multiTimeframe: false` get single-stream
+  `input.interval` working immediately.
 
-`@invinite-org/chartlang-host-quickjs` ships. The host runs in any Node-class
-environment (Node 20, Deno, Bun, Cloudflare Workers via WASM) with hard
-CPU and memory caps. Consumer repos build their own server-side runners
-on top — load compiled scripts, push candles from their market-data feed,
-route emitted `AlertEmission`s through their preferred notification
-channels (webhook, email, in-app inbox, push). No server runner lives in
-the OSS repo.
+Tier-1 author-facing primitives — these are real Pine ergonomics our
+script authors would otherwise hit immediately:
 
-### Phase 6 — `1.0` Standardisation
+- `state.*` / `state.tick.*` — user cross-bar state (Pine `var`/`varip`, §4.6)
+- `barstate.*` — confirmed-vs-tick mode discrimination (§4.7)
+- `syminfo.*` — mintick / currency / exchange / session metadata (§4.8)
+- `timeframe.*` — isintraday / isdaily / inSeconds helpers (§4.9)
+- `ta.nz(value, replacement)` — NaN-to-default (§9)
+- `defineIndicator({ maxDrawings: {...}, maxBarsBack, format, precision, scale, requiresIntervals })` — script-author overrides
+- `Capabilities.maxDrawingsPerScript` + `symInfoFields` — adapter declarations
+
+Done definition: a user can rewrite the median Pine indicator in
+chartlang without reaching for unmodelled features.
+
+### Phase 5 — `0.5` Server-side alerts + Tier-2 ergonomics
+
+`@invinite-org/chartlang-host-quickjs` ships. Server-side eval. State
+persistence (`StateStore` + `idbStateStore` for browser + caller-supplied
+backings for server, §6.9) — the alert eval cron's per-tick compute drops
+~500×.
+
+Plus the Tier-2 surface — nice-to-haves that aren't blocking but make
+real-world scripts cleaner:
+
+- `defineAlertCondition` + `Capabilities.alertConditions` — user-wired alerts (§11.2)
+- `runtime.log.*` + `Capabilities.logs` — editor log pane (§11.3)
+- `runtime.error()` — script-throwable halt (§11.3)
+- `draw.table` + `DrawingKind = "table"` — dashboard/status panels (§10.2)
+- New `PlotKind`s: `shape`, `character`, `arrow`, `candle-override`,
+  `bar-override`, `bg-color`, `bar-color` (§7.2)
+- `color.fromGradient` / `color.withAlpha` / `color.rgb` / `color.hsl` (§11.4)
+
+### Phase 6 — `0.6` Tier-3 ergonomics + lower-timeframe
+
+- `request.lowerTf({ interval })` — Pine `request.security_lower_tf`
+  equivalent (§4.5). Returns `Series<ReadonlyArray<Bar>>` of contained
+  lower-tf bars. Requires `Capabilities.multiTimeframe: true`.
+- Session helpers in `@invinite-org/chartlang-core/time` — `session.regular`,
+  `session.extended`, `session.isOpen`, `weekday`, ported from invinite's
+  `time/nyDayKey.ts` (§4.4 subpath).
+- Pine-to-chartlang migration guide draft.
+
+### Phase 7 — `1.0` Standardisation
 
 - Freeze `apiVersion: 1`.
 - Publish the language spec (this doc, expanded) at `chartlang.dev/spec`.
 - Ship the Lightweight Charts adapter to prove portability.
 - Public conformance reports.
-- Migration guide from Pine for the most common patterns.
+- Finalise migration guide from Pine for the most common patterns.
 
 ### Beyond `1.0`
 
 - Strategy primitives (`strategy.entry()`, `strategy.exit()`, P&L
-  accounting). Requires a new `Capabilities.strategy` flag.
-- Multi-timeframe (`request.security()` equivalent).
-- Library scripts that other scripts can import.
+  accounting, equity curve). Requires a new `Capabilities.strategy` flag.
+- Library scripts that other scripts can import (`library()` /
+  exported helpers).
 - Marketplace metadata format.
+- Persistent collections (`state.array(...)` / `state.map(...)`) once a
+  serialisation policy is agreed (§4.6 out-of-scope note).
+- Multi-pane secondary-stream `barstate.security(handle)` (§4.7
+  cross-stream extension).
 
 ---
 
-## 20. Open Questions To Resolve Before Phase 1
+## 20. Open Questions — Resolved
 
-1. **State persistence across sessions.** Pine recomputes from history every
-   load. We can do the same in v1. Persisting partial state to IDB (as our
-   chart's indicator cache does) is a v2 optimisation, not a contract
-   change.
-2. **Symbol / interval primitives.** Should `bar.symbol` and `bar.interval`
-   be readable inside `compute`? Probably yes — many scripts branch on them.
-   Add to `Bar` as `readonly symbol: string` / `readonly interval: string`.
-3. **Multi-pane scripts.** A single script that emits to both an overlay
-   pane and a new sub-pane. Pine handles this via `display = …` per plot.
-   We follow the same convention: `plot(value, { pane: "new" })`.
-4. **Time zones.** Bar times are UTC ms. Display TZ is the adapter's
-   problem. Scripts that need NY session boundaries import a helper from
-   `@invinite-org/chartlang-core/time` (port of our `nyDayKey`).
-5. **Numeric precision.** Float64 everywhere. No `Decimal`. Document the
-   rounding implications for cumulative indicators (VWAP, OBV).
+All five questions originally flagged here are now decided in-plan. None
+are deferred to a follow-up PR.
 
-These are flagged for resolution in the first PR landing in the new repo —
-not decided in this plan.
+1. ~~**State persistence across sessions.**~~ **Resolved.** First-class
+   contract: `StateStore` interface (§6.1), full persistence flow with
+   cache key + restore + gap-replay + write cadence (§6.9). Browser host
+   ships an IDB backing; server hosts wire their own (§8.2 / §8.3). Warm
+   start produces byte-identical emissions to cold start — gated by the
+   conformance suite. Most impactful for server-side alert eval: ~500×
+   less compute per cron tick.
+2. ~~**Symbol / interval primitives.**~~ **Resolved.** `bar.symbol` and
+   `bar.interval` are readable on every `Bar` (§4.3). The main timeframe is
+   pickable per-instance by the end-user via `input.interval(default)` (§4.5);
+   secondary timeframes are author-fixed via `request.security({ interval })`
+   (§4.5, §6.8). Adapter-defined timeframe set lives on `Capabilities.intervals`
+   (§7.2); `Capabilities.multiTimeframe` gates `request.security` support so
+   adapters can land single-stream first and multi-stream later.
+3. ~~**Multi-pane scripts.**~~ **Resolved.** `plot(value, { pane })` accepts
+   `"overlay"` (default), `"new"` (fresh sub-pane keyed by callsite id), or
+   a literal string id for explicit shared sub-panes (§7.3 `PlotEmission`).
+   `Capabilities.subPanes: number` declares the adapter's sub-pane budget;
+   excess panes fall back to overlay with `unsupported-pane` diagnostic
+   (§7.4).
+4. ~~**Time zones.**~~ **Resolved.** Bar times are UTC ms throughout. Display
+   TZ is the adapter's problem. Scripts needing session helpers import from
+   the `@invinite-org/chartlang-core/time` subpath (§4.4) — `nyDayKey`,
+   `nySessionBounds`, `weekKey`, ported from invinite's existing
+   `time/nyDayKey.ts` (§3.1).
+5. ~~**Numeric precision.**~~ **Resolved.** Float64 everywhere (§6.4). No
+   `Decimal`, no fixed-point. Each cumulative primitive (`vwap`, `obv`,
+   `adl`, `cmf`) documents its rounding-error envelope in its JSDoc.
 
 ---
 
@@ -2278,6 +3486,13 @@ not decided in this plan.
   primitives that introduce new state machines are deferred to v2.
 - Not promising backward compatibility before `1.0`. The header pin
   (`apiVersion: 1`) is the migration boundary.
+- **Not shipping `request.financial()` / `request.dividends()` /
+  `request.splits()` / `request.earnings()`** built-ins. Pine bakes these
+  in because TradingView hosts the data; chartlang stays data-source-
+  neutral. Scripts that need fundamentals declare an external-series
+  dependency via `input.externalSeries({ name: "earnings", schema })`
+  (§9.5) and the adapter supplies the data. Same posture as everything
+  else: the contract describes the request; the adapter answers.
 
 ---
 
