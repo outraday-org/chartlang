@@ -120,7 +120,8 @@ chartlang/
     ├── host-worker/                   # @invinite-org/chartlang-host-worker
     ├── host-quickjs/                  # @invinite-org/chartlang-host-quickjs
     ├── adapter-kit/                   # @invinite-org/chartlang-adapter-kit — SDK consumers import to write adapters
-    ├── editor/                        # @invinite-org/chartlang-editor (CodeMirror 6 package)
+    ├── language-service/              # @invinite-org/chartlang-language-service (headless: hover, completions, diagnostics)
+    ├── editor/                        # @invinite-org/chartlang-editor (CodeMirror 6 shell over language-service)
     ├── cli/                           # @invinite-org/chartlang-cli (compile / lint / bench / scaffold-adapter)
     └── conformance/                   # @invinite-org/chartlang-conformance (test suite every adapter runs)
 ```
@@ -208,7 +209,8 @@ chartlang's shape wins. Translate, don't transcribe.
 | `@invinite-org/chartlang-host-worker` | `createWorkerHost() → ScriptHost` | Web Worker boot, postMessage protocol | `@invinite-org/chartlang-runtime` |
 | `@invinite-org/chartlang-host-quickjs` | `createQuickJsHost() → ScriptHost` | QuickJS-WASM boot, memory caps, CPU caps | `@invinite-org/chartlang-runtime`, `quickjs-emscripten` |
 | `@invinite-org/chartlang-adapter-kit` | `defineAdapter(opts) → Adapter`, `Adapter` / `Capabilities` / `CandleEvent` types, capability builders (`capabilities.line()`, `capabilities.histogram()`, etc.), `validateEmission(e)`, `decodeDrawing(e)`, mock candle sources for testing, base classes (`PassThroughAdapter`, `BufferingAdapter`) | shared bookkeeping for adapter authors | `@invinite-org/chartlang-core`, `@invinite-org/chartlang-runtime` |
-| `@invinite-org/chartlang-editor` | `createChartlangEditor(opts)` — CodeMirror 6 extension bundle (syntax via TS, hover docs, autocomplete, inline diagnostics) | LSP-shaped facade over the compiler | `@invinite-org/chartlang-compiler`, `codemirror` |
+| `@invinite-org/chartlang-language-service` | `getHoverDoc(target)`, `getCompletions(pos, source)`, `compileToDiagnostics(source) → LspDiagnostic[]`, `getSignatureHelp`, `getDefinition` — headless, no editor dependency. Editor-agnostic intelligence layer that any host (CM6, Monaco, JetBrains plugin, headless CLI) consumes. | hover-doc registry sourced from JSDoc on `@invinite-org/chartlang-core`, completion source for `ta.*` / `draw.*` / `input.*` / `color.*`, diagnostic mapper from compiler errors to LSP-shaped `{ range, severity, code, message }` | `@invinite-org/chartlang-compiler`, `@invinite-org/chartlang-core` |
+| `@invinite-org/chartlang-editor` | `createChartlangEditor(opts)` — CodeMirror 6 extension bundle + `<ChartlangEditor />` React component. Reference editor implementation; thin shell over `@invinite-org/chartlang-language-service`. | Lezer TS grammar wiring, CM6 hover/autocomplete extension bindings that delegate to the language service | `@invinite-org/chartlang-language-service`, `codemirror` |
 | `@invinite-org/chartlang-cli` | `chartlang compile foo.chart.ts`, `chartlang lint`, `chartlang bench`, `chartlang scaffold-adapter <name>` (creates a starter adapter package outside the OSS repo) | thin wrapper around compiler + runtime + adapter-kit scaffolding | `@invinite-org/chartlang-compiler`, `@invinite-org/chartlang-runtime`, `@invinite-org/chartlang-adapter-kit` |
 | `@invinite-org/chartlang-conformance` | `runConformanceSuite(adapter) → Report` — 200+ scenarios that any `Adapter` instance from any repo can run against itself | golden fixtures of (script × candles) → expected plots/drawings/alerts | `@invinite-org/chartlang-core`, `@invinite-org/chartlang-runtime`, `@invinite-org/chartlang-adapter-kit` |
 | `examples/canvas2d-adapter/` | Reference adapter — not published to npm. ~200 lines. Imports `@invinite-org/chartlang-adapter-kit`, renders to a `<canvas>` element. Copy-from-this template. | demonstrates the adapter contract end-to-end | `@invinite-org/chartlang-adapter-kit`, `@invinite-org/chartlang-host-worker` |
@@ -1481,18 +1483,102 @@ Mirrors our `webgl/colors.ts` and the 6-color `groupTag` palette.
 
 ---
 
-## 14. Editor Package
+## 14. Editor: Language Service + Reference Editor
 
-`@invinite-org/chartlang-editor` ships a CodeMirror 6 extension bundle:
+Two packages, one responsibility each. Mirrors §15's "contract first, one
+reference impl" philosophy: editor intelligence lives in a headless
+package that any host can consume; the OSS repo ships exactly one
+editor on top of it.
 
-- Syntax highlighting and incremental parsing via Lezer's TypeScript grammar.
-- Hover docs for every primitive, sourced from JSDoc on `@invinite-org/chartlang-core`.
-- Autocomplete for `ta.*`, `draw.*`, `input.*`, `color.*`.
-- Inline diagnostics from `@invinite-org/chartlang-compiler` — type errors, forbidden
-  constructs, unsupported-by-adapter warnings (when the editor is given the
-  target adapter's `Capabilities`).
+### 14.1 `@invinite-org/chartlang-language-service` (headless)
+
+Editor-agnostic language intelligence. No CM6 dependency, no React, no
+DOM. The contract every chartlang-aware editor — CM6, Monaco, a
+JetBrains plugin, a headless CLI linter — runs against.
+
+Public API:
+
+```ts
+// @invinite-org/chartlang-language-service
+export type LspRange = { startLine: number; startColumn: number; endLine: number; endColumn: number };
+export type LspSeverity = "error" | "warning" | "info" | "hint";
+
+export type LspDiagnostic = {
+    range: LspRange;
+    severity: LspSeverity;
+    code: DiagnosticCode;          // reuses the runtime's frozen set from §7.3
+    message: string;
+    relatedCallsite?: string;       // slotId when the diagnostic originates at a stateful call
+};
+
+export type HoverDoc = {
+    title: string;                  // e.g. "ta.ema(source, length, opts?)"
+    summary: string;                // first JSDoc paragraph
+    paramTable?: ReadonlyArray<{ name: string; type: string; doc: string }>;
+    examples?: ReadonlyArray<string>;
+};
+
+export type CompletionItem = {
+    label: string;                  // "ta.ema"
+    kind: "function" | "namespace" | "property" | "enumMember" | "keyword";
+    insertText: string;
+    detail?: string;                // short signature
+    doc?: HoverDoc;
+};
+
+export type LanguageServiceOptions = {
+    /** Adapter capabilities to drive "unsupported-by-adapter" hints. Optional. */
+    targetCapabilities?: Capabilities;
+};
+
+export function createLanguageService(opts?: LanguageServiceOptions): {
+    /** Compile-and-map: full diagnostic pass against the current source. */
+    compileToDiagnostics(source: string): Promise<ReadonlyArray<LspDiagnostic>>;
+    /** Position-cursored completions. Cheap; called on every keystroke. */
+    getCompletions(source: string, offset: number): ReadonlyArray<CompletionItem>;
+    /** Hover docs for the symbol under offset. */
+    getHoverDoc(source: string, offset: number): HoverDoc | null;
+    /** Signature help inside a stateful call. */
+    getSignatureHelp(source: string, offset: number): SignatureHelp | null;
+    /** Jump-to-definition for primitives — points into the core package's .d.ts. */
+    getDefinition(source: string, offset: number): DefinitionLocation | null;
+};
+```
+
+Where the data comes from:
+
+- **Hover docs** are extracted from JSDoc on `@invinite-org/chartlang-core` at
+  build time via a TS AST pass — one `HoverDoc` per exported primitive,
+  keyed by fully-qualified name (`"ta.ema"`). The registry is a generated
+  TS module shipped inside `@invinite-org/chartlang-language-service/dist/hover-registry.js`.
+- **Completions** read from the same registry plus the live source's
+  in-scope identifiers (resolved via the TS LanguageService API).
+- **Diagnostics** call `@invinite-org/chartlang-compiler`'s `compile()` and map
+  every emitted error to an `LspDiagnostic`. When
+  `targetCapabilities` is supplied, the service also lints for
+  `unsupported-plot-kind` / `unsupported-drawing-kind` /
+  `unsupported-alert-channel` against that bag — so the editor can warn
+  "this won't render on your target adapter" before the script ever
+  runs.
+
+### 14.2 `@invinite-org/chartlang-editor` (reference CodeMirror 6 shell)
+
+The thin glue that turns the headless language service into a working
+editor. Same role as `examples/canvas2d-adapter/` plays for the adapter
+contract: prove the language service is consumable end-to-end, and be
+the canonical "copy this when wiring your own host" template.
+
+Ships:
+
+- Syntax highlighting and incremental parsing via Lezer's TypeScript
+  grammar.
+- A CM6 hover extension that calls `getHoverDoc(source, offset)`.
+- A CM6 autocomplete source that calls `getCompletions(source, offset)`.
+- A CM6 linter that calls `compileToDiagnostics(source)` and maps
+  `LspDiagnostic` → CM6 `Diagnostic`.
 - A peek panel for emitted plots/drawings/alerts using the conformance
   fixtures as input.
+- A `<ChartlangEditor />` React component for app integration.
 
 Mounted as:
 
@@ -1504,6 +1590,11 @@ Mounted as:
     onCompiled={(compiled) => previewRunner.load(compiled)}
 />
 ```
+
+The component holds a `createLanguageService({ targetCapabilities })`
+instance and wires its methods into the CM6 extensions. Swapping CM6
+for Monaco is a different shell against the same language service —
+no fork of the intelligence layer.
 
 ---
 
@@ -1731,6 +1822,7 @@ even when the JS coverage is 100%.
 | `@invinite-org/chartlang-host-worker` | ✓ | — | — | ✓ (via canvas2d adapter) | ✓ | ✓ | ✓ |
 | `@invinite-org/chartlang-host-quickjs` | ✓ | — | — | ✓ (via canvas2d adapter) | ✓ | ✓ (mandatory) | ✓ |
 | `@invinite-org/chartlang-adapter-kit` | ✓ | — | — | ✓ | ✓ | — | — |
+| `@invinite-org/chartlang-language-service` | ✓ | — | ✓ (hover/completion fixtures) | — | ✓ | — | — |
 | `@invinite-org/chartlang-editor` | ✓ | — | — | — | ✓ | — | — |
 | `@invinite-org/chartlang-cli` | ✓ | — | — | — | ✓ | — | — |
 | `@invinite-org/chartlang-conformance` | ✓ | — | — | — | ✓ | — | — |
@@ -2116,9 +2208,12 @@ kinds remain silent no-ops with diagnostics.
 
 ### Phase 4 — `0.4` Editor + inputs
 
-`@invinite-org/chartlang-editor` ships. Inline diagnostics. Inputs UI generated from
-manifest. First-class developer experience for end-users writing scripts in
-our app.
+`@invinite-org/chartlang-language-service` ships first (headless: hover,
+completions, diagnostics, signature help). `@invinite-org/chartlang-editor`
+ships on top as the reference CodeMirror 6 shell. Inline diagnostics.
+Inputs UI generated from manifest. First-class developer experience for
+end-users writing scripts in our app — and a documented integration
+path for any host that prefers Monaco or a different editor.
 
 ### Phase 5 — `0.5` Alerts (server-side hosts)
 
@@ -2213,7 +2308,7 @@ echo "20" > .nvmrc
 nvm use            # or: corepack use node@20
 
 # 2. Lay out the workspace
-mkdir -p packages/{core,compiler,runtime,host-worker,host-quickjs,adapter-kit,editor,cli,conformance}/src
+mkdir -p packages/{core,compiler,runtime,host-worker,host-quickjs,adapter-kit,language-service,editor,cli,conformance}/src
 mkdir -p examples/canvas2d-adapter/src
 mkdir -p docs/{language,primitives,adapters,hosts,spec,getting-started,reference}
 mkdir -p scripts .github/workflows .changeset
@@ -2603,6 +2698,7 @@ const PACKAGE_DIRS = [
     "packages/host-worker",
     "packages/host-quickjs",
     "packages/adapter-kit",
+    "packages/language-service",
     "packages/editor",
     "packages/cli",
     "packages/conformance",
@@ -2616,7 +2712,8 @@ const DESCRIPTIONS: Record<string, string> = {
     "packages/host-worker": "Web Worker ScriptHost for the browser",
     "packages/host-quickjs": "QuickJS-WASM ScriptHost for untrusted / server-side execution",
     "packages/adapter-kit": "SDK for writing chartlang adapters in consumer repos",
-    "packages/editor": "CodeMirror 6 bundle for editing .chart.ts files",
+    "packages/language-service": "Headless editor intelligence — hover, completions, diagnostics, signature help",
+    "packages/editor": "CodeMirror 6 reference editor over @invinite-org/chartlang-language-service",
     "packages/cli": "chartlang CLI — compile, lint, bench, scaffold-adapter",
     "packages/conformance": "Adapter conformance test suite",
     "examples/canvas2d-adapter": "Reference adapter — renders to a <canvas> element",
