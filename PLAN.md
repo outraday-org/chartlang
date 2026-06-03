@@ -156,12 +156,12 @@ directory before starting work:
 | Reference area | Path (relative to chartlang root) | What to look at |
 |---|---|---|
 | **Indicator math** | `../invinite/src/components/trading-chart/indicators/` | One `<id>.ts` file per indicator. Float64Array-based math, NaN-warmup conventions, `extendCompute` tail-extend pattern. ~90 files. |
-| **Indicator helpers** | `../invinite/src/components/trading-chart/indicators/lib/` | Shared math helpers — `ema-of-float64.ts`, `tr-series.ts` (True Range / ATR), `donchian-mid.ts`, `wilder-directional.ts`, `linear-regression.ts`, `format-compact.ts`, `pick-candle-source.ts`. Port these first; many indicators depend on them. |
+| **Indicator helpers** | `../invinite/src/components/trading-chart/indicators/lib/` | Shared math helpers. Port the **chained-MA family first** — `sma-of-float64.ts`, `ema-of-float64.ts`, `wma-of-float64.ts`, `smma-of-float64.ts`, `vwma-of-float64.ts`, `compute-ma-of-float64.ts` (the chained-MA dispatcher; excludes `vwma` at the type level), `compute-ma.ts`, `ma-types.ts`. Then volatility / statistics: `tr-series.ts` (True Range / ATR), `donchian-mid.ts`, `wilder-directional.ts`, `linear-regression.ts`, `rolling-stddev.ts`, `pearson.ts` (Pearson correlation — powers `trendStrengthIndex`). Universal helpers used by nearly every indicator: `apply-offset.ts` (Pine-parity bar shift), `pick-candle-source.ts` + `read-source-field.ts` (source-field resolution), `smoothing-block.ts` / `smoothing-overlay.ts` (post-compute smoothing), `format-compact.ts` (K/M/B labels), `read-numeric-param.ts` / `read-color-param.ts` (param canonicalisers). Multi-timeframe: `align-htf-series-to-ltf.ts` is the kernel for §6.8 — port it before any HTF work. |
 | **Indicator contract docs** | `../invinite/src/components/trading-chart/indicators/CLAUDE.md` | Full inventory table by category, contract semantics, "How to add a new indicator" walkthrough with worked VWAP example. **Read this before porting any indicator.** |
 | **Indicator tests** | `../invinite/src/components/trading-chart/indicators/<id>.test.ts` | One per indicator. Vitest tests pinning the math against `buildVisualBaselineCandles(100)` fixture. Port these alongside the implementation. |
 | **Indicator benches** | `../invinite/src/components/trading-chart/indicators/<id>.bench.test.ts` | Bench tests for hot primitives (sma/ema/bb/rsi/macd/vol). Port alongside. |
-| **Drawing schemas** | `../invinite/shared/trading-chart-collab-yjs/y-doc-bridge.ts` | TypeScript types for all ~60 drawing kinds (`LineDrawing`, `RectangleDrawing`, `FibRetracementDrawing`, `ElliottImpulseWaveDrawing`, …). Read this to derive the `DrawingState` discriminated union in §10. |
-| **Drawing tool behavior** | `../invinite/src/components/trading-chart/tools/` | One `<name>-tool.ts` per drawing. Placement, hit-testing, edit handles, anchor semantics. Reference for `draw.*` primitive parameter shapes and `editHandles` patterns. ~60 files. |
+| **Drawing schemas** | `../invinite/shared/trading-chart-collab-yjs/y-doc-bridge.ts` | TypeScript types for **61 drawing kinds** (`LineDrawing`, `RectangleDrawing`, `FibRetracementDrawing`, `ElliottImpulseWaveDrawing`, …). Read this to derive the `DrawingState` discriminated union in §10. Note: the 4 pitchfork tools (`pitchfork`, `schiff-pitchfork`, `modified-schiff-pitchfork`, `inside-pitchfork`) all emit one `PitchforkDrawing` with a `variant` discriminator; `ray` / `extendedLine` collapse into `LineDrawing` with `extendLeft` / `extendRight` flags; `cypherPattern` is a kind without a standalone tool. Drawing kind strings are camelCase (`horizontalLine`) — chartlang emissions use kebab-case (`horizontal-line`) and `decodeDrawing()` normalises. |
+| **Drawing tool behavior** | `../invinite/src/components/trading-chart/tools/` | One `<name>-tool.ts` per drawing — **67 tool files** total. Of these, 4 are non-drawing (`select-tool.ts`, `rectangle-select-tool.ts`, `eraser-tool.ts`, `comment-tool.ts`), leaving 63 drawing tools emitting 61 unique kinds. Placement, hit-testing, edit handles, anchor semantics. Reference for `draw.*` primitive parameter shapes and `editHandles` patterns. |
 | **Drawing system docs** | `../invinite/src/components/trading-chart/CLAUDE.md` | Trading-chart-level invariants — coordinate frames, world-point conventions, anchor semantics. Read for context. |
 | **Rendering reference** | `../invinite/src/components/trading-chart/webgl/builders/` | Descriptor builders that the canvas2d reference adapter mimics at lower fidelity — `indicator-line-builder.ts`, `volume-bars-builder.ts`, `macd-histogram-bars-builder.ts`, `horizontal-threshold-builder.ts`, `filled-band-builder.ts`. Show what each `PlotKind` actually means visually. |
 | **Color/style reference** | `../invinite/src/components/trading-chart/webgl/colors.ts` | Canonical palette colors. Port into `@invinite-org/chartlang-core/style`. |
@@ -341,6 +341,16 @@ export type Bar = {
     readonly interval: string;
 };
 
+// Differences from invinite's `ChartCandle` (`lib/candle-types.ts`):
+//   - invinite carries `index: number` per bar (0..N-1) so its renderer
+//     can compress non-trading time. chartlang scripts access the
+//     equivalent through `series.length` and `series[N]` — the bar's
+//     position in the stream is implicit, not stored on the bar.
+//   - invinite makes `volume` optional. chartlang requires it: scripts
+//     that need volume can rely on it being a number (adapters that
+//     genuinely lack volume emit NaN, which propagates harmlessly
+//     through `ta.*` like every other NaN warmup).
+
 /**
  * Adapter-defined timeframe descriptor. The `value` is the canonical string id
  * scripts use in `request.security` and `input.interval`; `label` and `group` are
@@ -363,7 +373,18 @@ export type Series<T> = {
 };
 
 export type Color = string;           // CSS color string ("#26a69a", "rgba(…)", named)
+/** Stroke style for **drawings** (lines, rectangles, fibs, etc). */
 export type LineStyle = "solid" | "dashed" | "dotted";
+
+/**
+ * Line style for **indicator plots** (the `plot()` primitive). Distinct from
+ * `LineStyle` — invinite renders indicator strokes with a wider vocabulary
+ * (`circles` / `cross` for sparse markers, `step` for staircase plots) that
+ * the drawing-stroke enum doesn't need. Cf. `indicators/lib/line-style.ts` in
+ * the invinite reference. Adapters that don't support a given variant fall
+ * back to `"line"` with `unsupported-plot-style` diagnostic (§7.4).
+ */
+export type PlotLineStyle = "line" | "step" | "dashed" | "circles" | "cross";
 
 export type AlertSeverity = "info" | "warning" | "critical";
 
@@ -412,7 +433,8 @@ export type { … }                     // see §4.3
 // Time-zone and session helpers — bar times are UTC ms always; display TZ
 // is the adapter's problem. Bundled helpers:
 //   import { nyDayKey, nySessionBounds, weekKey, session, weekday } from "@invinite-org/chartlang-core/time";
-// Ported from invinite's existing `time/nyDayKey.ts` (see §3.1).
+// Ported from invinite's existing `src/components/trading-chart/indicators/lib/ny-day-key.ts`
+// + `session-boundaries.ts` (see §3.1).
 //
 //   session.regular(tz: string, t: Time): { open: Time; close: Time };  // regular trading hours
 //   session.extended(tz: string, t: Time): { open: Time; close: Time }; // pre + after hours
@@ -1548,7 +1570,10 @@ compute function. The runtime drops snapshots that fail
 - **Server, `host-quickjs`:** the host accepts a caller-supplied
   `StateStore`. The OSS repo ships **no** server backing — host
   consumers wire their own. Typical implementations: Convex document
-  per key (idiomatic for our cron alert-eval), R2 / S3 blob, Postgres
+  per key (idiomatic for our cron alert-eval — cf. the consumer-side
+  `chartlangStateSnapshots` table sketched in invinite's
+  `CHARTLANG_INTEGRATION.md` §7, keyed by `(scriptId, symbol, interval)`
+  with the snapshot stored under `v.any()`), R2 / S3 blob, Postgres
   row, in-memory LRU for one-shot evaluations. See §15 for why this
   responsibility lives outside the OSS package.
 - **Tests / CLI:** `inMemoryStateStore()` (shipped from
@@ -1598,6 +1623,17 @@ export type Adapter = {
      * host converts that into a load-time error.
      */
     candles(opts: { interval: string | "chart" }): AsyncIterable<CandleEvent>;
+    /**
+     * Optional external-series feed (§9.5). The adapter pushes adapter-supplied
+     * data (transaction markers, P&L tape, secondary-symbol OHLCV for
+     * `correlationCoeff`, etc.) keyed by the compiler-assigned slot id of the
+     * matching `input.externalSeries(...)` call. The runtime owns the slot →
+     * script mapping; the adapter never sees script internals. Adapters that
+     * don't supply any external series omit this method, and any
+     * `input.externalSeries` call in a loaded script returns an all-NaN series
+     * with diagnostic `external-series-not-supplied`.
+     */
+    feedExternalSeries?(slotId: string, rows: ReadonlyArray<JsonValue>): void;
     /** Receives renderable output. Unsupported categories: pass-through no-op. */
     onEmissions(emissions: RunnerEmissions): void;
     /** Lifecycle. */
@@ -1701,6 +1737,13 @@ export type PlotKind =
     | "line" | "step-line" | "area" | "histogram" | "bars"
     | "horizontal-line" | "vertical-line" | "filled-band"
     | "label" | "marker" | "cursors"
+    | "horizontal-histogram"                   // volume profile family — horizontal bar
+                                               //   histograms keyed by price-bucket; used
+                                               //   by `visibleRangeVolumeProfile`,
+                                               //   `anchoredVolumeProfile`,
+                                               //   `sessionVolumeProfile`,
+                                               //   `fixedRangeVolumeProfile`. Cf.
+                                               //   invinite `webgl/builders/horizontal-volume-bars-builder.ts`.
     | "shape"                                  // plotshape — geometric symbol at bar
     | "character"                              // plotchar — single character/emoji at bar
     | "arrow"                                  // plotarrow — directional indicator (long/short magnitude)
@@ -1709,6 +1752,28 @@ export type PlotKind =
     | "bg-color"                               // bgcolor — paint vertical band behind bar
     | "bar-color";                             // barcolor — recolor the bar/candle itself
 
+// `DrawingKind` is the canonical wire-level enumeration of every distinct
+// drawing schema. **61 kinds** total. Drawing kind strings on the wire are
+// kebab-case (`horizontal-line`); invinite's internal source-of-truth uses
+// camelCase (`horizontalLine`). `decodeDrawing()` (§7.1, §10.4) normalises
+// in both directions.
+//
+// Variants collapsed into one kind:
+//   - The 4 pitchfork tools (`pitchfork`, `schiff-pitchfork`,
+//     `modified-schiff-pitchfork`, `inside-pitchfork`) all emit
+//     `kind: "pitchfork"` with a `variant` field. invinite stores the same
+//     shape (`PitchforkDrawing { variant: "standard" | "schiff" |
+//     "modifiedSchiff" | "inside" }`).
+//   - `ray` / `extended-line` / `horizontal-ray` are not separate schemas at
+//     the invinite level — they collapse into `LineDrawing` /
+//     `HorizontalLineDrawing` with `extendLeft` / `extendRight` flags.
+//     chartlang keeps them as distinct `DrawingKind` strings for script
+//     ergonomics (`draw.ray(a, b)` reads better than
+//     `draw.line(a, b, { extendRight: true })`), and the runtime maps them
+//     into the invinite shape on emission.
+//   - `cypher-pattern` has no standalone invinite tool but is a real
+//     `CypherPatternDrawing` kind in `y-doc-bridge.ts`; chartlang keeps it
+//     for portability.
 export type DrawingKind =                // see §10 — full list
     | "line" | "ray" | "extended-line" | "horizontal-line" | "horizontal-ray"
     | "vertical-line" | "cross-line"
@@ -1719,10 +1784,10 @@ export type DrawingKind =                // see §10 — full list
     | "trend-angle" | "sine-line"
     | "fib-retracement" | "fib-trend-extension" | "fib-channel" | "fib-time-zone"
     | "fib-speed-fan" | "fib-speed-arcs" | "fib-spiral" | "fib-circles"
-    | "fib-wedge" | "fib-trend-time"
+    | "fib-wedge" | "fib-trend-time" | "fib-gann"
     | "gann-box" | "gann-fan" | "gann-square" | "gann-square-fixed"
-    | "pitchfork" | "schiff-pitchfork" | "modified-schiff-pitchfork"
-    | "inside-pitchfork" | "pitchfan"
+    | "pitchfork"                                    // 4 variants behind one kind
+    | "pitchfan"
     | "elliott-impulse-wave" | "elliott-correction-wave"
     | "elliott-triangle-wave" | "elliott-double-combo" | "elliott-triple-combo"
     | "head-and-shoulders" | "triangle-pattern" | "abcd-pattern" | "xabcd-pattern"
@@ -1739,7 +1804,9 @@ export type AlertChannel =
 
 export type InputKind =
     | "int" | "float" | "bool" | "string" | "enum"
-    | "color" | "source" | "time" | "price" | "symbol";
+    | "color" | "source" | "time" | "price" | "symbol"
+    | "interval"                       // §4.5 — user-pickable main timeframe
+    | "external-series";               // §9.5 — adapter-supplied custom feed
 ```
 
 ### 7.3 Emission Wire Schemas (canonical)
@@ -1826,7 +1893,7 @@ Unknown / missing → drop with diagnostic `unsupported-plot-kind`.
 type DrawingEmission = {
     readonly kind: "drawing";
     readonly handleId: string;           // compiler-injected callsite id
-    readonly drawingKind: DrawingKind;   // 60+ kinds — see §7.2
+    readonly drawingKind: DrawingKind;   // 61 kinds — see §7.2
     readonly op: "create" | "update" | "remove";
     readonly state: DrawingState;        // discriminated on drawingKind
     readonly bar: number;
@@ -2088,6 +2155,41 @@ ta.macd(source: Series<number>, opts?: MacdOpts): { macd: Series<number>; signal
 Multi-output indicators return a typed record. Optional knobs flow through
 `opts`. The compiler injects the callsite id.
 
+**Universal `opts` fields.** Every `ta.*` primitive accepts:
+
+- `opts.offset?: number` — Pine-parity bar shift. Defaults to `0`. A positive
+  value shifts the plot forward by N bars; a negative value shifts it
+  backward. Every invinite indicator already accepts this (`sma.ts:38,86`;
+  `bb-percent-b.ts`; `bbw.ts`; `chop.ts`; `rvi.ts`), so the runtime
+  applies the shift uniformly at the `Series<T>` boundary.
+- `opts.lineStyle?: PlotLineStyle` — `"line" | "step" | "dashed" |
+  "circles" | "cross"` (§4.3). Adapter-rendered hint; the runtime
+  forwards it on `PlotEmission` without semantic effect.
+
+Multi-output primitives carry these per-output via `opts.outputs[name]`,
+e.g. `ta.macd(src, { outputs: { signal: { lineStyle: "dashed" } } })`.
+
+**Multi-output contract.** A primitive that returns more than one
+`Series<number>` (BB, MACD, Ichimoku, Donchian, Bollinger, Keltner,
+stochastic, …) MUST declare:
+
+- `primarySeriesKey: string` — the output the selection halo and
+  click-target gravitate to. Mirrors invinite's
+  `IndicatorPlugin.primarySeriesKey` (cf. `sma.ts:397`).
+- `getVisibleSeriesKeys(params): ReadonlyArray<string>` — outputs the
+  legend chip should display for these params. Cf. invinite
+  `getVisibleSeriesKeys` (`sma.ts:407`). For most primitives this is the
+  full key set; for BB the upper / lower bands hide when `multiplier === 0`.
+- `yDomain: { kind: "auto" } | { kind: "fixed"; min: number; max: number }`
+  — natural Y-axis range for the sub-pane. `chop` returns `{ kind:
+  "fixed", min: 0, max: 100 }`; most return `{ kind: "auto" }`. Adapters
+  use this to size the sub-pane axis without script involvement.
+
+**`shortName` on the definition.** `defineIndicator({ shortName: "SMA" })`
+seeds the default `plot.title` and the legend chip text. Invinite plugins
+carry this (`sma.ts:431`); chartlang scripts that omit it fall back to
+the `name` field's first word.
+
 ### 9.2 Full primitive list (id → `ta.*` name)
 
 Source-of-truth file: `packages/runtime/src/ta/registry.ts`. Categories
@@ -2105,21 +2207,28 @@ follow TradingView's canonical nine-category catalogue.
 **Trend (8).** `aroon`, `aroonOsc`, `adx`, `dmi`, `trix`, `vortex`,
 `trendStrengthIndex`, `ichimoku`.
 
-**Volatility (12).** `atr`, `bb`, `bbPercentB`, `bbw`, `donchian`, `keltner`,
-`envelope`, `chop`, `historicalVolatility`, `rvi`, `volatilityStop`,
-`massIndex`.
+**Volatility (11).** `atr`, `bb`, `bbPercentB`, `bbw`, `donchian`, `keltner`,
+`envelope`, `chop`, `historicalVolatility`, `rvi`, `massIndex`.
 
 **Volume (19).** `vol`, `vwap`, `anchoredVwap`, `obv`, `adl`, `bop`, `cmf`,
 `chaikinOsc`, `mfi`, `netVolume`, `pvo`, `pvt`, `eom`, `nvi`, `pvi`,
 `visibleRangeVolumeProfile`, `anchoredVolumeProfile`, `sessionVolumeProfile`,
-`fixedRangeVolumeProfile`.
+`fixedRangeVolumeProfile`. The four `*VolumeProfile` primitives emit
+`PlotKind = "horizontal-histogram"` (§7.2). Each gets its range a different
+way: `visibleRange` reads the chart viewport; `anchored` reads a user-picked
+`input.time` anchor (§10.1.1); `session` reads `bar.time` against the
+adapter's session descriptor (§4.8 `syminfo.session`); `fixedRange` reads a
+two-time-anchor `input` pair.
 
-**Support / resistance (8).** `psar`, `supertrend`, `chandelier`,
+**Support / resistance (9).** `psar`, `supertrend`, `chandelier`,
 `chandeKrollStop`, `williamsFractal`, `zigZag`, `pivotsHighLow`,
-`pivotsStandard`.
+`pivotsStandard`, `volatilityStop`.
 
-**Statistical (5).** `correlationCoeff`, `linearRegression`, `median`,
-`ulcerIndex`, `adr`.
+**Statistical (4).** `correlationCoeff`, `median`, `ulcerIndex`, `adr`.
+(There is no `linearRegression` indicator — the linear-regression-as-MA
+primitive is `lsma`, already covered under moving-averages. The
+`lib/linear-regression.ts` helper powers `lsma` but is not a directly
+exposed `ta.*` primitive.)
 
 **Cross-functional helpers** (not in the registry but used by scripts):
 
@@ -2151,23 +2260,56 @@ Each port lands with its existing `<id>.test.ts` retargeted at the
 the per-file relicense header.
 
 **Helpers first.** Port `../invinite/src/components/trading-chart/
-indicators/lib/*` before any indicator that depends on them — most
-notably `ema-of-float64.ts` (used by DEMA, TEMA, MACD, PPO, PMO, SMI,
-TSI), `tr-series.ts` (used by ATR, Keltner, Chop, Supertrend,
-Chandelier, Volatility Stop), `wilder-directional.ts` (ADX, DMI, RVI),
-and `donchian-mid.ts` (Ichimoku, Donchian).
+indicators/lib/*` before any indicator that depends on them. Consumer
+relationships:
+
+- `sma-of-float64.ts` / `ema-of-float64.ts` / `wma-of-float64.ts` /
+  `smma-of-float64.ts` / `vwma-of-float64.ts` — chained-MA backbone.
+  `compute-ma-of-float64.ts` is the typed dispatcher (excludes `vwma` at
+  the type level — VWMA needs volume, dispatch via `compute-ma.ts`).
+- `ema-of-float64.ts` is consumed by `dema`, `tema`, `pmo`, `smi`, `tsi`,
+  `trix`, `chaikinOsc`, `massIndex`, `median`, `rvi`. **Important:**
+  `macd.ts` and `ppo.ts` keep private copies of identical EMA math in
+  invinite — fold those onto the helper during the port.
+- `tr-series.ts` (True Range / ATR) — consumed by `atr`, `keltner`,
+  `chop`, `supertrend`, `chandelier`, `volatilityStop`.
+- `wilder-directional.ts` — consumed by `adx`, `dmi` (not `rvi`; `rvi`
+  uses EMA).
+- `donchian-mid.ts` — consumed by `ichimoku`, `donchian`.
+- `rolling-stddev.ts` — consumed by `bb`, `bbPercentB`, `bbw`,
+  `historicalVolatility`.
+- `pearson.ts` — consumed by `trendStrengthIndex`, `correlationCoeff`.
+- `linear-regression.ts` — consumed by `lsma`, `regressionTrend` drawing.
+- `apply-offset.ts` — consumed by **every** indicator (universal
+  `opts.offset` from §9.1).
+- `read-source-field.ts` / `pick-candle-source.ts` — source resolution
+  for every indicator.
+- `align-htf-series-to-ltf.ts` — multi-timeframe alignment kernel
+  (§6.8); port before any HTF / `request.security` work.
 
 ### 9.5 External-data primitives
 
-Three indicators in the reference implementation read non-OHLC reactive
-data (`transactionMarkers`, `correlationCoeff`, and the trade-narrative
-family — see `../invinite/src/components/trading-chart/indicators/
-external-data-registry.ts` for the side-channel pattern). In
-`chartlang`, these are not built-ins of `ta.*` — they're **adapter-
-provided primitives**. The script declares a dependency via
+Eight invinite plugins read non-OHLC reactive data that the chart pane
+supplies as a side-channel: `transactionMarkers`, `riskLevels`,
+`tradeMaeMfeMarkers`, `tradeCostBasis`, `tradeEquityCurve`, `tradeRMultiple`,
+`tradeDistanceToStop` (the trade-narrative family), plus `correlationCoeff`
+(reads a `secondarySymbol` OHLCV stream). See `../invinite/src/components/
+trading-chart/indicators/external-data-registry.ts` for the registry
+pattern. In `chartlang`, these are not built-ins of `ta.*` — they're
+**adapter-provided primitives**. The script declares a dependency via
 `input.externalSeries({ name: "transactions", schema: … })` and the
 adapter chooses how to deliver. If the adapter doesn't supply the
 series, the primitive returns an all-NaN series and emits a diagnostic.
+
+**Adapter delivery channel.** External series are delivered through the
+runtime's existing emission/ingestion membrane, keyed by the compiler-
+assigned slot id of the `input.externalSeries(...)` call. Mirrors
+invinite's `${laneId}:${pluginId}:${instance}` keying (cf.
+`external-data-registry.ts`). The adapter calls
+`runner.feedExternalSeries(slotId, rows)` (§7.1) — the runtime owns the
+slot-to-script mapping, the adapter never sees script internals. Ref-
+identity caches bust when the adapter resubmits a new array under the
+same slot id.
 
 ---
 
@@ -2181,26 +2323,61 @@ implementations are imperative inside the per-bar step.
 **Reference paths (relative to this repo's root — see §3.1):**
 
 - **Schema source-of-truth:** `../invinite/shared/trading-chart-collab-yjs/y-doc-bridge.ts`
-  — every drawing kind's full TypeScript type (60+ exported types).
+  — every drawing kind's full TypeScript type (**61 exported types**).
   Derive the `DrawingState` discriminated union for §10.4 from here.
-  Strip collab-only fields (Yjs ids, layer ids, interval visibility)
-  and keep only geometry + style.
+  Strip collab-only fields (Yjs ids, layer ids, interval visibility,
+  `parentGroupId`, `parentFrameId`, `createdAt`, `authorId`) and keep
+  only geometry + style.
 - **Behavior source-of-truth:** `../invinite/src/components/trading-chart/tools/`
-  — one `<name>-tool.ts` per drawing. Look here for: number of
-  anchors, anchor semantics, edit-handle layout, hit-test rules,
-  snap-to-OHLC behavior. The `draw.*` primitive's parameter shape
-  comes from this folder; its rendered output comes from
-  `y-doc-bridge.ts`.
+  — **67 `*-tool.ts` files** total. Subtract 4 non-drawing tools
+  (`select-tool.ts`, `rectangle-select-tool.ts`, `eraser-tool.ts`,
+  `comment-tool.ts`) → 63 drawing tools. The count gap to 61 kinds:
+  the 4 pitchfork tools (`pitchfork`, `schiff-pitchfork`,
+  `modified-schiff-pitchfork`, `inside-pitchfork`) all emit one
+  `PitchforkDrawing` with a `variant` discriminator; `cypher-pattern`
+  is a kind with no standalone tool. Look here for: number of anchors,
+  anchor semantics, edit-handle layout, hit-test rules, snap-to-OHLC
+  behavior. The `draw.*` primitive's parameter shape comes from this
+  folder; its rendered output comes from `y-doc-bridge.ts`.
 - **Context:** `../invinite/src/components/trading-chart/CLAUDE.md`
   — coordinate-frame contract (world `(time, price)` vs bar-center
   frame vs CSS-px vs device-px) that every drawing implementation
   must honour.
+
+**Wire-format invariant — kebab-case kinds.** chartlang emits drawing
+kinds as kebab-case strings (`horizontal-line`, `fib-retracement`,
+`elliott-impulse-wave`). invinite's source-of-truth in `y-doc-bridge.ts`
+uses camelCase (`horizontalLine`, `fibRetracement`,
+`elliottImpulseWave`). `decodeDrawing()` (§10.4) normalises both
+directions; adapter authors never compare against invinite's raw strings.
+
+**Drawing metadata invariants.** Scripts may set `name` and `visible`
+on emitted drawings via the `DrawingHandle` (mirrors Pine's
+`label.set_text()` and `label.set_visible()`). Everything else
+(`locked`, `parentGroupId`, `parentFrameId`, `visibleIntervals`,
+`createdAt`, `authorId`, layer assignment) is host-controlled and
+script-immutable — the synthetic chartlang sublayer is locked to user
+edits by definition.
 
 ### 10.1 Coordinate system
 
 All drawings carry `(time, price)` world coordinates. The adapter is
 responsible for projecting to its own pixel space. Time is `ms since epoch`,
 price is the unit of the candle's `close` (USD, basis points, whatever).
+
+#### 10.1.1 Anchored indicators — user-pickable chart anchors
+
+Anchored primitives (`anchoredVwap`, `anchoredVolumeProfile`,
+`fixedRangeVolumeProfile`) need a user-pickable chart point that survives
+across re-renders. Wire this through `input.time({ pickFromChart: true })`
+(§12): the adapter UI lets the user click the chart to set the anchor;
+the chart pane persists the picked `Time` in its own state (Convex doc,
+Yjs map, local storage, whatever the consumer uses for normal anchored
+indicators); the script reads it as a plain `Time` value through
+`inputs.anchor`. `fixedRangeVolumeProfile` declares two such inputs
+(`anchorStart`, `anchorEnd`); `sessionVolumeProfile` derives its window
+from `bar.time` + `syminfo.session` and needs no `input`. Cf. invinite
+`anchored-vwap.ts` / `anchored-volume-profile.ts`.
 
 ### 10.2 `draw` namespace
 
@@ -2234,7 +2411,17 @@ namespace draw {
 
     // Annotations
     function text(at: WorldPoint, body: string, opts?: TextOpts): DrawingHandle;
-    function marker(at: WorldPoint, opts?: MarkerOpts): DrawingHandle;
+    /**
+     * `marker` matches invinite's `MarkerDrawing` shape (`from`/`to` plus
+     * `markerKind`+`value`). Use `markerKind: "emoji"` with `value: "🎯"` for
+     * emoji markers; `markerKind: "icon"` with `value: "warning"` for the
+     * adapter's icon registry.
+     */
+    function marker(
+        from: WorldPoint,
+        to: WorldPoint,
+        opts: { markerKind: "emoji" | "icon"; value: string; color?: Color }
+    ): DrawingHandle;
     function arrow(a: WorldPoint, b: WorldPoint, opts?: ArrowOpts): DrawingHandle;
     function arrowMarker(at: WorldPoint, opts?: ArrowMarkerOpts): DrawingHandle;
     function arrowMarkUp(at: WorldPoint, opts?: ArrowMarkerOpts): DrawingHandle;
@@ -2270,11 +2457,13 @@ namespace draw {
         function squareFixed(at: WorldPoint, sizePrice: Price): DrawingHandle;
     }
 
-    // Pitchforks
-    function pitchfork(a: WorldPoint, b: WorldPoint, c: WorldPoint): DrawingHandle;
-    function schiffPitchfork(a: WorldPoint, b: WorldPoint, c: WorldPoint): DrawingHandle;
-    function modifiedSchiffPitchfork(a: WorldPoint, b: WorldPoint, c: WorldPoint): DrawingHandle;
-    function insidePitchfork(a: WorldPoint, b: WorldPoint, c: WorldPoint): DrawingHandle;
+    // Pitchforks — one primitive, 4 variants. Invinite's `PitchforkDrawing`
+    // carries a `variant` field ("standard" | "schiff" | "modifiedSchiff" |
+    // "inside") and chartlang mirrors that shape on the wire.
+    function pitchfork(
+        a: WorldPoint, b: WorldPoint, c: WorldPoint,
+        opts?: { variant?: "standard" | "schiff" | "modifiedSchiff" | "inside" }
+    ): DrawingHandle;
     function pitchfan(a: WorldPoint, b: WorldPoint, c: WorldPoint): DrawingHandle;
 
     // Elliott waves
@@ -2296,9 +2485,12 @@ namespace draw {
         function threeDrives(points: readonly [W, W, W, W, W, W, W]): DrawingHandle;
     }
 
-    // Cycles
-    function cyclicLines(origin: WorldPoint, periodTime: Time, count?: number): DrawingHandle;
-    function timeCycles(origin: WorldPoint, radiusTime: Time): DrawingHandle;
+    // Cycles — both are two-endpoint drawings in invinite (CyclicLinesDrawing
+    // and TimeCyclesDrawing both carry `from`/`to` anchors). The visual
+    // is a periodic line family (cyclic) or concentric arcs (time-cycles)
+    // rendered between the two anchors.
+    function cyclicLines(from: WorldPoint, to: WorldPoint, style?: LineStyle): DrawingHandle;
+    function timeCycles(from: WorldPoint, to: WorldPoint, style?: ShapeStyle): DrawingHandle;
 
     // Containers
     function group(children: ReadonlyArray<DrawingHandle>): DrawingHandle;
@@ -2382,21 +2574,41 @@ manually** in the adapter's alert-creation UI; the alert metadata, target
 channels, and message template all come from the user. Useful when the
 script just provides signals.
 
+`defineAlert(...)` (referenced from §4.1's constructor table) is a thin
+sugar over `defineIndicator(...)` with `overlay: false` and a runtime
+guard that rejects any `plot()` / `draw.*()` calls at compile time — it
+exists so the script's intent ("this module only fires alerts") is
+declarative, and adapters can skip mounting plot-rendering machinery
+entirely. The `compute` contract is identical to `defineIndicator`; the
+only added capability gate is `alerts` (no `indicators` gate needed).
+
 ### 11.1 Immediate-fire — `alert()`
 
-```ts
-namespace alert {
-    function fire(message: string, opts?: {
-        severity?: AlertSeverity;
-        channels?: ReadonlyArray<AlertChannel>;
-        meta?: Record<string, JsonValue>;
-        /** Coalesce duplicate alerts within this window. Default: 1 bar. */
-        dedupeWindowMs?: number;
-    }): void;
+The `alert` export is a **callable namespace**. The bare call
+`alert("Bullish cross", { severity: "info" })` and the explicit
+`alert.fire("Bullish cross", { severity: "info" })` are equivalent and
+typecheck identically. Examples elsewhere in this plan (§4.1, §4.5, §4.6,
+§4.7) use the bare form for brevity; either is fine in user scripts.
 
-    /** Conditional helper — only fires on rising edge. */
-    function on(condition: boolean, message: string, opts?: ...): void;
+```ts
+type AlertFireOpts = {
+    severity?: AlertSeverity;
+    channels?: ReadonlyArray<AlertChannel>;
+    meta?: Record<string, JsonValue>;
+    /** Coalesce duplicate alerts within this window. Default: 1 bar. */
+    dedupeWindowMs?: number;
+};
+
+interface AlertFn {
+    /** Bare call — fires unconditionally. */
+    (message: string, opts?: AlertFireOpts): void;
+    /** Explicit form, identical semantics to the bare call. */
+    fire(message: string, opts?: AlertFireOpts): void;
+    /** Conditional helper — fires only on rising edge of `condition`. */
+    on(condition: boolean, message: string, opts?: AlertFireOpts): void;
 }
+
+declare const alert: AlertFn;
 ```
 
 Server-side, the adapter consumes `RunnerEmissions.alerts` and routes each
@@ -2588,13 +2800,29 @@ namespace input {
     function time(defaultValue: Time, opts?: { title?: string }): InputDescriptor<Time>;
     function price(defaultValue: Price, opts?: { title?: string }): InputDescriptor<Price>;
     function symbol(defaultValue: string, opts?: { title?: string }): InputDescriptor<string>;
+    /**
+     * Main timeframe input. Defaults to `"chart"` (follow the host pane's current
+     * interval). Concrete values like `"1D"` pin the script to that interval.
+     * Only one `input.interval(...)` per script. Wire-tagged `kind: "interval"`
+     * in `InputKind` (§7.2). See §4.5 for full semantics.
+     */
+    function interval(defaultValue: string, opts?: { title?: string }): InputDescriptor<string>;
+    /**
+     * Time input. Set `pickFromChart: true` to wire the adapter UI's
+     * "click chart to set anchor" picker — anchored indicators
+     * (`anchoredVwap`, `anchoredVolumeProfile`, `fixedRangeVolumeProfile`)
+     * declare their anchor inputs this way. See §10.1.1.
+     */
+    function time(defaultValue: Time, opts?: { title?: string; pickFromChart?: boolean }): InputDescriptor<Time>;
     function externalSeries<T>(opts: { name: string; schema: Schema<T>; title?: string }): InputDescriptor<Series<T>>;
 }
 ```
 
 The compiler walks `inputs` at module scope and serialises them into
 `manifest.inputs` so the adapter UI can render the form without booting the
-script.
+script. The wire-format `kind` strings line up with `InputKind` (§7.2):
+`int`, `float`, `bool`, `string`, `enum`, `color`, `source`, `time`,
+`price`, `symbol`, `interval`, `external-series`.
 
 ---
 
@@ -2602,26 +2830,49 @@ script.
 
 ```ts
 namespace color {
+    // The default 6-color named palette — mirrors invinite's
+    // `groupTag` palette (`src/components/trading-chart/grid/url-search.ts:36`).
+    // Adapters may extend with additional named colors but these 6 are
+    // guaranteed to resolve to a non-empty CSS string on every adapter.
     const red: Color;
     const green: Color;
     const blue: Color;
     const purple: Color;
     const orange: Color;
     const yellow: Color;
-    // … a default 10-color named palette (overridable per adapter)
     function rgba(r: number, g: number, b: number, a?: number): Color;
     function hex(s: string): Color;
     function alpha(c: Color, a: number): Color;
 }
 
 namespace style {
+    // Stroke styles for `draw.*` drawings — matches the invinite
+    // `LineStrokeStyle` enum at `y-doc-bridge.ts` (solid / dashed / dotted).
     const solid: LineStyle;
     const dashed: LineStyle;
     const dotted: LineStyle;
+
+    // Line styles for `plot()` indicators — disjoint from drawing strokes
+    // because invinite renders indicators with a wider vocabulary
+    // (`indicators/lib/line-style.ts`: line / step / dashed / circles / cross).
+    // Exposed under `style.plot.*` so they're discoverable without colliding
+    // with the drawing-stroke names. Cf. `PlotLineStyle` in §4.3.
+    namespace plot {
+        const line: PlotLineStyle;
+        const step: PlotLineStyle;
+        const dashed: PlotLineStyle;
+        const circles: PlotLineStyle;
+        const cross: PlotLineStyle;
+    }
 }
 ```
 
-Mirrors our `webgl/colors.ts` and the 6-color `groupTag` palette.
+The 6-color palette mirrors invinite's `groupTag` palette (the same set
+the multi-series legend chip cycles through). Drawing strokes mirror
+`y-doc-bridge.ts`'s `LineStrokeStyle`; plot lines mirror
+`indicators/lib/line-style.ts`'s `LineStyle`. `webgl/colors.ts` owns the
+bull/bear/wick semantic resolvers but not a named palette — those live in
+`grid/url-search.ts`.
 
 ---
 
@@ -2785,6 +3036,10 @@ A consumer who wants chartlang scripts to run on their chart does the
 following:
 
 1. `pnpm add @invinite-org/chartlang-adapter-kit @invinite-org/chartlang-host-worker @invinite-org/chartlang-conformance`
+   — plus `@invinite-org/chartlang-host-quickjs` if running server-side
+   alert evaluation (Convex action, AWS Lambda, etc.); plus
+   `@invinite-org/chartlang-compiler` if compiling user-authored scripts
+   at runtime instead of build-time.
 2. `pnpm chartlang scaffold-adapter` (or copy `examples/canvas2d-adapter/`)
 3. Implement `Adapter` against their chart's primitives.
 4. Declare `Capabilities` honestly (don't claim a `PlotKind` you can't
@@ -3039,6 +3294,16 @@ The 90+ indicator primitives port 1:1 from the reference math library
 
 A port PR that doesn't ship all five files for that primitive is not
 mergeable.
+
+**Note on the multiplier vs the provenance source.** The invinite
+reference ships only `<id>.ts` + `<id>.test.ts` per indicator (plus an
+optional `<id>.bench.test.ts` for hot primitives like sma/ema/bb/rsi/
+macd/vol). The other three test layers — property, golden,
+conformance — are net-new in this repo. Across 90+ indicators that's
+270+ new test files that didn't exist upstream. This is intentional:
+chartlang is the standardisation surface, not a re-publish of the
+invinite tests. Reviewers should not block a port PR on grounds that
+"invinite only ships one test file" — the gap is the whole point.
 
 ### 16.7 Coverage of the compiler
 
@@ -3369,10 +3634,19 @@ Editor:
   shell. Inline diagnostics. Inputs UI generated from manifest.
 
 Multi-timeframe (Pine `request.security` parity):
-- `request.security({ interval })` lands as part of apiVersion 1.
-- Adapters declare `Capabilities.intervals` and `Capabilities.multiTimeframe`.
-- Adapters that ship 0.4 with `multiTimeframe: false` get single-stream
-  `input.interval` working immediately.
+- The `request.security({ interval })` API lands as part of apiVersion 1
+  (the type and the runtime call are present). Adapters typically light
+  up the **single-stream** path in 0.4 (user-pickable main timeframe via
+  `input.interval`) and flip `multiTimeframe: true` in 0.5 once their
+  candle plumbing can fetch >1 stream per script. Scripts written against
+  `request.security` on a 0.4 adapter with `multiTimeframe: false` see an
+  all-NaN secondary bar plus a `multi-timeframe-not-supported` diagnostic
+  (§7.4).
+- Adapters declare the full `Capabilities` triad for timeframes in 0.4:
+  `Capabilities.intervals` (their adapter-defined `IntervalDescriptor[]`),
+  `Capabilities.multiTimeframe` (boolean — typically `false` in 0.4),
+  and `Capabilities.subPanes` (max sub-panes per script). Editor hover /
+  completions consume all three.
 
 Tier-1 author-facing primitives — these are real Pine ergonomics our
 script authors would otherwise hit immediately:
@@ -3382,8 +3656,11 @@ script authors would otherwise hit immediately:
 - `syminfo.*` — mintick / currency / exchange / session metadata (§4.8)
 - `timeframe.*` — isintraday / isdaily / inSeconds helpers (§4.9)
 - `ta.nz(value, replacement)` — NaN-to-default (§9)
-- `defineIndicator({ maxDrawings: {...}, maxBarsBack, format, precision, scale, requiresIntervals })` — script-author overrides
-- `Capabilities.maxDrawingsPerScript` + `symInfoFields` — adapter declarations
+- Universal `opts.offset` on every `ta.*` primitive (§9.1)
+- `defineIndicator({ maxDrawings: {...}, maxBarsBack, format, precision, scale, requiresIntervals, shortName })` — script-author overrides
+- `Capabilities.maxDrawingsPerScript` + `Capabilities.symInfoFields` +
+  `Capabilities.intervals` + `Capabilities.multiTimeframe` +
+  `Capabilities.subPanes` — adapter declarations
 
 Done definition: a user can rewrite the median Pine indicator in
 chartlang without reaching for unmodelled features.
@@ -3395,6 +3672,11 @@ persistence (`StateStore` + `idbStateStore` for browser + caller-supplied
 backings for server, §6.9) — the alert eval cron's per-tick compute drops
 ~500×.
 
+Multi-timeframe streaming flips on in this phase — consumer adapters
+that finished single-stream `input.interval` in 0.4 wire their
+multi-stream candle fetch and flip `Capabilities.multiTimeframe: true`,
+unblocking `request.security({ interval })`.
+
 Plus the Tier-2 surface — nice-to-haves that aren't blocking but make
 real-world scripts cleaner:
 
@@ -3403,7 +3685,11 @@ real-world scripts cleaner:
 - `runtime.error()` — script-throwable halt (§11.3)
 - `draw.table` + `DrawingKind = "table"` — dashboard/status panels (§10.2)
 - New `PlotKind`s: `shape`, `character`, `arrow`, `candle-override`,
-  `bar-override`, `bg-color`, `bar-color` (§7.2)
+  `bar-override`, `bg-color`, `bar-color`, `horizontal-histogram` (§7.2)
+- Volume-profile primitives (`visibleRangeVolumeProfile`,
+  `anchoredVolumeProfile`, `sessionVolumeProfile`,
+  `fixedRangeVolumeProfile`) emitting `horizontal-histogram` (§9.2,
+  §10.1.1)
 - `color.fromGradient` / `color.withAlpha` / `color.rgb` / `color.hsl` (§11.4)
 
 ### Phase 6 — `0.6` Tier-3 ergonomics + lower-timeframe
@@ -3413,7 +3699,8 @@ real-world scripts cleaner:
   lower-tf bars. Requires `Capabilities.multiTimeframe: true`.
 - Session helpers in `@invinite-org/chartlang-core/time` — `session.regular`,
   `session.extended`, `session.isOpen`, `weekday`, ported from invinite's
-  `time/nyDayKey.ts` (§4.4 subpath).
+  `src/components/trading-chart/indicators/lib/ny-day-key.ts` +
+  `session-boundaries.ts` (§4.4 subpath).
 - Pine-to-chartlang migration guide draft.
 
 ### Phase 7 — `1.0` Standardisation
@@ -3467,7 +3754,8 @@ are deferred to a follow-up PR.
    TZ is the adapter's problem. Scripts needing session helpers import from
    the `@invinite-org/chartlang-core/time` subpath (§4.4) — `nyDayKey`,
    `nySessionBounds`, `weekKey`, ported from invinite's existing
-   `time/nyDayKey.ts` (§3.1).
+   `src/components/trading-chart/indicators/lib/ny-day-key.ts` +
+   `session-boundaries.ts` (§3.1).
 5. ~~**Numeric precision.**~~ **Resolved.** Float64 everywhere (§6.4). No
    `Decimal`, no fixed-point. Each cumulative primitive (`vwap`, `obv`,
    `adl`, `cmf`) documents its rounding-error envelope in its JSDoc.
@@ -3525,6 +3813,12 @@ nvm use            # or: corepack use node@20
 # 2. Lay out the workspace
 mkdir -p packages/{core,compiler,runtime,host-worker,host-quickjs,adapter-kit,language-service,editor,cli,conformance}/src
 mkdir -p examples/canvas2d-adapter/src
+mkdir -p examples/scripts            # seed §19 Phase 1's example scripts here:
+                                     #   ema-cross.chart.ts,
+                                     #   bollinger-bands.chart.ts,
+                                     #   fib-retracement.chart.ts,
+                                     #   rsi-divergence-alert.chart.ts
+                                     # Conformance scenarios reference these by path.
 mkdir -p docs/{language,primitives,adapters,hosts,spec,getting-started,reference}
 mkdir -p scripts .github/workflows .changeset
 
