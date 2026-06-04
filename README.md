@@ -1,0 +1,109 @@
+# chartlang
+
+`chartlang` is an open-source TypeScript embedded DSL for writing
+indicator, drawing, and alert scripts that run on any conforming
+chart adapter. Authors write ordinary `.chart.ts` files using a small
+set of primitives (`ta.*`, `plot`, `draw.*`, `alert`, `input.*`); a
+compiler emits a sandboxable bundle; a runtime executes it bar-by-bar;
+an adapter renders the emissions on a chart of the embedder's choice.
+One script, many charts.
+
+[![npm](https://img.shields.io/npm/v/@invinite-org/chartlang-core.svg)](https://www.npmjs.com/package/@invinite-org/chartlang-core)
+[![build](https://github.com/outraday-org/chartlang/actions/workflows/ci.yml/badge.svg)](https://github.com/outraday-org/chartlang/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/codecov/c/github/outraday-org/chartlang)](https://codecov.io/gh/outraday-org/chartlang)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
+<!-- This script needs the Phase 1 runtime to actually execute; see
+[`docs/getting-started/write-your-first-script.md`](./docs/getting-started/write-your-first-script.md). -->
+
+```typescript
+import { defineIndicator, ta, plot, color } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({ name: "ema-20" }, () => {
+    const fastEma = ta.ema(series.close, 20);
+    plot(fastEma, { color: color.purple });
+});
+```
+
+## Install
+
+Three install lines, one per role.
+
+**Script author** — write `.chart.ts` indicators:
+
+```bash
+pnpm add @invinite-org/chartlang-core
+```
+
+**Adapter author** — build a new chart-vendor adapter:
+
+```bash
+pnpm add @invinite-org/chartlang-adapter-kit
+```
+
+**Embedder** — host the runtime inside a product:
+
+```bash
+pnpm add @invinite-org/chartlang-core @invinite-org/chartlang-compiler @invinite-org/chartlang-runtime @invinite-org/chartlang-host-worker
+```
+
+## Why chartlang
+
+- **Open source, MIT-licensed, no chart-vendor lock-in.** The
+  language, compiler, runtime, and adapter contract are all in this
+  repo. No proprietary scripting dialect.
+- **Portable across charts via the adapter contract.** One script runs
+  on any conforming front-end — TradingView Lightweight Charts,
+  Highcharts, ECharts, plain SVG, a bespoke WebGL renderer. Pick the
+  chart, keep the script.
+- **Sandboxable for server-side alert execution.** The QuickJS host
+  runs the same compiled bundle inside a process-isolated sandbox, so
+  alerts fire even when no browser is open.
+
+## Quickstart in 60 seconds
+
+> **Available from Phase 1.** The three commands below are aspirational
+> for the bootstrap. See
+> [`docs/getting-started/write-your-first-script.md`](./docs/getting-started/write-your-first-script.md)
+> for the walkthrough as it lands.
+
+```bash
+pnpm dlx @invinite-org/chartlang-cli scaffold-script ema-cross
+pnpm dlx @invinite-org/chartlang-cli compile ema-cross.chart.ts
+pnpm dlx @invinite-org/chartlang-cli preview ema-cross.chart.ts --adapter canvas2d
+```
+
+The third command opens a rendered chart in your browser.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    script[script.chart.ts] --> compiler[compiler]
+    compiler --> runtime[runtime]
+    runtime --> adapter[adapter]
+    adapter --> chart[chart]
+```
+
+The compiler turns a `.chart.ts` script into a sandboxable bundle; the
+runtime executes it bar-by-bar, producing typed emissions; the adapter
+translates emissions into draw calls on a specific chart vendor's
+surface. The contract between runtime and adapter is what makes scripts
+portable across charts. See PLAN.md §2 for the full diagram.
+
+## Links
+
+- **Docs site:** [chartlang.dev](https://chartlang.dev) — placeholder
+  until the VitePress build deploys in Phase 1+.
+- **Language spec:** [`./docs/spec/grammar.md`](./docs/spec/grammar.md).
+- **Primitive reference:** [`./docs/primitives/`](./docs/primitives/) —
+  auto-generated per primitive in Phase 1+.
+- **Adapter list:** [`./docs/adapters/reference/`](./docs/adapters/reference/) —
+  per-adapter pages published by consumer repos from Phase 2+.
+- **Conformance reports:** the canvas2d-adapter ships its
+  `CONFORMANCE.md` alongside the reference implementation in
+  Phase 1. Forward-link only at the bootstrap.
+- **Examples:** [`./examples/`](./examples/).
+- **Contributing:** [`./CONTRIBUTING.md`](./CONTRIBUTING.md).
+- **Code of conduct:** [`./CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md).
+- **License:** [`./LICENSE`](./LICENSE) (MIT).

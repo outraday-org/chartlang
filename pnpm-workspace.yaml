@@ -1,0 +1,3 @@
+packages:
+    - "packages/*"
+    - "examples/canvas2d-adapter"

@@ -1,0 +1,36 @@
+{
+    "name": "@invinite-org/chartlang-compiler",
+    "version": "0.0.0",
+    "type": "module",
+    "license": "MIT",
+    "description": "TypeScript transformer + bundler for .chart.ts files",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "CHANGELOG.md"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "test": "vitest run --coverage"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "engines": {
+        "node": ">=20"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/outraday-org/chartlang.git",
+        "directory": "packages/compiler"
+    }
+}

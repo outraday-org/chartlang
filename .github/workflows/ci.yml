@@ -1,0 +1,80 @@
+name: CI
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+permissions:
+    contents: read
+    id-token: write
+    pull-requests: write
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    test:
+        name: Test (${{ matrix.os }} / Node ${{ matrix.node }})
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, macos-latest]
+                node: [20, 22]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: pnpm/action-setup@v4
+              with: { version: 9 }
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ matrix.node }}
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm typecheck
+            - run: pnpm lint
+            - run: pnpm format:check
+            - run: pnpm build
+            - run: pnpm test
+            - run: pnpm coverage:report   # merges per-package coverage to ./coverage/lcov.info for Codecov
+            - run: pnpm conformance
+            - run: pnpm bench:ci
+            - run: pnpm docs:check
+            - run: pnpm readme:check
+            - if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+              uses: codecov/codecov-action@v4
+              with:
+                  files: ./coverage/lcov.info
+                  fail_ci_if_error: true
+
+    # ──────────────────────────────────────────────────────────────────
+    # Release job intentionally OMITTED.
+    # Releases are published manually from a maintainer's machine — see
+    # §22.11 "Manual release workflow." To switch to CI-driven releases
+    # later, uncomment the block below, add NPM_TOKEN to repo secrets,
+    # and re-enable `provenance: true` in the per-package template
+    # (§22.4).
+    # ──────────────────────────────────────────────────────────────────
+    #
+    # release:
+    #     name: Release
+    #     needs: test
+    #     if: github.ref == 'refs/heads/main'
+    #     runs-on: ubuntu-latest
+    #     steps:
+    #         - uses: actions/checkout@v4
+    #           with: { fetch-depth: 0 }
+    #         - uses: pnpm/action-setup@v4
+    #           with: { version: 9 }
+    #         - uses: actions/setup-node@v4
+    #           with: { node-version: 20, cache: pnpm, registry-url: "https://registry.npmjs.org" }
+    #         - run: pnpm install --frozen-lockfile
+    #         - run: pnpm build
+    #         - uses: changesets/action@v1
+    #           with:
+    #               publish: pnpm release
+    #           env:
+    #               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #               NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
