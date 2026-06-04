@@ -175,15 +175,16 @@ You are a feature implementation specialist focused on building new functionalit
 
 - Maximum of 5 parallel subagents at any time
 - All code and comments must be written in English
-- Never hard-code user-facing text without using Lingui translations
+- Honor chartlang's gates (typecheck, lint, test 100%, docs:check,
+  readme:check, conformance where relevant)
 - Follow existing code patterns and conventions
 
 ## Best Practices
 
 - Read existing code before making changes to understand patterns
-- Use the `add-translation` skill for all user-facing text
-- Write clean, maintainable code with proper TypeScript types
-- Consider test coverage for new features
+- Write clean, maintainable code with strict TypeScript types
+- Consider the test layers each affected package owes (per
+  CONTRIBUTING.md §2 / PLAN.md §16.3)
 - Document complex logic with clear comments
 ```
 
@@ -213,43 +214,9 @@ You are a feature implementation specialist focused on building new functionalit
 Each command is a single markdown file in this directory.
 
 **Related Configuration:**
-- `.claude/settings.json` - Global Claude Code settings and permissions
-- `.claude/agents/` - Agent configuration files
-- `.claude/skills/` - Reusable skill documentation that commands can reference
-
-## Provider Mirrors (REQUIRED)
-
-`.claude/` is the canonical source. Every new command MUST be mirrored to the other providers in the same task, per the "Provider Mirror Rules" in root `CLAUDE.md`. Skipping mirrors leaves the command invisible to Cursor, Codex, and the generic `.agent/` provider.
-
-For a new `.claude/commands/<name>.md`, create all three mirrors:
-
-1. **Cursor** — symlink `.cursor/commands/<name>.md` → `../../.claude/commands/<name>.md`
-2. **Generic agent** — symlink `.agent/commands/<name>.md` → `../../.claude/commands/<name>.md`
-3. **Codex** — wrapper skill at `.codex/skills/<name>/`:
-   - `.codex/skills/<name>/SKILL.md` (thin wrapper, see template below)
-   - `.codex/skills/<name>/references/command.md` symlinked → `../../../../.claude/commands/<name>.md`
-
-**Codex `SKILL.md` template** (kept thin — never duplicate command body here):
-
-```markdown
----
-name: <name>
-description: <same description as the .claude command>. Use when the user wants <trigger>.
----
-
-Read `references/command.md` and follow that workflow in Codex.
-
-Adapt the referenced Claude command for Codex:
-- Treat the command file as workflow guidance, not as skill metadata.
-- Ignore Claude-only frontmatter such as `model` or `tools`.
-- Replace Claude-specific slash-command or subagent steps with the closest direct Codex workflow.
-```
-
-**Creating symlinks on Windows:** `core.symlinks=false` means symlinks appear as text files containing the relative target path on checkout, but git tracks them as mode 120000 and they resolve as real symlinks on Unix. Use `git update-index --add --cacheinfo 120000,<sha>,<path>` or commit the link from a Unix checkout if `ln -s` is unavailable. Verify with `git ls-files -s <path>` — the mode column must read `120000`.
-
-**Renames and deletions:** If you rename or delete `.claude/commands/<name>.md`, update or delete all three mirrors in the same commit. Orphaned symlinks under `references/` must also be cleaned up.
-
-The 6 canonical convex skills (`convex`, `convex-create-component`, `convex-migration-helper`, `convex-performance-audit`, `convex-quickstart`, `convex-setup-auth`) are intentionally NOT mirrored — they are the only exception.
+- `.claude/settings.json` — global Claude Code settings and permissions
+- `.claude/agents/` — agent configuration files
+- `.claude/skills/` — reusable skill documentation that commands can reference
 
 ## Constraints
 

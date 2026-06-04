@@ -38,8 +38,10 @@ so the PR can be merged in the GitHub UI.
      Only accept one side wholesale if you have verified the other side made
      zero meaningful changes to that file.
 4. **Audit non-conflicting files for hidden breakage** (see checklist below).
-5. **Verify the result** — run `mcp__ide__getDiagnostics` to check for
-   TypeScript or lint errors introduced by the merge.
+5. **Verify the result** — run `pnpm typecheck` and `pnpm lint` to check for
+   TypeScript or Biome errors introduced by the merge. For affected packages,
+   run `pnpm --filter @invinite-org/chartlang-<name> test` to confirm the
+   100% coverage gate still holds.
 6. **Stage, commit, and push** — stage all resolved files, commit with a clear
    merge message, and `git push` so the PR is ready to merge in GitHub.
 
@@ -67,7 +69,8 @@ so the PR can be merged in the GitHub UI.
 Documentation conflicts are where blanket `--ours` / `--theirs` does the most
 silent damage. Two agents writing docs on two branches almost always add
 *different, additive* context — new sections, new constants, new gotchas,
-Discord/Safari/Convex notes — that the other side never saw. Taking one side
+warmup-edge-case notes, sandbox-boundary caveats — that the other side
+never saw. Taking one side
 wholesale deletes paragraphs of real engineering knowledge that Git had no
 way to conflict on because only *some* lines overlapped.
 
@@ -134,25 +137,42 @@ actually broken. After resolving all marked conflicts, check for these:
   type)? Update all call sites from the other side.
 - Did one side **remove a field or enum variant** that the other side uses?
 
-### Schema & Database
-- Did one side **add a new table or column** to the Convex schema? Make sure
-  the other side's queries/mutations referencing that table still align.
-- Did one side **add or change indexes**? Verify query filters match.
+### Capability surface & adapter contract
+- Did one side **add a new capability key** to `adapter-kit`? Ensure runtime
+  emit gates consult it and adapters (including
+  `examples/canvas2d-adapter`) declare support / non-support consistently.
+- Did one side **add a conformance scenario**? Ensure both sides' adapter
+  changes still pass it.
 
-### Configuration & Registration
-- Did one side **register a new route, cron job, or HTTP endpoint**? Ensure
-  registration files include entries from both sides.
-- Did one side **add a new component to a provider tree or plugin list**?
-  Include all additions.
+### Package surface & scaffolding
+- Did one side **add a new package**? Ensure both sides' `PACKAGE_DIRS` in
+  `scripts/scaffold.ts` include it, then re-run `pnpm scaffold` to verify
+  the §22.4 template is intact.
+- Did one side **hand-edit a scaffold-owned template file** (`package.json`,
+  `tsconfig.json`, `vitest.config.ts`, `README.md`, `src/index.ts`,
+  `src/index.test.ts`)? Move the change into `scripts/scaffold.ts` instead
+  and re-run `pnpm scaffold`.
+- Did one side **hand-edit `docs/primitives/*`**? Those are owned by
+  `packages/cli/src/gen-docs.ts`. Discard the hand-edit and regenerate.
 
-### Styles & UI
-- Did one side **add new CSS variables, Tailwind classes, or z-index constants**?
-  Ensure the other side's components can use them.
-- Did one side **change a component's prop API**? Update all usages.
+### JSDoc, docs gates, and changesets
+- Did one side **add a new export**? Verify JSDoc tags (`@example`,
+  `@since`, stability marker; `@formula`+`@anchors`+`@warmup` for `ta.*` /
+  `draw.*`) survived the merge and that `pnpm docs:check` still passes.
+- Did one side **change a README**? Verify length stays within bounds
+  (package ≤ 100 lines; root ≤ 300 lines) — `pnpm readme:check`.
+- Did either side **add or modify a `.changeset/*.md`**? Verify both
+  changesets survived the merge and the chosen semver bumps still match
+  the actual diff. If both sides bumped the same package, pick the higher
+  bump.
 
-### Tests
-- Did one side **add or modify test fixtures/mocks**? Ensure they are
-  compatible with the other side's changes.
+### Test layers & goldens
+- Did one side **add or modify golden bar fixtures**
+  (`packages/*/src/**/__goldens__/`)? Reconcile carefully — both sides
+  may have legitimate updates to different bars. Re-run
+  `pnpm --filter @invinite-org/chartlang-<name> test` to confirm.
+- Did one side **add a property test seed** as a regression fixture?
+  Make sure it survives.
 
 ## Execution Strategy
 
@@ -165,8 +185,10 @@ actually broken. After resolving all marked conflicts, check for these:
   checklist above.
 - **Parallelize audits**: Use up to 5 subagents in parallel to audit different
   areas (types, imports, schema, etc.) for hidden breakage.
-- **Type-check before pushing**: Run `mcp__ide__getDiagnostics` to catch errors.
-  Fix any issues before committing.
+- **Type-check before pushing**: Run `pnpm typecheck` and `pnpm lint` to catch
+  errors. Fix any issues before committing. For affected packages also run
+  `pnpm --filter @invinite-org/chartlang-<name> test` to confirm the 100%
+  coverage gate.
 
 ## Constraints
 

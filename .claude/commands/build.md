@@ -45,20 +45,32 @@ planning phase, proceeding directly to implementation.
 - Maximum of 5 parallel subagents at any time
 - All code and comments must be written in English regardless of the command
   language
-- Never hard-code user-facing text without internationalization
+- Honor chartlang's gates: 100% coverage, JSDoc (`pnpm docs:check`), READMEs
+  (`pnpm readme:check`), typecheck, Biome, build — every change must keep
+  all gates green
 - Focus on implementation rather than extensive planning or documentation
 
 ## Best Practices
 
-- **Internationalization**: Always use the `add-translation` skill for
-  user-facing text with English as the default language
-- **Code Quality**: Write clean, maintainable code that follows existing
-  patterns in the codebase
-- **Type Safety**: Ensure all code is properly typed with TypeScript
-- **Testing**: Consider test coverage for new features
-- **Documentation**: Add clear comments for complex logic, but prefer
-  self-documenting code
-- **Validation**: Always validate changes with `code-review-validator` before
-  considering the task complete
+- **Code Quality**: Follow PLAN.md, CONTRIBUTING.md, and the nearest
+  `CLAUDE.md` for conventions (§22.4 package template, MIT header,
+  no `any`, no `!`, JSDoc with stability marker, etc.)
+- **Type Safety**: Strict TS; honor `exactOptionalPropertyTypes`,
+  `verbatimModuleSyntax`, and Biome's `noExplicitAny` / `noNonNullAssertion`
+  / `useImportType` rules
+- **Testing**: Land the test layers each package owes (PLAN.md §16.3) in
+  the same PR. For new `ta.*` / `draw.*` primitives, land the full §22.10
+  set (unit, property, golden, bench, JSDoc with `@formula`+`@warmup`,
+  conformance scenario, auto-generated docs page) — no "tests follow" path.
+- **Scaffolding**: New packages are added via `PACKAGE_DIRS` in
+  `scripts/scaffold.ts` then `pnpm scaffold` — never hand-write the six
+  template files
+- **Provenance**: Math ported from `../invinite/` requires the 4-line
+  provenance + relicense header (PLAN.md §3.1)
+- **Documentation**: JSDoc on every export; prefer self-documenting code
+  for the "what"; only comment the "why" when non-obvious
+- **Validation**: Always validate changes with `code-review-validator`
+  before considering the task complete
+- **Changeset**: Any PR touching `packages/*/src/` needs `pnpm changeset`
 - **Efficiency**: Proceed directly to implementation for clear requirements
   without unnecessary back-and-forth

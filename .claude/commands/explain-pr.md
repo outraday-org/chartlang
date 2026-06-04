@@ -43,12 +43,19 @@ branch name). If empty or ambiguous, ask the user once.
 - **Parallel investigation (optional)**: for large PRs (>20 files), launch up
   to 3 `Explore` subagents in parallel — one focused on backend/code changes,
   one on frontend/UI changes, one on tests/config — then consolidate.
-- **UI/UX focus**: pay attention to changes in `/src/components/`, route
-  files, styling, copy/translations, accessibility, and interactive flows.
-  Flag things like: missing loading/empty/error states, untranslated strings,
-  inconsistent visual patterns, jarring interactions, accessibility regressions.
+- **Cross-package focus**: pay attention to changes in `packages/core/`
+  (the type contract hub — ripples everywhere), `packages/adapter-kit/`
+  (capability surface — affects every adapter), and `packages/runtime/`
+  ↔ host packages (sandbox boundary). Flag: missing capability gating,
+  missing `@since` on new public exports, missing stability marker,
+  missing changeset, hand-edits to `docs/primitives/*` (auto-generated),
+  hand-edits to the six §22.4 template files (scaffold-owned).
 - **Code focus**: flag obvious correctness, security, performance, or
   convention issues — but stay high-level. Don't list every nit.
+- **Test layer focus**: for `ta.*` / `draw.*` changes, confirm the §22.10
+  set is present (unit, property, golden, bench, JSDoc with
+  `@formula`+`@warmup`, conformance scenario, auto-generated docs page).
+  Flag any missing layer.
 
 ## Output Format
 
@@ -69,8 +76,9 @@ Mention the main user-facing or behavioral impact, not file paths.
 - [severity] short description (file:line if specific)
 - ...
 
-### Potential issues — UI/UX
-- [severity] short description
+### Potential issues — Conventions & Gates
+- [severity] missing JSDoc tag / missing changeset / hand-edit to
+  generated docs / sandbox-escape concern / coverage risk / etc.
 - ...
 
 ### Overall
@@ -94,8 +102,8 @@ category, write "None spotted." — do not invent issues to fill space.
 
 - Lead with the *why* (what user problem / goal the PR addresses), then the *what*
 - Translate jargon into plain English where possible
-- Prefer concrete UI/UX observations ("no empty state for filtered results")
-  over generic ones ("consider UX")
+- Prefer concrete observations ("`ta.macd` lacks `@warmup` JSDoc — docs:check
+  will fail") over generic ones ("consider docs")
 - If the PR is tiny or trivial, say so — don't pad
 - If the PR is huge or hard to summarize, say so honestly and focus on the
   most impactful changes

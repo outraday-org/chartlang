@@ -44,20 +44,36 @@ Flag anything that is outdated, missing, or already implemented.
 Review the task's proposed approach and identify:
 
 - **Duplicate code.** Does the task propose creating something that already
-  exists in a reusable form? Search `/src/components/`, `/src/lib/`,
-  `/src/api/hooks/`, `/convex/`, nearest `hooks/` folders.
-- **Missing reuse.** Could existing hooks, components, utilities, or patterns
-  be extended instead of writing new ones?
-- **Convention violations.** Does the approach match project conventions in
-  `CLAUDE.md`? (file naming, `Id<"table">` vs `string`, i18n wrapping,
-  context-selector usage, z-index constants, etc.)
-- **Schema/data issues.** Missing indexes, unnecessary fields, wrong validator
-  patterns, missing cleanup cascades.
-- **Scope creep.** Does the task include work that belongs in a different task
-  or isn't needed yet?
+  exists in a reusable form? Search `packages/core/src/`,
+  `packages/runtime/src/ta/_lib/`, `packages/compiler/src/_lib/`,
+  `packages/adapter-kit/src/`, `packages/conformance/scenarios/`,
+  `scripts/`.
+- **Missing reuse.** Could existing helpers, scenarios, or types be extended
+  instead of writing new ones?
+- **Convention violations.** Does the approach match chartlang's conventions
+  in `PLAN.md`, `CONTRIBUTING.md`, and the nearest `CLAUDE.md`?
+  - MIT header on every new `.ts` file under `packages/*/src/` and `scripts/`
+  - JSDoc with `@example`, `@since`, stability marker on every export
+  - `@formula` + `@anchors` + `@warmup` on new `ta.*` / `draw.*`
+  - No `any`, no `!`, no `as` between known incompatible types
+  - `useImportType` for type-only imports
+  - 100% coverage on touched packages
+- **§22.4 / generated-doc traps.** Does the task propose hand-writing any of
+  the six scaffold-owned template files, or hand-editing `docs/primitives/*`?
+  Both are forbidden. Templates are owned by `scripts/scaffold.ts`; primitive
+  doc pages are owned by `packages/cli/src/gen-docs.ts`.
+- **Capability gating.** For runtime emit changes: does the plan consult the
+  adapter capability surface before emit (silent no-op on miss)?
+- **Sandbox boundary.** For host-* changes: are sandbox-escape tests planned?
+- **Provenance.** For `../invinite/` ports: is the 4-line provenance +
+  relicense header planned? Are the goldens the contract (translate, not
+  transcribe)?
+- **Scope creep.** Does the task include work that belongs in a different
+  task or isn't needed yet?
 - **Missing steps.** Are there implied steps the task doesn't mention? (e.g.
-  adding type aliases to `schemaTypes.ts`, wiring up deletion cascades,
-  updating existing switch statements that need a new case)
+  conformance scenario for a new capability, changeset for a
+  `packages/*/src/` change, README length re-check after expanding a
+  package surface, new hand-authored `docs/<area>/` page for a new concept)
 
 ### 4. Produce the plan
 
@@ -94,36 +110,50 @@ How to confirm the work is correct (diagnostics, manual checks, etc.)
 
 ### 5. Rules for the plan
 
-- **Reuse first.** Every new file, hook, component, or utility in the plan
-  must justify why an existing one can't be extended.
+- **Reuse first.** Every new file, helper, type, or scenario in the plan must
+  justify why an existing one can't be extended.
 - **Minimal diff.** Prefer the smallest change that achieves the goal. Don't
   refactor surrounding code unless the task requires it.
 - **Correct paths.** All file paths must be verified against the actual
-  codebase, not copied from the (potentially stale) task.
-- **Respect dependencies.** If the task depends on a prior task that isn't done,
-  flag it and exclude those steps.
+  workspace, not copied from the (potentially stale) task.
+- **Respect dependencies.** If the task depends on a prior task that isn't
+  done, flag it and exclude those steps.
 - **No placeholders.** Every step must be concrete enough to implement without
-  guessing. Include validator shapes, function signatures, and import paths.
-- **Follow conventions.** All code in the plan must follow `CLAUDE.md` rules
-  (naming, operators, types, i18n, z-index, etc.).
+  guessing. Include JSDoc tag content, capability key names, import paths.
+- **Follow conventions.** All code in the plan must follow PLAN.md,
+  CONTRIBUTING.md, the nearest `CLAUDE.md`, and the chartlang gates
+  (`pnpm typecheck`, `pnpm lint`, `pnpm test` 100%, `pnpm docs:check`,
+  `pnpm readme:check`, `pnpm conformance` where relevant).
+- **Test layers are part of the plan.** Land each test layer the affected
+  package owes per the §16.3 table in the same plan as the implementation.
+- **Changeset is part of the plan.** Any step touching `packages/*/src/` must
+  end with `pnpm changeset` + the chosen semver bump.
 
 ### 6. Implement the plan
 
-After the plan is accepted and you exit plan mode (context clears), **implement
-the plan**:
+After the plan is accepted and you exit plan mode (context clears),
+**implement the plan**:
 
 1. **Re-read the plan** from the conversation (it persists across the context
    clear as the accepted plan).
 2. **Implement each step** in order. For each step:
    - Read the target file(s) before modifying them.
    - Search before creating to avoid duplicates.
-   - Follow all CLAUDE.md conventions.
-3. **Run TypeScript** after implementation:
+   - Follow all chartlang conventions (MIT header, JSDoc, no `any`, no `!`,
+     no `as` between known incompatible types).
+3. **Run the gates** after implementation:
    ```bash
-   pnpm tsc --noEmit --pretty
+   pnpm typecheck
+   pnpm lint
+   pnpm test         # or pnpm --filter @invinite-org/chartlang-<name> test
+   pnpm docs:check   # if JSDoc changes
+   pnpm readme:check # if README changes
+   pnpm conformance  # if adapter / primitive surface changes
    ```
-   Filter to changed files. Fix all type errors. Re-run until clean.
-4. **Update folder-level CLAUDE.md** files for every folder you touched.
+   Fix all errors. Re-run until clean.
+4. **Add the changeset** with `pnpm changeset` if `packages/*/src/` was touched.
+5. **Update folder-level `CLAUDE.md`** files for every folder you touched
+   when the change introduces a non-obvious invariant.
 
 Use `bypassPermissions` mode — do not ask for permission on each edit.
 

@@ -45,24 +45,24 @@ Before doing anything else, ensure the development environment is ready.
 Check whether `node_modules/` exists in the project root. If it does not, run:
 
 ```bash
-pnpm run install:all
+pnpm install
 ```
 
 Wait for it to complete before proceeding.
 
-### 0b. Convex codegen (no dev server)
+### 0b. Scaffold
 
-Do **not** start `pnpm dev:backend` / `convex dev`. Teammates that change
-Convex schema, validators, or function signatures must regenerate types on
-demand by running:
+If any task adds a new package to `PACKAGE_DIRS` in
+`scripts/scaffold.ts`, that step must run before population:
 
 ```bash
-npx convex codegen
+pnpm scaffold
 ```
 
-This regenerates `convex/_generated/*` (api, server, dataModel) without
-pushing to a deployment, so TypeScript types stay current while the dev
-server stays off. Re-run it after every schema or function-signature change.
+`scaffold.ts` is idempotent — re-running it on an already-scaffolded tree
+produces zero diff. Never hand-write the six §22.4 template files
+(`package.json`, `tsconfig.json`, `vitest.config.ts`, `README.md`,
+`src/index.ts`, `src/index.test.ts`) per package.
 
 ## Step 1: Discover Tasks
 
@@ -170,47 +170,71 @@ quality on this codebase has been unsatisfactory.
 ```
 Plan and implement task: <full-path-to-task-file>
 
-You are a senior engineer. Follow these steps:
+You are a senior engineer working on chartlang (open-source TypeScript
+embedded DSL; pnpm workspace; @invinite-org/chartlang-* packages). Follow
+these steps:
 
 1. Read the task file and the parent folder's README.md for context.
-2. Read folder-level CLAUDE.md files for every folder you'll touch.
-3. Read any sibling tasks prefixed with X- (already completed) for context.
-4. Validate every reference in the task against the codebase:
-   - Verify files, types, hooks, and functions exist at stated paths
+2. Read folder-level CLAUDE.md files for every folder you'll touch
+   (`packages/CLAUDE.md`, `scripts/CLAUDE.md`, `docs/CLAUDE.md`,
+   `.github/CLAUDE.md`, and any package-local CLAUDE.md).
+3. Read PLAN.md / CONTRIBUTING.md sections referenced by the task.
+4. Read any sibling tasks prefixed with X- (already completed) for context.
+5. Validate every reference in the task against the workspace:
+   - Verify files, types, capability keys, and helpers exist at stated paths
    - Check if work is already partially done
    - Search for naming conflicts before creating anything new
-5. Check for issues: duplicate code, missing reuse, convention violations,
-   schema problems, missing steps the task doesn't mention.
-6. Write a validated .plan.md file next to the task file (audit artifact).
+6. Check for issues: duplicate code, missing reuse, convention violations,
+   missing test layers, missing JSDoc tags, missing changeset, missing
+   provenance header on ports.
+7. Write a validated .plan.md file next to the task file (audit artifact).
    Use this structure:
    - Context, Pre-existing work, Issues found, Improvements
    - Numbered steps with verified file paths and concrete details
    - Files to create/modify table
+   - Gates the task must keep green (typecheck, lint, test, docs:check,
+     readme:check, conformance where relevant)
+   - Changeset filename + semver bump
    - Acceptance criteria checklist
-7. Implement all steps from the plan:
+8. Implement all steps from the plan:
    - Follow the plan precisely
-   - Search before creating any new file/type/hook/component
-   - Follow all CLAUDE.md conventions (no any, no as, no ++/--, etc.)
+   - Search before creating any new file/type/helper
+   - Follow all chartlang conventions:
+     - MIT header on every new .ts file under packages/*/src/ and scripts/
+     - JSDoc with @example, @since, stability marker on every export
+     - @formula + @anchors + @warmup on new ta.* / draw.*
+     - No any, no `!`, no `as` between known incompatible types
+     - useImportType for type-only imports
    - Use existing patterns from neighboring files
-8. If you changed Convex schema, validators, or function signatures, run
-   `npx convex codegen` to regenerate `convex/_generated/*`. Do NOT start
-   `pnpm dev:backend` / `convex dev` — codegen alone keeps types current.
-9. Update folder-level CLAUDE.md for every folder you touched.
+9. If you added a new package, append to PACKAGE_DIRS in
+   `scripts/scaffold.ts` and run `pnpm scaffold` BEFORE populating src.
+   Never hand-write the six §22.4 template files.
+10. If you ported from `../invinite/`, add the 4-line provenance + relicense
+    header (PLAN.md §3.1).
+11. If you touched any export's JSDoc, primitive math, or the gen-docs
+    surface: run `pnpm tsx packages/cli/src/gen-docs.ts` (or the project's
+    documented gen-docs command) so `docs/primitives/*` regenerates. Never
+    hand-edit those.
+12. Add the changeset with `pnpm changeset` if `packages/*/src/` was touched.
+13. Update folder-level CLAUDE.md for every folder you touched when the
+    change introduces a non-obvious invariant.
 
 Rules:
 - Reuse first — extend existing code instead of creating new
 - Minimal diff — smallest change that achieves the goal
-- All file paths must be verified against actual codebase, not copied from task
+- All file paths must be verified against actual workspace, not copied from task
 - Write .plan.md even though you implement it yourself — it's an audit artifact
 - **Clarify before guessing** — if the task is ambiguous, contradicts the
-  codebase, leaves an approach/scope decision open, or you are otherwise
+  workspace, leaves an approach/scope decision open, or you are otherwise
   unsure, call the `AskUserQuestion` tool to resolve every open question
   with the user before finalizing `.plan.md` or writing code. Do not
   silently pick an interpretation. Batch related questions into one call
   (up to 4 questions) instead of asking one-by-one.
-- **Do NOT run `pnpm run check`, `pnpm tsc --noEmit`, `pnpm eslint`, or any
-  other typecheck/lint commands.** The user runs these themselves after the
-  tasklist is complete. Just write correct code and move on.
+- **Do NOT run `pnpm typecheck`, `pnpm lint`, `pnpm test`, or `pnpm build`
+  on the full workspace** during execution — those gates run once at the
+  end of the tasklist (or by the user). For per-package verification use
+  `pnpm --filter @invinite-org/chartlang-<name> test` sparingly. Just write
+  correct code and move on.
 ```
 
 **Wait for ALL teammates in the wave to complete.** Then for each:
@@ -244,22 +268,23 @@ graded — never downgrade quality review to Sonnet or Haiku:
 Quality review for all tasks in: <full-path-to-task-folder>
 
 Run /quality-analysis with argument: "<full-path-to-task-folder> all tasks"
-(e.g. "tasks/my-feature/ all tasks")
+(e.g. "tasks/phase-0-bootstrap/ all tasks")
 
 This will:
 1. Parse all requirements and acceptance criteria from EVERY task file
 2. Audit each task's implementation against its requirements
-3. Check all code introduced by every task against all 7 quality rules
-   (Convex types, reusability, code sharing, SATD, complexity, conventions,
-   correctness)
+3. Check all code introduced by every task against all 8 quality rules
+   (TS + Biome, reusability, placement, SATD, complexity, conventions,
+   correctness, edge cases)
 4. Catch cross-task issues:
-   - Duplicate code introduced across different tasks
-   - Inconsistent patterns between tasks (naming, structure, conventions)
+   - Duplicate helpers introduced across different tasks
+   - Inconsistent patterns (naming, JSDoc, capability-key style)
    - Missing shared abstractions — code that should have been extracted
    - Integration issues — tasks that don't wire together correctly
-   - Unused imports, dead code, or leftover scaffolding
-   - CLAUDE.md files that are stale or missing updates
-   - Type safety across module boundaries
+   - Hand-edits to scaffold-owned templates or generated docs
+   - Coverage gaps after wave completion
+   - Missing changesets across the wave
+   - Missing provenance headers on ports
 5. Grade each task individually AND provide an overall grade
 6. Fix all HIGH, MEDIUM and LOW issues found
 7. Rename task files with X- prefix for tasks graded Complete + Ship
@@ -271,14 +296,14 @@ This will:
 Quality review for task: <full-path-to-task-file>
 
 Run /quality-analysis with argument: "<full-path-to-task-folder> task <N>"
-(e.g. "tasks/my-feature/ task 3")
+(e.g. "tasks/phase-0-bootstrap/ task 3")
 
 This will:
 1. Parse all requirements and acceptance criteria from the task file
 2. Audit the implementation against each requirement
-3. Check all code introduced by the task against all 7 quality rules
-   (Convex types, reusability, code sharing, SATD, complexity, conventions,
-   correctness)
+3. Check all code introduced by the task against all 8 quality rules
+   (TS + Biome, reusability, placement, SATD, complexity, conventions,
+   correctness, edge cases)
 4. Report findings with impact levels
 5. Grade the implementation
 6. Fix all HIGH, MEDIUM and LOW issues
@@ -352,10 +377,10 @@ tasks: [
 ```
 
 Each task `text` is the same plan+execute prompt as Runtime A Step 4 (the
-nine-step "You are a senior engineer…" block including `npx convex codegen`
-guidance and the no-typecheck/lint rule). Workers inherit the leader's
-extensions and slash commands, so prompts that reference `/build`,
-`/quality-analysis`, etc. work unchanged.
+13-step "You are a senior engineer…" block including `pnpm scaffold`
+guidance and the no-full-workspace-gate rule). Workers inherit the
+leader's extensions and slash commands, so prompts that reference
+`/build`, `/quality-analysis`, etc. work unchanged.
 
 Record the `taskIds` returned by `delegate` — you need them to poll.
 

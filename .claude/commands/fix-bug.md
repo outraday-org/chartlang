@@ -19,7 +19,8 @@ without asking unnecessary questions. Bias toward action.
    you are truly blocked with zero leads
 3. Use `root-cause-debugger` subagent(s) to trace to root cause
 4. Implement the fix
-5. Verify with `mcp__ide__getDiagnostics` that no new errors were introduced
+5. Verify with `pnpm typecheck`, `pnpm lint`, and the relevant package's
+   `pnpm test` that no new errors / coverage drops were introduced
 6. Summarize: what was wrong, why it happened, what was changed
 
 ## Execution Strategy
@@ -46,5 +47,12 @@ without asking unnecessary questions. Bias toward action.
 - Read error messages and stack traces carefully — they usually point directly
   to the problem
 - Check git blame to understand recent changes that may have introduced the bug
+- For property-test failures, re-run with the printed failing seed before
+  attempting a fix; for golden mismatches, identify the first divergent bar
 - Look for the simplest fix that addresses the root cause
-- If a fix requires architecture changes, flag this to the user before proceeding
+- Goldens are the behavioral contract — if a fix shifts them, that owes a
+  changeset, a `@since` bump on affected exports, and an explanation
+- If a fix requires architecture changes (e.g. a new compiler pass, a new
+  capability key, a new package), flag this to the user before proceeding
+- Land a regression test for every non-trivial fix (saved seed, golden
+  fixture, or sandbox-escape scenario)

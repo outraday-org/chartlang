@@ -104,56 +104,93 @@ After the frontmatter, structure your skill documentation as follows:
 
 ```markdown
 ---
-name: add-feature-x
-description: Guide for adding feature X including backend queries, frontend hooks, and UI components. Use when implementing feature X.
+name: add-ta-primitive
+description: Guide for adding a new ta.* primitive including JSDoc tags, the §22.10 set, the conformance scenario, and the changeset. Use when implementing a new technical-analysis primitive in packages/runtime.
 ---
 
-# Add Feature X
+# Add a `ta.*` Primitive
 
-This skill guides you through adding feature X to the project.
+This skill guides you through adding a new `ta.*` primitive to
+`packages/runtime`, satisfying every gate in one PR.
 
 ## Overview
 
-Feature X requires:
-1. Backend Convex function
-2. Frontend data fetching hook
-3. UI component
+A new `ta.*` primitive requires:
+1. Source file under `packages/runtime/src/ta/<id>.ts` with MIT header
+2. JSDoc with `@example`, `@since`, stability marker, `@formula`,
+   `@anchors`, and `@warmup`
+3. Unit, property (fast-check), golden, and bench tests
+4. Conformance scenario under `packages/conformance/scenarios/`
+5. Auto-generated docs page (do **not** hand-edit)
+6. Changeset (`pnpm changeset`)
 
 ## Step-by-Step Guide
 
-### 1. Create Backend Function
+### 1. Add the source file
 
 \`\`\`typescript
-// convex/featureX/queries.ts
-import { query } from "../_generated/server";
-import { v } from "convex/values";
+// packages/runtime/src/ta/rsi.ts
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
 
-export const getFeatureX = query({
-    args: { id: v.id("featureX") },
-    returns: v.object({ name: v.string() }),
-    handler: async (ctx, args) => {
-        return await ctx.db.get(args.id);
-    }
-});
+import type { Series } from "@invinite-org/chartlang-core";
+
+/**
+ * Relative Strength Index.
+ *
+ * @formula RSI(n) = 100 - 100 / (1 + RS); RS = AvgGain(n) / AvgLoss(n)
+ * @anchors series.close
+ * @warmup n bars
+ * @example
+ *   const r = ta.rsi(series.close, 14);
+ * @since 0.1.0
+ * @experimental
+ */
+export function rsi(source: Series, length: number): number {
+  // implementation
+}
 \`\`\`
 
-### 2. Create Frontend Hook
+### 2. Add the tests
+
+- Unit: `packages/runtime/src/ta/rsi.test.ts`
+- Property: `packages/runtime/src/ta/rsi.property.test.ts` (fast-check)
+- Golden: `packages/runtime/src/ta/__goldens__/rsi.json`
+- Bench: `packages/runtime/src/ta/rsi.bench.ts`
+
+### 3. Add the conformance scenario
 
 \`\`\`typescript
-// src/api/hooks/use-feature-x.ts
-import { useQuery } from "convex/react";
-import { api } from "convex/_generated/api";
+// packages/conformance/scenarios/rsi.ts
+// ... scenario definition that adapters can re-run
+\`\`\`
 
-export const useFeatureX = (id: string) => {
-    return useQuery(api.featureX.queries.getFeatureX, { id });
-};
+### 4. Regenerate the primitive docs page
+
+\`\`\`bash
+pnpm tsx packages/cli/src/gen-docs.ts
+\`\`\`
+
+This regenerates `docs/primitives/ta/rsi.md`. **Never hand-edit** that
+file.
+
+### 5. Add the changeset
+
+\`\`\`bash
+pnpm changeset
+# pick @invinite-org/chartlang-runtime, semver bump = minor (new export)
 \`\`\`
 
 ## File Checklist
 
-- [ ] `convex/featureX/queries.ts` - Backend query
-- [ ] `src/api/hooks/use-feature-x.ts` - Frontend hook
-- [ ] `src/components/feature-x/FeatureX.tsx` - UI component
+- [ ] `packages/runtime/src/ta/rsi.ts` — implementation + JSDoc
+- [ ] `packages/runtime/src/ta/rsi.test.ts` — unit
+- [ ] `packages/runtime/src/ta/rsi.property.test.ts` — property
+- [ ] `packages/runtime/src/ta/__goldens__/rsi.json` — golden bars
+- [ ] `packages/runtime/src/ta/rsi.bench.ts` — bench
+- [ ] `packages/conformance/scenarios/rsi.ts` — conformance
+- [ ] `docs/primitives/ta/rsi.md` — **auto-generated**, do not hand-edit
+- [ ] `.changeset/<name>.md` — minor bump on `@invinite-org/chartlang-runtime`
 ```
 
 ## Execution Strategy
@@ -179,44 +216,36 @@ export const useFeatureX = (id: string) => {
 
 **Skills Location:** `.claude/skills/`
 
-Each skill lives in its own subdirectory with the `SKILL.md` file containing all documentation.
+Each skill lives in its own subdirectory with the `SKILL.md` file
+containing all documentation.
 
 **Related Files:**
-- `.cursor/rules/` - Contains similar `.mdc` documentation files (legacy format)
-- `.claude/commands/` - Contains command files that orchestrate skills
 
-## Provider Mirrors (REQUIRED)
-
-`.claude/` is the canonical source. Every new skill MUST be mirrored to the other providers in the same task, per the "Provider Mirror Rules" in root `CLAUDE.md`. Skipping mirrors leaves the skill invisible to Cursor, Codex, and the generic `.agent/` provider.
-
-For a new `.claude/skills/<name>/SKILL.md`, create three mirror skill directories, each with `SKILL.md` symlinked back to the canonical file:
-
-1. **Cursor** — `.cursor/skills/<name>/SKILL.md` → `../../../.claude/skills/<name>/SKILL.md`
-2. **Codex** — `.codex/skills/<name>/SKILL.md` → `../../../.claude/skills/<name>/SKILL.md`
-3. **Generic agent** — `.agent/skills/<name>/SKILL.md` → `../../../.claude/skills/<name>/SKILL.md`
-
-The directories themselves are real directories; only the `SKILL.md` inside each is a symlink.
-
-**Creating symlinks on Windows:** `core.symlinks=false` means symlinks appear as text files containing the relative target path on checkout, but git tracks them as mode 120000 and they resolve as real symlinks on Unix. Use `git update-index --add --cacheinfo 120000,<sha>,<path>` or commit the link from a Unix checkout if `ln -s` is unavailable. Verify with `git ls-files -s <path>` — the mode column must read `120000`.
-
-**Renames and deletions:** If you rename or delete `.claude/skills/<name>/`, update or delete all three mirror directories in the same commit.
-
-**Convex skill exception:** The 6 canonical convex skills (`convex`, `convex-create-component`, `convex-migration-helper`, `convex-performance-audit`, `convex-quickstart`, `convex-setup-auth`) live in `.agents/skills/` (plural) and are symlinked **into** `.claude/skills/`. They are intentionally NOT mirrored into `.codex/`, `.cursor/`, or `.agent/`. Do not follow the mirror procedure above if creating a convex skill — follow `.agents/skills/` conventions instead.
+- `.claude/commands/` — command files that orchestrate skills
 
 ## Constraints
 
 - Skill files must be named `SKILL.md` (uppercase)
 - Directory names must use kebab-case
 - Frontmatter name must match directory name
-- All code examples must use TypeScript with proper types
-- File paths must be absolute from project root
+- All code examples must use TypeScript with proper types and the MIT
+  header where they live under `packages/*/src/`
+- File paths must be project-root-relative
 - Always include a file checklist at the end
+- Skills must reflect chartlang conventions: §22.4 package template,
+  100% coverage gate, JSDoc gate, README gate, conformance scenarios
+  for adapter / primitive surface changes, changesets for
+  `packages/*/src/` changes, provenance header for `../invinite/` ports
 
 ## Common Skill Types
 
-- **add-***: Skills for adding new components (e.g., `add-canvas-shape`, `add-convex-table`)
-- **create-***: Skills for creating new features (e.g., `create-ai-agent`, `create-http-endpoint`)
-- **explain-***: Skills that explain existing patterns (e.g., `explain-convex`, `explain-stripe-payments`)
-- **adjust-***: Skills for modifying existing features (e.g., `adjust-message-shape-agent`)
+- **add-***: Skills for adding new artifacts (e.g. `add-ta-primitive`,
+  `add-draw-primitive`, `add-adapter`)
+- **create-***: Skills for creating new packages or scaffolding-heavy
+  surfaces (e.g. `create-package`, `create-host`)
+- **explain-***: Skills that explain existing patterns (e.g.
+  `explain-compiler-passes`, `explain-capability-surface`)
+- **port-***: Skills for porting from `../invinite/` with the provenance
+  workflow
 
 Choose the appropriate prefix based on the skill's purpose.
