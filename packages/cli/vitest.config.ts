@@ -13,6 +13,7 @@ export default defineConfig({
                 "src/**/__fixtures__/**",
                 "src/**/index.ts",
                 "src/**/types.ts",
+                "src/bin.ts",
             ],
         },
     },

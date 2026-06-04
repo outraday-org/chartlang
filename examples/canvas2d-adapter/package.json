@@ -11,17 +11,27 @@
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
+        },
+        "./testing": {
+            "types": "./dist/testing.d.ts",
+            "import": "./dist/testing.js"
         }
     },
-    "files": [
-        "dist",
-        "README.md",
-        "CHANGELOG.md"
-    ],
+    "files": ["dist", "README.md", "CHANGELOG.md"],
     "scripts": {
         "build": "tsc -p tsconfig.json",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "test": "vitest run --coverage"
+    },
+    "dependencies": {
+        "@invinite-org/chartlang-adapter-kit": "workspace:^",
+        "@invinite-org/chartlang-host-worker": "workspace:^"
+    },
+    "devDependencies": {
+        "@invinite-org/chartlang-compiler": "workspace:^",
+        "@invinite-org/chartlang-core": "workspace:^",
+        "@invinite-org/chartlang-runtime": "workspace:^",
+        "@types/node": "^20.0.0"
     },
     "engines": {
         "node": ">=20"

@@ -84,7 +84,9 @@ async function main(): Promise<void> {
                     }
                 }
             } catch (err) {
-                console.warn(`[warn] ${rel}/coverage/coverage-summary.json invalid JSON: ${(err as Error).message}`);
+                console.warn(
+                    `[warn] ${rel}/coverage/coverage-summary.json invalid JSON: ${(err as Error).message}`,
+                );
             }
         } else {
             console.warn(`[warn] ${rel}/coverage/coverage-summary.json missing — skipping.`);

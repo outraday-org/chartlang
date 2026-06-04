@@ -12,8 +12,5 @@
       "Bash(git commit*)",
       "Bash(git push*)"
     ]
-  },
-  "enabledPlugins": {
-    "andrej-karpathy-skills@karpathy-skills": true
   }
 }

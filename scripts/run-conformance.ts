@@ -19,11 +19,15 @@ import { join } from "node:path";
 const ROOT = process.cwd();
 
 type ConformanceReport = {
+    passed?: number;
+    failed?: number;
     failures?: { scenarioId?: string; id?: string; message?: string }[];
 };
 
 type AdapterModule = { default?: unknown };
-type ConformanceModule = { runConformanceSuite?: (adapter: unknown) => Promise<ConformanceReport> | ConformanceReport };
+type ConformanceModule = {
+    runConformanceSuite?: (adapter: unknown) => Promise<ConformanceReport> | ConformanceReport;
+};
 
 function noRunner(): never {
     console.log("conformance: no runner exported yet (Phase 1+ wires runConformanceSuite).");
@@ -68,7 +72,8 @@ async function main(): Promise<void> {
         const id = f.scenarioId ?? f.id ?? "<unknown>";
         console.error(`conformance: ${id} failed${f.message ? `: ${f.message}` : ""}`);
     }
-    console.log(`conformance: ${failures.length} failures.`);
+    const passed = report?.passed ?? 0;
+    console.log(`conformance: ${passed} scenarios passed, ${failures.length} failures.`);
     process.exit(failures.length > 0 ? 1 : 0);
 }
 

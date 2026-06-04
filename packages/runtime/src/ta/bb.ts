@@ -1,0 +1,115 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+//
+// Ported from invinite/src/components/trading-chart/indicators/bb.ts
+//   (commit d2d1043c1b039f66d2f3674526d303d31cf2f1e0, © Invinite).
+// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
+// provenance contract; the math is the reference, the code style is not.
+// Structural choices (callsite-id slot, Series<T> proxy, replaceHead
+// mode) follow chartlang's primitive shape — NOT invinite's
+// IndicatorPlugin shape. BB is composed from `sma` + `stdev` via
+// sub-slot ids so a fix to either primitive flows in for free.
+
+import type { BbOpts, BbResult, Series } from "@invinite-org/chartlang-core";
+
+import { Float64RingBuffer } from "../ringBuffer";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
+import { makeSeriesView } from "../seriesView";
+import { sma } from "./sma";
+import { type ScalarOrSeries, readSourceValue } from "./sourceValue";
+import { stdev } from "./stdev";
+
+const DEFAULT_MULTIPLIER = 2;
+
+type BbSlot = {
+    readonly result: BbResult;
+    readonly upper: Float64RingBuffer;
+    readonly middle: Series<number>;
+    readonly lower: Float64RingBuffer;
+};
+
+function getCtx(): RuntimeContext {
+    const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+    if (ctx === null) {
+        throw new Error("ta.bb called outside an active script step");
+    }
+    return ctx;
+}
+
+function initSlot(capacity: number, middle: Series<number>): BbSlot {
+    const upper = new Float64RingBuffer(capacity);
+    const lower = new Float64RingBuffer(capacity);
+    const upperView = makeSeriesView<number>(upper);
+    const lowerView = makeSeriesView<number>(lower);
+    return {
+        result: Object.freeze({ upper: upperView, middle, lower: lowerView }),
+        upper,
+        middle,
+        lower,
+    };
+}
+
+/**
+ * Bollinger Bands — `multiplier × σ` envelope around an SMA(length)
+ * middle band. Default `multiplier = 2` per Pine. Returns a cached
+ * `{ upper, middle, lower }` record (same identity every bar) backed
+ * by three `Series<number>` Proxies. The middle band is the
+ * underlying SMA primitive's output (identity-shared).
+ *
+ * @formula  middle = sma(source, length) ;
+ *           σ      = stdev(source, length, { biased: true }) ;
+ *           upper  = middle + multiplier · σ ;
+ *           lower  = middle − multiplier · σ
+ * @warmup   length − 1
+ * @since 0.1
+ * @experimental
+ *
+ * @example
+ *     // import { ta } from "@invinite-org/chartlang-runtime";
+ *     // const bands = ta.bb("slot", bar.close, 20, { multiplier: 2 });
+ *     // const u = bands.upper.current;
+ */
+export function bb(
+    slotId: string,
+    source: ScalarOrSeries,
+    length: number,
+    opts?: BbOpts,
+): BbResult {
+    const ctx = getCtx();
+    const multiplier = opts?.multiplier ?? DEFAULT_MULTIPLIER;
+    const src = readSourceValue(source);
+    const middleSlotId = `${slotId}/sma`;
+    const stdevSlotId = `${slotId}/stdev`;
+    // Compose: sma updates the middle band; stdev updates a separate
+    // rolling-sigma series. Both primitives respect ctx.isTick.
+    const middleSeries = sma(middleSlotId, src, length);
+    // BB's invinite math uses population sigma (denominator length); we
+    // pass `biased: true` so the helper matches.
+    const sigmaSeries = stdev(stdevSlotId, src, length, { biased: true });
+
+    let slot = ctx.stream.taSlots.get(slotId) as BbSlot | undefined;
+    if (slot === undefined) {
+        slot = initSlot(ctx.stream.ohlcv.close.capacity, middleSeries);
+        ctx.stream.taSlots.set(slotId, slot);
+    }
+
+    const mid = middleSeries.current;
+    const sigma = sigmaSeries.current;
+    let upperValue: number;
+    let lowerValue: number;
+    if (Number.isFinite(mid) && Number.isFinite(sigma)) {
+        upperValue = mid + multiplier * sigma;
+        lowerValue = mid - multiplier * sigma;
+    } else {
+        upperValue = Number.NaN;
+        lowerValue = Number.NaN;
+    }
+    if (ctx.isTick) {
+        slot.upper.replaceHead(upperValue);
+        slot.lower.replaceHead(lowerValue);
+    } else {
+        slot.upper.append(upperValue);
+        slot.lower.append(lowerValue);
+    }
+    return slot.result;
+}

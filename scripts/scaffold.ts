@@ -44,7 +44,8 @@ const DESCRIPTIONS: Record<string, string> = {
 const PUBLIC_SURFACE: Record<string, string> = {
     "packages/core":
         "`defineIndicator`, `defineDrawing`, `defineAlert`; primitives `ta.*`, `plot`, `draw.*`, `alert`, `input.*`, `color.*`, `style.*`; types `Series<T>`, `Bar`, `Time`, `Price`.",
-    "packages/compiler": "`compile(source, opts) → CompiledScript`, `compileFile`, `compileProject`.",
+    "packages/compiler":
+        "`compile(source, opts) → CompiledScript`, `compileFile`, `compileProject`.",
     "packages/runtime":
         "`createScriptRunner(compiled, ctx) → ScriptRunner`; types for `ScriptHost`, `Adapter`, `Capabilities`.",
     "packages/host-worker": "`createWorkerHost() → ScriptHost`.",

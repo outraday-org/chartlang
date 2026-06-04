@@ -11,4 +11,54 @@ Reference adapter package — **not published to npm**.
   `pnpm scaffold`). Do not hand-edit the generated template files;
   edit `scripts/scaffold.ts` and re-run.
 - The intent is "copy from this folder when writing your own adapter".
-  Real adapter implementation arrives in Phase 1+.
+
+## Phase-1 invariants
+
+- **`MockCanvas2DContext` lives at `src/testing.ts`, exposed via
+  the `"./testing"` sub-path entry in `package.json`'s `exports`
+  map.** Coverage applies — `src/testing.test.ts` walks every
+  method and setter. Task 12's conformance harness imports the
+  mock from `chartlang-example-canvas2d-adapter/testing`. Do not
+  move the file under `src/__fixtures__/` — fixtures are excluded
+  from coverage and from package consumers.
+- **No `node-canvas` dependency.** The hand-rolled
+  `MockCanvas2DContext` is the only test-time canvas. Adding
+  `node-canvas` reintroduces a native build step and is incompatible
+  with Phase-1's portability target.
+- **Renderer helpers under `src/render/` are pure on `ctx`.** Each
+  helper takes a `RenderCtx` (the structural type the mock + the
+  real `CanvasRenderingContext2D` both satisfy) plus the world-
+  coordinate inputs. No DOM mutation outside `ctx`. No setTimeout,
+  no requestAnimationFrame, no document access.
+- **`runRendererLoop` yields after every `host.push(...)`.** The
+  yield (`await new Promise(r => setTimeout(r, 0))`) gives an
+  async worker host time to complete its candle-event dispatch
+  before the next `drain` frame arrives. In-process stub hosts
+  resolve `push` synchronously and the yield is a no-op for them.
+  Removing the yield breaks the worker integration test.
+- **`runRendererLoop` is registered against the handle via a
+  module-local `WeakMap`.** The renderer's `AdapterState` (bars,
+  plot series, hlines, recent alerts) is not on the public
+  `Canvas2dAdapterHandle` surface — `runRendererLoop` retrieves it
+  through the WeakMap so consumers cannot mutate the state
+  directly. A `runRendererLoop(handle)` call on a foreign handle
+  throws the documented sentinel.
+- **The integration test compiles an EMA-cross-equivalent bundle
+  inline.** The Phase-1 compiler bundles via `esbuild.transform`
+  (single-file), so a real `defineIndicator(...)` source with
+  `import { ... } from "@invinite-org/chartlang-core"` cannot be
+  loaded via the worker's `data:` URL import (no resolver). The
+  integration test mirrors `host-worker/src/integration.test.ts`'s
+  literal-`{ manifest, compute }` pattern and uses `ctx.ta.ema(
+  slotId, ctx.bar.close, length)` directly. Task 12's CLI-driven
+  conformance pipeline exercises the on-disk bundle path.
+- **`hashCallLog` canonicalises floats to 4 decimal places.** The
+  integration test's pinned hash is robust to microscopic floating-
+  point drift across runs. A deliberate visual change re-shapes
+  the call log and the pinned constant in `integration.test.ts`
+  must be updated.
+- **`createCanvas2dAdapter` accepts an `opts.ctx` test seam.** When
+  supplied, the factory skips `canvas.getContext("2d")` resolution
+  and uses the supplied `RenderCtx` directly. Production callers
+  pass a real `HTMLCanvasElement`; tests pass a
+  `MockCanvas2DContext`.

@@ -101,9 +101,13 @@ async function checkPackageReadme(pkgDir: string): Promise<void> {
     }
 
     const isExampleAdapter = pkgDir.endsWith("examples/canvas2d-adapter");
-    const hasInstall = /pnpm add\b/.test(content) || (isExampleAdapter && /Not published/i.test(content));
+    const hasInstall =
+        /pnpm add\b/.test(content) || (isExampleAdapter && /Not published/i.test(content));
     if (!hasInstall) {
-        fail(rel, "missing install line (`pnpm add ...` or, for the example adapter, 'Not published')");
+        fail(
+            rel,
+            "missing install line (`pnpm add ...` or, for the example adapter, 'Not published')",
+        );
     }
 
     const hasSurface = /^#+ .*(public surface|planned)/im.test(content);
@@ -121,10 +125,7 @@ async function checkPackageReadme(pkgDir: string): Promise<void> {
         fail(rel, "missing MIT license line");
     }
 
-    if (
-        failures.filter((f) => f.path === rel).length === 0 &&
-        existsSync(readmePath)
-    ) {
+    if (failures.filter((f) => f.path === rel).length === 0 && existsSync(readmePath)) {
         passes.push(rel);
     }
 }
@@ -168,7 +169,10 @@ async function checkRootReadme(): Promise<void> {
             name: "fenced ```typescript code block",
             test: (c, from) => indexOfRegex(c, /```typescript\b/gm, from),
         },
-        { name: "'Install' heading", test: (c, from) => indexOfRegex(c, /^#+\s+Install\b/gim, from) },
+        {
+            name: "'Install' heading",
+            test: (c, from) => indexOfRegex(c, /^#+\s+Install\b/gim, from),
+        },
         { name: "'Why' heading", test: (c, from) => indexOfRegex(c, /^#+\s+Why\b/gim, from) },
         {
             name: "'Quickstart' heading",

@@ -2,7 +2,9 @@
 
 `experimental`
 
-chartlang CLI — compile, lint, bench, scaffold-adapter.
+chartlang CLI — compiles `.chart.ts` sources via
+`@invinite-org/chartlang-compiler` and scaffolds starter adapter
+packages outside the OSS repo.
 
 ## Install
 
@@ -10,15 +12,39 @@ chartlang CLI — compile, lint, bench, scaffold-adapter.
 pnpm add @invinite-org/chartlang-cli
 ```
 
+Once installed and built, the `chartlang` binary is available on
+`PATH` inside the package's bin dir. From the workspace root, use the
+`pnpm chartlang …` script alias defined in the root `package.json`.
+
 ## Public surface
 
-Planned (Phase 1+): Commands: `chartlang compile`, `chartlang lint`, `chartlang bench`, `chartlang scaffold-adapter`, `chartlang docs`.
+Subcommands:
+
+- `chartlang compile <file...> [--sourcemap[=mode]] [--minify] [--out <dir>]`
+  — compiles each `.chart.ts` file into the `.chart.js` +
+  `.chart.manifest.json` + `.chart.d.ts` triple. Default writes
+  siblings of each source; `--out <dir>` redirects them under a single
+  directory. `--sourcemap=external` adds a `.chart.js.map` sibling.
+  Phase 2+ adds `lint`, `bench`, `docs`.
+- `chartlang scaffold-adapter <name> [--target <dir>]` — generates a
+  starter adapter package outside this repo. `name` must be kebab-case
+  (`^[a-z][a-z0-9-]*$`). Default target is `./<name>`. Refuses to
+  overwrite a non-empty target.
+- `chartlang --help` / `-h` — prints the usage block.
+
+Programmatic surface (re-exported from `./index`):
+
+- `runCli(argv)` — async dispatcher used by the `bin.ts` entry
+- `runCompile(args)`, `runScaffoldAdapter(args)`, `runHelp()`,
+  `printHelp(stream?)` — individual command runners
 
 ## Minimum-viable API call
 
 ```ts
-import { PACKAGE_VERSION } from "@invinite-org/chartlang-cli";
-console.log(PACKAGE_VERSION); // "0.0.0"
+import { runCli } from "@invinite-org/chartlang-cli";
+
+// Equivalent to: chartlang compile ./demo.chart.ts --sourcemap=external
+await runCli(["compile", "./demo.chart.ts", "--sourcemap=external"]);
 ```
 
 ## Docs

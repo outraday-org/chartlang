@@ -1,4 +1,26 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-export const PACKAGE_VERSION = "0.0.0";
+import { DEFAULT_ADAPTER } from "./defaultAdapter";
+
+export { createCanvas2dAdapter, runRendererLoop } from "./createCanvas2dAdapter";
+export type { Canvas2dAdapterHandle, CreateCanvas2dAdapterOpts } from "./createCanvas2dAdapter";
+export { CANVAS2D_CAPABILITIES } from "./capabilities";
+export { DEFAULT_PALETTE } from "./palette";
+export type { Palette } from "./palette";
+export { DEFAULT_ADAPTER } from "./defaultAdapter";
+
+/**
+ * Default export — re-exports {@link DEFAULT_ADAPTER} so consumers
+ * (the Task-12 conformance harness in particular) can
+ * `import defaultAdapter from "chartlang-example-canvas2d-adapter"`
+ * without a named binding.
+ *
+ * @since 0.1
+ * @experimental
+ * @example
+ *     import defaultAdapter from "chartlang-example-canvas2d-adapter";
+ *     // defaultAdapter.capabilities.plots.has("line") === true
+ *     void defaultAdapter;
+ */
+export default DEFAULT_ADAPTER;

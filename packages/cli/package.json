@@ -3,7 +3,7 @@
     "version": "0.0.0",
     "type": "module",
     "license": "MIT",
-    "description": "chartlang CLI — compile, lint, bench, scaffold-adapter",
+    "description": "chartlang CLI — compile + scaffold-adapter",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
@@ -12,15 +12,21 @@
             "import": "./dist/index.js"
         }
     },
-    "files": [
-        "dist",
-        "README.md",
-        "CHANGELOG.md"
-    ],
+    "bin": {
+        "chartlang": "./dist/bin.js"
+    },
+    "files": ["dist", "README.md", "CHANGELOG.md"],
     "scripts": {
         "build": "tsc -p tsconfig.json",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "test": "vitest run --coverage"
+    },
+    "dependencies": {
+        "@invinite-org/chartlang-compiler": "workspace:^",
+        "@invinite-org/chartlang-core": "workspace:^"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0"
     },
     "publishConfig": {
         "access": "public"

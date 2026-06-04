@@ -3,6 +3,7 @@ dist/
 coverage/
 *.tsbuildinfo
 .vitest-cache/
+.cache/
 .DS_Store
 .env
 .env.local

@@ -2,6 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
     test: {
+        exclude: ["**/node_modules/**", "**/dist/**", "**/*.bench.test.ts", "**/*.bench.ts"],
         coverage: {
             provider: "v8",
             reporter: ["text", "html", "json-summary", "lcov"],
@@ -10,6 +11,7 @@ export default defineConfig({
             exclude: [
                 "src/**/*.test.ts",
                 "src/**/*.bench.test.ts",
+                "src/**/*.bench.ts",
                 "src/**/__fixtures__/**",
                 "src/**/index.ts",
                 "src/**/types.ts",

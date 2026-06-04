@@ -17,10 +17,12 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { join, relative } from "node:path";
 import ts from "typescript";
 
-// EXEMPT_EXPORTS: §22.4 placeholder exports that need no JSDoc until
-// Phase 1 lands real exports. Remove `PACKAGE_VERSION` here once real
-// exports ship.
-const EXEMPT_EXPORTS = new Set(["PACKAGE_VERSION"]);
+import { executeExampleBlock } from "./docs-check.executor";
+
+// EXEMPT_EXPORTS: kept for any future bootstrap exemption. Emptied after
+// the Phase-1 compiler API landed and every placeholder gained a JSDoc
+// shim.
+const EXEMPT_EXPORTS = new Set<string>();
 
 const ROOT = process.cwd();
 
@@ -128,7 +130,7 @@ function isTaOrDrawSource(filePath: string): boolean {
     return /\/src\/ta\//.test(rel) || /\/src\/draw\//.test(rel);
 }
 
-function checkExport(source: ts.SourceFile, node: ts.Node, filePath: string): void {
+async function checkExport(source: ts.SourceFile, node: ts.Node, filePath: string): Promise<void> {
     const exports = exportedNamesFor(node);
     if (exports.length === 0) return;
 
@@ -136,6 +138,7 @@ function checkExport(source: ts.SourceFile, node: ts.Node, filePath: string): vo
     const hasBlock = hasJsDocBlock(node);
     const requireTaDraw = isTaOrDrawSource(filePath);
 
+    const executions: Promise<void>[] = [];
     for (const { name, lineNode } of exports) {
         if (EXEMPT_EXPORTS.has(name)) continue;
         const line = lineOf(source, lineNode);
@@ -153,22 +156,50 @@ function checkExport(source: ts.SourceFile, node: ts.Node, filePath: string): vo
             record(filePath, line, name, "missing @example");
         } else if (!exampleHasCodeBlock(exampleTag)) {
             record(filePath, line, name, "@example missing code block (fenced or indented)");
+        } else {
+            const commentText =
+                typeof exampleTag.comment === "string"
+                    ? exampleTag.comment
+                    : (ts.getTextOfJSDocComment(exampleTag.comment) ?? "");
+            executions.push(
+                executeExampleBlock({
+                    source: commentText,
+                    file: filePath,
+                    line,
+                    name,
+                    record,
+                }),
+            );
         }
-        // TODO(phase-1): execute @example blocks via @invinite-org/chartlang-compiler.
 
         if (requireTaDraw) {
             const hasFormula = tags.some((t) => t.tagName.text === "formula");
-            const hasAnchors = tags.some((t) => t.tagName.text === "anchors");
             const hasStability = tags.some(
                 (t) => t.tagName.text === "stable" || t.tagName.text === "experimental",
             );
-            if (!hasFormula) record(filePath, line, name, "missing @formula (ta/draw namespace)");
-            if (!hasAnchors) record(filePath, line, name, "missing @anchors (ta/draw namespace)");
-            if (!hasStability) {
-                record(filePath, line, name, "missing @stable or @experimental (ta/draw namespace)");
+            const rel = relative(ROOT, filePath).replace(/\\/g, "/");
+            if (/\/src\/ta\//.test(rel)) {
+                if (!hasFormula) record(filePath, line, name, "missing @formula (ta namespace)");
+                if (!hasStability) {
+                    record(filePath, line, name, "missing @stable or @experimental (ta namespace)");
+                }
+            } else {
+                const hasAnchors = tags.some((t) => t.tagName.text === "anchors");
+                if (!hasFormula) record(filePath, line, name, "missing @formula (draw namespace)");
+                if (!hasAnchors) record(filePath, line, name, "missing @anchors (draw namespace)");
+                if (!hasStability) {
+                    record(
+                        filePath,
+                        line,
+                        name,
+                        "missing @stable or @experimental (draw namespace)",
+                    );
+                }
             }
         }
     }
+
+    await Promise.all(executions);
 }
 
 async function checkFile(filePath: string): Promise<number> {
@@ -176,6 +207,12 @@ async function checkFile(filePath: string): Promise<number> {
     const source = ts.createSourceFile(filePath, text, ts.ScriptTarget.ES2022, true);
     let count = 0;
     for (const statement of source.statements) {
+        // Skip re-export declarations (`export { x } from "./y"` and
+        // `export * from "./y"`). The original declaration carries the
+        // JSDoc; the barrel only forwards names.
+        if (ts.isExportDeclaration(statement) && statement.moduleSpecifier !== undefined) {
+            continue;
+        }
         if (
             ts.isExportDeclaration(statement) ||
             ts.isExportAssignment(statement) ||
@@ -183,7 +220,7 @@ async function checkFile(filePath: string): Promise<number> {
         ) {
             const exports = exportedNamesFor(statement);
             count += exports.length;
-            checkExport(source, statement, filePath);
+            await checkExport(source, statement, filePath);
         }
     }
     return count;

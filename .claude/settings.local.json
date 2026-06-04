@@ -1,10 +1,4 @@
 {
-  "statusLine": {
-    "type": "command",
-    "command": "node .claude/statusline.js",
-    "padding": 0,
-    "refreshInterval": 30
-  },
   "permissions": {
     "allow": [
       "Bash(cat)",
@@ -15,7 +9,15 @@
       "Bash(git reset *)",
       "Bash(git restore *)",
       "Bash(git push *)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Bash(rm -rf /Users/julianwaibel/Documents/GitHub/chartlang/packages/host-worker/dist/*)",
+      "Bash(pnpm build *)"
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node .claude/statusline.js",
+    "padding": 0,
+    "refreshInterval": 30
   }
 }

@@ -3,7 +3,13 @@
     "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
     "files": {
         "ignoreUnknown": true,
-        "ignore": [".claude/**", "dist/**", "coverage/**", "**/*.tsbuildinfo"]
+        "ignore": [
+            ".claude/**",
+            "dist/**",
+            "coverage/**",
+            "**/*.tsbuildinfo",
+            "packages/conformance/fixtures/**"
+        ]
     },
     "formatter": {
         "enabled": true,
@@ -26,6 +32,18 @@
             }
         }
     },
+    "overrides": [
+        {
+            "include": ["scripts/**"],
+            "linter": {
+                "rules": {
+                    "suspicious": {
+                        "noConsoleLog": "off"
+                    }
+                }
+            }
+        }
+    ],
     "javascript": {
         "formatter": {
             "quoteStyle": "double",

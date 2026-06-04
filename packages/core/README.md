@@ -12,13 +12,35 @@ pnpm add @invinite-org/chartlang-core
 
 ## Public surface
 
-Planned (Phase 1+): `defineIndicator`, `defineDrawing`, `defineAlert`; primitives `ta.*`, `plot`, `draw.*`, `alert`, `input.*`, `color.*`, `style.*`; types `Series<T>`, `Bar`, `Time`, `Price`.
+- Constructors: `defineIndicator`, `defineAlert`.
+- Callable holes the compiler retargets at the runtime: `ta.sma`, `ta.ema`,
+  `ta.stdev`, `ta.bb`, `ta.rsi`, `ta.macd`, `ta.atr`, `ta.crossover`,
+  `ta.crossunder`, `plot`, `hline`, `alert`.
+- Registry: `STATEFUL_PRIMITIVES` — the immutable set of fully-qualified
+  call names the compiler injects callsite ids into.
+- Types: `Series<T>`, `Bar`, `Time`, `Price`, `Volume`, `Color`,
+  `LineStyle`, `PlotLineStyle`, `AlertSeverity`, `IntervalDescriptor`,
+  `InputSchema`, `CapabilityId`, `ScriptManifest`, `ComputeContext`,
+  `ComputeFn`, `CompiledScriptObject`, `JsonValue`, plus per-primitive
+  opts / result types.
+
+Phase 2+ extends the primitive surface; the namespace shape is locked at
+`0.1`.
 
 ## Minimum-viable API call
 
 ```ts
-import { PACKAGE_VERSION } from "@invinite-org/chartlang-core";
-console.log(PACKAGE_VERSION); // "0.0.0"
+import { defineIndicator } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "EMA(20)",
+    apiVersion: 1,
+    compute: ({ ta, plot, bar }) => {
+        // `bar.close` is the current close; the compiler wires `ta.ema` to
+        // the real runtime implementation at build time.
+        plot(bar.close);
+    },
+});
 ```
 
 ## Docs

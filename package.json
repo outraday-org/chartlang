@@ -15,23 +15,28 @@
         "lint": "biome lint .",
         "format": "biome format --write .",
         "format:check": "biome format .",
+        "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm docs:check && pnpm readme:check && pnpm conformance && pnpm build",
         "conformance": "pnpm tsx scripts/run-conformance.ts",
         "docs:check": "pnpm tsx scripts/docs-check.ts",
         "docs:build": "vitepress build docs",
         "readme:check": "pnpm tsx scripts/readme-check.ts",
         "coverage:report": "pnpm tsx scripts/coverage-merge.ts",
         "scaffold": "pnpm tsx scripts/scaffold.ts",
+        "test:scripts": "vitest run -c scripts/vitest.config.ts",
+        "chartlang": "tsx packages/cli/src/bin.ts",
         "changeset": "changeset",
         "release": "pnpm build && changeset publish"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.0",
         "@changesets/cli": "^2.27.0",
+        "@invinite-org/chartlang-cli": "workspace:*",
+        "@invinite-org/chartlang-compiler": "workspace:*",
         "@vitest/coverage-v8": "^2.1.0",
+        "expect-type": "^1.0.0",
         "tsx": "^4.19.0",
         "typescript": "^5.6.0",
-        "vitest": "^2.1.0",
         "vitepress": "^1.4.0",
-        "expect-type": "^1.0.0"
+        "vitest": "^2.1.0"
     }
 }

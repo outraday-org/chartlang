@@ -1,0 +1,76 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { createHash } from "node:crypto";
+
+import { capabilities } from "@invinite-org/chartlang-adapter-kit";
+import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
+import { afterEach, describe, expect, it } from "vitest";
+
+import {
+    ACTIVE_RUNTIME_CONTEXT,
+    type MutableRunnerEmissions,
+    type RuntimeContext,
+} from "../runtimeContext";
+import { createStreamState } from "../streamState";
+import { inMemoryStateStore } from "../stateStore";
+import { hline } from "./hline";
+
+const MINI_FIXTURE_BARS = 50;
+
+function makeCaps(): Capabilities {
+    return {
+        plots: capabilities.allLines(),
+        drawings: new Set(),
+        alerts: new Set(),
+        alertConditions: false,
+        logs: false,
+        inputs: new Set(),
+        intervals: [],
+        multiTimeframe: false,
+        subPanes: 0,
+        symInfoFields: new Set(),
+        maxDrawingsPerScript: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+        maxLookback: 5000,
+        maxTickHz: 10,
+    };
+}
+
+afterEach(() => {
+    ACTIVE_RUNTIME_CONTEXT.current = null;
+});
+
+describe("hline — golden", () => {
+    it("emits a SHA-256-stable plot array against the 50-bar mini-fixture", () => {
+        const emissions: MutableRunnerEmissions = {
+            plots: [],
+            drawings: [],
+            alerts: [],
+            diagnostics: [],
+            fromBar: 0,
+            toBar: 0,
+        };
+        const stream = createStreamState({ interval: "", capacity: 64, symbol: "" });
+        let barIndex = 0;
+        const ctx: RuntimeContext = {
+            stream,
+            stateStore: inMemoryStateStore(),
+            capabilities: makeCaps(),
+            emissions,
+            barIndex: () => barIndex,
+            isTick: false,
+        };
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        for (let i = 0; i < MINI_FIXTURE_BARS; i += 1) {
+            stream.bar.time = 1_700_000_000_000 + i * 60_000;
+            hline("fixture.ts:1:1#0", 70);
+            barIndex += 1;
+        }
+
+        const hash = createHash("sha256").update(JSON.stringify(emissions.plots)).digest("hex");
+
+        expect(hash).toBe("9c7fe08d100b89df5bd06484c40072bb8bbe93cf5b0c4220b2bcd53d61d8a567");
+        expect(emissions.plots).toHaveLength(MINI_FIXTURE_BARS);
+    });
+});

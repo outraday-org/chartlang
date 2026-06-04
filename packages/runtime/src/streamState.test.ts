@@ -1,0 +1,103 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { describe, expect, it } from "vitest";
+
+import { createStreamState } from "./streamState";
+
+describe("createStreamState", () => {
+    it("constructs the full per-stream shape with the supplied symbol/interval", () => {
+        const stream = createStreamState({
+            interval: "1D",
+            capacity: 5,
+            symbol: "AAPL",
+        });
+        expect(stream.interval).toBe("1D");
+        expect(stream.bar.symbol).toBe("AAPL");
+        expect(stream.bar.interval).toBe("1D");
+        expect(stream.bar.time).toBe(0);
+        expect(stream.bar.volume).toBe(0);
+        expect(stream.bar.open).toBeNaN();
+        expect(stream.bar.high).toBeNaN();
+        expect(stream.bar.low).toBeNaN();
+        expect(stream.bar.close).toBeNaN();
+        expect(stream.bar.hl2).toBeNaN();
+        expect(stream.bar.hlc3).toBeNaN();
+        expect(stream.bar.ohlc4).toBeNaN();
+        expect(stream.bar.hlcc4).toBeNaN();
+    });
+
+    it("sizes every OHLCV ring buffer to the supplied capacity", () => {
+        const { ohlcv } = createStreamState({
+            interval: "5m",
+            capacity: 12,
+            symbol: "BTCUSD",
+        });
+        expect(ohlcv.time.capacity).toBe(12);
+        expect(ohlcv.open.capacity).toBe(12);
+        expect(ohlcv.high.capacity).toBe(12);
+        expect(ohlcv.low.capacity).toBe(12);
+        expect(ohlcv.close.capacity).toBe(12);
+        expect(ohlcv.volume.capacity).toBe(12);
+        expect(ohlcv.hl2.capacity).toBe(12);
+        expect(ohlcv.hlc3.capacity).toBe(12);
+        expect(ohlcv.ohlc4.capacity).toBe(12);
+        expect(ohlcv.hlcc4.capacity).toBe(12);
+        expect(ohlcv.close.length).toBe(0);
+    });
+
+    it("wires Series<number> views into each OHLCV buffer", () => {
+        const { ohlcv, seriesViews } = createStreamState({
+            interval: "1D",
+            capacity: 3,
+            symbol: "AAPL",
+        });
+        ohlcv.close.append(100);
+        ohlcv.close.append(101);
+        expect(seriesViews.close.current).toBe(101);
+        expect(seriesViews.close[1]).toBe(100);
+        expect(seriesViews.close.length).toBe(2);
+
+        ohlcv.volume.append(1000);
+        expect(seriesViews.volume.current).toBe(1000);
+        expect(seriesViews.time.current).toBeNaN();
+    });
+
+    it("Series view identity is stable across appends", () => {
+        const { ohlcv, seriesViews } = createStreamState({
+            interval: "1D",
+            capacity: 3,
+            symbol: "AAPL",
+        });
+        const closeRef = seriesViews.close;
+        ohlcv.close.append(1);
+        ohlcv.close.append(2);
+        ohlcv.close.append(3);
+        ohlcv.close.append(4);
+        expect(seriesViews.close).toBe(closeRef);
+    });
+
+    it("taSlots starts as an empty Map", () => {
+        const { taSlots } = createStreamState({
+            interval: "1D",
+            capacity: 3,
+            symbol: "AAPL",
+        });
+        expect(taSlots).toBeInstanceOf(Map);
+        expect(taSlots.size).toBe(0);
+        taSlots.set("slot#0", { running: 1 });
+        expect(taSlots.size).toBe(1);
+        expect(taSlots.get("slot#0")).toEqual({ running: 1 });
+    });
+
+    it("each call returns a fresh StreamState with independent state", () => {
+        const a = createStreamState({ interval: "1D", capacity: 2, symbol: "A" });
+        const b = createStreamState({ interval: "1D", capacity: 2, symbol: "B" });
+        expect(a).not.toBe(b);
+        expect(a.ohlcv).not.toBe(b.ohlcv);
+        expect(a.bar).not.toBe(b.bar);
+        expect(a.taSlots).not.toBe(b.taSlots);
+        a.ohlcv.close.append(1);
+        expect(b.ohlcv.close.length).toBe(0);
+    });
+});
