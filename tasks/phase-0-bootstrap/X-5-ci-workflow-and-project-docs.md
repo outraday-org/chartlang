@@ -236,9 +236,6 @@ Length cap: 300 lines.
 
 Copy the official Contributor Covenant 2.1 text verbatim from
 `https://www.contributor-covenant.org/version/2/1/code_of_conduct.md`.
-Substitute the enforcement contact email with `conduct@invinite.org`
-(matches the npm scope's org name; safer default than an individual
-maintainer email).
 
 ### 6. Lint, format, gate-test the whole repo
 
