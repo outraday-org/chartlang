@@ -43,4 +43,41 @@ describe("ta.macd — property invariants", () => {
             { numRuns: 10 },
         );
     });
+
+    it("opts.offset: every output shifts by k slots in lockstep", () => {
+        fc.assert(
+            fc.property(
+                fc.array(arbBar, { minLength: 40, maxLength: 100 }),
+                fc.integer({ min: 1, max: 5 }),
+                (bars, offset) => {
+                    const unshifted = harness(bars, bars.length + 1, (bar) => {
+                        const r = macd("slot", bar.close, {
+                            fastLength: 5,
+                            slowLength: 13,
+                            signalLength: 3,
+                        });
+                        return { m: r.macd.current, s: r.signal.current, h: r.hist.current };
+                    });
+                    const shifted = harness(bars, bars.length + 1, (bar) => {
+                        const r = macd("slot", bar.close, {
+                            fastLength: 5,
+                            slowLength: 13,
+                            signalLength: 3,
+                            offset,
+                        });
+                        return { m: r.macd.current, s: r.signal.current, h: r.hist.current };
+                    });
+                    for (let i = offset; i < bars.length; i += 1) {
+                        const u = unshifted[i - offset];
+                        const s = shifted[i];
+                        for (const k of ["m", "s", "h"] as const) {
+                            if (Number.isNaN(u[k])) expect(Number.isNaN(s[k])).toBe(true);
+                            else expect(s[k]).toBeCloseTo(u[k], 8);
+                        }
+                    }
+                },
+            ),
+            { numRuns: 15 },
+        );
+    });
 });

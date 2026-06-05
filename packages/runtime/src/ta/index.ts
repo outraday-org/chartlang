@@ -3,4 +3,5 @@
 
 export { TA_REGISTRY, ta } from "./registry";
 export type { RuntimeTaNamespace } from "./registry";
-export type { ScalarOrSeries } from "./sourceValue";
+export { maRibbonOutputKeys } from "./maRibbon";
+export type { ScalarOrSeries } from "./lib/sourceValue";

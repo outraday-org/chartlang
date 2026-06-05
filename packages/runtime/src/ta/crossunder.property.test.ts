@@ -36,4 +36,29 @@ describe("ta.crossunder — property invariants", () => {
             { numRuns: 15 },
         );
     });
+
+    it("opts.offset: shifted_k[i] === unshifted[i − k] for every defined index", () => {
+        fc.assert(
+            fc.property(
+                fc.array(arbBar, { minLength: 10, maxLength: 50 }),
+                fc.integer({ min: 1, max: 5 }),
+                (bars, offset) => {
+                    const unshifted = harness(
+                        bars,
+                        bars.length + 1,
+                        (bar) => crossunder("slot", bar.close, 500).current,
+                    );
+                    const shifted = harness(
+                        bars,
+                        bars.length + 1,
+                        (bar) => crossunder("slot", bar.close, 500, { offset }).current,
+                    );
+                    for (let i = offset; i < bars.length; i += 1) {
+                        expect(shifted[i]).toBe(unshifted[i - offset]);
+                    }
+                },
+            ),
+            { numRuns: 20 },
+        );
+    });
 });

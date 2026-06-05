@@ -37,10 +37,19 @@ export type Volume = number;
  * The OHLCV record the runtime hands to `compute` for the current bar. Every
  * field is `readonly`; scripts must not mutate it.
  *
+ * Phase 2 surfaces the four pre-computed derived sources (`hl2` / `hlc3` /
+ * `ohlc4` / `hlcc4`) the runtime's `BarView`
+ * (`packages/runtime/src/streamState.ts`) already populates on every close.
+ * Script authors can write `ta.cci(bar.hlc3, 20)` directly — matching Pine's
+ * canonical `bar.hlc3` / `bar.ohlc4` access pattern — without re-computing
+ * the derived source per lookup.
+ *
  * @since 0.1
  * @example
  *     function tick(bar: Bar): void {
  *         console.log(bar.close, bar.symbol, bar.interval);
+ *         // Phase 2 — Pine-style derived sources:
+ *         console.log(bar.hl2, bar.hlc3, bar.ohlc4, bar.hlcc4);
  *     }
  */
 export type Bar = {
@@ -52,6 +61,14 @@ export type Bar = {
     readonly volume: Volume;
     readonly symbol: string;
     readonly interval: string;
+    /** `(high + low) / 2`. @since 0.2 */
+    readonly hl2: Price;
+    /** `(high + low + close) / 3`. @since 0.2 */
+    readonly hlc3: Price;
+    /** `(open + high + low + close) / 4`. @since 0.2 */
+    readonly ohlc4: Price;
+    /** `(high + low + close + close) / 4` (Pine's `hlcc4`). @since 0.2 */
+    readonly hlcc4: Price;
 };
 
 /**

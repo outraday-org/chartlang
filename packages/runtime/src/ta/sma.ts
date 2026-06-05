@@ -14,8 +14,8 @@ import type { Series, SmaOpts } from "@invinite-org/chartlang-core";
 
 import { Float64RingBuffer } from "../ringBuffer";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
-import { type ScalarOrSeries, readSourceValue } from "./sourceValue";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
 
 type SmaSlot = {
     readonly outBuffer: Float64RingBuffer;
@@ -29,6 +29,13 @@ type SmaSlot = {
      */
     readonly window: Float64RingBuffer;
     sum: number;
+    /**
+     * Lazy cache of offset-shifted Series views keyed by `opts.offset`.
+     * `offset === 0` callers bypass this map and return `series`
+     * directly — identity-preserving. Populated on first call per
+     * non-zero offset; identity is stable per offset thereafter.
+     */
+    readonly shiftedViews: Map<number, Series<number>>;
 };
 
 function getCtx(): RuntimeContext {
@@ -47,7 +54,18 @@ function initSlot(length: number, capacity: number): SmaSlot {
         length,
         window: new Float64RingBuffer(length),
         sum: 0,
+        shiftedViews: new Map(),
     };
+}
+
+function viewForOffset(slot: SmaSlot, offset: number): Series<number> {
+    if (offset === 0) return slot.series;
+    let view = slot.shiftedViews.get(offset);
+    if (view === undefined) {
+        view = makeShiftedSeriesView<number>(slot.outBuffer, offset);
+        slot.shiftedViews.set(offset, view);
+    }
+    return view;
 }
 
 function tickValue(slot: SmaSlot, src: number): number {
@@ -85,6 +103,8 @@ function closeValue(slot: SmaSlot, src: number): number {
  * values. Warmup of `length − 1` bars returns `NaN`. Tick-mode replays
  * the head as `(window_sum − window_head + tick_value) / length` so a
  * partial-bar tick doesn't pollute the next close's running sum.
+ * `opts.offset` shifts the returned series so `series.current` reads
+ * the value `offset` bars ago (PLAN.md §9.1).
  *
  * @formula  out[t] = (source[t] + source[t − 1] + … + source[t − length + 1]) / length
  * @warmup   length − 1
@@ -95,12 +115,13 @@ function closeValue(slot: SmaSlot, src: number): number {
  *     // import { ta } from "@invinite-org/chartlang-runtime";
  *     // const s = ta.sma("slot", bar.close, 20);
  *     // const head = s.current; // NaN until bar length-1
+ *     // const lagged = ta.sma("slot2", bar.close, 20, { offset: 5 });
  */
 export function sma(
     slotId: string,
     source: ScalarOrSeries,
     length: number,
-    _opts?: SmaOpts,
+    opts?: SmaOpts,
 ): Series<number> {
     const ctx = getCtx();
     let slot = ctx.stream.taSlots.get(slotId) as SmaSlot | undefined;
@@ -114,5 +135,5 @@ export function sma(
     } else {
         slot.outBuffer.append(closeValue(slot, src));
     }
-    return slot.series;
+    return viewForOffset(slot, opts?.offset ?? 0);
 }

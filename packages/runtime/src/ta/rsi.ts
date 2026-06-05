@@ -13,9 +13,9 @@ import type { RsiOpts, Series } from "@invinite-org/chartlang-core";
 
 import { Float64RingBuffer } from "../ringBuffer";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
 import { wilderStep } from "./lib/wilderSmoothing";
-import { type ScalarOrSeries, readSourceValue } from "./sourceValue";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
 
 type RsiSlot = {
     readonly outBuffer: Float64RingBuffer;
@@ -30,6 +30,8 @@ type RsiSlot = {
     prevSrc: number;
     /** Source value as of the prior closed bar — used by tick-mode replay. */
     prevClosedSrc: number;
+    /** Per-offset Series-view cache; see `sma.ts` for the convention. */
+    readonly shiftedViews: Map<number, Series<number>>;
 };
 
 function getCtx(): RuntimeContext {
@@ -53,7 +55,18 @@ function initSlot(length: number, capacity: number): RsiSlot {
         avgLoss: Number.NaN,
         prevSrc: Number.NaN,
         prevClosedSrc: Number.NaN,
+        shiftedViews: new Map(),
     };
+}
+
+function viewForOffset(slot: RsiSlot, offset: number): Series<number> {
+    if (offset === 0) return slot.series;
+    let view = slot.shiftedViews.get(offset);
+    if (view === undefined) {
+        view = makeShiftedSeriesView<number>(slot.outBuffer, offset);
+        slot.shiftedViews.set(offset, view);
+    }
+    return view;
 }
 
 function rsiFromAvgs(avgGain: number, avgLoss: number): number {
@@ -149,16 +162,20 @@ function tickValue(slot: RsiSlot, src: number): number {
  * @since 0.1
  * @experimental
  *
+ * `opts.offset` shifts the returned series so `series.current` reads
+ * the value `offset` bars ago (PLAN.md §9.1).
+ *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";
  *     // const r = ta.rsi("slot", bar.close, 14);
  *     // const head = r.current;
+ *     // const lagged = ta.rsi("slot2", bar.close, 14, { offset: 5 });
  */
 export function rsi(
     slotId: string,
     source: ScalarOrSeries,
     length: number,
-    _opts?: RsiOpts,
+    opts?: RsiOpts,
 ): Series<number> {
     const ctx = getCtx();
     let slot = ctx.stream.taSlots.get(slotId) as RsiSlot | undefined;
@@ -172,5 +189,5 @@ export function rsi(
     } else {
         slot.outBuffer.append(closeValue(slot, src));
     }
-    return slot.series;
+    return viewForOffset(slot, opts?.offset ?? 0);
 }

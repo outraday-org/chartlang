@@ -54,3 +54,52 @@ export function makeSeriesView<T>(buf: RingBufferLike<T>): Series<T> {
         },
     });
 }
+
+/**
+ * Offset-shifted variant of {@link makeSeriesView}. `offset === 0`
+ * returns the same Proxy shape (and is the identity-preserving fast
+ * path callers should special-case at the call site). For
+ * `offset === k > 0`, `view.current === buf.at(k)` — i.e. the value
+ * `k` bars ago, matching `lib/applyOffset`'s
+ * `out[i] = values[i − offset]` semantics. For `offset === -k`,
+ * `view.current === buf.at(-k)` — an OOR read returning the underlying
+ * sentinel (NaN for `Float64RingBuffer`, `undefined` for object
+ * `RingBuffer`).
+ *
+ * The shift is applied on every read — no allocation, no per-bar
+ * work. Callers cache the returned Proxy per `(slot, offset)` pair so
+ * the view's identity stays stable across bars.
+ *
+ * @since 0.2
+ * @example
+ *     // import { Float64RingBuffer, makeShiftedSeriesView }
+ *     //     from "@invinite-org/chartlang-runtime";
+ *     // const buf = new Float64RingBuffer(8);
+ *     // buf.append(10); buf.append(20); buf.append(30);
+ *     // const view = makeShiftedSeriesView<number>(buf, 1);
+ *     // view.current; // 20 (one bar ago)
+ *     // view[0];      // 20
+ *     // view[1];      // 10
+ */
+export function makeShiftedSeriesView<T>(buf: RingBufferLike<T>, offset: number): Series<T> {
+    if (offset === 0) return makeSeriesView<T>(buf);
+    return new Proxy({} as Series<T>, {
+        get(_target, prop) {
+            if (prop === "current") return buf.at(offset);
+            if (prop === "length") return buf.length;
+            if (typeof prop === "string") {
+                const n = Number(prop);
+                if (Number.isInteger(n) && n >= 0) return buf.at(n + offset);
+            }
+            return undefined;
+        },
+        has(_target, prop) {
+            if (prop === "current" || prop === "length") return true;
+            if (typeof prop === "string") {
+                const n = Number(prop);
+                return Number.isInteger(n) && n >= 0;
+            }
+            return false;
+        },
+    });
+}

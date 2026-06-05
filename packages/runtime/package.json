@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-runtime",
-    "version": "0.0.0",
+    "version": "0.2.0",
     "type": "module",
     "license": "MIT",
     "description": "Execution engine, Series ring buffers, ta.* math primitives",

@@ -306,7 +306,7 @@ function firstElementAccess(
 }
 
 describe("resolveCoreSymbolForElementAccess", () => {
-    it("returns the canonical core name for `ta[\"ema\"]`", () => {
+    it('returns the canonical core name for `ta["ema"]`', () => {
         const { sourceFile, checker } = createProgramForSource(
             `import { ta } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;

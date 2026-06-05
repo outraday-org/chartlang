@@ -45,9 +45,14 @@ export type RecordedCall =
       }
     | { readonly kind: "closePath" }
     | { readonly kind: "setLineDash"; readonly segments: ReadonlyArray<number> }
+    | { readonly kind: "fillText"; readonly text: string; readonly x: number; readonly y: number }
     | { readonly kind: "set"; readonly prop: "strokeStyle"; readonly value: string }
     | { readonly kind: "set"; readonly prop: "fillStyle"; readonly value: string }
-    | { readonly kind: "set"; readonly prop: "lineWidth"; readonly value: number };
+    | { readonly kind: "set"; readonly prop: "lineWidth"; readonly value: number }
+    | { readonly kind: "set"; readonly prop: "globalAlpha"; readonly value: number }
+    | { readonly kind: "set"; readonly prop: "font"; readonly value: string }
+    | { readonly kind: "set"; readonly prop: "textAlign"; readonly value: string }
+    | { readonly kind: "set"; readonly prop: "textBaseline"; readonly value: string };
 
 /**
  * Hand-rolled Canvas 2D mock that satisfies the renderer's
@@ -77,6 +82,10 @@ export class MockCanvas2DContext {
     private _strokeStyle = "#000000";
     private _fillStyle = "#000000";
     private _lineWidth = 1;
+    private _globalAlpha = 1;
+    private _font = "10px sans-serif";
+    private _textAlign: "start" | "center" | "end" | "left" | "right" = "start";
+    private _textBaseline: "top" | "middle" | "bottom" | "alphabetic" | "hanging" = "alphabetic";
 
     clearRect(x: number, y: number, w: number, h: number): void {
         this.calls.push({ kind: "clearRect", x, y, w, h });
@@ -118,6 +127,10 @@ export class MockCanvas2DContext {
         this.calls.push({ kind: "setLineDash", segments: segments.slice() });
     }
 
+    fillText(text: string, x: number, y: number): void {
+        this.calls.push({ kind: "fillText", text, x, y });
+    }
+
     get strokeStyle(): string {
         return this._strokeStyle;
     }
@@ -143,6 +156,42 @@ export class MockCanvas2DContext {
     set lineWidth(value: number) {
         this._lineWidth = value;
         this.calls.push({ kind: "set", prop: "lineWidth", value });
+    }
+
+    get globalAlpha(): number {
+        return this._globalAlpha;
+    }
+
+    set globalAlpha(value: number) {
+        this._globalAlpha = value;
+        this.calls.push({ kind: "set", prop: "globalAlpha", value });
+    }
+
+    get font(): string {
+        return this._font;
+    }
+
+    set font(value: string) {
+        this._font = value;
+        this.calls.push({ kind: "set", prop: "font", value });
+    }
+
+    get textAlign(): "start" | "center" | "end" | "left" | "right" {
+        return this._textAlign;
+    }
+
+    set textAlign(value: "start" | "center" | "end" | "left" | "right") {
+        this._textAlign = value;
+        this.calls.push({ kind: "set", prop: "textAlign", value });
+    }
+
+    get textBaseline(): "top" | "middle" | "bottom" | "alphabetic" | "hanging" {
+        return this._textBaseline;
+    }
+
+    set textBaseline(value: "top" | "middle" | "bottom" | "alphabetic" | "hanging") {
+        this._textBaseline = value;
+        this.calls.push({ kind: "set", prop: "textBaseline", value });
     }
 }
 
@@ -178,6 +227,13 @@ function canonicalise(call: RecordedCall): Record<string, unknown> {
             };
         case "setLineDash":
             return { kind: call.kind, segments: call.segments.map((s) => roundFloat(s)) };
+        case "fillText":
+            return {
+                kind: call.kind,
+                text: call.text,
+                x: roundFloat(call.x),
+                y: roundFloat(call.y),
+            };
         case "set": {
             const value = typeof call.value === "number" ? roundFloat(call.value) : call.value;
             return { kind: call.kind, prop: call.prop, value };

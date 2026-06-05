@@ -6,8 +6,21 @@ import { describe, expect, it } from "vitest";
 import { CANVAS2D_CAPABILITIES } from "./capabilities";
 
 describe("CANVAS2D_CAPABILITIES", () => {
-    it("declares exactly the line + horizontal-line plot kinds", () => {
-        expect([...CANVAS2D_CAPABILITIES.plots].sort()).toEqual(["horizontal-line", "line"]);
+    it("declares all 9 Phase-1+Phase-2 plot kinds (cardinality + membership)", () => {
+        expect(CANVAS2D_CAPABILITIES.plots.size).toBe(9);
+        expect([...CANVAS2D_CAPABILITIES.plots].sort()).toEqual(
+            [
+                "area",
+                "bars",
+                "filled-band",
+                "histogram",
+                "horizontal-line",
+                "label",
+                "line",
+                "marker",
+                "step-line",
+            ].sort(),
+        );
     });
 
     it("declares exactly the log + toast alert channels", () => {

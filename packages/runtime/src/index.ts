@@ -3,7 +3,7 @@
 
 export { Float64RingBuffer, RingBuffer } from "./ringBuffer";
 export type { RingBufferLike } from "./ringBuffer";
-export { makeSeriesView } from "./seriesView";
+export { makeSeriesView, makeShiftedSeriesView } from "./seriesView";
 export type { BarView, OhlcvBuffers, StreamState } from "./streamState";
 export { createStreamState } from "./streamState";
 export type { StateStore } from "./stateStore";
@@ -14,4 +14,5 @@ export { createScriptRunner } from "./createScriptRunner";
 export type { CreateScriptRunnerArgs, ScriptRunner } from "./createScriptRunner";
 export { alert, hline, plot } from "./emit";
 export { TA_REGISTRY, ta } from "./ta";
+export { maRibbonOutputKeys } from "./ta";
 export type { RuntimeTaNamespace, ScalarOrSeries } from "./ta";

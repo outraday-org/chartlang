@@ -16,9 +16,9 @@ import type { MacdOpts, MacdResult, Series } from "@invinite-org/chartlang-core"
 
 import { Float64RingBuffer } from "../ringBuffer";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
 import { ema } from "./ema";
-import { type ScalarOrSeries, readSourceValue } from "./sourceValue";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
 
 const DEFAULT_FAST = 12;
 const DEFAULT_SLOW = 26;
@@ -28,6 +28,19 @@ type MacdSlot = {
     readonly result: MacdResult;
     readonly macdBuf: Float64RingBuffer;
     readonly histBuf: Float64RingBuffer;
+    /**
+     * Reference to the signal-EMA sub-slot's output ring buffer.
+     * Captured at first call so per-offset shifted signal views can be
+     * constructed without re-entering `ema()` (which would double-
+     * advance the sub-slot's compute on every bar).
+     */
+    readonly signalBuf: Float64RingBuffer;
+    /**
+     * Per-offset frozen `MacdResult` cache. `offset === 0` returns
+     * `result` directly (identity-preserving). Each cached result
+     * proxies the same three underlying outputs via shifted views.
+     */
+    readonly shiftedResults: Map<number, MacdResult>;
 };
 
 function getCtx(): RuntimeContext {
@@ -38,7 +51,11 @@ function getCtx(): RuntimeContext {
     return ctx;
 }
 
-function initSlot(capacity: number, signalSeries: Series<number>): MacdSlot {
+function initSlot(
+    capacity: number,
+    signalSeries: Series<number>,
+    signalBuf: Float64RingBuffer,
+): MacdSlot {
     const macdBuf = new Float64RingBuffer(capacity);
     const histBuf = new Float64RingBuffer(capacity);
     return {
@@ -49,7 +66,23 @@ function initSlot(capacity: number, signalSeries: Series<number>): MacdSlot {
         }),
         macdBuf,
         histBuf,
+        signalBuf,
+        shiftedResults: new Map(),
     };
+}
+
+function resultForOffset(slot: MacdSlot, offset: number): MacdResult {
+    if (offset === 0) return slot.result;
+    let cached = slot.shiftedResults.get(offset);
+    if (cached === undefined) {
+        cached = Object.freeze({
+            macd: makeShiftedSeriesView<number>(slot.macdBuf, offset),
+            signal: makeShiftedSeriesView<number>(slot.signalBuf, offset),
+            hist: makeShiftedSeriesView<number>(slot.histBuf, offset),
+        });
+        slot.shiftedResults.set(offset, cached);
+    }
+    return cached;
 }
 
 /**
@@ -69,28 +102,40 @@ function initSlot(capacity: number, signalSeries: Series<number>): MacdSlot {
  * @since 0.1
  * @experimental
  *
+ * `opts.offset` shifts all three outputs in lockstep (PLAN.md §9.1) —
+ * `series.current` on each output returns the value `offset` bars ago.
+ *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";
  *     // const m = ta.macd("slot", bar.close);
  *     // const h = m.hist.current;
+ *     // const lagged = ta.macd("slot2", bar.close, { offset: 5 });
  */
 export function macd(slotId: string, source: ScalarOrSeries, opts?: MacdOpts): MacdResult {
     const ctx = getCtx();
     const fastLength = opts?.fastLength ?? DEFAULT_FAST;
     const slowLength = opts?.slowLength ?? DEFAULT_SLOW;
     const signalLength = opts?.signalLength ?? DEFAULT_SIGNAL;
+    const offset = opts?.offset ?? 0;
+    const signalSlotId = `${slotId}/signal`;
     const src = readSourceValue(source);
     const fastSeries = ema(`${slotId}/fast`, src, fastLength);
     const slowSeries = ema(`${slotId}/slow`, src, slowLength);
     const fa = fastSeries.current;
     const sa = slowSeries.current;
     const macdValue = Number.isFinite(fa) && Number.isFinite(sa) ? fa - sa : Number.NaN;
-    // Feed macdValue into the signal EMA via a scalar source.
-    const signalSeries = ema(`${slotId}/signal`, macdValue, signalLength);
+    // Feed macdValue into the signal EMA. Always call with the
+    // un-shifted (default) view — offset shifting for the composite
+    // MacdResult happens via the local `resultForOffset`, which reads
+    // directly off the signal-EMA's outBuffer (captured below).
+    const signalSeries = ema(signalSlotId, macdValue, signalLength);
 
     let slot = ctx.stream.taSlots.get(slotId) as MacdSlot | undefined;
     if (slot === undefined) {
-        slot = initSlot(ctx.stream.ohlcv.close.capacity, signalSeries);
+        // Capture the signal-EMA sub-slot's output ring buffer so
+        // future shifted-view lookups don't need to re-enter `ema()`.
+        const emaSlot = ctx.stream.taSlots.get(signalSlotId) as { outBuffer: Float64RingBuffer };
+        slot = initSlot(ctx.stream.ohlcv.close.capacity, signalSeries, emaSlot.outBuffer);
         ctx.stream.taSlots.set(slotId, slot);
     }
     const sig = signalSeries.current;
@@ -103,5 +148,5 @@ export function macd(slotId: string, source: ScalarOrSeries, opts?: MacdOpts): M
         slot.macdBuf.append(macdValue);
         slot.histBuf.append(histValue);
     }
-    return slot.result;
+    return resultForOffset(slot, offset);
 }

@@ -6,12 +6,12 @@
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape.
 
-import type { Series } from "@invinite-org/chartlang-core";
+import type { CrossoverOpts, Series } from "@invinite-org/chartlang-core";
 
 import { RingBuffer } from "../ringBuffer";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
-import { type ScalarOrSeries, readSourceValue } from "./sourceValue";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
 
 type CrossSlot = {
     readonly outBuffer: RingBuffer<boolean>;
@@ -23,6 +23,8 @@ type CrossSlot = {
     currA: number;
     currB: number;
     initialised: boolean;
+    /** Per-offset Series-view cache; see `sma.ts` for the convention. */
+    readonly shiftedViews: Map<number, Series<boolean>>;
 };
 
 function getCtx(): RuntimeContext {
@@ -43,7 +45,18 @@ function initSlot(capacity: number): CrossSlot {
         currA: Number.NaN,
         currB: Number.NaN,
         initialised: false,
+        shiftedViews: new Map(),
     };
+}
+
+function viewForOffset(slot: CrossSlot, offset: number): Series<boolean> {
+    if (offset === 0) return slot.series;
+    let view = slot.shiftedViews.get(offset);
+    if (view === undefined) {
+        view = makeShiftedSeriesView<boolean>(slot.outBuffer, offset) as Series<boolean>;
+        slot.shiftedViews.set(offset, view);
+    }
+    return view;
 }
 
 function detect(prevA: number, prevB: number, currA: number, currB: number): boolean {
@@ -74,12 +87,21 @@ function detect(prevA: number, prevB: number, currA: number, currB: number): boo
  * @since 0.1
  * @experimental
  *
+ * `opts.offset` shifts the boolean series so `series.current` returns
+ * the crossover detection `offset` bars ago (PLAN.md §9.1).
+ *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";
  *     // const c = ta.crossover("slot", fastEma, slowEma);
  *     // if (c.current) { ... }
+ *     // const lagged = ta.crossover("slot2", fastEma, slowEma, { offset: 1 });
  */
-export function crossover(slotId: string, a: ScalarOrSeries, b: ScalarOrSeries): Series<boolean> {
+export function crossover(
+    slotId: string,
+    a: ScalarOrSeries,
+    b: ScalarOrSeries,
+    opts?: CrossoverOpts,
+): Series<boolean> {
     const ctx = getCtx();
     let slot = ctx.stream.taSlots.get(slotId) as CrossSlot | undefined;
     if (slot === undefined) {
@@ -88,10 +110,11 @@ export function crossover(slotId: string, a: ScalarOrSeries, b: ScalarOrSeries):
     }
     const aValue = readSourceValue(a);
     const bValue = readSourceValue(b);
+    const offset = opts?.offset ?? 0;
     if (ctx.isTick) {
         const out = detect(slot.prevA, slot.prevB, aValue, bValue);
         slot.outBuffer.replaceHead(out);
-        return slot.series;
+        return viewForOffset(slot, offset);
     }
     if (!slot.initialised) {
         slot.initialised = true;
@@ -100,7 +123,7 @@ export function crossover(slotId: string, a: ScalarOrSeries, b: ScalarOrSeries):
         slot.currA = aValue;
         slot.currB = bValue;
         slot.outBuffer.append(false);
-        return slot.series;
+        return viewForOffset(slot, offset);
     }
     // Standard close-side advance: prev becomes currA/B, currA/B become the new sample.
     slot.prevA = slot.currA;
@@ -108,5 +131,5 @@ export function crossover(slotId: string, a: ScalarOrSeries, b: ScalarOrSeries):
     slot.currA = aValue;
     slot.currB = bValue;
     slot.outBuffer.append(detect(slot.prevA, slot.prevB, slot.currA, slot.currB));
-    return slot.series;
+    return viewForOffset(slot, offset);
 }

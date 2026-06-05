@@ -15,7 +15,7 @@ import type { AtrOpts, Series } from "@invinite-org/chartlang-core";
 
 import { Float64RingBuffer } from "../ringBuffer";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
 import { wilderStep } from "./lib/wilderSmoothing";
 
 type AtrSlot = {
@@ -32,6 +32,8 @@ type AtrSlot = {
     prevPrevClose: number;
     /** ATR as of the prior closed bar — used by tick-mode replay. */
     prevClosedAtr: number;
+    /** Per-offset Series-view cache; see `sma.ts` for the convention. */
+    readonly shiftedViews: Map<number, Series<number>>;
 };
 
 function getCtx(): RuntimeContext {
@@ -54,7 +56,18 @@ function initSlot(length: number, capacity: number): AtrSlot {
         prevClose: Number.NaN,
         prevPrevClose: Number.NaN,
         prevClosedAtr: Number.NaN,
+        shiftedViews: new Map(),
     };
+}
+
+function viewForOffset(slot: AtrSlot, offset: number): Series<number> {
+    if (offset === 0) return slot.series;
+    let view = slot.shiftedViews.get(offset);
+    if (view === undefined) {
+        view = makeShiftedSeriesView<number>(slot.outBuffer, offset);
+        slot.shiftedViews.set(offset, view);
+    }
+    return view;
 }
 
 function trueRange(high: number, low: number, prevClose: number): number {
@@ -116,12 +129,16 @@ function tickValue(slot: AtrSlot, high: number, low: number, close: number): num
  * @since 0.1
  * @experimental
  *
+ * `opts.offset` shifts the returned series so `series.current` reads
+ * the value `offset` bars ago (PLAN.md §9.1).
+ *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";
  *     // const a = ta.atr("slot", 14);
  *     // const head = a.current;
+ *     // const lagged = ta.atr("slot2", 14, { offset: 5 });
  */
-export function atr(slotId: string, length: number, _opts?: AtrOpts): Series<number> {
+export function atr(slotId: string, length: number, opts?: AtrOpts): Series<number> {
     const ctx = getCtx();
     let slot = ctx.stream.taSlots.get(slotId) as AtrSlot | undefined;
     if (slot === undefined) {
@@ -134,5 +151,5 @@ export function atr(slotId: string, length: number, _opts?: AtrOpts): Series<num
     } else {
         slot.outBuffer.append(closeValue(slot, bar.high, bar.low, bar.close));
     }
-    return slot.series;
+    return viewForOffset(slot, opts?.offset ?? 0);
 }

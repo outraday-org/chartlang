@@ -52,13 +52,15 @@ function makeAdapter(): Adapter {
 const SMALL_BARS: ReadonlyArray<Bar> = generateGoldenBars().slice(0, 200);
 
 describe("runConformanceSuite", () => {
-    it("returns passed=3/failed=0 for the bundled Phase-1 scenarios against canvas2d caps", async () => {
+    it("returns passed=N/failed=0 for every bundled scenario against canvas2d caps", async () => {
         const adapter = makeAdapter();
         const report = await runConformanceSuite(adapter);
         expect(report.failed).toBe(0);
         expect(report.passed).toBe(PHASE_1_SCENARIOS.length);
         expect(report.failures).toEqual([]);
-    });
+        // Phase-2 grew the scenario set from 5 → 86 + 10 000-bar fixtures;
+        // a single suite run takes ~30s on M-series, ~60s on CI.
+    }, 120_000);
 
     it("reports plot-hash failures with expected and actual hashes in the message", async () => {
         const adapter = makeAdapter();
@@ -268,6 +270,83 @@ export default defineIndicator({
         const second = await runConformanceSuite(adapter);
         expect(first.failed).toBe(0);
         expect(second.failed).toBe(0);
+        // Two full suite runs; second run hits scenario + bars cache.
+    }, 240_000);
+
+    it("inline-source happy path — runs end-to-end without reading scriptPath", async () => {
+        const INLINE = `import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "inline-demo",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        plot(bar.close);
+    },
+});
+`;
+        const scenario: Scenario = Object.freeze({
+            id: "inline-happy",
+            title: "inline-source happy path",
+            inlineSource: INLINE,
+            intervalCount: 1,
+            assertions: Object.freeze([
+                { kind: "alert-count", count: 0 },
+                { kind: "diagnostic-code-absent", code: "unsupported-plot-kind" },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [scenario],
+            candles: SMALL_BARS.slice(0, 10),
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(1);
+    });
+
+    it("inline-source compile error — the runner surfaces it via the compile seam", async () => {
+        const scenario: Scenario = Object.freeze({
+            id: "inline-bad",
+            title: "inline-source compile error",
+            inlineSource: "this is not valid TS @@@",
+            intervalCount: 1,
+            assertions: Object.freeze([] as ReadonlyArray<ScenarioAssertion>),
+        });
+        await expect(
+            runConformanceSuite(makeAdapter(), {
+                scenarios: [scenario],
+                candles: SMALL_BARS.slice(0, 5),
+            }),
+        ).rejects.toThrow();
+    });
+
+    it("rejects a scenario that defines both scriptPath and inlineSource", async () => {
+        const scenario: Scenario = Object.freeze({
+            id: "both",
+            title: "both fields",
+            scriptPath: "examples/scripts/ema-cross.chart.ts",
+            inlineSource: "// noop",
+            intervalCount: 1,
+            assertions: Object.freeze([] as ReadonlyArray<ScenarioAssertion>),
+        });
+        await expect(
+            runConformanceSuite(makeAdapter(), {
+                scenarios: [scenario],
+                candles: SMALL_BARS.slice(0, 5),
+            }),
+        ).rejects.toThrow(/cannot define both/);
+    });
+
+    it("rejects a scenario that defines neither scriptPath nor inlineSource", async () => {
+        const scenario: Scenario = Object.freeze({
+            id: "neither",
+            title: "neither field",
+            intervalCount: 1,
+            assertions: Object.freeze([] as ReadonlyArray<ScenarioAssertion>),
+        });
+        await expect(
+            runConformanceSuite(makeAdapter(), {
+                scenarios: [scenario],
+                candles: SMALL_BARS.slice(0, 5),
+            }),
+        ).rejects.toThrow(/must define either/);
     });
 
     it("diagnostic-code-present succeeds when the diagnostic IS emitted", async () => {

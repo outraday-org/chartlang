@@ -18,6 +18,7 @@ describe("MockCanvas2DContext", () => {
         ctx.arc(13, 14, 15, 16, 17);
         ctx.closePath();
         ctx.setLineDash([1, 2, 3]);
+        ctx.fillText("PEAK", 21, 22);
         expect(ctx.calls).toEqual([
             { kind: "clearRect", x: 1, y: 2, w: 3, h: 4 },
             { kind: "beginPath" },
@@ -29,6 +30,7 @@ describe("MockCanvas2DContext", () => {
             { kind: "arc", x: 13, y: 14, radius: 15, start: 16, end: 17 },
             { kind: "closePath" },
             { kind: "setLineDash", segments: [1, 2, 3] },
+            { kind: "fillText", text: "PEAK", x: 21, y: 22 },
         ]);
     });
 
@@ -44,6 +46,29 @@ describe("MockCanvas2DContext", () => {
             { kind: "set", prop: "strokeStyle", value: "#abcdef" },
             { kind: "set", prop: "fillStyle", value: "#012345" },
             { kind: "set", prop: "lineWidth", value: 4 },
+        ]);
+    });
+
+    it("records the Phase-2 setters and survives a subsequent read", () => {
+        const ctx = new MockCanvas2DContext();
+        // Defaults match the Canvas 2D spec.
+        expect(ctx.globalAlpha).toBe(1);
+        expect(ctx.font).toBe("10px sans-serif");
+        expect(ctx.textAlign).toBe("start");
+        expect(ctx.textBaseline).toBe("alphabetic");
+        ctx.globalAlpha = 0.25;
+        ctx.font = "12px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        expect(ctx.globalAlpha).toBe(0.25);
+        expect(ctx.font).toBe("12px monospace");
+        expect(ctx.textAlign).toBe("center");
+        expect(ctx.textBaseline).toBe("middle");
+        expect(ctx.calls).toEqual([
+            { kind: "set", prop: "globalAlpha", value: 0.25 },
+            { kind: "set", prop: "font", value: "12px monospace" },
+            { kind: "set", prop: "textAlign", value: "center" },
+            { kind: "set", prop: "textBaseline", value: "middle" },
         ]);
     });
 
@@ -108,6 +133,24 @@ describe("hashCallLog", () => {
         ctx.setLineDash([6, 4]);
         ctx.fill();
         ctx.closePath();
+        const h = hashCallLog(ctx.calls);
+        expect(h).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it("canonicalises fillText coordinates to 4 decimal places", () => {
+        const a = new MockCanvas2DContext();
+        a.fillText("PEAK", 1.123456, 2.654321);
+        const b = new MockCanvas2DContext();
+        b.fillText("PEAK", 1.1234564, 2.6543212);
+        expect(hashCallLog(a.calls)).toBe(hashCallLog(b.calls));
+    });
+
+    it("hashes the Phase-2 setters (globalAlpha / font / textAlign / textBaseline)", () => {
+        const ctx = new MockCanvas2DContext();
+        ctx.globalAlpha = 0.5;
+        ctx.font = "11px serif";
+        ctx.textAlign = "end";
+        ctx.textBaseline = "top";
         const h = hashCallLog(ctx.calls);
         expect(h).toMatch(/^[0-9a-f]{64}$/);
     });

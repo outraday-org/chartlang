@@ -4,7 +4,7 @@
 import { randomBytes } from "node:crypto";
 import { readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve as resolvePath } from "node:path";
-import { STATEFUL_PRIMITIVES } from "@invinite-org/chartlang-core";
+import { STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/chartlang-core";
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
@@ -94,7 +94,7 @@ export function transformAndAnalyse(
         sourceFile,
         checker,
         sourcePath,
-        STATEFUL_PRIMITIVES,
+        STATEFUL_PRIMITIVES_BY_NAME,
     );
 
     const earlyDiagnostics: CompileDiagnostic[] = [
@@ -122,7 +122,7 @@ export function transformAndAnalyse(
 
     const injection = injectCallsiteIds(sourceFile, checker, {
         sourcePath,
-        statefulSet: STATEFUL_PRIMITIVES,
+        statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
     });
     const capabilities = extractCapabilities(sourceFile, checker);
     const lookback = extractMaxLookback(sourceFile, checker, sourcePath);

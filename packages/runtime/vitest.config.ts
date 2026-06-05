@@ -15,6 +15,7 @@ export default defineConfig({
                 "src/**/__fixtures__/**",
                 "src/**/index.ts",
                 "src/**/types.ts",
+                "src/ta/lib/maTypes.ts",
             ],
         },
     },

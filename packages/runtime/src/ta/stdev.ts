@@ -13,8 +13,8 @@ import type { Series, StdevOpts } from "@invinite-org/chartlang-core";
 
 import { Float64RingBuffer } from "../ringBuffer";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
-import { type ScalarOrSeries, readSourceValue } from "./sourceValue";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
 
 type StdevSlot = {
     readonly outBuffer: Float64RingBuffer;
@@ -24,6 +24,8 @@ type StdevSlot = {
     readonly window: Float64RingBuffer;
     sumX: number;
     sumX2: number;
+    /** Per-offset Series-view cache; see `sma.ts` for the convention. */
+    readonly shiftedViews: Map<number, Series<number>>;
 };
 
 function getCtx(): RuntimeContext {
@@ -44,7 +46,18 @@ function initSlot(length: number, capacity: number, biased: boolean): StdevSlot 
         window: new Float64RingBuffer(length),
         sumX: 0,
         sumX2: 0,
+        shiftedViews: new Map(),
     };
+}
+
+function viewForOffset(slot: StdevSlot, offset: number): Series<number> {
+    if (offset === 0) return slot.series;
+    let view = slot.shiftedViews.get(offset);
+    if (view === undefined) {
+        view = makeShiftedSeriesView<number>(slot.outBuffer, offset);
+        slot.shiftedViews.set(offset, view);
+    }
+    return view;
 }
 
 function denominator(slot: StdevSlot): number {
@@ -100,10 +113,14 @@ function tickValue(slot: StdevSlot, src: number): number {
  * @since 0.1
  * @experimental
  *
+ * `opts.offset` shifts the returned series so `series.current` reads
+ * the value `offset` bars ago (PLAN.md §9.1).
+ *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";
  *     // const s = ta.stdev("slot", bar.close, 20, { biased: false });
  *     // const head = s.current;
+ *     // const lagged = ta.stdev("slot2", bar.close, 20, { offset: 5 });
  */
 export function stdev(
     slotId: string,
@@ -124,5 +141,5 @@ export function stdev(
     } else {
         slot.outBuffer.append(closeValue(slot, src));
     }
-    return slot.series;
+    return viewForOffset(slot, opts?.offset ?? 0);
 }

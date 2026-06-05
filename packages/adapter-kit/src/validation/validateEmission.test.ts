@@ -145,7 +145,7 @@ describe("validateEmission — plot", () => {
         expect(
             validateEmission({
                 ...validPlot,
-                style: { kind: "area", lineWidth: 1, lineStyle: "solid" },
+                style: { kind: "vertical-line", lineWidth: 1, lineStyle: "solid" },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("style.kind") });
     });
@@ -218,6 +218,266 @@ describe("validateEmission — plot", () => {
             ok: false,
             message: expect.stringContaining("pane"),
         });
+    });
+});
+
+describe("validateEmission — Phase-2 plot kinds", () => {
+    it("accepts histogram with a finite baseline", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "histogram", baseline: 0 },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("accepts bars with a finite baseline", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "bars", baseline: 50 },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects histogram with a non-finite baseline", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "histogram", baseline: Number.NaN },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("baseline") });
+    });
+
+    it("rejects bars with a missing baseline", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "bars" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("baseline") });
+    });
+
+    it("accepts area with the full lineWidth + lineStyle + fillAlpha triple", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: 0.25 },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("accepts area at fillAlpha boundaries (0 and 1)", () => {
+        for (const fillAlpha of [0, 1]) {
+            expect(
+                validateEmission({
+                    ...validPlot,
+                    style: { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha },
+                }),
+            ).toEqual({ ok: true });
+        }
+    });
+
+    it("rejects area with a non-finite lineWidth", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: {
+                    kind: "area",
+                    lineWidth: Number.NaN,
+                    lineStyle: "solid",
+                    fillAlpha: 0.5,
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+
+    it("rejects area with an unknown lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "area", lineWidth: 1, lineStyle: "wavy", fillAlpha: 0.5 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+
+    it("rejects area with a negative fillAlpha", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: -0.1 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("fillAlpha") });
+    });
+
+    it("rejects area with fillAlpha > 1", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: 1.5 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("fillAlpha") });
+    });
+
+    it("accepts filled-band with finite upper + lower + alpha", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "filled-band", upper: 1, lower: -1, alpha: 0.2 },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("accepts filled-band with one bound null", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "filled-band", upper: 1, lower: null, alpha: 0.2 },
+            }),
+        ).toEqual({ ok: true });
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "filled-band", upper: null, lower: -1, alpha: 0.2 },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects filled-band with both bounds null", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "filled-band", upper: null, lower: null, alpha: 0.2 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("non-null") });
+    });
+
+    it("rejects filled-band with a non-finite upper", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: {
+                    kind: "filled-band",
+                    upper: Number.POSITIVE_INFINITY,
+                    lower: -1,
+                    alpha: 0.2,
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("upper") });
+    });
+
+    it("rejects filled-band with a non-finite lower", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: {
+                    kind: "filled-band",
+                    upper: 1,
+                    lower: Number.NaN,
+                    alpha: 0.2,
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lower") });
+    });
+
+    it("rejects filled-band with alpha > 1", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "filled-band", upper: 1, lower: -1, alpha: 2 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("alpha") });
+    });
+
+    it("rejects filled-band with negative alpha", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "filled-band", upper: 1, lower: -1, alpha: -0.1 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("alpha") });
+    });
+
+    it("accepts label with a non-empty text + valid position", () => {
+        for (const position of ["above", "below", "anchor"] as const) {
+            expect(
+                validateEmission({
+                    ...validPlot,
+                    style: { kind: "label", text: "PEAK", position },
+                }),
+            ).toEqual({ ok: true });
+        }
+    });
+
+    it("rejects label with empty text", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "label", text: "", position: "above" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("text") });
+    });
+
+    it("rejects label with text over 128 characters", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "label", text: "x".repeat(129), position: "above" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("128") });
+    });
+
+    it("rejects label with an unknown position", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "label", text: "PEAK", position: "left" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("position") });
+    });
+
+    it("accepts marker for each shape", () => {
+        for (const shape of [
+            "circle",
+            "triangle-up",
+            "triangle-down",
+            "square",
+            "diamond",
+        ] as const) {
+            expect(
+                validateEmission({
+                    ...validPlot,
+                    style: { kind: "marker", shape, size: 4 },
+                }),
+            ).toEqual({ ok: true });
+        }
+    });
+
+    it("rejects marker with an unknown shape", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "marker", shape: "star", size: 4 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("shape") });
+    });
+
+    it("rejects marker with zero size", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "marker", shape: "circle", size: 0 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("size") });
+    });
+
+    it("rejects marker with non-finite size", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "marker", shape: "circle", size: Number.NaN },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("size") });
     });
 });
 

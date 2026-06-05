@@ -74,10 +74,7 @@ export function resolveCoreSymbolForElementAccess(
  * map back to their export name (`"ta"`) so the resulting slot-id
  * matches what `STATEFUL_PRIMITIVES` expects.
  */
-function resolveCoreSymbolName(
-    checker: ts.TypeChecker,
-    identifier: ts.Identifier,
-): string | null {
+function resolveCoreSymbolName(checker: ts.TypeChecker, identifier: ts.Identifier): string | null {
     const localSymbol = checker.getSymbolAtLocation(identifier);
     if (!localSymbol) return null;
     const target =

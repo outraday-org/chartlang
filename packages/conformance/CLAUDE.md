@@ -63,3 +63,22 @@ plot hashes, alert counts, and diagnostic codes.
   binding gives TS the right context to flow each element to the
   union — keeping the `Scenario.assertions: ASSERTIONS` line a
   trivial reference.
+
+## Phase-2 invariants
+
+- **`Scenario` carries either `scriptPath` or `inlineSource`, never
+  both, never neither.** `runConformanceSuite`'s `resolveSource`
+  enforces the mutual-exclusion contract; both-set throws "cannot
+  define both", neither-set throws "must define either". Phase-1
+  scenarios continue to use `scriptPath` against curated files in
+  `examples/scripts/`; Phase-2 ports inline their 6-line
+  `defineIndicator` source into their `*.scenario.ts` file so the
+  curated example set stays at three scripts.
+- **Inline-source `sourcePath` is the virtual
+  `<inline:${scenario.id}>.chart.ts` literal.** This is the
+  `sourcePath` the runner passes to the compiler so callsite-id
+  injection (PLAN.md §5.5) produces a stable, pinnable slot-id
+  prefix — assertions can pin
+  `slotId: "<inline:ta-wma>.chart.ts:7:13#0"`. Do not change the
+  literal format without updating every Phase-2 scenario's pinned
+  slotIds.

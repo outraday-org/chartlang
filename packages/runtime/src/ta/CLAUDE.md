@@ -31,6 +31,27 @@ primitives) instead carry:
 // `ta.crossover` / `ta.crossunder`. See PLAN.md §3.1.
 ```
 
+Phase-2 cross-functional primitives (Task 5: `nz`, `highest`,
+`lowest`, `change`, `valuewhen`, `barssince`) are Pine-canonical
+helpers without an invinite source and carry the equivalent header:
+
+```ts
+// No invinite source — semantics per Pine `ta.<name>`. See PLAN.md §3.1.
+```
+
+Phase-2 helpers under `lib/` (Task 3's `wmaFloat64`, `smmaFloat64`,
+`vwmaFloat64`, `computeMaOfFloat64`, `computeMa`, `maTypes`;
+Task 4's `donchianMid`, `wilderDirectional`, `adxFromDi`,
+`linearRegression`, `pearson`) cite the Phase-2 reference commit
+`078f41fe2569d659d5aba726da8bcb5d3e2ced02` in their provenance
+headers and graduate the JSDoc stability marker to `@stable` (the
+math reference is fixed; consumer primitives in Tasks 6–28 carry
+the public surface and stay `@experimental` until Phase-2 closeout).
+
+See `lib/CLAUDE.md` for the helper-folder convention (Float64-only
+contract, per-helper NaN propagation rules, types-only coverage
+exclusion).
+
 ## Invariants
 
 - **Float64 everywhere.** Sources arrive as `number` (Float64);
@@ -43,6 +64,14 @@ primitives) instead carry:
   previous closed state, do **not** advance length, do **not**
   mutate the "previous bar" snapshot the next close-side append
   will read from).
+- **`ta.nz` is the one stateless exception.** Its
+  `STATEFUL_PRIMITIVES` entry carries `slot: false` so the compiler
+  skips slot-id injection (`nz.ts` exports a pure function with no
+  leading `slotId` arg, no `ACTIVE_RUNTIME_CONTEXT` consultation,
+  no slot allocation). The runtime export signature and the
+  script-author signature are identical. The compiler still flags
+  it inside a loop body for Pine-parity (`statefulCallInLoop`
+  diagnoses every entry regardless of `slot`).
 - **Slot state shape.** Each primitive stores its hidden state under
   `RuntimeContext.stream.taSlots.get(slotId)`. The stored value is
   a typed record whose fields are JSON-clean numbers / arrays /
@@ -51,9 +80,16 @@ primitives) instead carry:
   first call and returned by reference thereafter, so script
   authors can write `const ema = ta.ema(...)` once and re-read it
   every bar.
-- **Universal `opts.offset`.** Phase 1 ships the helper
-  (`lib/applyOffset.ts`) but wires `0` everywhere. Phase 4 wires
-  the option per §9.1.
+- **Universal `opts.offset`.** Honoured on every Phase-1 primitive
+  (Task 29 backfill) via the offset-aware Series view
+  `makeShiftedSeriesView` in `../seriesView.ts` (paired with the
+  `lib/applyOffset.ts` Float64Array helper). Positive `offset` makes
+  `series.current` return the value `offset` bars ago; negative
+  reads into the future (NaN / undefined at the head). `offset === 0`
+  is the strict identity fast path — returns the slot's cached
+  un-shifted Series. Per-offset views are cached on the slot's
+  `shiftedViews` (single-output) / `shiftedResults` (composite) map,
+  identity-stable per `(slot, offset)`.
 - **NaN warmup.** Every primitive emits `NaN` for the bars where
   state isn't yet warm (per primitive's documented `@warmup`
   count). `Float64RingBuffer.at()` already returns `NaN` for OOR
@@ -70,7 +106,11 @@ primitives) instead carry:
   `${slotId}/sma`, `${slotId}/stdev`, `${slotId}/fast`, etc. The
   composition routes through the registry (not a private copy of
   the math), so a fix to `sma` flows into `bb`'s middle band for
-  free.
+  free. Same convention for single-output primitives that
+  decompose into staged sub-computations: `ta.hma` composes three
+  `wma` sub-slots — `${slotId}/half`, `${slotId}/full`,
+  `${slotId}/final` — and exposes the final WMA's series view
+  through its own slot record (no separate output buffer).
 
 ## Five-file test set
 

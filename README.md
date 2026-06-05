@@ -75,6 +75,31 @@ pnpm dlx @invinite-org/chartlang-cli preview ema-cross.chart.ts --adapter canvas
 
 The third command opens a rendered chart in your browser.
 
+## Indicator parity
+
+Phase 2 (`0.2`) ships full Pine-equivalent indicator parity:
+
+- **90 callable `ta.*` primitives** in `TA_REGISTRY` — 9 Phase-1
+  (`sma`, `ema`, `stdev`, `bb`, `rsi`, `macd`, `atr`, `crossover`,
+  `crossunder`) plus 81 Phase-2 ports (6 cross-functional helpers +
+  75 §9.2 indicators across MAs, oscillators, momentum, trend,
+  volatility, volume, S/R, and statistical categories).
+- **93 entries** in `STATEFUL_PRIMITIVES` (90 `ta.*` + `plot` +
+  `hline` + `alert`) — `ta.nz` is the sole stateless `ta.*`.
+- **6 new `PlotKind`s** (`histogram`, `bars`, `area`, `filled-band`,
+  `label`, `marker`) plus canvas2d renderers.
+- Universal `opts.offset` honoured on every primitive.
+- `chartlang docs` regenerates `docs/primitives/ta/<id>.md` per
+  primitive; `pnpm docs:gate` enforces no drift.
+- `phase2Coverage.test.ts` pins the cardinalities; the
+  `PHASE_2_INDICATORS` + `PHASE_5_DEFERRED` inventories are the
+  source-of-truth surface contract.
+
+Deferred to Phase 5: `correlationCoeff`, 4 volume-profile primitives
+(need `horizontal-histogram` + viewport / anchor / session input
+plumbing), and 7 trade-narrative external-data primitives (need
+`input.externalSeries` + `adapter.feedExternalSeries`).
+
 ## Architecture
 
 ```mermaid
@@ -97,7 +122,9 @@ portable across charts. See PLAN.md §2 for the full diagram.
   until the VitePress build deploys in Phase 1+.
 - **Language spec:** [`./docs/spec/grammar.md`](./docs/spec/grammar.md).
 - **Primitive reference:** [`./docs/primitives/`](./docs/primitives/) —
-  auto-generated per primitive in Phase 1+.
+  auto-generated per primitive. Phase-1 `ta.*` index at
+  [`./docs/primitives/ta/`](./docs/primitives/ta/) (regenerate with
+  `pnpm docs:generate`; CI gate: `pnpm docs:gate`).
 - **Adapter list:** [`./docs/adapters/reference/`](./docs/adapters/reference/) —
   per-adapter pages published by consumer repos from Phase 2+.
 - **Conformance reports:** the canvas2d-adapter ships its

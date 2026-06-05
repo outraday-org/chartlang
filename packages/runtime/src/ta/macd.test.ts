@@ -87,3 +87,61 @@ describe("ta.macd tick-mode", () => {
         expect(lengthAfter).toBe(lengthBefore);
     });
 });
+
+describe("ta.macd — opts.offset", () => {
+    it("offset === 0 returns the same MacdResult identity as no opts", () => {
+        const bars = syntheticBars(40, 5);
+        const identities = new Set<unknown>();
+        let toggle = false;
+        harness(bars, bars.length + 1, (bar) => {
+            toggle = !toggle;
+            identities.add(
+                toggle ? macd("slot", bar.close) : macd("slot", bar.close, { offset: 0 }),
+            );
+            return null;
+        });
+        expect(identities.size).toBe(1);
+    });
+
+    it("offset === k > 0 shifts macd / signal / hist in lockstep", () => {
+        const bars = syntheticBars(80, 11);
+        const unshifted = harness(bars, bars.length + 1, (bar) => {
+            const r = macd("slot", bar.close);
+            return { m: r.macd.current, s: r.signal.current, h: r.hist.current };
+        });
+        const shifted = harness(bars, bars.length + 1, (bar) => {
+            const r = macd("slot", bar.close, { offset: 3 });
+            return { m: r.macd.current, s: r.signal.current, h: r.hist.current };
+        });
+        for (let i = 3; i < bars.length; i += 1) {
+            const u = unshifted[i - 3];
+            const s = shifted[i];
+            for (const k of ["m", "s", "h"] as const) {
+                if (Number.isNaN(u[k])) expect(Number.isNaN(s[k])).toBe(true);
+                else expect(s[k]).toBeCloseTo(u[k], 12);
+            }
+        }
+    });
+
+    it("offset === -k returns NaN at the head for all three outputs", () => {
+        const bars = syntheticBars(80, 1);
+        const head = harness(bars, bars.length + 1, (bar) => {
+            const r = macd("slot", bar.close, { offset: -2 });
+            return { m: r.macd.current, s: r.signal.current, h: r.hist.current };
+        });
+        const last = head[head.length - 1];
+        expect(Number.isNaN(last.m)).toBe(true);
+        expect(Number.isNaN(last.s)).toBe(true);
+        expect(Number.isNaN(last.h)).toBe(true);
+    });
+
+    it("two calls with the same non-zero offset return the same MacdResult identity", () => {
+        const bars = syntheticBars(40, 3);
+        const identities = new Set<unknown>();
+        harness(bars, bars.length + 1, (bar) => {
+            identities.add(macd("slot", bar.close, { offset: 2 }));
+            return null;
+        });
+        expect(identities.size).toBe(1);
+    });
+});

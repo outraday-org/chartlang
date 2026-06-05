@@ -1,7 +1,7 @@
 # packages/cli/
 
 `@invinite-org/chartlang-cli` — `chartlang compile` +
-`chartlang scaffold-adapter` for Phase 1.
+`chartlang scaffold-adapter` (Phase 1) + `chartlang docs` (Phase 2).
 
 ## Invariants
 
@@ -42,3 +42,27 @@
   delegate to `printHelp` on `--help`; the dispatcher routes
   no-args / `-h` / `--help` to `runHelp`. Editing the help string in
   multiple places is a regression.
+- **`chartlang docs` owns `docs/primitives/ta/<id>.md`.** Pages open
+  with the `AUTO_GENERATED_HEADER` sentinel; never hand-edit them.
+  `index.md` in the same folder IS hand-written. The signature
+  block in each generated page intentionally shows the runtime
+  export (with the leading `slotId: string` parameter) — the page
+  text annotates that the compiler injects `slotId` so script
+  authors call `ta.<id>(...)` directly. The skip list (in
+  `genDocs.ts`) excludes `index.ts`, `registry.ts`, `sourceValue.ts`,
+  every `*.test.ts` / `*.bench.ts` / `*.bench.test.ts` /
+  `*.golden.test.ts` / `*.property.test.ts` basename, and all
+  subdirectories under `packages/runtime/src/ta/` (the generator
+  does not descend — `lib/` holds helpers, not primitives).
+- **`chartlang docs` (this primitives generator) vs PLAN §17.7's
+  `chartlang docs <script>`.** Phase 2 ships the no-positional form
+  that regenerates the primitives index. PLAN §17.7's user-script
+  form (`chartlang docs <script.chart.ts>` → emits a single
+  markdown page describing one script's manifest) defers to a
+  later phase. The two share the subcommand name; positional
+  presence disambiguates. The dispatcher routes both forms to
+  `runDocsCommand`; future work adds the positional branch there.
+- **`typescript` is a runtime `dependency` (not `devDependency`).**
+  `genDocs.ts` imports `typescript` at runtime to parse JSDoc via
+  the compiler API. The published `dist/` ships against the
+  consumer's `typescript` install.

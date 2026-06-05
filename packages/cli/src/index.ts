@@ -2,10 +2,21 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { runCompile } from "./commands/compile.js";
+import { runDocsCommand } from "./commands/docs.js";
 import { runHelp } from "./commands/help.js";
 import { runScaffoldAdapter } from "./commands/scaffoldAdapter.js";
 
 export { runCompile } from "./commands/compile.js";
+export { runDocsCommand } from "./commands/docs.js";
+export {
+    AUTO_GENERATED_HEADER,
+    GenDocsError,
+    findRepoRoot,
+    generateDocsPage,
+    parsePrimitiveSource,
+    runGenDocs,
+} from "./commands/genDocs.js";
+export type { PrimitiveDocInput, RunGenDocsOptions } from "./commands/genDocs.js";
 export { printHelp, runHelp } from "./commands/help.js";
 export { runScaffoldAdapter } from "./commands/scaffoldAdapter.js";
 
@@ -17,13 +28,15 @@ export { runScaffoldAdapter } from "./commands/scaffoldAdapter.js";
  * Phase 1 ships two subcommands: `compile` (compiles `.chart.ts`
  * sources via `@invinite-org/chartlang-compiler`) and
  * `scaffold-adapter` (generates a starter adapter package outside the
- * OSS repo). Phase 2+ adds `lint`, `bench`, `docs` via the same
- * dispatcher seam without breaking call sites.
+ * OSS repo). Phase 2 adds `docs` — the auto-generator that writes
+ * `docs/primitives/ta/<id>.md` per primitive from the runtime JSDoc.
+ * Later phases add `lint` / `bench` via the same dispatcher seam.
  *
  * @since 0.1
  * @example
  *     import { runCli } from "@invinite-org/chartlang-cli";
  *     await runCli(["compile", "./demo.chart.ts"]);
+ *     await runCli(["docs", "--out", "docs/primitives/ta"]);
  *     await runCli(["--help"]);
  */
 export async function runCli(argv: ReadonlyArray<string>): Promise<void> {
@@ -34,6 +47,9 @@ export async function runCli(argv: ReadonlyArray<string>): Promise<void> {
             return;
         case "scaffold-adapter":
             await runScaffoldAdapter(rest);
+            return;
+        case "docs":
+            await runDocsCommand(rest);
             return;
         case "--help":
         case "-h":

@@ -110,3 +110,58 @@ describe("ta.crossover tick-mode", () => {
         expect(tickResult).toBe(true);
     });
 });
+
+describe("ta.crossover — opts.offset", () => {
+    it("offset === 0 returns the same Series identity as no opts", () => {
+        const bars = syntheticBars(20, 7);
+        const identities = new Set<unknown>();
+        let toggle = false;
+        harness(bars, bars.length + 1, (bar) => {
+            toggle = !toggle;
+            identities.add(
+                toggle
+                    ? crossover("slot", bar.close, 100)
+                    : crossover("slot", bar.close, 100, { offset: 0 }),
+            );
+            return null;
+        });
+        expect(identities.size).toBe(1);
+    });
+
+    it("offset === k > 0 shifts the boolean series by k bars", () => {
+        // [1, 2, 4] crosses 3 at bar 2 (out[2] === true). With offset 1
+        // applied, .current at bar 2 reads out[2-? wait] reads at(1) which
+        // is bar 1's value (false); .current at bar 3 (if we had it) would
+        // read bar 2's value (true). Use a 4-bar fixture.
+        const bars = makeBars([1, 2, 4, 5]);
+        const out = harness(
+            bars,
+            bars.length + 1,
+            (bar) => crossover("slot", bar.close, 3, { offset: 1 }).current,
+        );
+        expect(out[0]).toBe(undefined); // OOR (no prior bar to read)
+        expect(out[1]).toBe(false); // bar 0
+        expect(out[2]).toBe(false); // bar 1
+        expect(out[3]).toBe(true); // bar 2 (the crossover)
+    });
+
+    it("offset === -k returns undefined at the head (future read)", () => {
+        const bars = makeBars([1, 2, 4]);
+        const head = harness(
+            bars,
+            bars.length + 1,
+            (bar) => crossover("slot", bar.close, 3, { offset: -1 }).current,
+        );
+        expect(head[head.length - 1]).toBe(undefined);
+    });
+
+    it("two calls with the same non-zero offset return the same Series identity", () => {
+        const bars = syntheticBars(10, 3);
+        const identities = new Set<unknown>();
+        harness(bars, bars.length + 1, (bar) => {
+            identities.add(crossover("slot", bar.close, 100, { offset: 2 }));
+            return null;
+        });
+        expect(identities.size).toBe(1);
+    });
+});

@@ -318,6 +318,57 @@ describe("onEmissions dispatch", () => {
         expect(ctx.calls.some((c) => c.kind === "stroke")).toBe(true);
     });
 
+    it("dispatches a histogram plot through drawHistogram (fillRect-per-bar)", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "h",
+                        style: { kind: "histogram", baseline: 0 },
+                        value: 100,
+                    }),
+                    plotEmission({
+                        slotId: "h",
+                        style: { kind: "histogram", baseline: 0 },
+                        value: 50,
+                        time: SAMPLE_BARS[1].time,
+                    }),
+                ],
+            }),
+        );
+        // The histogram renderer emits exactly one `fillRect` per finite
+        // point — plus background `fillRect`s from `clear`. Two of the
+        // fillRect calls must carry the histogram bar width (4 px).
+        const histogramRects = ctx.calls.filter((c) => c.kind === "fillRect" && c.w === 4);
+        expect(histogramRects.length).toBe(2);
+        // No `stroke` call is needed for histograms — the renderer is
+        // fillRect-only.
+    });
+
+    it("histogram with a null gap is skipped (no fillRect for that point)", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "h",
+                        style: { kind: "histogram", baseline: 0 },
+                        value: null,
+                    }),
+                    plotEmission({
+                        slotId: "h",
+                        style: { kind: "histogram", baseline: 0 },
+                        value: 75,
+                        time: SAMPLE_BARS[1].time,
+                    }),
+                ],
+            }),
+        );
+        const histogramRects = ctx.calls.filter((c) => c.kind === "fillRect" && c.w === 4);
+        expect(histogramRects.length).toBe(1);
+    });
+
     it("stores horizontal-line emissions keyed by slotId (last-write-wins)", () => {
         const { adapter, ctx } = buildAdapter({});
         adapter.onEmissions(

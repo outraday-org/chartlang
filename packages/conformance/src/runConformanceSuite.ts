@@ -21,22 +21,48 @@ import { createScriptRunner } from "@invinite-org/chartlang-runtime";
 import { GOLDEN_BARS_PATH, type GoldenBars } from "./fixtures/generateGoldenBars";
 
 /**
- * A single conformance scenario. Pins a Phase-1 example script
- * (`scriptPath`, repo-root relative) against a frozen list of
- * assertions evaluated over the runner's drained emissions.
+ * A single conformance scenario. The script source comes from
+ * exactly one of `scriptPath` (a repo-root-relative path to a
+ * curated `.chart.ts` file — Phase-1 default) or `inlineSource`
+ * (a string of TypeScript that the runner writes to the existing
+ * `.cache/` tmp file and compiles + imports). Phase-2 ports use
+ * `inlineSource` so `examples/scripts/` stays a curated demo set
+ * rather than ballooning to 80+ micro-scripts.
+ *
+ * Mutual-exclusion: defining both fields is a runner-time error,
+ * as is defining neither.
+ *
+ * When `inlineSource` is used, the runner passes `sourcePath:
+ * "<inline:${id}>.chart.ts"` to the compiler so callsite-id
+ * injection produces a stable, pinnable slot-id prefix.
  *
  * @since 0.1
  * @experimental
  * @example
  *     import type { Scenario } from "@invinite-org/chartlang-conformance";
- *     declare const s: Scenario;
- *     // s.id === "ema-cross"
- *     void s;
+ *     declare const sourceText: string; // user-authored .chart.ts source
+ *     const inline: Scenario = {
+ *         id: "demo-inline",
+ *         title: "Inline demo",
+ *         inlineSource: sourceText,
+ *         intervalCount: 1,
+ *         assertions: [],
+ *     };
+ *     void inline;
  */
 export type Scenario = {
     readonly id: string;
     readonly title: string;
-    readonly scriptPath: string;
+    /**
+     * Repo-root-relative path to a curated `.chart.ts` file. Mutually
+     * exclusive with {@link Scenario.inlineSource}.
+     */
+    readonly scriptPath?: string;
+    /**
+     * Inline TypeScript source. Mutually exclusive with
+     * {@link Scenario.scriptPath}. `@since 0.2`.
+     */
+    readonly inlineSource?: string;
     readonly intervalCount: number;
     readonly assertions: ReadonlyArray<ScenarioAssertion>;
 };
@@ -227,17 +253,39 @@ async function loadCompiledModule(
     }
 }
 
+async function resolveSource(scenario: Scenario): Promise<{
+    readonly source: string;
+    readonly sourcePath: string;
+}> {
+    const hasScriptPath = scenario.scriptPath !== undefined;
+    const hasInlineSource = scenario.inlineSource !== undefined;
+    if (hasScriptPath && hasInlineSource) {
+        throw new Error(`Scenario "${scenario.id}" cannot define both scriptPath and inlineSource`);
+    }
+    if (scenario.inlineSource !== undefined) {
+        return {
+            source: scenario.inlineSource,
+            sourcePath: `<inline:${scenario.id}>.chart.ts`,
+        };
+    }
+    if (scenario.scriptPath !== undefined) {
+        const absScriptPath = resolveScriptPath(scenario.scriptPath);
+        const source = await readFile(absScriptPath, "utf8");
+        return { source, sourcePath: scenario.scriptPath };
+    }
+    throw new Error(`Scenario "${scenario.id}" must define either scriptPath or inlineSource`);
+}
+
 async function runOne(
     adapter: Adapter,
     scenario: Scenario,
     candles: ReadonlyArray<Bar>,
     compileFn: typeof defaultCompile,
 ): Promise<ReadonlyArray<ConformanceFailure>> {
-    const absScriptPath = resolveScriptPath(scenario.scriptPath);
-    const source = await readFile(absScriptPath, "utf8");
+    const { source, sourcePath } = await resolveSource(scenario);
     const compiled = await compileFn(source, {
         apiVersion: 1,
-        sourcePath: scenario.scriptPath,
+        sourcePath,
     });
 
     const scriptObj = await loadCompiledModule(compiled, scenario.id);
@@ -342,6 +390,6 @@ export async function runConformanceSuite(
 }
 
 async function loadBundledScenarios(): Promise<ReadonlyArray<Scenario>> {
-    const { PHASE_1_SCENARIOS } = await import("./scenarios/index");
-    return PHASE_1_SCENARIOS;
+    const { ALL_SCENARIOS } = await import("./scenarios/index");
+    return ALL_SCENARIOS;
 }

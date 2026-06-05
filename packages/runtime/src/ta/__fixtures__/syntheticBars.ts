@@ -45,6 +45,10 @@ export function syntheticBars(n: number, seed = 1): Bar[] {
             low,
             close,
             volume,
+            hl2: (high + low) / 2,
+            hlc3: (high + low + close) / 3,
+            ohlc4: (open + high + low + close) / 4,
+            hlcc4: (high + low + close * 2) / 4,
             symbol: "TEST",
             interval: "1m",
         });

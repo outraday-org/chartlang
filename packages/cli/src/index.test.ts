@@ -63,6 +63,14 @@ describe("runCli dispatcher", () => {
         expect(process.exitCode).toBe(1);
     });
 
+    it("dispatches `docs` to runDocsCommand", async () => {
+        // --help short-circuits the generator — proves dispatch without
+        // requiring the runtime source tree to be reachable from the
+        // ephemeral cwd.
+        await runCli(["docs", "--help"]);
+        expect(stdoutChunks.join("")).toMatch(/chartlang docs \[--source <dir>\] \[--out <dir>\]/);
+    });
+
     it("reports unknown commands and prints help with exit code 1", async () => {
         await runCli(["bogus-command"]);
         expect(stderrChunks.join("")).toMatch(/Unknown command: bogus-command/);

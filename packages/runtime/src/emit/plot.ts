@@ -23,17 +23,36 @@ function resolveValue(value: number | Series<number>): number | null {
     return Number.isFinite(resolved) ? resolved : null;
 }
 
+function buildStyle(opts: PlotOpts): PlotStyle {
+    const kind = opts.style?.kind ?? "line";
+    if (kind === "histogram") {
+        // `kind === "histogram"` implies `opts.style` is defined and is
+        // the histogram variant — narrow via the discriminant.
+        const histogramStyle = opts.style as { kind: "histogram"; baseline?: number };
+        return { kind: "histogram", baseline: histogramStyle.baseline ?? 0 };
+    }
+    if (kind === "marker") {
+        const markerStyle = opts.style as {
+            kind: "marker";
+            shape: "circle" | "triangle-up" | "triangle-down" | "square" | "diamond";
+            size: number;
+        };
+        return { kind: "marker", shape: markerStyle.shape, size: markerStyle.size };
+    }
+    return {
+        kind,
+        lineWidth: opts.lineWidth ?? 1,
+        lineStyle: opts.lineStyle ?? "solid",
+    };
+}
+
 function plotImpl(
     ctx: RuntimeContext,
     slotId: string,
     value: number | Series<number>,
     opts: PlotOpts,
 ): void {
-    const style: PlotStyle = {
-        kind: "line",
-        lineWidth: opts.lineWidth ?? 1,
-        lineStyle: opts.lineStyle ?? "solid",
-    };
+    const style: PlotStyle = buildStyle(opts);
 
     if (!ctx.capabilities.plots.has(style.kind)) {
         pushDiagnostic(ctx.emissions, {

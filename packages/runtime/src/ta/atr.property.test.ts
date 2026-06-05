@@ -35,4 +35,28 @@ describe("ta.atr — property invariants", () => {
             { numRuns: 20 },
         );
     });
+
+    it("opts.offset: shifted_k[i] === unshifted[i − k] for every defined index", () => {
+        fc.assert(
+            fc.property(
+                fc.array(arbBar, { minLength: 20, maxLength: 60 }),
+                fc.integer({ min: 1, max: 5 }),
+                (bars, offset) => {
+                    const unshifted = harness(bars, bars.length + 1, () => atr("slot", 5).current);
+                    const shifted = harness(
+                        bars,
+                        bars.length + 1,
+                        () => atr("slot", 5, { offset }).current,
+                    );
+                    for (let i = offset; i < bars.length; i += 1) {
+                        const u = unshifted[i - offset];
+                        const s = shifted[i];
+                        if (Number.isNaN(u)) expect(Number.isNaN(s)).toBe(true);
+                        else expect(s).toBeCloseTo(u, 12);
+                    }
+                },
+            ),
+            { numRuns: 20 },
+        );
+    });
 });

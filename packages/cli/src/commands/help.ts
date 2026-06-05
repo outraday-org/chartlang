@@ -6,11 +6,13 @@ const HELP_TEXT = `chartlang — script compiler + adapter scaffolding
 Usage:
   chartlang compile <file...> [--sourcemap[=mode]] [--minify] [--out <dir>]
   chartlang scaffold-adapter <name> [--target <dir>]
+  chartlang docs [--source <dir>] [--out <dir>]
   chartlang --help
 
 Examples:
   chartlang compile examples/scripts/ema-cross.chart.ts
   chartlang scaffold-adapter my-trading-chart --target ./out
+  chartlang docs --out docs/primitives/ta
 `;
 
 /**

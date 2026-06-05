@@ -1,22 +1,10 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { LineStyle } from "@invinite-org/chartlang-core";
-
 import type { Palette } from "../palette";
 import type { RenderCtx } from "./clear";
 import { priceToY, type HLine, type Viewport } from "./coords";
-
-function dashPattern(style: LineStyle): ReadonlyArray<number> {
-    switch (style) {
-        case "solid":
-            return [];
-        case "dashed":
-            return [6, 4];
-        case "dotted":
-            return [2, 4];
-    }
-}
+import { dashPattern } from "./lineDash";
 
 /**
  * Draw one horizontal line spanning the full canvas width at the

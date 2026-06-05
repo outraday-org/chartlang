@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-cli",
-    "version": "0.0.0",
+    "version": "0.2.0",
     "type": "module",
     "license": "MIT",
     "description": "chartlang CLI — compile + scaffold-adapter",
@@ -23,7 +23,8 @@
     },
     "dependencies": {
         "@invinite-org/chartlang-compiler": "workspace:^",
-        "@invinite-org/chartlang-core": "workspace:^"
+        "@invinite-org/chartlang-core": "workspace:^",
+        "typescript": "^5.6.0"
     },
     "devDependencies": {
         "@types/node": "^20.0.0"

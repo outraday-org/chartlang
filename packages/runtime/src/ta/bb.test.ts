@@ -103,3 +103,61 @@ describe("ta.bb tick-mode", () => {
         expect(lengthAfter).toBe(lengthBefore);
     });
 });
+
+describe("ta.bb — opts.offset", () => {
+    it("offset === 0 returns the same BbResult identity as no opts", () => {
+        const bars = syntheticBars(20, 7);
+        const identities = new Set<unknown>();
+        let toggle = false;
+        harness(bars, bars.length + 1, (bar) => {
+            toggle = !toggle;
+            identities.add(
+                toggle ? bb("slot", bar.close, 5) : bb("slot", bar.close, 5, { offset: 0 }),
+            );
+            return null;
+        });
+        expect(identities.size).toBe(1);
+    });
+
+    it("offset === k > 0 shifts upper / middle / lower in lockstep", () => {
+        const bars = syntheticBars(30, 11);
+        const unshifted = harness(bars, bars.length + 1, (bar) => {
+            const r = bb("slot", bar.close, 5);
+            return { u: r.upper.current, m: r.middle.current, l: r.lower.current };
+        });
+        const shifted = harness(bars, bars.length + 1, (bar) => {
+            const r = bb("slot", bar.close, 5, { offset: 3 });
+            return { u: r.upper.current, m: r.middle.current, l: r.lower.current };
+        });
+        for (let i = 3; i < bars.length; i += 1) {
+            const u = unshifted[i - 3];
+            const s = shifted[i];
+            for (const k of ["u", "m", "l"] as const) {
+                if (Number.isNaN(u[k])) expect(Number.isNaN(s[k])).toBe(true);
+                else expect(s[k]).toBeCloseTo(u[k], 12);
+            }
+        }
+    });
+
+    it("offset === -k returns NaN at the head for all three bands", () => {
+        const bars = syntheticBars(20, 1);
+        const head = harness(bars, bars.length + 1, (bar) => {
+            const r = bb("slot", bar.close, 5, { offset: -2 });
+            return { u: r.upper.current, m: r.middle.current, l: r.lower.current };
+        });
+        const last = head[head.length - 1];
+        expect(Number.isNaN(last.u)).toBe(true);
+        expect(Number.isNaN(last.m)).toBe(true);
+        expect(Number.isNaN(last.l)).toBe(true);
+    });
+
+    it("two calls with the same non-zero offset return the same BbResult identity", () => {
+        const bars = syntheticBars(10, 3);
+        const identities = new Set<unknown>();
+        harness(bars, bars.length + 1, (bar) => {
+            identities.add(bb("slot", bar.close, 5, { offset: 2 }));
+            return null;
+        });
+        expect(identities.size).toBe(1);
+    });
+});

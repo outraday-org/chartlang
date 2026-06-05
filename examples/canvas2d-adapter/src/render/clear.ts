@@ -10,6 +10,12 @@ import type { Viewport } from "./coords";
  * `CanvasRenderingContext2D`, `OffscreenCanvasRenderingContext2D`, and
  * test `MockCanvas2DContext` all satisfy a single structural type.
  *
+ * Phase-2 additions (per `tasks/phase-2-indicator-parity/1-plotkind-expansion`):
+ * `fillText` (label renderer), `globalAlpha` (area + filled-band
+ * fills), `font` (label renderer), `textAlign` + `textBaseline`
+ * (label-position dispatch). `closePath` / `fill` / `fillRect` /
+ * `setLineDash` already shipped in Phase 1.
+ *
  * @since 0.1
  * @experimental
  * @example
@@ -28,9 +34,14 @@ export type RenderCtx = {
     arc(x: number, y: number, radius: number, start: number, end: number): void;
     closePath(): void;
     setLineDash(segments: ReadonlyArray<number>): void;
+    fillText(text: string, x: number, y: number): void;
     strokeStyle: string;
     fillStyle: string;
     lineWidth: number;
+    globalAlpha: number;
+    font: string;
+    textAlign: "start" | "center" | "end" | "left" | "right";
+    textBaseline: "top" | "middle" | "bottom" | "alphabetic" | "hanging";
 };
 
 /**

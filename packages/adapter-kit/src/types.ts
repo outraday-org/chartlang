@@ -172,14 +172,20 @@ export type Capabilities = {
 };
 
 /**
- * Phase-1 plot style discriminated union. Phase 2+ additively extends
- * with `area`, `histogram`, `filled-band`, `label`, `marker`, etc. (per
- * PLAN §7.3) — new `kind` values land in `apiVersion: 1.x` minor bumps.
+ * Plot style discriminated union. Phase 1 shipped `line` / `step-line` /
+ * `horizontal-line`; Phase 2 adds `histogram` / `bars` / `area` /
+ * `filled-band` / `label` / `marker` per PLAN §7.3. Phase 5 will extend
+ * further (`shape`, `character`, `arrow`, `vertical-line`,
+ * `bar-override`, …). Every expansion is additive — `apiVersion: 1`
+ * scripts stay valid.
  *
  * @since 0.1
  * @experimental
  * @example
- *     const s: PlotStyle = { kind: "line", lineWidth: 1, lineStyle: "solid" };
+ *     const line: PlotStyle = { kind: "line", lineWidth: 1, lineStyle: "solid" };
+ *     const hist: PlotStyle = { kind: "histogram", baseline: 0 };
+ *     const band: PlotStyle = { kind: "filled-band", upper: 1, lower: -1, alpha: 0.2 };
+ *     void line; void hist; void band;
  */
 export type PlotStyle =
     | {
@@ -196,6 +202,40 @@ export type PlotStyle =
           readonly kind: "horizontal-line";
           readonly lineWidth: number;
           readonly lineStyle: LineStyle;
+      }
+    /** Phase 2 — column rising from `baseline` to `value`. @since 0.2 */
+    | {
+          readonly kind: "histogram" | "bars";
+          readonly baseline: number;
+      }
+    /** Phase 2 — filled polygon under a polyline. @since 0.2 */
+    | {
+          readonly kind: "area";
+          readonly lineWidth: number;
+          readonly lineStyle: LineStyle;
+          readonly fillAlpha: number;
+      }
+    /** Phase 2 — region between two polylines. `upper` / `lower` may be
+     *  `null` to mark a per-bar gap; both `null` is rejected by
+     *  {@link validateEmission}. @since 0.2 */
+    | {
+          readonly kind: "filled-band";
+          readonly upper: number | null;
+          readonly lower: number | null;
+          readonly alpha: number;
+      }
+    /** Phase 2 — text annotation anchored above / below / at the value.
+     *  @since 0.2 */
+    | {
+          readonly kind: "label";
+          readonly text: string;
+          readonly position: "above" | "below" | "anchor";
+      }
+    /** Phase 2 — discrete glyph at the value. @since 0.2 */
+    | {
+          readonly kind: "marker";
+          readonly shape: "circle" | "triangle-up" | "triangle-down" | "square" | "diamond";
+          readonly size: number;
       };
 
 /**

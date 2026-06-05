@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { StatefulPrimitiveEntry } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics";
@@ -51,11 +52,11 @@ export function injectCallsiteIds(
     checker: ts.TypeChecker,
     opts: {
         readonly sourcePath: string;
-        readonly statefulSet: ReadonlySet<string>;
+        readonly statefulByName: ReadonlyMap<string, StatefulPrimitiveEntry>;
         readonly slotsSeen?: Map<string, ts.CallExpression>;
     },
 ): InjectCallsiteIdsResult {
-    const { sourcePath, statefulSet } = opts;
+    const { sourcePath, statefulByName } = opts;
     const slotsSeen = opts.slotsSeen ?? new Map<string, ts.CallExpression>();
     const diagnostics: CompileDiagnostic[] = [];
 
@@ -67,10 +68,7 @@ export function injectCallsiteIds(
                 // statically known. Detecting these explicitly turns the
                 // silent-state-corruption footgun into a compile-time error.
                 if (ts.isElementAccessExpression(node.expression)) {
-                    const coreName = resolveCoreSymbolForElementAccess(
-                        node.expression,
-                        checker,
-                    );
+                    const coreName = resolveCoreSymbolForElementAccess(node.expression, checker);
                     if (coreName !== null) {
                         diagnostics.push(
                             createDiagnostic({
@@ -86,7 +84,8 @@ export function injectCallsiteIds(
                     }
                 }
                 const calleeName = resolveCalleeName(node, checker);
-                if (calleeName !== null && statefulSet.has(calleeName)) {
+                const entry = calleeName === null ? undefined : statefulByName.get(calleeName);
+                if (entry?.slot) {
                     const start = node.getStart(sourceFile);
                     const { line, character } = sourceFile.getLineAndCharacterOfPosition(start);
                     const slotId = `${sourcePath}:${line + 1}:${character + 1}#0`;

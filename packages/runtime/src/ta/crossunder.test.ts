@@ -112,3 +112,56 @@ describe("ta.crossunder tick-mode", () => {
         expect(tickResult).toBe(true);
     });
 });
+
+describe("ta.crossunder — opts.offset", () => {
+    it("offset === 0 returns the same Series identity as no opts", () => {
+        const bars = syntheticBars(20, 7);
+        const identities = new Set<unknown>();
+        let toggle = false;
+        harness(bars, bars.length + 1, (bar) => {
+            toggle = !toggle;
+            identities.add(
+                toggle
+                    ? crossunder("slot", bar.close, 100)
+                    : crossunder("slot", bar.close, 100, { offset: 0 }),
+            );
+            return null;
+        });
+        expect(identities.size).toBe(1);
+    });
+
+    it("offset === k > 0 shifts the boolean series by k bars", () => {
+        // [5, 4, 2, 1] crosses under 3 at bar 2. With offset 1, .current
+        // at bar 3 reads bar 2's value (true).
+        const bars = makeBars([5, 4, 2, 1]);
+        const out = harness(
+            bars,
+            bars.length + 1,
+            (bar) => crossunder("slot", bar.close, 3, { offset: 1 }).current,
+        );
+        expect(out[0]).toBe(undefined);
+        expect(out[1]).toBe(false);
+        expect(out[2]).toBe(false);
+        expect(out[3]).toBe(true);
+    });
+
+    it("offset === -k returns undefined at the head (future read)", () => {
+        const bars = makeBars([5, 4, 2]);
+        const head = harness(
+            bars,
+            bars.length + 1,
+            (bar) => crossunder("slot", bar.close, 3, { offset: -1 }).current,
+        );
+        expect(head[head.length - 1]).toBe(undefined);
+    });
+
+    it("two calls with the same non-zero offset return the same Series identity", () => {
+        const bars = syntheticBars(10, 3);
+        const identities = new Set<unknown>();
+        harness(bars, bars.length + 1, (bar) => {
+            identities.add(crossunder("slot", bar.close, 100, { offset: 2 }));
+            return null;
+        });
+        expect(identities.size).toBe(1);
+    });
+});

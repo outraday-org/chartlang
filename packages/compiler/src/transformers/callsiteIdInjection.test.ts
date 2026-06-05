@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { STATEFUL_PRIMITIVES } from "@invinite-org/chartlang-core";
+import { STATEFUL_PRIMITIVES, STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -26,7 +26,7 @@ void e;
         });
         const result = injectCallsiteIds(sourceFile, checker, {
             sourcePath: "demo.chart.ts",
-            statefulSet: STATEFUL_PRIMITIVES,
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
         });
         const text = printSourceFile(result.transformed);
         expect(text).toMatch(/ta\.ema\("demo\.chart\.ts:4:11#0", close, 20\)/);
@@ -43,7 +43,7 @@ export default defineIndicator({ name: "x", apiVersion: 1, compute: () => {} });
         });
         const result = injectCallsiteIds(sourceFile, checker, {
             sourcePath: "demo.chart.ts",
-            statefulSet: STATEFUL_PRIMITIVES,
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
         });
         const text = printSourceFile(result.transformed);
         expect(text).not.toMatch(/defineIndicator\("/);
@@ -59,16 +59,17 @@ plot(1);
         });
         const result = injectCallsiteIds(sourceFile, checker, {
             sourcePath: "demo.chart.ts",
-            statefulSet: STATEFUL_PRIMITIVES,
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
         });
         const text = printSourceFile(result.transformed);
         expect(text).not.toMatch(/plot\("/);
     });
 
-    it("rewrites every primitive in STATEFUL_PRIMITIVES", () => {
+    it("rewrites every slot: true primitive in STATEFUL_PRIMITIVES (and skips ta.nz)", () => {
         const source = `
 import { ta, plot, hline, alert } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;
+declare const flag: import("@invinite-org/chartlang-core").Series<boolean>;
 ta.sma(close, 14);
 ta.ema(close, 14);
 ta.stdev(close, 14);
@@ -78,6 +79,87 @@ ta.macd(close);
 ta.atr(14);
 ta.crossover(close, 0);
 ta.crossunder(close, 0);
+ta.highest(close, 14);
+ta.lowest(close, 14);
+ta.change(close);
+ta.valuewhen(flag, close);
+ta.barssince(flag);
+ta.wma(close, 14);
+ta.vwma(close, 14);
+ta.hma(close, 14);
+ta.smma(close, 14);
+ta.dema(close, 14);
+ta.tema(close, 14);
+ta.kama(close);
+ta.alma(close, 9);
+ta.lsma(close, 25);
+ta.mcginley(close, 14);
+ta.maRibbon(close);
+ta.kst(close);
+ta.fisher(9);
+ta.klinger();
+ta.rvgi();
+ta.ao();
+ta.cmo(close, 14);
+ta.momentum(close, 10);
+ta.roc(close, 12);
+ta.cci(close, 14);
+ta.chaikinOsc();
+ta.mfi(14);
+ta.netVolume();
+ta.pvo();
+ta.stoch();
+ta.williamsR(14);
+ta.aroon(14);
+ta.aroonOsc(14);
+ta.psar();
+ta.supertrend({ length: 10, multiplier: 3 });
+ta.chandelier({ length: 22, multiplier: 3 });
+ta.chandeKrollStop({ length: 10, multiplier: 1, smoothingLength: 9 });
+ta.williamsFractal({ length: 2 });
+ta.zigZag({ deviation: 5, depth: 10 });
+ta.pivotsHighLow({ leftLength: 4, rightLength: 4 });
+ta.pivotsStandard();
+ta.volatilityStop({ length: 20, multiplier: 2 });
+ta.ppo(close);
+ta.dpo(close, 21);
+ta.connorsRsi(close);
+ta.stochRsi(close);
+ta.ultimateOsc();
+ta.coppock(close);
+ta.pmo(close);
+ta.smi();
+ta.tsi(close);
+ta.adx(14);
+ta.dmi(14);
+ta.trix(close, 18);
+ta.vortex(14);
+ta.trendStrengthIndex(close, 14);
+ta.ichimoku();
+ta.vol();
+ta.vwap();
+ta.anchoredVwap(0);
+ta.obv();
+ta.adl();
+ta.bop();
+ta.cmf(20);
+ta.pvt();
+ta.eom(14);
+ta.nvi();
+ta.pvi();
+ta.bbPercentB(close, 20);
+ta.bbw(close, 20);
+ta.donchian(20);
+ta.keltner();
+ta.envelope(close);
+ta.chop(14);
+ta.historicalVolatility(close, 10);
+ta.rvi(close, 14);
+ta.massIndex();
+ta.median(close, 14);
+ta.adr();
+ta.ulcerIndex(close, 14);
+ta.nz(Number.NaN, 0);
 plot(1);
 hline(1);
 alert("msg");
@@ -87,11 +169,55 @@ alert("msg");
         });
         const result = injectCallsiteIds(sourceFile, checker, {
             sourcePath: "demo.chart.ts",
-            statefulSet: STATEFUL_PRIMITIVES,
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
         });
         const text = printSourceFile(result.transformed);
         const slotMatches = text.match(/"demo\.chart\.ts:\d+:\d+#0"/g) ?? [];
-        expect(slotMatches.length).toBe(STATEFUL_PRIMITIVES.size);
+        let slotTrueCount = 0;
+        for (const entry of STATEFUL_PRIMITIVES) {
+            if (entry.slot) slotTrueCount += 1;
+        }
+        expect(slotMatches.length).toBe(slotTrueCount);
+        // ta.nz call retains its original arg list.
+        expect(text).toMatch(/ta\.nz\(Number\.NaN, 0\)/);
+    });
+
+    it("does not inject a slot id for ta.nz (slot: false)", () => {
+        const source = `
+import { ta } from "@invinite-org/chartlang-core";
+const v = ta.nz(Number.NaN, 7);
+void v;
+`;
+        const { sourceFile, checker } = createProgramForSource(source, {
+            sourcePath: "demo.chart.ts",
+        });
+        const result = injectCallsiteIds(sourceFile, checker, {
+            sourcePath: "demo.chart.ts",
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
+        });
+        const text = printSourceFile(result.transformed);
+        expect(text).toMatch(/ta\.nz\(Number\.NaN, 7\)/);
+        expect(text).not.toMatch(/ta\.nz\("demo/);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("injects a slot id for ta.highest (slot: true)", () => {
+        const source = `
+import { ta } from "@invinite-org/chartlang-core";
+declare const high: import("@invinite-org/chartlang-core").Series<number>;
+const h = ta.highest(high, 20);
+void h;
+`;
+        const { sourceFile, checker } = createProgramForSource(source, {
+            sourcePath: "demo.chart.ts",
+        });
+        const result = injectCallsiteIds(sourceFile, checker, {
+            sourcePath: "demo.chart.ts",
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
+        });
+        const text = printSourceFile(result.transformed);
+        expect(text).toMatch(/ta\.highest\("demo\.chart\.ts:\d+:\d+#0", high, 20\)/);
+        expect(result.diagnostics).toHaveLength(0);
     });
 
     it("does not mutate the input source file (different node identity)", () => {
@@ -106,7 +232,7 @@ ta.ema(close, 20);
         const beforeText = printSourceFile(sourceFile);
         const result = injectCallsiteIds(sourceFile, checker, {
             sourcePath: "demo.chart.ts",
-            statefulSet: STATEFUL_PRIMITIVES,
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
         });
         const afterInputText = printSourceFile(sourceFile);
         expect(afterInputText).toBe(beforeText);
@@ -124,12 +250,12 @@ void a; void b;
         const first = createProgramForSource(source, { sourcePath: "demo.chart.ts" });
         const a = injectCallsiteIds(first.sourceFile, first.checker, {
             sourcePath: "demo.chart.ts",
-            statefulSet: STATEFUL_PRIMITIVES,
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
         });
         const second = createProgramForSource(source, { sourcePath: "demo.chart.ts" });
         const b = injectCallsiteIds(second.sourceFile, second.checker, {
             sourcePath: "demo.chart.ts",
-            statefulSet: STATEFUL_PRIMITIVES,
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
         });
         expect(printSourceFile(a.transformed)).toBe(printSourceFile(b.transformed));
     });
@@ -149,12 +275,12 @@ ta.ema(close, 20);
         });
         const result = injectCallsiteIds(sourceFile, checker, {
             sourcePath: "demo.chart.ts",
-            statefulSet: new Set<string>(),
+            statefulByName: new Map(),
         });
         expect(printSourceFile(result.transformed)).toBe(printSourceFile(sourceFile));
     });
 
-    it("emits stateful-call-element-access on `ta[\"ema\"](...)` and does not inject a slot id", () => {
+    it('emits stateful-call-element-access on `ta["ema"](...)` and does not inject a slot id', () => {
         const source = `
 import { ta } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;
@@ -165,7 +291,7 @@ ta["ema"](close, 20);
         });
         const result = injectCallsiteIds(sourceFile, checker, {
             sourcePath: "demo.chart.ts",
-            statefulSet: STATEFUL_PRIMITIVES,
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
         });
         expect(result.diagnostics).toHaveLength(1);
         const diagnostic = result.diagnostics[0];
@@ -186,7 +312,7 @@ tools["ema"](1, 20);
         });
         const result = injectCallsiteIds(sourceFile, checker, {
             sourcePath: "demo.chart.ts",
-            statefulSet: STATEFUL_PRIMITIVES,
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
         });
         expect(result.diagnostics).toEqual([]);
     });
@@ -209,7 +335,7 @@ ta.ema(close, 20);
         const slotsSeen = new Map<string, ts.CallExpression>([[seededSlotId, preexisting]]);
         const result = injectCallsiteIds(sourceFile, checker, {
             sourcePath: "demo.chart.ts",
-            statefulSet: STATEFUL_PRIMITIVES,
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
             slotsSeen,
         });
         expect(result.diagnostics).toHaveLength(1);

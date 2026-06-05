@@ -1850,11 +1850,17 @@ type PlotEmission = {
 };
 
 type PlotStyle =
-    | { kind: "line" | "step-line" | "area";
+    // === Shipped in 0.2 ===
+    | { kind: "line";
+        lineWidth: number; lineStyle: "solid" | "dashed" | "dotted" }
+    | { kind: "step-line";
+        lineWidth: number; lineStyle: "solid" | "dashed" | "dotted" }
+    | { kind: "horizontal-line";
         lineWidth: number; lineStyle: "solid" | "dashed" | "dotted" }
     | { kind: "histogram" | "bars"; baseline: number }
-    | { kind: "horizontal-line" | "vertical-line";
-        lineWidth: number; lineStyle: "solid" | "dashed" | "dotted" }
+    | { kind: "area";
+        lineWidth: number; lineStyle: "solid" | "dashed" | "dotted";
+        fillAlpha: number }
     | { kind: "filled-band";
         upper: number | null; lower: number | null; alpha: number }
     | { kind: "label"; text: string;
@@ -1862,27 +1868,46 @@ type PlotStyle =
     | { kind: "marker";
         shape: "circle" | "triangle-up" | "triangle-down" | "square" | "diamond";
         size: number }
+    // === Phase 5 — not in 0.2 surface ===
+    | { kind: "vertical-line";
+        lineWidth: number; lineStyle: "solid" | "dashed" | "dotted" }
     | { kind: "cursors"; radius: number }
     | { kind: "shape";
         shape: "circle" | "triangle-up" | "triangle-down" | "square"
              | "diamond" | "cross" | "x" | "flag" | "arrow-up" | "arrow-down";
         size: "tiny" | "small" | "normal" | "large" | "huge";
-        location: "above-bar" | "below-bar" | "at-price"; }
+        location: "above-bar" | "below-bar" | "at-price" }
     | { kind: "character";
         character: string;                       // single code point — character or emoji
         size: "tiny" | "small" | "normal" | "large" | "huge";
-        location: "above-bar" | "below-bar" | "at-price"; }
+        location: "above-bar" | "below-bar" | "at-price" }
     | { kind: "arrow";
         direction: number;                       // signed magnitude — sign = direction, abs = arrow length
-        baseline?: number; }
+        baseline?: number }
     | { kind: "candle-override";
         open: number; high: number; low: number; close: number;
-        wickColor?: string; borderColor?: string; }
+        wickColor?: string; borderColor?: string }
     | { kind: "bar-override";
-        open: number; high: number; low: number; close: number; }
+        open: number; high: number; low: number; close: number }
     | { kind: "bg-color"; alpha: number }
     | { kind: "bar-color"; replaceCandleColor: boolean };
 ```
+
+**Phase-2 update (`0.2`).** The union above is the long-term shape.
+Code shipped in `0.2` covers the 8 kinds above the `Phase 5` line.
+The split of `area` into its own variant with `fillAlpha` and the
+separation of `horizontal-line` from the still-deferred
+`vertical-line` happened in `tasks/phase-2-indicator-parity/X-1-plotkind-expansion.md`.
+The runtime emit paths for `histogram` and `marker` land in their
+consuming-port tasks
+(`X-21-volume-vol-vwap-anchoredvwap.md`,
+`X-26-sr-chandelier-chandekrollstop-fractal.md`) via the
+`PlotOpts.style` widening — see `packages/core/src/plot/plot.ts`
+for the script-author-facing `PlotOptsStyle` at lines 63-71
+(narrower than this wire union; only the kinds whose runtime emit
+path is wired).
+The canonical type source is `packages/adapter-kit/src/types.ts`;
+this section is a narrative copy.
 
 `PlotStyle.kind` is the value compared against `Capabilities.plots`.
 Unknown / missing → drop with diagnostic `unsupported-plot-kind`.

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { StatefulPrimitiveEntry } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics";
@@ -11,6 +12,9 @@ import { resolveCalleeName } from "../transformers/resolveCallee";
  * inside any loop kind (`for`, `for-of`, `for-in`, `while`, `do-while`).
  * Mirrors Pine's identical restriction: a stateful call inside a loop would
  * receive one slot id per iteration, silently corrupting per-call state.
+ * `slot: false` entries (e.g. `ta.nz`) are flagged too — they're stateless
+ * but Pine still forbids them in loops, and the diagnostic message stays
+ * the same.
  *
  * The walk runs on the **original** AST (positions match the user's source).
  * Loop ancestry detection uses `node.parent` directly — the source file is
@@ -19,7 +23,7 @@ import { resolveCalleeName } from "../transformers/resolveCallee";
  * @since 0.1
  * @example
  *     // const diagnostics = runStatefulCallInLoop(
- *     //     sourceFile, checker, "demo.chart.ts", STATEFUL_PRIMITIVES,
+ *     //     sourceFile, checker, "demo.chart.ts", STATEFUL_PRIMITIVES_BY_NAME,
  *     // );
  *     const fn: typeof runStatefulCallInLoop = runStatefulCallInLoop;
  *     void fn;
@@ -28,14 +32,14 @@ export function runStatefulCallInLoop(
     sourceFile: ts.SourceFile,
     checker: ts.TypeChecker,
     sourcePath: string,
-    statefulSet: ReadonlySet<string>,
+    statefulByName: ReadonlyMap<string, StatefulPrimitiveEntry>,
 ): ReadonlyArray<CompileDiagnostic> {
     const diagnostics: CompileDiagnostic[] = [];
 
     const visit = (node: ts.Node): void => {
         if (ts.isCallExpression(node)) {
             const calleeName = resolveCalleeName(node, checker);
-            if (calleeName !== null && statefulSet.has(calleeName)) {
+            if (calleeName !== null && statefulByName.has(calleeName)) {
                 if (insideLoop(node)) {
                     diagnostics.push(
                         createDiagnostic({

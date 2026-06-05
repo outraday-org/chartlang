@@ -42,6 +42,7 @@ jobs:
             - run: pnpm conformance
             - run: pnpm bench:ci
             - run: pnpm docs:check
+            - run: pnpm docs:gate
             - run: pnpm readme:check
             - if: matrix.os == 'ubuntu-latest' && matrix.node == 20
               uses: codecov/codecov-action@v4

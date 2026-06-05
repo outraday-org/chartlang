@@ -30,13 +30,20 @@ Subcommands:
   starter adapter package outside this repo. `name` must be kebab-case
   (`^[a-z][a-z0-9-]*$`). Default target is `./<name>`. Refuses to
   overwrite a non-empty target.
+- `chartlang docs [--source <dir>] [--out <dir>]` — auto-generates
+  `docs/primitives/ta/<id>.md` per `ta.*` primitive from the runtime's
+  JSDoc. CI gate: `pnpm docs:gate` byte-diffs the regenerated pages
+  against the committed tree.
 - `chartlang --help` / `-h` — prints the usage block.
 
 Programmatic surface (re-exported from `./index`):
 
 - `runCli(argv)` — async dispatcher used by the `bin.ts` entry
-- `runCompile(args)`, `runScaffoldAdapter(args)`, `runHelp()`,
-  `printHelp(stream?)` — individual command runners
+- `runCompile(args)`, `runScaffoldAdapter(args)`, `runDocsCommand(args)`,
+  `runHelp()`, `printHelp(stream?)` — individual command runners
+- `runGenDocs`, `generateDocsPage`, `parsePrimitiveSource`,
+  `GenDocsError`, `AUTO_GENERATED_HEADER`, `findRepoRoot` — the
+  docs-generator primitives
 
 ## Minimum-viable API call
 

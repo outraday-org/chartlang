@@ -10,6 +10,7 @@ import {
     type CandleEvent,
     type Capabilities,
     type PlotEmission,
+    type PlotStyle,
     type RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
 import {
@@ -24,6 +25,7 @@ import {
     clear,
     drawAlertBadge,
     drawCandles,
+    drawHistogram,
     drawHorizontalLine,
     drawLine,
     priceToY,
@@ -37,6 +39,7 @@ import {
 const DEFAULT_INTERVAL = "1D";
 const MAX_RECENT_ALERTS = 8;
 const Y_AXIS_PADDING = 0.05;
+const HISTOGRAM_BAR_WIDTH_PX = 4;
 
 /**
  * Constructor options for {@link createCanvas2dAdapter}. The
@@ -86,6 +89,7 @@ type AdapterState = {
     readonly canvas: { width: number; height: number };
     readonly bars: Bar[];
     readonly plotSeries: Map<string, PlotPoint[]>;
+    readonly plotSeriesStyle: Map<string, PlotStyle>;
     readonly hlines: Map<string, HLine>;
     readonly recentAlerts: AlertEmission[];
     readonly palette: Palette;
@@ -153,11 +157,40 @@ function computeViewport(state: AdapterState): Viewport {
     };
 }
 
+function renderHistogramSeries(
+    ctx: RenderCtx,
+    series: ReadonlyArray<PlotPoint>,
+    baseline: number,
+    viewport: Viewport,
+    palette: Palette,
+): void {
+    const baselineY = priceToY(baseline, viewport);
+    for (const point of series) {
+        if (point.value === null || !Number.isFinite(point.value)) continue;
+        drawHistogram(
+            ctx,
+            {
+                x: timeToX(point.time, viewport),
+                y: priceToY(point.value, viewport),
+                baseline: baselineY,
+                color: point.color,
+                width: HISTOGRAM_BAR_WIDTH_PX,
+            },
+            palette,
+        );
+    }
+}
+
 function renderFrame(state: AdapterState): void {
     const viewport = computeViewport(state);
     clear(state.ctx, viewport, state.palette);
     drawCandles(state.ctx, state.bars, viewport, state.palette);
-    for (const series of state.plotSeries.values()) {
+    for (const [slotId, series] of state.plotSeries) {
+        const style = state.plotSeriesStyle.get(slotId);
+        if (style !== undefined && style.kind === "histogram") {
+            renderHistogramSeries(state.ctx, series, style.baseline, viewport, state.palette);
+            continue;
+        }
         drawLine(state.ctx, series, viewport, state.palette);
     }
     for (const hline of state.hlines.values()) {
@@ -173,10 +206,15 @@ function renderFrame(state: AdapterState): void {
 }
 
 function applyPlot(state: AdapterState, plot: PlotEmission): void {
-    if (plot.style.kind === "line" || plot.style.kind === "step-line") {
+    if (
+        plot.style.kind === "line" ||
+        plot.style.kind === "step-line" ||
+        plot.style.kind === "histogram"
+    ) {
         const series = state.plotSeries.get(plot.slotId) ?? [];
         series.push({ time: plot.time, value: plot.value, color: plot.color });
         state.plotSeries.set(plot.slotId, series);
+        state.plotSeriesStyle.set(plot.slotId, plot.style);
         return;
     }
     if (plot.style.kind === "horizontal-line") {
@@ -273,6 +311,7 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         canvas: { width: opts.canvas.width, height: opts.canvas.height },
         bars: [],
         plotSeries: new Map(),
+        plotSeriesStyle: new Map(),
         hlines: new Map(),
         recentAlerts: [],
         palette,
@@ -297,6 +336,7 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         dispose: () => {
             state.bars.length = 0;
             state.plotSeries.clear();
+            state.plotSeriesStyle.clear();
             state.hlines.clear();
             state.recentAlerts.length = 0;
             host.dispose();

@@ -107,6 +107,10 @@ function buildBar(index: number, time: number, prevClose: number, rng: () => num
         volume,
         symbol: "GOLDEN",
         interval: "1D",
+        hl2: (high + low) / 2,
+        hlc3: (high + low + close) / 3,
+        ohlc4: (open + high + low + close) / 4,
+        hlcc4: (high + low + close + close) / 4,
     });
 }
 

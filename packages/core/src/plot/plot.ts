@@ -5,18 +5,76 @@ import type { Color, LineStyle, Series } from "../types";
 
 /**
  * Rendered-shape discriminator for `plot` emissions reaching the adapter.
- * Phase 1 ships these three; Phase 2+ adds histograms / candles / etc.
+ * Phase 1 shipped `line` / `step-line` / `horizontal-line`. Phase 2 adds
+ * `histogram` / `bars` / `area` / `filled-band` / `label` / `marker`.
+ * Phase 5 will add `shape` / `character` / `arrow` / `candle-override` /
+ * `bar-override` / `bg-color` / `bar-color` / `vertical-line` /
+ * `horizontal-histogram`. Every expansion is additive — the
+ * `apiVersion: 1` script header stays unchanged.
+ *
+ * Typical Phase-2 consumers:
+ *
+ * - `histogram` → volume bars, MACD histogram, momentum-style oscillators.
+ * - `bars` → narrow vertical bar plotted at integer x (signed momentum).
+ * - `area` → filled region under a polyline (BB midline, regression).
+ * - `filled-band` → Bollinger / Keltner / Donchian / Ichimoku envelopes.
+ * - `label` → text annotations at a world-space anchor (fractal, pivot).
+ * - `marker` → discrete glyph (circle / triangle / square / diamond) for
+ *   fractals / divergence / supertrend flips.
  *
  * @since 0.1
  * @example
  *     const k: PlotKind = "line";
+ *     const histogram: PlotKind = "histogram";
+ *     const band: PlotKind = "filled-band";
+ *     void k; void histogram; void band;
  */
-export type PlotKind = "line" | "step-line" | "horizontal-line";
+export type PlotKind =
+    | "line"
+    | "step-line"
+    | "horizontal-line"
+    | "histogram"
+    | "bars"
+    | "area"
+    | "filled-band"
+    | "label"
+    | "marker";
+
+/**
+ * Script-author selectable plot style. The runtime maps this to the
+ * adapter-kit's wire `PlotStyle` discriminated union (Task 1) and
+ * fills in defaults from the sibling {@link PlotOpts} fields
+ * (`lineWidth` / `lineStyle`). Phase 2 surfaces `line` / `step-line`
+ * / `histogram` here — the kinds the runtime has wired emit paths
+ * for. `horizontal-line` has its own `hline()` primitive; the other
+ * Task-1 kinds (`bars`, `area`, `filled-band`, `label`, `marker`)
+ * land per their consuming port.
+ *
+ * `histogram.baseline` defaults to `0` when omitted.
+ *
+ * @formula  N/A — script-facing style input
+ * @since 0.2
+ * @experimental
+ * @example
+ *     const lineStyle: PlotOptsStyle = { kind: "line" };
+ *     const histStyle: PlotOptsStyle = { kind: "histogram", baseline: 0 };
+ *     void lineStyle; void histStyle;
+ */
+export type PlotOptsStyle =
+    | { readonly kind: "line" }
+    | { readonly kind: "step-line" }
+    | { readonly kind: "histogram"; readonly baseline?: number }
+    | {
+          readonly kind: "marker";
+          readonly shape: "circle" | "triangle-up" | "triangle-down" | "square" | "diamond";
+          readonly size: number;
+      };
 
 /**
  * Styling options accepted by `plot(...)`. `pane: "overlay"` (the default) is
  * the only pane the Phase-1 canvas2d adapter renders — `"new"` and named
- * panes are reserved for Phase 2+.
+ * panes are reserved for Phase 2+. `style` (Phase 2) lets the script pick
+ * a non-line {@link PlotOptsStyle} — defaults to `{ kind: "line" }`.
  *
  * @since 0.1
  * @example
@@ -26,6 +84,7 @@ export type PlotKind = "line" | "step-line" | "horizontal-line";
  *         lineWidth: 2,
  *         lineStyle: "solid",
  *         pane: "overlay",
+ *         style: { kind: "line" },
  *     };
  */
 export type PlotOpts = Readonly<{
@@ -34,6 +93,7 @@ export type PlotOpts = Readonly<{
     lineWidth?: number;
     lineStyle?: LineStyle;
     pane?: "overlay" | "new" | string;
+    style?: PlotOptsStyle;
 }>;
 
 /**

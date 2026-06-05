@@ -119,6 +119,81 @@ describe("plot — happy path", () => {
     });
 });
 
+describe("plot — style selection (opts.style)", () => {
+    it("emits a histogram style when opts.style.kind === 'histogram' (default baseline 0)", () => {
+        const caps = makeCaps({ plots: new Set(["line", "histogram"]) });
+        const { ctx, emissions } = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42, { style: { kind: "histogram" } });
+        expect(emissions.plots).toHaveLength(1);
+        const style = emissions.plots[0].style;
+        expect(style.kind).toBe("histogram");
+        if (style.kind === "histogram") {
+            expect(style.baseline).toBe(0);
+        }
+    });
+
+    it("respects an explicit histogram baseline", () => {
+        const caps = makeCaps({ plots: new Set(["line", "histogram"]) });
+        const { ctx, emissions } = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 10, { style: { kind: "histogram", baseline: 50 } });
+        const style = emissions.plots[0].style;
+        if (style.kind !== "histogram") throw new Error("expected histogram");
+        expect(style.baseline).toBe(50);
+    });
+
+    it("emits a step-line style when opts.style.kind === 'step-line'", () => {
+        const caps = makeCaps({ plots: new Set(["line", "step-line"]) });
+        const { ctx, emissions } = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 1, {
+            style: { kind: "step-line" },
+            lineWidth: 3,
+            lineStyle: "dashed",
+        });
+        const style = emissions.plots[0].style;
+        expect(style.kind).toBe("step-line");
+        if (style.kind === "step-line") {
+            expect(style.lineWidth).toBe(3);
+            expect(style.lineStyle).toBe("dashed");
+        }
+    });
+
+    it("falls back to line when opts.style is omitted", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 1, { style: { kind: "line" } });
+        expect(emissions.plots[0].style.kind).toBe("line");
+    });
+
+    it("drops + diagnoses unsupported-plot-kind when the chosen style is not in capabilities.plots", () => {
+        const caps = makeCaps({ plots: capabilities.allLines() });
+        const { ctx, emissions } = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 1, { style: { kind: "histogram" } });
+        expect(emissions.plots).toEqual([]);
+        expect(emissions.diagnostics).toHaveLength(1);
+        expect(emissions.diagnostics[0].code).toBe("unsupported-plot-kind");
+    });
+
+    it("emits a marker style when opts.style.kind === 'marker'", () => {
+        const caps = makeCaps({ plots: new Set(["line", "marker"]) });
+        const { ctx, emissions } = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42, {
+            style: { kind: "marker", shape: "triangle-up", size: 6 },
+        });
+        expect(emissions.plots).toHaveLength(1);
+        const style = emissions.plots[0].style;
+        expect(style.kind).toBe("marker");
+        if (style.kind === "marker") {
+            expect(style.shape).toBe("triangle-up");
+            expect(style.size).toBe(6);
+        }
+    });
+});
+
 describe("plot — NaN handling", () => {
     it("emits value: null for non-finite numeric value", () => {
         const { ctx, emissions } = makeCtx();

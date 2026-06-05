@@ -52,9 +52,27 @@ const VALID_PLOT_STYLE_KINDS: ReadonlySet<string> = new Set([
     "line",
     "step-line",
     "horizontal-line",
+    "histogram",
+    "bars",
+    "area",
+    "filled-band",
+    "label",
+    "marker",
 ]);
 
 const VALID_LINE_STYLES: ReadonlySet<string> = new Set(["solid", "dashed", "dotted"]);
+
+const VALID_MARKER_SHAPES: ReadonlySet<string> = new Set([
+    "circle",
+    "triangle-up",
+    "triangle-down",
+    "square",
+    "diamond",
+]);
+
+const VALID_LABEL_POSITIONS: ReadonlySet<string> = new Set(["above", "below", "anchor"]);
+
+const MAX_LABEL_LENGTH = 128;
 
 const VALID_ALERT_SEVERITIES: ReadonlySet<string> = new Set(["info", "warning", "critical"]);
 
@@ -157,12 +175,7 @@ function walkMeta(v: unknown, path: string): ValidationResult {
     return { ok: true };
 }
 
-function validatePlotStyle(style: unknown): ValidationResult {
-    if (!isPlainObject(style)) return bad("style: not an object");
-    const kind = style.kind;
-    if (typeof kind !== "string" || !VALID_PLOT_STYLE_KINDS.has(kind)) {
-        return bad(`style.kind: '${String(kind)}' is not a Phase-1 plot kind`);
-    }
+function validateLineLikeStyle(style: Record<string, unknown>): ValidationResult {
     const lineWidth = style.lineWidth;
     if (!isFiniteNumber(lineWidth) || lineWidth <= 0) {
         return bad("style.lineWidth: must be a finite positive number");
@@ -172,6 +185,98 @@ function validatePlotStyle(style: unknown): ValidationResult {
         return bad(`style.lineStyle: '${String(lineStyle)}' is not a valid line style`);
     }
     return { ok: true };
+}
+
+function validateAreaStyle(style: Record<string, unknown>): ValidationResult {
+    const lineCheck = validateLineLikeStyle(style);
+    if (!lineCheck.ok) return lineCheck;
+    const fillAlpha = style.fillAlpha;
+    if (!isFiniteNumber(fillAlpha) || fillAlpha < 0 || fillAlpha > 1) {
+        return bad("style.fillAlpha: must be a finite number in [0, 1]");
+    }
+    return { ok: true };
+}
+
+function validateHistogramOrBarsStyle(style: Record<string, unknown>): ValidationResult {
+    const baseline = style.baseline;
+    if (!isFiniteNumber(baseline)) {
+        return bad("style.baseline: must be a finite number");
+    }
+    return { ok: true };
+}
+
+function validateFilledBandStyle(style: Record<string, unknown>): ValidationResult {
+    const upper = style.upper;
+    if (upper !== null && !isFiniteNumber(upper)) {
+        return bad("style.upper: must be a finite number or null");
+    }
+    const lower = style.lower;
+    if (lower !== null && !isFiniteNumber(lower)) {
+        return bad("style.lower: must be a finite number or null");
+    }
+    if (upper === null && lower === null) {
+        return bad("style.upper / style.lower: at least one bound must be non-null");
+    }
+    const alpha = style.alpha;
+    if (!isFiniteNumber(alpha) || alpha < 0 || alpha > 1) {
+        return bad("style.alpha: must be a finite number in [0, 1]");
+    }
+    return { ok: true };
+}
+
+function validateLabelStyle(style: Record<string, unknown>): ValidationResult {
+    const text = style.text;
+    if (typeof text !== "string" || text.length === 0) {
+        return bad("style.text: must be a non-empty string");
+    }
+    if (text.length > MAX_LABEL_LENGTH) {
+        return bad(`style.text: must be at most ${MAX_LABEL_LENGTH} characters`);
+    }
+    const position = style.position;
+    if (typeof position !== "string" || !VALID_LABEL_POSITIONS.has(position)) {
+        return bad(`style.position: '${String(position)}' is not a valid label position`);
+    }
+    return { ok: true };
+}
+
+function validateMarkerStyle(style: Record<string, unknown>): ValidationResult {
+    const shape = style.shape;
+    if (typeof shape !== "string" || !VALID_MARKER_SHAPES.has(shape)) {
+        return bad(`style.shape: '${String(shape)}' is not a valid marker shape`);
+    }
+    const size = style.size;
+    if (!isFiniteNumber(size) || size <= 0) {
+        return bad("style.size: must be a finite positive number");
+    }
+    return { ok: true };
+}
+
+function validatePlotStyle(style: unknown): ValidationResult {
+    if (!isPlainObject(style)) return bad("style: not an object");
+    const kind = style.kind;
+    if (typeof kind !== "string" || !VALID_PLOT_STYLE_KINDS.has(kind)) {
+        return bad(`style.kind: '${String(kind)}' is not a known plot kind`);
+    }
+    switch (kind) {
+        case "line":
+        case "step-line":
+        case "horizontal-line":
+            return validateLineLikeStyle(style);
+        case "histogram":
+        case "bars":
+            return validateHistogramOrBarsStyle(style);
+        case "area":
+            return validateAreaStyle(style);
+        case "filled-band":
+            return validateFilledBandStyle(style);
+        case "label":
+            return validateLabelStyle(style);
+        case "marker":
+            return validateMarkerStyle(style);
+        /* v8 ignore next 2 -- kind is already gated by VALID_PLOT_STYLE_KINDS */
+        default:
+            return bad(`style.kind: '${kind}' has no validator`);
+    }
 }
 
 function validatePlotEmission(e: Record<string, unknown>): ValidationResult {

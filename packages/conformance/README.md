@@ -18,9 +18,10 @@ pnpm add -D @invinite-org/chartlang-conformance
 - `runConformanceSuite(adapter, opts?) → Promise<ConformanceReport>`
   — drives every bundled scenario against `adapter`. `opts.scenarios`,
   `opts.candles`, and `opts.compile` are injection seams for tests.
-- `PHASE_1_SCENARIOS` — readonly array of the three Phase-1
-  scenarios: `EMA_CROSS_SCENARIO`, `BOLLINGER_BANDS_SCENARIO`,
-  `RSI_DIVERGENCE_SCENARIO`.
+- `ALL_SCENARIOS` — readonly array of every bundled conformance
+  scenario (Phase-1 walking-skeleton + Phase-2 indicator ports).
+  `PHASE_1_SCENARIOS` is kept as a `@deprecated since 0.2.1` alias
+  of the same array for one release.
 - `generateGoldenBars()` / `serialiseGoldenBars()` /
   `writeGoldenBars(path)` — deterministic 10 000-bar fixture
   generator. Seed `0xC0DE`, four 2 500-bar regimes

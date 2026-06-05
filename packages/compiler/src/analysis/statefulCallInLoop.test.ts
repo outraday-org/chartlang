@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { STATEFUL_PRIMITIVES } from "@invinite-org/chartlang-core";
+import { STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import { createProgramForSource } from "../program";
@@ -11,7 +11,7 @@ function run(source: string) {
     const { sourceFile, checker } = createProgramForSource(source, {
         sourcePath: "demo.chart.ts",
     });
-    return runStatefulCallInLoop(sourceFile, checker, "demo.chart.ts", STATEFUL_PRIMITIVES);
+    return runStatefulCallInLoop(sourceFile, checker, "demo.chart.ts", STATEFUL_PRIMITIVES_BY_NAME);
 }
 
 describe("runStatefulCallInLoop", () => {
@@ -75,5 +75,28 @@ for (const k in { a: 1 }) { const s = ta.sma(close, Number(k)); void s; }
 for (let i = 0; i < 3; i++) { Math.floor(i); }
 `);
         expect(result).toHaveLength(0);
+    });
+
+    it("rejects ta.highest inside a `for` loop (slot: true)", () => {
+        const result = run(`
+import { ta } from "@invinite-org/chartlang-core";
+declare const close: import("@invinite-org/chartlang-core").Series<number>;
+for (let i = 0; i < 3; i++) {
+    const h = ta.highest(close, 20);
+    void h;
+}
+`);
+        expect(result[0]?.code).toBe("stateful-call-inside-loop");
+    });
+
+    it("rejects ta.nz inside a `for` loop (slot: false but Pine-forbidden)", () => {
+        const result = run(`
+import { ta } from "@invinite-org/chartlang-core";
+for (let i = 0; i < 3; i++) {
+    const v = ta.nz(Number.NaN, 0);
+    void v;
+}
+`);
+        expect(result[0]?.code).toBe("stateful-call-inside-loop");
     });
 });

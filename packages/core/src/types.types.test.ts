@@ -32,6 +32,13 @@ describe("public type surface", () => {
         expectTypeOf<Bar["volume"]>().toEqualTypeOf<Volume>();
     });
 
+    it("Bar exposes the four Phase-2 derived sources as Price", () => {
+        expectTypeOf<Bar["hl2"]>().toEqualTypeOf<Price>();
+        expectTypeOf<Bar["hlc3"]>().toEqualTypeOf<Price>();
+        expectTypeOf<Bar["ohlc4"]>().toEqualTypeOf<Price>();
+        expectTypeOf<Bar["hlcc4"]>().toEqualTypeOf<Price>();
+    });
+
     it("ta.ema returns Series<number>", () => {
         expectTypeOf(ta.ema).returns.toEqualTypeOf<Series<number>>();
     });

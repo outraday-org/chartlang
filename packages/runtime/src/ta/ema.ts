@@ -14,8 +14,8 @@ import type { EmaOpts, Series } from "@invinite-org/chartlang-core";
 
 import { Float64RingBuffer } from "../ringBuffer";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
-import { type ScalarOrSeries, readSourceValue } from "./sourceValue";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
 
 type EmaSlot = {
     readonly outBuffer: Float64RingBuffer;
@@ -26,6 +26,8 @@ type EmaSlot = {
     seedCount: number;
     prevEma: number;
     prevClosedEma: number;
+    /** Per-offset Series-view cache; see `sma.ts` for the convention. */
+    readonly shiftedViews: Map<number, Series<number>>;
 };
 
 function getCtx(): RuntimeContext {
@@ -47,7 +49,18 @@ function initSlot(length: number, capacity: number): EmaSlot {
         seedCount: 0,
         prevEma: Number.NaN,
         prevClosedEma: Number.NaN,
+        shiftedViews: new Map(),
     };
+}
+
+function viewForOffset(slot: EmaSlot, offset: number): Series<number> {
+    if (offset === 0) return slot.series;
+    let view = slot.shiftedViews.get(offset);
+    if (view === undefined) {
+        view = makeShiftedSeriesView<number>(slot.outBuffer, offset);
+        slot.shiftedViews.set(offset, view);
+    }
+    return view;
 }
 
 function compute(slot: EmaSlot, src: number, isTick: boolean): number {
@@ -95,16 +108,20 @@ function compute(slot: EmaSlot, src: number, isTick: boolean): number {
  * @since 0.1
  * @experimental
  *
+ * `opts.offset` shifts the returned series so `series.current` reads
+ * the value `offset` bars ago (PLAN.md §9.1).
+ *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";
  *     // const e = ta.ema("slot-id", bar.close, 20);
  *     // const head = e.current; // NaN until bar length-1
+ *     // const projected = ta.ema("slot2", bar.close, 20, { offset: 5 });
  */
 export function ema(
     slotId: string,
     source: ScalarOrSeries,
     length: number,
-    _opts?: EmaOpts,
+    opts?: EmaOpts,
 ): Series<number> {
     const ctx = getCtx();
     let slot = ctx.stream.taSlots.get(slotId) as EmaSlot | undefined;
@@ -115,5 +132,5 @@ export function ema(
     const value = compute(slot, readSourceValue(source), ctx.isTick);
     if (ctx.isTick) slot.outBuffer.replaceHead(value);
     else slot.outBuffer.append(value);
-    return slot.series;
+    return viewForOffset(slot, opts?.offset ?? 0);
 }

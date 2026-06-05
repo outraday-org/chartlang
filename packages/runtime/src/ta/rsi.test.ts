@@ -283,3 +283,59 @@ describe("ta.rsi tick-mode", () => {
         expect(head).toBeCloseTo(closedHead, 12);
     });
 });
+
+describe("ta.rsi — opts.offset", () => {
+    it("offset === 0 returns the same Series identity as no opts", () => {
+        const bars = syntheticBars(20, 7);
+        const identities = new Set<unknown>();
+        let toggle = false;
+        harness(bars, bars.length + 1, (bar) => {
+            toggle = !toggle;
+            identities.add(
+                toggle ? rsi("slot", bar.close, 5) : rsi("slot", bar.close, 5, { offset: 0 }),
+            );
+            return null;
+        });
+        expect(identities.size).toBe(1);
+    });
+
+    it("offset === k > 0 shifts the series so .current returns the value k bars ago", () => {
+        const bars = syntheticBars(30, 11);
+        const unshifted = harness(
+            bars,
+            bars.length + 1,
+            (bar) => rsi("slot", bar.close, 5).current,
+        );
+        const shifted = harness(
+            bars,
+            bars.length + 1,
+            (bar) => rsi("slot", bar.close, 5, { offset: 3 }).current,
+        );
+        for (let i = 3; i < bars.length; i += 1) {
+            const u = unshifted[i - 3];
+            const s = shifted[i];
+            if (Number.isNaN(u)) expect(Number.isNaN(s)).toBe(true);
+            else expect(s).toBeCloseTo(u, 12);
+        }
+    });
+
+    it("offset === -k returns NaN at the head (future read)", () => {
+        const bars = syntheticBars(20, 1);
+        const head = harness(
+            bars,
+            bars.length + 1,
+            (bar) => rsi("slot", bar.close, 5, { offset: -2 }).current,
+        );
+        expect(Number.isNaN(head[head.length - 1])).toBe(true);
+    });
+
+    it("two calls with the same non-zero offset return the same Series identity", () => {
+        const bars = syntheticBars(10, 3);
+        const identities = new Set<unknown>();
+        harness(bars, bars.length + 1, (bar) => {
+            identities.add(rsi("slot", bar.close, 5, { offset: 2 }));
+            return null;
+        });
+        expect(identities.size).toBe(1);
+    });
+});

@@ -43,3 +43,13 @@
 - **`compileProject` does not write.** It walks the directory in
   parallel + collects results in memory. The CLI loops `compileFile`
   itself when sibling files are needed (Phase-1 Task 11).
+- **`STATEFUL_PRIMITIVES` is a `ReadonlySet<{ name, slot }>` as of
+  Phase-2 Task 5.** The shape widened from `ReadonlySet<string>` so
+  `ta.nz` (the only stateless cross-functional primitive) can opt
+  out of slot-id injection. `callsiteIdInjection` resolves the
+  entry by name and skips the slot-id literal when `slot === false`;
+  `statefulCallInLoop` flags every entry regardless of `slot`
+  (Pine-parity — stateless primitives are still forbidden in loop
+  bodies). Future per-port batches (Tasks 6–28) append `slot: true`
+  entries; only `ta.nz` carries `slot: false`. The `program.ts`
+  ambient shim mirrors the shape — keep the two in lockstep.

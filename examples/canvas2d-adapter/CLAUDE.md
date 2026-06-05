@@ -62,3 +62,31 @@ Reference adapter package — **not published to npm**.
   and uses the supplied `RenderCtx` directly. Production callers
   pass a real `HTMLCanvasElement`; tests pass a
   `MockCanvas2DContext`.
+
+## Phase-2 invariants
+
+- **`RenderCtx` Phase-2 surface.** `src/render/clear.ts` declares the
+  shared structural type every renderer + `MockCanvas2DContext`
+  satisfies. Phase 1 covered the line + arc + setter surface; Phase 2
+  (Task 1) adds `fillText`, `globalAlpha`, `font`, `textAlign`,
+  `textBaseline`. Extensions must update both the type and the mock
+  in lockstep — the `RecordedCall` union grows a matching variant per
+  new method / setter, and `MockCanvas2DContext.canonicalise` carries
+  the canonicalisation rule for the new record so `hashCallLog`
+  stays stable.
+- **`src/render/` Phase-2 renderers stay pure-on-`RenderCtx`.**
+  `histogram.ts` / `bars.ts` / `area.ts` / `filledBand.ts` / `label.ts`
+  / `marker.ts` each take a `RenderCtx` + a typed args bag + a
+  `Palette` and emit exactly one canonical call sequence. Each has a
+  paired `<name>.test.ts` asserting the call sequence against
+  `MockCanvas2DContext.calls`. Adding a new renderer = add the file
+  + the test + the re-export through `render/index.ts`; the
+  conformance pipeline picks up the wider cap surface automatically.
+- **`createCanvas2dAdapter.ts` does NOT dispatch to the Phase-2
+  renderers in this task.** The runtime's `plot` impl
+  (`packages/runtime/src/emit/plot.ts`) still hardcodes `kind:
+  "line"`, so no Phase-2 `PlotStyle` reaches `applyPlot`. Per-port
+  Phase-2 tasks (Tasks 21+) wire each new kind into both the runtime
+  emit path and the adapter dispatch when they introduce the
+  matching primitive. Task 1 ships the renderers in pure-helper form
+  so wiring lands one-line later.
