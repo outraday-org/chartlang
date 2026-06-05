@@ -1,0 +1,166 @@
+# Task 22 — Phase 3 closeout — `STATEFUL_PRIMITIVES` verification + `0.3` version bump + changeset
+
+> **Status: TODO**
+
+## Goal
+
+Verify the final Phase 3 invariants, bump every touched package
+to `0.3`, and land the consolidated closeout changeset.
+
+## Prerequisites
+
+- Tasks 1–21.
+
+## Requirements
+
+### 1. `STATEFUL_PRIMITIVES` cardinality verification
+
+A dedicated test in `packages/core/src/statefulPrimitives.test.ts`
+asserts:
+- `STATEFUL_PRIMITIVES.size === 154` (93 from Phase 2 + 61 new
+  `draw.<kind>` entries).
+- Every `KIND_CAMELCASE.get(k)` (for `k ∈ DRAWING_KINDS`)
+  appears prefixed by `"draw."`.
+- Every entry's `slot: true` for `draw.*` (no stateless
+  drawing primitive — they all need callsite slot ids).
+
+### 2. `DRAWING_KINDS` exhaustiveness verification
+
+- `DRAWING_KINDS.length === 61`.
+- Every `kind` has a `KIND_BUCKET` entry (`bucketFor`
+  exhaustive).
+- Every `kind` has a `validateEmission` validator
+  (`validateStateByKind` exhaustive — switch exhaustiveness via
+  `(k satisfies never)`).
+- Every `kind` has a canvas2d renderer (`drawingDispatch`
+  exhaustive).
+- Every `kind` has a per-kind conformance scenario in
+  `packages/conformance/src/scenarios/draw<Kind>.scenario.ts`.
+- 12 task-bundle scenarios present (one per port task; Task 6's
+  `drawBoxesA` superseded by Task 7's `drawBoxesAll`; Task 11's
+  `drawFibA` superseded by Task 12's `drawFibAll`).
+- `drawAll61.scenario.ts`, `drawBudgetOverflow.scenario.ts`,
+  `drawUnsupportedKind.scenario.ts` (Task 19) all present.
+- Every `kind` has a docs page at
+  `docs/primitives/draw/[sub/]<kebab>.md`.
+
+The five exhaustiveness checks land as one test in
+`packages/conformance/src/scenarios/phase3Coverage.test.ts`
+(mirrors Phase 2's `phase2Coverage.test.ts`). Reuses
+`KIND_CAMELCASE` to derive expected filenames; reads
+`scenarios/index.ts` `ALL_SCENARIOS` to verify scenario presence.
+
+### 3. Per-package version bumps to `0.3.0`
+
+Bump every package's `package.json` version that landed Phase-3
+code:
+- `@invinite-org/chartlang-core` → 0.3.0
+- `@invinite-org/chartlang-runtime` → 0.3.0
+- `@invinite-org/chartlang-adapter-kit` → 0.3.0
+- `@invinite-org/chartlang-compiler` → 0.3.0 (if Task 20
+  touched the manifest extractor)
+- `@invinite-org/chartlang-conformance` → 0.3.0
+- `@invinite-org/chartlang-cli` → 0.3.0
+- `chartlang-example-canvas2d-adapter` → 0.3.0
+
+`pnpm changeset version` consumes the per-task changesets +
+the closeout changeset and writes the version bumps. Commit the
+resulting `CHANGELOG.md` updates.
+
+### 4. README updates
+
+- Root `README.md` — mention Phase 3 / `0.3` in the "Status"
+  line. Cap 300 lines.
+- `packages/<pkg>/README.md` — update "Stability" section per
+  §17.1 if needed. Most should still say "Phase 3 — `0.3`
+  experimental".
+
+### 5. Bench thresholds
+
+`pnpm bench:ci` runs all bench tests including the per-kind
+drawing benches from Tasks 5–18. Capture the post-Phase-3
+medians and (if any threshold drifted ≥ 20% from the per-task
+pin) re-pin to `ceil(newMedian × 3)`. Document the re-pin in
+the closeout changeset.
+
+### 6. Final-gate smoke
+
+- `pnpm typecheck` — workspace-wide green.
+- `pnpm lint` — green.
+- `pnpm test` — 100% coverage on every package.
+- `pnpm conformance` — every scenario passes (Phase-1/-2 +
+  Phase-3).
+- `pnpm bench:ci` — all bench thresholds green.
+- `pnpm docs:check` — all `@example` blocks compile; link audit
+  on `docs/primitives/draw/index.md` passes.
+- `pnpm readme:check` — every package README ≤ 100 lines; root
+  ≤ 300.
+
+### 7. Consolidated changeset
+
+`.changeset/phase-3-closeout.md`:
+
+```markdown
+---
+"@invinite-org/chartlang-core": minor
+"@invinite-org/chartlang-runtime": minor
+"@invinite-org/chartlang-adapter-kit": minor
+"@invinite-org/chartlang-compiler": minor
+"@invinite-org/chartlang-conformance": minor
+"@invinite-org/chartlang-cli": minor
+---
+
+Phase 3 closeout — `0.3` "Full Drawing Parity". 61 drawing
+kinds across 13 categories shipping under `draw.*` with full
+§22.10 set per kind (impl + property + golden + bench + JSDoc +
+conformance scenario + auto-generated docs page). 5-bucket
+`DrawingCounts` budget, per-kind capability gating, `DrawingHandle`
+across-bar stability, real-impl `validateEmission` +
+`decodeDrawing`, `drawing-hash` conformance assertion variant,
+13 category + 1 umbrella capability builders, canvas2d
+reference adapter renders every kind.
+
+Final cardinality: `STATEFUL_PRIMITIVES.size === 154`;
+`DRAWING_KINDS.length === 61`.
+```
+
+## Files to Create / Modify
+
+| File | Action |
+|------|--------|
+| `packages/conformance/src/scenarios/phase3Coverage.test.ts` | Create |
+| `packages/conformance/src/scenarios/phase3Inventory.ts` | Create (mirrors `phase2Inventory.ts`) |
+| `packages/core/src/statefulPrimitives.test.ts` | Modify (final cardinality verification) |
+| `packages/*/package.json` | Modify (version bumps to `0.3.0` after `pnpm changeset version`) |
+| `packages/*/CHANGELOG.md` | Auto-generated by changeset |
+| `README.md` | Modify (Status line) |
+| `.changeset/phase-3-closeout.md` | Create |
+
+## Gates
+
+All gates green. No regressions on Phase-1/-2 scenarios.
+
+## Changeset
+
+Closeout changeset as documented above. After landing, run:
+
+```bash
+pnpm changeset version    # consumes all phase-3-task-*.md changesets + closeout
+pnpm install              # update lockfile
+git add -A && git commit -m "chore: release 0.3"
+```
+
+The closeout PR includes the changeset; the release happens
+manually per §22.11 after merge.
+
+## Acceptance Criteria
+
+- `STATEFUL_PRIMITIVES.size === 154` enforced by test.
+- All 5 exhaustiveness checks (bucket / validator / renderer /
+  scenario / docs) green in `phase3Coverage.test.ts`.
+- Every Phase-3-touched package at version `0.3.0`.
+- All gates green.
+- Phase 3 closeout changeset committed.
+- README + CHANGELOG updates in place.
+- The repo is ready for the manual `pnpm release` workflow per
+  §22.11.
