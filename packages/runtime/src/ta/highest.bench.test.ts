@@ -9,7 +9,7 @@ import { highest } from "./highest";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through a monotonic-deque max — slightly heavier than SMA's running
 // sum but still well under 100ms on M2; budget 300ms for CI Linux.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.highest threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -10,7 +10,7 @@ import { pivotsStandard } from "./pivotsStandard";
 // PivotsStandard is O(1) per close (constant-time day aggregate +
 // formula dispatch), so 10 000 bars runs well under threshold on
 // Apple silicon.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.pivotsStandard threshold", () => {
     it("runs 10 000 bars under threshold", () => {

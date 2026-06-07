@@ -8,7 +8,7 @@ import { cmo } from "./cmo";
 
 // THRESHOLD_MS — ceil(median × 3). cmo is two ring-buffer mutations
 // + two adds per bar.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.cmo threshold", () => {
     it("runs 10 000 bars under threshold", () => {

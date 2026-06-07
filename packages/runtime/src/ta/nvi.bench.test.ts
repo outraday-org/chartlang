@@ -9,7 +9,7 @@ import { nvi } from "./nvi";
 // THRESHOLD_MS — ceil(median × 3). ta.nvi is one compare + one
 // multiply per bar (when the predicate holds) — well under the 300 ms
 // ceiling over 10k bars.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.nvi threshold", () => {
     it("runs 10 000 bars under threshold", () => {

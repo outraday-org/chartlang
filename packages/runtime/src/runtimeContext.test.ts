@@ -57,6 +57,10 @@ function freshContext(barIndex = 0): RuntimeContext {
         emissions: freshEmissions(),
         barIndex: () => barIndex,
         isTick: false,
+        drawingSlots: new Map(),
+        drawingSubIdCounters: new Map(),
+        drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+        scriptMaxDrawings: null,
     };
 }
 
@@ -112,5 +116,19 @@ describe("RuntimeContext shape", () => {
         expect(ctx.emissions.plots).toHaveLength(1);
         ctx.emissions.plots.length = 0;
         expect(ctx.emissions.plots).toHaveLength(0);
+    });
+
+    it("exposes the Phase-3 drawing fields", () => {
+        const ctx = freshContext();
+        expect(ctx.drawingSlots.size).toBe(0);
+        expect(ctx.drawingSubIdCounters.size).toBe(0);
+        expect(ctx.drawingBucketCounters).toEqual({
+            lines: 0,
+            labels: 0,
+            boxes: 0,
+            polylines: 0,
+            other: 0,
+        });
+        expect(ctx.scriptMaxDrawings).toBeNull();
     });
 });

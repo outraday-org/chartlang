@@ -26,4 +26,4 @@ import { TA_REGISTRY } from "./ta";
  */
 export const ta: TaNamespace = TA_REGISTRY as unknown as TaNamespace;
 
-export { alert, hline, plot } from "./emit";
+export { alert, draw, hline, plot } from "./emit";

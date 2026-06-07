@@ -4,7 +4,7 @@
 import type { ComputeContext } from "@invinite-org/chartlang-core";
 
 import type { RunnerState } from "./createScriptRunner";
-import { alert, hline, plot, ta } from "./primitives";
+import { alert, draw, hline, plot, ta } from "./primitives";
 
 const EMPTY_INPUTS: Readonly<Record<string, unknown>> = Object.freeze({});
 
@@ -36,5 +36,6 @@ export function buildComputeContext(state: RunnerState): ComputeContext {
         plot,
         hline,
         alert,
+        draw,
     };
 }

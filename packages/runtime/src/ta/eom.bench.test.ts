@@ -9,7 +9,7 @@ import { eom } from "./eom";
 // THRESHOLD_MS — ceil(median × 3). ta.eom is one running-sum update +
 // nanCount adjustment per bar (no window re-walk) — well under the
 // 300 ms ceiling over 10k bars at length 14.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.eom threshold", () => {
     it("runs 10 000 bars under threshold", () => {

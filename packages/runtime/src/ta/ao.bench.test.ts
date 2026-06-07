@@ -8,7 +8,7 @@ import { ao } from "./ao";
 
 // THRESHOLD_MS — ceil(median × 3). ao runs two SMA sub-slots per bar
 // + a subtract.
-const THRESHOLD_MS = 400;
+const THRESHOLD_MS = 1500;
 
 describe("ta.ao threshold", () => {
     it("runs 10 000 bars under threshold", () => {

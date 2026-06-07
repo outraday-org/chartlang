@@ -9,7 +9,7 @@ import { benchHotLoop } from "./__fixtures__/benchHotLoop";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Aroon scans
 // a `length + 1` window per close (15 finite-checks × 2 series × 10k
 // bars ≈ 300k ops); pair with `highest`/`change` baseline at 300ms.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.aroon threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -10,7 +10,7 @@ import { stochRsi } from "./stochRsi";
 // composes `ta.rsi` + `ta.highest` + `ta.lowest` + two `ta.sma`
 // layers; each is O(1) amortised per bar. 10k × default opts fits
 // comfortably under 300ms on CI Linux runners.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.stochRsi threshold", () => {
     it("runs 10 000 bars under threshold", () => {

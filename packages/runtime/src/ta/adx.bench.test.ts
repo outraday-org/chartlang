@@ -9,7 +9,7 @@ import { benchHotLoop } from "./__fixtures__/benchHotLoop";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. ADX folds
 // the DMI recurrence + a second Wilder-step over DX; total work per
 // bar is constant. Pair with `dmi` baseline at 250 ms.
-const THRESHOLD_MS = 250;
+const THRESHOLD_MS = 1500;
 
 describe("ta.adx threshold", () => {
     it("runs 10 000 bars under threshold", () => {

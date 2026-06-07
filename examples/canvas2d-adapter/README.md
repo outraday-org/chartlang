@@ -20,10 +20,38 @@ Not published — copy from `examples/canvas2d-adapter/`.
 - `runRendererLoop(handle) → Promise<void>` — convenience helper
   that iterates the candle source, pushes each event to the host,
   drains, and feeds emissions back into `adapter.onEmissions`.
-- `CANVAS2D_CAPABILITIES` — `Capabilities` bag declaring the 12
-  Phase-1 stateful primitives (`line` + `horizontal-line` plots,
-  `log` + `toast` alert channels, three intervals).
+- `CANVAS2D_CAPABILITIES` — `Capabilities` bag declaring the 9
+  Phase-1+2 plot kinds, all 61 Phase-3 drawing kinds, `log` +
+  `toast` alert channels, three intervals, and per-bucket
+  `maxDrawingsPerScript` budgets sized for the `drawAll61` smoke
+  scenario.
 - `DEFAULT_PALETTE`, `Palette` — colour constants + type.
+
+## Drawing rendering (Phase 3)
+
+Shared scaffolding under `src/render/draw/` powering every per-kind
+renderer (Tasks 5–18):
+
+- `worldPointToCanvas(p, view) → { x, y }` — composes `timeToX` +
+  `priceToY`; the projector every drawing renderer consumes.
+- `drawingDispatch(ctx, emission, view) → void` — single switch over
+  the 61-entry `DrawingKind` union with `satisfies never`
+  exhaustiveness. Task 4 stubs every arm to no-op; per-kind tasks
+  swap in their renderer one arm at a time. `op: "remove"`
+  short-circuits.
+- `FIB_LEVELS` + `formatLevel(level)` — canonical Fibonacci ratios
+  (13 entries: 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.414,
+  1.618, 2, 2.618, 4.236) + Pine-style label formatter consumed by
+  every fib renderer (Tasks 11–12).
+- `quadraticBezier` / `cubicBezier` / `sampleQuadratic` /
+  `sampleCubic` + the `Point2` type — pure curve helpers consumed
+  by `arc` / `curve` / `doubleCurve` (Task 8), `fibSpiral` (Task 12),
+  and pattern-leg projections (Task 15). Endpoints are float-exact.
+
+`createCanvas2dAdapter`'s `ingest` accumulates `DrawingEmission`s
+keyed by `handleId` (last-write-wins; `op: "remove"` drops the key)
+and `renderFrame` walks the map through `drawingDispatch` against
+the computed `Viewport`.
 - Sub-path `chartlang-example-canvas2d-adapter/testing`:
   - `MockCanvas2DContext` — hand-rolled Canvas 2D mock for tests.
   - `RecordedCall` — discriminated union over the mock's

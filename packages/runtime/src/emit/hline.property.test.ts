@@ -54,6 +54,10 @@ function makeCtx(barIndex: number): {
         emissions,
         barIndex: () => barIndex,
         isTick: false,
+        drawingSlots: new Map(),
+        drawingSubIdCounters: new Map(),
+        drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+        scriptMaxDrawings: null,
     };
     return { ctx, emissions };
 }

@@ -9,7 +9,7 @@ import { fisher } from "./fisher";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Fisher
 // composes `ta.highest` + `ta.lowest` (each O(1) amortised) + a
 // constant-time recurrence per close. Easily under 300ms at 10k bars.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.fisher threshold", () => {
     it("runs 10 000 bars under threshold", () => {

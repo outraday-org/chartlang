@@ -3,14 +3,15 @@
 // See the LICENSE file in the repo root for full license text.
 /**
  * `pnpm docs:gate` — regenerates every `docs/primitives/ta/<id>.md`
- * page into a tmp directory, then byte-compares each tmp file against
- * the committed sibling. Exits 0 on a clean tree, 1 on any drift.
+ * and `docs/primitives/draw/<kebab-kind>.md` page into a tmp
+ * directory, then byte-compares each tmp file against the committed
+ * sibling. Exits 0 on a clean tree, 1 on any drift.
  *
  * The companion to `pnpm docs:check` (Phase 1 — executes `@example`
  * blocks through the compiler). This gate enforces that the
- * `docs/primitives/ta/*.md` files are in sync with the runtime's
- * JSDoc. Phase-2 §22.10 requires every port to commit the regenerated
- * page in the same PR; this gate is the guardrail.
+ * `docs/primitives/{ta,draw}/*.md` files are in sync with the
+ * runtime's JSDoc. Phase-2 §22.10 requires every port to commit the
+ * regenerated page in the same PR; this gate is the guardrail.
  *
  * Drift cases handled:
  *
@@ -27,12 +28,15 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { runGenDrawingDocs } from "../packages/cli/src/commands/extractDrawingPages";
 import { runGenDocs } from "../packages/cli/src/commands/genDocs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolvePath(HERE, "..");
-const SOURCE_DIR = resolvePath(REPO_ROOT, "packages/runtime/src/ta");
-const COMMITTED_DIR = resolvePath(REPO_ROOT, "docs/primitives/ta");
+const TA_SOURCE_DIR = resolvePath(REPO_ROOT, "packages/runtime/src/ta");
+const TA_COMMITTED_DIR = resolvePath(REPO_ROOT, "docs/primitives/ta");
+const DRAW_SOURCE_DIR = resolvePath(REPO_ROOT, "packages/runtime/src/emit/draw");
+const DRAW_COMMITTED_DIR = resolvePath(REPO_ROOT, "docs/primitives/draw");
 const HAND_WRITTEN = new Set(["index.md"]);
 
 type Drift =
@@ -48,45 +52,59 @@ async function listGeneratedNames(dir: string): Promise<string[]> {
         .sort();
 }
 
+async function diffTree(tmpDir: string, committedDir: string): Promise<Drift[]> {
+    const tmpNames = await listGeneratedNames(tmpDir);
+    const committedNames = await listGeneratedNames(committedDir);
+    const drift: Drift[] = [];
+
+    const allNames = new Set<string>([...tmpNames, ...committedNames]);
+    for (const name of Array.from(allNames).sort()) {
+        const tmpPath = join(tmpDir, name);
+        const committedPath = join(committedDir, name);
+        const inTmp = tmpNames.includes(name);
+        const inCommitted = committedNames.includes(name);
+        if (inTmp && !inCommitted) {
+            drift.push({ kind: "missing-committed", path: committedPath });
+            continue;
+        }
+        if (!inTmp && inCommitted) {
+            drift.push({ kind: "stale-committed", path: committedPath });
+            continue;
+        }
+        const [tmpContent, committedContent] = await Promise.all([
+            readFile(tmpPath, "utf8"),
+            readFile(committedPath, "utf8"),
+        ]);
+        if (tmpContent !== committedContent) {
+            drift.push({ kind: "out-of-date", path: committedPath });
+        }
+    }
+    return drift;
+}
+
 async function runGate(): Promise<{ readonly drift: ReadonlyArray<Drift> }> {
-    const tmpDir = await mkdtemp(join(tmpdir(), "chartlang-docs-gate-"));
+    const taTmpDir = await mkdtemp(join(tmpdir(), "chartlang-docs-gate-ta-"));
+    const drawTmpDir = await mkdtemp(join(tmpdir(), "chartlang-docs-gate-draw-"));
     try {
         await runGenDocs({
-            sourceDir: SOURCE_DIR,
-            outDir: tmpDir,
+            sourceDir: TA_SOURCE_DIR,
+            outDir: taTmpDir,
+            repoRoot: REPO_ROOT,
+        });
+        await runGenDrawingDocs({
+            sourceDir: DRAW_SOURCE_DIR,
+            outDir: drawTmpDir,
             repoRoot: REPO_ROOT,
         });
 
-        const tmpNames = await listGeneratedNames(tmpDir);
-        const committedNames = await listGeneratedNames(COMMITTED_DIR);
-        const drift: Drift[] = [];
-
-        const allNames = new Set<string>([...tmpNames, ...committedNames]);
-        for (const name of Array.from(allNames).sort()) {
-            const tmpPath = join(tmpDir, name);
-            const committedPath = join(COMMITTED_DIR, name);
-            const inTmp = tmpNames.includes(name);
-            const inCommitted = committedNames.includes(name);
-            if (inTmp && !inCommitted) {
-                drift.push({ kind: "missing-committed", path: committedPath });
-                continue;
-            }
-            if (!inTmp && inCommitted) {
-                drift.push({ kind: "stale-committed", path: committedPath });
-                continue;
-            }
-            const [tmpContent, committedContent] = await Promise.all([
-                readFile(tmpPath, "utf8"),
-                readFile(committedPath, "utf8"),
-            ]);
-            if (tmpContent !== committedContent) {
-                drift.push({ kind: "out-of-date", path: committedPath });
-            }
-        }
-
-        return { drift };
+        const [taDrift, drawDrift] = await Promise.all([
+            diffTree(taTmpDir, TA_COMMITTED_DIR),
+            diffTree(drawTmpDir, DRAW_COMMITTED_DIR),
+        ]);
+        return { drift: [...taDrift, ...drawDrift] };
     } finally {
-        await rm(tmpDir, { recursive: true, force: true });
+        await rm(taTmpDir, { recursive: true, force: true });
+        await rm(drawTmpDir, { recursive: true, force: true });
     }
 }
 

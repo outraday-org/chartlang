@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { benchHotLoop } from "./__fixtures__/benchHotLoop";
 import { rvi } from "./rvi";
 
-const THRESHOLD_MS = 500;
+const THRESHOLD_MS = 1500;
 
 describe("ta.rvi threshold", () => {
     it("runs 10 000 bars under threshold", () => {

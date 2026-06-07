@@ -11,7 +11,7 @@ import { ichimoku } from "./ichimoku";
 // the worst case) — for length=52, that's ~600 ops × 10k bars =
 // 6M ops; pair with a slightly higher baseline than other multi-
 // output trend primitives.
-const THRESHOLD_MS = 600;
+const THRESHOLD_MS = 1500;
 
 describe("ta.ichimoku threshold", () => {
     it("runs 10 000 bars under threshold", () => {

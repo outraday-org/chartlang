@@ -10,6 +10,7 @@ import type {
     Adapter,
     AlertEmission,
     DiagnosticCode,
+    DrawingEmission,
     PlotEmission,
     RunnerEmissions,
     RuntimeDiagnostic,
@@ -69,23 +70,41 @@ export type Scenario = {
 
 /**
  * Assertion the runner evaluates against a scenario's buffered
- * emissions. The five variants cover plot-series hashing, alert
+ * emissions. The six variants cover plot-series hashing, alert
  * counting, alert-message substring search, diagnostic absence,
- * and diagnostic presence.
+ * diagnostic presence, and (Phase 3) drawing-series hashing.
+ *
+ * The `drawing-hash` variant pins SHA-256 over JSON-stringified
+ * `{ handleId, kind, op, state, bar }` tuples in emission order
+ * (filtered by `handleId` if supplied). Re-pinning workflow
+ * mirrors `plot-hash`: copy the `actual` hash from the failure
+ * message into the scenario's pinned value.
  *
  * @since 0.1
  * @experimental
  * @example
  *     import type { ScenarioAssertion } from "@invinite-org/chartlang-conformance";
  *     const a: ScenarioAssertion = { kind: "alert-count", count: 0 };
+ *     // Phase-3: drawing-hash assertion
+ *     const d: ScenarioAssertion = {
+ *         kind: "drawing-hash",
+ *         handleId: "demo.chart.ts:5:13#0#0",
+ *         sha256: "deadbeef".repeat(8),
+ *     };
  *     void a;
+ *     void d;
  */
 export type ScenarioAssertion =
     | { readonly kind: "plot-hash"; readonly slotId?: string; readonly sha256: string }
     | { readonly kind: "alert-count"; readonly count: number }
     | { readonly kind: "alert-message-contains"; readonly pattern: string; readonly min: number }
     | { readonly kind: "diagnostic-code-absent"; readonly code: DiagnosticCode }
-    | { readonly kind: "diagnostic-code-present"; readonly code: DiagnosticCode };
+    | { readonly kind: "diagnostic-code-present"; readonly code: DiagnosticCode }
+    | {
+          readonly kind: "drawing-hash";
+          readonly handleId?: string;
+          readonly sha256: string;
+      };
 
 /**
  * A single conformance failure entry. `message` carries enough
@@ -152,6 +171,7 @@ type AssertionResult = ConformanceFailure | null;
 
 type BufferedRun = {
     readonly plots: ReadonlyArray<PlotEmission>;
+    readonly drawings: ReadonlyArray<DrawingEmission>;
     readonly alerts: ReadonlyArray<AlertEmission>;
     readonly diagnostics: ReadonlyArray<RuntimeDiagnostic>;
 };
@@ -170,6 +190,23 @@ function hashPlotSeries(
 ): { readonly hash: string; readonly count: number } {
     const filtered = slotId === undefined ? plots : plots.filter((p) => p.slotId === slotId);
     const tuples = filtered.map((p) => ({ bar: p.bar, value: p.value }));
+    const hash = createHash("sha256").update(JSON.stringify(tuples)).digest("hex");
+    return { hash, count: tuples.length };
+}
+
+function hashDrawingSeries(
+    drawings: ReadonlyArray<DrawingEmission>,
+    handleId: string | undefined,
+): { readonly hash: string; readonly count: number } {
+    const filtered =
+        handleId === undefined ? drawings : drawings.filter((d) => d.handleId === handleId);
+    const tuples = filtered.map((d) => ({
+        handleId: d.handleId,
+        kind: d.drawingKind,
+        op: d.op,
+        state: d.state,
+        bar: d.bar,
+    }));
     const hash = createHash("sha256").update(JSON.stringify(tuples)).digest("hex");
     return { hash, count: tuples.length };
 }
@@ -229,6 +266,16 @@ function evalAssertion(
                 scenarioId,
                 assertionKind: "diagnostic-code-present",
                 message: `diagnostic-code-present[${assertion.code}]: no diagnostic with that code was emitted`,
+            };
+        }
+        case "drawing-hash": {
+            const { hash, count } = hashDrawingSeries(run.drawings, assertion.handleId);
+            if (hash === assertion.sha256) return null;
+            const label = assertion.handleId ?? "<all>";
+            return {
+                scenarioId,
+                assertionKind: "drawing-hash",
+                message: `drawing-hash[${label}]: expected ${assertion.sha256}, actual ${hash} (${count} emissions)`,
             };
         }
     }
@@ -296,6 +343,7 @@ async function runOne(
     });
 
     const plots: PlotEmission[] = [];
+    const drawings: DrawingEmission[] = [];
     const alerts: AlertEmission[] = [];
     const diagnostics: RuntimeDiagnostic[] = [];
 
@@ -304,6 +352,7 @@ async function runOne(
             await runner.onBarClose(bar);
             const drained: RunnerEmissions = runner.drain();
             for (const p of drained.plots) plots.push(p);
+            for (const d of drained.drawings) drawings.push(d);
             for (const a of drained.alerts) alerts.push(a);
             for (const d of drained.diagnostics) diagnostics.push(d);
         }
@@ -311,7 +360,7 @@ async function runOne(
         runner.dispose();
     }
 
-    const run: BufferedRun = { plots, alerts, diagnostics };
+    const run: BufferedRun = { plots, drawings, alerts, diagnostics };
     const failures: ConformanceFailure[] = [];
     for (const assertion of scenario.assertions) {
         const failure = evalAssertion(scenario.id, run, assertion);

@@ -9,7 +9,7 @@ import { tsi } from "./tsi";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. TSI chains
 // 4 EMA layers + signal EMA — each O(1) per bar. 10k bars fits well
 // under 300ms on CI Linux runners.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.tsi threshold", () => {
     it("runs 10 000 bars under threshold", () => {

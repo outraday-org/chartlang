@@ -4,18 +4,15 @@
 
 Execution engine, Series ring buffers, ta.* math primitives.
 
-Phase 1 lands the **data-structure layer** plus the **execution
-loop**: `RingBuffer<T>` / `Float64RingBuffer` per [PLAN.md §6.6](../../PLAN.md),
-the `Series<T>` Proxy, the per-interval `StreamState`, the in-memory
-`StateStore` default, the `ACTIVE_RUNTIME_CONTEXT` slot, and
-`createScriptRunner` driving `onHistory` / `onBarClose` / `onBarTick`
-/ `drain` / `dispose`.
-
-The `ta.*` primitive implementations land in Phase-1 Task 7; until
-then the runner exposes throw-stub versions on the `ComputeContext`.
-Task 8 (this release) adds the `plot` / `hline` / `alert` emission
-primitives, the shared `emissionsQueue` push helpers, and the
-FNV-1a-backed alert dedupe-key hash.
+Phase 1 ships the data-structure layer + execution loop
+(`RingBuffer<T>`, `Series<T>` Proxy, `StreamState`, `StateStore`,
+`ACTIVE_RUNTIME_CONTEXT`, `createScriptRunner`). Phase 2 wires the
+real `ta.*` primitive impls + `plot` / `hline` / `alert` emission
+helpers. Phase 3 (this release) lands the `draw.*` emission
+infrastructure — `createDrawingHandle`, `pushDrawing`, sub-id
+counters, and `RuntimeContext` drawing fields. The script-facing
+`draw` namespace is the throwing-stub seam; per-kind tasks 5–18
+swap real impls in.
 
 ## Install
 
@@ -38,19 +35,28 @@ pnpm add @invinite-org/chartlang-runtime
 - `createStreamState({ interval, capacity, symbol })` — single-stream
   shape (`OhlcvBuffers` + `BarView` + cached `Series<number>` views +
   `taSlots`).
-- `inMemoryStateStore()` — the Phase-1 default `StateStore`. The
-  Phase-5 IDB-backed persistence variant (PLAN.md §6.9) ships as a
-  superset `PersistentStateStore` sub-interface — additive, not
-  breaking.
+- `inMemoryStateStore()` — Phase-1 default `StateStore`. The
+  Phase-5 IDB-backed variant (PLAN.md §6.9) is an additive
+  `PersistentStateStore` superset, not breaking.
 - `ACTIVE_RUNTIME_CONTEXT` — process-wide context slot the runner
-  mutates around every `compute` call so Tasks 7-8 primitive
-  implementations can find the active `stream` / `stateStore` /
-  `capabilities` / `emissions` / `barIndex` / `isTick`.
+  mutates around every `compute` call so primitive impls find the
+  active `stream` / `stateStore` / `capabilities` / `emissions` /
+  `barIndex` / `isTick` / `drawingSlots` / counters.
 - `plot` / `hline` / `alert` — Phase-1 emission primitives. Each
   carries a script-facing overload (`(value, opts?)`) plus the
   compiler-injected slot-id overload (`(slotId, value, opts?)`);
   capability misses drop with PLAN §7.4 silent-no-op diagnostics;
   alerts get a deterministic FNV-1a `dedupeKey`.
+- `draw` / `createDrawingHandle` / `pushDrawing` / `nextSubId` /
+  `resetSubIdCounters` — Phase-3 drawing emission infrastructure.
+  `draw` re-exports core's throwing-stub Proxy until Tasks 5–18 wire
+  per-kind impls. `createDrawingHandle(slotId, subId, kind, state)`
+  returns a `DrawingHandle` with `slotId#subId` cross-bar stability
+  per PLAN §10.3; `update(patch)` re-emits the full merged state
+  under `op: "update"`. `pushDrawing` enforces capability gating
+  (`unsupported-drawing-kind`), wire-shape validation
+  (`malformed-emission`), per-bucket budget
+  (`drawing-budget-exceeded`), and per-bar `(handleId, bar)` dedup.
 
 ## Minimum-viable API call
 

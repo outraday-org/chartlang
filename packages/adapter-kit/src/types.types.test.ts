@@ -1,10 +1,17 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { AlertSeverity, Bar } from "@invinite-org/chartlang-core";
-import { describe, it } from "vitest";
+import type {
+    AlertSeverity,
+    Bar,
+    DrawingKind as CoreDrawingKind,
+    DrawingState,
+} from "@invinite-org/chartlang-core";
+import { describe, expect, it } from "vitest";
 import { expectTypeOf } from "expect-type";
 
+import { bucketFor } from ".";
+import type { DrawingBucket } from ".";
 import type { defineAdapter } from "./defineAdapter";
 import type { mockCandleSource } from "./mocks";
 import type {
@@ -15,6 +22,7 @@ import type {
     CandleEvent,
     DiagnosticCode,
     DrawingEmission,
+    DrawingKind,
     PlotEmission,
     PlotKind,
     PlotStyle,
@@ -93,5 +101,26 @@ describe("type assertions", () => {
         expectTypeOf<Extract<CandleEvent, { kind: "history" }>["bars"]>().toEqualTypeOf<
             ReadonlyArray<Bar>
         >();
+    });
+
+    it("DrawingKind matches the core 61-entry union", () => {
+        expectTypeOf<DrawingKind>().toEqualTypeOf<CoreDrawingKind>();
+    });
+
+    it("DrawingEmission.state is DrawingState (no longer unknown)", () => {
+        expectTypeOf<DrawingEmission["state"]>().toEqualTypeOf<DrawingState>();
+    });
+
+    it("DrawingBucket is the 5-bucket string union", () => {
+        expectTypeOf<DrawingBucket>().toEqualTypeOf<
+            "lines" | "labels" | "boxes" | "polylines" | "other"
+        >();
+    });
+
+    it("bucketFor is re-exported as a runtime function from the barrel", () => {
+        expect(typeof bucketFor).toBe("function");
+        expect(bucketFor("line")).toBe("lines");
+        expect(bucketFor("rectangle")).toBe("boxes");
+        expect(bucketFor("fib-retracement")).toBe("other");
     });
 });

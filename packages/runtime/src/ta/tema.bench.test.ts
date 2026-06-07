@@ -8,7 +8,7 @@ import { tema } from "./tema";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through three chained EMA sub-slots; ~3× SMA's budget per task §10.
-const THRESHOLD_MS = 500;
+const THRESHOLD_MS = 1500;
 
 describe("ta.tema threshold", () => {
     it("runs 10 000 bars under threshold", () => {

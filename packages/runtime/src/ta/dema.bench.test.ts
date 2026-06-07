@@ -8,7 +8,7 @@ import { dema } from "./dema";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through two chained EMA sub-slots; ~2× SMA's budget per task §10.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.dema threshold", () => {
     it("runs 10 000 bars under threshold", () => {

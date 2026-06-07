@@ -18,6 +18,13 @@ pnpm add -D @invinite-org/chartlang-conformance
 - `runConformanceSuite(adapter, opts?) → Promise<ConformanceReport>`
   — drives every bundled scenario against `adapter`. `opts.scenarios`,
   `opts.candles`, and `opts.compile` are injection seams for tests.
+- `ScenarioAssertion` — six variants: `plot-hash`, `alert-count`,
+  `alert-message-contains`, `diagnostic-code-absent`,
+  `diagnostic-code-present`, and (Phase 3) `drawing-hash` — SHA-256
+  over JSON-stringified `{ handleId, kind, op, state, bar }` tuples
+  in emission order, optionally filtered by `handleId`. Re-pin from
+  the failure message's `actual` hash (same workflow as
+  `plot-hash`).
 - `ALL_SCENARIOS` — readonly array of every bundled conformance
   scenario (Phase-1 walking-skeleton + Phase-2 indicator ports).
   `PHASE_1_SCENARIOS` is kept as a `@deprecated since 0.2.1` alias

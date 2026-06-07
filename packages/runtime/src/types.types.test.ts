@@ -9,7 +9,13 @@ import type {
     RunnerEmissions,
     RuntimeDiagnostic,
 } from "@invinite-org/chartlang-adapter-kit";
-import type { Bar, CompiledScriptObject, Series } from "@invinite-org/chartlang-core";
+import type {
+    Bar,
+    CompiledScriptObject,
+    DrawingBucket,
+    DrawingCounts,
+    Series,
+} from "@invinite-org/chartlang-core";
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
@@ -21,6 +27,7 @@ import type {
 import type { Float64RingBuffer, RingBuffer, RingBufferLike } from "./ringBuffer";
 import type {
     ACTIVE_RUNTIME_CONTEXT,
+    DrawingSlot,
     MutableRunnerEmissions,
     RuntimeContext,
 } from "./runtimeContext";
@@ -101,6 +108,15 @@ describe("type assertions", () => {
         expectTypeOf<RuntimeContext["emissions"]>().toEqualTypeOf<MutableRunnerEmissions>();
         expectTypeOf<RuntimeContext["barIndex"]>().toEqualTypeOf<() => number>();
         expectTypeOf<RuntimeContext["isTick"]>().toEqualTypeOf<boolean>();
+    });
+
+    it("RuntimeContext carries the Phase-3 drawing fields", () => {
+        expectTypeOf<RuntimeContext["drawingSlots"]>().toEqualTypeOf<Map<string, DrawingSlot>>();
+        expectTypeOf<RuntimeContext["drawingSubIdCounters"]>().toEqualTypeOf<Map<string, number>>();
+        expectTypeOf<RuntimeContext["drawingBucketCounters"]>().toEqualTypeOf<
+            Record<DrawingBucket, number>
+        >();
+        expectTypeOf<RuntimeContext["scriptMaxDrawings"]>().toEqualTypeOf<DrawingCounts | null>();
     });
 
     it("ACTIVE_RUNTIME_CONTEXT is a mutable singleton slot", () => {

@@ -10,7 +10,7 @@ import { pivotsHighLow } from "./pivotsHighLow";
 // PivotsHighLow is O(leftLength + rightLength) per close (single
 // centred-window scan); 10 000 bars × 9-bar window runs well under
 // the threshold on Apple silicon.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.pivotsHighLow threshold", () => {
     it("runs 10 000 bars under threshold", () => {

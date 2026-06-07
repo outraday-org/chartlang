@@ -19,12 +19,23 @@ pnpm add @invinite-org/chartlang-adapter-kit
 - `defineAdapter(opts) → Adapter` — factory with default no-op
   `dispose`.
 - `capabilities` — builders that assemble the `ReadonlySet` pieces
-  of a `Capabilities` bag (`line()`, `stepLine()`,
-  `horizontalLine()`, `allLines()`, `alerts(...)`, `union(...)`).
+  of a `Capabilities` bag. Phase 1+2: `line()`, `stepLine()`,
+  `horizontalLine()`, `allLines()`, `histogram()`, `bars()`,
+  `area()`, `filledBand()`, `label()`, `marker()`,
+  `allPhase2Plots()`, `alerts(...)`, `union(...)`. Phase 3: 61
+  per-kind drawing builders (`drawLine()`, `drawFibRetracement()`,
+  …), 13 category groups (`allLineDrawings()`, `allFibDrawings()`,
+  `allElliottDrawings()`, …), and `allPhase3Drawings()`.
 - `validateEmission(e) → ValidationResult` — hand-rolled validator
-  enforcing PLAN §7.3 universal payload rules.
-- `decodeDrawing(e) → null` — Phase-1 stub; full discriminated
-  decoder lands in Phase 3.
+  enforcing PLAN §7.3 universal payload rules. Phase 3 dispatches
+  drawings per kind (line-kind validators land in this PR; remaining
+  kinds land per port task per §22.10).
+- `decodeDrawing(e) → DrawingState | null` — narrows a
+  `DrawingEmission` to its typed `DrawingState`; returns `null` on
+  validation failure.
+- `bucketFor(kind) → DrawingBucket` + `KIND_BUCKET` — kind → bucket
+  map re-exported from `@invinite-org/chartlang-core` for adapters
+  that pre-budget against the canonical 5-bucket table.
 - `mockCandleSource(bars, opts)` — `AsyncIterable<CandleEvent>` for
   tests and conformance scenarios.
 - `PassThroughAdapter`, `BufferingAdapter` — base classes for

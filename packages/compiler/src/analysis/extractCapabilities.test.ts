@@ -6,11 +6,11 @@ import { describe, expect, it } from "vitest";
 import { createProgramForSource } from "../program";
 import { extractCapabilities } from "./extractCapabilities";
 
-function run(source: string) {
+function run(source: string, kind?: "indicator" | "drawing" | "alert") {
     const { sourceFile, checker } = createProgramForSource(source, {
         sourcePath: "demo.chart.ts",
     });
-    return extractCapabilities(sourceFile, checker);
+    return extractCapabilities(sourceFile, checker, kind);
 }
 
 describe("extractCapabilities", () => {
@@ -45,5 +45,39 @@ import { plot } from "@invinite-org/chartlang-core";
 plot(1);
 `);
         expect(Object.isFrozen(result)).toBe(true);
+    });
+
+    it("seeds with 'drawings' when kind is 'drawing'", () => {
+        const result = run(
+            `
+import { draw } from "@invinite-org/chartlang-core";
+draw.horizontalLine(100);
+`,
+            "drawing",
+        );
+        expect(result).toEqual(["drawings"]);
+    });
+
+    it("seeds with 'alerts' when kind is 'alert'", () => {
+        const result = run(
+            `
+import { alert } from "@invinite-org/chartlang-core";
+alert("hi");
+`,
+            "alert",
+        );
+        expect(result).toEqual(["alerts"]);
+    });
+
+    it("drawing-kind scripts that also call alert() declare both", () => {
+        const result = run(
+            `
+import { alert, draw } from "@invinite-org/chartlang-core";
+draw.horizontalLine(100);
+alert("hi");
+`,
+            "drawing",
+        );
+        expect(result).toEqual(["alerts", "drawings"]);
     });
 });

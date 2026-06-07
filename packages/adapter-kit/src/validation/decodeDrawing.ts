@@ -1,24 +1,38 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { DrawingState } from "@invinite-org/chartlang-core";
+
 import type { DrawingEmission } from "../types";
+import { validateEmission } from "./validateEmission";
 
 /**
- * Phase-1 stub for the §7.3 drawing decoder. Always returns `null` —
- * no `draw.*` primitives exist yet, so adapters that receive a
- * `DrawingEmission` should drop it with `unsupported-drawing-kind`
- * (which `validateEmission` already enforces). Phase 3 replaces this
- * with the full discriminated `DrawingState` decoder.
+ * Narrow a {@link DrawingEmission} to its typed {@link DrawingState}.
+ * Returns `null` when the emission fails the same validation
+ * {@link validateEmission} runs — adapters that want to know WHY call
+ * `validateEmission(e)` directly and inspect `.code` / `.message`.
  *
- * @since 0.1
+ * Successful narrows return `e.state` typed as `DrawingState`; the
+ * caller can switch on `state.kind` for per-kind handling. The
+ * validator pins `state.kind === e.drawingKind`, so the discriminator
+ * is safe.
+ *
+ * @since 0.3
  * @experimental
  * @example
  *     import { decodeDrawing } from "@invinite-org/chartlang-adapter-kit";
+ *     import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
  *
- *     declare const e: import("@invinite-org/chartlang-adapter-kit").DrawingEmission;
- *     const decoded = decodeDrawing(e);
- *     console.log(decoded); // null
+ *     declare const e: DrawingEmission;
+ *     const state = decodeDrawing(e);
+ *     if (state !== null && state.kind === "line") {
+ *         const [from, to] = state.anchors;
+ *         void from;
+ *         void to;
+ *     }
  */
-export function decodeDrawing(_e: DrawingEmission): null {
-    return null;
+export function decodeDrawing(e: DrawingEmission): DrawingState | null {
+    const result = validateEmission(e as unknown);
+    if (!result.ok) return null;
+    return e.state;
 }

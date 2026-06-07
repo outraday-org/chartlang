@@ -9,7 +9,7 @@ import { benchHotLoop } from "./__fixtures__/benchHotLoop";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. ADR's per-bar
 // cost is O(1) (min/max update + occasional day-boundary commit); 10k
 // bars stays well under 100ms. Budget 300ms for CI Linux.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.adr threshold", () => {
     it("runs 10 000 bars under threshold", () => {

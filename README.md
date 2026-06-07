@@ -100,6 +100,42 @@ Deferred to Phase 5: `correlationCoeff`, 4 volume-profile primitives
 plumbing), and 7 trade-narrative external-data primitives (need
 `input.externalSeries` + `adapter.feedExternalSeries`).
 
+## Drawing parity
+
+Phase 3 (`0.3`) ships full `draw.*` namespace parity with invinite:
+
+- **61 callable `draw.*` primitives** across 13 categories: lines /
+  rays, boxes (rectangle / circle / ellipse / marker), curves +
+  freehand, annotations (text / arrow / arrow-marker), channels,
+  Fibonacci (retracement / extension / channel / time-zone / wedge /
+  speed-fan / speed-arcs / spiral / circles / trend-time), Gann,
+  pitchforks, harmonic patterns (XABCD / cypher / head-and-shoulders /
+  ABCD / triangle / three-drives), Elliott waves, cycles, and
+  containers (group / frame).
+- **154 entries** in `STATEFUL_PRIMITIVES` (93 Phase-2 + 61 new
+  `draw.<kind>` entries; every drawing primitive is `slot: true`).
+- **5-bucket `DrawingCounts` budget** (`{ lines, labels, boxes,
+  polylines, other }`) with per-kind `bucketFor` map, per-bucket
+  `drawing-budget-exceeded` enforcement, and per-kind capability
+  gating via `Capabilities.drawings`.
+- **`DrawingHandle.update(patch)` / `remove()`** with stable cross-bar
+  ids keyed `slotId#subId`; emissions carry the FULL merged
+  `DrawingState` so adapters get an idempotent rewrite.
+- **`defineDrawing` constructor** for interactive drawing scripts —
+  emits `ScriptManifest.kind: "drawing"` per PLAN.md §4.1.
+- **76 conformance scenarios** (61 per-kind + 12 task bundles +
+  `drawAll61` smoke + `drawBudgetOverflow` + `drawUnsupportedKind`).
+  New `drawing-hash` assertion variant mirrors `plot-hash`.
+- **Canvas2d reference adapter** renders every kind via 61
+  `src/render/draw/<kind>.ts` files + shared helpers
+  (`worldToCanvas`, `drawingDispatch`, `fibLevels`, `bezier`).
+- **62 docs pages** auto-generated under `docs/primitives/draw/`
+  (61 per-kind + 1 hand-written `index.md`); every `@example`
+  block compiles through the `pnpm docs:check` gate.
+
+Deferred to Phase 5: `draw.table` (CSS-pixel-positioned status
+panels — needs the `TableCell` schema).
+
 ## Architecture
 
 ```mermaid

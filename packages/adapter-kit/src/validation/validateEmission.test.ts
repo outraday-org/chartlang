@@ -653,18 +653,3941 @@ describe("validateEmission — alert", () => {
     });
 });
 
-describe("validateEmission — drawing", () => {
-    it("unconditionally rejects drawing emissions with unsupported-drawing-kind", () => {
-        const r = validateEmission({
-            kind: "drawing",
-            handleId: "x",
-            drawingKind: "line",
-            op: "create",
-            state: null,
-            bar: 0,
-            time: 0,
+const validLineDrawing = {
+    kind: "drawing" as const,
+    handleId: "ph3.ts:1:1#0",
+    drawingKind: "line" as const,
+    op: "create" as const,
+    state: {
+        kind: "line" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+    bar: 0,
+    time: 0,
+};
+
+const validHorizontalLine = {
+    ...validLineDrawing,
+    drawingKind: "horizontal-line" as const,
+    state: { kind: "horizontal-line" as const, price: 100, style: {} },
+};
+
+const validHorizontalRay = {
+    ...validLineDrawing,
+    drawingKind: "horizontal-ray" as const,
+    state: {
+        kind: "horizontal-ray" as const,
+        anchor: { time: 0, price: 100 },
+        style: {},
+    },
+};
+
+const validVerticalLine = {
+    ...validLineDrawing,
+    drawingKind: "vertical-line" as const,
+    state: { kind: "vertical-line" as const, time: 1_700_000_000_000, style: {} },
+};
+
+const validCrossLine = {
+    ...validLineDrawing,
+    drawingKind: "cross-line" as const,
+    state: {
+        kind: "cross-line" as const,
+        anchor: { time: 1, price: 1 },
+        style: {},
+    },
+};
+
+const validTrendAngle = {
+    ...validLineDrawing,
+    drawingKind: "trend-angle" as const,
+    state: {
+        kind: "trend-angle" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validRectangle = {
+    ...validLineDrawing,
+    drawingKind: "rectangle" as const,
+    state: {
+        kind: "rectangle" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validRotatedRectangle = {
+    ...validLineDrawing,
+    drawingKind: "rotated-rectangle" as const,
+    state: {
+        kind: "rotated-rectangle" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0 },
+            { time: 1, price: -1 },
+        ],
+        style: {},
+    },
+};
+
+const validTriangle = {
+    ...validLineDrawing,
+    drawingKind: "triangle" as const,
+    state: {
+        kind: "triangle" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validPolyline = {
+    ...validLineDrawing,
+    drawingKind: "polyline" as const,
+    state: {
+        kind: "polyline" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validCircle = {
+    ...validLineDrawing,
+    drawingKind: "circle" as const,
+    state: {
+        kind: "circle" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validEllipse = {
+    ...validLineDrawing,
+    drawingKind: "ellipse" as const,
+    state: {
+        kind: "ellipse" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 2, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validPath = {
+    ...validLineDrawing,
+    drawingKind: "path" as const,
+    state: {
+        kind: "path" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validMarker = {
+    ...validLineDrawing,
+    drawingKind: "marker" as const,
+    state: {
+        kind: "marker" as const,
+        anchor: { time: 1, price: 1 },
+        style: {},
+    },
+};
+
+const validArc = {
+    ...validLineDrawing,
+    drawingKind: "arc" as const,
+    state: {
+        kind: "arc" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 2 },
+            { time: 2, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validCurve = {
+    ...validLineDrawing,
+    drawingKind: "curve" as const,
+    state: {
+        kind: "curve" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 2 },
+            { time: 2, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validDoubleCurve = {
+    ...validLineDrawing,
+    drawingKind: "double-curve" as const,
+    state: {
+        kind: "double-curve" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0 },
+            { time: 3, price: -1 },
+            { time: 4, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validPen = {
+    ...validLineDrawing,
+    drawingKind: "pen" as const,
+    state: {
+        kind: "pen" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validHighlighter = {
+    ...validLineDrawing,
+    drawingKind: "highlighter" as const,
+    state: {
+        kind: "highlighter" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: { color: "#facc15", alpha: 0.3 },
+    },
+};
+
+const validBrush = {
+    ...validLineDrawing,
+    drawingKind: "brush" as const,
+    state: {
+        kind: "brush" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: { stroke: "#000000", fill: "#ffffff" },
+    },
+};
+
+const validText = {
+    ...validLineDrawing,
+    drawingKind: "text" as const,
+    state: {
+        kind: "text" as const,
+        anchor: { time: 1, price: 1 },
+        body: "Note",
+        style: {},
+    },
+};
+
+const validArrow = {
+    ...validLineDrawing,
+    drawingKind: "arrow" as const,
+    state: {
+        kind: "arrow" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validArrowMarker = {
+    ...validLineDrawing,
+    drawingKind: "arrow-marker" as const,
+    state: {
+        kind: "arrow-marker" as const,
+        anchor: { time: 1, price: 1 },
+        style: {},
+    },
+};
+
+const validArrowMarkUp = {
+    ...validLineDrawing,
+    drawingKind: "arrow-mark-up" as const,
+    state: {
+        kind: "arrow-mark-up" as const,
+        anchor: { time: 1, price: 1 },
+        style: {},
+    },
+};
+
+const validArrowMarkDown = {
+    ...validLineDrawing,
+    drawingKind: "arrow-mark-down" as const,
+    state: {
+        kind: "arrow-mark-down" as const,
+        anchor: { time: 1, price: 1 },
+        style: {},
+    },
+};
+
+const validTrendChannel = {
+    ...validLineDrawing,
+    drawingKind: "trend-channel" as const,
+    state: {
+        kind: "trend-channel" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 0, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validFlatTopBottom = {
+    ...validLineDrawing,
+    drawingKind: "flat-top-bottom" as const,
+    state: {
+        kind: "flat-top-bottom" as const,
+        anchors: [
+            { time: 0, price: 1 },
+            { time: 1, price: 1 },
+            { time: 0, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validDisjointChannel = {
+    ...validLineDrawing,
+    drawingKind: "disjoint-channel" as const,
+    state: {
+        kind: "disjoint-channel" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 0, price: 2 },
+            { time: 1, price: 3 },
+        ],
+        style: {},
+    },
+};
+
+const validRegressionTrend = {
+    ...validLineDrawing,
+    drawingKind: "regression-trend" as const,
+    state: {
+        kind: "regression-trend" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 100, price: 1 },
+        ],
+        style: { source: "close" as const, stdevMultiplier: 2 },
+    },
+};
+
+const validFibRetracement = {
+    ...validLineDrawing,
+    drawingKind: "fib-retracement" as const,
+    state: {
+        kind: "fib-retracement" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validFibTrendExtension = {
+    ...validLineDrawing,
+    drawingKind: "fib-trend-extension" as const,
+    state: {
+        kind: "fib-trend-extension" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0.5 },
+        ],
+        style: {},
+    },
+};
+
+const validFibChannel = {
+    ...validLineDrawing,
+    drawingKind: "fib-channel" as const,
+    state: {
+        kind: "fib-channel" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 0, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validFibTimeZone = {
+    ...validLineDrawing,
+    drawingKind: "fib-time-zone" as const,
+    state: {
+        kind: "fib-time-zone" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 100, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validFibWedge = {
+    ...validLineDrawing,
+    drawingKind: "fib-wedge" as const,
+    state: {
+        kind: "fib-wedge" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 1, price: -1 },
+        ],
+        style: {},
+    },
+};
+
+const validFibSpeedFan = {
+    ...validLineDrawing,
+    drawingKind: "fib-speed-fan" as const,
+    state: {
+        kind: "fib-speed-fan" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validFibSpeedArcs = {
+    ...validLineDrawing,
+    drawingKind: "fib-speed-arcs" as const,
+    state: {
+        kind: "fib-speed-arcs" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validFibSpiral = {
+    ...validLineDrawing,
+    drawingKind: "fib-spiral" as const,
+    state: {
+        kind: "fib-spiral" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validFibCircles = {
+    ...validLineDrawing,
+    drawingKind: "fib-circles" as const,
+    state: {
+        kind: "fib-circles" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validFibTrendTime = {
+    ...validLineDrawing,
+    drawingKind: "fib-trend-time" as const,
+    state: {
+        kind: "fib-trend-time" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0.5 },
+        ],
+        style: {},
+    },
+};
+
+const validGannBox = {
+    ...validLineDrawing,
+    drawingKind: "gann-box" as const,
+    state: {
+        kind: "gann-box" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validGannSquareFixed = {
+    ...validLineDrawing,
+    drawingKind: "gann-square-fixed" as const,
+    state: {
+        kind: "gann-square-fixed" as const,
+        anchor: { time: 0, price: 0 },
+        style: {},
+    },
+};
+
+const validGannSquare = {
+    ...validLineDrawing,
+    drawingKind: "gann-square" as const,
+    state: {
+        kind: "gann-square" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validGannFan = {
+    ...validLineDrawing,
+    drawingKind: "gann-fan" as const,
+    state: {
+        kind: "gann-fan" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validPitchfork = {
+    ...validLineDrawing,
+    drawingKind: "pitchfork" as const,
+    state: {
+        kind: "pitchfork" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0.5 },
+        ],
+        variant: "standard" as const,
+        style: {},
+    },
+};
+
+const validPitchfan = {
+    ...validLineDrawing,
+    drawingKind: "pitchfan" as const,
+    state: {
+        kind: "pitchfan" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0.5 },
+        ],
+        style: {},
+    },
+};
+
+const validXabcdPattern = {
+    ...validLineDrawing,
+    drawingKind: "xabcd-pattern" as const,
+    state: {
+        kind: "xabcd-pattern" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0.5 },
+            { time: 3, price: 1.5 },
+            { time: 4, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validCypherPattern = {
+    ...validLineDrawing,
+    drawingKind: "cypher-pattern" as const,
+    state: {
+        kind: "cypher-pattern" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0.4 },
+            { time: 3, price: 1.3 },
+            { time: 4, price: 0.6 },
+        ],
+        style: {},
+    },
+};
+
+const validHeadAndShoulders = {
+    ...validLineDrawing,
+    drawingKind: "head-and-shoulders" as const,
+    state: {
+        kind: "head-and-shoulders" as const,
+        anchors: [
+            { time: 0, price: 1 },
+            { time: 1, price: 0 },
+            { time: 2, price: 2 },
+            { time: 3, price: 0 },
+            { time: 4, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validAbcdPattern = {
+    ...validLineDrawing,
+    drawingKind: "abcd-pattern" as const,
+    state: {
+        kind: "abcd-pattern" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0.5 },
+            { time: 3, price: 1.5 },
+        ],
+        style: {},
+    },
+};
+
+const validTrianglePattern = {
+    ...validLineDrawing,
+    drawingKind: "triangle-pattern" as const,
+    state: {
+        kind: "triangle-pattern" as const,
+        anchors: [
+            { time: 2, price: 0.5 },
+            { time: 0, price: 1 },
+            { time: 0, price: 0 },
+        ],
+        style: {},
+    },
+};
+
+const validThreeDrivesPattern = {
+    ...validLineDrawing,
+    drawingKind: "three-drives-pattern" as const,
+    state: {
+        kind: "three-drives-pattern" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0.5 },
+            { time: 3, price: 1.5 },
+            { time: 4, price: 1 },
+            { time: 5, price: 2 },
+            { time: 6, price: 1.5 },
+        ],
+        style: {},
+    },
+};
+
+const validElliottImpulseWave = {
+    ...validLineDrawing,
+    drawingKind: "elliott-impulse-wave" as const,
+    state: {
+        kind: "elliott-impulse-wave" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0.5 },
+            { time: 3, price: 1.5 },
+            { time: 4, price: 1 },
+        ],
+        style: {},
+    },
+};
+
+const validElliottCorrectionWave = {
+    ...validLineDrawing,
+    drawingKind: "elliott-correction-wave" as const,
+    state: {
+        kind: "elliott-correction-wave" as const,
+        anchors: [
+            { time: 0, price: 1 },
+            { time: 1, price: 0 },
+            { time: 2, price: 0.5 },
+        ],
+        style: {},
+    },
+};
+
+const validElliottTriangleWave = {
+    ...validLineDrawing,
+    drawingKind: "elliott-triangle-wave" as const,
+    state: {
+        kind: "elliott-triangle-wave" as const,
+        anchors: [
+            { time: 0, price: 1 },
+            { time: 1, price: 0 },
+            { time: 2, price: 0.8 },
+            { time: 3, price: 0.2 },
+            { time: 4, price: 0.5 },
+        ],
+        style: {},
+    },
+};
+
+const validElliottDoubleCombo = {
+    ...validLineDrawing,
+    drawingKind: "elliott-double-combo" as const,
+    state: {
+        kind: "elliott-double-combo" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0.5 },
+            { time: 3, price: 1.5 },
+            { time: 4, price: 1 },
+            { time: 5, price: 2 },
+            { time: 6, price: 1.5 },
+        ],
+        style: {},
+    },
+};
+
+const validElliottTripleCombo = {
+    ...validLineDrawing,
+    drawingKind: "elliott-triple-combo" as const,
+    state: {
+        kind: "elliott-triple-combo" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+            { time: 2, price: 0.5 },
+            { time: 3, price: 1.5 },
+            { time: 4, price: 1 },
+            { time: 5, price: 2 },
+            { time: 6, price: 1.5 },
+        ],
+        style: {},
+    },
+};
+
+describe("validateEmission — drawing dispatch", () => {
+    it("rejects an empty handleId with malformed-emission", () => {
+        expect(validateEmission({ ...validLineDrawing, handleId: "" })).toMatchObject({
+            ok: false,
+            code: "malformed-emission",
+            message: expect.stringContaining("handleId"),
         });
-        expect(r).toMatchObject({ ok: false, code: "unsupported-drawing-kind" });
+    });
+
+    it("rejects a non-string handleId", () => {
+        expect(validateEmission({ ...validLineDrawing, handleId: 42 })).toMatchObject({
+            ok: false,
+            code: "malformed-emission",
+        });
+    });
+
+    it("rejects an unknown drawingKind with unsupported-drawing-kind", () => {
+        expect(
+            validateEmission({ ...validLineDrawing, drawingKind: "not-a-kind" }),
+        ).toMatchObject({
+            ok: false,
+            code: "unsupported-drawing-kind",
+            message: expect.stringContaining("DrawingKind"),
+        });
+    });
+
+    it("rejects a non-string drawingKind with unsupported-drawing-kind", () => {
+        expect(validateEmission({ ...validLineDrawing, drawingKind: 42 })).toMatchObject({
+            ok: false,
+            code: "unsupported-drawing-kind",
+        });
+    });
+
+    it("rejects an unknown op with malformed-emission", () => {
+        expect(validateEmission({ ...validLineDrawing, op: "patch" })).toMatchObject({
+            ok: false,
+            code: "malformed-emission",
+            message: expect.stringContaining("op"),
+        });
+    });
+
+    it("accepts every op variant (create / update / remove)", () => {
+        for (const op of ["create", "update", "remove"] as const) {
+            expect(validateEmission({ ...validLineDrawing, op })).toEqual({ ok: true });
+        }
+    });
+
+    it("rejects a non-integer bar", () => {
+        expect(validateEmission({ ...validLineDrawing, bar: 1.5 })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("bar"),
+        });
+    });
+
+    it("rejects a negative bar", () => {
+        expect(validateEmission({ ...validLineDrawing, bar: -1 })).toMatchObject({ ok: false });
+    });
+
+    it("rejects a non-finite time", () => {
+        expect(
+            validateEmission({ ...validLineDrawing, time: Number.POSITIVE_INFINITY }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("time") });
+    });
+
+    it("rejects a non-plain-object state", () => {
+        expect(validateEmission({ ...validLineDrawing, state: null })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("state"),
+        });
+    });
+
+    it("rejects state.kind that does not equal drawingKind", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: { ...validLineDrawing.state, kind: "horizontal-line" },
+            }),
+        ).toMatchObject({
+            ok: false,
+            code: "malformed-emission",
+            message: expect.stringContaining("must equal"),
+        });
+    });
+
+    it("rejects state.name that is not a string", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: { ...validLineDrawing.state, name: 42 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("name") });
+    });
+
+    it("rejects state.visible that is not a boolean", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: { ...validLineDrawing.state, visible: "yes" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("visible") });
+    });
+
+    it("accepts state with optional name + visible meta", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: { ...validLineDrawing.state, name: "Support", visible: true },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects unknown drawingKind values via VALID_DRAWING_KINDS gate (defence-in-depth)", () => {
+        // After Task 18 every `DrawingKind` has a real validator arm
+        // in `validateStateByKind`. Unknown wire payloads are caught
+        // upstream by the `VALID_DRAWING_KINDS` gate inside
+        // `validateDrawingEmission` with `unsupported-drawing-kind`
+        // — they never reach `validateStateByKind`.
+        const result = validateEmission({
+            ...validLineDrawing,
+            drawingKind: "future-unimplemented-kind",
+            state: { kind: "future-unimplemented-kind" },
+        });
+        expect(result).toMatchObject({ ok: false, code: "unsupported-drawing-kind" });
+    });
+
+    it("rejects a malformed group (Task 18 ships the real validator)", () => {
+        // Task 18 (Containers) lands the final 2 per-kind validators.
+        // Before Task 18 this fixture passed the permissive-default
+        // arm; after Task 18 it now rejects via the real
+        // `validateGroupState` (non-array `childHandleIds`).
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                drawingKind: "group",
+                state: {
+                    kind: "group",
+                    childHandleIds: "anything",
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("childHandleIds") });
+    });
+});
+
+describe("validateEmission — drawing line kind", () => {
+    it("accepts a well-formed line", () => {
+        expect(validateEmission(validLineDrawing)).toEqual({ ok: true });
+    });
+
+    it("accepts a line with extendLeft + extendRight + colour + dashed", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: {
+                    ...validLineDrawing.state,
+                    style: {
+                        color: "#3b82f6",
+                        lineWidth: 2,
+                        lineStyle: "dashed",
+                        extendLeft: true,
+                        extendRight: true,
+                    },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects when anchors is not an array", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: { ...validLineDrawing.state, anchors: "not-an-array" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors") });
+    });
+
+    it("rejects when anchors has the wrong length", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: {
+                    ...validLineDrawing.state,
+                    anchors: [{ time: 0, price: 0 }],
+                },
+            }),
+        ).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("2-element"),
+        });
+    });
+
+    it("rejects when an anchor has a non-finite time", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: {
+                    ...validLineDrawing.state,
+                    anchors: [
+                        { time: Number.NaN, price: 0 },
+                        { time: 1, price: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects when style is not a plain object", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: { ...validLineDrawing.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+
+    it("rejects when style.color is not a string", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: { ...validLineDrawing.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+
+    it("rejects when style.lineWidth is zero or non-finite", () => {
+        for (const lineWidth of [0, -1, Number.NaN] as const) {
+            expect(
+                validateEmission({
+                    ...validLineDrawing,
+                    state: { ...validLineDrawing.state, style: { lineWidth } },
+                }),
+            ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+        }
+    });
+
+    it("rejects when style.lineStyle is unknown", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: { ...validLineDrawing.state, style: { lineStyle: "wavy" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+
+    it("rejects when style.extendLeft is not a boolean", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: { ...validLineDrawing.state, style: { extendLeft: "yes" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("extendLeft") });
+    });
+
+    it("rejects when style.extendRight is not a boolean", () => {
+        expect(
+            validateEmission({
+                ...validLineDrawing,
+                state: { ...validLineDrawing.state, style: { extendRight: "yes" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("extendRight") });
+    });
+});
+
+describe("validateEmission — drawing horizontal-line kind", () => {
+    it("accepts a well-formed horizontal-line", () => {
+        expect(validateEmission(validHorizontalLine)).toEqual({ ok: true });
+    });
+
+    it("rejects when price is not a finite number", () => {
+        expect(
+            validateEmission({
+                ...validHorizontalLine,
+                state: { ...validHorizontalLine.state, price: Number.POSITIVE_INFINITY },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("price") });
+    });
+
+    it("rejects when price is missing", () => {
+        expect(
+            validateEmission({
+                ...validHorizontalLine,
+                state: { kind: "horizontal-line", style: {} },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("price") });
+    });
+
+    it("rejects when style is not a plain object", () => {
+        expect(
+            validateEmission({
+                ...validHorizontalLine,
+                state: { ...validHorizontalLine.state, style: 42 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+});
+
+describe("validateEmission — drawing horizontal-ray kind", () => {
+    it("accepts a well-formed horizontal-ray", () => {
+        expect(validateEmission(validHorizontalRay)).toEqual({ ok: true });
+    });
+
+    it("rejects when anchor is not a WorldPoint", () => {
+        expect(
+            validateEmission({
+                ...validHorizontalRay,
+                state: { ...validHorizontalRay.state, anchor: { time: 0 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchor") });
+    });
+
+    it("rejects when anchor.price is non-finite", () => {
+        expect(
+            validateEmission({
+                ...validHorizontalRay,
+                state: {
+                    ...validHorizontalRay.state,
+                    anchor: { time: 0, price: Number.NaN },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchor") });
+    });
+
+    it("rejects when style.lineWidth is invalid", () => {
+        expect(
+            validateEmission({
+                ...validHorizontalRay,
+                state: {
+                    ...validHorizontalRay.state,
+                    style: { lineWidth: -1 },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+describe("validateEmission — drawing vertical-line kind", () => {
+    it("accepts a well-formed vertical-line", () => {
+        expect(validateEmission(validVerticalLine)).toEqual({ ok: true });
+    });
+
+    it("rejects when time is not a finite number", () => {
+        expect(
+            validateEmission({
+                ...validVerticalLine,
+                state: { ...validVerticalLine.state, time: Number.NaN },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("time") });
+    });
+
+    it("rejects when time is missing", () => {
+        expect(
+            validateEmission({
+                ...validVerticalLine,
+                state: { kind: "vertical-line", style: {} },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("time") });
+    });
+
+    it("rejects when style.lineStyle is invalid", () => {
+        expect(
+            validateEmission({
+                ...validVerticalLine,
+                state: { ...validVerticalLine.state, style: { lineStyle: "rainbow" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+});
+
+describe("validateEmission — drawing cross-line kind", () => {
+    it("accepts a well-formed cross-line", () => {
+        expect(validateEmission(validCrossLine)).toEqual({ ok: true });
+    });
+
+    it("rejects when anchor is not a plain object", () => {
+        expect(
+            validateEmission({
+                ...validCrossLine,
+                state: { ...validCrossLine.state, anchor: "not-a-point" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchor") });
+    });
+
+    it("rejects when anchor.time is non-finite", () => {
+        expect(
+            validateEmission({
+                ...validCrossLine,
+                state: {
+                    ...validCrossLine.state,
+                    anchor: { time: Number.POSITIVE_INFINITY, price: 1 },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchor") });
+    });
+
+    it("rejects when style.color is non-string", () => {
+        expect(
+            validateEmission({
+                ...validCrossLine,
+                state: { ...validCrossLine.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+});
+
+describe("validateEmission — drawing trend-angle kind", () => {
+    it("accepts a well-formed trend-angle", () => {
+        expect(validateEmission(validTrendAngle)).toEqual({ ok: true });
+    });
+
+    it("rejects when anchors length is not 2", () => {
+        expect(
+            validateEmission({
+                ...validTrendAngle,
+                state: {
+                    ...validTrendAngle.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 2, price: 2 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects when an anchor.price is non-finite", () => {
+        expect(
+            validateEmission({
+                ...validTrendAngle,
+                state: {
+                    ...validTrendAngle.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: Number.NaN },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects when style.extendRight is not boolean", () => {
+        expect(
+            validateEmission({
+                ...validTrendAngle,
+                state: { ...validTrendAngle.state, style: { extendRight: 1 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("extendRight") });
+    });
+});
+
+describe("validateEmission — drawing rectangle kind", () => {
+    it("accepts a well-formed rectangle", () => {
+        expect(validateEmission(validRectangle)).toEqual({ ok: true });
+    });
+
+    it("accepts a rectangle with stroke + fill + lineWidth + lineStyle + fillAlpha", () => {
+        expect(
+            validateEmission({
+                ...validRectangle,
+                state: {
+                    ...validRectangle.state,
+                    style: {
+                        stroke: "#3b82f6",
+                        fill: "#dbeafe",
+                        lineWidth: 2,
+                        lineStyle: "dashed",
+                        fillAlpha: 0.4,
+                    },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects when anchors has the wrong length", () => {
+        expect(
+            validateEmission({
+                ...validRectangle,
+                state: { ...validRectangle.state, anchors: [{ time: 0, price: 0 }] },
+            }),
+        ).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("2-element"),
+        });
+    });
+
+    it("rejects when an anchor has a non-finite price", () => {
+        expect(
+            validateEmission({
+                ...validRectangle,
+                state: {
+                    ...validRectangle.state,
+                    anchors: [
+                        { time: 0, price: Number.NaN },
+                        { time: 1, price: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects when style.stroke is not a string", () => {
+        expect(
+            validateEmission({
+                ...validRectangle,
+                state: { ...validRectangle.state, style: { stroke: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("stroke") });
+    });
+
+    it("rejects when style.fill is not a string", () => {
+        expect(
+            validateEmission({
+                ...validRectangle,
+                state: { ...validRectangle.state, style: { fill: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("fill") });
+    });
+
+    it("rejects when style.lineWidth is zero or non-finite", () => {
+        for (const lineWidth of [0, -1, Number.NaN] as const) {
+            expect(
+                validateEmission({
+                    ...validRectangle,
+                    state: { ...validRectangle.state, style: { lineWidth } },
+                }),
+            ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+        }
+    });
+
+    it("rejects when style.lineStyle is unknown", () => {
+        expect(
+            validateEmission({
+                ...validRectangle,
+                state: { ...validRectangle.state, style: { lineStyle: "wavy" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+
+    it("rejects when style.fillAlpha is out of [0, 1]", () => {
+        for (const fillAlpha of [-0.1, 1.1, Number.NaN] as const) {
+            expect(
+                validateEmission({
+                    ...validRectangle,
+                    state: { ...validRectangle.state, style: { fillAlpha } },
+                }),
+            ).toMatchObject({ ok: false, message: expect.stringContaining("fillAlpha") });
+        }
+    });
+
+    it("accepts fillAlpha at the boundaries 0 and 1", () => {
+        for (const fillAlpha of [0, 1] as const) {
+            expect(
+                validateEmission({
+                    ...validRectangle,
+                    state: { ...validRectangle.state, style: { fillAlpha } },
+                }),
+            ).toEqual({ ok: true });
+        }
+    });
+
+    it("rejects when style is not a plain object", () => {
+        expect(
+            validateEmission({
+                ...validRectangle,
+                state: { ...validRectangle.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+});
+
+describe("validateEmission — drawing rotated-rectangle kind", () => {
+    it("accepts a well-formed rotated-rectangle", () => {
+        expect(validateEmission(validRotatedRectangle)).toEqual({ ok: true });
+    });
+
+    it("rejects when anchors has fewer than 4 elements", () => {
+        expect(
+            validateEmission({
+                ...validRotatedRectangle,
+                state: {
+                    ...validRotatedRectangle.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 2, price: 0 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("4-element") });
+    });
+
+    it("rejects when anchors has more than 4 elements", () => {
+        expect(
+            validateEmission({
+                ...validRotatedRectangle,
+                state: {
+                    ...validRotatedRectangle.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 2, price: 0 },
+                        { time: 1, price: -1 },
+                        { time: 0, price: 0 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("4-element") });
+    });
+
+    it("rejects when an anchor has a non-finite time", () => {
+        expect(
+            validateEmission({
+                ...validRotatedRectangle,
+                state: {
+                    ...validRotatedRectangle.state,
+                    anchors: [
+                        { time: Number.POSITIVE_INFINITY, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 2, price: 0 },
+                        { time: 1, price: -1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects when style.fillAlpha is out of range", () => {
+        expect(
+            validateEmission({
+                ...validRotatedRectangle,
+                state: { ...validRotatedRectangle.state, style: { fillAlpha: 2 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("fillAlpha") });
+    });
+});
+
+describe("validateEmission — drawing triangle kind", () => {
+    it("accepts a well-formed triangle", () => {
+        expect(validateEmission(validTriangle)).toEqual({ ok: true });
+    });
+
+    it("rejects when anchors has the wrong length", () => {
+        expect(
+            validateEmission({
+                ...validTriangle,
+                state: {
+                    ...validTriangle.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects when an anchor is not a WorldPoint", () => {
+        expect(
+            validateEmission({
+                ...validTriangle,
+                state: {
+                    ...validTriangle.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1 },
+                        { time: 2, price: 0 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects when style.stroke is not a string", () => {
+        expect(
+            validateEmission({
+                ...validTriangle,
+                state: { ...validTriangle.state, style: { stroke: 1 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("stroke") });
+    });
+});
+
+describe("validateEmission — drawing polyline kind", () => {
+    it("accepts a well-formed polyline at the minimum length (3)", () => {
+        expect(validateEmission(validPolyline)).toEqual({ ok: true });
+    });
+
+    it("accepts a polyline at the maximum length (20)", () => {
+        const anchors = Array.from({ length: 20 }, (_, i) => ({ time: i, price: i }));
+        expect(
+            validateEmission({
+                ...validPolyline,
+                state: { ...validPolyline.state, anchors },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects fewer than 3 anchors", () => {
+        expect(
+            validateEmission({
+                ...validPolyline,
+                state: {
+                    ...validPolyline.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3..20") });
+    });
+
+    it("rejects more than 20 anchors", () => {
+        const anchors = Array.from({ length: 21 }, (_, i) => ({ time: i, price: i }));
+        expect(
+            validateEmission({
+                ...validPolyline,
+                state: { ...validPolyline.state, anchors },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3..20") });
+    });
+
+    it("rejects when an interior anchor is not a WorldPoint", () => {
+        expect(
+            validateEmission({
+                ...validPolyline,
+                state: {
+                    ...validPolyline.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: Number.NaN },
+                        { time: 2, price: 0 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects when style.lineStyle is unknown", () => {
+        expect(
+            validateEmission({
+                ...validPolyline,
+                state: { ...validPolyline.state, style: { lineStyle: "rainbow" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+});
+
+describe("validateEmission — drawing circle kind", () => {
+    it("accepts a well-formed circle", () => {
+        expect(validateEmission(validCircle)).toEqual({ ok: true });
+    });
+
+    it("accepts a circle with stroke + fill + fillAlpha", () => {
+        expect(
+            validateEmission({
+                ...validCircle,
+                state: {
+                    ...validCircle.state,
+                    style: { stroke: "#3b82f6", fill: "#dbeafe", fillAlpha: 0.4 },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects when anchors has the wrong length", () => {
+        expect(
+            validateEmission({
+                ...validCircle,
+                state: { ...validCircle.state, anchors: [{ time: 0, price: 0 }] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects when an anchor is not a WorldPoint", () => {
+        expect(
+            validateEmission({
+                ...validCircle,
+                state: {
+                    ...validCircle.state,
+                    anchors: [
+                        { time: Number.NaN, price: 0 },
+                        { time: 1, price: 0 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects when style.fillAlpha is out of [0, 1]", () => {
+        expect(
+            validateEmission({
+                ...validCircle,
+                state: { ...validCircle.state, style: { fillAlpha: 1.5 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("fillAlpha") });
+    });
+});
+
+describe("validateEmission — drawing ellipse kind", () => {
+    it("accepts a well-formed ellipse", () => {
+        expect(validateEmission(validEllipse)).toEqual({ ok: true });
+    });
+
+    it("rejects when anchors has the wrong length", () => {
+        expect(
+            validateEmission({
+                ...validEllipse,
+                state: {
+                    ...validEllipse.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 2, price: 2 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects when style.stroke is not a string", () => {
+        expect(
+            validateEmission({
+                ...validEllipse,
+                state: { ...validEllipse.state, style: { stroke: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("stroke") });
+    });
+
+    it("rejects when style.lineStyle is unknown", () => {
+        expect(
+            validateEmission({
+                ...validEllipse,
+                state: { ...validEllipse.state, style: { lineStyle: "wavy" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+});
+
+describe("validateEmission — drawing path kind", () => {
+    it("accepts a well-formed path at the minimum length (2)", () => {
+        expect(validateEmission(validPath)).toEqual({ ok: true });
+    });
+
+    it("accepts a path at the maximum length (20)", () => {
+        const anchors = Array.from({ length: 20 }, (_, i) => ({ time: i, price: i }));
+        expect(
+            validateEmission({
+                ...validPath,
+                state: { ...validPath.state, anchors },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("accepts a path with style.closed = true", () => {
+        expect(
+            validateEmission({
+                ...validPath,
+                state: { ...validPath.state, style: { closed: true, color: "#3b82f6" } },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects fewer than 2 anchors", () => {
+        expect(
+            validateEmission({
+                ...validPath,
+                state: { ...validPath.state, anchors: [{ time: 0, price: 0 }] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2..20") });
+    });
+
+    it("rejects more than 20 anchors", () => {
+        const anchors = Array.from({ length: 21 }, (_, i) => ({ time: i, price: i }));
+        expect(
+            validateEmission({
+                ...validPath,
+                state: { ...validPath.state, anchors },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2..20") });
+    });
+
+    it("rejects when style.closed is not a boolean", () => {
+        expect(
+            validateEmission({
+                ...validPath,
+                state: { ...validPath.state, style: { closed: "yes" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("closed") });
+    });
+
+    it("rejects when style.lineWidth is invalid", () => {
+        expect(
+            validateEmission({
+                ...validPath,
+                state: { ...validPath.state, style: { lineWidth: 0 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+describe("validateEmission — drawing marker kind", () => {
+    it("accepts a well-formed marker (no text / value)", () => {
+        expect(validateEmission(validMarker)).toEqual({ ok: true });
+    });
+
+    it("accepts a marker with text + value + full TextOpts", () => {
+        expect(
+            validateEmission({
+                ...validMarker,
+                state: {
+                    ...validMarker.state,
+                    text: "B",
+                    value: 1.5,
+                    style: {
+                        color: "#10b981",
+                        size: "large",
+                        halign: "center",
+                        valign: "middle",
+                        bgColor: "#f3f4f6",
+                    },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects when anchor is not a WorldPoint", () => {
+        expect(
+            validateEmission({
+                ...validMarker,
+                state: { ...validMarker.state, anchor: { time: 0 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchor") });
+    });
+
+    it("rejects when text is not a string", () => {
+        expect(
+            validateEmission({
+                ...validMarker,
+                state: { ...validMarker.state, text: 42 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("text") });
+    });
+
+    it("rejects when value is not finite", () => {
+        expect(
+            validateEmission({
+                ...validMarker,
+                state: { ...validMarker.state, value: Number.NaN },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("value") });
+    });
+
+    it("rejects when style.color is not a string", () => {
+        expect(
+            validateEmission({
+                ...validMarker,
+                state: { ...validMarker.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+
+    it("rejects when style.size is unknown", () => {
+        expect(
+            validateEmission({
+                ...validMarker,
+                state: { ...validMarker.state, style: { size: "gigantic" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("size") });
+    });
+
+    it("rejects when style.halign is unknown", () => {
+        expect(
+            validateEmission({
+                ...validMarker,
+                state: { ...validMarker.state, style: { halign: "middle" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("halign") });
+    });
+
+    it("rejects when style.valign is unknown", () => {
+        expect(
+            validateEmission({
+                ...validMarker,
+                state: { ...validMarker.state, style: { valign: "center" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("valign") });
+    });
+
+    it("rejects when style.bgColor is not a string", () => {
+        expect(
+            validateEmission({
+                ...validMarker,
+                state: { ...validMarker.state, style: { bgColor: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("bgColor") });
+    });
+
+    it("rejects when style is not a plain object", () => {
+        expect(
+            validateEmission({
+                ...validMarker,
+                state: { ...validMarker.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+});
+
+describe("validateEmission — drawing arc kind", () => {
+    it("accepts a well-formed arc", () => {
+        expect(validateEmission(validArc)).toEqual({ ok: true });
+    });
+
+    it("rejects an arc with the wrong anchor count", () => {
+        expect(
+            validateEmission({
+                ...validArc,
+                state: {
+                    ...validArc.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 2 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects an arc whose middle anchor is not a WorldPoint", () => {
+        expect(
+            validateEmission({
+                ...validArc,
+                state: {
+                    ...validArc.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1 },
+                        { time: 2, price: 0 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[1]") });
+    });
+
+    it("rejects an arc with an invalid style.lineWidth", () => {
+        expect(
+            validateEmission({
+                ...validArc,
+                state: { ...validArc.state, style: { lineWidth: 0 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+describe("validateEmission — drawing curve kind", () => {
+    it("accepts a well-formed curve", () => {
+        expect(validateEmission(validCurve)).toEqual({ ok: true });
+    });
+
+    it("accepts a curve with extendLeft + extendRight + colour", () => {
+        expect(
+            validateEmission({
+                ...validCurve,
+                state: {
+                    ...validCurve.state,
+                    style: {
+                        color: "#3b82f6",
+                        lineWidth: 2,
+                        lineStyle: "dashed",
+                        extendLeft: true,
+                        extendRight: true,
+                    },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a curve with too few anchors", () => {
+        expect(
+            validateEmission({
+                ...validCurve,
+                state: { ...validCurve.state, anchors: [{ time: 0, price: 0 }] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects a curve with a non-string color", () => {
+        expect(
+            validateEmission({
+                ...validCurve,
+                state: { ...validCurve.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+});
+
+describe("validateEmission — drawing double-curve kind", () => {
+    it("accepts a well-formed double-curve", () => {
+        expect(validateEmission(validDoubleCurve)).toEqual({ ok: true });
+    });
+
+    it("rejects a double-curve with 4 anchors instead of 5", () => {
+        expect(
+            validateEmission({
+                ...validDoubleCurve,
+                state: {
+                    ...validDoubleCurve.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 2, price: 0 },
+                        { time: 3, price: -1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("5-element") });
+    });
+
+    it("rejects a double-curve whose 4th anchor is not a WorldPoint", () => {
+        expect(
+            validateEmission({
+                ...validDoubleCurve,
+                state: {
+                    ...validDoubleCurve.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 2, price: 0 },
+                        { price: -1 },
+                        { time: 4, price: 0 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[3]") });
+    });
+
+    it("rejects a double-curve with an invalid style.lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validDoubleCurve,
+                state: { ...validDoubleCurve.state, style: { lineStyle: "wobbly" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+});
+
+describe("validateEmission — drawing pen kind", () => {
+    it("accepts a well-formed pen at the minimum length (2)", () => {
+        expect(validateEmission(validPen)).toEqual({ ok: true });
+    });
+
+    it("accepts a pen at the maximum length (500)", () => {
+        const anchors = Array.from({ length: 500 }, (_, i) => ({ time: i, price: i }));
+        expect(
+            validateEmission({
+                ...validPen,
+                state: { ...validPen.state, anchors },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a pen with fewer than 2 anchors", () => {
+        expect(
+            validateEmission({
+                ...validPen,
+                state: { ...validPen.state, anchors: [{ time: 0, price: 0 }] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2..500") });
+    });
+
+    it("rejects a pen with more than 500 anchors", () => {
+        const anchors = Array.from({ length: 501 }, (_, i) => ({ time: i, price: i }));
+        expect(
+            validateEmission({
+                ...validPen,
+                state: { ...validPen.state, anchors },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2..500") });
+    });
+
+    it("rejects a pen with a non-string color in style", () => {
+        expect(
+            validateEmission({
+                ...validPen,
+                state: { ...validPen.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+});
+
+describe("validateEmission — drawing highlighter kind", () => {
+    it("accepts a well-formed highlighter", () => {
+        expect(validateEmission(validHighlighter)).toEqual({ ok: true });
+    });
+
+    it("accepts alpha at the lower / upper boundary", () => {
+        for (const alpha of [0, 1]) {
+            expect(
+                validateEmission({
+                    ...validHighlighter,
+                    state: {
+                        ...validHighlighter.state,
+                        style: { color: "#facc15", alpha },
+                    },
+                }),
+            ).toEqual({ ok: true });
+        }
+    });
+
+    it("rejects a highlighter without color", () => {
+        expect(
+            validateEmission({
+                ...validHighlighter,
+                state: {
+                    ...validHighlighter.state,
+                    style: { alpha: 0.3 },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+
+    it("rejects alpha outside [0, 1]", () => {
+        expect(
+            validateEmission({
+                ...validHighlighter,
+                state: {
+                    ...validHighlighter.state,
+                    style: { color: "#facc15", alpha: 1.5 },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("alpha") });
+    });
+
+    it("rejects a non-finite alpha", () => {
+        expect(
+            validateEmission({
+                ...validHighlighter,
+                state: {
+                    ...validHighlighter.state,
+                    style: { color: "#facc15", alpha: Number.NaN },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("alpha") });
+    });
+
+    it("rejects highlighter style that is not a plain object", () => {
+        expect(
+            validateEmission({
+                ...validHighlighter,
+                state: { ...validHighlighter.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+
+    it("rejects fewer than 2 anchors", () => {
+        expect(
+            validateEmission({
+                ...validHighlighter,
+                state: { ...validHighlighter.state, anchors: [{ time: 0, price: 0 }] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2..500") });
+    });
+});
+
+describe("validateEmission — drawing brush kind", () => {
+    it("accepts a well-formed brush", () => {
+        expect(validateEmission(validBrush)).toEqual({ ok: true });
+    });
+
+    it("rejects a brush without stroke", () => {
+        expect(
+            validateEmission({
+                ...validBrush,
+                state: { ...validBrush.state, style: { fill: "#ffffff" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("stroke") });
+    });
+
+    it("rejects a brush without fill", () => {
+        expect(
+            validateEmission({
+                ...validBrush,
+                state: { ...validBrush.state, style: { stroke: "#000000" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("fill") });
+    });
+
+    it("rejects a brush whose stroke is not a string", () => {
+        expect(
+            validateEmission({
+                ...validBrush,
+                state: { ...validBrush.state, style: { stroke: 42, fill: "#ffffff" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("stroke") });
+    });
+
+    it("rejects a brush whose fill is not a string", () => {
+        expect(
+            validateEmission({
+                ...validBrush,
+                state: { ...validBrush.state, style: { stroke: "#000000", fill: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("fill") });
+    });
+
+    it("rejects brush style that is not a plain object", () => {
+        expect(
+            validateEmission({
+                ...validBrush,
+                state: { ...validBrush.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+
+    it("rejects more than 500 anchors", () => {
+        const anchors = Array.from({ length: 501 }, (_, i) => ({ time: i, price: i }));
+        expect(
+            validateEmission({
+                ...validBrush,
+                state: { ...validBrush.state, anchors },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2..500") });
+    });
+});
+
+describe("validateEmission — drawing text kind", () => {
+    it("accepts a well-formed text drawing", () => {
+        expect(validateEmission(validText)).toEqual({ ok: true });
+    });
+
+    it("accepts a text body at the 256-char cap", () => {
+        const body = "x".repeat(256);
+        expect(
+            validateEmission({
+                ...validText,
+                state: { ...validText.state, body },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a text body longer than 256 characters", () => {
+        const body = "x".repeat(257);
+        expect(
+            validateEmission({
+                ...validText,
+                state: { ...validText.state, body },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("256") });
+    });
+
+    it("rejects an empty text body", () => {
+        expect(
+            validateEmission({
+                ...validText,
+                state: { ...validText.state, body: "" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("non-empty") });
+    });
+
+    it("rejects a non-string text body", () => {
+        expect(
+            validateEmission({
+                ...validText,
+                state: { ...validText.state, body: 42 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("body") });
+    });
+
+    it("rejects a non-WorldPoint anchor", () => {
+        expect(
+            validateEmission({
+                ...validText,
+                state: { ...validText.state, anchor: { time: Number.NaN, price: 0 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects a body that carries a non-JsonValue payload via walkMeta", () => {
+        expect(
+            validateEmission({
+                ...validText,
+                state: { ...validText.state, body: 1n as unknown as string },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("bigint") });
+    });
+
+    it("accepts an optional bgColor", () => {
+        expect(
+            validateEmission({
+                ...validText,
+                state: { ...validText.state, style: { bgColor: "#fef3c7" } },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a non-string bgColor", () => {
+        expect(
+            validateEmission({
+                ...validText,
+                state: { ...validText.state, style: { bgColor: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("bgColor") });
+    });
+});
+
+describe("validateEmission — drawing arrow kind", () => {
+    it("accepts a well-formed arrow", () => {
+        expect(validateEmission(validArrow)).toEqual({ ok: true });
+    });
+
+    it("accepts an arrow with an optional label", () => {
+        expect(
+            validateEmission({
+                ...validArrow,
+                state: { ...validArrow.state, style: { label: "Sell" } },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("accepts an arrow that combines LineDrawStyle + label", () => {
+        expect(
+            validateEmission({
+                ...validArrow,
+                state: {
+                    ...validArrow.state,
+                    style: {
+                        color: "#dc2626",
+                        lineWidth: 2,
+                        lineStyle: "dashed",
+                        label: "Sell",
+                    },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a non-string label", () => {
+        expect(
+            validateEmission({
+                ...validArrow,
+                state: { ...validArrow.state, style: { label: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("label") });
+    });
+
+    it("rejects when anchors has the wrong length", () => {
+        expect(
+            validateEmission({
+                ...validArrow,
+                state: {
+                    ...validArrow.state,
+                    anchors: [{ time: 0, price: 0 }],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects when style is not a plain object", () => {
+        expect(
+            validateEmission({
+                ...validArrow,
+                state: { ...validArrow.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+
+    it("rejects when style.lineWidth is non-finite", () => {
+        expect(
+            validateEmission({
+                ...validArrow,
+                state: { ...validArrow.state, style: { lineWidth: Number.NaN } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+describe("validateEmission — drawing arrow-marker kind", () => {
+    it("accepts a well-formed arrow-marker", () => {
+        expect(validateEmission(validArrowMarker)).toEqual({ ok: true });
+    });
+
+    it("accepts optional color + text", () => {
+        expect(
+            validateEmission({
+                ...validArrowMarker,
+                state: {
+                    ...validArrowMarker.state,
+                    style: { color: "#10b981", text: "Long" },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a non-WorldPoint anchor", () => {
+        expect(
+            validateEmission({
+                ...validArrowMarker,
+                state: { ...validArrowMarker.state, anchor: { time: 0 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects a non-string color", () => {
+        expect(
+            validateEmission({
+                ...validArrowMarker,
+                state: { ...validArrowMarker.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+
+    it("rejects a non-string text", () => {
+        expect(
+            validateEmission({
+                ...validArrowMarker,
+                state: { ...validArrowMarker.state, style: { text: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("text") });
+    });
+
+    it("rejects a non-plain-object style", () => {
+        expect(
+            validateEmission({
+                ...validArrowMarker,
+                state: { ...validArrowMarker.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+});
+
+describe("validateEmission — drawing arrow-mark-up kind", () => {
+    it("accepts a well-formed arrow-mark-up", () => {
+        expect(validateEmission(validArrowMarkUp)).toEqual({ ok: true });
+    });
+
+    it("accepts an explicit color override", () => {
+        expect(
+            validateEmission({
+                ...validArrowMarkUp,
+                state: { ...validArrowMarkUp.state, style: { color: "#1e40af" } },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a non-WorldPoint anchor", () => {
+        expect(
+            validateEmission({
+                ...validArrowMarkUp,
+                state: { ...validArrowMarkUp.state, anchor: "not-a-point" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects a non-string color", () => {
+        expect(
+            validateEmission({
+                ...validArrowMarkUp,
+                state: { ...validArrowMarkUp.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+});
+
+describe("validateEmission — drawing arrow-mark-down kind", () => {
+    it("accepts a well-formed arrow-mark-down", () => {
+        expect(validateEmission(validArrowMarkDown)).toEqual({ ok: true });
+    });
+
+    it("accepts an explicit color override", () => {
+        expect(
+            validateEmission({
+                ...validArrowMarkDown,
+                state: { ...validArrowMarkDown.state, style: { color: "#7c2d12" } },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a non-WorldPoint anchor", () => {
+        expect(
+            validateEmission({
+                ...validArrowMarkDown,
+                state: { ...validArrowMarkDown.state, anchor: 42 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects a non-plain-object style", () => {
+        expect(
+            validateEmission({
+                ...validArrowMarkDown,
+                state: { ...validArrowMarkDown.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+});
+
+describe("validateEmission — drawing trend-channel kind", () => {
+    it("accepts a well-formed trend-channel", () => {
+        expect(validateEmission(validTrendChannel)).toEqual({ ok: true });
+    });
+
+    it("accepts a trend-channel with a full LineDrawStyle", () => {
+        expect(
+            validateEmission({
+                ...validTrendChannel,
+                state: {
+                    ...validTrendChannel.state,
+                    style: {
+                        color: "#3b82f6",
+                        lineWidth: 2,
+                        lineStyle: "dashed",
+                        extendRight: true,
+                    },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a trend-channel with the wrong anchor count", () => {
+        expect(
+            validateEmission({
+                ...validTrendChannel,
+                state: {
+                    ...validTrendChannel.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects a trend-channel whose third anchor is not a WorldPoint", () => {
+        expect(
+            validateEmission({
+                ...validTrendChannel,
+                state: {
+                    ...validTrendChannel.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 0 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[2]") });
+    });
+
+    it("rejects a non-boolean extendLeft", () => {
+        expect(
+            validateEmission({
+                ...validTrendChannel,
+                state: { ...validTrendChannel.state, style: { extendLeft: "yes" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("extendLeft") });
+    });
+});
+
+describe("validateEmission — drawing flat-top-bottom kind", () => {
+    it("accepts a well-formed flat-top-bottom", () => {
+        expect(validateEmission(validFlatTopBottom)).toEqual({ ok: true });
+    });
+
+    it("rejects a flat-top-bottom with 4 anchors (3 expected)", () => {
+        expect(
+            validateEmission({
+                ...validFlatTopBottom,
+                state: {
+                    ...validFlatTopBottom.state,
+                    anchors: [
+                        { time: 0, price: 1 },
+                        { time: 1, price: 1 },
+                        { time: 0, price: 0 },
+                        { time: 1, price: 0 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects a flat-top-bottom with a non-finite anchor price", () => {
+        expect(
+            validateEmission({
+                ...validFlatTopBottom,
+                state: {
+                    ...validFlatTopBottom.state,
+                    anchors: [
+                        { time: 0, price: Number.NaN },
+                        { time: 1, price: 1 },
+                        { time: 0, price: 0 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[0]") });
+    });
+
+    it("rejects an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validFlatTopBottom,
+                state: { ...validFlatTopBottom.state, style: { lineStyle: "wavy" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+});
+
+describe("validateEmission — drawing disjoint-channel kind", () => {
+    it("accepts a well-formed disjoint-channel", () => {
+        expect(validateEmission(validDisjointChannel)).toEqual({ ok: true });
+    });
+
+    it("rejects a disjoint-channel with 3 anchors (4 expected)", () => {
+        expect(
+            validateEmission({
+                ...validDisjointChannel,
+                state: {
+                    ...validDisjointChannel.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 0, price: 2 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("4-element") });
+    });
+
+    it("rejects a disjoint-channel whose fourth anchor is not a WorldPoint", () => {
+        expect(
+            validateEmission({
+                ...validDisjointChannel,
+                state: {
+                    ...validDisjointChannel.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 0, price: 2 },
+                        { price: 3 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[3]") });
+    });
+
+    it("rejects a non-finite lineWidth", () => {
+        expect(
+            validateEmission({
+                ...validDisjointChannel,
+                state: {
+                    ...validDisjointChannel.state,
+                    style: { lineWidth: Number.NaN },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+describe("validateEmission — drawing regression-trend kind", () => {
+    it("accepts a well-formed regression-trend", () => {
+        expect(validateEmission(validRegressionTrend)).toEqual({ ok: true });
+    });
+
+    it("accepts the full RegressionTrendOpts payload", () => {
+        expect(
+            validateEmission({
+                ...validRegressionTrend,
+                state: {
+                    ...validRegressionTrend.state,
+                    style: {
+                        source: "hlc3",
+                        stdevMultiplier: 1.5,
+                        showUpperBand: true,
+                        showLowerBand: false,
+                        color: "#3b82f6",
+                    },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("accepts every valid source value", () => {
+        for (const source of [
+            "close",
+            "open",
+            "high",
+            "low",
+            "hl2",
+            "hlc3",
+            "ohlc4",
+            "hlcc4",
+        ] as const) {
+            expect(
+                validateEmission({
+                    ...validRegressionTrend,
+                    state: { ...validRegressionTrend.state, style: { source } },
+                }),
+            ).toEqual({ ok: true });
+        }
+    });
+
+    it("rejects anchors with start.time === end.time", () => {
+        expect(
+            validateEmission({
+                ...validRegressionTrend,
+                state: {
+                    ...validRegressionTrend.state,
+                    anchors: [
+                        { time: 5, price: 0 },
+                        { time: 5, price: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[0].time") });
+    });
+
+    it("rejects anchors with start.time > end.time", () => {
+        expect(
+            validateEmission({
+                ...validRegressionTrend,
+                state: {
+                    ...validRegressionTrend.state,
+                    anchors: [
+                        { time: 100, price: 0 },
+                        { time: 0, price: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[0].time") });
+    });
+
+    it("rejects an unknown source", () => {
+        expect(
+            validateEmission({
+                ...validRegressionTrend,
+                state: {
+                    ...validRegressionTrend.state,
+                    style: { source: "tick" },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("source") });
+    });
+
+    it("rejects a negative stdevMultiplier", () => {
+        expect(
+            validateEmission({
+                ...validRegressionTrend,
+                state: {
+                    ...validRegressionTrend.state,
+                    style: { stdevMultiplier: -0.5 },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("stdevMultiplier") });
+    });
+
+    it("rejects a non-finite stdevMultiplier", () => {
+        expect(
+            validateEmission({
+                ...validRegressionTrend,
+                state: {
+                    ...validRegressionTrend.state,
+                    style: { stdevMultiplier: Number.NaN },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("stdevMultiplier") });
+    });
+
+    it("rejects a non-boolean showUpperBand", () => {
+        expect(
+            validateEmission({
+                ...validRegressionTrend,
+                state: {
+                    ...validRegressionTrend.state,
+                    style: { showUpperBand: "yes" },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("showUpperBand") });
+    });
+
+    it("rejects a non-boolean showLowerBand", () => {
+        expect(
+            validateEmission({
+                ...validRegressionTrend,
+                state: {
+                    ...validRegressionTrend.state,
+                    style: { showLowerBand: "no" },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("showLowerBand") });
+    });
+
+    it("rejects a non-string color", () => {
+        expect(
+            validateEmission({
+                ...validRegressionTrend,
+                state: {
+                    ...validRegressionTrend.state,
+                    style: { color: 42 },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+
+    it("rejects a non-plain-object style", () => {
+        expect(
+            validateEmission({
+                ...validRegressionTrend,
+                state: { ...validRegressionTrend.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+
+    it("rejects a non-WorldPoint anchor", () => {
+        expect(
+            validateEmission({
+                ...validRegressionTrend,
+                state: {
+                    ...validRegressionTrend.state,
+                    anchors: [{ time: 0 }, { time: 100, price: 1 }],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[0]") });
+    });
+});
+
+describe("validateEmission — drawing fib-retracement kind", () => {
+    it("accepts a well-formed fib-retracement", () => {
+        expect(validateEmission(validFibRetracement)).toEqual({ ok: true });
+    });
+
+    it("accepts a full FibOpts payload", () => {
+        expect(
+            validateEmission({
+                ...validFibRetracement,
+                state: {
+                    ...validFibRetracement.state,
+                    style: {
+                        levels: [0.382, 0.5, 0.618],
+                        showLabels: true,
+                        color: "#facc15",
+                        extendLeft: false,
+                        extendRight: true,
+                    },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a fib-retracement with the wrong anchor count", () => {
+        expect(
+            validateEmission({
+                ...validFibRetracement,
+                state: {
+                    ...validFibRetracement.state,
+                    anchors: [{ time: 0, price: 0 }],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects levels that is not an array", () => {
+        expect(
+            validateEmission({
+                ...validFibRetracement,
+                state: { ...validFibRetracement.state, style: { levels: "0.5" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("levels") });
+    });
+
+    it("rejects an empty levels array", () => {
+        expect(
+            validateEmission({
+                ...validFibRetracement,
+                state: { ...validFibRetracement.state, style: { levels: [] } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("at least one") });
+    });
+
+    it("rejects a non-finite level entry", () => {
+        expect(
+            validateEmission({
+                ...validFibRetracement,
+                state: { ...validFibRetracement.state, style: { levels: [0.5, Number.NaN] } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("levels[1]") });
+    });
+
+    it("rejects a non-boolean showLabels", () => {
+        expect(
+            validateEmission({
+                ...validFibRetracement,
+                state: { ...validFibRetracement.state, style: { showLabels: "yes" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("showLabels") });
+    });
+
+    it("rejects a non-boolean extendLeft", () => {
+        expect(
+            validateEmission({
+                ...validFibRetracement,
+                state: { ...validFibRetracement.state, style: { extendLeft: 1 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("extendLeft") });
+    });
+});
+
+describe("validateEmission — drawing fib-trend-extension kind", () => {
+    it("accepts a well-formed fib-trend-extension", () => {
+        expect(validateEmission(validFibTrendExtension)).toEqual({ ok: true });
+    });
+
+    it("rejects a fib-trend-extension with 2 anchors (3 expected)", () => {
+        expect(
+            validateEmission({
+                ...validFibTrendExtension,
+                state: {
+                    ...validFibTrendExtension.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects a non-string color in FibOpts", () => {
+        expect(
+            validateEmission({
+                ...validFibTrendExtension,
+                state: { ...validFibTrendExtension.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+});
+
+describe("validateEmission — drawing fib-channel kind", () => {
+    it("accepts a well-formed fib-channel", () => {
+        expect(validateEmission(validFibChannel)).toEqual({ ok: true });
+    });
+
+    it("rejects a fib-channel with 4 anchors (3 expected)", () => {
+        expect(
+            validateEmission({
+                ...validFibChannel,
+                state: {
+                    ...validFibChannel.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 0, price: 1 },
+                        { time: 1, price: 2 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects a non-boolean extendRight in FibOpts", () => {
+        expect(
+            validateEmission({
+                ...validFibChannel,
+                state: { ...validFibChannel.state, style: { extendRight: 1 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("extendRight") });
+    });
+});
+
+describe("validateEmission — drawing fib-time-zone kind", () => {
+    it("accepts a well-formed fib-time-zone", () => {
+        expect(validateEmission(validFibTimeZone)).toEqual({ ok: true });
+    });
+
+    it("rejects a fib-time-zone with the wrong anchor count", () => {
+        expect(
+            validateEmission({
+                ...validFibTimeZone,
+                state: {
+                    ...validFibTimeZone.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 50, price: 0 },
+                        { time: 100, price: 0 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects a non-plain-object style", () => {
+        expect(
+            validateEmission({
+                ...validFibTimeZone,
+                state: { ...validFibTimeZone.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+});
+
+describe("validateEmission — drawing fib-wedge kind", () => {
+    it("accepts a well-formed fib-wedge", () => {
+        expect(validateEmission(validFibWedge)).toEqual({ ok: true });
+    });
+
+    it("rejects a fib-wedge with 2 anchors (3 expected)", () => {
+        expect(
+            validateEmission({
+                ...validFibWedge,
+                state: {
+                    ...validFibWedge.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects a non-WorldPoint third anchor", () => {
+        expect(
+            validateEmission({
+                ...validFibWedge,
+                state: {
+                    ...validFibWedge.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[2]") });
+    });
+});
+
+describe("validateEmission — drawing fib-speed-fan kind", () => {
+    it("accepts a well-formed fib-speed-fan", () => {
+        expect(validateEmission(validFibSpeedFan)).toEqual({ ok: true });
+    });
+
+    it("rejects a fib-speed-fan with 3 anchors (2 expected)", () => {
+        expect(
+            validateEmission({
+                ...validFibSpeedFan,
+                state: {
+                    ...validFibSpeedFan.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 2, price: 0.5 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects a non-finite level entry", () => {
+        expect(
+            validateEmission({
+                ...validFibSpeedFan,
+                state: {
+                    ...validFibSpeedFan.state,
+                    style: { levels: [0.5, Number.NaN] },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("levels[1]") });
+    });
+});
+
+describe("validateEmission — drawing fib-speed-arcs kind", () => {
+    it("accepts a well-formed fib-speed-arcs", () => {
+        expect(validateEmission(validFibSpeedArcs)).toEqual({ ok: true });
+    });
+
+    it("rejects a non-WorldPoint second anchor", () => {
+        expect(
+            validateEmission({
+                ...validFibSpeedArcs,
+                state: {
+                    ...validFibSpeedArcs.state,
+                    anchors: [{ time: 0, price: 0 }, { time: 1 }],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[1]") });
+    });
+
+    it("rejects a non-string color in FibOpts", () => {
+        expect(
+            validateEmission({
+                ...validFibSpeedArcs,
+                state: { ...validFibSpeedArcs.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+});
+
+describe("validateEmission — drawing fib-spiral kind", () => {
+    it("accepts a well-formed fib-spiral", () => {
+        expect(validateEmission(validFibSpiral)).toEqual({ ok: true });
+    });
+
+    it("accepts a full FibOpts payload", () => {
+        expect(
+            validateEmission({
+                ...validFibSpiral,
+                state: {
+                    ...validFibSpiral.state,
+                    style: {
+                        levels: [0.382, 0.618, 1.618],
+                        showLabels: true,
+                        color: "#facc15",
+                    },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a fib-spiral with the wrong anchor count", () => {
+        expect(
+            validateEmission({
+                ...validFibSpiral,
+                state: {
+                    ...validFibSpiral.state,
+                    anchors: [{ time: 0, price: 0 }],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+});
+
+describe("validateEmission — drawing fib-circles kind", () => {
+    it("accepts a well-formed fib-circles", () => {
+        expect(validateEmission(validFibCircles)).toEqual({ ok: true });
+    });
+
+    it("rejects a fib-circles with the wrong anchor count", () => {
+        expect(
+            validateEmission({
+                ...validFibCircles,
+                state: {
+                    ...validFibCircles.state,
+                    anchors: [{ time: 0, price: 0 }],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects an empty levels array", () => {
+        expect(
+            validateEmission({
+                ...validFibCircles,
+                state: { ...validFibCircles.state, style: { levels: [] } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("at least one") });
+    });
+
+    it("rejects a non-boolean showLabels", () => {
+        expect(
+            validateEmission({
+                ...validFibCircles,
+                state: { ...validFibCircles.state, style: { showLabels: "yes" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("showLabels") });
+    });
+});
+
+describe("validateEmission — drawing fib-trend-time kind", () => {
+    it("accepts a well-formed fib-trend-time", () => {
+        expect(validateEmission(validFibTrendTime)).toEqual({ ok: true });
+    });
+
+    it("rejects a fib-trend-time with 2 anchors (3 expected)", () => {
+        expect(
+            validateEmission({
+                ...validFibTrendTime,
+                state: {
+                    ...validFibTrendTime.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects a non-plain-object style", () => {
+        expect(
+            validateEmission({
+                ...validFibTrendTime,
+                state: { ...validFibTrendTime.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+});
+
+describe("validateEmission — drawing gann-box kind", () => {
+    it("accepts a well-formed gann-box", () => {
+        expect(validateEmission(validGannBox)).toEqual({ ok: true });
+    });
+
+    it("rejects a gann-box with 3 anchors (2 expected)", () => {
+        expect(
+            validateEmission({
+                ...validGannBox,
+                state: {
+                    ...validGannBox.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 2, price: 0.5 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects a non-positive lineWidth in LineDrawStyle", () => {
+        expect(
+            validateEmission({
+                ...validGannBox,
+                state: { ...validGannBox.state, style: { lineWidth: 0 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+describe("validateEmission — drawing gann-square-fixed kind", () => {
+    it("accepts a well-formed gann-square-fixed", () => {
+        expect(validateEmission(validGannSquareFixed)).toEqual({ ok: true });
+    });
+
+    it("rejects a non-WorldPoint anchor", () => {
+        expect(
+            validateEmission({
+                ...validGannSquareFixed,
+                state: { ...validGannSquareFixed.state, anchor: { time: 0 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchor") });
+    });
+
+    it("rejects a non-string color in LineDrawStyle", () => {
+        expect(
+            validateEmission({
+                ...validGannSquareFixed,
+                state: { ...validGannSquareFixed.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+});
+
+describe("validateEmission — drawing gann-square kind", () => {
+    it("accepts a well-formed gann-square", () => {
+        expect(validateEmission(validGannSquare)).toEqual({ ok: true });
+    });
+
+    it("rejects a gann-square with 1 anchor (2 expected)", () => {
+        expect(
+            validateEmission({
+                ...validGannSquare,
+                state: {
+                    ...validGannSquare.state,
+                    anchors: [{ time: 0, price: 0 }],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validGannSquare,
+                state: { ...validGannSquare.state, style: { lineStyle: "wavy" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+});
+
+describe("validateEmission — drawing gann-fan kind", () => {
+    it("accepts a well-formed gann-fan", () => {
+        expect(validateEmission(validGannFan)).toEqual({ ok: true });
+    });
+
+    it("rejects a gann-fan with a non-WorldPoint second anchor", () => {
+        expect(
+            validateEmission({
+                ...validGannFan,
+                state: {
+                    ...validGannFan.state,
+                    anchors: [{ time: 0, price: 0 }, { time: 1 }],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[1]") });
+    });
+
+    it("rejects a non-plain-object style", () => {
+        expect(
+            validateEmission({
+                ...validGannFan,
+                state: { ...validGannFan.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+});
+
+describe("validateEmission — drawing pitchfork kind", () => {
+    it("accepts a well-formed pitchfork (standard variant)", () => {
+        expect(validateEmission(validPitchfork)).toEqual({ ok: true });
+    });
+
+    it("accepts each of the 4 variants", () => {
+        for (const variant of ["standard", "schiff", "modifiedSchiff", "inside"] as const) {
+            expect(
+                validateEmission({
+                    ...validPitchfork,
+                    state: { ...validPitchfork.state, variant },
+                }),
+            ).toEqual({ ok: true });
+        }
+    });
+
+    it("rejects a pitchfork with 2 anchors (3 expected)", () => {
+        expect(
+            validateEmission({
+                ...validPitchfork,
+                state: {
+                    ...validPitchfork.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects an unknown variant", () => {
+        expect(
+            validateEmission({
+                ...validPitchfork,
+                state: { ...validPitchfork.state, variant: "andrews" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("variant") });
+    });
+
+    it("rejects a missing variant", () => {
+        const { variant: _variant, ...stateNoVariant } = validPitchfork.state;
+        expect(
+            validateEmission({
+                ...validPitchfork,
+                state: stateNoVariant,
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("variant") });
+    });
+
+    it("rejects an invalid lineWidth", () => {
+        expect(
+            validateEmission({
+                ...validPitchfork,
+                state: { ...validPitchfork.state, style: { lineWidth: -1 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+describe("validateEmission — drawing pitchfan kind", () => {
+    it("accepts a well-formed pitchfan", () => {
+        expect(validateEmission(validPitchfan)).toEqual({ ok: true });
+    });
+
+    it("rejects a pitchfan with 4 anchors (3 expected)", () => {
+        expect(
+            validateEmission({
+                ...validPitchfan,
+                state: {
+                    ...validPitchfan.state,
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: 1, price: 1 },
+                        { time: 2, price: 0.5 },
+                        { time: 3, price: 0.25 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validPitchfan,
+                state: { ...validPitchfan.state, style: { lineStyle: "wavy" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+});
+
+describe("validateEmission — drawing xabcd-pattern kind", () => {
+    it("accepts a well-formed xabcd-pattern", () => {
+        expect(validateEmission(validXabcdPattern)).toEqual({ ok: true });
+    });
+
+    it("rejects an xabcd-pattern with 4 anchors (5 expected)", () => {
+        expect(
+            validateEmission({
+                ...validXabcdPattern,
+                state: {
+                    ...validXabcdPattern.state,
+                    anchors: validXabcdPattern.state.anchors.slice(0, 4),
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("5-element") });
+    });
+
+    it("rejects an xabcd-pattern with an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validXabcdPattern,
+                state: { ...validXabcdPattern.state, style: { lineStyle: "wavy" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+});
+
+describe("validateEmission — drawing cypher-pattern kind", () => {
+    it("accepts a well-formed cypher-pattern", () => {
+        expect(validateEmission(validCypherPattern)).toEqual({ ok: true });
+    });
+
+    it("rejects a cypher-pattern with 6 anchors (5 expected)", () => {
+        expect(
+            validateEmission({
+                ...validCypherPattern,
+                state: {
+                    ...validCypherPattern.state,
+                    anchors: [
+                        ...validCypherPattern.state.anchors,
+                        { time: 5, price: 1.2 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("5-element") });
+    });
+
+    it("rejects a cypher-pattern with non-finite anchor price", () => {
+        expect(
+            validateEmission({
+                ...validCypherPattern,
+                state: {
+                    ...validCypherPattern.state,
+                    anchors: [
+                        { time: 0, price: Number.NaN },
+                        ...validCypherPattern.state.anchors.slice(1),
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+});
+
+describe("validateEmission — drawing head-and-shoulders kind", () => {
+    it("accepts a well-formed head-and-shoulders", () => {
+        expect(validateEmission(validHeadAndShoulders)).toEqual({ ok: true });
+    });
+
+    it("rejects a head-and-shoulders with 3 anchors (5 expected)", () => {
+        expect(
+            validateEmission({
+                ...validHeadAndShoulders,
+                state: {
+                    ...validHeadAndShoulders.state,
+                    anchors: validHeadAndShoulders.state.anchors.slice(0, 3),
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("5-element") });
+    });
+
+    it("rejects a head-and-shoulders with a non-string colour", () => {
+        expect(
+            validateEmission({
+                ...validHeadAndShoulders,
+                state: { ...validHeadAndShoulders.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+});
+
+describe("validateEmission — drawing abcd-pattern kind", () => {
+    it("accepts a well-formed abcd-pattern", () => {
+        expect(validateEmission(validAbcdPattern)).toEqual({ ok: true });
+    });
+
+    it("rejects an abcd-pattern with 5 anchors (4 expected)", () => {
+        expect(
+            validateEmission({
+                ...validAbcdPattern,
+                state: {
+                    ...validAbcdPattern.state,
+                    anchors: [
+                        ...validAbcdPattern.state.anchors,
+                        { time: 4, price: 2 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("4-element") });
+    });
+
+    it("rejects an abcd-pattern with an invalid lineWidth", () => {
+        expect(
+            validateEmission({
+                ...validAbcdPattern,
+                state: { ...validAbcdPattern.state, style: { lineWidth: -2 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+describe("validateEmission — drawing triangle-pattern kind", () => {
+    it("accepts a well-formed triangle-pattern", () => {
+        expect(validateEmission(validTrianglePattern)).toEqual({ ok: true });
+    });
+
+    it("rejects a triangle-pattern with 4 anchors (3 expected)", () => {
+        expect(
+            validateEmission({
+                ...validTrianglePattern,
+                state: {
+                    ...validTrianglePattern.state,
+                    anchors: [
+                        ...validTrianglePattern.state.anchors,
+                        { time: 3, price: 0.5 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects a triangle-pattern with a non-plain-object style", () => {
+        expect(
+            validateEmission({
+                ...validTrianglePattern,
+                state: { ...validTrianglePattern.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+});
+
+describe("validateEmission — drawing three-drives-pattern kind", () => {
+    it("accepts a well-formed three-drives-pattern", () => {
+        expect(validateEmission(validThreeDrivesPattern)).toEqual({ ok: true });
+    });
+
+    it("rejects a three-drives-pattern with 6 anchors (7 expected)", () => {
+        expect(
+            validateEmission({
+                ...validThreeDrivesPattern,
+                state: {
+                    ...validThreeDrivesPattern.state,
+                    anchors: validThreeDrivesPattern.state.anchors.slice(0, 6),
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("7-element") });
+    });
+
+    it("rejects a three-drives-pattern with a non-array anchors", () => {
+        expect(
+            validateEmission({
+                ...validThreeDrivesPattern,
+                state: { ...validThreeDrivesPattern.state, anchors: "not-an-array" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("7-element") });
+    });
+
+    it("rejects a three-drives-pattern with a non-WorldPoint at index 4", () => {
+        const anchors = [...validThreeDrivesPattern.state.anchors];
+        anchors[4] = { time: 4, price: "bad" } as unknown as { time: number; price: number };
+        expect(
+            validateEmission({
+                ...validThreeDrivesPattern,
+                state: { ...validThreeDrivesPattern.state, anchors },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects a three-drives-pattern with an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validThreeDrivesPattern,
+                state: {
+                    ...validThreeDrivesPattern.state,
+                    style: { lineStyle: "rainbow" },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+});
+
+describe("validateEmission — drawing elliott-impulse-wave kind", () => {
+    it("accepts a well-formed elliott-impulse-wave", () => {
+        expect(validateEmission(validElliottImpulseWave)).toEqual({ ok: true });
+    });
+
+    it("accepts an elliott-impulse-wave with a well-formed labels override", () => {
+        expect(
+            validateEmission({
+                ...validElliottImpulseWave,
+                state: {
+                    ...validElliottImpulseWave.state,
+                    labels: ["1", "2", "3", "4", "5"],
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects an elliott-impulse-wave with 4 anchors (5 expected)", () => {
+        expect(
+            validateEmission({
+                ...validElliottImpulseWave,
+                state: {
+                    ...validElliottImpulseWave.state,
+                    anchors: validElliottImpulseWave.state.anchors.slice(0, 4),
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("5-element") });
+    });
+
+    it("rejects an elliott-impulse-wave with a labels array of the wrong length", () => {
+        expect(
+            validateEmission({
+                ...validElliottImpulseWave,
+                state: { ...validElliottImpulseWave.state, labels: ["1", "2"] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("labels") });
+    });
+
+    it("rejects an elliott-impulse-wave with a non-string label element", () => {
+        expect(
+            validateEmission({
+                ...validElliottImpulseWave,
+                state: {
+                    ...validElliottImpulseWave.state,
+                    labels: ["1", "2", 3 as unknown as string, "4", "5"],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("labels[2]") });
+    });
+
+    it("rejects an elliott-impulse-wave with an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validElliottImpulseWave,
+                state: { ...validElliottImpulseWave.state, style: { lineWidth: -1 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+describe("validateEmission — drawing elliott-correction-wave kind", () => {
+    it("accepts a well-formed elliott-correction-wave", () => {
+        expect(validateEmission(validElliottCorrectionWave)).toEqual({ ok: true });
+    });
+
+    it("rejects an elliott-correction-wave with 2 anchors (3 expected)", () => {
+        expect(
+            validateEmission({
+                ...validElliottCorrectionWave,
+                state: {
+                    ...validElliottCorrectionWave.state,
+                    anchors: validElliottCorrectionWave.state.anchors.slice(0, 2),
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
+    });
+
+    it("rejects an elliott-correction-wave with a wrong-length labels override", () => {
+        expect(
+            validateEmission({
+                ...validElliottCorrectionWave,
+                state: { ...validElliottCorrectionWave.state, labels: ["A", "B"] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("3 strings") });
+    });
+
+    it("rejects an elliott-correction-wave with an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validElliottCorrectionWave,
+                state: {
+                    ...validElliottCorrectionWave.state,
+                    style: { lineStyle: "rainbow" },
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+});
+
+describe("validateEmission — drawing elliott-triangle-wave kind", () => {
+    it("accepts a well-formed elliott-triangle-wave", () => {
+        expect(validateEmission(validElliottTriangleWave)).toEqual({ ok: true });
+    });
+
+    it("rejects an elliott-triangle-wave with 4 anchors (5 expected)", () => {
+        expect(
+            validateEmission({
+                ...validElliottTriangleWave,
+                state: {
+                    ...validElliottTriangleWave.state,
+                    anchors: validElliottTriangleWave.state.anchors.slice(0, 4),
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("5-element") });
+    });
+
+    it("rejects an elliott-triangle-wave with non-array labels", () => {
+        expect(
+            validateEmission({
+                ...validElliottTriangleWave,
+                state: {
+                    ...validElliottTriangleWave.state,
+                    labels: "abcde" as unknown as ReadonlyArray<string>,
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("labels") });
+    });
+
+    it("rejects an elliott-triangle-wave with an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validElliottTriangleWave,
+                state: { ...validElliottTriangleWave.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+});
+
+describe("validateEmission — drawing elliott-double-combo kind", () => {
+    it("accepts a well-formed elliott-double-combo", () => {
+        expect(validateEmission(validElliottDoubleCombo)).toEqual({ ok: true });
+    });
+
+    it("rejects an elliott-double-combo with 6 anchors (7 expected)", () => {
+        expect(
+            validateEmission({
+                ...validElliottDoubleCombo,
+                state: {
+                    ...validElliottDoubleCombo.state,
+                    anchors: validElliottDoubleCombo.state.anchors.slice(0, 6),
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("7-element") });
+    });
+
+    it("rejects an elliott-double-combo with a wrong-length labels override", () => {
+        expect(
+            validateEmission({
+                ...validElliottDoubleCombo,
+                state: {
+                    ...validElliottDoubleCombo.state,
+                    labels: ["S", "W", "X", "Y"],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("7 strings") });
+    });
+
+    it("rejects an elliott-double-combo with an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validElliottDoubleCombo,
+                state: { ...validElliottDoubleCombo.state, style: { lineWidth: -2 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+describe("validateEmission — drawing elliott-triple-combo kind", () => {
+    it("accepts a well-formed elliott-triple-combo", () => {
+        expect(validateEmission(validElliottTripleCombo)).toEqual({ ok: true });
+    });
+
+    it("rejects an elliott-triple-combo with 8 anchors (7 expected)", () => {
+        const tooMany = [
+            ...validElliottTripleCombo.state.anchors,
+            { time: 7, price: 2.5 },
+        ];
+        expect(
+            validateEmission({
+                ...validElliottTripleCombo,
+                state: { ...validElliottTripleCombo.state, anchors: tooMany },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("7-element") });
+    });
+
+    it("rejects an elliott-triple-combo with a non-WorldPoint at index 3", () => {
+        const anchors = [...validElliottTripleCombo.state.anchors];
+        anchors[3] = { time: 3, price: "bad" } as unknown as { time: number; price: number };
+        expect(
+            validateEmission({
+                ...validElliottTripleCombo,
+                state: { ...validElliottTripleCombo.state, anchors },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects an elliott-triple-combo with a wrong-length labels override", () => {
+        expect(
+            validateEmission({
+                ...validElliottTripleCombo,
+                state: {
+                    ...validElliottTripleCombo.state,
+                    labels: ["S", "W", "X"],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("7 strings") });
+    });
+
+    it("rejects an elliott-triple-combo with an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validElliottTripleCombo,
+                state: { ...validElliottTripleCombo.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+});
+
+const validCyclicLines = {
+    ...validLineDrawing,
+    drawingKind: "cyclic-lines" as const,
+    state: {
+        kind: "cyclic-lines" as const,
+        anchors: [
+            { time: 0, price: 50 },
+            { time: 100, price: 50 },
+        ],
+        style: {},
+    },
+};
+
+const validTimeCycles = {
+    ...validLineDrawing,
+    drawingKind: "time-cycles" as const,
+    state: {
+        kind: "time-cycles" as const,
+        anchors: [
+            { time: 0, price: 50 },
+            { time: 100, price: 50 },
+        ],
+        style: {},
+    },
+};
+
+const validSineLine = {
+    ...validLineDrawing,
+    drawingKind: "sine-line" as const,
+    state: {
+        kind: "sine-line" as const,
+        anchors: [
+            { time: 0, price: 40 },
+            { time: 100, price: 60 },
+        ],
+        style: {},
+    },
+};
+
+describe("validateEmission — drawing cyclic-lines kind", () => {
+    it("accepts a well-formed cyclic-lines", () => {
+        expect(validateEmission(validCyclicLines)).toEqual({ ok: true });
+    });
+
+    it("rejects cyclic-lines with a single-element anchors tuple", () => {
+        expect(
+            validateEmission({
+                ...validCyclicLines,
+                state: {
+                    ...validCyclicLines.state,
+                    anchors: validCyclicLines.state.anchors.slice(0, 1),
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects cyclic-lines with a non-WorldPoint anchor", () => {
+        expect(
+            validateEmission({
+                ...validCyclicLines,
+                state: {
+                    ...validCyclicLines.state,
+                    anchors: [{ time: 0, price: 0 }, { time: "bad", price: 0 }],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
+    });
+
+    it("rejects cyclic-lines with an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validCyclicLines,
+                state: { ...validCyclicLines.state, style: { lineStyle: "rainbow" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+});
+
+describe("validateEmission — drawing time-cycles kind", () => {
+    it("accepts a well-formed time-cycles", () => {
+        expect(validateEmission(validTimeCycles)).toEqual({ ok: true });
+    });
+
+    it("rejects time-cycles with three anchors (2 expected)", () => {
+        expect(
+            validateEmission({
+                ...validTimeCycles,
+                state: {
+                    ...validTimeCycles.state,
+                    anchors: [
+                        ...validTimeCycles.state.anchors,
+                        { time: 200, price: 50 },
+                    ],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects time-cycles with a non-numeric color", () => {
+        expect(
+            validateEmission({
+                ...validTimeCycles,
+                state: { ...validTimeCycles.state, style: { color: 0xff0000 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+});
+
+describe("validateEmission — drawing sine-line kind", () => {
+    it("accepts a well-formed sine-line", () => {
+        expect(validateEmission(validSineLine)).toEqual({ ok: true });
+    });
+
+    it("rejects sine-line with a non-array anchors field", () => {
+        expect(
+            validateEmission({
+                ...validSineLine,
+                state: { ...validSineLine.state, anchors: "not-an-array" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects sine-line with a negative lineWidth", () => {
+        expect(
+            validateEmission({
+                ...validSineLine,
+                state: { ...validSineLine.state, style: { lineWidth: -1 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+const validGroup = {
+    ...validLineDrawing,
+    drawingKind: "group" as const,
+    state: {
+        kind: "group" as const,
+        childHandleIds: ["a.chart.ts:1:1#0#0", "a.chart.ts:1:1#1#0"],
+    },
+};
+
+const validFrame = {
+    ...validLineDrawing,
+    drawingKind: "frame" as const,
+    state: {
+        kind: "frame" as const,
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 100, price: 100 },
+        ],
+        childHandleIds: [],
+        style: { label: "Idea", bgColor: "#f1f5f9" },
+    },
+};
+
+describe("validateEmission — drawing group kind", () => {
+    it("accepts a well-formed group", () => {
+        expect(validateEmission(validGroup)).toEqual({ ok: true });
+    });
+
+    it("accepts an empty group", () => {
+        expect(
+            validateEmission({
+                ...validGroup,
+                state: { ...validGroup.state, childHandleIds: [] },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a group with a non-string entry in childHandleIds", () => {
+        expect(
+            validateEmission({
+                ...validGroup,
+                state: {
+                    ...validGroup.state,
+                    childHandleIds: ["ok", 42],
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("childHandleIds[1]") });
+    });
+
+    it("rejects a group with more than 100 childHandleIds", () => {
+        const tooMany: ReadonlyArray<string> = Array.from({ length: 101 }, (_, i) => `h#${i}`);
+        expect(
+            validateEmission({
+                ...validGroup,
+                state: { ...validGroup.state, childHandleIds: tooMany },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("at most 100") });
+    });
+
+    it("rejects a group with a non-array childHandleIds", () => {
+        expect(
+            validateEmission({
+                ...validGroup,
+                state: { ...validGroup.state, childHandleIds: "not-an-array" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("childHandleIds") });
+    });
+});
+
+describe("validateEmission — drawing frame kind", () => {
+    it("accepts a well-formed frame", () => {
+        expect(validateEmission(validFrame)).toEqual({ ok: true });
+    });
+
+    it("accepts a frame with empty opts", () => {
+        expect(
+            validateEmission({
+                ...validFrame,
+                state: { ...validFrame.state, style: {} },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a frame with a 1-element anchors tuple", () => {
+        expect(
+            validateEmission({
+                ...validFrame,
+                state: {
+                    ...validFrame.state,
+                    anchors: validFrame.state.anchors.slice(0, 1),
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });
+    });
+
+    it("rejects a frame with a non-string label", () => {
+        expect(
+            validateEmission({
+                ...validFrame,
+                state: { ...validFrame.state, style: { label: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("label") });
+    });
+
+    it("rejects a frame with a non-string bgColor", () => {
+        expect(
+            validateEmission({
+                ...validFrame,
+                state: { ...validFrame.state, style: { bgColor: 0x123456 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("bgColor") });
+    });
+
+    it("rejects a frame with a non-object style", () => {
+        expect(
+            validateEmission({
+                ...validFrame,
+                state: { ...validFrame.state, style: "not-an-object" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("plain object") });
+    });
+
+    it("rejects a frame with non-string childHandleIds entries", () => {
+        expect(
+            validateEmission({
+                ...validFrame,
+                state: { ...validFrame.state, childHandleIds: [42] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("childHandleIds") });
     });
 });
 

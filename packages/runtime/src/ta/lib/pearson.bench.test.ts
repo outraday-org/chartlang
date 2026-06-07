@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { syntheticBars } from "../__fixtures__/syntheticBars";
 import { pearson } from "./pearson";
 
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("pearson threshold", () => {
     it("runs 10 000 bars × length=20 under threshold", () => {

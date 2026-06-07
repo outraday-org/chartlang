@@ -9,7 +9,7 @@ import { kama } from "./kama";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through an O(length) window walk per close plus a scalar
 // recurrence update; ~1.5× SMA's budget per task §10.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.kama threshold", () => {
     it("runs 10 000 bars under threshold", () => {

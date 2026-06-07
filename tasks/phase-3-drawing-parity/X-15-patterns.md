@@ -1,6 +1,6 @@
 # Task 15 — Harmonic Patterns — `xabcdPattern` / `cypherPattern` / `headAndShoulders` / `abcdPattern` / `trianglePattern` / `threeDrivesPattern`
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

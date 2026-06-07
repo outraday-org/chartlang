@@ -5,6 +5,7 @@ import type { Bar } from "@invinite-org/chartlang-core";
 
 import { buildComputeContext } from "../buildComputeContext";
 import type { RunnerState } from "../createScriptRunner";
+import { resetSubIdCounters } from "../emit/draw";
 import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext";
 
 /**
@@ -68,6 +69,7 @@ export async function onBarClose(state: RunnerState, rawBar: Bar): Promise<void>
     ACTIVE_RUNTIME_CONTEXT.current = state.runtimeContext;
     state.runtimeContext.isTick = false;
     try {
+        resetSubIdCounters(state.runtimeContext);
         await Promise.resolve(state.compute(buildComputeContext(state)));
     } finally {
         ACTIVE_RUNTIME_CONTEXT.current = null;

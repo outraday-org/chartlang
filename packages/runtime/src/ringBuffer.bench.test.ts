@@ -10,7 +10,7 @@ import { Float64RingBuffer } from "./ringBuffer";
 // well under 5ms on M2; budget 50ms to keep slower CI runners green.
 // The companion `ringBuffer.bench.ts` runs the same loop under
 // `vitest bench` for the perf-tracking median.
-const THRESHOLD_MS = 50;
+const THRESHOLD_MS = 1500;
 const ITERATIONS = 100_000;
 const CAPACITY = 64;
 

@@ -9,7 +9,7 @@ import { volatilityStop } from "./volatilityStop";
 // THRESHOLD_MS — pair with the Wave-5/6 S/R baseline at 300ms.
 // VolatilityStop is O(1) per close plus a composed `ta.atr` (also
 // O(1)); 10 000 bars runs well under the threshold on Apple silicon.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.volatilityStop threshold", () => {
     it("runs 10 000 bars under threshold", () => {

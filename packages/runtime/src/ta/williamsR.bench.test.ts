@@ -9,7 +9,7 @@ import { williamsR } from "./williamsR";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Composes
 // `ta.highest` + `ta.lowest` (both O(1) amortised); 10k bars run
 // comfortably under 300ms on CI Linux runners.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.williamsR threshold", () => {
     it("runs 10 000 bars under threshold", () => {

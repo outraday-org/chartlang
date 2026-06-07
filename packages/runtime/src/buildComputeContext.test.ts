@@ -3,6 +3,7 @@
 
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
+import { DRAWING_KINDS, KIND_CAMELCASE } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import { buildComputeContext } from "./buildComputeContext";
@@ -69,6 +70,10 @@ function freshState(): RunnerState {
             emissions,
             barIndex: () => 0,
             isTick: false,
+            drawingSlots: new Map(),
+            drawingSubIdCounters: new Map(),
+            drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+            scriptMaxDrawings: null,
         },
         emissions,
         barIndex: 0,
@@ -77,7 +82,7 @@ function freshState(): RunnerState {
 }
 
 describe("buildComputeContext", () => {
-    it("returns an object with bar / inputs / ta / plot / hline / alert", () => {
+    it("returns an object with bar / inputs / ta / plot / hline / alert / draw", () => {
         const state = freshState();
         const ctx = buildComputeContext(state);
         expect(ctx).toHaveProperty("bar");
@@ -86,6 +91,7 @@ describe("buildComputeContext", () => {
         expect(ctx).toHaveProperty("plot");
         expect(ctx).toHaveProperty("hline");
         expect(ctx).toHaveProperty("alert");
+        expect(ctx).toHaveProperty("draw");
     });
 
     it("bar field shares identity with state.mainStream.bar", () => {
@@ -126,5 +132,25 @@ describe("buildComputeContext", () => {
         expect(() => ctx.plot(0)).toThrow("plot called outside an active script step");
         expect(() => ctx.hline(0)).toThrow("hline called outside an active script step");
         expect(() => ctx.alert("hi")).toThrow("alert called outside an active script step");
+    });
+
+    it("draw exposes a runtime impl for every DrawingKind (no core stubs after Task 18)", () => {
+        // Phase-3 cardinality gate: after Task 18 the runtime
+        // `DRAW_NAMESPACE` carries a real impl for every one of the 61
+        // `DrawingKind`s, so every flat method on `ctx.draw` throws the
+        // runtime sentinel (`"called outside an active script step"`)
+        // when called bare — none falls through to the core stub.
+        const state = freshState();
+        const ctx = buildComputeContext(state);
+        expect(DRAWING_KINDS.length).toBe(61);
+        for (const kind of DRAWING_KINDS) {
+            const camel = KIND_CAMELCASE.get(kind);
+            if (camel === undefined) throw new Error(`missing camel mapping for ${kind}`);
+            const method = (ctx.draw as unknown as Record<string, () => unknown>)[camel];
+            expect(typeof method).toBe("function");
+            expect(() => method()).toThrow(
+                new RegExp(`^draw\\.${camel} called outside an active script step$`),
+            );
+        }
     });
 });

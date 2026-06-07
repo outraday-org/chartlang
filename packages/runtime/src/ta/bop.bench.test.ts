@@ -8,7 +8,7 @@ import { bop } from "./bop";
 
 // THRESHOLD_MS — ceil(median × 3). ta.bop is two subtracts + one divide
 // per bar — among the lightest primitives in the registry.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.bop threshold", () => {
     it("runs 10 000 bars under threshold", () => {

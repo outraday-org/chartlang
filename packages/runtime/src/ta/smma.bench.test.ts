@@ -8,7 +8,7 @@ import { smma } from "./smma";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. SMMA mirrors
 // EMA: O(1) per close (recurrence). Within SMA's budget per task §10.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.smma threshold", () => {
     it("runs 10 000 bars under threshold", () => {

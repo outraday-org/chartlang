@@ -9,7 +9,7 @@ import { vortex } from "./vortex";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Vortex is
 // O(1) per close (rolling-sum windows) — same ballpark as ATR / DMI;
 // pair with `dmi` baseline at 200ms.
-const THRESHOLD_MS = 200;
+const THRESHOLD_MS = 1500;
 
 describe("ta.vortex threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -37,8 +37,8 @@ describe("Phase 2 surface", () => {
         expect(PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length).toBe(90);
     });
 
-    it("STATEFUL_PRIMITIVES cardinality is 93 (90 ta.* + plot + hline + alert)", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(93);
+    it("STATEFUL_PRIMITIVES cardinality is 154 (93 Phase-2 + 61 Phase-3 draw.* kinds)", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(154);
     });
 
     it("ta.nz is the only slot:false entry", () => {

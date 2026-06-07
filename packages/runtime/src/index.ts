@@ -8,11 +8,19 @@ export type { BarView, OhlcvBuffers, StreamState } from "./streamState";
 export { createStreamState } from "./streamState";
 export type { StateStore } from "./stateStore";
 export { inMemoryStateStore } from "./stateStore";
-export type { MutableRunnerEmissions, RuntimeContext } from "./runtimeContext";
+export type { DrawingSlot, MutableRunnerEmissions, RuntimeContext } from "./runtimeContext";
 export { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext";
 export { createScriptRunner } from "./createScriptRunner";
 export type { CreateScriptRunnerArgs, ScriptRunner } from "./createScriptRunner";
-export { alert, hline, plot } from "./emit";
+export { alert, draw, hline, plot, pushDrawing } from "./emit";
 export { TA_REGISTRY, ta } from "./ta";
 export { maRibbonOutputKeys } from "./ta";
 export type { RuntimeTaNamespace, ScalarOrSeries } from "./ta";
+// Public re-export added in Phase 3 Task 10 so consumer adapters that
+// render `draw.regressionTrend` can compute the OLS fit without
+// duplicating math. The Phase-2 helper signature stays
+// `(source: Float64Array, length: number): LinearRegressionFrame` —
+// pass `length === source.length` for a single-window fit over the
+// bar range; the line value at the last index is the end-of-range fit.
+export { linearRegression } from "./ta/lib/linearRegression";
+export type { LinearRegressionFrame } from "./ta/lib/linearRegression";

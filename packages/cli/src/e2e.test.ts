@@ -14,6 +14,7 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/ema-cross.chart.ts",
     "examples/scripts/bollinger-bands.chart.ts",
     "examples/scripts/rsi-divergence-alert.chart.ts",
+    "examples/scripts/fib-retracement.chart.ts",
 ] as const;
 
 describe("Phase-1 example scripts compile end-to-end", () => {

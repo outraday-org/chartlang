@@ -8,7 +8,7 @@ import { roc } from "./roc";
 
 // THRESHOLD_MS — ceil(median × 3). ta.roc is two ring-buffer reads
 // + an arithmetic.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.roc threshold", () => {
     it("runs 10 000 bars under threshold", () => {

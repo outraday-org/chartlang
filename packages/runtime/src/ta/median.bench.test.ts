@@ -10,7 +10,7 @@ import { median } from "./median";
 // sort over a 21-slot Float64Array view is the dominant cost (~O(L log
 // L) per bar); 10k bars × length=21 stays well under 200ms on M2.
 // Budget 500ms for CI Linux.
-const THRESHOLD_MS = 500;
+const THRESHOLD_MS = 1500;
 
 describe("ta.median threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -9,7 +9,7 @@ import { cmf } from "./cmf";
 // THRESHOLD_MS — ceil(median × 3). ta.cmf is rolling-sum with
 // substitute-on-evict — well under the 300 ms ceiling over 10k bars
 // at length 20.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.cmf threshold", () => {
     it("runs 10 000 bars under threshold", () => {

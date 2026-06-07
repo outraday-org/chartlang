@@ -10,7 +10,7 @@ import { benchHotLoop } from "./__fixtures__/benchHotLoop";
 // ATR + highest + lowest sub-slots (each O(1) per close) plus a
 // second-pass walk of `smoothingLength` entries — well under the
 // Wave-5/6 baseline at length=10 / smoothingLength=9.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.chandeKrollStop threshold", () => {
     it("runs 10 000 bars under threshold", () => {

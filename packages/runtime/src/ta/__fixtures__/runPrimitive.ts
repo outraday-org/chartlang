@@ -54,6 +54,10 @@ export function harness<T>(
         emissions,
         barIndex: () => barIdx,
         isTick: false,
+        drawingSlots: new Map(),
+        drawingSubIdCounters: new Map(),
+        drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+        scriptMaxDrawings: null,
     };
     const out: T[] = [];
     ACTIVE_RUNTIME_CONTEXT.current = ctx;
@@ -157,6 +161,10 @@ export function harnessWithCtx<T>(
         emissions,
         barIndex: () => barIdx,
         isTick: false,
+        drawingSlots: new Map(),
+        drawingSubIdCounters: new Map(),
+        drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+        scriptMaxDrawings: null,
     };
     const out: T[] = [];
     ACTIVE_RUNTIME_CONTEXT.current = ctx;

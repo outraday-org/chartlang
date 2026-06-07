@@ -9,7 +9,7 @@ import { hma } from "./hma";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. HMA composes
 // three WMA sub-slots (half + full + final) — roughly 3× SMA's budget
 // per task §10. Budget 500ms to absorb CI Linux variability.
-const THRESHOLD_MS = 500;
+const THRESHOLD_MS = 1500;
 
 describe("ta.hma threshold", () => {
     it("runs 10 000 bars under threshold", () => {

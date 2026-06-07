@@ -23,3 +23,21 @@ export type { LabelArgs, LabelPosition } from "./label";
 export { drawMarker } from "./marker";
 export type { MarkerArgs, MarkerShape } from "./marker";
 export { dashPattern } from "./lineDash";
+export {
+    FIB_LEVELS,
+    cubicBezier,
+    drawingDispatch,
+    extendLineSegment,
+    formatLevel,
+    quadraticBezier,
+    renderCrossLine,
+    renderHorizontalLine,
+    renderHorizontalRay,
+    renderLine,
+    renderTrendAngle,
+    renderVerticalLine,
+    sampleCubic,
+    sampleQuadratic,
+    worldPointToCanvas,
+} from "./draw";
+export type { Point2 } from "./draw";

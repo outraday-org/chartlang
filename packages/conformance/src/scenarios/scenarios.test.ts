@@ -9,6 +9,85 @@ import { runConformanceSuite } from "../runConformanceSuite";
 import {
     ALL_SCENARIOS,
     BOLLINGER_BANDS_SCENARIO,
+    DEFINE_DRAWING_BASIC_SCENARIO,
+    DRAW_ARC_SCENARIO,
+    DRAW_ANNOTATIONS_ALL_SCENARIO,
+    DRAW_ARROW_SCENARIO,
+    DRAW_ARROW_MARK_DOWN_SCENARIO,
+    DRAW_ARROW_MARK_UP_SCENARIO,
+    DRAW_ARROW_MARKER_SCENARIO,
+    DRAW_BOXES_ALL_SCENARIO,
+    DRAW_BRUSH_SCENARIO,
+    DRAW_CHANNELS_ALL_SCENARIO,
+    DRAW_CIRCLE_SCENARIO,
+    DRAW_CROSS_LINE_SCENARIO,
+    DRAW_CURVE_SCENARIO,
+    DRAW_CURVES_AND_FREEHAND_ALL_SCENARIO,
+    DRAW_DISJOINT_CHANNEL_SCENARIO,
+    DRAW_DOUBLE_CURVE_SCENARIO,
+    DRAW_ELLIPSE_SCENARIO,
+    DRAW_FIB_ALL_SCENARIO,
+    DRAW_FIB_CHANNEL_SCENARIO,
+    DRAW_FIB_CIRCLES_SCENARIO,
+    DRAW_FIB_RETRACEMENT_SCENARIO,
+    DRAW_FIB_SPEED_ARCS_SCENARIO,
+    DRAW_FIB_SPEED_FAN_SCENARIO,
+    DRAW_FIB_SPIRAL_SCENARIO,
+    DRAW_FIB_TIME_ZONE_SCENARIO,
+    DRAW_FIB_TREND_EXTENSION_SCENARIO,
+    DRAW_FIB_TREND_TIME_SCENARIO,
+    DRAW_FIB_WEDGE_SCENARIO,
+    DRAW_FLAT_TOP_BOTTOM_SCENARIO,
+    DRAW_GANN_ALL_SCENARIO,
+    DRAW_GANN_BOX_SCENARIO,
+    DRAW_GANN_FAN_SCENARIO,
+    DRAW_GANN_SQUARE_SCENARIO,
+    DRAW_GANN_SQUARE_FIXED_SCENARIO,
+    DRAW_HIGHLIGHTER_SCENARIO,
+    DRAW_HORIZONTAL_LINE_SCENARIO,
+    DRAW_HORIZONTAL_RAY_SCENARIO,
+    DRAW_LINE_SCENARIO,
+    DRAW_LINES_AND_RAYS_SCENARIO,
+    DRAW_MARKER_SCENARIO,
+    DRAW_PATH_SCENARIO,
+    DRAW_PEN_SCENARIO,
+    DRAW_PITCHFAN_SCENARIO,
+    DRAW_PITCHFORK_SCENARIO,
+    DRAW_PITCHFORKS_ALL_SCENARIO,
+    DRAW_ABCD_PATTERN_SCENARIO,
+    DRAW_ALL_61_SCENARIO,
+    DRAW_BUDGET_OVERFLOW_SCENARIO,
+    DRAW_UNSUPPORTED_KIND_SCENARIO,
+    DRAW_CYPHER_PATTERN_SCENARIO,
+    DRAW_HEAD_AND_SHOULDERS_SCENARIO,
+    DRAW_PATTERNS_ALL_SCENARIO,
+    DRAW_THREE_DRIVES_PATTERN_SCENARIO,
+    DRAW_TRIANGLE_PATTERN_SCENARIO,
+    DRAW_XABCD_PATTERN_SCENARIO,
+    DRAW_ELLIOTT_ALL_SCENARIO,
+    DRAW_ELLIOTT_CORRECTION_WAVE_SCENARIO,
+    DRAW_ELLIOTT_DOUBLE_COMBO_SCENARIO,
+    DRAW_ELLIOTT_IMPULSE_WAVE_SCENARIO,
+    DRAW_ELLIOTT_TRIANGLE_WAVE_SCENARIO,
+    DRAW_ELLIOTT_TRIPLE_COMBO_SCENARIO,
+    DRAW_CYCLES_ALL_SCENARIO,
+    DRAW_CYCLIC_LINES_SCENARIO,
+    DRAW_SINE_LINE_SCENARIO,
+    DRAW_TIME_CYCLES_SCENARIO,
+    DRAW_CONTAINERS_ALL_SCENARIO,
+    DRAW_FRAME_SCENARIO,
+    DRAW_GROUP_SCENARIO,
+    DRAW_HANDLE_REMOVE_SCENARIO,
+    DRAW_INTERACTIVE_UPDATE_SCENARIO,
+    DRAW_POLYLINE_SCENARIO,
+    DRAW_RECTANGLE_SCENARIO,
+    DRAW_REGRESSION_TREND_SCENARIO,
+    DRAW_ROTATED_RECTANGLE_SCENARIO,
+    DRAW_TEXT_SCENARIO,
+    DRAW_TREND_ANGLE_SCENARIO,
+    DRAW_TREND_CHANNEL_SCENARIO,
+    DRAW_TRIANGLE_SCENARIO,
+    DRAW_VERTICAL_LINE_SCENARIO,
     EMA_CROSS_SCENARIO,
     PHASE_1_SCENARIOS,
     PLOT_KIND_COVERAGE_SCENARIO,
@@ -98,7 +177,29 @@ import {
 
 const TEST_CAPABILITIES: Capabilities = {
     plots: capBuilders.union(capBuilders.line(), capBuilders.horizontalLine()),
-    drawings: new Set(),
+    // Phase-3 Tasks 5–15 widen the conformance-suite-side cap surface
+    // so the new line + box + curve + freehand + annotation + channel +
+    // fib + gann + pitchfork + pattern scenarios reach `pushDrawing`'s
+    // happy path. The `marker` and the 5 annotation kinds live in the
+    // `labels` bucket; curve + freehand + channel + pitchfork +
+    // harmonic-pattern kinds map to `polylines`; all 10 fib + 4 gann
+    // kinds map to `other`. Tasks 16–18 grow this further as their
+    // kinds ship.
+    drawings: new Set([
+        ...capBuilders.allLineDrawings(),
+        ...capBuilders.allBoxDrawings(),
+        ...capBuilders.allCurveDrawings(),
+        ...capBuilders.allFreehandDrawings(),
+        ...capBuilders.allAnnotationDrawings(),
+        ...capBuilders.allChannelDrawings(),
+        ...capBuilders.allFibDrawings(),
+        ...capBuilders.allGannDrawings(),
+        ...capBuilders.allPitchforkDrawings(),
+        ...capBuilders.allPatternDrawings(),
+        ...capBuilders.allElliottDrawings(),
+        ...capBuilders.allCycleDrawings(),
+        ...capBuilders.allContainerDrawings(),
+    ]),
     alerts: capBuilders.alerts("log", "toast"),
     alertConditions: false,
     logs: false,
@@ -107,7 +208,7 @@ const TEST_CAPABILITIES: Capabilities = {
     multiTimeframe: false,
     subPanes: 0,
     symInfoFields: new Set(),
-    maxDrawingsPerScript: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+    maxDrawingsPerScript: { lines: 100, labels: 100, boxes: 100, polylines: 100, other: 100 },
     maxLookback: 1000,
     maxTickHz: 30,
 };
@@ -305,6 +406,107 @@ describe("Phase-1+Phase-2 scenario constants", () => {
             TA_VORTEX_SCENARIO,
             TA_TREND_STRENGTH_INDEX_SCENARIO,
             TA_ICHIMOKU_SCENARIO,
+            // Phase 3 Task 5 — Lines/Rays.
+            DRAW_LINE_SCENARIO,
+            DRAW_HORIZONTAL_LINE_SCENARIO,
+            DRAW_HORIZONTAL_RAY_SCENARIO,
+            DRAW_VERTICAL_LINE_SCENARIO,
+            DRAW_CROSS_LINE_SCENARIO,
+            DRAW_TREND_ANGLE_SCENARIO,
+            DRAW_LINES_AND_RAYS_SCENARIO,
+            // Phase 3 Task 6 — Boxes A.
+            DRAW_RECTANGLE_SCENARIO,
+            DRAW_ROTATED_RECTANGLE_SCENARIO,
+            DRAW_TRIANGLE_SCENARIO,
+            DRAW_POLYLINE_SCENARIO,
+            // Phase 3 Task 7 — Boxes B.
+            DRAW_CIRCLE_SCENARIO,
+            DRAW_ELLIPSE_SCENARIO,
+            DRAW_PATH_SCENARIO,
+            DRAW_MARKER_SCENARIO,
+            // Phase 3 Task 7 — combined box bundle.
+            DRAW_BOXES_ALL_SCENARIO,
+            // Phase 3 Task 8 — Curves + Freehand.
+            DRAW_ARC_SCENARIO,
+            DRAW_CURVE_SCENARIO,
+            DRAW_DOUBLE_CURVE_SCENARIO,
+            DRAW_PEN_SCENARIO,
+            DRAW_HIGHLIGHTER_SCENARIO,
+            DRAW_BRUSH_SCENARIO,
+            DRAW_CURVES_AND_FREEHAND_ALL_SCENARIO,
+            // Phase 3 Task 9 — Annotations.
+            DRAW_TEXT_SCENARIO,
+            DRAW_ARROW_SCENARIO,
+            DRAW_ARROW_MARKER_SCENARIO,
+            DRAW_ARROW_MARK_UP_SCENARIO,
+            DRAW_ARROW_MARK_DOWN_SCENARIO,
+            DRAW_ANNOTATIONS_ALL_SCENARIO,
+            // Phase 3 Task 10 — Channels.
+            DRAW_TREND_CHANNEL_SCENARIO,
+            DRAW_FLAT_TOP_BOTTOM_SCENARIO,
+            DRAW_DISJOINT_CHANNEL_SCENARIO,
+            DRAW_REGRESSION_TREND_SCENARIO,
+            DRAW_CHANNELS_ALL_SCENARIO,
+            // Phase 3 Task 11 — Fibonacci A.
+            DRAW_FIB_RETRACEMENT_SCENARIO,
+            DRAW_FIB_TREND_EXTENSION_SCENARIO,
+            DRAW_FIB_CHANNEL_SCENARIO,
+            DRAW_FIB_TIME_ZONE_SCENARIO,
+            DRAW_FIB_WEDGE_SCENARIO,
+            // Phase 3 Task 12 — Fibonacci B.
+            DRAW_FIB_SPEED_FAN_SCENARIO,
+            DRAW_FIB_SPEED_ARCS_SCENARIO,
+            DRAW_FIB_SPIRAL_SCENARIO,
+            DRAW_FIB_CIRCLES_SCENARIO,
+            DRAW_FIB_TREND_TIME_SCENARIO,
+            DRAW_FIB_ALL_SCENARIO,
+            // Phase 3 Task 13 — Gann.
+            DRAW_GANN_BOX_SCENARIO,
+            DRAW_GANN_SQUARE_FIXED_SCENARIO,
+            DRAW_GANN_SQUARE_SCENARIO,
+            DRAW_GANN_FAN_SCENARIO,
+            DRAW_GANN_ALL_SCENARIO,
+            // Phase 3 Task 14 — Pitchforks.
+            DRAW_PITCHFORK_SCENARIO,
+            DRAW_PITCHFAN_SCENARIO,
+            DRAW_PITCHFORKS_ALL_SCENARIO,
+            // Phase 3 Task 15 — Harmonic Patterns.
+            DRAW_XABCD_PATTERN_SCENARIO,
+            DRAW_CYPHER_PATTERN_SCENARIO,
+            DRAW_HEAD_AND_SHOULDERS_SCENARIO,
+            DRAW_ABCD_PATTERN_SCENARIO,
+            DRAW_TRIANGLE_PATTERN_SCENARIO,
+            DRAW_THREE_DRIVES_PATTERN_SCENARIO,
+            DRAW_PATTERNS_ALL_SCENARIO,
+            // Phase 3 Task 16 — Elliott Waves.
+            DRAW_ELLIOTT_IMPULSE_WAVE_SCENARIO,
+            DRAW_ELLIOTT_CORRECTION_WAVE_SCENARIO,
+            DRAW_ELLIOTT_TRIANGLE_WAVE_SCENARIO,
+            DRAW_ELLIOTT_DOUBLE_COMBO_SCENARIO,
+            DRAW_ELLIOTT_TRIPLE_COMBO_SCENARIO,
+            DRAW_ELLIOTT_ALL_SCENARIO,
+            // Phase 3 Task 17 — Cycles.
+            DRAW_CYCLIC_LINES_SCENARIO,
+            DRAW_TIME_CYCLES_SCENARIO,
+            DRAW_SINE_LINE_SCENARIO,
+            DRAW_CYCLES_ALL_SCENARIO,
+            // Phase 3 Task 18 — Containers.
+            DRAW_GROUP_SCENARIO,
+            DRAW_FRAME_SCENARIO,
+            DRAW_CONTAINERS_ALL_SCENARIO,
+            // Phase 3 Task 19 — Smoke + budget overflow. The
+            // `unsupported-drawing-kind` companion (DRAW_UNSUPPORTED_KIND_SCENARIO)
+            // and `DRAW_BUDGET_OVERFLOW_SCENARIO` ship as opt-in exports
+            // only — the canvas2d reference adapter advertises every
+            // kind and sizes its `lines` bucket at 200, so neither
+            // diagnostic can fire through `ALL_SCENARIOS`. The budget
+            // scenario is still exercised directly by the per-scenario
+            // assertion below using a 100-cap adapter.
+            DRAW_ALL_61_SCENARIO,
+            // Phase 3 Task 20 — `defineDrawing` constructor scenarios.
+            DEFINE_DRAWING_BASIC_SCENARIO,
+            DRAW_INTERACTIVE_UPDATE_SCENARIO,
+            DRAW_HANDLE_REMOVE_SCENARIO,
         ]);
         expect(Object.isFrozen(PHASE_1_SCENARIOS)).toBe(true);
     });
@@ -372,6 +574,7 @@ describe("Phase-1+Phase-2 scenario constants", () => {
             "alert-message-contains",
             "diagnostic-code-absent",
             "diagnostic-code-present",
+            "drawing-hash",
         ]);
         for (const scenario of PHASE_1_SCENARIOS) {
             for (const assertion of scenario.assertions) {
@@ -379,4 +582,53 @@ describe("Phase-1+Phase-2 scenario constants", () => {
             }
         }
     });
+
+    // Phase 3 Task 19 — `DRAW_UNSUPPORTED_KIND_SCENARIO` is exported
+    // but excluded from `ALL_SCENARIOS` because `TEST_CAPABILITIES`
+    // advertises every Phase-3 kind and the diagnostic cannot fire.
+    // This row pins the scenario against a narrow synthetic adapter
+    // whose `capabilities.drawings = new Set(["line"])` so the
+    // `unsupported-drawing-kind` path is exercised end-to-end.
+    it("DRAW_UNSUPPORTED_KIND_SCENARIO fires unsupported-drawing-kind against a {line}-only adapter", async () => {
+        const narrow: Adapter = {
+            id: "narrow",
+            name: "narrow-line-only",
+            capabilities: {
+                ...TEST_CAPABILITIES,
+                drawings: new Set(["line"] as const),
+            },
+            candles(): AsyncIterable<CandleEvent> {
+                return {
+                    async *[Symbol.asyncIterator](): AsyncIterator<CandleEvent> {
+                        /* empty */
+                    },
+                };
+            },
+            onEmissions(): void {
+                /* no-op */
+            },
+            dispose(): void {
+                /* no-op */
+            },
+        };
+        const report = await runConformanceSuite(narrow, {
+            scenarios: [DRAW_UNSUPPORTED_KIND_SCENARIO],
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(1);
+    }, 60_000);
+
+    // Phase 3 Task 19 / Task 22 closeout — `DRAW_BUDGET_OVERFLOW_SCENARIO`
+    // is exported but excluded from `ALL_SCENARIOS` because the bundled
+    // canvas2d adapter sizes `lines: 200`, and the scenario emits 150
+    // lines against a 100-cap design. This row exercises it directly
+    // against `TEST_CAPABILITIES` (lines: 100) so the
+    // `drawing-budget-exceeded` path stays covered end-to-end.
+    it("DRAW_BUDGET_OVERFLOW_SCENARIO fires drawing-budget-exceeded against a 100-cap adapter", async () => {
+        const report = await runConformanceSuite(makeTestAdapter(), {
+            scenarios: [DRAW_BUDGET_OVERFLOW_SCENARIO],
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(1);
+    }, 60_000);
 });

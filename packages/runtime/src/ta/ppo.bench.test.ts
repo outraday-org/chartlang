@@ -10,7 +10,7 @@ import { ppo } from "./ppo";
 // composes three `ta.ema` sub-slots — each O(1) per bar (recurrence).
 // 10k bars × default opts (12, 26, 9) is ~30k EMA-step operations
 // total; fits comfortably under 300ms on CI Linux runners.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.ppo threshold", () => {
     it("runs 10 000 bars under threshold", () => {

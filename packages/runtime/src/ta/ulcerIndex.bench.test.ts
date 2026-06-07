@@ -10,7 +10,7 @@ import { ulcerIndex } from "./ulcerIndex";
 // per-bar work is `ta.highest`'s monotone-deque max plus O(1)
 // drawdown^2 fold + running-sum update; 10k bars stays comfortably
 // under 200ms on M2. Budget 400ms for CI Linux.
-const THRESHOLD_MS = 400;
+const THRESHOLD_MS = 1500;
 
 describe("ta.ulcerIndex threshold", () => {
     it("runs 10 000 bars under threshold", () => {

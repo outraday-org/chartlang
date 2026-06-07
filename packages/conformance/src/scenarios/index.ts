@@ -4,6 +4,83 @@
 import type { Scenario } from "../runConformanceSuite";
 
 import { BOLLINGER_BANDS_SCENARIO } from "./bollingerBands.scenario";
+import { DEFINE_DRAWING_BASIC_SCENARIO } from "./defineDrawingBasic.scenario";
+import { DRAW_ANNOTATIONS_ALL_SCENARIO } from "./drawAnnotationsAll.scenario";
+import { DRAW_ARC_SCENARIO } from "./drawArc.scenario";
+import { DRAW_ARROW_SCENARIO } from "./drawArrow.scenario";
+import { DRAW_ARROW_MARK_DOWN_SCENARIO } from "./drawArrowMarkDown.scenario";
+import { DRAW_ARROW_MARK_UP_SCENARIO } from "./drawArrowMarkUp.scenario";
+import { DRAW_ARROW_MARKER_SCENARIO } from "./drawArrowMarker.scenario";
+import { DRAW_BOXES_ALL_SCENARIO } from "./drawBoxesAll.scenario";
+import { DRAW_BRUSH_SCENARIO } from "./drawBrush.scenario";
+import { DRAW_CHANNELS_ALL_SCENARIO } from "./drawChannelsAll.scenario";
+import { DRAW_CIRCLE_SCENARIO } from "./drawCircle.scenario";
+import { DRAW_CROSS_LINE_SCENARIO } from "./drawCrossLine.scenario";
+import { DRAW_CURVE_SCENARIO } from "./drawCurve.scenario";
+import { DRAW_CURVES_AND_FREEHAND_ALL_SCENARIO } from "./drawCurvesAndFreehandAll.scenario";
+import { DRAW_DISJOINT_CHANNEL_SCENARIO } from "./drawDisjointChannel.scenario";
+import { DRAW_DOUBLE_CURVE_SCENARIO } from "./drawDoubleCurve.scenario";
+import { DRAW_ELLIPSE_SCENARIO } from "./drawEllipse.scenario";
+import { DRAW_FIB_ALL_SCENARIO } from "./drawFibAll.scenario";
+import { DRAW_FIB_CHANNEL_SCENARIO } from "./drawFibChannel.scenario";
+import { DRAW_FIB_CIRCLES_SCENARIO } from "./drawFibCircles.scenario";
+import { DRAW_FIB_RETRACEMENT_SCENARIO } from "./drawFibRetracement.scenario";
+import { DRAW_FIB_SPEED_ARCS_SCENARIO } from "./drawFibSpeedArcs.scenario";
+import { DRAW_FIB_SPEED_FAN_SCENARIO } from "./drawFibSpeedFan.scenario";
+import { DRAW_FIB_SPIRAL_SCENARIO } from "./drawFibSpiral.scenario";
+import { DRAW_FIB_TIME_ZONE_SCENARIO } from "./drawFibTimeZone.scenario";
+import { DRAW_FIB_TREND_EXTENSION_SCENARIO } from "./drawFibTrendExtension.scenario";
+import { DRAW_FIB_TREND_TIME_SCENARIO } from "./drawFibTrendTime.scenario";
+import { DRAW_FIB_WEDGE_SCENARIO } from "./drawFibWedge.scenario";
+import { DRAW_GANN_ALL_SCENARIO } from "./drawGannAll.scenario";
+import { DRAW_GANN_BOX_SCENARIO } from "./drawGannBox.scenario";
+import { DRAW_GANN_FAN_SCENARIO } from "./drawGannFan.scenario";
+import { DRAW_GANN_SQUARE_SCENARIO } from "./drawGannSquare.scenario";
+import { DRAW_GANN_SQUARE_FIXED_SCENARIO } from "./drawGannSquareFixed.scenario";
+import { DRAW_FLAT_TOP_BOTTOM_SCENARIO } from "./drawFlatTopBottom.scenario";
+import { DRAW_HIGHLIGHTER_SCENARIO } from "./drawHighlighter.scenario";
+import { DRAW_HORIZONTAL_LINE_SCENARIO } from "./drawHorizontalLine.scenario";
+import { DRAW_HORIZONTAL_RAY_SCENARIO } from "./drawHorizontalRay.scenario";
+import { DRAW_LINE_SCENARIO } from "./drawLine.scenario";
+import { DRAW_LINES_AND_RAYS_SCENARIO } from "./drawLinesAndRays.scenario";
+import { DRAW_MARKER_SCENARIO } from "./drawMarker.scenario";
+import { DRAW_PATH_SCENARIO } from "./drawPath.scenario";
+import { DRAW_PEN_SCENARIO } from "./drawPen.scenario";
+import { DRAW_PITCHFAN_SCENARIO } from "./drawPitchfan.scenario";
+import { DRAW_PITCHFORK_SCENARIO } from "./drawPitchfork.scenario";
+import { DRAW_PITCHFORKS_ALL_SCENARIO } from "./drawPitchforksAll.scenario";
+import { DRAW_ABCD_PATTERN_SCENARIO } from "./drawAbcdPattern.scenario";
+import { DRAW_ALL_61_SCENARIO } from "./drawAll61.scenario";
+import { DRAW_CYPHER_PATTERN_SCENARIO } from "./drawCypherPattern.scenario";
+import { DRAW_HEAD_AND_SHOULDERS_SCENARIO } from "./drawHeadAndShoulders.scenario";
+import { DRAW_PATTERNS_ALL_SCENARIO } from "./drawPatternsAll.scenario";
+import { DRAW_THREE_DRIVES_PATTERN_SCENARIO } from "./drawThreeDrivesPattern.scenario";
+import { DRAW_TRIANGLE_PATTERN_SCENARIO } from "./drawTrianglePattern.scenario";
+import { DRAW_XABCD_PATTERN_SCENARIO } from "./drawXabcdPattern.scenario";
+import { DRAW_ELLIOTT_ALL_SCENARIO } from "./drawElliottAll.scenario";
+import { DRAW_ELLIOTT_CORRECTION_WAVE_SCENARIO } from "./drawElliottCorrectionWave.scenario";
+import { DRAW_ELLIOTT_DOUBLE_COMBO_SCENARIO } from "./drawElliottDoubleCombo.scenario";
+import { DRAW_ELLIOTT_IMPULSE_WAVE_SCENARIO } from "./drawElliottImpulseWave.scenario";
+import { DRAW_ELLIOTT_TRIANGLE_WAVE_SCENARIO } from "./drawElliottTriangleWave.scenario";
+import { DRAW_ELLIOTT_TRIPLE_COMBO_SCENARIO } from "./drawElliottTripleCombo.scenario";
+import { DRAW_CYCLES_ALL_SCENARIO } from "./drawCyclesAll.scenario";
+import { DRAW_CYCLIC_LINES_SCENARIO } from "./drawCyclicLines.scenario";
+import { DRAW_SINE_LINE_SCENARIO } from "./drawSineLine.scenario";
+import { DRAW_TIME_CYCLES_SCENARIO } from "./drawTimeCycles.scenario";
+import { DRAW_CONTAINERS_ALL_SCENARIO } from "./drawContainersAll.scenario";
+import { DRAW_FRAME_SCENARIO } from "./drawFrame.scenario";
+import { DRAW_GROUP_SCENARIO } from "./drawGroup.scenario";
+import { DRAW_HANDLE_REMOVE_SCENARIO } from "./drawHandleRemove.scenario";
+import { DRAW_INTERACTIVE_UPDATE_SCENARIO } from "./drawInteractiveUpdate.scenario";
+import { DRAW_POLYLINE_SCENARIO } from "./drawPolyline.scenario";
+import { DRAW_RECTANGLE_SCENARIO } from "./drawRectangle.scenario";
+import { DRAW_REGRESSION_TREND_SCENARIO } from "./drawRegressionTrend.scenario";
+import { DRAW_ROTATED_RECTANGLE_SCENARIO } from "./drawRotatedRectangle.scenario";
+import { DRAW_TREND_ANGLE_SCENARIO } from "./drawTrendAngle.scenario";
+import { DRAW_TEXT_SCENARIO } from "./drawText.scenario";
+import { DRAW_TREND_CHANNEL_SCENARIO } from "./drawTrendChannel.scenario";
+import { DRAW_TRIANGLE_SCENARIO } from "./drawTriangle.scenario";
+import { DRAW_VERTICAL_LINE_SCENARIO } from "./drawVerticalLine.scenario";
 import { EMA_CROSS_SCENARIO } from "./emaCross.scenario";
 import { PLOT_KIND_COVERAGE_SCENARIO } from "./plotKindCoverage.scenario";
 import { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario";
@@ -90,6 +167,85 @@ import { TA_WMA_SCENARIO } from "./taWma.scenario";
 import { TA_ZIG_ZAG_SCENARIO } from "./taZigZag.scenario";
 
 export { BOLLINGER_BANDS_SCENARIO } from "./bollingerBands.scenario";
+export { DEFINE_DRAWING_BASIC_SCENARIO } from "./defineDrawingBasic.scenario";
+export { DRAW_ANNOTATIONS_ALL_SCENARIO } from "./drawAnnotationsAll.scenario";
+export { DRAW_ARC_SCENARIO } from "./drawArc.scenario";
+export { DRAW_ARROW_SCENARIO } from "./drawArrow.scenario";
+export { DRAW_ARROW_MARK_DOWN_SCENARIO } from "./drawArrowMarkDown.scenario";
+export { DRAW_ARROW_MARK_UP_SCENARIO } from "./drawArrowMarkUp.scenario";
+export { DRAW_ARROW_MARKER_SCENARIO } from "./drawArrowMarker.scenario";
+export { DRAW_BOXES_ALL_SCENARIO } from "./drawBoxesAll.scenario";
+export { DRAW_BRUSH_SCENARIO } from "./drawBrush.scenario";
+export { DRAW_CHANNELS_ALL_SCENARIO } from "./drawChannelsAll.scenario";
+export { DRAW_CIRCLE_SCENARIO } from "./drawCircle.scenario";
+export { DRAW_CROSS_LINE_SCENARIO } from "./drawCrossLine.scenario";
+export { DRAW_CURVE_SCENARIO } from "./drawCurve.scenario";
+export { DRAW_CURVES_AND_FREEHAND_ALL_SCENARIO } from "./drawCurvesAndFreehandAll.scenario";
+export { DRAW_DISJOINT_CHANNEL_SCENARIO } from "./drawDisjointChannel.scenario";
+export { DRAW_DOUBLE_CURVE_SCENARIO } from "./drawDoubleCurve.scenario";
+export { DRAW_ELLIPSE_SCENARIO } from "./drawEllipse.scenario";
+export { DRAW_FIB_ALL_SCENARIO } from "./drawFibAll.scenario";
+export { DRAW_FIB_CHANNEL_SCENARIO } from "./drawFibChannel.scenario";
+export { DRAW_FIB_CIRCLES_SCENARIO } from "./drawFibCircles.scenario";
+export { DRAW_FIB_RETRACEMENT_SCENARIO } from "./drawFibRetracement.scenario";
+export { DRAW_FIB_SPEED_ARCS_SCENARIO } from "./drawFibSpeedArcs.scenario";
+export { DRAW_FIB_SPEED_FAN_SCENARIO } from "./drawFibSpeedFan.scenario";
+export { DRAW_FIB_SPIRAL_SCENARIO } from "./drawFibSpiral.scenario";
+export { DRAW_FIB_TIME_ZONE_SCENARIO } from "./drawFibTimeZone.scenario";
+export { DRAW_FIB_TREND_EXTENSION_SCENARIO } from "./drawFibTrendExtension.scenario";
+export { DRAW_FIB_TREND_TIME_SCENARIO } from "./drawFibTrendTime.scenario";
+export { DRAW_FIB_WEDGE_SCENARIO } from "./drawFibWedge.scenario";
+export { DRAW_GANN_ALL_SCENARIO } from "./drawGannAll.scenario";
+export { DRAW_GANN_BOX_SCENARIO } from "./drawGannBox.scenario";
+export { DRAW_GANN_FAN_SCENARIO } from "./drawGannFan.scenario";
+export { DRAW_GANN_SQUARE_SCENARIO } from "./drawGannSquare.scenario";
+export { DRAW_GANN_SQUARE_FIXED_SCENARIO } from "./drawGannSquareFixed.scenario";
+export { DRAW_FLAT_TOP_BOTTOM_SCENARIO } from "./drawFlatTopBottom.scenario";
+export { DRAW_HIGHLIGHTER_SCENARIO } from "./drawHighlighter.scenario";
+export { DRAW_HORIZONTAL_LINE_SCENARIO } from "./drawHorizontalLine.scenario";
+export { DRAW_HORIZONTAL_RAY_SCENARIO } from "./drawHorizontalRay.scenario";
+export { DRAW_LINE_SCENARIO } from "./drawLine.scenario";
+export { DRAW_LINES_AND_RAYS_SCENARIO } from "./drawLinesAndRays.scenario";
+export { DRAW_MARKER_SCENARIO } from "./drawMarker.scenario";
+export { DRAW_PATH_SCENARIO } from "./drawPath.scenario";
+export { DRAW_PEN_SCENARIO } from "./drawPen.scenario";
+export { DRAW_PITCHFAN_SCENARIO } from "./drawPitchfan.scenario";
+export { DRAW_PITCHFORK_SCENARIO } from "./drawPitchfork.scenario";
+export { DRAW_PITCHFORKS_ALL_SCENARIO } from "./drawPitchforksAll.scenario";
+export { DRAW_ABCD_PATTERN_SCENARIO } from "./drawAbcdPattern.scenario";
+export { DRAW_ALL_61_SCENARIO } from "./drawAll61.scenario";
+export { DRAW_BUDGET_OVERFLOW_SCENARIO } from "./drawBudgetOverflow.scenario";
+export { DRAW_UNSUPPORTED_KIND_SCENARIO } from "./drawUnsupportedKind.scenario";
+export { DRAW_CYPHER_PATTERN_SCENARIO } from "./drawCypherPattern.scenario";
+export { DRAW_HEAD_AND_SHOULDERS_SCENARIO } from "./drawHeadAndShoulders.scenario";
+export { DRAW_PATTERNS_ALL_SCENARIO } from "./drawPatternsAll.scenario";
+export { DRAW_THREE_DRIVES_PATTERN_SCENARIO } from "./drawThreeDrivesPattern.scenario";
+export { DRAW_TRIANGLE_PATTERN_SCENARIO } from "./drawTrianglePattern.scenario";
+export { DRAW_XABCD_PATTERN_SCENARIO } from "./drawXabcdPattern.scenario";
+export { DRAW_ELLIOTT_ALL_SCENARIO } from "./drawElliottAll.scenario";
+export { DRAW_ELLIOTT_CORRECTION_WAVE_SCENARIO } from "./drawElliottCorrectionWave.scenario";
+export { DRAW_ELLIOTT_DOUBLE_COMBO_SCENARIO } from "./drawElliottDoubleCombo.scenario";
+export { DRAW_ELLIOTT_IMPULSE_WAVE_SCENARIO } from "./drawElliottImpulseWave.scenario";
+export { DRAW_ELLIOTT_TRIANGLE_WAVE_SCENARIO } from "./drawElliottTriangleWave.scenario";
+export { DRAW_ELLIOTT_TRIPLE_COMBO_SCENARIO } from "./drawElliottTripleCombo.scenario";
+export { DRAW_CYCLES_ALL_SCENARIO } from "./drawCyclesAll.scenario";
+export { DRAW_CYCLIC_LINES_SCENARIO } from "./drawCyclicLines.scenario";
+export { DRAW_SINE_LINE_SCENARIO } from "./drawSineLine.scenario";
+export { DRAW_TIME_CYCLES_SCENARIO } from "./drawTimeCycles.scenario";
+export { DRAW_CONTAINERS_ALL_SCENARIO } from "./drawContainersAll.scenario";
+export { DRAW_FRAME_SCENARIO } from "./drawFrame.scenario";
+export { DRAW_GROUP_SCENARIO } from "./drawGroup.scenario";
+export { DRAW_HANDLE_REMOVE_SCENARIO } from "./drawHandleRemove.scenario";
+export { DRAW_INTERACTIVE_UPDATE_SCENARIO } from "./drawInteractiveUpdate.scenario";
+export { DRAW_POLYLINE_SCENARIO } from "./drawPolyline.scenario";
+export { DRAW_RECTANGLE_SCENARIO } from "./drawRectangle.scenario";
+export { DRAW_REGRESSION_TREND_SCENARIO } from "./drawRegressionTrend.scenario";
+export { DRAW_ROTATED_RECTANGLE_SCENARIO } from "./drawRotatedRectangle.scenario";
+export { DRAW_TREND_ANGLE_SCENARIO } from "./drawTrendAngle.scenario";
+export { DRAW_TEXT_SCENARIO } from "./drawText.scenario";
+export { DRAW_TREND_CHANNEL_SCENARIO } from "./drawTrendChannel.scenario";
+export { DRAW_TRIANGLE_SCENARIO } from "./drawTriangle.scenario";
+export { DRAW_VERTICAL_LINE_SCENARIO } from "./drawVerticalLine.scenario";
 export { EMA_CROSS_SCENARIO } from "./emaCross.scenario";
 export { PLOT_KIND_COVERAGE_SCENARIO } from "./plotKindCoverage.scenario";
 export { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario";
@@ -275,6 +431,114 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     TA_VORTEX_SCENARIO,
     TA_TREND_STRENGTH_INDEX_SCENARIO,
     TA_ICHIMOKU_SCENARIO,
+    // Phase 3 Task 5 — Lines/Rays.
+    DRAW_LINE_SCENARIO,
+    DRAW_HORIZONTAL_LINE_SCENARIO,
+    DRAW_HORIZONTAL_RAY_SCENARIO,
+    DRAW_VERTICAL_LINE_SCENARIO,
+    DRAW_CROSS_LINE_SCENARIO,
+    DRAW_TREND_ANGLE_SCENARIO,
+    DRAW_LINES_AND_RAYS_SCENARIO,
+    // Phase 3 Task 6 — Boxes A.
+    DRAW_RECTANGLE_SCENARIO,
+    DRAW_ROTATED_RECTANGLE_SCENARIO,
+    DRAW_TRIANGLE_SCENARIO,
+    DRAW_POLYLINE_SCENARIO,
+    // Phase 3 Task 7 — Boxes B.
+    DRAW_CIRCLE_SCENARIO,
+    DRAW_ELLIPSE_SCENARIO,
+    DRAW_PATH_SCENARIO,
+    DRAW_MARKER_SCENARIO,
+    // Phase 3 Task 7 — combined box bundle (supersedes Task 6's
+    // `DRAW_BOXES_A_SCENARIO`, covering all 8 box kinds).
+    DRAW_BOXES_ALL_SCENARIO,
+    // Phase 3 Task 8 — Curves + Freehand.
+    DRAW_ARC_SCENARIO,
+    DRAW_CURVE_SCENARIO,
+    DRAW_DOUBLE_CURVE_SCENARIO,
+    DRAW_PEN_SCENARIO,
+    DRAW_HIGHLIGHTER_SCENARIO,
+    DRAW_BRUSH_SCENARIO,
+    DRAW_CURVES_AND_FREEHAND_ALL_SCENARIO,
+    // Phase 3 Task 9 — Annotations.
+    DRAW_TEXT_SCENARIO,
+    DRAW_ARROW_SCENARIO,
+    DRAW_ARROW_MARKER_SCENARIO,
+    DRAW_ARROW_MARK_UP_SCENARIO,
+    DRAW_ARROW_MARK_DOWN_SCENARIO,
+    DRAW_ANNOTATIONS_ALL_SCENARIO,
+    // Phase 3 Task 10 — Channels.
+    DRAW_TREND_CHANNEL_SCENARIO,
+    DRAW_FLAT_TOP_BOTTOM_SCENARIO,
+    DRAW_DISJOINT_CHANNEL_SCENARIO,
+    DRAW_REGRESSION_TREND_SCENARIO,
+    DRAW_CHANNELS_ALL_SCENARIO,
+    // Phase 3 Task 11 — Fibonacci A.
+    DRAW_FIB_RETRACEMENT_SCENARIO,
+    DRAW_FIB_TREND_EXTENSION_SCENARIO,
+    DRAW_FIB_CHANNEL_SCENARIO,
+    DRAW_FIB_TIME_ZONE_SCENARIO,
+    DRAW_FIB_WEDGE_SCENARIO,
+    // Phase 3 Task 12 — Fibonacci B (supersedes Task 11's DRAW_FIB_A
+    // bundle with DRAW_FIB_ALL covering all 10 fib kinds).
+    DRAW_FIB_SPEED_FAN_SCENARIO,
+    DRAW_FIB_SPEED_ARCS_SCENARIO,
+    DRAW_FIB_SPIRAL_SCENARIO,
+    DRAW_FIB_CIRCLES_SCENARIO,
+    DRAW_FIB_TREND_TIME_SCENARIO,
+    DRAW_FIB_ALL_SCENARIO,
+    // Phase 3 Task 13 — Gann.
+    DRAW_GANN_BOX_SCENARIO,
+    DRAW_GANN_SQUARE_FIXED_SCENARIO,
+    DRAW_GANN_SQUARE_SCENARIO,
+    DRAW_GANN_FAN_SCENARIO,
+    DRAW_GANN_ALL_SCENARIO,
+    // Phase 3 Task 14 — Pitchforks.
+    DRAW_PITCHFORK_SCENARIO,
+    DRAW_PITCHFAN_SCENARIO,
+    DRAW_PITCHFORKS_ALL_SCENARIO,
+    // Phase 3 Task 15 — Harmonic Patterns.
+    DRAW_XABCD_PATTERN_SCENARIO,
+    DRAW_CYPHER_PATTERN_SCENARIO,
+    DRAW_HEAD_AND_SHOULDERS_SCENARIO,
+    DRAW_ABCD_PATTERN_SCENARIO,
+    DRAW_TRIANGLE_PATTERN_SCENARIO,
+    DRAW_THREE_DRIVES_PATTERN_SCENARIO,
+    DRAW_PATTERNS_ALL_SCENARIO,
+    // Phase 3 Task 16 — Elliott Waves.
+    DRAW_ELLIOTT_IMPULSE_WAVE_SCENARIO,
+    DRAW_ELLIOTT_CORRECTION_WAVE_SCENARIO,
+    DRAW_ELLIOTT_TRIANGLE_WAVE_SCENARIO,
+    DRAW_ELLIOTT_DOUBLE_COMBO_SCENARIO,
+    DRAW_ELLIOTT_TRIPLE_COMBO_SCENARIO,
+    DRAW_ELLIOTT_ALL_SCENARIO,
+    // Phase 3 Task 17 — Cycles.
+    DRAW_CYCLIC_LINES_SCENARIO,
+    DRAW_TIME_CYCLES_SCENARIO,
+    DRAW_SINE_LINE_SCENARIO,
+    DRAW_CYCLES_ALL_SCENARIO,
+    // Phase 3 Task 18 — Containers.
+    DRAW_GROUP_SCENARIO,
+    DRAW_FRAME_SCENARIO,
+    DRAW_CONTAINERS_ALL_SCENARIO,
+    // Phase 3 Task 19 — Smoke + budget overflow. `DRAW_UNSUPPORTED_KIND_SCENARIO`
+    // and `DRAW_BUDGET_OVERFLOW_SCENARIO` are exported but intentionally
+    // excluded — the bundled canvas2d reference adapter advertises every
+    // kind and sizes `maxDrawingsPerScript.lines` at 200, so neither
+    // `unsupported-drawing-kind` nor `drawing-budget-exceeded` can fire
+    // through it. Adapter authors with a narrower capability bag opt in
+    // via `runConformanceSuite(adapter, { scenarios: [...] })`. Both
+    // scenarios are driven directly by `scenarios.test.ts` and
+    // `runConformanceSuite.test.ts` under `TEST_CAPABILITIES` (100-cap
+    // lines), where the diagnostics fire as designed.
+    DRAW_ALL_61_SCENARIO,
+    // Phase 3 Task 20 — `defineDrawing` constructor scenarios. All
+    // three default-export through `defineDrawing` (not
+    // `defineIndicator`) so the conformance suite exercises the
+    // new manifest.kind = "drawing" path end-to-end.
+    DEFINE_DRAWING_BASIC_SCENARIO,
+    DRAW_INTERACTIVE_UPDATE_SCENARIO,
+    DRAW_HANDLE_REMOVE_SCENARIO,
 ]);
 
 /**

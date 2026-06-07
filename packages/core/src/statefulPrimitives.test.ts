@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
+import { DRAWING_KINDS, KIND_CAMELCASE } from "./draw";
 import { STATEFUL_PRIMITIVES, STATEFUL_PRIMITIVES_BY_NAME } from "./statefulPrimitives";
 
 const EXPECTED_SLOT_TRUE = [
@@ -98,6 +99,67 @@ const EXPECTED_SLOT_TRUE = [
     "plot",
     "hline",
     "alert",
+    "draw.line",
+    "draw.horizontalLine",
+    "draw.horizontalRay",
+    "draw.verticalLine",
+    "draw.crossLine",
+    "draw.trendAngle",
+    "draw.rectangle",
+    "draw.rotatedRectangle",
+    "draw.triangle",
+    "draw.polyline",
+    "draw.circle",
+    "draw.ellipse",
+    "draw.path",
+    "draw.marker",
+    "draw.arc",
+    "draw.curve",
+    "draw.doubleCurve",
+    "draw.pen",
+    "draw.highlighter",
+    "draw.brush",
+    "draw.text",
+    "draw.arrow",
+    "draw.arrowMarker",
+    "draw.arrowMarkUp",
+    "draw.arrowMarkDown",
+    "draw.trendChannel",
+    "draw.flatTopBottom",
+    "draw.disjointChannel",
+    "draw.regressionTrend",
+    "draw.fibRetracement",
+    "draw.fibTrendExtension",
+    "draw.fibChannel",
+    "draw.fibTimeZone",
+    "draw.fibWedge",
+    "draw.fibSpeedFan",
+    "draw.fibSpeedArcs",
+    "draw.fibSpiral",
+    "draw.fibCircles",
+    "draw.fibTrendTime",
+    "draw.gannBox",
+    "draw.gannSquareFixed",
+    "draw.gannSquare",
+    "draw.gannFan",
+    "draw.pitchfork",
+    "draw.pitchfan",
+    "draw.xabcdPattern",
+    "draw.cypherPattern",
+    "draw.headAndShoulders",
+    "draw.abcdPattern",
+    "draw.trianglePattern",
+    "draw.threeDrivesPattern",
+    "draw.elliottImpulseWave",
+    "draw.elliottCorrectionWave",
+    "draw.elliottTriangleWave",
+    "draw.elliottDoubleCombo",
+    "draw.elliottTripleCombo",
+    "draw.cyclicLines",
+    "draw.timeCycles",
+    "draw.sineLine",
+    "draw.group",
+    "draw.frame",
 ] as const;
 
 const EXPECTED_SLOT_FALSE = ["ta.nz"] as const;
@@ -105,8 +167,8 @@ const EXPECTED_SLOT_FALSE = ["ta.nz"] as const;
 const EXPECTED_ALL_NAMES = [...EXPECTED_SLOT_TRUE, ...EXPECTED_SLOT_FALSE];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 93 entries (Phase-1 12 + Phase-2 cross-functional 6 + Task-6 MA ports 4 + Task-7 MA ports 4 + Task-8 MA ports 3 + Task-9 oscillators 3 + Task-10 oscillators 3 + Task-11 oscillators 3 + Task-12 oscillators 4 + Task-13 momentum 4 + Task-14 momentum 3 + Task-15 trend 2 + Task-16 trend 3 + Task-17 trend 3 + Task-18 volatility 3 + Task-19 volatility 3 + Task-20 volatility 3 + Task-21 volume 3 + Task-22 volume 4 + Task-23 volume 4 + Task-24 volume 4 + Task-25 S/R 2 + Task-26 S/R 3 + Task-27 S/R 4 + Task-28 statistical 3)", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(93);
+    it("contains exactly 154 entries (Phase-2 93 + Phase-3 61 draw.* entries)", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(154);
     });
 
     it("carries every expected name with the right slot flag", () => {
@@ -123,19 +185,33 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 92 slot: true entries and exactly 1 slot: false entry", () => {
+    it("has exactly 153 slot: true entries and exactly 1 slot: false entry", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
             if (entry.slot) trueCount += 1;
             else falseCount += 1;
         }
-        expect(trueCount).toBe(92);
+        expect(trueCount).toBe(153);
         expect(falseCount).toBe(1);
     });
 
     it("is frozen", () => {
         expect(Object.isFrozen(STATEFUL_PRIMITIVES)).toBe(true);
+    });
+
+    it("includes one draw.<camelKind> entry per DrawingKind (61 total)", () => {
+        const names = new Set<string>();
+        for (const entry of STATEFUL_PRIMITIVES) names.add(entry.name);
+        let drawCount = 0;
+        for (const k of DRAWING_KINDS) {
+            const camel = KIND_CAMELCASE.get(k);
+            expect(camel).toBeDefined();
+            const expected = `draw.${camel}`;
+            expect(names.has(expected)).toBe(true);
+            drawCount += 1;
+        }
+        expect(drawCount).toBe(61);
     });
 });
 

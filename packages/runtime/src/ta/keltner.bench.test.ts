@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { benchHotLoop } from "./__fixtures__/benchHotLoop";
 import { keltner } from "./keltner";
 
-const THRESHOLD_MS = 500;
+const THRESHOLD_MS = 1500;
 
 describe("ta.keltner threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -32,4 +32,12 @@ export function dispose(state: RunnerState): void {
     state.emissions.drawings = [];
     state.emissions.alerts = [];
     state.emissions.diagnostics = [];
+    state.runtimeContext.drawingSlots.clear();
+    state.runtimeContext.drawingSubIdCounters.clear();
+    const counters = state.runtimeContext.drawingBucketCounters;
+    counters.lines = 0;
+    counters.labels = 0;
+    counters.boxes = 0;
+    counters.polylines = 0;
+    counters.other = 0;
 }

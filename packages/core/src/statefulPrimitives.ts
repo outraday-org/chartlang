@@ -108,6 +108,71 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "plot", slot: true },
     { name: "hline", slot: true },
     { name: "alert", slot: true },
+    // Phase 3 — draw.* namespace. One entry per kind in DRAWING_KINDS
+    // order. Names are camelCase (`draw.<kindCamelCase>`); the wire
+    // format keeps the kebab-case `DrawingKind`. Cardinality 154 =
+    // 93 + 61. All slot: true (every draw call needs a callsite id).
+    { name: "draw.line", slot: true },
+    { name: "draw.horizontalLine", slot: true },
+    { name: "draw.horizontalRay", slot: true },
+    { name: "draw.verticalLine", slot: true },
+    { name: "draw.crossLine", slot: true },
+    { name: "draw.trendAngle", slot: true },
+    { name: "draw.rectangle", slot: true },
+    { name: "draw.rotatedRectangle", slot: true },
+    { name: "draw.triangle", slot: true },
+    { name: "draw.polyline", slot: true },
+    { name: "draw.circle", slot: true },
+    { name: "draw.ellipse", slot: true },
+    { name: "draw.path", slot: true },
+    { name: "draw.marker", slot: true },
+    { name: "draw.arc", slot: true },
+    { name: "draw.curve", slot: true },
+    { name: "draw.doubleCurve", slot: true },
+    { name: "draw.pen", slot: true },
+    { name: "draw.highlighter", slot: true },
+    { name: "draw.brush", slot: true },
+    { name: "draw.text", slot: true },
+    { name: "draw.arrow", slot: true },
+    { name: "draw.arrowMarker", slot: true },
+    { name: "draw.arrowMarkUp", slot: true },
+    { name: "draw.arrowMarkDown", slot: true },
+    { name: "draw.trendChannel", slot: true },
+    { name: "draw.flatTopBottom", slot: true },
+    { name: "draw.disjointChannel", slot: true },
+    { name: "draw.regressionTrend", slot: true },
+    { name: "draw.fibRetracement", slot: true },
+    { name: "draw.fibTrendExtension", slot: true },
+    { name: "draw.fibChannel", slot: true },
+    { name: "draw.fibTimeZone", slot: true },
+    { name: "draw.fibWedge", slot: true },
+    { name: "draw.fibSpeedFan", slot: true },
+    { name: "draw.fibSpeedArcs", slot: true },
+    { name: "draw.fibSpiral", slot: true },
+    { name: "draw.fibCircles", slot: true },
+    { name: "draw.fibTrendTime", slot: true },
+    { name: "draw.gannBox", slot: true },
+    { name: "draw.gannSquareFixed", slot: true },
+    { name: "draw.gannSquare", slot: true },
+    { name: "draw.gannFan", slot: true },
+    { name: "draw.pitchfork", slot: true },
+    { name: "draw.pitchfan", slot: true },
+    { name: "draw.xabcdPattern", slot: true },
+    { name: "draw.cypherPattern", slot: true },
+    { name: "draw.headAndShoulders", slot: true },
+    { name: "draw.abcdPattern", slot: true },
+    { name: "draw.trianglePattern", slot: true },
+    { name: "draw.threeDrivesPattern", slot: true },
+    { name: "draw.elliottImpulseWave", slot: true },
+    { name: "draw.elliottCorrectionWave", slot: true },
+    { name: "draw.elliottTriangleWave", slot: true },
+    { name: "draw.elliottDoubleCombo", slot: true },
+    { name: "draw.elliottTripleCombo", slot: true },
+    { name: "draw.cyclicLines", slot: true },
+    { name: "draw.timeCycles", slot: true },
+    { name: "draw.sineLine", slot: true },
+    { name: "draw.group", slot: true },
+    { name: "draw.frame", slot: true },
 ];
 
 /**
@@ -123,7 +188,8 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
  * `{ name, slot }` so `ta.nz` (the only stateless Phase-2 cross-functional
  * primitive) can opt out of slot-id injection without losing the
  * in-loop diagnostic. Subsequent Phase-2 batch tasks (Tasks 6–28) each
- * append `slot: true` entries.
+ * append `slot: true` entries; Phase 3 appends 61 `draw.<camelKind>`
+ * entries (all `slot: true`) — cardinality grows to 154.
  *
  * @since 0.1
  * @example

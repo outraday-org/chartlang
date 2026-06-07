@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { AlertChannel, PlotKind } from "../types";
+import { DRAWING_KINDS } from "@invinite-org/chartlang-core";
+
+import type { AlertChannel, DrawingKind, PlotKind } from "../types";
 
 /**
  * Helpers that assemble the `ReadonlySet` pieces of a `Capabilities`
@@ -89,5 +91,397 @@ export const capabilities = {
             }
         }
         return out;
+    },
+
+    // ------------------------------------------------------------
+    // Phase 3 — per-kind drawing builders (61). Each returns a
+    // single-element `Set<DrawingKind>` so adapters can compose via
+    // `capabilities.union(...)`. The 13 category-group builders +
+    // `allPhase3Drawings()` below are the canonical user-facing
+    // surface; per-kind builders exist for precision opt-in.
+    // @since 0.3 @experimental
+    // ------------------------------------------------------------
+
+    /** Phase-3 `line` drawing kind. @since 0.3 @experimental */
+    drawLine(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["line"]);
+    },
+    /** Phase-3 `horizontal-line` drawing kind. @since 0.3 @experimental */
+    drawHorizontalLine(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["horizontal-line"]);
+    },
+    /** Phase-3 `horizontal-ray` drawing kind. @since 0.3 @experimental */
+    drawHorizontalRay(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["horizontal-ray"]);
+    },
+    /** Phase-3 `vertical-line` drawing kind. @since 0.3 @experimental */
+    drawVerticalLine(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["vertical-line"]);
+    },
+    /** Phase-3 `cross-line` drawing kind. @since 0.3 @experimental */
+    drawCrossLine(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["cross-line"]);
+    },
+    /** Phase-3 `trend-angle` drawing kind. @since 0.3 @experimental */
+    drawTrendAngle(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["trend-angle"]);
+    },
+    /** Phase-3 `rectangle` drawing kind. @since 0.3 @experimental */
+    drawRectangle(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["rectangle"]);
+    },
+    /** Phase-3 `rotated-rectangle` drawing kind. @since 0.3 @experimental */
+    drawRotatedRectangle(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["rotated-rectangle"]);
+    },
+    /** Phase-3 `triangle` drawing kind. @since 0.3 @experimental */
+    drawTriangle(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["triangle"]);
+    },
+    /** Phase-3 `polyline` drawing kind. @since 0.3 @experimental */
+    drawPolyline(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["polyline"]);
+    },
+    /** Phase-3 `circle` drawing kind. @since 0.3 @experimental */
+    drawCircle(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["circle"]);
+    },
+    /** Phase-3 `ellipse` drawing kind. @since 0.3 @experimental */
+    drawEllipse(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["ellipse"]);
+    },
+    /** Phase-3 `path` drawing kind. @since 0.3 @experimental */
+    drawPath(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["path"]);
+    },
+    /** Phase-3 `marker` drawing kind. @since 0.3 @experimental */
+    drawMarker(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["marker"]);
+    },
+    /** Phase-3 `arc` drawing kind. @since 0.3 @experimental */
+    drawArc(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["arc"]);
+    },
+    /** Phase-3 `curve` drawing kind. @since 0.3 @experimental */
+    drawCurve(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["curve"]);
+    },
+    /** Phase-3 `double-curve` drawing kind. @since 0.3 @experimental */
+    drawDoubleCurve(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["double-curve"]);
+    },
+    /** Phase-3 `pen` drawing kind. @since 0.3 @experimental */
+    drawPen(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["pen"]);
+    },
+    /** Phase-3 `highlighter` drawing kind. @since 0.3 @experimental */
+    drawHighlighter(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["highlighter"]);
+    },
+    /** Phase-3 `brush` drawing kind. @since 0.3 @experimental */
+    drawBrush(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["brush"]);
+    },
+    /** Phase-3 `text` drawing kind. @since 0.3 @experimental */
+    drawText(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["text"]);
+    },
+    /** Phase-3 `arrow` drawing kind. @since 0.3 @experimental */
+    drawArrow(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["arrow"]);
+    },
+    /** Phase-3 `arrow-marker` drawing kind. @since 0.3 @experimental */
+    drawArrowMarker(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["arrow-marker"]);
+    },
+    /** Phase-3 `arrow-mark-up` drawing kind. @since 0.3 @experimental */
+    drawArrowMarkUp(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["arrow-mark-up"]);
+    },
+    /** Phase-3 `arrow-mark-down` drawing kind. @since 0.3 @experimental */
+    drawArrowMarkDown(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["arrow-mark-down"]);
+    },
+    /** Phase-3 `trend-channel` drawing kind. @since 0.3 @experimental */
+    drawTrendChannel(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["trend-channel"]);
+    },
+    /** Phase-3 `flat-top-bottom` drawing kind. @since 0.3 @experimental */
+    drawFlatTopBottom(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["flat-top-bottom"]);
+    },
+    /** Phase-3 `disjoint-channel` drawing kind. @since 0.3 @experimental */
+    drawDisjointChannel(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["disjoint-channel"]);
+    },
+    /** Phase-3 `regression-trend` drawing kind. @since 0.3 @experimental */
+    drawRegressionTrend(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["regression-trend"]);
+    },
+    /** Phase-3 `fib-retracement` drawing kind. @since 0.3 @experimental */
+    drawFibRetracement(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["fib-retracement"]);
+    },
+    /** Phase-3 `fib-trend-extension` drawing kind. @since 0.3 @experimental */
+    drawFibTrendExtension(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["fib-trend-extension"]);
+    },
+    /** Phase-3 `fib-channel` drawing kind. @since 0.3 @experimental */
+    drawFibChannel(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["fib-channel"]);
+    },
+    /** Phase-3 `fib-time-zone` drawing kind. @since 0.3 @experimental */
+    drawFibTimeZone(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["fib-time-zone"]);
+    },
+    /** Phase-3 `fib-wedge` drawing kind. @since 0.3 @experimental */
+    drawFibWedge(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["fib-wedge"]);
+    },
+    /** Phase-3 `fib-speed-fan` drawing kind. @since 0.3 @experimental */
+    drawFibSpeedFan(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["fib-speed-fan"]);
+    },
+    /** Phase-3 `fib-speed-arcs` drawing kind. @since 0.3 @experimental */
+    drawFibSpeedArcs(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["fib-speed-arcs"]);
+    },
+    /** Phase-3 `fib-spiral` drawing kind. @since 0.3 @experimental */
+    drawFibSpiral(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["fib-spiral"]);
+    },
+    /** Phase-3 `fib-circles` drawing kind. @since 0.3 @experimental */
+    drawFibCircles(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["fib-circles"]);
+    },
+    /** Phase-3 `fib-trend-time` drawing kind. @since 0.3 @experimental */
+    drawFibTrendTime(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["fib-trend-time"]);
+    },
+    /** Phase-3 `gann-box` drawing kind. @since 0.3 @experimental */
+    drawGannBox(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["gann-box"]);
+    },
+    /** Phase-3 `gann-square-fixed` drawing kind. @since 0.3 @experimental */
+    drawGannSquareFixed(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["gann-square-fixed"]);
+    },
+    /** Phase-3 `gann-square` drawing kind. @since 0.3 @experimental */
+    drawGannSquare(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["gann-square"]);
+    },
+    /** Phase-3 `gann-fan` drawing kind. @since 0.3 @experimental */
+    drawGannFan(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["gann-fan"]);
+    },
+    /** Phase-3 `pitchfork` drawing kind. @since 0.3 @experimental */
+    drawPitchfork(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["pitchfork"]);
+    },
+    /** Phase-3 `pitchfan` drawing kind. @since 0.3 @experimental */
+    drawPitchfan(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["pitchfan"]);
+    },
+    /** Phase-3 `xabcd-pattern` drawing kind. @since 0.3 @experimental */
+    drawXabcdPattern(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["xabcd-pattern"]);
+    },
+    /** Phase-3 `cypher-pattern` drawing kind. @since 0.3 @experimental */
+    drawCypherPattern(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["cypher-pattern"]);
+    },
+    /** Phase-3 `head-and-shoulders` drawing kind. @since 0.3 @experimental */
+    drawHeadAndShoulders(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["head-and-shoulders"]);
+    },
+    /** Phase-3 `abcd-pattern` drawing kind. @since 0.3 @experimental */
+    drawAbcdPattern(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["abcd-pattern"]);
+    },
+    /** Phase-3 `triangle-pattern` drawing kind. @since 0.3 @experimental */
+    drawTrianglePattern(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["triangle-pattern"]);
+    },
+    /** Phase-3 `three-drives-pattern` drawing kind. @since 0.3 @experimental */
+    drawThreeDrivesPattern(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["three-drives-pattern"]);
+    },
+    /** Phase-3 `elliott-impulse-wave` drawing kind. @since 0.3 @experimental */
+    drawElliottImpulseWave(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["elliott-impulse-wave"]);
+    },
+    /** Phase-3 `elliott-correction-wave` drawing kind. @since 0.3 @experimental */
+    drawElliottCorrectionWave(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["elliott-correction-wave"]);
+    },
+    /** Phase-3 `elliott-triangle-wave` drawing kind. @since 0.3 @experimental */
+    drawElliottTriangleWave(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["elliott-triangle-wave"]);
+    },
+    /** Phase-3 `elliott-double-combo` drawing kind. @since 0.3 @experimental */
+    drawElliottDoubleCombo(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["elliott-double-combo"]);
+    },
+    /** Phase-3 `elliott-triple-combo` drawing kind. @since 0.3 @experimental */
+    drawElliottTripleCombo(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["elliott-triple-combo"]);
+    },
+    /** Phase-3 `cyclic-lines` drawing kind. @since 0.3 @experimental */
+    drawCyclicLines(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["cyclic-lines"]);
+    },
+    /** Phase-3 `time-cycles` drawing kind. @since 0.3 @experimental */
+    drawTimeCycles(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["time-cycles"]);
+    },
+    /** Phase-3 `sine-line` drawing kind. @since 0.3 @experimental */
+    drawSineLine(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["sine-line"]);
+    },
+    /** Phase-3 `group` drawing kind. @since 0.3 @experimental */
+    drawGroup(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["group"]);
+    },
+    /** Phase-3 `frame` drawing kind. @since 0.3 @experimental */
+    drawFrame(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["frame"]);
+    },
+
+    // ------------------------------------------------------------
+    // Phase 3 — category-group builders (13). Each covers the kinds
+    // of one §10.2 category. Combine via `union(...)` for adapters
+    // that support multiple categories.
+    // @since 0.3 @experimental
+    // ------------------------------------------------------------
+
+    /** All 6 line / ray drawing kinds. @since 0.3 @experimental */
+    allLineDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>([
+            "line",
+            "horizontal-line",
+            "horizontal-ray",
+            "vertical-line",
+            "cross-line",
+            "trend-angle",
+        ]);
+    },
+    /**
+     * All 8 box / shape drawing kinds. @since 0.3 @experimental
+     *
+     * @remarks Capability categories are orthogonal to budget buckets:
+     * `polyline` and `path` are budgeted under the `polylines` bucket
+     * and `marker` under `labels` — not the `boxes` bucket (see
+     * `bucketFor` in `@invinite-org/chartlang-core`). An adapter that
+     * declares this set must size those buckets accordingly or those
+     * three kinds drop with `drawing-budget-exceeded`.
+     */
+    allBoxDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>([
+            "rectangle",
+            "rotated-rectangle",
+            "triangle",
+            "polyline",
+            "circle",
+            "ellipse",
+            "path",
+            "marker",
+        ]);
+    },
+    /** All 3 curve drawing kinds. @since 0.3 @experimental */
+    allCurveDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["arc", "curve", "double-curve"]);
+    },
+    /** All 3 freehand drawing kinds. @since 0.3 @experimental */
+    allFreehandDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["pen", "highlighter", "brush"]);
+    },
+    /** All 5 annotation drawing kinds. @since 0.3 @experimental */
+    allAnnotationDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>([
+            "text",
+            "arrow",
+            "arrow-marker",
+            "arrow-mark-up",
+            "arrow-mark-down",
+        ]);
+    },
+    /** All 4 channel drawing kinds. @since 0.3 @experimental */
+    allChannelDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>([
+            "trend-channel",
+            "flat-top-bottom",
+            "disjoint-channel",
+            "regression-trend",
+        ]);
+    },
+    /** All 10 fibonacci drawing kinds. @since 0.3 @experimental */
+    allFibDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>([
+            "fib-retracement",
+            "fib-trend-extension",
+            "fib-channel",
+            "fib-time-zone",
+            "fib-wedge",
+            "fib-speed-fan",
+            "fib-speed-arcs",
+            "fib-spiral",
+            "fib-circles",
+            "fib-trend-time",
+        ]);
+    },
+    /** All 4 gann drawing kinds. @since 0.3 @experimental */
+    allGannDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>([
+            "gann-box",
+            "gann-square-fixed",
+            "gann-square",
+            "gann-fan",
+        ]);
+    },
+    /** All 2 pitchfork drawing kinds. @since 0.3 @experimental */
+    allPitchforkDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["pitchfork", "pitchfan"]);
+    },
+    /** All 6 harmonic-pattern drawing kinds. @since 0.3 @experimental */
+    allPatternDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>([
+            "xabcd-pattern",
+            "cypher-pattern",
+            "head-and-shoulders",
+            "abcd-pattern",
+            "triangle-pattern",
+            "three-drives-pattern",
+        ]);
+    },
+    /** All 5 elliott-wave drawing kinds. @since 0.3 @experimental */
+    allElliottDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>([
+            "elliott-impulse-wave",
+            "elliott-correction-wave",
+            "elliott-triangle-wave",
+            "elliott-double-combo",
+            "elliott-triple-combo",
+        ]);
+    },
+    /** All 3 cycle drawing kinds. @since 0.3 @experimental */
+    allCycleDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["cyclic-lines", "time-cycles", "sine-line"]);
+    },
+    /** All 2 container drawing kinds. @since 0.3 @experimental */
+    allContainerDrawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["group", "frame"]);
+    },
+
+    /**
+     * Every drawing kind that ships in Phase 3 — the union of every
+     * category group above. Canvas2d declares this set as its
+     * `Capabilities.drawings` (Task 4) so the conformance suite
+     * covers all 61 kinds end-to-end.
+     *
+     * @since 0.3
+     * @experimental
+     */
+    allPhase3Drawings(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(DRAWING_KINDS);
     },
 };

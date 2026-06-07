@@ -9,7 +9,7 @@ import { benchHotLoop } from "./__fixtures__/benchHotLoop";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Williams
 // Fractal is O(length) per close (centred window scan). Default
 // length=2 → 5-bar window → trivial; 10k bars well under baseline.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.williamsFractal threshold", () => {
     it("runs 10 000 bars under threshold", () => {

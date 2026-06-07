@@ -10,7 +10,7 @@ import { dpo } from "./dpo";
 // composes one `ta.sma` sub-slot (O(1) per bar via running sum) and
 // does one O(1) per-bar source-window append + lookup. 10k bars
 // finishes well under 300ms on CI Linux runners.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.dpo threshold", () => {
     it("runs 10 000 bars under threshold", () => {

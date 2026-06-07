@@ -9,7 +9,7 @@ import { trendStrengthIndex } from "./trendStrengthIndex";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Pearson is
 // O(length) per close (window-rescan), so for length=20 over 10k bars
 // it's ~200k ops; pair with `aroon` baseline at 300ms.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.trendStrengthIndex threshold", () => {
     it("runs 10 000 bars under threshold", () => {

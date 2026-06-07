@@ -33,6 +33,16 @@ export default defineAlert({ name: "rsi-overbought", apiVersion: 1, compute: () 
         expect(result.kind).toBe("alert");
     });
 
+    it("accepts a defineDrawing default export and marks kind as drawing", () => {
+        const result = run(`
+import { defineDrawing } from "@invinite-org/chartlang-core";
+export default defineDrawing({ name: "fib-tool", apiVersion: 1, compute: () => {} });
+`);
+        expect(result.diagnostics).toHaveLength(0);
+        expect(result.name).toBe("fib-tool");
+        expect(result.kind).toBe("drawing");
+    });
+
     it("emits missing-default-export when the script has no default export", () => {
         const result = run(`
 const x = 1;

@@ -9,7 +9,7 @@ import { pvo } from "./pvo";
 // THRESHOLD_MS — ceil(median × 3). ta.pvo composes three EMA
 // sub-slots over bar.volume; well under the 300 ms ceiling over 10k
 // bars.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.pvo threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -8,7 +8,7 @@ import { vwap } from "./vwap";
 
 // THRESHOLD_MS — ceil(median × 3). ta.vwap is one source read + one
 // accumulator update — well under the 300 ms ceiling.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.vwap threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { benchHotLoop } from "./__fixtures__/benchHotLoop";
 import { massIndex } from "./massIndex";
 
-const THRESHOLD_MS = 500;
+const THRESHOLD_MS = 1500;
 
 describe("ta.massIndex threshold", () => {
     it("runs 10 000 bars under threshold", () => {

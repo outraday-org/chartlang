@@ -30,10 +30,13 @@ Subcommands:
   starter adapter package outside this repo. `name` must be kebab-case
   (`^[a-z][a-z0-9-]*$`). Default target is `./<name>`. Refuses to
   overwrite a non-empty target.
-- `chartlang docs [--source <dir>] [--out <dir>]` — auto-generates
-  `docs/primitives/ta/<id>.md` per `ta.*` primitive from the runtime's
-  JSDoc. CI gate: `pnpm docs:gate` byte-diffs the regenerated pages
-  against the committed tree.
+- `chartlang docs [--ta-source <dir>] [--ta-out <dir>] [--draw-source <dir>] [--draw-out <dir>]`
+  — auto-generates `docs/primitives/ta/<id>.md` per `ta.*` primitive
+  and `docs/primitives/draw/<kebab-kind>.md` per `draw.*` kind from
+  the runtime's JSDoc. The Phase-2 `--source` / `--out` flags retain
+  their `ta.*` meaning as aliases for `--ta-source` / `--ta-out`.
+  CI gate: `pnpm docs:gate` byte-diffs the regenerated pages against
+  the committed tree.
 - `chartlang --help` / `-h` — prints the usage block.
 
 Programmatic surface (re-exported from `./index`):
@@ -43,7 +46,10 @@ Programmatic surface (re-exported from `./index`):
   `runHelp()`, `printHelp(stream?)` — individual command runners
 - `runGenDocs`, `generateDocsPage`, `parsePrimitiveSource`,
   `GenDocsError`, `AUTO_GENERATED_HEADER`, `findRepoRoot` — the
-  docs-generator primitives
+  docs-generator primitives (`ta.*`)
+- `runGenDrawingDocs`, `generateDrawingDocsPage`,
+  `parseDrawingSource`, `DrawingDocInput` — the docs-generator
+  primitives (`draw.*`, Phase 3)
 
 ## Minimum-viable API call
 

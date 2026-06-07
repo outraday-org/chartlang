@@ -1,12 +1,15 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CompiledScriptObject, ComputeFn, InputSchema } from "../types";
+import type { CompiledScriptObject, ComputeFn, DrawingCounts, InputSchema } from "../types";
 
 /**
  * Author-supplied options the script passes to `defineIndicator(...)`. The
  * compiler reads this object's static shape to build the script's manifest;
  * any field can be overridden at compile time via the AST transform.
+ *
+ * `maxDrawings` (Phase 3 / §10 / §4.1) caps the per-bucket `draw.*`
+ * emission rate per bar. Omit to default to the adapter's cap.
  *
  * @since 0.1
  * @example
@@ -22,6 +25,8 @@ export type DefineIndicatorOpts = Readonly<{
     overlay?: boolean;
     inputs?: InputSchema;
     compute: ComputeFn;
+    /** Per-bucket cap on `draw.*` emissions per bar. @since 0.3 */
+    maxDrawings?: DrawingCounts;
 }>;
 
 /**
@@ -47,18 +52,22 @@ export function defineIndicator(opts: DefineIndicatorOpts): CompiledScriptObject
     const capabilities: ReadonlyArray<"indicators"> = Object.freeze<["indicators"]>(["indicators"]);
     const requestedIntervals: ReadonlyArray<string> = Object.freeze<string[]>([]);
     const seriesCapacities: Readonly<Record<string, number>> = Object.freeze({});
+    const base = {
+        apiVersion: 1 as const,
+        kind: "indicator" as const,
+        name: opts.name,
+        inputs: opts.inputs ?? {},
+        capabilities,
+        requestedIntervals,
+        userPickableInterval: false,
+        seriesCapacities,
+        maxLookback: 0,
+    };
+    const manifest = opts.maxDrawings === undefined
+        ? base
+        : { ...base, maxDrawings: opts.maxDrawings };
     return Object.freeze({
-        manifest: Object.freeze({
-            apiVersion: 1 as const,
-            kind: "indicator" as const,
-            name: opts.name,
-            inputs: opts.inputs ?? {},
-            capabilities,
-            requestedIntervals,
-            userPickableInterval: false,
-            seriesCapacities,
-            maxLookback: 0,
-        }),
+        manifest: Object.freeze(manifest),
         compute: opts.compute,
     });
 }

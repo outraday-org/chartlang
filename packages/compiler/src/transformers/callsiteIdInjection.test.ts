@@ -67,7 +67,7 @@ plot(1);
 
     it("rewrites every slot: true primitive in STATEFUL_PRIMITIVES (and skips ta.nz)", () => {
         const source = `
-import { ta, plot, hline, alert } from "@invinite-org/chartlang-core";
+import { ta, plot, hline, alert, draw } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;
 declare const flag: import("@invinite-org/chartlang-core").Series<boolean>;
 ta.sma(close, 14);
@@ -163,6 +163,12 @@ ta.nz(Number.NaN, 0);
 plot(1);
 hline(1);
 alert("msg");
+draw.line({ time: 0, price: 0 }, { time: 1, price: 1 });
+draw.horizontalLine(0);
+draw.horizontalRay({ time: 0, price: 0 });
+draw.verticalLine(0);
+draw.crossLine({ time: 0, price: 0 });
+draw.trendAngle({ time: 0, price: 0 }, { time: 1, price: 1 });
 `;
         const { sourceFile, checker } = createProgramForSource(source, {
             sourcePath: "demo.chart.ts",
@@ -173,9 +179,31 @@ alert("msg");
         });
         const text = printSourceFile(result.transformed);
         const slotMatches = text.match(/"demo\.chart\.ts:\d+:\d+#0"/g) ?? [];
+        // Phase-3 ports add draw.* entries to STATEFUL_PRIMITIVES per
+        // category. Task 5 wires the 6 line-family kinds; the remaining
+        // 55 draw.* kinds land in Tasks 6–18. The test exercises every
+        // shipped slot:true callsite (90 ta + plot + hline + alert + 6
+        // line-family draw = 98) — entries without a call here are
+        // excluded from the expected count.
+        const unwiredDrawEntries = new Set<string>();
+        for (const entry of STATEFUL_PRIMITIVES) {
+            if (
+                entry.name.startsWith("draw.") &&
+                ![
+                    "draw.line",
+                    "draw.horizontalLine",
+                    "draw.horizontalRay",
+                    "draw.verticalLine",
+                    "draw.crossLine",
+                    "draw.trendAngle",
+                ].includes(entry.name)
+            ) {
+                unwiredDrawEntries.add(entry.name);
+            }
+        }
         let slotTrueCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
-            if (entry.slot) slotTrueCount += 1;
+            if (entry.slot && !unwiredDrawEntries.has(entry.name)) slotTrueCount += 1;
         }
         expect(slotMatches.length).toBe(slotTrueCount);
         // ta.nz call retains its original arg list.

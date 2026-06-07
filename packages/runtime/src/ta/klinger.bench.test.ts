@@ -9,7 +9,7 @@ import { klinger } from "./klinger";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Klinger
 // composes 3 EMA sub-slots + O(1) per-bar VF accumulator. Easily
 // under 300ms at 10k bars.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.klinger threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -4,6 +4,9 @@
 import type {
     AlertSeverity,
     Bar,
+    DrawingCounts as CoreDrawingCounts,
+    DrawingKind as CoreDrawingKind,
+    DrawingState,
     IntervalDescriptor,
     JsonValue,
     LineStyle,
@@ -40,15 +43,22 @@ export type CandleEvent =
 export type PlotKind = CorePlotKind;
 
 /**
- * Drawing kind discriminator. Phase 1 ships only a placeholder; the full
- * 61-entry union from PLAN §7.2 lands with `draw.*` in Phase 3.
+ * Drawing kind discriminator. Phase 3 widens the Phase-1 `"line"`
+ * placeholder to the full 61-entry kebab-case union — re-exported from
+ * `@invinite-org/chartlang-core`. The wire format is kebab-case; the
+ * camelCase TypeScript surface (`draw.horizontalLine`,
+ * `draw.fibRetracement`, …) is pinned via core's
+ * `KIND_CAMELCASE` / `KIND_KEBABCASE` bijection. Phase-1 / Phase-2
+ * adapter code that wrote `drawingKind: "line"` keeps compiling — the
+ * widening is purely additive.
  *
  * @since 0.1
  * @experimental
  * @example
- *     const k: DrawingKind = "line";
+ *     const k: DrawingKind = "fib-retracement";
+ *     void k;
  */
-export type DrawingKind = "line";
+export type DrawingKind = CoreDrawingKind;
 
 /**
  * Channels an alert emission can be dispatched on. Adapters declare the
@@ -111,20 +121,21 @@ export type SymInfoField =
  * Per-script drawing-emission budget. Excess `draw.*` calls fall back to
  * no-op + `drawing-budget-exceeded`. Mirrors Pine's `max_*_count` family.
  *
+ * Canonical declaration lives in `@invinite-org/chartlang-core/types`
+ * (Phase 3) so `ScriptManifest.maxDrawings?` and
+ * `Capabilities.maxDrawingsPerScript` pin the same shape — the public
+ * surface here is preserved via a type re-export. The re-export
+ * preserves the `adapter-kit → core` dependency direction.
+ *
  * @since 0.1
  * @experimental
  * @example
  *     const c: DrawingCounts = {
  *         lines: 50, labels: 50, boxes: 50, polylines: 50, other: 50,
  *     };
+ *     void c;
  */
-export type DrawingCounts = {
-    readonly lines: number;
-    readonly labels: number;
-    readonly boxes: number;
-    readonly polylines: number;
-    readonly other: number;
-};
+export type DrawingCounts = CoreDrawingCounts;
 
 /**
  * Capability bag an adapter declares. The runtime, host-worker, and
@@ -306,9 +317,11 @@ export type AlertEmission = {
 };
 
 /**
- * A `draw.*` emission. Phase-1 ships no `draw.*` primitives; the shape
- * is pinned so the runtime + host-worker boundary stays additive when
- * Phase 3 lands real drawings.
+ * A `draw.*` emission. Phase 3 narrows `state` from `unknown` to the
+ * typed {@link DrawingState} discriminated union. `op: "create"`
+ * carries the initial state; `op: "update"` carries the FULL merged
+ * state per the §10.3 full-state semantic (not a patch); `op:
+ * "remove"` carries the last-known state.
  *
  * @since 0.1
  * @experimental
@@ -318,17 +331,22 @@ export type AlertEmission = {
  *         handleId: "ph3.ts:1:1#0",
  *         drawingKind: "line",
  *         op: "create",
- *         state: null,
+ *         state: {
+ *             kind: "line",
+ *             anchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],
+ *             style: {},
+ *         },
  *         bar: 0,
  *         time: 0,
  *     };
+ *     void e;
  */
 export type DrawingEmission = {
     readonly kind: "drawing";
     readonly handleId: string;
     readonly drawingKind: DrawingKind;
     readonly op: "create" | "update" | "remove";
-    readonly state: unknown;
+    readonly state: DrawingState;
     readonly bar: number;
     readonly time: number;
 };

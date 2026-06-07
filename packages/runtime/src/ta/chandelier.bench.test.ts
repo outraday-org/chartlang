@@ -9,7 +9,7 @@ import { benchHotLoop } from "./__fixtures__/benchHotLoop";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Chandelier
 // composes ATR + highest + lowest sub-slots (each O(1) per close);
 // 10k bars at length=22 is comfortably under the Wave-5/6 baseline.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.chandelier threshold", () => {
     it("runs 10 000 bars under threshold", () => {

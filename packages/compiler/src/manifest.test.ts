@@ -42,4 +42,19 @@ describe("buildManifest", () => {
         expect(manifest.maxLookback).toBe(0);
         expect(manifest.apiVersion).toBe(1);
     });
+
+    it("supports kind 'drawing' for defineDrawing scripts", () => {
+        const manifest = buildManifest({
+            name: "fib-tool",
+            kind: "drawing",
+            capabilities: ["drawings"],
+            requestedIntervals: [],
+            userPickableInterval: false,
+            seriesCapacities: {},
+            maxLookback: 0,
+            inputs: {},
+        });
+        expect(manifest.kind).toBe("drawing");
+        expect(manifest.capabilities).toEqual(["drawings"]);
+    });
 });

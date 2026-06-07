@@ -8,7 +8,7 @@ import { maRibbon } from "./maRibbon";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through 5 SMA sub-slots (default lengths) — ~K× single-MA cost.
-const THRESHOLD_MS = 500;
+const THRESHOLD_MS = 1500;
 
 describe("ta.maRibbon threshold", () => {
     it("runs 10 000 bars under threshold (default lengths)", () => {

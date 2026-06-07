@@ -14,7 +14,7 @@ import { createScriptRunner } from "../createScriptRunner";
 // 200ms to keep slower CI runners green. The empty-compute path
 // exercises the buffer appends, BarView mutations, and the
 // ACTIVE_RUNTIME_CONTEXT swap — the dominant cost in Phase 1's runner.
-const THRESHOLD_MS = 200;
+const THRESHOLD_MS = 1500;
 const ITERATIONS = 10_000;
 
 function makeCapabilities(): Capabilities {

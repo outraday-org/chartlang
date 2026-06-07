@@ -14,7 +14,28 @@ import { runConformanceSuite, type Scenario, type ScenarioAssertion } from "./ru
 
 const TEST_CAPABILITIES: Capabilities = {
     plots: capBuilders.union(capBuilders.line(), capBuilders.horizontalLine()),
-    drawings: new Set(),
+    // Phase-3 Tasks 5–15 widen the cap surface so the new line + box
+    // (A + B) + curve + freehand + annotation + channel + fib (A + B)
+    // + gann + pitchfork + pattern scenarios reach `pushDrawing`'s
+    // happy path. The `marker` kind and Task 9's 5 annotation kinds
+    // live in the `labels` bucket (already sized at 100); curve +
+    // freehand + channel + pitchfork + harmonic-pattern kinds map to
+    // `polylines`; all 10 fib + 4 gann kinds map to `other`.
+    drawings: new Set([
+        ...capBuilders.allLineDrawings(),
+        ...capBuilders.allBoxDrawings(),
+        ...capBuilders.allCurveDrawings(),
+        ...capBuilders.allFreehandDrawings(),
+        ...capBuilders.allAnnotationDrawings(),
+        ...capBuilders.allChannelDrawings(),
+        ...capBuilders.allFibDrawings(),
+        ...capBuilders.allGannDrawings(),
+        ...capBuilders.allPitchforkDrawings(),
+        ...capBuilders.allPatternDrawings(),
+        ...capBuilders.allElliottDrawings(),
+        ...capBuilders.allCycleDrawings(),
+        ...capBuilders.allContainerDrawings(),
+    ]),
     alerts: capBuilders.alerts("log", "toast"),
     alertConditions: false,
     logs: false,
@@ -23,7 +44,7 @@ const TEST_CAPABILITIES: Capabilities = {
     multiTimeframe: false,
     subPanes: 0,
     symInfoFields: new Set(),
-    maxDrawingsPerScript: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+    maxDrawingsPerScript: { lines: 100, labels: 100, boxes: 100, polylines: 100, other: 100 },
     maxLookback: 1000,
     maxTickHz: 30,
 };
@@ -347,6 +368,231 @@ export default defineIndicator({
                 candles: SMALL_BARS.slice(0, 5),
             }),
         ).rejects.toThrow(/must define either/);
+    });
+
+    it("drawing-hash passes when no drawings are emitted (empty-array hash)", async () => {
+        // Phase-3 Task 3 ships the assertion arm; per-kind `draw.*`
+        // runtime impls land in Tasks 5–18. Until then, scripts can't
+        // actually emit drawings — but the assertion arm must still
+        // correctly hash the empty-drawings array. The pinned SHA-256
+        // for `JSON.stringify([])` is computed once and re-used.
+        const emptyHash = createHash("sha256").update(JSON.stringify([])).digest("hex");
+        const INLINE = `import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "no-draw",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        plot(bar.close);
+    },
+});
+`;
+        const scenario: Scenario = Object.freeze({
+            id: "drawing-hash-empty",
+            title: "drawing-hash matches the empty-array hash when nothing was drawn",
+            inlineSource: INLINE,
+            intervalCount: 1,
+            assertions: Object.freeze([
+                { kind: "drawing-hash", sha256: emptyHash },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [scenario],
+            candles: SMALL_BARS.slice(0, 3),
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(1);
+    });
+
+    it("drawing-hash failure message carries the handleId label + actual hash + emission count", async () => {
+        const INLINE = `import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "no-draw-2",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        plot(bar.close);
+    },
+});
+`;
+        const scenario: Scenario = Object.freeze({
+            id: "drawing-hash-fail",
+            title: "drawing-hash failure format",
+            inlineSource: INLINE,
+            intervalCount: 1,
+            assertions: Object.freeze([
+                {
+                    kind: "drawing-hash",
+                    handleId: "demo#0",
+                    sha256: "deadbeef".repeat(8),
+                },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [scenario],
+            candles: SMALL_BARS.slice(0, 3),
+        });
+        expect(report.failed).toBe(1);
+        const [f] = report.failures;
+        expect(f.assertionKind).toBe("drawing-hash");
+        expect(f.message).toContain("drawing-hash[demo#0]");
+        expect(f.message).toContain("expected deadbeef");
+        expect(f.message).toContain("actual ");
+        expect(f.message).toContain("0 emissions");
+    });
+
+    it("drawing-hash pins a non-empty drawings sequence emitted via pushDrawing directly", async () => {
+        // The script-facing `draw.*` namespace is still a throwing
+        // stub until per-kind tasks 5–18 land their runtime impls. To
+        // exercise the non-empty drawing-hash assertion path, we wire
+        // an injected compile that produces a bundle whose `compute`
+        // calls the runtime's `pushDrawing` directly against the
+        // ambient context — the same low-level API every per-kind
+        // task will route through.
+        const adapter: Adapter = {
+            id: "draw-direct",
+            name: "Direct drawing-emission adapter",
+            capabilities: {
+                ...TEST_CAPABILITIES,
+                drawings: capBuilders.allLineDrawings(),
+                maxDrawingsPerScript: {
+                    lines: 1000,
+                    labels: 0,
+                    boxes: 0,
+                    polylines: 0,
+                    other: 0,
+                },
+            },
+            candles(): AsyncIterable<CandleEvent> {
+                return {
+                    async *[Symbol.asyncIterator](): AsyncIterator<CandleEvent> {
+                        /* empty */
+                    },
+                };
+            },
+            onEmissions(): void {},
+            dispose(): void {},
+        };
+
+        const moduleSource = `
+import { ACTIVE_RUNTIME_CONTEXT, pushDrawing } from "@invinite-org/chartlang-runtime";
+
+export default {
+    manifest: {
+        apiVersion: 1,
+        kind: "indicator",
+        name: "drawing-hash-direct",
+        inputs: {},
+        capabilities: ["indicators", "drawings"],
+        requestedIntervals: [],
+        userPickableInterval: false,
+        seriesCapacities: {},
+        maxLookback: 0,
+    },
+    compute({ bar }) {
+        const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+        if (ctx === null) return;
+        pushDrawing(ctx, {
+            kind: "drawing",
+            handleId: "demo#0",
+            drawingKind: "line",
+            op: "create",
+            state: {
+                kind: "line",
+                anchors: [
+                    { time: bar.time, price: bar.close },
+                    { time: bar.time + 1, price: bar.close + 1 },
+                ],
+                style: {},
+            },
+            bar: 0,
+            time: bar.time,
+        });
+    },
+};
+`;
+        const probe: Scenario = Object.freeze({
+            id: "drawing-hash-probe",
+            title: "drawing-hash probe — compute the actual hash",
+            inlineSource: "// placeholder",
+            intervalCount: 1,
+            assertions: Object.freeze([
+                { kind: "drawing-hash", sha256: "deadbeef".repeat(8) },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const injectedCompile: typeof import(
+            "@invinite-org/chartlang-compiler"
+        ).compile = async () =>
+            Object.freeze({
+                manifest: {
+                    apiVersion: 1 as const,
+                    kind: "indicator" as const,
+                    name: "drawing-hash-direct",
+                    inputs: {},
+                    capabilities: ["indicators", "drawings"],
+                    requestedIntervals: [],
+                    userPickableInterval: false,
+                    seriesCapacities: {},
+                    maxLookback: 0,
+                },
+                moduleSource,
+                types: "",
+            });
+        const probeReport = await runConformanceSuite(adapter, {
+            scenarios: [probe],
+            candles: SMALL_BARS.slice(0, 1),
+            compile: injectedCompile,
+        });
+        expect(probeReport.failed).toBe(1);
+        const probeFailure = probeReport.failures[0];
+        expect(probeFailure.assertionKind).toBe("drawing-hash");
+        const actualMatch = probeFailure.message.match(/actual ([0-9a-f]{64})/);
+        if (actualMatch === null) throw new Error("failed to parse actual hash");
+        const actual = actualMatch[1];
+        expect(probeFailure.message).toContain("1 emissions");
+
+        const pinned: Scenario = Object.freeze({
+            id: "drawing-hash-pinned",
+            title: "drawing-hash pinned — should pass",
+            inlineSource: "// placeholder",
+            intervalCount: 1,
+            assertions: Object.freeze([
+                { kind: "drawing-hash", handleId: "demo#0", sha256: actual },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const report = await runConformanceSuite(adapter, {
+            scenarios: [pinned],
+            candles: SMALL_BARS.slice(0, 1),
+            compile: injectedCompile,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(1);
+    });
+
+    it("drawing-hash without handleId labels the failure with `<all>`", async () => {
+        const INLINE = `import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "no-draw-3",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        plot(bar.close);
+    },
+});
+`;
+        const scenario: Scenario = Object.freeze({
+            id: "drawing-hash-all-label",
+            title: "drawing-hash without handleId",
+            inlineSource: INLINE,
+            intervalCount: 1,
+            assertions: Object.freeze([
+                { kind: "drawing-hash", sha256: "deadbeef".repeat(8) },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [scenario],
+            candles: SMALL_BARS.slice(0, 3),
+        });
+        expect(report.failed).toBe(1);
+        const [f] = report.failures;
+        expect(f.message).toContain("[<all>]");
     });
 
     it("diagnostic-code-present succeeds when the diagnostic IS emitted", async () => {

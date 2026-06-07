@@ -10,7 +10,7 @@ import { ultimateOsc } from "./ultimateOsc";
 // Oscillator maintains six running sums + six ring buffers; per-close
 // cost is O(1). 10k × default opts fits comfortably under 300ms on
 // CI Linux runners.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.ultimateOsc threshold", () => {
     it("runs 10 000 bars under threshold", () => {

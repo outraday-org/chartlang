@@ -124,7 +124,7 @@ export function transformAndAnalyse(
         sourcePath,
         statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
     });
-    const capabilities = extractCapabilities(sourceFile, checker);
+    const capabilities = extractCapabilities(sourceFile, checker, structural.kind);
     const lookback = extractMaxLookback(sourceFile, checker, sourcePath);
     const inputs = extractInputs();
 

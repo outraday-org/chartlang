@@ -3,20 +3,67 @@
 
 import { describe, expect, it } from "vitest";
 
-import { decodeDrawing } from "./decodeDrawing";
 import type { DrawingEmission } from "../types";
+import { decodeDrawing } from "./decodeDrawing";
+
+const wellFormedLine: DrawingEmission = {
+    kind: "drawing",
+    handleId: "h1",
+    drawingKind: "line",
+    op: "create",
+    state: {
+        kind: "line",
+        anchors: [
+            { time: 0, price: 0 },
+            { time: 1, price: 1 },
+        ],
+        style: {},
+    },
+    bar: 0,
+    time: 0,
+};
 
 describe("decodeDrawing", () => {
-    it("always returns null (Phase-1 stub)", () => {
-        const e: DrawingEmission = {
-            kind: "drawing",
-            handleId: "x",
-            drawingKind: "line",
-            op: "create",
-            state: null,
-            bar: 0,
-            time: 0,
-        };
-        expect(decodeDrawing(e)).toBeNull();
+    it("returns the typed DrawingState for a well-formed emission", () => {
+        const result = decodeDrawing(wellFormedLine);
+        expect(result).not.toBeNull();
+        if (result === null) return;
+        expect(result.kind).toBe("line");
+        if (result.kind === "line") {
+            expect(result.anchors[0]).toEqual({ time: 0, price: 0 });
+            expect(result.anchors[1]).toEqual({ time: 1, price: 1 });
+        }
+    });
+
+    it("returns null when the state shape is malformed (anchor not a WorldPoint)", () => {
+        const malformed = {
+            ...wellFormedLine,
+            state: {
+                kind: "line",
+                anchors: [{ time: 0, price: 0 }, { time: Number.NaN, price: 1 }],
+                style: {},
+            },
+        } as unknown as DrawingEmission;
+        expect(decodeDrawing(malformed)).toBeNull();
+    });
+
+    it("returns null when state.kind !== drawingKind", () => {
+        const mismatched = {
+            ...wellFormedLine,
+            state: {
+                kind: "horizontal-line",
+                price: 100,
+                style: {},
+            },
+        } as unknown as DrawingEmission;
+        expect(decodeDrawing(mismatched)).toBeNull();
+    });
+
+    it("returns null when the drawingKind is unknown", () => {
+        const unknown = {
+            ...wellFormedLine,
+            drawingKind: "not-a-kind",
+        } as unknown as DrawingEmission;
+        expect(decodeDrawing(unknown)).toBeNull();
     });
 });

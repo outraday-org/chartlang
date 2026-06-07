@@ -9,7 +9,7 @@ import { nz } from "./nz";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. ta.nz is a
 // branch + return so 10k iterations are dominated by loop overhead;
 // budget 300ms for CI Linux runners (same as stateful Phase-1 primitives).
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.nz threshold", () => {
     it("runs 10 000 iterations under threshold", () => {

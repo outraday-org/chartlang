@@ -557,6 +557,33 @@ declare module "@invinite-org/chartlang-core" {
         readonly seriesCapacities: Readonly<Record<string, number>>;
         readonly maxLookback: number;
     };
+    export type Time = number;
+    export type Price = number;
+    export type WorldPoint = { readonly time: Time; readonly price: Price };
+    export type LineDrawStyle = Readonly<{
+        color?: Color;
+        lineWidth?: number;
+        lineStyle?: LineStyle;
+        extendLeft?: boolean;
+        extendRight?: boolean;
+    }>;
+    export type DrawingHandle = Readonly<{
+        readonly id: string;
+        update(patch: Readonly<Record<string, unknown>>): void;
+        remove(): void;
+    }>;
+    // Phase-3 line-family draw surface (Task 5). Tasks 6-18 widen
+    // DrawNamespace as their kinds ship. The compiler only needs
+    // method signatures here to route call-site id injection.
+    export type DrawNamespace = {
+        line(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+        horizontalLine(price: Price, opts?: LineDrawStyle): DrawingHandle;
+        horizontalRay(anchor: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+        verticalLine(time: Time, opts?: LineDrawStyle): DrawingHandle;
+        crossLine(anchor: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+        trendAngle(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+    };
+    export const draw: DrawNamespace;
     export type ComputeContext = {
         readonly bar: Bar;
         readonly inputs: Readonly<Record<string, unknown>>;
@@ -564,6 +591,7 @@ declare module "@invinite-org/chartlang-core" {
         readonly plot: typeof plot;
         readonly hline: typeof hline;
         readonly alert: typeof alert;
+        readonly draw: DrawNamespace;
     };
     export type ComputeFn = (ctx: ComputeContext) => void;
     export type CompiledScriptObject = {
@@ -583,8 +611,15 @@ declare module "@invinite-org/chartlang-core" {
         inputs?: InputSchema;
         compute: ComputeFn;
     }>;
+    export type DefineDrawingOpts = Readonly<{
+        name: string;
+        apiVersion: 1;
+        inputs?: InputSchema;
+        compute: ComputeFn;
+    }>;
     export function defineIndicator(opts: DefineIndicatorOpts): CompiledScriptObject;
     export function defineAlert(opts: DefineAlertOpts): CompiledScriptObject;
+    export function defineDrawing(opts: DefineDrawingOpts): CompiledScriptObject;
     export type StatefulPrimitiveEntry = Readonly<{ name: string; slot: boolean }>;
     export const STATEFUL_PRIMITIVES: ReadonlySet<StatefulPrimitiveEntry>;
     export const STATEFUL_PRIMITIVES_BY_NAME: ReadonlyMap<string, StatefulPrimitiveEntry>;

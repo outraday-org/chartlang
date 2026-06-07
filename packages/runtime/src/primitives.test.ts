@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import { DRAWING_KINDS, KIND_CAMELCASE } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { alert, hline, plot, ta } from "./primitives";
+import { alert, draw, hline, plot, ta } from "./primitives";
 import { TA_REGISTRY } from "./ta";
 
 describe("primitives — ta seam (Task 7 wired)", () => {
@@ -51,5 +52,48 @@ describe("primitives — emit re-exports (Task 8 seam)", () => {
 
     it("alert throws the sentinel when called outside an active script step", () => {
         expect(() => alert("hi")).toThrow("alert called outside an active script step");
+    });
+});
+
+describe("primitives — draw seam (Phase-3 Tasks 3 + 5 wired)", () => {
+    it("exposes the Task-5 line-family methods on the runtime namespace", () => {
+        for (const name of [
+            "line",
+            "horizontalLine",
+            "horizontalRay",
+            "verticalLine",
+            "crossLine",
+            "trendAngle",
+        ] as const) {
+            expect(typeof (draw as unknown as Record<string, unknown>)[name]).toBe("function");
+        }
+    });
+
+    it("throws the active-step sentinel for shipped line-family methods", () => {
+        // Task 5 ships the runtime impl — without an active context the
+        // dual-overload throws the runtime sentinel, not core's stub
+        // sentinel.
+        expect(() => draw.horizontalLine(0)).toThrow(
+            "draw.horizontalLine called outside an active script step",
+        );
+    });
+
+    it("ships a real runtime impl for every DrawingKind (no core stubs after Task 18)", () => {
+        // Phase-3 cardinality gate: after Task 18 the runtime
+        // `DRAW_NAMESPACE` carries a real impl for every one of the 61
+        // `DrawingKind`s. Each method must throw the runtime sentinel
+        // (`"called outside an active script step"`) when called bare
+        // — NOT the core stub sentinel
+        // (`"called outside compiled runtime"`).
+        expect(DRAWING_KINDS.length).toBe(61);
+        for (const kind of DRAWING_KINDS) {
+            const camel = KIND_CAMELCASE.get(kind);
+            if (camel === undefined) throw new Error(`missing camel mapping for ${kind}`);
+            const method = (draw as unknown as Record<string, () => unknown>)[camel];
+            expect(typeof method).toBe("function");
+            expect(() => method()).toThrow(
+                new RegExp(`^draw\\.${camel} called outside an active script step$`),
+            );
+        }
     });
 });

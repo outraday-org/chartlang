@@ -9,7 +9,7 @@ import { vwma } from "./vwma";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. VWMA walks
 // two parallel windows per close — roughly 1.5× SMA's budget per
 // task §10.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.vwma threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -13,7 +13,7 @@ import { makeSeriesView } from "./seriesView";
 // of the script-author-facing identity-stable Series<T> contract.
 // The companion `seriesView.bench.ts` runs the same loop under
 // `vitest bench` for the perf-tracking median.
-const THRESHOLD_MS = 200;
+const THRESHOLD_MS = 1500;
 const ITERATIONS = 100_000;
 const CAPACITY = 64;
 

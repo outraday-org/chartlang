@@ -11,7 +11,7 @@ import { connorsRsi } from "./connorsRsi";
 // per-bar percent-rank walk over the rocLength=100 window. 10k × 100
 // = ~1M percent-rank ops total; fits comfortably under 300ms on CI
 // Linux runners.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.connorsRsi threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -27,8 +27,25 @@ describe("CANVAS2D_CAPABILITIES", () => {
         expect([...CANVAS2D_CAPABILITIES.alerts].sort()).toEqual(["log", "toast"]);
     });
 
-    it("disables drawings, inputs, alertConditions, logs, multiTimeframe, sub-panes, sym-info", () => {
-        expect(CANVAS2D_CAPABILITIES.drawings.size).toBe(0);
+    it("declares all 61 Phase-3 drawing kinds", () => {
+        expect(CANVAS2D_CAPABILITIES.drawings.size).toBe(61);
+        // Sample a few from each category to confirm membership routes
+        // through `capabilities.allPhase3Drawings()`.
+        expect(CANVAS2D_CAPABILITIES.drawings.has("line")).toBe(true);
+        expect(CANVAS2D_CAPABILITIES.drawings.has("fib-retracement")).toBe(true);
+        expect(CANVAS2D_CAPABILITIES.drawings.has("elliott-impulse-wave")).toBe(true);
+        expect(CANVAS2D_CAPABILITIES.drawings.has("group")).toBe(true);
+    });
+
+    it("sizes maxDrawingsPerScript so the Phase-3 drawAll61 smoke fits every bucket", () => {
+        expect(CANVAS2D_CAPABILITIES.maxDrawingsPerScript.lines).toBe(200);
+        expect(CANVAS2D_CAPABILITIES.maxDrawingsPerScript.labels).toBe(200);
+        expect(CANVAS2D_CAPABILITIES.maxDrawingsPerScript.boxes).toBe(100);
+        expect(CANVAS2D_CAPABILITIES.maxDrawingsPerScript.polylines).toBe(100);
+        expect(CANVAS2D_CAPABILITIES.maxDrawingsPerScript.other).toBe(100);
+    });
+
+    it("disables inputs, alertConditions, logs, multiTimeframe, sub-panes, sym-info", () => {
         expect(CANVAS2D_CAPABILITIES.inputs.size).toBe(0);
         expect(CANVAS2D_CAPABILITIES.alertConditions).toBe(false);
         expect(CANVAS2D_CAPABILITIES.logs).toBe(false);

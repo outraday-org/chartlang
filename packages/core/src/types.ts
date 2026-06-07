@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { DrawNamespace } from "./draw/draw";
 import type { TaNamespace } from "./ta/ta";
 
 /**
@@ -172,6 +173,33 @@ export type InputSchema = Readonly<Record<string, unknown>>;
 export type CapabilityId = "indicators" | "drawings" | "alerts";
 
 /**
+ * Per-script drawing-emission budget. Excess `draw.*` calls drop with
+ * `drawing-budget-exceeded` once a bucket is full. Mirrors Pine's
+ * `max_*_count` family. The runtime enforces
+ * `min(scriptManifest.maxDrawings, adapter.capabilities.maxDrawingsPerScript)`
+ * per bucket per PLAN.md §10 / §4.1.
+ *
+ * Canonical declaration lives here in core so both
+ * `ScriptManifest.maxDrawings?` and the adapter-kit re-export pin the
+ * same shape — preserving the adapter-kit → core dependency direction.
+ *
+ * @since 0.3
+ * @experimental
+ * @example
+ *     const c: DrawingCounts = {
+ *         lines: 50, labels: 50, boxes: 50, polylines: 50, other: 50,
+ *     };
+ *     void c;
+ */
+export type DrawingCounts = {
+    readonly lines: number;
+    readonly labels: number;
+    readonly boxes: number;
+    readonly polylines: number;
+    readonly other: number;
+};
+
+/**
  * The metadata sidecar the compiler emits next to a compiled script. The
  * runtime reads this to size ring buffers, gate against adapter capabilities,
  * and pick secondary candle streams.
@@ -200,6 +228,15 @@ export type ScriptManifest = {
     readonly userPickableInterval: boolean;
     readonly seriesCapacities: Readonly<Record<string, number>>;
     readonly maxLookback: number;
+    /**
+     * Per-bucket cap on `draw.*` emissions the script intends to
+     * produce per bar. The runtime enforces
+     * `min(this, adapter.capabilities.maxDrawingsPerScript)` per
+     * bucket. Omit to default to the adapter's cap.
+     *
+     * @since 0.3
+     */
+    readonly maxDrawings?: DrawingCounts;
 };
 
 /**
@@ -218,6 +255,14 @@ export type ComputeContext = {
     readonly plot: typeof import("./plot/plot").plot;
     readonly hline: typeof import("./plot/plot").hline;
     readonly alert: typeof import("./alert/alert").alert;
+    /**
+     * Imperative drawing namespace. Each method returns a
+     * {@link DrawingHandle} the script can `update(...)` or
+     * `remove()` within the same `compute` run, and across bars.
+     * The Phase-3 runtime impl lives in
+     * `@invinite-org/chartlang-runtime/emit/draw`. @since 0.3
+     */
+    readonly draw: DrawNamespace;
 };
 
 /**

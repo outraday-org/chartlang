@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import { DRAWING_KINDS, type DrawingKind } from "@invinite-org/chartlang-core";
+
 import type { DiagnosticCode } from "../types";
 
 /**
@@ -86,6 +88,10 @@ const VALID_ALERT_CHANNELS: ReadonlySet<string> = new Set([
 ]);
 
 const VALID_DIAGNOSTIC_SEVERITIES: ReadonlySet<string> = new Set(["info", "warning", "error"]);
+
+const VALID_DRAWING_KINDS: ReadonlySet<string> = new Set<string>(DRAWING_KINDS);
+
+const VALID_DRAWING_OPS: ReadonlySet<string> = new Set(["create", "update", "remove"]);
 
 const VALID_DIAGNOSTIC_CODES: ReadonlySet<string> = new Set<DiagnosticCode>([
     "unsupported-plot-kind",
@@ -333,12 +339,921 @@ function validateAlertEmission(e: Record<string, unknown>): ValidationResult {
     return { ok: true };
 }
 
-function validateDrawingEmission(_e: Record<string, unknown>): ValidationResult {
-    return {
-        ok: false,
-        code: "unsupported-drawing-kind",
-        message: "drawing emissions are not supported in Phase 1",
-    };
+function isWorldPoint(v: unknown): v is { time: number; price: number } {
+    if (!isPlainObject(v)) return false;
+    return isFiniteNumber(v.time) && isFiniteNumber(v.price);
+}
+
+function validateAnchorFixed(v: unknown, path: string, count: number): ValidationResult {
+    if (!Array.isArray(v) || v.length !== count) {
+        return bad(`${path}: must be a ${count}-element WorldPoint tuple`);
+    }
+    for (let i = 0; i < count; i++) {
+        if (!isWorldPoint(v[i])) {
+            return bad(`${path}[${i}]: not a WorldPoint (need finite time + price)`);
+        }
+    }
+    return { ok: true };
+}
+
+function validateAnchorPair(v: unknown, path: string): ValidationResult {
+    return validateAnchorFixed(v, path, 2);
+}
+
+function validateAnchorTriple(v: unknown, path: string): ValidationResult {
+    return validateAnchorFixed(v, path, 3);
+}
+
+function validateAnchorQuad(v: unknown, path: string): ValidationResult {
+    return validateAnchorFixed(v, path, 4);
+}
+
+function validateAnchorQuint(v: unknown, path: string): ValidationResult {
+    return validateAnchorFixed(v, path, 5);
+}
+
+function validateAnchorHept(v: unknown, path: string): ValidationResult {
+    return validateAnchorFixed(v, path, 7);
+}
+
+function validateOptionalLabels(
+    v: unknown,
+    path: string,
+    expectedCount: number,
+): ValidationResult {
+    if (v === undefined) return { ok: true };
+    if (!Array.isArray(v) || v.length !== expectedCount) {
+        return bad(`${path}: must be an array of ${expectedCount} strings`);
+    }
+    for (let i = 0; i < expectedCount; i++) {
+        if (typeof v[i] !== "string") {
+            return bad(`${path}[${i}]: must be a string`);
+        }
+    }
+    return { ok: true };
+}
+
+function validateAnchorVariable(
+    v: unknown,
+    path: string,
+    min: number,
+    max: number,
+): ValidationResult {
+    if (!Array.isArray(v) || v.length < min || v.length > max) {
+        return bad(`${path}: must be an array of ${min}..${max} WorldPoints`);
+    }
+    for (let i = 0; i < v.length; i++) {
+        if (!isWorldPoint(v[i])) {
+            return bad(`${path}[${i}]: not a WorldPoint (need finite time + price)`);
+        }
+    }
+    return { ok: true };
+}
+
+function validateLineDrawStyle(s: unknown, path: string): ValidationResult {
+    if (!isPlainObject(s)) return bad(`${path}: must be a plain object`);
+    if (s.color !== undefined && typeof s.color !== "string") {
+        return bad(`${path}.color: must be a string`);
+    }
+    if (s.lineWidth !== undefined && (!isFiniteNumber(s.lineWidth) || s.lineWidth <= 0)) {
+        return bad(`${path}.lineWidth: must be a finite positive number`);
+    }
+    if (s.lineStyle !== undefined && !VALID_LINE_STYLES.has(String(s.lineStyle))) {
+        return bad(`${path}.lineStyle: '${String(s.lineStyle)}' is not a valid line style`);
+    }
+    if (s.extendLeft !== undefined && typeof s.extendLeft !== "boolean") {
+        return bad(`${path}.extendLeft: must be a boolean`);
+    }
+    if (s.extendRight !== undefined && typeof s.extendRight !== "boolean") {
+        return bad(`${path}.extendRight: must be a boolean`);
+    }
+    return { ok: true };
+}
+
+function validateShapeStyle(s: unknown, path: string): ValidationResult {
+    if (!isPlainObject(s)) return bad(`${path}: must be a plain object`);
+    if (s.stroke !== undefined && typeof s.stroke !== "string") {
+        return bad(`${path}.stroke: must be a string`);
+    }
+    if (s.fill !== undefined && typeof s.fill !== "string") {
+        return bad(`${path}.fill: must be a string`);
+    }
+    if (s.lineWidth !== undefined && (!isFiniteNumber(s.lineWidth) || s.lineWidth <= 0)) {
+        return bad(`${path}.lineWidth: must be a finite positive number`);
+    }
+    if (s.lineStyle !== undefined && !VALID_LINE_STYLES.has(String(s.lineStyle))) {
+        return bad(`${path}.lineStyle: '${String(s.lineStyle)}' is not a valid line style`);
+    }
+    if (
+        s.fillAlpha !== undefined &&
+        (!isFiniteNumber(s.fillAlpha) || s.fillAlpha < 0 || s.fillAlpha > 1)
+    ) {
+        return bad(`${path}.fillAlpha: must be a finite number in [0, 1]`);
+    }
+    return { ok: true };
+}
+
+function validateDrawingMeta(state: Record<string, unknown>): ValidationResult {
+    if (state.name !== undefined && typeof state.name !== "string") {
+        return bad("drawing.state.name: must be a string");
+    }
+    if (state.visible !== undefined && typeof state.visible !== "boolean") {
+        return bad("drawing.state.visible: must be a boolean");
+    }
+    return { ok: true };
+}
+
+function validateLineState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateHorizontalLineState(state: Record<string, unknown>): ValidationResult {
+    if (!isFiniteNumber(state.price)) return bad("drawing.state.price: must be a finite number");
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateHorizontalRayState(state: Record<string, unknown>): ValidationResult {
+    if (!isWorldPoint(state.anchor)) return bad("drawing.state.anchor: not a WorldPoint");
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateVerticalLineState(state: Record<string, unknown>): ValidationResult {
+    if (!isFiniteNumber(state.time)) return bad("drawing.state.time: must be a finite number");
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateCrossLineState(state: Record<string, unknown>): ValidationResult {
+    if (!isWorldPoint(state.anchor)) return bad("drawing.state.anchor: not a WorldPoint");
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateTrendAngleState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateRectangleState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateShapeStyle(state.style, "drawing.state.style");
+}
+
+function validateRotatedRectangleState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorQuad(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateShapeStyle(state.style, "drawing.state.style");
+}
+
+function validateTriangleState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateShapeStyle(state.style, "drawing.state.style");
+}
+
+const POLYLINE_MIN_ANCHORS = 3;
+const POLYLINE_MAX_ANCHORS = 20;
+
+function validatePolylineState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorVariable(
+        state.anchors,
+        "drawing.state.anchors",
+        POLYLINE_MIN_ANCHORS,
+        POLYLINE_MAX_ANCHORS,
+    );
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateCircleState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateShapeStyle(state.style, "drawing.state.style");
+}
+
+function validateEllipseState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateShapeStyle(state.style, "drawing.state.style");
+}
+
+function validatePathOpts(s: unknown, path: string): ValidationResult {
+    const lineCheck = validateLineDrawStyle(s, path);
+    if (!lineCheck.ok) return lineCheck;
+    // validateLineDrawStyle proved `s` is a plain object.
+    const obj = s as Record<string, unknown>;
+    if (obj.closed !== undefined && typeof obj.closed !== "boolean") {
+        return bad(`${path}.closed: must be a boolean`);
+    }
+    return { ok: true };
+}
+
+const PATH_MIN_ANCHORS = 2;
+const PATH_MAX_ANCHORS = 20;
+
+function validatePathState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorVariable(
+        state.anchors,
+        "drawing.state.anchors",
+        PATH_MIN_ANCHORS,
+        PATH_MAX_ANCHORS,
+    );
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validatePathOpts(state.style, "drawing.state.style");
+}
+
+const VALID_TEXT_SIZES: ReadonlySet<string> = new Set([
+    "tiny",
+    "small",
+    "normal",
+    "large",
+    "huge",
+]);
+
+const VALID_TEXT_HALIGN: ReadonlySet<string> = new Set(["left", "center", "right"]);
+
+const VALID_TEXT_VALIGN: ReadonlySet<string> = new Set(["top", "middle", "bottom"]);
+
+function validateTextOpts(s: unknown, path: string): ValidationResult {
+    if (!isPlainObject(s)) return bad(`${path}: must be a plain object`);
+    if (s.color !== undefined && typeof s.color !== "string") {
+        return bad(`${path}.color: must be a string`);
+    }
+    if (s.size !== undefined && !VALID_TEXT_SIZES.has(String(s.size))) {
+        return bad(`${path}.size: '${String(s.size)}' is not a valid text size`);
+    }
+    if (s.halign !== undefined && !VALID_TEXT_HALIGN.has(String(s.halign))) {
+        return bad(`${path}.halign: '${String(s.halign)}' is not a valid halign`);
+    }
+    if (s.valign !== undefined && !VALID_TEXT_VALIGN.has(String(s.valign))) {
+        return bad(`${path}.valign: '${String(s.valign)}' is not a valid valign`);
+    }
+    if (s.bgColor !== undefined && typeof s.bgColor !== "string") {
+        return bad(`${path}.bgColor: must be a string`);
+    }
+    return { ok: true };
+}
+
+function validateMarkerState(state: Record<string, unknown>): ValidationResult {
+    if (!isWorldPoint(state.anchor)) return bad("drawing.state.anchor: not a WorldPoint");
+    if (state.text !== undefined && typeof state.text !== "string") {
+        return bad("drawing.state.text: must be a string");
+    }
+    if (state.value !== undefined && !isFiniteNumber(state.value)) {
+        return bad("drawing.state.value: must be a finite number");
+    }
+    return validateTextOpts(state.style, "drawing.state.style");
+}
+
+const FREEHAND_MIN_ANCHORS = 2;
+const FREEHAND_MAX_ANCHORS = 500;
+
+function validateHighlighterStyle(s: unknown, path: string): ValidationResult {
+    if (!isPlainObject(s)) return bad(`${path}: must be a plain object`);
+    if (typeof s.color !== "string") return bad(`${path}.color: must be a string`);
+    if (!isFiniteNumber(s.alpha) || s.alpha < 0 || s.alpha > 1) {
+        return bad(`${path}.alpha: must be a finite number in [0, 1]`);
+    }
+    return { ok: true };
+}
+
+function validateBrushStyle(s: unknown, path: string): ValidationResult {
+    if (!isPlainObject(s)) return bad(`${path}: must be a plain object`);
+    if (typeof s.stroke !== "string") return bad(`${path}.stroke: must be a string`);
+    if (typeof s.fill !== "string") return bad(`${path}.fill: must be a string`);
+    return { ok: true };
+}
+
+function validateArcState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateCurveState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateDoubleCurveState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorQuint(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validatePenState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorVariable(
+        state.anchors,
+        "drawing.state.anchors",
+        FREEHAND_MIN_ANCHORS,
+        FREEHAND_MAX_ANCHORS,
+    );
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateHighlighterState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorVariable(
+        state.anchors,
+        "drawing.state.anchors",
+        FREEHAND_MIN_ANCHORS,
+        FREEHAND_MAX_ANCHORS,
+    );
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateHighlighterStyle(state.style, "drawing.state.style");
+}
+
+function validateBrushState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorVariable(
+        state.anchors,
+        "drawing.state.anchors",
+        FREEHAND_MIN_ANCHORS,
+        FREEHAND_MAX_ANCHORS,
+    );
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateBrushStyle(state.style, "drawing.state.style");
+}
+
+const TEXT_BODY_MAX_LENGTH = 256;
+
+function validateArrowOpts(s: unknown, path: string): ValidationResult {
+    const lineCheck = validateLineDrawStyle(s, path);
+    if (!lineCheck.ok) return lineCheck;
+    // validateLineDrawStyle proved `s` is a plain object.
+    const obj = s as Record<string, unknown>;
+    if (obj.label !== undefined && typeof obj.label !== "string") {
+        return bad(`${path}.label: must be a string`);
+    }
+    return { ok: true };
+}
+
+function validateArrowMarkerOpts(s: unknown, path: string): ValidationResult {
+    if (!isPlainObject(s)) return bad(`${path}: must be a plain object`);
+    if (s.color !== undefined && typeof s.color !== "string") {
+        return bad(`${path}.color: must be a string`);
+    }
+    if (s.text !== undefined && typeof s.text !== "string") {
+        return bad(`${path}.text: must be a string`);
+    }
+    return { ok: true };
+}
+
+function validateTextState(state: Record<string, unknown>): ValidationResult {
+    if (!isWorldPoint(state.anchor)) return bad("drawing.state.anchor: not a WorldPoint");
+    // walkMeta catches non-JsonValue payloads (bigint / function / symbol /
+    // undefined / non-finite number) anywhere on `body`; a bare string is
+    // a valid JsonValue and passes through. The kind-specific
+    // non-empty / length cap follows so the wire-shape error message stays
+    // specific.
+    const bodyMetaCheck = walkMeta(state.body, "drawing.state.body");
+    if (!bodyMetaCheck.ok) return bodyMetaCheck;
+    if (typeof state.body !== "string") {
+        return bad("drawing.state.body: must be a string");
+    }
+    if (state.body.length === 0) {
+        return bad("drawing.state.body: must be a non-empty string");
+    }
+    if (state.body.length > TEXT_BODY_MAX_LENGTH) {
+        return bad(`drawing.state.body: must be at most ${TEXT_BODY_MAX_LENGTH} characters`);
+    }
+    return validateTextOpts(state.style, "drawing.state.style");
+}
+
+function validateArrowState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateArrowOpts(state.style, "drawing.state.style");
+}
+
+function validateArrowMarkerState(state: Record<string, unknown>): ValidationResult {
+    if (!isWorldPoint(state.anchor)) return bad("drawing.state.anchor: not a WorldPoint");
+    return validateArrowMarkerOpts(state.style, "drawing.state.style");
+}
+
+function validateArrowMarkUpState(state: Record<string, unknown>): ValidationResult {
+    if (!isWorldPoint(state.anchor)) return bad("drawing.state.anchor: not a WorldPoint");
+    return validateArrowMarkerOpts(state.style, "drawing.state.style");
+}
+
+function validateArrowMarkDownState(state: Record<string, unknown>): ValidationResult {
+    if (!isWorldPoint(state.anchor)) return bad("drawing.state.anchor: not a WorldPoint");
+    return validateArrowMarkerOpts(state.style, "drawing.state.style");
+}
+
+const VALID_REGRESSION_SOURCES: ReadonlySet<string> = new Set([
+    "close",
+    "open",
+    "high",
+    "low",
+    "hl2",
+    "hlc3",
+    "ohlc4",
+    "hlcc4",
+]);
+
+function validateRegressionTrendOpts(s: unknown, path: string): ValidationResult {
+    if (!isPlainObject(s)) return bad(`${path}: must be a plain object`);
+    if (s.source !== undefined && !VALID_REGRESSION_SOURCES.has(String(s.source))) {
+        return bad(`${path}.source: '${String(s.source)}' is not a valid source`);
+    }
+    if (s.stdevMultiplier !== undefined) {
+        if (!isFiniteNumber(s.stdevMultiplier) || s.stdevMultiplier < 0) {
+            return bad(`${path}.stdevMultiplier: must be a non-negative finite number`);
+        }
+    }
+    if (s.showUpperBand !== undefined && typeof s.showUpperBand !== "boolean") {
+        return bad(`${path}.showUpperBand: must be a boolean`);
+    }
+    if (s.showLowerBand !== undefined && typeof s.showLowerBand !== "boolean") {
+        return bad(`${path}.showLowerBand: must be a boolean`);
+    }
+    if (s.color !== undefined && typeof s.color !== "string") {
+        return bad(`${path}.color: must be a string`);
+    }
+    return { ok: true };
+}
+
+function validateTrendChannelState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateFlatTopBottomState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateDisjointChannelState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorQuad(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateRegressionTrendState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    const anchors = state.anchors as ReadonlyArray<{ time: number; price: number }>;
+    if (!(anchors[0].time < anchors[1].time)) {
+        return bad("drawing.state.anchors: anchors[0].time must be < anchors[1].time");
+    }
+    return validateRegressionTrendOpts(state.style, "drawing.state.style");
+}
+
+function validateFibOpts(s: unknown, path: string): ValidationResult {
+    if (!isPlainObject(s)) return bad(`${path}: must be a plain object`);
+    if (s.levels !== undefined) {
+        if (!Array.isArray(s.levels)) {
+            return bad(`${path}.levels: must be an array of finite numbers`);
+        }
+        if (s.levels.length === 0) {
+            return bad(`${path}.levels: must contain at least one level`);
+        }
+        for (let i = 0; i < s.levels.length; i++) {
+            if (!isFiniteNumber(s.levels[i])) {
+                return bad(`${path}.levels[${i}]: must be a finite number`);
+            }
+        }
+    }
+    if (s.showLabels !== undefined && typeof s.showLabels !== "boolean") {
+        return bad(`${path}.showLabels: must be a boolean`);
+    }
+    if (s.color !== undefined && typeof s.color !== "string") {
+        return bad(`${path}.color: must be a string`);
+    }
+    if (s.extendLeft !== undefined && typeof s.extendLeft !== "boolean") {
+        return bad(`${path}.extendLeft: must be a boolean`);
+    }
+    if (s.extendRight !== undefined && typeof s.extendRight !== "boolean") {
+        return bad(`${path}.extendRight: must be a boolean`);
+    }
+    return { ok: true };
+}
+
+function validateFibRetracementState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateFibOpts(state.style, "drawing.state.style");
+}
+
+function validateFibTrendExtensionState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateFibOpts(state.style, "drawing.state.style");
+}
+
+function validateFibChannelState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateFibOpts(state.style, "drawing.state.style");
+}
+
+function validateFibTimeZoneState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateFibOpts(state.style, "drawing.state.style");
+}
+
+function validateFibWedgeState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateFibOpts(state.style, "drawing.state.style");
+}
+
+function validateFibSpeedFanState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateFibOpts(state.style, "drawing.state.style");
+}
+
+function validateFibSpeedArcsState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateFibOpts(state.style, "drawing.state.style");
+}
+
+function validateFibSpiralState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateFibOpts(state.style, "drawing.state.style");
+}
+
+function validateFibCirclesState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateFibOpts(state.style, "drawing.state.style");
+}
+
+function validateFibTrendTimeState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateFibOpts(state.style, "drawing.state.style");
+}
+
+function validateGannBoxState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateGannSquareFixedState(state: Record<string, unknown>): ValidationResult {
+    if (!isWorldPoint(state.anchor)) return bad("drawing.state.anchor: not a WorldPoint");
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateGannSquareState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateGannFanState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+const PITCHFORK_VARIANTS: ReadonlySet<string> = new Set([
+    "standard",
+    "schiff",
+    "modifiedSchiff",
+    "inside",
+]);
+
+function validatePitchforkState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    if (typeof state.variant !== "string" || !PITCHFORK_VARIANTS.has(state.variant)) {
+        return bad(
+            `drawing.state.variant: '${String(state.variant)}' must be 'standard' | 'schiff' | 'modifiedSchiff' | 'inside'`,
+        );
+    }
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validatePitchfanState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateXabcdPatternState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorQuint(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateCypherPatternState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorQuint(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateHeadAndShouldersState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorQuint(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateAbcdPatternState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorQuad(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateTrianglePatternState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateThreeDrivesPatternState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorHept(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateElliottImpulseWaveState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorQuint(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    const labelsCheck = validateOptionalLabels(state.labels, "drawing.state.labels", 5);
+    if (!labelsCheck.ok) return labelsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateElliottCorrectionWaveState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorTriple(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    const labelsCheck = validateOptionalLabels(state.labels, "drawing.state.labels", 3);
+    if (!labelsCheck.ok) return labelsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateElliottTriangleWaveState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorQuint(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    const labelsCheck = validateOptionalLabels(state.labels, "drawing.state.labels", 5);
+    if (!labelsCheck.ok) return labelsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateElliottDoubleComboState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorHept(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    const labelsCheck = validateOptionalLabels(state.labels, "drawing.state.labels", 7);
+    if (!labelsCheck.ok) return labelsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateElliottTripleComboState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorHept(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    const labelsCheck = validateOptionalLabels(state.labels, "drawing.state.labels", 7);
+    if (!labelsCheck.ok) return labelsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateCyclicLinesState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateTimeCyclesState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+function validateSineLineState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    return validateLineDrawStyle(state.style, "drawing.state.style");
+}
+
+const MAX_CHILD_HANDLE_IDS = 100;
+
+function validateChildHandleIds(v: unknown, path: string): ValidationResult {
+    if (!Array.isArray(v)) {
+        return bad(`${path}: must be an array of handle id strings`);
+    }
+    if (v.length > MAX_CHILD_HANDLE_IDS) {
+        return bad(`${path}: must be at most ${MAX_CHILD_HANDLE_IDS} entries`);
+    }
+    for (let i = 0; i < v.length; i++) {
+        if (typeof v[i] !== "string") {
+            return bad(`${path}[${i}]: must be a string`);
+        }
+    }
+    return { ok: true };
+}
+
+function validateFrameOpts(s: unknown, path: string): ValidationResult {
+    if (!isPlainObject(s)) return bad(`${path}: must be a plain object`);
+    if (s.label !== undefined && typeof s.label !== "string") {
+        return bad(`${path}.label: must be a string`);
+    }
+    if (s.bgColor !== undefined && typeof s.bgColor !== "string") {
+        return bad(`${path}.bgColor: must be a string`);
+    }
+    return { ok: true };
+}
+
+function validateGroupState(state: Record<string, unknown>): ValidationResult {
+    return validateChildHandleIds(
+        state.childHandleIds,
+        "drawing.state.childHandleIds",
+    );
+}
+
+function validateFrameState(state: Record<string, unknown>): ValidationResult {
+    const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
+    if (!anchorsCheck.ok) return anchorsCheck;
+    const childCheck = validateChildHandleIds(
+        state.childHandleIds,
+        "drawing.state.childHandleIds",
+    );
+    if (!childCheck.ok) return childCheck;
+    return validateFrameOpts(state.style, "drawing.state.style");
+}
+
+/**
+ * Per-kind state dispatch. Task 2 lands the 6 line-kind validators;
+ * Tasks 6–18 add per-category validators (PLAN.md §22.10). After Task
+ * 18 every `DrawingKind` has a real validator arm; the
+ * `default: return { ok: true };` arm is dead code reachable only by a
+ * future kind added to `DrawingKind` without a validator arm. The arm
+ * stays as a defence-in-depth path — adapter-kit's wire-shape check
+ * (`handleId` / `op` / `bar` / `time` / `state.kind === drawingKind`)
+ * still runs for every kind via {@link validateDrawingEmission}.
+ */
+function validateStateByKind(
+    kind: DrawingKind,
+    state: Record<string, unknown>,
+): ValidationResult {
+    switch (kind) {
+        case "line":
+            return validateLineState(state);
+        case "horizontal-line":
+            return validateHorizontalLineState(state);
+        case "horizontal-ray":
+            return validateHorizontalRayState(state);
+        case "vertical-line":
+            return validateVerticalLineState(state);
+        case "cross-line":
+            return validateCrossLineState(state);
+        case "trend-angle":
+            return validateTrendAngleState(state);
+        case "rectangle":
+            return validateRectangleState(state);
+        case "rotated-rectangle":
+            return validateRotatedRectangleState(state);
+        case "triangle":
+            return validateTriangleState(state);
+        case "polyline":
+            return validatePolylineState(state);
+        case "circle":
+            return validateCircleState(state);
+        case "ellipse":
+            return validateEllipseState(state);
+        case "path":
+            return validatePathState(state);
+        case "marker":
+            return validateMarkerState(state);
+        case "arc":
+            return validateArcState(state);
+        case "curve":
+            return validateCurveState(state);
+        case "double-curve":
+            return validateDoubleCurveState(state);
+        case "pen":
+            return validatePenState(state);
+        case "highlighter":
+            return validateHighlighterState(state);
+        case "brush":
+            return validateBrushState(state);
+        case "text":
+            return validateTextState(state);
+        case "arrow":
+            return validateArrowState(state);
+        case "arrow-marker":
+            return validateArrowMarkerState(state);
+        case "arrow-mark-up":
+            return validateArrowMarkUpState(state);
+        case "arrow-mark-down":
+            return validateArrowMarkDownState(state);
+        case "trend-channel":
+            return validateTrendChannelState(state);
+        case "flat-top-bottom":
+            return validateFlatTopBottomState(state);
+        case "disjoint-channel":
+            return validateDisjointChannelState(state);
+        case "regression-trend":
+            return validateRegressionTrendState(state);
+        case "fib-retracement":
+            return validateFibRetracementState(state);
+        case "fib-trend-extension":
+            return validateFibTrendExtensionState(state);
+        case "fib-channel":
+            return validateFibChannelState(state);
+        case "fib-time-zone":
+            return validateFibTimeZoneState(state);
+        case "fib-wedge":
+            return validateFibWedgeState(state);
+        case "fib-speed-fan":
+            return validateFibSpeedFanState(state);
+        case "fib-speed-arcs":
+            return validateFibSpeedArcsState(state);
+        case "fib-spiral":
+            return validateFibSpiralState(state);
+        case "fib-circles":
+            return validateFibCirclesState(state);
+        case "fib-trend-time":
+            return validateFibTrendTimeState(state);
+        case "gann-box":
+            return validateGannBoxState(state);
+        case "gann-square-fixed":
+            return validateGannSquareFixedState(state);
+        case "gann-square":
+            return validateGannSquareState(state);
+        case "gann-fan":
+            return validateGannFanState(state);
+        case "pitchfork":
+            return validatePitchforkState(state);
+        case "pitchfan":
+            return validatePitchfanState(state);
+        case "xabcd-pattern":
+            return validateXabcdPatternState(state);
+        case "cypher-pattern":
+            return validateCypherPatternState(state);
+        case "head-and-shoulders":
+            return validateHeadAndShouldersState(state);
+        case "abcd-pattern":
+            return validateAbcdPatternState(state);
+        case "triangle-pattern":
+            return validateTrianglePatternState(state);
+        case "three-drives-pattern":
+            return validateThreeDrivesPatternState(state);
+        case "elliott-impulse-wave":
+            return validateElliottImpulseWaveState(state);
+        case "elliott-correction-wave":
+            return validateElliottCorrectionWaveState(state);
+        case "elliott-triangle-wave":
+            return validateElliottTriangleWaveState(state);
+        case "elliott-double-combo":
+            return validateElliottDoubleComboState(state);
+        case "elliott-triple-combo":
+            return validateElliottTripleComboState(state);
+        case "cyclic-lines":
+            return validateCyclicLinesState(state);
+        case "time-cycles":
+            return validateTimeCyclesState(state);
+        case "sine-line":
+            return validateSineLineState(state);
+        case "group":
+            return validateGroupState(state);
+        case "frame":
+            return validateFrameState(state);
+    }
+}
+
+function validateDrawingEmission(e: Record<string, unknown>): ValidationResult {
+    if (!isNonEmptyString(e.handleId)) {
+        return bad("drawing.handleId: must be a non-empty string");
+    }
+    const drawingKind = e.drawingKind;
+    if (typeof drawingKind !== "string" || !VALID_DRAWING_KINDS.has(drawingKind)) {
+        return {
+            ok: false,
+            code: "unsupported-drawing-kind",
+            message: `drawing.drawingKind: '${String(drawingKind)}' is not a known DrawingKind`,
+        };
+    }
+    if (typeof e.op !== "string" || !VALID_DRAWING_OPS.has(e.op)) {
+        return bad(`drawing.op: '${String(e.op)}' must be 'create' | 'update' | 'remove'`);
+    }
+    if (!isNonNegativeInteger(e.bar)) {
+        return bad("drawing.bar: must be a non-negative integer");
+    }
+    if (!isFiniteNumber(e.time)) {
+        return bad("drawing.time: must be a finite number");
+    }
+    const state = e.state;
+    if (!isPlainObject(state)) {
+        return bad("drawing.state: must be a plain object");
+    }
+    if (state.kind !== drawingKind) {
+        return bad(
+            `drawing.state.kind: '${String(state.kind)}' must equal drawing.drawingKind '${drawingKind}'`,
+        );
+    }
+    const metaCheck = validateDrawingMeta(state);
+    if (!metaCheck.ok) return metaCheck;
+    return validateStateByKind(drawingKind as DrawingKind, state);
 }
 
 function validateDiagnostic(e: Record<string, unknown>): ValidationResult {
@@ -363,14 +1278,17 @@ function validateDiagnostic(e: Record<string, unknown>): ValidationResult {
 }
 
 /**
- * Hand-rolled validator covering every Phase-1 emission shape. Returns
- * `{ ok: true }` for well-formed payloads and
+ * Hand-rolled validator covering every Phase-1 / Phase-2 / Phase-3
+ * emission shape. Returns `{ ok: true }` for well-formed payloads and
  * `{ ok: false, code, message }` otherwise. Hosts and adapters call
  * this at every structured-clone boundary (Worker `postMessage`,
  * QuickJS membrane) per PLAN §7.3.
  *
- * Drawing emissions unconditionally fail with
- * `unsupported-drawing-kind` until Phase 3 ships `draw.*`.
+ * Phase 3 widens the drawing dispatch from an unconditional Phase-1
+ * stub to a per-kind validator: unknown `drawingKind` returns
+ * `unsupported-drawing-kind`; malformed payloads of a known kind
+ * return `malformed-emission`. Tasks 6–18 each ADD their kind
+ * validators to the dispatch as ports land.
  *
  * @since 0.1
  * @experimental

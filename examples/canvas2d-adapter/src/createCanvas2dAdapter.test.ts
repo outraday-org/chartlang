@@ -4,10 +4,12 @@
 import type {
     AlertEmission,
     CandleEvent,
+    DrawingEmission,
     PlotEmission,
     RunnerEmissions,
     RuntimeDiagnostic,
 } from "@invinite-org/chartlang-adapter-kit";
+import type { DrawingState } from "@invinite-org/chartlang-core";
 import type { HostCompiledScript, ScriptHost } from "@invinite-org/chartlang-host-worker";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -46,6 +48,27 @@ function alertEmission(overrides: Partial<AlertEmission> & { slotId: string }): 
         meta: overrides.meta ?? {},
         channels: overrides.channels ?? ["log"],
         dedupeKey: overrides.dedupeKey ?? "k",
+    };
+}
+
+function lineDrawing(overrides: Partial<DrawingEmission> & { handleId: string }): DrawingEmission {
+    return {
+        kind: "drawing",
+        handleId: overrides.handleId,
+        drawingKind: overrides.drawingKind ?? "line",
+        op: overrides.op ?? "create",
+        state:
+            overrides.state ??
+            ({
+                kind: "line",
+                anchors: [
+                    { time: SAMPLE_BARS[0].time, price: 100 },
+                    { time: SAMPLE_BARS[1].time, price: 110 },
+                ],
+                style: {},
+            } as unknown as DrawingState),
+        bar: overrides.bar ?? 0,
+        time: overrides.time ?? SAMPLE_BARS[0].time,
     };
 }
 
@@ -493,6 +516,55 @@ describe("onEmissions dispatch", () => {
     });
 });
 
+describe("drawing emission dispatch", () => {
+    it("accumulates create + update drawings keyed by handleId and walks them through drawingDispatch", () => {
+        const { adapter, ctx } = buildAdapter({});
+        const baseline = ctx.calls.length;
+        adapter.onEmissions(
+            emissions({
+                drawings: [
+                    lineDrawing({ handleId: "h1" }),
+                    lineDrawing({ handleId: "h2", drawingKind: "horizontal-line" }),
+                    lineDrawing({ handleId: "h1", op: "update" }),
+                ],
+            }),
+        );
+        // Task 4's per-kind renderers are no-op stubs — every dispatch
+        // adds zero context calls. The frame's `clear` + `drawCandles`
+        // pre-amble is the only source of calls. The dispatch test pins
+        // that the drawings path neither throws nor leaks calls into
+        // the mock context.
+        expect(ctx.calls.length).toBeGreaterThan(baseline);
+    });
+
+    it("drops a drawing from the render set on op:'remove'", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({ drawings: [lineDrawing({ handleId: "h1" })] }),
+        );
+        const afterCreate = ctx.calls.length;
+        adapter.onEmissions(
+            emissions({ drawings: [lineDrawing({ handleId: "h1", op: "remove" })] }),
+        );
+        // The remove path is silent — the second frame redraws the
+        // baseline from scratch, minus the removed handle. Both frames
+        // touch the same baseline (clear + candles + zero-drawing
+        // dispatches).
+        expect(ctx.calls.length).toBeGreaterThan(afterCreate);
+    });
+
+    it("drops a malformed drawing via validateEmission without throwing", () => {
+        const { adapter, ctx } = buildAdapter({});
+        const bad = {
+            ...lineDrawing({ handleId: "h-bad" }),
+            drawingKind: "not-a-real-kind",
+        } as unknown as DrawingEmission;
+        adapter.onEmissions(emissions({ drawings: [bad] }));
+        // The frame still draws the background.
+        expect(ctx.calls.some((c) => c.kind === "fillRect")).toBe(true);
+    });
+});
+
 describe("dispose", () => {
     it("clears state and disposes the host", () => {
         const host = stubHost();
@@ -501,6 +573,7 @@ describe("dispose", () => {
             emissions({
                 plots: [plotEmission({ slotId: "a", value: 100 })],
                 alerts: [alertEmission({ slotId: "a" })],
+                drawings: [lineDrawing({ handleId: "h1" })],
             }),
         );
         adapter.dispose();

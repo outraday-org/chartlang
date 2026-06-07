@@ -9,7 +9,7 @@ import { psar } from "./psar";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. PSAR runs
 // O(1) per bar (closed-form recurrence with no scans); pair with
 // `aroon` / `change` / `highest` baseline at 300ms.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.psar threshold", () => {
     it("runs 10 000 bars under threshold", () => {

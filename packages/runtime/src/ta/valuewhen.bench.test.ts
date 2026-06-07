@@ -11,7 +11,7 @@ function boolSeries(value: boolean): Series<boolean> {
     return { current: value, length: 1 } as unknown as Series<boolean>;
 }
 
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.valuewhen threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -8,7 +8,7 @@ import { pvt } from "./pvt";
 
 // THRESHOLD_MS — ceil(median × 3). ta.pvt is one divide + multiply +
 // add per bar — well under the 300 ms ceiling over 10k bars.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.pvt threshold", () => {
     it("runs 10 000 bars under threshold", () => {

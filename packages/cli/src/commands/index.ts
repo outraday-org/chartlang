@@ -4,6 +4,12 @@
 export { runCompile } from "./compile.js";
 export { runDocsCommand } from "./docs.js";
 export {
+    generateDrawingDocsPage,
+    parseDrawingSource,
+    runGenDrawingDocs,
+} from "./extractDrawingPages.js";
+export type { DrawingDocInput, RunGenDrawingDocsOptions } from "./extractDrawingPages.js";
+export {
     AUTO_GENERATED_HEADER,
     GenDocsError,
     findRepoRoot,

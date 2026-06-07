@@ -6,7 +6,7 @@ import ts from "typescript";
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics";
 import { resolveCalleeName } from "../transformers/resolveCallee";
 
-const DEFINE_CALLS = new Set(["defineIndicator", "defineAlert"]);
+const DEFINE_CALLS = new Set(["defineIndicator", "defineAlert", "defineDrawing"]);
 
 /**
  * Result of `runStructuralChecks` — the discovered script `name` / `kind`
@@ -14,6 +14,11 @@ const DEFINE_CALLS = new Set(["defineIndicator", "defineAlert"]);
  * default export is present; `kind` defaults to `"indicator"` for the same
  * reason. The driver only consumes these fields when there are zero
  * error-severity diagnostics.
+ *
+ * The `"drawing"` kind (Phase 3 / `defineDrawing` / PLAN.md §4.1) maps to
+ * the same code path the other two kinds use — only the manifest's
+ * discriminator differs so the editor can route the script to the
+ * drawing-tool picker vs the indicator-picker UI.
  *
  * @since 0.1
  * @example
@@ -27,14 +32,15 @@ const DEFINE_CALLS = new Set(["defineIndicator", "defineAlert"]);
 export type StructuralCheckResult = Readonly<{
     diagnostics: ReadonlyArray<CompileDiagnostic>;
     name: string;
-    kind: "indicator" | "alert";
+    kind: "indicator" | "drawing" | "alert";
 }>;
 
 /**
  * Walk the source file's top-level statements to verify:
  *
- * - A default export exists and is `defineIndicator(...)` or
- *   `defineAlert(...)` from `@invinite-org/chartlang-core`.
+ * - A default export exists and is `defineIndicator(...)`,
+ *   `defineDrawing(...)`, or `defineAlert(...)` from
+ *   `@invinite-org/chartlang-core`.
  * - The first argument is an object literal carrying `apiVersion: 1`.
  *
  * On any violation, emits `missing-default-export` or
@@ -56,7 +62,7 @@ export function runStructuralChecks(
 ): StructuralCheckResult {
     const diagnostics: CompileDiagnostic[] = [];
     let name = "";
-    let kind: "indicator" | "alert" = "indicator";
+    let kind: "indicator" | "drawing" | "alert" = "indicator";
 
     const exportAssignment = sourceFile.statements.find(
         (statement): statement is ts.ExportAssignment =>
@@ -68,7 +74,7 @@ export function runStructuralChecks(
                 severity: "error",
                 code: "missing-default-export",
                 message:
-                    "Script must default-export a defineIndicator(...) or defineAlert(...) call.",
+                    "Script must default-export a defineIndicator(...), defineDrawing(...), or defineAlert(...) call.",
                 file: sourcePath,
                 node: sourceFile,
                 sourceFile,
@@ -83,7 +89,7 @@ export function runStructuralChecks(
             createDiagnostic({
                 severity: "error",
                 code: "missing-default-export",
-                message: "Default export must be a defineIndicator/defineAlert call.",
+                message: "Default export must be a defineIndicator/defineDrawing/defineAlert call.",
                 file: sourcePath,
                 node: expression,
                 sourceFile,
@@ -98,7 +104,8 @@ export function runStructuralChecks(
             createDiagnostic({
                 severity: "error",
                 code: "missing-default-export",
-                message: "Default export must call defineIndicator or defineAlert from core.",
+                message:
+                    "Default export must call defineIndicator, defineDrawing, or defineAlert from core.",
                 file: sourcePath,
                 node: expression,
                 sourceFile,
@@ -106,7 +113,13 @@ export function runStructuralChecks(
         );
         return Object.freeze({ diagnostics: Object.freeze(diagnostics), name, kind });
     }
-    kind = calleeName === "defineAlert" ? "alert" : "indicator";
+    if (calleeName === "defineAlert") {
+        kind = "alert";
+    } else if (calleeName === "defineDrawing") {
+        kind = "drawing";
+    } else {
+        kind = "indicator";
+    }
 
     const argument = expression.arguments[0];
     if (!argument || !ts.isObjectLiteralExpression(argument)) {
@@ -114,7 +127,8 @@ export function runStructuralChecks(
             createDiagnostic({
                 severity: "error",
                 code: "api-version-mismatch",
-                message: "defineIndicator/defineAlert requires an object-literal argument.",
+                message:
+                    "defineIndicator/defineDrawing/defineAlert requires an object-literal argument.",
                 file: sourcePath,
                 node: expression,
                 sourceFile,
@@ -156,7 +170,7 @@ export function runStructuralChecks(
             createDiagnostic({
                 severity: "error",
                 code: "api-version-mismatch",
-                message: "defineIndicator/defineAlert requires apiVersion: 1.",
+                message: "defineIndicator/defineDrawing/defineAlert requires apiVersion: 1.",
                 file: sourcePath,
                 node: argument,
                 sourceFile,

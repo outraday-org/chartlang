@@ -3,3 +3,4 @@
 
 export * from "./defineIndicator";
 export * from "./defineAlert";
+export * from "./defineDrawing";

@@ -9,6 +9,7 @@ import {
     type AlertEmission,
     type CandleEvent,
     type Capabilities,
+    type DrawingEmission,
     type PlotEmission,
     type PlotStyle,
     type RunnerEmissions,
@@ -28,6 +29,7 @@ import {
     drawHistogram,
     drawHorizontalLine,
     drawLine,
+    drawingDispatch,
     priceToY,
     timeToX,
     type HLine,
@@ -92,6 +94,7 @@ type AdapterState = {
     readonly plotSeriesStyle: Map<string, PlotStyle>;
     readonly hlines: Map<string, HLine>;
     readonly recentAlerts: AlertEmission[];
+    readonly drawings: Map<string, DrawingEmission>;
     readonly palette: Palette;
 };
 
@@ -196,6 +199,9 @@ function renderFrame(state: AdapterState): void {
     for (const hline of state.hlines.values()) {
         drawHorizontalLine(state.ctx, hline, viewport, state.palette);
     }
+    for (const drawing of state.drawings.values()) {
+        drawingDispatch(state.ctx, drawing, viewport);
+    }
     if (state.bars.length === 0) return;
     const lastBar = state.bars[state.bars.length - 1];
     const x = timeToX(lastBar.time, viewport);
@@ -239,6 +245,14 @@ function applyAlert(
     onAlert?.(alert);
 }
 
+function applyDrawing(state: AdapterState, drawing: DrawingEmission): void {
+    if (drawing.op === "remove") {
+        state.drawings.delete(drawing.handleId);
+        return;
+    }
+    state.drawings.set(drawing.handleId, drawing);
+}
+
 function ingest(
     state: AdapterState,
     emissions: RunnerEmissions,
@@ -248,6 +262,11 @@ function ingest(
         const check = validateEmission(plot);
         if (!check.ok) continue;
         applyPlot(state, plot);
+    }
+    for (const drawing of emissions.drawings) {
+        const check = validateEmission(drawing);
+        if (!check.ok) continue;
+        applyDrawing(state, drawing);
     }
     for (const alert of emissions.alerts) {
         const check = validateEmission(alert);
@@ -314,6 +333,7 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         plotSeriesStyle: new Map(),
         hlines: new Map(),
         recentAlerts: [],
+        drawings: new Map(),
         palette,
     };
     const host =
@@ -339,6 +359,7 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
             state.plotSeriesStyle.clear();
             state.hlines.clear();
             state.recentAlerts.length = 0;
+            state.drawings.clear();
             host.dispose();
         },
     });

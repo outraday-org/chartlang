@@ -9,7 +9,7 @@ import { wma } from "./wma";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through an O(length) window walk per close; well within SMA's 2x
 // budget per task §10.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.wma threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -60,6 +60,10 @@ describe("alert threshold", () => {
             emissions,
             barIndex: () => 0,
             isTick: false,
+            drawingSlots: new Map(),
+            drawingSubIdCounters: new Map(),
+            drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+            scriptMaxDrawings: null,
         };
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
         const start = performance.now();

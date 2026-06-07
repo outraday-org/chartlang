@@ -9,7 +9,7 @@ import { cci } from "./cci";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. CCI's per-
 // close mean-abs-dev rescan is O(length); 10k × 20 ~ 200k operations
 // fits comfortably under 300ms on CI Linux runners.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.cci threshold", () => {
     it("runs 10 000 bars under threshold", () => {

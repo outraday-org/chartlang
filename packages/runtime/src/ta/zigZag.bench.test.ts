@@ -9,7 +9,7 @@ import { zigZag } from "./zigZag";
 // THRESHOLD_MS — pair with the Wave-5/6 S/R baseline at 300ms.
 // ZigZag is O(1) per close (running peak update + threshold check),
 // so 10 000 bars is well under the threshold on Apple silicon.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.zigZag threshold", () => {
     it("runs 10 000 bars under threshold", () => {

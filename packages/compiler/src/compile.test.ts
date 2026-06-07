@@ -103,4 +103,24 @@ describe("compile", () => {
         expect(error.message).toBe("Compilation failed");
         expect(error.diagnostics).toEqual([]);
     });
+
+    it("compiles a defineDrawing script with manifest.kind 'drawing' and capabilities ['drawings']", async () => {
+        const DRAWING_SCRIPT = `
+import { defineDrawing } from "@invinite-org/chartlang-core";
+export default defineDrawing({
+    name: "fib-tool",
+    apiVersion: 1,
+    compute: ({ draw }) => {
+        draw.horizontalLine(100);
+    },
+});
+`;
+        const result = await compile(DRAWING_SCRIPT, {
+            apiVersion: 1,
+            sourcePath: "fib-tool.chart.ts",
+        });
+        expect(result.manifest.kind).toBe("drawing");
+        expect(result.manifest.name).toBe("fib-tool");
+        expect(result.manifest.capabilities).toEqual(["drawings"]);
+    });
 });

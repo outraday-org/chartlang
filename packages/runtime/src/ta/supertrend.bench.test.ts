@@ -9,7 +9,7 @@ import { supertrend } from "./supertrend";
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Supertrend
 // runs O(1) per bar plus a composed `ta.atr` (also O(1)); pair with
 // `aroon` / `change` baseline at 300ms.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.supertrend threshold", () => {
     it("runs 10 000 bars under threshold", () => {

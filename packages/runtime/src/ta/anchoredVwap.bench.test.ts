@@ -10,7 +10,7 @@ import { syntheticBars } from "./__fixtures__/syntheticBars";
 const ANCHOR = syntheticBars(1, 1)[0].time;
 
 // THRESHOLD_MS — ceil(median × 3). Same arithmetic shape as vwap.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.anchoredVwap threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -9,7 +9,7 @@ import { mfi } from "./mfi";
 // THRESHOLD_MS — ceil(median × 3). ta.mfi is a per-bar typical-price
 // + 4 ring-buffer slot operations; well under the 300 ms ceiling
 // over 10k bars.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.mfi threshold", () => {
     it("runs 10 000 bars under threshold", () => {

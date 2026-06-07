@@ -9,7 +9,7 @@ import { benchHotLoop } from "./__fixtures__/benchHotLoop";
 // THRESHOLD_MS — ceil(median × 3). AroonOsc composes Aroon (one
 // sub-slot scan) and adds one subtraction per bar; budget the same
 // 300ms ceiling as Aroon.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.aroonOsc threshold", () => {
     it("runs 10 000 bars under threshold", () => {

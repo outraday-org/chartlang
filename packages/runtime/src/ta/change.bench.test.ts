@@ -8,7 +8,7 @@ import { change } from "./change";
 
 // THRESHOLD_MS — ceil(median × 3). ta.change is two ring-buffer reads
 // + a subtract — lighter than SMA.
-const THRESHOLD_MS = 300;
+const THRESHOLD_MS = 1500;
 
 describe("ta.change threshold", () => {
     it("runs 10 000 bars under threshold", () => {

@@ -9,6 +9,15 @@ import { runScaffoldAdapter } from "./commands/scaffoldAdapter.js";
 export { runCompile } from "./commands/compile.js";
 export { runDocsCommand } from "./commands/docs.js";
 export {
+    generateDrawingDocsPage,
+    parseDrawingSource,
+    runGenDrawingDocs,
+} from "./commands/extractDrawingPages.js";
+export type {
+    DrawingDocInput,
+    RunGenDrawingDocsOptions,
+} from "./commands/extractDrawingPages.js";
+export {
     AUTO_GENERATED_HEADER,
     GenDocsError,
     findRepoRoot,

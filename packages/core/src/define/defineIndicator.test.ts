@@ -39,4 +39,31 @@ describe("defineIndicator", () => {
         });
         expect(script.manifest.inputs).toEqual(inputs);
     });
+
+    it("omits manifest.maxDrawings when opts.maxDrawings is undefined", () => {
+        const script = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: () => {},
+        });
+        expect(script.manifest.maxDrawings).toBeUndefined();
+        expect("maxDrawings" in script.manifest).toBe(false);
+    });
+
+    it("propagates opts.maxDrawings into the manifest verbatim", () => {
+        const maxDrawings = {
+            lines: 10,
+            labels: 5,
+            boxes: 3,
+            polylines: 7,
+            other: 1,
+        } as const;
+        const script = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            maxDrawings,
+            compute: () => {},
+        });
+        expect(script.manifest.maxDrawings).toEqual(maxDrawings);
+    });
 });
