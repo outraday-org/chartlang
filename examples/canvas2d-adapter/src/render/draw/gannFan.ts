@@ -33,11 +33,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderGannFan(ctx, e, view);
  *     void renderGannFan;
  */
-export function renderGannFan(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderGannFan(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as GannFanState;
     const pivot = worldPointToCanvas(state.anchors[0], view);
     const ref = worldPointToCanvas(state.anchors[1], view);

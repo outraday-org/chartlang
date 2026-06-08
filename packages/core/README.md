@@ -2,7 +2,8 @@
 
 `experimental`
 
-Types and primitives for chartlang scripts.
+Types and script-facing primitives for chartlang indicators, alerts, drawings,
+inputs, state slots, views, and secondary-timeframe requests.
 
 ## Install
 
@@ -12,46 +13,40 @@ pnpm add @invinite-org/chartlang-core
 
 ## Public surface
 
-- Constructors: `defineIndicator`, `defineAlert`, `defineDrawing` (Phase 3).
-- Callable holes the compiler retargets at the runtime: `ta.sma`, `ta.ema`,
-  `ta.stdev`, `ta.bb`, `ta.rsi`, `ta.macd`, `ta.atr`, `ta.crossover`,
-  `ta.crossunder`, `plot`, `hline`, `alert`.
-- Registry: `STATEFUL_PRIMITIVES` — the immutable set of fully-qualified
-  call names the compiler injects callsite ids into.
-- Types: `Series<T>`, `Bar`, `Time`, `Price`, `Volume`, `Color`,
-  `LineStyle`, `PlotLineStyle`, `AlertSeverity`, `IntervalDescriptor`,
-  `InputSchema`, `CapabilityId`, `ScriptManifest`, `ComputeContext`,
-  `ComputeFn`, `CompiledScriptObject`, `JsonValue`, `DrawingCounts`,
-  plus per-primitive opts / result types.
-- Drawing types (Phase 3): `draw` namespace stub + `DrawingKind` (61
-  kebab-case kinds) + `DrawingState` discriminated union + `DrawingHandle`
-  + `WorldPoint` + per-kind style bags (`LineDrawStyle`, `ShapeStyle`,
-  `FibOpts`, …) + `bucketFor` / `KIND_BUCKET` / `KIND_CAMELCASE` /
-  `KIND_KEBABCASE` / `DRAWING_KINDS`. The `draw.*` runtime ships in
-  `@invinite-org/chartlang-runtime`.
-
-Phase 2+ extends the primitive surface; the namespace shape is locked at
-`0.1`. Phase 3 adds the `draw.*` namespace.
+- Constructors: `defineIndicator`, `defineAlert`, `defineDrawing`.
+- Inputs: `input.int`, `float`, `bool`, `string`, `enum`, `color`, `source`,
+  `time`, `price`, `symbol`, `interval`, `externalSeries`.
+- Stateful slots: `state.float`, `int`, `bool`, `string`, plus
+  `state.tick.*` for tick-persistent `varip` semantics.
+- Views: `barstate`, `syminfo`, `timeframe`.
+- Secondary stream: `request.security({ interval })` typed surface.
+- Emissions: `plot`, `hline`, `alert`, and the 61-kind `draw.*` namespace.
+- Registry: `STATEFUL_PRIMITIVES` for compiler slot-id injection.
+- Types: `Series<T>`, `Bar`, `InputDescriptor`, `MutableSlot<T>`,
+  `ScriptManifest`, `ComputeContext`, `DrawingState`, `DrawingHandle`,
+  `DrawingCounts`, `SecurityBar`, view types, and option/result types.
 
 ## Minimum-viable API call
 
 ```ts
-import { defineIndicator } from "@invinite-org/chartlang-core";
+import { defineIndicator, input, state } from "@invinite-org/chartlang-core";
 
 export default defineIndicator({
-    name: "EMA(20)",
+    name: "Session High",
     apiVersion: 1,
-    compute: ({ ta, plot, bar }) => {
-        // `bar.close` is the current close; the compiler wires `ta.ema` to
-        // the real runtime implementation at build time.
-        plot(bar.close);
+    inputs: { length: input.int(20, { min: 1 }) },
+    compute: ({ bar, plot }) => {
+        const high = state.float(bar.high);
+        high.value = Math.max(high.value, bar.high);
+        plot(high.value);
     },
 });
 ```
 
 ## Docs
 
-See [`docs/language/overview.md`](../../docs/language/overview.md).
+See [`docs/language/overview.md`](../../docs/language/overview.md) and
+generated primitive pages under [`docs/primitives/`](../../docs/primitives/).
 
 ## License
 

@@ -69,11 +69,7 @@ export function triangle(anchors: AnchorTriple, opts?: ShapeStyle): DrawingHandl
  *     // const fn: typeof triangle = triangle;
  *     // void fn;
  */
-export function triangle(
-    slotId: string,
-    anchors: AnchorTriple,
-    opts?: ShapeStyle,
-): DrawingHandle;
+export function triangle(slotId: string, anchors: AnchorTriple, opts?: ShapeStyle): DrawingHandle;
 /**
  * Implementation signature for {@link triangle}. Branches on
  * `typeof arg1 === "string"` to dispatch the script-facing vs

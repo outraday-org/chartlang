@@ -3,6 +3,7 @@
 
 import type { Scenario } from "../runConformanceSuite";
 
+import { BARSTATE_CONFIRMED_SCENARIO } from "./barstateConfirmed.scenario";
 import { BOLLINGER_BANDS_SCENARIO } from "./bollingerBands.scenario";
 import { DEFINE_DRAWING_BASIC_SCENARIO } from "./defineDrawingBasic.scenario";
 import { DRAW_ANNOTATIONS_ALL_SCENARIO } from "./drawAnnotationsAll.scenario";
@@ -82,8 +83,13 @@ import { DRAW_TREND_CHANNEL_SCENARIO } from "./drawTrendChannel.scenario";
 import { DRAW_TRIANGLE_SCENARIO } from "./drawTriangle.scenario";
 import { DRAW_VERTICAL_LINE_SCENARIO } from "./drawVerticalLine.scenario";
 import { EMA_CROSS_SCENARIO } from "./emaCross.scenario";
+import { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario";
 import { PLOT_KIND_COVERAGE_SCENARIO } from "./plotKindCoverage.scenario";
+import { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario";
 import { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario";
+import { STATE_SESSION_HIGH_SCENARIO } from "./stateSessionHigh.scenario";
+import { STATE_TICK_COUNTER_SCENARIO } from "./stateTickCounter.scenario";
+import { SYMINFO_MINTICK_SCENARIO } from "./syminfoMintick.scenario";
 import { TA_ADL_SCENARIO } from "./taAdl.scenario";
 import { TA_ADR_SCENARIO } from "./taAdr.scenario";
 import { TA_ADX_SCENARIO } from "./taAdx.scenario";
@@ -165,7 +171,10 @@ import { TA_WILLIAMS_FRACTAL_SCENARIO } from "./taWilliamsFractal.scenario";
 import { TA_WILLIAMS_R_SCENARIO } from "./taWilliamsR.scenario";
 import { TA_WMA_SCENARIO } from "./taWma.scenario";
 import { TA_ZIG_ZAG_SCENARIO } from "./taZigZag.scenario";
+import { TIMEFRAME_ISDAILY_SCENARIO } from "./timeframeIsdaily.scenario";
+import { UNSUPPORTED_INTERVAL_SCENARIO } from "./unsupportedInterval.scenario";
 
+export { BARSTATE_CONFIRMED_SCENARIO } from "./barstateConfirmed.scenario";
 export { BOLLINGER_BANDS_SCENARIO } from "./bollingerBands.scenario";
 export { DEFINE_DRAWING_BASIC_SCENARIO } from "./defineDrawingBasic.scenario";
 export { DRAW_ANNOTATIONS_ALL_SCENARIO } from "./drawAnnotationsAll.scenario";
@@ -247,8 +256,13 @@ export { DRAW_TREND_CHANNEL_SCENARIO } from "./drawTrendChannel.scenario";
 export { DRAW_TRIANGLE_SCENARIO } from "./drawTriangle.scenario";
 export { DRAW_VERTICAL_LINE_SCENARIO } from "./drawVerticalLine.scenario";
 export { EMA_CROSS_SCENARIO } from "./emaCross.scenario";
+export { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario";
 export { PLOT_KIND_COVERAGE_SCENARIO } from "./plotKindCoverage.scenario";
+export { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario";
 export { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario";
+export { STATE_SESSION_HIGH_SCENARIO } from "./stateSessionHigh.scenario";
+export { STATE_TICK_COUNTER_SCENARIO } from "./stateTickCounter.scenario";
+export { SYMINFO_MINTICK_SCENARIO } from "./syminfoMintick.scenario";
 export { TA_ADL_SCENARIO } from "./taAdl.scenario";
 export { TA_ADR_SCENARIO } from "./taAdr.scenario";
 export { TA_ADX_SCENARIO } from "./taAdx.scenario";
@@ -330,6 +344,8 @@ export { TA_WILLIAMS_FRACTAL_SCENARIO } from "./taWilliamsFractal.scenario";
 export { TA_WILLIAMS_R_SCENARIO } from "./taWilliamsR.scenario";
 export { TA_WMA_SCENARIO } from "./taWma.scenario";
 export { TA_ZIG_ZAG_SCENARIO } from "./taZigZag.scenario";
+export { TIMEFRAME_ISDAILY_SCENARIO } from "./timeframeIsdaily.scenario";
+export { UNSUPPORTED_INTERVAL_SCENARIO } from "./unsupportedInterval.scenario";
 export { PHASE_2_INDICATORS, PHASE_5_DEFERRED } from "./phase2Inventory";
 
 /**
@@ -539,6 +555,15 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     DEFINE_DRAWING_BASIC_SCENARIO,
     DRAW_INTERACTIVE_UPDATE_SCENARIO,
     DRAW_HANDLE_REMOVE_SCENARIO,
+    // Phase 4 Task 16 — editor/runtime tier-1 surfaces.
+    BARSTATE_CONFIRMED_SCENARIO,
+    INPUT_INTERVAL_SCENARIO,
+    REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
+    STATE_SESSION_HIGH_SCENARIO,
+    STATE_TICK_COUNTER_SCENARIO,
+    SYMINFO_MINTICK_SCENARIO,
+    TIMEFRAME_ISDAILY_SCENARIO,
+    UNSUPPORTED_INTERVAL_SCENARIO,
 ]);
 
 /**

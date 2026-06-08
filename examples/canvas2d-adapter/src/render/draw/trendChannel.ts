@@ -34,11 +34,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderTrendChannel(ctx, e, view);
  *     void renderTrendChannel;
  */
-export function renderTrendChannel(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderTrendChannel(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as TrendChannelState;
     const a = worldPointToCanvas(state.anchors[0], view);
     const b = worldPointToCanvas(state.anchors[1], view);

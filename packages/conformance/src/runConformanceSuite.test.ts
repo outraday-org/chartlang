@@ -9,7 +9,18 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import { generateGoldenBars } from "./fixtures/generateGoldenBars";
-import { PHASE_1_SCENARIOS, EMA_CROSS_SCENARIO } from "./scenarios";
+import {
+    BARSTATE_CONFIRMED_SCENARIO,
+    EMA_CROSS_SCENARIO,
+    INPUT_INTERVAL_SCENARIO,
+    PHASE_1_SCENARIOS,
+    REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
+    STATE_SESSION_HIGH_SCENARIO,
+    STATE_TICK_COUNTER_SCENARIO,
+    SYMINFO_MINTICK_SCENARIO,
+    TIMEFRAME_ISDAILY_SCENARIO,
+    UNSUPPORTED_INTERVAL_SCENARIO,
+} from "./scenarios";
 import { runConformanceSuite, type Scenario, type ScenarioAssertion } from "./runConformanceSuite";
 
 const TEST_CAPABILITIES: Capabilities = {
@@ -39,11 +50,14 @@ const TEST_CAPABILITIES: Capabilities = {
     alerts: capBuilders.alerts("log", "toast"),
     alertConditions: false,
     logs: false,
-    inputs: new Set(),
-    intervals: [],
+    inputs: new Set(["interval"]),
+    intervals: [
+        { value: "1m", label: "1 minute", group: "minute" },
+        { value: "1D", label: "1 day", group: "daily" },
+    ],
     multiTimeframe: false,
     subPanes: 0,
-    symInfoFields: new Set(),
+    symInfoFields: new Set(["ticker", "type", "mintick"]),
     maxDrawingsPerScript: { lines: 100, labels: 100, boxes: 100, polylines: 100, other: 100 },
     maxLookback: 1000,
     maxTickHz: 30,
@@ -54,6 +68,14 @@ function makeAdapter(): Adapter {
         id: "test",
         name: "Test adapter",
         capabilities: TEST_CAPABILITIES,
+        symInfo: {
+            ticker: "TEST",
+            type: "equity",
+            mintick: 0.01,
+        },
+        resolveInputs(): Readonly<Record<string, unknown>> {
+            return {};
+        },
         candles(): AsyncIterable<CandleEvent> {
             return {
                 async *[Symbol.asyncIterator](): AsyncIterator<CandleEvent> {
@@ -71,6 +93,16 @@ function makeAdapter(): Adapter {
 }
 
 const SMALL_BARS: ReadonlyArray<Bar> = generateGoldenBars().slice(0, 200);
+const PHASE_4_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
+    BARSTATE_CONFIRMED_SCENARIO,
+    INPUT_INTERVAL_SCENARIO,
+    REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
+    STATE_SESSION_HIGH_SCENARIO,
+    STATE_TICK_COUNTER_SCENARIO,
+    SYMINFO_MINTICK_SCENARIO,
+    TIMEFRAME_ISDAILY_SCENARIO,
+    UNSUPPORTED_INTERVAL_SCENARIO,
+]);
 
 describe("runConformanceSuite", () => {
     it("returns passed=N/failed=0 for every bundled scenario against canvas2d caps", async () => {
@@ -82,6 +114,51 @@ describe("runConformanceSuite", () => {
         // Phase-2 grew the scenario set from 5 → 86 + 10 000-bar fixtures;
         // a single suite run takes ~30s on M-series, ~60s on CI.
     }, 120_000);
+
+    it("runs every Phase-4 scenario end-to-end", async () => {
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: PHASE_4_SCENARIOS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(PHASE_4_SCENARIOS.length);
+        expect(report.failures).toEqual([]);
+    }, 60_000);
+
+    it("extracts the input-interval scenario manifest contract", async () => {
+        const { compile } = await import("@invinite-org/chartlang-compiler");
+        const result = await compile(INPUT_INTERVAL_SCENARIO.inlineSource ?? "", {
+            apiVersion: 1,
+            sourcePath: "<inline:input-interval>.chart.ts",
+        });
+        expect(result.manifest.userPickableInterval).toBe(true);
+        expect(result.manifest.inputs.tf).toEqual({ kind: "interval", defaultValue: "1D" });
+    });
+
+    it("merges per-scenario capabilities over adapter capabilities", async () => {
+        const scenario: Scenario = Object.freeze({
+            ...REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
+            assertions: Object.freeze([
+                {
+                    kind: "diagnostic-code-present",
+                    code: "multi-timeframe-not-supported",
+                },
+                { kind: "diagnostic-code-absent", code: "unsupported-interval" },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const adapter: Adapter = {
+            ...makeAdapter(),
+            capabilities: Object.freeze({
+                ...TEST_CAPABILITIES,
+                intervals: [],
+                multiTimeframe: true,
+            }),
+        };
+        const report = await runConformanceSuite(adapter, {
+            scenarios: [scenario],
+            candles: SMALL_BARS,
+        });
+        expect(report.failed).toBe(0);
+    });
 
     it("reports plot-hash failures with expected and actual hashes in the message", async () => {
         const adapter = makeAdapter();
@@ -518,24 +595,23 @@ export default {
                 { kind: "drawing-hash", sha256: "deadbeef".repeat(8) },
             ] as ReadonlyArray<ScenarioAssertion>),
         });
-        const injectedCompile: typeof import(
-            "@invinite-org/chartlang-compiler"
-        ).compile = async () =>
-            Object.freeze({
-                manifest: {
-                    apiVersion: 1 as const,
-                    kind: "indicator" as const,
-                    name: "drawing-hash-direct",
-                    inputs: {},
-                    capabilities: ["indicators", "drawings"],
-                    requestedIntervals: [],
-                    userPickableInterval: false,
-                    seriesCapacities: {},
-                    maxLookback: 0,
-                },
-                moduleSource,
-                types: "",
-            });
+        const injectedCompile: typeof import("@invinite-org/chartlang-compiler").compile =
+            async () =>
+                Object.freeze({
+                    manifest: {
+                        apiVersion: 1 as const,
+                        kind: "indicator" as const,
+                        name: "drawing-hash-direct",
+                        inputs: {},
+                        capabilities: ["indicators", "drawings"],
+                        requestedIntervals: [],
+                        userPickableInterval: false,
+                        seriesCapacities: {},
+                        maxLookback: 0,
+                    },
+                    moduleSource,
+                    types: "",
+                });
         const probeReport = await runConformanceSuite(adapter, {
             scenarios: [probe],
             candles: SMALL_BARS.slice(0, 1),

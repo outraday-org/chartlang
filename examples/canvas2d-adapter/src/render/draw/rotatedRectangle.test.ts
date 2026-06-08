@@ -80,9 +80,7 @@ describe("renderRotatedRectangle", () => {
             VIEW,
         );
         const fillCall = ctx.calls.find((c) => c.kind === "fill");
-        const alphaSets = ctx.calls.filter(
-            (c) => c.kind === "set" && c.prop === "globalAlpha",
-        );
+        const alphaSets = ctx.calls.filter((c) => c.kind === "set" && c.prop === "globalAlpha");
         expect(fillCall).toBeDefined();
         expect(alphaSets).toHaveLength(2);
         if (alphaSets[0].kind === "set" && alphaSets[1].kind === "set") {

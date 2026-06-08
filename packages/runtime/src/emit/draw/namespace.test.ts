@@ -86,6 +86,7 @@ function makeCtx(): { ctx: RuntimeContext; emissions: MutableRunnerEmissions } {
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     return { ctx, emissions };
 }
@@ -98,20 +99,12 @@ describe("DRAW_NAMESPACE", () => {
     it("dispatches the 6 Task-5 line-kind names to their runtime impls", () => {
         const { ctx, emissions } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        DRAW_NAMESPACE.line(
-            "slot-line",
-            { time: 0, price: 0 },
-            { time: 1, price: 1 },
-        );
+        DRAW_NAMESPACE.line("slot-line", { time: 0, price: 0 }, { time: 1, price: 1 });
         DRAW_NAMESPACE.horizontalLine("slot-hline", 100);
         DRAW_NAMESPACE.horizontalRay("slot-hray", { time: 0, price: 100 });
         DRAW_NAMESPACE.verticalLine("slot-vline", 1_700_000_000_000);
         DRAW_NAMESPACE.crossLine("slot-cross", { time: 0, price: 0 });
-        DRAW_NAMESPACE.trendAngle(
-            "slot-trend",
-            { time: 0, price: 0 },
-            { time: 1, price: 1 },
-        );
+        DRAW_NAMESPACE.trendAngle("slot-trend", { time: 0, price: 0 }, { time: 1, price: 1 });
         expect(emissions.drawings.map((d) => d.drawingKind)).toEqual([
             "line",
             "horizontal-line",
@@ -125,11 +118,7 @@ describe("DRAW_NAMESPACE", () => {
     it("dispatches the 4 Task-6 box-A kinds to their runtime impls", () => {
         const { ctx, emissions } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        DRAW_NAMESPACE.rectangle(
-            "slot-rect",
-            { time: 0, price: 0 },
-            { time: 1, price: 1 },
-        );
+        DRAW_NAMESPACE.rectangle("slot-rect", { time: 0, price: 0 }, { time: 1, price: 1 });
         DRAW_NAMESPACE.rotatedRectangle("slot-rrect", [
             { time: 0, price: 0 },
             { time: 1, price: 1 },
@@ -157,16 +146,8 @@ describe("DRAW_NAMESPACE", () => {
     it("dispatches the 4 Task-7 box-B kinds to their runtime impls", () => {
         const { ctx, emissions } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        DRAW_NAMESPACE.circle(
-            "slot-circle",
-            { time: 0, price: 0 },
-            { time: 1, price: 0 },
-        );
-        DRAW_NAMESPACE.ellipse(
-            "slot-ellipse",
-            { time: 0, price: 0 },
-            { time: 2, price: 1 },
-        );
+        DRAW_NAMESPACE.circle("slot-circle", { time: 0, price: 0 }, { time: 1, price: 0 });
+        DRAW_NAMESPACE.ellipse("slot-ellipse", { time: 0, price: 0 }, { time: 2, price: 1 });
         DRAW_NAMESPACE.path("slot-path", [
             { time: 0, price: 0 },
             { time: 1, price: 1 },
@@ -234,11 +215,7 @@ describe("DRAW_NAMESPACE", () => {
         const { ctx, emissions } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
         DRAW_NAMESPACE.text("slot-text", { time: 1, price: 1 }, "Note");
-        DRAW_NAMESPACE.arrow(
-            "slot-arrow",
-            { time: 0, price: 0 },
-            { time: 1, price: 1 },
-        );
+        DRAW_NAMESPACE.arrow("slot-arrow", { time: 0, price: 0 }, { time: 1, price: 1 });
         DRAW_NAMESPACE.arrowMarker("slot-am", { time: 1, price: 1 });
         DRAW_NAMESPACE.arrowMarkUp("slot-amu", { time: 1, price: 1 });
         DRAW_NAMESPACE.arrowMarkDown("slot-amd", { time: 1, price: 1 });
@@ -270,11 +247,7 @@ describe("DRAW_NAMESPACE", () => {
             { time: 0, price: 2 },
             { time: 1, price: 3 },
         ]);
-        DRAW_NAMESPACE.regressionTrend(
-            "slot-rt",
-            { time: 0, price: 0 },
-            { time: 1, price: 1 },
-        );
+        DRAW_NAMESPACE.regressionTrend("slot-rt", { time: 0, price: 0 }, { time: 1, price: 1 });
         expect(emissions.drawings.map((d) => d.drawingKind)).toEqual([
             "trend-channel",
             "flat-top-bottom",
@@ -286,11 +259,7 @@ describe("DRAW_NAMESPACE", () => {
     it("dispatches the 5 Task-11 fib-A kinds to their runtime impls", () => {
         const { ctx, emissions } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        DRAW_NAMESPACE.fibRetracement(
-            "slot-fr",
-            { time: 0, price: 0 },
-            { time: 1, price: 1 },
-        );
+        DRAW_NAMESPACE.fibRetracement("slot-fr", { time: 0, price: 0 }, { time: 1, price: 1 });
         DRAW_NAMESPACE.fibTrendExtension("slot-fte", [
             { time: 0, price: 0 },
             { time: 1, price: 1 },
@@ -301,11 +270,7 @@ describe("DRAW_NAMESPACE", () => {
             { time: 1, price: 1 },
             { time: 0, price: 1 },
         ]);
-        DRAW_NAMESPACE.fibTimeZone(
-            "slot-ftz",
-            { time: 0, price: 0 },
-            { time: 100, price: 0 },
-        );
+        DRAW_NAMESPACE.fibTimeZone("slot-ftz", { time: 0, price: 0 }, { time: 100, price: 0 });
         DRAW_NAMESPACE.fibWedge("slot-fw", [
             { time: 0, price: 0 },
             { time: 1, price: 1 },
@@ -323,26 +288,10 @@ describe("DRAW_NAMESPACE", () => {
     it("dispatches the 5 Task-12 fib-B kinds to their runtime impls", () => {
         const { ctx, emissions } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        DRAW_NAMESPACE.fibSpeedFan(
-            "slot-fsf",
-            { time: 0, price: 0 },
-            { time: 1, price: 1 },
-        );
-        DRAW_NAMESPACE.fibSpeedArcs(
-            "slot-fsa",
-            { time: 0, price: 0 },
-            { time: 1, price: 0 },
-        );
-        DRAW_NAMESPACE.fibSpiral(
-            "slot-fs",
-            { time: 0, price: 0 },
-            { time: 1, price: 0 },
-        );
-        DRAW_NAMESPACE.fibCircles(
-            "slot-fc",
-            { time: 0, price: 0 },
-            { time: 1, price: 0 },
-        );
+        DRAW_NAMESPACE.fibSpeedFan("slot-fsf", { time: 0, price: 0 }, { time: 1, price: 1 });
+        DRAW_NAMESPACE.fibSpeedArcs("slot-fsa", { time: 0, price: 0 }, { time: 1, price: 0 });
+        DRAW_NAMESPACE.fibSpiral("slot-fs", { time: 0, price: 0 }, { time: 1, price: 0 });
+        DRAW_NAMESPACE.fibCircles("slot-fc", { time: 0, price: 0 }, { time: 1, price: 0 });
         DRAW_NAMESPACE.fibTrendTime("slot-ftt", [
             { time: 0, price: 0 },
             { time: 1, price: 1 },
@@ -360,22 +309,10 @@ describe("DRAW_NAMESPACE", () => {
     it("dispatches the 4 Task-13 gann kinds to their runtime impls", () => {
         const { ctx, emissions } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        DRAW_NAMESPACE.gannBox(
-            "slot-gb",
-            { time: 0, price: 0 },
-            { time: 1, price: 1 },
-        );
+        DRAW_NAMESPACE.gannBox("slot-gb", { time: 0, price: 0 }, { time: 1, price: 1 });
         DRAW_NAMESPACE.gannSquareFixed("slot-gsf", { time: 0, price: 0 });
-        DRAW_NAMESPACE.gannSquare(
-            "slot-gs",
-            { time: 0, price: 0 },
-            { time: 1, price: 1 },
-        );
-        DRAW_NAMESPACE.gannFan(
-            "slot-gf",
-            { time: 0, price: 0 },
-            { time: 1, price: 1 },
-        );
+        DRAW_NAMESPACE.gannSquare("slot-gs", { time: 0, price: 0 }, { time: 1, price: 1 });
+        DRAW_NAMESPACE.gannFan("slot-gf", { time: 0, price: 0 }, { time: 1, price: 1 });
         expect(emissions.drawings.map((d) => d.drawingKind)).toEqual([
             "gann-box",
             "gann-square-fixed",
@@ -397,10 +334,7 @@ describe("DRAW_NAMESPACE", () => {
             { time: 1, price: 1 },
             { time: 2, price: 0.5 },
         ]);
-        expect(emissions.drawings.map((d) => d.drawingKind)).toEqual([
-            "pitchfork",
-            "pitchfan",
-        ]);
+        expect(emissions.drawings.map((d) => d.drawingKind)).toEqual(["pitchfork", "pitchfan"]);
     });
 
     it("dispatches the 6 Task-15 harmonic-pattern kinds to their runtime impls", () => {
@@ -509,21 +443,9 @@ describe("DRAW_NAMESPACE", () => {
     it("dispatches the 3 Task-17 cycle kinds to their runtime impls", () => {
         const { ctx, emissions } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        DRAW_NAMESPACE.cyclicLines(
-            "slot-cl",
-            { time: 0, price: 0 },
-            { time: 100, price: 0 },
-        );
-        DRAW_NAMESPACE.timeCycles(
-            "slot-tc",
-            { time: 0, price: 50 },
-            { time: 100, price: 50 },
-        );
-        DRAW_NAMESPACE.sineLine(
-            "slot-sl",
-            { time: 0, price: 40 },
-            { time: 100, price: 60 },
-        );
+        DRAW_NAMESPACE.cyclicLines("slot-cl", { time: 0, price: 0 }, { time: 100, price: 0 });
+        DRAW_NAMESPACE.timeCycles("slot-tc", { time: 0, price: 50 }, { time: 100, price: 50 });
+        DRAW_NAMESPACE.sineLine("slot-sl", { time: 0, price: 40 }, { time: 100, price: 60 });
         expect(emissions.drawings.map((d) => d.drawingKind)).toEqual([
             "cyclic-lines",
             "time-cycles",
@@ -535,15 +457,8 @@ describe("DRAW_NAMESPACE", () => {
         const { ctx, emissions } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
         DRAW_NAMESPACE.group("slot-g", []);
-        DRAW_NAMESPACE.frame(
-            "slot-f",
-            { time: 0, price: 0 },
-            { time: 100, price: 100 },
-        );
-        expect(emissions.drawings.map((d) => d.drawingKind)).toEqual([
-            "group",
-            "frame",
-        ]);
+        DRAW_NAMESPACE.frame("slot-f", { time: 0, price: 0 }, { time: 100, price: 100 });
+        expect(emissions.drawings.map((d) => d.drawingKind)).toEqual(["group", "frame"]);
     });
 
     it("falls through to core's throwing-stub for non-kind property access (defence-in-depth)", () => {

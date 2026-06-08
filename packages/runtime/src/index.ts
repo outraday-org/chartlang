@@ -8,7 +8,17 @@ export type { BarView, OhlcvBuffers, StreamState } from "./streamState";
 export { createStreamState } from "./streamState";
 export type { StateStore } from "./stateStore";
 export { inMemoryStateStore } from "./stateStore";
+export { asMutableSlot, buildStateNamespace, StateSlot } from "./state";
+export { resolveInputs } from "./inputs";
+export { buildRequestNamespace, makeNanSecurityBar } from "./request";
 export type { DrawingSlot, MutableRunnerEmissions, RuntimeContext } from "./runtimeContext";
+export {
+    createRuntimeViews,
+    makeBarStateView,
+    makeSymInfoView,
+    makeTimeframeView,
+} from "./views";
+export type { AdapterSymInfo, BarStateInputs, EventKind, RuntimeViews } from "./views";
 export { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext";
 export { createScriptRunner } from "./createScriptRunner";
 export type { CreateScriptRunnerArgs, ScriptRunner } from "./createScriptRunner";

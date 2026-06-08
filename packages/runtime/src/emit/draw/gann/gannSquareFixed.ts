@@ -59,10 +59,7 @@ function gannSquareFixedImpl(
  *         },
  *     });
  */
-export function gannSquareFixed(
-    anchor: WorldPoint,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function gannSquareFixed(anchor: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

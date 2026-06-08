@@ -21,20 +21,9 @@
  *     }
  */
 export const FIB_LEVELS: ReadonlyArray<number> = Object.freeze([
-    0,
-    0.236,
-    0.382,
-    0.5,
-    0.618,
-    0.786,
-    1,
-    1.272,
+    0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272,
     // biome-ignore lint/suspicious/noApproximativeNumericConstant: canonical fib ratio, not √2.
-    1.414,
-    1.618,
-    2.0,
-    2.618,
-    4.236,
+    1.414, 1.618, 2.0, 2.618, 4.236,
 ]);
 
 /**

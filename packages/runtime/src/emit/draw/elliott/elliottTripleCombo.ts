@@ -74,10 +74,7 @@ function elliottTripleComboImpl(
  *         },
  *     });
  */
-export function elliottTripleCombo(
-    anchors: AnchorHept,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function elliottTripleCombo(anchors: AnchorHept, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

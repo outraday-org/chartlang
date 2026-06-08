@@ -67,7 +67,7 @@ plot(1);
 
     it("rewrites every slot: true primitive in STATEFUL_PRIMITIVES (and skips ta.nz)", () => {
         const source = `
-import { ta, plot, hline, alert, draw } from "@invinite-org/chartlang-core";
+import { ta, plot, hline, alert, draw, request, state } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;
 declare const flag: import("@invinite-org/chartlang-core").Series<boolean>;
 ta.sma(close, 14);
@@ -163,6 +163,15 @@ ta.nz(Number.NaN, 0);
 plot(1);
 hline(1);
 alert("msg");
+state.float(0);
+state.int(0);
+state.bool(false);
+state.string("");
+state.tick.float(0);
+state.tick.int(0);
+state.tick.bool(false);
+state.tick.string("");
+request.security({ interval: "1D" });
 draw.line({ time: 0, price: 0 }, { time: 1, price: 1 });
 draw.horizontalLine(0);
 draw.horizontalRay({ time: 0, price: 0 });
@@ -182,8 +191,8 @@ draw.trendAngle({ time: 0, price: 0 }, { time: 1, price: 1 });
         // Phase-3 ports add draw.* entries to STATEFUL_PRIMITIVES per
         // category. Task 5 wires the 6 line-family kinds; the remaining
         // 55 draw.* kinds land in Tasks 6–18. The test exercises every
-        // shipped slot:true callsite (90 ta + plot + hline + alert + 6
-        // line-family draw = 98) — entries without a call here are
+        // shipped slot:true callsite (90 ta + plot + hline + alert + 8
+        // state + 6 line-family draw = 106) — entries without a call here are
         // excluded from the expected count.
         const unwiredDrawEntries = new Set<string>();
         for (const entry of STATEFUL_PRIMITIVES) {
@@ -245,6 +254,42 @@ void h;
         });
         const text = printSourceFile(result.transformed);
         expect(text).toMatch(/ta\.highest\("demo\.chart\.ts:\d+:\d+#0", high, 20\)/);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("injects a slot id for state.float as the first argument", () => {
+        const source = `
+import { state } from "@invinite-org/chartlang-core";
+const slot = state.float(0);
+void slot;
+`;
+        const { sourceFile, checker } = createProgramForSource(source, {
+            sourcePath: "demo.chart.ts",
+        });
+        const result = injectCallsiteIds(sourceFile, checker, {
+            sourcePath: "demo.chart.ts",
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
+        });
+        const text = printSourceFile(result.transformed);
+        expect(text).toMatch(/state\.float\("demo\.chart\.ts:3:14#0", 0\)/);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("injects a slot id for request.security and preserves the opts object", () => {
+        const source = `
+import { request } from "@invinite-org/chartlang-core";
+const daily = request.security({ interval: "1D" });
+void daily;
+`;
+        const { sourceFile, checker } = createProgramForSource(source, {
+            sourcePath: "demo.chart.ts",
+        });
+        const result = injectCallsiteIds(sourceFile, checker, {
+            sourcePath: "demo.chart.ts",
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
+        });
+        const text = printSourceFile(result.transformed);
+        expect(text).toMatch(/request\.security\("demo\.chart\.ts:3:15#0", \{ interval: "1D" \}\)/);
         expect(result.diagnostics).toHaveLength(0);
     });
 

@@ -9,4 +9,6 @@ export { extractCapabilities } from "./extractCapabilities";
 export { extractMaxLookback } from "./extractMaxLookback";
 export type { ExtractMaxLookbackResult } from "./extractMaxLookback";
 export { extractInputs } from "./extractInputs";
-export type { ExtractInputsResult } from "./extractInputs";
+export type { ExtractedDescriptor, ExtractInputsResult } from "./extractInputs";
+export { extractRequestedIntervals } from "./extractRequestedIntervals";
+export { extractRequiresIntervals } from "./extractRequiresIntervals";

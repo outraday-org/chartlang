@@ -37,11 +37,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderRegressionTrend(ctx, e, view);
  *     void renderRegressionTrend;
  */
-export function renderRegressionTrend(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderRegressionTrend(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as RegressionTrendState;
     const a = worldPointToCanvas(state.anchors[0], view);
     const b = worldPointToCanvas(state.anchors[1], view);

@@ -58,11 +58,7 @@ describe("renderPitchfork", () => {
 
     it("honours style.color", () => {
         const ctx = new MockCanvas2DContext();
-        renderPitchfork(
-            ctx,
-            emission({ ...STATE, style: { color: "#123456" } }),
-            VIEW,
-        );
+        renderPitchfork(ctx, emission({ ...STATE, style: { color: "#123456" } }), VIEW);
         const setCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (setCall?.kind === "set") expect(setCall.value).toBe("#123456");
     });

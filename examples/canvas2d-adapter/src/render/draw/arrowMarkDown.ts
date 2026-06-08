@@ -34,11 +34,7 @@ const DEFAULT_COLOR = "#ef4444";
  *     renderArrowMarkDown(ctx, e, view);
  *     void renderArrowMarkDown;
  */
-export function renderArrowMarkDown(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderArrowMarkDown(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as ArrowMarkDownState;
     const anchor = worldPointToCanvas(state.anchor, view);
     drawChevron(ctx, anchor, "down", state.style.color ?? DEFAULT_COLOR);

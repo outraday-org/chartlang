@@ -3,6 +3,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
+import { input } from "../input";
 import { defineDrawing } from "./defineDrawing";
 
 describe("defineDrawing", () => {
@@ -30,7 +31,7 @@ describe("defineDrawing", () => {
     });
 
     it("uses provided inputs schema", () => {
-        const inputs = { swingLow: 100 } as const;
+        const inputs = { swingLow: input.int(100) } as const;
         const script = defineDrawing({
             name: "fib",
             apiVersion: 1,
@@ -65,5 +66,41 @@ describe("defineDrawing", () => {
             compute: () => {},
         });
         expect(script.manifest.maxDrawings).toEqual(maxDrawings);
+    });
+
+    it("propagates drawing-applicable override fields into the manifest", () => {
+        const script = defineDrawing({
+            name: "fib",
+            apiVersion: 1,
+            format: "price",
+            precision: 3,
+            requiresIntervals: ["1D"],
+            shortName: "FIB",
+            compute: () => {},
+        });
+        expect(script.manifest.format).toBe("price");
+        expect(script.manifest.precision).toBe(3);
+        expect(script.manifest.requiresIntervals).toEqual(["1D"]);
+        expect(script.manifest.shortName).toBe("FIB");
+    });
+
+    it("excludes lookback and scale overrides from the opts type", () => {
+        void defineDrawing;
+        // @ts-expect-error drawings are ephemeral and do not declare lookback
+        const maxBarsBackOpts: Parameters<typeof defineDrawing>[0] = {
+            name: "fib",
+            apiVersion: 1,
+            maxBarsBack: 100,
+            compute: () => {},
+        };
+        // @ts-expect-error drawing pane placement is determined by anchors
+        const scaleOpts: Parameters<typeof defineDrawing>[0] = {
+            name: "fib",
+            apiVersion: 1,
+            scale: "right",
+            compute: () => {},
+        };
+        void maxBarsBackOpts;
+        void scaleOpts;
     });
 });

@@ -6,6 +6,7 @@ import { parseArgs } from "node:util";
 
 import { runGenDrawingDocs } from "./extractDrawingPages.js";
 import { GenDocsError, findRepoRoot, runGenDocs } from "./genDocs.js";
+import { runGenPhase4Docs } from "./genPhase4Docs.js";
 import { printHelp } from "./help.js";
 
 const DEFAULT_TA_SOURCE = "packages/runtime/src/ta";
@@ -100,6 +101,13 @@ export async function runDocsCommand(args: ReadonlyArray<string>): Promise<void>
             process.stdout.write(`wrote ${rel}\n`);
         }
         process.stdout.write(`generated ${drawResult.written.length} drawing page(s)\n`);
+
+        const phase4Result = await runGenPhase4Docs({ repoRoot });
+        for (const path of phase4Result.written) {
+            const rel = relative(repoRoot, path);
+            process.stdout.write(`wrote ${rel}\n`);
+        }
+        process.stdout.write(`generated ${phase4Result.written.length} phase-4 page(s)\n`);
     } catch (err) {
         if (err instanceof GenDocsError) {
             process.stderr.write(`error: ${err.message}\n`);

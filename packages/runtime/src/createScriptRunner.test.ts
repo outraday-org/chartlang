@@ -1,13 +1,14 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { defineIndicator } from "@invinite-org/chartlang-core";
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
 import type { Bar } from "@invinite-org/chartlang-core";
 import { capabilities, mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities, CandleEvent } from "@invinite-org/chartlang-adapter-kit";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { createScriptRunner } from "./createScriptRunner";
+import { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext";
 import { inMemoryStateStore } from "./stateStore";
 
 function makeCapabilities(maxLookback = 5000): Capabilities {
@@ -18,7 +19,10 @@ function makeCapabilities(maxLookback = 5000): Capabilities {
         alertConditions: false,
         logs: false,
         inputs: new Set(),
-        intervals: [],
+        intervals: [
+            { value: "1m", label: "1 minute", group: "minute" },
+            { value: "1D", label: "1 day", group: "daily" },
+        ],
         multiTimeframe: false,
         subPanes: 0,
         symInfoFields: new Set(),
@@ -80,7 +84,7 @@ describe("createScriptRunner", () => {
 
     it("threads a custom state store through to the runtime", async () => {
         const store = inMemoryStateStore();
-        const spy = vi.spyOn(store, "clear");
+        store.set("host-owned", 1);
         const compiled = defineIndicator({
             name: "demo",
             apiVersion: 1,
@@ -92,7 +96,180 @@ describe("createScriptRunner", () => {
             stateStore: store,
         });
         runner.dispose();
-        expect(spy).toHaveBeenCalledOnce();
+        expect(store.get("host-owned")).toBe(1);
+    });
+
+    it("populates mount-time syminfo through the compute context", async () => {
+        const seen: string[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: ({ syminfo }) => {
+                seen.push(`${syminfo.ticker}:${syminfo.currency}:${syminfo.exchange}`);
+            },
+        });
+        const caps = { ...makeCapabilities(), symInfoFields: new Set(["ticker", "currency"]) };
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: caps,
+            symInfo: {
+                ticker: "DEMO",
+                currency: "USD",
+                exchange: "CHARTLANG",
+            },
+        });
+
+        await runner.onBarClose(makeBar(0));
+
+        expect(seen).toEqual(["DEMO:USD:"]);
+    });
+
+    it("resolves manifest inputs with mount-time overrides", async () => {
+        const seen: ReadonlyArray<unknown>[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                length: input.int(14),
+                source: input.source("close"),
+            },
+            compute: ({ inputs }) => {
+                seen.push([inputs.length, inputs.source]);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            resolveInputs: (scriptId) => (scriptId === "demo" ? { length: 20, source: "hl2" } : {}),
+        });
+
+        await runner.onBarClose(makeBar(0));
+
+        expect(seen).toEqual([[20, "hl2"]]);
+    });
+
+    it("emits input diagnostics once per mount key and keeps defaults", async () => {
+        const seen: ReadonlyArray<unknown>[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                length: input.int(14),
+                source: input.source("close"),
+            },
+            compute: ({ inputs }) => {
+                seen.push([inputs.length, inputs.source]);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            inputOverrides: { length: "bad", source: "bad" },
+        });
+        const diagnostics = runner.drain().diagnostics;
+
+        await runner.onBarClose(makeBar(0));
+        await runner.onBarClose(makeBar(1));
+
+        expect(seen).toEqual([
+            [14, "close"],
+            [14, "close"],
+        ]);
+        expect(diagnostics.map((d) => d.slotId)).toEqual(["length", "source"]);
+        expect(diagnostics.every((d) => d.code === "input-coercion-failed")).toBe(true);
+    });
+
+    it("refreshes barstate and timeframe before every compute step", async () => {
+        const seen: Array<{
+            readonly ishistory: boolean;
+            readonly isconfirmed: boolean;
+            readonly isrealtime: boolean;
+            readonly islast: boolean;
+            readonly period: string;
+            readonly seconds: number;
+        }> = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: ({ barstate, timeframe }) => {
+                seen.push({
+                    ishistory: barstate.ishistory,
+                    isconfirmed: barstate.isconfirmed,
+                    isrealtime: barstate.isrealtime,
+                    islast: barstate.islast,
+                    period: timeframe.period,
+                    seconds: timeframe.inSeconds,
+                });
+            },
+        });
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+
+        await runner.onHistory([makeBar(0)]);
+        await runner.onBarClose({ ...makeBar(1), interval: "1D" });
+        await runner.onBarTick({ ...makeBar(1), interval: "1D", close: 102 });
+
+        expect(seen).toEqual([
+            {
+                ishistory: true,
+                isconfirmed: false,
+                isrealtime: false,
+                islast: false,
+                period: "1m",
+                seconds: 60,
+            },
+            {
+                ishistory: false,
+                isconfirmed: true,
+                isrealtime: false,
+                islast: true,
+                period: "1D",
+                seconds: 86_400,
+            },
+            {
+                ishistory: false,
+                isconfirmed: false,
+                isrealtime: true,
+                islast: true,
+                period: "1D",
+                seconds: 86_400,
+            },
+        ]);
+    });
+
+    it("resets request.security caches on dispose", async () => {
+        let observedSizeAfterDispose = -1;
+        let observedDedupAfterDispose = -1;
+        let phase: "seed" | "after" = "seed";
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: ({ request }) => {
+                const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+                if (ctx !== null && phase === "after") {
+                    observedSizeAfterDispose = ctx.requestSecurityBars.size;
+                    observedDedupAfterDispose = ctx.diagnosedRequestKeys.size;
+                }
+                (
+                    request as unknown as {
+                        readonly security: (
+                            slotId: string,
+                            opts: { readonly interval: string },
+                        ) => unknown;
+                    }
+                ).security("slot#0", { interval: "1D" });
+            },
+        });
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+
+        await runner.onBarClose(makeBar(0));
+        expect(runner.drain().diagnostics).toHaveLength(1);
+        runner.dispose();
+        phase = "after";
+        await runner.onBarClose(makeBar(1));
+
+        expect(observedSizeAfterDispose).toBe(0);
+        expect(observedDedupAfterDispose).toBe(0);
+        expect(runner.drain().diagnostics).toHaveLength(1);
     });
 
     it("sizes ring buffers to max(1, maxLookback + 1) when seriesCapacities is empty", async () => {

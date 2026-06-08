@@ -72,4 +72,25 @@ describe("defineAdapter", () => {
         a.dispose();
         expect(dispose).toHaveBeenCalledOnce();
     });
+
+    it("preserves optional sym-info metadata", () => {
+        const resolveInputs = vi.fn<(scriptId: string) => Readonly<Record<string, unknown>>>(
+            () => ({
+                length: 20,
+            }),
+        );
+        const a = defineAdapter({
+            id: "demo",
+            name: "Demo",
+            capabilities: minimalCapabilities,
+            resolveInputs,
+            symInfo: { ticker: "DEMO", type: "equity", mintick: 0.01 },
+            candles: () => mockCandleSource([]),
+            onEmissions: () => {},
+        });
+
+        expect(a.symInfo).toEqual({ ticker: "DEMO", type: "equity", mintick: 0.01 });
+        expect(a.resolveInputs).toBe(resolveInputs);
+        expect(a.resolveInputs?.("demo")).toEqual({ length: 20 });
+    });
 });

@@ -99,4 +99,26 @@ for (let i = 0; i < 3; i++) {
 `);
         expect(result[0]?.code).toBe("stateful-call-inside-loop");
     });
+
+    it("rejects state.float inside a `for` loop", () => {
+        const result = run(`
+import { state } from "@invinite-org/chartlang-core";
+for (let i = 0; i < 3; i++) {
+    const slot = state.float(0);
+    void slot;
+}
+`);
+        expect(result[0]?.code).toBe("stateful-call-inside-loop");
+    });
+
+    it("rejects request.security inside a `for` loop", () => {
+        const result = run(`
+import { request } from "@invinite-org/chartlang-core";
+for (let i = 0; i < 3; i++) {
+    const daily = request.security({ interval: "1D" });
+    void daily;
+}
+`);
+        expect(result[0]?.code).toBe("stateful-call-inside-loop");
+    });
 });

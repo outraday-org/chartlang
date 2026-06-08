@@ -63,11 +63,7 @@ function gannSquareImpl(
  *         },
  *     });
  */
-export function gannSquare(
-    a: WorldPoint,
-    b: WorldPoint,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function gannSquare(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

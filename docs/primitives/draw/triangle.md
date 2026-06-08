@@ -9,7 +9,7 @@
 
 Draw a triangle as a closed three-vertex polygon. Vertices may be
 supplied CW or CCW; the renderer walks them as a closed path. Not to
-be confused with `draw.pattern.triangle` (Task 15) — that variant is
+be confused with `draw.trianglePattern` (Task 15) — that variant is
 the harmonic five-anchor triangle pattern.
 
 ## Anchors

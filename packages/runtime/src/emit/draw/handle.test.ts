@@ -6,10 +6,7 @@ import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { LineState } from "@invinite-org/chartlang-core";
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-    ACTIVE_RUNTIME_CONTEXT,
-    type RuntimeContext,
-} from "../../runtimeContext";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../../runtimeContext";
 import { createStreamState } from "../../streamState";
 import { inMemoryStateStore } from "../../stateStore";
 import { createDrawingHandle } from "./handle";
@@ -53,6 +50,7 @@ function makeCtx(barTime = 1_700_000_000_000, barIndex = 0): RuntimeContext {
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
 }
 

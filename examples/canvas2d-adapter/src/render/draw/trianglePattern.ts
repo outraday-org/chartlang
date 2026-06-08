@@ -32,11 +32,7 @@ const LABELS: ReadonlyArray<string> = ["A", "B", "C"];
  *     renderTrianglePattern(ctx, e, view);
  *     void renderTrianglePattern;
  */
-export function renderTrianglePattern(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderTrianglePattern(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as TrianglePatternState;
     const points = state.anchors.map((p) => worldPointToCanvas(p, view));
     renderNamedPolyline(ctx, points, LABELS, state.style);

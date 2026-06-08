@@ -57,11 +57,7 @@ describe("renderPitchfan", () => {
 
     it("honours style.color", () => {
         const ctx = new MockCanvas2DContext();
-        renderPitchfan(
-            ctx,
-            emission({ ...STATE, style: { color: "#123456" } }),
-            VIEW,
-        );
+        renderPitchfan(ctx, emission({ ...STATE, style: { color: "#123456" } }), VIEW);
         const setCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (setCall?.kind === "set") expect(setCall.value).toBe("#123456");
     });

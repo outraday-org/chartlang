@@ -160,15 +160,37 @@ const EXPECTED_SLOT_TRUE = [
     "draw.sineLine",
     "draw.group",
     "draw.frame",
+    "state.float",
+    "state.int",
+    "state.bool",
+    "state.string",
+    "state.tick.float",
+    "state.tick.int",
+    "state.tick.bool",
+    "state.tick.string",
+    "request.security",
 ] as const;
+
+const EXPECTED_STATE_SLOT_TRUE = [
+    "state.float",
+    "state.int",
+    "state.bool",
+    "state.string",
+    "state.tick.float",
+    "state.tick.int",
+    "state.tick.bool",
+    "state.tick.string",
+] as const;
+
+const EXPECTED_REQUEST_SLOT_TRUE = ["request.security"] as const;
 
 const EXPECTED_SLOT_FALSE = ["ta.nz"] as const;
 
 const EXPECTED_ALL_NAMES = [...EXPECTED_SLOT_TRUE, ...EXPECTED_SLOT_FALSE];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 154 entries (Phase-2 93 + Phase-3 61 draw.* entries)", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(154);
+    it("contains exactly 163 entries (Phase-2 93 + Phase-3 61 draw.* + Phase-4 8 state.* entries + request.security)", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(163);
     });
 
     it("carries every expected name with the right slot flag", () => {
@@ -185,14 +207,14 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 153 slot: true entries and exactly 1 slot: false entry", () => {
+    it("has exactly 162 slot: true entries and exactly 1 slot: false entry", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
             if (entry.slot) trueCount += 1;
             else falseCount += 1;
         }
-        expect(trueCount).toBe(153);
+        expect(trueCount).toBe(162);
         expect(falseCount).toBe(1);
     });
 
@@ -229,5 +251,17 @@ describe("STATEFUL_PRIMITIVES_BY_NAME", () => {
 
     it("preserves the slot flag for ta.nz", () => {
         expect(STATEFUL_PRIMITIVES_BY_NAME.get("ta.nz")?.slot).toBe(false);
+    });
+
+    it("indexes every state slot builder as slot: true", () => {
+        for (const name of EXPECTED_STATE_SLOT_TRUE) {
+            expect(STATEFUL_PRIMITIVES_BY_NAME.get(name)?.slot).toBe(true);
+        }
+    });
+
+    it("indexes request.security as slot: true", () => {
+        for (const name of EXPECTED_REQUEST_SLOT_TRUE) {
+            expect(STATEFUL_PRIMITIVES_BY_NAME.get(name)?.slot).toBe(true);
+        }
     });
 });

@@ -12,6 +12,7 @@ import {
 } from "./runtimeContext";
 import { inMemoryStateStore } from "./stateStore";
 import { createStreamState } from "./streamState";
+import { createRuntimeViews } from "./views";
 
 function freshEmissions(): MutableRunnerEmissions {
     return {
@@ -61,6 +62,12 @@ function freshContext(barIndex = 0): RuntimeContext {
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
+        requestSecurityBars: new Map(),
+        diagnosedRequestKeys: new Set(),
+        resolvedInputs: Object.freeze({}),
+        diagnosedInputKeys: new Set(),
+        views: createRuntimeViews(),
     };
 }
 
@@ -130,5 +137,11 @@ describe("RuntimeContext shape", () => {
             other: 0,
         });
         expect(ctx.scriptMaxDrawings).toBeNull();
+        expect(ctx.stateSlots.size).toBe(0);
+        expect(ctx.requestSecurityBars.size).toBe(0);
+        expect(ctx.diagnosedRequestKeys.size).toBe(0);
+        expect(ctx.resolvedInputs).toEqual({});
+        expect(ctx.diagnosedInputKeys.size).toBe(0);
+        expect(ctx.views.barstate.isfirst).toBe(true);
     });
 });

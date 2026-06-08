@@ -27,9 +27,7 @@ describe("Anchor tuple helpers", () => {
     });
 
     it("AnchorTriple is a length-3 readonly tuple of WorldPoint", () => {
-        expectTypeOf<AnchorTriple>().toEqualTypeOf<
-            readonly [WorldPoint, WorldPoint, WorldPoint]
-        >();
+        expectTypeOf<AnchorTriple>().toEqualTypeOf<readonly [WorldPoint, WorldPoint, WorldPoint]>();
     });
 
     it("AnchorQuad is a length-4 readonly tuple", () => {

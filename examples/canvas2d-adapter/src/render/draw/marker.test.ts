@@ -44,13 +44,7 @@ describe("renderMarker", () => {
             VIEW,
         );
         const sequence = ctx.calls.map((c) => c.kind);
-        expect(sequence).toEqual([
-            "set",
-            "set",
-            "set",
-            "set",
-            "fillText",
-        ]);
+        expect(sequence).toEqual(["set", "set", "set", "set", "fillText"]);
         expect(ctx.calls[0]).toEqual({ kind: "set", prop: "font", value: "16px sans-serif" });
         expect(ctx.calls[1]).toEqual({ kind: "set", prop: "textAlign", value: "center" });
         expect(ctx.calls[2]).toEqual({ kind: "set", prop: "textBaseline", value: "middle" });
@@ -124,9 +118,7 @@ describe("renderMarker", () => {
                 }),
                 VIEW,
             );
-            const fontCall = ctx.calls.find(
-                (c) => c.kind === "set" && c.prop === "font",
-            );
+            const fontCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "font");
             const expected = { tiny: 8, small: 10, normal: 12, large: 16, huge: 20 }[size];
             if (fontCall?.kind === "set") {
                 expect(fontCall.value).toBe(`${expected}px sans-serif`);
@@ -148,9 +140,7 @@ describe("renderMarker", () => {
                 }),
                 VIEW,
             );
-            const alignCall = ctx.calls.find(
-                (c) => c.kind === "set" && c.prop === "textAlign",
-            );
+            const alignCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "textAlign");
             if (alignCall?.kind === "set") {
                 expect(alignCall.value).toBe(halign);
             }
@@ -171,9 +161,7 @@ describe("renderMarker", () => {
                 }),
                 VIEW,
             );
-            const baseCall = ctx.calls.find(
-                (c) => c.kind === "set" && c.prop === "textBaseline",
-            );
+            const baseCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "textBaseline");
             if (baseCall?.kind === "set") {
                 expect(baseCall.value).toBe(valign);
             }

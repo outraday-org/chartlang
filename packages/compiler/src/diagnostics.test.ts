@@ -95,4 +95,32 @@ describe("createDiagnostic", () => {
         });
         expect(diagnostic.nodeText).toBeDefined();
     });
+
+    it("accepts request security and requiresIntervals diagnostic codes", () => {
+        const source = sourceFor("const x = 1;");
+        const node = source.statements[0];
+        if (!node) throw new Error("missing statement");
+        const requestDiagnostic = createDiagnostic({
+            severity: "error",
+            code: "request-security-interval-not-literal",
+            message: "request.security({ interval }) must be a string literal or input.enum value",
+            file: "demo.chart.ts",
+            node,
+            sourceFile: source,
+        });
+        const requiresDiagnostic = createDiagnostic({
+            severity: "error",
+            code: "requires-intervals-not-literal",
+            message: "defineIndicator({ requiresIntervals }) must be a static string-literal array",
+            file: "demo.chart.ts",
+            node,
+            sourceFile: source,
+        });
+        expect(requestDiagnostic.message).toBe(
+            "request.security({ interval }) must be a string literal or input.enum value",
+        );
+        expect(requiresDiagnostic.message).toBe(
+            "defineIndicator({ requiresIntervals }) must be a static string-literal array",
+        );
+    });
 });

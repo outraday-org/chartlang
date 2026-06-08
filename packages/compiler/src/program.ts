@@ -34,6 +34,23 @@ declare module "@invinite-org/chartlang-core" {
     export type LineStyle = "solid" | "dashed" | "dotted";
     export type AlertSeverity = "info" | "warning" | "critical";
     export type CapabilityId = "indicators" | "drawings" | "alerts";
+    export type ValueFormat = "price" | "volume" | "percent" | "compact";
+    export type ScaleAxis = "price" | "left" | "right" | "new";
+    export type DrawingCounts = {
+        readonly lines: number;
+        readonly labels: number;
+        readonly boxes: number;
+        readonly polylines: number;
+        readonly other: number;
+    };
+    export type ScriptOverrides = Readonly<{
+        maxBarsBack?: number;
+        format?: ValueFormat;
+        precision?: number;
+        scale?: ScaleAxis;
+        requiresIntervals?: ReadonlyArray<string>;
+        shortName?: string;
+    }>;
     export type Bar = {
         readonly time: Time;
         readonly open: Price;
@@ -545,7 +562,159 @@ declare module "@invinite-org/chartlang-core" {
         meta?: Readonly<Record<string, JsonValue>>;
     }>;
     export function alert(message: string, opts?: AlertOpts): void;
-    export type InputSchema = Readonly<Record<string, unknown>>;
+    export type InputKind =
+        | "int"
+        | "float"
+        | "bool"
+        | "string"
+        | "enum"
+        | "color"
+        | "source"
+        | "time"
+        | "price"
+        | "symbol"
+        | "interval"
+        | "external-series";
+    export type SourceField =
+        | "open"
+        | "high"
+        | "low"
+        | "close"
+        | "hl2"
+        | "hlc3"
+        | "ohlc4"
+        | "hlcc4";
+    export type Schema<T> = Readonly<{ kind: "external-series-schema"; __brand?: T }>;
+    type NumericInputOpts = Readonly<{ min?: number; max?: number; step?: number }>;
+    type CommonInputDescriptor<K extends InputKind, T> = Readonly<{
+        kind: K;
+        defaultValue: T;
+        title?: string;
+    }>;
+    export type IntDescriptor = CommonInputDescriptor<"int", number> & NumericInputOpts;
+    export type FloatDescriptor = CommonInputDescriptor<"float", number> & NumericInputOpts;
+    export type BoolDescriptor = CommonInputDescriptor<"bool", boolean>;
+    export type StringDescriptor = CommonInputDescriptor<"string", string> & Readonly<{ multiline?: boolean }>;
+    export type EnumDescriptor<T extends string> = CommonInputDescriptor<"enum", T> & Readonly<{ options: ReadonlyArray<T> }>;
+    export type ColorDescriptor = CommonInputDescriptor<"color", Color>;
+    export type SourceDescriptor = CommonInputDescriptor<"source", SourceField>;
+    export type TimeDescriptor = CommonInputDescriptor<"time", number> & Readonly<{ pickFromChart?: boolean }>;
+    export type PriceDescriptor = CommonInputDescriptor<"price", number>;
+    export type SymbolDescriptor = CommonInputDescriptor<"symbol", string>;
+    export type IntervalDescriptorInput = CommonInputDescriptor<"interval", string>;
+    export type ExternalSeriesDescriptor<T> = Readonly<{
+        kind: "external-series";
+        name: string;
+        schema: Schema<T>;
+        title?: string;
+    }>;
+    export type InputDescriptor<T> =
+        | IntDescriptor
+        | FloatDescriptor
+        | BoolDescriptor
+        | StringDescriptor
+        | EnumDescriptor<string>
+        | ColorDescriptor
+        | SourceDescriptor
+        | TimeDescriptor
+        | PriceDescriptor
+        | SymbolDescriptor
+        | IntervalDescriptorInput
+        | ExternalSeriesDescriptor<T>;
+    export const input: Readonly<{
+        int(defaultValue: number, opts?: NumericInputOpts & Readonly<{ title?: string }>): IntDescriptor;
+        float(defaultValue: number, opts?: NumericInputOpts & Readonly<{ title?: string }>): FloatDescriptor;
+        bool(defaultValue: boolean, opts?: Readonly<{ title?: string }>): BoolDescriptor;
+        string(defaultValue: string, opts?: Readonly<{ title?: string; multiline?: boolean }>): StringDescriptor;
+        enum<T extends string>(
+            defaultValue: T,
+            options: ReadonlyArray<T>,
+            opts?: Readonly<{ title?: string }>,
+        ): EnumDescriptor<T>;
+        color(defaultValue: Color, opts?: Readonly<{ title?: string }>): ColorDescriptor;
+        source(defaultValue: SourceField, opts?: Readonly<{ title?: string }>): SourceDescriptor;
+        time(defaultValue: Time, opts?: Readonly<{ title?: string; pickFromChart?: boolean }>): TimeDescriptor;
+        price(defaultValue: Price, opts?: Readonly<{ title?: string }>): PriceDescriptor;
+        symbol(defaultValue: string, opts?: Readonly<{ title?: string }>): SymbolDescriptor;
+        interval(defaultValue: string, opts?: Readonly<{ title?: string }>): IntervalDescriptorInput;
+        externalSeries<T>(args: Readonly<{ name: string; schema: Schema<T>; title?: string }>): ExternalSeriesDescriptor<T>;
+    }>;
+    export type InputSchema = Readonly<Record<string, InputDescriptor<unknown>>>;
+    export type MutableSlot<T> = {
+        value: T;
+    };
+    export type StateNamespace = Readonly<{
+        float(init: number): MutableSlot<number>;
+        int(init: number): MutableSlot<number>;
+        bool(init: boolean): MutableSlot<boolean>;
+        string(init: string): MutableSlot<string>;
+        tick: Readonly<{
+            float(init: number): MutableSlot<number>;
+            int(init: number): MutableSlot<number>;
+            bool(init: boolean): MutableSlot<boolean>;
+            string(init: string): MutableSlot<string>;
+        }>;
+    }>;
+    export const state: StateNamespace;
+    export type BarStateView = {
+        readonly isfirst: boolean;
+        readonly islast: boolean;
+        readonly isnew: boolean;
+        readonly ishistory: boolean;
+        readonly isrealtime: boolean;
+        readonly isconfirmed: boolean;
+    };
+    export const barstate: BarStateView;
+    export type SymbolType =
+        | "equity"
+        | "futures"
+        | "forex"
+        | "crypto"
+        | "index"
+        | "fund"
+        | "bond"
+        | "commodity"
+        | "custom";
+    export type SymInfoView = {
+        readonly ticker: string;
+        readonly type: SymbolType;
+        readonly mintick: number;
+        readonly currency: string;
+        readonly basecurrency: string;
+        readonly exchange: string;
+        readonly timezone: string;
+        readonly session: string;
+        readonly meta: Readonly<Record<string, JsonValue>>;
+    };
+    export const syminfo: SymInfoView;
+    export type TimeframeView = {
+        readonly period: string;
+        readonly isintraday: boolean;
+        readonly isdaily: boolean;
+        readonly isweekly: boolean;
+        readonly ismonthly: boolean;
+        readonly inSeconds: number;
+    };
+    export const timeframe: TimeframeView;
+    export type RequestSecurityOpts = Readonly<{ interval: string }>;
+    export type SecurityBar = Readonly<{
+        readonly time: Series<Time>;
+        readonly open: Series<Price>;
+        readonly high: Series<Price>;
+        readonly low: Series<Price>;
+        readonly close: Series<Price>;
+        readonly volume: Series<Volume>;
+        readonly hl2: Series<Price>;
+        readonly hlc3: Series<Price>;
+        readonly ohlc4: Series<Price>;
+        readonly hlcc4: Series<Price>;
+        readonly symbol: Series<string>;
+        readonly interval: Series<string>;
+    }>;
+    export type RequestNamespace = Readonly<{
+        security(opts: RequestSecurityOpts): SecurityBar;
+    }>;
+    export const request: RequestNamespace;
     export type ScriptManifest = {
         readonly apiVersion: 1;
         readonly kind: "indicator" | "drawing" | "alert";
@@ -556,6 +725,13 @@ declare module "@invinite-org/chartlang-core" {
         readonly userPickableInterval: boolean;
         readonly seriesCapacities: Readonly<Record<string, number>>;
         readonly maxLookback: number;
+        readonly maxDrawings?: DrawingCounts;
+        readonly maxBarsBack?: number;
+        readonly format?: ValueFormat;
+        readonly precision?: number;
+        readonly scale?: ScaleAxis;
+        readonly shortName?: string;
+        readonly requiresIntervals?: ReadonlyArray<string>;
     };
     export type Time = number;
     export type Price = number;
@@ -592,6 +768,11 @@ declare module "@invinite-org/chartlang-core" {
         readonly hline: typeof hline;
         readonly alert: typeof alert;
         readonly draw: DrawNamespace;
+        readonly state: StateNamespace;
+        readonly barstate: BarStateView;
+        readonly syminfo: SymInfoView;
+        readonly timeframe: TimeframeView;
+        readonly request: RequestNamespace;
     };
     export type ComputeFn = (ctx: ComputeContext) => void;
     export type CompiledScriptObject = {
@@ -604,19 +785,21 @@ declare module "@invinite-org/chartlang-core" {
         overlay?: boolean;
         inputs?: InputSchema;
         compute: ComputeFn;
-    }>;
+        maxDrawings?: DrawingCounts;
+    }> & ScriptOverrides;
     export type DefineAlertOpts = Readonly<{
         name: string;
         apiVersion: 1;
         inputs?: InputSchema;
         compute: ComputeFn;
-    }>;
+    }> & Omit<ScriptOverrides, "scale" | "format" | "precision">;
     export type DefineDrawingOpts = Readonly<{
         name: string;
         apiVersion: 1;
         inputs?: InputSchema;
         compute: ComputeFn;
-    }>;
+        maxDrawings?: DrawingCounts;
+    }> & Omit<ScriptOverrides, "maxBarsBack" | "scale">;
     export function defineIndicator(opts: DefineIndicatorOpts): CompiledScriptObject;
     export function defineAlert(opts: DefineAlertOpts): CompiledScriptObject;
     export function defineDrawing(opts: DefineDrawingOpts): CompiledScriptObject;

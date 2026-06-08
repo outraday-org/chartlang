@@ -1,19 +1,27 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import { resolve as resolvePath } from "node:path";
+import { fileURLToPath } from "node:url";
 import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
+import type { RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
+import { compileFile } from "@invinite-org/chartlang-compiler";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import {
-    createWorkerBoot,
-    createWorkerHost,
+    type ScriptHost,
     type WorkerBootScope,
     type WorkerLike,
+    createWorkerBoot,
+    createWorkerHost,
 } from "@invinite-org/chartlang-host-worker";
 import { describe, expect, it } from "vitest";
 
-import { CANVAS2D_CAPABILITIES } from "./capabilities";
+import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities";
 import { createCanvas2dAdapter, runRendererLoop } from "./createCanvas2dAdapter";
 import { MockCanvas2DContext, hashCallLog } from "./testing";
+
+const here = fileURLToPath(new URL(".", import.meta.url));
+const REPO_ROOT = resolvePath(here, "../../..");
 
 /**
  * Pair a `MessageChannel`-backed `WorkerLike` (port1, used by the host)
@@ -55,6 +63,8 @@ const MS_PER_DAY = 86_400_000;
 const START_TIME = 1_700_000_000_000;
 
 function bar(i: number, open: number, high: number, low: number, close: number): Bar {
+    const hl2 = (high + low) / 2;
+    const hlc3 = (high + low + close) / 3;
     return {
         time: START_TIME + i * MS_PER_DAY,
         open,
@@ -64,6 +74,10 @@ function bar(i: number, open: number, high: number, low: number, close: number):
         volume: 1_000 + i,
         symbol: "EMA-X",
         interval: "1D",
+        hl2,
+        hlc3,
+        ohlc4: (open + high + low + close) / 4,
+        hlcc4: (high + low + close + close) / 4,
     };
 }
 
@@ -124,6 +138,217 @@ export default {
 };
 `;
 
+type CapturedRun = {
+    readonly emissions: ReadonlyArray<RunnerEmissions>;
+    readonly alerts: ReadonlyArray<unknown>;
+    readonly workerErrors: ReadonlyArray<string>;
+};
+
+function phase4ModuleSource(relPath: string, manifest: ScriptManifest): string {
+    const manifestJson = JSON.stringify(manifest);
+    if (relPath.endsWith("session-high-alert.chart.ts")) {
+        return `
+const manifest = ${manifestJson};
+export default {
+    manifest,
+    compute: (ctx) => {
+        const high = ctx.state.float("session-high-alert.chart.ts:18:22#0", NaN);
+        const isSessionOpen = ctx.barstate.isfirst || ctx.bar.time % 86400000 === 0;
+        if (isSessionOpen) {
+            high.value = ctx.bar.high;
+        } else if (Number.isNaN(high.value) || ctx.bar.high > high.value) {
+            high.value = ctx.bar.high;
+        }
+        ctx.plot("session-high-alert.chart.ts:25:9#0", high.value, {
+            color: "#ff9900",
+            title: "Session high",
+        });
+        if (
+            ctx.inputs.alertOnCross &&
+            ctx.ta.crossover("session-high-alert.chart.ts:26:36#0", ctx.bar.close, high.value).current
+        ) {
+            ctx.alert("session-high-alert.chart.ts:27:13#0", "Close crossed session high", {
+                severity: "info",
+            });
+        }
+    },
+};
+`;
+    }
+    if (relPath.endsWith("daily-rsi-divergence.chart.ts")) {
+        return `
+const manifest = ${manifestJson};
+export default {
+    manifest,
+    compute: (ctx) => {
+        if (!ctx.timeframe.isdaily) return;
+        const rsi = ctx.ta.rsi("daily-rsi-divergence.chart.ts:19:21#0", ctx.bar.close, ctx.inputs.length);
+        const barsSince = ctx.state.int("daily-rsi-divergence.chart.ts:20:27#0", 0);
+        const overbought = rsi.current > 70;
+        const oversold = rsi.current < 30;
+        barsSince.value = overbought || oversold ? 0 : barsSince.value + 1;
+        ctx.plot("daily-rsi-divergence.chart.ts:24:9#0", rsi.current, {
+            color: "#7c3aed",
+            title: "RSI",
+            pane: "rsi",
+        });
+        ctx.plot("daily-rsi-divergence.chart.ts:25:9#0", barsSince.value, {
+            color: "#94a3b8",
+            title: "Bars since divergence",
+            pane: "rsi",
+        });
+    },
+};
+`;
+    }
+    if (relPath.endsWith("mintick-snapped-entry.chart.ts")) {
+        return `
+const manifest = ${manifestJson};
+export default {
+    manifest,
+    compute: (ctx) => {
+        const target = ctx.bar.close * (1 + ctx.inputs.offsetPercent / 100);
+        if (!Number.isFinite(ctx.syminfo.mintick)) {
+            ctx.plot("mintick-snapped-entry.chart.ts:20:13#0", target, {
+                color: "#10b981",
+                title: "Target (raw)",
+            });
+            return;
+        }
+        const snapped = Math.round(target / ctx.syminfo.mintick) * ctx.syminfo.mintick;
+        ctx.plot("mintick-snapped-entry.chart.ts:25:9#0", snapped, {
+            color: "#10b981",
+            title: "Target (snapped)",
+        });
+    },
+};
+`;
+    }
+    throw new Error(`no Phase-4 module fixture for ${relPath}`);
+}
+
+function captureHost(host: ScriptHost, emissions: RunnerEmissions[]): ScriptHost {
+    return Object.freeze({
+        load: host.load,
+        push: host.push,
+        async drain() {
+            const next = await host.drain();
+            emissions.push(next);
+            return next;
+        },
+        dispose: host.dispose,
+        limits: host.limits,
+    });
+}
+
+function hasErrorDiagnostics(emissions: ReadonlyArray<RunnerEmissions>): boolean {
+    return emissions.some((frame) => frame.diagnostics.some((d) => d.severity === "error"));
+}
+
+async function runExampleScript(
+    relPath: string,
+    bars: ReadonlyArray<Bar>,
+    opts: {
+        readonly interval?: string;
+        readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    } = {},
+): Promise<CapturedRun> {
+    const { worker, scope } = pair();
+    createWorkerBoot(scope);
+    const emissions: RunnerEmissions[] = [];
+    const workerErrors: string[] = [];
+    const alerts: unknown[] = [];
+    const host = captureHost(
+        createWorkerHost({
+            capabilities: CANVAS2D_CAPABILITIES,
+            symInfo: CANVAS2D_SYM_INFO,
+            ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
+            workerLike: worker,
+            onWorkerError: (m) => workerErrors.push(m),
+        }),
+        emissions,
+    );
+    const ctx = new MockCanvas2DContext();
+    const adapter = createCanvas2dAdapter({
+        canvas: { width: 640, height: 320 },
+        ctx,
+        candleSource: mockCandleSource(bars, {
+            interval: opts.interval ?? "1D",
+            mode: "stream",
+        }),
+        capabilities: CANVAS2D_CAPABILITIES,
+        host,
+        ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
+        ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
+        onAlert: (a) => alerts.push(a),
+    });
+
+    const compiled = await compileFile(resolvePath(REPO_ROOT, relPath), {
+        apiVersion: 1,
+        write: false,
+    });
+    await adapter.host.load({
+        manifest: compiled.manifest,
+        moduleSource: phase4ModuleSource(relPath, compiled.manifest),
+    });
+    await runRendererLoop(adapter);
+    adapter.dispose();
+
+    return { emissions, alerts, workerErrors };
+}
+
+function phase4Bar(i: number, close: number, interval: string): Bar {
+    const open = close - 0.5;
+    const high = close + 1;
+    const low = close - 1;
+    const hl2 = (high + low) / 2;
+    const hlc3 = (high + low + close) / 3;
+    return {
+        time: START_TIME + i * MS_PER_DAY,
+        open,
+        high,
+        low,
+        close,
+        volume: 2_000 + i,
+        symbol: "DEMO",
+        interval,
+        hl2,
+        hlc3,
+        ohlc4: (open + high + low + close) / 4,
+        hlcc4: (high + low + close + close) / 4,
+    };
+}
+
+const PHASE4_DAILY_BARS: ReadonlyArray<Bar> = Array.from({ length: 24 }, (_, i) =>
+    phase4Bar(i, i < 12 ? 100 + i * 2 : 124 - (i - 12) * 3, "1D"),
+);
+
+const PHASE4_INTRADAY_BARS: ReadonlyArray<Bar> = PHASE4_DAILY_BARS.map((b) => ({
+    ...b,
+    interval: "5m",
+}));
+
+const SESSION_ALERT_BARS: ReadonlyArray<Bar> = [
+    {
+        ...phase4Bar(0, 100, "1D"),
+        time: START_TIME + 1,
+        high: 105,
+        hl2: 102,
+        hlc3: 101.66666666666667,
+        ohlc4: 101.125,
+        hlcc4: 100.83333333333333,
+    },
+    {
+        ...phase4Bar(1, 106, "1D"),
+        time: START_TIME + MS_PER_DAY + 1,
+        high: 105,
+        hl2: 102,
+        hlc3: 105.33333333333333,
+        ohlc4: 103.875,
+        hlcc4: 105.5,
+    },
+];
+
 describe("canvas2d adapter integration", () => {
     it("drives an EMA-cross-equivalent compiled bundle through the worker shim and renders to the mock canvas", async () => {
         const { worker, scope } = pair();
@@ -175,6 +400,44 @@ describe("canvas2d adapter integration", () => {
         expect(hash).toBe(PINNED_HASH);
 
         adapter.dispose();
+    });
+
+    it("drives Phase-4 Pine-port scripts through canvas2d with plots and no errors", async () => {
+        const cases = [
+            "examples/scripts/session-high-alert.chart.ts",
+            "examples/scripts/daily-rsi-divergence.chart.ts",
+            "examples/scripts/mintick-snapped-entry.chart.ts",
+        ] as const;
+
+        for (const relPath of cases) {
+            const run = await runExampleScript(relPath, PHASE4_DAILY_BARS);
+            const plotCount = run.emissions.reduce((sum, frame) => sum + frame.plots.length, 0);
+            expect(run.workerErrors).toEqual([]);
+            expect(hasErrorDiagnostics(run.emissions)).toBe(false);
+            expect(plotCount).toBeGreaterThan(0);
+        }
+    });
+
+    it("emits a session-high alert on crossover", async () => {
+        const run = await runExampleScript(
+            "examples/scripts/session-high-alert.chart.ts",
+            SESSION_ALERT_BARS,
+        );
+        expect(run.workerErrors).toEqual([]);
+        expect(hasErrorDiagnostics(run.emissions)).toBe(false);
+        expect(run.alerts.length).toBeGreaterThan(0);
+    });
+
+    it("short-circuits daily RSI divergence on non-daily streams", async () => {
+        const run = await runExampleScript(
+            "examples/scripts/daily-rsi-divergence.chart.ts",
+            PHASE4_INTRADAY_BARS,
+            { interval: "5m" },
+        );
+        const plotCount = run.emissions.reduce((sum, frame) => sum + frame.plots.length, 0);
+        expect(run.workerErrors).toEqual([]);
+        expect(hasErrorDiagnostics(run.emissions)).toBe(false);
+        expect(plotCount).toBe(0);
     });
 });
 

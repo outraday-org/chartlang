@@ -164,10 +164,7 @@ const TASK_13_GANN_KINDS: ReadonlySet<DrawingKind> = new Set([
 ]);
 
 // Pitchfork kinds shipped in Task 14.
-const TASK_14_PITCHFORK_KINDS: ReadonlySet<DrawingKind> = new Set([
-    "pitchfork",
-    "pitchfan",
-]);
+const TASK_14_PITCHFORK_KINDS: ReadonlySet<DrawingKind> = new Set(["pitchfork", "pitchfan"]);
 
 // Harmonic-pattern kinds shipped in Task 15.
 const TASK_15_PATTERN_KINDS: ReadonlySet<DrawingKind> = new Set([
@@ -200,9 +197,7 @@ const TASK_17_CYCLE_KINDS: ReadonlySet<DrawingKind> = new Set([
 // the bounding-box-of-children envelope is a Phase-4 follow-up) and
 // therefore stays out of `RENDERING_KINDS` even though both arms in
 // `drawingDispatch` are now flipped to call real renderers.
-const TASK_18_VISIBLE_CONTAINER_KINDS: ReadonlySet<DrawingKind> = new Set([
-    "frame",
-]);
+const TASK_18_VISIBLE_CONTAINER_KINDS: ReadonlySet<DrawingKind> = new Set(["frame"]);
 
 const RENDERING_KINDS: ReadonlySet<DrawingKind> = new Set([
     ...TASK_5_LINE_KINDS,
@@ -1018,9 +1013,7 @@ describe("drawingDispatch — Tasks 5–18 shipped kinds touch the context", () 
     it("'highlighter' brackets the stroke with globalAlpha set/reset", () => {
         const ctx = new MockCanvas2DContext();
         drawingDispatch(ctx, syntheticEmission("highlighter", "create"), VIEW);
-        const alphaCalls = ctx.calls.filter(
-            (c) => c.kind === "set" && c.prop === "globalAlpha",
-        );
+        const alphaCalls = ctx.calls.filter((c) => c.kind === "set" && c.prop === "globalAlpha");
         expect(alphaCalls).toHaveLength(2);
     });
 
@@ -1101,9 +1094,7 @@ describe("drawingDispatch — Tasks 5–18 shipped kinds touch the context", () 
         const ctx = new MockCanvas2DContext();
         drawingDispatch(ctx, syntheticEmission("regression-trend", "create"), VIEW);
         expect(ctx.calls.filter((c) => c.kind === "stroke")).toHaveLength(1);
-        const strokeStyleCall = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "strokeStyle",
-        );
+        const strokeStyleCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (strokeStyleCall?.kind === "set") expect(strokeStyleCall.value).toBe("#3b82f6");
     });
 
@@ -1144,9 +1135,7 @@ describe("drawingDispatch — Tasks 5–18 shipped kinds touch the context", () 
         drawingDispatch(ctx, syntheticEmission("fib-wedge", "create"), VIEW);
         const strokes = ctx.calls.filter((c) => c.kind === "stroke").length;
         expect(strokes).toBeGreaterThanOrEqual(10);
-        const strokeStyleCall = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "strokeStyle",
-        );
+        const strokeStyleCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (strokeStyleCall?.kind === "set") expect(strokeStyleCall.value).toBe("#facc15");
     });
 
@@ -1197,9 +1186,7 @@ describe("drawingDispatch — Tasks 5–18 shipped kinds touch the context", () 
         drawingDispatch(ctx, syntheticEmission("gann-box", "create"), VIEW);
         expect(ctx.calls.filter((c) => c.kind === "stroke")).toHaveLength(10);
         expect(ctx.calls.filter((c) => c.kind === "fill")).toHaveLength(0);
-        const setCall = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "strokeStyle",
-        );
+        const setCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (setCall?.kind === "set") expect(setCall.value).toBe("#a855f7");
     });
 
@@ -1229,9 +1216,7 @@ describe("drawingDispatch — Tasks 5–18 shipped kinds touch the context", () 
         drawingDispatch(ctx, syntheticEmission("pitchfork", "create"), VIEW);
         expect(ctx.calls.filter((c) => c.kind === "stroke")).toHaveLength(3);
         expect(ctx.calls.filter((c) => c.kind === "fill")).toHaveLength(0);
-        const setCall = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "strokeStyle",
-        );
+        const setCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (setCall?.kind === "set") expect(setCall.value).toBe("#ec4899");
     });
 
@@ -1380,13 +1365,14 @@ describe("drawingDispatch — Tasks 5–18 shipped kinds touch the context", () 
 });
 
 describe("drawingDispatch — 'group' no-op + exhaustiveness", () => {
-    it.each(
-        [...DRAWING_KINDS].filter((k) => !RENDERING_KINDS.has(k)),
-    )("dispatches '%s' (op:create) without touching the context", (kind) => {
-        const ctx = new MockCanvas2DContext();
-        drawingDispatch(ctx, syntheticEmission(kind, "create"), VIEW);
-        expect(ctx.calls).toEqual([]);
-    });
+    it.each([...DRAWING_KINDS].filter((k) => !RENDERING_KINDS.has(k)))(
+        "dispatches '%s' (op:create) without touching the context",
+        (kind) => {
+            const ctx = new MockCanvas2DContext();
+            drawingDispatch(ctx, syntheticEmission(kind, "create"), VIEW);
+            expect(ctx.calls).toEqual([]);
+        },
+    );
 
     it("short-circuits op:'remove' for every kind (no context touch)", () => {
         for (const kind of DRAWING_KINDS) {

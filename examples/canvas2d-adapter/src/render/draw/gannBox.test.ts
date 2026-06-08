@@ -45,9 +45,7 @@ describe("renderGannBox", () => {
         const ctx = new MockCanvas2DContext();
         renderGannBox(ctx, emission(STATE), VIEW);
         // 5 horizontal + 5 vertical = 10 strokes.
-        expect(ctx.calls.filter((c) => c.kind === "stroke")).toHaveLength(
-            GANN_LEVELS.length * 2,
-        );
+        expect(ctx.calls.filter((c) => c.kind === "stroke")).toHaveLength(GANN_LEVELS.length * 2);
     });
 
     it("defaults strokeStyle to gann purple #a855f7", () => {
@@ -59,11 +57,7 @@ describe("renderGannBox", () => {
 
     it("honours style.color", () => {
         const ctx = new MockCanvas2DContext();
-        renderGannBox(
-            ctx,
-            emission({ ...STATE, style: { color: "#123456" } }),
-            VIEW,
-        );
+        renderGannBox(ctx, emission({ ...STATE, style: { color: "#123456" } }), VIEW);
         const setCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (setCall?.kind === "set") expect(setCall.value).toBe("#123456");
     });

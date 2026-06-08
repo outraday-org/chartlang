@@ -65,11 +65,7 @@ function timeCyclesImpl(
  *         },
  *     });
  */
-export function timeCycles(
-    a: WorldPoint,
-    b: WorldPoint,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function timeCycles(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

@@ -2,7 +2,12 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { DrawNamespace } from "./draw/draw";
+import type { ScaleAxis, ValueFormat } from "./define/overrides";
+import type { InputDescriptor } from "./input/inputDescriptor";
+import type { RequestNamespace } from "./request";
+import type { StateNamespace } from "./state/state";
 import type { TaNamespace } from "./ta/ta";
+import type { BarStateView, SymInfoView, TimeframeView } from "./views";
 
 /**
  * UTC milliseconds since epoch — the only time representation the runtime
@@ -151,14 +156,20 @@ export type IntervalDescriptor = {
 
 /**
  * Script-author-declared input schema attached to `defineIndicator` /
- * `defineAlert`. Phase 4 fills `input.*` builders; Phase 1 keeps the type as
- * an opaque readonly record so `ScriptManifest` stays stable.
+ * `defineAlert` / `defineDrawing`. Each key carries an `InputDescriptor<T>`
+ * returned by an `input.*` builder. The compiler serialises this schema into
+ * `manifest.inputs`; the runtime resolves user overrides against defaults.
  *
- * @since 0.1
+ * @since 0.1 — widened in 0.4 from opaque `Readonly<Record<string, unknown>>`
+ *   to the typed `InputDescriptor<unknown>` shape returned by `input.*`
+ *   builders. Existing scripts stay source-compatible because the previous
+ *   opaque record subsumes the new typed shape.
  * @example
- *     const inputs: InputSchema = { length: 14 };
+ *     import { input } from "@invinite-org/chartlang-core";
+ *     const inputs: InputSchema = { length: input.int(20) };
+ *     void inputs;
  */
-export type InputSchema = Readonly<Record<string, unknown>>;
+export type InputSchema = Readonly<Record<string, InputDescriptor<unknown>>>;
 
 /**
  * Discriminator for the Phase-1 adapter capability subset the script-side
@@ -216,6 +227,8 @@ export type DrawingCounts = {
  *         userPickableInterval: false,
  *         seriesCapacities: {},
  *         maxLookback: 0,
+ *         shortName: "demo",
+ *         format: "compact",
  *     };
  */
 export type ScriptManifest = {
@@ -237,6 +250,64 @@ export type ScriptManifest = {
      * @since 0.3
      */
     readonly maxDrawings?: DrawingCounts;
+    /**
+     * Max bars of historical lookback the script declares it needs.
+     *
+     * @since 0.4
+     * @example
+     *     const v: ScriptManifest["maxBarsBack"] = 100;
+     *     void v;
+     */
+    readonly maxBarsBack?: number;
+    /**
+     * Value-formatting hint for axis labels + cursor read-out.
+     *
+     * @since 0.4
+     * @example
+     *     const v: ScriptManifest["format"] = "price";
+     *     void v;
+     */
+    readonly format?: ValueFormat;
+    /**
+     * Decimal precision the adapter renders the script at.
+     *
+     * @since 0.4
+     * @example
+     *     const v: ScriptManifest["precision"] = 2;
+     *     void v;
+     */
+    readonly precision?: number;
+    /**
+     * Scale-axis binding requested by the script.
+     *
+     * @since 0.4
+     * @example
+     *     const v: ScriptManifest["scale"] = "right";
+     *     void v;
+     */
+    readonly scale?: ScaleAxis;
+    /**
+     * Compact display label for legend chips.
+     *
+     * @since 0.4
+     * @example
+     *     const v: ScriptManifest["shortName"] = "EMA";
+     *     void v;
+     */
+    readonly shortName?: string;
+    /**
+     * Static set of intervals the script requires the target adapter to ship
+     * in `Capabilities.intervals`. The compiler unions this with the static
+     * set extracted from `request.security` calls in Task 8. `input.interval`
+     * is user-pickable and does not contribute to this author-declared hard
+     * requirement set.
+     *
+     * @since 0.4
+     * @example
+     *     const v: ScriptManifest["requiresIntervals"] = ["1D"];
+     *     void v;
+     */
+    readonly requiresIntervals?: ReadonlyArray<string>;
 };
 
 /**
@@ -255,6 +326,16 @@ export type ComputeContext = {
     readonly plot: typeof import("./plot/plot").plot;
     readonly hline: typeof import("./plot/plot").hline;
     readonly alert: typeof import("./alert/alert").alert;
+    /** Pine `var` / `varip` state slots. @since 0.4 */
+    readonly state: StateNamespace;
+    /** Bar-state view derived for the active step. @since 0.4 */
+    readonly barstate: BarStateView;
+    /** Symbol metadata view for the active script mount. @since 0.4 */
+    readonly syminfo: SymInfoView;
+    /** Timeframe helper view derived for the active step. @since 0.4 */
+    readonly timeframe: TimeframeView;
+    /** Secondary timeframe request namespace. @since 0.4 */
+    readonly request: RequestNamespace;
     /**
      * Imperative drawing namespace. Each method returns a
      * {@link DrawingHandle} the script can `update(...)` or

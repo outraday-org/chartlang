@@ -20,7 +20,7 @@ import {
     type WorkerLike,
 } from "@invinite-org/chartlang-host-worker";
 
-import { CANVAS2D_CAPABILITIES } from "./capabilities";
+import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities";
 import { DEFAULT_PALETTE, type Palette } from "./palette";
 import {
     clear,
@@ -67,6 +67,7 @@ export type CreateCanvas2dAdapterOpts = {
     readonly capabilities?: Capabilities;
     readonly interval?: string;
     readonly palette?: Palette;
+    readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     readonly onAlert?: (a: AlertEmission) => void;
     readonly host?: ScriptHost;
     readonly workerLike?: WorkerLike;
@@ -340,14 +341,29 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         opts.host ??
         createWorkerHost(
             opts.workerLike !== undefined
-                ? { capabilities, workerLike: opts.workerLike }
-                : { capabilities },
+                ? {
+                      capabilities,
+                      symInfo: CANVAS2D_SYM_INFO,
+                      ...(opts.resolveInputs !== undefined
+                          ? { resolveInputs: opts.resolveInputs }
+                          : {}),
+                      workerLike: opts.workerLike,
+                  }
+                : {
+                      capabilities,
+                      symInfo: CANVAS2D_SYM_INFO,
+                      ...(opts.resolveInputs !== undefined
+                          ? { resolveInputs: opts.resolveInputs }
+                          : {}),
+                  },
         );
 
     const adapter = defineAdapter({
         id: "canvas2d-reference",
         name: "Canvas 2D Reference Adapter",
         capabilities,
+        ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
+        symInfo: CANVAS2D_SYM_INFO,
         candles: () => opts.candleSource,
         onEmissions: (emissions) => {
             ingest(state, emissions, opts.onAlert);

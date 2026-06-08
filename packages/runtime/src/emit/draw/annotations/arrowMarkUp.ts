@@ -22,11 +22,7 @@ import { nextSubId } from "../subIdAllocator";
 
 const OUTSIDE_CTX_MESSAGE = "draw.arrowMarkUp called outside an active script step";
 
-function arrowMarkUpImpl(
-    slotId: string,
-    anchor: WorldPoint,
-    opts: ArrowMarkerOpts,
-): DrawingHandle {
+function arrowMarkUpImpl(slotId: string, anchor: WorldPoint, opts: ArrowMarkerOpts): DrawingHandle {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
     if (ctx === null) throw new Error(OUTSIDE_CTX_MESSAGE);
     const subId = nextSubId(ctx, slotId);

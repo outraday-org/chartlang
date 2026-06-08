@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import { STATEFUL_PRIMITIVES } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -61,5 +62,66 @@ export default defineIndicator({ name: "x", apiVersion: 1, compute: () => {} });
         expect(COMPILER_OPTIONS.target).toBe(ts.ScriptTarget.ES2022);
         expect(COMPILER_OPTIONS.lib).toEqual(["lib.es2022.d.ts"]);
         expect(COMPILER_OPTIONS.strict).toBe(true);
+    });
+
+    it("resolves the Phase 4 ambient core surface without semantic errors", () => {
+        const source = `
+import {
+    barstate,
+    defineIndicator,
+    input,
+    request,
+    state,
+    syminfo,
+    timeframe,
+} from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "phase4",
+    apiVersion: 1,
+    inputs: {
+        len: input.int(14),
+        tf: input.interval("chart"),
+    },
+    compute: ({ state, barstate, syminfo, timeframe, request }) => {
+        const slot = state.float(0);
+        const daily = request.security({ interval: "1D" });
+        void slot.value;
+        void daily.close.current;
+        void barstate.isfirst;
+        void syminfo.mintick;
+        void timeframe.isdaily;
+    },
+});
+
+void barstate.isfirst;
+void input.int(0);
+void request.security({ interval: "1D" });
+void state.float(0);
+void syminfo.mintick;
+void timeframe.isdaily;
+`;
+        const { program, sourceFile } = createProgramForSource(source, {
+            sourcePath: "phase4.chart.ts",
+        });
+        const diagnostics = program.getSemanticDiagnostics(sourceFile);
+        expect(diagnostics.map((diagnostic) => diagnostic.messageText)).toEqual([]);
+    });
+
+    it("keeps the runtime stateful primitive registry at the Phase 4 cardinality", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(163);
+    });
+
+    it("resolves the stateful primitive registry exports from the ambient shim", () => {
+        const source = `
+import { STATEFUL_PRIMITIVES, STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/chartlang-core";
+void STATEFUL_PRIMITIVES;
+void STATEFUL_PRIMITIVES_BY_NAME;
+`;
+        const { program, sourceFile } = createProgramForSource(source, {
+            sourcePath: "registry.chart.ts",
+        });
+        const diagnostics = program.getSemanticDiagnostics(sourceFile);
+        expect(diagnostics.map((diagnostic) => diagnostic.messageText)).toEqual([]);
     });
 });

@@ -7,12 +7,23 @@ import { describe, it } from "vitest";
 import { defineIndicator, ta } from "./index";
 import type {
     Bar,
+    BarStateView,
     BbResult,
     CompiledScriptObject,
+    ComputeContext,
     MacdResult,
     Price,
+    RequestNamespace,
+    RequestSecurityOpts,
+    ScaleAxis,
+    ScriptManifest,
+    ScriptOverrides,
+    SecurityBar,
     Series,
+    SymInfoView,
     Time,
+    TimeframeView,
+    ValueFormat,
     Volume,
 } from "./index";
 
@@ -61,5 +72,31 @@ describe("public type surface", () => {
 
     it("defineIndicator returns CompiledScriptObject", () => {
         expectTypeOf(defineIndicator).returns.toEqualTypeOf<CompiledScriptObject>();
+    });
+
+    it("ComputeContext exposes Phase 4 core views", () => {
+        expectTypeOf<ComputeContext["barstate"]>().toEqualTypeOf<BarStateView>();
+        expectTypeOf<ComputeContext["syminfo"]>().toEqualTypeOf<SymInfoView>();
+        expectTypeOf<ComputeContext["timeframe"]>().toEqualTypeOf<TimeframeView>();
+        expectTypeOf<ComputeContext["request"]>().toEqualTypeOf<RequestNamespace>();
+    });
+
+    it("public request.security types resolve through the root export", () => {
+        expectTypeOf<RequestNamespace["security"]>().returns.toEqualTypeOf<SecurityBar>();
+        expectTypeOf<RequestNamespace["security"]>()
+            .parameter(0)
+            .toEqualTypeOf<RequestSecurityOpts>();
+    });
+
+    it("ScriptManifest exposes Phase 4 script overrides", () => {
+        expectTypeOf<ScriptManifest["maxBarsBack"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<ScriptManifest["format"]>().toEqualTypeOf<ValueFormat | undefined>();
+        expectTypeOf<ScriptManifest["precision"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<ScriptManifest["scale"]>().toEqualTypeOf<ScaleAxis | undefined>();
+        expectTypeOf<ScriptManifest["shortName"]>().toEqualTypeOf<string | undefined>();
+        expectTypeOf<ScriptManifest["requiresIntervals"]>().toEqualTypeOf<
+            ReadonlyArray<string> | undefined
+        >();
+        expectTypeOf<ScriptOverrides["format"]>().toEqualTypeOf<ValueFormat | undefined>();
     });
 });

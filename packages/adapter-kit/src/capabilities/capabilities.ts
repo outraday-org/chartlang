@@ -3,7 +3,9 @@
 
 import { DRAWING_KINDS } from "@invinite-org/chartlang-core";
 
-import type { AlertChannel, DrawingKind, PlotKind } from "../types";
+import type { DrawingCounts, IntervalDescriptor } from "@invinite-org/chartlang-core";
+
+import type { AlertChannel, DrawingKind, PlotKind, SymInfoField } from "../types";
 
 /**
  * Helpers that assemble the `ReadonlySet` pieces of a `Capabilities`
@@ -91,6 +93,112 @@ export const capabilities = {
             }
         }
         return out;
+    },
+    /**
+     * Timeframe descriptors this adapter can deliver, preserving picker order.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     import { capabilities } from "@invinite-org/chartlang-adapter-kit";
+     *
+     *     const partial = capabilities.intervals([
+     *         { value: "1D", label: "1 day", group: "daily" },
+     *     ]);
+     *     void partial;
+     */
+    intervals(list: ReadonlyArray<IntervalDescriptor>): {
+        intervals: ReadonlyArray<IntervalDescriptor>;
+    } {
+        return { intervals: Object.freeze(list.slice()) };
+    },
+    /**
+     * Declares whether the adapter can deliver secondary candle streams.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     import { capabilities } from "@invinite-org/chartlang-adapter-kit";
+     *
+     *     const partial = capabilities.multiTimeframe(false);
+     *     void partial;
+     */
+    multiTimeframe(enabled: boolean): { multiTimeframe: boolean } {
+        return { multiTimeframe: enabled };
+    },
+    /**
+     * Declares the maximum supported sub-pane count for one script.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     import { capabilities } from "@invinite-org/chartlang-adapter-kit";
+     *
+     *     const partial = capabilities.subPanes(Number.MAX_SAFE_INTEGER);
+     *     void partial;
+     */
+    subPanes(max: number): { subPanes: number } {
+        return { subPanes: max };
+    },
+    /**
+     * Declares which `syminfo.*` fields this adapter populates.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     import { capabilities } from "@invinite-org/chartlang-adapter-kit";
+     *
+     *     const partial = capabilities.symInfoFields(["ticker", "mintick"]);
+     *     void partial;
+     */
+    symInfoFields(fields: ReadonlyArray<SymInfoField>): {
+        symInfoFields: ReadonlySet<SymInfoField>;
+    } {
+        return { symInfoFields: new Set(fields) };
+    },
+    /**
+     * Declares the adapter's per-script drawing-emission budget.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     import { capabilities } from "@invinite-org/chartlang-adapter-kit";
+     *
+     *     const partial = capabilities.maxDrawingsPerScript({
+     *         lines: 50, labels: 50, boxes: 50, polylines: 50, other: 50,
+     *     });
+     *     void partial;
+     */
+    maxDrawingsPerScript(counts: DrawingCounts): { maxDrawingsPerScript: DrawingCounts } {
+        return { maxDrawingsPerScript: Object.freeze({ ...counts }) };
+    },
+    /**
+     * Declares whether user-wired alert conditions are supported.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     import { capabilities } from "@invinite-org/chartlang-adapter-kit";
+     *
+     *     const partial = capabilities.alertConditions(false);
+     *     void partial;
+     */
+    alertConditions(enabled: boolean): { alertConditions: boolean } {
+        return { alertConditions: enabled };
+    },
+    /**
+     * Declares whether runtime log messages are rendered by the adapter.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     import { capabilities } from "@invinite-org/chartlang-adapter-kit";
+     *
+     *     const partial = capabilities.logs(false);
+     *     void partial;
+     */
+    logs(enabled: boolean): { logs: boolean } {
+        return { logs: enabled };
     },
 
     // ------------------------------------------------------------
@@ -431,12 +539,7 @@ export const capabilities = {
     },
     /** All 4 gann drawing kinds. @since 0.3 @experimental */
     allGannDrawings(): ReadonlySet<DrawingKind> {
-        return new Set<DrawingKind>([
-            "gann-box",
-            "gann-square-fixed",
-            "gann-square",
-            "gann-fan",
-        ]);
+        return new Set<DrawingKind>(["gann-box", "gann-square-fixed", "gann-square", "gann-fan"]);
     },
     /** All 2 pitchfork drawing kinds. @since 0.3 @experimental */
     allPitchforkDrawings(): ReadonlySet<DrawingKind> {

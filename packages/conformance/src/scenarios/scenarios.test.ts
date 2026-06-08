@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { runConformanceSuite } from "../runConformanceSuite";
 import {
     ALL_SCENARIOS,
+    BARSTATE_CONFIRMED_SCENARIO,
     BOLLINGER_BANDS_SCENARIO,
     DEFINE_DRAWING_BASIC_SCENARIO,
     DRAW_ARC_SCENARIO,
@@ -89,9 +90,14 @@ import {
     DRAW_TRIANGLE_SCENARIO,
     DRAW_VERTICAL_LINE_SCENARIO,
     EMA_CROSS_SCENARIO,
+    INPUT_INTERVAL_SCENARIO,
     PHASE_1_SCENARIOS,
     PLOT_KIND_COVERAGE_SCENARIO,
+    REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
     RSI_DIVERGENCE_SCENARIO,
+    STATE_SESSION_HIGH_SCENARIO,
+    STATE_TICK_COUNTER_SCENARIO,
+    SYMINFO_MINTICK_SCENARIO,
     TA_ADL_SCENARIO,
     TA_ADR_SCENARIO,
     TA_ADX_SCENARIO,
@@ -173,6 +179,8 @@ import {
     TA_WILLIAMS_R_SCENARIO,
     TA_WMA_SCENARIO,
     TA_ZIG_ZAG_SCENARIO,
+    TIMEFRAME_ISDAILY_SCENARIO,
+    UNSUPPORTED_INTERVAL_SCENARIO,
 } from "./index";
 
 const TEST_CAPABILITIES: Capabilities = {
@@ -203,11 +211,14 @@ const TEST_CAPABILITIES: Capabilities = {
     alerts: capBuilders.alerts("log", "toast"),
     alertConditions: false,
     logs: false,
-    inputs: new Set(),
-    intervals: [],
+    inputs: new Set(["interval"]),
+    intervals: [
+        { value: "1m", label: "1 minute", group: "minute" },
+        { value: "1D", label: "1 day", group: "daily" },
+    ],
     multiTimeframe: false,
     subPanes: 0,
-    symInfoFields: new Set(),
+    symInfoFields: new Set(["ticker", "type", "mintick"]),
     maxDrawingsPerScript: { lines: 100, labels: 100, boxes: 100, polylines: 100, other: 100 },
     maxLookback: 1000,
     maxTickHz: 30,
@@ -218,6 +229,14 @@ function makeTestAdapter(): Adapter {
         id: "test",
         name: "Iteration-parity adapter",
         capabilities: TEST_CAPABILITIES,
+        symInfo: {
+            ticker: "TEST",
+            type: "equity",
+            mintick: 0.01,
+        },
+        resolveInputs(): Readonly<Record<string, unknown>> {
+            return {};
+        },
         candles(): AsyncIterable<CandleEvent> {
             return {
                 async *[Symbol.asyncIterator](): AsyncIterator<CandleEvent> {
@@ -507,6 +526,15 @@ describe("Phase-1+Phase-2 scenario constants", () => {
             DEFINE_DRAWING_BASIC_SCENARIO,
             DRAW_INTERACTIVE_UPDATE_SCENARIO,
             DRAW_HANDLE_REMOVE_SCENARIO,
+            // Phase 4 Task 16 — editor/runtime tier-1 surfaces.
+            BARSTATE_CONFIRMED_SCENARIO,
+            INPUT_INTERVAL_SCENARIO,
+            REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
+            STATE_SESSION_HIGH_SCENARIO,
+            STATE_TICK_COUNTER_SCENARIO,
+            SYMINFO_MINTICK_SCENARIO,
+            TIMEFRAME_ISDAILY_SCENARIO,
+            UNSUPPORTED_INTERVAL_SCENARIO,
         ]);
         expect(Object.isFrozen(PHASE_1_SCENARIOS)).toBe(true);
     });

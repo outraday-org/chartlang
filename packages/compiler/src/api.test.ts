@@ -46,6 +46,96 @@ describe("transformAndAnalyse", () => {
         expect(result.manifest.kind).toBe("indicator");
     });
 
+    it("captures static defineIndicator override fields in the manifest", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "demo",
+    apiVersion: 1,
+    maxBarsBack: 100,
+    format: "compact",
+    precision: 3,
+    scale: "new",
+    requiresIntervals: ["1H", "1D"],
+    shortName: "DM",
+    compute: () => {},
+});
+`,
+            { sourcePath: "demo.chart.ts" },
+        );
+        expect(result.manifest.maxBarsBack).toBe(100);
+        expect(result.manifest.format).toBe("compact");
+        expect(result.manifest.precision).toBe(3);
+        expect(result.manifest.scale).toBe("new");
+        expect(result.manifest.requiresIntervals).toEqual(["1D", "1H"]);
+        expect(result.manifest.requestedIntervals).toEqual(["1D", "1H"]);
+        expect(result.manifest.shortName).toBe("DM");
+    });
+
+    it("unions request.security intervals with defineIndicator requiresIntervals", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "demo",
+    apiVersion: 1,
+    requiresIntervals: ["1D"],
+    compute: () => {
+        request.security({ interval: "5m" });
+    },
+});
+`,
+            { sourcePath: "request-union.chart.ts" },
+        );
+        expect(result.diagnostics).toEqual([]);
+        expect(result.manifest.requiresIntervals).toEqual(["1D"]);
+        expect(result.manifest.requestedIntervals).toEqual(["1D", "5m"]);
+    });
+
+    it("extracts define inputs into the manifest", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "with inputs",
+    apiVersion: 1,
+    inputs: {
+        len: input.int(14, { title: "Length" }),
+        tf: input.interval("chart"),
+    },
+    compute: () => {},
+});
+`,
+            { sourcePath: "inputs.chart.ts" },
+        );
+        expect(result.diagnostics).toEqual([]);
+        expect(result.manifest.inputs).toEqual({
+            len: { kind: "int", defaultValue: 14, title: "Length" },
+            tf: { kind: "interval", defaultValue: "chart" },
+        });
+        expect(result.manifest.userPickableInterval).toBe(true);
+    });
+
+    it("flows input extraction errors through diagnostics", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+const len = 14;
+export default defineIndicator({
+    name: "bad inputs",
+    apiVersion: 1,
+    inputs: { len: input.int(len) },
+    compute: () => {},
+});
+`,
+            { sourcePath: "bad-inputs.chart.ts" },
+        );
+        expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+            "input-default-not-literal",
+        );
+    });
+
     it("is deterministic — two runs of the same source yield byte-identical transformed text", () => {
         const a = transformAndAnalyse(EMA_CROSS, {
             sourcePath: "ema-cross.chart.ts",

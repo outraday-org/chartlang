@@ -36,11 +36,7 @@ const VIEWPORT_PAD_PX = 16;
  *     renderSineLine(ctx, e, view);
  *     void renderSineLine;
  */
-export function renderSineLine(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderSineLine(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as SineLineState;
     const [from, to] = state.anchors;
     const fromPx = worldPointToCanvas(from, view);

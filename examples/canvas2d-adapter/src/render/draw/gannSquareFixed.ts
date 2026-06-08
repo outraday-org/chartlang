@@ -35,11 +35,7 @@ const SIDE_PX = 80;
  *     renderGannSquareFixed(ctx, e, view);
  *     void renderGannSquareFixed;
  */
-export function renderGannSquareFixed(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderGannSquareFixed(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as GannSquareFixedState;
     const origin = worldPointToCanvas(state.anchor, view);
     const left = origin.x;

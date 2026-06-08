@@ -16,13 +16,7 @@ import type {
     TextOpts,
 } from "./drawingStyle";
 import type { DrawingHandle } from "./handle";
-import type {
-    AnchorHept,
-    AnchorQuad,
-    AnchorQuint,
-    AnchorTriple,
-    WorldPoint,
-} from "./worldPoint";
+import type { AnchorHept, AnchorQuad, AnchorQuint, AnchorTriple, WorldPoint } from "./worldPoint";
 
 /**
  * The script-facing `draw.*` namespace. Each method is stateful across

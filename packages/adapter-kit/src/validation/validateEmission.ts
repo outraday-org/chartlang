@@ -376,11 +376,7 @@ function validateAnchorHept(v: unknown, path: string): ValidationResult {
     return validateAnchorFixed(v, path, 7);
 }
 
-function validateOptionalLabels(
-    v: unknown,
-    path: string,
-    expectedCount: number,
-): ValidationResult {
+function validateOptionalLabels(v: unknown, path: string, expectedCount: number): ValidationResult {
     if (v === undefined) return { ok: true };
     if (!Array.isArray(v) || v.length !== expectedCount) {
         return bad(`${path}: must be an array of ${expectedCount} strings`);
@@ -564,13 +560,7 @@ function validatePathState(state: Record<string, unknown>): ValidationResult {
     return validatePathOpts(state.style, "drawing.state.style");
 }
 
-const VALID_TEXT_SIZES: ReadonlySet<string> = new Set([
-    "tiny",
-    "small",
-    "normal",
-    "large",
-    "huge",
-]);
+const VALID_TEXT_SIZES: ReadonlySet<string> = new Set(["tiny", "small", "normal", "large", "huge"]);
 
 const VALID_TEXT_HALIGN: ReadonlySet<string> = new Set(["left", "center", "right"]);
 
@@ -1064,19 +1054,13 @@ function validateFrameOpts(s: unknown, path: string): ValidationResult {
 }
 
 function validateGroupState(state: Record<string, unknown>): ValidationResult {
-    return validateChildHandleIds(
-        state.childHandleIds,
-        "drawing.state.childHandleIds",
-    );
+    return validateChildHandleIds(state.childHandleIds, "drawing.state.childHandleIds");
 }
 
 function validateFrameState(state: Record<string, unknown>): ValidationResult {
     const anchorsCheck = validateAnchorPair(state.anchors, "drawing.state.anchors");
     if (!anchorsCheck.ok) return anchorsCheck;
-    const childCheck = validateChildHandleIds(
-        state.childHandleIds,
-        "drawing.state.childHandleIds",
-    );
+    const childCheck = validateChildHandleIds(state.childHandleIds, "drawing.state.childHandleIds");
     if (!childCheck.ok) return childCheck;
     return validateFrameOpts(state.style, "drawing.state.style");
 }
@@ -1091,10 +1075,7 @@ function validateFrameState(state: Record<string, unknown>): ValidationResult {
  * (`handleId` / `op` / `bar` / `time` / `state.kind === drawingKind`)
  * still runs for every kind via {@link validateDrawingEmission}.
  */
-function validateStateByKind(
-    kind: DrawingKind,
-    state: Record<string, unknown>,
-): ValidationResult {
+function validateStateByKind(kind: DrawingKind, state: Record<string, unknown>): ValidationResult {
     switch (kind) {
         case "line":
             return validateLineState(state);

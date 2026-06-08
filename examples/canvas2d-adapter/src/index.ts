@@ -5,7 +5,7 @@ import { DEFAULT_ADAPTER } from "./defaultAdapter";
 
 export { createCanvas2dAdapter, runRendererLoop } from "./createCanvas2dAdapter";
 export type { Canvas2dAdapterHandle, CreateCanvas2dAdapterOpts } from "./createCanvas2dAdapter";
-export { CANVAS2D_CAPABILITIES } from "./capabilities";
+export { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities";
 export { DEFAULT_PALETTE } from "./palette";
 export type { Palette } from "./palette";
 export { DEFAULT_ADAPTER } from "./defaultAdapter";

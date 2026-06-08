@@ -15,13 +15,14 @@ describe("buildManifest", () => {
             userPickableInterval: false,
             seriesCapacities: { dynamicFallback: 5000 },
             maxLookback: 30,
-            inputs: { length: 14 },
+            inputs: { length: { kind: "int", defaultValue: 14 } },
         });
         expect(Object.isFrozen(manifest)).toBe(true);
         expect(Object.isFrozen(manifest.capabilities)).toBe(true);
         expect(Object.isFrozen(manifest.requestedIntervals)).toBe(true);
         expect(Object.isFrozen(manifest.seriesCapacities)).toBe(true);
         expect(Object.isFrozen(manifest.inputs)).toBe(true);
+        expect(Object.isFrozen(manifest.inputs.length)).toBe(true);
     });
 
     it("carries through every field", () => {
@@ -34,6 +35,12 @@ describe("buildManifest", () => {
             seriesCapacities: {},
             maxLookback: 0,
             inputs: {},
+            maxBarsBack: 100,
+            format: "percent",
+            precision: 2,
+            scale: "right",
+            requiresIntervals: ["1D", "1W"],
+            shortName: "DEMO",
         });
         expect(manifest.name).toBe("demo");
         expect(manifest.kind).toBe("alert");
@@ -41,6 +48,13 @@ describe("buildManifest", () => {
         expect(manifest.userPickableInterval).toBe(true);
         expect(manifest.maxLookback).toBe(0);
         expect(manifest.apiVersion).toBe(1);
+        expect(manifest.maxBarsBack).toBe(100);
+        expect(manifest.format).toBe("percent");
+        expect(manifest.precision).toBe(2);
+        expect(manifest.scale).toBe("right");
+        expect(manifest.requiresIntervals).toEqual(["1D", "1W"]);
+        expect(Object.isFrozen(manifest.requiresIntervals)).toBe(true);
+        expect(manifest.shortName).toBe("DEMO");
     });
 
     it("supports kind 'drawing' for defineDrawing scripts", () => {

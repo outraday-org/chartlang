@@ -80,6 +80,8 @@ export function defineAdapter(opts: DefineAdapterOpts): Adapter {
         id: opts.id,
         name: opts.name,
         capabilities: opts.capabilities,
+        ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
+        ...(opts.symInfo !== undefined ? { symInfo: opts.symInfo } : {}),
         candles: opts.candles,
         onEmissions: opts.onEmissions,
         dispose: opts.dispose ?? noopDispose,

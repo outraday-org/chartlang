@@ -35,7 +35,15 @@ export const GANN_LEVELS: ReadonlyArray<number> = Object.freeze([0, 0.25, 0.5, 0
  *     for (const r of GANN_FAN_RATIOS) void r;
  */
 export const GANN_FAN_RATIOS: ReadonlyArray<number> = Object.freeze([
-    1, 2, 3, 0.5, 1 / 3, 4, 0.25, 8, 0.125,
+    1,
+    2,
+    3,
+    0.5,
+    1 / 3,
+    4,
+    0.25,
+    8,
+    0.125,
 ]);
 
 /**

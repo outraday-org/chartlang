@@ -2,8 +2,13 @@
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
         "outDir": "./dist",
-        "rootDir": "./src"
+        "rootDir": "./src",
+        "jsx": "react-jsx",
+        "paths": {
+            "@invinite-org/chartlang-editor": ["./src/index.ts"],
+            "@invinite-org/chartlang-editor/react": ["./src/react/index.ts"]
+        }
     },
     "include": ["src/**/*"],
-    "exclude": ["**/*.test.ts", "**/*.bench.test.ts", "**/__fixtures__/**"]
+    "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/*.bench.test.ts", "**/__fixtures__/**"]
 }

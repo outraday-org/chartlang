@@ -17,6 +17,8 @@ describe("ta.nz", () => {
 
     it("returns the provided replacement when value is NaN", () => {
         expect(nz(Number.NaN, 42)).toBe(42);
+        expect(nz(7, 42)).toBe(7);
+        expect(nz(0, 42)).toBe(0);
     });
 
     it("does not coerce Infinity into the NaN branch", () => {

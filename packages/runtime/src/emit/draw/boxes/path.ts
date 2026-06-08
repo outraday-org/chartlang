@@ -9,12 +9,7 @@
 //   invinite/src/components/trading-chart/tools/path-tool.ts.
 // Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
 
-import type {
-    DrawingHandle,
-    PathOpts,
-    PathState,
-    WorldPoint,
-} from "@invinite-org/chartlang-core";
+import type { DrawingHandle, PathOpts, PathState, WorldPoint } from "@invinite-org/chartlang-core";
 
 import { ACTIVE_RUNTIME_CONTEXT } from "../../../runtimeContext";
 import { createDrawingHandle } from "../handle";
@@ -63,10 +58,7 @@ function pathImpl(
  *         },
  *     });
  */
-export function path(
-    anchors: ReadonlyArray<WorldPoint>,
-    opts?: PathOpts,
-): DrawingHandle;
+export function path(anchors: ReadonlyArray<WorldPoint>, opts?: PathOpts): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

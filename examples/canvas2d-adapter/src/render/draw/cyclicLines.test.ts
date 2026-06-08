@@ -74,9 +74,7 @@ describe("renderCyclicLines", () => {
         const ctx = new MockCanvas2DContext();
         renderCyclicLines(ctx, emission({ ...STATE, style: { lineStyle: "dashed" } }), VIEW);
         const dashCalls = ctx.calls.filter((c) => c.kind === "setLineDash");
-        const dashed = dashCalls.find(
-            (c) => c.kind === "setLineDash" && c.segments.length === 2,
-        );
+        const dashed = dashCalls.find((c) => c.kind === "setLineDash" && c.segments.length === 2);
         expect(dashed).toBeDefined();
     });
 

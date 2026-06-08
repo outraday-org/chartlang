@@ -33,11 +33,7 @@ const MAX_REPEATS_PER_SIDE = 64;
  *     renderTimeCycles(ctx, e, view);
  *     void renderTimeCycles;
  */
-export function renderTimeCycles(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderTimeCycles(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as TimeCyclesState;
     const [from, to] = state.anchors;
     const fromPx = worldPointToCanvas(from, view);

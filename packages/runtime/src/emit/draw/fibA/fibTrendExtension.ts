@@ -66,10 +66,7 @@ function fibTrendExtensionImpl(
  *         },
  *     });
  */
-export function fibTrendExtension(
-    anchors: AnchorTriple,
-    opts?: FibOpts,
-): DrawingHandle;
+export function fibTrendExtension(anchors: AnchorTriple, opts?: FibOpts): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

@@ -53,11 +53,7 @@ describe("renderDoubleCurve", () => {
 
     it("defaults stroke / lineWidth when style omits them", () => {
         const ctx = new MockCanvas2DContext();
-        renderDoubleCurve(
-            ctx,
-            emission({ ...DOUBLE_CURVE_STATE, style: {} }),
-            VIEW,
-        );
+        renderDoubleCurve(ctx, emission({ ...DOUBLE_CURVE_STATE, style: {} }), VIEW);
         expect(ctx.calls[0]).toEqual({ kind: "set", prop: "strokeStyle", value: "#000000" });
         expect(ctx.calls[1]).toEqual({ kind: "set", prop: "lineWidth", value: 1 });
     });

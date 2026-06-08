@@ -35,11 +35,7 @@ const LABELS: ReadonlyArray<string> = ["X", "A", "B", "C", "D"];
  *     renderCypherPattern(ctx, e, view);
  *     void renderCypherPattern;
  */
-export function renderCypherPattern(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderCypherPattern(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as CypherPatternState;
     const points = state.anchors.map((p) => worldPointToCanvas(p, view));
     renderNamedPolyline(ctx, points, LABELS, state.style);

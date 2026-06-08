@@ -20,6 +20,8 @@
         "docs:check": "pnpm tsx scripts/docs-check.ts",
         "docs:generate": "pnpm chartlang docs",
         "docs:gate": "pnpm tsx scripts/docs-gate.ts",
+        "gen-hover-registry": "pnpm tsx scripts/gen-hover-registry.ts",
+        "hover:check": "pnpm gen-hover-registry -- --check",
         "docs:build": "vitepress build docs",
         "readme:check": "pnpm tsx scripts/readme-check.ts",
         "coverage:report": "pnpm tsx scripts/coverage-merge.ts",

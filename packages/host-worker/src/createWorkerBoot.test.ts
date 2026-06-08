@@ -154,6 +154,35 @@ describe("createWorkerBoot", () => {
         await waitFor("loaded");
     });
 
+    it("passes structured input overrides into the runner at load", async () => {
+        const { scope, deliver, captured, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        const m: ScriptManifest = {
+            ...manifest(),
+            inputs: {
+                length: { kind: "int", defaultValue: 14 },
+            },
+        };
+        const moduleSource = `
+            export default {
+                manifest: ${JSON.stringify(m)},
+                compute: ({ inputs }) => {
+                    if (inputs.length !== 20) throw new Error("bad input " + inputs.length);
+                },
+            };
+        `;
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: m },
+            capabilities: makeCapabilities(),
+            inputOverrides: { length: 20 },
+            limits: LIMITS,
+        });
+        await waitFor("loaded");
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(1, 1) } });
+        expect(captured.some((msg) => msg.kind === "fatal")).toBe(false);
+    });
+
     it("posts 'loadError' when the module source throws on import", async () => {
         const { scope, deliver, waitFor } = makeScope();
         createWorkerBoot(scope);
@@ -219,6 +248,20 @@ describe("createWorkerBoot", () => {
         const fatal = captured.find((c) => c.kind === "fatal");
         if (fatal === undefined || fatal.kind !== "fatal") throw new Error("expected fatal");
         expect(fatal.message).toBe("string boom");
+    });
+
+    it("accepts optional load sym-info metadata", async () => {
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource: NOOP_MODULE_SOURCE, manifest: manifest() },
+            capabilities: { ...makeCapabilities(), symInfoFields: new Set(["ticker"]) },
+            symInfo: { ticker: "DEMO" },
+            limits: LIMITS,
+        });
+        const reply = await waitFor("loaded");
+        expect(reply.kind).toBe("loaded");
     });
 
     it("dispatches a history candleEvent to the runner and drains emissions", async () => {

@@ -33,11 +33,7 @@ const MAX_REPEATS = 256;
  *     renderCyclicLines(ctx, e, view);
  *     void renderCyclicLines;
  */
-export function renderCyclicLines(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderCyclicLines(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as CyclicLinesState;
     const [from, to] = state.anchors;
     const fromPx = worldPointToCanvas(from, view);

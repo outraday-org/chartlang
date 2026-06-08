@@ -29,11 +29,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderVerticalLine(ctx, e, view);
  *     void renderVerticalLine;
  */
-export function renderVerticalLine(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderVerticalLine(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as VerticalLineState;
     const x = timeToX(state.time, view);
     ctx.strokeStyle = state.style.color ?? DEFAULT_COLOR;

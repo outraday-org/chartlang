@@ -70,10 +70,7 @@ function elliottDoubleComboImpl(
  *         },
  *     });
  */
-export function elliottDoubleCombo(
-    anchors: AnchorHept,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function elliottDoubleCombo(anchors: AnchorHept, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

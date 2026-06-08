@@ -116,9 +116,7 @@ describe("renderCircle", () => {
             "stroke",
             "setLineDash",
         ]);
-        const alphaSets = ctx.calls.filter(
-            (c) => c.kind === "set" && c.prop === "globalAlpha",
-        );
+        const alphaSets = ctx.calls.filter((c) => c.kind === "set" && c.prop === "globalAlpha");
         expect(alphaSets).toHaveLength(2);
         if (alphaSets[0].kind === "set" && alphaSets[1].kind === "set") {
             expect(alphaSets[0].value).toBe(0.4);

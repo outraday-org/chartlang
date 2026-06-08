@@ -97,6 +97,10 @@ export function createWorkerBoot(scope: WorkerBootScope): void {
                 runner = createScriptRunner({
                     compiled: mod.default,
                     capabilities: msg.capabilities,
+                    ...(msg.symInfo !== undefined ? { symInfo: msg.symInfo } : {}),
+                    ...(msg.inputOverrides !== undefined
+                        ? { inputOverrides: msg.inputOverrides }
+                        : {}),
                 });
                 limits = msg.limits;
                 scope.postMessage({ kind: "loaded" });

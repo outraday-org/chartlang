@@ -5,11 +5,16 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 import type { Bar } from "@invinite-org/chartlang-core";
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
+import type { MutableSlot } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import { createScriptRunner } from "../createScriptRunner";
 import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext";
 import { inMemoryStateStore } from "../stateStore";
+
+type RuntimeStateNamespace = {
+    readonly float: (slotId: string, init: number) => MutableSlot<number>;
+};
 
 function makeCapabilities(): Capabilities {
     return {
@@ -97,7 +102,7 @@ describe("dispose", () => {
         expect(observedSize).toBe(0);
     });
 
-    it("clears the state store passed in", async () => {
+    it("preserves the host-owned state store passed in", async () => {
         const store = inMemoryStateStore();
         store.set("preserved-key", { value: 42 });
         const compiled = defineIndicator({
@@ -112,7 +117,38 @@ describe("dispose", () => {
         });
         await runner.onBarClose(makeBar(0));
         runner.dispose();
-        expect(store.has("preserved-key")).toBe(false);
+        expect(store.has("preserved-key")).toBe(true);
+    });
+
+    it("flushes state slots and clears the runner-local state slot map", async () => {
+        const store = inMemoryStateStore();
+        let observedSizeAfterDispose = -1;
+        let phase: "seed" | "after" = "seed";
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: ({ state }) => {
+                const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+                if (ctx !== null && phase === "after") {
+                    observedSizeAfterDispose = ctx.stateSlots.size;
+                }
+                const slot = (state as unknown as RuntimeStateNamespace).float("slot#0", 0);
+                slot.value += 1;
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            stateStore: store,
+        });
+
+        await runner.onBarClose(makeBar(0));
+        runner.dispose();
+        phase = "after";
+        await runner.onBarClose(makeBar(1));
+
+        expect(store.get("slot#0:state")).toEqual({ committed: 2, tentative: 2 });
+        expect(observedSizeAfterDispose).toBe(0);
     });
 
     it("zeroes emission arrays", async () => {

@@ -81,9 +81,7 @@ describe("renderFibRetracement", () => {
             }),
             VIEW,
         );
-        const strokeSet = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "strokeStyle",
-        );
+        const strokeSet = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (strokeSet?.kind === "set") expect(strokeSet.value).toBe("#facc15");
     });
 

@@ -29,11 +29,7 @@ const LABELS: ReadonlyArray<string> = ["A", "B", "C", "D"];
  *     renderAbcdPattern(ctx, e, view);
  *     void renderAbcdPattern;
  */
-export function renderAbcdPattern(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderAbcdPattern(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as AbcdPatternState;
     const points = state.anchors.map((p) => worldPointToCanvas(p, view));
     renderNamedPolyline(ctx, points, LABELS, state.style);

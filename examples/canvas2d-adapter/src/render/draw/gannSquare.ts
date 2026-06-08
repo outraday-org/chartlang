@@ -33,11 +33,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderGannSquare(ctx, e, view);
  *     void renderGannSquare;
  */
-export function renderGannSquare(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderGannSquare(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as GannSquareState;
     const a = worldPointToCanvas(state.anchors[0], view);
     const b = worldPointToCanvas(state.anchors[1], view);

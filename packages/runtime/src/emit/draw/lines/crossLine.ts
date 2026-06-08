@@ -64,11 +64,7 @@ export function crossLine(anchor: WorldPoint, opts?: LineDrawStyle): DrawingHand
  *     // const fn: typeof crossLine = crossLine;
  *     // void fn;
  */
-export function crossLine(
-    slotId: string,
-    anchor: WorldPoint,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function crossLine(slotId: string, anchor: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Implementation signature for {@link crossLine}. Branches on
  * `typeof arg1 === "string"` to dispatch the script-facing vs

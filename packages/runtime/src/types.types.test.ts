@@ -34,6 +34,7 @@ import type {
 import type { makeSeriesView } from "./seriesView";
 import type { StateStore, inMemoryStateStore } from "./stateStore";
 import type { BarView, OhlcvBuffers, StreamState, createStreamState } from "./streamState";
+import type { AdapterSymInfo, RuntimeViews } from "./views";
 
 describe("type assertions", () => {
     it("RingBufferLike<T> declares the §6.6 surface", () => {
@@ -108,6 +109,7 @@ describe("type assertions", () => {
         expectTypeOf<RuntimeContext["emissions"]>().toEqualTypeOf<MutableRunnerEmissions>();
         expectTypeOf<RuntimeContext["barIndex"]>().toEqualTypeOf<() => number>();
         expectTypeOf<RuntimeContext["isTick"]>().toEqualTypeOf<boolean>();
+        expectTypeOf<RuntimeContext["views"]>().toEqualTypeOf<RuntimeViews>();
     });
 
     it("RuntimeContext carries the Phase-3 drawing fields", () => {
@@ -140,6 +142,9 @@ describe("type assertions", () => {
         expectTypeOf<CreateScriptRunnerArgs["capabilities"]>().toEqualTypeOf<Capabilities>();
         expectTypeOf<CreateScriptRunnerArgs["stateStore"]>().toEqualTypeOf<
             StateStore | undefined
+        >();
+        expectTypeOf<CreateScriptRunnerArgs["symInfo"]>().toEqualTypeOf<
+            AdapterSymInfo | undefined
         >();
     });
 

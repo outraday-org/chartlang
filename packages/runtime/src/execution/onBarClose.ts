@@ -7,6 +7,8 @@ import { buildComputeContext } from "../buildComputeContext";
 import type { RunnerState } from "../createScriptRunner";
 import { resetSubIdCounters } from "../emit/draw";
 import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext";
+import { commitStateSlots, flushStateSlots } from "../state";
+import { refreshRuntimeViews, type EventKind } from "../views";
 
 /**
  * §6.7 main step. Appends every OHLCV ring buffer, mutates the runner's
@@ -28,7 +30,11 @@ import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext";
  *     // import { onBarClose } from "@invinite-org/chartlang-runtime";
  *     // await onBarClose(state, rawBar);
  */
-export async function onBarClose(state: RunnerState, rawBar: Bar): Promise<void> {
+export async function onBarClose(
+    state: RunnerState,
+    rawBar: Bar,
+    eventKind: EventKind = "close",
+): Promise<void> {
     const { ohlcv, bar } = state.mainStream;
     const hl2 = (rawBar.high + rawBar.low) / 2;
     const hlc3 = (rawBar.high + rawBar.low + rawBar.close) / 3;
@@ -70,7 +76,10 @@ export async function onBarClose(state: RunnerState, rawBar: Bar): Promise<void>
     state.runtimeContext.isTick = false;
     try {
         resetSubIdCounters(state.runtimeContext);
+        refreshRuntimeViews(state, eventKind);
         await Promise.resolve(state.compute(buildComputeContext(state)));
+        commitStateSlots(state.runtimeContext);
+        flushStateSlots(state.runtimeContext);
     } finally {
         ACTIVE_RUNTIME_CONTEXT.current = null;
     }

@@ -61,7 +61,8 @@ function initSlot(length: number, capacity: number): CmoSlot {
 function cmoFromSums(sumGain: number, sumLoss: number): number {
     const denom = sumGain + sumLoss;
     if (denom === 0) return Number.NaN;
-    return (100 * (sumGain - sumLoss)) / denom;
+    const raw = (100 * (sumGain - sumLoss)) / denom;
+    return Math.min(100, Math.max(-100, raw));
 }
 
 function closeValue(slot: CmoSlot, src: number): number {

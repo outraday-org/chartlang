@@ -45,11 +45,7 @@ const TEXT_FONT = "12px sans-serif";
  *     renderArrowMarker(ctx, e, view);
  *     void renderArrowMarker;
  */
-export function renderArrowMarker(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderArrowMarker(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as ArrowMarkerState;
     const anchor = worldPointToCanvas(state.anchor, view);
     const color = state.style.color ?? DEFAULT_COLOR;

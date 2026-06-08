@@ -36,11 +36,7 @@ const LABEL_OFFSET_PX = 4;
  *     renderFibTrendTime(ctx, e, view);
  *     void renderFibTrendTime;
  */
-export function renderFibTrendTime(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderFibTrendTime(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as FibTrendTimeState;
     const [A, B, C] = state.anchors;
     const color = state.style.color ?? DEFAULT_COLOR;

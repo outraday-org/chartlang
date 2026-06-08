@@ -31,11 +31,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderHorizontalRay(ctx, e, view);
  *     void renderHorizontalRay;
  */
-export function renderHorizontalRay(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderHorizontalRay(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as HorizontalRayState;
     const origin = worldPointToCanvas(state.anchor, view);
     ctx.strokeStyle = state.style.color ?? DEFAULT_COLOR;

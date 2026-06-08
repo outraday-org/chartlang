@@ -33,11 +33,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderGannBox(ctx, e, view);
  *     void renderGannBox;
  */
-export function renderGannBox(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderGannBox(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as GannBoxState;
     const a = worldPointToCanvas(state.anchors[0], view);
     const b = worldPointToCanvas(state.anchors[1], view);

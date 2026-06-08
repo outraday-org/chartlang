@@ -26,7 +26,7 @@ bar of the `occurrence + 1`-th match (data-dependent)
 ## Signature
 
 ```ts
-function valuewhen(slotId: string, condition: Series<boolean>, source: ScalarOrSeries, occurrence = 0): Series<number>;
+function valuewhen(slotId: string, condition: Series<boolean>, source: ScalarOrSeries, occurrence = 0, opts: ValuewhenOpts = {}): Series<number>;
 ```
 
 _The leading `slotId: string` parameter is injected by the chartlang compiler at every callsite — script authors call `ta.<id>(...)` without it._
@@ -39,6 +39,7 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 | `condition` | `Series<boolean>` | — | — |
 | `source` | `ScalarOrSeries` | — | — |
 | `occurrence` | `unknown` | 0 | — |
+| `opts` | `ValuewhenOpts` | {} | — |
 
 ## Returns
 

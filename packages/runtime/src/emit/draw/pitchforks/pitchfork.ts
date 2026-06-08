@@ -30,11 +30,7 @@ type PitchforkVariant = PitchforkState["variant"];
 
 type PitchforkOpts = LineDrawStyle & { readonly variant?: PitchforkVariant };
 
-function pitchforkImpl(
-    slotId: string,
-    anchors: AnchorTriple,
-    opts: PitchforkOpts,
-): DrawingHandle {
+function pitchforkImpl(slotId: string, anchors: AnchorTriple, opts: PitchforkOpts): DrawingHandle {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
     if (ctx === null) throw new Error(OUTSIDE_CTX_MESSAGE);
     const subId = nextSubId(ctx, slotId);
@@ -80,10 +76,7 @@ function pitchforkImpl(
  *         },
  *     });
  */
-export function pitchfork(
-    anchors: AnchorTriple,
-    opts?: PitchforkOpts,
-): DrawingHandle;
+export function pitchfork(anchors: AnchorTriple, opts?: PitchforkOpts): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

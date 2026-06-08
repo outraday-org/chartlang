@@ -30,11 +30,7 @@ const LABELS: ReadonlyArray<string> = ["S", "D1", "R1", "D2", "R2", "D3", "E"];
  *     renderThreeDrivesPattern(ctx, e, view);
  *     void renderThreeDrivesPattern;
  */
-export function renderThreeDrivesPattern(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderThreeDrivesPattern(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as ThreeDrivesPatternState;
     const points = state.anchors.map((p) => worldPointToCanvas(p, view));
     renderNamedPolyline(ctx, points, LABELS, state.style);

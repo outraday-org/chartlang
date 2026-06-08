@@ -5,15 +5,16 @@
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape.
 
-import type { Series } from "@invinite-org/chartlang-core";
+import type { BarssinceOpts, Series } from "@invinite-org/chartlang-core";
 
 import { Float64RingBuffer } from "../ringBuffer";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
 
 type BarssinceSlot = {
     readonly outBuffer: Float64RingBuffer;
     readonly series: Series<number>;
+    readonly shiftedSeries: Map<number, Series<number>>;
     /** Bars elapsed since the most recent `condition === true`. */
     sinceTrue: number;
     /** Whether any `true` has ever been seen. */
@@ -36,6 +37,7 @@ function initSlot(capacity: number): BarssinceSlot {
     return {
         outBuffer,
         series: makeSeriesView<number>(outBuffer),
+        shiftedSeries: new Map(),
         sinceTrue: 0,
         seenTrue: false,
         prevSinceTrue: 0,
@@ -86,7 +88,11 @@ function tickValue(slot: BarssinceSlot, fired: boolean): number {
  *     // const sinceCross = ta.barssince(ta.crossover(fast, slow));
  *     // plot(sinceCross);
  */
-export function barssince(slotId: string, condition: Series<boolean>): Series<number> {
+export function barssince(
+    slotId: string,
+    condition: Series<boolean>,
+    opts: BarssinceOpts = {},
+): Series<number> {
     const ctx = getCtx();
     let slot = ctx.stream.taSlots.get(slotId) as BarssinceSlot | undefined;
     if (slot === undefined) {
@@ -99,5 +105,11 @@ export function barssince(slotId: string, condition: Series<boolean>): Series<nu
     } else {
         slot.outBuffer.append(closeValue(slot, fired));
     }
-    return slot.series;
+    const offset = opts.offset ?? 0;
+    if (offset === 0) return slot.series;
+    const shifted = slot.shiftedSeries.get(offset);
+    if (shifted !== undefined) return shifted;
+    const next = makeShiftedSeriesView<number>(slot.outBuffer, offset);
+    slot.shiftedSeries.set(offset, next);
+    return next;
 }

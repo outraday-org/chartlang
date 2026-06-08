@@ -8,8 +8,8 @@ import type ts from "typescript";
  * added at the end; existing codes never change meaning so consumer-side
  * filtering stays compatible across versions.
  *
- * Phase 1 ships eight emittable codes plus `request-security-interval-not-literal`,
- * which is reserved for Phase 4's `request.security` work.
+ * Phase 1 ships eight emittable codes plus Phase 4's
+ * `request.security` and input-extraction codes.
  *
  * @since 0.1
  * @example
@@ -25,7 +25,11 @@ export type CompileDiagnosticCode =
     | "dynamic-series-index"
     | "callsite-id-conflict"
     | "missing-default-export"
-    | "api-version-mismatch";
+    | "api-version-mismatch"
+    | "input-default-not-literal"
+    | "unknown-input-kind"
+    | "multiple-input-interval"
+    | "requires-intervals-not-literal";
 
 /**
  * Single diagnostic the compiler emits while transforming or analysing a

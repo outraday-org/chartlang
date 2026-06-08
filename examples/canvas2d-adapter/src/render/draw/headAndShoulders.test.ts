@@ -86,14 +86,8 @@ describe("renderHeadAndShoulders", () => {
 
     it("honours style.color (both polyline + neckline)", () => {
         const ctx = new MockCanvas2DContext();
-        renderHeadAndShoulders(
-            ctx,
-            emission({ ...STATE, style: { color: "#abcdef" } }),
-            VIEW,
-        );
-        const strokes = ctx.calls.filter(
-            (c) => c.kind === "set" && c.prop === "strokeStyle",
-        );
+        renderHeadAndShoulders(ctx, emission({ ...STATE, style: { color: "#abcdef" } }), VIEW);
+        const strokes = ctx.calls.filter((c) => c.kind === "set" && c.prop === "strokeStyle");
         for (const s of strokes) {
             if (s.kind === "set") expect(s.value).toBe("#abcdef");
         }

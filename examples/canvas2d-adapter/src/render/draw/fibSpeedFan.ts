@@ -37,11 +37,7 @@ const LABEL_OFFSET_FRACTION = 0.25;
  *     renderFibSpeedFan(ctx, e, view);
  *     void renderFibSpeedFan;
  */
-export function renderFibSpeedFan(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderFibSpeedFan(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as FibSpeedFanState;
     const from = worldPointToCanvas(state.anchors[0], view);
     const to = worldPointToCanvas(state.anchors[1], view);

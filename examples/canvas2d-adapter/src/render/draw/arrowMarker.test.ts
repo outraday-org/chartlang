@@ -50,20 +50,14 @@ describe("renderArrowMarker", () => {
         const ctx = new MockCanvas2DContext();
         renderArrowMarker(ctx, emission(BASIC_STATE), VIEW);
         const fillStyleCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "fillStyle");
-        const strokeStyleCall = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "strokeStyle",
-        );
+        const strokeStyleCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (fillStyleCall?.kind === "set") expect(fillStyleCall.value).toBe("#3b82f6");
         if (strokeStyleCall?.kind === "set") expect(strokeStyleCall.value).toBe("#3b82f6");
     });
 
     it("honours an explicit style.color override", () => {
         const ctx = new MockCanvas2DContext();
-        renderArrowMarker(
-            ctx,
-            emission({ ...BASIC_STATE, style: { color: "#10b981" } }),
-            VIEW,
-        );
+        renderArrowMarker(ctx, emission({ ...BASIC_STATE, style: { color: "#10b981" } }), VIEW);
         const fillStyleCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "fillStyle");
         if (fillStyleCall?.kind === "set") expect(fillStyleCall.value).toBe("#10b981");
     });
@@ -76,11 +70,7 @@ describe("renderArrowMarker", () => {
 
     it("paints the optional text to the right of the anchor with left/middle alignment", () => {
         const ctx = new MockCanvas2DContext();
-        renderArrowMarker(
-            ctx,
-            emission({ ...BASIC_STATE, style: { text: "Long" } }),
-            VIEW,
-        );
+        renderArrowMarker(ctx, emission({ ...BASIC_STATE, style: { text: "Long" } }), VIEW);
         const textCall = ctx.calls.find((c) => c.kind === "fillText");
         expect(textCall).toBeDefined();
         if (textCall?.kind === "fillText") expect(textCall.text).toBe("Long");

@@ -1419,9 +1419,7 @@ describe("validateEmission — drawing dispatch", () => {
     });
 
     it("rejects an unknown drawingKind with unsupported-drawing-kind", () => {
-        expect(
-            validateEmission({ ...validLineDrawing, drawingKind: "not-a-kind" }),
-        ).toMatchObject({
+        expect(validateEmission({ ...validLineDrawing, drawingKind: "not-a-kind" })).toMatchObject({
             ok: false,
             code: "unsupported-drawing-kind",
             message: expect.stringContaining("DrawingKind"),
@@ -2063,11 +2061,7 @@ describe("validateEmission — drawing triangle kind", () => {
                 ...validTriangle,
                 state: {
                     ...validTriangle.state,
-                    anchors: [
-                        { time: 0, price: 0 },
-                        { time: 1 },
-                        { time: 2, price: 0 },
-                    ],
+                    anchors: [{ time: 0, price: 0 }, { time: 1 }, { time: 2, price: 0 }],
                 },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
@@ -2435,11 +2429,7 @@ describe("validateEmission — drawing arc kind", () => {
                 ...validArc,
                 state: {
                     ...validArc.state,
-                    anchors: [
-                        { time: 0, price: 0 },
-                        { time: 1 },
-                        { time: 2, price: 0 },
-                    ],
+                    anchors: [{ time: 0, price: 0 }, { time: 1 }, { time: 2, price: 0 }],
                 },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[1]") });
@@ -3040,11 +3030,7 @@ describe("validateEmission — drawing trend-channel kind", () => {
                 ...validTrendChannel,
                 state: {
                     ...validTrendChannel.state,
-                    anchors: [
-                        { time: 0, price: 0 },
-                        { time: 1, price: 1 },
-                        { time: 0 },
-                    ],
+                    anchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }, { time: 0 }],
                 },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[2]") });
@@ -3526,11 +3512,7 @@ describe("validateEmission — drawing fib-wedge kind", () => {
                 ...validFibWedge,
                 state: {
                     ...validFibWedge.state,
-                    anchors: [
-                        { time: 0, price: 0 },
-                        { time: 1, price: 1 },
-                        { time: 1 },
-                    ],
+                    anchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }, { time: 1 }],
                 },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("anchors[2]") });
@@ -3937,10 +3919,7 @@ describe("validateEmission — drawing cypher-pattern kind", () => {
                 ...validCypherPattern,
                 state: {
                     ...validCypherPattern.state,
-                    anchors: [
-                        ...validCypherPattern.state.anchors,
-                        { time: 5, price: 1.2 },
-                    ],
+                    anchors: [...validCypherPattern.state.anchors, { time: 5, price: 1.2 }],
                 },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("5-element") });
@@ -4000,10 +3979,7 @@ describe("validateEmission — drawing abcd-pattern kind", () => {
                 ...validAbcdPattern,
                 state: {
                     ...validAbcdPattern.state,
-                    anchors: [
-                        ...validAbcdPattern.state.anchors,
-                        { time: 4, price: 2 },
-                    ],
+                    anchors: [...validAbcdPattern.state.anchors, { time: 4, price: 2 }],
                 },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("4-element") });
@@ -4030,10 +4006,7 @@ describe("validateEmission — drawing triangle-pattern kind", () => {
                 ...validTrianglePattern,
                 state: {
                     ...validTrianglePattern.state,
-                    anchors: [
-                        ...validTrianglePattern.state.anchors,
-                        { time: 3, price: 0.5 },
-                    ],
+                    anchors: [...validTrianglePattern.state.anchors, { time: 3, price: 0.5 }],
                 },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("3-element") });
@@ -4282,10 +4255,7 @@ describe("validateEmission — drawing elliott-triple-combo kind", () => {
     });
 
     it("rejects an elliott-triple-combo with 8 anchors (7 expected)", () => {
-        const tooMany = [
-            ...validElliottTripleCombo.state.anchors,
-            { time: 7, price: 2.5 },
-        ];
+        const tooMany = [...validElliottTripleCombo.state.anchors, { time: 7, price: 2.5 }];
         expect(
             validateEmission({
                 ...validElliottTripleCombo,
@@ -4389,7 +4359,10 @@ describe("validateEmission — drawing cyclic-lines kind", () => {
                 ...validCyclicLines,
                 state: {
                     ...validCyclicLines.state,
-                    anchors: [{ time: 0, price: 0 }, { time: "bad", price: 0 }],
+                    anchors: [
+                        { time: 0, price: 0 },
+                        { time: "bad", price: 0 },
+                    ],
                 },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("WorldPoint") });
@@ -4416,10 +4389,7 @@ describe("validateEmission — drawing time-cycles kind", () => {
                 ...validTimeCycles,
                 state: {
                     ...validTimeCycles.state,
-                    anchors: [
-                        ...validTimeCycles.state.anchors,
-                        { time: 200, price: 50 },
-                    ],
+                    anchors: [...validTimeCycles.state.anchors, { time: 200, price: 50 }],
                 },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("2-element") });

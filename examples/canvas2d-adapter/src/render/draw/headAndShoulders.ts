@@ -35,11 +35,7 @@ const DEFAULT_COLOR = "#f59e0b";
  *     renderHeadAndShoulders(ctx, e, view);
  *     void renderHeadAndShoulders;
  */
-export function renderHeadAndShoulders(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderHeadAndShoulders(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as HeadAndShouldersState;
     const points = state.anchors.map((p) => worldPointToCanvas(p, view));
     renderNamedPolyline(ctx, points, LABELS, state.style);

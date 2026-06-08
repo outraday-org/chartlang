@@ -65,10 +65,7 @@ function elliottCorrectionWaveImpl(
  *         },
  *     });
  */
-export function elliottCorrectionWave(
-    anchors: AnchorTriple,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function elliottCorrectionWave(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *
@@ -103,9 +100,5 @@ export function elliottCorrectionWave(
     if (typeof arg1 !== "string" || arg2 === undefined || !Array.isArray(arg2)) {
         throw new Error(OUTSIDE_CTX_MESSAGE);
     }
-    return elliottCorrectionWaveImpl(
-        arg1,
-        arg2 as AnchorTriple,
-        (arg3 ?? {}) as CorrectionOpts,
-    );
+    return elliottCorrectionWaveImpl(arg1, arg2 as AnchorTriple, (arg3 ?? {}) as CorrectionOpts);
 }

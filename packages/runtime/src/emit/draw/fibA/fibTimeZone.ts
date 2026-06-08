@@ -66,11 +66,7 @@ function fibTimeZoneImpl(
  *         },
  *     });
  */
-export function fibTimeZone(
-    a: WorldPoint,
-    b: WorldPoint,
-    opts?: FibOpts,
-): DrawingHandle;
+export function fibTimeZone(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

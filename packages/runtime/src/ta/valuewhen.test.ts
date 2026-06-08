@@ -74,6 +74,23 @@ describe("ta.valuewhen", () => {
         expect(identities.size).toBe(1);
     });
 
+    it("returns a stable shifted Series when opts.offset is supplied", () => {
+        const pattern = [true, false, false];
+        const bars = syntheticBars(pattern.length, 1);
+        const identities = new Set<unknown>();
+        const out = harness(bars, bars.length + 1, (bar, ctx) => {
+            const s = valuewhen("slot", boolSeries(pattern[ctx.barIndex()]), bar.close, 0, {
+                offset: 1,
+            });
+            identities.add(s);
+            return s.current;
+        });
+        expect(Number.isNaN(out[0])).toBe(true);
+        expect(out[1]).toBe(bars[0].close);
+        expect(out[2]).toBe(bars[0].close);
+        expect(identities.size).toBe(1);
+    });
+
     it("throws when called outside an active script step", () => {
         expect(() => valuewhen("oops", boolSeries(false), 1, 0)).toThrowError(
             /ta.valuewhen called outside an active script step/,

@@ -49,14 +49,8 @@ describe("renderArrow", () => {
 
     it("defaults color to #000000 and lineWidth to 1 when style omits them", () => {
         const ctx = new MockCanvas2DContext();
-        renderArrow(
-            ctx,
-            emission({ ...BASIC_STATE, style: {} }),
-            VIEW,
-        );
-        const strokeStyleCall = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "strokeStyle",
-        );
+        renderArrow(ctx, emission({ ...BASIC_STATE, style: {} }), VIEW);
+        const strokeStyleCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         const lineWidthCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "lineWidth");
         if (strokeStyleCall?.kind === "set") expect(strokeStyleCall.value).toBe("#000000");
         if (lineWidthCall?.kind === "set") expect(lineWidthCall.value).toBe(1);
@@ -65,9 +59,7 @@ describe("renderArrow", () => {
     it("shares stroke + fill colour for shaft + arrowhead", () => {
         const ctx = new MockCanvas2DContext();
         renderArrow(ctx, emission(BASIC_STATE), VIEW);
-        const strokeStyleCall = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "strokeStyle",
-        );
+        const strokeStyleCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         const fillStyleCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "fillStyle");
         if (strokeStyleCall?.kind === "set" && fillStyleCall?.kind === "set") {
             expect(strokeStyleCall.value).toBe("#dc2626");

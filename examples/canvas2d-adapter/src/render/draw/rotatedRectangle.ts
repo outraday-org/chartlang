@@ -32,11 +32,7 @@ import { worldPointToCanvas } from "./worldToCanvas";
  *     renderRotatedRectangle(ctx, e, view);
  *     void renderRotatedRectangle;
  */
-export function renderRotatedRectangle(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderRotatedRectangle(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as RotatedRectangleState;
     const corners = state.anchors.map((p) => worldPointToCanvas(p, view));
     const applied = applyShapeStyle(ctx, state.style);

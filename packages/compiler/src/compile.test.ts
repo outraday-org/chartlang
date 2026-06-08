@@ -52,6 +52,29 @@ describe("compile", () => {
         }
     });
 
+    it("throws CompileError for non-literal input defaults", async () => {
+        const source = `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+const len = 14;
+export default defineIndicator({
+    name: "bad inputs",
+    apiVersion: 1,
+    inputs: { len: input.int(len) },
+    compute: () => {},
+});
+`;
+        await expect(() =>
+            compile(source, { apiVersion: 1, sourcePath: "bad-inputs.chart.ts" }),
+        ).rejects.toBeInstanceOf(CompileError);
+        try {
+            await compile(source, { apiVersion: 1, sourcePath: "bad-inputs.chart.ts" });
+        } catch (err) {
+            expect(err).toBeInstanceOf(CompileError);
+            const compileError = err as CompileError;
+            expect(compileError.diagnostics[0]?.code).toBe("input-default-not-literal");
+        }
+    });
+
     it("produces byte-identical moduleSource on repeat compiles (determinism)", async () => {
         const a = await compile(EMA_CROSS, {
             apiVersion: 1,

@@ -95,11 +95,7 @@ import { renderXabcdPattern } from "./xabcdPattern";
  *     drawingDispatch(ctx, emission, view);
  *     void drawingDispatch;
  */
-export function drawingDispatch(
-    ctx: RenderCtx,
-    emission: DrawingEmission,
-    view: Viewport,
-): void {
+export function drawingDispatch(ctx: RenderCtx, emission: DrawingEmission, view: Viewport): void {
     if (emission.op === "remove") return;
     switch (emission.drawingKind) {
         // Lines / Rays (Task 5)

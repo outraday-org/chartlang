@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type {
+    AdapterSymInfo,
     CandleEvent,
     Capabilities,
     RunnerEmissions,
@@ -14,8 +15,8 @@ import type { HostCompiledScript, HostLimits } from "./types";
  * — every payload survives `structuredClone` without bespoke transferables.
  *
  * - `load` carries the compiled bundle, the adapter's `Capabilities`, and the
- *   host's `HostLimits`. The worker boot is stateless about all three: there
- *   is no in-worker default capabilities bag, no in-worker default limits.
+ *   host's `HostLimits`. Optional `inputOverrides` is already resolved on the
+ *   host side because callbacks cannot cross the worker boundary.
  * - `candleEvent` is fire-and-forget — the worker only replies on overshoot
  *   or fatal.
  * - `drain` carries a host-issued `nonce`; the matching reply echoes it.
@@ -32,6 +33,8 @@ export type HostToWorker =
           readonly kind: "load";
           readonly compiled: HostCompiledScript;
           readonly capabilities: Capabilities;
+          readonly symInfo?: AdapterSymInfo;
+          readonly inputOverrides?: Readonly<Record<string, unknown>>;
           readonly limits: HostLimits;
       }
     | { readonly kind: "candleEvent"; readonly event: CandleEvent }

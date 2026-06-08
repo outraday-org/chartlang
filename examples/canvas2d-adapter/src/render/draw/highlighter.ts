@@ -34,11 +34,7 @@ const DEFAULT_LINE_WIDTH = 6;
  *     renderHighlighter(ctx, e, view);
  *     void renderHighlighter;
  */
-export function renderHighlighter(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderHighlighter(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as HighlighterState;
     const pts = state.anchors.map((p) => worldPointToCanvas(p, view));
     ctx.strokeStyle = state.style.color;

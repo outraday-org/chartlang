@@ -13,10 +13,13 @@ import type {
     DrawingCounts,
     DrawingKind,
     DrawingState,
+    SecurityBar,
 } from "@invinite-org/chartlang-core";
 
 import type { StateStore } from "./stateStore";
+import type { StateSlot } from "./state/stateSlot";
 import type { StreamState } from "./streamState";
+import type { RuntimeViews } from "./views";
 
 /**
  * Per-handle drawing slot the runtime persists across bars. The key is
@@ -81,6 +84,16 @@ export type MutableRunnerEmissions = {
  * `onBarClose` / `onHistory` (append mode). Stateful primitives in
  * Task 7 use it to swap append vs replace-head behaviour.
  *
+ * `stateSlots` stores Phase-4 `state.*` / `state.tick.*` slots keyed by
+ * `${slotId}:state`; values flush into `stateStore` at close/dispose.
+ *
+ * `views` is a mutable container whose fields are replaced with fresh frozen
+ * `barstate.*`, `syminfo.*`, and `timeframe.*` snapshots as the runner
+ * advances.
+ *
+ * `resolvedInputs` is the frozen bag handed to `compute({ inputs })`,
+ * resolved once at mount from manifest defaults plus adapter overrides.
+ *
  * @since 0.1
  * @example
  *     // const ctx: RuntimeContext = {
@@ -130,6 +143,41 @@ export type RuntimeContext = {
      * capabilities.maxDrawingsPerScript[b])`. @since 0.3
      */
     readonly scriptMaxDrawings: DrawingCounts | null;
+    /**
+     * Runtime `state.*` / `state.tick.*` slot store keyed by
+     * `${slotId}:state`. Non-tick slots keep committed/tentative values;
+     * tick slots commit writes immediately. Cleared on `dispose` after
+     * flushing snapshots to `stateStore`. @since 0.4
+     */
+    readonly stateSlots: Map<string, StateSlot<unknown>>;
+    /**
+     * Per-`request.security` slot cache keyed by `slotId|interval`. Phase 4
+     * stores NaN fallback bars here; Phase 5 replaces the value producer with
+     * aligned secondary stream series while preserving stable identity.
+     * @since 0.4
+     */
+    readonly requestSecurityBars: Map<string, SecurityBar>;
+    /**
+     * Runtime diagnostic dedupe for `request.security` capability gates,
+     * keyed by `code|slotId|interval`. Cleared on `dispose`. @since 0.4
+     */
+    readonly diagnosedRequestKeys: Set<string>;
+    /**
+     * Frozen effective input values keyed by script input name. Resolved once
+     * at mount and reused by every compute step. @since 0.4
+     */
+    resolvedInputs: Readonly<Record<string, unknown>>;
+    /**
+     * Runtime diagnostic dedupe for mount-time input override failures,
+     * keyed by manifest input key. Cleared on `dispose`. @since 0.4
+     */
+    readonly diagnosedInputKeys: Set<string>;
+    /**
+     * Runtime `barstate.*`, `syminfo.*`, and `timeframe.*` views. The
+     * container is mutable; each assigned view snapshot is frozen.
+     * @since 0.4
+     */
+    readonly views: RuntimeViews;
 };
 
 /**

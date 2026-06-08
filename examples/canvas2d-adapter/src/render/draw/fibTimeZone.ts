@@ -36,11 +36,7 @@ const LABEL_OFFSET_PX = 4;
  *     renderFibTimeZone(ctx, e, view);
  *     void renderFibTimeZone;
  */
-export function renderFibTimeZone(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderFibTimeZone(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as FibTimeZoneState;
     const [A, B] = state.anchors;
     const color = state.style.color ?? DEFAULT_COLOR;

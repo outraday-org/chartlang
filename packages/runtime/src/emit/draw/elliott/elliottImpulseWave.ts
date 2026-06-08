@@ -68,10 +68,7 @@ function elliottImpulseWaveImpl(
  *         },
  *     });
  */
-export function elliottImpulseWave(
-    anchors: AnchorQuint,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function elliottImpulseWave(anchors: AnchorQuint, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

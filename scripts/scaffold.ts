@@ -242,11 +242,11 @@ function indexTs(): string {
 function indexTestTs(): string {
     return `${MIT_HEADER}\nimport { describe, expect, it } from "vitest";
 
-import { PACKAGE_VERSION } from "./index";
+import * as publicSurface from "./index";
 
-describe("placeholder", () => {
-    it("exports a version constant", () => {
-        expect(PACKAGE_VERSION).toBe("0.0.0");
+describe("public surface", () => {
+    it("loads the package barrel", () => {
+        expect(publicSurface).toBeDefined();
     });
 });
 `;

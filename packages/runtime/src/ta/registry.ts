@@ -12,6 +12,7 @@ import type {
     AroonOscOpts,
     AroonResult,
     AtrOpts,
+    BarssinceOpts,
     BbOpts,
     BbPercentBOpts,
     BbResult,
@@ -108,6 +109,7 @@ import type {
     TsiResult,
     UlcerIndexOpts,
     UltimateOscOpts,
+    ValuewhenOpts,
     VolOpts,
     VolatilityStopOpts,
     VolatilityStopResult,
@@ -272,8 +274,9 @@ export type RuntimeTaNamespace = {
         condition: Series<boolean>,
         source: ScalarOrSeries,
         occurrence?: number,
+        opts?: ValuewhenOpts,
     ): Series<number>;
-    barssince(slotId: string, condition: Series<boolean>): Series<number>;
+    barssince(slotId: string, condition: Series<boolean>, opts?: BarssinceOpts): Series<number>;
     wma(slotId: string, source: ScalarOrSeries, length: number, opts?: WmaOpts): Series<number>;
     vwma(slotId: string, source: ScalarOrSeries, length: number, opts?: VwmaOpts): Series<number>;
     hma(slotId: string, source: ScalarOrSeries, length: number, opts?: HmaOpts): Series<number>;

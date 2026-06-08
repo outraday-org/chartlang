@@ -36,11 +36,7 @@ const LABEL_OFFSET_FRACTION = 0.25;
  *     renderFibWedge(ctx, e, view);
  *     void renderFibWedge;
  */
-export function renderFibWedge(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderFibWedge(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as FibWedgeState;
     const pivot = worldPointToCanvas(state.anchors[0], view);
     const r1 = worldPointToCanvas(state.anchors[1], view);

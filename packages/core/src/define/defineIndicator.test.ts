@@ -3,6 +3,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
+import { input } from "../input";
 import { defineIndicator } from "./defineIndicator";
 
 describe("defineIndicator", () => {
@@ -30,7 +31,7 @@ describe("defineIndicator", () => {
     });
 
     it("uses provided inputs schema", () => {
-        const inputs = { length: 14 } as const;
+        const inputs = { length: input.int(14) } as const;
         const script = defineIndicator({
             name: "demo",
             apiVersion: 1,
@@ -65,5 +66,26 @@ describe("defineIndicator", () => {
             compute: () => {},
         });
         expect(script.manifest.maxDrawings).toEqual(maxDrawings);
+    });
+
+    it("propagates script override fields into the manifest verbatim", () => {
+        const requiresIntervals = ["1D", "1W"] as const;
+        const script = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            maxBarsBack: 1000,
+            format: "percent",
+            precision: 4,
+            scale: "right",
+            requiresIntervals,
+            shortName: "DEMO",
+            compute: () => {},
+        });
+        expect(script.manifest.maxBarsBack).toBe(1000);
+        expect(script.manifest.format).toBe("percent");
+        expect(script.manifest.precision).toBe(4);
+        expect(script.manifest.scale).toBe("right");
+        expect(script.manifest.requiresIntervals).toEqual(requiresIntervals);
+        expect(script.manifest.shortName).toBe("DEMO");
     });
 });

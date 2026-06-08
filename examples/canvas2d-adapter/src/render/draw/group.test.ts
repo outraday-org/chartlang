@@ -33,11 +33,7 @@ function emission(state: GroupState): DrawingEmission {
 describe("renderGroup", () => {
     it("is a pure no-op for an empty group (Phase-3 contract)", () => {
         const ctx = new MockCanvas2DContext();
-        renderGroup(
-            ctx,
-            emission({ kind: "group", childHandleIds: [] }),
-            VIEW,
-        );
+        renderGroup(ctx, emission({ kind: "group", childHandleIds: [] }), VIEW);
         expect(ctx.calls).toEqual([]);
     });
 

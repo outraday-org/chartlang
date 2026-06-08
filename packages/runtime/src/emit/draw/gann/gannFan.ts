@@ -64,11 +64,7 @@ function gannFanImpl(
  *         },
  *     });
  */
-export function gannFan(
-    a: WorldPoint,
-    b: WorldPoint,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function gannFan(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

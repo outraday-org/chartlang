@@ -30,10 +30,12 @@ function makeCaps(overrides: Partial<Capabilities> = {}): Capabilities {
     };
 }
 
-function makeCtx(opts: {
-    caps?: Capabilities;
-    scriptMaxDrawings?: DrawingCounts | null;
-} = {}): RuntimeContext {
+function makeCtx(
+    opts: {
+        caps?: Capabilities;
+        scriptMaxDrawings?: DrawingCounts | null;
+    } = {},
+): RuntimeContext {
     return {
         stream: createStreamState({ interval: "", capacity: 4, symbol: "" }),
         stateStore: inMemoryStateStore(),
@@ -66,9 +68,7 @@ function makeLineState(): LineState {
     };
 }
 
-function makeLineEmission(
-    overrides: Partial<DrawingEmission> = {},
-): DrawingEmission {
+function makeLineEmission(overrides: Partial<DrawingEmission> = {}): DrawingEmission {
     return {
         kind: "drawing",
         handleId: "x.chart.ts:1:1#0",

@@ -25,6 +25,10 @@
   is host-machine independent and deterministic. The shim must stay in
   lockstep with `packages/core/src/` — every new core export needs a
   matching declaration here.
+- **Callee resolution handles nested core namespaces.** `resolveCalleeName`
+  must preserve full names such as `state.tick.float` in addition to
+  one-hop names like `ta.ema`; callsite-id injection and loop diagnostics
+  key directly on those registry names.
 - **Determinism is testable.** `transformAndAnalyse(src, opts)` printed
   twice must yield byte-identical strings via `ts.createPrinter`. Slot
   ids are pure string literals, never template strings or symbol

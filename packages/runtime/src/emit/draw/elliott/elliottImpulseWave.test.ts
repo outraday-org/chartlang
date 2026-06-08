@@ -55,6 +55,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     return { ctx, emissions };
 }
@@ -81,9 +82,9 @@ describe("draw.elliottImpulseWave — script-facing throw", () => {
     it("throws when slotId is provided but anchors are missing", () => {
         const { ctx } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        expect(() =>
-            elliottImpulseWave("slot", undefined as unknown as AnchorQuint),
-        ).toThrow("draw.elliottImpulseWave called outside an active script step");
+        expect(() => elliottImpulseWave("slot", undefined as unknown as AnchorQuint)).toThrow(
+            "draw.elliottImpulseWave called outside an active script step",
+        );
     });
 
     it("throws when invoked through the compiled overload outside an active context", () => {

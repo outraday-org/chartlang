@@ -62,11 +62,7 @@ describe("renderAbcdPattern", () => {
 
     it("honours style.color", () => {
         const ctx = new MockCanvas2DContext();
-        renderAbcdPattern(
-            ctx,
-            emission({ ...STATE, style: { color: "#123456" } }),
-            VIEW,
-        );
+        renderAbcdPattern(ctx, emission({ ...STATE, style: { color: "#123456" } }), VIEW);
         const stroke = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (stroke?.kind === "set") expect(stroke.value).toBe("#123456");
     });

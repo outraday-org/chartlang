@@ -44,13 +44,9 @@ describe("renderNamedPolyline", () => {
             expect(call.x).toBe(POINTS[i].x);
             expect(call.y).toBe(POINTS[i].y - 6);
         }
-        const baselineCall = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "textBaseline",
-        );
+        const baselineCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "textBaseline");
         if (baselineCall?.kind === "set") expect(baselineCall.value).toBe("bottom");
-        const alignCall = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "textAlign",
-        );
+        const alignCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "textAlign");
         if (alignCall?.kind === "set") expect(alignCall.value).toBe("center");
     });
 

@@ -31,11 +31,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderDisjointChannel(ctx, e, view);
  *     void renderDisjointChannel;
  */
-export function renderDisjointChannel(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderDisjointChannel(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as DisjointChannelState;
     const a = worldPointToCanvas(state.anchors[0], view);
     const b = worldPointToCanvas(state.anchors[1], view);

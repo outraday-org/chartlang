@@ -22,11 +22,7 @@ import { nextSubId } from "../subIdAllocator";
 
 const OUTSIDE_CTX_MESSAGE = "draw.fibTrendTime called outside an active script step";
 
-function fibTrendTimeImpl(
-    slotId: string,
-    anchors: AnchorTriple,
-    opts: FibOpts,
-): DrawingHandle {
+function fibTrendTimeImpl(slotId: string, anchors: AnchorTriple, opts: FibOpts): DrawingHandle {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
     if (ctx === null) throw new Error(OUTSIDE_CTX_MESSAGE);
     const subId = nextSubId(ctx, slotId);
@@ -69,10 +65,7 @@ function fibTrendTimeImpl(
  *         },
  *     });
  */
-export function fibTrendTime(
-    anchors: AnchorTriple,
-    opts?: FibOpts,
-): DrawingHandle;
+export function fibTrendTime(anchors: AnchorTriple, opts?: FibOpts): DrawingHandle;
 /**
  * Compiler-injected overload.
  *
@@ -83,11 +76,7 @@ export function fibTrendTime(
  *     // const fn: typeof fibTrendTime = fibTrendTime;
  *     // void fn;
  */
-export function fibTrendTime(
-    slotId: string,
-    anchors: AnchorTriple,
-    opts?: FibOpts,
-): DrawingHandle;
+export function fibTrendTime(slotId: string, anchors: AnchorTriple, opts?: FibOpts): DrawingHandle;
 /**
  * Implementation signature for {@link fibTrendTime}. Branches on
  * `typeof arg1 === "string"` to dispatch the script-facing vs

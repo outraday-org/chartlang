@@ -25,9 +25,9 @@ describe("draw throwing stub", () => {
     });
 
     it("throws for a fib-family flat method (draw.fibRetracement)", () => {
-        expect(() =>
-            draw.fibRetracement({ time: 0, price: 0 }, { time: 1, price: 1 }),
-        ).toThrow("draw.fibRetracement called outside compiled runtime");
+        expect(() => draw.fibRetracement({ time: 0, price: 0 }, { time: 1, price: 1 })).toThrow(
+            "draw.fibRetracement called outside compiled runtime",
+        );
     });
 
     it("throws for a gann-family flat method (draw.gannBox)", () => {

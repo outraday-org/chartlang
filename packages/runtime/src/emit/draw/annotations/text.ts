@@ -9,12 +9,7 @@
 //   invinite/src/components/trading-chart/tools/text-tool.ts.
 // Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
 
-import type {
-    DrawingHandle,
-    TextOpts,
-    TextState,
-    WorldPoint,
-} from "@invinite-org/chartlang-core";
+import type { DrawingHandle, TextOpts, TextState, WorldPoint } from "@invinite-org/chartlang-core";
 
 import { ACTIVE_RUNTIME_CONTEXT } from "../../../runtimeContext";
 import { createDrawingHandle } from "../handle";
@@ -22,12 +17,7 @@ import { nextSubId } from "../subIdAllocator";
 
 const OUTSIDE_CTX_MESSAGE = "draw.text called outside an active script step";
 
-function textImpl(
-    slotId: string,
-    anchor: WorldPoint,
-    body: string,
-    opts: TextOpts,
-): DrawingHandle {
+function textImpl(slotId: string, anchor: WorldPoint, body: string, opts: TextOpts): DrawingHandle {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
     if (ctx === null) throw new Error(OUTSIDE_CTX_MESSAGE);
     const subId = nextSubId(ctx, slotId);

@@ -55,6 +55,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     return { ctx, emissions };
 }
@@ -68,9 +69,7 @@ afterEach(() => {
 
 describe("draw.gannBox — script-facing throw", () => {
     it("throws the sentinel when called without a compiler-injected slot id", () => {
-        expect(() => gannBox(A, B)).toThrow(
-            "draw.gannBox called outside an active script step",
-        );
+        expect(() => gannBox(A, B)).toThrow("draw.gannBox called outside an active script step");
     });
 
     it("throws when a/b is missing in the compiler-form", () => {

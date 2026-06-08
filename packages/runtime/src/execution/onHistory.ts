@@ -23,6 +23,6 @@ import { onBarClose } from "./onBarClose";
  */
 export async function onHistory(state: RunnerState, bars: ReadonlyArray<Bar>): Promise<void> {
     for (const bar of bars) {
-        await onBarClose(state, bar);
+        await onBarClose(state, bar, "history");
     }
 }

@@ -18,20 +18,14 @@ export default defineIndicator({
                 extendRight: true,
             });
 
-            draw.fibTrendExtension(
-                [
-                    swingLow,
-                    swingHigh,
-                    { time: 1_700_060_000_000, price: 115 },
-                ],
-                { showLabels: true },
-            );
+            draw.fibTrendExtension([swingLow, swingHigh, { time: 1_700_060_000_000, price: 115 }], {
+                showLabels: true,
+            });
 
-            draw.text(
-                { time: 1_700_030_000_000, price: 135 },
-                "Impulse leg + 1.618 target",
-                { color: "#1e293b", size: "normal" },
-            );
+            draw.text({ time: 1_700_030_000_000, price: 135 }, "Impulse leg + 1.618 target", {
+                color: "#1e293b",
+                size: "normal",
+            });
         }
     },
 });

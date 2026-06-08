@@ -67,10 +67,7 @@ function threeDrivesPatternImpl(
  *         },
  *     });
  */
-export function threeDrivesPattern(
-    anchors: AnchorHept,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function threeDrivesPattern(anchors: AnchorHept, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

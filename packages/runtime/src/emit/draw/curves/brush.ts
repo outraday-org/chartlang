@@ -64,10 +64,7 @@ function brushImpl(
  *         },
  *     });
  */
-export function brush(
-    anchors: ReadonlyArray<WorldPoint>,
-    opts: BrushStyle,
-): DrawingHandle;
+export function brush(anchors: ReadonlyArray<WorldPoint>, opts: BrushStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

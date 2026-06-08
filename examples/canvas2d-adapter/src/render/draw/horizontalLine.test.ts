@@ -47,7 +47,11 @@ describe("renderHorizontalLine", () => {
 
     it("defaults stroke style to #000000 and lineWidth to 1 when omitted", () => {
         const ctx = new MockCanvas2DContext();
-        renderHorizontalLine(ctx, emission({ kind: "horizontal-line", price: 50, style: {} }), VIEW);
+        renderHorizontalLine(
+            ctx,
+            emission({ kind: "horizontal-line", price: 50, style: {} }),
+            VIEW,
+        );
         expect(ctx.calls[0]).toEqual({ kind: "set", prop: "strokeStyle", value: "#000000" });
         expect(ctx.calls[1]).toEqual({ kind: "set", prop: "lineWidth", value: 1 });
     });

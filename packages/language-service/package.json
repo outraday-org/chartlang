@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-language-service",
-    "version": "0.0.0",
+    "version": "0.4.0",
     "type": "module",
     "license": "MIT",
     "description": "Headless editor intelligence — hover, completions, diagnostics, signature help",
@@ -17,6 +17,12 @@
         "build": "tsc -p tsconfig.json",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "test": "vitest run --coverage"
+    },
+    "dependencies": {
+        "@invinite-org/chartlang-adapter-kit": "workspace:*",
+        "@invinite-org/chartlang-compiler": "workspace:*",
+        "@invinite-org/chartlang-core": "workspace:*",
+        "typescript": "^5.6.0"
     },
     "publishConfig": {
         "access": "public"

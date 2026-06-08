@@ -55,6 +55,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     return { ctx, emissions };
 }
@@ -68,9 +69,7 @@ afterEach(() => {
 
 describe("draw.sineLine — script-facing throw", () => {
     it("throws the sentinel when called without a compiler-injected slot id", () => {
-        expect(() => sineLine(A, B)).toThrow(
-            "draw.sineLine called outside an active script step",
-        );
+        expect(() => sineLine(A, B)).toThrow("draw.sineLine called outside an active script step");
     });
 
     it("throws when slotId is provided but anchors are missing", () => {
@@ -92,7 +91,10 @@ describe("draw.sineLine — happy path", () => {
     it("returns a DrawingHandle and emits op:create with the sine-line state", () => {
         const { ctx, emissions } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        const handle = sineLine("s.chart.ts:1:1#0", A, B, { color: "#0ea5e9", lineStyle: "dashed" });
+        const handle = sineLine("s.chart.ts:1:1#0", A, B, {
+            color: "#0ea5e9",
+            lineStyle: "dashed",
+        });
         expect(handle.id).toBe("s.chart.ts:1:1#0#0");
         const state = emissions.drawings[0].state as SineLineState;
         expect(state.kind).toBe("sine-line");

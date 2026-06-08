@@ -72,9 +72,5 @@ export function renderTrendAngle(ctx: RenderCtx, e: DrawingEmission, view: Viewp
     const degrees = (angleRad * 180) / Math.PI;
     ctx.fillStyle = color;
     ctx.font = ANGLE_TEXT_FONT;
-    ctx.fillText(
-        `${degrees.toFixed(1)}°`,
-        a.x + ANGLE_ARC_RADIUS_PX + ANGLE_TEXT_OFFSET_PX,
-        a.y,
-    );
+    ctx.fillText(`${degrees.toFixed(1)}°`, a.x + ANGLE_ARC_RADIUS_PX + ANGLE_TEXT_OFFSET_PX, a.y);
 }

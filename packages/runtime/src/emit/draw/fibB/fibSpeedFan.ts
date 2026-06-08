@@ -64,11 +64,7 @@ function fibSpeedFanImpl(
  *         },
  *     });
  */
-export function fibSpeedFan(
-    a: WorldPoint,
-    b: WorldPoint,
-    opts?: FibOpts,
-): DrawingHandle;
+export function fibSpeedFan(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

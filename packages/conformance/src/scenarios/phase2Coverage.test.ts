@@ -37,8 +37,8 @@ describe("Phase 2 surface", () => {
         expect(PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length).toBe(90);
     });
 
-    it("STATEFUL_PRIMITIVES cardinality is 154 (93 Phase-2 + 61 Phase-3 draw.* kinds)", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(154);
+    it("STATEFUL_PRIMITIVES cardinality is 163 (154 carried + 8 state.* + request.security)", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(163);
     });
 
     it("ta.nz is the only slot:false entry", () => {

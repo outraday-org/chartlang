@@ -4,7 +4,7 @@
 import { DRAWING_KINDS, KIND_CAMELCASE } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import type { DrawingKind } from "../types";
+import type { DrawingKind, SymInfoField } from "../types";
 import { capabilities } from "./capabilities";
 
 describe("capabilities builders", () => {
@@ -117,6 +117,70 @@ describe("capabilities builders", () => {
         const s = capabilities.union(a, a);
         expect(s.size).toBe(1);
         expect(s.has("line")).toBe(true);
+    });
+
+    it("intervals(...) returns a frozen defensive copy preserving order", () => {
+        const input = [
+            { value: "1m", label: "1 minute", group: "minute" },
+            { value: "1D", label: "1 day", group: "daily" },
+        ];
+        const partial = capabilities.intervals(input);
+        input.push({ value: "1W", label: "1 week", group: "weekly" });
+
+        expect(partial.intervals).toEqual([
+            { value: "1m", label: "1 minute", group: "minute" },
+            { value: "1D", label: "1 day", group: "daily" },
+        ]);
+        expect(partial.intervals).not.toBe(input);
+        expect(Object.isFrozen(partial.intervals)).toBe(true);
+    });
+
+    it("multiTimeframe(...) returns the expected partial", () => {
+        expect(capabilities.multiTimeframe(true)).toEqual({ multiTimeframe: true });
+        expect(capabilities.multiTimeframe(false)).toEqual({ multiTimeframe: false });
+    });
+
+    it("subPanes(...) returns the expected partial", () => {
+        expect(capabilities.subPanes(Number.MAX_SAFE_INTEGER)).toEqual({
+            subPanes: Number.MAX_SAFE_INTEGER,
+        });
+    });
+
+    it("symInfoFields(...) returns a non-aliased readonly set view", () => {
+        const input: SymInfoField[] = ["ticker", "mintick"];
+        const partial = capabilities.symInfoFields(input);
+        input.push("currency");
+
+        expect(partial.symInfoFields.size).toBe(2);
+        expect(partial.symInfoFields.has("ticker")).toBe(true);
+        expect(partial.symInfoFields.has("mintick")).toBe(true);
+        expect(partial.symInfoFields.has("currency")).toBe(false);
+    });
+
+    it("maxDrawingsPerScript(...) returns a frozen defensive copy", () => {
+        const input = { lines: 1, labels: 2, boxes: 3, polylines: 4, other: 5 };
+        const partial = capabilities.maxDrawingsPerScript(input);
+        input.lines = 99;
+
+        expect(partial.maxDrawingsPerScript).toEqual({
+            lines: 1,
+            labels: 2,
+            boxes: 3,
+            polylines: 4,
+            other: 5,
+        });
+        expect(partial.maxDrawingsPerScript).not.toBe(input);
+        expect(Object.isFrozen(partial.maxDrawingsPerScript)).toBe(true);
+    });
+
+    it("alertConditions(...) returns the expected partial", () => {
+        expect(capabilities.alertConditions(true)).toEqual({ alertConditions: true });
+        expect(capabilities.alertConditions(false)).toEqual({ alertConditions: false });
+    });
+
+    it("logs(...) returns the expected partial", () => {
+        expect(capabilities.logs(true)).toEqual({ logs: true });
+        expect(capabilities.logs(false)).toEqual({ logs: false });
     });
 });
 

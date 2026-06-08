@@ -71,11 +71,7 @@ export function arc(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
  *     // const fn: typeof arc = arc;
  *     // void fn;
  */
-export function arc(
-    slotId: string,
-    anchors: AnchorTriple,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function arc(slotId: string, anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Implementation signature for {@link arc}. Branches on
  * `typeof arg1 === "string"` to dispatch the script-facing vs

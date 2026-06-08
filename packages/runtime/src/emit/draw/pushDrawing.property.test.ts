@@ -49,6 +49,7 @@ function makeCtx(): RuntimeContext {
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
 }
 
@@ -83,10 +84,7 @@ describe("pushDrawing — properties", () => {
             fc.property(fc.integer({ min: 1, max: 16 }), (n) => {
                 const ctx = makeCtx();
                 for (let i = 0; i < n; i += 1) {
-                    pushDrawing(
-                        ctx,
-                        lineEmission("h", 0, i === 0 ? "create" : "update", i),
-                    );
+                    pushDrawing(ctx, lineEmission("h", 0, i === 0 ? "create" : "update", i));
                 }
                 expect(ctx.emissions.drawings).toHaveLength(1);
                 const last = ctx.emissions.drawings[0];

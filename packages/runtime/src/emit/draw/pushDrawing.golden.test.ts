@@ -15,8 +15,7 @@ import { pushDrawing } from "./pushDrawing";
 
 // Re-pin by copying the `actual` hash from a failure message — same
 // workflow as `plot-hash` (PLAN.md §22.10 reproducibility contract).
-const GOLDEN_SHA256 =
-    "5745ecccc11f539ed5cb34cc562650d28f65378bbfd6be79350bea3ee103887a";
+const GOLDEN_SHA256 = "5745ecccc11f539ed5cb34cc562650d28f65378bbfd6be79350bea3ee103887a";
 const ITERATIONS = 50;
 
 function makeCaps(): Capabilities {
@@ -56,6 +55,7 @@ function makeCtx(): RuntimeContext {
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
 }
 

@@ -71,10 +71,7 @@ function trianglePatternImpl(
  *         },
  *     });
  */
-export function trianglePattern(
-    anchors: AnchorTriple,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function trianglePattern(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

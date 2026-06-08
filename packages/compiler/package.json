@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-compiler",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "type": "module",
     "license": "MIT",
     "description": "TypeScript transformer + bundler for .chart.ts files",
@@ -25,7 +25,8 @@
         "@invinite-org/chartlang-core": "workspace:*"
     },
     "devDependencies": {
-        "@types/node": "^20.0.0"
+        "@types/node": "^20.0.0",
+        "fast-check": "^3.20.0"
     },
     "publishConfig": {
         "access": "public"

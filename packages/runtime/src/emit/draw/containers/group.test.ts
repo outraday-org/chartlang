@@ -55,6 +55,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     return { ctx, emissions };
 }
@@ -67,17 +68,15 @@ afterEach(() => {
 
 describe("draw.group — script-facing throw", () => {
     it("throws the sentinel when called without a compiler-injected slot id", () => {
-        expect(() => group(CHILDREN)).toThrow(
-            "draw.group called outside an active script step",
-        );
+        expect(() => group(CHILDREN)).toThrow("draw.group called outside an active script step");
     });
 
     it("throws when slotId is provided but childHandleIds is missing", () => {
         const { ctx } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        expect(() =>
-            group("slot", undefined as unknown as ReadonlyArray<string>),
-        ).toThrow("draw.group called outside an active script step");
+        expect(() => group("slot", undefined as unknown as ReadonlyArray<string>)).toThrow(
+            "draw.group called outside an active script step",
+        );
     });
 
     it("throws when invoked through the compiled overload outside an active context", () => {

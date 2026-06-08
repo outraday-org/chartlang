@@ -17,8 +17,10 @@ import {
     onHistory as onHistoryImpl,
 } from "./execution";
 import type { MutableRunnerEmissions, RuntimeContext } from "./runtimeContext";
+import { resolveInputs } from "./inputs";
 import { inMemoryStateStore, type StateStore } from "./stateStore";
 import { createStreamState, type StreamState } from "./streamState";
+import { createRuntimeViews, makeSymInfoView, type AdapterSymInfo } from "./views";
 
 /**
  * Internal handle the execution functions read and mutate per step. Lives
@@ -74,8 +76,10 @@ export type ScriptRunner = {
 /**
  * Constructor arguments for {@link createScriptRunner}. `stateStore`
  * defaults to {@link inMemoryStateStore} so callers without persistence
- * needs can omit it. `capabilities` is the adapter's declared shape;
- * Phase-1 primitives (Tasks 7-8) gate emissions against it.
+ * needs can omit it. `symInfo` defaults to empty sentinels and is gated
+ * by `capabilities.symInfoFields` at mount. `resolveInputs` is called
+ * once at mount with `manifest.name`; worker-backed callers can pass an
+ * already structured-cloned `inputOverrides` record instead.
  *
  * @since 0.1
  * @example
@@ -89,6 +93,9 @@ export type CreateScriptRunnerArgs = {
     readonly compiled: CompiledScriptObject;
     readonly capabilities: Capabilities;
     readonly stateStore?: StateStore;
+    readonly symInfo?: AdapterSymInfo;
+    readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    readonly inputOverrides?: Readonly<Record<string, unknown>>;
 };
 
 function resolveCapacity(manifest: ScriptManifest): number {
@@ -121,6 +128,9 @@ export function createScriptRunner(args: CreateScriptRunnerArgs): ScriptRunner {
     const capacity = resolveCapacity(args.compiled.manifest);
     const mainStream = createStreamState({ interval: "", capacity, symbol: "" });
     const stateStore = args.stateStore ?? inMemoryStateStore();
+    const views = createRuntimeViews({
+        syminfo: makeSymInfoView(args.symInfo ?? {}, args.capabilities.symInfoFields),
+    });
     const emissions: MutableRunnerEmissions = {
         plots: [],
         drawings: [],
@@ -153,10 +163,25 @@ export function createScriptRunner(args: CreateScriptRunnerArgs): ScriptRunner {
                 other: 0,
             },
             scriptMaxDrawings: args.compiled.manifest.maxDrawings ?? null,
+            stateSlots: new Map(),
+            requestSecurityBars: new Map(),
+            diagnosedRequestKeys: new Set(),
+            resolvedInputs: Object.freeze({}),
+            diagnosedInputKeys: new Set(),
+            views,
         },
         emissions,
         barIndex: 0,
     };
+    const overrides =
+        args.inputOverrides ??
+        args.resolveInputs?.(args.compiled.manifest.name) ??
+        Object.freeze({});
+    state.runtimeContext.resolvedInputs = resolveInputs(
+        args.compiled.manifest,
+        overrides,
+        state.runtimeContext,
+    );
 
     return Object.freeze({
         async onHistory(bars) {

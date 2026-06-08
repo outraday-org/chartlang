@@ -119,11 +119,15 @@ describe("createWorkerHost", () => {
         await expect(p).resolves.toBeUndefined();
     });
 
-    it("posts the load frame with capabilities + merged limits", async () => {
+    it("posts the load frame with capabilities, sym-info, input overrides, and merged limits", async () => {
         const worker = makeFakeWorker();
         const caps = makeCapabilities();
+        const symInfo = { ticker: "DEMO" };
+        const resolveInputs = vi.fn((scriptId: string) => ({ length: scriptId.length }));
         const host = createWorkerHost({
             capabilities: caps,
+            symInfo,
+            resolveInputs,
             workerLike: worker,
             limits: { maxRingBufferBars: 999 },
         });
@@ -131,8 +135,11 @@ describe("createWorkerHost", () => {
         const frame = worker.sent[0];
         if (frame.kind !== "load") throw new Error("expected load frame");
         expect(frame.capabilities).toBe(caps);
+        expect(frame.symInfo).toBe(symInfo);
+        expect(frame.inputOverrides).toEqual({ length: 4 });
         expect(frame.limits.maxRingBufferBars).toBe(999);
         expect(frame.compiled.manifest.name).toBe("demo");
+        expect(resolveInputs).toHaveBeenCalledWith("demo");
         worker.deliver({ kind: "loaded" });
         await p;
     });

@@ -63,6 +63,7 @@ describe("alert — golden", () => {
             drawingSubIdCounters: new Map(),
             drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
             scriptMaxDrawings: null,
+            stateSlots: new Map(),
         };
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
 

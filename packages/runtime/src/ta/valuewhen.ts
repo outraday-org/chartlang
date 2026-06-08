@@ -5,16 +5,17 @@
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape.
 
-import type { Series } from "@invinite-org/chartlang-core";
+import type { Series, ValuewhenOpts } from "@invinite-org/chartlang-core";
 
 import { Float64RingBuffer } from "../ringBuffer";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
 import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
 
 type ValuewhenSlot = {
     readonly outBuffer: Float64RingBuffer;
     readonly series: Series<number>;
+    readonly shiftedSeries: Map<number, Series<number>>;
     readonly occurrence: number;
     readonly capacity: number;
     /**
@@ -49,6 +50,7 @@ function initSlot(occurrence: number, capacity: number): ValuewhenSlot {
     return {
         outBuffer,
         series: makeSeriesView<number>(outBuffer),
+        shiftedSeries: new Map(),
         occurrence,
         capacity: ringCapacity,
         ring: [],
@@ -121,6 +123,7 @@ export function valuewhen(
     condition: Series<boolean>,
     source: ScalarOrSeries,
     occurrence = 0,
+    opts: ValuewhenOpts = {},
 ): Series<number> {
     const ctx = getCtx();
     let slot = ctx.stream.taSlots.get(slotId) as ValuewhenSlot | undefined;
@@ -135,5 +138,11 @@ export function valuewhen(
     } else {
         slot.outBuffer.append(closeValue(slot, src, fired));
     }
-    return slot.series;
+    const offset = opts.offset ?? 0;
+    if (offset === 0) return slot.series;
+    const shifted = slot.shiftedSeries.get(offset);
+    if (shifted !== undefined) return shifted;
+    const next = makeShiftedSeriesView<number>(slot.outBuffer, offset);
+    slot.shiftedSeries.set(offset, next);
+    return next;
 }

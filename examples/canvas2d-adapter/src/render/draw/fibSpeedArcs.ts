@@ -38,11 +38,7 @@ const TAU = Math.PI * 2;
  *     renderFibSpeedArcs(ctx, e, view);
  *     void renderFibSpeedArcs;
  */
-export function renderFibSpeedArcs(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderFibSpeedArcs(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as FibSpeedArcsState;
     const centre = worldPointToCanvas(state.anchors[0], view);
     const edge = worldPointToCanvas(state.anchors[1], view);

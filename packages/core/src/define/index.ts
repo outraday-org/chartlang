@@ -4,3 +4,4 @@
 export * from "./defineIndicator";
 export * from "./defineAlert";
 export * from "./defineDrawing";
+export type { ScaleAxis, ScriptOverrides, ValueFormat } from "./overrides";

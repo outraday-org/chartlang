@@ -18,6 +18,7 @@ import type {
     Adapter,
     AlertChannel,
     AlertEmission,
+    AdapterSymInfo,
     Capabilities,
     CandleEvent,
     DiagnosticCode,
@@ -89,6 +90,16 @@ describe("type assertions", () => {
 
     it("defineAdapter returns Adapter", () => {
         expectTypeOf<ReturnType<typeof defineAdapter>>().toEqualTypeOf<Adapter>();
+    });
+
+    it("Adapter exposes optional sym-info metadata", () => {
+        expectTypeOf<Adapter["symInfo"]>().toEqualTypeOf<AdapterSymInfo | undefined>();
+    });
+
+    it("Adapter exposes an optional input override resolver", () => {
+        expectTypeOf<Adapter["resolveInputs"]>().toEqualTypeOf<
+            ((scriptId: string) => Readonly<Record<string, unknown>>) | undefined
+        >();
     });
 
     it("mockCandleSource returns AsyncIterable<CandleEvent>", () => {

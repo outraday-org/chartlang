@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type {
+    AdapterSymInfo,
     CandleEvent,
     Capabilities,
     RunnerEmissions,
@@ -19,10 +20,11 @@ describe("HostToWorker", () => {
         >();
     });
 
-    it("load carries compiled / capabilities / limits", () => {
+    it("load carries compiled / capabilities / sym-info / limits", () => {
         type Load = Extract<HostToWorker, { kind: "load" }>;
         expectTypeOf<Load["compiled"]>().toEqualTypeOf<HostCompiledScript>();
         expectTypeOf<Load["capabilities"]>().toEqualTypeOf<Capabilities>();
+        expectTypeOf<Load["symInfo"]>().toEqualTypeOf<AdapterSymInfo | undefined>();
         expectTypeOf<Load["limits"]>().toEqualTypeOf<HostLimits>();
     });
 

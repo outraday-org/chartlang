@@ -18,10 +18,7 @@ import { nextSubId } from "../subIdAllocator";
 
 const OUTSIDE_CTX_MESSAGE = "draw.group called outside an active script step";
 
-function groupImpl(
-    slotId: string,
-    childHandleIds: ReadonlyArray<string>,
-): DrawingHandle {
+function groupImpl(slotId: string, childHandleIds: ReadonlyArray<string>): DrawingHandle {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
     if (ctx === null) throw new Error(OUTSIDE_CTX_MESSAGE);
     const subId = nextSubId(ctx, slotId);
@@ -76,10 +73,7 @@ export function group(childHandleIds: ReadonlyArray<string>): DrawingHandle;
  *     // const fn: typeof group = group;
  *     // void fn;
  */
-export function group(
-    slotId: string,
-    childHandleIds: ReadonlyArray<string>,
-): DrawingHandle;
+export function group(slotId: string, childHandleIds: ReadonlyArray<string>): DrawingHandle;
 /**
  * Implementation signature for {@link group}. Branches on
  * `typeof arg1 === "string"` to dispatch the script-facing vs

@@ -69,6 +69,21 @@ describe("ta.barssince", () => {
         expect(identities.size).toBe(1);
     });
 
+    it("returns a stable shifted Series when opts.offset is supplied", () => {
+        const pattern = [true, false, false];
+        const bars = syntheticBars(pattern.length, 1);
+        const identities = new Set<unknown>();
+        const out = harness(bars, bars.length + 1, (_bar, ctx) => {
+            const s = barssince("slot", boolSeries(pattern[ctx.barIndex()]), { offset: 1 });
+            identities.add(s);
+            return s.current;
+        });
+        expect(Number.isNaN(out[0])).toBe(true);
+        expect(out[1]).toBe(0);
+        expect(out[2]).toBe(1);
+        expect(identities.size).toBe(1);
+    });
+
     it("throws when called outside an active script step", () => {
         expect(() => barssince("oops", boolSeries(false))).toThrowError(
             /ta.barssince called outside an active script step/,

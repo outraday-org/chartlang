@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { CompiledScriptObject, ComputeFn, DrawingCounts, InputSchema } from "../types";
+import type { ScriptOverrides } from "./overrides";
 
 /**
  * Author-supplied options the script passes to `defineIndicator(...)`. The
@@ -27,7 +28,8 @@ export type DefineIndicatorOpts = Readonly<{
     compute: ComputeFn;
     /** Per-bucket cap on `draw.*` emissions per bar. @since 0.3 */
     maxDrawings?: DrawingCounts;
-}>;
+}> &
+    ScriptOverrides;
 
 /**
  * Construct a Phase-1 indicator script object. Returns a frozen
@@ -63,9 +65,18 @@ export function defineIndicator(opts: DefineIndicatorOpts): CompiledScriptObject
         seriesCapacities,
         maxLookback: 0,
     };
-    const manifest = opts.maxDrawings === undefined
-        ? base
-        : { ...base, maxDrawings: opts.maxDrawings };
+    const manifest = {
+        ...base,
+        ...(opts.maxDrawings === undefined ? {} : { maxDrawings: opts.maxDrawings }),
+        ...(opts.maxBarsBack === undefined ? {} : { maxBarsBack: opts.maxBarsBack }),
+        ...(opts.format === undefined ? {} : { format: opts.format }),
+        ...(opts.precision === undefined ? {} : { precision: opts.precision }),
+        ...(opts.scale === undefined ? {} : { scale: opts.scale }),
+        ...(opts.requiresIntervals === undefined
+            ? {}
+            : { requiresIntervals: opts.requiresIntervals }),
+        ...(opts.shortName === undefined ? {} : { shortName: opts.shortName }),
+    };
     return Object.freeze({
         manifest: Object.freeze(manifest),
         compute: opts.compute,

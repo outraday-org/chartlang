@@ -61,11 +61,7 @@ describe("renderTrianglePattern", () => {
 
     it("honours style.color", () => {
         const ctx = new MockCanvas2DContext();
-        renderTrianglePattern(
-            ctx,
-            emission({ ...STATE, style: { color: "#abcdef" } }),
-            VIEW,
-        );
+        renderTrianglePattern(ctx, emission({ ...STATE, style: { color: "#abcdef" } }), VIEW);
         const stroke = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (stroke?.kind === "set") expect(stroke.value).toBe("#abcdef");
     });

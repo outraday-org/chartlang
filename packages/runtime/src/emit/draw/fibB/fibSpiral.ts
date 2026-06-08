@@ -22,12 +22,7 @@ import { nextSubId } from "../subIdAllocator";
 
 const OUTSIDE_CTX_MESSAGE = "draw.fibSpiral called outside an active script step";
 
-function fibSpiralImpl(
-    slotId: string,
-    a: WorldPoint,
-    b: WorldPoint,
-    opts: FibOpts,
-): DrawingHandle {
+function fibSpiralImpl(slotId: string, a: WorldPoint, b: WorldPoint, opts: FibOpts): DrawingHandle {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
     if (ctx === null) throw new Error(OUTSIDE_CTX_MESSAGE);
     const subId = nextSubId(ctx, slotId);
@@ -66,11 +61,7 @@ function fibSpiralImpl(
  *         },
  *     });
  */
-export function fibSpiral(
-    a: WorldPoint,
-    b: WorldPoint,
-    opts?: FibOpts,
-): DrawingHandle;
+export function fibSpiral(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

@@ -1,7 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Capabilities, RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
+import type {
+    AdapterSymInfo,
+    Capabilities,
+    RunnerEmissions,
+} from "@invinite-org/chartlang-adapter-kit";
 
 import { defaultWorkerFactory } from "./defaultWorkerFactory";
 import { DEFAULT_LIMITS } from "./limits";
@@ -13,6 +17,9 @@ import type { HostLimits, ScriptHost, WorkerLike } from "./types";
  *
  * - `capabilities` — the adapter's declared capability bag. Bolted onto every
  *   `load` postMessage; the worker boot never falls back to a default.
+ * - `symInfo` — optional adapter-supplied metadata for runtime `syminfo.*`.
+ * - `resolveInputs` — optional adapter callback. The host resolves it during
+ *   `load()` and sends the plain override record to the worker.
  * - `workerLike` — injection seam for tests. Production callers omit it; the
  *   host then constructs a real `Worker` via {@link defaultWorkerFactory}.
  * - `limits` — partial `HostLimits` overrides; missing fields fall through to
@@ -31,6 +38,8 @@ import type { HostLimits, ScriptHost, WorkerLike } from "./types";
  */
 export type CreateWorkerHostOpts = {
     readonly capabilities: Capabilities;
+    readonly symInfo?: AdapterSymInfo;
+    readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     readonly workerLike?: WorkerLike;
     readonly limits?: Partial<HostLimits>;
     readonly onWorkerError?: (message: string) => void;
@@ -123,6 +132,10 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
                         manifest: compiled.manifest,
                     },
                     capabilities: opts.capabilities,
+                    ...(opts.symInfo !== undefined ? { symInfo: opts.symInfo } : {}),
+                    ...(opts.resolveInputs !== undefined
+                        ? { inputOverrides: opts.resolveInputs(compiled.manifest.name) }
+                        : {}),
                     limits,
                 };
                 worker.postMessage(frame);

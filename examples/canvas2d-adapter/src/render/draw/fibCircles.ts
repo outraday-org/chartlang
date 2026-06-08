@@ -37,11 +37,7 @@ const TAU = Math.PI * 2;
  *     renderFibCircles(ctx, e, view);
  *     void renderFibCircles;
  */
-export function renderFibCircles(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderFibCircles(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as FibCirclesState;
     const centre = worldPointToCanvas(state.anchors[0], view);
     const radiusPoint = worldPointToCanvas(state.anchors[1], view);

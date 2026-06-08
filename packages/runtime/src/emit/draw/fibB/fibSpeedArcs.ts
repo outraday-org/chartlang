@@ -64,11 +64,7 @@ function fibSpeedArcsImpl(
  *         },
  *     });
  */
-export function fibSpeedArcs(
-    a: WorldPoint,
-    b: WorldPoint,
-    opts?: FibOpts,
-): DrawingHandle;
+export function fibSpeedArcs(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

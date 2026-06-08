@@ -66,11 +66,7 @@ function fibCirclesImpl(
  *         },
  *     });
  */
-export function fibCircles(
-    a: WorldPoint,
-    b: WorldPoint,
-    opts?: FibOpts,
-): DrawingHandle;
+export function fibCircles(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

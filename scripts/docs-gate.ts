@@ -30,6 +30,7 @@ import { fileURLToPath } from "node:url";
 
 import { runGenDrawingDocs } from "../packages/cli/src/commands/extractDrawingPages";
 import { runGenDocs } from "../packages/cli/src/commands/genDocs";
+import { PHASE4_DOC_ENTRIES, runGenPhase4Docs } from "../packages/cli/src/commands/genPhase4Docs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolvePath(HERE, "..");
@@ -82,9 +83,30 @@ async function diffTree(tmpDir: string, committedDir: string): Promise<Drift[]> 
     return drift;
 }
 
+async function diffFiles(
+    paths: ReadonlyArray<Readonly<{ tmp: string; committed: string }>>,
+): Promise<Drift[]> {
+    const drift: Drift[] = [];
+    for (const pair of paths) {
+        try {
+            const [tmpContent, committedContent] = await Promise.all([
+                readFile(pair.tmp, "utf8"),
+                readFile(pair.committed, "utf8"),
+            ]);
+            if (tmpContent !== committedContent) {
+                drift.push({ kind: "out-of-date", path: pair.committed });
+            }
+        } catch {
+            drift.push({ kind: "missing-committed", path: pair.committed });
+        }
+    }
+    return drift;
+}
+
 async function runGate(): Promise<{ readonly drift: ReadonlyArray<Drift> }> {
     const taTmpDir = await mkdtemp(join(tmpdir(), "chartlang-docs-gate-ta-"));
     const drawTmpDir = await mkdtemp(join(tmpdir(), "chartlang-docs-gate-draw-"));
+    const phase4TmpRoot = await mkdtemp(join(tmpdir(), "chartlang-docs-gate-phase4-"));
     try {
         await runGenDocs({
             sourceDir: TA_SOURCE_DIR,
@@ -96,15 +118,26 @@ async function runGate(): Promise<{ readonly drift: ReadonlyArray<Drift> }> {
             outDir: drawTmpDir,
             repoRoot: REPO_ROOT,
         });
+        await runGenPhase4Docs({
+            repoRoot: REPO_ROOT,
+            outRoot: phase4TmpRoot,
+        });
 
-        const [taDrift, drawDrift] = await Promise.all([
+        const phase4Pairs = PHASE4_DOC_ENTRIES.map((entry) => ({
+            tmp: join(phase4TmpRoot, entry.outRelPath),
+            committed: join(REPO_ROOT, entry.outRelPath),
+        }));
+
+        const [taDrift, drawDrift, phase4Drift] = await Promise.all([
             diffTree(taTmpDir, TA_COMMITTED_DIR),
             diffTree(drawTmpDir, DRAW_COMMITTED_DIR),
+            diffFiles(phase4Pairs),
         ]);
-        return { drift: [...taDrift, ...drawDrift] };
+        return { drift: [...taDrift, ...drawDrift, ...phase4Drift] };
     } finally {
         await rm(taTmpDir, { recursive: true, force: true });
         await rm(drawTmpDir, { recursive: true, force: true });
+        await rm(phase4TmpRoot, { recursive: true, force: true });
     }
 }
 

@@ -2,6 +2,9 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { CompiledScriptObject, ComputeFn, InputSchema } from "../types";
+import type { ScriptOverrides } from "./overrides";
+
+type AlertOverrides = Omit<ScriptOverrides, "scale" | "format" | "precision">;
 
 /**
  * Author-supplied options the script passes to `defineAlert(...)`. Same shape
@@ -21,7 +24,8 @@ export type DefineAlertOpts = Readonly<{
     apiVersion: 1;
     inputs?: InputSchema;
     compute: ComputeFn;
-}>;
+}> &
+    AlertOverrides;
 
 /**
  * Construct a Phase-1 alert script object. Returns a frozen
@@ -45,18 +49,27 @@ export function defineAlert(opts: DefineAlertOpts): CompiledScriptObject {
     const capabilities: ReadonlyArray<"alerts"> = Object.freeze<["alerts"]>(["alerts"]);
     const requestedIntervals: ReadonlyArray<string> = Object.freeze<string[]>([]);
     const seriesCapacities: Readonly<Record<string, number>> = Object.freeze({});
+    const base = {
+        apiVersion: 1 as const,
+        kind: "alert" as const,
+        name: opts.name,
+        inputs: opts.inputs ?? {},
+        capabilities,
+        requestedIntervals,
+        userPickableInterval: false,
+        seriesCapacities,
+        maxLookback: 0,
+    };
+    const manifest = {
+        ...base,
+        ...(opts.maxBarsBack === undefined ? {} : { maxBarsBack: opts.maxBarsBack }),
+        ...(opts.requiresIntervals === undefined
+            ? {}
+            : { requiresIntervals: opts.requiresIntervals }),
+        ...(opts.shortName === undefined ? {} : { shortName: opts.shortName }),
+    };
     return Object.freeze({
-        manifest: Object.freeze({
-            apiVersion: 1 as const,
-            kind: "alert" as const,
-            name: opts.name,
-            inputs: opts.inputs ?? {},
-            capabilities,
-            requestedIntervals,
-            userPickableInterval: false,
-            seriesCapacities,
-            maxLookback: 0,
-        }),
+        manifest: Object.freeze(manifest),
         compute: opts.compute,
     });
 }

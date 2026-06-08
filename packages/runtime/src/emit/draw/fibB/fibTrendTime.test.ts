@@ -55,6 +55,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     return { ctx, emissions };
 }
@@ -85,9 +86,9 @@ describe("draw.fibTrendTime — script-facing throw", () => {
     it("throws when anchors is missing in the compiler-form", () => {
         const { ctx } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        expect(() =>
-            fibTrendTime("slot", undefined as unknown as AnchorTriple),
-        ).toThrow("draw.fibTrendTime called outside an active script step");
+        expect(() => fibTrendTime("slot", undefined as unknown as AnchorTriple)).toThrow(
+            "draw.fibTrendTime called outside an active script step",
+        );
     });
 });
 

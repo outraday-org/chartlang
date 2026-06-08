@@ -48,6 +48,20 @@
   `.length = 0`.** The adapter holds the snapshot's arrays; the
   runner gets fresh containers for the next step. `Object.freeze`
   the returned snapshot but leave the inner arrays mutable.
+- **`state.*` snapshots are host-owned once flushed.** Task 9 added
+  `RuntimeContext.stateSlots` for committed/tentative `state.*` and
+  immediately-committed `state.tick.*` slots. `onBarClose` commits and
+  flushes snapshots to `stateStore`; `onBarTick` resets non-tick
+  tentative values before compute; `dispose` flushes and clears only the
+  runner-local `stateSlots` map. Do not clear a caller-supplied
+  `StateStore` during dispose — warm restart restores from that backing
+  store.
+- **`request.security` is a Phase-4 NaN fallback.** Task 11 added
+  `RuntimeContext.requestSecurityBars` keyed by `slotId|interval` and
+  `diagnosedRequestKeys` keyed by `code|slotId|interval`. The cache
+  preserves per-callsite `SecurityBar` identity; diagnostics are deduped
+  per mount and both maps are cleared on `dispose`. Do not wire real HTF
+  alignment here — Phase 5 replaces only the value producer.
 - **§6.7 invariants are property-tested.** `onBarClose.test.ts`
   pins `bar.X === series.X[0]` and "all series equal length";
   `onBarTick.test.ts` pins "consecutive ticks don't advance

@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-editor",
-    "version": "0.0.0",
+    "version": "0.4.0",
     "type": "module",
     "license": "MIT",
     "description": "CodeMirror 6 reference editor over @invinite-org/chartlang-language-service",
@@ -10,6 +10,10 @@
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
+        },
+        "./react": {
+            "types": "./dist/react/index.d.ts",
+            "import": "./dist/react/index.js"
         }
     },
     "files": ["dist", "README.md", "CHANGELOG.md"],
@@ -17,6 +21,41 @@
         "build": "tsc -p tsconfig.json",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "test": "vitest run --coverage"
+    },
+    "dependencies": {
+        "@codemirror/autocomplete": "^6",
+        "@codemirror/commands": "^6",
+        "@codemirror/lang-javascript": "^6",
+        "@codemirror/language": "^6",
+        "@codemirror/lint": "^6",
+        "@codemirror/search": "^6",
+        "@codemirror/state": "^6",
+        "@codemirror/view": "^6",
+        "@invinite-org/chartlang-adapter-kit": "workspace:*",
+        "@invinite-org/chartlang-core": "workspace:*",
+        "@invinite-org/chartlang-language-service": "workspace:*",
+        "codemirror": "^6"
+    },
+    "peerDependencies": {
+        "react": ">=18",
+        "react-dom": ">=18"
+    },
+    "peerDependenciesMeta": {
+        "react": {
+            "optional": true
+        },
+        "react-dom": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@testing-library/react": "^15",
+        "@types/react": "^18",
+        "@types/react-dom": "^18",
+        "fast-check": "^3.20.0",
+        "happy-dom": "^20.10.2",
+        "react": "^18",
+        "react-dom": "^18"
     },
     "publishConfig": {
         "access": "public"

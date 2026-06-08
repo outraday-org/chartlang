@@ -61,11 +61,7 @@ describe("renderElliottCorrectionWave", () => {
 
     it("honours state.labels override when length matches", () => {
         const ctx = new MockCanvas2DContext();
-        renderElliottCorrectionWave(
-            ctx,
-            emission({ ...STATE, labels: ["α", "β", "γ"] }),
-            VIEW,
-        );
+        renderElliottCorrectionWave(ctx, emission({ ...STATE, labels: ["α", "β", "γ"] }), VIEW);
         const texts = ctx.calls
             .filter((c) => c.kind === "fillText")
             .map((c) => (c.kind === "fillText" ? c.text : ""));
@@ -74,11 +70,7 @@ describe("renderElliottCorrectionWave", () => {
 
     it("honours state.style.color overriding the teal default", () => {
         const ctx = new MockCanvas2DContext();
-        renderElliottCorrectionWave(
-            ctx,
-            emission({ ...STATE, style: { color: "#abcdef" } }),
-            VIEW,
-        );
+        renderElliottCorrectionWave(ctx, emission({ ...STATE, style: { color: "#abcdef" } }), VIEW);
         const stroke = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (stroke?.kind === "set") expect(stroke.value).toBe("#abcdef");
     });

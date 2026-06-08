@@ -71,10 +71,7 @@ function headAndShouldersImpl(
  *         },
  *     });
  */
-export function headAndShoulders(
-    anchors: AnchorQuint,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function headAndShoulders(anchors: AnchorQuint, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

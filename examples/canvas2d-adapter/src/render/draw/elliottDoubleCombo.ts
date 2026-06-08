@@ -32,11 +32,7 @@ const DEFAULT_LABELS: ReadonlyArray<string> = ["S", "W", "x1", "X", "x2", "Yi", 
  *     renderElliottDoubleCombo(ctx, e, view);
  *     void renderElliottDoubleCombo;
  */
-export function renderElliottDoubleCombo(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderElliottDoubleCombo(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as ElliottDoubleComboState;
     const points = state.anchors.map((p) => worldPointToCanvas(p, view));
     const labels =

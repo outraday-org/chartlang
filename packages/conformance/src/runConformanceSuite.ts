@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type {
     Adapter,
     AlertEmission,
+    Capabilities,
     DiagnosticCode,
     DrawingEmission,
     PlotEmission,
@@ -33,6 +34,10 @@ import { GOLDEN_BARS_PATH, type GoldenBars } from "./fixtures/generateGoldenBars
  * Mutual-exclusion: defining both fields is a runner-time error,
  * as is defining neither.
  *
+ * `capabilitiesOverride` is merged over the adapter capability bag for
+ * this scenario only. `candleLimit` and `eventStream` keep specialised
+ * scenarios small without changing the suite-wide candle fixture.
+ *
  * When `inlineSource` is used, the runner passes `sourcePath:
  * "<inline:${id}>.chart.ts"` to the compiler so callsite-id
  * injection produces a stable, pinnable slot-id prefix.
@@ -48,6 +53,7 @@ import { GOLDEN_BARS_PATH, type GoldenBars } from "./fixtures/generateGoldenBars
  *         inlineSource: sourceText,
  *         intervalCount: 1,
  *         assertions: [],
+ *         capabilitiesOverride: { multiTimeframe: false },
  *     };
  *     void inline;
  */
@@ -65,8 +71,27 @@ export type Scenario = {
      */
     readonly inlineSource?: string;
     readonly intervalCount: number;
+    readonly capabilitiesOverride?: Partial<Capabilities>;
+    readonly candleLimit?: number;
+    readonly eventStream?: ScenarioEventStream;
     readonly assertions: ReadonlyArray<ScenarioAssertion>;
 };
+
+/**
+ * Event stream mode for a scenario. Omitted means every candle is driven
+ * through `onBarClose`. `initial-close-then-ticks` closes the first candle
+ * to initialise the stream, then drives the remaining candles as ticks.
+ *
+ * @since 0.4
+ * @experimental
+ * @example
+ *     import type { ScenarioEventStream } from "@invinite-org/chartlang-conformance";
+ *     const stream: ScenarioEventStream = { kind: "initial-close-then-ticks" };
+ *     void stream;
+ */
+export type ScenarioEventStream =
+    | { readonly kind: "close" }
+    | { readonly kind: "initial-close-then-ticks" };
 
 /**
  * Assertion the runner evaluates against a scenario's buffered
@@ -175,6 +200,13 @@ type BufferedRun = {
     readonly alerts: ReadonlyArray<AlertEmission>;
     readonly diagnostics: ReadonlyArray<RuntimeDiagnostic>;
 };
+
+function mergeCapabilities(
+    base: Capabilities,
+    override: Partial<Capabilities> | undefined,
+): Capabilities {
+    return override === undefined ? base : Object.freeze({ ...base, ...override });
+}
 
 const PACKAGE_DIR = resolvePath(fileURLToPath(import.meta.url), "../..");
 const REPO_ROOT = resolvePath(PACKAGE_DIR, "../..");
@@ -337,9 +369,12 @@ async function runOne(
 
     const scriptObj = await loadCompiledModule(compiled, scenario.id);
 
+    const capabilities = mergeCapabilities(adapter.capabilities, scenario.capabilitiesOverride);
     const runner = createScriptRunner({
         compiled: scriptObj,
-        capabilities: adapter.capabilities,
+        capabilities,
+        ...(adapter.symInfo === undefined ? {} : { symInfo: adapter.symInfo }),
+        ...(adapter.resolveInputs === undefined ? {} : { resolveInputs: adapter.resolveInputs }),
     });
 
     const plots: PlotEmission[] = [];
@@ -348,8 +383,17 @@ async function runOne(
     const diagnostics: RuntimeDiagnostic[] = [];
 
     try {
-        for (const bar of candles) {
-            await runner.onBarClose(bar);
+        const scenarioCandles =
+            scenario.candleLimit === undefined ? candles : candles.slice(0, scenario.candleLimit);
+        const stream = scenario.eventStream ?? { kind: "close" };
+        let eventIndex = 0;
+        for (const bar of scenarioCandles) {
+            if (stream.kind === "initial-close-then-ticks" && eventIndex > 0) {
+                await runner.onBarTick(bar);
+            } else {
+                await runner.onBarClose(bar);
+            }
+            eventIndex += 1;
             const drained: RunnerEmissions = runner.drain();
             for (const p of drained.plots) plots.push(p);
             for (const d of drained.drawings) drawings.push(d);

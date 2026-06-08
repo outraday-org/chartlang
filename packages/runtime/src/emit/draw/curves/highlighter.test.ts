@@ -56,6 +56,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     return { ctx, emissions };
 }
@@ -89,9 +90,9 @@ describe("draw.highlighter — script-facing throw", () => {
     it("throws when slotId is provided but style is missing", () => {
         const { ctx } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        expect(() =>
-            highlighter("slot", POINTS, undefined as unknown as typeof STYLE),
-        ).toThrow("draw.highlighter called outside an active script step");
+        expect(() => highlighter("slot", POINTS, undefined as unknown as typeof STYLE)).toThrow(
+            "draw.highlighter called outside an active script step",
+        );
     });
 
     it("throws when called inside the compiled overload path but outside an active context", () => {

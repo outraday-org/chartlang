@@ -16,6 +16,16 @@ describe("DEFAULT_ADAPTER", () => {
         expect(DEFAULT_ADAPTER.name).toBe("Canvas 2D Reference Adapter (default)");
     });
 
+    it("exposes demo sym-info metadata", () => {
+        expect(DEFAULT_ADAPTER.symInfo?.ticker).toBe("DEMO");
+        expect(DEFAULT_ADAPTER.symInfo?.type).toBe("equity");
+        expect(DEFAULT_ADAPTER.symInfo?.mintick).toBe(0.01);
+    });
+
+    it("exposes an empty input override resolver", () => {
+        expect(DEFAULT_ADAPTER.resolveInputs?.("demo")).toEqual({});
+    });
+
     it("yields an empty async candle source", async () => {
         const source = DEFAULT_ADAPTER.candles({ interval: "chart" });
         const collected: unknown[] = [];

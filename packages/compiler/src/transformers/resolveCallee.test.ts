@@ -43,6 +43,22 @@ ta.ema(close, 20);
         expect(resolveCalleeName(call, checker)).toBe("ta.ema");
     });
 
+    it("resolves nested property-access calls against core namespaces", () => {
+        const { sourceFile, checker } = createProgramForSource(
+            `import { state } from "@invinite-org/chartlang-core";
+state.tick.float(0);
+`,
+            { sourcePath: "demo.chart.ts" },
+        );
+        const call = firstCall(
+            sourceFile,
+            (node) =>
+                ts.isPropertyAccessExpression(node.expression) &&
+                node.expression.name.text === "float",
+        );
+        expect(resolveCalleeName(call, checker)).toBe("state.tick.float");
+    });
+
     it("resolves a bare identifier call to the core symbol name", () => {
         const { sourceFile, checker } = createProgramForSource(
             `import { plot } from "@invinite-org/chartlang-core";
@@ -190,6 +206,49 @@ export default defineIndicator({
         expect(resolveCalleeName(call, checker)).toBe("plot");
     });
 
+    it("resolves a destructured `compute({ request })` parameter callee to request.security", () => {
+        const { sourceFile, checker } = createProgramForSource(
+            `import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute({ request }) {
+        request.security({ interval: "1D" });
+    },
+});
+`,
+            { sourcePath: "demo.chart.ts" },
+        );
+        const call = firstCall(
+            sourceFile,
+            (node) =>
+                ts.isPropertyAccessExpression(node.expression) &&
+                ts.isIdentifier(node.expression.expression) &&
+                node.expression.expression.text === "request",
+        );
+        expect(resolveCalleeName(call, checker)).toBe("request.security");
+    });
+
+    it("returns null for a destructured compute parameter property that is not in core", () => {
+        const { sourceFile, checker } = createProgramForSource(
+            `import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute({ nope }) {
+        nope();
+    },
+});
+`,
+            { sourcePath: "demo.chart.ts" },
+        );
+        const call = firstCall(
+            sourceFile,
+            (node) => ts.isIdentifier(node.expression) && node.expression.text === "nope",
+        );
+        expect(resolveCalleeName(call, checker)).toBeNull();
+    });
+
     it("returns null for a destructured binding whose type does not come from core (function with no symbol decls)", () => {
         const { sourceFile, checker } = createProgramForSource(
             `const arr = [(_: number) => {}];
@@ -263,6 +322,42 @@ export default defineIndicator({
         TA.ema(bar.close, 12);
     },
 });
+`,
+            { sourcePath: "demo.chart.ts" },
+        );
+        const call = firstCall(
+            sourceFile,
+            (node) =>
+                ts.isPropertyAccessExpression(node.expression) &&
+                ts.isIdentifier(node.expression.expression) &&
+                node.expression.expression.text === "TA",
+        );
+        expect(resolveCalleeName(call, checker)).toBe("ta.ema");
+    });
+
+    it("resolves variable destructuring from ComputeContext through the binding type", () => {
+        const { sourceFile, checker } = createProgramForSource(
+            `declare const ctx: import("@invinite-org/chartlang-core").ComputeContext;
+const { ta } = ctx;
+ta.ema(ctx.bar.close, 12);
+`,
+            { sourcePath: "demo.chart.ts" },
+        );
+        const call = firstCall(
+            sourceFile,
+            (node) =>
+                ts.isPropertyAccessExpression(node.expression) &&
+                ts.isIdentifier(node.expression.expression) &&
+                node.expression.expression.text === "ta",
+        );
+        expect(resolveCalleeName(call, checker)).toBe("ta.ema");
+    });
+
+    it("resolves renamed variable destructuring from ComputeContext through the binding type", () => {
+        const { sourceFile, checker } = createProgramForSource(
+            `declare const ctx: import("@invinite-org/chartlang-core").ComputeContext;
+const { ta: TA } = ctx;
+TA.ema(ctx.bar.close, 12);
 `,
             { sourcePath: "demo.chart.ts" },
         );

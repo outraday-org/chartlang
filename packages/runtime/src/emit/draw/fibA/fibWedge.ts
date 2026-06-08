@@ -22,11 +22,7 @@ import { nextSubId } from "../subIdAllocator";
 
 const OUTSIDE_CTX_MESSAGE = "draw.fibWedge called outside an active script step";
 
-function fibWedgeImpl(
-    slotId: string,
-    anchors: AnchorTriple,
-    opts: FibOpts,
-): DrawingHandle {
+function fibWedgeImpl(slotId: string, anchors: AnchorTriple, opts: FibOpts): DrawingHandle {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
     if (ctx === null) throw new Error(OUTSIDE_CTX_MESSAGE);
     const subId = nextSubId(ctx, slotId);
@@ -62,10 +58,7 @@ function fibWedgeImpl(
  *         },
  *     });
  */
-export function fibWedge(
-    anchors: AnchorTriple,
-    opts?: FibOpts,
-): DrawingHandle;
+export function fibWedge(anchors: AnchorTriple, opts?: FibOpts): DrawingHandle;
 /**
  * Compiler-injected overload.
  *
@@ -76,11 +69,7 @@ export function fibWedge(
  *     // const fn: typeof fibWedge = fibWedge;
  *     // void fn;
  */
-export function fibWedge(
-    slotId: string,
-    anchors: AnchorTriple,
-    opts?: FibOpts,
-): DrawingHandle;
+export function fibWedge(slotId: string, anchors: AnchorTriple, opts?: FibOpts): DrawingHandle;
 /**
  * Implementation signature for {@link fibWedge}. Branches on
  * `typeof arg1 === "string"` to dispatch the script-facing vs

@@ -45,6 +45,83 @@ const MINIMAL_DRAW = `/**
 export function line(slotId: string): { id: string } { return { id: slotId }; }
 `;
 
+const MINIMAL_PHASE4_INPUT = `export const input = Object.freeze({
+    /**
+     * Build an integer input descriptor.
+     * @since 0.4
+     * @stable
+     * @example
+     *     const v = input.int(1);
+     */
+    int(): unknown { return {}; },
+    /** Build a float input descriptor. @since 0.4 @stable @example const v = input.float(1); */
+    float(): unknown { return {}; },
+    /** Build a bool input descriptor. @since 0.4 @stable @example const v = input.bool(true); */
+    bool(): unknown { return {}; },
+    /** Build a string input descriptor. @since 0.4 @stable @example const v = input.string("x"); */
+    string(): unknown { return {}; },
+    /** Build an enum input descriptor. @since 0.4 @stable @example const v = input.enum("x", ["x"]); */
+    enum(): unknown { return {}; },
+    /** Build a color input descriptor. @since 0.4 @stable @example const v = input.color("#fff"); */
+    color(): unknown { return {}; },
+    /** Build a source input descriptor. @since 0.4 @stable @example const v = input.source("close"); */
+    source(): unknown { return {}; },
+    /** Build a time input descriptor. @since 0.4 @stable @example const v = input.time(0); */
+    time(): unknown { return {}; },
+    /** Build a price input descriptor. @since 0.4 @stable @example const v = input.price(1); */
+    price(): unknown { return {}; },
+    /** Build a symbol input descriptor. @since 0.4 @stable @example const v = input.symbol("AAPL"); */
+    symbol(): unknown { return {}; },
+    /** Build an interval input descriptor. @since 0.4 @stable @example const v = input.interval("1D"); */
+    interval(): unknown { return {}; },
+    /** Build an external series input descriptor. @since 0.4 @stable @example const v = input.externalSeries({}); */
+    externalSeries(): unknown { return {}; },
+});`;
+
+const MINIMAL_PHASE4_STATE = `export const state = Object.freeze({
+    /** Persistent float. @since 0.4 @stable @example const v = state.float(1); */
+    float(): unknown { return {}; },
+    /** Persistent int. @since 0.4 @stable @example const v = state.int(1); */
+    int(): unknown { return {}; },
+    /** Persistent bool. @since 0.4 @stable @example const v = state.bool(true); */
+    bool(): unknown { return {}; },
+    /** Persistent string. @since 0.4 @stable @example const v = state.string("x"); */
+    string(): unknown { return {}; },
+    /** Tick-persistent state. @since 0.4 @stable @example const v = state.tick.float(1); */
+    tick: Object.freeze({
+        float(): unknown { return {}; },
+        int(): unknown { return {}; },
+        bool(): unknown { return {}; },
+        string(): unknown { return {}; },
+    }),
+});`;
+
+const MINIMAL_PHASE4_BARSTATE = `/** Bar-state view. @since 0.4 @stable @example void barstate; */
+export const barstate = Object.freeze({});`;
+const MINIMAL_PHASE4_SYMINFO = `/** Symbol view. @since 0.4 @stable @example void syminfo; */
+export const syminfo = Object.freeze({});`;
+const MINIMAL_PHASE4_TIMEFRAME = `/** Timeframe view. @since 0.4 @stable @example void timeframe; */
+export const timeframe = Object.freeze({});`;
+const MINIMAL_PHASE4_REQUEST = `export const request = Object.freeze({
+    /** Read a secondary stream. @since 0.4 @stable @example const v = request.security({ interval: "1D" }); */
+    security(): unknown { return {}; },
+});`;
+const MINIMAL_PHASE4_OVERRIDES = `/** Overrides. @since 0.4 @experimental @example const o: ScriptOverrides = {}; */
+export type ScriptOverrides = Readonly<{
+    /** Max bars. @since 0.4 @example const v: ScriptOverrides["maxBarsBack"] = 1; */
+    maxBarsBack?: number;
+    /** Format. @since 0.4 @example const v: ScriptOverrides["format"] = "price"; */
+    format?: string;
+    /** Precision. @since 0.4 @example const v: ScriptOverrides["precision"] = 2; */
+    precision?: number;
+    /** Scale. @since 0.4 @example const v: ScriptOverrides["scale"] = "right"; */
+    scale?: string;
+    /** Intervals. @since 0.4 @example const v: ScriptOverrides["requiresIntervals"] = ["1D"]; */
+    requiresIntervals?: ReadonlyArray<string>;
+    /** Short name. @since 0.4 @example const v: ScriptOverrides["shortName"] = "EMA"; */
+    shortName?: string;
+}>;`;
+
 describe("runDocsCommand", () => {
     let repoRoot: string;
     let sourceDir: string;
@@ -81,6 +158,46 @@ describe("runDocsCommand", () => {
             "utf8",
         );
         await writeFile(join(repoRoot, "pnpm-workspace.yaml"), "packages:\n", "utf8");
+        await mkdir(join(repoRoot, "packages/core/src/input"), { recursive: true });
+        await mkdir(join(repoRoot, "packages/core/src/state"), { recursive: true });
+        await mkdir(join(repoRoot, "packages/core/src/views"), { recursive: true });
+        await mkdir(join(repoRoot, "packages/core/src/request"), { recursive: true });
+        await mkdir(join(repoRoot, "packages/core/src/define"), { recursive: true });
+        await writeFile(
+            join(repoRoot, "packages/core/src/input/input.ts"),
+            MINIMAL_PHASE4_INPUT,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/state/state.ts"),
+            MINIMAL_PHASE4_STATE,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/views/barstate.ts"),
+            MINIMAL_PHASE4_BARSTATE,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/views/syminfo.ts"),
+            MINIMAL_PHASE4_SYMINFO,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/views/timeframe.ts"),
+            MINIMAL_PHASE4_TIMEFRAME,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/request/request.ts"),
+            MINIMAL_PHASE4_REQUEST,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/define/overrides.ts"),
+            MINIMAL_PHASE4_OVERRIDES,
+            "utf8",
+        );
 
         priorCwd = process.cwd();
         process.chdir(repoRoot);

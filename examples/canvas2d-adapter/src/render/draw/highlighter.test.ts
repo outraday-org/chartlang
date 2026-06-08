@@ -43,9 +43,7 @@ describe("renderHighlighter", () => {
     it("wraps the stroke in a globalAlpha set/reset bracket", () => {
         const ctx = new MockCanvas2DContext();
         renderHighlighter(ctx, emission(HIGHLIGHTER_STATE), VIEW);
-        const alphaCalls = ctx.calls.filter(
-            (c) => c.kind === "set" && c.prop === "globalAlpha",
-        );
+        const alphaCalls = ctx.calls.filter((c) => c.kind === "set" && c.prop === "globalAlpha");
         expect(alphaCalls).toHaveLength(2);
         // First sets to the style alpha; second resets to 1.
         if (alphaCalls[0].kind === "set") expect(alphaCalls[0].value).toBe(0.3);

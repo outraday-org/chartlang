@@ -49,12 +49,7 @@ describe("extendLineSegment", () => {
     it("extends both directions independently", () => {
         const a = { x: 100, y: 100 };
         const b = { x: 200, y: 200 };
-        const { from, to } = extendLineSegment(
-            a,
-            b,
-            { extendLeft: true, extendRight: true },
-            VIEW,
-        );
+        const { from, to } = extendLineSegment(a, b, { extendLeft: true, extendRight: true }, VIEW);
         expect(from.x).toBe(0);
         expect(to.x).toBe(VIEW.pxWidth);
     });
@@ -62,12 +57,7 @@ describe("extendLineSegment", () => {
     it("returns the segment unchanged for purely vertical segments (dx === 0)", () => {
         const a = { x: 100, y: 100 };
         const b = { x: 100, y: 200 };
-        const { from, to } = extendLineSegment(
-            a,
-            b,
-            { extendLeft: true, extendRight: true },
-            VIEW,
-        );
+        const { from, to } = extendLineSegment(a, b, { extendLeft: true, extendRight: true }, VIEW);
         expect(from).toEqual(a);
         expect(to).toEqual(b);
     });

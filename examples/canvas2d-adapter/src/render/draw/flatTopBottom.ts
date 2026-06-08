@@ -35,11 +35,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderFlatTopBottom(ctx, e, view);
  *     void renderFlatTopBottom;
  */
-export function renderFlatTopBottom(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderFlatTopBottom(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as FlatTopBottomState;
     const p0 = state.anchors[0];
     const p1 = state.anchors[1];

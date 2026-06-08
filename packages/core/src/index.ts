@@ -22,7 +22,14 @@ export type {
     Volume,
 } from "./types";
 export { defineAlert, defineDrawing, defineIndicator } from "./define";
-export type { DefineAlertOpts, DefineDrawingOpts, DefineIndicatorOpts } from "./define";
+export type {
+    DefineAlertOpts,
+    DefineDrawingOpts,
+    DefineIndicatorOpts,
+    ScaleAxis,
+    ScriptOverrides,
+    ValueFormat,
+} from "./define";
 export { ta } from "./ta";
 export type {
     AdlOpts,
@@ -35,6 +42,7 @@ export type {
     AroonOscOpts,
     AroonResult,
     AtrOpts,
+    BarssinceOpts,
     BbOpts,
     BbPercentBOpts,
     BbResult,
@@ -133,6 +141,7 @@ export type {
     TsiResult,
     UlcerIndexOpts,
     UltimateOscOpts,
+    ValuewhenOpts,
     VolOpts,
     VolatilityStopOpts,
     VolatilityStopResult,
@@ -148,6 +157,31 @@ export type {
     ZigZagResult,
 } from "./ta/ta";
 export type { StatefulPrimitiveEntry } from "./statefulPrimitives";
+export { input } from "./input";
+export type {
+    BoolDescriptor,
+    ColorDescriptor,
+    EnumDescriptor,
+    ExternalSeriesDescriptor,
+    FloatDescriptor,
+    InputDescriptor,
+    InputKind,
+    IntDescriptor,
+    IntervalDescriptorInput,
+    PriceDescriptor,
+    Schema,
+    SourceDescriptor,
+    SourceField,
+    StringDescriptor,
+    SymbolDescriptor,
+    TimeDescriptor,
+} from "./input";
+export { state } from "./state";
+export type { MutableSlot, StateNamespace } from "./state";
+export { barstate, syminfo, timeframe } from "./views";
+export type { BarStateView, SymbolType, SymInfoView, TimeframeView } from "./views";
+export { request } from "./request";
+export type { RequestNamespace, RequestSecurityOpts, SecurityBar } from "./request";
 export { hline, plot } from "./plot";
 export type { HLineOpts, PlotKind, PlotOpts, PlotOptsStyle } from "./plot/plot";
 export { alert } from "./alert";

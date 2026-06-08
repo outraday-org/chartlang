@@ -153,6 +153,29 @@ export type LowestOpts = Readonly<{ offset?: number }>;
 export type ChangeOpts = Readonly<{ length?: number; offset?: number }>;
 
 /**
+ * Options bag for `ta.valuewhen`. `offset` shifts the emitted series after the
+ * occurrence lookup has been evaluated.
+ *
+ * @formula  N/A — see `ta.valuewhen` JSDoc
+ * @since 0.4
+ * @experimental
+ * @example
+ *     const opts: ValuewhenOpts = { offset: 0 };
+ */
+export type ValuewhenOpts = Readonly<{ offset?: number }>;
+
+/**
+ * Options bag for `ta.barssince`. `offset` shifts the elapsed-bars output.
+ *
+ * @formula  N/A — see `ta.barssince` JSDoc
+ * @since 0.4
+ * @experimental
+ * @example
+ *     const opts: BarssinceOpts = { offset: 0 };
+ */
+export type BarssinceOpts = Readonly<{ offset?: number }>;
+
+/**
  * Options bag for `ta.wma`. `offset` shifts the output forward by `n`
  * bars (Task-29 universal-offset backfill). `lineStyle` is a
  * pass-through for the script-author's downstream `plot(wma, { lineStyle })`
@@ -2165,8 +2188,9 @@ export type TaNamespace = {
         condition: Series<boolean>,
         source: Series<number>,
         occurrence?: number,
+        opts?: ValuewhenOpts,
     ): Series<number>;
-    barssince(condition: Series<boolean>): Series<number>;
+    barssince(condition: Series<boolean>, opts?: BarssinceOpts): Series<number>;
     wma(source: Series<number>, length: number, opts?: WmaOpts): Series<number>;
     vwma(source: Series<number>, length: number, opts?: VwmaOpts): Series<number>;
     hma(source: Series<number>, length: number, opts?: HmaOpts): Series<number>;

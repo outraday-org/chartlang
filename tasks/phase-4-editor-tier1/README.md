@@ -327,15 +327,15 @@ scope and land later:
 
 Phase 4 closes when:
 
-1. Every task's `Acceptance Criteria` is checked off.
-2. `pnpm -r test` shows 100% coverage on every affected package.
-3. `pnpm conformance` is green against the canvas2d reference
-   adapter — including the 8 new Phase-4 scenarios.
-4. `pnpm docs:check` is green; new `docs/primitives/` pages exist
-   for every new core surface.
-5. `pnpm readme:check` is green; every package README ≤ 100 lines.
-6. Every affected package's `package.json` version is bumped to
-   `0.4.x` via the bundled changeset.
-7. The three Pine-port example scripts compile end-to-end through
-   `packages/cli/src/e2e.test.ts` and render cleanly through the
-   canvas2d adapter's `integration.test.ts`.
+- [x] Every task's `Acceptance Criteria` is checked off.
+- [x] `pnpm -r test` shows 100% coverage on every affected package.
+- [x] `pnpm conformance` is green against the canvas2d reference
+      adapter — including the 8 new Phase-4 scenarios.
+- [x] `pnpm docs:check` is green; new `docs/primitives/` pages exist
+      for every new core surface.
+- [x] `pnpm readme:check` is green; every package README ≤ 100 lines.
+- [x] Every affected package's `package.json` version is bumped to
+      `0.4.x` via the bundled changeset.
+- [x] The three Pine-port example scripts compile end-to-end through
+      `packages/cli/src/e2e.test.ts` and render cleanly through the
+      canvas2d adapter's `integration.test.ts`.

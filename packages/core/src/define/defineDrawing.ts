@@ -2,6 +2,9 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { CompiledScriptObject, ComputeFn, DrawingCounts, InputSchema } from "../types";
+import type { ScriptOverrides } from "./overrides";
+
+type DrawingOverrides = Omit<ScriptOverrides, "maxBarsBack" | "scale">;
 
 /**
  * Author-supplied options the script passes to `defineDrawing(...)`. Same
@@ -24,7 +27,8 @@ export type DefineDrawingOpts = Readonly<{
     compute: ComputeFn;
     /** Per-bucket cap on `draw.*` emissions per bar. @since 0.3 */
     maxDrawings?: DrawingCounts;
-}>;
+}> &
+    DrawingOverrides;
 
 /**
  * Construct a Phase-3 drawing script object. Mirrors `defineIndicator`
@@ -75,8 +79,16 @@ export function defineDrawing(opts: DefineDrawingOpts): CompiledScriptObject {
         seriesCapacities,
         maxLookback: 0,
     };
-    const manifest =
-        opts.maxDrawings === undefined ? base : { ...base, maxDrawings: opts.maxDrawings };
+    const manifest = {
+        ...base,
+        ...(opts.maxDrawings === undefined ? {} : { maxDrawings: opts.maxDrawings }),
+        ...(opts.format === undefined ? {} : { format: opts.format }),
+        ...(opts.precision === undefined ? {} : { precision: opts.precision }),
+        ...(opts.requiresIntervals === undefined
+            ? {}
+            : { requiresIntervals: opts.requiresIntervals }),
+        ...(opts.shortName === undefined ? {} : { shortName: opts.shortName }),
+    };
     return Object.freeze({
         manifest: Object.freeze(manifest),
         compute: opts.compute,

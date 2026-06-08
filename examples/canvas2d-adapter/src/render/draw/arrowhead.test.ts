@@ -11,14 +11,7 @@ describe("drawArrowhead", () => {
         const ctx = new MockCanvas2DContext();
         drawArrowhead(ctx, { x: 0, y: 0 }, { x: 100, y: 0 });
         const kinds = ctx.calls.map((c) => c.kind);
-        expect(kinds).toEqual([
-            "beginPath",
-            "moveTo",
-            "lineTo",
-            "lineTo",
-            "closePath",
-            "fill",
-        ]);
+        expect(kinds).toEqual(["beginPath", "moveTo", "lineTo", "lineTo", "closePath", "fill"]);
         const tip = ctx.calls[1];
         if (tip.kind === "moveTo") {
             expect(tip.x).toBe(100);

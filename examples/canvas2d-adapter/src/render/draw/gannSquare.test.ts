@@ -44,9 +44,7 @@ describe("renderGannSquare", () => {
     it("strokes one horizontal + one vertical line per GANN_LEVELS entry", () => {
         const ctx = new MockCanvas2DContext();
         renderGannSquare(ctx, emission(STATE), VIEW);
-        expect(ctx.calls.filter((c) => c.kind === "stroke")).toHaveLength(
-            GANN_LEVELS.length * 2,
-        );
+        expect(ctx.calls.filter((c) => c.kind === "stroke")).toHaveLength(GANN_LEVELS.length * 2);
     });
 
     it("defaults strokeStyle to gann purple #a855f7", () => {
@@ -58,11 +56,7 @@ describe("renderGannSquare", () => {
 
     it("honours style.color", () => {
         const ctx = new MockCanvas2DContext();
-        renderGannSquare(
-            ctx,
-            emission({ ...STATE, style: { color: "#fedcba" } }),
-            VIEW,
-        );
+        renderGannSquare(ctx, emission({ ...STATE, style: { color: "#fedcba" } }), VIEW);
         const setCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (setCall?.kind === "set") expect(setCall.value).toBe("#fedcba");
     });

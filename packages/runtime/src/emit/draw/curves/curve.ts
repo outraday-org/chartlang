@@ -70,11 +70,7 @@ export function curve(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandl
  *     // const fn: typeof curve = curve;
  *     // void fn;
  */
-export function curve(
-    slotId: string,
-    anchors: AnchorTriple,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function curve(slotId: string, anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Implementation signature for {@link curve}. Branches on
  * `typeof arg1 === "string"` to dispatch the script-facing vs

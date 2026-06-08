@@ -24,12 +24,7 @@ import { nextSubId } from "../subIdAllocator";
 
 const OUTSIDE_CTX_MESSAGE = "draw.frame called outside an active script step";
 
-function frameImpl(
-    slotId: string,
-    a: WorldPoint,
-    b: WorldPoint,
-    opts: FrameOpts,
-): DrawingHandle {
+function frameImpl(slotId: string, a: WorldPoint, b: WorldPoint, opts: FrameOpts): DrawingHandle {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
     if (ctx === null) throw new Error(OUTSIDE_CTX_MESSAGE);
     const subId = nextSubId(ctx, slotId);

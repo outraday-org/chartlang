@@ -96,9 +96,7 @@ describe("renderEllipse", () => {
         );
         const fillCalls = ctx.calls.filter((c) => c.kind === "fill");
         expect(fillCalls).toHaveLength(1);
-        const alphaSets = ctx.calls.filter(
-            (c) => c.kind === "set" && c.prop === "globalAlpha",
-        );
+        const alphaSets = ctx.calls.filter((c) => c.kind === "set" && c.prop === "globalAlpha");
         expect(alphaSets).toHaveLength(2);
     });
 

@@ -2,13 +2,22 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { defineIndicator } from "@invinite-org/chartlang-core";
-import type { Bar } from "@invinite-org/chartlang-core";
+import type { Bar, MutableSlot } from "@invinite-org/chartlang-core";
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities, RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
 import { createScriptRunner } from "./createScriptRunner";
 import { alert, plot } from "./emit";
+import type { StateStore } from "./stateStore";
+
+type RuntimeStateNamespace = {
+    readonly int: (slotId: string, init: number) => MutableSlot<number>;
+};
+
+type SnapshotStore = StateStore & {
+    readonly snapshot: () => Map<string, unknown>;
+};
 
 function makeCapabilities(overrides: Partial<Capabilities> = {}): Capabilities {
     return {
@@ -72,6 +81,27 @@ function makeSyntheticBars(count: number, seed = 0xc0ffee): Bar[] {
     return bars;
 }
 
+function mapStore(seed?: ReadonlyMap<string, unknown>): SnapshotStore {
+    const values = new Map(seed);
+    return {
+        get<T>(slotId: string): T | undefined {
+            return values.get(slotId) as T | undefined;
+        },
+        set<T>(slotId: string, value: T): void {
+            values.set(slotId, value);
+        },
+        has(slotId: string): boolean {
+            return values.has(slotId);
+        },
+        clear(): void {
+            values.clear();
+        },
+        snapshot(): Map<string, unknown> {
+            return new Map(values);
+        },
+    };
+}
+
 async function runOnce(bars: Bar[]): Promise<{
     finalIndex: number;
     emissions: RunnerEmissions;
@@ -131,6 +161,48 @@ async function runWithPrimitives(bars: Bar[]): Promise<RunnerEmissions> {
     return lastEmissions;
 }
 
+async function runStateCounter(
+    bars: readonly Bar[],
+    stateStore: StateStore,
+): Promise<RunnerEmissions[]> {
+    const compiled = defineIndicator({
+        name: "state-counter",
+        apiVersion: 1,
+        compute: ({ state }) => {
+            const counter = (state as unknown as RuntimeStateNamespace).int("counter-slot", 0);
+            counter.value += 1;
+            plot("counter-plot", counter.value);
+        },
+    });
+    const runner = createScriptRunner({
+        compiled: { ...compiled, manifest: { ...compiled.manifest, maxLookback: 50 } },
+        capabilities: makeCapabilities(),
+        stateStore,
+    });
+    const emissions: RunnerEmissions[] = [];
+    for (const b of bars) {
+        await runner.onBarClose(b);
+        emissions.push(runner.drain());
+    }
+    runner.dispose();
+    return emissions;
+}
+
+async function runStateCounterSplit(
+    bars: readonly Bar[],
+    split: number,
+): Promise<{ readonly coldSuffix: RunnerEmissions[]; readonly warmSuffix: RunnerEmissions[] }> {
+    const prefixStore = mapStore();
+    await runStateCounter(bars.slice(0, split), prefixStore);
+    const warmSuffix = await runStateCounter(bars.slice(split), mapStore(prefixStore.snapshot()));
+
+    const continuous = await runStateCounter(bars, mapStore());
+    return {
+        coldSuffix: continuous.slice(split),
+        warmSuffix,
+    };
+}
+
 describe("determinism (§6.4)", () => {
     it("two runs over the same 500 bars produce structurally identical emissions and compute reads", async () => {
         const bars = makeSyntheticBars(500);
@@ -158,5 +230,18 @@ describe("determinism (§6.4)", () => {
         // dedupeKey + slot id.
         expect(e1.plots).toHaveLength(1);
         expect(e1.alerts).toHaveLength(1);
+    });
+
+    it("state-counter warm restart continues with byte-identical plot values over 500 bars × 50 seeds", async () => {
+        for (let seed = 0; seed < 50; seed += 1) {
+            const bars = makeSyntheticBars(500, seed);
+            const { coldSuffix, warmSuffix } = await runStateCounterSplit(bars, 250);
+            expect(warmSuffix.map((e) => e.plots.map((p) => p.value))).toEqual(
+                coldSuffix.map((e) => e.plots.map((p) => p.value)),
+            );
+            expect(warmSuffix.map((e) => e.diagnostics)).toEqual(
+                coldSuffix.map((e) => e.diagnostics),
+            );
+        }
     });
 });

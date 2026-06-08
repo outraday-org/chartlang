@@ -67,10 +67,7 @@ function elliottTriangleWaveImpl(
  *         },
  *     });
  */
-export function elliottTriangleWave(
-    anchors: AnchorQuint,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function elliottTriangleWave(anchors: AnchorQuint, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

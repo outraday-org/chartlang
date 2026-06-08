@@ -45,18 +45,42 @@ describe("CANVAS2D_CAPABILITIES", () => {
         expect(CANVAS2D_CAPABILITIES.maxDrawingsPerScript.other).toBe(100);
     });
 
-    it("disables inputs, alertConditions, logs, multiTimeframe, sub-panes, sym-info", () => {
+    it("disables inputs, alertConditions, logs, and multiTimeframe", () => {
         expect(CANVAS2D_CAPABILITIES.inputs.size).toBe(0);
         expect(CANVAS2D_CAPABILITIES.alertConditions).toBe(false);
         expect(CANVAS2D_CAPABILITIES.logs).toBe(false);
         expect(CANVAS2D_CAPABILITIES.multiTimeframe).toBe(false);
-        expect(CANVAS2D_CAPABILITIES.subPanes).toBe(0);
-        expect(CANVAS2D_CAPABILITIES.symInfoFields.size).toBe(0);
     });
 
-    it("ships the three Phase-1 intervals (1D / 1h / 5m)", () => {
-        const values = CANVAS2D_CAPABILITIES.intervals.map((i) => i.value);
-        expect(values).toEqual(["1D", "1h", "5m"]);
+    it("ships the six Phase-4 intervals in picker order with canonical groups", () => {
+        expect(CANVAS2D_CAPABILITIES.intervals).toEqual([
+            { value: "1m", label: "1 minute", group: "minute" },
+            { value: "5m", label: "5 minutes", group: "minute" },
+            { value: "15m", label: "15 minutes", group: "minute" },
+            { value: "1h", label: "1 hour", group: "hour" },
+            { value: "1D", label: "1 day", group: "daily" },
+            { value: "1W", label: "1 week", group: "weekly" },
+        ]);
+        expect(CANVAS2D_CAPABILITIES.intervals.length).toBe(6);
+        expect(Object.isFrozen(CANVAS2D_CAPABILITIES.intervals)).toBe(true);
+    });
+
+    it("declares unlimited sub-panes and all Phase-4 syminfo fields", () => {
+        expect(CANVAS2D_CAPABILITIES.subPanes).toBe(Number.MAX_SAFE_INTEGER);
+        expect(CANVAS2D_CAPABILITIES.symInfoFields.size).toBe(9);
+        expect([...CANVAS2D_CAPABILITIES.symInfoFields].sort()).toEqual(
+            [
+                "basecurrency",
+                "currency",
+                "exchange",
+                "meta",
+                "mintick",
+                "session",
+                "ticker",
+                "timezone",
+                "type",
+            ].sort(),
+        );
     });
 
     it("clamps maxLookback / maxTickHz to the documented defaults", () => {

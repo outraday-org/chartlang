@@ -65,11 +65,7 @@ function fibRetracementImpl(
  *         },
  *     });
  */
-export function fibRetracement(
-    a: WorldPoint,
-    b: WorldPoint,
-    opts?: FibOpts,
-): DrawingHandle;
+export function fibRetracement(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

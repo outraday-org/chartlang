@@ -36,11 +36,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderPitchfork(ctx, e, view);
  *     void renderPitchfork;
  */
-export function renderPitchfork(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderPitchfork(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as PitchforkState;
     const a = worldPointToCanvas(state.anchors[0], view);
     const b = worldPointToCanvas(state.anchors[1], view);

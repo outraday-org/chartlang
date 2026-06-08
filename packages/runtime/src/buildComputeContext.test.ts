@@ -11,6 +11,7 @@ import type { RunnerState } from "./createScriptRunner";
 import type { MutableRunnerEmissions } from "./runtimeContext";
 import { inMemoryStateStore } from "./stateStore";
 import { createStreamState } from "./streamState";
+import { createRuntimeViews, makeBarStateView, makeSymInfoView, makeTimeframeView } from "./views";
 
 function freshCapabilities(): Capabilities {
     return {
@@ -74,6 +75,14 @@ function freshState(): RunnerState {
             drawingSubIdCounters: new Map(),
             drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
             scriptMaxDrawings: null,
+            stateSlots: new Map(),
+            requestSecurityBars: new Map(),
+            diagnosedRequestKeys: new Set(),
+            resolvedInputs: Object.freeze({ length: 14 }),
+            diagnosedInputKeys: new Set(),
+            views: createRuntimeViews({
+                syminfo: makeSymInfoView({ ticker: "DEMO" }, new Set(["ticker"])),
+            }),
         },
         emissions,
         barIndex: 0,
@@ -82,7 +91,7 @@ function freshState(): RunnerState {
 }
 
 describe("buildComputeContext", () => {
-    it("returns an object with bar / inputs / ta / plot / hline / alert / draw", () => {
+    it("returns an object with bar / inputs / ta / plot / hline / alert / draw / state / request / views", () => {
         const state = freshState();
         const ctx = buildComputeContext(state);
         expect(ctx).toHaveProperty("bar");
@@ -92,6 +101,11 @@ describe("buildComputeContext", () => {
         expect(ctx).toHaveProperty("hline");
         expect(ctx).toHaveProperty("alert");
         expect(ctx).toHaveProperty("draw");
+        expect(ctx).toHaveProperty("state");
+        expect(ctx).toHaveProperty("request");
+        expect(ctx).toHaveProperty("barstate");
+        expect(ctx).toHaveProperty("syminfo");
+        expect(ctx).toHaveProperty("timeframe");
     });
 
     it("bar field shares identity with state.mainStream.bar", () => {
@@ -100,16 +114,18 @@ describe("buildComputeContext", () => {
         expect(ctx.bar).toBe(state.mainStream.bar);
     });
 
-    it("inputs is a frozen empty object", () => {
+    it("inputs is the frozen resolved input bag", () => {
         const state = freshState();
         const ctx = buildComputeContext(state);
         expect(Object.isFrozen(ctx.inputs)).toBe(true);
-        expect(Object.keys(ctx.inputs)).toEqual([]);
+        expect(ctx.inputs).toEqual({ length: 14 });
+        expect(ctx.inputs).toBe(state.runtimeContext.resolvedInputs);
     });
 
-    it("inputs identity is stable across calls (module-scoped constant)", () => {
-        const ctx1 = buildComputeContext(freshState());
-        const ctx2 = buildComputeContext(freshState());
+    it("inputs identity follows the runner context", () => {
+        const state = freshState();
+        const ctx1 = buildComputeContext(state);
+        const ctx2 = buildComputeContext(state);
         expect(ctx1.inputs).toBe(ctx2.inputs);
     });
 
@@ -132,6 +148,42 @@ describe("buildComputeContext", () => {
         expect(() => ctx.plot(0)).toThrow("plot called outside an active script step");
         expect(() => ctx.hline(0)).toThrow("hline called outside an active script step");
         expect(() => ctx.alert("hi")).toThrow("alert called outside an active script step");
+    });
+
+    it("state is the Task-9 runtime namespace and throws outside the active context", () => {
+        const state = freshState();
+        const ctx = buildComputeContext(state);
+        expect(() => ctx.state.float(0)).toThrow(
+            "state.float called outside an active script step",
+        );
+    });
+
+    it("request is the Task-11 runtime namespace and throws outside the active context", () => {
+        const state = freshState();
+        const ctx = buildComputeContext(state);
+        expect(() => ctx.request.security({ interval: "1D" })).toThrow(
+            "request.security called outside an active script step",
+        );
+    });
+
+    it("wires runtime views by identity", () => {
+        const state = freshState();
+        state.runtimeContext.views.barstate = makeBarStateView({
+            eventKind: "close",
+            barIndex: 3,
+            isLastBar: true,
+        });
+        state.runtimeContext.views.timeframe = makeTimeframeView("1D", {
+            value: "1D",
+            label: "1 day",
+            group: "daily",
+        });
+        const ctx = buildComputeContext(state);
+        expect(ctx.barstate).toBe(state.runtimeContext.views.barstate);
+        expect(ctx.syminfo).toBe(state.runtimeContext.views.syminfo);
+        expect(ctx.timeframe).toBe(state.runtimeContext.views.timeframe);
+        expect(ctx.syminfo.ticker).toBe("DEMO");
+        expect(ctx.timeframe.inSeconds).toBe(86_400);
     });
 
     it("draw exposes a runtime impl for every DrawingKind (no core stubs after Task 18)", () => {

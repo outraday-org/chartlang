@@ -58,6 +58,7 @@ export function harness<T>(
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     const out: T[] = [];
     ACTIVE_RUNTIME_CONTEXT.current = ctx;
@@ -165,6 +166,7 @@ export function harnessWithCtx<T>(
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     const out: T[] = [];
     ACTIVE_RUNTIME_CONTEXT.current = ctx;

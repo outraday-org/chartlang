@@ -59,6 +59,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     return { ctx, emissions };
 }
@@ -75,9 +76,7 @@ afterEach(() => {
 
 describe("draw.arc — script-facing throw", () => {
     it("throws the sentinel when called without a compiler-injected slot id", () => {
-        expect(() => arc(ANCHORS)).toThrow(
-            "draw.arc called outside an active script step",
-        );
+        expect(() => arc(ANCHORS)).toThrow("draw.arc called outside an active script step");
     });
 
     it("throws when slotId is provided but anchors are missing", () => {
@@ -89,9 +88,7 @@ describe("draw.arc — script-facing throw", () => {
     });
 
     it("throws when called inside the compiled overload path but outside an active context", () => {
-        expect(() => arc("slot", ANCHORS)).toThrow(
-            "draw.arc called outside an active script step",
-        );
+        expect(() => arc("slot", ANCHORS)).toThrow("draw.arc called outside an active script step");
     });
 });
 

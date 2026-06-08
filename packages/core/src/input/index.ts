@@ -1,0 +1,22 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+export { input } from "./input";
+export type {
+    BoolDescriptor,
+    ColorDescriptor,
+    EnumDescriptor,
+    ExternalSeriesDescriptor,
+    FloatDescriptor,
+    InputDescriptor,
+    InputKind,
+    IntDescriptor,
+    IntervalDescriptorInput,
+    PriceDescriptor,
+    Schema,
+    SourceDescriptor,
+    SourceField,
+    StringDescriptor,
+    SymbolDescriptor,
+    TimeDescriptor,
+} from "./inputDescriptor";

@@ -40,7 +40,10 @@ describe("decodeDrawing", () => {
             ...wellFormedLine,
             state: {
                 kind: "line",
-                anchors: [{ time: 0, price: 0 }, { time: Number.NaN, price: 1 }],
+                anchors: [
+                    { time: 0, price: 0 },
+                    { time: Number.NaN, price: 1 },
+                ],
                 style: {},
             },
         } as unknown as DrawingEmission;

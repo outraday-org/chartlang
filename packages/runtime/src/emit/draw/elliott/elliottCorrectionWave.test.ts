@@ -2,10 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
-import type {
-    AnchorTriple,
-    ElliottCorrectionWaveState,
-} from "@invinite-org/chartlang-core";
+import type { AnchorTriple, ElliottCorrectionWaveState } from "@invinite-org/chartlang-core";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -58,6 +55,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     return { ctx, emissions };
 }
@@ -82,9 +80,9 @@ describe("draw.elliottCorrectionWave — script-facing throw", () => {
     it("throws when slotId is provided but anchors are missing", () => {
         const { ctx } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        expect(() =>
-            elliottCorrectionWave("slot", undefined as unknown as AnchorTriple),
-        ).toThrow("draw.elliottCorrectionWave called outside an active script step");
+        expect(() => elliottCorrectionWave("slot", undefined as unknown as AnchorTriple)).toThrow(
+            "draw.elliottCorrectionWave called outside an active script step",
+        );
     });
 
     it("throws when invoked through the compiled overload outside an active context", () => {

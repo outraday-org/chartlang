@@ -64,11 +64,7 @@ function gannBoxImpl(
  *         },
  *     });
  */
-export function gannBox(
-    a: WorldPoint,
-    b: WorldPoint,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function gannBox(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

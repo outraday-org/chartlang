@@ -43,6 +43,111 @@ export default defineDrawing({ name: "fib-tool", apiVersion: 1, compute: () => {
         expect(result.kind).toBe("drawing");
     });
 
+    it("extracts defineIndicator script overrides from static literals", () => {
+        const result = run(`
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "demo",
+    apiVersion: 1,
+    maxBarsBack: 100,
+    format: "percent",
+    precision: 4,
+    scale: "right",
+    requiresIntervals: ["1D", "1W"],
+    shortName: "DEMO",
+    compute: () => {},
+});
+`);
+        expect(result.diagnostics).toHaveLength(0);
+        expect(result.overrides).toEqual({
+            maxBarsBack: 100,
+            format: "percent",
+            precision: 4,
+            scale: "right",
+            requiresIntervals: ["1D", "1W"],
+            shortName: "DEMO",
+        });
+        expect(Object.isFrozen(result.overrides.requiresIntervals)).toBe(true);
+    });
+
+    it("keeps defineAlert and defineDrawing override subsets distinct", () => {
+        const alertResult = run(`
+import { defineAlert } from "@invinite-org/chartlang-core";
+export default defineAlert({
+    name: "alert",
+    apiVersion: 1,
+    maxBarsBack: 100,
+    format: "percent",
+    precision: 4,
+    scale: "right",
+    requiresIntervals: ["1D"],
+    shortName: "AL",
+    compute: () => {},
+});
+`);
+        const drawingResult = run(`
+import { defineDrawing } from "@invinite-org/chartlang-core";
+export default defineDrawing({
+    name: "drawing",
+    apiVersion: 1,
+    maxBarsBack: 100,
+    format: "price",
+    precision: 2,
+    scale: "right",
+    requiresIntervals: ["1H"],
+    shortName: "DR",
+    compute: () => {},
+});
+`);
+        expect(alertResult.overrides).toEqual({
+            maxBarsBack: 100,
+            requiresIntervals: ["1D"],
+            shortName: "AL",
+        });
+        expect(drawingResult.overrides).toEqual({
+            format: "price",
+            precision: 2,
+            requiresIntervals: ["1H"],
+            shortName: "DR",
+        });
+    });
+
+    it("ignores unsupported and non-literal override values", () => {
+        const result = run(`
+import { defineIndicator } from "@invinite-org/chartlang-core";
+const intervals = ["1D"];
+export default defineIndicator({
+    name: "demo",
+    apiVersion: 1,
+    maxBarsBack: "100",
+    format: "inherit",
+    precision: "4",
+    scale: "none",
+    requiresIntervals: intervals,
+    shortName: 123,
+    compute: () => {},
+});
+`);
+        expect(result.diagnostics).toHaveLength(0);
+        expect(result.overrides).toEqual({});
+    });
+
+    it("ignores non-string format, scale, and interval-list entries", () => {
+        const result = run(`
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "demo",
+    apiVersion: 1,
+    format: 1,
+    scale: 1,
+    requiresIntervals: [1],
+    compute: () => {},
+});
+`);
+        expect(result.diagnostics).toHaveLength(0);
+        expect(result.overrides).toEqual({});
+    });
+
     it("emits missing-default-export when the script has no default export", () => {
         const result = run(`
 const x = 1;

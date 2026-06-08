@@ -63,10 +63,7 @@ function polylineImpl(
  *         },
  *     });
  */
-export function polyline(
-    anchors: ReadonlyArray<WorldPoint>,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function polyline(anchors: ReadonlyArray<WorldPoint>, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload.
  *

@@ -34,17 +34,21 @@ describe("transformAndAnalyse — types", () => {
         >();
     });
 
-    it("CompileDiagnosticCode union covers the 9 documented codes", () => {
+    it("CompileDiagnosticCode union covers the documented codes", () => {
         type Codes =
             | "unbounded-loop"
             | "recursion-not-allowed"
             | "hostile-global"
             | "stateful-call-inside-loop"
+            | "stateful-call-element-access"
             | "request-security-interval-not-literal"
             | "dynamic-series-index"
             | "callsite-id-conflict"
             | "missing-default-export"
-            | "api-version-mismatch";
+            | "api-version-mismatch"
+            | "input-default-not-literal"
+            | "unknown-input-kind"
+            | "multiple-input-interval";
         expectTypeOf<CompileDiagnosticCode>().toEqualTypeOf<Codes>();
     });
 });

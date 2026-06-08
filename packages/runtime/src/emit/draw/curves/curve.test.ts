@@ -56,6 +56,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     return { ctx, emissions };
 }
@@ -72,9 +73,7 @@ afterEach(() => {
 
 describe("draw.curve — script-facing throw", () => {
     it("throws the sentinel when called without a compiler-injected slot id", () => {
-        expect(() => curve(ANCHORS)).toThrow(
-            "draw.curve called outside an active script step",
-        );
+        expect(() => curve(ANCHORS)).toThrow("draw.curve called outside an active script step");
     });
 
     it("throws when slotId is provided but anchors are missing", () => {

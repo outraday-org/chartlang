@@ -32,11 +32,7 @@ const DEFAULT_LABELS: ReadonlyArray<string> = ["1", "2", "3", "4", "5"];
  *     renderElliottImpulseWave(ctx, e, view);
  *     void renderElliottImpulseWave;
  */
-export function renderElliottImpulseWave(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderElliottImpulseWave(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as ElliottImpulseWaveState;
     const points = state.anchors.map((p) => worldPointToCanvas(p, view));
     const labels =

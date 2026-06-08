@@ -54,16 +54,10 @@ describe("renderFrame", () => {
 
     it("paints the background via fillRect when style.bgColor is set", () => {
         const ctx = new MockCanvas2DContext();
-        renderFrame(
-            ctx,
-            emission({ ...BARE_STATE, style: { bgColor: "#f1f5f9" } }),
-            VIEW,
-        );
+        renderFrame(ctx, emission({ ...BARE_STATE, style: { bgColor: "#f1f5f9" } }), VIEW);
         const fills = ctx.calls.filter((c) => c.kind === "fillRect");
         expect(fills).toHaveLength(1);
-        const fillStyle = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "fillStyle",
-        );
+        const fillStyle = ctx.calls.find((c) => c.kind === "set" && c.prop === "fillStyle");
         if (fillStyle?.kind === "set") expect(fillStyle.value).toBe("#f1f5f9");
     });
 
@@ -75,11 +69,7 @@ describe("renderFrame", () => {
 
     it("paints a fillText label at the top-left when style.label is set", () => {
         const ctx = new MockCanvas2DContext();
-        renderFrame(
-            ctx,
-            emission({ ...BARE_STATE, style: { label: "Idea" } }),
-            VIEW,
-        );
+        renderFrame(ctx, emission({ ...BARE_STATE, style: { label: "Idea" } }), VIEW);
         const texts = ctx.calls.filter((c) => c.kind === "fillText");
         expect(texts).toHaveLength(1);
         if (texts[0].kind === "fillText") expect(texts[0].text).toBe("Idea");
@@ -130,11 +120,7 @@ describe("renderFrame", () => {
         // height; the height edge here is infinite so the renderer
         // skips silently.
         const ctx = new MockCanvas2DContext();
-        renderFrame(
-            ctx,
-            emission(BARE_STATE),
-            { ...VIEW, yMin: 50, yMax: 50 },
-        );
+        renderFrame(ctx, emission(BARE_STATE), { ...VIEW, yMin: 50, yMax: 50 });
         expect(ctx.calls).toEqual([]);
     });
 });

@@ -60,11 +60,7 @@ export function verticalLine(time: Time, opts?: LineDrawStyle): DrawingHandle;
  *     // const fn: typeof verticalLine = verticalLine;
  *     // void fn;
  */
-export function verticalLine(
-    slotId: string,
-    time: Time,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function verticalLine(slotId: string, time: Time, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Implementation signature for {@link verticalLine}. Branches on
  * `typeof arg1 === "string"` to dispatch the script-facing vs

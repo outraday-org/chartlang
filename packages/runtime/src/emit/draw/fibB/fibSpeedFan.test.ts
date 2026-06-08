@@ -55,6 +55,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         drawingSubIdCounters: new Map(),
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
+        stateSlots: new Map(),
     };
     return { ctx, emissions };
 }
@@ -77,7 +78,11 @@ describe("draw.fibSpeedFan — script-facing throw", () => {
         const { ctx } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
         expect(() =>
-            fibSpeedFan("slot", undefined as unknown as WorldPoint, undefined as unknown as WorldPoint),
+            fibSpeedFan(
+                "slot",
+                undefined as unknown as WorldPoint,
+                undefined as unknown as WorldPoint,
+            ),
         ).toThrow("draw.fibSpeedFan called outside an active script step");
     });
 

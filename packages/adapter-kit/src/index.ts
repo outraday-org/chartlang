@@ -13,6 +13,7 @@ export type { MockCandleSourceMode, MockCandleSourceOpts } from "./mocks";
 export { BufferingAdapter, PassThroughAdapter } from "./base";
 export type {
     Adapter,
+    AdapterSymInfo,
     AlertChannel,
     AlertEmission,
     Capabilities,

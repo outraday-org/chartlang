@@ -44,11 +44,7 @@ const K = (4 * (Math.sqrt(2) - 1)) / 3;
  *     renderFibSpiral(ctx, e, view);
  *     void renderFibSpiral;
  */
-export function renderFibSpiral(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderFibSpiral(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as FibSpiralState;
     const centre = worldPointToCanvas(state.anchors[0], view);
     const edge = worldPointToCanvas(state.anchors[1], view);

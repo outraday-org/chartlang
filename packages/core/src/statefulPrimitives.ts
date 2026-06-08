@@ -110,8 +110,7 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "alert", slot: true },
     // Phase 3 — draw.* namespace. One entry per kind in DRAWING_KINDS
     // order. Names are camelCase (`draw.<kindCamelCase>`); the wire
-    // format keeps the kebab-case `DrawingKind`. Cardinality 154 =
-    // 93 + 61. All slot: true (every draw call needs a callsite id).
+    // format keeps the kebab-case `DrawingKind`.
     { name: "draw.line", slot: true },
     { name: "draw.horizontalLine", slot: true },
     { name: "draw.horizontalRay", slot: true },
@@ -173,6 +172,15 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "draw.sineLine", slot: true },
     { name: "draw.group", slot: true },
     { name: "draw.frame", slot: true },
+    { name: "state.float", slot: true },
+    { name: "state.int", slot: true },
+    { name: "state.bool", slot: true },
+    { name: "state.string", slot: true },
+    { name: "state.tick.float", slot: true },
+    { name: "state.tick.int", slot: true },
+    { name: "state.tick.bool", slot: true },
+    { name: "state.tick.string", slot: true },
+    { name: "request.security", slot: true },
 ];
 
 /**
@@ -189,7 +197,9 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
  * primitive) can opt out of slot-id injection without losing the
  * in-loop diagnostic. Subsequent Phase-2 batch tasks (Tasks 6–28) each
  * append `slot: true` entries; Phase 3 appends 61 `draw.<camelKind>`
- * entries (all `slot: true`) — cardinality grows to 154.
+ * entries (all `slot: true`), and Phase 4 appends 8 `state.*` /
+ * `state.tick.*` entries plus `request.security` — cardinality grows
+ * to 163.
  *
  * @since 0.1
  * @example

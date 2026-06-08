@@ -76,12 +76,8 @@ describe("renderTriangle", () => {
             }),
             VIEW,
         );
-        const setFillStyle = ctx.calls.find(
-            (c) => c.kind === "set" && c.prop === "fillStyle",
-        );
-        const alphaSets = ctx.calls.filter(
-            (c) => c.kind === "set" && c.prop === "globalAlpha",
-        );
+        const setFillStyle = ctx.calls.find((c) => c.kind === "set" && c.prop === "fillStyle");
+        const alphaSets = ctx.calls.filter((c) => c.kind === "set" && c.prop === "globalAlpha");
         expect(setFillStyle).toEqual({ kind: "set", prop: "fillStyle", value: "#fee2e2" });
         expect(alphaSets).toHaveLength(2);
         if (alphaSets[0].kind === "set" && alphaSets[1].kind === "set") {

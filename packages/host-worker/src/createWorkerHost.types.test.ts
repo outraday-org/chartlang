@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type {
+    AdapterSymInfo,
     CandleEvent,
     Capabilities,
     RunnerEmissions,
@@ -20,8 +21,9 @@ describe("createWorkerHost", () => {
         expectTypeOf(createWorkerHost).parameter(0).toEqualTypeOf<CreateWorkerHostOpts>();
     });
 
-    it("CreateWorkerHostOpts exposes the four documented fields", () => {
+    it("CreateWorkerHostOpts exposes the documented fields", () => {
         expectTypeOf<CreateWorkerHostOpts["capabilities"]>().toEqualTypeOf<Capabilities>();
+        expectTypeOf<CreateWorkerHostOpts["symInfo"]>().toEqualTypeOf<AdapterSymInfo | undefined>();
         expectTypeOf<CreateWorkerHostOpts["workerLike"]>().toEqualTypeOf<WorkerLike | undefined>();
         expectTypeOf<CreateWorkerHostOpts["limits"]>().toEqualTypeOf<
             Partial<HostLimits> | undefined

@@ -5,17 +5,14 @@ import type { ComputeContext } from "@invinite-org/chartlang-core";
 
 import type { RunnerState } from "./createScriptRunner";
 import { alert, draw, hline, plot, ta } from "./primitives";
-
-const EMPTY_INPUTS: Readonly<Record<string, unknown>> = Object.freeze({});
+import { buildRequestNamespace } from "./request";
+import { buildStateNamespace } from "./state";
 
 /**
  * Build the `ComputeContext` the runner hands the compiled script on
  * every step. Phase 1 returns the runtime's stable `BarView` (identity
- * preserved across bars per PLAN §6.7), a frozen empty `inputs` record
- * (Phase-4 wires `input.*` resolution), and the runtime's throw-stub
- * `ta` / `plot` / `hline` / `alert` exports — Tasks 7-8 replace those
- * with the real implementations, so the destructure pattern stays
- * stable across phases.
+ * preserved across bars per PLAN §6.7), the mount-resolved frozen
+ * `inputs` record, and the runtime primitive implementations.
  *
  * The `bar` field is the mutable `BarView` typed-narrowed to the
  * readonly `Bar` surface the script sees. Identity is stable, so a
@@ -31,11 +28,16 @@ const EMPTY_INPUTS: Readonly<Record<string, unknown>> = Object.freeze({});
 export function buildComputeContext(state: RunnerState): ComputeContext {
     return {
         bar: state.mainStream.bar,
-        inputs: EMPTY_INPUTS,
+        inputs: state.runtimeContext.resolvedInputs,
         ta,
         plot,
         hline,
         alert,
         draw,
+        state: buildStateNamespace(),
+        barstate: state.runtimeContext.views.barstate,
+        syminfo: state.runtimeContext.views.syminfo,
+        timeframe: state.runtimeContext.views.timeframe,
+        request: buildRequestNamespace(),
     };
 }

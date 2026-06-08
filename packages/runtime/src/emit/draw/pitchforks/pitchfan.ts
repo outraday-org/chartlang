@@ -22,11 +22,7 @@ import { nextSubId } from "../subIdAllocator";
 
 const OUTSIDE_CTX_MESSAGE = "draw.pitchfan called outside an active script step";
 
-function pitchfanImpl(
-    slotId: string,
-    anchors: AnchorTriple,
-    opts: LineDrawStyle,
-): DrawingHandle {
+function pitchfanImpl(slotId: string, anchors: AnchorTriple, opts: LineDrawStyle): DrawingHandle {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
     if (ctx === null) throw new Error(OUTSIDE_CTX_MESSAGE);
     const subId = nextSubId(ctx, slotId);

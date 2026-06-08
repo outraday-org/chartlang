@@ -32,11 +32,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderPitchfan(ctx, e, view);
  *     void renderPitchfan;
  */
-export function renderPitchfan(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderPitchfan(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as PitchfanState;
     const a = worldPointToCanvas(state.anchors[0], view);
     const b = worldPointToCanvas(state.anchors[1], view);

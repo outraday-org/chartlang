@@ -76,11 +76,7 @@ describe("renderElliottTriangleWave", () => {
 
     it("honours state.style.color overriding the teal default", () => {
         const ctx = new MockCanvas2DContext();
-        renderElliottTriangleWave(
-            ctx,
-            emission({ ...STATE, style: { color: "#abcdef" } }),
-            VIEW,
-        );
+        renderElliottTriangleWave(ctx, emission({ ...STATE, style: { color: "#abcdef" } }), VIEW);
         const stroke = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (stroke?.kind === "set") expect(stroke.value).toBe("#abcdef");
     });

@@ -60,11 +60,7 @@ export function horizontalLine(price: Price, opts?: LineDrawStyle): DrawingHandl
  *     // const fn: typeof horizontalLine = horizontalLine;
  *     // void fn;
  */
-export function horizontalLine(
-    slotId: string,
-    price: Price,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function horizontalLine(slotId: string, price: Price, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Implementation signature for {@link horizontalLine}. Branches on
  * `typeof arg1 === "string"` to dispatch the script-facing vs

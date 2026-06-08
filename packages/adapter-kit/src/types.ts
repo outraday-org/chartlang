@@ -6,11 +6,13 @@ import type {
     Bar,
     DrawingCounts as CoreDrawingCounts,
     DrawingKind as CoreDrawingKind,
+    InputKind as CoreInputKind,
+    PlotKind as CorePlotKind,
     DrawingState,
     IntervalDescriptor,
     JsonValue,
     LineStyle,
-    PlotKind as CorePlotKind,
+    SymbolType,
 } from "@invinite-org/chartlang-core";
 
 /**
@@ -82,19 +84,7 @@ export type AlertChannel = "log" | "toast" | "webhook" | "email" | "sms" | "push
  * @example
  *     const k: InputKind = "int";
  */
-export type InputKind =
-    | "int"
-    | "float"
-    | "bool"
-    | "string"
-    | "enum"
-    | "color"
-    | "source"
-    | "time"
-    | "price"
-    | "symbol"
-    | "interval"
-    | "external-series";
+export type InputKind = CoreInputKind;
 
 /**
  * `syminfo.*` fields the adapter populates. Phase-1 scripts don't read
@@ -116,6 +106,32 @@ export type SymInfoField =
     | "timezone"
     | "session"
     | "meta";
+
+/**
+ * Adapter-supplied per-mount symbol metadata payload consumed by the
+ * runtime's `syminfo.*` view builder.
+ *
+ * @since 0.4
+ * @experimental
+ * @example
+ *     const info: AdapterSymInfo = {
+ *         ticker: "DEMO",
+ *         type: "equity",
+ *         mintick: 0.01,
+ *     };
+ *     void info;
+ */
+export type AdapterSymInfo = Readonly<{
+    ticker?: string;
+    type?: SymbolType;
+    mintick?: number;
+    currency?: string;
+    basecurrency?: string;
+    exchange?: string;
+    timezone?: string;
+    session?: string;
+    meta?: Readonly<Record<string, JsonValue>>;
+}>;
 
 /**
  * Per-script drawing-emission budget. Excess `draw.*` calls fall back to
@@ -170,13 +186,87 @@ export type Capabilities = {
     readonly plots: ReadonlySet<PlotKind>;
     readonly drawings: ReadonlySet<DrawingKind>;
     readonly alerts: ReadonlySet<AlertChannel>;
+    /**
+     * Whether the adapter can route `defineAlertCondition` user-wired
+     * alerts per PLAN §11.2.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     const enabled: Capabilities["alertConditions"] = false;
+     *     void enabled;
+     */
     readonly alertConditions: boolean;
+    /**
+     * Whether the adapter renders `runtime.log.*` messages per PLAN §11.3.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     const enabled: Capabilities["logs"] = false;
+     *     void enabled;
+     */
     readonly logs: boolean;
     readonly inputs: ReadonlySet<InputKind>;
+    /**
+     * Timeframes this adapter can deliver candles for. Order is meaningful
+     * for editor pickers and `request.security` validation (PLAN §4.5).
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     const intervals: Capabilities["intervals"] = [
+     *         { value: "1D", label: "1 day", group: "daily" },
+     *     ];
+     *     void intervals;
+     */
     readonly intervals: ReadonlyArray<IntervalDescriptor>;
+    /**
+     * Whether the adapter can deliver more than one candle stream per script
+     * load. `false` triggers the Phase 4 all-NaN fallback for
+     * `request.security` (PLAN §4.5).
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     const enabled: Capabilities["multiTimeframe"] = false;
+     *     void enabled;
+     */
     readonly multiTimeframe: boolean;
+    /**
+     * Max number of sub-panes the adapter can render for one script. Use
+     * `Number.MAX_SAFE_INTEGER` as the unlimited sentinel per PLAN §7.2.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     const max: Capabilities["subPanes"] = Number.MAX_SAFE_INTEGER;
+     *     void max;
+     */
     readonly subPanes: number;
+    /**
+     * `syminfo.*` fields this adapter populates. Missing fields evaluate to
+     * empty sentinels per PLAN §4.8.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     const fields: Capabilities["symInfoFields"] = new Set(["ticker"]);
+     *     void fields;
+     */
     readonly symInfoFields: ReadonlySet<SymInfoField>;
+    /**
+     * Per-script drawing-emission budget consumed by runtime drawing gates
+     * and bucketed by PLAN §10 drawing categories.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     const counts: Capabilities["maxDrawingsPerScript"] = {
+     *         lines: 50, labels: 50, boxes: 50, polylines: 50, other: 50,
+     *     };
+     *     void counts;
+     */
     readonly maxDrawingsPerScript: DrawingCounts;
     readonly maxLookback: number;
     readonly maxTickHz: number;
@@ -447,6 +537,31 @@ export type Adapter = {
     readonly id: string;
     readonly name: string;
     readonly capabilities: Capabilities;
+    /**
+     * Optional per-script input override resolver. Called by hosts at script
+     * mount with the script id/name and merged over manifest defaults by the
+     * runtime.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     const resolveInputs: Adapter["resolveInputs"] = (scriptId) => ({
+     *         length: scriptId === "demo" ? 20 : 14,
+     *     });
+     *     void resolveInputs;
+     */
+    readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    /**
+     * Optional per-mount symbol metadata payload used to populate
+     * `syminfo.*`. Fields are still gated by `capabilities.symInfoFields`.
+     *
+     * @since 0.4
+     * @experimental
+     * @example
+     *     const info: Adapter["symInfo"] = { ticker: "DEMO" };
+     *     void info;
+     */
+    readonly symInfo?: AdapterSymInfo;
     candles(opts: { interval: string | "chart" }): AsyncIterable<CandleEvent>;
     onEmissions(emissions: RunnerEmissions): void;
     dispose(): void;

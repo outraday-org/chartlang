@@ -29,11 +29,7 @@ const DEFAULT_LINE_WIDTH = 1;
  *     renderHorizontalLine(ctx, e, view);
  *     void renderHorizontalLine;
  */
-export function renderHorizontalLine(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderHorizontalLine(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as HorizontalLineState;
     const y = priceToY(state.price, view);
     ctx.strokeStyle = state.style.color ?? DEFAULT_COLOR;

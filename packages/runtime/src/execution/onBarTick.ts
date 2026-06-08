@@ -7,6 +7,8 @@ import { buildComputeContext } from "../buildComputeContext";
 import type { RunnerState } from "../createScriptRunner";
 import { resetSubIdCounters } from "../emit/draw";
 import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext";
+import { resetTentativeStateSlots } from "../state";
+import { refreshRuntimeViews } from "../views";
 
 /**
  * §6.7 tick path. Replaces the head slot on every close-side OHLCV
@@ -64,6 +66,8 @@ export async function onBarTick(state: RunnerState, rawBar: Bar): Promise<void> 
     state.runtimeContext.isTick = true;
     try {
         resetSubIdCounters(state.runtimeContext);
+        resetTentativeStateSlots(state.runtimeContext);
+        refreshRuntimeViews(state, "tick");
         await Promise.resolve(state.compute(buildComputeContext(state)));
     } finally {
         state.runtimeContext.isTick = false;

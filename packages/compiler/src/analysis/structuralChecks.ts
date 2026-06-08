@@ -8,6 +8,28 @@ import { resolveCalleeName } from "../transformers/resolveCallee";
 
 const DEFINE_CALLS = new Set(["defineIndicator", "defineAlert", "defineDrawing"]);
 
+type ValueFormat = "price" | "volume" | "percent" | "compact";
+type ScaleAxis = "price" | "left" | "right" | "new";
+
+/**
+ * Static script-author overrides extracted from the `define*` object
+ * literal. Non-literal values are ignored here; later Phase 4 passes attach
+ * dedicated diagnostics for stricter validation.
+ *
+ * @since 0.4
+ * @example
+ *     const o: StructuralScriptOverrides = { shortName: "EMA", format: "price" };
+ *     void o;
+ */
+export type StructuralScriptOverrides = Readonly<{
+    maxBarsBack?: number;
+    format?: ValueFormat;
+    precision?: number;
+    scale?: ScaleAxis;
+    requiresIntervals?: ReadonlyArray<string>;
+    shortName?: string;
+}>;
+
 /**
  * Result of `runStructuralChecks` — the discovered script `name` / `kind`
  * for the manifest, plus any structural diagnostics. `name` is `""` when no
@@ -33,7 +55,85 @@ export type StructuralCheckResult = Readonly<{
     diagnostics: ReadonlyArray<CompileDiagnostic>;
     name: string;
     kind: "indicator" | "drawing" | "alert";
+    overrides: StructuralScriptOverrides;
 }>;
+
+function readStringArray(node: ts.Expression): ReadonlyArray<string> | undefined {
+    if (!ts.isArrayLiteralExpression(node)) return undefined;
+    const values: string[] = [];
+    for (const element of node.elements) {
+        if (!ts.isStringLiteral(element)) return undefined;
+        values.push(element.text);
+    }
+    return Object.freeze(values);
+}
+
+function readValueFormat(node: ts.Expression): ValueFormat | undefined {
+    if (!ts.isStringLiteral(node)) return undefined;
+    if (
+        node.text === "price" ||
+        node.text === "volume" ||
+        node.text === "percent" ||
+        node.text === "compact"
+    ) {
+        return node.text;
+    }
+    return undefined;
+}
+
+function readScaleAxis(node: ts.Expression): ScaleAxis | undefined {
+    if (!ts.isStringLiteral(node)) return undefined;
+    if (
+        node.text === "price" ||
+        node.text === "left" ||
+        node.text === "right" ||
+        node.text === "new"
+    ) {
+        return node.text;
+    }
+    return undefined;
+}
+
+function extractOverrides(
+    argument: ts.ObjectLiteralExpression,
+    kind: "indicator" | "drawing" | "alert",
+): StructuralScriptOverrides {
+    let maxBarsBack: number | undefined;
+    let format: ValueFormat | undefined;
+    let precision: number | undefined;
+    let scale: ScaleAxis | undefined;
+    let requiresIntervals: ReadonlyArray<string> | undefined;
+    let shortName: string | undefined;
+
+    for (const property of argument.properties) {
+        if (!ts.isPropertyAssignment(property)) continue;
+        const propertyName = property.name;
+        if (!ts.isIdentifier(propertyName)) continue;
+        const initializer = property.initializer;
+        if (propertyName.text === "maxBarsBack" && kind !== "drawing") {
+            if (ts.isNumericLiteral(initializer)) maxBarsBack = Number(initializer.text);
+        } else if (propertyName.text === "format" && kind !== "alert") {
+            format = readValueFormat(initializer);
+        } else if (propertyName.text === "precision" && kind !== "alert") {
+            if (ts.isNumericLiteral(initializer)) precision = Number(initializer.text);
+        } else if (propertyName.text === "scale" && kind === "indicator") {
+            scale = readScaleAxis(initializer);
+        } else if (propertyName.text === "requiresIntervals") {
+            requiresIntervals = readStringArray(initializer);
+        } else if (propertyName.text === "shortName") {
+            if (ts.isStringLiteral(initializer)) shortName = initializer.text;
+        }
+    }
+
+    return Object.freeze({
+        ...(maxBarsBack === undefined ? {} : { maxBarsBack }),
+        ...(format === undefined ? {} : { format }),
+        ...(precision === undefined ? {} : { precision }),
+        ...(scale === undefined ? {} : { scale }),
+        ...(requiresIntervals === undefined ? {} : { requiresIntervals }),
+        ...(shortName === undefined ? {} : { shortName }),
+    });
+}
 
 /**
  * Walk the source file's top-level statements to verify:
@@ -80,7 +180,12 @@ export function runStructuralChecks(
                 sourceFile,
             }),
         );
-        return Object.freeze({ diagnostics: Object.freeze(diagnostics), name, kind });
+        return Object.freeze({
+            diagnostics: Object.freeze(diagnostics),
+            name,
+            kind,
+            overrides: Object.freeze({}),
+        });
     }
 
     const expression = exportAssignment.expression;
@@ -95,7 +200,12 @@ export function runStructuralChecks(
                 sourceFile,
             }),
         );
-        return Object.freeze({ diagnostics: Object.freeze(diagnostics), name, kind });
+        return Object.freeze({
+            diagnostics: Object.freeze(diagnostics),
+            name,
+            kind,
+            overrides: Object.freeze({}),
+        });
     }
 
     const calleeName = resolveCalleeName(expression, checker);
@@ -111,7 +221,12 @@ export function runStructuralChecks(
                 sourceFile,
             }),
         );
-        return Object.freeze({ diagnostics: Object.freeze(diagnostics), name, kind });
+        return Object.freeze({
+            diagnostics: Object.freeze(diagnostics),
+            name,
+            kind,
+            overrides: Object.freeze({}),
+        });
     }
     if (calleeName === "defineAlert") {
         kind = "alert";
@@ -134,7 +249,12 @@ export function runStructuralChecks(
                 sourceFile,
             }),
         );
-        return Object.freeze({ diagnostics: Object.freeze(diagnostics), name, kind });
+        return Object.freeze({
+            diagnostics: Object.freeze(diagnostics),
+            name,
+            kind,
+            overrides: Object.freeze({}),
+        });
     }
 
     let apiVersionOk = false;
@@ -182,5 +302,6 @@ export function runStructuralChecks(
         diagnostics: Object.freeze(diagnostics),
         name,
         kind,
+        overrides: extractOverrides(argument, kind),
     });
 }

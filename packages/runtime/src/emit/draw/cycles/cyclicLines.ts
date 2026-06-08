@@ -64,11 +64,7 @@ function cyclicLinesImpl(
  *         },
  *     });
  */
-export function cyclicLines(
-    a: WorldPoint,
-    b: WorldPoint,
-    opts?: LineDrawStyle,
-): DrawingHandle;
+export function cyclicLines(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
 /**
  * Compiler-injected overload — the callsite-id transformer rewrites
  * every script-side `draw.cyclicLines(a, b, opts)` into

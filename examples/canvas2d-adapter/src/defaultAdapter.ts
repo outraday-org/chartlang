@@ -3,7 +3,7 @@
 
 import type { Adapter, CandleEvent } from "@invinite-org/chartlang-adapter-kit";
 
-import { CANVAS2D_CAPABILITIES } from "./capabilities";
+import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities";
 
 async function* emptyCandleSource(): AsyncIterator<CandleEvent> {
     /* intentionally empty — the conformance harness drives the
@@ -37,6 +37,10 @@ export const DEFAULT_ADAPTER: Adapter = Object.freeze({
     id: "canvas2d-reference-default",
     name: "Canvas 2D Reference Adapter (default)",
     capabilities: CANVAS2D_CAPABILITIES,
+    symInfo: CANVAS2D_SYM_INFO,
+    resolveInputs(): Readonly<Record<string, unknown>> {
+        return {};
+    },
     candles(): AsyncIterable<CandleEvent> {
         return {
             [Symbol.asyncIterator](): AsyncIterator<CandleEvent> {

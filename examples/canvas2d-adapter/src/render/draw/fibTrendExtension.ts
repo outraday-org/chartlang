@@ -35,11 +35,7 @@ const LABEL_OFFSET_PX = 4;
  *     renderFibTrendExtension(ctx, e, view);
  *     void renderFibTrendExtension;
  */
-export function renderFibTrendExtension(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderFibTrendExtension(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as FibTrendExtensionState;
     const [A, B, C] = state.anchors;
     const color = state.style.color ?? DEFAULT_COLOR;

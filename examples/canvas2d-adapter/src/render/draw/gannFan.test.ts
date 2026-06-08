@@ -44,9 +44,7 @@ describe("renderGannFan", () => {
     it("strokes one ray per GANN_FAN_RATIOS entry (9 strokes)", () => {
         const ctx = new MockCanvas2DContext();
         renderGannFan(ctx, emission(STATE), VIEW);
-        expect(ctx.calls.filter((c) => c.kind === "stroke")).toHaveLength(
-            GANN_FAN_RATIOS.length,
-        );
+        expect(ctx.calls.filter((c) => c.kind === "stroke")).toHaveLength(GANN_FAN_RATIOS.length);
     });
 
     it("defaults strokeStyle to gann purple #a855f7", () => {
@@ -58,11 +56,7 @@ describe("renderGannFan", () => {
 
     it("honours style.color", () => {
         const ctx = new MockCanvas2DContext();
-        renderGannFan(
-            ctx,
-            emission({ ...STATE, style: { color: "#0f1e2d" } }),
-            VIEW,
-        );
+        renderGannFan(ctx, emission({ ...STATE, style: { color: "#0f1e2d" } }), VIEW);
         const setCall = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         if (setCall?.kind === "set") expect(setCall.value).toBe("#0f1e2d");
     });

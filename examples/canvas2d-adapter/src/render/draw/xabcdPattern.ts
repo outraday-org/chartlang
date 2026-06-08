@@ -29,11 +29,7 @@ const LABELS: ReadonlyArray<string> = ["X", "A", "B", "C", "D"];
  *     renderXabcdPattern(ctx, e, view);
  *     void renderXabcdPattern;
  */
-export function renderXabcdPattern(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderXabcdPattern(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as XabcdPatternState;
     const points = state.anchors.map((p) => worldPointToCanvas(p, view));
     renderNamedPolyline(ctx, points, LABELS, state.style);

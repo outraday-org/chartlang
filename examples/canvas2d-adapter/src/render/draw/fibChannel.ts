@@ -36,11 +36,7 @@ const LABEL_OFFSET_PX = 4;
  *     renderFibChannel(ctx, e, view);
  *     void renderFibChannel;
  */
-export function renderFibChannel(
-    ctx: RenderCtx,
-    e: DrawingEmission,
-    view: Viewport,
-): void {
+export function renderFibChannel(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as FibChannelState;
     const a = worldPointToCanvas(state.anchors[0], view);
     const b = worldPointToCanvas(state.anchors[1], view);

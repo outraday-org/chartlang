@@ -136,6 +136,7 @@ function buildAdapter(args: {
     ctx?: MockCanvas2DContext;
     host?: ScriptHost;
     candles?: AsyncIterable<CandleEvent>;
+    resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     onAlert?: (a: AlertEmission) => void;
 }): { adapter: Canvas2dAdapterHandle; ctx: MockCanvas2DContext; host: StubHost } {
     const ctx = args.ctx ?? new MockCanvas2DContext();
@@ -146,6 +147,7 @@ function buildAdapter(args: {
         candleSource: args.candles ?? candleStream([]),
         capabilities: CANVAS2D_CAPABILITIES,
         host,
+        ...(args.resolveInputs !== undefined ? { resolveInputs: args.resolveInputs } : {}),
         ...(args.onAlert !== undefined ? { onAlert: args.onAlert } : {}),
     });
     return { adapter, ctx, host };
@@ -163,6 +165,29 @@ describe("createCanvas2dAdapter — construction", () => {
     it("exposes the host on the returned handle", () => {
         const { adapter, host } = buildAdapter({});
         expect(adapter.host).toBe(host);
+    });
+
+    it("exposes the demo sym-info payload", () => {
+        const { adapter } = buildAdapter({});
+        expect(adapter.symInfo).toEqual({
+            ticker: "DEMO",
+            type: "equity",
+            mintick: 0.01,
+            currency: "USD",
+            basecurrency: "USD",
+            exchange: "CHARTLANG",
+            timezone: "Etc/UTC",
+            session: "regular",
+            meta: { vendor: "canvas2d-reference" },
+        });
+    });
+
+    it("preserves optional input resolver on the adapter handle", () => {
+        const resolveInputs = vi.fn((scriptId: string) => ({ length: scriptId.length }));
+        const { adapter } = buildAdapter({ resolveInputs });
+
+        expect(adapter.resolveInputs).toBe(resolveInputs);
+        expect(adapter.resolveInputs?.("demo")).toEqual({ length: 4 });
     });
 
     it("freezes the handle", () => {
@@ -227,9 +252,30 @@ describe("createCanvas2dAdapter — construction", () => {
             canvas: { width: 1, height: 1 },
             ctx,
             candleSource: candleStream([]),
+            resolveInputs: () => ({ length: 20 }),
             workerLike: worker,
         });
         expect(adapter.host.limits.maxCpuMsPerStep).toBeGreaterThan(0);
+        adapter.dispose();
+    });
+
+    it("builds a worker host without an input resolver when omitted", () => {
+        const channel = new MessageChannel();
+        const worker = {
+            addEventListener: () => {},
+            postMessage: () => {},
+            terminate: () => {
+                channel.port1.close();
+                channel.port2.close();
+            },
+        };
+        const adapter = createCanvas2dAdapter({
+            canvas: { width: 1, height: 1 },
+            ctx: new MockCanvas2DContext(),
+            candleSource: candleStream([]),
+            workerLike: worker,
+        });
+        expect(adapter.resolveInputs).toBeUndefined();
         adapter.dispose();
     });
 
@@ -246,6 +292,14 @@ describe("createCanvas2dAdapter — construction", () => {
         // surfaces before the adapter is returned. Asserting the throw
         // both documents the production-only nature of the default path
         // and lights up the missing branch in our own file.
+        expect(() =>
+            createCanvas2dAdapter({
+                canvas: { width: 1, height: 1 },
+                ctx: new MockCanvas2DContext(),
+                candleSource: candleStream([]),
+                resolveInputs: () => ({ length: 20 }),
+            }),
+        ).toThrow();
         expect(() =>
             createCanvas2dAdapter({
                 canvas: { width: 1, height: 1 },
@@ -539,9 +593,7 @@ describe("drawing emission dispatch", () => {
 
     it("drops a drawing from the render set on op:'remove'", () => {
         const { adapter, ctx } = buildAdapter({});
-        adapter.onEmissions(
-            emissions({ drawings: [lineDrawing({ handleId: "h1" })] }),
-        );
+        adapter.onEmissions(emissions({ drawings: [lineDrawing({ handleId: "h1" })] }));
         const afterCreate = ctx.calls.length;
         adapter.onEmissions(
             emissions({ drawings: [lineDrawing({ handleId: "h1", op: "remove" })] }),

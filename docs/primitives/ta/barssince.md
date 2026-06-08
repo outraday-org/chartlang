@@ -21,7 +21,7 @@ data-dependent — NaN until the first `condition === true`
 ## Signature
 
 ```ts
-function barssince(slotId: string, condition: Series<boolean>): Series<number>;
+function barssince(slotId: string, condition: Series<boolean>, opts: BarssinceOpts = {}): Series<number>;
 ```
 
 _The leading `slotId: string` parameter is injected by the chartlang compiler at every callsite — script authors call `ta.<id>(...)` without it._
@@ -32,6 +32,7 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 |---|---|---|---|
 | `slotId` | `string` | — | — |
 | `condition` | `Series<boolean>` | — | — |
+| `opts` | `BarssinceOpts` | {} | — |
 
 ## Returns
 

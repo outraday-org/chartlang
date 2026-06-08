@@ -12,6 +12,8 @@ import {
     extractCapabilities,
     extractInputs,
     extractMaxLookback,
+    extractRequestedIntervals,
+    extractRequiresIntervals,
     runForbiddenConstructs,
     runStatefulCallInLoop,
     runStructuralChecks,
@@ -115,6 +117,7 @@ export function transformAndAnalyse(
                 seriesCapacities: {},
                 maxLookback: 0,
                 inputs: {},
+                ...structural.overrides,
             }),
             diagnostics: Object.freeze(earlyDiagnostics.slice()),
         });
@@ -126,23 +129,47 @@ export function transformAndAnalyse(
     });
     const capabilities = extractCapabilities(sourceFile, checker, structural.kind);
     const lookback = extractMaxLookback(sourceFile, checker, sourcePath);
-    const inputs = extractInputs();
+    const inputs = extractInputs(sourceFile, checker, sourcePath);
+    const intervalDiagnostics: CompileDiagnostic[] = [];
+    const requestedIntervalsFromCalls = extractRequestedIntervals(
+        sourceFile,
+        checker,
+        inputs.inputs,
+        intervalDiagnostics,
+        sourcePath,
+    );
+    const requiresIntervals = extractRequiresIntervals(
+        sourceFile,
+        checker,
+        intervalDiagnostics,
+        sourcePath,
+    );
+    const requestedIntervals = Array.from(
+        new Set([...requestedIntervalsFromCalls, ...requiresIntervals]),
+    ).sort();
+    const { requiresIntervals: structuralRequiresIntervals, ...structuralOverrides } =
+        structural.overrides;
+    void structuralRequiresIntervals;
 
     const manifest = buildManifest({
         name: structural.name,
         kind: structural.kind,
         capabilities,
-        requestedIntervals: [],
+        requestedIntervals,
         userPickableInterval: inputs.userPickableInterval,
         seriesCapacities: lookback.seriesCapacities,
         maxLookback: lookback.maxLookback,
         inputs: inputs.inputs,
+        ...structuralOverrides,
+        ...(requiresIntervals.length === 0 ? {} : { requiresIntervals }),
     });
 
     const allDiagnostics: CompileDiagnostic[] = [
         ...earlyDiagnostics,
         ...injection.diagnostics,
         ...lookback.diagnostics,
+        ...inputs.diagnostics,
+        ...intervalDiagnostics,
     ];
 
     return Object.freeze({
