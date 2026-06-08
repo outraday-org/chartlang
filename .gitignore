@@ -10,3 +10,7 @@ coverage/
 .env.*.local
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+# pi runtime/session data — but keep committed config (.pi/settings.json, .pi/agents/)
+.pi/sessions/
+.pi/npm/
+.pi/team-id
