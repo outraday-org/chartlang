@@ -21,7 +21,7 @@ The argument can be:
 ## Step −1: Detect Runtime
 
 Inspect the tools available to you in *this* session, then pick **exactly one**
-orchestration branch and ignore the other for the rest of the turn:
+orchestration branch and ignore the others for the rest of the turn:
 
 - **Claude Code branch** — choose if you have a `TeamCreate` tool and an
   `Agent` tool that accepts `team_name`, `mode`, and `model` parameters.
@@ -29,12 +29,17 @@ orchestration branch and ignore the other for the rest of the turn:
 - **pi branch** — choose if you have a single `teams` tool with actions
   `member_spawn`, `delegate`, `task_list`, and `member_stop`. Follow
   `## Runtime B: pi orchestration` below.
+- **Codex branch** — choose if you have neither of the above team surfaces
+  but can spawn **subagents** (the project defines them as TOML files in
+  `.codex/agents/`, and Codex spawns them on request, capping concurrency
+  with `agents.max_threads`). Follow `## Runtime C: Codex orchestration`
+  below.
 
-If neither tool surface is present, stop and tell the user the runtime is
-unsupported (this command requires either Claude Code with teams or pi with
-the teams extension loaded).
+If none of these tool surfaces is present, stop and tell the user the runtime
+is unsupported (this command requires Claude Code with teams, pi with the
+teams extension, or Codex with subagents).
 
-Steps 0, 1, 7, and 8 are runtime-agnostic and apply to both branches.
+Steps 0, 1, 7, and 8 are runtime-agnostic and apply to all branches.
 
 ## Step 0: Environment Setup
 
@@ -450,6 +455,119 @@ explicitly here so the workers are gone before Step 7 runs.
 
 ---
 
+## Runtime C: Codex orchestration
+
+Follow this section only if Step −1 selected **Codex**. Codex has no team
+surface — instead you fan out **subagents**. The structure mirrors Steps 2–6
+of Runtime A, translated to Codex's subagent model, with three Codex-specific
+constraints that override the Runtime A instructions:
+
+1. **No autoload of skills or slash commands.** Unlike Claude Code teammates
+   and pi workers, a Codex subagent does **not** inherit the leader's slash
+   commands or skills. Any prompt that tells a subagent to "run
+   `/quality-analysis`" or "run `/build`" will not work as written. Instead,
+   the subagent must **manually `Read` the workflow file from `.codex/`** and
+   follow it as plain guidance — e.g. for quality analysis, Read
+   `.codex/skills/quality-analysis/references/command.md` (a symlink to the
+   canonical `.claude/commands/quality-analysis.md`) and execute its steps
+   directly. Every spawn prompt below bakes this in.
+2. **Depth is capped at 1.** `agents.max_depth` defaults to `1`, so a spawned
+   subagent **cannot spawn its own subagents**. A subagent must do all of its
+   work itself — it cannot fan out further. This matters most for the quality
+   pass (Step 5), which in Runtime A relies on `/quality-analysis` spawning
+   four parallel review agents; in Codex the single quality subagent must
+   perform that review inline instead.
+3. **Model inherits from the parent session.** Omit any per-agent `model`
+   override so each subagent inherits Codex's configured model. The
+   "always Opus" rule from Runtime A does **not** apply here.
+
+### Step 2 (Codex): No team
+
+There is no team to create and no team name to choose. You are the
+orchestrator; subagents are spawned in Step 4. Skip directly to Step 3.
+
+### Step 3 (Codex): Parse Dependencies
+
+Identical to Runtime A Step 3 — read the Task Summary table from `README.md`,
+build a dependency map, group tasks into waves. Report the execution plan to
+the user in the same format.
+
+### Step 4 (Codex): Execute Waves
+
+Process waves **sequentially**. Within each wave, spawn **one subagent per
+task concurrently** — in a single message, ask Codex to spawn the wave's
+subagents and **wait for all of them to finish** before continuing. Codex
+caps concurrent threads at `agents.max_threads` (default 6); if a wave has
+more tasks than the cap, the excess queues automatically — do not split the
+wave yourself.
+
+Each subagent receives the same nine-step plan+execute prompt as Runtime A
+Step 4 (the "You are a senior engineer…" block including the
+`npx convex codegen` guidance and the no-typecheck/lint rule), with this
+Codex preamble prepended:
+
+```
+You are a Codex subagent. You do NOT have the leader's slash commands or
+skills autoloaded, and you cannot spawn your own subagents (depth is capped).
+Do all of the following work yourself. If any step references a slash command
+or skill, instead Read the matching file under
+`.codex/skills/<name>/references/command.md` (or its `SKILL.md`) and follow
+that workflow directly.
+```
+
+Do **not** pass a `model` override — let each subagent inherit the parent
+session's model.
+
+**Wait for ALL subagents in the wave to complete.** Codex returns a
+consolidated result once every requested subagent has finished. Then for each:
+
+- Read the generated `.plan.md` to verify it exists.
+- Note the number of files created/modified from the subagent's output.
+
+#### Progress reporting
+
+Same format as Runtime A:
+
+```
+Wave <W>/<total-waves> complete:
+  Task <N>/<total>: <task-title> — Plan+Execute: completed
+  Task <M>/<total>: <task-title> — Plan+Execute: completed
+```
+
+**Then proceed to the next wave.**
+
+### Step 5 (Codex): Quality Pass
+
+After all waves are complete, spawn a **single** quality subagent. Because it
+cannot fan out further subagents (depth cap) and has no autoloaded skill, the
+prompt must instruct it to run the quality review inline:
+
+```
+You are a Codex subagent performing a holistic quality review. You cannot
+spawn your own subagents and do NOT have the /quality-analysis skill
+autoloaded. Read `.codex/skills/quality-analysis/references/command.md`
+(symlink to .claude/commands/quality-analysis.md) and perform every step of
+that workflow YOURSELF — do not attempt to delegate the parallel review
+agents it describes; instead audit each quality dimension sequentially.
+
+<then the same folder-mode or single-task-mode body as Runtime A Step 5>
+```
+
+Use the folder-mode body for folder mode and the single-task-mode body for
+single-task mode, exactly as in Runtime A Step 5. The review still covers all
+7 quality rules, grades each task plus an overall grade, fixes HIGH/MEDIUM/LOW
+issues, and renames shipped task files with the `X-` prefix.
+
+After the subagent completes, parse its output for per-task grades, overall
+grade, fixes applied, and remaining issues. Include them in the final report.
+
+### Step 6 (Codex): No cleanup
+
+Codex subagents are ephemeral — they finish and return automatically, so
+there is nothing to stop or delete. Proceed to Step 7.
+
+---
+
 ## Step 7: Clean Up Plan Files
 
 Delete all `.plan.md` files generated during execution:
@@ -502,12 +620,15 @@ Present a summary:
 - Skip tasks that already have an `X-` prefix (already completed)
 - All reporting must be in English
 - Teammates run with `bypassPermissions` mode for autonomous execution
-  (Runtime A only — pi workers always run with the leader's permission scope)
-- Parallel teammate spawning:
+  (Runtime A only — pi workers and Codex subagents run with the leader's
+  permission scope)
+- Parallel teammate / subagent spawning:
   - Runtime A: a **single message with multiple `Agent` tool calls** so they
     run concurrently
   - Runtime B: a **single `teams delegate` call** with all workers in
     `spawn[]` and all tasks in `tasks[]` so workers spin up together
+  - Runtime C: a **single spawn request** for the whole wave's subagents,
+    then wait for all to finish (concurrency capped by `agents.max_threads`)
 
 ## Error Handling
 
@@ -516,18 +637,23 @@ Present a summary:
   in the final report
 - **All tasks skipped**: Report why and suggest fixes
 
-## Why Teams
+## Why Teams / Subagents
 
-Teammates are full agent sessions (Claude Code sessions in Runtime A,
-background pi worker subprocesses in Runtime B) that can:
-- Run commands and skills (`/quality-analysis`, `/build`, etc.) — workers
-  inherit the leader's slash commands and extensions
+Teammates and subagents are independent agent sessions (Claude Code sessions
+in Runtime A, background pi worker subprocesses in Runtime B, Codex subagents
+in Runtime C) that can:
+- Run commands and skills (`/quality-analysis`, `/build`, etc.) — in Runtimes
+  A and B workers inherit the leader's slash commands and extensions; in
+  Runtime C subagents do **not** autoload them and must `Read` the workflow
+  file from `.codex/` instead
 - Use all available tools without nesting restrictions
 - Runtime A: spawn their own subagents (e.g., `quality-analysis` spawns 4
   parallel Sonnet review agents)
 - Runtime B: cannot spawn their own teams (recursion is blocked by the
   `PI_TEAMS_WORKER=1` guard in `src/extensions/teams/index.ts`), but can
-  still call subagents via the `Agent` tool from the subagents extension.
+  still call subagents via the `Agent` tool from the subagents extension
+- Runtime C: cannot spawn their own subagents either (`agents.max_depth`
+  defaults to `1`), so each Codex subagent does all of its work itself
 
 This is faster and more capable than running each task synchronously in the
 leader's context, regardless of runtime.
