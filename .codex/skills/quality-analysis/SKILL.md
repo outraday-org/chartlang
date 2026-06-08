@@ -1,0 +1,11 @@
+---
+name: quality-analysis
+description: Analyze code quality, reusability, and conventions. Staff engineer review for diffs, branches, or task verification. Fixes all issues found and runs the chartlang gates.
+---
+
+Read `references/command.md` and follow that workflow in Codex.
+
+Adapt the referenced Claude command for Codex:
+- Treat the command file as workflow guidance, not as skill metadata.
+- Ignore Claude-only frontmatter such as `model` or `tools`.
+- Replace Claude-specific slash-command or subagent steps with the closest direct Codex workflow.
