@@ -30,9 +30,12 @@ autocomplete, linter) that delegate to
   ```ts
   type ChartlangEditorOpts = Readonly<{
       doc?: string;
+      parent?: HTMLElement;
       targetCapabilities?: Capabilities;
       onSourceChange?: (next: string) => void;
       onCompiled?: (compiled: CompiledScriptObject) => void;
+      lintDebounceMs?: number;
+      previewRunner?: unknown;
   }>;
 
   type ChartlangEditor = Readonly<{
@@ -82,6 +85,9 @@ Add (peer or runtime per CM6 norms):
     "@invinite-org/chartlang-language-service": "workspace:*",
     "@invinite-org/chartlang-core": "workspace:*",
     "@invinite-org/chartlang-adapter-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "happy-dom": "^15"
   }
 }
 ```
@@ -155,8 +161,8 @@ export type { ChartlangEditor, ChartlangEditorOpts } from "./types";
 
 ### 5. Tests
 
-CM6 needs a DOM. Use `happy-dom` (already in the workspace as
-`vitest` dep) for tests.
+CM6 needs a DOM. Use `happy-dom` for tests and add it as an
+editor package dev dependency in this task.
 
 - **`createChartlangEditor.test.ts`** — mount editor on a
   detached `div`, verify:
@@ -181,7 +187,7 @@ Every export carries `@since 0.4` + compileable `@example`.
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `packages/editor/package.json` | Modify | Add CM6 deps |
+| `packages/editor/package.json` | Modify | Add CM6 deps, workspace deps, and `happy-dom` dev dep |
 | `packages/editor/src/createChartlangEditor.ts` | Create | Factory |
 | `packages/editor/src/types.ts` | Create | `ChartlangEditor` + opts |
 | `packages/editor/src/extensions/hover.ts` | Create | CM6 hover extension |
@@ -215,6 +221,14 @@ Every export carries `@since 0.4` + compileable `@example`.
   in Phase 4; Phase 5 may add an instance cache).
 - **DOM-only** — the package does NOT run on Node. Tests run
   under `happy-dom`. Document this in the README.
+- **`previewRunner` is intentionally placeholder-typed** —
+  Phase 4 accepts the option so hosts can wire future preview
+  work without another constructor rename, but the peek panel
+  must ignore the value and render the Phase-4 unavailable state.
+- **Coverage include must cover TSX once Task 15 lands** — Task
+  14 can keep `include: ["src/**/*.ts"]`, but if this task edits
+  `vitest.config.ts`, leave it ready for `["src/**/*.{ts,tsx}"]`
+  so the React sub-export does not silently fall out of coverage.
 - **`pnpm test` coverage** — CM6 extensions exercise both
   branches via synthetic events. Some lines (event handlers
   that only run inside a CM6 internal dispatch loop) may need

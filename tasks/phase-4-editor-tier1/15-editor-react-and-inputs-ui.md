@@ -69,6 +69,7 @@ stays framework-agnostic (Task 14).
   "devDependencies": {
     "react": "^18",
     "react-dom": "^18",
+    "@testing-library/react": "^15",
     "@types/react": "^18",
     "@types/react-dom": "^18"
   }
@@ -107,7 +108,6 @@ export function ChartlangEditor(props: ChartlangEditorProps): JSX.Element {
             parent: containerRef.current,
         });
         return () => editorRef.current?.destroy();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Sync external source changes.
@@ -235,17 +235,29 @@ function FieldView({ field }: { field: InputsFormField }): JSX.Element {
             return (
                 <label>{field.title}<input type="checkbox" checked={Boolean(field.value)} onChange={(e) => field.onChange(e.target.checked)} /></label>
             );
-        case "enum": case "interval": case "source":
+        case "enum": case "source":
             return (
                 <label>{field.title}<select value={String(field.value)} onChange={(e) => field.onChange(e.target.value)}>
                     {field.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select></label>
             );
+        case "interval":
+            return field.options && field.options.length > 0
+                ? (
+                    <label>{field.title}<select value={String(field.value)} onChange={(e) => field.onChange(e.target.value)}>
+                        {field.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select></label>
+                )
+                : <label>{field.title}<input type="text" value={String(field.value)} onChange={(e) => field.onChange(e.target.value)} /></label>;
         case "color":
             return <label>{field.title}<input type="color" value={String(field.value)} onChange={(e) => field.onChange(e.target.value)} /></label>;
+        case "string":
+            return field.multiline
+                ? <label>{field.title}<textarea value={String(field.value)} onChange={(e) => field.onChange(e.target.value)} /></label>
+                : <label>{field.title}<input type="text" value={String(field.value)} onChange={(e) => field.onChange(e.target.value)} /></label>;
         default:
             return (
-                <label>{field.title}<input type={field.multiline ? "text" : "text"} value={String(field.value)} onChange={(e) => field.onChange(e.target.value)} /></label>
+                <label>{field.title}<input type="text" value={String(field.value)} onChange={(e) => field.onChange(e.target.value)} /></label>
             );
     }
 }
@@ -282,7 +294,7 @@ Every export carries `@since 0.4` + compileable `@example`.
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `packages/editor/package.json` | Modify | Add `/react` export + React deps |
+| `packages/editor/package.json` | Modify | Add `/react` export, React peer/dev deps, and `@testing-library/react` dev dep |
 | `packages/editor/tsconfig.json` | Modify | Build `/react` subpath |
 | `packages/editor/src/react/ChartlangEditor.tsx` | Create | React wrapper |
 | `packages/editor/src/react/inputs/renderInputsForm.ts` | Create | Headless ViewModel |
@@ -296,9 +308,9 @@ Every export carries `@since 0.4` + compileable `@example`.
 
 ## Edge Cases
 
-- **React is a peer dep, declared optional** — `pnpm install`
-  without React skips installation; consumers who import
-  `/react` must install React themselves.
+- **React is an optional peer for consumers** — this workspace
+  installs React as a dev dependency for tests, but published
+  consumers who import `/react` must install React themselves.
 - **`source` prop sync** is one-way: external changes overwrite
   the editor; internal edits emit `onSourceChange`. To avoid
   loops, the wrapper compares against the last known value
@@ -311,10 +323,10 @@ Every export carries `@since 0.4` + compileable `@example`.
 - **`color` input** — native `<input type="color">` returns
   `#rrggbb`; same as the `Color = string` contract. No
   conversion needed.
-- **Multiline string** — currently rendered as `<input>`; future
-  work may swap to `<textarea>` when `multiline: true`. The
-  ViewModel already carries the flag; the React renderer is the
-  TODO. Capture this in JSDoc.
+- **Multiline string** — render `string` descriptors with
+  `multiline: true` as `<textarea>` in this task. The ViewModel
+  already carries the flag, so the React renderer must not leave
+  this as a TODO.
 - **Coverage** — `react/index.ts` barrel exempt; `*.tsx` files
   contribute to coverage just like `.ts`.
 

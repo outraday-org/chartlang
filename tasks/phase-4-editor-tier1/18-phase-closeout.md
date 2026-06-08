@@ -73,8 +73,9 @@ Run the generator. Inspect the diff. Commit the generated
 markdown verbatim. If the generator misses any new surface,
 either:
 
-- Extend `scripts/gen-docs.ts` to cover the new namespace
-  pattern (preferred — keeps the generator authoritative).
+- Extend the CLI docs generator behind `pnpm chartlang docs` to
+  cover the new namespace pattern (preferred — keeps the
+  generator authoritative).
 - File a follow-up task and document the gap.
 
 The Phase-2/3 pattern is one page per primitive; for the

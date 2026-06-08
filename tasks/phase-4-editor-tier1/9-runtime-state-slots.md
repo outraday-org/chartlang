@@ -34,10 +34,12 @@ determinism test.
   `state.string("")` and their `state.tick.*` variants resolve to
   a `MutableSlot<T>` whose `get value()` / `set value(v)` read
   and write the runtime slot.
-- `state.*` (non-tick) writes during a `tick` event go to
-  `tentative`; on `onBarClose`, every `state.*` slot's
-  `tentative → committed`. On `onBarTick`, every `state.*` slot's
-  `tentative ← committed` (reset at top of tick step).
+- `state.*` (non-tick) reads return the slot's current tentative
+  value during the active step. Writes update `tentative`; on
+  `onBarClose`, every `state.*` slot's `tentative → committed`.
+  On `onBarTick`, every `state.*` slot's `tentative ← committed`
+  before `compute` runs, so replaced ticks cannot leak prior
+  tentative values.
 - `state.tick.*` writes go straight to `committed`.
 - Snapshot/restore: slot values land in `stateStore.set(${slotId}:
   state, { committed, tentative })`. Warm-restart loads the same

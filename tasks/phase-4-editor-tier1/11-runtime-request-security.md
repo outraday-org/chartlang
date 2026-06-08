@@ -102,7 +102,9 @@ export function makeNanSecurityBar(): SecurityBar {
 The `Series<T>` shape only carries `current` + `length`; the
 `[n: number]` lookup yields `undefined`, which TypeScript widens
 to `T` per the existing `Series<T>` signature. Runtime tests
-verify NaN is returned for any indexed access.
+verify `current` is NaN / empty string and that indexed access is
+`undefined` in the Phase-4 stub; Phase 5's real ring-buffer-backed
+series supplies historical values.
 
 ### 2. `packages/runtime/src/request/requestNamespace.ts`
 
@@ -200,8 +202,9 @@ the union still includes them and that the emission shape matches
 ### 6. Tests
 
 - **`securityBarStub.test.ts`** — verify every field reads NaN /
-  empty string; verify `Object.isFrozen`; verify identity is
-  stable across calls.
+  empty string and verify `Object.isFrozen`. Do not require
+  identity stability across separate `makeNanSecurityBar()` calls;
+  stable identity is the request-namespace cache's responsibility.
 - **`requestNamespace.test.ts`** — integration with synthetic
   `ACTIVE_RUNTIME_CONTEXT`:
   - Happy path: known interval + `multiTimeframe: true` returns

@@ -57,10 +57,11 @@ compile-time slot-id contract only.
  * Script-facing handle on a persistent cross-bar slot —
  * Pine's `var` / `varip` equivalent. PLAN.md §4.6.
  *
- * Reads return the latest committed value; writes go to a
- * `tentative` shadow for `state.*` (committed at bar close) and
- * directly to `committed` for `state.tick.*` (committed
- * immediately). Identity is stable across bars per the runtime's
+ * Reads return the active step value. For `state.*`, writes go
+ * to a `tentative` shadow that commits at bar close and resets
+ * from `committed` before each replacement tick; for
+ * `state.tick.*`, writes go directly to `committed` immediately.
+ * Identity is stable across bars per the runtime's
  * slot-id keying — `state.float(0)` at the same callsite returns
  * the **same** slot on every step, with the `init` arg ignored
  * after first construction.
@@ -108,7 +109,7 @@ const sentinel = (name: string): never => {
  * Persistent state slots — Pine `var` semantics. Writes during a
  * `tick` are **tentative** and discarded if a later tick replaces
  * the head bar; on `onBarClose` the tentative value commits.
- * Reads return the latest committed value.
+ * Reads return the active tentative value for the current step.
  *
  * Identity is stable across bars per the compiler-injected slot
  * id (§5.5). Init is evaluated once per script mount; subsequent

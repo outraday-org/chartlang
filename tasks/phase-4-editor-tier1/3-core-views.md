@@ -7,12 +7,13 @@
 Land the three read-only view objects from PLAN.md §4.7 / §4.8 /
 §4.9 — `barstate`, `syminfo`, `timeframe` — plus the `SymbolType`
 union. These are not slot-keyed primitives; they're property bags
-on `ComputeContext` that the runtime mutates per bar (`barstate`,
-`timeframe`) or per script mount (`syminfo`). This task ships the
+on `ComputeContext` that the runtime replaces per bar
+(`barstate`, `timeframe`) or per script mount (`syminfo`). This
+task ships the
 **types + the const exports** so scripts can `import { barstate }
 from "@invinite-org/chartlang-core"` and `compute({ barstate,
-syminfo, timeframe })` typechecks. Runtime population lands in
-Task 10.
+syminfo, timeframe })` typechecks. Runtime population via
+per-step/per-mount snapshots lands in Task 10.
 
 ## Prerequisites
 
@@ -31,17 +32,21 @@ Task 10.
 
 - `import { barstate, syminfo, timeframe, type SymbolType } from
   "@invinite-org/chartlang-core"` resolves.
-- `barstate` is a frozen object whose 6 boolean fields all default
-  to `false` at module scope — the runtime mutates them per bar
-  inside an active script step.
-- `syminfo` is a frozen object whose fields default to their type's
-  empty sentinel (`""` for strings, `NaN` for numbers, `{}` for
-  `meta`) — the runtime overwrites at script mount.
-- `timeframe` is a frozen object whose fields derive from the
-  active `bar.interval` + adapter's `IntervalDescriptor.group`.
+- `barstate` is a frozen module-scope default object whose 6
+  boolean fields all default to `false`. The runtime does not
+  mutate this object; it supplies per-step `BarStateView`
+  snapshots through `ComputeContext`.
+- `syminfo` is a frozen module-scope default object whose fields
+  default to their type's empty sentinel (`""` for strings, `NaN`
+  for numbers, `{}` for `meta`). The runtime supplies a per-mount
+  `SymInfoView` through `ComputeContext`.
+- `timeframe` is a frozen module-scope default object. The
+  runtime supplies per-step `TimeframeView` snapshots derived
+  from the active `bar.interval` + adapter's
+  `IntervalDescriptor.group`.
 - `ComputeContext.barstate: BarStateView`, `syminfo: SymInfoView`,
   `timeframe: TimeframeView` — the runtime's `buildComputeContext`
-  hands a per-step mutated copy.
+  hands the current snapshot.
 
 ## Requirements
 
@@ -55,8 +60,9 @@ Task 10.
  * Bar-state view — PLAN.md §4.7. Mirrors Pine's `barstate.*`. All
  * six fields are derived per step from the runtime's event-type
  * discrimination (`history` / `close` / `tick`) and bar-index
- * bookkeeping. Identity is stable across bars; the runtime
- * mutates the field values in place inside an active script step.
+ * bookkeeping. The exported module-scope value is only the
+ * default fallback; the runtime supplies a per-step snapshot
+ * through `ComputeContext`.
  *
  * Module-scope reads outside a script step yield the type
  * defaults (every field is `false`).
@@ -86,9 +92,9 @@ export type BarStateView = {
 };
 
 /**
- * Module-scope `barstate` instance. The runtime swaps in a
- * per-step proxy with mutated booleans via the `ComputeContext`
- * hand-off; outside a script step, every field is `false`.
+ * Module-scope `barstate` instance. The runtime supplies a
+ * per-step snapshot via the `ComputeContext` hand-off; outside a
+ * script step, every field is `false`.
  *
  * @since 0.4
  * @example
@@ -156,9 +162,9 @@ export type SymInfoView = {
 };
 
 /**
- * Module-scope `syminfo` instance. The runtime overwrites field
- * values at script mount; outside a script step every field
- * evaluates to its empty sentinel.
+ * Module-scope `syminfo` instance. The runtime supplies a
+ * per-mount snapshot via `ComputeContext`; outside a script step
+ * every field evaluates to its empty sentinel.
  *
  * @since 0.4
  * @example

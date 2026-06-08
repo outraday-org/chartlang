@@ -86,9 +86,10 @@ Output file:
 `packages/language-service/src/hoverRegistry.generated.ts` —
 checked in. Two-line MIT header + a generator stamp comment.
 
-Generator CLI: `pnpm gen-hover-registry`. Add a CI gate
-`hover:check` that re-runs and fails on diff. Posture mirrors
-the existing `pnpm docs:check` and `pnpm readme:check` scripts.
+Generator CLI: `pnpm gen-hover-registry` (root package script
+running `pnpm tsx scripts/gen-hover-registry.ts`). Add a CI gate
+`hover:check` that re-runs and fails on diff. Posture mirrors the
+existing `pnpm docs:check` and `pnpm readme:check` scripts.
 (Note: `pnpm docs:generate` runs via `pnpm chartlang docs` — the
 CLI's `docs` command — so the new hover-registry generator stands
 alone as `scripts/gen-hover-registry.ts`; it is not folded into
@@ -226,9 +227,17 @@ regressions in the JSDoc parser.
 
 ### 8. CI gate
 
-Add `hover:check` to the root `package.json` scripts —
-re-runs `gen-hover-registry` and fails on diff. Add the gate to
-the GitHub Actions workflow.
+Add both scripts to the root `package.json`:
+
+```json
+{
+  "gen-hover-registry": "pnpm tsx scripts/gen-hover-registry.ts",
+  "hover:check": "pnpm gen-hover-registry -- --check"
+}
+```
+
+`hover:check` re-runs the generator and fails on diff. Add the
+gate to the GitHub Actions workflow after `pnpm docs:gate`.
 
 ### 9. JSDoc gate
 
@@ -254,7 +263,7 @@ Every new export carries `@since 0.4` + compileable `@example`.
 | `packages/language-service/src/hoverRegistry.generated.test.ts` | Create | Generated-data sanity |
 | `packages/language-service/src/index.ts` | Replace | Real exports |
 | `packages/language-service/package.json` | Modify | Add `@invinite-org/chartlang-compiler` dependency |
-| `package.json` (root) | Modify | Add `hover:check` script |
+| `package.json` (root) | Modify | Add `gen-hover-registry` + `hover:check` scripts |
 | `.github/workflows/ci.yml` | Modify | Wire `hover:check` |
 
 ## Edge Cases

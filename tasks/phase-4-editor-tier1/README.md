@@ -281,7 +281,7 @@ clean).
 | `packages/conformance/src/scenarios/` `inlineSource` pattern (Phase 3) | Task 16's new scenarios use the same pattern — small `defineIndicator` body inlined into the scenario file. |
 | `examples/canvas2d-adapter/src/capabilities.ts` `CANVAS2D_CAPABILITIES` | Task 6 extends with Phase-4 triad fields. |
 | `packages/cli/src/e2e.test.ts` example-script smoke set | Task 17 appends the three new Pine-port scripts. |
-| `scripts/gen-docs.ts` JSDoc walker (Phase 2/3) | Task 18 re-runs unchanged; new core surfaces auto-generate `docs/primitives/{state,barstate,syminfo,timeframe,input,request}/*.md`. |
+| CLI docs generator (`pnpm chartlang docs`) | Task 18 re-runs unchanged unless the CLI misses new namespace patterns; new core surfaces auto-generate `docs/primitives/{state,barstate,syminfo,timeframe,input,request}/*.md`. |
 | `scripts/docs-check.ts` | Re-runs on every PR; Phase 4 keeps the `@example` blocks compileable. |
 
 ## Provenance

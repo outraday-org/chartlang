@@ -201,7 +201,9 @@ import type {
 
 export type RuntimeContext = {
     // ... existing fields ...
-    /** @since 0.4 */ readonly views: {
+    /** @since 0.4 — mutable container; each field is replaced with
+     *  a fresh frozen snapshot as the runner advances. */
+    views: {
         barstate: BarStateView;
         syminfo: SymInfoView;
         timeframe: TimeframeView;
@@ -209,9 +211,9 @@ export type RuntimeContext = {
 };
 ```
 
-The `views` object is mutated per step — the runtime overwrites
-the field values via `Object.assign` (the inner objects are
-frozen; the outer container is mutable).
+The `views` container is mutable; the view snapshots assigned to
+its fields are frozen. Do not mutate the frozen inner objects with
+`Object.assign`.
 
 ### 5. `packages/runtime/src/buildComputeContext.ts` — wire views
 
@@ -246,15 +248,18 @@ ctx.views.barstate = makeBarStateView({
     isLastBar,
 });
 ctx.views.timeframe = makeTimeframeView(
-    streamState.interval,
-    findDescriptor(capabilities.intervals, streamState.interval),
+    ctx.stream.bar.interval,
+    findDescriptor(capabilities.intervals, ctx.stream.bar.interval),
 );
 // syminfo is mount-time only
 ```
 
-`StreamState` exposes the active interval as `streamState.interval`
-(populated from the candle event metadata; verified in
-`packages/runtime/src/streamState.ts`).
+Use the current bar view's interval (`ctx.stream.bar.interval` or
+the local `bar.interval`) for timeframe derivation. Do **not** use
+`streamState.interval` in Phase 4: per
+`packages/runtime/CLAUDE.md`, the main stream is constructed with
+`interval: ""` and the live interval is copied from each candle
+event into `bar.interval`.
 
 At script mount:
 ```ts

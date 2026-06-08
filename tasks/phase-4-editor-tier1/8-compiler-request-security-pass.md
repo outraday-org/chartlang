@@ -35,10 +35,13 @@ cardinality goes **162 → 163**). Update the ambient shim's
 
 - `STATEFUL_PRIMITIVES.size === 163`. Test asserts cardinality
   + presence of every new name.
-- `extractRequestedIntervals(sourceFile, checker)` returns the
-  deduped + sorted set of literal `interval` arguments from
-  every `request.security({ interval: "1D" })` call site in the
-  script. Non-literal arguments emit
+- `extractRequestedIntervals(sourceFile, checker, inputs)` returns
+  the deduped + sorted set of static `interval` arguments from
+  every `request.security(...)` call site in the script. Supported
+  static forms are `request.security({ interval: "1D" })` and
+  `request.security({ interval: inputs.tf })` when `inputs.tf` was
+  extracted by Task 7 from an `input.enum(...)` descriptor whose
+  options are all string literals. Non-static arguments emit
   `request-security-interval-not-literal`.
 - Author-declared `requiresIntervals` from `defineIndicator`
   unions into the extracted set; the union populates
@@ -87,11 +90,11 @@ import ts from "typescript";
 import { resolveCalleeName } from "../transformers/resolveCallee";
 
 /**
- * Walk a script's AST and collect every literal `interval`
- * argument to `request.security({ interval: "…" })`. PLAN §5.6.
+ * Walk a script's AST and collect every static `interval`
+ * argument to `request.security({ interval: ... })`. PLAN §5.6.
  *
- * Non-literal arguments (variable refs, template strings,
- * computed property names) emit
+ * Dynamic arguments (variable refs, template strings,
+ * computed property names, non-input references) emit
  * `request-security-interval-not-literal` and are excluded from
  * the returned set.
  *
@@ -105,6 +108,7 @@ import { resolveCalleeName } from "../transformers/resolveCallee";
 export function extractRequestedIntervals(
     sourceFile: ts.SourceFile,
     checker: ts.TypeChecker,
+    inputs: Readonly<Record<string, { kind: string; options?: ReadonlyArray<string> }>>,
     diagnostics: ts.Diagnostic[],
 ): ReadonlyArray<string> {
     const set = new Set<string>();
@@ -120,9 +124,16 @@ export function extractRequestedIntervals(
                     if (intervalProp && ts.isStringLiteral(intervalProp.initializer)) {
                         set.add(intervalProp.initializer.text);
                     } else if (intervalProp) {
-                        // Non-literal interval — push diagnostic
-                        // implementation: use diagnostics.push(...) with
-                        // category Error + code "request-security-interval-not-literal"
+                        const enumOptions = getInputsEnumOptions(intervalProp.initializer, inputs);
+                        if (enumOptions) {
+                            for (const option of enumOptions) {
+                                set.add(option);
+                            }
+                        } else {
+                            // Non-static interval — push diagnostic
+                            // implementation: use diagnostics.push(...) with
+                            // category Error + code "request-security-interval-not-literal"
+                        }
                     }
                 }
             }
@@ -131,6 +142,23 @@ export function extractRequestedIntervals(
     };
     ts.forEachChild(sourceFile, visit);
     return Object.freeze(Array.from(set).sort());
+}
+
+function getInputsEnumOptions(
+    expr: ts.Expression,
+    inputs: Readonly<Record<string, { kind: string; options?: ReadonlyArray<string> }>>,
+): ReadonlyArray<string> | null {
+    if (
+        ts.isPropertyAccessExpression(expr)
+        && ts.isIdentifier(expr.expression)
+        && expr.expression.text === "inputs"
+    ) {
+        const descriptor = inputs[expr.name.text];
+        if (descriptor?.kind === "enum" && descriptor.options?.every((v) => typeof v === "string")) {
+            return descriptor.options;
+        }
+    }
+    return null;
 }
 ```
 
@@ -143,7 +171,8 @@ opt and return the static array. Non-literal entries fail with
 ### 5. `packages/compiler/src/api.ts` — wire union
 
 ```ts
-const fromRequest = extractRequestedIntervals(sf, checker, diagnostics);
+const extractedInputs = extractInputs(sf, checker, diagnostics);
+const fromRequest = extractRequestedIntervals(sf, checker, extractedInputs.inputs, diagnostics);
 const fromRequires = extractRequiresIntervals(sf, checker, diagnostics);
 const union = Array.from(new Set([...fromRequest, ...fromRequires])).sort();
 const manifest = buildManifest({
@@ -192,9 +221,12 @@ transformer needs no behavioural change. Extend its tests:
 
 ### 9. Tests
 
-- **`extractRequestedIntervals.test.ts`** — three fixtures: one
-  with two distinct intervals; one with a dynamic interval
-  (verify diagnostic); one with no `request.security` calls.
+- **`extractRequestedIntervals.test.ts`** — four fixtures: one
+  with two distinct literal intervals; one with a dynamic
+  interval (verify diagnostic); one with no `request.security`
+  calls; one where `request.security({ interval: inputs.htf })`
+  references `htf: input.enum("1D", ["1D", "1W"] as const)`
+  and both enum options land in `requestedIntervals`.
 - **`extractRequiresIntervals.test.ts`** — one fixture with the
   `requiresIntervals` opt; one with a non-literal entry.
 - **`statefulCallInLoop.test.ts`** — extend with `state.float`
@@ -243,6 +275,10 @@ JSDoc with `@since 0.4` + compileable `@example`.
   not a script-author-locked secondary stream. Only
   `request.security` interval literals + `requiresIntervals` opt
   contribute.
+- **`input.enum` interval references are static only when the
+  descriptor is extracted from `defineIndicator({ inputs })`** —
+  `const htf = "1D"; request.security({ interval: htf })` is
+  still dynamic and emits `request-security-interval-not-literal`.
 - **Sort + dedup** — the union is sorted lexicographically (NOT
   by `IntervalDescriptor` ordering, since the compiler doesn't
   see the adapter's intervals at compile time). The runtime

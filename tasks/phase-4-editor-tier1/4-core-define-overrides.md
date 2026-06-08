@@ -191,11 +191,13 @@ export type ScriptManifest = {
     /**
      * Static set of intervals the script REQUIRES the target
      * adapter to ship in `Capabilities.intervals`. The compiler
-     * unions this with the literal-only set extracted from
-     * `request.security` calls and the `input.interval` default,
-     * deduped + sorted. Disjoint from `requestedIntervals`'s
-     * existing role — `requestedIntervals` is the *full* extracted
-     * set (Phase 4 unchanged); `requiresIntervals` is the
+     * unions this with the static set extracted from
+     * `request.security` calls, deduped + sorted. Disjoint from
+     * `requestedIntervals`'s existing role — `requestedIntervals`
+     * is the *full* extracted secondary-stream set. `input.interval()`
+     * is the user-pickable main timeframe and does not contribute
+     * to this set (Task 8 pins that edge case); `requiresIntervals`
+     * is the
      * *author-declared* subset (a hard editor-warning trigger).
      * @since 0.4
      */

@@ -200,7 +200,6 @@ The example scripts are excluded from `docs-check.ts` by design
 | `examples/scripts/mintick-snapped-entry.chart.ts` | Create | syminfo.* scenario |
 | `packages/cli/src/e2e.test.ts` | Modify | Smoke-compile new scripts |
 | `examples/canvas2d-adapter/src/integration.test.ts` | Modify | Walk new scripts through canvas2d |
-| `examples/scripts/CLAUDE.md` | Modify | Update layout note |
 | `examples/scripts/CLAUDE.md` | Modify | Append script entries to the layout note (root `examples/README.md` does not exist; folder convention lives in CLAUDE.md) |
 
 ## Edge Cases

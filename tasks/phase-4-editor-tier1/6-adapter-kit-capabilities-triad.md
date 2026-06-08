@@ -33,6 +33,10 @@ runtime (Task 11), not in `validateEmission`.
 - `packages/adapter-kit/src/types.ts` `SymInfoField` is already
   exported (`"ticker" | "type" | "mintick" | "currency" |
   "basecurrency" | "exchange" | "timezone" | "session" | "meta"`).
+- `packages/adapter-kit/src/types.ts` still declares its own
+  `InputKind` union. After Task 1, core owns the canonical
+  `InputKind`; this task must replace adapter-kit's duplicate
+  declaration with a type alias to core's export.
 - `packages/adapter-kit/src/capabilities/capabilities.ts` ships
   Phase-2 plot builders + Phase-3 drawing builders + category
   groupers. The 7 Phase-4 builders (`intervals`,
@@ -81,6 +85,15 @@ Confirm `Capabilities`, `SymInfoField`, and the relevant
 `multi-timeframe-not-supported`) are already declared as expected.
 If JSDoc on any Phase-4 field is missing `@since 0.4` or PLAN
 section anchors, patch them in this task. No structural change.
+
+Also replace adapter-kit's duplicate `InputKind` union with a
+single-source-of-truth alias:
+
+```ts
+import type { InputKind as CoreInputKind } from "@invinite-org/chartlang-core";
+
+export type InputKind = CoreInputKind;
+```
 
 ### 2. `packages/adapter-kit/src/capabilities/capabilities.ts` — new builders
 
@@ -193,8 +206,12 @@ Existing builder names: `allPhase2Plots`, `allPhase3Drawings`,
 ### 5. Tests
 
 - **`capabilities.test.ts`** — extend with 7 new builder tests:
-  each builds the expected partial; `Object.isFrozen` on the
-  returned array / Set / record.
+  each builds the expected partial. Assert defensive copies for
+  arrays / records where the builder freezes the returned value.
+  For `symInfoFields`, follow the existing capability-builder
+  convention: return a normal `Set` typed as `ReadonlySet` and
+  assert membership + no aliasing with the input array. Do not
+  require `Object.isFrozen` on `Set` instances.
 - **`capabilities.types.test.ts`** — `expect-type` over the
   return shapes (`intervals` returns
   `ReadonlyArray<IntervalDescriptor>`, etc.).
@@ -213,7 +230,7 @@ compileable `@example`.
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `packages/adapter-kit/src/types.ts` | Modify (JSDoc only, if needed) | Confirm `@since 0.4` on every Phase-4 field |
+| `packages/adapter-kit/src/types.ts` | Modify | Confirm `@since 0.4` on every Phase-4 field; alias `InputKind` to core |
 | `packages/adapter-kit/src/capabilities/capabilities.ts` | Modify | Add 7 builders |
 | `packages/adapter-kit/src/capabilities/capabilities.test.ts` | Modify | Cover new builders |
 | `packages/adapter-kit/src/capabilities/capabilities.types.test.ts` | Modify | `expect-type` over returns |
@@ -234,6 +251,9 @@ compileable `@example`.
 - **`maxDrawingsPerScript` canonical shape** lives in
   `@invinite-org/chartlang-core` (`DrawingCounts`). Adapter-kit
   re-exports the type but does not redeclare it.
+- **`InputKind` canonical shape** lives in
+  `@invinite-org/chartlang-core` after Task 1. Adapter-kit must
+  re-export it by alias rather than maintain a parallel union.
 - **`alertConditions` and `logs` are stubs** — Phase 4 lands the
   shape so consumer adapters can declare the value today; Phase
   5 wires the runtime emission paths.
@@ -258,8 +278,8 @@ bump on `examples/canvas2d-adapter` (private).
 
 ## Acceptance Criteria
 
-- `Capabilities` carries 7 new fields with the documented
-  defaults.
+- `Capabilities` still carries the 7 Phase-4 fields declared
+  before this task, with JSDoc corrected where needed.
 - 7 new builders ship under `capabilities.*`.
 - `CANVAS2D_CAPABILITIES` declares the Phase-4 triad with the
   values from the spec.
