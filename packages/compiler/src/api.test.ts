@@ -117,6 +117,32 @@ export default defineIndicator({
         expect(result.manifest.userPickableInterval).toBe(true);
     });
 
+    it("extracts defineAlertCondition descriptors into the manifest", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineAlertCondition } from "@invinite-org/chartlang-core";
+export default defineAlertCondition({
+    name: "alerts",
+    apiVersion: 1,
+    conditions: {
+        up: { title: "Up", description: "Close crossed up", defaultMessage: "{{ticker}} up" },
+    },
+    compute: () => {},
+});
+`,
+            { sourcePath: "alert-conditions.chart.ts" },
+        );
+        expect(result.diagnostics).toEqual([]);
+        expect(result.manifest.alertConditions).toEqual([
+            {
+                id: "up",
+                title: "Up",
+                description: "Close crossed up",
+                defaultMessage: "{{ticker}} up",
+            },
+        ]);
+    });
+
     it("flows input extraction errors through diagnostics", () => {
         const result = transformAndAnalyse(
             `

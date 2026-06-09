@@ -1,5 +1,23 @@
 # chartlang-example-canvas2d-adapter
 
+## 0.5.0
+
+### Phase 5
+
+#### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @invinite-org/chartlang-adapter-kit@0.5.0
+  - @invinite-org/chartlang-host-worker@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
@@ -328,8 +346,7 @@ points, labels, style)` — strokes an open polyline through the
     matching invinite's pattern-tool palette family).
     `headAndShoulders` adds a neckline stroke between the two
     trough anchors (`anchors[1]` → `anchors[3]`), totalling 2
-    strokes per emission; the other 5 kinds emit 1 polyline stroke
-    - N point labels.
+    strokes per emission; the other 5 kinds emit 1 polyline stroke - N point labels.
   - **conformance** — 6 new per-kind scenarios + 1 bundle
     (`drawPatternsAll.scenario.ts` covering all 6 kinds = 6
     emissions). Conformance + scenarios + index test-capability

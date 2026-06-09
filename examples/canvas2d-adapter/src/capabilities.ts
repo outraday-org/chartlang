@@ -4,7 +4,9 @@
 import {
     type AdapterSymInfo,
     type Capabilities,
+    type DrawingKind,
     type InputKind,
+    type PlotKind,
     capabilities,
 } from "@invinite-org/chartlang-adapter-kit";
 
@@ -17,6 +19,31 @@ const CANVAS2D_INTERVALS = [
     { value: "1W", label: "1 week", group: "weekly" },
 ] as const;
 
+const CANVAS2D_PLOT_KINDS: ReadonlyArray<PlotKind> = Object.freeze([
+    "line",
+    "step-line",
+    "horizontal-line",
+    "histogram",
+    "bars",
+    "area",
+    "filled-band",
+    "label",
+    "marker",
+    "shape",
+    "character",
+    "arrow",
+    "candle-override",
+    "bar-override",
+    "bg-color",
+    "bar-color",
+    "horizontal-histogram",
+]);
+
+const CANVAS2D_DRAWING_KINDS: ReadonlySet<DrawingKind> = new Set([
+    ...capabilities.allPhase3Drawings(),
+    "table",
+]);
+
 /**
  * The capability bag the canvas2d reference adapter declares. Phase 2
  * widens `plots` to `capabilities.allPhase2Plots()`; Phase 3 widens
@@ -24,8 +51,9 @@ const CANVAS2D_INTERVALS = [
  * suite covers every Phase-1 / Phase-2 plot kind AND every Phase-3
  * drawing kind end-to-end. Phase 4 adds canonical timeframe metadata,
  * full `syminfo.*` metadata coverage, and an unlimited sub-pane sentinel
- * while keeping multi-timeframe, alert conditions, logs, and inputs
- * disabled. Per-bucket `maxDrawingsPerScript` is sized so the `drawAll61`
+ * while keeping inputs disabled. Phase 5 enables multi-timeframe
+ * candles, alert conditions, and runtime logs. Per-bucket
+ * `maxDrawingsPerScript` is sized so the `drawAll61`
  * smoke scenario (Task 19) fits without exhausting any bucket.
  *
  * Frozen so consumer-repo adapters that copy from this folder cannot
@@ -43,14 +71,14 @@ const CANVAS2D_INTERVALS = [
  *     void bag;
  */
 export const CANVAS2D_CAPABILITIES: Capabilities = Object.freeze({
-    plots: capabilities.allPhase2Plots(),
-    drawings: capabilities.allPhase3Drawings(),
+    plots: new Set(CANVAS2D_PLOT_KINDS),
+    drawings: CANVAS2D_DRAWING_KINDS,
     alerts: capabilities.alerts("log", "toast"),
     inputs: new Set<InputKind>(),
     maxLookback: 1000,
     maxTickHz: 30,
     ...capabilities.intervals(CANVAS2D_INTERVALS),
-    ...capabilities.multiTimeframe(false),
+    ...capabilities.multiTimeframe(true),
     ...capabilities.subPanes(Number.MAX_SAFE_INTEGER),
     ...capabilities.symInfoFields([
         "ticker",
@@ -70,8 +98,8 @@ export const CANVAS2D_CAPABILITIES: Capabilities = Object.freeze({
         polylines: 100,
         other: 100,
     }),
-    ...capabilities.alertConditions(false),
-    ...capabilities.logs(false),
+    ...capabilities.alertConditions(true),
+    ...capabilities.logs(true),
 });
 
 /**

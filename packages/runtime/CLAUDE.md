@@ -56,6 +56,14 @@
   runner-local `stateSlots` map. Do not clear a caller-supplied
   `StateStore` during dispose — warm restart restores from that backing
   store.
+- **`PersistentStateStore` is a sibling lifecycle store, not the slot
+  store.** `warmStart(currentMainBarTime)` restores a whole PLAN §6.9
+  snapshot before the host feeds new bars; close-cadence and dispose
+  saves capture stream buffers plus `state.*` slots without changing the
+  Phase-1 `StateStore` contract. `barIndex` is restored from the
+  snapshot stream's `filled` count only for unsaturated snapshots; once a
+  stream has wrapped, `StateSnapshot` has no exact historical bar-index
+  field.
 - **`request.security` is a Phase-4 NaN fallback.** Task 11 added
   `RuntimeContext.requestSecurityBars` keyed by `slotId|interval` and
   `diagnosedRequestKeys` keyed by `code|slotId|interval`. The cache

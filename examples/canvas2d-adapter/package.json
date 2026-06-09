@@ -1,43 +1,47 @@
 {
-    "name": "chartlang-example-canvas2d-adapter",
-    "private": true,
-    "version": "0.4.0",
-    "type": "module",
-    "license": "MIT",
-    "description": "Reference adapter — renders to a <canvas> element",
-    "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
-        },
-        "./testing": {
-            "types": "./dist/testing.d.ts",
-            "import": "./dist/testing.js"
-        }
+  "name": "chartlang-example-canvas2d-adapter",
+  "private": true,
+  "version": "0.5.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Reference adapter — renders to a <canvas> element",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
-    "files": ["dist", "README.md", "CHANGELOG.md"],
-    "scripts": {
-        "build": "tsc -p tsconfig.json",
-        "typecheck": "tsc -p tsconfig.json --noEmit",
-        "test": "vitest run --coverage"
-    },
-    "dependencies": {
-        "@invinite-org/chartlang-adapter-kit": "workspace:^",
-        "@invinite-org/chartlang-host-worker": "workspace:^"
-    },
-    "devDependencies": {
-        "@invinite-org/chartlang-compiler": "workspace:^",
-        "@invinite-org/chartlang-core": "workspace:^",
-        "@invinite-org/chartlang-runtime": "workspace:^",
-        "@types/node": "^20.0.0"
-    },
-    "engines": {
-        "node": ">=20"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/outraday-org/chartlang.git"
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@invinite-org/chartlang-adapter-kit": "workspace:^",
+    "@invinite-org/chartlang-host-worker": "workspace:^"
+  },
+  "devDependencies": {
+    "@invinite-org/chartlang-compiler": "workspace:^",
+    "@invinite-org/chartlang-core": "workspace:^",
+    "@invinite-org/chartlang-runtime": "workspace:^",
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/outraday-org/chartlang.git"
+  }
 }

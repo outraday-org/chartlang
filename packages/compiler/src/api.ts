@@ -10,6 +10,7 @@ import ts from "typescript";
 
 import {
     extractCapabilities,
+    extractAlertConditions,
     extractInputs,
     extractMaxLookback,
     extractRequestedIntervals,
@@ -130,6 +131,7 @@ export function transformAndAnalyse(
     const capabilities = extractCapabilities(sourceFile, checker, structural.kind);
     const lookback = extractMaxLookback(sourceFile, checker, sourcePath);
     const inputs = extractInputs(sourceFile, checker, sourcePath);
+    const alertConditions = extractAlertConditions(sourceFile, checker, sourcePath);
     const intervalDiagnostics: CompileDiagnostic[] = [];
     const requestedIntervalsFromCalls = extractRequestedIntervals(
         sourceFile,
@@ -162,6 +164,9 @@ export function transformAndAnalyse(
         inputs: inputs.inputs,
         ...structuralOverrides,
         ...(requiresIntervals.length === 0 ? {} : { requiresIntervals }),
+        ...(alertConditions.alertConditions.length === 0
+            ? {}
+            : { alertConditions: alertConditions.alertConditions }),
     });
 
     const allDiagnostics: CompileDiagnostic[] = [
@@ -169,6 +174,7 @@ export function transformAndAnalyse(
         ...injection.diagnostics,
         ...lookback.diagnostics,
         ...inputs.diagnostics,
+        ...alertConditions.diagnostics,
         ...intervalDiagnostics,
     ];
 

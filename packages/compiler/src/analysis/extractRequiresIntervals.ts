@@ -6,7 +6,12 @@ import ts from "typescript";
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics";
 import { resolveCalleeName } from "../transformers/resolveCallee";
 
-const DEFINE_CALLS = new Set(["defineIndicator", "defineAlert", "defineDrawing"]);
+const DEFINE_CALLS = new Set([
+    "defineIndicator",
+    "defineAlert",
+    "defineDrawing",
+    "defineAlertCondition",
+]);
 
 /**
  * Walk a script's default define call and collect a static

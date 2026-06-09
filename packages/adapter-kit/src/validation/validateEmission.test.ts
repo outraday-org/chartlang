@@ -30,6 +30,26 @@ const validAlert = {
     dedupeKey: "k",
 };
 
+const validAlertCondition = {
+    kind: "alert-condition" as const,
+    conditionId: "up",
+    title: "Up",
+    description: "Close crossed up",
+    defaultMessage: "{{ticker}} up",
+    fired: true,
+    bar: 42,
+    time: 1_700_000_000_000,
+};
+
+const validLog = {
+    kind: "log" as const,
+    level: "info",
+    message: "ready",
+    meta: { close: 42 },
+    bar: 42,
+    time: 1_700_000_000_000,
+};
+
 const validDiagnostic = {
     kind: "diagnostic" as const,
     severity: "warning",
@@ -71,7 +91,7 @@ describe("validateEmission — top-level dispatch", () => {
     });
 
     it("rejects unknown 'kind' values", () => {
-        expect(validateEmission({ kind: "log" })).toMatchObject({
+        expect(validateEmission({ kind: "not-a-kind" })).toMatchObject({
             ok: false,
             code: "malformed-emission",
             message: expect.stringContaining("not a known emission kind"),
@@ -217,6 +237,115 @@ describe("validateEmission — plot", () => {
         expect(validateEmission({ ...validPlot, pane: 42 })).toMatchObject({
             ok: false,
             message: expect.stringContaining("pane"),
+        });
+    });
+});
+
+describe("validateEmission — alert condition", () => {
+    it("accepts a well-formed alert-condition emission", () => {
+        expect(validateEmission(validAlertCondition)).toEqual({ ok: true });
+    });
+
+    it("rejects an empty conditionId", () => {
+        expect(validateEmission({ ...validAlertCondition, conditionId: "" })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("conditionId"),
+        });
+    });
+
+    it("rejects non-string title and description fields", () => {
+        expect(validateEmission({ ...validAlertCondition, title: 42 })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("title"),
+        });
+        expect(validateEmission({ ...validAlertCondition, description: 42 })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("description"),
+        });
+    });
+
+    it("rejects a non-boolean fired field", () => {
+        expect(validateEmission({ ...validAlertCondition, fired: "yes" })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("fired"),
+        });
+    });
+
+    it("rejects a non-string defaultMessage", () => {
+        expect(validateEmission({ ...validAlertCondition, defaultMessage: 42 })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("defaultMessage"),
+        });
+    });
+
+    it("rejects a negative bar", () => {
+        expect(validateEmission({ ...validAlertCondition, bar: -1 })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("bar"),
+        });
+    });
+
+    it("rejects non-finite time", () => {
+        expect(
+            validateEmission({ ...validAlertCondition, time: Number.POSITIVE_INFINITY }),
+        ).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("time"),
+        });
+    });
+});
+
+describe("validateEmission — log", () => {
+    it("accepts a well-formed log emission", () => {
+        expect(validateEmission(validLog)).toEqual({ ok: true });
+    });
+
+    it("accepts omitted meta", () => {
+        const { meta: _meta, ...withoutMeta } = validLog;
+        expect(validateEmission(withoutMeta)).toEqual({ ok: true });
+    });
+
+    it("rejects an unknown log level", () => {
+        expect(validateEmission({ ...validLog, level: "debug" })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("level"),
+        });
+    });
+
+    it("rejects empty message", () => {
+        expect(validateEmission({ ...validLog, message: "" })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("message"),
+        });
+    });
+
+    it("rejects non-JSON meta", () => {
+        expect(
+            validateEmission({ ...validLog, meta: { bad: Number.POSITIVE_INFINITY } }),
+        ).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("non-finite"),
+        });
+    });
+
+    it("rejects a non-object meta", () => {
+        expect(validateEmission({ ...validLog, meta: null })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("meta"),
+        });
+    });
+
+    it("rejects a negative bar", () => {
+        expect(validateEmission({ ...validLog, bar: -1 })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("bar"),
+        });
+    });
+
+    it("rejects a non-finite time", () => {
+        expect(validateEmission({ ...validLog, time: Number.NaN })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("time"),
         });
     });
 });
@@ -478,6 +607,63 @@ describe("validateEmission — Phase-2 plot kinds", () => {
                 style: { kind: "marker", shape: "circle", size: Number.NaN },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("size") });
+    });
+});
+
+describe("validateEmission — Phase-5 plot kinds", () => {
+    it("accepts each new plot style", () => {
+        const styles = [
+            { kind: "shape", shape: "flag", size: 8, location: "below" },
+            { kind: "character", char: "A", size: 12, location: "above" },
+            { kind: "arrow", direction: "down", size: 10 },
+            { kind: "candle-override", bull: "#26a69a", bear: "#ef5350", doji: "#999999" },
+            { kind: "bar-override", color: "#f59e0b" },
+            { kind: "bg-color", color: "#1d4ed8", transp: 80 },
+            { kind: "bar-color", color: "#a855f7" },
+            {
+                kind: "horizontal-histogram",
+                buckets: [{ price: 100, volume: 20, color: "#90caf9" }],
+            },
+        ] as const;
+        for (const style of styles) {
+            expect(validateEmission({ ...validPlot, style })).toEqual({ ok: true });
+        }
+    });
+
+    it("accepts candle-override without a doji color", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "candle-override", bull: "#26a69a", bear: "#ef5350" },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects invalid Phase-5 ranges and structures", () => {
+        const invalid = [
+            { kind: "shape", shape: "star", size: 8 },
+            { kind: "shape", shape: "circle", size: 0 },
+            { kind: "shape", shape: "circle", size: 8, location: "left" },
+            { kind: "character", char: "", size: 12 },
+            { kind: "character", char: "A", size: Number.NaN },
+            { kind: "arrow", direction: "left", size: 10 },
+            { kind: "arrow", direction: "up", size: 0 },
+            { kind: "candle-override", bull: "", bear: "#ef5350" },
+            { kind: "candle-override", bull: "#26a69a", bear: "" },
+            { kind: "bar-override", color: "" },
+            { kind: "bg-color", color: "" },
+            { kind: "bg-color", color: "#1d4ed8", transp: 101 },
+            { kind: "bg-color", color: "#1d4ed8", transp: -1 },
+            { kind: "bar-color", color: "" },
+            { kind: "horizontal-histogram", buckets: "bad" },
+            { kind: "horizontal-histogram", buckets: [null] },
+            { kind: "horizontal-histogram", buckets: [{ price: Number.NaN, volume: 20 }] },
+            { kind: "horizontal-histogram", buckets: [{ price: 100, volume: -1 }] },
+            { kind: "horizontal-histogram", buckets: [{ price: 100, volume: 1, color: "" }] },
+        ];
+        for (const style of invalid) {
+            expect(validateEmission({ ...validPlot, style })).toMatchObject({ ok: false });
+        }
     });
 });
 
@@ -4452,6 +4638,30 @@ const validFrame = {
     },
 };
 
+const validTable = {
+    ...validLineDrawing,
+    drawingKind: "table" as const,
+    state: {
+        kind: "table" as const,
+        position: "top-right",
+        cells: [
+            [
+                { text: "Metric", bgColor: "#0f172a", textColor: "#f8fafc" },
+                {
+                    text: "+12.5%",
+                    textColor: "#16a34a",
+                    textHalign: "right",
+                    textValign: "middle",
+                    textSize: "large",
+                },
+            ],
+        ],
+        borderColor: "#94a3b8",
+        borderWidth: 1,
+        frame: { color: "#475569", width: 2 },
+    },
+};
+
 describe("validateEmission — drawing group kind", () => {
     it("accepts a well-formed group", () => {
         expect(validateEmission(validGroup)).toEqual({ ok: true });
@@ -4558,6 +4768,147 @@ describe("validateEmission — drawing frame kind", () => {
                 state: { ...validFrame.state, childHandleIds: [42] },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("childHandleIds") });
+    });
+});
+
+describe("validateEmission — drawing table kind", () => {
+    it("accepts a well-formed table", () => {
+        expect(validateEmission(validTable)).toEqual({ ok: true });
+    });
+
+    it("accepts a table without optional border and frame styles", () => {
+        const { borderColor: _borderColor, borderWidth: _borderWidth, frame: _frame, ...state } =
+            validTable.state;
+        expect(validateEmission({ ...validTable, state })).toEqual({ ok: true });
+    });
+
+    it("rejects an invalid table position", () => {
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, position: "top-middle" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("position") });
+    });
+
+    it("rejects an empty cells array", () => {
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, cells: [] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("non-empty 2D array") });
+    });
+
+    it("rejects an empty row", () => {
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, cells: [[]] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("cells[0]") });
+    });
+
+    it("rejects a non-object cell", () => {
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, cells: [[null]] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("cells[0][0]") });
+    });
+
+    it("rejects a cell with non-string text", () => {
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, cells: [[{ text: 42 }]] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("text") });
+    });
+
+    it("rejects invalid cell alignment and size fields", () => {
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, cells: [[{ text: "x", textHalign: "middle" }]] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("textHalign") });
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, cells: [[{ text: "x", textSize: "massive" }]] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("textSize") });
+    });
+
+    it("rejects invalid cell color and vertical alignment fields", () => {
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, cells: [[{ text: "x", textColor: 42 }]] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("textColor") });
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, cells: [[{ text: "x", textValign: "center" }]] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("textValign") });
+    });
+
+    it("rejects invalid cell background colors", () => {
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, cells: [[{ text: "x", bgColor: 42 }]] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("bgColor") });
+    });
+
+    it("requires borderColor and borderWidth together", () => {
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, borderWidth: undefined },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("borderColor/borderWidth") });
+    });
+
+    it("rejects non-positive border and frame widths", () => {
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, borderWidth: 0 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("borderWidth") });
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, frame: { color: "#475569", width: 0 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("frame.width") });
+    });
+
+    it("rejects invalid border and frame color fields", () => {
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, borderColor: "" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("borderColor") });
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, frame: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("frame") });
+        expect(
+            validateEmission({
+                ...validTable,
+                state: { ...validTable.state, frame: { color: "", width: 1 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("frame.color") });
     });
 });
 

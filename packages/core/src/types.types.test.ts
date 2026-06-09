@@ -8,6 +8,7 @@ import { defineIndicator, ta } from "./index";
 import type {
     Bar,
     BarStateView,
+    AlertConditionDefinition,
     BbResult,
     CompiledScriptObject,
     ComputeContext,
@@ -20,6 +21,9 @@ import type {
     ScriptOverrides,
     SecurityBar,
     Series,
+    StateSnapshot,
+    StateStoreKey,
+    StreamSnapshot,
     SymInfoView,
     Time,
     TimeframeView,
@@ -88,6 +92,14 @@ describe("public type surface", () => {
             .toEqualTypeOf<RequestSecurityOpts>();
     });
 
+    it("public snapshot types resolve through the root export", () => {
+        expectTypeOf<StateSnapshot["snapshotVersion"]>().toEqualTypeOf<1>();
+        expectTypeOf<StateSnapshot["streams"]>().toEqualTypeOf<
+            Readonly<Record<string, StreamSnapshot>>
+        >();
+        expectTypeOf<StateStoreKey["apiVersion"]>().toEqualTypeOf<1>();
+    });
+
     it("ScriptManifest exposes Phase 4 script overrides", () => {
         expectTypeOf<ScriptManifest["maxBarsBack"]>().toEqualTypeOf<number | undefined>();
         expectTypeOf<ScriptManifest["format"]>().toEqualTypeOf<ValueFormat | undefined>();
@@ -98,5 +110,17 @@ describe("public type surface", () => {
             ReadonlyArray<string> | undefined
         >();
         expectTypeOf<ScriptOverrides["format"]>().toEqualTypeOf<ValueFormat | undefined>();
+    });
+
+    it("ScriptManifest exposes Phase 5 alert-condition metadata", () => {
+        expectTypeOf<ScriptManifest["kind"]>().toEqualTypeOf<
+            "indicator" | "drawing" | "alert" | "alertCondition"
+        >();
+        expectTypeOf<ScriptManifest["alertConditions"]>().toEqualTypeOf<
+            ReadonlyArray<AlertConditionDefinition> | undefined
+        >();
+        expectTypeOf<ComputeContext["signal"]>().toEqualTypeOf<
+            ((conditionId: string, fired: boolean) => void) | undefined
+        >();
     });
 });

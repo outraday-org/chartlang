@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createStreamState } from "./streamState";
+import { createStreamState, updateFallbackViewport } from "./streamState";
 
 describe("createStreamState", () => {
     it("constructs the full per-stream shape with the supplied symbol/interval", () => {
@@ -99,5 +99,126 @@ describe("createStreamState", () => {
         expect(a.taSlots).not.toBe(b.taSlots);
         a.ohlcv.close.append(1);
         expect(b.ohlcv.close.length).toBe(0);
+    });
+
+    it("serialises and restores raw OHLCV buffers", () => {
+        const source = createStreamState({ interval: "1m", capacity: 3, symbol: "AAPL" });
+        source.ohlcv.time.append(1);
+        source.ohlcv.open.append(10);
+        source.ohlcv.high.append(12);
+        source.ohlcv.low.append(9);
+        source.ohlcv.close.append(11);
+        source.ohlcv.volume.append(100);
+        source.ohlcv.hl2.append(10.5);
+        source.ohlcv.hlc3.append(10.666666666666666);
+        source.ohlcv.ohlc4.append(10.5);
+        source.ohlcv.hlcc4.append(10.75);
+        source.ohlcv.time.append(2);
+        source.ohlcv.open.append(11);
+        source.ohlcv.high.append(13);
+        source.ohlcv.low.append(10);
+        source.ohlcv.close.append(12);
+        source.ohlcv.volume.append(101);
+        source.ohlcv.hl2.append(11.5);
+        source.ohlcv.hlc3.append(11.666666666666666);
+        source.ohlcv.ohlc4.append(11.5);
+        source.ohlcv.hlcc4.append(11.75);
+        source.bar.interval = "1m";
+
+        const snapshot = source.serialiseSnapshot();
+        const restored = createStreamState({ interval: "1m", capacity: 3, symbol: "AAPL" });
+        restored.restoreFromSnapshot(snapshot);
+
+        expect(snapshot.buffers.close).toEqual([11, 12, 0]);
+        expect(restored.seriesViews.close.current).toBe(12);
+        expect(restored.seriesViews.close[1]).toBe(11);
+        expect(restored.seriesViews.hl2.current).toBe(11.5);
+        expect(restored.bar.time).toBe(2);
+        expect(restored.bar.interval).toBe("1m");
+        expect(restored.bar.close).toBe(12);
+    });
+
+    it("rejects stream snapshots whose buffers do not match capacity", () => {
+        const restored = createStreamState({ interval: "1m", capacity: 2, symbol: "AAPL" });
+        expect(() =>
+            restored.restoreFromSnapshot({
+                interval: "1m",
+                headIndex: 0,
+                filled: 1,
+                buffers: {
+                    time: [1],
+                    open: [10],
+                    high: [11],
+                    low: [9],
+                    close: [10.5],
+                    volume: [100],
+                },
+            }),
+        ).toThrow("invalid ring buffer snapshot");
+    });
+
+    it("restores an empty snapshot back to NaN bar sentinels", () => {
+        const restored = createStreamState({ interval: "1m", capacity: 2, symbol: "AAPL" });
+        restored.ohlcv.close.append(10);
+
+        restored.restoreFromSnapshot({
+            interval: "1m",
+            headIndex: -1,
+            filled: 0,
+            buffers: {
+                time: [null, null],
+                open: [null, null],
+                high: [null, null],
+                low: [null, null],
+                close: [null, null],
+                volume: [null, null],
+            },
+        });
+
+        expect(restored.bar.time).toBe(0);
+        expect(restored.bar.open).toBeNaN();
+        expect(restored.bar.high).toBeNaN();
+        expect(restored.bar.low).toBeNaN();
+        expect(restored.bar.close).toBeNaN();
+        expect(restored.bar.volume).toBe(0);
+        expect(restored.bar.hl2).toBeNaN();
+        expect(restored.bar.hlc3).toBeNaN();
+        expect(restored.bar.ohlc4).toBeNaN();
+        expect(restored.bar.hlcc4).toBeNaN();
+    });
+
+    it("restores null raw values as NaN-derived values", () => {
+        const restored = createStreamState({ interval: "1m", capacity: 2, symbol: "AAPL" });
+
+        restored.restoreFromSnapshot({
+            interval: "1m",
+            headIndex: 0,
+            filled: 1,
+            buffers: {
+                time: [1, null],
+                open: [10, null],
+                high: [null, null],
+                low: [9, null],
+                close: [11, null],
+                volume: [100, null],
+            },
+        });
+
+        expect(restored.bar.high).toBeNaN();
+        expect(restored.bar.hl2).toBeNaN();
+        expect(restored.bar.hlc3).toBeNaN();
+        expect(restored.bar.ohlc4).toBeNaN();
+        expect(restored.bar.hlcc4).toBeNaN();
+        expect(restored.seriesViews.hl2.current).toBeNaN();
+    });
+
+    it("falls back to toTime when fallback viewport fromTime is not finite", () => {
+        const stream = createStreamState({ interval: "1m", capacity: 2, symbol: "AAPL" });
+        stream.ohlcv.time.append(Number.NaN);
+        stream.ohlcv.time.append(10);
+
+        updateFallbackViewport(stream, 2);
+
+        expect(stream.bar.viewport).toEqual({ fromTime: 10, toTime: 10 });
     });
 });

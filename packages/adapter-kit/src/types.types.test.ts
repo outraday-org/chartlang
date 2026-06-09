@@ -7,8 +7,8 @@ import type {
     DrawingKind as CoreDrawingKind,
     DrawingState,
 } from "@invinite-org/chartlang-core";
-import { describe, expect, it } from "vitest";
 import { expectTypeOf } from "expect-type";
+import { describe, expect, it } from "vitest";
 
 import { bucketFor } from ".";
 import type { DrawingBucket } from ".";
@@ -16,14 +16,16 @@ import type { defineAdapter } from "./defineAdapter";
 import type { mockCandleSource } from "./mocks";
 import type {
     Adapter,
-    AlertChannel,
-    AlertEmission,
     AdapterSymInfo,
-    Capabilities,
+    AlertChannel,
+    AlertConditionEmission,
+    AlertEmission,
     CandleEvent,
+    Capabilities,
     DiagnosticCode,
     DrawingEmission,
     DrawingKind,
+    LogEmission,
     PlotEmission,
     PlotKind,
     PlotStyle,
@@ -48,8 +50,8 @@ describe("type assertions", () => {
         expectTypeOf<PlotEmission["color"]>().toEqualTypeOf<string | null>();
     });
 
-    it("PlotStyle is a discriminated union of three line variants", () => {
-        expectTypeOf<PlotStyle["kind"]>().toEqualTypeOf<"line" | "step-line" | "horizontal-line">();
+    it("PlotStyle is keyed by adapter PlotKind", () => {
+        expectTypeOf<PlotStyle["kind"]>().toEqualTypeOf<PlotKind>();
     });
 
     it("AlertEmission.severity is AlertSeverity", () => {
@@ -64,6 +66,10 @@ describe("type assertions", () => {
         expectTypeOf<RunnerEmissions["plots"]>().toEqualTypeOf<ReadonlyArray<PlotEmission>>();
         expectTypeOf<RunnerEmissions["drawings"]>().toEqualTypeOf<ReadonlyArray<DrawingEmission>>();
         expectTypeOf<RunnerEmissions["alerts"]>().toEqualTypeOf<ReadonlyArray<AlertEmission>>();
+        expectTypeOf<RunnerEmissions["alertConditions"]>().toEqualTypeOf<
+            ReadonlyArray<AlertConditionEmission>
+        >();
+        expectTypeOf<RunnerEmissions["logs"]>().toEqualTypeOf<ReadonlyArray<LogEmission>>();
         expectTypeOf<RunnerEmissions["diagnostics"]>().toEqualTypeOf<
             ReadonlyArray<RuntimeDiagnostic>
         >();
@@ -77,13 +83,25 @@ describe("type assertions", () => {
             | "unsupported-pane"
             | "unsupported-interval"
             | "multi-timeframe-not-supported"
+            | "unknown-secondary-stream"
             | "lookback-exceeded"
             | "drawing-budget-exceeded"
             | "dropped-by-policy"
             | "input-coercion-failed"
+            | "alert-conditions-not-supported"
+            | "unknown-alert-condition"
             | "alert-rate-limited"
             | "runtime-cpu-budget-exceeded"
             | "runtime-memory-budget-exceeded"
+            | "runtime-log-budget-exceeded"
+            | "malformed-log-meta"
+            | "runtime-error-thrown"
+            | "session-info-missing"
+            | "fixed-range-inverted"
+            | "state-snapshot-restored"
+            | "state-snapshot-future-dated"
+            | "state-snapshot-malformed"
+            | "state-snapshot-save-failed"
             | "malformed-emission";
         expectTypeOf<DiagnosticCode>().toEqualTypeOf<ExpectedCodes>();
     });
@@ -111,6 +129,18 @@ describe("type assertions", () => {
     it("CandleEvent.history carries ReadonlyArray<Bar>", () => {
         expectTypeOf<Extract<CandleEvent, { kind: "history" }>["bars"]>().toEqualTypeOf<
             ReadonlyArray<Bar>
+        >();
+    });
+
+    it("CandleEvent variants accept an optional secondary stream key", () => {
+        expectTypeOf<Extract<CandleEvent, { kind: "history" }>["streamKey"]>().toEqualTypeOf<
+            string | undefined
+        >();
+        expectTypeOf<Extract<CandleEvent, { kind: "close" }>["streamKey"]>().toEqualTypeOf<
+            string | undefined
+        >();
+        expectTypeOf<Extract<CandleEvent, { kind: "tick" }>["streamKey"]>().toEqualTypeOf<
+            string | undefined
         >();
     });
 

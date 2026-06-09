@@ -18,6 +18,7 @@ import { wilderStep } from "./lib/wilderSmoothing";
 import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
 
 type RsiSlot = {
+    readonly kind: "ta.rsi";
     readonly outBuffer: Float64RingBuffer;
     readonly series: Series<number>;
     readonly length: number;
@@ -45,6 +46,7 @@ function getCtx(): RuntimeContext {
 function initSlot(length: number, capacity: number): RsiSlot {
     const outBuffer = new Float64RingBuffer(capacity);
     return {
+        kind: "ta.rsi",
         outBuffer,
         series: makeSeriesView<number>(outBuffer),
         length,

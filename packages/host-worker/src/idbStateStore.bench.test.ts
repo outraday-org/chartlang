@@ -1,0 +1,69 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import "fake-indexeddb/auto";
+
+import type { StateSnapshot, StateStoreKey, StreamSnapshot } from "@invinite-org/chartlang-core";
+import { describe, expect, it } from "vitest";
+
+import { idbStateStore } from "./idbStateStore";
+
+// THRESHOLD_MS bounds one save + load for a representative 5,000-bar snapshot
+// under `fake-indexeddb`. The shim is pure JS and lacks native browser IDB's
+// storage engine optimisations, so 50ms is a conservative CI guardrail.
+const THRESHOLD_MS = 50;
+
+function key(): StateStoreKey {
+    return {
+        scriptHash: "threshold-script",
+        compilerVersion: "0.5.0",
+        apiVersion: 1,
+        capabilitiesHash: "threshold-capabilities",
+        symbol: "BTCUSD",
+        mainInterval: "1m",
+        requestedIntervals: [],
+    };
+}
+
+function stream(): StreamSnapshot {
+    return {
+        interval: "1m",
+        headIndex: 4_999,
+        filled: 5_000,
+        buffers: {
+            time: Array.from({ length: 5_000 }, (_, index) => index),
+            open: Array.from({ length: 5_000 }, (_, index) => 100 + index),
+            high: Array.from({ length: 5_000 }, (_, index) => 101 + index),
+            low: Array.from({ length: 5_000 }, (_, index) => 99 + index),
+            close: Array.from({ length: 5_000 }, (_, index) => 100.5 + index),
+            volume: Array.from({ length: 5_000 }, (_, index) => 1_000 + index),
+        },
+    };
+}
+
+function snapshot(): StateSnapshot {
+    return {
+        lastBarTime: 5_000,
+        streams: { "1m": stream() },
+        slots: { counter: 5_000 },
+        savedAt: Date.now(),
+        snapshotVersion: 1,
+    };
+}
+
+describe("idbStateStore threshold", () => {
+    it(`saves and loads a 5,000-bar snapshot under ${THRESHOLD_MS}ms`, async () => {
+        const store = idbStateStore({
+            dbName: `chartlang-idb-threshold-${Date.now()}-${Math.random()}`,
+            key: key(),
+        });
+        const snap = snapshot();
+
+        const start = performance.now();
+        await store.save(snap);
+        await store.load();
+        const elapsed = performance.now() - start;
+
+        expect(elapsed).toBeLessThan(THRESHOLD_MS);
+    });
+});

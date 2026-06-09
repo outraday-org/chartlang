@@ -3,7 +3,9 @@
 
 import type {
     AlertEmission,
+    AlertConditionEmission,
     DrawingEmission,
+    LogEmission,
     PlotEmission,
     RunnerEmissions,
     RuntimeDiagnostic,
@@ -41,6 +43,30 @@ function validAlert(): AlertEmission {
     };
 }
 
+function validAlertCondition(): AlertConditionEmission {
+    return {
+        kind: "alert-condition",
+        conditionId: "bullishCross",
+        title: "Bullish cross",
+        description: "Fast EMA crossed above slow EMA",
+        defaultMessage: "{{ticker}} crossed up",
+        fired: true,
+        bar: 1,
+        time: 1_700_000_000_000,
+    };
+}
+
+function validLog(): LogEmission {
+    return {
+        kind: "log",
+        level: "info",
+        message: "ema warmed",
+        meta: { ema: 42 },
+        bar: 1,
+        time: 1_700_000_000_000,
+    };
+}
+
 function validDrawing(): DrawingEmission {
     return {
         kind: "drawing",
@@ -69,6 +95,8 @@ function snapshot(overrides: Partial<RunnerEmissions> = {}): RunnerEmissions {
         plots: [],
         drawings: [],
         alerts: [],
+        alertConditions: [],
+        logs: [],
         diagnostics: [],
         fromBar: 1,
         toBar: 2,
@@ -82,11 +110,15 @@ describe("filterEmissions", () => {
             plots: [validPlot()],
             drawings: [validDrawing()],
             alerts: [validAlert()],
+            alertConditions: [validAlertCondition()],
+            logs: [validLog()],
             diagnostics: [existingDiagnostic()],
         });
         const out = filterEmissions(input);
         expect(out.plots).toHaveLength(1);
         expect(out.alerts).toHaveLength(1);
+        expect(out.alertConditions).toHaveLength(1);
+        expect(out.logs).toHaveLength(1);
         expect(out.drawings).toHaveLength(1);
         expect(out.diagnostics).toHaveLength(1);
         expect(out.fromBar).toBe(1);
@@ -110,6 +142,29 @@ describe("filterEmissions", () => {
         expect(out.diagnostics).toHaveLength(1);
         expect(out.diagnostics[0].code).toBe("malformed-emission");
         expect(out.diagnostics[0].slotId).toBe(malformed.slotId);
+    });
+
+    it("sinks malformed alert conditions into the diagnostics array", () => {
+        const malformed = {
+            ...validAlertCondition(),
+            fired: "yes",
+        } as unknown as AlertConditionEmission;
+        const out = filterEmissions(snapshot({ alertConditions: [malformed] }));
+        expect(out.alertConditions).toEqual([]);
+        expect(out.diagnostics).toHaveLength(1);
+        expect(out.diagnostics[0].code).toBe("malformed-emission");
+        expect(out.diagnostics[0].slotId).toBeNull();
+        expect(out.diagnostics[0].bar).toBe(malformed.bar);
+    });
+
+    it("sinks malformed logs into the diagnostics array", () => {
+        const malformed = { ...validLog(), level: "debug" } as unknown as LogEmission;
+        const out = filterEmissions(snapshot({ logs: [malformed] }));
+        expect(out.logs).toEqual([]);
+        expect(out.diagnostics).toHaveLength(1);
+        expect(out.diagnostics[0].code).toBe("malformed-emission");
+        expect(out.diagnostics[0].slotId).toBeNull();
+        expect(out.diagnostics[0].bar).toBe(malformed.bar);
     });
 
     it("preserves pre-existing diagnostics and appends new ones", () => {

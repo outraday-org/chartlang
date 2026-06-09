@@ -31,7 +31,7 @@ export type DrawingBucket = "lines" | "labels" | "boxes" | "polylines" | "other"
  * rectangle/rotatedRectangle/triangle/circle/ellipse → `boxes`;
  * path/polyline/curves/freehand/channels/pitchforks/patterns/elliott →
  * `polylines`; text/arrow/arrowMarker/arrowMarkUp/arrowMarkDown +
- * marker → `labels`; fib / gann / cycles / containers → `other`.
+ * marker → `labels`; fib / gann / cycles / containers / table → `other`.
  *
  * @formula  bucket = KIND_BUCKET.get(kind)
  * @anchors  kind: DrawingKind → bucket: "lines"|"labels"|"boxes"|"polylines"|"other"
@@ -107,6 +107,7 @@ export const KIND_BUCKET: ReadonlyMap<DrawingKind, DrawingBucket> = new Map<
     ["sine-line", "other"],
     ["group", "other"],
     ["frame", "other"],
+    ["table", "other"],
 ]);
 
 /**

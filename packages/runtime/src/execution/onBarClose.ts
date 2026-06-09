@@ -5,10 +5,12 @@ import type { Bar } from "@invinite-org/chartlang-core";
 
 import { buildComputeContext } from "../buildComputeContext";
 import type { RunnerState } from "../createScriptRunner";
+import { isRuntimeErrorHalt, pushDiagnostic } from "../emit";
 import { resetSubIdCounters } from "../emit/draw";
 import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext";
 import { commitStateSlots, flushStateSlots } from "../state";
-import { refreshRuntimeViews, type EventKind } from "../views";
+import { appendBarToStream, updateFallbackViewport } from "../streamState";
+import { type EventKind, refreshRuntimeViews } from "../views";
 
 /**
  * §6.7 main step. Appends every OHLCV ring buffer, mutates the runner's
@@ -35,51 +37,47 @@ export async function onBarClose(
     rawBar: Bar,
     eventKind: EventKind = "close",
 ): Promise<void> {
-    const { ohlcv, bar } = state.mainStream;
-    const hl2 = (rawBar.high + rawBar.low) / 2;
-    const hlc3 = (rawBar.high + rawBar.low + rawBar.close) / 3;
-    const ohlc4 = (rawBar.open + rawBar.high + rawBar.low + rawBar.close) / 4;
-    const hlcc4 = (rawBar.high + rawBar.low + rawBar.close + rawBar.close) / 4;
-
-    ohlcv.time.append(rawBar.time);
-    ohlcv.open.append(rawBar.open);
-    ohlcv.high.append(rawBar.high);
-    ohlcv.low.append(rawBar.low);
-    ohlcv.close.append(rawBar.close);
-    ohlcv.volume.append(rawBar.volume);
-    ohlcv.hl2.append(hl2);
-    ohlcv.hlc3.append(hlc3);
-    ohlcv.ohlc4.append(ohlc4);
-    ohlcv.hlcc4.append(hlcc4);
-
-    bar.time = rawBar.time;
-    bar.open = rawBar.open;
-    bar.high = rawBar.high;
-    bar.low = rawBar.low;
-    bar.close = rawBar.close;
-    bar.volume = rawBar.volume;
-    bar.hl2 = hl2;
-    bar.hlc3 = hlc3;
-    bar.ohlc4 = ohlc4;
-    bar.hlcc4 = hlcc4;
-    bar.symbol = rawBar.symbol;
-    bar.interval = rawBar.interval;
+    appendBarToStream(state.mainStream, rawBar);
+    updateFallbackViewport(state.mainStream);
 
     state.emissions.plots = [];
     state.emissions.drawings = [];
     state.emissions.alerts = [];
+    state.emissions.alertConditions = [];
+    state.emissions.logs = [];
     state.emissions.diagnostics = [];
     state.emissions.fromBar = state.barIndex;
     state.emissions.toBar = state.barIndex;
+    state.runtimeContext.requestSecurityAlignments.clear();
+    state.runtimeContext.requestSecurityAscendingBars.clear();
+    state.runtimeContext.logBudget = 0;
+    state.runtimeContext.logBudgetExceededDiagnosed = false;
 
     ACTIVE_RUNTIME_CONTEXT.current = state.runtimeContext;
     state.runtimeContext.isTick = false;
     try {
         resetSubIdCounters(state.runtimeContext);
         refreshRuntimeViews(state, eventKind);
-        await Promise.resolve(state.compute(buildComputeContext(state)));
-        commitStateSlots(state.runtimeContext);
-        flushStateSlots(state.runtimeContext);
+        try {
+            await Promise.resolve(state.compute(buildComputeContext(state)));
+            commitStateSlots(state.runtimeContext);
+            flushStateSlots(state.runtimeContext);
+        } catch (err) {
+            if (!isRuntimeErrorHalt(err)) throw err;
+            state.emissions.plots = [];
+            state.emissions.drawings = [];
+            state.emissions.alerts = [];
+            state.emissions.alertConditions = [];
+            state.emissions.logs = [];
+            pushDiagnostic(state.emissions, {
+                kind: "diagnostic",
+                severity: "error",
+                code: "runtime-error-thrown",
+                message: err.message,
+                slotId: null,
+                bar: state.barIndex,
+            });
+        }
     } finally {
         ACTIVE_RUNTIME_CONTEXT.current = null;
     }

@@ -1,5 +1,27 @@
 # @invinite-org/chartlang-language-service
 
+## 0.5.0
+
+### Phase 5
+
+#### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @invinite-org/chartlang-core@0.5.0
+  - @invinite-org/chartlang-compiler@0.5.0
+  - @invinite-org/chartlang-adapter-kit@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

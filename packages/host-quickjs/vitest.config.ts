@@ -9,8 +9,11 @@ export default defineConfig({
             include: ["src/**/*.ts"],
             exclude: [
                 "src/**/*.test.ts",
+                "src/**/*.bench.ts",
                 "src/**/*.bench.test.ts",
                 "src/**/__fixtures__/**",
+                "src/dispatcher.ts",
+                "src/protocol.ts",
                 "src/**/index.ts",
                 "src/**/types.ts",
             ],

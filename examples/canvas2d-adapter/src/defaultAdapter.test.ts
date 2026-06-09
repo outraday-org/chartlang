@@ -41,6 +41,8 @@ describe("DEFAULT_ADAPTER", () => {
                 plots: [],
                 drawings: [],
                 alerts: [],
+                alertConditions: [],
+                logs: [],
                 diagnostics: [],
                 fromBar: 0,
                 toBar: 0,

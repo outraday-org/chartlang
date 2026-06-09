@@ -51,4 +51,12 @@ describe("StateSlot", () => {
         expect(slot.committed).toBe(next);
         expect(slot.tentative).toBe(init);
     });
+
+    it("uses an optional serialiseState hook", () => {
+        const slot = new StateSlot(2, false, {
+            serialiseState: (value) => ({ doubled: value * 2 }),
+        });
+
+        expect(slot.serialise(3)).toEqual({ doubled: 6 });
+    });
 });

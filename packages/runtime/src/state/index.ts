@@ -4,8 +4,11 @@
 export {
     commitStateSlots,
     flushStateSlots,
+    restoreStateSlots,
     resetTentativeStateSlots,
+    serialiseStateSlots,
 } from "./lifecycle";
 export type { StateSlotSnapshot } from "./lifecycle";
 export { buildStateNamespace } from "./stateNamespace";
+export type { StateSlotSerialisers } from "./stateSlot";
 export { asMutableSlot, StateSlot } from "./stateSlot";

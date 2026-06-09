@@ -3,7 +3,10 @@
 
 export type {
     AlertSeverity,
+    AlertConditionDefinition,
+    AlertConditionDescriptor,
     Bar,
+    BarViewport,
     CapabilityId,
     Color,
     CompiledScriptObject,
@@ -21,8 +24,9 @@ export type {
     Time,
     Volume,
 } from "./types";
-export { defineAlert, defineDrawing, defineIndicator } from "./define";
+export { defineAlert, defineAlertCondition, defineDrawing, defineIndicator } from "./define";
 export type {
+    DefineAlertConditionOpts,
     DefineAlertOpts,
     DefineDrawingOpts,
     DefineIndicatorOpts,
@@ -36,6 +40,8 @@ export type {
     AdrOpts,
     AdxOpts,
     AlmaOpts,
+    AnchoredVolumeProfileOpts,
+    AnchoredVolumeProfileResult,
     AnchoredVwapOpts,
     AoOpts,
     AroonOpts,
@@ -74,6 +80,8 @@ export type {
     EnvelopeResult,
     FisherOpts,
     FisherResult,
+    FixedRangeVolumeProfileOpts,
+    FixedRangeVolumeProfileResult,
     HighestOpts,
     HmaOpts,
     HvOpts,
@@ -121,6 +129,8 @@ export type {
     RvgiOpts,
     RvgiResult,
     RviOpts,
+    SessionVolumeProfileOpts,
+    SessionVolumeProfileResult,
     SmaOpts,
     SmiOpts,
     SmiResult,
@@ -147,6 +157,8 @@ export type {
     VolatilityStopResult,
     VortexOpts,
     VortexResult,
+    VisibleRangeVolumeProfileOpts,
+    VisibleRangeVolumeProfileResult,
     VwapOpts,
     VwmaOpts,
     WilliamsFractalOpts,
@@ -178,10 +190,15 @@ export type {
 } from "./input";
 export { state } from "./state";
 export type { MutableSlot, StateNamespace } from "./state";
+export type { StateSnapshot, StateStoreKey, StreamSnapshot } from "./state";
 export { barstate, syminfo, timeframe } from "./views";
 export type { BarStateView, SymbolType, SymInfoView, TimeframeView } from "./views";
 export { request } from "./request";
 export type { RequestNamespace, RequestSecurityOpts, SecurityBar } from "./request";
+export { runtime } from "./runtime";
+export type { LogLevel, RuntimeNamespace } from "./runtime";
+export { color, fromGradient, hsl, rgb, withAlpha } from "./color";
+export type { GradientStop } from "./color";
 export { hline, plot } from "./plot";
 export type { HLineOpts, PlotKind, PlotOpts, PlotOptsStyle } from "./plot/plot";
 export { alert } from "./alert";
@@ -269,6 +286,10 @@ export type {
     RotatedRectangleState,
     ShapeStyle,
     SineLineState,
+    TableCell,
+    TableOpts,
+    TablePosition,
+    TableState,
     TextOpts,
     TextState,
     ThreeDrivesPatternState,

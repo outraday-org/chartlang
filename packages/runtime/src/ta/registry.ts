@@ -6,6 +6,8 @@ import type {
     AdrOpts,
     AdxOpts,
     AlmaOpts,
+    AnchoredVolumeProfileOpts,
+    AnchoredVolumeProfileResult,
     AnchoredVwapOpts,
     AoOpts,
     AroonOpts,
@@ -44,6 +46,8 @@ import type {
     EomOpts,
     FisherOpts,
     FisherResult,
+    FixedRangeVolumeProfileOpts,
+    FixedRangeVolumeProfileResult,
     HighestOpts,
     HmaOpts,
     HvOpts,
@@ -90,6 +94,8 @@ import type {
     RvgiResult,
     RviOpts,
     Series,
+    SessionVolumeProfileOpts,
+    SessionVolumeProfileResult,
     SmaOpts,
     SmiOpts,
     SmiResult,
@@ -110,6 +116,8 @@ import type {
     UlcerIndexOpts,
     UltimateOscOpts,
     ValuewhenOpts,
+    VisibleRangeVolumeProfileOpts,
+    VisibleRangeVolumeProfileResult,
     VolOpts,
     VolatilityStopOpts,
     VolatilityStopResult,
@@ -129,6 +137,7 @@ import { adl } from "./adl";
 import { adr } from "./adr";
 import { adx } from "./adx";
 import { alma } from "./alma";
+import { anchoredVolumeProfile } from "./anchoredVolumeProfile";
 import { anchoredVwap } from "./anchoredVwap";
 import { ao } from "./ao";
 import { aroon } from "./aroon";
@@ -159,6 +168,7 @@ import { ema } from "./ema";
 import { envelope } from "./envelope";
 import { eom } from "./eom";
 import { fisher } from "./fisher";
+import { fixedRangeVolumeProfile } from "./fixedRangeVolumeProfile";
 import { highest } from "./highest";
 import { historicalVolatility } from "./historicalVolatility";
 import { hma } from "./hma";
@@ -167,6 +177,7 @@ import { kama } from "./kama";
 import { keltner } from "./keltner";
 import { klinger } from "./klinger";
 import { kst } from "./kst";
+import type { ScalarOrSeries } from "./lib/sourceValue";
 import { lowest } from "./lowest";
 import { lsma } from "./lsma";
 import { maRibbon } from "./maRibbon";
@@ -192,10 +203,10 @@ import { roc } from "./roc";
 import { rsi } from "./rsi";
 import { rvgi } from "./rvgi";
 import { rvi } from "./rvi";
+import { sessionVolumeProfile } from "./sessionVolumeProfile";
 import { sma } from "./sma";
 import { smi } from "./smi";
 import { smma } from "./smma";
-import type { ScalarOrSeries } from "./lib/sourceValue";
 import { stdev } from "./stdev";
 import { stoch } from "./stoch";
 import { stochRsi } from "./stochRsi";
@@ -207,6 +218,7 @@ import { tsi } from "./tsi";
 import { ulcerIndex } from "./ulcerIndex";
 import { ultimateOsc } from "./ultimateOsc";
 import { valuewhen } from "./valuewhen";
+import { visibleRangeVolumeProfile } from "./visibleRangeVolumeProfile";
 import { vol } from "./vol";
 import { volatilityStop } from "./volatilityStop";
 import { vortex } from "./vortex";
@@ -323,6 +335,22 @@ export type RuntimeTaNamespace = {
     vol(slotId: string, opts?: VolOpts): Series<number>;
     vwap(slotId: string, opts?: VwapOpts): Series<number>;
     anchoredVwap(slotId: string, anchorTime: number, opts?: AnchoredVwapOpts): Series<number>;
+    anchoredVolumeProfile(
+        slotId: string,
+        opts: AnchoredVolumeProfileOpts,
+    ): AnchoredVolumeProfileResult;
+    fixedRangeVolumeProfile(
+        slotId: string,
+        opts: FixedRangeVolumeProfileOpts,
+    ): FixedRangeVolumeProfileResult;
+    sessionVolumeProfile(
+        slotId: string,
+        opts?: SessionVolumeProfileOpts,
+    ): SessionVolumeProfileResult;
+    visibleRangeVolumeProfile(
+        slotId: string,
+        opts?: VisibleRangeVolumeProfileOpts,
+    ): VisibleRangeVolumeProfileResult;
     obv(slotId: string, opts?: ObvOpts): Series<number>;
     adl(slotId: string, opts?: AdlOpts): Series<number>;
     bop(slotId: string, opts?: BopOpts): Series<number>;
@@ -456,6 +484,10 @@ export const TA_REGISTRY = Object.freeze({
     vol,
     vwap,
     anchoredVwap,
+    anchoredVolumeProfile,
+    fixedRangeVolumeProfile,
+    sessionVolumeProfile,
+    visibleRangeVolumeProfile,
     obv,
     adl,
     bop,
@@ -580,6 +612,16 @@ export const TA_REGISTRY_METADATA: Readonly<
         visibleSeriesKeys: Object.freeze(["pvo", "signal", "hist"]) as ReadonlyArray<string>,
         yDomain: Object.freeze({ kind: "auto" } as const),
     }),
+    sessionVolumeProfile: Object.freeze({
+        primarySeriesKey: "poc",
+        visibleSeriesKeys: Object.freeze(["poc", "valHigh", "valLow"]) as ReadonlyArray<string>,
+        yDomain: Object.freeze({ kind: "auto" } as const),
+    }),
+    fixedRangeVolumeProfile: Object.freeze({
+        primarySeriesKey: "poc",
+        visibleSeriesKeys: Object.freeze(["poc", "valHigh", "valLow"]) as ReadonlyArray<string>,
+        yDomain: Object.freeze({ kind: "auto" } as const),
+    }),
     connorsRsi: Object.freeze({
         yDomain: Object.freeze({ kind: "fixed", min: 0, max: 100 } as const),
     }),
@@ -616,6 +658,11 @@ export const TA_REGISTRY_METADATA: Readonly<
     rvgi: Object.freeze({
         primarySeriesKey: "rvgi",
         visibleSeriesKeys: Object.freeze(["rvgi", "signal"]) as ReadonlyArray<string>,
+        yDomain: Object.freeze({ kind: "auto" } as const),
+    }),
+    anchoredVolumeProfile: Object.freeze({
+        primarySeriesKey: "poc",
+        visibleSeriesKeys: Object.freeze(["poc", "valHigh", "valLow"]) as ReadonlyArray<string>,
         yDomain: Object.freeze({ kind: "auto" } as const),
     }),
     aroon: Object.freeze({

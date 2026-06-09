@@ -6,18 +6,26 @@ import { describe, expect, it } from "vitest";
 import { CANVAS2D_CAPABILITIES } from "./capabilities";
 
 describe("CANVAS2D_CAPABILITIES", () => {
-    it("declares all 9 Phase-1+Phase-2 plot kinds (cardinality + membership)", () => {
-        expect(CANVAS2D_CAPABILITIES.plots.size).toBe(9);
+    it("declares all 17 Phase-1 through Phase-5 plot kinds (cardinality + membership)", () => {
+        expect(CANVAS2D_CAPABILITIES.plots.size).toBe(17);
         expect([...CANVAS2D_CAPABILITIES.plots].sort()).toEqual(
             [
                 "area",
+                "arrow",
                 "bars",
+                "bar-color",
+                "bar-override",
+                "bg-color",
+                "candle-override",
+                "character",
                 "filled-band",
                 "histogram",
                 "horizontal-line",
+                "horizontal-histogram",
                 "label",
                 "line",
                 "marker",
+                "shape",
                 "step-line",
             ].sort(),
         );
@@ -27,14 +35,15 @@ describe("CANVAS2D_CAPABILITIES", () => {
         expect([...CANVAS2D_CAPABILITIES.alerts].sort()).toEqual(["log", "toast"]);
     });
 
-    it("declares all 61 Phase-3 drawing kinds", () => {
-        expect(CANVAS2D_CAPABILITIES.drawings.size).toBe(61);
+    it("declares all 61 Phase-3 drawing kinds plus Phase-5 table", () => {
+        expect(CANVAS2D_CAPABILITIES.drawings.size).toBe(62);
         // Sample a few from each category to confirm membership routes
         // through `capabilities.allPhase3Drawings()`.
         expect(CANVAS2D_CAPABILITIES.drawings.has("line")).toBe(true);
         expect(CANVAS2D_CAPABILITIES.drawings.has("fib-retracement")).toBe(true);
         expect(CANVAS2D_CAPABILITIES.drawings.has("elliott-impulse-wave")).toBe(true);
         expect(CANVAS2D_CAPABILITIES.drawings.has("group")).toBe(true);
+        expect(CANVAS2D_CAPABILITIES.drawings.has("table")).toBe(true);
     });
 
     it("sizes maxDrawingsPerScript so the Phase-3 drawAll61 smoke fits every bucket", () => {
@@ -45,11 +54,11 @@ describe("CANVAS2D_CAPABILITIES", () => {
         expect(CANVAS2D_CAPABILITIES.maxDrawingsPerScript.other).toBe(100);
     });
 
-    it("disables inputs, alertConditions, logs, and multiTimeframe", () => {
+    it("disables inputs while enabling logs, multiTimeframe, and alertConditions", () => {
         expect(CANVAS2D_CAPABILITIES.inputs.size).toBe(0);
-        expect(CANVAS2D_CAPABILITIES.alertConditions).toBe(false);
-        expect(CANVAS2D_CAPABILITIES.logs).toBe(false);
-        expect(CANVAS2D_CAPABILITIES.multiTimeframe).toBe(false);
+        expect(CANVAS2D_CAPABILITIES.alertConditions).toBe(true);
+        expect(CANVAS2D_CAPABILITIES.logs).toBe(true);
+        expect(CANVAS2D_CAPABILITIES.multiTimeframe).toBe(true);
     });
 
     it("ships the six Phase-4 intervals in picker order with canonical groups", () => {

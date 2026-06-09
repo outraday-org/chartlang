@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import { hline, plot } from "./plot";
+import type { PlotKind, PlotOptsStyle } from "./plot";
 
 describe("plot callable hole", () => {
     it("plot throws outside-runtime sentinel for scalar input", () => {
@@ -20,5 +21,53 @@ describe("plot callable hole", () => {
         expect(() => hline(70, { color: "#ef4444", lineStyle: "dashed" })).toThrow(
             "hline called outside compiled runtime",
         );
+    });
+});
+
+describe("PlotKind and PlotOptsStyle types", () => {
+    it("accept the Phase-5 plot kind inventory", () => {
+        const kinds: ReadonlyArray<PlotKind> = [
+            "line",
+            "step-line",
+            "horizontal-line",
+            "histogram",
+            "bars",
+            "area",
+            "filled-band",
+            "label",
+            "marker",
+            "shape",
+            "character",
+            "arrow",
+            "candle-override",
+            "bar-override",
+            "bg-color",
+            "bar-color",
+            "horizontal-histogram",
+        ];
+        expect(kinds).toHaveLength(17);
+    });
+
+    it("accepts each new PlotOptsStyle variant", () => {
+        const styles: ReadonlyArray<PlotOptsStyle> = [
+            { kind: "shape", shape: "flag", size: 8, location: "below" },
+            { kind: "character", char: "A", size: 12, location: "above" },
+            { kind: "arrow", direction: "up", size: 10 },
+            { kind: "candle-override", bull: "#26a69a", bear: "#ef5350", doji: "#999999" },
+            { kind: "bar-override", color: "#f59e0b" },
+            { kind: "bg-color", color: "#1d4ed8", transp: 80 },
+            { kind: "bar-color", color: "#a855f7" },
+            { kind: "horizontal-histogram", buckets: [{ price: 100, volume: 20 }] },
+        ];
+        expect(styles.map((style) => style.kind)).toEqual([
+            "shape",
+            "character",
+            "arrow",
+            "candle-override",
+            "bar-override",
+            "bg-color",
+            "bar-color",
+            "horizontal-histogram",
+        ]);
     });
 });

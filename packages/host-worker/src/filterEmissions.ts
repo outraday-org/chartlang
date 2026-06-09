@@ -3,7 +3,9 @@
 
 import {
     type AlertEmission,
+    type AlertConditionEmission,
     type DrawingEmission,
+    type LogEmission,
     type PlotEmission,
     type RunnerEmissions,
     type RuntimeDiagnostic,
@@ -32,6 +34,8 @@ export function filterEmissions(raw: RunnerEmissions): RunnerEmissions {
     const plots: Array<PlotEmission> = [];
     const drawings: Array<DrawingEmission> = [];
     const alerts: Array<AlertEmission> = [];
+    const alertConditions: Array<AlertConditionEmission> = [];
+    const logs: Array<LogEmission> = [];
     const diagnostics: Array<RuntimeDiagnostic> = [...raw.diagnostics];
 
     for (const p of raw.plots) {
@@ -64,6 +68,36 @@ export function filterEmissions(raw: RunnerEmissions): RunnerEmissions {
             });
         }
     }
+    for (const condition of raw.alertConditions) {
+        const r = validateEmission(condition);
+        if (r.ok) {
+            alertConditions.push(condition);
+        } else {
+            diagnostics.push({
+                kind: "diagnostic",
+                severity: "warning",
+                code: r.code,
+                message: r.message,
+                slotId: null,
+                bar: condition.bar,
+            });
+        }
+    }
+    for (const log of raw.logs) {
+        const r = validateEmission(log);
+        if (r.ok) {
+            logs.push(log);
+        } else {
+            diagnostics.push({
+                kind: "diagnostic",
+                severity: "warning",
+                code: r.code,
+                message: r.message,
+                slotId: null,
+                bar: log.bar,
+            });
+        }
+    }
     for (const d of raw.drawings) {
         drawings.push(d);
     }
@@ -71,6 +105,8 @@ export function filterEmissions(raw: RunnerEmissions): RunnerEmissions {
         plots,
         drawings,
         alerts,
+        alertConditions,
+        logs,
         diagnostics,
         fromBar: raw.fromBar,
         toBar: raw.toBar,

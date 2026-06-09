@@ -75,6 +75,10 @@ const EXPECTED_SLOT_TRUE = [
     "ta.eom",
     "ta.nvi",
     "ta.pvi",
+    "ta.visibleRangeVolumeProfile",
+    "ta.anchoredVolumeProfile",
+    "ta.sessionVolumeProfile",
+    "ta.fixedRangeVolumeProfile",
     "ta.median",
     "ta.adr",
     "ta.ulcerIndex",
@@ -160,6 +164,7 @@ const EXPECTED_SLOT_TRUE = [
     "draw.sineLine",
     "draw.group",
     "draw.frame",
+    "draw.table",
     "state.float",
     "state.int",
     "state.bool",
@@ -184,13 +189,18 @@ const EXPECTED_STATE_SLOT_TRUE = [
 
 const EXPECTED_REQUEST_SLOT_TRUE = ["request.security"] as const;
 
-const EXPECTED_SLOT_FALSE = ["ta.nz"] as const;
+const EXPECTED_SLOT_FALSE = [
+    "ta.nz",
+    "defineAlertCondition.signal",
+    "runtime.log",
+    "runtime.error",
+] as const;
 
 const EXPECTED_ALL_NAMES = [...EXPECTED_SLOT_TRUE, ...EXPECTED_SLOT_FALSE];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 163 entries (Phase-2 93 + Phase-3 61 draw.* + Phase-4 8 state.* entries + request.security)", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(163);
+    it("contains exactly 171 entries after Phase 5 fixed range volume profile", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(171);
     });
 
     it("carries every expected name with the right slot flag", () => {
@@ -207,22 +217,22 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 162 slot: true entries and exactly 1 slot: false entry", () => {
+    it("has exactly 167 slot: true entries and exactly 4 slot: false entries", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
             if (entry.slot) trueCount += 1;
             else falseCount += 1;
         }
-        expect(trueCount).toBe(162);
-        expect(falseCount).toBe(1);
+        expect(trueCount).toBe(167);
+        expect(falseCount).toBe(4);
     });
 
     it("is frozen", () => {
         expect(Object.isFrozen(STATEFUL_PRIMITIVES)).toBe(true);
     });
 
-    it("includes one draw.<camelKind> entry per DrawingKind (61 total)", () => {
+    it("includes one draw.<camelKind> entry per DrawingKind (62 total)", () => {
         const names = new Set<string>();
         for (const entry of STATEFUL_PRIMITIVES) names.add(entry.name);
         let drawCount = 0;
@@ -233,7 +243,7 @@ describe("STATEFUL_PRIMITIVES", () => {
             expect(names.has(expected)).toBe(true);
             drawCount += 1;
         }
-        expect(drawCount).toBe(61);
+        expect(drawCount).toBe(62);
     });
 });
 

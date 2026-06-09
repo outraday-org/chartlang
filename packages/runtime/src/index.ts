@@ -8,6 +8,8 @@ export type { BarView, OhlcvBuffers, StreamState } from "./streamState";
 export { createStreamState } from "./streamState";
 export type { StateStore } from "./stateStore";
 export { inMemoryStateStore } from "./stateStore";
+export type { PersistentStateStore } from "./persistentStateStore";
+export { inMemoryPersistentStateStore } from "./persistentStateStore";
 export { asMutableSlot, buildStateNamespace, StateSlot } from "./state";
 export { resolveInputs } from "./inputs";
 export { buildRequestNamespace, makeNanSecurityBar } from "./request";

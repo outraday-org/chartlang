@@ -8,6 +8,8 @@ export type { Canvas2dAdapterHandle, CreateCanvas2dAdapterOpts } from "./createC
 export { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities";
 export { DEFAULT_PALETTE } from "./palette";
 export type { Palette } from "./palette";
+export { createMultiStreamCandlePump } from "./streamPump";
+export type { MultiStreamCandlePumpOpts } from "./streamPump";
 export { DEFAULT_ADAPTER } from "./defaultAdapter";
 
 /**

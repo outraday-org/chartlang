@@ -20,12 +20,14 @@ export type RequestSecurityOpts = Readonly<{
 
 /**
  * Secondary-stream bar returned by {@link request.security}. Each field is a
- * `Series<...>` backed by the runtime's secondary-stream ring buffer, or by
- * the all-NaN fallback when `Capabilities.multiTimeframe` is `false`.
+ * `Series<...>` aligned from the runtime's secondary-stream ring buffer to
+ * the current main stream, or by the all-NaN fallback when
+ * `Capabilities.multiTimeframe` is `false`, the interval is unsupported, or
+ * the host fails to register the secondary stream.
  *
  * This is intentionally a series-shaped view rather than the scalar
- * {@link Bar} shape so scripts can read historical secondary bars, such as
- * `daily.close[5]`, once the alignment kernel lands.
+ * {@link Bar} shape so scripts can read historical secondary values aligned
+ * to main bars, such as `daily.close[5]`.
  *
  * @since 0.4
  * @stable

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { PlotLineStyle, Series } from "../types";
+import type { PlotLineStyle, Series, Time } from "../types";
 
 /**
  * Options bag for `ta.sma`. `offset` shifts the output forward by `n`
@@ -1038,6 +1038,180 @@ export type VwapOpts = Readonly<{
 export type AnchoredVwapOpts = Readonly<{
     source?: "hlc3" | "close" | "hl2" | "ohlc4" | "hlcc4";
     offset?: number;
+}>;
+
+/**
+ * Options bag for `ta.visibleRangeVolumeProfile`. `rowSize` selects
+ * the number of price rows when positive; `0` / omitted falls back to
+ * the runtime's automatic row count. `valueAreaPct` accepts either
+ * a fraction (`0.7`) or percentage (`70`). `bucketColor` is copied to
+ * each emitted horizontal-histogram bucket.
+ *
+ * @formula  N/A — see `ta.visibleRangeVolumeProfile` JSDoc
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const opts: VisibleRangeVolumeProfileOpts = {
+ *         rowSize: 24,
+ *         valueAreaPct: 0.7,
+ *         bucketColor: "#90caf9",
+ *     };
+ */
+export type VisibleRangeVolumeProfileOpts = Readonly<{
+    rowSize?: number;
+    valueAreaPct?: number;
+    offset?: number;
+    bucketColor?: string;
+}>;
+
+/**
+ * Multi-output result from `ta.visibleRangeVolumeProfile`.
+ *
+ * @formula  POC / VAH / VAL from the visible-range volume-profile
+ *           bucket set.
+ * @since 0.5
+ * @experimental
+ * @example
+ *     declare const vp: VisibleRangeVolumeProfileResult;
+ *     const poc = vp.poc.current;
+ */
+export type VisibleRangeVolumeProfileResult = Readonly<{
+    poc: Series<number>;
+    valHigh: Series<number>;
+    valLow: Series<number>;
+    buckets: ReadonlyArray<Readonly<{ price: number; volume: number; color?: string }>>;
+}>;
+
+/**
+ * Options bag for `ta.anchoredVolumeProfile`. `anchor` is a UTC
+ * millisecond epoch, typically resolved from
+ * `input.time(..., { pickFromChart: true })`; `rowSize` selects the
+ * number of price rows when positive; `0` / omitted falls back to the
+ * runtime's automatic row count. `valueAreaPct` accepts either a
+ * fraction (`0.7`) or percentage (`70`). `bucketColor` is copied to
+ * each emitted horizontal-histogram bucket.
+ *
+ * @formula  N/A — see `ta.anchoredVolumeProfile` JSDoc
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const opts: AnchoredVolumeProfileOpts = {
+ *         anchor: 1_700_000_000_000,
+ *         rowSize: 24,
+ *         valueAreaPct: 0.7,
+ *     };
+ */
+export type AnchoredVolumeProfileOpts = Readonly<{
+    anchor: Time;
+    rowSize?: number;
+    valueAreaPct?: number;
+    offset?: number;
+    bucketColor?: string;
+}>;
+
+/**
+ * Multi-output result from `ta.anchoredVolumeProfile`.
+ *
+ * @formula  POC / VAH / VAL from the anchor→current volume-profile
+ *           bucket set.
+ * @since 0.5
+ * @experimental
+ * @example
+ *     declare const vp: AnchoredVolumeProfileResult;
+ *     const buckets = vp.buckets;
+ */
+export type AnchoredVolumeProfileResult = Readonly<{
+    poc: Series<number>;
+    valHigh: Series<number>;
+    valLow: Series<number>;
+    buckets: ReadonlyArray<Readonly<{ price: number; volume: number; color?: string }>>;
+}>;
+
+/**
+ * Options bag for `ta.sessionVolumeProfile`. `sessionStart` is an
+ * explicit UTC millisecond boundary override; omitted values derive the
+ * current session from `syminfo.session` when adapters provide it, or
+ * UTC-day fallback boundaries otherwise. `rowSize`, `valueAreaPct`,
+ * `offset`, and `bucketColor` mirror the other volume-profile primitives.
+ *
+ * @formula  N/A — see `ta.sessionVolumeProfile` JSDoc
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const opts: SessionVolumeProfileOpts = {
+ *         rowSize: 24,
+ *         valueAreaPct: 0.7,
+ *         sessionStart: 1_700_000_000_000,
+ *     };
+ */
+export type SessionVolumeProfileOpts = Readonly<{
+    rowSize?: number;
+    valueAreaPct?: number;
+    offset?: number;
+    bucketColor?: string;
+    sessionStart?: Time;
+}>;
+
+/**
+ * Multi-output result from `ta.sessionVolumeProfile`.
+ *
+ * @formula  POC / VAH / VAL from the current-session volume-profile
+ *           bucket set.
+ * @since 0.5
+ * @experimental
+ * @example
+ *     declare const vp: SessionVolumeProfileResult;
+ *     const poc = vp.poc.current;
+ */
+export type SessionVolumeProfileResult = Readonly<{
+    poc: Series<number>;
+    valHigh: Series<number>;
+    valLow: Series<number>;
+    buckets: ReadonlyArray<Readonly<{ price: number; volume: number; color?: string }>>;
+}>;
+
+/**
+ * Options bag for `ta.fixedRangeVolumeProfile`. `from` and `to` are
+ * UTC millisecond anchors, typically resolved from two
+ * `input.time(..., { pickFromChart: true })` inputs. `from > to`
+ * is invalid and diagnoses at runtime; `from === to` is a
+ * single-bar window.
+ *
+ * @formula  N/A — see `ta.fixedRangeVolumeProfile` JSDoc
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const opts: FixedRangeVolumeProfileOpts = {
+ *         from: 1_700_000_000_000,
+ *         to: 1_700_060_000_000,
+ *         rowSize: 24,
+ *     };
+ */
+export type FixedRangeVolumeProfileOpts = Readonly<{
+    from: Time;
+    to: Time;
+    rowSize?: number;
+    valueAreaPct?: number;
+    offset?: number;
+    bucketColor?: string;
+}>;
+
+/**
+ * Multi-output result from `ta.fixedRangeVolumeProfile`.
+ *
+ * @formula  POC / VAH / VAL from the fixed-range volume-profile
+ *           bucket set.
+ * @since 0.5
+ * @experimental
+ * @example
+ *     declare const vp: FixedRangeVolumeProfileResult;
+ *     const buckets = vp.buckets;
+ */
+export type FixedRangeVolumeProfileResult = Readonly<{
+    poc: Series<number>;
+    valHigh: Series<number>;
+    valLow: Series<number>;
+    buckets: ReadonlyArray<Readonly<{ price: number; volume: number; color?: string }>>;
 }>;
 
 /**
@@ -2230,6 +2404,12 @@ export type TaNamespace = {
     vol(opts?: VolOpts): Series<number>;
     vwap(opts?: VwapOpts): Series<number>;
     anchoredVwap(anchorTime: number, opts?: AnchoredVwapOpts): Series<number>;
+    anchoredVolumeProfile(opts: AnchoredVolumeProfileOpts): AnchoredVolumeProfileResult;
+    fixedRangeVolumeProfile(opts: FixedRangeVolumeProfileOpts): FixedRangeVolumeProfileResult;
+    sessionVolumeProfile(opts?: SessionVolumeProfileOpts): SessionVolumeProfileResult;
+    visibleRangeVolumeProfile(
+        opts?: VisibleRangeVolumeProfileOpts,
+    ): VisibleRangeVolumeProfileResult;
     obv(opts?: ObvOpts): Series<number>;
     adl(opts?: AdlOpts): Series<number>;
     bop(opts?: BopOpts): Series<number>;
@@ -2459,6 +2639,18 @@ export const ta: TaNamespace = /* @__PURE__ */ Object.freeze({
     },
     anchoredVwap: () => {
         throw new Error("ta.anchoredVwap called outside compiled runtime");
+    },
+    anchoredVolumeProfile: () => {
+        throw new Error("ta.anchoredVolumeProfile called outside compiled runtime");
+    },
+    fixedRangeVolumeProfile: () => {
+        throw new Error("ta.fixedRangeVolumeProfile called outside compiled runtime");
+    },
+    sessionVolumeProfile: () => {
+        throw new Error("ta.sessionVolumeProfile called outside compiled runtime");
+    },
+    visibleRangeVolumeProfile: () => {
+        throw new Error("ta.visibleRangeVolumeProfile called outside compiled runtime");
     },
     obv: () => {
         throw new Error("ta.obv called outside compiled runtime");

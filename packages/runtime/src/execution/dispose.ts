@@ -29,6 +29,12 @@ export function dispose(state: RunnerState): void {
     for (const buf of Object.values(state.mainStream.ohlcv)) {
         buf.reset();
     }
+    for (const stream of state.runtimeContext.secondaryStreams.values()) {
+        for (const buf of Object.values(stream.ohlcv)) {
+            buf.reset();
+        }
+        stream.taSlots.clear();
+    }
     state.mainStream.taSlots.clear();
     state.emissions.plots = [];
     state.emissions.drawings = [];
@@ -37,7 +43,10 @@ export function dispose(state: RunnerState): void {
     state.runtimeContext.drawingSlots.clear();
     state.runtimeContext.drawingSubIdCounters.clear();
     state.runtimeContext.stateSlots.clear();
+    state.runtimeContext.secondaryStreams.clear();
     state.runtimeContext.requestSecurityBars.clear();
+    state.runtimeContext.requestSecurityAlignments.clear();
+    state.runtimeContext.requestSecurityAscendingBars.clear();
     state.runtimeContext.diagnosedRequestKeys.clear();
     state.runtimeContext.diagnosedInputKeys.clear();
     const counters = state.runtimeContext.drawingBucketCounters;

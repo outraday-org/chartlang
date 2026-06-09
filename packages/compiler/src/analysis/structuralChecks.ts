@@ -6,7 +6,12 @@ import ts from "typescript";
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics";
 import { resolveCalleeName } from "../transformers/resolveCallee";
 
-const DEFINE_CALLS = new Set(["defineIndicator", "defineAlert", "defineDrawing"]);
+const DEFINE_CALLS = new Set([
+    "defineIndicator",
+    "defineAlert",
+    "defineDrawing",
+    "defineAlertCondition",
+]);
 
 type ValueFormat = "price" | "volume" | "percent" | "compact";
 type ScaleAxis = "price" | "left" | "right" | "new";
@@ -54,7 +59,7 @@ export type StructuralScriptOverrides = Readonly<{
 export type StructuralCheckResult = Readonly<{
     diagnostics: ReadonlyArray<CompileDiagnostic>;
     name: string;
-    kind: "indicator" | "drawing" | "alert";
+    kind: "indicator" | "drawing" | "alert" | "alertCondition";
     overrides: StructuralScriptOverrides;
 }>;
 
@@ -96,7 +101,7 @@ function readScaleAxis(node: ts.Expression): ScaleAxis | undefined {
 
 function extractOverrides(
     argument: ts.ObjectLiteralExpression,
-    kind: "indicator" | "drawing" | "alert",
+    kind: "indicator" | "drawing" | "alert" | "alertCondition",
 ): StructuralScriptOverrides {
     let maxBarsBack: number | undefined;
     let format: ValueFormat | undefined;
@@ -139,7 +144,8 @@ function extractOverrides(
  * Walk the source file's top-level statements to verify:
  *
  * - A default export exists and is `defineIndicator(...)`,
- *   `defineDrawing(...)`, or `defineAlert(...)` from
+ *   `defineDrawing(...)`, `defineAlert(...)`, or
+ *   `defineAlertCondition(...)` from
  *   `@invinite-org/chartlang-core`.
  * - The first argument is an object literal carrying `apiVersion: 1`.
  *
@@ -162,7 +168,7 @@ export function runStructuralChecks(
 ): StructuralCheckResult {
     const diagnostics: CompileDiagnostic[] = [];
     let name = "";
-    let kind: "indicator" | "drawing" | "alert" = "indicator";
+    let kind: "indicator" | "drawing" | "alert" | "alertCondition" = "indicator";
 
     const exportAssignment = sourceFile.statements.find(
         (statement): statement is ts.ExportAssignment =>
@@ -174,7 +180,7 @@ export function runStructuralChecks(
                 severity: "error",
                 code: "missing-default-export",
                 message:
-                    "Script must default-export a defineIndicator(...), defineDrawing(...), or defineAlert(...) call.",
+                    "Script must default-export a defineIndicator(...), defineDrawing(...), defineAlert(...), or defineAlertCondition(...) call.",
                 file: sourcePath,
                 node: sourceFile,
                 sourceFile,
@@ -194,7 +200,8 @@ export function runStructuralChecks(
             createDiagnostic({
                 severity: "error",
                 code: "missing-default-export",
-                message: "Default export must be a defineIndicator/defineDrawing/defineAlert call.",
+                message:
+                    "Default export must be a defineIndicator/defineDrawing/defineAlert/defineAlertCondition call.",
                 file: sourcePath,
                 node: expression,
                 sourceFile,
@@ -215,7 +222,7 @@ export function runStructuralChecks(
                 severity: "error",
                 code: "missing-default-export",
                 message:
-                    "Default export must call defineIndicator, defineDrawing, or defineAlert from core.",
+                    "Default export must call defineIndicator, defineDrawing, defineAlert, or defineAlertCondition from core.",
                 file: sourcePath,
                 node: expression,
                 sourceFile,
@@ -230,6 +237,8 @@ export function runStructuralChecks(
     }
     if (calleeName === "defineAlert") {
         kind = "alert";
+    } else if (calleeName === "defineAlertCondition") {
+        kind = "alertCondition";
     } else if (calleeName === "defineDrawing") {
         kind = "drawing";
     } else {
@@ -243,7 +252,7 @@ export function runStructuralChecks(
                 severity: "error",
                 code: "api-version-mismatch",
                 message:
-                    "defineIndicator/defineDrawing/defineAlert requires an object-literal argument.",
+                    "defineIndicator/defineDrawing/defineAlert/defineAlertCondition requires an object-literal argument.",
                 file: sourcePath,
                 node: expression,
                 sourceFile,
@@ -290,7 +299,8 @@ export function runStructuralChecks(
             createDiagnostic({
                 severity: "error",
                 code: "api-version-mismatch",
-                message: "defineIndicator/defineDrawing/defineAlert requires apiVersion: 1.",
+                message:
+                    "defineIndicator/defineDrawing/defineAlert/defineAlertCondition requires apiVersion: 1.",
                 file: sourcePath,
                 node: argument,
                 sourceFile,

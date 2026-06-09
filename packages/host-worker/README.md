@@ -18,6 +18,10 @@ pnpm add @invinite-org/chartlang-host-worker
   reference adapter (Task 10) consumes the returned host.
 - `DEFAULT_LIMITS` — Phase-1 `HostLimits` defaults
   (`maxCpuMsPerStep: 50`, `maxHeapBytes: 64 MiB`, `maxRingBufferBars: 5000`).
+- `idbStateStore(opts)` from `@invinite-org/chartlang-host-worker/idb` —
+  IndexedDB `PersistentStateStore` for browser warm starts.
+- Persists one snapshot per `StateStoreKey`; default cap is 50 MiB.
+- Oldest snapshots are evicted first when writes exceed the cap.
 - Types: `ScriptHost`, `HostLimits`, `WorkerLike`, `HostCompiledScript`,
   `HostToWorker`, `WorkerToHost`, `CreateWorkerHostOpts`.
 

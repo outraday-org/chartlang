@@ -29,7 +29,9 @@ export type CompileDiagnosticCode =
     | "input-default-not-literal"
     | "unknown-input-kind"
     | "multiple-input-interval"
-    | "requires-intervals-not-literal";
+    | "requires-intervals-not-literal"
+    | "alert-condition-not-literal"
+    | "alert-condition-field-not-literal";
 
 /**
  * Single diagnostic the compiler emits while transforming or analysing a

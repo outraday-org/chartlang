@@ -37,11 +37,11 @@ import { renderFibTrendTime } from "./fibTrendTime";
 import { renderFibWedge } from "./fibWedge";
 import { renderFlatTopBottom } from "./flatTopBottom";
 import { renderFrame } from "./frame";
-import { renderGroup } from "./group";
 import { renderGannBox } from "./gannBox";
 import { renderGannFan } from "./gannFan";
 import { renderGannSquare } from "./gannSquare";
 import { renderGannSquareFixed } from "./gannSquareFixed";
+import { renderGroup } from "./group";
 import { renderHeadAndShoulders } from "./headAndShoulders";
 import { renderHighlighter } from "./highlighter";
 import { renderHorizontalLine } from "./horizontalLine";
@@ -57,13 +57,14 @@ import { renderRectangle } from "./rectangle";
 import { renderRegressionTrend } from "./regressionTrend";
 import { renderRotatedRectangle } from "./rotatedRectangle";
 import { renderSineLine } from "./sineLine";
+import { renderTable } from "./table";
 import { renderText } from "./text";
 import { renderThreeDrivesPattern } from "./threeDrivesPattern";
 import { renderTimeCycles } from "./timeCycles";
+import { renderTrendAngle } from "./trendAngle";
 import { renderTrendChannel } from "./trendChannel";
 import { renderTriangle } from "./triangle";
 import { renderTrianglePattern } from "./trianglePattern";
-import { renderTrendAngle } from "./trendAngle";
 import { renderVerticalLine } from "./verticalLine";
 import { renderXabcdPattern } from "./xabcdPattern";
 
@@ -295,6 +296,10 @@ export function drawingDispatch(ctx: RenderCtx, emission: DrawingEmission, view:
             return;
         case "frame":
             renderFrame(ctx, emission, view);
+            return;
+        // Viewport overlays (Phase 5)
+        case "table":
+            renderTable(ctx, emission, view);
             return;
         default: {
             const _exhaustive: never = emission.drawingKind;

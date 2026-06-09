@@ -83,6 +83,10 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "ta.eom", slot: true },
     { name: "ta.nvi", slot: true },
     { name: "ta.pvi", slot: true },
+    { name: "ta.visibleRangeVolumeProfile", slot: true },
+    { name: "ta.anchoredVolumeProfile", slot: true },
+    { name: "ta.sessionVolumeProfile", slot: true },
+    { name: "ta.fixedRangeVolumeProfile", slot: true },
     { name: "ta.median", slot: true },
     { name: "ta.adr", slot: true },
     { name: "ta.ulcerIndex", slot: true },
@@ -172,6 +176,7 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "draw.sineLine", slot: true },
     { name: "draw.group", slot: true },
     { name: "draw.frame", slot: true },
+    { name: "draw.table", slot: true },
     { name: "state.float", slot: true },
     { name: "state.int", slot: true },
     { name: "state.bool", slot: true },
@@ -181,6 +186,9 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "state.tick.bool", slot: true },
     { name: "state.tick.string", slot: true },
     { name: "request.security", slot: true },
+    { name: "defineAlertCondition.signal", slot: false },
+    { name: "runtime.log", slot: false },
+    { name: "runtime.error", slot: false },
 ];
 
 /**
@@ -199,7 +207,9 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
  * append `slot: true` entries; Phase 3 appends 61 `draw.<camelKind>`
  * entries (all `slot: true`), and Phase 4 appends 8 `state.*` /
  * `state.tick.*` entries plus `request.security` — cardinality grows
- * to 163.
+ * to 163. Phase 5 appends alert-condition signalling plus runtime
+ * logging/error as stateless loop-diagnostic entries plus `draw.table`
+ * as a slot-backed viewport drawing.
  *
  * @since 0.1
  * @example

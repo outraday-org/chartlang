@@ -68,11 +68,12 @@ const EXPECTED_ORDER: ReadonlyArray<DrawingKind> = [
     "sine-line",
     "group",
     "frame",
+    "table",
 ];
 
 describe("DRAWING_KINDS", () => {
-    it("contains exactly 61 entries", () => {
-        expect(DRAWING_KINDS.length).toBe(61);
+    it("contains exactly 62 entries", () => {
+        expect(DRAWING_KINDS.length).toBe(62);
     });
 
     it("matches the canonical wire-stable order", () => {
@@ -89,8 +90,8 @@ describe("DRAWING_KINDS", () => {
 });
 
 describe("KIND_CAMELCASE", () => {
-    it("has 61 entries (one per kind)", () => {
-        expect(KIND_CAMELCASE.size).toBe(61);
+    it("has 62 entries (one per kind)", () => {
+        expect(KIND_CAMELCASE.size).toBe(62);
     });
 
     it("covers every kind in DRAWING_KINDS", () => {
@@ -116,12 +117,13 @@ describe("KIND_CAMELCASE", () => {
         expect(KIND_CAMELCASE.get("fib-retracement")).toBe("fibRetracement");
         expect(KIND_CAMELCASE.get("elliott-impulse-wave")).toBe("elliottImpulseWave");
         expect(KIND_CAMELCASE.get("xabcd-pattern")).toBe("xabcdPattern");
+        expect(KIND_CAMELCASE.get("table")).toBe("table");
     });
 });
 
 describe("KIND_KEBABCASE", () => {
-    it("has 61 entries (round-trip of KIND_CAMELCASE)", () => {
-        expect(KIND_KEBABCASE.size).toBe(61);
+    it("has 62 entries (round-trip of KIND_CAMELCASE)", () => {
+        expect(KIND_KEBABCASE.size).toBe(62);
     });
 
     it("round-trips KIND_CAMELCASE for every kind", () => {
@@ -134,6 +136,7 @@ describe("KIND_KEBABCASE", () => {
         expect(KIND_KEBABCASE.get("horizontalLine")).toBe("horizontal-line");
         expect(KIND_KEBABCASE.get("fibRetracement")).toBe("fib-retracement");
         expect(KIND_KEBABCASE.get("elliottImpulseWave")).toBe("elliott-impulse-wave");
+        expect(KIND_KEBABCASE.get("table")).toBe("table");
     });
 
     it("returns undefined for unknown camel names", () => {

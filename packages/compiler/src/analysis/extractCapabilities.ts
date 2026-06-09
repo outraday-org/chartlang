@@ -5,7 +5,7 @@ import ts from "typescript";
 
 import { resolveCalleeName } from "../transformers/resolveCallee";
 
-type CapabilityId = "indicators" | "drawings" | "alerts";
+type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditions";
 
 /**
  * Derive the manifest `capabilities` array from a script's AST. The seed
@@ -27,12 +27,15 @@ type CapabilityId = "indicators" | "drawings" | "alerts";
 export function extractCapabilities(
     sourceFile: ts.SourceFile,
     checker: ts.TypeChecker,
-    kind: "indicator" | "drawing" | "alert" = "indicator",
+    kind: "indicator" | "drawing" | "alert" | "alertCondition" = "indicator",
 ): ReadonlyArray<CapabilityId> {
-    const SEED_BY_KIND: Readonly<Record<"indicator" | "drawing" | "alert", CapabilityId>> = {
+    const SEED_BY_KIND: Readonly<
+        Record<"indicator" | "drawing" | "alert" | "alertCondition", CapabilityId>
+    > = {
         indicator: "indicators",
         drawing: "drawings",
         alert: "alerts",
+        alertCondition: "alertConditions",
     };
     const seed: CapabilityId = SEED_BY_KIND[kind];
     const found = new Set<CapabilityId>([seed]);

@@ -4,6 +4,7 @@
 import type {
     AlertSeverity,
     Bar,
+    Color,
     DrawingCounts as CoreDrawingCounts,
     DrawingKind as CoreDrawingKind,
     InputKind as CoreInputKind,
@@ -12,6 +13,7 @@ import type {
     IntervalDescriptor,
     JsonValue,
     LineStyle,
+    LogLevel,
     SymbolType,
 } from "@invinite-org/chartlang-core";
 
@@ -27,9 +29,39 @@ import type {
  *     const evt: CandleEvent = { kind: "history", bars: [] };
  */
 export type CandleEvent =
-    | { readonly kind: "history"; readonly bars: ReadonlyArray<Bar> }
-    | { readonly kind: "close"; readonly bar: Bar }
-    | { readonly kind: "tick"; readonly bar: Bar };
+    | {
+          readonly kind: "history";
+          readonly bars: ReadonlyArray<Bar>;
+          /**
+           * Secondary-stream key. Omit for the main stream; set to a
+           * requested interval value such as `"1D"` for MTF candles.
+           *
+           * @since 0.5
+           */
+          readonly streamKey?: string;
+      }
+    | {
+          readonly kind: "close";
+          readonly bar: Bar;
+          /**
+           * Secondary-stream key. Omit for the main stream; set to a
+           * requested interval value such as `"1D"` for MTF candles.
+           *
+           * @since 0.5
+           */
+          readonly streamKey?: string;
+      }
+    | {
+          readonly kind: "tick";
+          readonly bar: Bar;
+          /**
+           * Secondary-stream key. Omit for the main stream; set to a
+           * requested interval value such as `"1D"` for MTF candles.
+           *
+           * @since 0.5
+           */
+          readonly streamKey?: string;
+      };
 
 /**
  * Indicator plot styles Phase 1 ships. Re-exported from
@@ -337,6 +369,64 @@ export type PlotStyle =
           readonly kind: "marker";
           readonly shape: "circle" | "triangle-up" | "triangle-down" | "square" | "diamond";
           readonly size: number;
+      }
+    /** Phase 5 — Pine `plotshape` glyph at the plot anchor. @since 0.5 */
+    | {
+          readonly kind: "shape";
+          readonly shape:
+              | "circle"
+              | "triangle-up"
+              | "triangle-down"
+              | "square"
+              | "diamond"
+              | "cross"
+              | "xcross"
+              | "flag";
+          readonly size: number;
+          readonly location?: "above" | "below" | "absolute";
+      }
+    /** Phase 5 — Pine `plotchar` text glyph at the plot anchor. @since 0.5 */
+    | {
+          readonly kind: "character";
+          readonly char: string;
+          readonly size: number;
+          readonly location?: "above" | "below" | "absolute";
+      }
+    /** Phase 5 — Pine `plotarrow` directional marker. @since 0.5 */
+    | {
+          readonly kind: "arrow";
+          readonly direction: "up" | "down";
+          readonly size: number;
+      }
+    /** Phase 5 — Pine `plotcandle` body-color override. @since 0.5 */
+    | {
+          readonly kind: "candle-override";
+          readonly bull: Color;
+          readonly bear: Color;
+          readonly doji?: Color;
+      }
+    /** Phase 5 — Pine `plotbar` outline-color override. @since 0.5 */
+    | {
+          readonly kind: "bar-override";
+          readonly color: Color;
+      }
+    /** Phase 5 — Pine `bgcolor` background band. @since 0.5 */
+    | {
+          readonly kind: "bg-color";
+          readonly color: Color;
+          readonly transp?: number;
+      }
+    /** Phase 5 — Pine `barcolor` candle/bar tint. @since 0.5 */
+    | {
+          readonly kind: "bar-color";
+          readonly color: Color;
+      }
+    /** Phase 5 — volume-profile horizontal histogram buckets. @since 0.5 */
+    | {
+          readonly kind: "horizontal-histogram";
+          readonly buckets: ReadonlyArray<
+              Readonly<{ readonly price: number; readonly volume: number; readonly color?: Color }>
+          >;
       };
 
 /**
@@ -407,6 +497,64 @@ export type AlertEmission = {
 };
 
 /**
+ * Per-bar emission produced by `ComputeContext.signal(conditionId, fired)`.
+ * Adapters route these named, user-wired conditions to delivery channels
+ * configured in their own UI.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const e: AlertConditionEmission = {
+ *         kind: "alert-condition",
+ *         conditionId: "bullishCross",
+ *         title: "Bullish cross",
+ *         description: "Fast EMA crossed above slow EMA",
+ *         defaultMessage: "{{ticker}} crossed up",
+ *         fired: true,
+ *         bar: 42,
+ *         time: 1_700_000_000_000,
+ *     };
+ *     void e;
+ */
+export type AlertConditionEmission = {
+    readonly kind: "alert-condition";
+    readonly conditionId: string;
+    readonly title: string;
+    readonly description: string;
+    readonly defaultMessage: string;
+    readonly fired: boolean;
+    readonly bar: number;
+    readonly time: number;
+};
+
+/**
+ * Per-bar debug log produced by `runtime.log.info/warn/error(...)`.
+ * Logs are capability-gated by `Capabilities.logs`; disabled logs are
+ * silent no-ops because they are debugging output rather than signal.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const e: LogEmission = {
+ *         kind: "log",
+ *         level: "info",
+ *         message: "ema warmed",
+ *         meta: { ema: 42 },
+ *         bar: 10,
+ *         time: 1_700_000_000_000,
+ *     };
+ *     void e;
+ */
+export type LogEmission = {
+    readonly kind: "log";
+    readonly level: LogLevel;
+    readonly message: string;
+    readonly meta?: Readonly<Record<string, JsonValue>>;
+    readonly bar: number;
+    readonly time: number;
+};
+
+/**
  * A `draw.*` emission. Phase 3 narrows `state` from `unknown` to the
  * typed {@link DrawingState} discriminated union. `op: "create"`
  * carries the initial state; `op: "update"` carries the FULL merged
@@ -458,13 +606,25 @@ export type DiagnosticCode =
     | "unsupported-pane"
     | "unsupported-interval"
     | "multi-timeframe-not-supported"
+    | "unknown-secondary-stream"
     | "lookback-exceeded"
     | "drawing-budget-exceeded"
     | "dropped-by-policy"
     | "input-coercion-failed"
+    | "alert-conditions-not-supported"
+    | "unknown-alert-condition"
     | "alert-rate-limited"
     | "runtime-cpu-budget-exceeded"
     | "runtime-memory-budget-exceeded"
+    | "runtime-log-budget-exceeded"
+    | "malformed-log-meta"
+    | "runtime-error-thrown"
+    | "session-info-missing"
+    | "fixed-range-inverted"
+    | "state-snapshot-restored"
+    | "state-snapshot-future-dated"
+    | "state-snapshot-malformed"
+    | "state-snapshot-save-failed"
     | "malformed-emission";
 
 /**
@@ -504,6 +664,8 @@ export type RuntimeDiagnostic = {
  *         plots: [],
  *         drawings: [],
  *         alerts: [],
+ *         alertConditions: [],
+ *         logs: [],
  *         diagnostics: [],
  *         fromBar: 0,
  *         toBar: 0,
@@ -513,6 +675,8 @@ export type RunnerEmissions = {
     readonly plots: ReadonlyArray<PlotEmission>;
     readonly drawings: ReadonlyArray<DrawingEmission>;
     readonly alerts: ReadonlyArray<AlertEmission>;
+    readonly alertConditions: ReadonlyArray<AlertConditionEmission>;
+    readonly logs: ReadonlyArray<LogEmission>;
     readonly diagnostics: ReadonlyArray<RuntimeDiagnostic>;
     readonly fromBar: number;
     readonly toBar: number;

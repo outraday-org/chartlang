@@ -1,5 +1,42 @@
 # @invinite-org/chartlang-host-worker
 
+## 0.5.0
+
+### Phase 5
+
+#### Minor Changes
+
+- Add the `@invinite-org/chartlang-host-worker/idb` subpath with an
+  IndexedDB-backed `PersistentStateStore` for browser warm starts, per PLAN.md
+  §6.9 and §8.2.
+- Replace the Phase 4 `request.security` NaN-only path with real
+  multi-timeframe secondary stream alignment per PLAN.md §6.8 and §7.2.
+  Adapters can route tagged `CandleEvent.streamKey` candles, the worker
+  host dispatches them through `ScriptRunner.push`, conformance includes
+  MTF scenarios, and the private canvas2d reference adapter now declares
+  `multiTimeframe: true`.
+
+#### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @invinite-org/chartlang-core@0.5.0
+  - @invinite-org/chartlang-adapter-kit@0.5.0
+  - @invinite-org/chartlang-runtime@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

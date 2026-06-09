@@ -119,8 +119,9 @@ export type ScriptRunnerHandle = {
     onHistory(bars: ReadonlyArray<Bar>): Promise<void>;
     onBarClose(bar: Bar): Promise<void>;
     onBarTick(bar: Bar): Promise<void>;
+    push(event: CandleEvent): Promise<void>;
     drain(): RunnerEmissions;
-    dispose(): void;
+    dispose(): Promise<void>;
 };
 
 /**

@@ -3,12 +3,16 @@
 
 import type {
     AlertEmission,
+    AlertConditionEmission,
     Capabilities,
     DrawingEmission,
+    LogEmission,
     PlotEmission,
     RuntimeDiagnostic,
 } from "@invinite-org/chartlang-adapter-kit";
 import type {
+    AlertConditionDefinition,
+    Bar,
     DrawingBucket,
     DrawingCounts,
     DrawingKind,
@@ -17,6 +21,7 @@ import type {
 } from "@invinite-org/chartlang-core";
 
 import type { StateStore } from "./stateStore";
+import type { PersistentStateStore } from "./persistentStateStore";
 import type { StateSlot } from "./state/stateSlot";
 import type { StreamState } from "./streamState";
 import type { RuntimeViews } from "./views";
@@ -67,6 +72,8 @@ export type MutableRunnerEmissions = {
     plots: PlotEmission[];
     drawings: DrawingEmission[];
     alerts: AlertEmission[];
+    alertConditions?: AlertConditionEmission[];
+    logs: LogEmission[];
     diagnostics: RuntimeDiagnostic[];
     fromBar: number;
     toBar: number;
@@ -105,6 +112,8 @@ export type MutableRunnerEmissions = {
 export type RuntimeContext = {
     readonly stream: StreamState;
     readonly stateStore: StateStore;
+    readonly persistentStateStore?: PersistentStateStore;
+    lastPersistTime: number;
     readonly capabilities: Capabilities;
     readonly emissions: MutableRunnerEmissions;
     readonly barIndex: () => number;
@@ -151,6 +160,11 @@ export type RuntimeContext = {
      */
     readonly stateSlots: Map<string, StateSlot<unknown>>;
     /**
+     * Secondary candle streams keyed by `IntervalDescriptor.value`.
+     * Mutated only by `createScriptRunner` mount/restore/routing. @since 0.5
+     */
+    readonly secondaryStreams: Map<string, StreamState>;
+    /**
      * Per-`request.security` slot cache keyed by `slotId|interval`. Phase 4
      * stores NaN fallback bars here; Phase 5 replaces the value producer with
      * aligned secondary stream series while preserving stable identity.
@@ -158,10 +172,47 @@ export type RuntimeContext = {
      */
     readonly requestSecurityBars: Map<string, SecurityBar>;
     /**
+     * Per-compute aligned numeric arrays keyed by
+     * `slotId|interval|sourceKey`. Cleared on main-stream close/tick before
+     * `compute` so `request.security` re-aligns against the latest
+     * secondary buffers. @since 0.5
+     */
+    readonly requestSecurityAlignments: Map<string, ReadonlyArray<number>>;
+    /**
+     * Per-compute cache of ascending `Bar[]` materialisations keyed by the
+     * source `StreamState`. Lets `request.security` reuse one stable bar-array
+     * identity across every source-key alignment in a bar (so the
+     * `getOrAlign` WeakMap actually hits) and avoids re-walking the same ring
+     * buffer 10× per bar. Cleared alongside {@link requestSecurityAlignments}.
+     * @since 0.5
+     */
+    readonly requestSecurityAscendingBars: Map<StreamState, ReadonlyArray<Bar>>;
+    /**
      * Runtime diagnostic dedupe for `request.security` capability gates,
      * keyed by `code|slotId|interval`. Cleared on `dispose`. @since 0.4
      */
     readonly diagnosedRequestKeys: Set<string>;
+    /**
+     * Manifest-declared alert conditions keyed by condition id. Used by
+     * `signal(conditionId, fired)` to reject unknown ids without
+     * re-reading the manifest each bar. @since 0.5
+     */
+    readonly alertConditions?: ReadonlyMap<string, AlertConditionDefinition>;
+    /**
+     * Dedupe for alert-condition capability/unknown-id diagnostics, keyed
+     * by `code|conditionId`. Cleared on dispose. @since 0.5
+     */
+    readonly diagnosedAlertConditionKeys?: Set<string>;
+    /**
+     * Number of `runtime.log.*` emissions accepted in the active compute
+     * step. Reset at the start of each close/tick. @since 0.5
+     */
+    logBudget: number;
+    /**
+     * Per-step dedupe flag for `runtime-log-budget-exceeded`. Reset with
+     * `logBudget` at the start of each close/tick. @since 0.5
+     */
+    logBudgetExceededDiagnosed: boolean;
     /**
      * Frozen effective input values keyed by script input name. Resolved once
      * at mount and reused by every compute step. @since 0.4

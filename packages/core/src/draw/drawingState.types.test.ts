@@ -76,6 +76,7 @@ function exhaustiveSwitch(kind: DrawingKind): string {
         case "sine-line":
         case "group":
         case "frame":
+        case "table":
             return kind;
         default: {
             // Compile-time exhaustiveness: any kind not covered above
@@ -196,6 +197,18 @@ describe("DrawingState variants", () => {
             style: { label: "Idea", bgColor: "#f1f5f9" },
         });
         expect(s.style.label).toBe("Idea");
+    });
+
+    it("TableState carries a viewport position and cell grid", () => {
+        const s = assertState({
+            kind: "table",
+            position: "top-right",
+            cells: [[{ text: "P&L" }, { text: "+12.5%", textColor: "#16a34a" }]],
+            borderColor: "#94a3b8",
+            borderWidth: 1,
+            frame: { color: "#475569", width: 2 },
+        });
+        expect(s.cells[0][1].text).toBe("+12.5%");
     });
 
     it("DrawingMeta name + visible flow through every variant", () => {

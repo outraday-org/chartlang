@@ -25,7 +25,16 @@ const caps: Capabilities = {
 };
 
 function batch(fromBar: number, toBar: number): RunnerEmissions {
-    return { plots: [], drawings: [], alerts: [], diagnostics: [], fromBar, toBar };
+    return {
+        plots: [],
+        drawings: [],
+        alerts: [],
+        alertConditions: [],
+        logs: [],
+        diagnostics: [],
+        fromBar,
+        toBar,
+    };
 }
 
 describe("BufferingAdapter", () => {

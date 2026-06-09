@@ -54,7 +54,7 @@ function makeBar(i: number): Bar {
 }
 
 describe("createScriptRunner", () => {
-    it("returns a ScriptRunner with all five methods", () => {
+    it("returns a ScriptRunner with all five methods", async () => {
         const compiled = defineIndicator({
             name: "demo",
             apiVersion: 1,
@@ -66,6 +66,7 @@ describe("createScriptRunner", () => {
         expect(typeof runner.onBarTick).toBe("function");
         expect(typeof runner.drain).toBe("function");
         expect(typeof runner.dispose).toBe("function");
+        await runner.dispose();
     });
 
     it("defaults to an in-memory state store when none is supplied", async () => {
@@ -80,6 +81,7 @@ describe("createScriptRunner", () => {
         const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
         await runner.onBarClose(makeBar(0));
         expect(calls).toEqual([100.5]);
+        await runner.dispose();
     });
 
     it("threads a custom state store through to the runtime", async () => {
@@ -95,7 +97,7 @@ describe("createScriptRunner", () => {
             capabilities: makeCapabilities(),
             stateStore: store,
         });
-        runner.dispose();
+        await runner.dispose();
         expect(store.get("host-owned")).toBe(1);
     });
 
@@ -263,13 +265,158 @@ describe("createScriptRunner", () => {
 
         await runner.onBarClose(makeBar(0));
         expect(runner.drain().diagnostics).toHaveLength(1);
-        runner.dispose();
+        await runner.dispose();
         phase = "after";
         await runner.onBarClose(makeBar(1));
 
         expect(observedSizeAfterDispose).toBe(0);
         expect(observedDedupAfterDispose).toBe(0);
         expect(runner.drain().diagnostics).toHaveLength(1);
+    });
+
+    it("registers one secondary stream per requested interval value", async () => {
+        const observedSizes: number[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: () => {
+                const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+                observedSizes.push(ctx?.secondaryStreams.size ?? -1);
+            },
+        });
+        const customCompiled = {
+            manifest: {
+                ...compiled.manifest,
+                requestedIntervals: ["1D", "1D", "1W"],
+            },
+            compute: compiled.compute,
+        };
+        const runner = createScriptRunner({
+            compiled: customCompiled,
+            capabilities: makeCapabilities(),
+        });
+
+        await runner.onBarClose(makeBar(0));
+
+        expect(observedSizes).toEqual([2]);
+        await runner.dispose();
+    });
+
+    it("routes main history, close, and tick events through push", async () => {
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "push-main",
+            apiVersion: 1,
+            compute: ({ bar }) => {
+                seen.push(bar.close);
+            },
+        });
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+
+        await runner.push({ kind: "history", bars: [makeBar(0), makeBar(1)] });
+        await runner.push({ kind: "close", bar: makeBar(2) });
+        await runner.push({ kind: "tick", bar: { ...makeBar(2), close: 103 } });
+
+        expect(seen).toEqual([100.5, 101.5, 102.5, 103]);
+        await runner.dispose();
+    });
+
+    it("routes registered secondary history, close, and tick events without diagnostics", async () => {
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "push-secondary",
+            apiVersion: 1,
+            compute: ({ request }) => {
+                const daily = (
+                    request as unknown as {
+                        readonly security: (
+                            slotId: string,
+                            opts: { readonly interval: string },
+                        ) => { readonly close: { readonly current: number } };
+                    }
+                ).security("slot#0", { interval: "1D" });
+                seen.push(daily.close.current);
+            },
+        });
+        const customCompiled = {
+            manifest: { ...compiled.manifest, requestedIntervals: ["1D"] },
+            compute: compiled.compute,
+        };
+        const runner = createScriptRunner({
+            compiled: customCompiled,
+            capabilities: { ...makeCapabilities(), multiTimeframe: true },
+        });
+
+        await runner.push({
+            kind: "history",
+            bars: [
+                { ...makeBar(0), time: makeBar(0).time - 180_000, close: 210, interval: "1D" },
+                { ...makeBar(0), time: makeBar(0).time - 120_000, close: 211, interval: "1D" },
+            ],
+            streamKey: "1D",
+        });
+        await runner.push({
+            kind: "close",
+            bar: { ...makeBar(0), time: makeBar(0).time - 60_000, close: 212, interval: "1D" },
+            streamKey: "1D",
+        });
+        await runner.push({
+            kind: "tick",
+            bar: { ...makeBar(0), time: makeBar(0).time - 60_000, close: 213, interval: "1D" },
+            streamKey: "1D",
+        });
+        await runner.push({ kind: "close", bar: makeBar(0) });
+
+        expect(seen).toEqual([213]);
+        expect(runner.drain().diagnostics).toEqual([]);
+        await runner.dispose();
+    });
+
+    it("converts runtime.error thrown during tick compute into a diagnostic", async () => {
+        const compiled = defineIndicator({
+            name: "tick-runtime-error",
+            apiVersion: 1,
+            compute: ({ runtime }) => {
+                runtime.error("tick halt");
+            },
+        });
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+        await runner.onBarClose(makeBar(0));
+        runner.drain();
+
+        await runner.onBarTick({ ...makeBar(0), close: 101 });
+
+        expect(runner.drain().diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+            "runtime-error-thrown",
+        ]);
+        await runner.dispose();
+    });
+
+    it("drops unknown secondary stream events with a diagnostic", async () => {
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: () => {},
+        });
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+
+        await runner.push({
+            kind: "close",
+            bar: { ...makeBar(0), interval: "1h" },
+            streamKey: "1h",
+        });
+
+        expect(runner.drain().diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "unknown-secondary-stream",
+                message: 'Secondary stream "1h" was not registered by the script manifest',
+                slotId: null,
+                bar: 0,
+            },
+        ]);
+        await runner.dispose();
     });
 
     it("sizes ring buffers to max(1, maxLookback + 1) when seriesCapacities is empty", async () => {
@@ -283,7 +430,7 @@ describe("createScriptRunner", () => {
         // maxLookback defaults to 0 → capacity 1 → 1 slot. A second close
         // overwrites the head (still capacity 1, length 1).
         await runner.onBarClose(makeBar(1));
-        runner.dispose();
+        await runner.dispose();
     });
 
     it("honours manifest.seriesCapacities.ohlcv when provided", async () => {
@@ -305,7 +452,7 @@ describe("createScriptRunner", () => {
         }
         // No assertion here beyond "no throw" — capacity is private but
         // the buffer must accept 5 appends without resetting head past 0.
-        runner.dispose();
+        await runner.dispose();
     });
 
     it("clamps capacity to a minimum of 1 when maxLookback is negative", async () => {
@@ -323,7 +470,7 @@ describe("createScriptRunner", () => {
             capabilities: makeCapabilities(),
         });
         await runner.onBarClose(makeBar(0));
-        runner.dispose();
+        await runner.dispose();
     });
 
     it("end-to-end: defineIndicator no-primitive compute runs through onHistory → drain → dispose", async () => {
@@ -359,6 +506,6 @@ describe("createScriptRunner", () => {
         expect(emissions.diagnostics).toEqual([]);
         expect(seen).toHaveLength(3);
 
-        runner.dispose();
+        await runner.dispose();
     });
 });

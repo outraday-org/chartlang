@@ -5,12 +5,11 @@ import type { Color, LineStyle, Series } from "../types";
 
 /**
  * Rendered-shape discriminator for `plot` emissions reaching the adapter.
- * Phase 1 shipped `line` / `step-line` / `horizontal-line`. Phase 2 adds
- * `histogram` / `bars` / `area` / `filled-band` / `label` / `marker`.
- * Phase 5 will add `shape` / `character` / `arrow` / `candle-override` /
- * `bar-override` / `bg-color` / `bar-color` / `vertical-line` /
- * `horizontal-histogram`. Every expansion is additive — the
- * `apiVersion: 1` script header stays unchanged.
+ * The full 0.5 inventory is `line`, `step-line`, `horizontal-line`,
+ * `histogram`, `bars`, `area`, `filled-band`, `label`, `marker`,
+ * `shape`, `character`, `arrow`, `candle-override`, `bar-override`,
+ * `bg-color`, `bar-color`, and `horizontal-histogram`. Every expansion is
+ * additive — the `apiVersion: 1` script header stays unchanged.
  *
  * Typical Phase-2 consumers:
  *
@@ -26,8 +25,8 @@ import type { Color, LineStyle, Series } from "../types";
  * @example
  *     const k: PlotKind = "line";
  *     const histogram: PlotKind = "histogram";
- *     const band: PlotKind = "filled-band";
- *     void k; void histogram; void band;
+ *     const shape: PlotKind = "shape";
+ *     void k; void histogram; void shape;
  */
 export type PlotKind =
     | "line"
@@ -38,17 +37,69 @@ export type PlotKind =
     | "area"
     | "filled-band"
     | "label"
-    | "marker";
+    | "marker"
+    | "shape"
+    | "character"
+    | "arrow"
+    | "candle-override"
+    | "bar-override"
+    | "bg-color"
+    | "bar-color"
+    | "horizontal-histogram";
+
+/**
+ * Marker glyphs shared by Phase 2 `marker` and Phase 5 `shape` plot styles.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const shape: PlotGlyphShape = "circle";
+ *     void shape;
+ */
+export type PlotGlyphShape = "circle" | "triangle-up" | "triangle-down" | "square" | "diamond";
+
+/**
+ * Full glyph inventory for Phase 5 `shape` plot styles.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const shape: PlotShapeGlyph = "flag";
+ *     void shape;
+ */
+export type PlotShapeGlyph = PlotGlyphShape | "cross" | "xcross" | "flag";
+
+/**
+ * Vertical anchoring mode for glyph-like Phase 5 plot styles.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const location: PlotLocation = "above";
+ *     void location;
+ */
+export type PlotLocation = "above" | "below" | "absolute";
+
+/**
+ * Single row in a Phase 5 horizontal-histogram plot emission.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const bucket: HorizontalHistogramBucket = { price: 100, volume: 25 };
+ *     void bucket;
+ */
+export type HorizontalHistogramBucket = Readonly<{
+    readonly price: number;
+    readonly volume: number;
+    readonly color?: Color;
+}>;
 
 /**
  * Script-author selectable plot style. The runtime maps this to the
- * adapter-kit's wire `PlotStyle` discriminated union (Task 1) and
- * fills in defaults from the sibling {@link PlotOpts} fields
- * (`lineWidth` / `lineStyle`). Phase 2 surfaces `line` / `step-line`
- * / `histogram` here — the kinds the runtime has wired emit paths
- * for. `horizontal-line` has its own `hline()` primitive; the other
- * Task-1 kinds (`bars`, `area`, `filled-band`, `label`, `marker`)
- * land per their consuming port.
+ * adapter-kit's wire `PlotStyle` discriminated union and fills in defaults
+ * from sibling {@link PlotOpts} fields (`lineWidth` / `lineStyle`) for
+ * line-like styles.
  *
  * `histogram.baseline` defaults to `0` when omitted.
  *
@@ -63,11 +114,104 @@ export type PlotKind =
 export type PlotOptsStyle =
     | { readonly kind: "line" }
     | { readonly kind: "step-line" }
+    | { readonly kind: "horizontal-line" }
     | { readonly kind: "histogram"; readonly baseline?: number }
     | {
           readonly kind: "marker";
-          readonly shape: "circle" | "triangle-up" | "triangle-down" | "square" | "diamond";
+          readonly shape: PlotGlyphShape;
           readonly size: number;
+      }
+    /**
+     * Glyph at world-anchor — Pine's `plotshape`. Location selects vertical
+     * anchoring; `size` is in CSS pixels.
+     *
+     * @since 0.5
+     * @experimental
+     * @example
+     *     plot(bar.close, { style: { kind: "shape", shape: "triangle-up", size: 8, location: "below" } });
+     */
+    | {
+          readonly kind: "shape";
+          readonly shape: PlotShapeGlyph;
+          readonly size: number;
+          readonly location?: PlotLocation;
+      }
+    /**
+     * Text glyph at world-anchor — Pine's `plotchar`. `char` may be any
+     * non-empty UTF-8 string; `size` is in CSS pixels.
+     *
+     * @since 0.5
+     * @experimental
+     * @example
+     *     plot(bar.close, { style: { kind: "character", char: "▲", size: 12, location: "above" } });
+     */
+    | {
+          readonly kind: "character";
+          readonly char: string;
+          readonly size: number;
+          readonly location?: PlotLocation;
+      }
+    /**
+     * Directional marker at world-anchor — Pine's `plotarrow`.
+     *
+     * @since 0.5
+     * @experimental
+     * @example
+     *     plot(bar.low, { style: { kind: "arrow", direction: "up", size: 10 } });
+     */
+    | { readonly kind: "arrow"; readonly direction: "up" | "down"; readonly size: number }
+    /**
+     * Candle body color override — Pine's `plotcandle`.
+     *
+     * @since 0.5
+     * @experimental
+     * @example
+     *     plot(bar.close, { style: { kind: "candle-override", bull: "#26a69a", bear: "#ef5350" } });
+     */
+    | {
+          readonly kind: "candle-override";
+          readonly bull: Color;
+          readonly bear: Color;
+          readonly doji?: Color;
+      }
+    /**
+     * OHLC bar outline override — Pine's `plotbar`.
+     *
+     * @since 0.5
+     * @experimental
+     * @example
+     *     plot(bar.close, { style: { kind: "bar-override", color: "#f59e0b" } });
+     */
+    | { readonly kind: "bar-override"; readonly color: Color }
+    /**
+     * Pane background color band — Pine's `bgcolor`.
+     *
+     * @since 0.5
+     * @experimental
+     * @example
+     *     plot(bar.close, { style: { kind: "bg-color", color: "#1d4ed8", transp: 80 } });
+     */
+    | { readonly kind: "bg-color"; readonly color: Color; readonly transp?: number }
+    /**
+     * Main candle/bar tint — Pine's `barcolor`.
+     *
+     * @since 0.5
+     * @experimental
+     * @example
+     *     plot(bar.close, { style: { kind: "bar-color", color: "#a855f7" } });
+     */
+    | { readonly kind: "bar-color"; readonly color: Color }
+    /**
+     * Right-edge volume-profile bars keyed by price bucket.
+     *
+     * @since 0.5
+     * @experimental
+     * @example
+     *     plot(bar.close, { style: { kind: "horizontal-histogram", buckets: [{ price: bar.close, volume: bar.volume }] } });
+     */
+    | {
+          readonly kind: "horizontal-histogram";
+          readonly buckets: ReadonlyArray<HorizontalHistogramBucket>;
       };
 
 /**

@@ -197,6 +197,87 @@ describe("plot — style selection (opts.style)", () => {
             expect(style.size).toBe(6);
         }
     });
+
+    it("emits Phase-5 styles unchanged", () => {
+        const caps = makeCaps({
+            plots: new Set([
+                "line",
+                "step-line",
+                "horizontal-line",
+                "histogram",
+                "bars",
+                "area",
+                "filled-band",
+                "label",
+                "marker",
+                "shape",
+                "character",
+                "arrow",
+                "candle-override",
+                "bar-override",
+                "bg-color",
+                "bar-color",
+                "horizontal-histogram",
+            ]),
+        });
+        const cases = [
+            {
+                slotId: "a:1:1#1",
+                style: { kind: "shape", shape: "flag", size: 8, location: "below" },
+            },
+            {
+                slotId: "a:1:1#2",
+                style: { kind: "character", char: "A", size: 12, location: "above" },
+            },
+            { slotId: "a:1:1#3", style: { kind: "arrow", direction: "up", size: 10 } },
+            {
+                slotId: "a:1:1#4",
+                style: { kind: "candle-override", bull: "#26a69a", bear: "#ef5350" },
+            },
+            { slotId: "a:1:1#5", style: { kind: "bar-override", color: "#f59e0b" } },
+            { slotId: "a:1:1#6", style: { kind: "bg-color", color: "#1d4ed8", transp: 80 } },
+            { slotId: "a:1:1#7", style: { kind: "bar-color", color: "#a855f7" } },
+            {
+                slotId: "a:1:1#8",
+                style: {
+                    kind: "horizontal-histogram",
+                    buckets: [{ price: 100, volume: 20, color: "#90caf9" }],
+                },
+            },
+        ] as const;
+        const { ctx, emissions } = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        for (const item of cases) {
+            plot(item.slotId, 42, { style: item.style });
+        }
+        expect(emissions.plots.map((emission) => emission.style)).toEqual(
+            cases.map((item) => item.style),
+        );
+    });
+
+    it("omits optional Phase-5 style fields when they are undefined", () => {
+        const caps = makeCaps({
+            plots: new Set(["line", "shape", "character", "candle-override", "bg-color"]),
+        });
+        const { ctx, emissions } = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        plot("a:1:1#1", 1, { style: { kind: "shape", shape: "flag", size: 8 } });
+        plot("a:1:1#2", 2, { style: { kind: "character", char: "A", size: 12 } });
+        plot("a:1:1#3", 3, { style: { kind: "candle-override", bull: "#0f0", bear: "#f00" } });
+        plot("a:1:1#4", 4, { style: { kind: "bg-color", color: "#111" } });
+        plot("a:1:1#5", 5, {
+            style: { kind: "candle-override", bull: "#0f0", bear: "#f00", doji: "#999" },
+        });
+
+        expect(emissions.plots.map((emission) => emission.style)).toEqual([
+            { kind: "shape", shape: "flag", size: 8 },
+            { kind: "character", char: "A", size: 12 },
+            { kind: "candle-override", bull: "#0f0", bear: "#f00" },
+            { kind: "bg-color", color: "#111" },
+            { kind: "candle-override", bull: "#0f0", bear: "#f00", doji: "#999" },
+        ]);
+    });
 });
 
 describe("plot — NaN handling", () => {

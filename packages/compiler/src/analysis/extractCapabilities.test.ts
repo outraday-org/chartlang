@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { createProgramForSource } from "../program";
 import { extractCapabilities } from "./extractCapabilities";
 
-function run(source: string, kind?: "indicator" | "drawing" | "alert") {
+function run(source: string, kind?: "indicator" | "drawing" | "alert" | "alertCondition") {
     const { sourceFile, checker } = createProgramForSource(source, {
         sourcePath: "demo.chart.ts",
     });
@@ -79,5 +79,16 @@ alert("hi");
             "drawing",
         );
         expect(result).toEqual(["alerts", "drawings"]);
+    });
+
+    it("seeds with alertConditions when kind is alertCondition", () => {
+        const result = run(
+            `
+import { defineAlertCondition } from "@invinite-org/chartlang-core";
+void defineAlertCondition;
+`,
+            "alertCondition",
+        );
+        expect(result).toEqual(["alertConditions"]);
     });
 });

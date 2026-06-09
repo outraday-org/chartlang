@@ -1,5 +1,6 @@
 node_modules/
 dist/
+!packages/host-quickjs/dist/dispatcher.js
 coverage/
 *.tsbuildinfo
 .vitest-cache/

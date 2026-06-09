@@ -28,6 +28,8 @@ export function drain(state: RunnerState): RunnerEmissions {
         plots: state.emissions.plots,
         drawings: state.emissions.drawings,
         alerts: state.emissions.alerts,
+        alertConditions: state.emissions.alertConditions ?? [],
+        logs: state.emissions.logs,
         diagnostics: state.emissions.diagnostics,
         fromBar: state.emissions.fromBar,
         toBar: state.emissions.toBar,
@@ -35,6 +37,8 @@ export function drain(state: RunnerState): RunnerEmissions {
     state.emissions.plots = [];
     state.emissions.drawings = [];
     state.emissions.alerts = [];
+    state.emissions.alertConditions = [];
+    state.emissions.logs = [];
     state.emissions.diagnostics = [];
     return out;
 }

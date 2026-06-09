@@ -483,7 +483,7 @@ describe("DRAW_NAMESPACE", () => {
         // stub sentinel (`"called outside compiled runtime"`) — which
         // would signal a fall-through to the core throwing-stub Proxy
         // and a missing impl.
-        expect(DRAWING_KINDS.length).toBe(61);
+        expect(DRAWING_KINDS.length).toBe(62);
         for (const kind of DRAWING_KINDS) {
             const camel = KIND_CAMELCASE.get(kind);
             if (camel === undefined) throw new Error(`missing camel mapping for ${kind}`);

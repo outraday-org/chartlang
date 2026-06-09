@@ -6,12 +6,12 @@ import { describe, expect, it } from "vitest";
 import { TA_REGISTRY, TA_REGISTRY_METADATA, ta } from "./registry";
 
 describe("TA_REGISTRY", () => {
-    it("ships exactly 90 entries (Phase-1 9 + Phase-2 cross-functional 6 + Task-6 MA ports 4 + Task-7 MA ports 4 + Task-8 MA ports 3 + Task-13 momentum 4 + Task-14 momentum 3 + Task-9 oscillators 3 + Task-10 oscillators 3 + Task-11 oscillators 3 + Task-12 oscillators 4 + Task-15 trend 2 + Task-16 trend 3 + Task-17 trend 3 + Task-18 volatility 3 + Task-19 volatility 3 + Task-20 volatility 3 + Task-21 volume 3 + Task-22 volume 4 + Task-23 volume 4 + Task-24 volume 4 + Task-25 S/R 2 + Task-26 S/R 3 + Task-27 S/R 4 + Task-28 statistical 3)", () => {
+    it("ships exactly 94 entries after the Phase 5 fixed range volume profile port", () => {
         const keys = Object.keys(TA_REGISTRY);
-        expect(keys.length).toBe(90);
+        expect(keys.length).toBe(94);
     });
 
-    it("exposes the 90 Phase-1+2 primitives by name", () => {
+    it("exposes the Phase-1+2+5 primitives by name", () => {
         const expected = [
             "sma",
             "ema",
@@ -76,6 +76,10 @@ describe("TA_REGISTRY", () => {
             "eom",
             "nvi",
             "pvi",
+            "visibleRangeVolumeProfile",
+            "anchoredVolumeProfile",
+            "sessionVolumeProfile",
+            "fixedRangeVolumeProfile",
             "bbPercentB",
             "bbw",
             "donchian",
@@ -167,6 +171,22 @@ describe("TA_REGISTRY_METADATA", () => {
         expect(meta).toBeDefined();
         expect(meta?.primarySeriesKey).toBe("pvo");
         expect(meta?.visibleSeriesKeys).toEqual(["pvo", "signal", "hist"]);
+        expect(meta?.yDomain).toEqual({ kind: "auto" });
+    });
+
+    it("records sessionVolumeProfile's primary + visible series + auto y-domain", () => {
+        const meta = TA_REGISTRY_METADATA.sessionVolumeProfile;
+        expect(meta).toBeDefined();
+        expect(meta?.primarySeriesKey).toBe("poc");
+        expect(meta?.visibleSeriesKeys).toEqual(["poc", "valHigh", "valLow"]);
+        expect(meta?.yDomain).toEqual({ kind: "auto" });
+    });
+
+    it("records fixedRangeVolumeProfile's primary + visible series + auto y-domain", () => {
+        const meta = TA_REGISTRY_METADATA.fixedRangeVolumeProfile;
+        expect(meta).toBeDefined();
+        expect(meta?.primarySeriesKey).toBe("poc");
+        expect(meta?.visibleSeriesKeys).toEqual(["poc", "valHigh", "valLow"]);
         expect(meta?.yDomain).toEqual({ kind: "auto" });
     });
 

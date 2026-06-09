@@ -44,6 +44,8 @@ function freshState(): RunnerState {
         plots: [],
         drawings: [],
         alerts: [],
+        alertConditions: [],
+        logs: [],
         diagnostics: [],
         fromBar: 0,
         toBar: 0,
@@ -76,8 +78,15 @@ function freshState(): RunnerState {
             drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
             scriptMaxDrawings: null,
             stateSlots: new Map(),
+            secondaryStreams: new Map(),
             requestSecurityBars: new Map(),
+            requestSecurityAlignments: new Map(),
+            requestSecurityAscendingBars: new Map(),
             diagnosedRequestKeys: new Set(),
+            alertConditions: new Map(),
+            diagnosedAlertConditionKeys: new Set(),
+            logBudget: 0,
+            logBudgetExceededDiagnosed: false,
             resolvedInputs: Object.freeze({ length: 14 }),
             diagnosedInputKeys: new Set(),
             views: createRuntimeViews({
@@ -91,7 +100,7 @@ function freshState(): RunnerState {
 }
 
 describe("buildComputeContext", () => {
-    it("returns an object with bar / inputs / ta / plot / hline / alert / draw / state / request / views", () => {
+    it("returns an object with bar / inputs / ta / plot / hline / alert / draw / state / request / runtime / views", () => {
         const state = freshState();
         const ctx = buildComputeContext(state);
         expect(ctx).toHaveProperty("bar");
@@ -103,6 +112,7 @@ describe("buildComputeContext", () => {
         expect(ctx).toHaveProperty("draw");
         expect(ctx).toHaveProperty("state");
         expect(ctx).toHaveProperty("request");
+        expect(ctx).toHaveProperty("runtime");
         expect(ctx).toHaveProperty("barstate");
         expect(ctx).toHaveProperty("syminfo");
         expect(ctx).toHaveProperty("timeframe");
@@ -194,7 +204,7 @@ describe("buildComputeContext", () => {
         // when called bare — none falls through to the core stub.
         const state = freshState();
         const ctx = buildComputeContext(state);
-        expect(DRAWING_KINDS.length).toBe(61);
+        expect(DRAWING_KINDS.length).toBe(62);
         for (const kind of DRAWING_KINDS) {
             const camel = KIND_CAMELCASE.get(kind);
             if (camel === undefined) throw new Error(`missing camel mapping for ${kind}`);

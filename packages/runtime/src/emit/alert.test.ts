@@ -93,6 +93,15 @@ describe("alert — happy path", () => {
         expect(emissions.alerts[0].meta).toEqual({ reason: "x" });
     });
 
+    it("snapshots opts.meta at emission time", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const pair = Proxy.revocable({ ok: true }, {});
+        alert("a:1:1#0", "proxy", { meta: { pair: pair.proxy, values: [1, "x"] } });
+        pair.revoke();
+        expect(emissions.alerts[0].meta).toEqual({ pair: { ok: true }, values: [1, "x"] });
+    });
+
     it("dedupeKey matches ${slotId}::${bar}::FNV1a(message + JSON.stringify(meta))", () => {
         const { ctx, emissions } = makeCtx({ barIndex: 5 });
         ACTIVE_RUNTIME_CONTEXT.current = ctx;

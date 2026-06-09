@@ -1,7 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CapabilityId, ScriptManifest } from "@invinite-org/chartlang-core";
+import type {
+    AlertConditionDefinition,
+    CapabilityId,
+    ScriptManifest,
+} from "@invinite-org/chartlang-core";
 
 type ValueFormat = "price" | "volume" | "percent" | "compact";
 type ScaleAxis = "price" | "left" | "right" | "new";
@@ -26,7 +30,7 @@ type ManifestInputDescriptors = Readonly<Record<string, Readonly<Record<string, 
  */
 export function buildManifest(args: {
     readonly name: string;
-    readonly kind: "indicator" | "drawing" | "alert";
+    readonly kind: "indicator" | "drawing" | "alert" | "alertCondition";
     readonly capabilities: ReadonlyArray<CapabilityId>;
     readonly requestedIntervals: ReadonlyArray<string>;
     readonly userPickableInterval: boolean;
@@ -39,6 +43,7 @@ export function buildManifest(args: {
     readonly scale?: ScaleAxis;
     readonly requiresIntervals?: ReadonlyArray<string>;
     readonly shortName?: string;
+    readonly alertConditions?: ReadonlyArray<AlertConditionDefinition>;
 }): ScriptManifest {
     const capabilities = Object.freeze(args.capabilities.slice());
     const requestedIntervals = Object.freeze(args.requestedIntervals.slice());
@@ -52,6 +57,19 @@ export function buildManifest(args: {
         args.requiresIntervals === undefined
             ? undefined
             : Object.freeze(args.requiresIntervals.slice());
+    const alertConditions =
+        args.alertConditions === undefined
+            ? undefined
+            : Object.freeze(
+                  args.alertConditions.map((condition) =>
+                      Object.freeze({
+                          id: condition.id,
+                          title: condition.title,
+                          description: condition.description,
+                          defaultMessage: condition.defaultMessage,
+                      }),
+                  ),
+              );
     return Object.freeze({
         apiVersion: 1 as const,
         kind: args.kind,
@@ -68,5 +86,6 @@ export function buildManifest(args: {
         ...(args.scale === undefined ? {} : { scale: args.scale }),
         ...(requiresIntervals === undefined ? {} : { requiresIntervals }),
         ...(args.shortName === undefined ? {} : { shortName: args.shortName }),
+        ...(alertConditions === undefined ? {} : { alertConditions }),
     });
 }

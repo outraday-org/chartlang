@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { JsonValue, Price, Time } from "../types";
+import type { Color, JsonValue, Price, Time } from "../types";
 import type {
     ArrowMarkerOpts,
     ArrowOpts,
@@ -15,6 +15,7 @@ import type {
     ShapeStyle,
     TextOpts,
 } from "./drawingStyle";
+import type { TableCell, TablePosition } from "./table";
 import type {
     AnchorHept,
     AnchorPair,
@@ -1450,12 +1451,38 @@ export type FrameState = DrawingMeta & {
 };
 
 /**
+ * `table` — CSS-pixel viewport-anchored dashboard/status panel. It
+ * deliberately carries no world-space anchors; adapters resolve
+ * `position` against the current viewport per PLAN.md §10.2.
+ *
+ * @formula  N/A — table layout resolved in CSS pixels by adapter
+ * @anchors  position: CSS viewport anchor
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const s: TableState = {
+ *         kind: "table",
+ *         position: "top-right",
+ *         cells: [[{ text: "P&L" }, { text: "+12.5%", textColor: "#16a34a" }]],
+ *     };
+ *     void s;
+ */
+export type TableState = DrawingMeta & {
+    readonly kind: "table";
+    readonly position: TablePosition;
+    readonly cells: ReadonlyArray<ReadonlyArray<TableCell>>;
+    readonly borderColor?: Color;
+    readonly borderWidth?: number;
+    readonly frame?: Readonly<{ color: Color; width: number }>;
+};
+
+/**
  * Per-kind state union — every {@link DrawingKind} maps to exactly one
  * variant. Collab-only fields (Yjs `id`, `layerId`, `createdAt`,
  * `authorId`, `parentGroupId`, `parentFrameId`, `visibleIntervals`)
  * from the invinite source are stripped per PLAN.md §10.4.
  *
- * The 61 variants here are intentionally minimal shells. Tasks 5–18
+ * The 62 variants here are intentionally minimal shells. Tasks 5–18
  * (per-category ports) refine each variant's geometry + style payload
  * against the invinite source-of-truth. Exhaustiveness is asserted via
  * the `(k satisfies never)` switch in `drawingState.types.test.ts`.
@@ -1533,4 +1560,5 @@ export type DrawingState =
     | TimeCyclesState
     | SineLineState
     | GroupState
-    | FrameState;
+    | FrameState
+    | TableState;

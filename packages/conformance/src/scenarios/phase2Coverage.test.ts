@@ -19,6 +19,28 @@ const PHASE_1_INDICATORS: ReadonlyArray<string> = Object.freeze([
     "crossunder",
 ] as const);
 
+const PHASE_5_TA_ADDITIONS: ReadonlyArray<string> = Object.freeze([
+    "anchoredVolumeProfile",
+    "fixedRangeVolumeProfile",
+    "sessionVolumeProfile",
+    "visibleRangeVolumeProfile",
+] as const);
+
+const PHASE_5_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
+    Object.freeze([
+        { name: "ta.anchoredVolumeProfile", slot: true },
+        { name: "ta.fixedRangeVolumeProfile", slot: true },
+        { name: "ta.sessionVolumeProfile", slot: true },
+        { name: "ta.visibleRangeVolumeProfile", slot: true },
+        { name: "draw.table", slot: true },
+        { name: "defineAlertCondition.signal", slot: false },
+        { name: "runtime.log", slot: false },
+        { name: "runtime.error", slot: false },
+    ] as const);
+
+const PHASE_2_TA_CARDINALITY = PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length;
+const PHASE_4_STATEFUL_CARDINALITY = 163;
+
 describe("Phase 2 surface", () => {
     it("every PLAN §9.2 indicator has a ta.* primitive", () => {
         for (const id of PHASE_2_INDICATORS) {
@@ -32,28 +54,48 @@ describe("Phase 2 surface", () => {
         }
     });
 
-    it("TA_REGISTRY cardinality is 90 (9 Phase-1 + 81 Phase-2)", () => {
-        expect(Object.keys(TA_REGISTRY).length).toBe(90);
-        expect(PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length).toBe(90);
+    it("TA_REGISTRY keeps the 90-entry Phase-2 baseline plus explicit Phase-5 VP additions", () => {
+        expect(PHASE_2_TA_CARDINALITY).toBe(90);
+        for (const id of PHASE_5_TA_ADDITIONS) {
+            expect(TA_REGISTRY).toHaveProperty(id);
+        }
+        expect(Object.keys(TA_REGISTRY).length).toBe(
+            PHASE_2_TA_CARDINALITY + PHASE_5_TA_ADDITIONS.length,
+        );
     });
 
-    it("STATEFUL_PRIMITIVES cardinality is 163 (154 carried + 8 state.* + request.security)", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(163);
+    it("STATEFUL_PRIMITIVES keeps the Phase-4 baseline plus explicit Phase-5 entries", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(
+            PHASE_4_STATEFUL_CARDINALITY + PHASE_5_STATEFUL_ADDITIONS.length,
+        );
+        for (const expected of PHASE_5_STATEFUL_ADDITIONS) {
+            expect(STATEFUL_PRIMITIVES).toContainEqual(expected);
+        }
     });
 
-    it("ta.nz is the only slot:false entry", () => {
-        const stateless = [...STATEFUL_PRIMITIVES].filter((e) => e.slot === false);
-        expect(stateless.map((e) => e.name)).toEqual(["ta.nz"]);
+    it("slot:false entries are only ta.nz plus Phase-5 diagnostics primitives", () => {
+        const stateless = [...STATEFUL_PRIMITIVES]
+            .filter((e) => e.slot === false)
+            .map((e) => e.name)
+            .sort();
+        expect(stateless).toEqual(
+            ["defineAlertCondition.signal", "runtime.error", "runtime.log", "ta.nz"].sort(),
+        );
     });
 
-    it("no Phase-5 deferred primitive leaked into the registry", () => {
-        for (const id of PHASE_5_DEFERRED) {
+    it("no still-deferred Phase-5 primitive leaked into the registry", () => {
+        const allowedPhase5 = new Set(PHASE_5_TA_ADDITIONS);
+        for (const id of PHASE_5_DEFERRED.filter((candidate) => !allowedPhase5.has(candidate))) {
             expect(TA_REGISTRY).not.toHaveProperty(id);
         }
     });
 
-    it("the registry contains no extras beyond Phase-1 + Phase-2 + the inventory", () => {
-        const known = new Set([...PHASE_1_INDICATORS, ...PHASE_2_INDICATORS]);
+    it("the registry contains no extras beyond Phase-1 + Phase-2 + explicit Phase-5 additions", () => {
+        const known = new Set([
+            ...PHASE_1_INDICATORS,
+            ...PHASE_2_INDICATORS,
+            ...PHASE_5_TA_ADDITIONS,
+        ]);
         const extras = Object.keys(TA_REGISTRY).filter((k) => !known.has(k));
         expect(extras).toEqual([]);
     });

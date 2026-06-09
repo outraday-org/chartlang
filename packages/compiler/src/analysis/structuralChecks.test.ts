@@ -33,6 +33,24 @@ export default defineAlert({ name: "rsi-overbought", apiVersion: 1, compute: () 
         expect(result.kind).toBe("alert");
     });
 
+    it("accepts a defineAlertCondition default export and marks kind as alertCondition", () => {
+        const result = run(`
+import { defineAlertCondition } from "@invinite-org/chartlang-core";
+export default defineAlertCondition({
+    name: "cross",
+    apiVersion: 1,
+    conditions: {
+        up: { title: "Up", description: "desc", defaultMessage: "msg" },
+    },
+    compute: () => {},
+});
+`);
+
+        expect(result.diagnostics).toEqual([]);
+        expect(result.kind).toBe("alertCondition");
+        expect(result.name).toBe("cross");
+    });
+
     it("accepts a defineDrawing default export and marks kind as drawing", () => {
         const result = run(`
 import { defineDrawing } from "@invinite-org/chartlang-core";

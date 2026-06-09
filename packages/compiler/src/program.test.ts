@@ -108,8 +108,58 @@ void timeframe.isdaily;
         expect(diagnostics.map((diagnostic) => diagnostic.messageText)).toEqual([]);
     });
 
-    it("keeps the runtime stateful primitive registry at the Phase 4 cardinality", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(163);
+    it("resolves the Phase 5 snapshot ambient types without semantic errors", () => {
+        const source = `
+import type {
+    StateSnapshot,
+    StateStoreKey,
+    StreamSnapshot,
+} from "@invinite-org/chartlang-core";
+
+const stream: StreamSnapshot = {
+    interval: "1D",
+    headIndex: 0,
+    filled: 1,
+    buffers: {
+        time: [1700000000000],
+        open: [100],
+        high: [101],
+        low: [99],
+        close: [100.5],
+        volume: [10],
+    },
+};
+
+const snapshot: StateSnapshot = {
+    lastBarTime: 1700000000000,
+    streams: { main: stream },
+    slots: { "demo.chart.ts:1:1#0": { current: 100.5 } },
+    savedAt: 1700000060000,
+    snapshotVersion: 1,
+};
+
+const key: StateStoreKey = {
+    scriptHash: "abc",
+    compilerVersion: "0.5.0",
+    apiVersion: 1,
+    capabilitiesHash: "def",
+    symbol: "BTCUSD",
+    mainInterval: "1m",
+    requestedIntervals: ["1D"],
+};
+
+void snapshot;
+void key;
+`;
+        const { program, sourceFile } = createProgramForSource(source, {
+            sourcePath: "snapshot.chart.ts",
+        });
+        const diagnostics = program.getSemanticDiagnostics(sourceFile);
+        expect(diagnostics.map((diagnostic) => diagnostic.messageText)).toEqual([]);
+    });
+
+    it("keeps the runtime stateful primitive registry at the Phase 5 fixed range profile cardinality", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(171);
     });
 
     it("resolves the stateful primitive registry exports from the ambient shim", () => {

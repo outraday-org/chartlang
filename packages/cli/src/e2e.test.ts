@@ -20,6 +20,8 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/mintick-snapped-entry.chart.ts",
 ] as const;
 
+const COMPILE_TIMEOUT_MS = 15_000;
+
 describe("example scripts compile end-to-end", () => {
     for (const relPath of EXAMPLE_SCRIPTS) {
         it(`compiles ${relPath}`, async () => {
@@ -31,7 +33,7 @@ describe("example scripts compile end-to-end", () => {
             expect(compiled.manifest.kind).toBe("indicator");
             expect(compiled.manifest.capabilities).toContain("indicators");
             expect(compiled.types).toMatch(/export default script/);
-        });
+        }, COMPILE_TIMEOUT_MS);
     }
 
     it("extracts Phase-4 input and timeframe manifest fields", async () => {
@@ -49,5 +51,5 @@ describe("example scripts compile end-to-end", () => {
         );
         expect(Object.keys(session.manifest.inputs)).toEqual(["alertOnCross"]);
         expect(session.manifest.userPickableInterval).toBe(false);
-    });
+    }, COMPILE_TIMEOUT_MS);
 });

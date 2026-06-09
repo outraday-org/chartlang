@@ -25,6 +25,8 @@ import type { Viewport } from "./coords";
  */
 export type RenderCtx = {
     clearRect(x: number, y: number, w: number, h: number): void;
+    save(): void;
+    restore(): void;
     beginPath(): void;
     moveTo(x: number, y: number): void;
     lineTo(x: number, y: number): void;

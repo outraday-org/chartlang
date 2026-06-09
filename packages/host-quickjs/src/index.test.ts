@@ -3,10 +3,18 @@
 
 import { describe, expect, it } from "vitest";
 
-import { PACKAGE_VERSION } from "./index";
+import * as publicSurface from "./index";
 
-describe("placeholder", () => {
-    it("exports a version constant", () => {
-        expect(PACKAGE_VERSION).toBe("0.0.0");
+describe("public surface", () => {
+    it("exports the runtime values", () => {
+        expect(publicSurface.createQuickJsHost).toEqual(expect.any(Function));
+        expect(publicSurface.DEFAULT_QUICKJS_LIMITS).toEqual({
+            maxHeapBytes: 64 * 1024 * 1024,
+            maxStepMs: 1,
+        });
+    });
+
+    it("removes the placeholder package version export", () => {
+        expect("PACKAGE_VERSION" in publicSurface).toBe(false);
     });
 });

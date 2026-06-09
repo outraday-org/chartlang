@@ -5,6 +5,8 @@ import type { ComputeContext } from "@invinite-org/chartlang-core";
 
 import type { RunnerState } from "./createScriptRunner";
 import { alert, draw, hline, plot, ta } from "./primitives";
+import { emitAlertCondition } from "./emit/alertConditionEmission";
+import { buildRuntimeNamespace } from "./emit/logEmission";
 import { buildRequestNamespace } from "./request";
 import { buildStateNamespace } from "./state";
 
@@ -26,7 +28,7 @@ import { buildStateNamespace } from "./state";
  *     // void ctx.bar.close;
  */
 export function buildComputeContext(state: RunnerState): ComputeContext {
-    return {
+    const base = {
         bar: state.mainStream.bar,
         inputs: state.runtimeContext.resolvedInputs,
         ta,
@@ -39,5 +41,12 @@ export function buildComputeContext(state: RunnerState): ComputeContext {
         syminfo: state.runtimeContext.views.syminfo,
         timeframe: state.runtimeContext.views.timeframe,
         request: buildRequestNamespace(),
+        runtime: buildRuntimeNamespace(state.runtimeContext),
+    };
+    if (state.manifest.kind !== "alertCondition") return base;
+    return {
+        ...base,
+        signal: (conditionId, fired) =>
+            emitAlertCondition(state.runtimeContext, conditionId, fired),
     };
 }

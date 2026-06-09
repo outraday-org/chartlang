@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 /**
- * The full set of 61 drawing kinds chartlang supports through `draw.*`.
+ * The full set of 62 drawing kinds chartlang supports through `draw.*`.
  * The wire format is kebab-case; the TypeScript script surface is
  * camelCase (`draw.horizontalLine(...)`). See {@link KIND_CAMELCASE} for
  * the canonical bijection.
@@ -19,12 +19,12 @@
  *
  * Order pinned: lines (6) → boxes (8) → curves (3) → freehand (3) →
  * annotations (5) → channels (4) → fib (10) → gann (4) → pitchforks (2)
- * → patterns (6) → elliott (5) → cycles (3) → containers (2) = 61. The
- * order is wire-stable — downstream consumers iterate
+ * → patterns (6) → elliott (5) → cycles (3) → containers (2) → viewport
+ * overlays (1) = 62. The order is wire-stable — downstream consumers iterate
  * {@link DRAWING_KINDS} in this order for diagnostic readability.
  *
  * @formula  N/A — discriminator constant set
- * @anchors  61 kebab-case kind names; see {@link DRAWING_KINDS}
+ * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
  * @experimental
  * @example
@@ -105,7 +105,9 @@ export type DrawingKind =
     | "sine-line"
     // Containers (2)
     | "group"
-    | "frame";
+    | "frame"
+    // Viewport overlays (1)
+    | "table";
 
 /**
  * Iterable form of {@link DrawingKind}. Order matches the type
@@ -113,7 +115,7 @@ export type DrawingKind =
  * single canonical order. Frozen.
  *
  * @formula  N/A — discriminator constant set
- * @anchors  61 kebab-case kind names; see {@link DRAWING_KINDS}
+ * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
  * @experimental
  * @example
@@ -184,6 +186,7 @@ export const DRAWING_KINDS: ReadonlyArray<DrawingKind> = Object.freeze([
     "sine-line",
     "group",
     "frame",
+    "table",
 ] as const satisfies ReadonlyArray<DrawingKind>);
 
 /**
@@ -194,7 +197,7 @@ export const DRAWING_KINDS: ReadonlyArray<DrawingKind> = Object.freeze([
  * {@link KIND_KEBABCASE}.
  *
  * @formula  N/A — discriminator constant set
- * @anchors  61 kebab-case kind names; see {@link DRAWING_KINDS}
+ * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
  * @experimental
  * @example
@@ -264,6 +267,7 @@ export const KIND_CAMELCASE: ReadonlyMap<DrawingKind, string> = new Map<DrawingK
     ["sine-line", "sineLine"],
     ["group", "group"],
     ["frame", "frame"],
+    ["table", "table"],
 ]);
 
 /**
@@ -272,7 +276,7 @@ export const KIND_CAMELCASE: ReadonlyMap<DrawingKind, string> = new Map<DrawingK
  * two maps cannot drift.
  *
  * @formula  N/A — discriminator constant set
- * @anchors  61 kebab-case kind names; see {@link DRAWING_KINDS}
+ * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
  * @experimental
  * @example

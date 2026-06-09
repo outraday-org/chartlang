@@ -1,7 +1,6 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CandleEvent } from "@invinite-org/chartlang-adapter-kit";
 import { createScriptRunner } from "@invinite-org/chartlang-runtime";
 
 import { filterEmissions } from "./filterEmissions";
@@ -27,17 +26,6 @@ export type WorkerBootScope = {
     addEventListener(type: "message", listener: (ev: MessageEvent<HostToWorker>) => void): void;
     postMessage(msg: WorkerToHost): void;
 };
-
-function dispatchEvent(runner: ScriptRunnerHandle, event: CandleEvent): Promise<void> {
-    switch (event.kind) {
-        case "history":
-            return runner.onHistory(event.bars);
-        case "close":
-            return runner.onBarClose(event.bar);
-        case "tick":
-            return runner.onBarTick(event.bar);
-    }
-}
 
 async function importCompiledModule(moduleSource: string): Promise<CompiledModuleExport> {
     // `encodeURIComponent` preserves multi-byte UTF-8 across the data URL
@@ -121,7 +109,7 @@ export function createWorkerBoot(scope: WorkerBootScope): void {
                     }
                     const r = runner;
                     const { overshoot } = await watchStep(
-                        () => dispatchEvent(r, msg.event),
+                        () => r.push(msg.event),
                         limits.maxCpuMsPerStep,
                     );
                     if (overshoot > 0) {
@@ -142,7 +130,7 @@ export function createWorkerBoot(scope: WorkerBootScope): void {
                     break;
                 }
                 case "dispose": {
-                    runner?.dispose();
+                    await runner?.dispose();
                     runner = null;
                     limits = null;
                     break;

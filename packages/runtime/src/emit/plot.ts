@@ -24,26 +24,63 @@ function resolveValue(value: number | Series<number>): number | null {
 }
 
 function buildStyle(opts: PlotOpts): PlotStyle {
-    const kind = opts.style?.kind ?? "line";
-    if (kind === "histogram") {
-        // `kind === "histogram"` implies `opts.style` is defined and is
-        // the histogram variant — narrow via the discriminant.
-        const histogramStyle = opts.style as { kind: "histogram"; baseline?: number };
-        return { kind: "histogram", baseline: histogramStyle.baseline ?? 0 };
-    }
-    if (kind === "marker") {
-        const markerStyle = opts.style as {
-            kind: "marker";
-            shape: "circle" | "triangle-up" | "triangle-down" | "square" | "diamond";
-            size: number;
+    const style = opts.style;
+    if (style === undefined) {
+        return {
+            kind: "line",
+            lineWidth: opts.lineWidth ?? 1,
+            lineStyle: opts.lineStyle ?? "solid",
         };
-        return { kind: "marker", shape: markerStyle.shape, size: markerStyle.size };
     }
-    return {
-        kind,
-        lineWidth: opts.lineWidth ?? 1,
-        lineStyle: opts.lineStyle ?? "solid",
-    };
+    switch (style.kind) {
+        case "histogram":
+            return { kind: "histogram", baseline: style.baseline ?? 0 };
+        case "marker":
+            return { kind: "marker", shape: style.shape, size: style.size };
+        case "shape":
+            return {
+                kind: "shape",
+                shape: style.shape,
+                size: style.size,
+                ...(style.location === undefined ? {} : { location: style.location }),
+            };
+        case "character":
+            return {
+                kind: "character",
+                char: style.char,
+                size: style.size,
+                ...(style.location === undefined ? {} : { location: style.location }),
+            };
+        case "arrow":
+            return { kind: "arrow", direction: style.direction, size: style.size };
+        case "candle-override":
+            return {
+                kind: "candle-override",
+                bull: style.bull,
+                bear: style.bear,
+                ...(style.doji === undefined ? {} : { doji: style.doji }),
+            };
+        case "bar-override":
+            return { kind: "bar-override", color: style.color };
+        case "bg-color":
+            return {
+                kind: "bg-color",
+                color: style.color,
+                ...(style.transp === undefined ? {} : { transp: style.transp }),
+            };
+        case "bar-color":
+            return { kind: "bar-color", color: style.color };
+        case "horizontal-histogram":
+            return { kind: "horizontal-histogram", buckets: style.buckets };
+        case "line":
+        case "step-line":
+        case "horizontal-line":
+            return {
+                kind: style.kind,
+                lineWidth: opts.lineWidth ?? 1,
+                lineStyle: opts.lineStyle ?? "solid",
+            };
+    }
 }
 
 function plotImpl(

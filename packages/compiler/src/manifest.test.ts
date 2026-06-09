@@ -71,4 +71,37 @@ describe("buildManifest", () => {
         expect(manifest.kind).toBe("drawing");
         expect(manifest.capabilities).toEqual(["drawings"]);
     });
+
+    it("freezes alert-condition descriptors", () => {
+        const manifest = buildManifest({
+            name: "conditions",
+            kind: "alertCondition",
+            capabilities: ["alertConditions"],
+            requestedIntervals: [],
+            userPickableInterval: false,
+            seriesCapacities: {},
+            maxLookback: 0,
+            inputs: {},
+            alertConditions: [
+                {
+                    id: "up",
+                    title: "Up",
+                    description: "Close > EMA",
+                    defaultMessage: "{{ticker}} up",
+                },
+            ],
+        });
+
+        expect(manifest.kind).toBe("alertCondition");
+        expect(manifest.alertConditions).toEqual([
+            {
+                id: "up",
+                title: "Up",
+                description: "Close > EMA",
+                defaultMessage: "{{ticker}} up",
+            },
+        ]);
+        expect(Object.isFrozen(manifest.alertConditions)).toBe(true);
+        expect(Object.isFrozen(manifest.alertConditions?.[0])).toBe(true);
+    });
 });

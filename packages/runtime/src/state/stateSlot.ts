@@ -4,6 +4,26 @@
 import type { MutableSlot } from "@invinite-org/chartlang-core";
 
 /**
+ * Optional PLAN §6.9 state-slot marshal hooks. Phase-4 `state.*`
+ * primitives use the identity default because their values are already
+ * JSON-clean; future primitives with typed-array internals can provide
+ * explicit hooks.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const hooks: StateSlotSerialisers<number> = {
+ *         serialiseState: (value) => value,
+ *         deserialiseState: (value) => Number(value),
+ *     };
+ *     void hooks;
+ */
+export type StateSlotSerialisers<T> = {
+    readonly serialiseState?: (value: T) => unknown;
+    readonly deserialiseState?: (value: unknown) => T;
+};
+
+/**
  * Internal runtime slot behind script-facing {@link MutableSlot}
  * proxies. `tickPersistent: true` models `state.tick.*`, whose writes
  * commit immediately; `false` models `state.*`, whose writes remain
@@ -25,6 +45,7 @@ export class StateSlot<T> {
     constructor(
         init: T,
         public readonly tickPersistent: boolean,
+        private readonly serialisers: StateSlotSerialisers<T> = {},
     ) {
         this.committed = init;
         this.tentative = init;
@@ -52,6 +73,10 @@ export class StateSlot<T> {
         if (!this.tickPersistent) {
             this.tentative = this.committed;
         }
+    }
+
+    serialise(value: T): unknown {
+        return this.serialisers.serialiseState?.(value) ?? value;
     }
 }
 

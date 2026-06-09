@@ -137,6 +137,56 @@ describe("Float64RingBuffer", () => {
         buf.append(9);
         expect(buf.at(0)).toBe(9);
     });
+
+    it("serialises and restores private head/filled state", () => {
+        const source = new Float64RingBuffer(3);
+        source.append(1);
+        source.append(Number.NaN);
+        source.append(3);
+        source.append(4);
+        const snapshot = source.serialiseSnapshotBuffer();
+
+        const restored = new Float64RingBuffer(3);
+        restored.restoreFromSnapshotBuffer(snapshot);
+
+        expect(snapshot.values).toEqual([4, null, 3]);
+        expect(restored.length).toBe(3);
+        expect(restored.at(0)).toBe(4);
+        expect(restored.at(1)).toBe(3);
+        expect(restored.at(2)).toBeNaN();
+    });
+
+    it("rejects invalid snapshot metadata", () => {
+        const restored = new Float64RingBuffer(2);
+        expect(() =>
+            restored.restoreFromSnapshotBuffer({
+                headIndex: 4,
+                filled: 1,
+                values: [1, 2],
+            }),
+        ).toThrow("invalid ring buffer snapshot");
+        expect(() =>
+            restored.restoreFromSnapshotBuffer({
+                headIndex: 0,
+                filled: 1,
+                values: [1],
+            }),
+        ).toThrow("invalid ring buffer snapshot");
+        expect(() =>
+            restored.restoreFromSnapshotBuffer({
+                headIndex: 0,
+                filled: 0,
+                values: [1, 2],
+            }),
+        ).toThrow("invalid ring buffer snapshot");
+        expect(() =>
+            restored.restoreFromSnapshotBuffer({
+                headIndex: -1,
+                filled: 1,
+                values: [1, 2],
+            }),
+        ).toThrow("invalid ring buffer snapshot");
+    });
 });
 
 describe("RingBuffer<T> property invariants", () => {

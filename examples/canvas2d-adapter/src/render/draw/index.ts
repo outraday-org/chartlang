@@ -93,3 +93,4 @@ export { renderTimeCycles } from "./timeCycles";
 export { renderSineLine } from "./sineLine";
 export { renderGroup } from "./group";
 export { renderFrame } from "./frame";
+export { renderTable } from "./table";

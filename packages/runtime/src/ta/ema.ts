@@ -18,6 +18,7 @@ import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
 import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
 
 type EmaSlot = {
+    readonly kind: "ta.ema";
     readonly outBuffer: Float64RingBuffer;
     readonly series: Series<number>;
     readonly alpha: number;
@@ -41,6 +42,7 @@ function getCtx(): RuntimeContext {
 function initSlot(length: number, capacity: number): EmaSlot {
     const outBuffer = new Float64RingBuffer(capacity);
     return {
+        kind: "ta.ema",
         outBuffer,
         series: makeSeriesView<number>(outBuffer),
         alpha: 2 / (length + 1),

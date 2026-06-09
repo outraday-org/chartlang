@@ -5,7 +5,7 @@ export { KIND_BUCKET, bucketFor } from "@invinite-org/chartlang-core";
 export type { DrawingBucket, DrawingState } from "@invinite-org/chartlang-core";
 export { defineAdapter } from "./defineAdapter";
 export type { DefineAdapterOpts } from "./defineAdapter";
-export { capabilities } from "./capabilities";
+export { PHASE_5_PLOT_KINDS, capabilities } from "./capabilities";
 export { decodeDrawing, validateEmission } from "./validation";
 export type { ValidationFail, ValidationOk, ValidationResult } from "./validation";
 export { mockCandleSource } from "./mocks";
@@ -15,6 +15,7 @@ export type {
     Adapter,
     AdapterSymInfo,
     AlertChannel,
+    AlertConditionEmission,
     AlertEmission,
     Capabilities,
     CandleEvent,
@@ -23,6 +24,7 @@ export type {
     DrawingEmission,
     DrawingKind,
     InputKind,
+    LogEmission,
     PlotEmission,
     PlotKind,
     PlotStyle,

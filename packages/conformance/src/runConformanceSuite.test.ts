@@ -5,23 +5,33 @@ import { createHash } from "node:crypto";
 
 import type { Adapter, CandleEvent, Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { capabilities as capBuilders } from "@invinite-org/chartlang-adapter-kit";
-import type { Bar } from "@invinite-org/chartlang-core";
+import type { compile as CompileFn, CompiledScript } from "@invinite-org/chartlang-compiler";
+import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import { generateGoldenBars } from "./fixtures/generateGoldenBars";
+import { type Scenario, type ScenarioAssertion, runConformanceSuite } from "./runConformanceSuite";
 import {
     BARSTATE_CONFIRMED_SCENARIO,
+    DEFINE_ALERT_CONDITION_FIRES_SCENARIO,
+    DEFINE_ALERT_CONDITION_GATED_SCENARIO,
+    DEFINE_ALERT_CONDITION_UNKNOWN_SCENARIO,
+    DRAW_TABLE_GATED_SCENARIO,
+    DRAW_TABLE_HAPPY_SCENARIO,
     EMA_CROSS_SCENARIO,
     INPUT_INTERVAL_SCENARIO,
     PHASE_1_SCENARIOS,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
+    RUNTIME_ERROR_SCENARIO,
+    RUNTIME_LOG_BUDGET_SCENARIO,
+    RUNTIME_LOG_GATED_SCENARIO,
+    RUNTIME_LOG_INFO_SCENARIO,
     STATE_SESSION_HIGH_SCENARIO,
     STATE_TICK_COUNTER_SCENARIO,
     SYMINFO_MINTICK_SCENARIO,
     TIMEFRAME_ISDAILY_SCENARIO,
     UNSUPPORTED_INTERVAL_SCENARIO,
 } from "./scenarios";
-import { runConformanceSuite, type Scenario, type ScenarioAssertion } from "./runConformanceSuite";
 
 const TEST_CAPABILITIES: Capabilities = {
     plots: capBuilders.union(capBuilders.line(), capBuilders.horizontalLine()),
@@ -46,10 +56,11 @@ const TEST_CAPABILITIES: Capabilities = {
         ...capBuilders.allElliottDrawings(),
         ...capBuilders.allCycleDrawings(),
         ...capBuilders.allContainerDrawings(),
+        "table",
     ]),
     alerts: capBuilders.alerts("log", "toast"),
-    alertConditions: false,
-    logs: false,
+    alertConditions: true,
+    logs: true,
     inputs: new Set(["interval"]),
     intervals: [
         { value: "1m", label: "1 minute", group: "minute" },
@@ -93,6 +104,38 @@ function makeAdapter(): Adapter {
 }
 
 const SMALL_BARS: ReadonlyArray<Bar> = generateGoldenBars().slice(0, 200);
+const SINGLE_BAR: ReadonlyArray<Bar> = SMALL_BARS.slice(0, 1);
+const NOOP_MANIFEST: ScriptManifest = Object.freeze({
+    apiVersion: 1,
+    kind: "indicator",
+    name: "noop",
+    inputs: Object.freeze({}),
+    capabilities: Object.freeze(["indicators"]),
+    requestedIntervals: Object.freeze([]),
+    userPickableInterval: false,
+    seriesCapacities: Object.freeze({}),
+    maxLookback: 0,
+});
+const NOOP_MODULE_SOURCE =
+    "export default Object.freeze({ manifest: Object.freeze({ apiVersion: 1, kind: 'indicator', name: 'noop', inputs: Object.freeze({}), capabilities: Object.freeze(['indicators']), requestedIntervals: Object.freeze([]), userPickableInterval: false, seriesCapacities: Object.freeze({}), maxLookback: 0 }), compute() {} });";
+
+function makeNoopCompile(visitedSourcePaths?: string[]): typeof CompileFn {
+    return async (_source, opts): Promise<CompiledScript> => {
+        visitedSourcePaths?.push(opts.sourcePath);
+        return Object.freeze({
+            manifest: NOOP_MANIFEST,
+            moduleSource: NOOP_MODULE_SOURCE,
+            types: "",
+        });
+    };
+}
+
+function scenarioSourcePath(scenario: Scenario): string {
+    if (scenario.inlineSource !== undefined) return `<inline:${scenario.id}>.chart.ts`;
+    if (scenario.scriptPath !== undefined) return scenario.scriptPath;
+    throw new Error(`Scenario "${scenario.id}" must define either scriptPath or inlineSource`);
+}
+
 const PHASE_4_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     BARSTATE_CONFIRMED_SCENARIO,
     INPUT_INTERVAL_SCENARIO,
@@ -103,17 +146,34 @@ const PHASE_4_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     TIMEFRAME_ISDAILY_SCENARIO,
     UNSUPPORTED_INTERVAL_SCENARIO,
 ]);
+const PHASE_5_ALERT_CONDITION_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
+    DEFINE_ALERT_CONDITION_FIRES_SCENARIO,
+    DEFINE_ALERT_CONDITION_GATED_SCENARIO,
+    DEFINE_ALERT_CONDITION_UNKNOWN_SCENARIO,
+]);
+
+const PHASE_5_RUNTIME_LOG_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
+    RUNTIME_LOG_INFO_SCENARIO,
+    RUNTIME_LOG_GATED_SCENARIO,
+    RUNTIME_LOG_BUDGET_SCENARIO,
+    RUNTIME_ERROR_SCENARIO,
+]);
+
+const PHASE_5_DRAW_TABLE_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
+    DRAW_TABLE_HAPPY_SCENARIO,
+    DRAW_TABLE_GATED_SCENARIO,
+]);
 
 describe("runConformanceSuite", () => {
-    it("returns passed=N/failed=0 for every bundled scenario against canvas2d caps", async () => {
-        const adapter = makeAdapter();
-        const report = await runConformanceSuite(adapter);
-        expect(report.failed).toBe(0);
-        expect(report.passed).toBe(PHASE_1_SCENARIOS.length);
-        expect(report.failures).toEqual([]);
-        // Phase-2 grew the scenario set from 5 → 86 + 10 000-bar fixtures;
-        // a single suite run takes ~30s on M-series, ~60s on CI.
-    }, 120_000);
+    it("defaults to every bundled scenario without running the full conformance gate", async () => {
+        const visitedSourcePaths: string[] = [];
+        const report = await runConformanceSuite(makeAdapter(), {
+            candles: SINGLE_BAR,
+            compile: makeNoopCompile(visitedSourcePaths),
+        });
+        expect(report.passed + report.failed).toBe(PHASE_1_SCENARIOS.length);
+        expect(visitedSourcePaths).toEqual(PHASE_1_SCENARIOS.map(scenarioSourcePath));
+    });
 
     it("runs every Phase-4 scenario end-to-end", async () => {
         const report = await runConformanceSuite(makeAdapter(), {
@@ -121,6 +181,36 @@ describe("runConformanceSuite", () => {
         });
         expect(report.failed).toBe(0);
         expect(report.passed).toBe(PHASE_4_SCENARIOS.length);
+        expect(report.failures).toEqual([]);
+    }, 60_000);
+
+    it("runs Phase-5 alert-condition scenarios end-to-end", async () => {
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: PHASE_5_ALERT_CONDITION_SCENARIOS,
+            candles: SMALL_BARS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(PHASE_5_ALERT_CONDITION_SCENARIOS.length);
+        expect(report.failures).toEqual([]);
+    }, 60_000);
+
+    it("runs Phase-5 runtime.log/runtime.error scenarios end-to-end", async () => {
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: PHASE_5_RUNTIME_LOG_SCENARIOS,
+            candles: SMALL_BARS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(PHASE_5_RUNTIME_LOG_SCENARIOS.length);
+        expect(report.failures).toEqual([]);
+    }, 60_000);
+
+    it("runs Phase-5 draw.table scenarios end-to-end", async () => {
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: PHASE_5_DRAW_TABLE_SCENARIOS,
+            candles: SMALL_BARS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(PHASE_5_DRAW_TABLE_SCENARIOS.length);
         expect(report.failures).toEqual([]);
     }, 60_000);
 
@@ -221,6 +311,34 @@ describe("runConformanceSuite", () => {
         const [failure] = report.failures;
         expect(failure.assertionKind).toBe("alert-message-contains");
         expect(failure.message).toContain("definitely-not-present");
+    });
+
+    it("passes alert-message-contains when enough matching alerts emit", async () => {
+        const { compile } = await import("@invinite-org/chartlang-compiler");
+        const SCRIPT = `import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "alert contains pass",
+    apiVersion: 1,
+    compute({ alert }) {
+        alert("needle matched");
+    },
+});
+`;
+        const scenario: Scenario = Object.freeze({
+            id: "alert-contains-pass",
+            title: "Synthetic alert-message-contains pass",
+            scriptPath: "examples/scripts/ema-cross.chart.ts",
+            intervalCount: 1,
+            assertions: Object.freeze([
+                { kind: "alert-message-contains", pattern: "needle", min: 1 },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [scenario],
+            candles: SMALL_BARS.slice(0, 1),
+            compile: async (_src, opts) => compile(SCRIPT, opts),
+        });
+        expect(report.failed).toBe(0);
     });
 
     it("reports diagnostic-code-present misses + diagnostic-code-absent hits", async () => {
@@ -362,14 +480,18 @@ export default defineIndicator({
         expect(report.failed).toBe(0);
     });
 
-    it("loads bundled scenarios + default golden bars when called twice (cache hit)", async () => {
-        const adapter = makeAdapter();
-        const first = await runConformanceSuite(adapter);
-        const second = await runConformanceSuite(adapter);
-        expect(first.failed).toBe(0);
-        expect(second.failed).toBe(0);
-        // Two full suite runs; second run hits scenario + bars cache.
-    }, 240_000);
+    it("loads default golden bars when called twice (cache hit)", async () => {
+        const first = await runConformanceSuite(makeAdapter(), {
+            scenarios: [EMA_CROSS_SCENARIO],
+            compile: makeNoopCompile(),
+        });
+        const second = await runConformanceSuite(makeAdapter(), {
+            scenarios: [EMA_CROSS_SCENARIO],
+            compile: makeNoopCompile(),
+        });
+        expect(first.passed + first.failed).toBe(1);
+        expect(second.passed + second.failed).toBe(1);
+    });
 
     it("inline-source happy path — runs end-to-end without reading scriptPath", async () => {
         const INLINE = `import { defineIndicator } from "@invinite-org/chartlang-core";

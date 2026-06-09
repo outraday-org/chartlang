@@ -3,6 +3,8 @@
 
 import {
     type AlertEmission,
+    type AlertConditionEmission,
+    type LogEmission,
     type PlotEmission,
     type RuntimeDiagnostic,
     validateEmission,
@@ -79,6 +81,62 @@ export function pushAlert(queue: MutableRunnerEmissions, e: AlertEmission): void
         }
     }
     queue.alerts.push(e);
+}
+
+/**
+ * Push an `AlertConditionEmission` onto the runner's mutable queue after
+ * adapter-kit validation. Unlike `alert`, alert conditions intentionally
+ * preserve both `fired: true` and `fired: false` transitions for UI state.
+ *
+ * @since 0.5
+ * @example
+ *     // import { pushAlertCondition } from "@invinite-org/chartlang-runtime/emit";
+ *     // pushAlertCondition(queue, emission);
+ */
+export function pushAlertCondition(
+    queue: MutableRunnerEmissions,
+    e: AlertConditionEmission,
+): void {
+    const result = validateEmission(e);
+    if (!result.ok) {
+        pushDiagnostic(queue, {
+            kind: "diagnostic",
+            severity: "warning",
+            code: "malformed-emission",
+            message: result.message,
+            slotId: null,
+            bar: e.bar,
+        });
+        return;
+    }
+    const target = queue.alertConditions ?? [];
+    queue.alertConditions = target;
+    target.push(e);
+}
+
+/**
+ * Push a `LogEmission` onto the runner's mutable queue after adapter-kit
+ * validation. Logs preserve order and are not deduped.
+ *
+ * @since 0.5
+ * @example
+ *     // import { pushLog } from "@invinite-org/chartlang-runtime/emit";
+ *     // pushLog(queue, emission);
+ */
+export function pushLog(queue: MutableRunnerEmissions, e: LogEmission): void {
+    const result = validateEmission(e);
+    if (!result.ok) {
+        pushDiagnostic(queue, {
+            kind: "diagnostic",
+            severity: "warning",
+            code: "malformed-emission",
+            message: result.message,
+            slotId: null,
+            bar: e.bar,
+        });
+        return;
+    }
+    queue.logs.push(e);
 }
 
 /**

@@ -81,6 +81,7 @@ export type {
     RegressionTrendState,
     RotatedRectangleState,
     SineLineState,
+    TableState,
     TextState,
     ThreeDrivesPatternState,
     TimeCyclesState,
@@ -92,5 +93,7 @@ export type {
     XabcdPatternState,
 } from "./drawingState";
 export type { DrawingHandle } from "./handle";
+export { table } from "./table";
+export type { TableCell, TableOpts, TablePosition } from "./table";
 export { draw } from "./draw";
 export type { DrawNamespace } from "./draw";

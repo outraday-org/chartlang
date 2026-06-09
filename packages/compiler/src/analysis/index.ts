@@ -12,3 +12,5 @@ export { extractInputs } from "./extractInputs";
 export type { ExtractedDescriptor, ExtractInputsResult } from "./extractInputs";
 export { extractRequestedIntervals } from "./extractRequestedIntervals";
 export { extractRequiresIntervals } from "./extractRequiresIntervals";
+export { extractAlertConditions } from "./extractAlertConditions";
+export type { ExtractAlertConditionsResult } from "./extractAlertConditions";

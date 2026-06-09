@@ -19,6 +19,22 @@ function computeDedupeKey(
     return `${slotId}::${bar}::${hashStringStable(message + JSON.stringify(meta))}`;
 }
 
+function snapshotUnknown(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value.map((item) => snapshotUnknown(item));
+    }
+    if (typeof value === "object" && value !== null) {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, item]) => [key, snapshotUnknown(item)]),
+        );
+    }
+    return value;
+}
+
+function snapshotMeta(meta: Readonly<Record<string, JsonValue>>): Readonly<Record<string, JsonValue>> {
+    return snapshotUnknown(meta) as Readonly<Record<string, JsonValue>>;
+}
+
 function alertImpl(ctx: RuntimeContext, slotId: string, message: string, opts: AlertOpts): void {
     if (ctx.capabilities.alerts.size === 0) {
         pushDiagnostic(ctx.emissions, {
@@ -34,7 +50,7 @@ function alertImpl(ctx: RuntimeContext, slotId: string, message: string, opts: A
 
     const channels: AlertChannel[] = Array.from(ctx.capabilities.alerts);
     const bar = ctx.barIndex();
-    const meta = opts.meta ?? {};
+    const meta = snapshotMeta(opts.meta ?? {});
 
     const emission: AlertEmission = {
         kind: "alert",

@@ -300,6 +300,30 @@ describe("ta callable holes", () => {
         );
     });
 
+    it("ta.anchoredVolumeProfile throws outside-runtime sentinel", () => {
+        expect(() => ta.anchoredVolumeProfile({ anchor: 1_700_000_000_000 })).toThrow(
+            "ta.anchoredVolumeProfile called outside compiled runtime",
+        );
+    });
+
+    it("ta.fixedRangeVolumeProfile throws outside-runtime sentinel", () => {
+        expect(() =>
+            ta.fixedRangeVolumeProfile({ from: 1_700_000_000_000, to: 1_700_003_600_000 }),
+        ).toThrow("ta.fixedRangeVolumeProfile called outside compiled runtime");
+    });
+
+    it("ta.sessionVolumeProfile throws outside-runtime sentinel", () => {
+        expect(() => ta.sessionVolumeProfile()).toThrow(
+            "ta.sessionVolumeProfile called outside compiled runtime",
+        );
+    });
+
+    it("ta.visibleRangeVolumeProfile throws outside-runtime sentinel", () => {
+        expect(() => ta.visibleRangeVolumeProfile()).toThrow(
+            "ta.visibleRangeVolumeProfile called outside compiled runtime",
+        );
+    });
+
     it("ta.obv throws outside-runtime sentinel", () => {
         expect(() => ta.obv()).toThrow("ta.obv called outside compiled runtime");
     });

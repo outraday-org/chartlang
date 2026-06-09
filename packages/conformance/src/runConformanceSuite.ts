@@ -8,10 +8,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type {
     Adapter,
+    AlertConditionEmission,
     AlertEmission,
     Capabilities,
     DiagnosticCode,
     DrawingEmission,
+    LogEmission,
     PlotEmission,
     RunnerEmissions,
     RuntimeDiagnostic,
@@ -73,6 +75,7 @@ export type Scenario = {
     readonly intervalCount: number;
     readonly capabilitiesOverride?: Partial<Capabilities>;
     readonly candleLimit?: number;
+    readonly secondaryCandles?: Readonly<Record<string, ReadonlyArray<Bar>>>;
     readonly eventStream?: ScenarioEventStream;
     readonly assertions: ReadonlyArray<ScenarioAssertion>;
 };
@@ -123,8 +126,17 @@ export type ScenarioAssertion =
     | { readonly kind: "plot-hash"; readonly slotId?: string; readonly sha256: string }
     | { readonly kind: "alert-count"; readonly count: number }
     | { readonly kind: "alert-message-contains"; readonly pattern: string; readonly min: number }
+    | { readonly kind: "log-emission-count"; readonly expected: number }
     | { readonly kind: "diagnostic-code-absent"; readonly code: DiagnosticCode }
     | { readonly kind: "diagnostic-code-present"; readonly code: DiagnosticCode }
+    | {
+          readonly kind: "alert-condition-fired-at-bar";
+          readonly expected: ReadonlyArray<{
+              readonly conditionId: string;
+              readonly fired: boolean;
+              readonly bar: number;
+          }>;
+      }
     | {
           readonly kind: "drawing-hash";
           readonly handleId?: string;
@@ -198,8 +210,12 @@ type BufferedRun = {
     readonly plots: ReadonlyArray<PlotEmission>;
     readonly drawings: ReadonlyArray<DrawingEmission>;
     readonly alerts: ReadonlyArray<AlertEmission>;
+    readonly alertConditions: ReadonlyArray<AlertConditionEmission>;
+    readonly logs: ReadonlyArray<LogEmission>;
     readonly diagnostics: ReadonlyArray<RuntimeDiagnostic>;
 };
+
+type RunnerWithPush = ReturnType<typeof createScriptRunner>;
 
 function mergeCapabilities(
     base: Capabilities,
@@ -277,6 +293,15 @@ function evalAssertion(
                 message: `alert-message-contains[${assertion.pattern}]: expected ≥${assertion.min}, actual ${actual}`,
             };
         }
+        case "log-emission-count": {
+            const actual = run.logs.length;
+            if (actual === assertion.expected) return null;
+            return {
+                scenarioId,
+                assertionKind: "log-emission-count",
+                message: `log-emission-count: expected ${assertion.expected}, actual ${actual}`,
+            };
+        }
         case "diagnostic-code-absent": {
             const hit = run.diagnostics.find((d) => d.code === assertion.code);
             if (hit === undefined) return null;
@@ -300,6 +325,19 @@ function evalAssertion(
                 message: `diagnostic-code-present[${assertion.code}]: no diagnostic with that code was emitted`,
             };
         }
+        case "alert-condition-fired-at-bar": {
+            const actual = run.alertConditions.map((condition) => ({
+                conditionId: condition.conditionId,
+                fired: condition.fired,
+                bar: condition.bar,
+            }));
+            if (JSON.stringify(actual) === JSON.stringify(assertion.expected)) return null;
+            return {
+                scenarioId,
+                assertionKind: "alert-condition-fired-at-bar",
+                message: `alert-condition-fired-at-bar: expected ${JSON.stringify(assertion.expected)}, actual ${JSON.stringify(actual)}`,
+            };
+        }
         case "drawing-hash": {
             const { hash, count } = hashDrawingSeries(run.drawings, assertion.handleId);
             if (hash === assertion.sha256) return null;
@@ -311,6 +349,15 @@ function evalAssertion(
             };
         }
     }
+}
+
+async function pushRunnerEvent(
+    runner: RunnerWithPush,
+    event:
+        | { readonly kind: "close"; readonly bar: Bar; readonly streamKey?: string }
+        | { readonly kind: "tick"; readonly bar: Bar; readonly streamKey?: string },
+): Promise<void> {
+    await runner.push(event);
 }
 
 async function loadCompiledModule(
@@ -326,7 +373,10 @@ async function loadCompiledModule(
         const mod = (await import(/* @vite-ignore */ url)) as {
             readonly default: CompiledScriptObject;
         };
-        return mod.default;
+        return Object.freeze({
+            ...mod.default,
+            manifest: compiled.manifest,
+        });
     } finally {
         await rm(tmpPath, { force: true });
     }
@@ -370,7 +420,7 @@ async function runOne(
     const scriptObj = await loadCompiledModule(compiled, scenario.id);
 
     const capabilities = mergeCapabilities(adapter.capabilities, scenario.capabilitiesOverride);
-    const runner = createScriptRunner({
+    const runner: RunnerWithPush = createScriptRunner({
         compiled: scriptObj,
         capabilities,
         ...(adapter.symInfo === undefined ? {} : { symInfo: adapter.symInfo }),
@@ -380,31 +430,52 @@ async function runOne(
     const plots: PlotEmission[] = [];
     const drawings: DrawingEmission[] = [];
     const alerts: AlertEmission[] = [];
+    const alertConditions: AlertConditionEmission[] = [];
+    const logs: LogEmission[] = [];
     const diagnostics: RuntimeDiagnostic[] = [];
 
     try {
         const scenarioCandles =
             scenario.candleLimit === undefined ? candles : candles.slice(0, scenario.candleLimit);
         const stream = scenario.eventStream ?? { kind: "close" };
+        const secondaryIndexes = new Map<string, number>();
         let eventIndex = 0;
         for (const bar of scenarioCandles) {
+            if (scenario.secondaryCandles !== undefined) {
+                for (const [streamKey, secondaryBars] of Object.entries(
+                    scenario.secondaryCandles,
+                )) {
+                    let secondaryIndex = secondaryIndexes.get(streamKey) ?? 0;
+                    while (
+                        secondaryIndex < secondaryBars.length &&
+                        secondaryBars[secondaryIndex].time <= bar.time
+                    ) {
+                        const secondary = secondaryBars[secondaryIndex];
+                        await pushRunnerEvent(runner, { kind: "close", bar: secondary, streamKey });
+                        secondaryIndex += 1;
+                    }
+                    secondaryIndexes.set(streamKey, secondaryIndex);
+                }
+            }
             if (stream.kind === "initial-close-then-ticks" && eventIndex > 0) {
-                await runner.onBarTick(bar);
+                await pushRunnerEvent(runner, { kind: "tick", bar });
             } else {
-                await runner.onBarClose(bar);
+                await pushRunnerEvent(runner, { kind: "close", bar });
             }
             eventIndex += 1;
             const drained: RunnerEmissions = runner.drain();
             for (const p of drained.plots) plots.push(p);
             for (const d of drained.drawings) drawings.push(d);
             for (const a of drained.alerts) alerts.push(a);
+            for (const a of drained.alertConditions) alertConditions.push(a);
+            for (const log of drained.logs) logs.push(log);
             for (const d of drained.diagnostics) diagnostics.push(d);
         }
     } finally {
-        runner.dispose();
+        await runner.dispose();
     }
 
-    const run: BufferedRun = { plots, drawings, alerts, diagnostics };
+    const run: BufferedRun = { plots, drawings, alerts, alertConditions, logs, diagnostics };
     const failures: ConformanceFailure[] = [];
     for (const assertion of scenario.assertions) {
         const failure = evalAssertion(scenario.id, run, assertion);

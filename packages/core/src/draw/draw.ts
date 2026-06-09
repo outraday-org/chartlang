@@ -16,6 +16,7 @@ import type {
     TextOpts,
 } from "./drawingStyle";
 import type { DrawingHandle } from "./handle";
+import type { TableOpts } from "./table";
 import type { AnchorHept, AnchorQuad, AnchorQuint, AnchorTriple, WorldPoint } from "./worldPoint";
 
 /**
@@ -133,6 +134,8 @@ export type DrawNamespace = {
     // Containers (Task 18)
     group(childHandleIds: ReadonlyArray<string>): DrawingHandle;
     frame(a: WorldPoint, b: WorldPoint, opts?: FrameOpts): DrawingHandle;
+    // Viewport overlays (Phase 5)
+    table(opts: TableOpts): DrawingHandle;
 };
 
 /**

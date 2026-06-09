@@ -133,6 +133,52 @@ export class Float64RingBuffer implements RingBufferLike<number> {
         return this.filled;
     }
 
+    serialiseSnapshotBuffer(): Readonly<{
+        headIndex: number;
+        filled: number;
+        values: ReadonlyArray<number | null>;
+    }> {
+        const values: Array<number | null> = [];
+        for (const value of this.buf) {
+            values.push(Number.isNaN(value) ? null : value);
+        }
+        return Object.freeze({
+            headIndex: this.head,
+            filled: this.filled,
+            values: Object.freeze(values),
+        });
+    }
+
+    restoreFromSnapshotBuffer(
+        args: Readonly<{
+            headIndex: number;
+            filled: number;
+            values: ReadonlyArray<number | null>;
+        }>,
+    ): void {
+        if (
+            args.values.length !== this.capacity ||
+            !Number.isInteger(args.headIndex) ||
+            args.headIndex < -1 ||
+            args.headIndex >= this.capacity ||
+            !Number.isInteger(args.filled) ||
+            args.filled < 0 ||
+            args.filled > this.capacity ||
+            (args.filled === 0 && args.headIndex !== -1) ||
+            (args.filled > 0 && args.headIndex < 0)
+        ) {
+            throw new Error("invalid ring buffer snapshot");
+        }
+        const next = new Float64Array(this.capacity);
+        for (let i = 0; i < args.values.length; i += 1) {
+            const value = args.values[i];
+            next[i] = value === null ? Number.NaN : value;
+        }
+        this.buf = next;
+        this.head = args.headIndex;
+        this.filled = args.filled;
+    }
+
     reset(): void {
         this.buf = new Float64Array(this.capacity);
         this.head = -1;

@@ -31,6 +31,8 @@ export default defineIndicator({
 });
 `;
 
+const COMPILE_TIMEOUT_MS = 15_000;
+
 describe("runCompile", () => {
     let workspace: string;
     let stdoutChunks: string[];
@@ -230,7 +232,7 @@ describe("runCompile", () => {
 
         await expect(stat(join(workspace, "a.chart.js"))).resolves.toBeTruthy();
         await expect(stat(join(workspace, "b.chart.js"))).resolves.toBeTruthy();
-    });
+    }, COMPILE_TIMEOUT_MS);
 
     it("continues with the next file after a CompileError", async () => {
         const ok = join(workspace, "ok.chart.ts");

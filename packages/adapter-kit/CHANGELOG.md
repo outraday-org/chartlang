@@ -1,5 +1,44 @@
 # @invinite-org/chartlang-adapter-kit
 
+## 0.5.0
+
+### Phase 5
+
+#### Minor Changes
+
+- Ship Phase 5 `defineAlertCondition`, compiler manifest extraction, runtime `signal()` emissions, adapter validation, and conformance coverage per PLAN §11.2.
+- Add `draw.table` with `TableCell`/`TablePosition` types, runtime emission,
+  viewport-anchored canvas2d rendering, and conformance coverage per PLAN §10.2.
+- Add Phase 5 plot kinds, runtime emission dispatch, validation, conformance scenarios, and canvas2d reference renderers.
+- Add the Phase 5 `runtime.log.*` and `runtime.error()` surface, log emissions, runtime halt diagnostics, and conformance coverage.
+- Add the PLAN.md §6.9 persistent runtime snapshot store, warm-start restore flow, close/dispose snapshot saves, and snapshot diagnostics.
+- Replace the Phase 4 `request.security` NaN-only path with real
+  multi-timeframe secondary stream alignment per PLAN.md §6.8 and §7.2.
+  Adapters can route tagged `CandleEvent.streamKey` candles, the worker
+  host dispatches them through `ScriptRunner.push`, conformance includes
+  MTF scenarios, and the private canvas2d reference adapter now declares
+  `multiTimeframe: true`.
+- Add `ta.fixedRangeVolumeProfile`, completing the Phase 5 volume-profile set
+  from PLAN §9.2 and §10.1.1 with fixed `[from, to]` anchors, frozen post-range
+  histograms, and `fixed-range-inverted` diagnostics. Ported from invinite
+  commit `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4`.
+- Port `ta.sessionVolumeProfile` from invinite commit 3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4, adding the PLAN §9.2 horizontal-histogram session volume-profile primitive, PLAN §4.8 syminfo-session fallback diagnostics, and compiler/runtime registration.
+
+#### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @invinite-org/chartlang-core@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
@@ -439,8 +478,7 @@ points, labels, style)` — strokes an open polyline through the
     matching invinite's pattern-tool palette family).
     `headAndShoulders` adds a neckline stroke between the two
     trough anchors (`anchors[1]` → `anchors[3]`), totalling 2
-    strokes per emission; the other 5 kinds emit 1 polyline stroke
-    - N point labels.
+    strokes per emission; the other 5 kinds emit 1 polyline stroke - N point labels.
   - **conformance** — 6 new per-kind scenarios + 1 bundle
     (`drawPatternsAll.scenario.ts` covering all 6 kinds = 6
     emissions). Conformance + scenarios + index test-capability

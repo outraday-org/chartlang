@@ -3,8 +3,10 @@
 
 import type {
     AlertEmission,
+    AlertConditionEmission,
     CandleEvent,
     DrawingEmission,
+    LogEmission,
     PlotEmission,
     RunnerEmissions,
     RuntimeDiagnostic,
@@ -51,6 +53,32 @@ function alertEmission(overrides: Partial<AlertEmission> & { slotId: string }): 
     };
 }
 
+function alertConditionEmission(
+    overrides: Partial<AlertConditionEmission> & { conditionId: string },
+): AlertConditionEmission {
+    return {
+        kind: "alert-condition",
+        conditionId: overrides.conditionId,
+        title: overrides.title ?? "Cross",
+        description: overrides.description ?? "Fast crossed slow",
+        defaultMessage: overrides.defaultMessage ?? "cross",
+        fired: overrides.fired ?? true,
+        bar: overrides.bar ?? 0,
+        time: overrides.time ?? SAMPLE_BARS[0].time,
+    };
+}
+
+function logEmission(overrides: Partial<LogEmission> = {}): LogEmission {
+    return {
+        kind: "log",
+        level: overrides.level ?? "info",
+        message: overrides.message ?? "debug",
+        meta: overrides.meta ?? {},
+        bar: overrides.bar ?? 0,
+        time: overrides.time ?? SAMPLE_BARS[0].time,
+    };
+}
+
 function lineDrawing(overrides: Partial<DrawingEmission> & { handleId: string }): DrawingEmission {
     return {
         kind: "drawing",
@@ -88,6 +116,8 @@ function emissions(overrides: Partial<RunnerEmissions> = {}): RunnerEmissions {
         plots: overrides.plots ?? [],
         drawings: overrides.drawings ?? [],
         alerts: overrides.alerts ?? [],
+        alertConditions: overrides.alertConditions ?? [],
+        logs: overrides.logs ?? [],
         diagnostics: overrides.diagnostics ?? [],
         fromBar: overrides.fromBar ?? 0,
         toBar: overrides.toBar ?? 0,
@@ -423,6 +453,91 @@ describe("onEmissions dispatch", () => {
         // fillRect-only.
     });
 
+    it("dispatches Phase-5 plot overlays", async () => {
+        const host = stubHost([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bg",
+                        style: { kind: "bg-color", color: "#123456", transp: 50 },
+                    }),
+                    plotEmission({
+                        slotId: "bg-default",
+                        style: { kind: "bg-color", color: "#123456" },
+                    }),
+                    plotEmission({
+                        slotId: "candle",
+                        style: { kind: "candle-override", bull: "#0f0", bear: "#f00" },
+                    }),
+                    plotEmission({
+                        slotId: "candle-doji",
+                        style: {
+                            kind: "candle-override",
+                            bull: "#0f0",
+                            bear: "#f00",
+                            doji: "#999",
+                        },
+                    }),
+                    plotEmission({
+                        slotId: "candle-missing-bar",
+                        style: { kind: "candle-override", bull: "#0f0", bear: "#f00" },
+                        time: SAMPLE_BARS[1].time,
+                    }),
+                    plotEmission({
+                        slotId: "bar-override",
+                        style: { kind: "bar-override", color: "#f59e0b" },
+                    }),
+                    plotEmission({
+                        slotId: "bar-color",
+                        style: { kind: "bar-color", color: "#a855f7" },
+                    }),
+                    plotEmission({
+                        slotId: "shape",
+                        style: { kind: "shape", shape: "cross", size: 8, location: "below" },
+                    }),
+                    plotEmission({
+                        slotId: "shape-default",
+                        style: { kind: "shape", shape: "circle", size: 8 },
+                    }),
+                    plotEmission({
+                        slotId: "shape-null",
+                        style: { kind: "shape", shape: "circle", size: 8 },
+                        value: null,
+                    }),
+                    plotEmission({
+                        slotId: "character",
+                        style: { kind: "character", char: "A", size: 12, location: "above" },
+                    }),
+                    plotEmission({
+                        slotId: "character-default",
+                        style: { kind: "character", char: "B", size: 12 },
+                    }),
+                    plotEmission({
+                        slotId: "arrow",
+                        style: { kind: "arrow", direction: "up", size: 10 },
+                    }),
+                    plotEmission({
+                        slotId: "hh",
+                        style: {
+                            kind: "horizontal-histogram",
+                            buckets: [{ price: 100, volume: 10 }],
+                        },
+                    }),
+                ],
+            }),
+        ]);
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            host,
+            candles: candleStream([{ kind: "close", bar: SAMPLE_BARS[0] }]),
+        });
+        await runRendererLoop(adapter);
+        expect(ctx.calls.some((c) => c.kind === "fillText" && c.text === "A")).toBe(true);
+        expect(ctx.calls.some((c) => c.kind === "fillRect")).toBe(true);
+        expect(ctx.calls.some((c) => c.kind === "stroke")).toBe(true);
+    });
+
     it("histogram with a null gap is skipped (no fillRect for that point)", () => {
         const { adapter, ctx } = buildAdapter({});
         adapter.onEmissions(
@@ -525,6 +640,34 @@ describe("onEmissions dispatch", () => {
         } as unknown as AlertEmission;
         adapter.onEmissions(emissions({ alerts: [bad] }));
         expect(seen.length).toBe(0);
+    });
+
+    it("applies valid alert-condition and log emissions while dropping malformed ones", () => {
+        const { adapter, ctx } = buildAdapter({});
+        const badCondition = {
+            ...alertConditionEmission({ conditionId: "bad-condition" }),
+            fired: "yes",
+        } as unknown as AlertConditionEmission;
+        const badLog = {
+            ...logEmission(),
+            level: "loud",
+        } as unknown as LogEmission;
+
+        adapter.onEmissions(
+            emissions({
+                alertConditions: [
+                    alertConditionEmission({ conditionId: "condition-1" }),
+                    badCondition,
+                ],
+                logs: [
+                    ...Array.from({ length: 6 }, (_, i) => logEmission({ message: `kept-log-${i}` })),
+                    badLog,
+                ],
+            }),
+        );
+
+        const text = ctx.calls.flatMap((call) => (call.kind === "fillText" ? [call.text] : []));
+        expect(text.some((entry) => entry.includes("kept-log-5"))).toBe(true);
     });
 
     it("ignores a plot whose style.kind is not in the Phase-1 union", () => {

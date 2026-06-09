@@ -5,7 +5,11 @@ import { DRAWING_KINDS, KIND_CAMELCASE } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import type { DrawingKind, SymInfoField } from "../types";
-import { capabilities } from "./capabilities";
+import { PHASE_5_PLOT_KINDS, capabilities } from "./capabilities";
+
+const PHASE_3_DRAWING_KINDS: ReadonlyArray<DrawingKind> = DRAWING_KINDS.filter(
+    (kind) => kind !== "table",
+);
 
 describe("capabilities builders", () => {
     it("line() returns a set containing only 'line'", () => {
@@ -32,6 +36,12 @@ describe("capabilities builders", () => {
         expect(s.has("line")).toBe(true);
         expect(s.has("step-line")).toBe(true);
         expect(s.has("horizontal-line")).toBe(true);
+    });
+
+    it("allPhase5Plots() returns the canonical 17-kind Phase-5 inventory", () => {
+        const s = capabilities.allPhase5Plots();
+        expect(s.size).toBe(17);
+        expect([...s].sort()).toEqual([...PHASE_5_PLOT_KINDS].sort());
     });
 
     it("histogram() returns a set containing only 'histogram'", () => {
@@ -299,8 +309,8 @@ describe("capabilities — Phase 3 category-group drawing builders", () => {
         },
     );
 
-    it("the 13 categories are pairwise disjoint — every kind appears in exactly one category", () => {
-        const counts = new Map<DrawingKind, number>(DRAWING_KINDS.map((k) => [k, 0]));
+    it("the 13 Phase-3 categories are pairwise disjoint", () => {
+        const counts = new Map<DrawingKind, number>(PHASE_3_DRAWING_KINDS.map((k) => [k, 0]));
         for (const [name] of CATEGORY_BUILDERS) {
             const builder = capabilities[name] as DrawBuilder;
             for (const kind of builder()) {
@@ -325,11 +335,12 @@ describe("capabilities — Phase 3 category-group drawing builders", () => {
 });
 
 describe("capabilities — allPhase3Drawings umbrella", () => {
-    it("contains every kind in DRAWING_KINDS", () => {
+    it("contains every Phase-3 kind and excludes Phase-5 table", () => {
         const set = capabilities.allPhase3Drawings();
         expect(set.size).toBe(61);
-        for (const kind of DRAWING_KINDS) {
+        for (const kind of PHASE_3_DRAWING_KINDS) {
             expect(set.has(kind)).toBe(true);
         }
+        expect(set.has("table")).toBe(false);
     });
 });

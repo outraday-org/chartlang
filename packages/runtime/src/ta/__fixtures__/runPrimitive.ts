@@ -7,10 +7,11 @@ import type { Bar } from "@invinite-org/chartlang-core";
 
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../../runtimeContext";
 import { inMemoryStateStore } from "../../stateStore";
-import { createStreamState } from "../../streamState";
+import { createStreamState, updateFallbackViewport } from "../../streamState";
+import { createRuntimeViews } from "../../views";
 
 const TEST_CAPABILITIES: Capabilities = {
-    plots: capabilities.allLines(),
+    plots: capabilities.allPhase5Plots(),
     drawings: new Set(),
     alerts: new Set(),
     alertConditions: false,
@@ -42,6 +43,8 @@ export function harness<T>(
         plots: [],
         drawings: [],
         alerts: [],
+        alertConditions: [],
+        logs: [],
         diagnostics: [],
         fromBar: 0,
         toBar: 0,
@@ -59,6 +62,18 @@ export function harness<T>(
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        secondaryStreams: new Map(),
+        requestSecurityBars: new Map(),
+        requestSecurityAlignments: new Map(),
+        requestSecurityAscendingBars: new Map(),
+        diagnosedRequestKeys: new Set(),
+        alertConditions: new Map(),
+        diagnosedAlertConditionKeys: new Set(),
+        logBudget: 0,
+        logBudgetExceededDiagnosed: false,
+        resolvedInputs: Object.freeze({}),
+        diagnosedInputKeys: new Set(),
+        views: createRuntimeViews(),
     };
     const out: T[] = [];
     ACTIVE_RUNTIME_CONTEXT.current = ctx;
@@ -88,6 +103,7 @@ export function harness<T>(
             stream.bar.hlc3 = hlc3;
             stream.bar.ohlc4 = ohlc4;
             stream.bar.hlcc4 = hlcc4;
+            updateFallbackViewport(stream);
             ctx.isTick = false;
             out.push(step(bar, ctx));
             barIdx += 1;
@@ -125,6 +141,7 @@ export function tick<T>(ctxRef: { ctx: RuntimeContext }, tickBar: Bar, step: () 
     stream.bar.hlc3 = hlc3;
     stream.bar.ohlc4 = ohlc4;
     stream.bar.hlcc4 = hlcc4;
+    updateFallbackViewport(stream);
     ACTIVE_RUNTIME_CONTEXT.current = ctx;
     ctx.isTick = true;
     try {
@@ -150,6 +167,8 @@ export function harnessWithCtx<T>(
         plots: [],
         drawings: [],
         alerts: [],
+        alertConditions: [],
+        logs: [],
         diagnostics: [],
         fromBar: 0,
         toBar: 0,
@@ -167,6 +186,18 @@ export function harnessWithCtx<T>(
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        secondaryStreams: new Map(),
+        requestSecurityBars: new Map(),
+        requestSecurityAlignments: new Map(),
+        requestSecurityAscendingBars: new Map(),
+        diagnosedRequestKeys: new Set(),
+        alertConditions: new Map(),
+        diagnosedAlertConditionKeys: new Set(),
+        logBudget: 0,
+        logBudgetExceededDiagnosed: false,
+        resolvedInputs: Object.freeze({}),
+        diagnosedInputKeys: new Set(),
+        views: createRuntimeViews(),
     };
     const out: T[] = [];
     ACTIVE_RUNTIME_CONTEXT.current = ctx;
@@ -196,6 +227,7 @@ export function harnessWithCtx<T>(
             stream.bar.hlc3 = hlc3;
             stream.bar.ohlc4 = ohlc4;
             stream.bar.hlcc4 = hlcc4;
+            updateFallbackViewport(stream);
             ctx.isTick = false;
             out.push(step(bar, ctx));
             barIdx += 1;
@@ -204,4 +236,87 @@ export function harnessWithCtx<T>(
         ACTIVE_RUNTIME_CONTEXT.current = null;
     }
     return { results: out, ctxRef: { ctx } };
+}
+
+/**
+ * Preload a stream with historical bars, then run one primitive call at
+ * the current head. Used by VP benchmarks that measure one large profile
+ * window rather than full historical replay.
+ */
+export function withPrefilledContext<T>(
+    bars: ReadonlyArray<Bar>,
+    capacity: number,
+    step: (ctx: RuntimeContext) => T,
+): T {
+    const stream = createStreamState({ interval: "1m", capacity, symbol: "TEST" });
+    const emissions: MutableRunnerEmissions = {
+        plots: [],
+        drawings: [],
+        alerts: [],
+        alertConditions: [],
+        logs: [],
+        diagnostics: [],
+        fromBar: 0,
+        toBar: 0,
+    };
+    const ctx: RuntimeContext = {
+        stream,
+        stateStore: inMemoryStateStore(),
+        capabilities: TEST_CAPABILITIES,
+        emissions,
+        barIndex: () => Math.max(0, bars.length - 1),
+        isTick: false,
+        drawingSlots: new Map(),
+        drawingSubIdCounters: new Map(),
+        drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+        scriptMaxDrawings: null,
+        stateSlots: new Map(),
+        secondaryStreams: new Map(),
+        requestSecurityBars: new Map(),
+        requestSecurityAlignments: new Map(),
+        requestSecurityAscendingBars: new Map(),
+        diagnosedRequestKeys: new Set(),
+        alertConditions: new Map(),
+        diagnosedAlertConditionKeys: new Set(),
+        logBudget: 0,
+        logBudgetExceededDiagnosed: false,
+        resolvedInputs: Object.freeze({}),
+        diagnosedInputKeys: new Set(),
+        views: createRuntimeViews(),
+    };
+
+    for (const bar of bars) {
+        const hl2 = (bar.high + bar.low) / 2;
+        const hlc3 = (bar.high + bar.low + bar.close) / 3;
+        const ohlc4 = (bar.open + bar.high + bar.low + bar.close) / 4;
+        const hlcc4 = (bar.high + bar.low + bar.close + bar.close) / 4;
+        stream.ohlcv.time.append(bar.time);
+        stream.ohlcv.open.append(bar.open);
+        stream.ohlcv.high.append(bar.high);
+        stream.ohlcv.low.append(bar.low);
+        stream.ohlcv.close.append(bar.close);
+        stream.ohlcv.volume.append(bar.volume);
+        stream.ohlcv.hl2.append(hl2);
+        stream.ohlcv.hlc3.append(hlc3);
+        stream.ohlcv.ohlc4.append(ohlc4);
+        stream.ohlcv.hlcc4.append(hlcc4);
+        stream.bar.time = bar.time;
+        stream.bar.open = bar.open;
+        stream.bar.high = bar.high;
+        stream.bar.low = bar.low;
+        stream.bar.close = bar.close;
+        stream.bar.volume = bar.volume;
+        stream.bar.hl2 = hl2;
+        stream.bar.hlc3 = hlc3;
+        stream.bar.ohlc4 = ohlc4;
+        stream.bar.hlcc4 = hlcc4;
+    }
+    updateFallbackViewport(stream);
+
+    ACTIVE_RUNTIME_CONTEXT.current = ctx;
+    try {
+        return step(ctx);
+    } finally {
+        ACTIVE_RUNTIME_CONTEXT.current = null;
+    }
 }

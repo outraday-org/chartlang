@@ -366,23 +366,25 @@ scope and land in Phase 6 or beyond:
   OSS scope. Consumer adapters wire their own; Phase 5 ships the
   channel-agnostic `defineAlertCondition.signal()` surface only.
 
+Phase 6 ready: see [`tasks/phase-6-tier3-ltf/`](../phase-6-tier3-ltf/).
+
 Phase 5 closes when:
 
-- [ ] Every task's `Acceptance Criteria` is checked off.
-- [ ] `pnpm -r test` shows 100% coverage on every affected package.
-- [ ] `pnpm conformance` is green against the canvas2d reference
+- [x] Every task's `Acceptance Criteria` is checked off.
+- [x] `pnpm -r test` shows 100% coverage on every affected package.
+- [x] `pnpm conformance` is green against the canvas2d reference
       adapter — including the new MTF, persistence determinism,
       alert-condition, log, draw.table, and volume-profile scenarios.
-- [ ] A script running under `host-quickjs` produces byte-identical
+- [x] A script running under `host-quickjs` produces byte-identical
       emissions vs `host-worker` for the same input candles
       (cross-host determinism test).
-- [ ] A snapshot saved at bar 4000 of 5000 + cold-loaded into a
+- [x] A snapshot saved at bar 4000 of 5000 + cold-loaded into a
       fresh runtime + replayed from bar 4001 onward emits byte-
       identically to a full cold replay (warm-start determinism test).
-- [ ] `pnpm docs:check` is green; new `docs/primitives/` pages exist
+- [x] `pnpm docs:check` is green; new `docs/primitives/` pages exist
       for every new core surface.
-- [ ] `pnpm readme:check` is green; every package README ≤ 100 lines.
-- [ ] Every affected package's `package.json` version is bumped to
+- [x] `pnpm readme:check` is green; every package README ≤ 100 lines.
+- [x] Every affected package's `package.json` version is bumped to
       `0.5.x` via the bundled changeset.
-- [ ] `host-quickjs` `roundTrip` bench reports ≤100× the
+- [x] `host-quickjs` `roundTrip` bench reports ≤100× the
       `host-worker` baseline per PLAN §8.3.

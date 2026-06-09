@@ -58,6 +58,7 @@ import {
     type RegressionTrendState,
     type RotatedRectangleState,
     type SineLineState,
+    type TableState,
     type TextState,
     type ThreeDrivesPatternState,
     type TimeCyclesState,
@@ -199,6 +200,9 @@ const TASK_17_CYCLE_KINDS: ReadonlySet<DrawingKind> = new Set([
 // `drawingDispatch` are now flipped to call real renderers.
 const TASK_18_VISIBLE_CONTAINER_KINDS: ReadonlySet<DrawingKind> = new Set(["frame"]);
 
+// Viewport table kinds shipped in Phase 5.
+const PHASE_5_TABLE_KINDS: ReadonlySet<DrawingKind> = new Set(["table"]);
+
 const RENDERING_KINDS: ReadonlySet<DrawingKind> = new Set([
     ...TASK_5_LINE_KINDS,
     ...TASK_6_BOX_A_KINDS,
@@ -214,6 +218,7 @@ const RENDERING_KINDS: ReadonlySet<DrawingKind> = new Set([
     ...TASK_16_ELLIOTT_KINDS,
     ...TASK_17_CYCLE_KINDS,
     ...TASK_18_VISIBLE_CONTAINER_KINDS,
+    ...PHASE_5_TABLE_KINDS,
 ]);
 
 function syntheticState(kind: DrawingKind): DrawingState {
@@ -906,6 +911,16 @@ function syntheticState(kind: DrawingKind): DrawingState {
             ],
             childHandleIds: [],
             style: { label: "Idea", bgColor: "#f1f5f9" },
+        };
+        return s;
+    }
+    if (kind === "table") {
+        const s: TableState = {
+            kind: "table",
+            position: "top-right",
+            cells: [[{ text: "P&L" }, { text: "+12.5%", textColor: "#16a34a" }]],
+            borderColor: "#94a3b8",
+            borderWidth: 1,
         };
         return s;
     }

@@ -6,10 +6,12 @@ import {
     defineAdapter,
     validateEmission,
     type Adapter,
+    type AlertConditionEmission,
     type AlertEmission,
     type CandleEvent,
     type Capabilities,
     type DrawingEmission,
+    type LogEmission,
     type PlotEmission,
     type PlotStyle,
     type RunnerEmissions,
@@ -25,10 +27,20 @@ import { DEFAULT_PALETTE, type Palette } from "./palette";
 import {
     clear,
     drawAlertBadge,
+    drawAlertConditions,
+    drawArrow,
+    drawBarColor,
+    drawBarOverride,
+    drawBgColor,
+    drawCandleOverride,
     drawCandles,
+    drawCharacter,
     drawHistogram,
     drawHorizontalLine,
+    drawHorizontalHistogram,
+    drawLogPane,
     drawLine,
+    drawShape,
     drawingDispatch,
     priceToY,
     timeToX,
@@ -42,6 +54,8 @@ const DEFAULT_INTERVAL = "1D";
 const MAX_RECENT_ALERTS = 8;
 const Y_AXIS_PADDING = 0.05;
 const HISTOGRAM_BAR_WIDTH_PX = 4;
+const HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX = 96;
+const HORIZONTAL_HISTOGRAM_ROW_HEIGHT_PX = 6;
 
 /**
  * Constructor options for {@link createCanvas2dAdapter}. The
@@ -93,8 +107,11 @@ type AdapterState = {
     readonly bars: Bar[];
     readonly plotSeries: Map<string, PlotPoint[]>;
     readonly plotSeriesStyle: Map<string, PlotStyle>;
+    readonly plotOverlays: Map<string, PlotEmission>;
     readonly hlines: Map<string, HLine>;
     readonly recentAlerts: AlertEmission[];
+    readonly currentAlertConditions: AlertConditionEmission[];
+    readonly recentLogs: LogEmission[];
     readonly drawings: Map<string, DrawingEmission>;
     readonly palette: Palette;
 };
@@ -185,10 +202,136 @@ function renderHistogramSeries(
     }
 }
 
+function renderBackgroundOverlays(state: AdapterState, viewport: Viewport): void {
+    for (const plot of state.plotOverlays.values()) {
+        if (plot.style.kind !== "bg-color") continue;
+        drawBgColor(
+            state.ctx,
+            {
+                time: plot.time,
+                color: plot.style.color,
+                ...(plot.style.transp === undefined ? {} : { transp: plot.style.transp }),
+                barCount: state.bars.length,
+            },
+            viewport,
+        );
+    }
+}
+
+function renderBarOverlays(state: AdapterState, viewport: Viewport): void {
+    for (const plot of state.plotOverlays.values()) {
+        const bar = state.bars.find((candidate) => candidate.time === plot.time);
+        if (bar === undefined) continue;
+        switch (plot.style.kind) {
+            case "candle-override":
+                drawCandleOverride(
+                    state.ctx,
+                    {
+                        bar,
+                        bull: plot.style.bull,
+                        bear: plot.style.bear,
+                        ...(plot.style.doji === undefined ? {} : { doji: plot.style.doji }),
+                        barCount: state.bars.length,
+                    },
+                    viewport,
+                );
+                break;
+            case "bar-override":
+                drawBarOverride(
+                    state.ctx,
+                    { bar, color: plot.style.color, barCount: state.bars.length },
+                    viewport,
+                );
+                break;
+            case "bar-color":
+                drawBarColor(
+                    state.ctx,
+                    { bar, color: plot.style.color, barCount: state.bars.length },
+                    viewport,
+                );
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+function withLocation<L>(location: L | undefined): { location?: L } {
+    return location === undefined ? {} : { location };
+}
+
+function renderGlyphOverlays(state: AdapterState, viewport: Viewport): void {
+    for (const plot of state.plotOverlays.values()) {
+        if (plot.style.kind === "horizontal-histogram") {
+            drawHorizontalHistogram(
+                state.ctx,
+                {
+                    buckets: plot.style.buckets,
+                    maxWidth: HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX,
+                    rowHeight: HORIZONTAL_HISTOGRAM_ROW_HEIGHT_PX,
+                },
+                viewport,
+                state.palette,
+            );
+            continue;
+        }
+        if (plot.value === null) continue;
+        const x = timeToX(plot.time, viewport);
+        const y = priceToY(plot.value, viewport);
+        switch (plot.style.kind) {
+            case "shape":
+                drawShape(
+                    state.ctx,
+                    {
+                        x,
+                        y,
+                        shape: plot.style.shape,
+                        size: plot.style.size,
+                        ...withLocation(plot.style.location),
+                        color: plot.color,
+                    },
+                    state.palette,
+                );
+                break;
+            case "character":
+                drawCharacter(
+                    state.ctx,
+                    {
+                        x,
+                        y,
+                        char: plot.style.char,
+                        size: plot.style.size,
+                        ...withLocation(plot.style.location),
+                        color: plot.color,
+                    },
+                    state.palette,
+                );
+                break;
+            case "arrow":
+                drawArrow(
+                    state.ctx,
+                    {
+                        x,
+                        y,
+                        direction: plot.style.direction,
+                        size: plot.style.size,
+                        color: plot.color,
+                    },
+                    state.palette,
+                );
+                break;
+            default:
+                break;
+        }
+    }
+}
+
 function renderFrame(state: AdapterState): void {
     const viewport = computeViewport(state);
     clear(state.ctx, viewport, state.palette);
+    renderBackgroundOverlays(state, viewport);
     drawCandles(state.ctx, state.bars, viewport, state.palette);
+    renderBarOverlays(state, viewport);
     for (const [slotId, series] of state.plotSeries) {
         const style = state.plotSeriesStyle.get(slotId);
         if (style !== undefined && style.kind === "histogram") {
@@ -197,19 +340,25 @@ function renderFrame(state: AdapterState): void {
         }
         drawLine(state.ctx, series, viewport, state.palette);
     }
+    renderGlyphOverlays(state, viewport);
     for (const hline of state.hlines.values()) {
         drawHorizontalLine(state.ctx, hline, viewport, state.palette);
     }
     for (const drawing of state.drawings.values()) {
         drawingDispatch(state.ctx, drawing, viewport);
     }
-    if (state.bars.length === 0) return;
+    if (state.bars.length === 0) {
+        drawLogPane(state.ctx, state.recentLogs, viewport, state.palette);
+        return;
+    }
     const lastBar = state.bars[state.bars.length - 1];
     const x = timeToX(lastBar.time, viewport);
     const y = priceToY(lastBar.high, viewport);
     for (const alert of state.recentAlerts) {
         drawAlertBadge(state.ctx, alert, { x, y }, state.palette);
     }
+    drawAlertConditions(state.ctx, state.currentAlertConditions, viewport, state.palette);
+    drawLogPane(state.ctx, state.recentLogs, viewport, state.palette);
 }
 
 function applyPlot(state: AdapterState, plot: PlotEmission): void {
@@ -231,7 +380,9 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             lineWidth: plot.style.lineWidth,
             lineStyle: plot.style.lineStyle,
         });
+        return;
     }
+    state.plotOverlays.set(plot.slotId, plot);
 }
 
 function applyAlert(
@@ -246,6 +397,17 @@ function applyAlert(
     onAlert?.(alert);
 }
 
+function applyAlertCondition(state: AdapterState, condition: AlertConditionEmission): void {
+    state.currentAlertConditions.push(condition);
+}
+
+function applyLog(state: AdapterState, log: LogEmission): void {
+    state.recentLogs.push(log);
+    while (state.recentLogs.length > 5) {
+        state.recentLogs.shift();
+    }
+}
+
 function applyDrawing(state: AdapterState, drawing: DrawingEmission): void {
     if (drawing.op === "remove") {
         state.drawings.delete(drawing.handleId);
@@ -254,26 +416,25 @@ function applyDrawing(state: AdapterState, drawing: DrawingEmission): void {
     state.drawings.set(drawing.handleId, drawing);
 }
 
+function applyValidated<T>(items: ReadonlyArray<T>, apply: (item: T) => void): void {
+    for (const item of items) {
+        if (validateEmission(item).ok) apply(item);
+    }
+}
+
 function ingest(
     state: AdapterState,
     emissions: RunnerEmissions,
     onAlert?: (a: AlertEmission) => void,
 ): void {
-    for (const plot of emissions.plots) {
-        const check = validateEmission(plot);
-        if (!check.ok) continue;
-        applyPlot(state, plot);
-    }
-    for (const drawing of emissions.drawings) {
-        const check = validateEmission(drawing);
-        if (!check.ok) continue;
-        applyDrawing(state, drawing);
-    }
-    for (const alert of emissions.alerts) {
-        const check = validateEmission(alert);
-        if (!check.ok) continue;
-        applyAlert(state, alert, onAlert);
-    }
+    applyValidated(emissions.plots, (plot) => applyPlot(state, plot));
+    applyValidated(emissions.drawings, (drawing) => applyDrawing(state, drawing));
+    applyValidated(emissions.alerts, (alert) => applyAlert(state, alert, onAlert));
+    state.currentAlertConditions.length = 0;
+    applyValidated(emissions.alertConditions, (condition) =>
+        applyAlertCondition(state, condition),
+    );
+    applyValidated(emissions.logs, (log) => applyLog(state, log));
     for (const d of emissions.diagnostics) {
         if (d.severity === "warning" || d.severity === "error") {
             console.warn(`[chartlang ${d.code}]`, d.message);
@@ -282,6 +443,7 @@ function ingest(
 }
 
 function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
+    if (event.streamKey !== undefined) return;
     if (event.kind === "history") {
         state.bars.push(...event.bars);
         return;
@@ -332,8 +494,11 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         bars: [],
         plotSeries: new Map(),
         plotSeriesStyle: new Map(),
+        plotOverlays: new Map(),
         hlines: new Map(),
         recentAlerts: [],
+        currentAlertConditions: [],
+        recentLogs: [],
         drawings: new Map(),
         palette,
     };
@@ -373,8 +538,11 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
             state.bars.length = 0;
             state.plotSeries.clear();
             state.plotSeriesStyle.clear();
+            state.plotOverlays.clear();
             state.hlines.clear();
             state.recentAlerts.length = 0;
+            state.currentAlertConditions.length = 0;
+            state.recentLogs.length = 0;
             state.drawings.clear();
             host.dispose();
         },

@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { DrawNamespace } from "./draw/draw";
 import type { ScaleAxis, ValueFormat } from "./define/overrides";
+import type { DrawNamespace } from "./draw/draw";
 import type { InputDescriptor } from "./input/inputDescriptor";
 import type { RequestNamespace } from "./request";
+import type { RuntimeNamespace } from "./runtime";
 import type { StateNamespace } from "./state/state";
 import type { TaNamespace } from "./ta/ta";
 import type { BarStateView, SymInfoView, TimeframeView } from "./views";
@@ -40,6 +41,25 @@ export type Price = number;
 export type Volume = number;
 
 /**
+ * Visible chart range in UTC milliseconds. Phase 5's OSS runtime
+ * supplies a fallback range spanning the latest 100 bars ending at the
+ * current head; adapters with a real viewport can replace this view in
+ * later phases.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const viewport: BarViewport = {
+ *         fromTime: 1_700_000_000_000,
+ *         toTime: 1_700_006_000_000,
+ *     };
+ */
+export type BarViewport = Readonly<{
+    readonly fromTime: Time;
+    readonly toTime: Time;
+}>;
+
+/**
  * The OHLCV record the runtime hands to `compute` for the current bar. Every
  * field is `readonly`; scripts must not mutate it.
  *
@@ -56,6 +76,8 @@ export type Volume = number;
  *         console.log(bar.close, bar.symbol, bar.interval);
  *         // Phase 2 — Pine-style derived sources:
  *         console.log(bar.hl2, bar.hlc3, bar.ohlc4, bar.hlcc4);
+ *         // Phase 5 — visible-range fallback:
+ *         console.log(bar.viewport.fromTime, bar.viewport.toTime);
  *     }
  */
 export type Bar = {
@@ -75,6 +97,8 @@ export type Bar = {
     readonly ohlc4: Price;
     /** `(high + low + close + close) / 4` (Pine's `hlcc4`). @since 0.2 */
     readonly hlcc4: Price;
+    /** Visible-range fallback used by viewport-aware primitives. @since 0.5 */
+    readonly viewport?: BarViewport;
 };
 
 /**
@@ -181,7 +205,7 @@ export type InputSchema = Readonly<Record<string, InputDescriptor<unknown>>>;
  * @example
  *     const caps: ReadonlyArray<CapabilityId> = ["indicators", "alerts"];
  */
-export type CapabilityId = "indicators" | "drawings" | "alerts";
+export type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditions";
 
 /**
  * Per-script drawing-emission budget. Excess `draw.*` calls drop with
@@ -233,7 +257,7 @@ export type DrawingCounts = {
  */
 export type ScriptManifest = {
     readonly apiVersion: 1;
-    readonly kind: "indicator" | "drawing" | "alert";
+    readonly kind: "indicator" | "drawing" | "alert" | "alertCondition";
     readonly name: string;
     readonly inputs: InputSchema;
     readonly capabilities: ReadonlyArray<CapabilityId>;
@@ -308,7 +332,60 @@ export type ScriptManifest = {
      *     void v;
      */
     readonly requiresIntervals?: ReadonlyArray<string>;
+    /**
+     * Static list of user-wireable alert conditions declared by
+     * `defineAlertCondition({ conditions })`.
+     *
+     * @since 0.5
+     * @experimental
+     * @example
+     *     const defs: ScriptManifest["alertConditions"] = [
+     *         { id: "up", title: "Up", description: "Close > EMA", defaultMessage: "{{ticker}} up" },
+     *     ];
+     *     void defs;
+     */
+    readonly alertConditions?: ReadonlyArray<AlertConditionDefinition>;
 };
+
+/**
+ * Per-condition descriptor authored under
+ * `DefineAlertConditionOpts.conditions`.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const d: AlertConditionDescriptor = {
+ *         title: "Up",
+ *         description: "Close crossed up",
+ *         defaultMessage: "{{ticker}} crossed up",
+ *     };
+ *     void d;
+ */
+export type AlertConditionDescriptor = Readonly<{
+    title: string;
+    description: string;
+    defaultMessage: string;
+}>;
+
+/**
+ * Manifest-ready alert-condition descriptor with the author map key
+ * normalised into `id`.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     const d: AlertConditionDefinition = {
+ *         id: "up",
+ *         title: "Up",
+ *         description: "Close crossed up",
+ *         defaultMessage: "{{ticker}} crossed up",
+ *     };
+ *     void d;
+ */
+export type AlertConditionDefinition = AlertConditionDescriptor &
+    Readonly<{
+        id: string;
+    }>;
 
 /**
  * The argument the runtime hands a script's `compute` function each bar. The
@@ -336,6 +413,22 @@ export type ComputeContext = {
     readonly timeframe: TimeframeView;
     /** Secondary timeframe request namespace. @since 0.4 */
     readonly request: RequestNamespace;
+    /** Runtime logging and fatal halt namespace. @since 0.5 */
+    readonly runtime: RuntimeNamespace;
+    /**
+     * Signal a named condition declared by `defineAlertCondition`. Present
+     * only for scripts whose manifest kind is `"alertCondition"`.
+     *
+     * @since 0.5
+     * @experimental
+     * @example
+     *     const fn: NonNullable<ComputeContext["signal"]> = (id, fired) => {
+     *         void id;
+     *         void fired;
+     *     };
+     *     void fn;
+     */
+    readonly signal?: (conditionId: string, fired: boolean) => void;
     /**
      * Imperative drawing namespace. Each method returns a
      * {@link DrawingHandle} the script can `update(...)` or

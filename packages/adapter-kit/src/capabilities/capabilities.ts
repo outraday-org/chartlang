@@ -8,6 +8,38 @@ import type { DrawingCounts, IntervalDescriptor } from "@invinite-org/chartlang-
 import type { AlertChannel, DrawingKind, PlotKind, SymInfoField } from "../types";
 
 /**
+ * Canonical Phase-5 plot-kind set. Adapters that can render the full
+ * script-facing plot inventory can pass this directly to
+ * `Capabilities.plots`.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     import { PHASE_5_PLOT_KINDS } from "@invinite-org/chartlang-adapter-kit";
+ *     const plots = new Set(PHASE_5_PLOT_KINDS);
+ *     void plots;
+ */
+export const PHASE_5_PLOT_KINDS: ReadonlyArray<PlotKind> = Object.freeze([
+    "line",
+    "step-line",
+    "horizontal-line",
+    "histogram",
+    "bars",
+    "area",
+    "filled-band",
+    "label",
+    "marker",
+    "shape",
+    "character",
+    "arrow",
+    "candle-override",
+    "bar-override",
+    "bg-color",
+    "bar-color",
+    "horizontal-histogram",
+]);
+
+/**
  * Helpers that assemble the `ReadonlySet` pieces of a `Capabilities`
  * bag. Phase 1 shipped the three line variants + an alert-channel
  * builder + a generic `union` combinator. Phase 2 adds one builder per
@@ -81,6 +113,11 @@ export const capabilities = {
             "label",
             "marker",
         ]);
+    },
+    /** Union of every plot kind that ships through Phase 5.
+     *  @since 0.5 @experimental */
+    allPhase5Plots(): ReadonlySet<PlotKind> {
+        return new Set<PlotKind>(PHASE_5_PLOT_KINDS);
     },
     alerts(...channels: ReadonlyArray<AlertChannel>): ReadonlySet<AlertChannel> {
         return new Set<AlertChannel>(channels);
@@ -454,6 +491,10 @@ export const capabilities = {
     drawFrame(): ReadonlySet<DrawingKind> {
         return new Set<DrawingKind>(["frame"]);
     },
+    /** Phase-5 `table` drawing kind. @since 0.5 @experimental */
+    drawTable(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["table"]);
+    },
 
     // ------------------------------------------------------------
     // Phase 3 — category-group builders (13). Each covers the kinds
@@ -585,6 +626,6 @@ export const capabilities = {
      * @experimental
      */
     allPhase3Drawings(): ReadonlySet<DrawingKind> {
-        return new Set<DrawingKind>(DRAWING_KINDS);
+        return new Set<DrawingKind>(DRAWING_KINDS.filter((kind) => kind !== "table"));
     },
 };

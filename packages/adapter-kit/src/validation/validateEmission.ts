@@ -60,6 +60,14 @@ const VALID_PLOT_STYLE_KINDS: ReadonlySet<string> = new Set([
     "filled-band",
     "label",
     "marker",
+    "shape",
+    "character",
+    "arrow",
+    "candle-override",
+    "bar-override",
+    "bg-color",
+    "bar-color",
+    "horizontal-histogram",
 ]);
 
 const VALID_LINE_STYLES: ReadonlySet<string> = new Set(["solid", "dashed", "dotted"]);
@@ -72,11 +80,28 @@ const VALID_MARKER_SHAPES: ReadonlySet<string> = new Set([
     "diamond",
 ]);
 
+const VALID_SHAPE_GLYPHS: ReadonlySet<string> = new Set([
+    "circle",
+    "triangle-up",
+    "triangle-down",
+    "square",
+    "diamond",
+    "cross",
+    "xcross",
+    "flag",
+]);
+
+const VALID_PLOT_LOCATIONS: ReadonlySet<string> = new Set(["above", "below", "absolute"]);
+
+const VALID_ARROW_DIRECTIONS: ReadonlySet<string> = new Set(["up", "down"]);
+
 const VALID_LABEL_POSITIONS: ReadonlySet<string> = new Set(["above", "below", "anchor"]);
 
 const MAX_LABEL_LENGTH = 128;
 
 const VALID_ALERT_SEVERITIES: ReadonlySet<string> = new Set(["info", "warning", "critical"]);
+
+const VALID_LOG_LEVELS: ReadonlySet<string> = new Set(["info", "warn", "error"]);
 
 const VALID_ALERT_CHANNELS: ReadonlySet<string> = new Set([
     "log",
@@ -100,13 +125,25 @@ const VALID_DIAGNOSTIC_CODES: ReadonlySet<string> = new Set<DiagnosticCode>([
     "unsupported-pane",
     "unsupported-interval",
     "multi-timeframe-not-supported",
+    "unknown-secondary-stream",
     "lookback-exceeded",
     "drawing-budget-exceeded",
     "dropped-by-policy",
     "input-coercion-failed",
+    "alert-conditions-not-supported",
+    "unknown-alert-condition",
     "alert-rate-limited",
     "runtime-cpu-budget-exceeded",
     "runtime-memory-budget-exceeded",
+    "runtime-log-budget-exceeded",
+    "malformed-log-meta",
+    "runtime-error-thrown",
+    "session-info-missing",
+    "fixed-range-inverted",
+    "state-snapshot-restored",
+    "state-snapshot-future-dated",
+    "state-snapshot-malformed",
+    "state-snapshot-save-failed",
     "malformed-emission",
 ]);
 
@@ -257,6 +294,109 @@ function validateMarkerStyle(style: Record<string, unknown>): ValidationResult {
     return { ok: true };
 }
 
+function validateOptionalLocation(style: Record<string, unknown>): ValidationResult {
+    const location = style.location;
+    if (
+        location !== undefined &&
+        (typeof location !== "string" || !VALID_PLOT_LOCATIONS.has(location))
+    ) {
+        return bad(`style.location: '${String(location)}' is not a valid plot location`);
+    }
+    return { ok: true };
+}
+
+function validatePlotShapeStyle(style: Record<string, unknown>): ValidationResult {
+    const shape = style.shape;
+    if (typeof shape !== "string" || !VALID_SHAPE_GLYPHS.has(shape)) {
+        return bad(`style.shape: '${String(shape)}' is not a valid shape glyph`);
+    }
+    const size = style.size;
+    if (!isFiniteNumber(size) || size <= 0) {
+        return bad("style.size: must be a finite positive number");
+    }
+    return validateOptionalLocation(style);
+}
+
+function validateCharacterStyle(style: Record<string, unknown>): ValidationResult {
+    const char = style.char;
+    if (typeof char !== "string" || char.length === 0) {
+        return bad("style.char: must be a non-empty string");
+    }
+    const size = style.size;
+    if (!isFiniteNumber(size) || size <= 0) {
+        return bad("style.size: must be a finite positive number");
+    }
+    return validateOptionalLocation(style);
+}
+
+function validateArrowStyle(style: Record<string, unknown>): ValidationResult {
+    const direction = style.direction;
+    if (typeof direction !== "string" || !VALID_ARROW_DIRECTIONS.has(direction)) {
+        return bad(`style.direction: '${String(direction)}' is not a valid arrow direction`);
+    }
+    const size = style.size;
+    if (!isFiniteNumber(size) || size <= 0) {
+        return bad("style.size: must be a finite positive number");
+    }
+    return { ok: true };
+}
+
+function validateColor(value: unknown, path: string): ValidationResult {
+    if (typeof value !== "string" || value.length === 0) {
+        return bad(`${path}: must be a non-empty string`);
+    }
+    return { ok: true };
+}
+
+function validateCandleOverrideStyle(style: Record<string, unknown>): ValidationResult {
+    const bull = validateColor(style.bull, "style.bull");
+    if (!bull.ok) return bull;
+    const bear = validateColor(style.bear, "style.bear");
+    if (!bear.ok) return bear;
+    if (style.doji !== undefined) {
+        return validateColor(style.doji, "style.doji");
+    }
+    return { ok: true };
+}
+
+function validateSingleColorStyle(style: Record<string, unknown>, path: string): ValidationResult {
+    return validateColor(style.color, path);
+}
+
+function validateBgColorStyle(style: Record<string, unknown>): ValidationResult {
+    const color = validateSingleColorStyle(style, "style.color");
+    if (!color.ok) return color;
+    const transp = style.transp;
+    if (transp !== undefined && (!isFiniteNumber(transp) || transp < 0 || transp > 100)) {
+        return bad("style.transp: must be a finite number in [0, 100]");
+    }
+    return { ok: true };
+}
+
+function validateHorizontalHistogramStyle(style: Record<string, unknown>): ValidationResult {
+    const buckets = style.buckets;
+    if (!Array.isArray(buckets)) {
+        return bad("style.buckets: must be an array");
+    }
+    for (let i = 0; i < buckets.length; i++) {
+        const bucket = buckets[i];
+        if (!isPlainObject(bucket)) {
+            return bad(`style.buckets[${i}]: must be an object`);
+        }
+        if (!isFiniteNumber(bucket.price)) {
+            return bad(`style.buckets[${i}].price: must be a finite number`);
+        }
+        if (!isFiniteNumber(bucket.volume) || bucket.volume < 0) {
+            return bad(`style.buckets[${i}].volume: must be a finite non-negative number`);
+        }
+        if (bucket.color !== undefined) {
+            const color = validateColor(bucket.color, `style.buckets[${i}].color`);
+            if (!color.ok) return color;
+        }
+    }
+    return { ok: true };
+}
+
 function validatePlotStyle(style: unknown): ValidationResult {
     if (!isPlainObject(style)) return bad("style: not an object");
     const kind = style.kind;
@@ -279,6 +419,21 @@ function validatePlotStyle(style: unknown): ValidationResult {
             return validateLabelStyle(style);
         case "marker":
             return validateMarkerStyle(style);
+        case "shape":
+            return validatePlotShapeStyle(style);
+        case "character":
+            return validateCharacterStyle(style);
+        case "arrow":
+            return validateArrowStyle(style);
+        case "candle-override":
+            return validateCandleOverrideStyle(style);
+        case "bar-override":
+        case "bar-color":
+            return validateSingleColorStyle(style, "style.color");
+        case "bg-color":
+            return validateBgColorStyle(style);
+        case "horizontal-histogram":
+            return validateHorizontalHistogramStyle(style);
         /* v8 ignore next 2 -- kind is already gated by VALID_PLOT_STYLE_KINDS */
         default:
             return bad(`style.kind: '${kind}' has no validator`);
@@ -335,6 +490,54 @@ function validateAlertEmission(e: Record<string, unknown>): ValidationResult {
     }
     if (!isNonEmptyString(e.dedupeKey)) {
         return bad("alert.dedupeKey: must be a non-empty string");
+    }
+    return { ok: true };
+}
+
+function validateAlertConditionEmission(e: Record<string, unknown>): ValidationResult {
+    if (!isNonEmptyString(e.conditionId)) {
+        return bad("alert-condition.conditionId: must be a non-empty string");
+    }
+    if (typeof e.title !== "string") {
+        return bad("alert-condition.title: must be a string");
+    }
+    if (typeof e.description !== "string") {
+        return bad("alert-condition.description: must be a string");
+    }
+    if (typeof e.defaultMessage !== "string") {
+        return bad("alert-condition.defaultMessage: must be a string");
+    }
+    if (typeof e.fired !== "boolean") {
+        return bad("alert-condition.fired: must be a boolean");
+    }
+    if (!isNonNegativeInteger(e.bar)) {
+        return bad("alert-condition.bar: must be a non-negative integer");
+    }
+    if (!isFiniteNumber(e.time)) {
+        return bad("alert-condition.time: must be a finite number");
+    }
+    return { ok: true };
+}
+
+function validateLogEmission(e: Record<string, unknown>): ValidationResult {
+    const level = e.level;
+    if (typeof level !== "string" || !VALID_LOG_LEVELS.has(level)) {
+        return bad(`log.level: '${String(level)}' is not a valid log level`);
+    }
+    if (!isNonEmptyString(e.message)) {
+        return bad("log.message: must be a non-empty string");
+    }
+    const meta = e.meta;
+    if (meta !== undefined) {
+        if (!isPlainObject(meta)) return bad("log.meta: must be a plain object");
+        const metaResult = walkMeta(meta, "log.meta");
+        if (!metaResult.ok) return metaResult;
+    }
+    if (!isNonNegativeInteger(e.bar)) {
+        return bad("log.bar: must be a non-negative integer");
+    }
+    if (!isFiniteNumber(e.time)) {
+        return bad("log.time: must be a finite number");
     }
     return { ok: true };
 }
@@ -565,6 +768,18 @@ const VALID_TEXT_SIZES: ReadonlySet<string> = new Set(["tiny", "small", "normal"
 const VALID_TEXT_HALIGN: ReadonlySet<string> = new Set(["left", "center", "right"]);
 
 const VALID_TEXT_VALIGN: ReadonlySet<string> = new Set(["top", "middle", "bottom"]);
+
+const VALID_TABLE_POSITIONS: ReadonlySet<string> = new Set([
+    "top-left",
+    "top-center",
+    "top-right",
+    "middle-left",
+    "middle-center",
+    "middle-right",
+    "bottom-left",
+    "bottom-center",
+    "bottom-right",
+]);
 
 function validateTextOpts(s: unknown, path: string): ValidationResult {
     if (!isPlainObject(s)) return bad(`${path}: must be a plain object`);
@@ -1065,15 +1280,79 @@ function validateFrameState(state: Record<string, unknown>): ValidationResult {
     return validateFrameOpts(state.style, "drawing.state.style");
 }
 
+function validateTableCell(cell: unknown, path: string): ValidationResult {
+    if (!isPlainObject(cell)) return bad(`${path}: must be a plain object`);
+    if (typeof cell.text !== "string") return bad(`${path}.text: must be a string`);
+    if (cell.bgColor !== undefined && typeof cell.bgColor !== "string") {
+        return bad(`${path}.bgColor: must be a string`);
+    }
+    if (cell.textColor !== undefined && typeof cell.textColor !== "string") {
+        return bad(`${path}.textColor: must be a string`);
+    }
+    if (cell.textHalign !== undefined && !VALID_TEXT_HALIGN.has(String(cell.textHalign))) {
+        return bad(`${path}.textHalign: '${String(cell.textHalign)}' is not a valid halign`);
+    }
+    if (cell.textValign !== undefined && !VALID_TEXT_VALIGN.has(String(cell.textValign))) {
+        return bad(`${path}.textValign: '${String(cell.textValign)}' is not a valid valign`);
+    }
+    if (cell.textSize !== undefined && !VALID_TEXT_SIZES.has(String(cell.textSize))) {
+        return bad(`${path}.textSize: '${String(cell.textSize)}' is not a valid text size`);
+    }
+    return { ok: true };
+}
+
+function validateTableState(state: Record<string, unknown>): ValidationResult {
+    const position = state.position;
+    if (typeof position !== "string" || !VALID_TABLE_POSITIONS.has(position)) {
+        return bad(`drawing.state.position: '${String(position)}' is not a valid table position`);
+    }
+    const cells = state.cells;
+    if (!Array.isArray(cells) || cells.length === 0) {
+        return bad("drawing.state.cells: must be a non-empty 2D array");
+    }
+    for (let rowIndex = 0; rowIndex < cells.length; rowIndex++) {
+        const row = cells[rowIndex];
+        if (!Array.isArray(row) || row.length === 0) {
+            return bad(`drawing.state.cells[${rowIndex}]: must be a non-empty array`);
+        }
+        for (let columnIndex = 0; columnIndex < row.length; columnIndex++) {
+            const cellCheck = validateTableCell(
+                row[columnIndex],
+                `drawing.state.cells[${rowIndex}][${columnIndex}]`,
+            );
+            if (!cellCheck.ok) return cellCheck;
+        }
+    }
+    const hasBorderColor = state.borderColor !== undefined;
+    const hasBorderWidth = state.borderWidth !== undefined;
+    if (hasBorderColor !== hasBorderWidth) {
+        return bad("drawing.state.borderColor/borderWidth: must be provided together");
+    }
+    if (hasBorderColor) {
+        const colorCheck = validateColor(state.borderColor, "drawing.state.borderColor");
+        if (!colorCheck.ok) return colorCheck;
+        if (!isFiniteNumber(state.borderWidth) || state.borderWidth <= 0) {
+            return bad("drawing.state.borderWidth: must be a finite positive number");
+        }
+    }
+    if (state.frame !== undefined) {
+        if (!isPlainObject(state.frame)) return bad("drawing.state.frame: must be a plain object");
+        const colorCheck = validateColor(state.frame.color, "drawing.state.frame.color");
+        if (!colorCheck.ok) return colorCheck;
+        if (!isFiniteNumber(state.frame.width) || state.frame.width <= 0) {
+            return bad("drawing.state.frame.width: must be a finite positive number");
+        }
+    }
+    return { ok: true };
+}
+
 /**
- * Per-kind state dispatch. Task 2 lands the 6 line-kind validators;
- * Tasks 6–18 add per-category validators (PLAN.md §22.10). After Task
- * 18 every `DrawingKind` has a real validator arm; the
- * `default: return { ok: true };` arm is dead code reachable only by a
- * future kind added to `DrawingKind` without a validator arm. The arm
- * stays as a defence-in-depth path — adapter-kit's wire-shape check
- * (`handleId` / `op` / `bar` / `time` / `state.kind === drawingKind`)
- * still runs for every kind via {@link validateDrawingEmission}.
+ * Per-kind state dispatch. Exhaustive over the `DrawingKind` union: the
+ * switch has no `default` arm, so adding a kind to `DrawingKind`
+ * produces a compile error here and forces a matching validator arm.
+ * Wire-shape checks (`handleId` / `op` / `bar` / `time` /
+ * `state.kind === drawingKind`) run for every kind via
+ * {@link validateDrawingEmission} before this dispatch is reached.
  */
 function validateStateByKind(kind: DrawingKind, state: Record<string, unknown>): ValidationResult {
     switch (kind) {
@@ -1199,6 +1478,8 @@ function validateStateByKind(kind: DrawingKind, state: Record<string, unknown>):
             return validateGroupState(state);
         case "frame":
             return validateFrameState(state);
+        case "table":
+            return validateTableState(state);
     }
 }
 
@@ -1294,6 +1575,10 @@ export function validateEmission(e: unknown): ValidationResult {
             return validatePlotEmission(e);
         case "alert":
             return validateAlertEmission(e);
+        case "alert-condition":
+            return validateAlertConditionEmission(e);
+        case "log":
+            return validateLogEmission(e);
         case "drawing":
             return validateDrawingEmission(e);
         case "diagnostic":

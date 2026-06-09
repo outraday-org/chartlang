@@ -3,6 +3,7 @@
 
 import type {
     AlertEmission,
+    AlertConditionEmission,
     Capabilities,
     DrawingEmission,
     PlotEmission,
@@ -33,6 +34,7 @@ import type {
 } from "./runtimeContext";
 import type { makeSeriesView } from "./seriesView";
 import type { StateStore, inMemoryStateStore } from "./stateStore";
+import type { PersistentStateStore, inMemoryPersistentStateStore } from "./persistentStateStore";
 import type { BarView, OhlcvBuffers, StreamState, createStreamState } from "./streamState";
 import type { AdapterSymInfo, RuntimeViews } from "./views";
 
@@ -65,6 +67,9 @@ describe("type assertions", () => {
         expectTypeOf<StreamState["seriesViews"]["close"]>().toEqualTypeOf<Series<number>>();
         expectTypeOf<StreamState["seriesViews"]["hlcc4"]>().toEqualTypeOf<Series<number>>();
         expectTypeOf<StreamState["taSlots"]>().toEqualTypeOf<Map<string, unknown>>();
+        expectTypeOf<StreamState["serialiseSnapshot"]>().toEqualTypeOf<
+            () => import("@invinite-org/chartlang-core").StreamSnapshot
+        >();
     });
 
     it("OhlcvBuffers carries readonly Float64RingBuffer fields", () => {
@@ -93,10 +98,22 @@ describe("type assertions", () => {
         expectTypeOf<ReturnType<typeof inMemoryStateStore>>().toEqualTypeOf<StateStore>();
     });
 
+    it("PersistentStateStore declares load/save/clear", () => {
+        expectTypeOf<PersistentStateStore["load"]>().toEqualTypeOf<
+            () => Promise<import("@invinite-org/chartlang-core").StateSnapshot | null>
+        >();
+        expectTypeOf<
+            ReturnType<typeof inMemoryPersistentStateStore>
+        >().toEqualTypeOf<PersistentStateStore>();
+    });
+
     it("MutableRunnerEmissions arrays are writable", () => {
         expectTypeOf<MutableRunnerEmissions["plots"]>().toEqualTypeOf<PlotEmission[]>();
         expectTypeOf<MutableRunnerEmissions["drawings"]>().toEqualTypeOf<DrawingEmission[]>();
         expectTypeOf<MutableRunnerEmissions["alerts"]>().toEqualTypeOf<AlertEmission[]>();
+        expectTypeOf<MutableRunnerEmissions["alertConditions"]>().toEqualTypeOf<
+            AlertConditionEmission[] | undefined
+        >();
         expectTypeOf<MutableRunnerEmissions["diagnostics"]>().toEqualTypeOf<RuntimeDiagnostic[]>();
         expectTypeOf<MutableRunnerEmissions["fromBar"]>().toEqualTypeOf<number>();
         expectTypeOf<MutableRunnerEmissions["toBar"]>().toEqualTypeOf<number>();
@@ -105,10 +122,17 @@ describe("type assertions", () => {
     it("RuntimeContext exposes runtime handles + isTick discriminator", () => {
         expectTypeOf<RuntimeContext["stream"]>().toEqualTypeOf<StreamState>();
         expectTypeOf<RuntimeContext["stateStore"]>().toEqualTypeOf<StateStore>();
+        expectTypeOf<RuntimeContext["persistentStateStore"]>().toEqualTypeOf<
+            PersistentStateStore | undefined
+        >();
+        expectTypeOf<RuntimeContext["lastPersistTime"]>().toEqualTypeOf<number>();
         expectTypeOf<RuntimeContext["capabilities"]>().toEqualTypeOf<Capabilities>();
         expectTypeOf<RuntimeContext["emissions"]>().toEqualTypeOf<MutableRunnerEmissions>();
         expectTypeOf<RuntimeContext["barIndex"]>().toEqualTypeOf<() => number>();
         expectTypeOf<RuntimeContext["isTick"]>().toEqualTypeOf<boolean>();
+        expectTypeOf<RuntimeContext["secondaryStreams"]>().toEqualTypeOf<
+            Map<string, StreamState>
+        >();
         expectTypeOf<RuntimeContext["views"]>().toEqualTypeOf<RuntimeViews>();
     });
 
@@ -133,8 +157,14 @@ describe("type assertions", () => {
         >();
         expectTypeOf<ScriptRunner["onBarClose"]>().toEqualTypeOf<(bar: Bar) => Promise<void>>();
         expectTypeOf<ScriptRunner["onBarTick"]>().toEqualTypeOf<(bar: Bar) => Promise<void>>();
+        expectTypeOf<ScriptRunner["push"]>().toEqualTypeOf<
+            (event: import("@invinite-org/chartlang-adapter-kit").CandleEvent) => Promise<void>
+        >();
+        expectTypeOf<ScriptRunner["warmStart"]>().toEqualTypeOf<
+            (currentMainBarTime: number) => Promise<void>
+        >();
         expectTypeOf<ScriptRunner["drain"]>().toEqualTypeOf<() => RunnerEmissions>();
-        expectTypeOf<ScriptRunner["dispose"]>().toEqualTypeOf<() => void>();
+        expectTypeOf<ScriptRunner["dispose"]>().toEqualTypeOf<() => Promise<void>>();
     });
 
     it("CreateScriptRunnerArgs requires compiled + capabilities; stateStore is optional", () => {
@@ -142,6 +172,12 @@ describe("type assertions", () => {
         expectTypeOf<CreateScriptRunnerArgs["capabilities"]>().toEqualTypeOf<Capabilities>();
         expectTypeOf<CreateScriptRunnerArgs["stateStore"]>().toEqualTypeOf<
             StateStore | undefined
+        >();
+        expectTypeOf<CreateScriptRunnerArgs["persistentStateStore"]>().toEqualTypeOf<
+            PersistentStateStore | undefined
+        >();
+        expectTypeOf<CreateScriptRunnerArgs["persistenceIntervalMs"]>().toEqualTypeOf<
+            number | undefined
         >();
         expectTypeOf<CreateScriptRunnerArgs["symInfo"]>().toEqualTypeOf<
             AdapterSymInfo | undefined

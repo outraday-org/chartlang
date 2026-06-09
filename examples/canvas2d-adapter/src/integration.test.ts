@@ -18,6 +18,7 @@ import { describe, expect, it } from "vitest";
 
 import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities";
 import { createCanvas2dAdapter, runRendererLoop } from "./createCanvas2dAdapter";
+import { createMultiStreamCandlePump } from "./streamPump";
 import { MockCanvas2DContext, hashCallLog } from "./testing";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -134,6 +135,28 @@ export default {
         if (cu.current) {
             ctx.alert("ema-cross.chart.ts:13:13#0", "EMA(12) crossed below EMA(26)", { severity: "warning" });
         }
+    },
+};
+`;
+
+const MTF_MANIFEST: ScriptManifest = {
+    apiVersion: 1,
+    kind: "indicator",
+    name: "MTF close (integration fixture)",
+    inputs: {},
+    capabilities: ["indicators"],
+    requestedIntervals: ["1D"],
+    userPickableInterval: false,
+    seriesCapacities: { ohlcv: 16 },
+    maxLookback: 4,
+};
+
+const MTF_MODULE_SOURCE = `
+export default {
+    manifest: ${JSON.stringify(MTF_MANIFEST)},
+    compute: (ctx) => {
+        const daily = ctx.request.security("mtf.chart.ts:5:23#0", { interval: "1D" });
+        ctx.plot("mtf.chart.ts:6:9#0", daily.close, { color: "#2563eb", title: "Daily close" });
     },
 };
 `;
@@ -349,6 +372,37 @@ const SESSION_ALERT_BARS: ReadonlyArray<Bar> = [
     },
 ];
 
+function mtfBar(i: number, close: number, interval: string): Bar {
+    const open = close - 0.25;
+    const high = close + 0.5;
+    const low = close - 0.5;
+    const hl2 = (high + low) / 2;
+    const hlc3 = (high + low + close) / 3;
+    return {
+        time: START_TIME + i * 60_000,
+        open,
+        high,
+        low,
+        close,
+        volume: 5_000 + i,
+        symbol: "DEMO",
+        interval,
+        hl2,
+        hlc3,
+        ohlc4: (open + high + low + close) / 4,
+        hlcc4: (high + low + close + close) / 4,
+    };
+}
+
+const MTF_MAIN_BARS: ReadonlyArray<Bar> = [
+    mtfBar(0, 100, "1m"),
+    mtfBar(1, 101, "1m"),
+    mtfBar(2, 102, "1m"),
+    mtfBar(3, 103, "1m"),
+];
+
+const MTF_DAILY_BARS: ReadonlyArray<Bar> = [mtfBar(0, 201, "1D"), mtfBar(2, 222, "1D")];
+
 describe("canvas2d adapter integration", () => {
     it("drives an EMA-cross-equivalent compiled bundle through the worker shim and renders to the mock canvas", async () => {
         const { worker, scope } = pair();
@@ -438,6 +492,54 @@ describe("canvas2d adapter integration", () => {
         expect(run.workerErrors).toEqual([]);
         expect(hasErrorDiagnostics(run.emissions)).toBe(false);
         expect(plotCount).toBe(0);
+    });
+
+    it("routes 1D request.security data through a 1m canvas2d stream", async () => {
+        const { worker, scope } = pair();
+        createWorkerBoot(scope);
+        const emissions: RunnerEmissions[] = [];
+        const workerErrors: string[] = [];
+        const host = captureHost(
+            createWorkerHost({
+                capabilities: CANVAS2D_CAPABILITIES,
+                symInfo: CANVAS2D_SYM_INFO,
+                workerLike: worker,
+                onWorkerError: (m) => workerErrors.push(m),
+            }),
+            emissions,
+        );
+        const ctx = new MockCanvas2DContext();
+        const adapter = createCanvas2dAdapter({
+            canvas: { width: 640, height: 320 },
+            ctx,
+            candleSource: createMultiStreamCandlePump({
+                main: mockCandleSource(MTF_MAIN_BARS, {
+                    interval: "1m",
+                    mode: "stream",
+                }),
+                secondary: { "1D": MTF_DAILY_BARS },
+            }),
+            capabilities: CANVAS2D_CAPABILITIES,
+            host,
+            interval: "1m",
+        });
+
+        await adapter.host.load({
+            moduleSource: MTF_MODULE_SOURCE,
+            manifest: MTF_MANIFEST,
+        });
+        await runRendererLoop(adapter);
+
+        const values = emissions.flatMap((frame) => frame.plots.map((plot) => plot.value));
+        const diagnostics = emissions.flatMap((frame) => frame.diagnostics.map((d) => d.code));
+        expect(workerErrors).toEqual([]);
+        expect(diagnostics).toEqual([]);
+        expect(values).toEqual([201, 201, 222, 222]);
+        expect(ctx.calls.filter((call) => call.kind === "fillRect").length).toBeGreaterThanOrEqual(
+            MTF_MAIN_BARS.length,
+        );
+
+        adapter.dispose();
     });
 });
 

@@ -11,6 +11,7 @@ import {
     type MutableRunnerEmissions,
     type RuntimeContext,
 } from "../runtimeContext";
+import { appendSecondaryBar } from "../execution/secondaryStream";
 import { inMemoryStateStore } from "../stateStore";
 import { createStreamState } from "../streamState";
 import { createRuntimeViews } from "../views";
@@ -61,6 +62,8 @@ function makeEmissions(): MutableRunnerEmissions {
 function makeContext(multiTimeframe = true): RuntimeContext {
     const stream = createStreamState({ interval: "1m", capacity: 5, symbol: "AAPL" });
     stream.bar.time = 1_700_000_000_000;
+    const secondary = createStreamState({ interval: "1D", capacity: 5, symbol: "AAPL" });
+    const secondaryStreams = new Map([["1D", secondary]]);
     return {
         stream,
         stateStore: inMemoryStateStore(),
@@ -79,12 +82,38 @@ function makeContext(multiTimeframe = true): RuntimeContext {
         },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        secondaryStreams,
         requestSecurityBars: new Map(),
+        requestSecurityAlignments: new Map(),
+        requestSecurityAscendingBars: new Map(),
         diagnosedRequestKeys: new Set(),
         resolvedInputs: Object.freeze({}),
         diagnosedInputKeys: new Set(),
         views: createRuntimeViews(),
     };
+}
+
+function pushBars(ctx: RuntimeContext): void {
+    appendSecondaryBar(ctx.secondaryStreams.get("1D") ?? createStreamState({ interval: "1D", capacity: 5, symbol: "AAPL" }), {
+        time: 1_700_000_000_000,
+        open: 200,
+        high: 205,
+        low: 195,
+        close: 202,
+        volume: 10_000,
+        symbol: "AAPL",
+        interval: "1D",
+    });
+    ctx.stream.ohlcv.time.append(1_700_000_000_000);
+    ctx.stream.ohlcv.open.append(100);
+    ctx.stream.ohlcv.high.append(101);
+    ctx.stream.ohlcv.low.append(99);
+    ctx.stream.ohlcv.close.append(100.5);
+    ctx.stream.ohlcv.volume.append(1_000);
+    ctx.stream.ohlcv.hl2.append(100);
+    ctx.stream.ohlcv.hlc3.append(100.16666666666667);
+    ctx.stream.ohlcv.ohlc4.append(100.125);
+    ctx.stream.ohlcv.hlcc4.append(100.25);
 }
 
 function runtimeRequest(): RuntimeRequestNamespace {
@@ -102,15 +131,42 @@ describe("buildRequestNamespace", () => {
         );
     });
 
-    it("returns a NaN bar without diagnostics for known intervals when multi-timeframe is enabled", () => {
+    it("returns a live aligned bar without diagnostics for known intervals when multi-timeframe is enabled", () => {
+        const ctx = makeContext(true);
+        pushBars(ctx);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const bar = runtimeRequest().security("slot#0", { interval: "1D" });
+
+        expect(bar.close.current).toBe(202);
+        expect(bar.high.current).toBe(205);
+        expect(bar.close[0]).toBe(202);
+        expect(bar.symbol.current).toBe("AAPL");
+        expect(bar.interval.current).toBe("1D");
+        expect(ctx.emissions.diagnostics).toEqual([]);
+    });
+
+    it("returns NaN current values for known secondary streams before HTF bars arrive", () => {
+        const ctx = makeContext(true);
+        ctx.stream.ohlcv.time.append(1_700_000_000_000);
+        ctx.stream.ohlcv.close.append(100);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const bar = runtimeRequest().security("slot#0", { interval: "1D" });
+
+        expect(Number.isNaN(bar.close.current)).toBe(true);
+        expect(bar.close.length).toBe(1);
+    });
+
+    it("returns NaN for current and indexed access when no LTF alignment exists yet", () => {
         const ctx = makeContext(true);
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
 
         const bar = runtimeRequest().security("slot#0", { interval: "1D" });
 
         expect(Number.isNaN(bar.close.current)).toBe(true);
-        expect(bar.symbol.current).toBe("");
-        expect(ctx.emissions.diagnostics).toEqual([]);
+        expect(Number.isNaN(bar.close[0])).toBe(true);
+        expect(bar.close.length).toBe(0);
     });
 
     it("emits unsupported-interval once per slot and interval", () => {
@@ -148,6 +204,28 @@ describe("buildRequestNamespace", () => {
                 severity: "warning",
                 code: "multi-timeframe-not-supported",
                 message: "Adapter declares multiTimeframe: false; request.security returns NaN",
+                slotId: "slot#0",
+                bar: 3,
+            },
+        ]);
+    });
+
+    it("emits unknown-secondary-stream once when the manifest did not register the interval", () => {
+        const ctx = makeContext(true);
+        ctx.secondaryStreams.clear();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        request.security("slot#0", { interval: "1D" });
+        ctx.requestSecurityBars.clear();
+        request.security("slot#0", { interval: "1D" });
+
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "unknown-secondary-stream",
+                message: 'Requested interval "1D" has no registered secondary stream',
                 slotId: "slot#0",
                 bar: 3,
             },
@@ -198,5 +276,48 @@ describe("buildRequestNamespace", () => {
 
         expect(Number.isNaN(next.close.current)).toBe(true);
         expect(ctx.emissions.diagnostics).toHaveLength(1);
+    });
+
+    it("falls back to NaN numeric series when a defensive numeric lookup misses", () => {
+        const ctx = makeContext(true);
+        pushBars(ctx);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const originalGet = Map.prototype.get;
+        const missing = new Set([
+            "time",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "hl2",
+            "hlc3",
+            "ohlc4",
+            "hlcc4",
+        ]);
+        Map.prototype.get = function patchedGet(this: Map<unknown, unknown>, key: unknown) {
+            if (missing.has(String(key))) {
+                return undefined;
+            }
+            return originalGet.call(this, key);
+        };
+        try {
+            const bar = runtimeRequest().security("slot#0", { interval: "1D" });
+            expect(Number.isNaN(bar.time.current)).toBe(true);
+            expect(Number.isNaN(bar.open.current)).toBe(true);
+            expect(Number.isNaN(bar.high.current)).toBe(true);
+            expect(Number.isNaN(bar.low.current)).toBe(true);
+            expect(Number.isNaN(bar.volume.current)).toBe(true);
+            expect(Number.isNaN(bar.hl2.current)).toBe(true);
+            expect(Number.isNaN(bar.hlc3.current)).toBe(true);
+            expect(Number.isNaN(bar.ohlc4.current)).toBe(true);
+            expect(Number.isNaN(bar.hlcc4.current)).toBe(true);
+            expect(Number.isNaN(bar.close.current)).toBe(true);
+            expect(bar.close.length).toBe(0);
+            expect(bar.symbol.length).toBe(0);
+            expect(bar.symbol[0]).toBe("AAPL");
+        } finally {
+            Map.prototype.get = originalGet;
+        }
     });
 });

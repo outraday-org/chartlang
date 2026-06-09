@@ -72,3 +72,44 @@ export function flushStateSlots(ctx: RuntimeContext): void {
         });
     }
 }
+
+/**
+ * Serialise runtime state slots into a snapshot payload.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     // const slots = serialiseStateSlots(ctx);
+ *     const slots = {};
+ *     void slots;
+ */
+export function serialiseStateSlots(ctx: RuntimeContext): Readonly<Record<string, unknown>> {
+    const out: Record<string, unknown> = {};
+    for (const [key, slot] of ctx.stateSlots.entries()) {
+        out[key] = {
+            committed: slot.serialise(slot.committed),
+            tentative: slot.serialise(slot.tentative),
+        };
+    }
+    return Object.freeze(out);
+}
+
+/**
+ * Seed restored state-slot payloads into the backing slot store.
+ *
+ * @since 0.5
+ * @experimental
+ * @example
+ *     // restoreStateSlots(ctx, snapshot.slots);
+ *     const restored = true;
+ *     void restored;
+ */
+export function restoreStateSlots(
+    ctx: RuntimeContext,
+    slots: Readonly<Record<string, unknown>>,
+): void {
+    ctx.stateSlots.clear();
+    for (const [key, value] of Object.entries(slots)) {
+        ctx.stateStore.set(key, value);
+    }
+}

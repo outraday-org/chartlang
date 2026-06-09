@@ -1,5 +1,26 @@
 # @invinite-org/chartlang-cli
 
+## 0.5.0
+
+### Phase 5
+
+#### Patch Changes
+
+- Add `ta.visibleRangeVolumeProfile` per PLAN §9.2, ported from invinite commit `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4`, with runtime histogram emission, compiler/core type surfaces, conformance coverage, and generated docs.
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @invinite-org/chartlang-core@0.5.0
+  - @invinite-org/chartlang-compiler@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

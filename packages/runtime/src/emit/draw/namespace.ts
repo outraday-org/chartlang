@@ -23,15 +23,15 @@ import { regressionTrend } from "./channels/regressionTrend";
 import { trendChannel } from "./channels/trendChannel";
 import { frame } from "./containers/frame";
 import { group } from "./containers/group";
-import { cyclicLines } from "./cycles/cyclicLines";
-import { sineLine } from "./cycles/sineLine";
-import { timeCycles } from "./cycles/timeCycles";
 import { arc } from "./curves/arc";
 import { brush } from "./curves/brush";
 import { curve } from "./curves/curve";
 import { doubleCurve } from "./curves/doubleCurve";
 import { highlighter } from "./curves/highlighter";
 import { pen } from "./curves/pen";
+import { cyclicLines } from "./cycles/cyclicLines";
+import { sineLine } from "./cycles/sineLine";
+import { timeCycles } from "./cycles/timeCycles";
 import { elliottCorrectionWave } from "./elliott/elliottCorrectionWave";
 import { elliottDoubleCombo } from "./elliott/elliottDoubleCombo";
 import { elliottImpulseWave } from "./elliott/elliottImpulseWave";
@@ -57,14 +57,15 @@ import { horizontalRay } from "./lines/horizontalRay";
 import { line } from "./lines/line";
 import { trendAngle } from "./lines/trendAngle";
 import { verticalLine } from "./lines/verticalLine";
-import { pitchfan } from "./pitchforks/pitchfan";
-import { pitchfork } from "./pitchforks/pitchfork";
 import { abcdPattern } from "./patterns/abcdPattern";
 import { cypherPattern } from "./patterns/cypherPattern";
 import { headAndShoulders } from "./patterns/headAndShoulders";
 import { threeDrivesPattern } from "./patterns/threeDrivesPattern";
 import { trianglePattern } from "./patterns/trianglePattern";
 import { xabcdPattern } from "./patterns/xabcdPattern";
+import { pitchfan } from "./pitchforks/pitchfan";
+import { pitchfork } from "./pitchforks/pitchfork";
+import { table } from "./table/table";
 
 const KIND_IMPLS = {
     // Task 5 — Lines/Rays
@@ -143,6 +144,8 @@ const KIND_IMPLS = {
     // Task 18 — Containers
     group,
     frame,
+    // Phase 5 — Viewport overlays
+    table,
 } as const;
 
 const IMPL_KIND_NAMES: ReadonlySet<string> = new Set(Object.keys(KIND_IMPLS));
@@ -150,6 +153,7 @@ const IMPL_KIND_NAMES: ReadonlySet<string> = new Set(Object.keys(KIND_IMPLS));
 /**
  * Runtime `draw` namespace. After Task 18 every one of the 61
  * `DrawingKind`s has a real per-kind impl wired into `KIND_IMPLS`;
+ * Phase 5 adds the viewport-anchored `table` kind.
  * the Proxy's `else` branch (fall-through to the core throwing-stub
  * Proxy) is dead code at runtime — kept as defence-in-depth for
  * unknown property access (e.g. JS code accessing a property name

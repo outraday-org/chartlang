@@ -23,6 +23,8 @@ export type RecordedCall =
           readonly w: number;
           readonly h: number;
       }
+    | { readonly kind: "save" }
+    | { readonly kind: "restore" }
     | { readonly kind: "beginPath" }
     | { readonly kind: "moveTo"; readonly x: number; readonly y: number }
     | { readonly kind: "lineTo"; readonly x: number; readonly y: number }
@@ -89,6 +91,14 @@ export class MockCanvas2DContext {
 
     clearRect(x: number, y: number, w: number, h: number): void {
         this.calls.push({ kind: "clearRect", x, y, w, h });
+    }
+
+    save(): void {
+        this.calls.push({ kind: "save" });
+    }
+
+    restore(): void {
+        this.calls.push({ kind: "restore" });
     }
 
     beginPath(): void {
@@ -239,6 +249,8 @@ function canonicalise(call: RecordedCall): Record<string, unknown> {
             return { kind: call.kind, prop: call.prop, value };
         }
         case "beginPath":
+        case "save":
+        case "restore":
         case "stroke":
         case "fill":
         case "closePath":

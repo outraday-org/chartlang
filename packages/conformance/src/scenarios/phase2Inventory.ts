@@ -143,7 +143,6 @@ export const PHASE_5_DEFERRED: ReadonlyArray<string> = Object.freeze([
     // Volume-profile family — needs `horizontal-histogram` PlotKind
     // + viewport / anchor / session input plumbing.
     "visibleRangeVolumeProfile",
-    "anchoredVolumeProfile",
     "sessionVolumeProfile",
     "fixedRangeVolumeProfile",
 

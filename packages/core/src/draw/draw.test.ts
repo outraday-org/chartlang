@@ -58,4 +58,10 @@ describe("draw throwing stub", () => {
             ]),
         ).toThrow("draw.abcdPattern called outside compiled runtime");
     });
+
+    it("throws for draw.table", () => {
+        expect(() => draw.table({ position: "top-right", cells: [[{ text: "P&L" }]] })).toThrow(
+            "draw.table called outside compiled runtime",
+        );
+    });
 });

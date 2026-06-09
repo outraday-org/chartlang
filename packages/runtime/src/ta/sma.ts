@@ -18,6 +18,7 @@ import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
 import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
 
 type SmaSlot = {
+    readonly kind: "ta.sma";
     readonly outBuffer: Float64RingBuffer;
     readonly series: Series<number>;
     readonly length: number;
@@ -49,6 +50,7 @@ function getCtx(): RuntimeContext {
 function initSlot(length: number, capacity: number): SmaSlot {
     const outBuffer = new Float64RingBuffer(capacity);
     return {
+        kind: "ta.sma",
         outBuffer,
         series: makeSeriesView<number>(outBuffer),
         length,

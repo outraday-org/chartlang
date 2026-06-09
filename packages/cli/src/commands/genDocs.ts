@@ -80,7 +80,7 @@ export class GenDocsError extends Error {
     }
 }
 
-const SKIP_BASENAMES = new Set(["index.ts", "registry.ts", "sourceValue.ts"]);
+const SKIP_BASENAMES = new Set(["index.ts", "persistence.ts", "registry.ts", "sourceValue.ts"]);
 const SKIP_SUFFIXES = [
     ".test.ts",
     ".bench.ts",

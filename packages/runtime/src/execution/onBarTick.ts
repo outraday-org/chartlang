@@ -5,9 +5,11 @@ import type { Bar } from "@invinite-org/chartlang-core";
 
 import { buildComputeContext } from "../buildComputeContext";
 import type { RunnerState } from "../createScriptRunner";
+import { isRuntimeErrorHalt, pushDiagnostic } from "../emit";
 import { resetSubIdCounters } from "../emit/draw";
 import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext";
 import { resetTentativeStateSlots } from "../state";
+import { replaceTickHead, updateFallbackViewport } from "../streamState";
 import { refreshRuntimeViews } from "../views";
 
 /**
@@ -31,36 +33,21 @@ import { refreshRuntimeViews } from "../views";
  *     // await onBarTick(state, tickBar);
  */
 export async function onBarTick(state: RunnerState, rawBar: Bar): Promise<void> {
-    const { ohlcv, bar } = state.mainStream;
-    const hl2 = (rawBar.high + rawBar.low) / 2;
-    const hlc3 = (rawBar.high + rawBar.low + rawBar.close) / 3;
-    const ohlc4 = (rawBar.open + rawBar.high + rawBar.low + rawBar.close) / 4;
-    const hlcc4 = (rawBar.high + rawBar.low + rawBar.close + rawBar.close) / 4;
-
-    ohlcv.close.replaceHead(rawBar.close);
-    ohlcv.high.replaceHead(rawBar.high);
-    ohlcv.low.replaceHead(rawBar.low);
-    ohlcv.volume.replaceHead(rawBar.volume);
-    ohlcv.hl2.replaceHead(hl2);
-    ohlcv.hlc3.replaceHead(hlc3);
-    ohlcv.ohlc4.replaceHead(ohlc4);
-    ohlcv.hlcc4.replaceHead(hlcc4);
-
-    bar.close = rawBar.close;
-    bar.high = rawBar.high;
-    bar.low = rawBar.low;
-    bar.volume = rawBar.volume;
-    bar.hl2 = hl2;
-    bar.hlc3 = hlc3;
-    bar.ohlc4 = ohlc4;
-    bar.hlcc4 = hlcc4;
+    replaceTickHead(state.mainStream, rawBar);
+    updateFallbackViewport(state.mainStream);
 
     state.emissions.plots = [];
     state.emissions.drawings = [];
     state.emissions.alerts = [];
+    state.emissions.alertConditions = [];
+    state.emissions.logs = [];
     state.emissions.diagnostics = [];
     state.emissions.fromBar = state.barIndex;
     state.emissions.toBar = state.barIndex;
+    state.runtimeContext.requestSecurityAlignments.clear();
+    state.runtimeContext.requestSecurityAscendingBars.clear();
+    state.runtimeContext.logBudget = 0;
+    state.runtimeContext.logBudgetExceededDiagnosed = false;
 
     ACTIVE_RUNTIME_CONTEXT.current = state.runtimeContext;
     state.runtimeContext.isTick = true;
@@ -68,7 +55,24 @@ export async function onBarTick(state: RunnerState, rawBar: Bar): Promise<void> 
         resetSubIdCounters(state.runtimeContext);
         resetTentativeStateSlots(state.runtimeContext);
         refreshRuntimeViews(state, "tick");
-        await Promise.resolve(state.compute(buildComputeContext(state)));
+        try {
+            await Promise.resolve(state.compute(buildComputeContext(state)));
+        } catch (err) {
+            if (!isRuntimeErrorHalt(err)) throw err;
+            state.emissions.plots = [];
+            state.emissions.drawings = [];
+            state.emissions.alerts = [];
+            state.emissions.alertConditions = [];
+            state.emissions.logs = [];
+            pushDiagnostic(state.emissions, {
+                kind: "diagnostic",
+                severity: "error",
+                code: "runtime-error-thrown",
+                message: err.message,
+                slotId: null,
+                bar: state.barIndex,
+            });
+        }
     } finally {
         state.runtimeContext.isTick = false;
         ACTIVE_RUNTIME_CONTEXT.current = null;
