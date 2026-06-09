@@ -99,9 +99,11 @@ discriminant inline with `@since 0.5`.
   `requestSecurityAlignments` and serialises a snapshot per Task 2
   cadence (the snapshot now carries every secondary stream too).
 
-### 4. `packages/runtime/src/request/security.ts` (replace stub)
+### 4. `packages/runtime/src/request/securityBarStub.ts` (replace stub)
 
-- Update the Phase-4 NaN stub to:
+The Phase-4 file is `securityBarStub.ts` exporting `makeNanSecurityBar()`.
+Rename to `security.ts` (or keep the filename + rename the function to
+`makeSecurityBar`) — the rename is part of this task. Update its body to:
   - Check `capabilities.multiTimeframe`. If `false` → existing
     NaN + `multi-timeframe-not-supported` (no change).
   - Check `interval ∈ capabilities.intervals.map(d => d.value)`.
@@ -152,9 +154,11 @@ Build a multi-stream candle pump:
 
 ### 8. Conformance scenarios
 
-Three new scenarios under `packages/conformance/src/scenarios/`:
+Three new scenarios under `packages/conformance/src/scenarios/`.
+Existing scenarios use the `<name>.scenario.ts` suffix
+(e.g. `barstateConfirmed.scenario.ts`); follow the same convention.
 
-#### `mtfRequestSecurityClose.ts`
+#### `mtfRequestSecurityClose.scenario.ts`
 
 - `inlineSource` declares a script that calls `request.security("1D", "close")`
   and plots the result.
@@ -163,7 +167,7 @@ Three new scenarios under `packages/conformance/src/scenarios/`:
   - No `multi-timeframe-not-supported` diagnostic.
   - No `unsupported-interval` diagnostic.
 
-#### `mtfUnsupportedInterval.ts`
+#### `mtfUnsupportedInterval.scenario.ts`
 
 - Script requests `"7D"` (not in `Capabilities.intervals`).
 - Assertions:
@@ -171,7 +175,7 @@ Three new scenarios under `packages/conformance/src/scenarios/`:
     per callsite mount.
   - `plot-hash`: NaN-only series.
 
-#### `mtfCapabilityFalse.ts`
+#### `mtfCapabilityFalse.scenario.ts`
 
 - Script requests `"1D"` but the conformance harness configures
   `multiTimeframe: false`.
@@ -206,15 +210,15 @@ Three new scenarios under `packages/conformance/src/scenarios/`:
 | `packages/adapter-kit/src/types.ts` | Modify | Add `CandleEvent.streamKey?: string` |
 | `packages/runtime/src/runtimeContext.ts` | Modify | `secondaryStreams`, `requestSecurityAlignments` |
 | `packages/runtime/src/createScriptRunner.ts` | Modify | Mount secondary streams; route events; per-bar align cache clear |
-| `packages/runtime/src/request/security.ts` | Modify | Replace NaN stub with real HTF path |
-| `packages/runtime/src/request/security.test.ts` | Modify | New diagnostic cases + identity test |
+| `packages/runtime/src/request/securityBarStub.ts` | Modify (or rename to `security.ts`) | Replace NaN stub with real HTF path |
+| `packages/runtime/src/request/securityBarStub.test.ts` | Modify (or rename) | New diagnostic cases + identity test |
 | `packages/runtime/src/createScriptRunner.test.ts` | Modify | Multi-stream mount tests |
 | `examples/canvas2d-adapter/src/capabilities.ts` | Modify | `multiTimeframe: true` |
 | `examples/canvas2d-adapter/src/streamPump.ts` | Create | Multi-stream candle pump |
 | `examples/canvas2d-adapter/src/integration.test.ts` | Modify | MTF integration test |
-| `packages/conformance/src/scenarios/mtfRequestSecurityClose.ts` | Create | Happy-path MTF scenario |
-| `packages/conformance/src/scenarios/mtfUnsupportedInterval.ts` | Create | `unsupported-interval` scenario |
-| `packages/conformance/src/scenarios/mtfCapabilityFalse.ts` | Create | `multi-timeframe-not-supported` scenario |
+| `packages/conformance/src/scenarios/mtfRequestSecurityClose.scenario.ts` | Create | Happy-path MTF scenario |
+| `packages/conformance/src/scenarios/mtfUnsupportedInterval.scenario.ts` | Create | `unsupported-interval` scenario |
+| `packages/conformance/src/scenarios/mtfCapabilityFalse.scenario.ts` | Create | `multi-timeframe-not-supported` scenario |
 | `packages/conformance/src/scenarios/index.ts` | Modify | Register the 3 new scenarios |
 
 ## Gates

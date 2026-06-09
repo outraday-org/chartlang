@@ -157,9 +157,12 @@ with the viewport-anchored fields. No world-space anchor needed —
 the runtime passes the position enum + cells verbatim. Reuse the
 existing slot-id + handle pattern.
 
-### 11. `examples/canvas2d-adapter/src/renderDrawing.ts` — viewport renderer
+### 11. `examples/canvas2d-adapter/src/render/draw/table.ts` — viewport renderer
 
-New render function. Key points:
+The reference adapter renders drawings through per-kind files under
+`examples/canvas2d-adapter/src/render/draw/`. Add a new `table.ts`
+alongside the existing per-kind drawing renderers (with a matching
+`render/draw/table.test.ts`). Key points:
 
 - `position` maps to anchor coordinates relative to the chart's
   CSS-pixel viewport (NOT world-space):
@@ -181,12 +184,15 @@ Append `"table"` to `CANVAS2D_CAPABILITIES.drawings` and to
 
 ### 13. Conformance scenarios
 
-- `drawTableHappy.ts` — script declares a 3-row × 2-col table with
-  mixed styling. Assertions:
+Existing scenarios sit flat under `packages/conformance/src/scenarios/`
+with the `<name>.scenario.ts` suffix; follow the same convention.
+
+- `drawTableHappy.scenario.ts` — script declares a 3-row × 2-col
+  table with mixed styling. Assertions:
   - `drawing-hash` matches captured golden.
   - No diagnostic.
-- `drawTableGated.ts` — same script with `Capabilities.drawings`
-  not including `"table"`. Assertions:
+- `drawTableGated.scenario.ts` — same script with
+  `Capabilities.drawings` not including `"table"`. Assertions:
   - `drawing-hash` is empty.
   - `diagnostic-code-present`: `unsupported-drawing-kind` (existing
     diagnostic code; no new code).
@@ -201,7 +207,7 @@ Append `"table"` to `CANVAS2D_CAPABILITIES.drawings` and to
   — table-specific failure modes.
 - `packages/runtime/src/emit/drawingEmission.test.ts` — table emit
   path.
-- `examples/canvas2d-adapter/src/renderDrawing.test.ts` — render
+- `examples/canvas2d-adapter/src/render/draw/table.test.ts` — render
   ops for each `position` enum value.
 
 ### 15. JSDoc + ambient shim
@@ -224,10 +230,11 @@ Append `"table"` to `CANVAS2D_CAPABILITIES.drawings` and to
 | `packages/adapter-kit/src/types.ts` | Modify | `DrawingState` table variant |
 | `packages/adapter-kit/src/validation/validateEmission.ts` | Modify | `validateTableDrawing` |
 | `packages/runtime/src/emit/drawingEmission.ts` | Modify | Table dispatch |
-| `examples/canvas2d-adapter/src/renderDrawing.ts` | Modify | Viewport-anchored renderer |
+| `examples/canvas2d-adapter/src/render/draw/table.ts` | Create | Viewport-anchored renderer |
+| `examples/canvas2d-adapter/src/render/draw/table.test.ts` | Create | Renderer ops per `position` |
 | `examples/canvas2d-adapter/src/capabilities.ts` | Modify | Include `"table"` |
-| `packages/conformance/src/scenarios/drawTableHappy.ts` | Create | Happy |
-| `packages/conformance/src/scenarios/drawTableGated.ts` | Create | Capability gated |
+| `packages/conformance/src/scenarios/drawTableHappy.scenario.ts` | Create | Happy |
+| `packages/conformance/src/scenarios/drawTableGated.scenario.ts` | Create | Capability gated |
 | `packages/conformance/src/scenarios/index.ts` | Modify | Register |
 | `packages/compiler/src/program.ts` | Modify | Mirror types in ambient shim |
 

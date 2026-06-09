@@ -15,7 +15,7 @@ page.
 ## Prerequisites
 
 - Task 14: shared volume-profile lib port available at
-  `packages/runtime/src/ta/_lib/volume-profile/`.
+  `packages/runtime/src/ta/lib/volume-profile/`.
 
 ## Current Behavior
 
@@ -59,7 +59,7 @@ page.
 ### 2. `packages/runtime/src/ta/visibleRangeVolumeProfile.ts`
 
 ```ts
-import { computeProfile, type ProfileConfig } from "./_lib/volume-profile";
+import { computeProfile, type ProfileConfig } from "./lib/volume-profile";
 import type { Series, ComputeContext } from "@invinite-org/chartlang-core";
 
 export type VisibleRangeVolumeProfileOpts = Readonly<{
@@ -96,7 +96,7 @@ export function visibleRangeVolumeProfile(
 }
 ```
 
-### 3. `_lib/volume-profile/index.ts` extension
+### 3. `lib/volume-profile/index.ts` extension
 
 Re-export `computeProfile` + the `ProfileConfig` type from Task 14
 so the indicator can pull both with a single import.
@@ -148,7 +148,10 @@ namespace + the compile-time hole stub.
 
 ### 7. Conformance scenario
 
-`packages/conformance/src/scenarios/taVisibleRangeVolumeProfile.ts`:
+Existing scenarios use the `<name>.scenario.ts` suffix
+(e.g. `barstateConfirmed.scenario.ts`).
+
+`packages/conformance/src/scenarios/taVisibleRangeVolumeProfile.scenario.ts`:
 
 - Script: `defineIndicator` calling `ta.visibleRangeVolumeProfile()`
   and plotting `poc` + emitting buckets as a `horizontal-histogram`.
@@ -183,11 +186,11 @@ silent no-op + `unsupported-plot-kind` diagnostic.
 | `packages/runtime/src/ta/visibleRangeVolumeProfile.bench.ts` | Create | Bench |
 | `packages/runtime/src/ta/visibleRangeVolumeProfile.bench.test.ts` | Create | Threshold |
 | `packages/runtime/src/ta/registry.ts` | Modify | Register |
-| `packages/runtime/src/ta/_lib/volume-profile/index.ts` | Modify | Re-export `computeProfile` |
+| `packages/runtime/src/ta/lib/volume-profile/index.ts` | Modify | Re-export `computeProfile` |
 | `packages/core/src/ta/index.ts` (or namespace file) | Modify | Add to `ta` namespace |
 | `packages/core/src/statefulPrimitives.ts` | Modify | Append; bump to 168 |
 | `packages/compiler/src/program.ts` | Modify | Mirror in `CORE_AMBIENT_SHIM` |
-| `packages/conformance/src/scenarios/taVisibleRangeVolumeProfile.ts` | Create | Scenario |
+| `packages/conformance/src/scenarios/taVisibleRangeVolumeProfile.scenario.ts` | Create | Scenario |
 | `packages/conformance/src/scenarios/index.ts` | Modify | Register |
 
 ## Gates

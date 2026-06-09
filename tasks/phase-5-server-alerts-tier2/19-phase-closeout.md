@@ -35,8 +35,10 @@ value (171 — Task 18 noted the off-by-one).
   bump strategy each changeset declares).
 - `pnpm changeset version` applied; `pnpm changeset publish` rehearsal
   via `--dry-run` succeeds.
-- The Phase-5 README's projection (170) updated to the actual final
-  cardinality (171).
+- The Phase-5 README's Code Reuse row reports the final cardinality
+  as `163 → 171` (already corrected during validation; confirm no
+  stale `170` survives in the README or in any task other than
+  Task 17, which legitimately bumps to 170 as its per-task increment).
 - Every done-criterion bullet ticked.
 
 ## Requirements
@@ -65,8 +67,10 @@ value (171 — Task 18 noted the off-by-one).
 - Confirm `tasks/phase-5-server-alerts-tier2/README.md` "Target State"
   section's `STATEFUL_PRIMITIVES` final cardinality (171) matches
   the actual test assertion in
-  `packages/core/src/statefulPrimitives.test.ts`. If they diverge —
-  audit each task's increment and reconcile.
+  `packages/core/src/statefulPrimitives.test.ts`. Validation already
+  corrected the README's Code Reuse row from `163 → 170` to `163 → 171`
+  (Task 10 +1, Task 11 +2, Task 12 +1, Tasks 15–18 +4); confirm no
+  other stale 170 reference survives in this folder.
 
 ### 4. Version bumps
 
@@ -141,7 +145,7 @@ folder (`tasks/phase-6-tier3-ltf/`). Just a one-line link.
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `tasks/phase-5-server-alerts-tier2/README.md` | Modify | Correct 170 → 171; add Phase-6 link |
+| `tasks/phase-5-server-alerts-tier2/README.md` | Modify | (Validation already corrected the Code Reuse `163 → 171` row.) Add Phase-6 hand-off link. Confirm no stale `170` remains. |
 | `packages/*/README.md` | Modify | Trim to ≤ 100 lines where needed |
 | `packages/*/package.json` (bumped versions) | Modify | Via `pnpm changeset version` |
 | `packages/*/src/index.ts` (PACKAGE_VERSION) | Modify | Sync to bumped version |
@@ -171,7 +175,9 @@ prior Phase-5 changesets via `pnpm changeset version`.
 - [ ] `pnpm changeset publish --dry-run` exits 0.
 - [ ] `pnpm chartlang docs` regenerated; `pnpm docs:check` green.
 - [ ] `pnpm readme:check` green.
-- [ ] Phase-5 README's cardinality projection corrected (170 → 171).
+- [ ] Phase-5 README's cardinality projection reads `163 → 171`
+      (corrected during validation; this closeout confirms no
+      regression).
 - [ ] Every done-criterion bullet from the Phase-5 README ticked.
 - [ ] `pnpm -r test` green at 100% coverage.
 - [ ] `pnpm conformance` green; every new scenario passing.

@@ -268,6 +268,9 @@ overwrite the existing `defineState`/`stateTickSlot` files.)
       green.
 - [ ] `pnpm -F @invinite-org/chartlang-core test --coverage` reports
       100% on the touched files.
-- [ ] `pnpm docs:check` green; auto-generated `docs/primitives/state/`
-      pages exist for the three new types.
+- [ ] `pnpm docs:check` green (JSDoc on the three new exports passes
+      the gate). No auto-generated docs page expected — `scripts/gen-docs.ts`
+      walks function primitives in `packages/runtime/src/ta/` only;
+      type-only modules under `packages/core/src/state/` are out of
+      scope for the generator.
 - [ ] Changeset committed; `pnpm changeset status` lists the bump.

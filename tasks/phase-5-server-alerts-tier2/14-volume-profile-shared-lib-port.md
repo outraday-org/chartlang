@@ -6,7 +6,7 @@
 
 Port the shared volume-profile math from
 `../invinite/src/components/trading-chart/indicators/lib/volume-profile/`
-into `packages/runtime/src/ta/_lib/volume-profile/`. The four VP
+into `packages/runtime/src/ta/lib/volume-profile/`. The four VP
 indicators (Tasks 15–18) all consume this lib; landing it first
 means each indicator task is a clean §22.10 set against a stable
 helper surface.
@@ -18,9 +18,9 @@ helper surface.
 
 ## Current Behavior
 
-- `packages/runtime/src/ta/_lib/` does not yet exist as a `volume-profile`
-  sub-directory (other helpers like `applyOffset.ts`, `tr-series.ts`
-  exist directly in `_lib/` from Phase 2).
+- `packages/runtime/src/ta/lib/` exists (Phase-2 helpers like
+  `applyOffset.ts`, `computeMa.ts`, `linearRegression.ts`, `pearson.ts`
+  live there). Has no `volume-profile/` sub-directory yet.
 - Invinite's volume-profile lib at
   `../invinite/src/components/trading-chart/indicators/lib/volume-profile/`
   contains:
@@ -35,7 +35,7 @@ helper surface.
 
 ## Desired Behavior
 
-- `packages/runtime/src/ta/_lib/volume-profile/` ships every helper
+- `packages/runtime/src/ta/lib/volume-profile/` ships every helper
   ported 1:1 with the 4-line provenance header.
 - Each helper retains its invinite test, retargeted at the chartlang
   `Series<T>` shape where applicable (the helpers are mostly numeric-
@@ -60,47 +60,47 @@ helper surface.
 
 ### 2. Ports (in dependency order)
 
-#### `packages/runtime/src/ta/_lib/volume-profile/types.ts`
+#### `packages/runtime/src/ta/lib/volume-profile/types.ts`
 
 Pure types — bucket shape (`{ low, high, volume, mid }`), value-area
 result (`{ valHigh, valLow, poc }`), config (`{ rowSize, valueAreaPct }`).
 Mirror the invinite shape exactly.
 
-#### `packages/runtime/src/ta/_lib/volume-profile/bucketEdges.ts`
+#### `packages/runtime/src/ta/lib/volume-profile/bucketEdges.ts`
 
 Pure math producing bucket edges given `[lowPrice, highPrice]` and
 `rowSize`. JSDoc references the math.
 
-#### `packages/runtime/src/ta/_lib/volume-profile/bucketizeVolume.ts`
+#### `packages/runtime/src/ta/lib/volume-profile/bucketizeVolume.ts`
 
 The hot-path function: walks an OHLCV slice + bucket edges and
 distributes each bar's volume across buckets it overlaps. Returns
 a `ReadonlyArray<{ price: number, volume: number }>` per the PLAN
 `horizontal-histogram` `buckets` shape.
 
-#### `packages/runtime/src/ta/_lib/volume-profile/valueArea.ts`
+#### `packages/runtime/src/ta/lib/volume-profile/valueArea.ts`
 
 Computes the value-area high/low + point-of-control (POC) given
 the bucket array and a `valueAreaPct` (default 70%). Pure
 greedy expansion from POC.
 
-#### `packages/runtime/src/ta/_lib/volume-profile/intercept.ts`
+#### `packages/runtime/src/ta/lib/volume-profile/intercept.ts`
 
 Helper for the volume-at-price intersection (used by anchored /
 session VPs to detect "developing" interest at the current price).
 
-#### `packages/runtime/src/ta/_lib/volume-profile/tooHeavy.ts`
+#### `packages/runtime/src/ta/lib/volume-profile/tooHeavy.ts`
 
 Guard preventing pathological bucket counts (e.g. an asset with
 huge price range + small rowSize → millions of buckets). Returns
 a boolean + a recommended fallback `rowSize` if too heavy.
 
-#### `packages/runtime/src/ta/_lib/volume-profile/developingSeries.ts`
+#### `packages/runtime/src/ta/lib/volume-profile/developingSeries.ts`
 
 Computes per-bar series for "developing" POC / value-area (used by
 the anchored / session VPs for time-series plot overlays).
 
-#### `packages/runtime/src/ta/_lib/volume-profile/volumeProfileShared.ts`
+#### `packages/runtime/src/ta/lib/volume-profile/volumeProfileShared.ts`
 
 Top-level utilities consumed by the indicators — `computeProfile(opts)`
 glueing the above into one call.
@@ -127,10 +127,10 @@ Each helper ships:
 - `bucketizeVolume.bench.test.ts` — `THRESHOLD_MS = 10` (per
   invinite's perf characteristics; document the budget rationale).
 
-### 5. `packages/runtime/src/ta/_lib/volume-profile/index.ts`
+### 5. `packages/runtime/src/ta/lib/volume-profile/index.ts`
 
 Barrel re-exporting every helper for the indicator tasks (15–18) to
-import as a single `_lib/volume-profile` module. Package-private —
+import as a single `lib/volume-profile` module. Package-private —
 the parent `packages/runtime/src/index.ts` does NOT re-export.
 
 ### 6. JSDoc
@@ -150,26 +150,26 @@ relevant.
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `packages/runtime/src/ta/_lib/volume-profile/types.ts` | Create | Type aliases |
-| `packages/runtime/src/ta/_lib/volume-profile/bucketEdges.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/bucketEdges.test.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/bucketizeVolume.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/bucketizeVolume.test.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/bucketizeVolume.property.test.ts` | Create | Property invariants |
-| `packages/runtime/src/ta/_lib/volume-profile/bucketizeVolume.bench.ts` | Create | Bench |
-| `packages/runtime/src/ta/_lib/volume-profile/bucketizeVolume.bench.test.ts` | Create | Threshold gate |
-| `packages/runtime/src/ta/_lib/volume-profile/valueArea.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/valueArea.test.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/valueArea.property.test.ts` | Create | Property |
-| `packages/runtime/src/ta/_lib/volume-profile/intercept.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/intercept.test.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/tooHeavy.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/tooHeavy.test.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/developingSeries.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/developingSeries.test.ts` | Create | Port |
-| `packages/runtime/src/ta/_lib/volume-profile/developingSeries.property.test.ts` | Create | Property |
-| `packages/runtime/src/ta/_lib/volume-profile/volumeProfileShared.ts` | Create | Top-level glue |
-| `packages/runtime/src/ta/_lib/volume-profile/index.ts` | Create | Package-private barrel |
+| `packages/runtime/src/ta/lib/volume-profile/types.ts` | Create | Type aliases |
+| `packages/runtime/src/ta/lib/volume-profile/bucketEdges.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/bucketEdges.test.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/bucketizeVolume.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/bucketizeVolume.test.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/bucketizeVolume.property.test.ts` | Create | Property invariants |
+| `packages/runtime/src/ta/lib/volume-profile/bucketizeVolume.bench.ts` | Create | Bench |
+| `packages/runtime/src/ta/lib/volume-profile/bucketizeVolume.bench.test.ts` | Create | Threshold gate |
+| `packages/runtime/src/ta/lib/volume-profile/valueArea.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/valueArea.test.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/valueArea.property.test.ts` | Create | Property |
+| `packages/runtime/src/ta/lib/volume-profile/intercept.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/intercept.test.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/tooHeavy.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/tooHeavy.test.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/developingSeries.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/developingSeries.test.ts` | Create | Port |
+| `packages/runtime/src/ta/lib/volume-profile/developingSeries.property.test.ts` | Create | Property |
+| `packages/runtime/src/ta/lib/volume-profile/volumeProfileShared.ts` | Create | Top-level glue |
+| `packages/runtime/src/ta/lib/volume-profile/index.ts` | Create | Package-private barrel |
 
 ## Gates
 

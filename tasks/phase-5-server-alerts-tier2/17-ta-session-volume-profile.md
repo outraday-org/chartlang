@@ -49,7 +49,7 @@ that resets each session. Ships the full §22.10 set.
 ### 2. `packages/runtime/src/ta/sessionVolumeProfile.ts`
 
 ```ts
-import { computeProfile, developingSeries } from "./_lib/volume-profile";
+import { computeProfile, developingSeries } from "./lib/volume-profile";
 import type { Series, ComputeContext } from "@invinite-org/chartlang-core";
 
 export type SessionVolumeProfileOpts = Readonly<{
@@ -155,13 +155,15 @@ the implementation falls back to a UTC-day boundary
 
 ### 7. Conformance scenario
 
-`packages/conformance/src/scenarios/taSessionVolumeProfile.ts`:
+Existing scenarios use the `<name>.scenario.ts` suffix.
+
+`packages/conformance/src/scenarios/taSessionVolumeProfile.scenario.ts`:
 
 - Script: `defineIndicator` calling `ta.sessionVolumeProfile()`.
 - Harness configures `syminfo.session` per scenario.
 - Assertions: `plot-hash` against captured golden + no diagnostic.
 
-Second scenario `taSessionVolumeProfileNoSession.ts`:
+Second scenario `taSessionVolumeProfileNoSession.scenario.ts`:
 
 - Same script with `syminfo.session` undefined.
 - Assertions: `plot-hash` against UTC-day-fallback golden +
@@ -193,8 +195,8 @@ JSDoc with full tag set; mirror in `CORE_AMBIENT_SHIM`.
 | `packages/core/src/ta/index.ts` (namespace) | Modify | Add to `ta` namespace |
 | `packages/core/src/statefulPrimitives.ts` | Modify | Append; bump to 170 |
 | `packages/compiler/src/program.ts` | Modify | Mirror in `CORE_AMBIENT_SHIM` |
-| `packages/conformance/src/scenarios/taSessionVolumeProfile.ts` | Create | Scenario |
-| `packages/conformance/src/scenarios/taSessionVolumeProfileNoSession.ts` | Create | Fallback |
+| `packages/conformance/src/scenarios/taSessionVolumeProfile.scenario.ts` | Create | Scenario |
+| `packages/conformance/src/scenarios/taSessionVolumeProfileNoSession.scenario.ts` | Create | Fallback |
 | `packages/conformance/src/scenarios/index.ts` | Modify | Register |
 
 ## Gates

@@ -147,11 +147,14 @@ Add `logs: ReadonlyArray<LogEmission>` to `RunnerEmissions`.
 
 Failures sink into `malformed-emission` diagnostic + drop emission.
 
-### 7. `packages/adapter-kit/src/capabilities/capabilities.ts` — add builder
+### 7. `packages/adapter-kit/src/capabilities/capabilities.ts` — verify builder
 
-```ts
-export const logs = (enabled: boolean): Pick<Capabilities, "logs"> => ({ logs: enabled });
-```
+The `capabilities.logs(enabled)` builder already exists
+(line ~200, shipped in Phase 4 as part of the boolean-builder pattern).
+Confirm it is correctly wired by the conformance scenarios; no new
+builder is added in this task. Update its JSDoc only if it still
+says "Phase 5 will wire the runtime semantics" — bump to reflect that
+those semantics now ship.
 
 ### 8. `packages/runtime/src/emit/logEmission.ts` (new)
 
@@ -209,24 +212,37 @@ identity-free). Bump cardinality test to **166**.
 
 `logs: true`.
 
-### 14. `examples/canvas2d-adapter/src/render.ts` — log pane stub
+### 14. `examples/canvas2d-adapter/src/render/logPane.ts` (new) — log pane stub
 
-Render a small text box at the bottom of the chart pane carrying
-the latest 5 log entries. Behaviour test asserts the canvas ops
-include the expected `fillText` calls when emissions are present.
+The reference adapter uses per-surface files under `src/render/`;
+follow the same pattern. Create `render/logPane.ts` rendering a
+small text box at the bottom of the chart pane carrying the latest
+5 log entries. Wire it from the existing `createCanvas2dAdapter.ts`
+render loop. Behaviour test asserts the canvas ops include the
+expected `fillText` calls when emissions are present. Land matching
+`render/logPane.test.ts`.
 
 ### 15. Conformance scenarios
 
-- `runtimeLogInfo.ts` — script logs an info message every bar.
-  Assertion: `log-emission-count` = bar count (new assertion
-  variant; minimal addition to `runConformanceSuite.ts`).
-- `runtimeLogGated.ts` — same script with `logs: false`. Assertion:
-  `log-emission-count` = 0; no `alert-conditions-not-supported`-style
-  diagnostic (logs are silent when gated).
-- `runtimeLogBudget.ts` — script logs 1100 times in one bar.
-  Assertion: `log-emission-count` = 1000;
+Existing scenarios sit flat under `packages/conformance/src/scenarios/`
+with the `<name>.scenario.ts` suffix
+(e.g. `barstateConfirmed.scenario.ts`); follow the same convention.
+
+The `log-emission-count` assertion variant is **new** — extend the
+`ScenarioAssertion` discriminated union in
+`packages/conformance/src/runConformanceSuite.ts` (~lines 122–137)
+with `{ kind: "log-emission-count"; expected: number }`.
+
+- `runtimeLogInfo.scenario.ts` — script logs an info message every
+  bar. Assertion: `log-emission-count` = bar count.
+- `runtimeLogGated.scenario.ts` — same script with `logs: false`.
+  Assertion: `log-emission-count` = 0; no
+  `alert-conditions-not-supported`-style diagnostic (logs are silent
+  when gated).
+- `runtimeLogBudget.scenario.ts` — script logs 1100 times in one
+  bar. Assertion: `log-emission-count` = 1000;
   `diagnostic-code-present`: `runtime-log-budget-exceeded`.
-- `runtimeError.ts` — script calls `runtime.error("invariant")`
+- `runtimeError.scenario.ts` — script calls `runtime.error("invariant")`
   unconditionally. Assertion: bar's emissions are empty;
   `diagnostic-code-present`: `runtime-error-thrown`.
 
@@ -257,7 +273,7 @@ include the expected `fillText` calls when emissions are present.
 | `packages/core/src/statefulPrimitives.ts` | Modify | Append 2 entries; bump to 166 |
 | `packages/adapter-kit/src/types.ts` | Modify | `LogEmission` + `RunnerEmissions.logs` |
 | `packages/adapter-kit/src/validation/validateEmission.ts` | Modify | `validateLogEmission` |
-| `packages/adapter-kit/src/capabilities/capabilities.ts` | Modify | `logs` builder |
+| `packages/adapter-kit/src/capabilities/capabilities.ts` | (Verify only) | Phase-4 `logs` builder already exists; confirm JSDoc reflects Phase-5 runtime semantics |
 | `packages/runtime/src/emit/logEmission.ts` | Create | Emit + cap + gating |
 | `packages/runtime/src/emit/logEmission.test.ts` | Create | Unit tests |
 | `packages/runtime/src/emit/runtimeError.ts` | Create | Halt sentinel |
@@ -267,11 +283,13 @@ include the expected `fillText` calls when emissions are present.
 | `packages/runtime/src/createScriptRunner.ts` | Modify | Catch halt sentinel; drop bar emissions; reset `logBudget` per step |
 | `packages/compiler/src/program.ts` | Modify | Mirror in `CORE_AMBIENT_SHIM` |
 | `examples/canvas2d-adapter/src/capabilities.ts` | Modify | `logs: true` |
-| `examples/canvas2d-adapter/src/render.ts` | Modify | Log pane stub |
-| `packages/conformance/src/scenarios/runtimeLogInfo.ts` | Create | Happy |
-| `packages/conformance/src/scenarios/runtimeLogGated.ts` | Create | Capability gate |
-| `packages/conformance/src/scenarios/runtimeLogBudget.ts` | Create | 1000-cap |
-| `packages/conformance/src/scenarios/runtimeError.ts` | Create | Halt |
+| `examples/canvas2d-adapter/src/render/logPane.ts` | Create | Log pane stub |
+| `examples/canvas2d-adapter/src/render/logPane.test.ts` | Create | Op-sequence test |
+| `examples/canvas2d-adapter/src/createCanvas2dAdapter.ts` | Modify | Wire log-pane renderer into render loop |
+| `packages/conformance/src/scenarios/runtimeLogInfo.scenario.ts` | Create | Happy |
+| `packages/conformance/src/scenarios/runtimeLogGated.scenario.ts` | Create | Capability gate |
+| `packages/conformance/src/scenarios/runtimeLogBudget.scenario.ts` | Create | 1000-cap |
+| `packages/conformance/src/scenarios/runtimeError.scenario.ts` | Create | Halt |
 | `packages/conformance/src/scenarios/index.ts` | Modify | Register |
 | `packages/conformance/src/runConformanceSuite.ts` | Modify | New `log-emission-count` assertion variant |
 

@@ -221,16 +221,14 @@ Add `alertConditions: ReadonlyArray<AlertConditionEmission>` to
 `validateAlertConditionEmission` checks the shape; reject empty
 `conditionId` or non-finite `bar` / `time`.
 
-### 8. `packages/adapter-kit/src/capabilities/capabilities.ts` — add builder
+### 8. `packages/adapter-kit/src/capabilities/capabilities.ts` — verify builder
 
-```ts
-export const alertConditions = (enabled: boolean): Pick<Capabilities, "alertConditions"> => ({
-    alertConditions: enabled,
-});
-```
-
-(Mirror the existing Phase-4 boolean-builder pattern, e.g.
-`capabilities.multiTimeframe`.)
+The `capabilities.alertConditions(enabled)` builder already exists
+(line ~186, shipped in Phase 4 as part of the boolean-builder pattern).
+Confirm it is correctly wired by the conformance scenarios; no new
+builder is added in this task. Update its JSDoc only if it still
+says "Phase 5 will wire the runtime semantics" — bump to reflect that
+those semantics now ship.
 
 ### 9. `packages/runtime/src/emit/alertConditionEmission.ts` (new)
 
@@ -267,26 +265,37 @@ cardinality test assertion to **164**.
 
 `alertConditions: true`.
 
-### 14. `examples/canvas2d-adapter/src/render.ts` — add UI surface
+### 14. `examples/canvas2d-adapter/src/render/alertConditions.ts` (new) — add UI surface
 
-A tiny side-panel rendering for fired alert conditions on the latest
-bar. Behaviour: lists `conditionId` + `defaultMessage` for each
-fired emission. Non-rendering test posture: assert the canvas op
-sequence includes the expected `fillText` calls when emissions are
-present, none when absent.
+The reference adapter uses per-surface files under `src/render/`
+(`alertBadge.ts`, `area.ts`, `bars.ts`, …); follow the same pattern.
+Create `render/alertConditions.ts` rendering a tiny side-panel for
+fired alert conditions on the latest bar. Behaviour: lists
+`conditionId` + `defaultMessage` for each fired emission. Wire it
+from the existing `createCanvas2dAdapter.ts` render loop.
+Non-rendering test posture: assert the canvas op sequence includes
+the expected `fillText` calls when emissions are present, none when
+absent. Land matching `render/alertConditions.test.ts`.
 
 ### 15. Conformance scenarios
 
-- `defineAlertConditionFires.ts` — script declares 2 conditions;
-  fixture exercises both. Assertion: `alert-condition-fired-at-bar`
-  matches expected bar indices. (Add a new conformance assertion
-  variant for this — minimal addition: a single field comparing the
-  emission's `(conditionId, fired, bar)` tuple against a goldenset.)
-- `defineAlertConditionGated.ts` — same script with
+Existing scenarios sit flat under `packages/conformance/src/scenarios/`
+with the `<name>.scenario.ts` suffix
+(e.g. `barstateConfirmed.scenario.ts`); follow the same convention.
+
+- `defineAlertConditionFires.scenario.ts` — script declares 2
+  conditions; fixture exercises both. Assertion:
+  `alert-condition-fired-at-bar` matches expected bar indices. The
+  assertion variant is **new** — extend the `ScenarioAssertion`
+  discriminated union in `packages/conformance/src/runConformanceSuite.ts`
+  (~lines 122–137) with a kind comparing the emission's
+  `(conditionId, fired, bar)` tuple against a golden set. Minimal
+  shape: `{ kind: "alert-condition-fired-at-bar"; expected: ReadonlyArray<{ conditionId: string; fired: boolean; bar: number }> }`.
+- `defineAlertConditionGated.scenario.ts` — same script with
   `alertConditions: false`. Assertion: `diagnostic-code-present`:
-  `alert-conditions-not-supported` once per condition+callsite.
-- `defineAlertConditionUnknown.ts` — script signals an undeclared
-  conditionId. Assertion: `diagnostic-code-present`:
+  `alert-conditions-not-supported` deduped per `(slotId, conditionId)` tuple.
+- `defineAlertConditionUnknown.scenario.ts` — script signals an
+  undeclared conditionId. Assertion: `diagnostic-code-present`:
   `unknown-alert-condition`.
 
 ### 16. JSDoc + ambient shim
@@ -311,16 +320,18 @@ present, none when absent.
 | `packages/compiler/src/program.ts` | Modify | Mirror types in ambient shim |
 | `packages/adapter-kit/src/types.ts` | Modify | `AlertConditionEmission`, `RunnerEmissions.alertConditions` |
 | `packages/adapter-kit/src/validation/validateEmission.ts` | Modify | New validator |
-| `packages/adapter-kit/src/capabilities/capabilities.ts` | Modify | `alertConditions` builder |
+| `packages/adapter-kit/src/capabilities/capabilities.ts` | (Verify only) | Phase-4 `alertConditions` builder already exists; confirm JSDoc reflects Phase-5 runtime semantics |
 | `packages/runtime/src/emit/alertConditionEmission.ts` | Create | Emit path |
 | `packages/runtime/src/emit/alertConditionEmission.test.ts` | Create | Unit tests |
 | `packages/runtime/src/buildComputeContext.ts` | Modify | Wire `signal` |
 | `packages/runtime/src/runtimeContext.ts` | Modify | Carry condition registry |
 | `examples/canvas2d-adapter/src/capabilities.ts` | Modify | `alertConditions: true` |
-| `examples/canvas2d-adapter/src/render.ts` | Modify | Side-panel rendering |
-| `packages/conformance/src/scenarios/defineAlertConditionFires.ts` | Create | Happy path |
-| `packages/conformance/src/scenarios/defineAlertConditionGated.ts` | Create | Capability gated |
-| `packages/conformance/src/scenarios/defineAlertConditionUnknown.ts` | Create | Unknown condition |
+| `examples/canvas2d-adapter/src/render/alertConditions.ts` | Create | Side-panel rendering |
+| `examples/canvas2d-adapter/src/render/alertConditions.test.ts` | Create | Op-sequence test |
+| `examples/canvas2d-adapter/src/createCanvas2dAdapter.ts` | Modify | Wire side-panel renderer into render loop |
+| `packages/conformance/src/scenarios/defineAlertConditionFires.scenario.ts` | Create | Happy path |
+| `packages/conformance/src/scenarios/defineAlertConditionGated.scenario.ts` | Create | Capability gated |
+| `packages/conformance/src/scenarios/defineAlertConditionUnknown.scenario.ts` | Create | Unknown condition |
 | `packages/conformance/src/scenarios/index.ts` | Modify | Register scenarios |
 | `packages/conformance/src/runConformanceSuite.ts` | Modify | New `alert-condition-fired-at-bar` assertion variant |
 

@@ -26,7 +26,8 @@ one conformance scenario per new kind.
   discriminated union; no entries for the new kinds.
 - `packages/runtime/src/emit/plotEmission.ts` dispatches on `style.kind`;
   no case branches for the new kinds.
-- `examples/canvas2d-adapter/src/render.ts` renders the existing 9
+- `examples/canvas2d-adapter/src/render/` houses one file per kind
+  (`line.ts`, `histogram.ts`, `marker.ts`, …). Renders the existing 9
   kinds; no support for the new 8.
 
 ## Desired Behavior
@@ -120,9 +121,17 @@ kinds are pass-through (the runtime doesn't transform the style);
 Plot kinds are stateless additions; `STATEFUL_PRIMITIVES` is
 unaffected.
 
-### 7. `examples/canvas2d-adapter/src/render.ts` — add renderers
+### 7. `examples/canvas2d-adapter/src/render/<kind>.ts` — add per-kind renderers
 
-Add render functions per new kind:
+The reference adapter already uses one file per kind under
+`examples/canvas2d-adapter/src/render/` (mirroring the established
+Phase-2 / Phase-3 pattern: `render/line.ts`, `render/histogram.ts`,
+`render/marker.ts`, …). Add eight new sibling files
+(`render/shape.ts`, `render/character.ts`, `render/arrow.ts`,
+`render/candleOverride.ts`, `render/barOverride.ts`,
+`render/bgColor.ts`, `render/barColor.ts`,
+`render/horizontalHistogram.ts`), each with the matching
+`<kind>.test.ts`. Behavioural acceptance:
 
 - `shape`: render glyph at the world-anchor with `location` aligning
   above/below/at the bar.
@@ -150,8 +159,11 @@ existing 9 plus the 8 new).
 
 ### 9. Conformance scenarios
 
-`packages/conformance/src/scenarios/plotKinds/` (new sub-directory)
-houses 8 scenarios — one per new kind. Each:
+Existing scenarios sit flat under `packages/conformance/src/scenarios/`
+with the `<name>.scenario.ts` suffix
+(e.g. `barstateConfirmed.scenario.ts`). Keep the same convention —
+do NOT introduce a `plotKinds/` sub-directory. Add 8 scenarios — one
+per new kind — named `plotKind<Kind>.scenario.ts`:
 
 - `inlineSource` declares a minimal `defineIndicator` script that
   calls `plot(value, { style: { kind: "<new-kind>", … } })`.
@@ -175,9 +187,9 @@ Register all 16 scenarios in `packages/conformance/src/scenarios/index.ts`.
   violation.
 - `packages/runtime/src/emit/plotEmission.test.ts` extends per
   kind: emit dispatch produces the expected `PlotEmission.style`.
-- `examples/canvas2d-adapter/src/render.test.ts` extends per kind:
-  the renderer produces the expected canvas op sequence (spy on
-  `ctx.beginPath` / `ctx.fillRect` / `ctx.fillText` / …).
+- Per-kind `examples/canvas2d-adapter/src/render/<kind>.test.ts`
+  asserts the renderer produces the expected canvas op sequence
+  (spy on `ctx.beginPath` / `ctx.fillRect` / `ctx.fillText` / …).
 
 ### 11. JSDoc
 
@@ -213,10 +225,10 @@ variants. Append the 8 new discriminants verbatim.
 | `packages/adapter-kit/src/validation/validateEmission.test.ts` | Modify | Per-kind validator tests |
 | `packages/runtime/src/emit/plotEmission.ts` | Modify | Per-kind dispatch |
 | `packages/runtime/src/emit/plotEmission.test.ts` | Modify | Per-kind emit tests |
-| `examples/canvas2d-adapter/src/render.ts` | Modify | Per-kind renderers |
-| `examples/canvas2d-adapter/src/render.test.ts` | Modify | Per-kind renderer ops |
+| `examples/canvas2d-adapter/src/render/shape.ts` (+ 7 sibling per-kind files for `character`, `arrow`, `candleOverride`, `barOverride`, `bgColor`, `barColor`, `horizontalHistogram`) | Create | Per-kind renderers |
+| `examples/canvas2d-adapter/src/render/<kind>.test.ts` (8 files) | Create | Per-kind renderer ops |
 | `examples/canvas2d-adapter/src/capabilities.ts` | Modify | Widen `plots` set |
-| `packages/conformance/src/scenarios/plotKinds/*.ts` | Create | 8 happy + 8 gated scenarios |
+| `packages/conformance/src/scenarios/plotKind<Kind>.scenario.ts` (8 files) + `plotKind<Kind>Gated.scenario.ts` (8 files) | Create | 8 happy + 8 gated scenarios |
 | `packages/conformance/src/scenarios/index.ts` | Modify | Register new scenarios |
 | `packages/compiler/src/program.ts` | Modify | Mirror new types in `CORE_AMBIENT_SHIM` |
 

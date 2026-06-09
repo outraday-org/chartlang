@@ -160,7 +160,8 @@ After Phase 5 closes:
   `ta.fixedRangeVolumeProfile` (363). Shared math
   (`bucket-edges` / `bucketize-volume` / `value-area` / `intercept` /
   `too-heavy` / `developing-series` / `volume-profile-shared`)
-  ports first into `packages/runtime/src/ta/_lib/volume-profile/`.
+  ports first into `packages/runtime/src/ta/lib/volume-profile/`
+  (alongside the existing Phase-2 helpers in `lib/`).
   All four indicators emit `PlotKind = "horizontal-histogram"`.
 - **Docs / READMEs** regenerate; `pnpm docs:check` /
   `pnpm readme:check` stay green. Every new public surface carries
@@ -297,7 +298,7 @@ satisfied by all lower-numbered tasks.
 | `packages/core/src/draw/draw.ts` namespace shape | Task 12 adds `draw.table(opts)` matching the existing per-function pattern (compile-time stub that throws outside the runtime). |
 | `packages/core/src/draw/buckets.ts` `KIND_BUCKET` | Task 12 maps `"table"` → `"other"` bucket per §10.2. |
 | `packages/core/src/define/defineAlert.ts` `defineAlert` | Task 10's `defineAlertCondition.ts` mirrors the shape (frozen manifest + compute fn) but with a `conditions` map and a `signal(conditionId, fired)` ComputeContext extension. |
-| `packages/core/src/statefulPrimitives.ts` `STATEFUL_PRIMITIVES` set | Tasks 10 / 11 / 12 / 15–18 append entries. Final cardinality test grows from 163 → 170. |
+| `packages/core/src/statefulPrimitives.ts` `STATEFUL_PRIMITIVES` set | Tasks 10 / 11 / 12 / 15–18 append entries. Final cardinality test grows from 163 → 171 (Task 10 +1, Task 11 +2, Task 12 +1, Tasks 15–18 +4). |
 | `packages/compiler/src/analysis/extractCapabilities.ts` | Task 10 adds an `extractAlertConditions` pass alongside it; same walker pattern. |
 | `packages/compiler/src/program.ts` `CORE_AMBIENT_SHIM` | Tasks 1 / 9 / 10 / 11 / 12 / 13 / 15–18 each append their new core declarations to the shim. |
 | `packages/runtime/src/buildComputeContext.ts` | Tasks 5 / 10 / 11 / 12 / 13 / 15–18 extend the returned `ComputeContext`. Same file, additive. |
@@ -315,13 +316,13 @@ Phase 5 carries the following ports from
 |----------------|-----------------|------------|------|
 | `packages/runtime/src/request/alignHtfSeriesToLtf.ts` | `indicators/lib/align-htf-series-to-ltf.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 4 |
 | `packages/runtime/src/request/alignHtfSeriesCache.ts` | `indicators/lib/align-htf-series-cache.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 4 |
-| `packages/runtime/src/ta/_lib/volume-profile/bucketEdges.ts` | `indicators/lib/volume-profile/bucket-edges.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
-| `packages/runtime/src/ta/_lib/volume-profile/bucketizeVolume.ts` | `indicators/lib/volume-profile/bucketize-volume.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
-| `packages/runtime/src/ta/_lib/volume-profile/valueArea.ts` | `indicators/lib/volume-profile/value-area.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
-| `packages/runtime/src/ta/_lib/volume-profile/intercept.ts` | `indicators/lib/volume-profile/intercept.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
-| `packages/runtime/src/ta/_lib/volume-profile/tooHeavy.ts` | `indicators/lib/volume-profile/too-heavy.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
-| `packages/runtime/src/ta/_lib/volume-profile/developingSeries.ts` | `indicators/lib/volume-profile/developing-series.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
-| `packages/runtime/src/ta/_lib/volume-profile/volumeProfileShared.ts` | `indicators/lib/volume-profile/volume-profile-shared.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
+| `packages/runtime/src/ta/lib/volume-profile/bucketEdges.ts` | `indicators/lib/volume-profile/bucket-edges.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
+| `packages/runtime/src/ta/lib/volume-profile/bucketizeVolume.ts` | `indicators/lib/volume-profile/bucketize-volume.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
+| `packages/runtime/src/ta/lib/volume-profile/valueArea.ts` | `indicators/lib/volume-profile/value-area.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
+| `packages/runtime/src/ta/lib/volume-profile/intercept.ts` | `indicators/lib/volume-profile/intercept.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
+| `packages/runtime/src/ta/lib/volume-profile/tooHeavy.ts` | `indicators/lib/volume-profile/too-heavy.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
+| `packages/runtime/src/ta/lib/volume-profile/developingSeries.ts` | `indicators/lib/volume-profile/developing-series.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
+| `packages/runtime/src/ta/lib/volume-profile/volumeProfileShared.ts` | `indicators/lib/volume-profile/volume-profile-shared.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 14 |
 | `packages/runtime/src/ta/visibleRangeVolumeProfile.ts` | `indicators/visible-range-volume-profile.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 15 |
 | `packages/runtime/src/ta/anchoredVolumeProfile.ts` | `indicators/anchored-volume-profile.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 16 |
 | `packages/runtime/src/ta/sessionVolumeProfile.ts` | `indicators/session-volume-profile.ts` | `3234c8c0c3f9880d9d1e3a3ee63ebd55ddd535f4` | 17 |

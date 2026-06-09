@@ -49,7 +49,7 @@ ports. Ships the full §22.10 set.
 ### 2. `packages/runtime/src/ta/fixedRangeVolumeProfile.ts`
 
 ```ts
-import { computeProfile, developingSeries } from "./_lib/volume-profile";
+import { computeProfile, developingSeries } from "./lib/volume-profile";
 import type { Series, Time, ComputeContext } from "@invinite-org/chartlang-core";
 
 export type FixedRangeVolumeProfileOpts = Readonly<{
@@ -153,9 +153,11 @@ export function fixedRangeVolumeProfile(
 
 ### 7. Conformance scenarios
 
-- `taFixedRangeVolumeProfile.ts` — happy path.
-- `taFixedRangeVolumeProfileInverted.ts` — `from > to`. Assertion:
-  `diagnostic-code-present`: `fixed-range-inverted`.
+Existing scenarios use the `<name>.scenario.ts` suffix.
+
+- `taFixedRangeVolumeProfile.scenario.ts` — happy path.
+- `taFixedRangeVolumeProfileInverted.scenario.ts` — `from > to`.
+  Assertion: `diagnostic-code-present`: `fixed-range-inverted`.
 
 ### 8. Docs + CORE_AMBIENT_SHIM
 
@@ -186,8 +188,8 @@ After this task:
 | `packages/core/src/ta/index.ts` (namespace) | Modify | Add to `ta` namespace |
 | `packages/core/src/statefulPrimitives.ts` | Modify | Append; bump to 171 |
 | `packages/compiler/src/program.ts` | Modify | Mirror in `CORE_AMBIENT_SHIM` |
-| `packages/conformance/src/scenarios/taFixedRangeVolumeProfile.ts` | Create | Happy |
-| `packages/conformance/src/scenarios/taFixedRangeVolumeProfileInverted.ts` | Create | Inverted |
+| `packages/conformance/src/scenarios/taFixedRangeVolumeProfile.scenario.ts` | Create | Happy |
+| `packages/conformance/src/scenarios/taFixedRangeVolumeProfileInverted.scenario.ts` | Create | Inverted |
 | `packages/conformance/src/scenarios/index.ts` | Modify | Register |
 
 ## Gates

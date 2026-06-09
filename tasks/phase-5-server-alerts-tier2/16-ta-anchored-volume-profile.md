@@ -46,7 +46,7 @@ Same 4-line header as Task 15, with the invinite path swapped to
 ### 2. `packages/runtime/src/ta/anchoredVolumeProfile.ts`
 
 ```ts
-import { computeProfile, developingSeries } from "./_lib/volume-profile";
+import { computeProfile, developingSeries } from "./lib/volume-profile";
 import type { Series, Time, ComputeContext } from "@invinite-org/chartlang-core";
 
 export type AnchoredVolumeProfileOpts = Readonly<{
@@ -137,7 +137,9 @@ this verbatim. Property test pins it.
 
 ### 7. Conformance scenario
 
-`packages/conformance/src/scenarios/taAnchoredVolumeProfile.ts`:
+Existing scenarios use the `<name>.scenario.ts` suffix.
+
+`packages/conformance/src/scenarios/taAnchoredVolumeProfile.scenario.ts`:
 
 - Script declares `input.time(<anchor>, { pickFromChart: true })`
   and calls `ta.anchoredVolumeProfile({ anchor: inputs.anchor })`.
@@ -158,7 +160,7 @@ this verbatim. Property test pins it.
   in Task 9). If not declared → silent no-op +
   `unsupported-plot-kind`.
 
-### 10. Reuse Task 15's `_lib/volume-profile/index.ts` re-exports
+### 10. Reuse Task 15's `lib/volume-profile/index.ts` re-exports
 
 No new shared math; just consume what Task 14 + 15 wired.
 
@@ -177,7 +179,7 @@ No new shared math; just consume what Task 14 + 15 wired.
 | `packages/core/src/ta/index.ts` (namespace) | Modify | Add to `ta` namespace |
 | `packages/core/src/statefulPrimitives.ts` | Modify | Append; bump to 169 |
 | `packages/compiler/src/program.ts` | Modify | Mirror in `CORE_AMBIENT_SHIM` |
-| `packages/conformance/src/scenarios/taAnchoredVolumeProfile.ts` | Create | Scenario |
+| `packages/conformance/src/scenarios/taAnchoredVolumeProfile.scenario.ts` | Create | Scenario |
 | `packages/conformance/src/scenarios/index.ts` | Modify | Register |
 
 ## Gates
