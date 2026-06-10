@@ -15,8 +15,8 @@ export default defineConfig({
                 "src/**/index.ts",
                 "src/**/types.ts",
                 "src/protocol.ts",
+                // workerBoot.ts is the bundled worker entry (thin `self` adapter) — not importable in vitest.
                 "src/workerBoot.ts",
-                "src/defaultWorkerFactory.ts",
             ],
         },
     },

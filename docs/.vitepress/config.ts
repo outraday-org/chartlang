@@ -96,7 +96,24 @@ export default defineConfig({
                         { text: "Bar state", link: "/primitives/barstate" },
                         { text: "Symbol info", link: "/primitives/syminfo" },
                         { text: "Timeframe", link: "/primitives/timeframe" },
-                        { text: "Request security", link: "/primitives/request/security" },
+                    ],
+                },
+                {
+                    text: "Plot",
+                    items: [
+                        { text: "plot", link: "/primitives/plot/plot" },
+                        { text: "hline", link: "/primitives/plot/hline" },
+                    ],
+                },
+                {
+                    text: "Alert",
+                    items: [{ text: "alert", link: "/primitives/alert/alert" }],
+                },
+                {
+                    text: "Request",
+                    items: [
+                        { text: "Security", link: "/primitives/request/security" },
+                        { text: "Lower timeframe", link: "/primitives/request/lowerTf" },
                     ],
                 },
                 {

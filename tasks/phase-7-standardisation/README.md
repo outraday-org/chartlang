@@ -35,6 +35,10 @@ publishes every `@invinite-org/chartlang-*` package to npm.
 - `STATEFUL_PRIMITIVES` is pinned at **172** entries by
   `packages/core/src/statefulPrimitives.test.ts:204` (size-only pin —
   no name-set lock).
+  - Reconciliation: the Phase-6 README projected **174**; that figure
+    was a miscount. The actual ledger (per the size pin's git history)
+    is 12 → 93 → 154 → 163 → 171 (end of Phase 5) → **172** (Phase 6
+    added one entry). 172 is the correct, final 1.0 cardinality.
 - Exactly **one** `@deprecated` export exists: `PHASE_1_SCENARIOS` in
   `packages/conformance/src/scenarios/index.ts` (alias of
   `ALL_SCENARIOS`, kept "for one release" since `0.2.1`).

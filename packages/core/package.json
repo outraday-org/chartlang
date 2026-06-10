@@ -16,7 +16,7 @@
             "import": "./dist/time/index.js"
         }
     },
-    "files": ["dist", "README.md", "CHANGELOG.md"],
+    "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
     "scripts": {
         "build": "tsc -p tsconfig.json",
         "typecheck": "tsc -p tsconfig.json --noEmit",

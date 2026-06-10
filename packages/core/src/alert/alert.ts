@@ -26,6 +26,7 @@ export type AlertOpts = Readonly<{
  * outside the runtime throws the sentinel.
  *
  * @since 0.1
+ * @stable
  * @example
  *     // Inside a compiled `compute`:
  *     //   alert("EMA crossed", { severity: "info" });

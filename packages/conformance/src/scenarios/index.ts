@@ -131,7 +131,9 @@ import { TA_ANCHORED_VWAP_SCENARIO } from "./taAnchoredVwap.scenario";
 import { TA_AO_SCENARIO } from "./taAo.scenario";
 import { TA_AROON_SCENARIO } from "./taAroon.scenario";
 import { TA_AROON_OSC_SCENARIO } from "./taAroonOsc.scenario";
+import { TA_ATR_SCENARIO } from "./taAtr.scenario";
 import { TA_BARSSINCE_SCENARIO } from "./taBarssince.scenario";
+import { TA_BB_SCENARIO } from "./taBb.scenario";
 import { TA_BB_PERCENT_B_SCENARIO } from "./taBbPercentB.scenario";
 import { TA_BBW_SCENARIO } from "./taBbw.scenario";
 import { TA_BOP_SCENARIO } from "./taBop.scenario";
@@ -145,10 +147,13 @@ import { TA_CMF_SCENARIO } from "./taCmf.scenario";
 import { TA_CMO_SCENARIO } from "./taCmo.scenario";
 import { TA_CONNORS_RSI_SCENARIO } from "./taConnorsRsi.scenario";
 import { TA_COPPOCK_SCENARIO } from "./taCoppock.scenario";
+import { TA_CROSSOVER_SCENARIO } from "./taCrossover.scenario";
+import { TA_CROSSUNDER_SCENARIO } from "./taCrossunder.scenario";
 import { TA_DEMA_SCENARIO } from "./taDema.scenario";
 import { TA_DMI_SCENARIO } from "./taDmi.scenario";
 import { TA_DONCHIAN_SCENARIO } from "./taDonchian.scenario";
 import { TA_DPO_SCENARIO } from "./taDpo.scenario";
+import { TA_EMA_SCENARIO } from "./taEma.scenario";
 import { TA_ENVELOPE_SCENARIO } from "./taEnvelope.scenario";
 import { TA_EOM_SCENARIO } from "./taEom.scenario";
 import { TA_FISHER_SCENARIO } from "./taFisher.scenario";
@@ -166,6 +171,7 @@ import { TA_KST_SCENARIO } from "./taKst.scenario";
 import { TA_LOWEST_SCENARIO } from "./taLowest.scenario";
 import { TA_LSMA_SCENARIO } from "./taLsma.scenario";
 import { TA_MA_RIBBON_SCENARIO } from "./taMaRibbon.scenario";
+import { TA_MACD_SCENARIO } from "./taMacd.scenario";
 import { TA_MASS_INDEX_SCENARIO } from "./taMassIndex.scenario";
 import { TA_MCGINLEY_SCENARIO } from "./taMcginley.scenario";
 import { TA_MEDIAN_SCENARIO } from "./taMedian.scenario";
@@ -184,13 +190,16 @@ import { TA_PVI_SCENARIO } from "./taPvi.scenario";
 import { TA_PVO_SCENARIO } from "./taPvo.scenario";
 import { TA_PVT_SCENARIO } from "./taPvt.scenario";
 import { TA_ROC_SCENARIO } from "./taRoc.scenario";
+import { TA_RSI_SCENARIO } from "./taRsi.scenario";
 import { TA_RVGI_SCENARIO } from "./taRvgi.scenario";
 import { TA_RVI_SCENARIO } from "./taRvi.scenario";
 import { TA_SESSION_VOLUME_PROFILE_SCENARIO } from "./taSessionVolumeProfile.scenario";
 import { TA_SESSION_VOLUME_PROFILE_GATED_SCENARIO } from "./taSessionVolumeProfileGated.scenario";
 import { TA_SESSION_VOLUME_PROFILE_NO_SESSION_SCENARIO } from "./taSessionVolumeProfileNoSession.scenario";
+import { TA_SMA_SCENARIO } from "./taSma.scenario";
 import { TA_SMI_SCENARIO } from "./taSmi.scenario";
 import { TA_SMMA_SCENARIO } from "./taSmma.scenario";
+import { TA_STDEV_SCENARIO } from "./taStdev.scenario";
 import { TA_STOCH_SCENARIO } from "./taStoch.scenario";
 import { TA_STOCH_RSI_SCENARIO } from "./taStochRsi.scenario";
 import { TA_SUPERTREND_SCENARIO } from "./taSupertrend.scenario";
@@ -345,7 +354,9 @@ export { TA_ANCHORED_VWAP_SCENARIO } from "./taAnchoredVwap.scenario";
 export { TA_AO_SCENARIO } from "./taAo.scenario";
 export { TA_AROON_SCENARIO } from "./taAroon.scenario";
 export { TA_AROON_OSC_SCENARIO } from "./taAroonOsc.scenario";
+export { TA_ATR_SCENARIO } from "./taAtr.scenario";
 export { TA_BARSSINCE_SCENARIO } from "./taBarssince.scenario";
+export { TA_BB_SCENARIO } from "./taBb.scenario";
 export { TA_BB_PERCENT_B_SCENARIO } from "./taBbPercentB.scenario";
 export { TA_BBW_SCENARIO } from "./taBbw.scenario";
 export { TA_BOP_SCENARIO } from "./taBop.scenario";
@@ -359,10 +370,13 @@ export { TA_CMF_SCENARIO } from "./taCmf.scenario";
 export { TA_CMO_SCENARIO } from "./taCmo.scenario";
 export { TA_CONNORS_RSI_SCENARIO } from "./taConnorsRsi.scenario";
 export { TA_COPPOCK_SCENARIO } from "./taCoppock.scenario";
+export { TA_CROSSOVER_SCENARIO } from "./taCrossover.scenario";
+export { TA_CROSSUNDER_SCENARIO } from "./taCrossunder.scenario";
 export { TA_DEMA_SCENARIO } from "./taDema.scenario";
 export { TA_DMI_SCENARIO } from "./taDmi.scenario";
 export { TA_DONCHIAN_SCENARIO } from "./taDonchian.scenario";
 export { TA_DPO_SCENARIO } from "./taDpo.scenario";
+export { TA_EMA_SCENARIO } from "./taEma.scenario";
 export { TA_ENVELOPE_SCENARIO } from "./taEnvelope.scenario";
 export { TA_EOM_SCENARIO } from "./taEom.scenario";
 export { TA_FISHER_SCENARIO } from "./taFisher.scenario";
@@ -380,6 +394,7 @@ export { TA_KST_SCENARIO } from "./taKst.scenario";
 export { TA_LOWEST_SCENARIO } from "./taLowest.scenario";
 export { TA_LSMA_SCENARIO } from "./taLsma.scenario";
 export { TA_MA_RIBBON_SCENARIO } from "./taMaRibbon.scenario";
+export { TA_MACD_SCENARIO } from "./taMacd.scenario";
 export { TA_MASS_INDEX_SCENARIO } from "./taMassIndex.scenario";
 export { TA_MCGINLEY_SCENARIO } from "./taMcginley.scenario";
 export { TA_MEDIAN_SCENARIO } from "./taMedian.scenario";
@@ -398,13 +413,16 @@ export { TA_PVI_SCENARIO } from "./taPvi.scenario";
 export { TA_PVO_SCENARIO } from "./taPvo.scenario";
 export { TA_PVT_SCENARIO } from "./taPvt.scenario";
 export { TA_ROC_SCENARIO } from "./taRoc.scenario";
+export { TA_RSI_SCENARIO } from "./taRsi.scenario";
 export { TA_RVGI_SCENARIO } from "./taRvgi.scenario";
 export { TA_RVI_SCENARIO } from "./taRvi.scenario";
 export { TA_SESSION_VOLUME_PROFILE_SCENARIO } from "./taSessionVolumeProfile.scenario";
 export { TA_SESSION_VOLUME_PROFILE_GATED_SCENARIO } from "./taSessionVolumeProfileGated.scenario";
 export { TA_SESSION_VOLUME_PROFILE_NO_SESSION_SCENARIO } from "./taSessionVolumeProfileNoSession.scenario";
+export { TA_SMA_SCENARIO } from "./taSma.scenario";
 export { TA_SMI_SCENARIO } from "./taSmi.scenario";
 export { TA_SMMA_SCENARIO } from "./taSmma.scenario";
+export { TA_STDEV_SCENARIO } from "./taStdev.scenario";
 export { TA_STOCH_SCENARIO } from "./taStoch.scenario";
 export { TA_STOCH_RSI_SCENARIO } from "./taStochRsi.scenario";
 export { TA_SUPERTREND_SCENARIO } from "./taSupertrend.scenario";
@@ -477,6 +495,23 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     TA_CHANGE_SCENARIO,
     TA_VALUEWHEN_SCENARIO,
     TA_BARSSINCE_SCENARIO,
+    // §22.10 contract — one dedicated scenario per ta.* primitive.
+    // The nine Phase-1 primitives (sma, ema, stdev, bb, rsi, macd,
+    // atr, crossover, crossunder) were previously only exercised
+    // indirectly through the three curated cross-cutting scenarios
+    // (`EMA_CROSS_SCENARIO`, `BOLLINGER_BANDS_SCENARIO`,
+    // `RSI_DIVERGENCE_SCENARIO`). These dedicated scenarios pin
+    // each primitive in isolation so the §22.10 invariant holds
+    // for the Phase-1 set in addition to the Phase-2 ports.
+    TA_SMA_SCENARIO,
+    TA_EMA_SCENARIO,
+    TA_STDEV_SCENARIO,
+    TA_BB_SCENARIO,
+    TA_RSI_SCENARIO,
+    TA_MACD_SCENARIO,
+    TA_ATR_SCENARIO,
+    TA_CROSSOVER_SCENARIO,
+    TA_CROSSUNDER_SCENARIO,
     TA_AROON_SCENARIO,
     TA_AROON_OSC_SCENARIO,
     TA_ADX_SCENARIO,

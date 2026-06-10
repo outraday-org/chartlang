@@ -264,6 +264,7 @@ export type HLineOpts = Readonly<{
  * series emissions pull from `series.current`.
  *
  * @since 0.1
+ * @stable
  * @example
  *     // Inside a compiled `compute`:
  *     //   plot(bar.close, { color: "#3b82f6" });
@@ -279,6 +280,7 @@ export function plot(_value: number | Series<number>, _opts?: PlotOpts): void {
  * `plot` but pinned to a fixed price across all bars.
  *
  * @since 0.1
+ * @stable
  * @example
  *     // Inside a compiled `compute`:
  *     //   hline(70, { color: "#ef4444" });

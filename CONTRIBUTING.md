@@ -23,6 +23,11 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm build
 The last line is the local mirror of what the CI workflow runs on every
 PR. If any of those four commands fail, the PR will fail in CI.
 
+For the full pre-push gate run `pnpm check` — it mirrors CI except for
+two slow steps CI runs additionally: `pnpm bench:ci` (benchmarks) and
+`pnpm docs:build` (VitePress build, catches dead links). Run those
+manually when touching benches or docs.
+
 ## 2. Test + coverage gate (§16)
 
 Every package enforces **100% line / statement / branch / function**

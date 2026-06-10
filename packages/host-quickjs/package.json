@@ -12,7 +12,7 @@
             "import": "./dist/index.js"
         }
     },
-    "files": ["dist", "README.md", "CHANGELOG.md"],
+    "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
     "scripts": {
         "build": "tsc -p tsconfig.json && pnpm tsx ./scripts/buildDispatcher.ts",
         "bench:ci": "vitest bench --run",

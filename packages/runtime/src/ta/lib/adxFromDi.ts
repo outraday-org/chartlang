@@ -26,7 +26,8 @@ import { wilderStep } from "./wilderSmoothing";
  *
  * @formula  dx[i]  = 100 * |+DI - -DI| / (+DI + -DI) ;
  *           seed   = mean(dx[length .. 2*length - 1]) ;
- *           out[i] = wilderStep(out[i-1], dx[i], length)
+ *           out[i] = wilderStep(out[i-1], dx[i], length) ;
+ *           outputs are clamped to [0, 100]
  * @warmup   2 * length - 1
  * @since 0.2
  * @stable
@@ -63,12 +64,14 @@ export function adxFromDi(
         if (!Number.isFinite(v)) return out;
         seedSum += v;
     }
-    out[firstSeedIdx] = seedSum / length;
+    // dx is bounded by [0, 100] in exact arithmetic, but the seed mean
+    // and the Wilder recurrence can overshoot 100 by a few ulps — clamp.
+    out[firstSeedIdx] = Math.min(100, seedSum / length);
 
     for (let i = firstSeedIdx + 1; i < n; i += 1) {
         const v = dx[i];
         if (!Number.isFinite(v)) return out;
-        out[i] = wilderStep(out[i - 1], v, length);
+        out[i] = Math.min(100, wilderStep(out[i - 1], v, length));
     }
 
     return out;

@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "type": "module",
     "license": "MIT",
-    "description": "Headless editor intelligence — hover, completions, diagnostics, signature help",
+    "description": "Headless editor intelligence \u2014 hover, completions, diagnostics, signature help",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
@@ -12,7 +12,7 @@
             "import": "./dist/index.js"
         }
     },
-    "files": ["dist", "README.md", "CHANGELOG.md"],
+    "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
     "scripts": {
         "build": "tsc -p tsconfig.json",
         "typecheck": "tsc -p tsconfig.json --noEmit",

@@ -14801,32 +14801,12 @@ function moduleSourceToScript(source) {
   return source.replace(EXPORT_DEFAULT_RE, "globalThis.__chartlang_compiled_default = ").replace(EXPORT_MANIFEST_RE, "globalThis.__chartlang_compiled_manifest =");
 }
 
-// src/dispatcher.ts
-var runner = null;
-var loadEval = globalThis.eval;
-function hardenGuestGlobals() {
-  Reflect.set(globalThis, "eval", void 0);
-  Reflect.set(globalThis, "Function", void 0);
-  Reflect.deleteProperty(globalThis, "eval");
-  Reflect.deleteProperty(globalThis, "Function");
-}
-hardenGuestGlobals();
+// src/dispatcherCore.ts
 function reply(frame2) {
   return JSON.stringify(frame2);
 }
 function message(err) {
   return err instanceof Error ? err.message : String(err);
-}
-function loadCompiled(source) {
-  globalThis.__chartlang_compiled_default = void 0;
-  loadEval(`((Function, eval) => {
-${moduleSourceToScript(source)}
-})(undefined, undefined);`);
-  const compiled = globalThis.__chartlang_compiled_default;
-  if (compiled === void 0) {
-    throw new Error("compiled module did not set a default export");
-  }
-  return compiled;
 }
 function reviveSet(value) {
   if (Array.isArray(value)) {
@@ -14844,52 +14824,91 @@ function reviveCapabilities(value) {
     symInfoFields: reviveSet(value.symInfoFields)
   };
 }
-globalThis.__chartlang_load = async (json) => {
-  try {
-    const frame2 = JSON.parse(json);
-    const compiled = loadCompiled(frame2.compiled.moduleSource);
-    runner = createScriptRunner({
-      compiled,
-      capabilities: reviveCapabilities(frame2.capabilities),
-      ...frame2.symInfo === void 0 ? {} : { symInfo: frame2.symInfo },
-      ...frame2.inputOverrides === void 0 ? {} : { inputOverrides: frame2.inputOverrides }
-    });
-    return reply({ kind: "loaded" });
-  } catch (err) {
-    return reply({ kind: "loadError", message: message(err) });
-  }
-};
-globalThis.__chartlang_push = async (json) => {
-  try {
-    if (runner === null) {
-      throw new Error("candleEvent before load");
+function createDispatcher(deps) {
+  let runner = null;
+  function loadCompiled(source) {
+    deps.setCompiledDefault(void 0);
+    deps.loadEval(
+      `((Function, eval) => {
+${moduleSourceToScript(source)}
+})(undefined, undefined);`
+    );
+    const compiled = deps.getCompiledDefault();
+    if (compiled === void 0) {
+      throw new Error("compiled module did not set a default export");
     }
-    const frame2 = JSON.parse(json);
-    await runner.push(frame2.event);
-    return reply({ kind: "ack" });
-  } catch (err) {
-    return reply({ kind: "fatal", message: message(err) });
+    return compiled;
   }
-};
-globalThis.__chartlang_drain = (json) => {
-  try {
-    if (runner === null) {
-      throw new Error("drain before load");
+  async function load(json) {
+    try {
+      const frame2 = JSON.parse(json);
+      const compiled = loadCompiled(frame2.compiled.moduleSource);
+      runner = deps.runnerFactory({
+        compiled,
+        capabilities: reviveCapabilities(frame2.capabilities),
+        ...frame2.symInfo === void 0 ? {} : { symInfo: frame2.symInfo },
+        ...frame2.inputOverrides === void 0 ? {} : { inputOverrides: frame2.inputOverrides }
+      });
+      return reply({ kind: "loaded" });
+    } catch (err) {
+      return reply({ kind: "loadError", message: message(err) });
     }
-    const frame2 = JSON.parse(json);
-    const emissions = runner.drain();
-    return reply({ kind: "emissions", nonce: frame2.nonce, emissions });
-  } catch (err) {
-    return reply({ kind: "fatal", message: message(err) });
   }
-};
-globalThis.__chartlang_dispose = () => {
-  try {
-    void runner?.dispose();
-    runner = null;
-    globalThis.__chartlang_compiled_default = void 0;
-    return reply({ kind: "ack" });
-  } catch (err) {
-    return reply({ kind: "fatal", message: message(err) });
+  async function push(json) {
+    try {
+      if (runner === null) {
+        throw new Error("candleEvent before load");
+      }
+      const frame2 = JSON.parse(json);
+      await runner.push(frame2.event);
+      return reply({ kind: "ack" });
+    } catch (err) {
+      return reply({ kind: "fatal", message: message(err) });
+    }
   }
-};
+  function drain2(json) {
+    try {
+      if (runner === null) {
+        throw new Error("drain before load");
+      }
+      const frame2 = JSON.parse(json);
+      const emissions = runner.drain();
+      return reply({ kind: "emissions", nonce: frame2.nonce, emissions });
+    } catch (err) {
+      return reply({ kind: "fatal", message: message(err) });
+    }
+  }
+  function dispose2() {
+    try {
+      void runner?.dispose();
+      runner = null;
+      deps.setCompiledDefault(void 0);
+      return reply({ kind: "ack" });
+    } catch (err) {
+      return reply({ kind: "fatal", message: message(err) });
+    }
+  }
+  return Object.freeze({ load, push, drain: drain2, dispose: dispose2 });
+}
+
+// src/dispatcher.ts
+var loadEval = globalThis.eval;
+function hardenGuestGlobals() {
+  Reflect.set(globalThis, "eval", void 0);
+  Reflect.set(globalThis, "Function", void 0);
+  Reflect.deleteProperty(globalThis, "eval");
+  Reflect.deleteProperty(globalThis, "Function");
+}
+hardenGuestGlobals();
+var handlers = createDispatcher({
+  loadEval,
+  runnerFactory: createScriptRunner,
+  getCompiledDefault: () => globalThis.__chartlang_compiled_default,
+  setCompiledDefault: (value) => {
+    globalThis.__chartlang_compiled_default = value;
+  }
+});
+globalThis.__chartlang_load = handlers.load;
+globalThis.__chartlang_push = handlers.push;
+globalThis.__chartlang_drain = handlers.drain;
+globalThis.__chartlang_dispose = handlers.dispose;

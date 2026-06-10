@@ -15,6 +15,7 @@ export default defineConfig({
                 "src/**/__fixtures__/**",
                 "src/**/index.ts",
                 "src/**/types.ts",
+                // declarations only, but named maTypes.ts so the types.ts glob misses it
                 "src/ta/lib/maTypes.ts",
             ],
         },

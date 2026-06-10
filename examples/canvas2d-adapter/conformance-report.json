@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.0.0",
-    "passed": 211,
+    "passed": 220,
     "failed": 0,
     "scenarios": [
         {
@@ -773,8 +773,20 @@
             "failures": []
         },
         {
+            "id": "ta-atr",
+            "title": "ta.atr(14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
             "id": "ta-barssince",
             "title": "ta.barssince(ta.crossover(ta.ema(close,12), ta.ema(close,26)))",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-bb",
+            "title": "ta.bb(close, 20, { multiplier: 2 })",
             "status": "pass",
             "failures": []
         },
@@ -857,6 +869,18 @@
             "failures": []
         },
         {
+            "id": "ta-crossover",
+            "title": "ta.crossover(ta.sma(close,10), ta.sma(close,30))",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-crossunder",
+            "title": "ta.crossunder(ta.sma(close,10), ta.sma(close,30))",
+            "status": "pass",
+            "failures": []
+        },
+        {
             "id": "ta-dema",
             "title": "ta.dema(close, 20)",
             "status": "pass",
@@ -877,6 +901,12 @@
         {
             "id": "ta-dpo",
             "title": "ta.dpo(close, 21)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-ema",
+            "title": "ta.ema(close, 20)",
             "status": "pass",
             "failures": []
         },
@@ -973,6 +1003,12 @@
         {
             "id": "ta-lsma",
             "title": "ta.lsma(close, 25)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-macd",
+            "title": "ta.macd(close) — default 12/26/9",
             "status": "pass",
             "failures": []
         },
@@ -1091,6 +1127,12 @@
             "failures": []
         },
         {
+            "id": "ta-rsi",
+            "title": "ta.rsi(close, 14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
             "id": "ta-rvgi",
             "title": "ta.rvgi()",
             "status": "pass",
@@ -1121,6 +1163,12 @@
             "failures": []
         },
         {
+            "id": "ta-sma",
+            "title": "ta.sma(close, 20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
             "id": "ta-smi",
             "title": "ta.smi()",
             "status": "pass",
@@ -1129,6 +1177,12 @@
         {
             "id": "ta-smma",
             "title": "ta.smma(close, 14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-stdev",
+            "title": "ta.stdev(close, 20)",
             "status": "pass",
             "failures": []
         },

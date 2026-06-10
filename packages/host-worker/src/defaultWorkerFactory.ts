@@ -6,9 +6,11 @@ import type { WorkerLike } from "./types";
 /**
  * Browser-only fallback when `createWorkerHost` is called without an
  * explicit `workerLike`. Constructs a real `Worker` against the bundled
- * `dist/worker-boot.js` sibling. Cannot run in Node — tests always inject a
- * `MessageChannel`-backed `WorkerLike`; this file is excluded from coverage
- * via `vitest.config.ts`.
+ * `dist/worker-boot.js` sibling. In a real Node test runner `Worker` is not
+ * a global so calling this throws a `ReferenceError`; tests always inject a
+ * `MessageChannel`-backed `WorkerLike` instead, and the coverage test in
+ * `defaultWorkerFactory.test.ts` stubs `globalThis.Worker` to exercise the
+ * construction path.
  *
  * @since 0.1
  * @stable

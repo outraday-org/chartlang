@@ -12,6 +12,7 @@ export default defineConfig({
                 "src/**/*.bench.ts",
                 "src/**/*.bench.test.ts",
                 "src/**/__fixtures__/**",
+                // dispatcher.ts is the guest-realm entry: top-level globals hardening (deletes `eval` + `Function`) and `globalThis.__chartlang_*` writes would corrupt the Node test realm. Logic lives in `dispatcherCore.ts` (covered).
                 "src/dispatcher.ts",
                 "src/protocol.ts",
                 "src/**/index.ts",

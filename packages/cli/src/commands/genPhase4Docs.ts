@@ -139,6 +139,34 @@ export const PHASE4_DOC_ENTRIES: ReadonlyArray<Phase4DocEntry> = Object.freeze([
         outRelPath: "docs/primitives/request/security.md",
         seeAlso: "`request.*` namespace",
     }),
+    Object.freeze({
+        title: "request.lowerTf",
+        sourceRelPath: `${CORE}/request/request.ts`,
+        symbolPath: ["request", "lowerTf"],
+        outRelPath: "docs/primitives/request/lowerTf.md",
+        seeAlso: "`request.*` namespace",
+    }),
+    Object.freeze({
+        title: "plot",
+        sourceRelPath: `${CORE}/plot/plot.ts`,
+        symbolPath: ["plot"],
+        outRelPath: "docs/primitives/plot/plot.md",
+        seeAlso: "`plot.*` namespace",
+    }),
+    Object.freeze({
+        title: "hline",
+        sourceRelPath: `${CORE}/plot/plot.ts`,
+        symbolPath: ["hline"],
+        outRelPath: "docs/primitives/plot/hline.md",
+        seeAlso: "`plot.*` namespace",
+    }),
+    Object.freeze({
+        title: "alert",
+        sourceRelPath: `${CORE}/alert/alert.ts`,
+        symbolPath: ["alert"],
+        outRelPath: "docs/primitives/alert/alert.md",
+        seeAlso: "`alert.*` namespace",
+    }),
     ...["maxBarsBack", "format", "precision", "scale", "requiresIntervals", "shortName"].map(
         (name) =>
             Object.freeze({

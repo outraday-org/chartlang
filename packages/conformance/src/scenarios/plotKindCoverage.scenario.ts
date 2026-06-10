@@ -29,15 +29,14 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * compile → runtime → adapter → renderer pipeline.
  *
  * The script itself emits only `line` (from `plot`) and
- * `horizontal-line` (from `hline`) — the runtime does not yet emit
- * the six new Phase-2 kinds (`histogram` / `bars` / `area` /
- * `filled-band` / `label` / `marker`); per-port tasks (Tasks 21+)
- * each register a scenario asserting their kind once the matching
- * runtime primitive ships. The point of THIS scenario is to lock
- * in the inline-source path + prove the wider capability surface
- * forwards correctly (no `unsupported-plot-kind` diagnostic for the
- * Phase-1 emissions; no `malformed-emission` from the validator's
- * extended switch).
+ * `horizontal-line` (from `hline`) — deliberately. The Phase-2 plot
+ * kinds (`histogram` / `bars` / `area` / `filled-band` / `label` /
+ * `marker` etc.) have since shipped and each carries its own
+ * dedicated `plotKind*.scenario.ts` pair. The point of THIS scenario
+ * is to lock in the inline-source path + prove the wider capability
+ * surface forwards correctly (no `unsupported-plot-kind` diagnostic
+ * for the Phase-1 emissions; no `malformed-emission` from the
+ * validator's extended switch).
  *
  * @since 0.2
  * @stable

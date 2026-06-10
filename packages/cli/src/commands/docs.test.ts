@@ -105,7 +105,15 @@ export const timeframe = Object.freeze({});`;
 const MINIMAL_PHASE4_REQUEST = `export const request = Object.freeze({
     /** Read a secondary stream. @since 0.4 @stable @example const v = request.security({ interval: "1D" }); */
     security(): unknown { return {}; },
+    /** Read lower-timeframe bars. @since 0.6 @stable @example const v = request.lowerTf({ interval: "30s" }); */
+    lowerTf(): unknown { return {}; },
 });`;
+const MINIMAL_PHASE4_PLOT = `/** Plot a value. @since 0.1 @stable @example plot(bar.close); */
+export function plot(_value: number): void { throw new Error("noop"); }
+/** Draw a horizontal line. @since 0.1 @stable @example hline(70); */
+export function hline(_price: number): void { throw new Error("noop"); }`;
+const MINIMAL_PHASE4_ALERT = `/** Emit an alert. @since 0.1 @stable @example alert("hi"); */
+export function alert(_message: string): void { throw new Error("noop"); }`;
 const MINIMAL_PHASE4_OVERRIDES = `/** Overrides. @since 0.4 @stable @example const o: ScriptOverrides = {}; */
 export type ScriptOverrides = Readonly<{
     /** Max bars. @since 0.4 @example const v: ScriptOverrides["maxBarsBack"] = 1; */
@@ -163,6 +171,8 @@ describe("runDocsCommand", () => {
         await mkdir(join(repoRoot, "packages/core/src/views"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/request"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/define"), { recursive: true });
+        await mkdir(join(repoRoot, "packages/core/src/plot"), { recursive: true });
+        await mkdir(join(repoRoot, "packages/core/src/alert"), { recursive: true });
         await writeFile(
             join(repoRoot, "packages/core/src/input/input.ts"),
             MINIMAL_PHASE4_INPUT,
@@ -196,6 +206,16 @@ describe("runDocsCommand", () => {
         await writeFile(
             join(repoRoot, "packages/core/src/define/overrides.ts"),
             MINIMAL_PHASE4_OVERRIDES,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/plot/plot.ts"),
+            MINIMAL_PHASE4_PLOT,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/alert/alert.ts"),
+            MINIMAL_PHASE4_ALERT,
             "utf8",
         );
 

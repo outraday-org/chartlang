@@ -13,7 +13,7 @@
         },
         "./package.json": "./package.json"
     },
-    "files": ["dist", "fixtures", "README.md", "CHANGELOG.md"],
+    "files": ["dist", "fixtures", "README.md", "CHANGELOG.md", "LICENSE"],
     "dependencies": {
         "@invinite-org/chartlang-adapter-kit": "workspace:^",
         "@invinite-org/chartlang-compiler": "workspace:^",
