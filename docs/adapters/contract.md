@@ -1,15 +1,178 @@
 # Adapter contract
 
-> **Phase:** Lands in Phase 1.
-> **Cross-reference:** See PLAN.md §7.
+An adapter is the integration layer between chartlang and a concrete
+chart library. It feeds candles into the runtime, declares which
+emission families the chart can render, and translates each
+`RunnerEmissions` batch into chart operations. This page is the
+reference for the `Adapter` interface itself; see
+[Writing an adapter](./writing-an-adapter.md) for the step-by-step
+authoring tutorial and [Capabilities](./capabilities.md) for the
+capability bag.
 
-The canonical `Adapter` interface every chart integration implements:
-the shape of the `Adapter` object, the candle-stream input contract,
-the Plot / Draw / Alert emission types it must consume, and the rules
-for silent no-op semantics when a capability is undeclared.
+The wire shapes the adapter consumes are normative in
+[Emission payloads](../spec/emissions.md). Adapters never see script
+source; they see the wire batch the runtime drains.
 
-Canonical payload schemas are specified in
-[Emission payloads](../spec/emissions.md).
+## The `Adapter` interface
 
-Stubbed during the Phase 0 bootstrap so the docs gate has a stable
-target. Content lands with the Phase 1 adapter-kit PR.
+`@invinite-org/chartlang-adapter-kit` exports `Adapter`:
+
+```ts
+import type {
+    AdapterSymInfo,
+    CandleEvent,
+    Capabilities,
+    RunnerEmissions,
+} from "@invinite-org/chartlang-adapter-kit";
+
+export type Adapter = {
+    readonly id: string;
+    readonly name: string;
+    readonly capabilities: Capabilities;
+    readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    readonly symInfo?: AdapterSymInfo;
+    candles(opts: { interval: string | "chart" }): AsyncIterable<CandleEvent>;
+    onEmissions(emissions: RunnerEmissions): void;
+    dispose(): void;
+};
+```
+
+`defineAdapter(opts)` builds the frozen `Adapter` object from these
+fields. Adapter packages always ship a default export shaped like this.
+
+| Field | Purpose |
+| --- | --- |
+| `id` | Stable adapter identifier. Surfaces in error reports. |
+| `name` | Human-readable adapter name. |
+| `capabilities` | The adapter's capability bag. The runtime gates every emission against this — see [Capabilities](./capabilities.md). |
+| `resolveInputs?` | Optional callback that returns per-script input overrides at mount. Merged over manifest defaults by the runtime. |
+| `symInfo?` | Optional per-mount symbol metadata. Populates `syminfo.*` in scripts; still gated by `capabilities.symInfoFields`. |
+| `candles` | Async iterable of `history`, `close`, and `tick` events. The runtime consumes them in delivery order. |
+| `onEmissions` | The runtime hands each drained `RunnerEmissions` batch here. Translate into chart operations. |
+| `dispose` | Tear down chart subscriptions, series instances, DOM handles, workers, and timers. Called exactly once. |
+
+## The candle stream
+
+`candles(opts)` is the only data path into the runtime:
+
+```ts
+import { defineAdapter, mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
+import type { Adapter, CandleEvent } from "@invinite-org/chartlang-adapter-kit";
+
+const _bars: ReadonlyArray<import("@invinite-org/chartlang-core").Bar> = [];
+
+async function* mainStream(): AsyncIterable<CandleEvent> {
+    yield { kind: "history", bars: _bars };
+    // for await (const bar of liveClosedBars()) yield { kind: "close", bar };
+}
+
+export const adapter: Adapter = defineAdapter({
+    id: "demo",
+    name: "Demo",
+    capabilities: {
+        plots: new Set(["line"]),
+        drawings: new Set(),
+        alerts: new Set(),
+        alertConditions: false,
+        logs: false,
+        inputs: new Set(),
+        intervals: [],
+        multiTimeframe: false,
+        subPanes: 0,
+        symInfoFields: new Set(),
+        maxDrawingsPerScript: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+        maxLookback: 5_000,
+        maxTickHz: 10,
+    },
+    candles: ({ interval }) => (interval === "chart" ? mainStream() : mockCandleSource([])),
+    onEmissions: () => {},
+    dispose: () => {},
+});
+```
+
+`opts.interval` is `"chart"` for the main stream. Secondary streams use
+the exact interval values declared in `capabilities.intervals` — those
+are what `request.security` and `request.lowerTf` ask for.
+
+| Event kind | Meaning |
+| --- | --- |
+| `history` | Batched warmup bars in source order. The runtime processes each one as a close event. |
+| `close` | A finalised bar. The runtime advances its bar index after compute. |
+| `tick` | An in-progress update for the current bar's head slot. `compute` runs but the bar index does not advance. |
+
+Multi-timeframe events carry the requested `streamKey`:
+
+```ts
+const evt: CandleEvent = {
+    kind: "close",
+    streamKey: "1D",
+    bar: {} as import("@invinite-org/chartlang-core").Bar,
+};
+void evt;
+```
+
+If the runtime sees a `streamKey` not registered in
+`manifest.requestedIntervals`, it drops the event and emits
+`unknown-secondary-stream`.
+
+## The emission batch
+
+`onEmissions` receives the runtime's drained batch:
+
+```ts
+import type { RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
+
+function handle(emissions: RunnerEmissions): void {
+    for (const plot of emissions.plots) {
+        void plot; // translate by plot.style.kind, key by plot.slotId
+    }
+    for (const drawing of emissions.drawings) {
+        void drawing; // create / update / remove by drawing.op
+    }
+    for (const alert of emissions.alerts) {
+        void alert; // dispatch per alert.channels, idempotent on alert.dedupeKey
+    }
+    // also: emissions.alertConditions, emissions.logs, emissions.diagnostics
+    void emissions.fromBar;
+    void emissions.toBar;
+}
+```
+
+The batch is atomic for the covered `[fromBar, toBar]` range. Inside
+one batch:
+
+- Plots dedupe by `(slotId, bar)` with last-write-wins.
+- Alerts dedupe by `(slotId, bar)` with last-write-wins; adapters route
+  by `alert.channels` and idempotency on `alert.dedupeKey` for async
+  delivery.
+- Drawings dedupe by `(handleId, bar)` with last-write-wins. Each
+  drawing carries an `op: "create" | "update" | "remove"`; `create` and
+  `update` carry the full state (not a patch).
+- Alert conditions and logs preserve append order and are not
+  queue-deduped.
+- Diagnostics carry capability mismatches and other non-rendered
+  signals. Surface them in dev tooling; do not render them as user
+  alerts.
+
+The complete schema and ordering rules:
+[Execution semantics § Emission ordering](../spec/semantics.md#emission-ordering)
+and [Emission payloads](../spec/emissions.md).
+
+## Silent no-ops, not errors
+
+If a script emits a primitive the adapter does not declare in
+`capabilities`, the runtime drops the emission and emits a
+diagnostic — it does not throw. The script keeps running; the unsupported
+plot, drawing, or alert simply does not reach the chart.
+
+This is capability honesty from the runtime side: a script written
+against the full surface degrades gracefully on a minimal adapter. See
+[Execution semantics § Capability Fallback](../spec/semantics.md#capability-fallback)
+for the per-surface fallback table.
+
+## Cross-links
+
+- Step-by-step tutorial: [Writing an adapter](./writing-an-adapter.md).
+- Capability bag: [Capabilities](./capabilities.md).
+- Conformance suite: [Conformance](./conformance.md).
+- Wire shapes: [Emission payloads](../spec/emissions.md).

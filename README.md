@@ -13,17 +13,42 @@ One script, many charts.
 [![coverage](https://img.shields.io/codecov/c/github/outraday-org/chartlang)](https://codecov.io/gh/outraday-org/chartlang)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-<!-- This script needs the Phase 1 runtime to actually execute; see
-[`docs/getting-started/write-your-first-script.md`](./docs/getting-started/write-your-first-script.md). -->
-
 ```typescript
-import { defineIndicator, ta, plot, color } from "@invinite-org/chartlang-core";
+import { defineIndicator } from "@invinite-org/chartlang-core";
 
-export default defineIndicator({ name: "ema-20" }, () => {
-    const fastEma = ta.ema(series.close, 20);
-    plot(fastEma, { color: color.purple });
+export default defineIndicator({
+    name: "EMA Cross",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, ta, plot, alert }) {
+        const fast = ta.ema(bar.close, 12);
+        const slow = ta.ema(bar.close, 26);
+        plot(fast, { color: "#26a69a", title: "EMA(12)" });
+        plot(slow, { color: "#ef5350", title: "EMA(26)" });
+        if (ta.crossover(fast, slow).current) {
+            alert("EMA(12) crossed above EMA(26)", { severity: "info" });
+        }
+    },
 });
 ```
+
+## Try it
+
+Two runnable demos exercise the full stack end-to-end:
+
+- **React editor + live chart** — type the script on the left, watch
+  it render on the right. Hot reloads on every keystroke through the
+  real compiler.
+  ```bash
+  cd examples/react-demo && pnpm dev
+  # then open http://localhost:5173
+  ```
+- **Vanilla canvas2d playground** — minimal HTML page that loads the
+  pre-compiled `examples/scripts/ema-cross.chart.js` triple.
+  ```bash
+  pnpm dlx vite --port 5273
+  # then open http://localhost:5273/examples/canvas2d-adapter/playground/
+  ```
 
 ## Install
 
@@ -60,83 +85,24 @@ pnpm add @invinite-org/chartlang-core @invinite-org/chartlang-compiler @invinite
   runs the same compiled bundle inside a process-isolated sandbox, so
   alerts fire even when no browser is open.
 
-## Quickstart in 60 seconds
+## Quickstart
 
-> **Available from Phase 1.** The three commands below are aspirational
-> for the bootstrap. See
-> [`docs/getting-started/write-your-first-script.md`](./docs/getting-started/write-your-first-script.md)
-> for the walkthrough as it lands.
-> Pine authors can start with the
-> [Pine to chartlang migration guide](./docs/spec/pine-migration.md).
+1. Write a script. Save the example above to `ema-cross.chart.ts`.
+2. Compile it. The CLI emits a `.chart.js` bundle, a
+   `.chart.manifest.json` capability descriptor, and a `.chart.d.ts`
+   types sibling next to the source:
+   ```bash
+   pnpm dlx @invinite-org/chartlang-cli compile ema-cross.chart.ts
+   ```
+3. Render it. Drop the triple into the canvas2d playground above, or
+   load it through `@invinite-org/chartlang-host-worker` inside your
+   own chart. The
+   [embed guide](./docs/getting-started/embed-in-our-chart.md) walks
+   through the full wiring.
 
-```bash
-pnpm dlx @invinite-org/chartlang-cli scaffold-script ema-cross
-pnpm dlx @invinite-org/chartlang-cli compile ema-cross.chart.ts
-pnpm dlx @invinite-org/chartlang-cli preview ema-cross.chart.ts --adapter canvas2d
-```
-
-The third command opens a rendered chart in your browser.
-
-## Indicator parity
-
-Phase 2 (`0.2`) ships full Pine-equivalent indicator parity:
-
-- **90 callable `ta.*` primitives** in `TA_REGISTRY` — 9 Phase-1
-  (`sma`, `ema`, `stdev`, `bb`, `rsi`, `macd`, `atr`, `crossover`,
-  `crossunder`) plus 81 Phase-2 ports (6 cross-functional helpers +
-  75 §9.2 indicators across MAs, oscillators, momentum, trend,
-  volatility, volume, S/R, and statistical categories).
-- **93 entries** in `STATEFUL_PRIMITIVES` (90 `ta.*` + `plot` +
-  `hline` + `alert`) — `ta.nz` is the sole stateless `ta.*`.
-- **6 new `PlotKind`s** (`histogram`, `bars`, `area`, `filled-band`,
-  `label`, `marker`) plus canvas2d renderers.
-- Universal `opts.offset` honoured on every primitive.
-- `chartlang docs` regenerates `docs/primitives/ta/<id>.md` per
-  primitive; `pnpm docs:gate` enforces no drift.
-- `phase2Coverage.test.ts` pins the cardinalities; the
-  `PHASE_2_INDICATORS` + `PHASE_5_DEFERRED` inventories are the
-  source-of-truth surface contract.
-
-Deferred to Phase 5: `correlationCoeff`, 4 volume-profile primitives
-(need `horizontal-histogram` + viewport / anchor / session input
-plumbing), and 7 trade-narrative external-data primitives (need
-`input.externalSeries` + `adapter.feedExternalSeries`).
-
-## Drawing parity
-
-Phase 3 (`0.3`) ships full `draw.*` namespace parity with invinite:
-
-- **61 callable `draw.*` primitives** across 13 categories: lines /
-  rays, boxes (rectangle / circle / ellipse / marker), curves +
-  freehand, annotations (text / arrow / arrow-marker), channels,
-  Fibonacci (retracement / extension / channel / time-zone / wedge /
-  speed-fan / speed-arcs / spiral / circles / trend-time), Gann,
-  pitchforks, harmonic patterns (XABCD / cypher / head-and-shoulders /
-  ABCD / triangle / three-drives), Elliott waves, cycles, and
-  containers (group / frame).
-- **154 entries** in `STATEFUL_PRIMITIVES` (93 Phase-2 + 61 new
-  `draw.<kind>` entries; every drawing primitive is `slot: true`).
-- **5-bucket `DrawingCounts` budget** (`{ lines, labels, boxes,
-  polylines, other }`) with per-kind `bucketFor` map, per-bucket
-  `drawing-budget-exceeded` enforcement, and per-kind capability
-  gating via `Capabilities.drawings`.
-- **`DrawingHandle.update(patch)` / `remove()`** with stable cross-bar
-  ids keyed `slotId#subId`; emissions carry the FULL merged
-  `DrawingState` so adapters get an idempotent rewrite.
-- **`defineDrawing` constructor** for interactive drawing scripts —
-  emits `ScriptManifest.kind: "drawing"` per PLAN.md §4.1.
-- **76 conformance scenarios** (61 per-kind + 12 task bundles +
-  `drawAll61` smoke + `drawBudgetOverflow` + `drawUnsupportedKind`).
-  New `drawing-hash` assertion variant mirrors `plot-hash`.
-- **Canvas2d reference adapter** renders every kind via 61
-  `src/render/draw/<kind>.ts` files + shared helpers
-  (`worldToCanvas`, `drawingDispatch`, `fibLevels`, `bezier`).
-- **62 docs pages** auto-generated under `docs/primitives/draw/`
-  (61 per-kind + 1 hand-written `index.md`); every `@example`
-  block compiles through the `pnpm docs:check` gate.
-
-Deferred to Phase 5: `draw.table` (CSS-pixel-positioned status
-panels — needs the `TableCell` schema).
+See
+[`docs/getting-started/write-your-first-script.md`](./docs/getting-started/write-your-first-script.md)
+for the long-form walkthrough.
 
 ## Architecture
 
@@ -154,6 +120,33 @@ translates emissions into draw calls on a specific chart vendor's
 surface. The contract between runtime and adapter is what makes scripts
 portable across charts. See PLAN.md §2 for the full diagram.
 
+## What's in the box
+
+- **90 `ta.*` primitives** across moving averages, oscillators,
+  momentum, trend, volatility, volume, support / resistance, and
+  statistical helpers — full Pine-equivalent parity. See
+  [`docs/primitives/ta/`](./docs/primitives/ta/) for the auto-generated
+  per-primitive reference.
+- **61 `draw.*` primitives** across lines, boxes, curves, Fibonacci
+  tools, Gann tools, pitchforks, harmonic patterns, Elliott waves, and
+  cycles. Each carries a `DrawingHandle` with stable cross-bar ids and
+  idempotent `update` / `remove`. See
+  [`docs/primitives/draw/`](./docs/primitives/draw/).
+- **Alerts, inputs, multi-timeframe.** `alert(...)` with severity,
+  twelve typed `input.*` shapes, `request.security` / `request.lowerTf`
+  for higher- and lower-timeframe data, and `state.*` for cross-bar
+  scalars. Capability-gated end-to-end so unsupported features become
+  silent no-ops, not errors.
+- **Three execution hosts.** An in-process runner, a browser Web
+  Worker, and a server-side QuickJS sandbox — all returning
+  byte-identical plot and alert streams (the
+  [`parity-smoke.mts`](./parity-smoke.mts) script demonstrates).
+- **220-scenario conformance suite.** `pnpm conformance` runs every
+  adapter against the same battery of plot, drawing, alert, and
+  budget-overflow scenarios. The
+  [canvas2d reference adapter](./examples/canvas2d-adapter) ships a
+  green `CONFORMANCE.md` you can diff against.
+
 ## Releases
 
 Versions are cut with Changesets. Pending changesets are collected into
@@ -167,18 +160,14 @@ linked from there. Published announcements are on
 
 ## Links
 
-- **Docs site:** [chartlang.dev](https://chartlang.dev) — placeholder
-  until the VitePress build deploys in Phase 1+.
+- **Docs site:** [chartlang.dev](https://chartlang.dev).
+- **Language overview:** [`./docs/language/overview.md`](./docs/language/overview.md).
 - **Language spec:** [`./docs/spec/grammar.md`](./docs/spec/grammar.md).
 - **Primitive reference:** [`./docs/primitives/`](./docs/primitives/) —
-  auto-generated per primitive. Phase-1 `ta.*` index at
-  [`./docs/primitives/ta/`](./docs/primitives/ta/) (regenerate with
-  `pnpm docs:generate`; CI gate: `pnpm docs:gate`).
-- **Adapter list:** [`./docs/adapters/reference/`](./docs/adapters/reference/) —
-  per-adapter pages published by consumer repos from Phase 2+.
-- **Conformance reports:** the canvas2d-adapter ships its
-  `CONFORMANCE.md` alongside the reference implementation in
-  Phase 1. Forward-link only at the bootstrap.
+  auto-generated per primitive (regenerate with `pnpm docs:generate`;
+  CI gate: `pnpm docs:gate`).
+- **Adapter author guide:** [`./docs/adapters/writing-an-adapter.md`](./docs/adapters/writing-an-adapter.md).
+- **Host author guide:** [`./docs/hosts/writing-a-host.md`](./docs/hosts/writing-a-host.md).
 - **Examples:** [`./examples/`](./examples/).
 - **Contributing:** [`./CONTRIBUTING.md`](./CONTRIBUTING.md).
 - **Code of conduct:** [`./CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md).

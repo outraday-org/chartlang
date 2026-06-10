@@ -83,8 +83,24 @@ Run locally:
 
 ```bash
 pnpm docs:check     # JSDoc gate
+pnpm docs:snippets  # compile every chart-script fenced ts block in README + getting-started
 pnpm readme:check   # README structure + length gate
 ```
+
+The `docs:snippets` gate scans `README.md`, `docs/index.md`, and
+`docs/getting-started/*.md` for fenced ` ```ts ` / ` ```typescript `
+blocks. Blocks that import from `@invinite-org/chartlang-*` AND call
+`defineIndicator` / `defineAlert` / `defineDrawing` /
+`defineAlertCondition` are piped through the real compiler. To opt a
+block out (consumer-side code that imports things the gate can't
+resolve), tag the fence with `no-gate`:
+
+    ```ts no-gate
+    import { weird } from "not-yet-published";
+    ```
+
+Any other ts block is treated as documentation-only consumer code and
+passes through unchecked.
 
 ## 4. Provenance + relicense note (§3.1)
 

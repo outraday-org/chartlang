@@ -1,13 +1,127 @@
 # Worker host
 
-> **Phase:** Lands in Phase 1.
-> **Cross-reference:** See PLAN.md §8.2.
+`@invinite-org/chartlang-host-worker` is the browser-default `ScriptHost`.
+It boots a Web Worker, loads a compiled chartlang bundle into it, and
+relays `CandleEvent` and `RunnerEmissions` between the main thread and
+the worker through a structured-clone-safe postMessage protocol.
 
-`@invinite-org/chartlang-host-worker`, the browser-default sandbox host:
-loads a compiled `.chart.js` artifact into a Web Worker, exposes the
-`ScriptHost` interface, and ferries Plot / Draw / Alert emissions back
-to the main thread via `postMessage` with `structuredClone`-safe
-payloads.
+## When to use it
 
-Stubbed during the Phase 0 bootstrap so the docs gate has a stable
-target. Content lands with the Phase 1 host-worker PR.
+The worker host is the right default for any browser embedder. It runs
+the script off the main thread, lets the runtime own its own event loop,
+and keeps the postMessage boundary as the trust line for emission
+validation.
+
+For server-side execution, untrusted-script runs, and CI conformance,
+use [`@invinite-org/chartlang-host-quickjs`](./quickjs.md) instead. The
+two hosts implement the same `ScriptHost` interface; swap behind that
+interface as needed.
+
+## Minimum-viable usage
+
+```ts
+import { capabilities, defineAdapter } from "@invinite-org/chartlang-adapter-kit";
+import type { Adapter } from "@invinite-org/chartlang-adapter-kit";
+import { createWorkerHost } from "@invinite-org/chartlang-host-worker";
+import type { HostCompiledScript } from "@invinite-org/chartlang-host-worker";
+
+declare const adapter: Adapter;
+declare const compiled: HostCompiledScript;
+
+const host = createWorkerHost({ capabilities: adapter.capabilities });
+await host.load(compiled);
+await host.push({ kind: "history", bars: [] });
+const emissions = await host.drain();
+adapter.onEmissions(emissions);
+host.dispose();
+```
+
+`createWorkerHost` returns a frozen `ScriptHost`. The four lifecycle
+methods are:
+
+| Method | Purpose |
+| --- | --- |
+| `load(compiled)` | Send the compiled bundle plus the adapter's capabilities and resolved inputs to the worker. Awaits the boot `loaded` reply or rejects after `maxLoadTimeoutMs` (default 30 s). |
+| `push(event)` | Forward a `history`, `close`, or `tick` `CandleEvent` to the worker. Fire-and-forget. |
+| `drain()` | Round-trip a request for the queued `RunnerEmissions` batch since the last drain. |
+| `dispose()` | Terminate the worker and reject any pending drains. |
+
+`host.limits` exposes the resolved `HostLimits` (`maxCpuMsPerStep: 50`,
+`maxHeapBytes: 64 MiB`, `maxRingBufferBars: 5_000`,
+`maxLoadTimeoutMs: 30_000`).
+
+## Wiring a real Worker
+
+The worker host boots via `data:` URL on internal test runs; production
+callers point a real `Worker` at the package's `worker-boot` subpath so
+the bundler emits the file as a module Worker:
+
+```ts
+import { createWorkerHost } from "@invinite-org/chartlang-host-worker";
+
+const workerUrl = new URL(
+    "@invinite-org/chartlang-host-worker/worker-boot",
+    import.meta.url,
+);
+const worker = new Worker(workerUrl, { type: "module" });
+
+declare const capabilities: import("@invinite-org/chartlang-adapter-kit").Capabilities;
+const host = createWorkerHost({ capabilities, workerLike: worker });
+void host;
+```
+
+Vite, Webpack 5, Rspack, and Parcel all support the `new URL(..., import.meta.url)`
+pattern for Worker boot files.
+
+## Constructor options
+
+`CreateWorkerHostOpts` lets the adapter pass:
+
+- `capabilities` — required. The capability bag the runtime gates every
+  emission against. The worker never falls back to a default capability
+  bag; the host is the source of truth.
+- `symInfo` — optional adapter-supplied per-mount symbol metadata for
+  the runtime's `syminfo.*` view.
+- `resolveInputs` — optional adapter callback. The host calls it during
+  `load()` and forwards the plain override record to the worker.
+- `workerLike` — test seam. Tests supply a `MessageChannel` port; in
+  production omit it and the host constructs a real `Worker`.
+- `limits` — partial `HostLimits` overrides. Missing fields fall through
+  to `DEFAULT_LIMITS`.
+- `onWorkerError` — called when the worker posts `step-overshoot` or
+  `fatal`. Use it to surface diagnostics in the host UI.
+
+## Persistent state
+
+`@invinite-org/chartlang-host-worker/idb` ships `idbStateStore(opts)`,
+an IndexedDB-backed `PersistentStateStore` for browser warm starts. The
+store persists one snapshot per `StateStoreKey` (compiler version,
+script hash, capabilities hash, symbol, intervals, ...) and evicts the
+oldest snapshot when writes exceed the configured cap (50 MiB default).
+
+The warm-start guarantee is documented in
+[Execution semantics § State Persistence](../spec/semantics.md#state-persistence):
+a warm-started run followed by the replayed gap and live suffix
+produces byte-identical emissions to a cold run over the full stream.
+
+## Sandbox model
+
+The worker host does **not** enforce a heap cap — no browser API
+exposes one reliably per Worker. CPU watchdog is measurement-only: the
+worker reports observed `step-overshoot` events but cannot preempt the
+compute. The compiler's
+[forbidden-constructs pass](../language/forbidden-constructs.md) is the
+primary sandbox: it scrubs `Date`, `Math.random`, `fetch`, dynamic
+`import()`, `eval`, and the rest from the bundle before it ever reaches
+the worker.
+
+Real CPU and memory enforcement live in the
+[QuickJS host](./quickjs.md), which is what production server-side
+deployments should reach for.
+
+## Cross-links
+
+- The other host: [QuickJS host](./quickjs.md).
+- The author-side contract: [Writing a host](./writing-a-host.md).
+- Adapter contract the host gates against: [Adapter contract](../adapters/contract.md).
+- Emission wire shapes: [Emission payloads](../spec/emissions.md).
