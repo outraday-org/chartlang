@@ -6,6 +6,10 @@ export default defineConfig({
     title: "chartlang",
     description:
         "Open TypeScript eDSL for indicator, drawing, and alert scripts that run on any conforming chart adapter.",
+    // GitHub Pages serves the site under /chartlang/; the Docs workflow
+    // sets DOCS_BASE. Local dev and a future custom-domain deploy keep
+    // the root base.
+    base: process.env.DOCS_BASE ?? "/",
     ignoreDeadLinks: false,
     markdown: {
         html: false,

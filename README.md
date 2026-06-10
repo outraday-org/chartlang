@@ -160,7 +160,8 @@ linked from there. Published announcements are on
 
 ## Links
 
-- **Docs site:** [chartlang.dev](https://chartlang.dev).
+- **Docs site:** [outraday-org.github.io/chartlang](https://outraday-org.github.io/chartlang/)
+  (deployed from `main` by the Docs workflow; `chartlang.dev` once DNS is wired).
 - **Language overview:** [`./docs/language/overview.md`](./docs/language/overview.md).
 - **Language spec:** [`./docs/spec/grammar.md`](./docs/spec/grammar.md).
 - **Primitive reference:** [`./docs/primitives/`](./docs/primitives/) —
