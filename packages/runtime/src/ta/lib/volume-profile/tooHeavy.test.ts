@@ -15,7 +15,9 @@ describe("assessVolumeProfileCost", () => {
             reason: null,
             recommendedRowSize: null,
         });
-        expect(assessVolumeProfileCost({ finerCandleCount: VOLUME_PROFILE_HEAVY_THRESHOLD })).toEqual({
+        expect(
+            assessVolumeProfileCost({ finerCandleCount: VOLUME_PROFILE_HEAVY_THRESHOLD }),
+        ).toEqual({
             heavy: false,
             reason: null,
             recommendedRowSize: null,
@@ -23,7 +25,9 @@ describe("assessVolumeProfileCost", () => {
     });
 
     it("above the threshold returns heavy true", () => {
-        expect(assessVolumeProfileCost({ finerCandleCount: VOLUME_PROFILE_HEAVY_THRESHOLD + 1 })).toEqual({
+        expect(
+            assessVolumeProfileCost({ finerCandleCount: VOLUME_PROFILE_HEAVY_THRESHOLD + 1 }),
+        ).toEqual({
             heavy: true,
             reason: "too-many-finer-bars",
             recommendedRowSize: null,
@@ -58,7 +62,9 @@ describe("assessVolumeProfileCost", () => {
     });
 
     it("ignores invalid range inputs", () => {
-        expect(assessVolumeProfileCost({ finerCandleCount: 1, priceMax: 0, priceMin: 10, rowSize: 1 })).toEqual({
+        expect(
+            assessVolumeProfileCost({ finerCandleCount: 1, priceMax: 0, priceMin: 10, rowSize: 1 }),
+        ).toEqual({
             heavy: false,
             reason: null,
             recommendedRowSize: null,

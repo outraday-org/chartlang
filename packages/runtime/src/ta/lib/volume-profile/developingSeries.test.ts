@@ -101,7 +101,12 @@ describe("computeDevelopingSeries", () => {
 
     it("derivePriceRange handles empty and populated slices", () => {
         expect(derivePriceRange([])).toEqual({ priceMax: 0, priceMin: 0 });
-        expect(derivePriceRange([{ high: 4, low: 2 }, { high: 5, low: 1 }])).toEqual({ priceMax: 5, priceMin: 1 });
+        expect(
+            derivePriceRange([
+                { high: 4, low: 2 },
+                { high: 5, low: 1 },
+            ]),
+        ).toEqual({ priceMax: 5, priceMin: 1 });
     });
 
     it("derivePriceRange skips bars with non-finite low / high", () => {

@@ -16,10 +16,10 @@ import { alert } from "./alert";
 
 // THRESHOLD_MS — 10 000 unique-slot alert emissions; alerts include
 // a FNV-1a hash + JSON.stringify call per push. Keep the same smoke-test
-// budget as plot/hline so recursive workspace `pnpm test` worker
+// budget as plot/hline (4000ms) so recursive workspace `pnpm test` worker
 // contention does not make coverage flaky; the strict benchmark lives
 // in the dedicated bench harness.
-const THRESHOLD_MS = 3000;
+const THRESHOLD_MS = 4000;
 const ITERATIONS = 10_000;
 
 function makeCaps(): Capabilities {

@@ -87,9 +87,7 @@ function freezeCondition(
  */
 export function defineAlertCondition(opts: DefineAlertConditionOpts): CompiledScriptObject {
     const alertConditions = Object.freeze(
-        Object.entries(opts.conditions).map(([id, descriptor]) =>
-            freezeCondition(id, descriptor),
-        ),
+        Object.entries(opts.conditions).map(([id, descriptor]) => freezeCondition(id, descriptor)),
     );
     const capabilities = Object.freeze<ReadonlyArray<"alertConditions">>(["alertConditions"]);
     const requestedIntervals = Object.freeze<string[]>([]);

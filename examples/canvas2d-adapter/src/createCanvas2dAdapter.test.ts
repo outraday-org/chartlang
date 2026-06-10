@@ -660,7 +660,9 @@ describe("onEmissions dispatch", () => {
                     badCondition,
                 ],
                 logs: [
-                    ...Array.from({ length: 6 }, (_, i) => logEmission({ message: `kept-log-${i}` })),
+                    ...Array.from({ length: 6 }, (_, i) =>
+                        logEmission({ message: `kept-log-${i}` }),
+                    ),
                     badLog,
                 ],
             }),

@@ -106,7 +106,10 @@ describe("ta.sessionVolumeProfile", () => {
     });
 
     it("parses hour-only session starts", () => {
-        const input = bars(3, Math.floor(1_700_000_000_000 / DAY_MS) * DAY_MS + 10 * 60 * MINUTE_MS);
+        const input = bars(
+            3,
+            Math.floor(1_700_000_000_000 / DAY_MS) * DAY_MS + 10 * 60 * MINUTE_MS,
+        );
         const out = harness(input, 16, (_bar, ctx) => {
             enableSession(ctx, "9-1600");
             return sessionVolumeProfile("slot").poc.current;

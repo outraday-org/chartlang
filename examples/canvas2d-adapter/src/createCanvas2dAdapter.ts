@@ -431,9 +431,7 @@ function ingest(
     applyValidated(emissions.drawings, (drawing) => applyDrawing(state, drawing));
     applyValidated(emissions.alerts, (alert) => applyAlert(state, alert, onAlert));
     state.currentAlertConditions.length = 0;
-    applyValidated(emissions.alertConditions, (condition) =>
-        applyAlertCondition(state, condition),
-    );
+    applyValidated(emissions.alertConditions, (condition) => applyAlertCondition(state, condition));
     applyValidated(emissions.logs, (log) => applyLog(state, log));
     for (const d of emissions.diagnostics) {
         if (d.severity === "warning" || d.severity === "error") {

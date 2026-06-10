@@ -100,11 +100,48 @@ async function run(
     return { emissions, hostErrors };
 }
 
+function makeHost(hostErrors: string[]): ReturnType<typeof createQuickJsHost> {
+    return createQuickJsHost({
+        capabilities: makeCapabilities(),
+        onHostError: (message) => {
+            hostErrors.push(message);
+        },
+    });
+}
+
 function expectNoNonTimingHostErrors(hostErrors: ReadonlyArray<string>): void {
     expect(hostErrors.filter((message) => !message.startsWith("step overshoot "))).toEqual([]);
 }
 
 describe("host-quickjs sandbox escapes", () => {
+    it("blocks top-level Function constructor reach while loading compiled modules", async () => {
+        const hostErrors: string[] = [];
+        const host = makeHost(hostErrors);
+        const m = manifest("top-level function");
+
+        await host.load({
+            manifest: m,
+            moduleSource: `
+const escaped = typeof Function === "function" ? Function("return 1")() : 0;
+export default {
+    manifest: ${JSON.stringify(m)},
+    compute: ({ plot }) => {
+        plot("sandbox.top-level:1:1#0", escaped, {});
+    },
+};
+`,
+        });
+        await host.push({ kind: "close", bar: bar() });
+        const out = await host.drain();
+
+        expectNoNonTimingHostErrors(hostErrors);
+        expect(out.plots[0]).toMatchObject({
+            slotId: "sandbox.top-level:1:1#0",
+            value: 0,
+        });
+        host.dispose();
+    });
+
     it("blocks Function constructor reach", async () => {
         const result = await run(
             "function constructor",
@@ -114,7 +151,9 @@ describe("host-quickjs sandbox escapes", () => {
             }`,
         );
 
-        expect(result.hostErrors.join("\n")).toMatch(/eval|ReferenceError|not defined/i);
+        expect(result.hostErrors.join("\n")).toMatch(
+            /eval|ReferenceError|not defined|not a function/i,
+        );
         expect(result.emissions.plots).toEqual([]);
         expect(result.emissions.alerts).toEqual([]);
     });
@@ -122,7 +161,9 @@ describe("host-quickjs sandbox escapes", () => {
     it("blocks eval", async () => {
         const result = await run("eval", `() => { eval("1"); }`);
 
-        expect(result.hostErrors.join("\n")).toMatch(/eval|ReferenceError|not defined/i);
+        expect(result.hostErrors.join("\n")).toMatch(
+            /eval|ReferenceError|not defined|not a function/i,
+        );
         expect(result.emissions.plots).toEqual([]);
     });
 

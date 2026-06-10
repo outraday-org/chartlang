@@ -41,7 +41,11 @@ export function computeProfile(args: {
     const toIdx = Math.max(fromIdx, Math.min(laneBars.length - 1, args.windowToIdx));
     const laneSlice = laneBars.slice(fromIdx, toIdx + 1);
 
-    const finerSlice = sliceBarsByTime(finerBars, laneSlice[0].time, laneSlice[laneSlice.length - 1].time);
+    const finerSlice = sliceBarsByTime(
+        finerBars,
+        laneSlice[0].time,
+        laneSlice[laneSlice.length - 1].time,
+    );
     const bucketSource = finerSlice.length > 0 ? finerSlice : laneSlice;
     const range = derivePriceRange(bucketSource);
     const costStatus = assessVolumeProfileCost({
@@ -52,7 +56,8 @@ export function computeProfile(args: {
         rowsLayout: config.rowsLayout ?? "numberOfRows",
         tickSize: config.tickSize ?? DEFAULT_TICK_SIZE,
     });
-    if (costStatus.heavy) return emptyProfile(costStatus.heavy, costStatus.reason, costStatus.recommendedRowSize);
+    if (costStatus.heavy)
+        return emptyProfile(costStatus.heavy, costStatus.reason, costStatus.recommendedRowSize);
     if (range.priceMax <= range.priceMin) return emptyProfile(false, null, null);
 
     const edges = buildBucketEdges(

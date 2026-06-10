@@ -31,7 +31,9 @@ function snapshotUnknown(value: unknown): unknown {
     return value;
 }
 
-function snapshotMeta(meta: Readonly<Record<string, JsonValue>>): Readonly<Record<string, JsonValue>> {
+function snapshotMeta(
+    meta: Readonly<Record<string, JsonValue>>,
+): Readonly<Record<string, JsonValue>> {
     return snapshotUnknown(meta) as Readonly<Record<string, JsonValue>>;
 }
 

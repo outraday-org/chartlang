@@ -93,10 +93,7 @@ export function pushAlert(queue: MutableRunnerEmissions, e: AlertEmission): void
  *     // import { pushAlertCondition } from "@invinite-org/chartlang-runtime/emit";
  *     // pushAlertCondition(queue, emission);
  */
-export function pushAlertCondition(
-    queue: MutableRunnerEmissions,
-    e: AlertConditionEmission,
-): void {
+export function pushAlertCondition(queue: MutableRunnerEmissions, e: AlertConditionEmission): void {
     const result = validateEmission(e);
     if (!result.ok) {
         pushDiagnostic(queue, {

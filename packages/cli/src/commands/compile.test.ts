@@ -222,17 +222,21 @@ describe("runCompile", () => {
         await expect(runCompile([missing])).rejects.toThrow();
     });
 
-    it("compiles multiple positional files in sequence", async () => {
-        const a = join(workspace, "a.chart.ts");
-        const b = join(workspace, "b.chart.ts");
-        await writeFile(a, EMA_CROSS_SRC, "utf8");
-        await writeFile(b, EMA_CROSS_SRC, "utf8");
+    it(
+        "compiles multiple positional files in sequence",
+        async () => {
+            const a = join(workspace, "a.chart.ts");
+            const b = join(workspace, "b.chart.ts");
+            await writeFile(a, EMA_CROSS_SRC, "utf8");
+            await writeFile(b, EMA_CROSS_SRC, "utf8");
 
-        await runCompile([a, b]);
+            await runCompile([a, b]);
 
-        await expect(stat(join(workspace, "a.chart.js"))).resolves.toBeTruthy();
-        await expect(stat(join(workspace, "b.chart.js"))).resolves.toBeTruthy();
-    }, COMPILE_TIMEOUT_MS);
+            await expect(stat(join(workspace, "a.chart.js"))).resolves.toBeTruthy();
+            await expect(stat(join(workspace, "b.chart.js"))).resolves.toBeTruthy();
+        },
+        COMPILE_TIMEOUT_MS,
+    );
 
     it("continues with the next file after a CompileError", async () => {
         const ok = join(workspace, "ok.chart.ts");

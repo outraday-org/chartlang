@@ -94,16 +94,20 @@ function makeContext(multiTimeframe = true): RuntimeContext {
 }
 
 function pushBars(ctx: RuntimeContext): void {
-    appendSecondaryBar(ctx.secondaryStreams.get("1D") ?? createStreamState({ interval: "1D", capacity: 5, symbol: "AAPL" }), {
-        time: 1_700_000_000_000,
-        open: 200,
-        high: 205,
-        low: 195,
-        close: 202,
-        volume: 10_000,
-        symbol: "AAPL",
-        interval: "1D",
-    });
+    appendSecondaryBar(
+        ctx.secondaryStreams.get("1D") ??
+            createStreamState({ interval: "1D", capacity: 5, symbol: "AAPL" }),
+        {
+            time: 1_700_000_000_000,
+            open: 200,
+            high: 205,
+            low: 195,
+            close: 202,
+            volume: 10_000,
+            symbol: "AAPL",
+            interval: "1D",
+        },
+    );
     ctx.stream.ohlcv.time.append(1_700_000_000_000);
     ctx.stream.ohlcv.open.append(100);
     ctx.stream.ohlcv.high.append(101);

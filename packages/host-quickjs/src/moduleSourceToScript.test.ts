@@ -41,8 +41,6 @@ describe("moduleSourceToScript", () => {
 
     it("throws when there are multiple export default statements", () => {
         const src = "export default { a: 1 };\nexport default { b: 2 };";
-        expect(() => moduleSourceToScript(src)).toThrow(
-            /multiple export default statements/,
-        );
+        expect(() => moduleSourceToScript(src)).toThrow(/multiple export default statements/);
     });
 });

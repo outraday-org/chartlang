@@ -37,11 +37,7 @@ describe("ta persistence", () => {
         });
 
         const snapshot = serialiseTaSlots(ctxRef.ctx.stream);
-        expect(Object.keys(snapshot).sort()).toEqual([
-            "ta:ema-slot",
-            "ta:rsi-slot",
-            "ta:sma-slot",
-        ]);
+        expect(Object.keys(snapshot).sort()).toEqual(["ta:ema-slot", "ta:rsi-slot", "ta:sma-slot"]);
 
         const restored = createStreamState({ interval: "1m", capacity: 64, symbol: "TEST" });
         restoreTaSlots(restored, snapshot);
@@ -151,7 +147,13 @@ describe("ta persistence", () => {
             { kind: "ta.sma" },
             { kind: "ta.sma", length: 3, outBuffer: 1, window: buffer(), sum: 0 },
             { kind: "ta.sma", length: 3, outBuffer: { headIndex: 0 }, window: buffer(), sum: 0 },
-            { kind: "ta.sma", length: 3, outBuffer: { headIndex: 0, filled: 1 }, window: buffer(), sum: 0 },
+            {
+                kind: "ta.sma",
+                length: 3,
+                outBuffer: { headIndex: 0, filled: 1 },
+                window: buffer(),
+                sum: 0,
+            },
             {
                 kind: "ta.sma",
                 length: 3,
@@ -224,7 +226,9 @@ describe("ta persistence", () => {
 
         restoreTaSlots(
             stream,
-            Object.fromEntries(candidates.map((candidate, index) => [`ta:candidate-${index}`, candidate])),
+            Object.fromEntries(
+                candidates.map((candidate, index) => [`ta:candidate-${index}`, candidate]),
+            ),
         );
         expect(stream.taSlots.size).toBe(0);
 

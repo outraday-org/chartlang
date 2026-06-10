@@ -94,7 +94,9 @@ function isBufferSnapshot(value: unknown): value is BufferSnapshot {
     if (!isInteger(value.headIndex) || !isInteger(value.filled)) return false;
     return (
         Array.isArray(value.values) &&
-        value.values.every((entry) => entry === null || (typeof entry === "number" && Number.isFinite(entry)))
+        value.values.every(
+            (entry) => entry === null || (typeof entry === "number" && Number.isFinite(entry)),
+        )
     );
 }
 

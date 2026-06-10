@@ -38,11 +38,7 @@ function diagnoseOnce(
  *     const fn: typeof emitAlertCondition = emitAlertCondition;
  *     void fn;
  */
-export function emitAlertCondition(
-    ctx: RuntimeContext,
-    conditionId: string,
-    fired: boolean,
-): void {
+export function emitAlertCondition(ctx: RuntimeContext, conditionId: string, fired: boolean): void {
     if (!ctx.capabilities.alertConditions) {
         diagnoseOnce(
             ctx,

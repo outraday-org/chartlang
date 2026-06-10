@@ -37,9 +37,7 @@ function readPropertyName(name: ts.PropertyName): string | null {
     return null;
 }
 
-function findConditionsInitializer(
-    argument: ts.ObjectLiteralExpression,
-): ts.Expression | null {
+function findConditionsInitializer(argument: ts.ObjectLiteralExpression): ts.Expression | null {
     for (const property of argument.properties) {
         if (!ts.isPropertyAssignment(property)) continue;
         if (!ts.isIdentifier(property.name) || property.name.text !== "conditions") continue;
@@ -128,7 +126,10 @@ export function extractAlertConditions(
     const context: ExtractContext = { sourceFile, sourcePath, diagnostics };
 
     const visit = (node: ts.Node): void => {
-        if (ts.isCallExpression(node) && resolveCalleeName(node, checker) === "defineAlertCondition") {
+        if (
+            ts.isCallExpression(node) &&
+            resolveCalleeName(node, checker) === "defineAlertCondition"
+        ) {
             const argument = node.arguments[0];
             if (argument === undefined || !ts.isObjectLiteralExpression(argument)) {
                 addNotLiteralDiagnostic(node, context);

@@ -4777,8 +4777,12 @@ describe("validateEmission — drawing table kind", () => {
     });
 
     it("accepts a table without optional border and frame styles", () => {
-        const { borderColor: _borderColor, borderWidth: _borderWidth, frame: _frame, ...state } =
-            validTable.state;
+        const {
+            borderColor: _borderColor,
+            borderWidth: _borderWidth,
+            frame: _frame,
+            ...state
+        } = validTable.state;
         expect(validateEmission({ ...validTable, state })).toEqual({ ok: true });
     });
 

@@ -62,7 +62,8 @@ function diagnoseLogBudget(ctx: RuntimeContext): void {
         kind: "diagnostic",
         severity: "warning",
         code: "runtime-log-budget-exceeded",
-        message: "runtime.log.* emitted more than 1000 messages in one compute step; later logs were dropped.",
+        message:
+            "runtime.log.* emitted more than 1000 messages in one compute step; later logs were dropped.",
         slotId: null,
         bar: ctx.barIndex(),
     });

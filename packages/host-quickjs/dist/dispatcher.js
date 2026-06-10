@@ -155,6 +155,14 @@ function makeShiftedSeriesView(buf, offset) {
 }
 
 // ../runtime/dist/streamState.js
+function deriveBarSources(rawBar) {
+  return {
+    hl2: (rawBar.high + rawBar.low) / 2,
+    hlc3: (rawBar.high + rawBar.low + rawBar.close) / 3,
+    ohlc4: (rawBar.open + rawBar.high + rawBar.low + rawBar.close) / 4,
+    hlcc4: (rawBar.high + rawBar.low + rawBar.close + rawBar.close) / 4
+  };
+}
 var rawBufferKeys = ["time", "open", "high", "low", "close", "volume"];
 function rawBuffers(ohlcv) {
   return {
@@ -173,7 +181,7 @@ function valueAt(values, index) {
 function recomputeDerivedBuffers(ohlcv, snapshot6) {
   const { headIndex, filled, buffers } = snapshot6;
   const capacity = ohlcv.hl2.capacity;
-  const derived2 = {
+  const derived = {
     hl2: new Array(capacity),
     hlc3: new Array(capacity),
     ohlc4: new Array(capacity),
@@ -184,15 +192,15 @@ function recomputeDerivedBuffers(ohlcv, snapshot6) {
     const low = valueAt(buffers.low, i);
     const open = valueAt(buffers.open, i);
     const close = valueAt(buffers.close, i);
-    derived2.hl2[i] = Number.isNaN(high) || Number.isNaN(low) ? null : (high + low) / 2;
-    derived2.hlc3[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (high + low + close) / 3;
-    derived2.ohlc4[i] = Number.isNaN(open) || Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (open + high + low + close) / 4;
-    derived2.hlcc4[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (high + low + close + close) / 4;
+    derived.hl2[i] = Number.isNaN(high) || Number.isNaN(low) ? null : (high + low) / 2;
+    derived.hlc3[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (high + low + close) / 3;
+    derived.ohlc4[i] = Number.isNaN(open) || Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (open + high + low + close) / 4;
+    derived.hlcc4[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (high + low + close + close) / 4;
   }
-  ohlcv.hl2.restoreFromSnapshotBuffer({ headIndex, filled, values: derived2.hl2 });
-  ohlcv.hlc3.restoreFromSnapshotBuffer({ headIndex, filled, values: derived2.hlc3 });
-  ohlcv.ohlc4.restoreFromSnapshotBuffer({ headIndex, filled, values: derived2.ohlc4 });
-  ohlcv.hlcc4.restoreFromSnapshotBuffer({ headIndex, filled, values: derived2.hlcc4 });
+  ohlcv.hl2.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.hl2 });
+  ohlcv.hlc3.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.hlc3 });
+  ohlcv.ohlc4.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.ohlc4 });
+  ohlcv.hlcc4.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.hlcc4 });
 }
 function createStreamState(args) {
   const { interval, capacity, symbol } = args;
@@ -296,6 +304,82 @@ function createStreamState(args) {
     }
   };
   return stream;
+}
+function appendBarToStream(stream, rawBar) {
+  const values = deriveBarSources(rawBar);
+  const { ohlcv, bar } = stream;
+  ohlcv.time.append(rawBar.time);
+  ohlcv.open.append(rawBar.open);
+  ohlcv.high.append(rawBar.high);
+  ohlcv.low.append(rawBar.low);
+  ohlcv.close.append(rawBar.close);
+  ohlcv.volume.append(rawBar.volume);
+  ohlcv.hl2.append(values.hl2);
+  ohlcv.hlc3.append(values.hlc3);
+  ohlcv.ohlc4.append(values.ohlc4);
+  ohlcv.hlcc4.append(values.hlcc4);
+  bar.time = rawBar.time;
+  bar.open = rawBar.open;
+  bar.high = rawBar.high;
+  bar.low = rawBar.low;
+  bar.close = rawBar.close;
+  bar.volume = rawBar.volume;
+  bar.hl2 = values.hl2;
+  bar.hlc3 = values.hlc3;
+  bar.ohlc4 = values.ohlc4;
+  bar.hlcc4 = values.hlcc4;
+  bar.symbol = rawBar.symbol;
+  bar.interval = rawBar.interval;
+}
+function replaceStreamHead(stream, rawBar) {
+  if (stream.ohlcv.close.length === 0) {
+    appendBarToStream(stream, rawBar);
+    return;
+  }
+  const values = deriveBarSources(rawBar);
+  const { ohlcv, bar } = stream;
+  ohlcv.time.replaceHead(rawBar.time);
+  ohlcv.open.replaceHead(rawBar.open);
+  ohlcv.high.replaceHead(rawBar.high);
+  ohlcv.low.replaceHead(rawBar.low);
+  ohlcv.close.replaceHead(rawBar.close);
+  ohlcv.volume.replaceHead(rawBar.volume);
+  ohlcv.hl2.replaceHead(values.hl2);
+  ohlcv.hlc3.replaceHead(values.hlc3);
+  ohlcv.ohlc4.replaceHead(values.ohlc4);
+  ohlcv.hlcc4.replaceHead(values.hlcc4);
+  bar.time = rawBar.time;
+  bar.open = rawBar.open;
+  bar.high = rawBar.high;
+  bar.low = rawBar.low;
+  bar.close = rawBar.close;
+  bar.volume = rawBar.volume;
+  bar.hl2 = values.hl2;
+  bar.hlc3 = values.hlc3;
+  bar.ohlc4 = values.ohlc4;
+  bar.hlcc4 = values.hlcc4;
+  bar.symbol = rawBar.symbol;
+  bar.interval = rawBar.interval;
+}
+function replaceTickHead(stream, rawBar) {
+  const values = deriveBarSources(rawBar);
+  const { ohlcv, bar } = stream;
+  ohlcv.close.replaceHead(rawBar.close);
+  ohlcv.high.replaceHead(rawBar.high);
+  ohlcv.low.replaceHead(rawBar.low);
+  ohlcv.volume.replaceHead(rawBar.volume);
+  ohlcv.hl2.replaceHead(values.hl2);
+  ohlcv.hlc3.replaceHead(values.hlc3);
+  ohlcv.ohlc4.replaceHead(values.ohlc4);
+  ohlcv.hlcc4.replaceHead(values.hlcc4);
+  bar.close = rawBar.close;
+  bar.high = rawBar.high;
+  bar.low = rawBar.low;
+  bar.volume = rawBar.volume;
+  bar.hl2 = values.hl2;
+  bar.hlc3 = values.hlc3;
+  bar.ohlc4 = values.ohlc4;
+  bar.hlcc4 = values.hlcc4;
 }
 function updateFallbackViewport(stream, limit = 100) {
   const length = stream.ohlcv.time.length;
@@ -562,17 +646,22 @@ function alignHtfSeriesToLtf(htf, htfSeries, ltf) {
 // ../runtime/dist/request/alignHtfSeriesCache.js
 var CACHE = /* @__PURE__ */ new WeakMap();
 function getOrAlign(htfBars, htfSeries, ltfBars) {
-  let inner = CACHE.get(htfBars);
-  if (inner === void 0) {
-    inner = /* @__PURE__ */ new WeakMap();
-    CACHE.set(htfBars, inner);
+  let byLtf = CACHE.get(htfBars);
+  if (byLtf === void 0) {
+    byLtf = /* @__PURE__ */ new WeakMap();
+    CACHE.set(htfBars, byLtf);
   }
-  const cached = inner.get(ltfBars);
+  let bySeries = byLtf.get(ltfBars);
+  if (bySeries === void 0) {
+    bySeries = /* @__PURE__ */ new WeakMap();
+    byLtf.set(ltfBars, bySeries);
+  }
+  const cached = bySeries.get(htfSeries);
   if (cached !== void 0 && cached.htfLength === htfBars.length && cached.ltfLength === ltfBars.length) {
     return cached.aligned;
   }
   const aligned = alignHtfSeriesToLtf(htfBars, htfSeries, ltfBars);
-  inner.set(ltfBars, {
+  bySeries.set(htfSeries, {
     htfLength: htfBars.length,
     ltfLength: ltfBars.length,
     aligned
@@ -658,6 +747,14 @@ function barsAscending(stream) {
   }
   return bars;
 }
+function ascendingBarsFor(ctx, stream) {
+  const cached = ctx.requestSecurityAscendingBars.get(stream);
+  if (cached !== void 0)
+    return cached;
+  const bars = barsAscending(stream);
+  ctx.requestSecurityAscendingBars.set(stream, bars);
+  return bars;
+}
 function seriesAscending(stream, sourceKey) {
   const values = [];
   const source = stream.ohlcv[sourceKey];
@@ -674,8 +771,8 @@ function alignedSeries(ctx, slotId, interval, sourceKey, secondary) {
   const existing = ctx.requestSecurityAlignments.get(key);
   if (existing !== void 0)
     return existing;
-  const htfBars = barsAscending(secondary);
-  const ltfBars = barsAscending(ctx.stream);
+  const htfBars = ascendingBarsFor(ctx, secondary);
+  const ltfBars = ascendingBarsFor(ctx, ctx.stream);
   const aligned = getOrAlign(htfBars, seriesAscending(secondary, sourceKey), ltfBars);
   ctx.requestSecurityAlignments.set(key, aligned);
   return aligned;
@@ -745,30 +842,27 @@ function makeLiveSecurityBar(ctx, slotId, interval, secondary) {
     interval: makeConstantStringSeries(interval)
   });
 }
+function fallbackNaN(ctx, cacheKey, slotId, interval, code, message2) {
+  pushOnce(ctx, code, slotId, interval, message2);
+  const bar = makeNanSecurityBar();
+  ctx.requestSecurityBars.set(cacheKey, bar);
+  return bar;
+}
 function makeSecurityBar(ctx, slotId, interval) {
   const cacheKey = `${slotId}|${interval}`;
   const existing = ctx.requestSecurityBars.get(cacheKey);
   if (existing !== void 0)
     return existing;
   if (!ctx.capabilities.multiTimeframe) {
-    pushOnce(ctx, "multi-timeframe-not-supported", slotId, interval, "Adapter declares multiTimeframe: false; request.security returns NaN");
-    const bar2 = makeNanSecurityBar();
-    ctx.requestSecurityBars.set(cacheKey, bar2);
-    return bar2;
+    return fallbackNaN(ctx, cacheKey, slotId, interval, "multi-timeframe-not-supported", "Adapter declares multiTimeframe: false; request.security returns NaN");
   }
   const known = ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
   if (!known) {
-    pushOnce(ctx, "unsupported-interval", slotId, interval, `Requested interval "${interval}" is not in Capabilities.intervals`);
-    const bar2 = makeNanSecurityBar();
-    ctx.requestSecurityBars.set(cacheKey, bar2);
-    return bar2;
+    return fallbackNaN(ctx, cacheKey, slotId, interval, "unsupported-interval", `Requested interval "${interval}" is not in Capabilities.intervals`);
   }
   const secondary = ctx.secondaryStreams.get(interval);
   if (secondary === void 0) {
-    pushOnce(ctx, "unknown-secondary-stream", slotId, interval, `Requested interval "${interval}" has no registered secondary stream`);
-    const bar2 = makeNanSecurityBar();
-    ctx.requestSecurityBars.set(cacheKey, bar2);
-    return bar2;
+    return fallbackNaN(ctx, cacheKey, slotId, interval, "unknown-secondary-stream", `Requested interval "${interval}" has no registered secondary stream`);
   }
   const bar = makeLiveSecurityBar(ctx, slotId, interval, secondary);
   ctx.requestSecurityBars.set(cacheKey, bar);
@@ -921,6 +1015,7 @@ function dispose(state2) {
   state2.runtimeContext.secondaryStreams.clear();
   state2.runtimeContext.requestSecurityBars.clear();
   state2.runtimeContext.requestSecurityAlignments.clear();
+  state2.runtimeContext.requestSecurityAscendingBars.clear();
   state2.runtimeContext.diagnosedRequestKeys.clear();
   state2.runtimeContext.diagnosedInputKeys.clear();
   const counters = state2.runtimeContext.drawingBucketCounters;
@@ -1372,6 +1467,404 @@ function alma(slotId, source, length, opts) {
     slot.outBuffer.append(closeValue2(slot, src));
   }
   return slot.series;
+}
+
+// ../runtime/dist/ta/lib/volume-profile/bucketEdges.js
+function buildBucketEdges(priceMin, priceMax, rowsLayout, rowSize, tickSize) {
+  if (!Number.isFinite(priceMin) || !Number.isFinite(priceMax) || rowSize <= 0) {
+    return new Float64Array([priceMin, priceMin]);
+  }
+  if (priceMax <= priceMin)
+    return new Float64Array([priceMin, priceMin]);
+  if (rowsLayout === "ticksPerRow") {
+    const bucketWidth = rowSize * tickSize;
+    if (bucketWidth <= 0)
+      return new Float64Array([priceMin, priceMin]);
+    const startEdge = Math.floor(priceMin / bucketWidth) * bucketWidth;
+    const endEdge = Math.ceil(priceMax / bucketWidth) * bucketWidth;
+    const count2 = Math.max(1, Math.round((endEdge - startEdge) / bucketWidth));
+    const edges2 = new Float64Array(count2 + 1);
+    for (let i = 0; i <= count2; i += 1)
+      edges2[i] = startEdge + i * bucketWidth;
+    return edges2;
+  }
+  const count = Math.max(1, Math.floor(rowSize));
+  const width = (priceMax - priceMin) / count;
+  const edges = new Float64Array(count + 1);
+  for (let i = 0; i <= count; i += 1)
+    edges[i] = priceMin + i * width;
+  return edges;
+}
+
+// ../runtime/dist/ta/lib/volume-profile/bucketizeVolume.js
+function bucketizeVolumeDetailed(bars, bucketEdges, volumeSplit) {
+  const bucketCount = bucketEdges.length - 1;
+  if (bucketCount <= 0)
+    return { buckets: [], pocIdx: -1, rows: [], totalVolume: 0 };
+  const upPerBucket = new Float64Array(bucketCount);
+  const downPerBucket = new Float64Array(bucketCount);
+  for (const bar of bars) {
+    const vol2 = Number.isFinite(bar.volume) ? bar.volume : 0;
+    if (vol2 <= 0)
+      continue;
+    const low = bar.low;
+    const high = bar.high;
+    if (!Number.isFinite(low) || !Number.isFinite(high))
+      continue;
+    if (!Number.isFinite(bar.open) || !Number.isFinite(bar.close))
+      continue;
+    if (high <= low)
+      continue;
+    const span = high - low;
+    const isUp = bar.close >= bar.open;
+    for (let b = 0; b < bucketCount; b += 1) {
+      const edgeLow = bucketEdges[b];
+      const edgeHigh = bucketEdges[b + 1];
+      if (edgeHigh <= low)
+        continue;
+      if (edgeLow >= high)
+        break;
+      const overlap = Math.min(edgeHigh, high) - Math.max(edgeLow, low);
+      if (overlap <= 0)
+        continue;
+      const share = vol2 * overlap / span;
+      if (isUp)
+        upPerBucket[b] += share;
+      else
+        downPerBucket[b] += share;
+    }
+  }
+  const rows = new Array(bucketCount);
+  const buckets = new Array(bucketCount);
+  let totalVolume = 0;
+  let pocIdx = -1;
+  let pocVolume = -1;
+  for (let b = 0; b < bucketCount; b += 1) {
+    const rawUp = upPerBucket[b];
+    const rawDown = downPerBucket[b];
+    const split = splitVolume(rawUp, rawDown, volumeSplit);
+    const low = bucketEdges[b];
+    const high = bucketEdges[b + 1];
+    const mid = (low + high) / 2;
+    rows[b] = {
+      downVolume: split.downVolume,
+      high,
+      low,
+      mid,
+      upVolume: split.upVolume,
+      volume: split.volume
+    };
+    buckets[b] = { price: mid, volume: split.volume };
+    totalVolume += split.volume;
+    if (split.volume > pocVolume) {
+      pocVolume = split.volume;
+      pocIdx = b;
+    }
+  }
+  return { buckets, pocIdx, rows, totalVolume };
+}
+function splitVolume(rawUp, rawDown, volumeSplit) {
+  switch (volumeSplit) {
+    case "total": {
+      const volume = rawUp + rawDown;
+      return { downVolume: 0, upVolume: volume, volume };
+    }
+    case "delta": {
+      const upVolume = Math.max(0, rawUp - rawDown);
+      const downVolume = Math.max(0, rawDown - rawUp);
+      return { downVolume, upVolume, volume: upVolume + downVolume };
+    }
+    case "upDown":
+      return { downVolume: rawDown, upVolume: rawUp, volume: rawUp + rawDown };
+  }
+}
+
+// ../runtime/dist/ta/lib/volume-profile/types.js
+var DEFAULT_TICK_SIZE = 0.01;
+
+// ../runtime/dist/ta/lib/volume-profile/valueArea.js
+function computeValueArea(rows, valueAreaPct = 70, pocIdx = findPocIndex(rows)) {
+  if (rows.length === 0 || pocIdx < 0 || pocIdx >= rows.length) {
+    return {
+      cumulativeVolume: 0,
+      poc: Number.NaN,
+      pocIdx,
+      vahIdx: pocIdx,
+      valHigh: Number.NaN,
+      valIdx: pocIdx,
+      valLow: Number.NaN
+    };
+  }
+  const totalVolume = rows.reduce((sum, row) => sum + row.volume, 0);
+  const targetPct = Math.max(0, Math.min(100, valueAreaPct));
+  const target = totalVolume * (targetPct / 100);
+  let lowIdx = pocIdx;
+  let highIdx = pocIdx;
+  let cumulative = rows[pocIdx].volume;
+  while (cumulative < target && (lowIdx > 0 || highIdx + 1 < rows.length)) {
+    const aboveAvailable = highIdx + 1 < rows.length;
+    const belowAvailable = lowIdx - 1 >= 0;
+    let aboveSum = 0;
+    if (aboveAvailable) {
+      aboveSum = rows[highIdx + 1].volume;
+      if (highIdx + 2 < rows.length)
+        aboveSum += rows[highIdx + 2].volume;
+    }
+    let belowSum = 0;
+    if (belowAvailable) {
+      belowSum = rows[lowIdx - 1].volume;
+      if (lowIdx - 2 >= 0)
+        belowSum += rows[lowIdx - 2].volume;
+    }
+    if (aboveAvailable && (!belowAvailable || aboveSum >= belowSum)) {
+      const takeTwo = highIdx + 2 < rows.length;
+      cumulative += rows[highIdx + 1].volume;
+      highIdx += 1;
+      if (takeTwo && cumulative < target) {
+        cumulative += rows[highIdx + 1].volume;
+        highIdx += 1;
+      }
+    } else {
+      const takeTwo = lowIdx - 2 >= 0;
+      cumulative += rows[lowIdx - 1].volume;
+      lowIdx -= 1;
+      if (takeTwo && cumulative < target) {
+        cumulative += rows[lowIdx - 1].volume;
+        lowIdx -= 1;
+      }
+    }
+  }
+  return {
+    cumulativeVolume: cumulative,
+    poc: rows[pocIdx].mid,
+    pocIdx,
+    vahIdx: highIdx,
+    valHigh: rows[highIdx].high,
+    valIdx: lowIdx,
+    valLow: rows[lowIdx].low
+  };
+}
+function findPocIndex(rows) {
+  let pocIdx = -1;
+  let pocVolume = -1;
+  for (let i = 0; i < rows.length; i += 1) {
+    if (rows[i].volume > pocVolume) {
+      pocIdx = i;
+      pocVolume = rows[i].volume;
+    }
+  }
+  return pocIdx;
+}
+
+// ../runtime/dist/ta/lib/volume-profile/developingSeries.js
+var WARMUP_BARS = 30;
+function computeDevelopingSeries(args) {
+  const { laneBars, finerBars, windowFromIdx, windowToIdx, config } = args;
+  const laneCount = laneBars.length;
+  const developingPoc = new Float64Array(laneCount);
+  const developingVahHigh = new Float64Array(laneCount);
+  const developingVahLow = new Float64Array(laneCount);
+  developingPoc.fill(Number.NaN);
+  developingVahHigh.fill(Number.NaN);
+  developingVahLow.fill(Number.NaN);
+  if (laneCount === 0)
+    return { developingPoc, developingVahHigh, developingVahLow };
+  const fromIdx = Math.max(0, Math.min(laneCount - 1, windowFromIdx));
+  const toIdx = Math.max(fromIdx, Math.min(laneCount - 1, windowToIdx));
+  const source = finerBars.length > 0 ? finerBars : laneBars;
+  const sourceStart = lowerBoundTime(source, laneBars[fromIdx].time);
+  let sourceEnd = sourceStart;
+  for (let i = fromIdx; i <= toIdx; i += 1) {
+    while (sourceEnd < source.length && source[sourceEnd].time <= laneBars[i].time)
+      sourceEnd += 1;
+    const slice = source.slice(sourceStart, sourceEnd);
+    if (slice.length <= WARMUP_BARS)
+      continue;
+    const { priceMax, priceMin } = derivePriceRange(slice);
+    const edges = buildBucketEdges(priceMin, priceMax, config.rowsLayout ?? "numberOfRows", config.rowSize, config.tickSize ?? DEFAULT_TICK_SIZE);
+    const bucketized = bucketizeVolumeDetailed(slice, edges, config.volumeSplit ?? "upDown");
+    if (bucketized.totalVolume <= 0)
+      continue;
+    const valueArea = computeValueArea(bucketized.rows, config.valueAreaPct, bucketized.pocIdx);
+    developingPoc[i] = valueArea.poc;
+    developingVahHigh[i] = valueArea.valHigh;
+    developingVahLow[i] = valueArea.valLow;
+  }
+  return { developingPoc, developingVahHigh, developingVahLow };
+}
+function lowerBoundTime(bars, target) {
+  let lo = 0;
+  let hi = bars.length;
+  while (lo < hi) {
+    const mid = lo + hi >>> 1;
+    if (bars[mid].time < target)
+      lo = mid + 1;
+    else
+      hi = mid;
+  }
+  return lo;
+}
+function derivePriceRange(bars) {
+  let priceMin = Number.POSITIVE_INFINITY;
+  let priceMax = Number.NEGATIVE_INFINITY;
+  for (const bar of bars) {
+    if (!Number.isFinite(bar.low) || !Number.isFinite(bar.high))
+      continue;
+    if (bar.low < priceMin)
+      priceMin = bar.low;
+    if (bar.high > priceMax)
+      priceMax = bar.high;
+  }
+  if (priceMin === Number.POSITIVE_INFINITY)
+    return { priceMax: 0, priceMin: 0 };
+  return { priceMax, priceMin };
+}
+
+// ../runtime/dist/ta/lib/volume-profile/tooHeavy.js
+var VOLUME_PROFILE_HEAVY_THRESHOLD = 5e4;
+var VOLUME_PROFILE_MAX_BUCKETS = 2e3;
+function assessVolumeProfileCost(args) {
+  if (args.finerCandleCount > VOLUME_PROFILE_HEAVY_THRESHOLD) {
+    return { heavy: true, reason: "too-many-finer-bars", recommendedRowSize: null };
+  }
+  const maxBuckets = args.maxBuckets ?? VOLUME_PROFILE_MAX_BUCKETS;
+  const estimate = estimateBucketCount(args);
+  if (estimate.kind === "estimated" && estimate.bucketCount > maxBuckets) {
+    return {
+      heavy: true,
+      reason: "too-many-buckets",
+      recommendedRowSize: args.rowsLayout === "ticksPerRow" ? Math.ceil((estimate.priceMax - estimate.priceMin) / (maxBuckets * estimate.tickSize)) : Math.max(1, maxBuckets)
+    };
+  }
+  return { heavy: false, reason: null, recommendedRowSize: null };
+}
+function estimateBucketCount(args) {
+  const { priceMax, priceMin, rowSize } = args;
+  if (rowSize === void 0 || priceMin === void 0 || priceMax === void 0 || !Number.isFinite(priceMin) || !Number.isFinite(priceMax) || rowSize <= 0 || priceMax <= priceMin) {
+    return { bucketCount: 0, kind: "invalid" };
+  }
+  const tickSize = args.tickSize ?? 0.01;
+  if (args.rowsLayout === "ticksPerRow") {
+    const width = rowSize * tickSize;
+    return width > 0 ? {
+      bucketCount: Math.ceil((priceMax - priceMin) / width),
+      kind: "estimated",
+      priceMax,
+      priceMin,
+      rowSize,
+      tickSize
+    } : { bucketCount: 0, kind: "invalid" };
+  }
+  return {
+    bucketCount: Math.floor(rowSize),
+    kind: "estimated",
+    priceMax,
+    priceMin,
+    rowSize,
+    tickSize
+  };
+}
+
+// ../runtime/dist/ta/lib/volume-profile/volumeProfileShared.js
+function computeProfile(args) {
+  const { laneBars, config } = args;
+  const finerBars = args.finerBars ?? [];
+  if (laneBars.length === 0)
+    return emptyProfile(false, null, null);
+  const fromIdx = Math.max(0, Math.min(laneBars.length - 1, args.windowFromIdx));
+  const toIdx = Math.max(fromIdx, Math.min(laneBars.length - 1, args.windowToIdx));
+  const laneSlice = laneBars.slice(fromIdx, toIdx + 1);
+  const finerSlice = sliceBarsByTime(finerBars, laneSlice[0].time, laneSlice[laneSlice.length - 1].time);
+  const bucketSource = finerSlice.length > 0 ? finerSlice : laneSlice;
+  const range = derivePriceRange(bucketSource);
+  const costStatus = assessVolumeProfileCost({
+    finerCandleCount: finerSlice.length,
+    priceMax: range.priceMax,
+    priceMin: range.priceMin,
+    rowSize: config.rowSize,
+    rowsLayout: config.rowsLayout ?? "numberOfRows",
+    tickSize: config.tickSize ?? DEFAULT_TICK_SIZE
+  });
+  if (costStatus.heavy)
+    return emptyProfile(costStatus.heavy, costStatus.reason, costStatus.recommendedRowSize);
+  if (range.priceMax <= range.priceMin)
+    return emptyProfile(false, null, null);
+  const edges = buildBucketEdges(range.priceMin, range.priceMax, config.rowsLayout ?? "numberOfRows", config.rowSize, config.tickSize ?? DEFAULT_TICK_SIZE);
+  const bucketized = bucketizeVolumeDetailed(bucketSource, edges, config.volumeSplit ?? "upDown");
+  if (bucketized.totalVolume <= 0)
+    return emptyProfile(false, null, null);
+  const valueArea = computeValueArea(bucketized.rows, config.valueAreaPct, bucketized.pocIdx);
+  const valueAreaMask = new Float64Array(bucketized.rows.length);
+  const lo = Math.min(valueArea.vahIdx, valueArea.valIdx);
+  const hi = Math.max(valueArea.vahIdx, valueArea.valIdx);
+  for (let i = 0; i < valueAreaMask.length; i += 1)
+    valueAreaMask[i] = i >= lo && i <= hi ? 1 : 0;
+  const base = {
+    buckets: bucketized.buckets,
+    costStatus,
+    poc: valueArea.poc,
+    rows: bucketized.rows,
+    valHigh: valueArea.valHigh,
+    valLow: valueArea.valLow,
+    valueAreaMask
+  };
+  if (args.computeDeveloping === true) {
+    return {
+      ...base,
+      developing: computeDevelopingSeries({
+        config,
+        finerBars,
+        laneBars,
+        windowFromIdx: fromIdx,
+        windowToIdx: toIdx
+      })
+    };
+  }
+  return base;
+}
+function emptyProfile(heavy, reason, recommendedRowSize) {
+  return {
+    buckets: [],
+    costStatus: { heavy, reason, recommendedRowSize },
+    poc: Number.NaN,
+    rows: [],
+    valHigh: Number.NaN,
+    valLow: Number.NaN,
+    valueAreaMask: new Float64Array(0)
+  };
+}
+function sliceBarsByTime(bars, timeFromMs, timeToMs) {
+  if (bars.length === 0)
+    return bars;
+  const start = lowerBoundTime2(bars, timeFromMs);
+  const end = upperBoundTime(bars, timeToMs);
+  if (start >= end)
+    return [];
+  return bars.slice(start, end);
+}
+function lowerBoundTime2(bars, target) {
+  let lo = 0;
+  let hi = bars.length;
+  while (lo < hi) {
+    const mid = lo + hi >>> 1;
+    if (bars[mid].time < target)
+      lo = mid + 1;
+    else
+      hi = mid;
+  }
+  return lo;
+}
+function upperBoundTime(bars, target) {
+  let lo = 0;
+  let hi = bars.length;
+  while (lo < hi) {
+    const mid = lo + hi >>> 1;
+    if (bars[mid].time <= target)
+      lo = mid + 1;
+    else
+      hi = mid;
+  }
+  return lo;
 }
 
 // ../core/dist/input/input.js
@@ -5628,386 +6121,116 @@ function plot2(arg1, arg2, arg3) {
   plotImpl(ctx, arg1, arg2, arg3 ?? {});
 }
 
-// ../runtime/dist/ta/lib/volume-profile/bucketEdges.js
-function buildBucketEdges(priceMin, priceMax, rowsLayout, rowSize, tickSize) {
-  if (!Number.isFinite(priceMin) || !Number.isFinite(priceMax) || rowSize <= 0) {
-    return new Float64Array([priceMin, priceMin]);
-  }
-  if (priceMax <= priceMin)
-    return new Float64Array([priceMin, priceMin]);
-  if (rowsLayout === "ticksPerRow") {
-    const bucketWidth = rowSize * tickSize;
-    if (bucketWidth <= 0)
-      return new Float64Array([priceMin, priceMin]);
-    const startEdge = Math.floor(priceMin / bucketWidth) * bucketWidth;
-    const endEdge = Math.ceil(priceMax / bucketWidth) * bucketWidth;
-    const count2 = Math.max(1, Math.round((endEdge - startEdge) / bucketWidth));
-    const edges2 = new Float64Array(count2 + 1);
-    for (let i = 0; i <= count2; i += 1)
-      edges2[i] = startEdge + i * bucketWidth;
-    return edges2;
-  }
-  const count = Math.max(1, Math.floor(rowSize));
-  const width = (priceMax - priceMin) / count;
-  const edges = new Float64Array(count + 1);
-  for (let i = 0; i <= count; i += 1)
-    edges[i] = priceMin + i * width;
-  return edges;
-}
-
-// ../runtime/dist/ta/lib/volume-profile/bucketizeVolume.js
-function bucketizeVolumeDetailed(bars, bucketEdges, volumeSplit) {
-  const bucketCount = bucketEdges.length - 1;
-  if (bucketCount <= 0)
-    return { buckets: [], pocIdx: -1, rows: [], totalVolume: 0 };
-  const upPerBucket = new Float64Array(bucketCount);
-  const downPerBucket = new Float64Array(bucketCount);
-  for (const bar of bars) {
-    const vol2 = Number.isFinite(bar.volume) ? bar.volume : 0;
-    if (vol2 <= 0)
-      continue;
-    const low = bar.low;
-    const high = bar.high;
-    const span = Math.max(1e-12, high - low);
-    const isUp = bar.close >= bar.open;
-    for (let b = 0; b < bucketCount; b += 1) {
-      const edgeLow = bucketEdges[b];
-      const edgeHigh = bucketEdges[b + 1];
-      if (edgeHigh <= low)
-        continue;
-      if (edgeLow >= high)
-        break;
-      const overlap = Math.min(edgeHigh, high) - Math.max(edgeLow, low);
-      if (overlap <= 0)
-        continue;
-      const share = vol2 * overlap / span;
-      if (isUp)
-        upPerBucket[b] += share;
-      else
-        downPerBucket[b] += share;
-    }
-  }
-  const rows = new Array(bucketCount);
-  const buckets = new Array(bucketCount);
-  let totalVolume = 0;
-  let pocIdx = -1;
-  let pocVolume = -1;
-  for (let b = 0; b < bucketCount; b += 1) {
-    const rawUp = upPerBucket[b];
-    const rawDown = downPerBucket[b];
-    const split = splitVolume(rawUp, rawDown, volumeSplit);
-    const low = bucketEdges[b];
-    const high = bucketEdges[b + 1];
-    const mid = (low + high) / 2;
-    rows[b] = {
-      downVolume: split.downVolume,
-      high,
-      low,
-      mid,
-      upVolume: split.upVolume,
-      volume: split.volume
-    };
-    buckets[b] = { price: mid, volume: split.volume };
-    totalVolume += split.volume;
-    if (split.volume > pocVolume) {
-      pocVolume = split.volume;
-      pocIdx = b;
-    }
-  }
-  return { buckets, pocIdx, rows, totalVolume };
-}
-function splitVolume(rawUp, rawDown, volumeSplit) {
-  switch (volumeSplit) {
-    case "total": {
-      const volume = rawUp + rawDown;
-      return { downVolume: 0, upVolume: volume, volume };
-    }
-    case "delta": {
-      const upVolume = Math.max(0, rawUp - rawDown);
-      const downVolume = Math.max(0, rawDown - rawUp);
-      return { downVolume, upVolume, volume: upVolume + downVolume };
-    }
-    case "upDown":
-      return { downVolume: rawDown, upVolume: rawUp, volume: rawUp + rawDown };
-  }
-}
-
-// ../runtime/dist/ta/lib/volume-profile/types.js
-var DEFAULT_TICK_SIZE = 0.01;
-
-// ../runtime/dist/ta/lib/volume-profile/valueArea.js
-function computeValueArea(rows, valueAreaPct = 70, pocIdx = findPocIndex(rows)) {
-  if (rows.length === 0 || pocIdx < 0 || pocIdx >= rows.length) {
-    return {
-      cumulativeVolume: 0,
-      poc: Number.NaN,
-      pocIdx,
-      vahIdx: pocIdx,
-      valHigh: Number.NaN,
-      valIdx: pocIdx,
-      valLow: Number.NaN
-    };
-  }
-  const totalVolume = rows.reduce((sum, row) => sum + row.volume, 0);
-  const targetPct = Math.max(0, Math.min(100, valueAreaPct));
-  const target = totalVolume * (targetPct / 100);
-  let lowIdx = pocIdx;
-  let highIdx = pocIdx;
-  let cumulative = rows[pocIdx].volume;
-  while (cumulative < target && (lowIdx > 0 || highIdx + 1 < rows.length)) {
-    const aboveAvailable = highIdx + 1 < rows.length;
-    const belowAvailable = lowIdx - 1 >= 0;
-    let aboveSum = 0;
-    if (aboveAvailable) {
-      aboveSum = rows[highIdx + 1].volume;
-      if (highIdx + 2 < rows.length)
-        aboveSum += rows[highIdx + 2].volume;
-    }
-    let belowSum = 0;
-    if (belowAvailable) {
-      belowSum = rows[lowIdx - 1].volume;
-      if (lowIdx - 2 >= 0)
-        belowSum += rows[lowIdx - 2].volume;
-    }
-    if (aboveAvailable && (!belowAvailable || aboveSum >= belowSum)) {
-      const takeTwo = highIdx + 2 < rows.length;
-      cumulative += rows[highIdx + 1].volume;
-      highIdx += 1;
-      if (takeTwo && cumulative < target) {
-        cumulative += rows[highIdx + 1].volume;
-        highIdx += 1;
-      }
-    } else {
-      const takeTwo = lowIdx - 2 >= 0;
-      cumulative += rows[lowIdx - 1].volume;
-      lowIdx -= 1;
-      if (takeTwo && cumulative < target) {
-        cumulative += rows[lowIdx - 1].volume;
-        lowIdx -= 1;
-      }
-    }
-  }
-  return {
-    cumulativeVolume: cumulative,
-    poc: rows[pocIdx].mid,
-    pocIdx,
-    vahIdx: highIdx,
-    valHigh: rows[highIdx].high,
-    valIdx: lowIdx,
-    valLow: rows[lowIdx].low
-  };
-}
-function findPocIndex(rows) {
-  let pocIdx = -1;
-  let pocVolume = -1;
-  for (let i = 0; i < rows.length; i += 1) {
-    if (rows[i].volume > pocVolume) {
-      pocIdx = i;
-      pocVolume = rows[i].volume;
-    }
-  }
-  return pocIdx;
-}
-
-// ../runtime/dist/ta/lib/volume-profile/developingSeries.js
-var WARMUP_BARS = 30;
-function computeDevelopingSeries(args) {
-  const { laneBars, finerBars, windowFromIdx, windowToIdx, config } = args;
-  const laneCount = laneBars.length;
-  const developingPoc = new Float64Array(laneCount);
-  const developingVahHigh = new Float64Array(laneCount);
-  const developingVahLow = new Float64Array(laneCount);
-  developingPoc.fill(Number.NaN);
-  developingVahHigh.fill(Number.NaN);
-  developingVahLow.fill(Number.NaN);
-  if (laneCount === 0)
-    return { developingPoc, developingVahHigh, developingVahLow };
-  const fromIdx = Math.max(0, Math.min(laneCount - 1, windowFromIdx));
-  const toIdx = Math.max(fromIdx, Math.min(laneCount - 1, windowToIdx));
-  const source = finerBars.length > 0 ? finerBars : laneBars;
-  const sourceStart = lowerBoundTime(source, laneBars[fromIdx].time);
-  let sourceEnd = sourceStart;
-  for (let i = fromIdx; i <= toIdx; i += 1) {
-    while (sourceEnd < source.length && source[sourceEnd].time <= laneBars[i].time)
-      sourceEnd += 1;
-    const slice = source.slice(sourceStart, sourceEnd);
-    if (slice.length <= WARMUP_BARS)
-      continue;
-    const { priceMax, priceMin } = derivePriceRange(slice);
-    const edges = buildBucketEdges(priceMin, priceMax, config.rowsLayout ?? "numberOfRows", config.rowSize, config.tickSize ?? DEFAULT_TICK_SIZE);
-    const bucketized = bucketizeVolumeDetailed(slice, edges, config.volumeSplit ?? "upDown");
-    if (bucketized.totalVolume <= 0)
-      continue;
-    const valueArea = computeValueArea(bucketized.rows, config.valueAreaPct, bucketized.pocIdx);
-    developingPoc[i] = valueArea.poc;
-    developingVahHigh[i] = valueArea.valHigh;
-    developingVahLow[i] = valueArea.valLow;
-  }
-  return { developingPoc, developingVahHigh, developingVahLow };
-}
-function lowerBoundTime(bars, target) {
-  let lo = 0;
-  let hi = bars.length;
-  while (lo < hi) {
-    const mid = lo + hi >>> 1;
-    if (bars[mid].time < target)
-      lo = mid + 1;
-    else
-      hi = mid;
-  }
-  return lo;
-}
-function derivePriceRange(bars) {
-  if (bars.length === 0)
-    return { priceMax: 0, priceMin: 0 };
-  let priceMin = bars[0].low;
-  let priceMax = bars[0].high;
-  for (let i = 1; i < bars.length; i += 1) {
-    if (bars[i].low < priceMin)
-      priceMin = bars[i].low;
-    if (bars[i].high > priceMax)
-      priceMax = bars[i].high;
-  }
-  return { priceMax, priceMin };
-}
-
-// ../runtime/dist/ta/lib/volume-profile/tooHeavy.js
-var VOLUME_PROFILE_HEAVY_THRESHOLD = 5e4;
-var VOLUME_PROFILE_MAX_BUCKETS = 2e3;
-function assessVolumeProfileCost(args) {
-  if (args.finerCandleCount > VOLUME_PROFILE_HEAVY_THRESHOLD) {
-    return { heavy: true, reason: "too-many-finer-bars", recommendedRowSize: null };
-  }
-  const maxBuckets = args.maxBuckets ?? VOLUME_PROFILE_MAX_BUCKETS;
-  const estimate = estimateBucketCount(args);
-  if (estimate.kind === "estimated" && estimate.bucketCount > maxBuckets) {
-    return {
-      heavy: true,
-      reason: "too-many-buckets",
-      recommendedRowSize: args.rowsLayout === "ticksPerRow" ? Math.ceil((estimate.priceMax - estimate.priceMin) / (maxBuckets * estimate.tickSize)) : Math.max(1, maxBuckets)
-    };
-  }
-  return { heavy: false, reason: null, recommendedRowSize: null };
-}
-function estimateBucketCount(args) {
-  const { priceMax, priceMin, rowSize } = args;
-  if (rowSize === void 0 || priceMin === void 0 || priceMax === void 0 || !Number.isFinite(priceMin) || !Number.isFinite(priceMax) || rowSize <= 0 || priceMax <= priceMin) {
-    return { bucketCount: 0, kind: "invalid" };
-  }
-  const tickSize = args.tickSize ?? 0.01;
-  if (args.rowsLayout === "ticksPerRow") {
-    const width = rowSize * tickSize;
-    return width > 0 ? { bucketCount: Math.ceil((priceMax - priceMin) / width), kind: "estimated", priceMax, priceMin, rowSize, tickSize } : { bucketCount: 0, kind: "invalid" };
-  }
-  return { bucketCount: Math.floor(rowSize), kind: "estimated", priceMax, priceMin, rowSize, tickSize };
-}
-
-// ../runtime/dist/ta/lib/volume-profile/volumeProfileShared.js
-function computeProfile(args) {
-  const { laneBars, config } = args;
-  const finerBars = args.finerBars ?? [];
-  if (laneBars.length === 0)
-    return emptyProfile(false, null, null);
-  const fromIdx = Math.max(0, Math.min(laneBars.length - 1, args.windowFromIdx));
-  const toIdx = Math.max(fromIdx, Math.min(laneBars.length - 1, args.windowToIdx));
-  const laneSlice = laneBars.slice(fromIdx, toIdx + 1);
-  const finerSlice = sliceBarsByTime(finerBars, laneSlice[0].time, laneSlice[laneSlice.length - 1].time);
-  const bucketSource = finerSlice.length > 0 ? finerSlice : laneSlice;
-  const range = derivePriceRange(bucketSource);
-  const costStatus = assessVolumeProfileCost({
-    finerCandleCount: finerSlice.length,
-    priceMax: range.priceMax,
-    priceMin: range.priceMin,
-    rowSize: config.rowSize,
-    rowsLayout: config.rowsLayout ?? "numberOfRows",
-    tickSize: config.tickSize ?? DEFAULT_TICK_SIZE
-  });
-  if (costStatus.heavy)
-    return emptyProfile(costStatus.heavy, costStatus.reason, costStatus.recommendedRowSize);
-  if (range.priceMax <= range.priceMin)
-    return emptyProfile(false, null, null);
-  const edges = buildBucketEdges(range.priceMin, range.priceMax, config.rowsLayout ?? "numberOfRows", config.rowSize, config.tickSize ?? DEFAULT_TICK_SIZE);
-  const bucketized = bucketizeVolumeDetailed(bucketSource, edges, config.volumeSplit ?? "upDown");
-  if (bucketized.totalVolume <= 0)
-    return emptyProfile(false, null, null);
-  const valueArea = computeValueArea(bucketized.rows, config.valueAreaPct, bucketized.pocIdx);
-  const valueAreaMask = new Float64Array(bucketized.rows.length);
-  const lo = Math.min(valueArea.vahIdx, valueArea.valIdx);
-  const hi = Math.max(valueArea.vahIdx, valueArea.valIdx);
-  for (let i = 0; i < valueAreaMask.length; i += 1)
-    valueAreaMask[i] = i >= lo && i <= hi ? 1 : 0;
-  const base = {
-    buckets: bucketized.buckets,
-    costStatus,
-    poc: valueArea.poc,
-    rows: bucketized.rows,
-    valHigh: valueArea.valHigh,
-    valLow: valueArea.valLow,
-    valueAreaMask
-  };
-  if (args.computeDeveloping === true) {
-    return {
-      ...base,
-      developing: computeDevelopingSeries({
-        config,
-        finerBars,
-        laneBars,
-        windowFromIdx: fromIdx,
-        windowToIdx: toIdx
-      })
-    };
-  }
-  return base;
-}
-function emptyProfile(heavy, reason, recommendedRowSize) {
-  return {
-    buckets: [],
-    costStatus: { heavy, reason, recommendedRowSize },
-    poc: Number.NaN,
-    rows: [],
-    valHigh: Number.NaN,
-    valLow: Number.NaN,
-    valueAreaMask: new Float64Array(0)
-  };
-}
-function sliceBarsByTime(bars, timeFromMs, timeToMs) {
-  if (bars.length === 0)
-    return bars;
-  const start = lowerBoundTime2(bars, timeFromMs);
-  const end = upperBoundTime(bars, timeToMs);
-  if (start >= end)
-    return [];
-  return bars.slice(start, end);
-}
-function lowerBoundTime2(bars, target) {
-  let lo = 0;
-  let hi = bars.length;
-  while (lo < hi) {
-    const mid = lo + hi >>> 1;
-    if (bars[mid].time < target)
-      lo = mid + 1;
-    else
-      hi = mid;
-  }
-  return lo;
-}
-function upperBoundTime(bars, target) {
-  let lo = 0;
-  let hi = bars.length;
-  while (lo < hi) {
-    const mid = lo + hi >>> 1;
-    if (bars[mid].time <= target)
-      lo = mid + 1;
-    else
-      hi = mid;
-  }
-  return lo;
-}
-
-// ../runtime/dist/ta/anchoredVolumeProfile.js
+// ../runtime/dist/ta/lib/volume-profile/scaffold.js
 var DEFAULT_ROW_SIZE = 24;
 var DEFAULT_VALUE_AREA_PCT = 0.7;
 var HISTOGRAM_SLOT_SUFFIX = "/histogram";
+function createVolumeProfileCore(capacity) {
+  return {
+    buckets: [],
+    pocBuffer: new Float64RingBuffer(capacity),
+    valHighBuffer: new Float64RingBuffer(capacity),
+    valLowBuffer: new Float64RingBuffer(capacity)
+  };
+}
+function volumeProfileConfigFromOpts(opts) {
+  const rowSize = opts.rowSize;
+  const valueAreaPct = opts.valueAreaPct ?? DEFAULT_VALUE_AREA_PCT;
+  return {
+    rowSize: rowSize === void 0 || rowSize <= 0 ? DEFAULT_ROW_SIZE : rowSize,
+    valueAreaPct: valueAreaPct <= 1 ? valueAreaPct * 100 : valueAreaPct
+  };
+}
+function degenerateVolumeProfile(bars, bucketColor) {
+  let totalVolume = 0;
+  let price = Number.NaN;
+  for (const bar of bars) {
+    if (!Number.isFinite(bar.close))
+      continue;
+    price = bar.close;
+    if (Number.isFinite(bar.volume) && bar.volume > 0)
+      totalVolume += bar.volume;
+  }
+  if (!Number.isFinite(price) || totalVolume <= 0)
+    return null;
+  const bucket = bucketColor === void 0 ? { price, volume: totalVolume } : { price, volume: totalVolume, color: bucketColor };
+  return {
+    buckets: [bucket],
+    poc: price,
+    valHigh: price,
+    valLow: price
+  };
+}
+function emptyVolumeProfileSnapshot() {
+  return {
+    buckets: [],
+    poc: Number.NaN,
+    valHigh: Number.NaN,
+    valLow: Number.NaN
+  };
+}
+function resolveVolumeProfileSnapshot(args) {
+  const { bars, config, bucketColor } = args;
+  const profile = bars.length === 0 ? null : computeProfile({
+    config,
+    laneBars: bars,
+    windowFromIdx: 0,
+    windowToIdx: bars.length - 1
+  });
+  if (profile !== null && profile.buckets.length > 0) {
+    return {
+      buckets: profile.buckets.map((bucket) => bucketColor === void 0 ? bucket : { ...bucket, color: bucketColor }),
+      poc: profile.poc,
+      valHigh: profile.valHigh,
+      valLow: profile.valLow
+    };
+  }
+  return degenerateVolumeProfile(bars, bucketColor) ?? emptyVolumeProfileSnapshot();
+}
+function commitVolumeProfileSnapshot(core, isTick, snapshot6) {
+  core.buckets = snapshot6.buckets;
+  if (isTick) {
+    core.pocBuffer.replaceHead(snapshot6.poc);
+    core.valHighBuffer.replaceHead(snapshot6.valHigh);
+    core.valLowBuffer.replaceHead(snapshot6.valLow);
+  } else {
+    core.pocBuffer.append(snapshot6.poc);
+    core.valHighBuffer.append(snapshot6.valHigh);
+    core.valLowBuffer.append(snapshot6.valLow);
+  }
+}
+function emitVolumeProfileHistogram(ctx, slotId, title, value, buckets) {
+  if (!ctx.capabilities.plots.has("horizontal-histogram")) {
+    const key = `unsupported-plot-kind|${slotId}`;
+    if (ctx.diagnosedRequestKeys.has(key))
+      return;
+    ctx.diagnosedRequestKeys.add(key);
+    pushDiagnostic(ctx.emissions, {
+      kind: "diagnostic",
+      severity: "warning",
+      code: "unsupported-plot-kind",
+      message: 'Adapter cannot render plot kind "horizontal-histogram".',
+      slotId,
+      bar: ctx.barIndex()
+    });
+    return;
+  }
+  const emission = {
+    bar: ctx.barIndex(),
+    color: null,
+    kind: "plot",
+    meta: {},
+    pane: "overlay",
+    slotId: `${slotId}${HISTOGRAM_SLOT_SUFFIX}`,
+    style: { kind: "horizontal-histogram", buckets },
+    time: ctx.stream.bar.time,
+    title,
+    value: Number.isFinite(value) ? value : null
+  };
+  pushPlot(ctx.emissions, emission);
+}
+
+// ../runtime/dist/ta/anchoredVolumeProfile.js
 function getCtx7() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
@@ -6016,23 +6239,18 @@ function getCtx7() {
   return ctx;
 }
 function initSlot5(capacity) {
-  const pocBuffer = new Float64RingBuffer(capacity);
-  const valHighBuffer = new Float64RingBuffer(capacity);
-  const valLowBuffer = new Float64RingBuffer(capacity);
+  const core = createVolumeProfileCore(capacity);
   const slot = {
-    buckets: [],
-    pocBuffer,
+    ...core,
     result: Object.freeze({
       get buckets() {
         return slot.buckets;
       },
-      poc: makeSeriesView(pocBuffer),
-      valHigh: makeSeriesView(valHighBuffer),
-      valLow: makeSeriesView(valLowBuffer)
+      poc: makeSeriesView(core.pocBuffer),
+      valHigh: makeSeriesView(core.valHighBuffer),
+      valLow: makeSeriesView(core.valLowBuffer)
     }),
-    shiftedResults: /* @__PURE__ */ new Map(),
-    valHighBuffer,
-    valLowBuffer
+    shiftedResults: /* @__PURE__ */ new Map()
   };
   return slot;
 }
@@ -6052,14 +6270,6 @@ function resultForOffset(slot, offset) {
     slot.shiftedResults.set(offset, cached);
   }
   return cached;
-}
-function configFromOpts(opts) {
-  const rowSize = opts.rowSize;
-  const valueAreaPct = opts.valueAreaPct ?? DEFAULT_VALUE_AREA_PCT;
-  return {
-    rowSize: rowSize === void 0 || rowSize <= 0 ? DEFAULT_ROW_SIZE : rowSize,
-    valueAreaPct: valueAreaPct <= 1 ? valueAreaPct * 100 : valueAreaPct
-  };
 }
 function collectBars(ctx, anchor) {
   if (ctx.stream.bar.time <= anchor)
@@ -6081,52 +6291,6 @@ function collectBars(ctx, anchor) {
   }
   return bars;
 }
-function degenerateProfile(bars, bucketColor) {
-  let totalVolume = 0;
-  let price = Number.NaN;
-  for (const bar of bars) {
-    if (!Number.isFinite(bar.close))
-      continue;
-    price = bar.close;
-    if (Number.isFinite(bar.volume) && bar.volume > 0)
-      totalVolume += bar.volume;
-  }
-  if (!Number.isFinite(price) || totalVolume <= 0)
-    return null;
-  const bucket = bucketColor === void 0 ? { price, volume: totalVolume } : { price, volume: totalVolume, color: bucketColor };
-  return {
-    buckets: [bucket],
-    poc: price,
-    valHigh: price,
-    valLow: price
-  };
-}
-function emitHistogram(ctx, slotId, value, buckets) {
-  if (!ctx.capabilities.plots.has("horizontal-histogram")) {
-    pushDiagnostic(ctx.emissions, {
-      kind: "diagnostic",
-      severity: "warning",
-      code: "unsupported-plot-kind",
-      message: 'Adapter cannot render plot kind "horizontal-histogram".',
-      slotId,
-      bar: ctx.barIndex()
-    });
-    return;
-  }
-  const emission = {
-    bar: ctx.barIndex(),
-    color: null,
-    kind: "plot",
-    meta: {},
-    pane: "overlay",
-    slotId: `${slotId}${HISTOGRAM_SLOT_SUFFIX}`,
-    style: { kind: "horizontal-histogram", buckets },
-    time: ctx.stream.bar.time,
-    title: "Anchored Volume Profile",
-    value: Number.isFinite(value) ? value : null
-  };
-  pushPlot(ctx.emissions, emission);
-}
 function anchoredVolumeProfile(slotId, opts) {
   const ctx = getCtx7();
   let slot = ctx.stream.taSlots.get(slotId);
@@ -6134,37 +6298,13 @@ function anchoredVolumeProfile(slotId, opts) {
     slot = initSlot5(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const bars = collectBars(ctx, opts.anchor);
-  const profile = bars.length === 0 ? null : computeProfile({
-    config: configFromOpts(opts),
-    laneBars: bars,
-    windowFromIdx: 0,
-    windowToIdx: bars.length - 1
+  const snapshot6 = resolveVolumeProfileSnapshot({
+    bars: collectBars(ctx, opts.anchor),
+    bucketColor: opts.bucketColor,
+    config: volumeProfileConfigFromOpts(opts)
   });
-  let buckets = profile?.buckets.map((bucket) => opts.bucketColor === void 0 ? bucket : { ...bucket, color: opts.bucketColor }) ?? [];
-  let poc = profile?.poc ?? Number.NaN;
-  let valHigh = profile?.valHigh ?? Number.NaN;
-  let valLow = profile?.valLow ?? Number.NaN;
-  if (buckets.length === 0) {
-    const degenerate = degenerateProfile(bars, opts.bucketColor);
-    if (degenerate !== null) {
-      buckets = degenerate.buckets;
-      poc = degenerate.poc;
-      valHigh = degenerate.valHigh;
-      valLow = degenerate.valLow;
-    }
-  }
-  slot.buckets = buckets;
-  if (ctx.isTick) {
-    slot.pocBuffer.replaceHead(poc);
-    slot.valHighBuffer.replaceHead(valHigh);
-    slot.valLowBuffer.replaceHead(valLow);
-  } else {
-    slot.pocBuffer.append(poc);
-    slot.valHighBuffer.append(valHigh);
-    slot.valLowBuffer.append(valLow);
-  }
-  emitHistogram(ctx, slotId, poc, buckets);
+  commitVolumeProfileSnapshot(slot, ctx.isTick, snapshot6);
+  emitVolumeProfileHistogram(ctx, slotId, "Anchored Volume Profile", snapshot6.poc, snapshot6.buckets);
   return resultForOffset(slot, opts.offset ?? 0);
 }
 
@@ -8937,9 +9077,6 @@ function fisher(slotId, length, _opts) {
 }
 
 // ../runtime/dist/ta/fixedRangeVolumeProfile.js
-var DEFAULT_ROW_SIZE2 = 24;
-var DEFAULT_VALUE_AREA_PCT2 = 0.7;
-var HISTOGRAM_SLOT_SUFFIX2 = "/histogram";
 function getCtx45() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
@@ -8948,24 +9085,19 @@ function getCtx45() {
   return ctx;
 }
 function initSlot43(capacity) {
-  const pocBuffer = new Float64RingBuffer(capacity);
-  const valHighBuffer = new Float64RingBuffer(capacity);
-  const valLowBuffer = new Float64RingBuffer(capacity);
+  const core = createVolumeProfileCore(capacity);
   const slot = {
-    buckets: [],
+    ...core,
     frozen: null,
-    pocBuffer,
     result: Object.freeze({
       get buckets() {
         return slot.buckets;
       },
-      poc: makeSeriesView(pocBuffer),
-      valHigh: makeSeriesView(valHighBuffer),
-      valLow: makeSeriesView(valLowBuffer)
+      poc: makeSeriesView(core.pocBuffer),
+      valHigh: makeSeriesView(core.valHighBuffer),
+      valLow: makeSeriesView(core.valLowBuffer)
     }),
-    shiftedResults: /* @__PURE__ */ new Map(),
-    valHighBuffer,
-    valLowBuffer
+    shiftedResults: /* @__PURE__ */ new Map()
   };
   return slot;
 }
@@ -8986,14 +9118,6 @@ function resultForOffset4(slot, offset) {
   }
   return cached;
 }
-function configFromOpts2(opts) {
-  const rowSize = opts.rowSize;
-  const valueAreaPct = opts.valueAreaPct ?? DEFAULT_VALUE_AREA_PCT2;
-  return {
-    rowSize: rowSize === void 0 || rowSize <= 0 ? DEFAULT_ROW_SIZE2 : rowSize,
-    valueAreaPct: valueAreaPct <= 1 ? valueAreaPct * 100 : valueAreaPct
-  };
-}
 function collectBars2(ctx, from, to) {
   const { ohlcv } = ctx.stream;
   const bars = [];
@@ -9012,53 +9136,6 @@ function collectBars2(ctx, from, to) {
   }
   return bars;
 }
-function degenerateProfile2(bars, bucketColor) {
-  let totalVolume = 0;
-  let price = Number.NaN;
-  for (const bar of bars) {
-    if (!Number.isFinite(bar.close))
-      continue;
-    price = bar.close;
-    if (Number.isFinite(bar.volume) && bar.volume > 0)
-      totalVolume += bar.volume;
-  }
-  if (!Number.isFinite(price) || totalVolume <= 0)
-    return null;
-  const bucket = bucketColor === void 0 ? { price, volume: totalVolume } : { price, volume: totalVolume, color: bucketColor };
-  return {
-    buckets: [bucket],
-    poc: price,
-    valHigh: price,
-    valLow: price
-  };
-}
-function emptySnapshot() {
-  return {
-    buckets: [],
-    poc: Number.NaN,
-    valHigh: Number.NaN,
-    valLow: Number.NaN
-  };
-}
-function snapshotFor(bars, opts) {
-  if (bars.length === 0)
-    return emptySnapshot();
-  const profile = computeProfile({
-    config: configFromOpts2(opts),
-    laneBars: bars,
-    windowFromIdx: 0,
-    windowToIdx: bars.length - 1
-  });
-  if (profile !== null && profile.buckets.length > 0) {
-    return {
-      buckets: profile.buckets.map((bucket) => opts.bucketColor === void 0 ? bucket : { ...bucket, color: opts.bucketColor }),
-      poc: profile.poc,
-      valHigh: profile.valHigh,
-      valLow: profile.valLow
-    };
-  }
-  return degenerateProfile2(bars, opts.bucketColor) ?? emptySnapshot();
-}
 function diagnoseInvertedRange(ctx, slotId) {
   const key = `fixed-range-inverted|${slotId}`;
   if (ctx.diagnosedRequestKeys.has(key))
@@ -9073,32 +9150,6 @@ function diagnoseInvertedRange(ctx, slotId) {
     bar: ctx.barIndex()
   });
 }
-function emitHistogram2(ctx, slotId, value, buckets) {
-  if (!ctx.capabilities.plots.has("horizontal-histogram")) {
-    pushDiagnostic(ctx.emissions, {
-      kind: "diagnostic",
-      severity: "warning",
-      code: "unsupported-plot-kind",
-      message: 'Adapter cannot render plot kind "horizontal-histogram".',
-      slotId,
-      bar: ctx.barIndex()
-    });
-    return;
-  }
-  const emission = {
-    bar: ctx.barIndex(),
-    color: null,
-    kind: "plot",
-    meta: {},
-    pane: "overlay",
-    slotId: `${slotId}${HISTOGRAM_SLOT_SUFFIX2}`,
-    style: { kind: "horizontal-histogram", buckets },
-    time: ctx.stream.bar.time,
-    title: "Fixed Range Volume Profile",
-    value: Number.isFinite(value) ? value : null
-  };
-  pushPlot(ctx.emissions, emission);
-}
 function fixedRangeVolumeProfile(slotId, opts) {
   const ctx = getCtx45();
   let slot = ctx.stream.taSlots.get(slotId);
@@ -9106,7 +9157,7 @@ function fixedRangeVolumeProfile(slotId, opts) {
     slot = initSlot43(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  let snapshot6 = emptySnapshot();
+  let snapshot6 = emptyVolumeProfileSnapshot();
   if (opts.from > opts.to) {
     diagnoseInvertedRange(ctx, slotId);
     slot.frozen = null;
@@ -9115,21 +9166,16 @@ function fixedRangeVolumeProfile(slotId, opts) {
   } else if (ctx.stream.bar.time > opts.to && slot.frozen !== null) {
     snapshot6 = slot.frozen;
   } else {
-    snapshot6 = snapshotFor(collectBars2(ctx, opts.from, opts.to), opts);
+    snapshot6 = resolveVolumeProfileSnapshot({
+      bars: collectBars2(ctx, opts.from, opts.to),
+      bucketColor: opts.bucketColor,
+      config: volumeProfileConfigFromOpts(opts)
+    });
     if (ctx.stream.bar.time >= opts.to)
       slot.frozen = snapshot6;
   }
-  slot.buckets = snapshot6.buckets;
-  if (ctx.isTick) {
-    slot.pocBuffer.replaceHead(snapshot6.poc);
-    slot.valHighBuffer.replaceHead(snapshot6.valHigh);
-    slot.valLowBuffer.replaceHead(snapshot6.valLow);
-  } else {
-    slot.pocBuffer.append(snapshot6.poc);
-    slot.valHighBuffer.append(snapshot6.valHigh);
-    slot.valLowBuffer.append(snapshot6.valLow);
-  }
-  emitHistogram2(ctx, slotId, snapshot6.poc, snapshot6.buckets);
+  commitVolumeProfileSnapshot(slot, ctx.isTick, snapshot6);
+  emitVolumeProfileHistogram(ctx, slotId, "Fixed Range Volume Profile", snapshot6.poc, snapshot6.buckets);
   return resultForOffset4(slot, opts.offset ?? 0);
 }
 
@@ -11745,9 +11791,6 @@ function rvi(slotId, source, length, opts) {
 }
 
 // ../runtime/dist/ta/sessionVolumeProfile.js
-var DEFAULT_ROW_SIZE3 = 24;
-var DEFAULT_VALUE_AREA_PCT3 = 0.7;
-var HISTOGRAM_SLOT_SUFFIX3 = "/histogram";
 var DAY_MS = 864e5;
 function getCtx75() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
@@ -11757,23 +11800,18 @@ function getCtx75() {
   return ctx;
 }
 function initSlot68(capacity) {
-  const pocBuffer = new Float64RingBuffer(capacity);
-  const valHighBuffer = new Float64RingBuffer(capacity);
-  const valLowBuffer = new Float64RingBuffer(capacity);
+  const core = createVolumeProfileCore(capacity);
   const slot = {
-    buckets: [],
-    pocBuffer,
+    ...core,
     result: Object.freeze({
       get buckets() {
         return slot.buckets;
       },
-      poc: makeSeriesView(pocBuffer),
-      valHigh: makeSeriesView(valHighBuffer),
-      valLow: makeSeriesView(valLowBuffer)
+      poc: makeSeriesView(core.pocBuffer),
+      valHigh: makeSeriesView(core.valHighBuffer),
+      valLow: makeSeriesView(core.valLowBuffer)
     }),
-    shiftedResults: /* @__PURE__ */ new Map(),
-    valHighBuffer,
-    valLowBuffer
+    shiftedResults: /* @__PURE__ */ new Map()
   };
   return slot;
 }
@@ -11794,33 +11832,32 @@ function resultForOffset10(slot, offset) {
   }
   return cached;
 }
-function configFromOpts3(opts) {
-  const rowSize = opts?.rowSize;
-  const valueAreaPct = opts?.valueAreaPct ?? DEFAULT_VALUE_AREA_PCT3;
-  return {
-    rowSize: rowSize === void 0 || rowSize <= 0 ? DEFAULT_ROW_SIZE3 : rowSize,
-    valueAreaPct: valueAreaPct <= 1 ? valueAreaPct * 100 : valueAreaPct
-  };
-}
 function utcDayStart(time) {
   return Math.floor(time / DAY_MS) * DAY_MS;
 }
-function parseSessionStartMinutes(session) {
-  const match = /^(\d{1,2})(?::?(\d{2}))?\s*-\s*\d{1,2}(?::?\d{2})?$/.exec(session.trim());
+function parseSessionWindowMinutes(session) {
+  const match = /^(\d{1,2})(?::?(\d{2}))?\s*-\s*(\d{1,2})(?::?(\d{2}))?$/.exec(session.trim());
   if (match === null)
     return null;
-  const hour = Number(match[1]);
-  const minute = match[2] === void 0 ? 0 : Number(match[2]);
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59)
+  const startHour = Number(match[1]);
+  const startMinute = match[2] === void 0 ? 0 : Number(match[2]);
+  const endHour = Number(match[3]);
+  const endMinute = match[4] === void 0 ? 0 : Number(match[4]);
+  if (startHour < 0 || startHour > 23 || startMinute < 0 || startMinute > 59)
     return null;
-  return hour * 60 + minute;
+  if (endHour < 0 || endHour > 23 || endMinute < 0 || endMinute > 59)
+    return null;
+  return {
+    startMinutes: startHour * 60 + startMinute,
+    endMinutes: endHour * 60 + endMinute
+  };
 }
 function sessionBoundaryFromDescriptor(time, session) {
-  const startMinutes = parseSessionStartMinutes(session);
-  if (startMinutes === null)
+  const parsed = parseSessionWindowMinutes(session);
+  if (parsed === null)
     return null;
   const dayStart = utcDayStart(time);
-  const boundary = dayStart + startMinutes * 6e4;
+  const boundary = dayStart + parsed.startMinutes * 6e4;
   return time >= boundary ? boundary : boundary - DAY_MS;
 }
 function diagnoseMissingSession(ctx, slotId) {
@@ -11870,52 +11907,6 @@ function collectBars3(ctx, sessionStart) {
   }
   return bars;
 }
-function degenerateProfile3(bars, bucketColor) {
-  let totalVolume = 0;
-  let price = Number.NaN;
-  for (const bar of bars) {
-    if (!Number.isFinite(bar.close))
-      continue;
-    price = bar.close;
-    if (Number.isFinite(bar.volume) && bar.volume > 0)
-      totalVolume += bar.volume;
-  }
-  if (!Number.isFinite(price) || totalVolume <= 0)
-    return null;
-  const bucket = bucketColor === void 0 ? { price, volume: totalVolume } : { price, volume: totalVolume, color: bucketColor };
-  return {
-    buckets: [bucket],
-    poc: price,
-    valHigh: price,
-    valLow: price
-  };
-}
-function emitHistogram3(ctx, slotId, value, buckets) {
-  if (!ctx.capabilities.plots.has("horizontal-histogram")) {
-    pushDiagnostic(ctx.emissions, {
-      kind: "diagnostic",
-      severity: "warning",
-      code: "unsupported-plot-kind",
-      message: 'Adapter cannot render plot kind "horizontal-histogram".',
-      slotId,
-      bar: ctx.barIndex()
-    });
-    return;
-  }
-  const emission = {
-    bar: ctx.barIndex(),
-    color: null,
-    kind: "plot",
-    meta: {},
-    pane: "overlay",
-    slotId: `${slotId}${HISTOGRAM_SLOT_SUFFIX3}`,
-    style: { kind: "horizontal-histogram", buckets },
-    time: ctx.stream.bar.time,
-    title: "Session Volume Profile",
-    value: Number.isFinite(value) ? value : null
-  };
-  pushPlot(ctx.emissions, emission);
-}
 function sessionVolumeProfile(slotId, opts) {
   const ctx = getCtx75();
   let slot = ctx.stream.taSlots.get(slotId);
@@ -11925,36 +11916,13 @@ function sessionVolumeProfile(slotId, opts) {
   }
   const sessionStart = resolveSessionStart(ctx, slotId, opts);
   const bars = ctx.stream.bar.time <= sessionStart ? [] : collectBars3(ctx, sessionStart);
-  const profile = bars.length === 0 ? null : computeProfile({
-    config: configFromOpts3(opts),
-    laneBars: bars,
-    windowFromIdx: 0,
-    windowToIdx: bars.length - 1
+  const snapshot6 = resolveVolumeProfileSnapshot({
+    bars,
+    bucketColor: opts?.bucketColor,
+    config: volumeProfileConfigFromOpts(opts ?? {})
   });
-  let buckets = profile?.buckets.map((bucket) => opts?.bucketColor === void 0 ? bucket : { ...bucket, color: opts.bucketColor }) ?? [];
-  let poc = profile?.poc ?? Number.NaN;
-  let valHigh = profile?.valHigh ?? Number.NaN;
-  let valLow = profile?.valLow ?? Number.NaN;
-  if (buckets.length === 0) {
-    const degenerate = degenerateProfile3(bars, opts?.bucketColor);
-    if (degenerate !== null) {
-      buckets = degenerate.buckets;
-      poc = degenerate.poc;
-      valHigh = degenerate.valHigh;
-      valLow = degenerate.valLow;
-    }
-  }
-  slot.buckets = buckets;
-  if (ctx.isTick) {
-    slot.pocBuffer.replaceHead(poc);
-    slot.valHighBuffer.replaceHead(valHigh);
-    slot.valLowBuffer.replaceHead(valLow);
-  } else {
-    slot.pocBuffer.append(poc);
-    slot.valHighBuffer.append(valHigh);
-    slot.valLowBuffer.append(valLow);
-  }
-  emitHistogram3(ctx, slotId, poc, buckets);
+  commitVolumeProfileSnapshot(slot, ctx.isTick, snapshot6);
+  emitVolumeProfileHistogram(ctx, slotId, "Session Volume Profile", snapshot6.poc, snapshot6.buckets);
   return resultForOffset10(slot, opts?.offset ?? 0);
 }
 
@@ -12806,9 +12774,6 @@ function valuewhen(slotId, condition, source, occurrence = 0, opts = {}) {
 }
 
 // ../runtime/dist/ta/visibleRangeVolumeProfile.js
-var DEFAULT_ROW_SIZE4 = 24;
-var DEFAULT_VALUE_AREA_PCT4 = 0.7;
-var HISTOGRAM_SLOT_SUFFIX4 = "/histogram";
 function getCtx87() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
@@ -12817,20 +12782,20 @@ function getCtx87() {
   return ctx;
 }
 function initSlot76(capacity) {
-  const pocBuffer = new Float64RingBuffer(capacity);
-  const valHighBuffer = new Float64RingBuffer(capacity);
-  const valLowBuffer = new Float64RingBuffer(capacity);
-  return {
-    pocBuffer,
+  const core = createVolumeProfileCore(capacity);
+  const slot = {
+    ...core,
     result: Object.freeze({
-      poc: makeSeriesView(pocBuffer),
-      valHigh: makeSeriesView(valHighBuffer),
-      valLow: makeSeriesView(valLowBuffer)
+      get buckets() {
+        return slot.buckets;
+      },
+      poc: makeSeriesView(core.pocBuffer),
+      valHigh: makeSeriesView(core.valHighBuffer),
+      valLow: makeSeriesView(core.valLowBuffer)
     }),
-    shiftedResults: /* @__PURE__ */ new Map(),
-    valHighBuffer,
-    valLowBuffer
+    shiftedResults: /* @__PURE__ */ new Map()
   };
+  return slot;
 }
 function resultForOffset14(slot, offset) {
   if (offset === 0)
@@ -12838,6 +12803,9 @@ function resultForOffset14(slot, offset) {
   let cached = slot.shiftedResults.get(offset);
   if (cached === void 0) {
     cached = Object.freeze({
+      get buckets() {
+        return slot.buckets;
+      },
       poc: makeShiftedSeriesView(slot.pocBuffer, offset),
       valHigh: makeShiftedSeriesView(slot.valHighBuffer, offset),
       valLow: makeShiftedSeriesView(slot.valLowBuffer, offset)
@@ -12846,77 +12814,24 @@ function resultForOffset14(slot, offset) {
   }
   return cached;
 }
-function configFromOpts4(opts) {
-  const rowSize = opts?.rowSize;
-  const valueAreaPct = opts?.valueAreaPct ?? DEFAULT_VALUE_AREA_PCT4;
-  return {
-    rowSize: rowSize === void 0 || rowSize <= 0 ? DEFAULT_ROW_SIZE4 : rowSize,
-    valueAreaPct: valueAreaPct <= 1 ? valueAreaPct * 100 : valueAreaPct
-  };
-}
 function collectBars4(ctx) {
   const { ohlcv } = ctx.stream;
+  const { fromTime, toTime } = ctx.stream.bar.viewport;
   const bars = [];
   for (let lookback = ohlcv.close.length - 1; lookback >= 0; lookback -= 1) {
+    const time = ohlcv.time.at(lookback);
+    if (time < fromTime || time > toTime)
+      continue;
     bars.push({
       close: ohlcv.close.at(lookback),
       high: ohlcv.high.at(lookback),
       low: ohlcv.low.at(lookback),
       open: ohlcv.open.at(lookback),
-      time: ohlcv.time.at(lookback),
+      time,
       volume: ohlcv.volume.at(lookback)
     });
   }
-  const viewport = ctx.stream.bar.viewport;
-  if (bars.length === 0)
-    return bars;
-  return bars.filter((bar) => bar.time >= viewport.fromTime && bar.time <= viewport.toTime);
-}
-function degenerateProfile4(bars, bucketColor) {
-  let totalVolume = 0;
-  let price = Number.NaN;
-  for (const bar of bars) {
-    if (!Number.isFinite(bar.close))
-      continue;
-    price = bar.close;
-    if (Number.isFinite(bar.volume) && bar.volume > 0)
-      totalVolume += bar.volume;
-  }
-  if (!Number.isFinite(price) || totalVolume <= 0)
-    return null;
-  const bucket = bucketColor === void 0 ? { price, volume: totalVolume } : { price, volume: totalVolume, color: bucketColor };
-  return {
-    buckets: [bucket],
-    poc: price,
-    valHigh: price,
-    valLow: price
-  };
-}
-function emitHistogram4(ctx, slotId, value, buckets) {
-  if (!ctx.capabilities.plots.has("horizontal-histogram")) {
-    pushDiagnostic(ctx.emissions, {
-      kind: "diagnostic",
-      severity: "warning",
-      code: "unsupported-plot-kind",
-      message: 'Adapter cannot render plot kind "horizontal-histogram".',
-      slotId,
-      bar: ctx.barIndex()
-    });
-    return;
-  }
-  const emission = {
-    bar: ctx.barIndex(),
-    color: null,
-    kind: "plot",
-    meta: {},
-    pane: "overlay",
-    slotId: `${slotId}${HISTOGRAM_SLOT_SUFFIX4}`,
-    style: { kind: "horizontal-histogram", buckets },
-    time: ctx.stream.bar.time,
-    title: "Visible Range Volume Profile",
-    value: Number.isFinite(value) ? value : null
-  };
-  pushPlot(ctx.emissions, emission);
+  return bars;
 }
 function visibleRangeVolumeProfile(slotId, opts) {
   const ctx = getCtx87();
@@ -12925,37 +12840,13 @@ function visibleRangeVolumeProfile(slotId, opts) {
     slot = initSlot76(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const bars = collectBars4(ctx);
-  const config = configFromOpts4(opts);
-  const profile = bars.length === 0 ? null : computeProfile({
-    config,
-    laneBars: bars,
-    windowFromIdx: 0,
-    windowToIdx: bars.length - 1
+  const snapshot6 = resolveVolumeProfileSnapshot({
+    bars: collectBars4(ctx),
+    bucketColor: opts?.bucketColor,
+    config: volumeProfileConfigFromOpts(opts ?? {})
   });
-  let buckets = profile?.buckets.map((bucket) => opts?.bucketColor === void 0 ? bucket : { ...bucket, color: opts.bucketColor }) ?? [];
-  let poc = profile?.poc ?? Number.NaN;
-  let valHigh = profile?.valHigh ?? Number.NaN;
-  let valLow = profile?.valLow ?? Number.NaN;
-  if (buckets.length === 0) {
-    const degenerate = degenerateProfile4(bars, opts?.bucketColor);
-    if (degenerate !== null) {
-      buckets = degenerate.buckets;
-      poc = degenerate.poc;
-      valHigh = degenerate.valHigh;
-      valLow = degenerate.valLow;
-    }
-  }
-  if (ctx.isTick) {
-    slot.pocBuffer.replaceHead(poc);
-    slot.valHighBuffer.replaceHead(valHigh);
-    slot.valLowBuffer.replaceHead(valLow);
-  } else {
-    slot.pocBuffer.append(poc);
-    slot.valHighBuffer.append(valHigh);
-    slot.valLowBuffer.append(valLow);
-  }
-  emitHistogram4(ctx, slotId, poc, buckets);
+  commitVolumeProfileSnapshot(slot, ctx.isTick, snapshot6);
+  emitVolumeProfileHistogram(ctx, slotId, "Visible Range Volume Profile", snapshot6.poc, snapshot6.buckets);
   return resultForOffset14(slot, opts?.offset ?? 0);
 }
 
@@ -14083,33 +13974,7 @@ function buildComputeContext(state2) {
 
 // ../runtime/dist/execution/onBarClose.js
 async function onBarClose(state2, rawBar, eventKind = "close") {
-  const { ohlcv, bar } = state2.mainStream;
-  const hl2 = (rawBar.high + rawBar.low) / 2;
-  const hlc3 = (rawBar.high + rawBar.low + rawBar.close) / 3;
-  const ohlc4 = (rawBar.open + rawBar.high + rawBar.low + rawBar.close) / 4;
-  const hlcc4 = (rawBar.high + rawBar.low + rawBar.close + rawBar.close) / 4;
-  ohlcv.time.append(rawBar.time);
-  ohlcv.open.append(rawBar.open);
-  ohlcv.high.append(rawBar.high);
-  ohlcv.low.append(rawBar.low);
-  ohlcv.close.append(rawBar.close);
-  ohlcv.volume.append(rawBar.volume);
-  ohlcv.hl2.append(hl2);
-  ohlcv.hlc3.append(hlc3);
-  ohlcv.ohlc4.append(ohlc4);
-  ohlcv.hlcc4.append(hlcc4);
-  bar.time = rawBar.time;
-  bar.open = rawBar.open;
-  bar.high = rawBar.high;
-  bar.low = rawBar.low;
-  bar.close = rawBar.close;
-  bar.volume = rawBar.volume;
-  bar.hl2 = hl2;
-  bar.hlc3 = hlc3;
-  bar.ohlc4 = ohlc4;
-  bar.hlcc4 = hlcc4;
-  bar.symbol = rawBar.symbol;
-  bar.interval = rawBar.interval;
+  appendBarToStream(state2.mainStream, rawBar);
   updateFallbackViewport(state2.mainStream);
   state2.emissions.plots = [];
   state2.emissions.drawings = [];
@@ -14120,6 +13985,7 @@ async function onBarClose(state2, rawBar, eventKind = "close") {
   state2.emissions.fromBar = state2.barIndex;
   state2.emissions.toBar = state2.barIndex;
   state2.runtimeContext.requestSecurityAlignments.clear();
+  state2.runtimeContext.requestSecurityAscendingBars.clear();
   state2.runtimeContext.logBudget = 0;
   state2.runtimeContext.logBudgetExceededDiagnosed = false;
   ACTIVE_RUNTIME_CONTEXT.current = state2.runtimeContext;
@@ -14156,27 +14022,7 @@ async function onBarClose(state2, rawBar, eventKind = "close") {
 
 // ../runtime/dist/execution/onBarTick.js
 async function onBarTick(state2, rawBar) {
-  const { ohlcv, bar } = state2.mainStream;
-  const hl2 = (rawBar.high + rawBar.low) / 2;
-  const hlc3 = (rawBar.high + rawBar.low + rawBar.close) / 3;
-  const ohlc4 = (rawBar.open + rawBar.high + rawBar.low + rawBar.close) / 4;
-  const hlcc4 = (rawBar.high + rawBar.low + rawBar.close + rawBar.close) / 4;
-  ohlcv.close.replaceHead(rawBar.close);
-  ohlcv.high.replaceHead(rawBar.high);
-  ohlcv.low.replaceHead(rawBar.low);
-  ohlcv.volume.replaceHead(rawBar.volume);
-  ohlcv.hl2.replaceHead(hl2);
-  ohlcv.hlc3.replaceHead(hlc3);
-  ohlcv.ohlc4.replaceHead(ohlc4);
-  ohlcv.hlcc4.replaceHead(hlcc4);
-  bar.close = rawBar.close;
-  bar.high = rawBar.high;
-  bar.low = rawBar.low;
-  bar.volume = rawBar.volume;
-  bar.hl2 = hl2;
-  bar.hlc3 = hlc3;
-  bar.ohlc4 = ohlc4;
-  bar.hlcc4 = hlcc4;
+  replaceTickHead(state2.mainStream, rawBar);
   updateFallbackViewport(state2.mainStream);
   state2.emissions.plots = [];
   state2.emissions.drawings = [];
@@ -14187,6 +14033,7 @@ async function onBarTick(state2, rawBar) {
   state2.emissions.fromBar = state2.barIndex;
   state2.emissions.toBar = state2.barIndex;
   state2.runtimeContext.requestSecurityAlignments.clear();
+  state2.runtimeContext.requestSecurityAscendingBars.clear();
   state2.runtimeContext.logBudget = 0;
   state2.runtimeContext.logBudgetExceededDiagnosed = false;
   ACTIVE_RUNTIME_CONTEXT.current = state2.runtimeContext;
@@ -14228,63 +14075,15 @@ async function onHistory(state2, bars) {
 }
 
 // ../runtime/dist/execution/secondaryStream.js
-function derived(rawBar) {
-  return {
-    hl2: (rawBar.high + rawBar.low) / 2,
-    hlc3: (rawBar.high + rawBar.low + rawBar.close) / 3,
-    ohlc4: (rawBar.open + rawBar.high + rawBar.low + rawBar.close) / 4,
-    hlcc4: (rawBar.high + rawBar.low + rawBar.close + rawBar.close) / 4
-  };
-}
-function setBarView(stream, rawBar, values) {
-  stream.bar.time = rawBar.time;
-  stream.bar.open = rawBar.open;
-  stream.bar.high = rawBar.high;
-  stream.bar.low = rawBar.low;
-  stream.bar.close = rawBar.close;
-  stream.bar.volume = rawBar.volume;
-  stream.bar.hl2 = values.hl2;
-  stream.bar.hlc3 = values.hlc3;
-  stream.bar.ohlc4 = values.ohlc4;
-  stream.bar.hlcc4 = values.hlcc4;
-  stream.bar.symbol = rawBar.symbol;
-  stream.bar.interval = rawBar.interval;
-}
 function appendSecondaryBar(stream, rawBar) {
-  const values = derived(rawBar);
-  stream.ohlcv.time.append(rawBar.time);
-  stream.ohlcv.open.append(rawBar.open);
-  stream.ohlcv.high.append(rawBar.high);
-  stream.ohlcv.low.append(rawBar.low);
-  stream.ohlcv.close.append(rawBar.close);
-  stream.ohlcv.volume.append(rawBar.volume);
-  stream.ohlcv.hl2.append(values.hl2);
-  stream.ohlcv.hlc3.append(values.hlc3);
-  stream.ohlcv.ohlc4.append(values.ohlc4);
-  stream.ohlcv.hlcc4.append(values.hlcc4);
-  setBarView(stream, rawBar, values);
+  appendBarToStream(stream, rawBar);
 }
 function replaceSecondaryHead(stream, rawBar) {
-  if (stream.ohlcv.close.length === 0) {
-    appendSecondaryBar(stream, rawBar);
-    return;
-  }
-  const values = derived(rawBar);
-  stream.ohlcv.time.replaceHead(rawBar.time);
-  stream.ohlcv.open.replaceHead(rawBar.open);
-  stream.ohlcv.high.replaceHead(rawBar.high);
-  stream.ohlcv.low.replaceHead(rawBar.low);
-  stream.ohlcv.close.replaceHead(rawBar.close);
-  stream.ohlcv.volume.replaceHead(rawBar.volume);
-  stream.ohlcv.hl2.replaceHead(values.hl2);
-  stream.ohlcv.hlc3.replaceHead(values.hlc3);
-  stream.ohlcv.ohlc4.replaceHead(values.ohlc4);
-  stream.ohlcv.hlcc4.replaceHead(values.hlcc4);
-  setBarView(stream, rawBar, values);
+  replaceStreamHead(stream, rawBar);
 }
 function appendSecondaryHistory(stream, bars) {
   for (const bar of bars) {
-    appendSecondaryBar(stream, bar);
+    appendBarToStream(stream, bar);
   }
 }
 
@@ -14351,6 +14150,16 @@ function restoreNumber(value) {
   if (value === null)
     return Number.NaN;
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+function restoreNumbers(fields) {
+  const out = {};
+  for (const key of Object.keys(fields)) {
+    const restored = restoreNumber(fields[key]);
+    if (restored === null)
+      return null;
+    out[key] = restored;
+  }
+  return out;
 }
 function isInteger(value) {
   return typeof value === "number" && Number.isInteger(value);
@@ -14459,25 +14268,26 @@ function restoreEma(snapshot6) {
   if (snapshot6.kind !== "ta.ema" || !isInteger(snapshot6.length) || !isInteger(snapshot6.seedCount) || !isBufferSnapshot(outSnapshot)) {
     return null;
   }
-  const alpha = restoreNumber(snapshot6.alpha);
-  const seedSum = restoreNumber(snapshot6.seedSum);
-  const prevEma = restoreNumber(snapshot6.prevEma);
-  const prevClosedEma = restoreNumber(snapshot6.prevClosedEma);
-  if (alpha === null || seedSum === null || prevEma === null || prevClosedEma === null) {
+  const numbers = restoreNumbers({
+    alpha: snapshot6.alpha,
+    seedSum: snapshot6.seedSum,
+    prevEma: snapshot6.prevEma,
+    prevClosedEma: snapshot6.prevClosedEma
+  });
+  if (numbers === null)
     return null;
-  }
   const outBuffer = restoreBuffer(outSnapshot, outSnapshot.values.length);
   if (outBuffer === null)
     return null;
   return {
     kind: "ta.ema",
     ...baseSlot(outBuffer),
-    alpha,
+    alpha: numbers.alpha,
     length: snapshot6.length,
-    seedSum,
+    seedSum: numbers.seedSum,
     seedCount: snapshot6.seedCount,
-    prevEma,
-    prevClosedEma
+    prevEma: numbers.prevEma,
+    prevClosedEma: numbers.prevClosedEma
   };
 }
 function restoreRsi(snapshot6) {
@@ -14485,15 +14295,16 @@ function restoreRsi(snapshot6) {
   if (snapshot6.kind !== "ta.rsi" || !isInteger(snapshot6.length) || !isInteger(snapshot6.diffCount) || !isBufferSnapshot(outSnapshot)) {
     return null;
   }
-  const seedGainSum = restoreNumber(snapshot6.seedGainSum);
-  const seedLossSum = restoreNumber(snapshot6.seedLossSum);
-  const avgGain = restoreNumber(snapshot6.avgGain);
-  const avgLoss = restoreNumber(snapshot6.avgLoss);
-  const prevSrc = restoreNumber(snapshot6.prevSrc);
-  const prevClosedSrc = restoreNumber(snapshot6.prevClosedSrc);
-  if (seedGainSum === null || seedLossSum === null || avgGain === null || avgLoss === null || prevSrc === null || prevClosedSrc === null) {
+  const numbers = restoreNumbers({
+    seedGainSum: snapshot6.seedGainSum,
+    seedLossSum: snapshot6.seedLossSum,
+    avgGain: snapshot6.avgGain,
+    avgLoss: snapshot6.avgLoss,
+    prevSrc: snapshot6.prevSrc,
+    prevClosedSrc: snapshot6.prevClosedSrc
+  });
+  if (numbers === null)
     return null;
-  }
   const outBuffer = restoreBuffer(outSnapshot, outSnapshot.values.length);
   if (outBuffer === null)
     return null;
@@ -14501,13 +14312,13 @@ function restoreRsi(snapshot6) {
     kind: "ta.rsi",
     ...baseSlot(outBuffer),
     length: snapshot6.length,
-    seedGainSum,
-    seedLossSum,
+    seedGainSum: numbers.seedGainSum,
+    seedLossSum: numbers.seedLossSum,
     diffCount: snapshot6.diffCount,
-    avgGain,
-    avgLoss,
-    prevSrc,
-    prevClosedSrc
+    avgGain: numbers.avgGain,
+    avgLoss: numbers.avgLoss,
+    prevSrc: numbers.prevSrc,
+    prevClosedSrc: numbers.prevClosedSrc
   };
 }
 function serialiseTaSlot(slot) {
@@ -14559,7 +14370,7 @@ function restoreTaSlots(stream, slots) {
 
 // ../runtime/dist/persistentStateStore.runtime.js
 var PERSISTENCE_INTERVAL_MS = 6e4;
-function streamKey(snapshot6) {
+function firstStreamKey(snapshot6) {
   const entries = Object.entries(snapshot6.streams);
   const first = entries[0];
   return first === void 0 ? null : first[0];
@@ -14591,26 +14402,30 @@ function captureStateSnapshot(state2, savedAt) {
     return null;
   return candidate;
 }
+function resolveMainStreamSnapshot(snapshot6, mainInterval) {
+  const direct = mainInterval === "" ? void 0 : snapshot6.streams[mainInterval];
+  if (direct !== void 0)
+    return direct;
+  const fallback = firstStreamKey(snapshot6);
+  return fallback === null ? void 0 : snapshot6.streams[fallback];
+}
 function restoreStateSnapshot(state2, snapshot6) {
-  const direct = state2.mainStream.bar.interval === "" ? null : snapshot6.streams[state2.mainStream.bar.interval];
-  const key = streamKey(snapshot6);
-  const fallback = key === null ? void 0 : snapshot6.streams[key];
-  const stream = direct ?? fallback;
+  const stream = resolveMainStreamSnapshot(snapshot6, state2.mainStream.bar.interval);
   if (stream !== void 0) {
     state2.mainStream.restoreFromSnapshot(stream);
     state2.barIndex = Math.max(state2.barIndex, stream.filled);
   }
-  for (const [key2, secondary] of state2.runtimeContext.secondaryStreams) {
-    const secondarySnapshot = snapshot6.streams[key2];
+  for (const [secondaryKey, secondary] of state2.runtimeContext.secondaryStreams) {
+    const secondarySnapshot = snapshot6.streams[secondaryKey];
     if (secondarySnapshot !== void 0) {
       secondary.restoreFromSnapshot(secondarySnapshot);
     }
   }
   restoreTaSlots(state2.mainStream, snapshot6.slots);
   const stateSlots = {};
-  for (const [key2, value] of Object.entries(snapshot6.slots)) {
-    if (!isTaSlotSnapshotKey(key2)) {
-      stateSlots[key2] = value;
+  for (const [slotKey, value] of Object.entries(snapshot6.slots)) {
+    if (!isTaSlotSnapshotKey(slotKey)) {
+      stateSlots[slotKey] = value;
     }
   }
   restoreStateSlots(state2.runtimeContext, stateSlots);
@@ -14684,20 +14499,20 @@ async function pushMainEvent(state2, event) {
       return;
   }
 }
-function pushUnknownSecondaryDiagnostic(state2, streamKey2) {
+function pushUnknownSecondaryDiagnostic(state2, streamKey) {
   pushDiagnostic(state2.emissions, {
     kind: "diagnostic",
     severity: "warning",
     code: "unknown-secondary-stream",
-    message: `Secondary stream "${streamKey2}" was not registered by the script manifest`,
+    message: `Secondary stream "${streamKey}" was not registered by the script manifest`,
     slotId: null,
     bar: state2.barIndex
   });
 }
-function pushSecondaryEvent(state2, streamKey2, event) {
-  const stream = state2.runtimeContext.secondaryStreams.get(streamKey2);
+function pushSecondaryEvent(state2, streamKey, event) {
+  const stream = state2.runtimeContext.secondaryStreams.get(streamKey);
   if (stream === void 0) {
-    pushUnknownSecondaryDiagnostic(state2, streamKey2);
+    pushUnknownSecondaryDiagnostic(state2, streamKey);
     return;
   }
   switch (event.kind) {
@@ -14766,6 +14581,7 @@ function createScriptRunner(args) {
       secondaryStreams,
       requestSecurityBars: /* @__PURE__ */ new Map(),
       requestSecurityAlignments: /* @__PURE__ */ new Map(),
+      requestSecurityAscendingBars: /* @__PURE__ */ new Map(),
       diagnosedRequestKeys: /* @__PURE__ */ new Set(),
       alertConditions,
       diagnosedAlertConditionKeys: /* @__PURE__ */ new Set(),
@@ -14870,6 +14686,13 @@ function moduleSourceToScript(source) {
 // src/dispatcher.ts
 var runner = null;
 var loadEval = globalThis.eval;
+function hardenGuestGlobals() {
+  Reflect.set(globalThis, "eval", void 0);
+  Reflect.set(globalThis, "Function", void 0);
+  Reflect.deleteProperty(globalThis, "eval");
+  Reflect.deleteProperty(globalThis, "Function");
+}
+hardenGuestGlobals();
 function reply(frame2) {
   return JSON.stringify(frame2);
 }
@@ -14878,16 +14701,14 @@ function message(err) {
 }
 function loadCompiled(source) {
   globalThis.__chartlang_compiled_default = void 0;
-  loadEval(moduleSourceToScript(source));
+  loadEval(`((Function, eval) => {
+${moduleSourceToScript(source)}
+})(undefined, undefined);`);
   const compiled = globalThis.__chartlang_compiled_default;
   if (compiled === void 0) {
     throw new Error("compiled module did not set a default export");
   }
   return compiled;
-}
-function hardenGuestGlobals() {
-  Reflect.deleteProperty(globalThis, "eval");
-  Reflect.deleteProperty(globalThis, "Function");
 }
 function reviveSet(value) {
   if (Array.isArray(value)) {
@@ -14915,7 +14736,6 @@ globalThis.__chartlang_load = async (json) => {
       ...frame2.symInfo === void 0 ? {} : { symInfo: frame2.symInfo },
       ...frame2.inputOverrides === void 0 ? {} : { inputOverrides: frame2.inputOverrides }
     });
-    hardenGuestGlobals();
     return reply({ kind: "loaded" });
   } catch (err) {
     return reply({ kind: "loadError", message: message(err) });

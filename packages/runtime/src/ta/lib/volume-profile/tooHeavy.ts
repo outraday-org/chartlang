@@ -63,7 +63,10 @@ export function assessVolumeProfileCost(args: {
             reason: "too-many-buckets",
             recommendedRowSize:
                 args.rowsLayout === "ticksPerRow"
-                    ? Math.ceil((estimate.priceMax - estimate.priceMin) / (maxBuckets * estimate.tickSize))
+                    ? Math.ceil(
+                          (estimate.priceMax - estimate.priceMin) /
+                              (maxBuckets * estimate.tickSize),
+                      )
                     : Math.max(1, maxBuckets),
         };
     }
@@ -79,7 +82,14 @@ function estimateBucketCount(args: {
     priceMax?: number;
 }):
     | { bucketCount: 0; kind: "invalid" }
-    | { bucketCount: number; kind: "estimated"; priceMin: number; priceMax: number; rowSize: number; tickSize: number } {
+    | {
+          bucketCount: number;
+          kind: "estimated";
+          priceMin: number;
+          priceMax: number;
+          rowSize: number;
+          tickSize: number;
+      } {
     const { priceMax, priceMin, rowSize } = args;
     if (
         rowSize === undefined ||
@@ -96,8 +106,22 @@ function estimateBucketCount(args: {
     if (args.rowsLayout === "ticksPerRow") {
         const width = rowSize * tickSize;
         return width > 0
-            ? { bucketCount: Math.ceil((priceMax - priceMin) / width), kind: "estimated", priceMax, priceMin, rowSize, tickSize }
+            ? {
+                  bucketCount: Math.ceil((priceMax - priceMin) / width),
+                  kind: "estimated",
+                  priceMax,
+                  priceMin,
+                  rowSize,
+                  tickSize,
+              }
             : { bucketCount: 0, kind: "invalid" };
     }
-    return { bucketCount: Math.floor(rowSize), kind: "estimated", priceMax, priceMin, rowSize, tickSize };
+    return {
+        bucketCount: Math.floor(rowSize),
+        kind: "estimated",
+        priceMax,
+        priceMin,
+        rowSize,
+        tickSize,
+    };
 }

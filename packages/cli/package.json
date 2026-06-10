@@ -1,47 +1,43 @@
 {
-  "name": "@invinite-org/chartlang-cli",
-  "version": "0.5.0",
-  "type": "module",
-  "license": "MIT",
-  "description": "chartlang CLI — compile + scaffold-adapter",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+    "name": "@invinite-org/chartlang-cli",
+    "version": "0.5.0",
+    "type": "module",
+    "license": "MIT",
+    "description": "chartlang CLI — compile + scaffold-adapter",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "bin": {
+        "chartlang": "./dist/bin.js"
+    },
+    "files": ["dist", "README.md", "CHANGELOG.md"],
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "test": "vitest run --coverage"
+    },
+    "dependencies": {
+        "@invinite-org/chartlang-compiler": "workspace:^",
+        "@invinite-org/chartlang-core": "workspace:^",
+        "typescript": "^5.6.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "engines": {
+        "node": ">=20"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/outraday-org/chartlang.git",
+        "directory": "packages/cli"
     }
-  },
-  "bin": {
-    "chartlang": "./dist/bin.js"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --coverage"
-  },
-  "dependencies": {
-    "@invinite-org/chartlang-compiler": "workspace:^",
-    "@invinite-org/chartlang-core": "workspace:^",
-    "typescript": "^5.6.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/outraday-org/chartlang.git",
-    "directory": "packages/cli"
-  }
 }

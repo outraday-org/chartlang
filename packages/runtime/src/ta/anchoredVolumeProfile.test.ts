@@ -145,17 +145,22 @@ describe("ta.anchoredVolumeProfile", () => {
             ...bar,
             close: index === 1 ? Number.NaN : bar.close,
         }));
-        const out = harness(input, 8, () => anchoredVolumeProfile("slot", { anchor: input[0].time }));
+        const out = harness(input, 8, () =>
+            anchoredVolumeProfile("slot", { anchor: input[0].time }),
+        );
         expect(out[2].poc.current).toBe(42);
     });
 
     it("accepts value-area percentage inputs above one", () => {
         const input = bars(4);
-        const out = harness(input, 8, () =>
-            anchoredVolumeProfile("slot", {
-                anchor: input[0].time,
-                valueAreaPct: 70,
-            }).poc.current,
+        const out = harness(
+            input,
+            8,
+            () =>
+                anchoredVolumeProfile("slot", {
+                    anchor: input[0].time,
+                    valueAreaPct: 70,
+                }).poc.current,
         );
         expect(Number.isFinite(out[3])).toBe(true);
     });

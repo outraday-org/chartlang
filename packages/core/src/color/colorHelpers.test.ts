@@ -63,9 +63,12 @@ describe("fromGradient", () => {
             { at: 1, color: "rgba(255, 255, 255, 0.75)" },
         ];
         expect(fromGradient(0.5, alphaStops)).toBe("rgba(127, 127, 127, 0.5)");
-        expect(fromGradient(0.5, [{ at: 0, color: "#000" }, { at: 1, color: "bad" }])).toBe(
-            "#000",
-        );
+        expect(
+            fromGradient(0.5, [
+                { at: 0, color: "#000" },
+                { at: 1, color: "bad" },
+            ]),
+        ).toBe("#000");
     });
 });
 

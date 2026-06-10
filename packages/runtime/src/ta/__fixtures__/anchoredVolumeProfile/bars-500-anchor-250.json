@@ -1,7 +1,7 @@
 {
-  "bucketCount": 24,
-  "bucketsHash": "7a26c200cc5684c0095d4df9a6559c9a2995e0997519ee24c5485c8ab509f30d",
-  "poc": 123.91042719404764,
-  "valHigh": 130.62074527224505,
-  "valLow": 119.8842363471292
+    "bucketCount": 24,
+    "bucketsHash": "7a26c200cc5684c0095d4df9a6559c9a2995e0997519ee24c5485c8ab509f30d",
+    "poc": 123.91042719404764,
+    "valHigh": 130.62074527224505,
+    "valLow": 119.8842363471292
 }

@@ -102,7 +102,9 @@ function hslToRgb(h: number, s: number, l: number): Readonly<{ r: number; g: num
  *     const parsed = parseColor("#ff0000");
  *     void parsed;
  */
-export function parseColor(c: Color): Readonly<{ r: number; g: number; b: number; a: number }> | null {
+export function parseColor(
+    c: Color,
+): Readonly<{ r: number; g: number; b: number; a: number }> | null {
     const value = c.trim().toLowerCase();
     if (isPaletteName(value)) return parseColor(COLOR_PALETTE[value]);
 

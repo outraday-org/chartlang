@@ -81,9 +81,7 @@ export default defineAlertCondition(opts);
         expect(missing.alertConditions).toEqual([]);
         expect(missing.diagnostics.map((d) => d.code)).toEqual(["alert-condition-not-literal"]);
         expect(nonObject.alertConditions).toEqual([]);
-        expect(nonObject.diagnostics.map((d) => d.code)).toEqual([
-            "alert-condition-not-literal",
-        ]);
+        expect(nonObject.diagnostics.map((d) => d.code)).toEqual(["alert-condition-not-literal"]);
     });
 
     it("rejects non-literal descriptor fields", () => {

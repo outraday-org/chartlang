@@ -16,10 +16,11 @@ import { hline } from "./hline";
 
 // THRESHOLD_MS — 10 000 unique-slot hline emissions; same budget as
 // `plot.bench.test.ts` (the path is nearly identical, just a different
-// style kind). Bumped to 3000ms in the Phase-3 closeout to absorb the
-// post-Phase-3 parallel-worker scheduling overhead during workspace
-// `pnpm test` (665 test files in parallel).
-const THRESHOLD_MS = 3000;
+// style kind). Bumped to 4000ms after the workspace `pnpm test` load
+// (665 test files in parallel) was observed spiking to ~3150ms under
+// parallel-worker scheduling contention — past the prior 3000ms gate.
+// Isolation runs land near 180ms, so 4000ms still catches a >20× regression.
+const THRESHOLD_MS = 4000;
 const ITERATIONS = 10_000;
 
 function makeCaps(): Capabilities {

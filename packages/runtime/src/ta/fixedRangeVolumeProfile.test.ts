@@ -140,7 +140,11 @@ describe("ta.fixedRangeVolumeProfile", () => {
                 to: input[1].time,
                 bucketColor: "#90caf9",
             });
-            return { color: result.buckets[0]?.color, buckets: result.buckets.length, poc: result.poc.current };
+            return {
+                color: result.buckets[0]?.color,
+                buckets: result.buckets.length,
+                poc: result.poc.current,
+            };
         });
         expect(out[0].poc).toBeNaN();
         expect(out[1].poc).toBe(42);

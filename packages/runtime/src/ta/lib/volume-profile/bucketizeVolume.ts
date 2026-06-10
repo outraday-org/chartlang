@@ -4,7 +4,13 @@
 // Translated, not transcribed — ReadonlyArray<number> inputs, JSDoc, runtime.
 // See packages/runtime/src/ta/CLAUDE.md for the port convention.
 
-import type { BucketizedVolume, VolumeProfileBar, VolumeProfileBucket, VolumeProfileRow, VolumeSplit } from "./types";
+import type {
+    BucketizedVolume,
+    VolumeProfileBar,
+    VolumeProfileBucket,
+    VolumeProfileRow,
+    VolumeSplit,
+} from "./types";
 
 /**
  * Distribute each bar's volume across overlapping price buckets and

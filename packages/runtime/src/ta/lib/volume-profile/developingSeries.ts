@@ -47,7 +47,8 @@ export function computeDevelopingSeries(args: {
     let sourceEnd = sourceStart;
 
     for (let i = fromIdx; i <= toIdx; i += 1) {
-        while (sourceEnd < source.length && source[sourceEnd].time <= laneBars[i].time) sourceEnd += 1;
+        while (sourceEnd < source.length && source[sourceEnd].time <= laneBars[i].time)
+            sourceEnd += 1;
         const slice = source.slice(sourceStart, sourceEnd);
         if (slice.length <= WARMUP_BARS) continue;
 

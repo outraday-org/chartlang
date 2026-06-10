@@ -24,6 +24,15 @@ let runner: ScriptRunnerHandle | null = null;
 // biome-ignore lint/security/noGlobalEval: the QuickJS dispatcher captures the guest realm evaluator before hardening.
 const loadEval: (source: string) => unknown = globalThis.eval;
 
+function hardenGuestGlobals(): void {
+    Reflect.set(globalThis, "eval", undefined);
+    Reflect.set(globalThis, "Function", undefined);
+    Reflect.deleteProperty(globalThis, "eval");
+    Reflect.deleteProperty(globalThis, "Function");
+}
+
+hardenGuestGlobals();
+
 function reply(frame: QuickJsToHost): string {
     return JSON.stringify(frame);
 }
@@ -34,17 +43,12 @@ function message(err: unknown): string {
 
 function loadCompiled(source: string): CompiledScriptObject {
     globalThis.__chartlang_compiled_default = undefined;
-    loadEval(moduleSourceToScript(source));
+    loadEval(`((Function, eval) => {\n${moduleSourceToScript(source)}\n})(undefined, undefined);`);
     const compiled = globalThis.__chartlang_compiled_default;
     if (compiled === undefined) {
         throw new Error("compiled module did not set a default export");
     }
     return compiled;
-}
-
-function hardenGuestGlobals(): void {
-    Reflect.deleteProperty(globalThis, "eval");
-    Reflect.deleteProperty(globalThis, "Function");
 }
 
 function reviveSet<T>(value: unknown): ReadonlySet<T> {
@@ -75,7 +79,6 @@ globalThis.__chartlang_load = async (json: string): Promise<string> => {
             ...(frame.symInfo === undefined ? {} : { symInfo: frame.symInfo }),
             ...(frame.inputOverrides === undefined ? {} : { inputOverrides: frame.inputOverrides }),
         });
-        hardenGuestGlobals();
         return reply({ kind: "loaded" });
     } catch (err) {
         return reply({ kind: "loadError", message: message(err) });

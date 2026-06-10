@@ -19,11 +19,11 @@ import { plot } from "./plot";
 // Local Apple-silicon (M-series) typical runs land near 500ms
 // because each push routes through `validateEmission`'s plain-object
 // check + style validation. Under the Phase-3 workspace `pnpm test`
-// load (665 test files in parallel) wall-clock can spike to ~2000ms
-// — pinning at 3000ms keeps the threshold within `ceil(median × 6)`
-// (the §22.10 baseline doubled for the post-Phase-3 parallel-worker
-// scheduling overhead) so the gate stays green under contention.
-const THRESHOLD_MS = 3000;
+// load (665 test files in parallel) wall-clock can spike past 3000ms
+// — kept in lockstep with `hline`/`alert` at 4000ms so the shared emit
+// path stays green under the post-Phase-3 parallel-worker scheduling
+// overhead without letting one sibling drift above the others.
+const THRESHOLD_MS = 4000;
 const ITERATIONS = 10_000;
 
 function makeCaps(): Capabilities {

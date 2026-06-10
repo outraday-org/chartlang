@@ -19,15 +19,16 @@ const arbBars = fc
         }),
         { maxLength: 50, minLength: 1 },
     )
-    .map((items): Array<VolumeProfileBar> =>
-        items.map((item, index) => ({
-            close: item.base + item.span * 0.75,
-            high: item.base + item.span,
-            low: item.base,
-            open: item.base + item.span * 0.25,
-            time: index,
-            volume: item.volume,
-        })),
+    .map(
+        (items): Array<VolumeProfileBar> =>
+            items.map((item, index) => ({
+                close: item.base + item.span * 0.75,
+                high: item.base + item.span,
+                low: item.base,
+                open: item.base + item.span * 0.25,
+                time: index,
+                volume: item.volume,
+            })),
     );
 
 describe("bucketizeVolume — property invariants", () => {
@@ -44,7 +45,11 @@ describe("bucketizeVolume — property invariants", () => {
     it("returns buckets monotonic in price", () => {
         fc.assert(
             fc.property(arbBars, (bars) => {
-                const result = bucketizeVolumeDetailed(bars, new Float64Array([0, 50, 100, 150, 200, 250]), "total");
+                const result = bucketizeVolumeDetailed(
+                    bars,
+                    new Float64Array([0, 50, 100, 150, 200, 250]),
+                    "total",
+                );
                 for (let i = 1; i < result.buckets.length; i += 1) {
                     expect(result.buckets[i].price).toBeGreaterThan(result.buckets[i - 1].price);
                 }

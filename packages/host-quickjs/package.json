@@ -1,48 +1,44 @@
 {
-  "name": "@invinite-org/chartlang-host-quickjs",
-  "version": "0.5.0",
-  "type": "module",
-  "license": "MIT",
-  "description": "QuickJS-WASM ScriptHost for untrusted / server-side execution",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+    "name": "@invinite-org/chartlang-host-quickjs",
+    "version": "0.5.0",
+    "type": "module",
+    "license": "MIT",
+    "description": "QuickJS-WASM ScriptHost for untrusted / server-side execution",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "files": ["dist", "README.md", "CHANGELOG.md"],
+    "scripts": {
+        "build": "tsc -p tsconfig.json && pnpm tsx ./scripts/buildDispatcher.ts",
+        "bench:ci": "vitest bench --run",
+        "build:dispatcher": "pnpm tsx ./scripts/buildDispatcher.ts",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "test": "vitest run --coverage"
+    },
+    "dependencies": {
+        "@invinite-org/chartlang-adapter-kit": "workspace:*",
+        "@invinite-org/chartlang-core": "workspace:*",
+        "@invinite-org/chartlang-host-worker": "workspace:*",
+        "@invinite-org/chartlang-runtime": "workspace:*",
+        "quickjs-emscripten": "^0.31.0"
+    },
+    "devDependencies": {
+        "esbuild": "^0.24.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "engines": {
+        "node": ">=20"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/outraday-org/chartlang.git",
+        "directory": "packages/host-quickjs"
     }
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "CHANGELOG.md"
-  ],
-  "scripts": {
-    "build": "tsc -p tsconfig.json && pnpm tsx ./scripts/buildDispatcher.ts",
-    "bench:ci": "vitest bench --run",
-    "build:dispatcher": "pnpm tsx ./scripts/buildDispatcher.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --coverage"
-  },
-  "dependencies": {
-    "@invinite-org/chartlang-adapter-kit": "workspace:*",
-    "@invinite-org/chartlang-core": "workspace:*",
-    "@invinite-org/chartlang-host-worker": "workspace:*",
-    "@invinite-org/chartlang-runtime": "workspace:*",
-    "quickjs-emscripten": "^0.31.0"
-  },
-  "devDependencies": {
-    "esbuild": "^0.24.0"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/outraday-org/chartlang.git",
-    "directory": "packages/host-quickjs"
-  }
 }
