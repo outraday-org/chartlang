@@ -2,7 +2,7 @@
 
 # `ta.pvi`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Positive Volume Index — mirror of {@link nvi}. Cumulative percentage-

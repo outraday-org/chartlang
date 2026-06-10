@@ -30,7 +30,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * SHA-256 of the resulting drawing batch.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_ARROW_MARK_UP_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_ARROW_MARK_UP_SCENARIO;

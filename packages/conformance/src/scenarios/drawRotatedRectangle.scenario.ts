@@ -37,7 +37,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * rectangle drawing on the first bar with all four corners pinned.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_ROTATED_RECTANGLE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_ROTATED_RECTANGLE_SCENARIO;

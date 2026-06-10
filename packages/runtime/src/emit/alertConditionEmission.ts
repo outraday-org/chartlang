@@ -32,7 +32,7 @@ function diagnoseOnce(
  * edges and "currently inactive" state without remembering prior bars.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // emitAlertCondition(ctx, "up", true);
  *     const fn: typeof emitAlertCondition = emitAlertCondition;

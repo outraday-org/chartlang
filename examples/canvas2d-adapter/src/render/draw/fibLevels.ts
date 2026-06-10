@@ -13,7 +13,7 @@
  * anchor levels) doesn't have to splice them in.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     for (const level of FIB_LEVELS) {
  *         // Stroke a horizontal line at `from.price + level * (to.price - from.price)`.
@@ -34,7 +34,7 @@ export const FIB_LEVELS: ReadonlyArray<number> = Object.freeze([
  * by the invinite fib tools.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     formatLevel(0);     // "0.0"
  *     formatLevel(0.618); // "0.618"

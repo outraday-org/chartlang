@@ -8,7 +8,7 @@ import type { RenderCtx } from "./clear";
  * Canvas coordinates and style for a Phase 5 `arrow` plot glyph.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const args: ArrowArgs = { x: 10, y: 20, direction: "up", size: 10, color: null };
  *     void args;
@@ -25,7 +25,7 @@ export type ArrowArgs = {
  * Render a Phase-5 `arrow` plot as a filled triangle.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const palette: Palette;

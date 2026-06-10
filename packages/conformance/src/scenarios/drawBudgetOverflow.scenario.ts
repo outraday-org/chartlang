@@ -79,7 +79,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * budget-respecting 100-line subset that survives.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_BUDGET_OVERFLOW_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_BUDGET_OVERFLOW_SCENARIO;

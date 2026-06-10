@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * contract only (clean run + no alerts).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_CMF_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_CMF_SCENARIO;

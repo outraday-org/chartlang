@@ -81,7 +81,7 @@ function mfvAt(close: number, high: number, low: number, volume: number): number
  * @formula  adl[t] = adl[t − 1] + ((C[t] − L[t]) − (H[t] − C[t])) / (H[t] − L[t]) · V[t]
  * @warmup   0
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta, plot } from "@invinite-org/chartlang-core";

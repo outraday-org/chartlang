@@ -238,7 +238,7 @@ function tickValue(slot: UltimateOscSlot, high: number, low: number, close: numb
  *           uo = 100 · (4 · avgShort + 2 · avgMedium + avgLong) / 7
  * @warmup   longLength
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

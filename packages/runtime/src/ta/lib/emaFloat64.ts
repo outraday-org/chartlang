@@ -21,7 +21,7 @@
  * @formula  k = 2 / (length + 1) ;
  *           out[i] = input[i] * k + out[i − 1] * (1 − k)
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { computeEmaOfFloat64 } from "./emaFloat64";
  *     // const out = computeEmaOfFloat64(new Float64Array([1, 2, 3, 4]), 2);

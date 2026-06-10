@@ -147,7 +147,7 @@ function tickValue(slot: CoppockSlot, src: number): number {
  *                     for i in 0..N − 1, N = wmaLength
  * @warmup   max(roc1Length, roc2Length) + wmaLength − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

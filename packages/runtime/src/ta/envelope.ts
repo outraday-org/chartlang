@@ -98,7 +98,7 @@ function dispatchMa(
  * @warmup   length − 1
  * @anchors  maType
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

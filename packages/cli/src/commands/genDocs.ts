@@ -13,7 +13,7 @@ import ts from "typescript";
  * can reference one value rather than duplicating the string.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // import { AUTO_GENERATED_HEADER } from "@invinite-org/chartlang-cli";
  *     // const isAuto = page.startsWith(AUTO_GENERATED_HEADER);
@@ -27,13 +27,13 @@ export const AUTO_GENERATED_HEADER =
  * without spinning up the TS compiler.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // const input: PrimitiveDocInput = {
  *     //     id: "sma", signature: "function sma(...)",
  *     //     description: "Simple moving average.",
  *     //     formula: "out = mean(window)", warmup: "length − 1",
- *     //     since: "0.1", stability: "experimental",
+ *     //     since: "0.1", stability: "stable",
  *     //     params: [], returns: "Series<number>",
  *     //     example: "// ta.sma(\"slot\", bar.close, 20)",
  *     //     sourceUrl: "https://example.invalid/sma.ts",
@@ -48,7 +48,7 @@ export type PrimitiveDocInput = Readonly<{
     warmup: string;
     anchors?: string;
     since: string;
-    stability: "stable" | "experimental" | "frozen";
+    stability: "stable" | "frozen";
     params: ReadonlyArray<
         Readonly<{ name: string; type: string; defaultValue: string; description: string }>
     >;
@@ -63,7 +63,7 @@ export type PrimitiveDocInput = Readonly<{
  * branch on the failure class without parsing the message.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // try { parsePrimitiveSource(...); } catch (e) {
  *     //   if (e instanceof GenDocsError && e.code === "missing-formula") { ... }
@@ -124,9 +124,8 @@ function findParamTag(tags: readonly ts.JSDocTag[], paramName: string): ts.JSDoc
     );
 }
 
-function stabilityOf(tags: readonly ts.JSDocTag[]): "stable" | "experimental" | "frozen" | null {
+function stabilityOf(tags: readonly ts.JSDocTag[]): "stable" | "frozen" | null {
     if (findTag(tags, "stable")) return "stable";
-    if (findTag(tags, "experimental")) return "experimental";
     if (findTag(tags, "frozen")) return "frozen";
     return null;
 }
@@ -228,7 +227,7 @@ function pickPrimitive(
  * repo root (e.g. `packages/runtime/src/ta/sma.ts`).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // import { parsePrimitiveSource } from "@invinite-org/chartlang-cli";
  *     // const input = await parsePrimitiveSource("/abs/sma.ts", {
@@ -264,11 +263,7 @@ export async function parsePrimitiveSource(
     if (!example) throw new GenDocsError("missing-example", filePath, "missing @example tag");
     const stability = stabilityOf(tags);
     if (stability === null) {
-        throw new GenDocsError(
-            "missing-stability",
-            filePath,
-            "missing @stable / @experimental / @frozen tag",
-        );
+        throw new GenDocsError("missing-stability", filePath, "missing @stable / @frozen tag");
     }
 
     const anchorsTag = findTag(tags, "anchors");
@@ -305,7 +300,7 @@ function renderParamsTable(params: PrimitiveDocInput["params"]): string {
  * exercised by unit tests.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // import { generateDocsPage } from "@invinite-org/chartlang-cli";
  *     // const md = generateDocsPage(input);
@@ -398,7 +393,7 @@ type WriteFn = (path: string, content: string) => Promise<void>;
  * so tests can capture writes without touching disk.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // const opts: RunGenDocsOptions = {
  *     //     sourceDir: "/abs/runtime/src/ta",
@@ -431,7 +426,7 @@ async function loadRepoUrl(repoRoot: string): Promise<string> {
  * tests pass an in-memory capture to avoid touching disk.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // import { runGenDocs } from "@invinite-org/chartlang-cli";
  *     // const { written, skipped } = await runGenDocs({
@@ -483,7 +478,7 @@ export async function runGenDocs(opts: RunGenDocsOptions): Promise<{
  * no such directory exists.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // const root = await findRepoRoot(process.cwd());
  */

@@ -30,7 +30,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * layer (`TA_REGISTRY_METADATA.pmo`).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_PMO_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_PMO_SCENARIO;

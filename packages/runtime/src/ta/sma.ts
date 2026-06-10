@@ -111,7 +111,7 @@ function closeValue(slot: SmaSlot, src: number): number {
  * @formula  out[t] = (source[t] + source[t − 1] + … + source[t − length + 1]) / length
  * @warmup   length − 1
  * @since 0.1
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

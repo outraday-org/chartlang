@@ -24,7 +24,7 @@ function bar(time: number): Bar {
  * Synthetic 30-second candles covering the conformance fixture window.
  *
  * @since 0.6
- * @experimental
+ * @stable
  * @example
  *     // import { LTF_30S_FIXTURE_BARS } from "./lowerTfFixtures";
  *     const fixtureCount = 220;

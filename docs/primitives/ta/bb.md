@@ -2,7 +2,7 @@
 
 # `ta.bb`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.1
 
 Bollinger Bands — `multiplier × σ` envelope around an SMA(length)

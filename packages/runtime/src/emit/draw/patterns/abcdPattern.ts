@@ -40,7 +40,7 @@ function abcdPatternImpl(slotId: string, anchors: AnchorQuad, opts: LineDrawStyl
  * @anchorCount 4
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -61,7 +61,7 @@ export function abcdPattern(anchors: AnchorQuad, opts?: LineDrawStyle): DrawingH
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof abcdPattern = abcdPattern;
@@ -78,7 +78,7 @@ export function abcdPattern(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof abcdPattern = abcdPattern;
  *     // void fn;

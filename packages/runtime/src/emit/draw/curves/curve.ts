@@ -41,7 +41,7 @@ function curveImpl(slotId: string, anchors: AnchorTriple, opts: LineDrawStyle): 
  * @anchorCount 3
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -64,7 +64,7 @@ export function curve(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandl
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof curve = curve;
@@ -77,7 +77,7 @@ export function curve(slotId: string, anchors: AnchorTriple, opts?: LineDrawStyl
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof curve = curve;
  *     // void fn;

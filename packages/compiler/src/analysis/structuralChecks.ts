@@ -276,11 +276,12 @@ export function runStructuralChecks(
             if (ts.isNumericLiteral(initializer) && Number(initializer.text) === 1) {
                 apiVersionOk = true;
             } else {
+                const found = initializer.getText(sourceFile);
                 diagnostics.push(
                     createDiagnostic({
                         severity: "error",
                         code: "api-version-mismatch",
-                        message: "Only apiVersion: 1 is supported in Phase 1.",
+                        message: `\`apiVersion: ${found}\` is not supported — this compiler implements the frozen \`apiVersion: 1\` contract. Future language versions require a compiler that declares support for them.`,
                         file: sourcePath,
                         node: initializer,
                         sourceFile,
@@ -300,7 +301,7 @@ export function runStructuralChecks(
                 severity: "error",
                 code: "api-version-mismatch",
                 message:
-                    "defineIndicator/defineDrawing/defineAlert/defineAlertCondition requires apiVersion: 1.",
+                    "defineIndicator/defineDrawing/defineAlert/defineAlertCondition requires `apiVersion: 1` — the frozen language version this compiler implements.",
                 file: sourcePath,
                 node: argument,
                 sourceFile,

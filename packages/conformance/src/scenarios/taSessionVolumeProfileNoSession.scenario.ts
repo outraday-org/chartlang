@@ -31,7 +31,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Phase 5 conformance scenario for ta session volume profile no session scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { TA_SESSION_VOLUME_PROFILE_NO_SESSION_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_SESSION_VOLUME_PROFILE_NO_SESSION_SCENARIO;

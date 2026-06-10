@@ -7,7 +7,7 @@ import type { JsonValue } from "../types";
  * Runtime log severity emitted by `runtime.log.*`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const level: LogLevel = "info";
  *     void level;
@@ -19,7 +19,7 @@ export type LogLevel = "info" | "warn" | "error";
  * gated by `Capabilities.logs`; silent no-op when false.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // Inside compute:
  *     // runtime.log.info(`ema=${ema.current}`, { ema: ema.current });
@@ -32,7 +32,7 @@ function _logInfo(_message: string, _meta?: Readonly<Record<string, JsonValue>>)
  * Per-step warning log message. Capability-gated by `Capabilities.logs`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // Inside compute:
  *     // runtime.log.warn("warmup incomplete");
@@ -45,7 +45,7 @@ function _logWarn(_message: string, _meta?: Readonly<Record<string, JsonValue>>)
  * Per-step error log message. Capability-gated by `Capabilities.logs`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // Inside compute:
  *     // runtime.log.error("unexpected branch", { branch: "fallback" });
@@ -61,7 +61,7 @@ function _logError(_message: string, _meta?: Readonly<Record<string, JsonValue>>
  * cannot continue past.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // Inside compute:
  *     // if (inputs.length < 1) runtime.error("length must be >= 1");
@@ -74,7 +74,7 @@ function _error(_message: string): never {
  * Pine-style runtime utilities exposed to script `compute` callbacks.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // Inside compute:
  *     // runtime.log.info("close", { value: bar.close });
@@ -92,7 +92,7 @@ export const runtime = Object.freeze({
  * Script-facing runtime namespace type.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const ns: RuntimeNamespace = runtime;
  *     void ns;

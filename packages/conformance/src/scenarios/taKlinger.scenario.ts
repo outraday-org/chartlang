@@ -30,7 +30,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * metadata layer (`TA_REGISTRY_METADATA.klinger`).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_KLINGER_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_KLINGER_SCENARIO;

@@ -40,7 +40,7 @@ function pitchfanImpl(slotId: string, anchors: AnchorTriple, opts: LineDrawStyle
  * @anchorCount 3
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -60,7 +60,7 @@ export function pitchfan(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHa
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof pitchfan = pitchfan;
@@ -77,7 +77,7 @@ export function pitchfan(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof pitchfan = pitchfan;
  *     // void fn;

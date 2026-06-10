@@ -49,7 +49,7 @@ function gannSquareImpl(
  * @anchorCount 2
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -68,7 +68,7 @@ export function gannSquare(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): 
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof gannSquare = gannSquare;
@@ -86,7 +86,7 @@ export function gannSquare(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof gannSquare = gannSquare;
  *     // void fn;

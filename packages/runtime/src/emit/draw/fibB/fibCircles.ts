@@ -51,7 +51,7 @@ function fibCirclesImpl(
  * @anchorCount 2
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -71,7 +71,7 @@ export function fibCircles(a: WorldPoint, b: WorldPoint, opts?: FibOpts): Drawin
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof fibCircles = fibCircles;
@@ -89,7 +89,7 @@ export function fibCircles(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof fibCircles = fibCircles;
  *     // void fn;

@@ -91,7 +91,7 @@ function resultForOffset(slot: BbSlot, offset: number): BbResult {
  *           lower  = middle − multiplier · σ
  * @warmup   length − 1
  * @since 0.1
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts all three bands in lockstep (PLAN.md §9.1) —
  * `series.current` on each band returns the value `offset` bars ago.

@@ -10,7 +10,7 @@ import type { Price, Time } from "../types";
  * @formula  identity — no transform; world-space (time, price) tuple
  * @anchors  time, price
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const anchor: WorldPoint = { time: 1_700_000_000_000, price: 42.31 };
  *     void anchor;
@@ -27,7 +27,7 @@ export type WorldPoint = {
  * @formula  identity — readonly tuple of two `WorldPoint`s
  * @anchors  [WorldPoint, WorldPoint]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const segment: AnchorPair = [
  *         { time: 1_700_000_000_000, price: 100 },
@@ -44,7 +44,7 @@ export type AnchorPair = readonly [WorldPoint, WorldPoint];
  * @formula  identity — readonly tuple of three `WorldPoint`s
  * @anchors  [WorldPoint, WorldPoint, WorldPoint]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const tri: AnchorTriple = [
  *         { time: 1, price: 1 },
@@ -62,7 +62,7 @@ export type AnchorTriple = readonly [WorldPoint, WorldPoint, WorldPoint];
  * @formula  identity — readonly tuple of four `WorldPoint`s
  * @anchors  [WorldPoint × 4]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const abcd: AnchorQuad = [
  *         { time: 1, price: 1 },
@@ -81,7 +81,7 @@ export type AnchorQuad = readonly [WorldPoint, WorldPoint, WorldPoint, WorldPoin
  * @formula  identity — readonly tuple of five `WorldPoint`s
  * @anchors  [WorldPoint × 5]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const xabcd: AnchorQuint = [
  *         { time: 1, price: 1 },
@@ -101,7 +101,7 @@ export type AnchorQuint = readonly [WorldPoint, WorldPoint, WorldPoint, WorldPoi
  * @formula  identity — readonly tuple of seven `WorldPoint`s
  * @anchors  [WorldPoint × 7]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const triple: AnchorHept = [
  *         { time: 1, price: 1 }, { time: 2, price: 2 },

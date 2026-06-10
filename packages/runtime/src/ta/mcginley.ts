@@ -111,7 +111,7 @@ function compute(slot: McginleySlot, src: number, isTick: boolean): number {
  *           mc[t] = mc[t-1] + (src[t] − mc[t-1]) / (length · (src[t] / mc[t-1])^4)
  * @warmup   length
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

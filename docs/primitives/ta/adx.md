@@ -2,7 +2,7 @@
 
 # `ta.adx`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Wilder's Average Directional Index — single-line trend-strength

@@ -26,7 +26,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * canonical (3, 10) defaults in its own pane.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_CHAIKIN_OSC_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_CHAIKIN_OSC_SCENARIO;

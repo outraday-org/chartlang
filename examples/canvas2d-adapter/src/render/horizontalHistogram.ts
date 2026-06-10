@@ -9,7 +9,7 @@ import { priceToY, type Viewport } from "./coords";
  * Single canvas row for a Phase 5 horizontal histogram.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const bucket: HorizontalHistogramBucket = { price: 100, volume: 25 };
  *     void bucket;
@@ -24,7 +24,7 @@ export type HorizontalHistogramBucket = {
  * Canvas layout inputs for a Phase 5 horizontal histogram.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const args: HorizontalHistogramArgs = { buckets: [], maxWidth: 80, rowHeight: 4 };
  *     void args;
@@ -39,7 +39,7 @@ export type HorizontalHistogramArgs = {
  * Render Phase-5 `horizontal-histogram` buckets at the right edge.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const viewport: Viewport;

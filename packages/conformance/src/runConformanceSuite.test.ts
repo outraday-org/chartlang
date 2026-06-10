@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import { generateGoldenBars } from "./fixtures/generateGoldenBars";
 import { type Scenario, type ScenarioAssertion, runConformanceSuite } from "./runConformanceSuite";
 import {
+    ALL_SCENARIOS,
     BARSTATE_CONFIRMED_SCENARIO,
     DEFINE_ALERT_CONDITION_FIRES_SCENARIO,
     DEFINE_ALERT_CONDITION_GATED_SCENARIO,
@@ -20,7 +21,6 @@ import {
     DRAW_TABLE_HAPPY_SCENARIO,
     EMA_CROSS_SCENARIO,
     INPUT_INTERVAL_SCENARIO,
-    PHASE_1_SCENARIOS,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
     RUNTIME_ERROR_SCENARIO,
     RUNTIME_LOG_BUDGET_SCENARIO,
@@ -171,8 +171,14 @@ describe("runConformanceSuite", () => {
             candles: SINGLE_BAR,
             compile: makeNoopCompile(visitedSourcePaths),
         });
-        expect(report.passed + report.failed).toBe(PHASE_1_SCENARIOS.length);
-        expect(visitedSourcePaths).toEqual(PHASE_1_SCENARIOS.map(scenarioSourcePath));
+        expect(report.passed + report.failed).toBe(ALL_SCENARIOS.length);
+        expect(report.scenarios).toHaveLength(ALL_SCENARIOS.length);
+        expect(Object.isFrozen(report.scenarios)).toBe(true);
+        expect(report.scenarios.map((scenario) => scenario.id)).toEqual(
+            ALL_SCENARIOS.map((scenario) => scenario.id),
+        );
+        expect(report.scenarios.every((scenario) => Object.isFrozen(scenario.failures))).toBe(true);
+        expect(visitedSourcePaths).toEqual(ALL_SCENARIOS.map(scenarioSourcePath));
     });
 
     it("runs every Phase-4 scenario end-to-end", async () => {
@@ -182,6 +188,9 @@ describe("runConformanceSuite", () => {
         expect(report.failed).toBe(0);
         expect(report.passed).toBe(PHASE_4_SCENARIOS.length);
         expect(report.failures).toEqual([]);
+        expect(report.scenarios.map((scenario) => scenario.status)).toEqual(
+            PHASE_4_SCENARIOS.map(() => "pass"),
+        );
     }, 60_000);
 
     it("runs Phase-5 alert-condition scenarios end-to-end", async () => {
@@ -269,6 +278,14 @@ describe("runConformanceSuite", () => {
         expect(report.failed).toBe(1);
         expect(report.passed).toBe(0);
         expect(report.failures).toHaveLength(1);
+        expect(report.scenarios).toEqual([
+            {
+                id: EMA_CROSS_SCENARIO.id,
+                title: EMA_CROSS_SCENARIO.title,
+                status: "fail",
+                failures: report.failures,
+            },
+        ]);
         const [failure] = report.failures;
         expect(failure.assertionKind).toBe("plot-hash");
         expect(failure.message).toContain("expected deadbeef");

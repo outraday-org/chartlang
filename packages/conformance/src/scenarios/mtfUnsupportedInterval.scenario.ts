@@ -26,7 +26,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `request.security` scenario for runtime unsupported interval fallback.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { MTF_UNSUPPORTED_INTERVAL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void MTF_UNSUPPORTED_INTERVAL_SCENARIO;

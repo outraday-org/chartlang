@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * the requested interval but not multi-timeframe support.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     import { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void REQUEST_SECURITY_NAN_FALLBACK_SCENARIO;

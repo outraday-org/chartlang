@@ -19,7 +19,7 @@ function findDescriptor(
  * and before `compute` runs.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     // refreshRuntimeViews(state, "close");
  *     const fn: typeof refreshRuntimeViews = refreshRuntimeViews;

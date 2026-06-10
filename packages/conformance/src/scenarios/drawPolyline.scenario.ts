@@ -37,7 +37,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `3 ≤ anchors.length ≤ 20`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_POLYLINE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_POLYLINE_SCENARIO;

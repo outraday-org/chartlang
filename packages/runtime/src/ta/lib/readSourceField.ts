@@ -16,7 +16,7 @@
  *
  * @formula  N/A — string-literal union
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // type S = SourceField; // "close" | "hl2" | ...
  */
@@ -40,7 +40,7 @@ const SOURCE_FIELDS: ReadonlySet<SourceField> = new Set<SourceField>([
  *
  * @formula  params.source ∈ SOURCE_FIELDS ? params.source : fallback
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { readSourceField } from "./readSourceField";
  *     // const s = readSourceField({ source: "hl2" }); // "hl2"

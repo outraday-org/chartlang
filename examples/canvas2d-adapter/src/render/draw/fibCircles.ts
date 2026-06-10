@@ -29,7 +29,7 @@ const TAU = Math.PI * 2;
  * `tasks/phase-3-drawing-parity/12-fibonacci-b.plan.md` §4).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

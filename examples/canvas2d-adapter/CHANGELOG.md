@@ -1,5 +1,25 @@
 # chartlang-example-canvas2d-adapter
 
+## 1.0.0
+
+Private reference-adapter version aligned with the chartlang `1.0.0`
+standardisation release. This package remains unpublished.
+
+### Minor Changes
+
+- d14a034: Add phase 5 server alerts, multi-timeframe request handling, runtime persistence, QuickJS hosting, expanded plot and table rendering, color helpers, alert conditions, and volume profile primitives.
+- 3cfff10: Phase 6 closeout for Tier-3 ergonomics and lower-timeframe support.
+- 3cfff10: Wire runtime `request.lowerTf`, advertise sub-minute canvas2d intervals, and add LTF conformance scenarios.
+
+### Patch Changes
+
+- Updated dependencies [d14a034]
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @invinite-org/chartlang-adapter-kit@1.0.0
+  - @invinite-org/chartlang-host-worker@1.0.0
+
 ## 0.5.0
 
 ### Phase 5
@@ -614,7 +634,7 @@ rightTrough, rightShoulder, end`). The renderer treats the 5
     - `draw-containers-all`:
       `e6ba183dfc04145a5126e6ea75a4cb7117694adc13eea84853239c68810e91fe`
       `TEST_CAPABILITIES.drawings` widens with
-      `...capBuilders.allContainerDrawings()`; the `PHASE_1_SCENARIOS`
+      `...capBuilders.allContainerDrawings()`; the `ALL_SCENARIOS`
       `toEqual` array (in `scenarios.test.ts` and `index.test.ts`)
       appends the 3 new scenarios under
       `// Phase 3 Task 18 — Containers.`.
@@ -812,7 +832,7 @@ drawingDispatch, ... } from "../"` without reaching into
   `runConformanceSuite.test.ts` + `scenarios.test.ts` widens to include
   `allBoxDrawings()` plus `boxes: 100` / `polylines: 100` budgets so
   the new scenarios reach `pushDrawing`'s happy path. The 5 new
-  scenarios extend `PHASE_1_SCENARIOS` (now 96 entries) and the public
+  scenarios extend `ALL_SCENARIOS` (now 96 entries) and the public
   re-export surface.
 
   No core edits — the `DrawingState` variants and `DrawNamespace`

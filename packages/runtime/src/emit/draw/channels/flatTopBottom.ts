@@ -46,7 +46,7 @@ function flatTopBottomImpl(
  * @anchorCount 3
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -69,7 +69,7 @@ export function flatTopBottom(anchors: AnchorTriple, opts?: LineDrawStyle): Draw
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof flatTopBottom = flatTopBottom;
@@ -86,7 +86,7 @@ export function flatTopBottom(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof flatTopBottom = flatTopBottom;
  *     // void fn;

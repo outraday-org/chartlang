@@ -14,7 +14,7 @@ import type { DrawingKind } from "./drawingKind";
  * @formula  bucket = KIND_BUCKET.get(kind)
  * @anchors  kind: DrawingKind → bucket: "lines"|"labels"|"boxes"|"polylines"|"other"
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const b: DrawingBucket = "lines";
  *     void b;
@@ -36,7 +36,7 @@ export type DrawingBucket = "lines" | "labels" | "boxes" | "polylines" | "other"
  * @formula  bucket = KIND_BUCKET.get(kind)
  * @anchors  kind: DrawingKind → bucket: "lines"|"labels"|"boxes"|"polylines"|"other"
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { KIND_BUCKET } from "@invinite-org/chartlang-core";
  *     const b = KIND_BUCKET.get("fib-retracement"); // "other"
@@ -119,7 +119,7 @@ export const KIND_BUCKET: ReadonlyMap<DrawingKind, DrawingBucket> = new Map<
  * @formula  bucket = KIND_BUCKET.get(kind)
  * @anchors  kind: DrawingKind → bucket: "lines"|"labels"|"boxes"|"polylines"|"other"
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { bucketFor } from "@invinite-org/chartlang-core";
  *     const bucket = bucketFor("rectangle"); // "boxes"

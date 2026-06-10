@@ -157,7 +157,7 @@ function resultForOffset(slot: IchimokuSlot, offset: number): IchimokuResult {
  * @anchors  displacement, conversionLength, baseLength, leadingSpanBLength
  * @warmup   max(conversionLength, baseLength, leadingSpanBLength) + displacement − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts all five outputs in lockstep (PLAN.md §9.1).
  *

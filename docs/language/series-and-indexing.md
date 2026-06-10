@@ -1,13 +1,8 @@
-# Series and indexing
+# Series and Indexing
 
-> **Phase:** Lands in Phase 1.
-> **Cross-reference:** See PLAN.md §4.3.
+The canonical `apiVersion: 1` rules for `Series<T>`, `series[0]`,
+positive lookback indices, warmup, `NaN`, and runtime lookback bounds live in
+[Execution Semantics](../spec/semantics.md#series-and-indexing).
 
-How `Series<T>` works in chartlang: zero-indexed historical access
-(`series[0]` is the current bar, `series[1]` is the prior bar), NaN
-warmup semantics, the no-unbounded-growth rule, the per-bar
-synchronisation contract, and the runtime guarantees that let math
-ports stay deterministic across hosts.
-
-Stubbed during the Phase 0 bootstrap so the docs gate has a stable
-target. Content lands with the Phase 1 runtime PR.
+This language guide page is intentionally kept as a pointer until the tutorial
+guide expands with examples; the spec page is the normative source.

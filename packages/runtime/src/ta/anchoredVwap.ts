@@ -135,7 +135,7 @@ function valueFromCum(started: boolean, cumPV: number, cumV: number): number {
  * @formula  anchoredVwap[t] = Σ_{u ≥ anchor}(source[u] · volume[u]) / Σ_{u ≥ anchor}(volume[u])
  * @warmup   0 (NaN until first bar with `bar.time ≥ anchorTime`)
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

@@ -23,7 +23,7 @@ const LINE_ONLY_PLOTS: ReadonlySet<PlotKind> = new Set(["line"]);
  * Phase 5 conformance scenario for plot kind bar override gated scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { PLOT_KIND_BAR_OVERRIDE_GATED_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void PLOT_KIND_BAR_OVERRIDE_GATED_SCENARIO;

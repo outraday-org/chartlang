@@ -227,20 +227,20 @@ The following are intentionally **NOT** in Phase 7 scope:
 
 Phase 7 closes when:
 
-- [ ] Zero `@deprecated` exports remain; every shipping export is
+- [x] Zero `@deprecated` exports remain; every shipping export is
       `@stable`; `pnpm docs:check` + `pnpm docs:gate` +
       `pnpm hover:check` green.
-- [ ] Compiler accepts only `apiVersion: 1` with release wording;
+- [x] Compiler accepts only `apiVersion: 1` with release wording;
       `STATEFUL_PRIMITIVES` locked by exact name-set test.
-- [ ] `pnpm docs:build` green locally and in CI; the five spec docs
+- [x] `pnpm docs:build` green locally and in CI; the five spec docs
       are self-contained (no "see the source code" references).
-- [ ] `pnpm conformance --report` writes `CONFORMANCE.md` +
+- [x] `pnpm conformance --report` writes `CONFORMANCE.md` +
       `conformance-report.json` for the canvas2d adapter; both are
       checked in and drift-gated in CI.
-- [ ] `chartlang scaffold-adapter` output contains a runnable
+- [x] `chartlang scaffold-adapter` output contains a runnable
       conformance test + report script; the adapter-author tutorial
       and LWC walkthrough are published.
-- [ ] Pine migration guide carries the pattern-coverage matrix audited
+- [x] Pine migration guide carries the pattern-coverage matrix audited
       against the top ~50 Pine scripts — every idiom has a documented
       equivalent or an explicit roadmap note.
 - [ ] `pnpm publish:release` works end-to-end via changesets; the CI

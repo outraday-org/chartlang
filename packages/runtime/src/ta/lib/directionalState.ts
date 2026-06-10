@@ -16,7 +16,7 @@ import { wilderStep } from "./wilderSmoothing";
  *
  * @formula  N/A — record type for {@link initDirectionalState}
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // const s: DirectionalState = initDirectionalState(14);
  */
@@ -54,7 +54,7 @@ export type DirectionalState = {
  *
  * @formula  N/A — state constructor (zero / NaN initializers)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // const s = initDirectionalState(14);
  */
@@ -118,7 +118,7 @@ function rawDirectionalMovement(
  *           recurrence in a single-pass mutable form.
  * @warmup   length + 1 (first defined DI at barCount === length + 1)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // const { plusDi, minusDi } = advanceDirectionalClose(s, h, l, c);
  */
@@ -224,7 +224,7 @@ export function advanceDirectionalClose(
  *           applied against `prevClosedSmoothed*` snapshots so the
  *           current bar can be replaced rather than appended.
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // const di = tickDirectional(s, h, l, c);
  */

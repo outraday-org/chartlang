@@ -7,7 +7,7 @@ import ts from "typescript";
  * Resolve the chartlang primitive FQN under a source offset.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const fqn = resolveFqnAtOffset("ta.ema(bar.close, 20)", 4);
  *     void fqn;
@@ -25,7 +25,7 @@ export function resolveFqnAtOffset(source: string, offset: number): string | nul
  * Find the smallest AST token containing an offset.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const sf = ts.createSourceFile("x.ts", "ta.ema()", ts.ScriptTarget.Latest, true);
  *     const token = findTokenAtOffset(sf, 1);

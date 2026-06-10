@@ -12,7 +12,7 @@ import type { CandleEvent, RunnerEmissions } from "@invinite-org/chartlang-adapt
  * `maxRingBufferBars` is forwarded for runtime sizing decisions.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const limits: HostLimits = {
  *         maxHeapBytes: 64 * 1024 * 1024,
@@ -33,7 +33,7 @@ export type HostLimits = {
  * still pinning the wire contract (Phase 1 walking skeleton).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const cs: HostCompiledScript = {
  *         moduleSource: "export default { manifest: {...}, compute: () => {} };",
@@ -62,7 +62,7 @@ export type HostCompiledScript = {
  * clones; `dispose` terminates the worker.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const host: ScriptHost;
  *     await host.load({
@@ -89,7 +89,7 @@ export type ScriptHost = {
  * the host feature-detects before calling.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ch = new MessageChannel();
  *     const worker: WorkerLike = ch.port1;
@@ -108,7 +108,7 @@ export type WorkerLike = {
  * import resolution.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // declare const r: ScriptRunnerHandle;
  *     // await r.onBarClose({ time: 0, open: 1, high: 1, low: 1, close: 1, volume: 0, symbol: "", interval: "" });
@@ -130,7 +130,7 @@ export type ScriptRunnerHandle = {
  * bundled output (`export default defineIndicator(...)`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const m: CompiledModuleExport = {
  *         default: { manifest: {} as ScriptManifest, compute: () => {} },

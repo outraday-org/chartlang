@@ -99,7 +99,7 @@ function tickValue(slot: VwmaSlot, src: number, vol: number): number {
  *                 ;  NaN when the denominator is 0.
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

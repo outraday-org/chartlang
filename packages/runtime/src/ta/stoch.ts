@@ -60,7 +60,7 @@ function getCtx(): RuntimeContext {
  *           d     = sma(k, dLength)
  * @warmup   kLength + kSmoothing + dLength − 3
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

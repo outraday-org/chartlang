@@ -54,7 +54,7 @@ function markerImpl(slotId: string, anchor: WorldPoint, opts: MarkerOpts): Drawi
  * @anchorCount 1
  * @bucket labels
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -73,7 +73,7 @@ export function marker(anchor: WorldPoint, opts?: MarkerOpts): DrawingHandle;
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof marker = marker;
@@ -86,7 +86,7 @@ export function marker(slotId: string, anchor: WorldPoint, opts?: MarkerOpts): D
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof marker = marker;
  *     // void fn;

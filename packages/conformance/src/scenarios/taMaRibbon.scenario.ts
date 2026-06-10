@@ -30,7 +30,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * dispatch through `TA_REGISTRY`'s `ema` primitive.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_MA_RIBBON_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_MA_RIBBON_SCENARIO;

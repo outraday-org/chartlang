@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * with no alerts and no validation diagnostics.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_VOLATILITY_STOP_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_VOLATILITY_STOP_SCENARIO;

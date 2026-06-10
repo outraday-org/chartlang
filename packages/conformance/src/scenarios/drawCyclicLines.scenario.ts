@@ -33,7 +33,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * drawing (2 anchors, period = 60s) on the first bar.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_CYCLIC_LINES_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_CYCLIC_LINES_SCENARIO;

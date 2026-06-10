@@ -45,7 +45,7 @@ function getCtx(): RuntimeContext {
  *           out    = WMA(diff, sqrtLen)
  * @warmup   length + ceil(sqrt(length)) − 2
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

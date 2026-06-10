@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * alert; subsequent tick events do not.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     import { BARSTATE_CONFIRMED_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void BARSTATE_CONFIRMED_SCENARIO;

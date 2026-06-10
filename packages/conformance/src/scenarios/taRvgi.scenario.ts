@@ -30,7 +30,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * layer (`TA_REGISTRY_METADATA.rvgi`).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_RVGI_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_RVGI_SCENARIO;

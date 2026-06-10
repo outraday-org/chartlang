@@ -50,7 +50,7 @@ function fibRetracementImpl(
  * @anchorCount 2
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -70,7 +70,7 @@ export function fibRetracement(a: WorldPoint, b: WorldPoint, opts?: FibOpts): Dr
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof fibRetracement = fibRetracement;
@@ -88,7 +88,7 @@ export function fibRetracement(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof fibRetracement = fibRetracement;
  *     // void fn;

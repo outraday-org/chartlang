@@ -50,7 +50,7 @@ function elliottTriangleWaveImpl(
  * @anchorCount 5
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -72,7 +72,7 @@ export function elliottTriangleWave(anchors: AnchorQuint, opts?: LineDrawStyle):
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof elliottTriangleWave = elliottTriangleWave;
@@ -89,7 +89,7 @@ export function elliottTriangleWave(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof elliottTriangleWave = elliottTriangleWave;
  *     // void fn;

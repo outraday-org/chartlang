@@ -141,7 +141,7 @@ function closeStep(slot: AdrSlot, high: number, low: number, time: number): numb
  *           completed UTC days, in price units )
  * @warmup   length daily bars
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

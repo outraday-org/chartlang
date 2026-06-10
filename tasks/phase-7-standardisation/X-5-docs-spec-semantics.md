@@ -1,6 +1,6 @@
 # Spec: `semantics.md`
 
-> **Status: TODO**
+> **Status: Complete**
 
 ## Goal
 

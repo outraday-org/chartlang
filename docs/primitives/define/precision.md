@@ -2,7 +2,7 @@
 
 # `defineIndicator.precision`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.4
 
 Decimal precision the adapter renders the indicator at. `0`-`10`;

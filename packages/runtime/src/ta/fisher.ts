@@ -122,7 +122,7 @@ function computeStep(
  *           trigger[t] = prevFisher (the value of fisher before this close)
  * @warmup   length (first defined `fisher` at bar `length - 1`; first defined `trigger` at bar `length`)
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

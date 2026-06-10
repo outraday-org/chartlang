@@ -38,7 +38,7 @@ function verticalLineImpl(slotId: string, time: Time, opts: LineDrawStyle): Draw
  * @anchorCount 1
  * @bucket lines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -54,7 +54,7 @@ export function verticalLine(time: Time, opts?: LineDrawStyle): DrawingHandle;
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof verticalLine = verticalLine;
@@ -67,7 +67,7 @@ export function verticalLine(slotId: string, time: Time, opts?: LineDrawStyle): 
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof verticalLine = verticalLine;
  *     // void fn;

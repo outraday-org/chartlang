@@ -28,7 +28,7 @@ type PitchforkVariant = PitchforkState["variant"];
  * Matches invinite's `pitchfork-geometry.ts:118-160` switch.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { medianOriginFor } from "./pitchforkGeom";
  *     const origin = medianOriginFor(
@@ -63,7 +63,7 @@ export function medianOriginFor(
  * parallel handle rails.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { medianTargetFor } from "./pitchforkGeom";
  *     const target = medianTargetFor(

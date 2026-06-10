@@ -34,7 +34,7 @@ const PHASE_3_DRAWINGS: ReadonlySet<DrawingKind> = capabilities.allPhase3Drawing
  * Phase 5 conformance scenario for draw table gated scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_TABLE_GATED_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_TABLE_GATED_SCENARIO;

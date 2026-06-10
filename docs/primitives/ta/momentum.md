@@ -2,7 +2,7 @@
 
 # `ta.momentum`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Momentum (Pine `mom`) — first-difference `source[0] − source[length]`

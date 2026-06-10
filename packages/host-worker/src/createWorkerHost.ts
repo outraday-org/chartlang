@@ -29,7 +29,7 @@ import type { HostLimits, ScriptHost, WorkerLike } from "./types";
  *   `drain()` — Phase 1 keeps overshoot surfacing on the adapter.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: CreateWorkerHostOpts = {
  *         capabilities: {} as Capabilities,
@@ -61,7 +61,7 @@ function hasTerminate(w: WorkerLike): w is WorkerLike & { terminate: () => void 
  * supports it, and clears the pending-drain map.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { createWorkerHost } from "@invinite-org/chartlang-host-worker";
  *     // const host = createWorkerHost({ capabilities });

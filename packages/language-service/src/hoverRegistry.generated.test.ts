@@ -6,8 +6,8 @@ import { describe, expect, it } from "vitest";
 import { HOVER_REGISTRY } from "./hoverRegistry.generated";
 
 describe("HOVER_REGISTRY", () => {
-    it("contains the Phase 4 language-service symbol set", () => {
-        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(452);
+    it("contains the apiVersion 1 language-service symbol set", () => {
+        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(508);
     });
 
     it("contains core hover entries required by editor tier 1", () => {

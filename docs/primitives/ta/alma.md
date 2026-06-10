@@ -2,7 +2,7 @@
 
 # `ta.alma`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Arnaud Legoux Moving Average — a Gaussian-weighted MA. Weights peak

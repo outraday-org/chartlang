@@ -29,7 +29,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * on the registry's metadata layer (`TA_REGISTRY_METADATA.stochRsi`).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_STOCH_RSI_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_STOCH_RSI_SCENARIO;

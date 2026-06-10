@@ -8,7 +8,7 @@ import type { QuickJsHostLimits } from "./types";
  * singleton; per-host overrides are merged by `createQuickJsHost` in Task 7.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { DEFAULT_QUICKJS_LIMITS } from "@invinite-org/chartlang-host-quickjs";
  *     const heap = DEFAULT_QUICKJS_LIMITS.maxHeapBytes;

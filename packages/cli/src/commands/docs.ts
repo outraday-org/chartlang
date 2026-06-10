@@ -42,7 +42,7 @@ function resolveDir(raw: string, repoRoot: string): string {
  * `ta.*` walk (the only one Phase 2 shipped).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // import { runDocsCommand } from "@invinite-org/chartlang-cli";
  *     // await runDocsCommand([]);

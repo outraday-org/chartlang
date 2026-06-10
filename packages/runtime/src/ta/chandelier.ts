@@ -97,7 +97,7 @@ function compute(
  * @warmup   length
  * @anchors  length, multiplier
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

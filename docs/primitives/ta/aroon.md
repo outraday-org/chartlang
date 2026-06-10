@@ -2,7 +2,7 @@
 
 # `ta.aroon`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Aroon — recency-of-extreme oscillator over the trailing `length + 1`

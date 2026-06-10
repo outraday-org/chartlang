@@ -147,7 +147,7 @@ function textBaseline(cell: TableCell): RenderCtx["textBaseline"] {
  * `Viewport.pxHeight` per PLAN.md §10.2.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const emission: DrawingEmission;

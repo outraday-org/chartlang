@@ -22,7 +22,7 @@ const MINIMAL_LINE = `/**
  * @anchorCount 2
  * @bucket lines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // draw.line(a, b)
  */
@@ -36,7 +36,7 @@ const RANGE_PATH = `/**
  * @anchorCount 2..20
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // draw.path([])
  */
@@ -48,7 +48,7 @@ const BUCKET_MISMATCH = `/**
  * @anchorCount 2
  * @bucket boxes
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -60,7 +60,7 @@ const UNKNOWN_KIND = `/**
  * @anchorCount 1
  * @bucket lines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -76,7 +76,7 @@ const SAMPLE_INPUT: DrawingDocInput = {
     anchorCount: "2",
     bucket: "lines",
     since: "0.3",
-    stability: "experimental",
+    stability: "stable",
     example: "// draw.line(a, b)",
     sourceUrl: "https://example.invalid/blob/main/line.ts",
 };
@@ -94,7 +94,7 @@ describe("generateDrawingDocsPage", () => {
 
     it("renders the Stability / Since / Bucket / Wire-kind header block", () => {
         const md = generateDrawingDocsPage(SAMPLE_INPUT);
-        expect(md).toMatch(/> \*\*Stability:\*\* experimental/);
+        expect(md).toMatch(/> \*\*Stability:\*\* stable/);
         expect(md).toMatch(/> \*\*Since:\*\* 0\.3/);
         expect(md).toMatch(/> \*\*Bucket:\*\* `lines`/);
         expect(md).toMatch(/> \*\*Wire kind:\*\* `line`/);
@@ -154,7 +154,7 @@ describe("parseDrawingSource", () => {
         expect(input.anchors).toContain("`a`, `b`");
         expect(input.anchorCount).toBe("2");
         expect(input.bucket).toBe("lines");
-        expect(input.stability).toBe("experimental");
+        expect(input.stability).toBe("stable");
         expect(input.since).toBe("0.3");
         expect(input.example).toContain("draw.line");
         expect(input.sourceUrl).toBe(
@@ -172,14 +172,14 @@ describe("parseDrawingSource", () => {
     });
 
     it("recognises a @stable marker", async () => {
-        const src = MINIMAL_LINE.replace("@experimental", "@stable");
+        const src = MINIMAL_LINE.replace("@stable", "@stable");
         const path = await writeSrc("line", src);
         const input = await parseDrawingSource(path, PARSE_OPTS);
         expect(input.stability).toBe("stable");
     });
 
     it("recognises a @frozen marker", async () => {
-        const src = MINIMAL_LINE.replace("@experimental", "@frozen");
+        const src = MINIMAL_LINE.replace("@stable", "@frozen");
         const path = await writeSrc("line", src);
         const input = await parseDrawingSource(path, PARSE_OPTS);
         expect(input.stability).toBe("frozen");
@@ -242,7 +242,7 @@ describe("parseDrawingSource", () => {
     });
 
     it("rejects a source missing a stability marker", async () => {
-        const src = MINIMAL_LINE.replace("@experimental", "");
+        const src = MINIMAL_LINE.replace("@stable", "");
         const path = await writeSrc("line", src);
         await expect(parseDrawingSource(path, PARSE_OPTS)).rejects.toMatchObject({
             code: "missing-stability",
@@ -262,7 +262,7 @@ describe("parseDrawingSource", () => {
  * @anchorCount 2
  * @bucket lines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // x
  */

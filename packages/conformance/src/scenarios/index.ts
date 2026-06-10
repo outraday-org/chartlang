@@ -437,7 +437,7 @@ export { PHASE_2_INDICATORS, PHASE_5_DEFERRED } from "./phase2Inventory";
  * Future phases expand the array additively as new scenarios ship.
  *
  * @since 0.2.1
- * @experimental
+ * @stable
  * @example
  *     import { ALL_SCENARIOS } from "@invinite-org/chartlang-conformance";
  *     // ALL_SCENARIOS.length >= 3
@@ -689,17 +689,3 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     TIMEFRAME_ISDAILY_SCENARIO,
     UNSUPPORTED_INTERVAL_SCENARIO,
 ]);
-
-/**
- * Deprecated alias for {@link ALL_SCENARIOS}. Kept for one release
- * (`0.2.1`) so downstream adapters that imported the original Phase-1
- * name keep compiling while they migrate.
- *
- * @deprecated since 0.2.1, use {@link ALL_SCENARIOS}.
- * @since 0.1
- * @experimental
- * @example
- *     import { PHASE_1_SCENARIOS } from "@invinite-org/chartlang-conformance";
- *     void PHASE_1_SCENARIOS;
- */
-export const PHASE_1_SCENARIOS: ReadonlyArray<Scenario> = ALL_SCENARIOS;

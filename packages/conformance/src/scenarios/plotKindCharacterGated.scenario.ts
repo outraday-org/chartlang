@@ -23,7 +23,7 @@ const LINE_ONLY_PLOTS: ReadonlySet<PlotKind> = new Set(["line"]);
  * Phase 5 conformance scenario for plot kind character gated scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { PLOT_KIND_CHARACTER_GATED_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void PLOT_KIND_CHARACTER_GATED_SCENARIO;

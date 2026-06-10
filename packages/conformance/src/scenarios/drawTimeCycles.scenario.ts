@@ -33,7 +33,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * drawing (2 anchors defining the arc diameter) on the first bar.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_TIME_CYCLES_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_TIME_CYCLES_SCENARIO;

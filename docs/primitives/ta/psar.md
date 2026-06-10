@@ -2,7 +2,7 @@
 
 # `ta.psar`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Parabolic SAR — Wilder's classic stop-and-reverse oscillator with

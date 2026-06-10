@@ -34,7 +34,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * pivot+reference anchors.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_FIB_SPEED_FAN_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_FIB_SPEED_FAN_SCENARIO;

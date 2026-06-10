@@ -98,7 +98,7 @@ function compute(slot: SmmaSlot, src: number, isTick: boolean): number {
  *           SMMA[t] = source[t]·α + SMMA[t−1]·(1−α)
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

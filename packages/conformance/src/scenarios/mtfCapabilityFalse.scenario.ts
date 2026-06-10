@@ -27,7 +27,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `request.security` scenario for `multiTimeframe: false` fallback.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { MTF_CAPABILITY_FALSE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void MTF_CAPABILITY_FALSE_SCENARIO;

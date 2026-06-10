@@ -139,7 +139,7 @@ function tickValue(slot: CciSlot, src: number): number {
  *           NaN          when meanAbsDev === 0
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

@@ -2,7 +2,7 @@
 
 # `ta.rvi`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Relative Volatility Index — sub-pane oscillator bounded `[0, 100]`.

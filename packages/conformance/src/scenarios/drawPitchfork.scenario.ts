@@ -35,7 +35,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * variants (`schiff` / `modifiedSchiff` / `inside`) plus `pitchfan`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_PITCHFORK_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_PITCHFORK_SCENARIO;

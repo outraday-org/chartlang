@@ -33,7 +33,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * A-B-C correction (3 anchors) on the first bar.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_ELLIOTT_CORRECTION_WAVE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_ELLIOTT_CORRECTION_WAVE_SCENARIO;

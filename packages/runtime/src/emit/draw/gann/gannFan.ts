@@ -50,7 +50,7 @@ function gannFanImpl(
  * @anchorCount 2
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -69,7 +69,7 @@ export function gannFan(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): Dra
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof gannFan = gannFan;
@@ -87,7 +87,7 @@ export function gannFan(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof gannFan = gannFan;
  *     // void fn;

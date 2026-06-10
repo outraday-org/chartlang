@@ -111,13 +111,16 @@ follow-up" allowance.
 Run `pnpm changeset` before pushing any PR that touches publishable
 code (anything under `packages/*/src/`). Pick the affected packages
 and the semver bump; commit the generated file in
-[`.changeset/`](./.changeset/README.md) alongside your code change. The
-changeset is what the manual release workflow (PLAN.md §22.11)
-consumes to bump versions and publish.
+[`.changeset/`](./.changeset/) alongside your code change. The CI release workflow
+collects pending changesets into the "Version Packages" PR and
+publishes to npm when that PR merges to `main`.
 
 PRs that don't touch publishable code (docs, tooling-only edits, CI
 config) don't need a changeset, but adding an empty one is still
 welcome — it makes the release log more readable.
+
+Maintainers can fall back to a local publish with `pnpm publish:release`
+after running the normal gates and sourcing `NPM_TOKEN`.
 
 ## 6. PR checklist
 

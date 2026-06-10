@@ -19,7 +19,7 @@ export { DEFAULT_ADAPTER } from "./defaultAdapter";
  * without a named binding.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import defaultAdapter from "chartlang-example-canvas2d-adapter";
  *     // defaultAdapter.capabilities.plots.has("line") === true

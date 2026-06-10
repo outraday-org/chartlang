@@ -2,7 +2,7 @@
 
 # `ta.bbw`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Bollinger BandWidth — sub-pane volatility line. Compresses

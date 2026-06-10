@@ -10,7 +10,7 @@ import type { HostLimits } from "./types";
  * Frozen so consumers cannot mutate the singleton.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { DEFAULT_LIMITS } from "@invinite-org/chartlang-host-worker";
  *     const cpu = DEFAULT_LIMITS.maxCpuMsPerStep; // 50
@@ -32,7 +32,7 @@ export const DEFAULT_LIMITS: HostLimits = Object.freeze({
  * Re-throws if `fn` rejects — overshoot detection does not swallow errors.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // const { result, overshoot } = await watchStep(async () => 42, 100);
  *     // result === 42; overshoot === 0;

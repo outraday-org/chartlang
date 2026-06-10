@@ -23,7 +23,7 @@ import type { HostCompiledScript, HostLimits } from "./types";
  * - `dispose` has no reply.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const m: HostToWorker = { kind: "dispose" };
  *     void m;
@@ -53,7 +53,7 @@ export type HostToWorker =
  * - `fatal` reports any uncaught error inside the boot's message handler.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const m: WorkerToHost = { kind: "loaded" };
  *     void m;

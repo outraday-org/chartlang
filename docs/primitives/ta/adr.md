@@ -2,7 +2,7 @@
 
 # `ta.adr`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Average Daily Range — SMA of `high − low` across the trailing

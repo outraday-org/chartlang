@@ -37,7 +37,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * W-X-Y double-three (7 anchors) on the first bar.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_ELLIOTT_DOUBLE_COMBO_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_ELLIOTT_DOUBLE_COMBO_SCENARIO;

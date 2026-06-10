@@ -107,7 +107,7 @@ function collectBars(ctx: RuntimeContext, anchor: number): ReadonlyArray<VolumeP
  * @warmup   NaN through the bar at `anchor`; first bar after `anchor`
  *           can emit once the anchor→current window has positive volume.
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // import { input, plot, ta } from "@invinite-org/chartlang-core";
  *     // const anchor = input.time(0, { pickFromChart: true });

@@ -27,7 +27,7 @@ const MONTHLY_LONGER = new Set(["monthly", "quarterly", "yearly"]);
  * adapter interval descriptor.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const view = makeTimeframeView("5m", {
  *         value: "5m",

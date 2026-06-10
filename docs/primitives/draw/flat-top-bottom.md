@@ -2,7 +2,7 @@
 
 # `draw.flatTopBottom`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.3
 > **Bucket:** `polylines`
 > **Wire kind:** `flat-top-bottom`

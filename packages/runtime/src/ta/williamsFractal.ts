@@ -137,7 +137,7 @@ function scanDownFractal(lowWindow: Float64RingBuffer, headLow: number, length: 
  * @warmup   2 · length
  * @anchors  length
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

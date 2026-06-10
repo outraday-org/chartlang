@@ -2,7 +2,7 @@
 
 # `ta.dema`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Double Exponential Moving Average — `DEMA = 2·EMA(src) − EMA(EMA(src))`.

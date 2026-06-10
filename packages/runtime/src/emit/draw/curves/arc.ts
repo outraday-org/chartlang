@@ -42,7 +42,7 @@ function arcImpl(slotId: string, anchors: AnchorTriple, opts: LineDrawStyle): Dr
  * @anchorCount 3
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -65,7 +65,7 @@ export function arc(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof arc = arc;
@@ -78,7 +78,7 @@ export function arc(slotId: string, anchors: AnchorTriple, opts?: LineDrawStyle)
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof arc = arc;
  *     // void fn;

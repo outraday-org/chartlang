@@ -38,7 +38,7 @@ export function mapDiagnostic(diagnostic: CompileDiagnostic): LspDiagnostic {
  * Build a language-service diagnostic at a 1-based line/column position.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const diagnostic = makeDiagnostic({
  *         line: 1,

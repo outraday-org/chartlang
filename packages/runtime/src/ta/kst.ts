@@ -86,7 +86,7 @@ function rocFromWindow(window: Float64RingBuffer, src: number, length: number): 
  *           signal = sma(kst, signalLength)
  * @warmup   max_N(rocNLength + rocNSmooth) + signalLength − 2
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

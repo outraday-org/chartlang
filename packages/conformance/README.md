@@ -22,7 +22,6 @@ pnpm add -D @invinite-org/chartlang-conformance
   drawing parity, and Phase 4 scenarios for state, tick state, `barstate`,
   `syminfo`, `timeframe`, inputs, `request.security` NaN fallback, and
   unsupported intervals.
-- `PHASE_1_SCENARIOS` remains as a deprecated alias for one release.
 - `generateGoldenBars()`, `serialiseGoldenBars()`, `writeGoldenBars(path)`,
   and `GOLDEN_BARS_PATH` provide the deterministic 10 000-bar fixture.
 

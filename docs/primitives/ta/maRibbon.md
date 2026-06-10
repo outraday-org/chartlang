@@ -2,7 +2,7 @@
 
 # `ta.maRibbon`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 MA Ribbon — a fan of K moving averages of the same kind at different

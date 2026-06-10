@@ -44,7 +44,7 @@ function penImpl(
  * @anchorCount 2..500
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -66,7 +66,7 @@ export function pen(anchors: ReadonlyArray<WorldPoint>, opts?: LineDrawStyle): D
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof pen = pen;
@@ -83,7 +83,7 @@ export function pen(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof pen = pen;
  *     // void fn;

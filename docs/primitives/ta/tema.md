@@ -2,7 +2,7 @@
 
 # `ta.tema`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Triple Exponential Moving Average —

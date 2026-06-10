@@ -7,7 +7,7 @@ import ts from "typescript";
  * Return true when an offset sits inside a completable interval string.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const inside = isInsideIntervalLiteral('request.security({ interval: "" })', 31);
  *     void inside;

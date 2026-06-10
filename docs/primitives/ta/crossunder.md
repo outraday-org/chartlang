@@ -2,7 +2,7 @@
 
 # `ta.crossunder`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.1
 
 `true` exactly at the bar where `a` crosses below `b`: `a.current <

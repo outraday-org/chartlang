@@ -9,7 +9,7 @@ import type { ScriptManifest } from "@invinite-org/chartlang-core";
  * free of a compiler dependency.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const cs: QuickJsCompiledScript = {
  *         moduleSource: "export default { manifest: m, compute: () => {} };",
@@ -27,7 +27,7 @@ export type QuickJsCompiledScript = Readonly<{
  * PLAN §8.3; `maxStepMs` defaults to 1 ms per compute step.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const limits: QuickJsHostLimits = {
  *         maxHeapBytes: 64 * 1024 * 1024,
@@ -46,7 +46,7 @@ export type QuickJsHostLimits = Readonly<{
  * explicit disposal.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const h: QuickJsHandleLike = { dispose: () => undefined };
  *     h.dispose();
@@ -61,7 +61,7 @@ export type QuickJsHandleLike = {
  * `QuickJSContext`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: QuickJsContextLike;
  *     void ctx.global;
@@ -87,7 +87,7 @@ export type QuickJsContextLike = {
  * Minimal structural runtime API the host configures.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const runtime: QuickJsRuntimeLike;
  *     runtime.setMemoryLimit(64 * 1024 * 1024);
@@ -106,7 +106,7 @@ export type QuickJsRuntimeLike = {
  * `quickjs-emscripten` module.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const qjs: QuickJsLike = () => ({
  *         newRuntime: () => ({
@@ -127,7 +127,7 @@ export type QuickJsLike = () =>
  * interchangeability. The alias keeps symbol identity stable across packages.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const host: ScriptHost;
  *     host.dispose();

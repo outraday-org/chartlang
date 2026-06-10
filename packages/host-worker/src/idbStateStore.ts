@@ -26,7 +26,7 @@ const dbPromises = new Map<string, Promise<IDBDatabase>>();
  * non-matching key, and `clear()` deletes only this key's record.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // import { idbStateStore } from "@invinite-org/chartlang-host-worker/idb";
  *     // const store = idbStateStore({ dbName: "chartlang", key });

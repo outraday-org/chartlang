@@ -16,6 +16,10 @@ export default defineIndicator({
 `;
 
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
+    {
+        kind: "plot-hash",
+        sha256: "ca81b7dd29d334e310a47f67ff5e44a7a1b81331aa67727862d7e1873c7e5f98",
+    },
     { kind: "diagnostic-code-absent", code: "multi-timeframe-not-supported" },
     { kind: "diagnostic-code-absent", code: "unsupported-interval" },
     { kind: "diagnostic-code-absent", code: "unknown-secondary-stream" },
@@ -25,7 +29,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Happy-path `request.lowerTf` scenario with bucketed 30-second bars.
  *
  * @since 0.6
- * @experimental
+ * @stable
  * @example
  *     import { LOWER_TF_HAPPY_PATH_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void LOWER_TF_HAPPY_PATH_SCENARIO;

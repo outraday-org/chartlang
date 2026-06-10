@@ -21,7 +21,7 @@ const LABELS: ReadonlyArray<string> = ["X", "A", "B", "C", "D"];
  * through the 5 anchors (X-A-B-C-D) with each pivot labelled.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

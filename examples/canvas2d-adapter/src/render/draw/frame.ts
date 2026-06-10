@@ -33,7 +33,7 @@ const LABEL_INSET_Y = 14;
  * silently no-op per PLAN.md §7.4.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

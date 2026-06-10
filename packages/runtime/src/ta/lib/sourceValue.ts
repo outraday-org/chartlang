@@ -13,7 +13,7 @@ import type { Series } from "@invinite-org/chartlang-core";
  *
  * @formula  N/A — type alias
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // type S = ScalarOrSeries; // number | Series<number>
  */
@@ -26,7 +26,7 @@ export type ScalarOrSeries = number | Series<number>;
  *
  * @formula  source is number → source ; source is Series → source.current
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { readSourceValue } from "./sourceValue";
  *     // readSourceValue(12.5); // 12.5

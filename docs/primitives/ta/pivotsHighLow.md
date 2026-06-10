@@ -2,7 +2,7 @@
 
 # `ta.pivotsHighLow`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Pivots High Low — centred-window swing-pivot detector with

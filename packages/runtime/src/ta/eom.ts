@@ -142,7 +142,7 @@ function emit(slot: EomSlot, ready: boolean): number {
  * @warmup   length (first defined output at bar `length`; bar 1 has the
  *           first finite rawEom; the window needs `length` such values)
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series (PLAN.md §9.1).
  *

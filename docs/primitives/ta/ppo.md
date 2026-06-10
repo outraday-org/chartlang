@@ -2,7 +2,7 @@
 
 # `ta.ppo`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Percentage Price Oscillator — same shape as MACD but normalised by

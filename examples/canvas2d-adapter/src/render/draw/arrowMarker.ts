@@ -37,7 +37,7 @@ const TEXT_FONT = "12px sans-serif";
  * (invinite toolbar blue).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

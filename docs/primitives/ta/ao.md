@@ -2,7 +2,7 @@
 
 # `ta.ao`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Awesome Oscillator — `SMA(hl2, fastLength) − SMA(hl2, slowLength)`.

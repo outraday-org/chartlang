@@ -24,7 +24,7 @@ const LABELS: ReadonlyArray<string> = ["A", "B", "C"];
  * polyline through the 3 anchors (A-B-C) with each pivot labelled.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

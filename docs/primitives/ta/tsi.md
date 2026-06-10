@@ -2,7 +2,7 @@
 
 # `ta.tsi`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 True Strength Index (William Blau). Double-EMA-smoothed ratio of

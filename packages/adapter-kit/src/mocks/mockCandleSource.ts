@@ -9,7 +9,7 @@ import type { CandleEvent } from "../types";
  * yields one warm-up batch; `stream` yields a `close` event per bar.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const m: MockCandleSourceMode = "stream";
  */
@@ -20,7 +20,7 @@ export type MockCandleSourceMode = "history" | "stream";
  * `Bar.interval` field; `mode` defaults to `"history"`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const o: MockCandleSourceOpts = { interval: "1D", mode: "stream" };
  */
@@ -36,7 +36,7 @@ export type MockCandleSourceOpts = {
  * yields one `{ kind: "close", bar }` per bar in array order.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
  *

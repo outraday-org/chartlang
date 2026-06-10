@@ -2,7 +2,7 @@
 
 # `ta.williamsFractal`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Williams Fractal — centred-window pivot detector. For each centre

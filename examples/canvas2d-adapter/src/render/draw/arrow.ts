@@ -33,7 +33,7 @@ const LABEL_VERTICAL_OFFSET = 4;
  * fill share `state.style.color`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

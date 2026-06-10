@@ -48,7 +48,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * itself (the math reuses the public `linearRegression` helper).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_REGRESSION_TREND_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_REGRESSION_TREND_SCENARIO;

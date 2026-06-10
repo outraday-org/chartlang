@@ -2,7 +2,7 @@
 
 # `ta.chandelier`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Chandelier Exit — two ATR-offset trailing stops anchored to the

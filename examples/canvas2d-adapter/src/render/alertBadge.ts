@@ -28,7 +28,7 @@ function colorFor(alert: AlertEmission, palette: Palette): string {
  * window state is already in scope.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const a: AlertAnchor = { x: 100, y: 50 };
  *     void a;
@@ -44,7 +44,7 @@ export type AlertAnchor = {
  * pin the call count against the alert count.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const alert: AlertEmission;

@@ -2,6 +2,8 @@
 // See the LICENSE file in the repo root for full license text.
 
 export { runConformanceSuite } from "./runConformanceSuite";
+export { renderConformanceJson, renderConformanceMarkdown } from "./report/renderReport";
+export type { ConformanceReportMeta } from "./report/renderReport";
 export type {
     ConformanceFailure,
     ConformanceReport,
@@ -9,6 +11,7 @@ export type {
     Scenario,
     ScenarioAssertion,
     ScenarioEventStream,
+    ScenarioResult,
 } from "./runConformanceSuite";
 export {
     ALL_SCENARIOS,
@@ -101,7 +104,6 @@ export {
     MTF_CAPABILITY_FALSE_SCENARIO,
     MTF_REQUEST_SECURITY_CLOSE_SCENARIO,
     MTF_UNSUPPORTED_INTERVAL_SCENARIO,
-    PHASE_1_SCENARIOS,
     PHASE_2_INDICATORS,
     PHASE_5_DEFERRED,
     PLOT_KIND_ARROW_GATED_SCENARIO,

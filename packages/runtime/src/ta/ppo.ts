@@ -109,7 +109,7 @@ function ppoValue(fast: number, slow: number): number {
  *           hist   = ppo − signal
  * @warmup   slowLength + signalLength − 2
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts all three outputs in lockstep (PLAN.md §9.1) —
  * `series.current` on each output returns the value `offset` bars ago.

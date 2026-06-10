@@ -111,7 +111,7 @@ function collectBars(ctx: RuntimeContext): ReadonlyArray<VolumeProfileBar> {
  * @warmup   First 2 bars for non-degenerate bucketization; constant-price
  *           positive-volume input emits a one-bucket fallback.
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // import { ta, plot } from "@invinite-org/chartlang-core";
  *     // const vp = ta.visibleRangeVolumeProfile({ rowSize: 24 });

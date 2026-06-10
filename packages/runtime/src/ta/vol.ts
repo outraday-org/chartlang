@@ -43,7 +43,7 @@ function initSlot(capacity: number): VolSlot {
  * @formula  out[t] = bar.volume[t]
  * @warmup   0
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta, plot } from "@invinite-org/chartlang-runtime";

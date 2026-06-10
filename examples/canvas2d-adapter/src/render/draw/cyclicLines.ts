@@ -25,7 +25,7 @@ const MAX_REPEATS = 256;
  * the first stroke is past the viewport edge.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

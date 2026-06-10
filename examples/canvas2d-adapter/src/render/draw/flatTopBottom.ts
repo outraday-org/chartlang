@@ -27,7 +27,7 @@ const DEFAULT_LINE_WIDTH = 1;
  * `tasks/phase-3-drawing-parity/10-channels.plan.md` §1).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

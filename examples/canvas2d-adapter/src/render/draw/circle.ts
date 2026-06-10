@@ -27,7 +27,7 @@ const TWO_PI = Math.PI * 2;
  * standard fill / stroke braid from `applyShapeStyle`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

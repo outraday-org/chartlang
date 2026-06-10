@@ -2,7 +2,7 @@
 
 # `ta.vwap`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Volume-Weighted Average Price (VWAP), session-anchored to the UTC

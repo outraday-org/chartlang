@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * interval is absent from the adapter capability bag.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     import { UNSUPPORTED_INTERVAL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void UNSUPPORTED_INTERVAL_SCENARIO;

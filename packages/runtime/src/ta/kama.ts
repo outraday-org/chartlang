@@ -127,7 +127,7 @@ function computeKama(slot: KamaSlot, headSrc: number, prev: number): number {
  *           KAMA[t]  = KAMA[t − 1] + sc · (src[t] − KAMA[t − 1])
  * @warmup   length
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

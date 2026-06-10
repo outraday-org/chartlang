@@ -175,7 +175,7 @@ describe("parsePhase4DocEntry", () => {
             `/**
               * Overrides.
               * @since 0.4
-              * @experimental
+              * @stable
               * @example
               *     const o: ScriptOverrides = {};
               */
@@ -197,7 +197,7 @@ describe("parsePhase4DocEntry", () => {
             seeAlso: "`defineIndicator` overrides",
         });
         expect(parsed.description).toBe("Max bars.");
-        expect(parsed.stability).toBe("experimental");
+        expect(parsed.stability).toBe("stable");
         expect(parsed.signature).toContain("maxBarsBack?: number;");
     });
 

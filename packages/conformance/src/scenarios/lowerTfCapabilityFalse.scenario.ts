@@ -23,7 +23,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `request.lowerTf` emits a diagnostic when multi-timeframe is disabled.
  *
  * @since 0.6
- * @experimental
+ * @stable
  * @example
  *     import { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void LOWER_TF_CAPABILITY_FALSE_SCENARIO;

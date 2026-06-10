@@ -50,7 +50,7 @@ function sineLineImpl(
  * @anchorCount 2
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -70,7 +70,7 @@ export function sineLine(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): Dr
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof sineLine = sineLine;
@@ -88,7 +88,7 @@ export function sineLine(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof sineLine = sineLine;
  *     // void fn;

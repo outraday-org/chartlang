@@ -2,7 +2,7 @@
 
 # `defineIndicator.shortName`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.4
 
 Compact display label for legend chips. Defaults to truncated `name`.

@@ -37,7 +37,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * the SHA-256 of the resulting drawing batch.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_TREND_CHANNEL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_TREND_CHANNEL_SCENARIO;

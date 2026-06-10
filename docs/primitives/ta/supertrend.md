@@ -2,7 +2,7 @@
 
 # `ta.supertrend`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Supertrend — ATR-driven trailing-stop trend follower. Computes

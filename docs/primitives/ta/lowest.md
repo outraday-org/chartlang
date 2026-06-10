@@ -2,7 +2,7 @@
 
 # `ta.lowest`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Rolling minimum of the last `length` source values. NaN inputs are

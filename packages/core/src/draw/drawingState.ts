@@ -33,7 +33,7 @@ import type {
  * @formula  N/A — metadata only, no geometry
  * @anchors  N/A — script-author metadata
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const m: DrawingMeta = { name: "Support", visible: true };
  *     void m;
@@ -51,7 +51,7 @@ export type DrawingMeta = {
  * @formula  identity — segment between `anchors[0]` and `anchors[1]`
  * @anchors  anchors: [from, to]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: LineState = {
  *         kind: "line",
@@ -72,7 +72,7 @@ export type LineState = DrawingMeta & {
  * @formula  identity — horizontal line at `price`
  * @anchors  price
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: HorizontalLineState = {
  *         kind: "horizontal-line",
@@ -93,7 +93,7 @@ export type HorizontalLineState = DrawingMeta & {
  * @formula  identity — ray from `anchor` extending right at constant price
  * @anchors  anchor
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: HorizontalRayState = {
  *         kind: "horizontal-ray",
@@ -114,7 +114,7 @@ export type HorizontalRayState = DrawingMeta & {
  * @formula  identity — vertical line at `time`
  * @anchors  time
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: VerticalLineState = {
  *         kind: "vertical-line",
@@ -135,7 +135,7 @@ export type VerticalLineState = DrawingMeta & {
  * @formula  identity — crosshair through `anchor`
  * @anchors  anchor
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: CrossLineState = {
  *         kind: "cross-line",
@@ -156,7 +156,7 @@ export type CrossLineState = DrawingMeta & {
  * @formula  angle = atan2(Δprice, Δtime)
  * @anchors  anchors: [from, to]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: TrendAngleState = {
  *         kind: "trend-angle",
@@ -177,7 +177,7 @@ export type TrendAngleState = DrawingMeta & {
  * @formula  identity — axis-aligned bounding box of `anchors`
  * @anchors  anchors: [topLeft, bottomRight] (or any opposite-corner pair)
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: RectangleState = {
  *         kind: "rectangle",
@@ -198,7 +198,7 @@ export type RectangleState = DrawingMeta & {
  * @formula  identity — polygon through the four anchor corners
  * @anchors  anchors: [c1, c2, c3, c4] (CW or CCW)
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: RotatedRectangleState = {
  *         kind: "rotated-rectangle",
@@ -222,7 +222,7 @@ export type RotatedRectangleState = DrawingMeta & {
  * @formula  identity — closed polygon through the three anchors
  * @anchors  anchors: [v1, v2, v3]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: TriangleState = {
  *         kind: "triangle",
@@ -247,7 +247,7 @@ export type TriangleState = DrawingMeta & {
  * @formula  identity — N-anchor open polyline
  * @anchors  anchors: ReadonlyArray<WorldPoint>
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: PolylineState = {
  *         kind: "polyline",
@@ -268,7 +268,7 @@ export type PolylineState = DrawingMeta & {
  * @formula  r = distance(anchors[0], anchors[1])
  * @anchors  anchors: [centre, radiusPoint]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: CircleState = {
  *         kind: "circle",
@@ -289,7 +289,7 @@ export type CircleState = DrawingMeta & {
  * @formula  ellipse inscribed in the bounding box of `anchors`
  * @anchors  anchors: [bboxA, bboxB]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: EllipseState = {
  *         kind: "ellipse",
@@ -310,7 +310,7 @@ export type EllipseState = DrawingMeta & {
  * @formula  identity — N-anchor path (closed = `style.closed`)
  * @anchors  anchors: ReadonlyArray<WorldPoint>
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: PathState = {
  *         kind: "path",
@@ -331,7 +331,7 @@ export type PathState = DrawingMeta & {
  * @formula  identity — marker placed at `anchor`
  * @anchors  anchor
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: MarkerState = {
  *         kind: "marker",
@@ -355,7 +355,7 @@ export type MarkerState = DrawingMeta & {
  * @formula  quadratic Bezier through `anchors`
  * @anchors  anchors: [start, control, end]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ArcState = {
  *         kind: "arc",
@@ -380,7 +380,7 @@ export type ArcState = DrawingMeta & {
  * @formula  B(t) = (1−t)²·P0 + 2(1−t)t·P1 + t²·P2
  * @anchors  anchors: [P0, P1, P2]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: CurveState = {
  *         kind: "curve",
@@ -405,7 +405,7 @@ export type CurveState = DrawingMeta & {
  * @formula  two cubic Beziers stitched at `anchors[2]`
  * @anchors  anchors: [P0, P1, mid, P3, P4]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: DoubleCurveState = {
  *         kind: "double-curve",
@@ -430,7 +430,7 @@ export type DoubleCurveState = DrawingMeta & {
  * @formula  identity — sampled freehand polyline
  * @anchors  anchors: ReadonlyArray<WorldPoint>
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: PenState = {
  *         kind: "pen",
@@ -451,7 +451,7 @@ export type PenState = DrawingMeta & {
  * @formula  identity — sampled freehand polyline rendered translucent
  * @anchors  anchors: ReadonlyArray<WorldPoint>
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: HighlighterState = {
  *         kind: "highlighter",
@@ -472,7 +472,7 @@ export type HighlighterState = DrawingMeta & {
  * @formula  identity — sampled freehand polyline rendered stroked + filled
  * @anchors  anchors: ReadonlyArray<WorldPoint>
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: BrushState = {
  *         kind: "brush",
@@ -493,7 +493,7 @@ export type BrushState = DrawingMeta & {
  * @formula  identity — `body` rendered at `anchor`
  * @anchors  anchor
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: TextState = {
  *         kind: "text",
@@ -516,7 +516,7 @@ export type TextState = DrawingMeta & {
  * @formula  identity — directional arrow from `anchors[0]` → `anchors[1]`
  * @anchors  anchors: [tail, head]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ArrowState = {
  *         kind: "arrow",
@@ -537,7 +537,7 @@ export type ArrowState = DrawingMeta & {
  * @formula  identity — arrow glyph at `anchor` with optional text
  * @anchors  anchor
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ArrowMarkerState = {
  *         kind: "arrow-marker",
@@ -558,7 +558,7 @@ export type ArrowMarkerState = DrawingMeta & {
  * @formula  identity — upward marker glyph at `anchor`
  * @anchors  anchor
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ArrowMarkUpState = {
  *         kind: "arrow-mark-up",
@@ -579,7 +579,7 @@ export type ArrowMarkUpState = DrawingMeta & {
  * @formula  identity — downward marker glyph at `anchor`
  * @anchors  anchor
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ArrowMarkDownState = {
  *         kind: "arrow-mark-down",
@@ -601,7 +601,7 @@ export type ArrowMarkDownState = DrawingMeta & {
  *           translate through `anchors[2]`
  * @anchors  anchors: [primaryA, primaryB, parallelHook]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: TrendChannelState = {
  *         kind: "trend-channel",
@@ -626,7 +626,7 @@ export type TrendChannelState = DrawingMeta & {
  * @formula  two horizontal lines at min/max prices from anchors
  * @anchors  anchors: [leftEdge, rightEdge, oppositeHook]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FlatTopBottomState = {
  *         kind: "flat-top-bottom",
@@ -651,7 +651,7 @@ export type FlatTopBottomState = DrawingMeta & {
  * @formula  two independent line segments — line(A,B) + line(C,D)
  * @anchors  anchors: [A, B, C, D]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: DisjointChannelState = {
  *         kind: "disjoint-channel",
@@ -675,7 +675,7 @@ export type DisjointChannelState = DrawingMeta & {
  * @formula  fit = OLS(close[start..end]); bands = fit ± σ·stdevMultiplier
  * @anchors  anchors: [start, end]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: RegressionTrendState = {
  *         kind: "regression-trend",
@@ -696,7 +696,7 @@ export type RegressionTrendState = DrawingMeta & {
  * @formula  for each level r in `style.levels`: y(r) = A.price + r·(B.price − A.price)
  * @anchors  anchors: [swingA, swingB]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FibRetracementState = {
  *         kind: "fib-retracement",
@@ -717,7 +717,7 @@ export type FibRetracementState = DrawingMeta & {
  * @formula  range r = B−A; projection = C + r·level for level in style.levels
  * @anchors  anchors: [A, B, C]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FibTrendExtensionState = {
  *         kind: "fib-trend-extension",
@@ -742,7 +742,7 @@ export type FibTrendExtensionState = DrawingMeta & {
  * @formula  parallel translates of line(A,B) at fib-ratio offsets through C
  * @anchors  anchors: [A, B, C]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FibChannelState = {
  *         kind: "fib-channel",
@@ -767,7 +767,7 @@ export type FibChannelState = DrawingMeta & {
  * @formula  vertical lines at t = A.time + ratio·(B.time − A.time)
  * @anchors  anchors: [A, B]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FibTimeZoneState = {
  *         kind: "fib-time-zone",
@@ -788,7 +788,7 @@ export type FibTimeZoneState = DrawingMeta & {
  * @formula  rays from `anchors[0]` at angles derived from fib ratios
  * @anchors  anchors: [pivot, range1, range2]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FibWedgeState = {
  *         kind: "fib-wedge",
@@ -813,7 +813,7 @@ export type FibWedgeState = DrawingMeta & {
  * @formula  rays from A with slopes = fib-ratio · slope(line(A,B))
  * @anchors  anchors: [A, B]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FibSpeedFanState = {
  *         kind: "fib-speed-fan",
@@ -834,7 +834,7 @@ export type FibSpeedFanState = DrawingMeta & {
  * @formula  for each level r in `style.levels`: arc of radius r·|AB| centred at A
  * @anchors  anchors: [centre, edge]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FibSpeedArcsState = {
  *         kind: "fib-speed-arcs",
@@ -855,7 +855,7 @@ export type FibSpeedArcsState = DrawingMeta & {
  * @formula  r(θ) = a · φ^(θ/π/2) where φ = (1+√5)/2
  * @anchors  anchors: [centre, edge]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FibSpiralState = {
  *         kind: "fib-spiral",
@@ -876,7 +876,7 @@ export type FibSpiralState = DrawingMeta & {
  * @formula  for each level r in `style.levels`: circle of radius r·|AB| centred at A
  * @anchors  anchors: [centre, edge]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FibCirclesState = {
  *         kind: "fib-circles",
@@ -897,7 +897,7 @@ export type FibCirclesState = DrawingMeta & {
  * @formula  vertical lines at t = C.time + ratio·(B.time − A.time)
  * @anchors  anchors: [A, B, C]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FibTrendTimeState = {
  *         kind: "fib-trend-time",
@@ -922,7 +922,7 @@ export type FibTrendTimeState = DrawingMeta & {
  * @formula  grid of horizontal + vertical lines at 1/8, 2/8, …, 7/8 of |AB|
  * @anchors  anchors: [A, B]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: GannBoxState = {
  *         kind: "gann-box",
@@ -943,7 +943,7 @@ export type GannBoxState = DrawingMeta & {
  * @formula  9×9 grid centred at `anchor` with fixed step
  * @anchors  anchor
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: GannSquareFixedState = {
  *         kind: "gann-square-fixed",
@@ -964,7 +964,7 @@ export type GannSquareFixedState = DrawingMeta & {
  * @formula  9×9 grid spanning bbox of `anchors`
  * @anchors  anchors: [A, B]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: GannSquareState = {
  *         kind: "gann-square",
@@ -985,7 +985,7 @@ export type GannSquareState = DrawingMeta & {
  * @formula  rays from A at slopes 1×1, 1×2, 2×1, 1×3, 3×1, 1×4, 4×1, 1×8, 8×1
  * @anchors  anchors: [pivot, reference]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: GannFanState = {
  *         kind: "gann-fan",
@@ -1008,7 +1008,7 @@ export type GannFanState = DrawingMeta & {
  * @formula  median + two parallels through `anchors[1]` / `anchors[2]`
  * @anchors  anchors: [pivot, high, low]; variant: "standard"|"schiff"|"modifiedSchiff"|"inside"
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: PitchforkState = {
  *         kind: "pitchfork",
@@ -1035,7 +1035,7 @@ export type PitchforkState = DrawingMeta & {
  * @formula  rays from `anchors[0]` through `anchors[1]` / `anchors[2]`
  * @anchors  anchors: [pivot, high, low]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: PitchfanState = {
  *         kind: "pitchfan",
@@ -1060,7 +1060,7 @@ export type PitchfanState = DrawingMeta & {
  * @formula  five-leg pattern with fib-ratio retracements between adjacent legs
  * @anchors  anchors: [X, A, B, C, D]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: XabcdPatternState = {
  *         kind: "xabcd-pattern",
@@ -1086,7 +1086,7 @@ export type XabcdPatternState = DrawingMeta & {
  * @formula  Cypher: XB at 0.382-0.618 of XA, XC at 1.272-1.414 of XA, XD at 0.786 of XC
  * @anchors  anchors: [X, A, B, C, D]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: CypherPatternState = {
  *         kind: "cypher-pattern",
@@ -1111,7 +1111,7 @@ export type CypherPatternState = DrawingMeta & {
  * @formula  identity — pivot polyline with neckline at min(anchors[0].price, anchors[4].price)
  * @anchors  anchors: [leftShoulderHigh, leftLow, headHigh, rightLow, rightShoulderHigh]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: HeadAndShouldersState = {
  *         kind: "head-and-shoulders",
@@ -1136,7 +1136,7 @@ export type HeadAndShouldersState = DrawingMeta & {
  * @formula  CD = AB projected from C (fib ratio 1.0 default)
  * @anchors  anchors: [A, B, C, D]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: AbcdPatternState = {
  *         kind: "abcd-pattern",
@@ -1161,7 +1161,7 @@ export type AbcdPatternState = DrawingMeta & {
  * @formula  identity — three-vertex pattern outline
  * @anchors  anchors: [apex, baseHigh, baseLow]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: TrianglePatternState = {
  *         kind: "triangle-pattern",
@@ -1186,7 +1186,7 @@ export type TrianglePatternState = DrawingMeta & {
  * @formula  three fib-ratio drives + two corrective retracements
  * @anchors  anchors: [start, drive1, retr1, drive2, retr2, drive3, end]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ThreeDrivesPatternState = {
  *         kind: "three-drives-pattern",
@@ -1213,7 +1213,7 @@ export type ThreeDrivesPatternState = DrawingMeta & {
  *           in the per-category port (Task 16)
  * @anchors  anchors: [wave1End, wave2End, wave3End, wave4End, wave5End]; labels?
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ElliottImpulseWaveState = {
  *         kind: "elliott-impulse-wave",
@@ -1240,7 +1240,7 @@ export type ElliottImpulseWaveState = DrawingMeta & {
  * @formula  identity — three-pivot polyline
  * @anchors  anchors: [A, B, C]; labels?
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ElliottCorrectionWaveState = {
  *         kind: "elliott-correction-wave",
@@ -1267,7 +1267,7 @@ export type ElliottCorrectionWaveState = DrawingMeta & {
  * @formula  identity — five-pivot polyline matching triangle invariants
  * @anchors  anchors: [a, b, c, d, e]; labels?
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ElliottTriangleWaveState = {
  *         kind: "elliott-triangle-wave",
@@ -1294,7 +1294,7 @@ export type ElliottTriangleWaveState = DrawingMeta & {
  * @formula  identity — seven-pivot polyline: W three-wave + X + Y three-wave
  * @anchors  anchors: [start, W-end, x1, X-end, x2, Y-mid, Y-end]; labels?
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ElliottDoubleComboState = {
  *         kind: "elliott-double-combo",
@@ -1321,7 +1321,7 @@ export type ElliottDoubleComboState = DrawingMeta & {
  * @formula  identity — seven-pivot polyline: three corrective patterns joined by X waves
  * @anchors  anchors: [start, W-end, X1-end, Y-end, X2-end, Z-mid, Z-end]; labels?
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ElliottTripleComboState = {
  *         kind: "elliott-triple-combo",
@@ -1348,7 +1348,7 @@ export type ElliottTripleComboState = DrawingMeta & {
  * @formula  vertical lines at t = A.time + n·(B.time − A.time) for n ∈ ℕ
  * @anchors  anchors: [cycleStart, cycleEnd]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: CyclicLinesState = {
  *         kind: "cyclic-lines",
@@ -1369,7 +1369,7 @@ export type CyclicLinesState = DrawingMeta & {
  * @formula  semicircles of radius n·|AB| centred at A for n ∈ ℕ
  * @anchors  anchors: [centre, edge]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: TimeCyclesState = {
  *         kind: "time-cycles",
@@ -1390,7 +1390,7 @@ export type TimeCyclesState = DrawingMeta & {
  * @formula  y(t) = (A.price + B.price)/2 + ((B.price − A.price)/2)·sin(2π·(t − A.time)/(B.time − A.time))
  * @anchors  anchors: [periodStart, periodEnd]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: SineLineState = {
  *         kind: "sine-line",
@@ -1412,7 +1412,7 @@ export type SineLineState = DrawingMeta & {
  * @formula  N/A — pure container; rendering passes through to children
  * @anchors  N/A — group carries no geometry, only child references
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: GroupState = {
  *         kind: "group",
@@ -1433,7 +1433,7 @@ export type GroupState = DrawingMeta & {
  * @formula  identity — labelled bounding rectangle around `childHandleIds`
  * @anchors  anchors: [topLeft, bottomRight]
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: FrameState = {
  *         kind: "frame",
@@ -1458,7 +1458,7 @@ export type FrameState = DrawingMeta & {
  * @formula  N/A — table layout resolved in CSS pixels by adapter
  * @anchors  position: CSS viewport anchor
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const s: TableState = {
  *         kind: "table",
@@ -1490,7 +1490,7 @@ export type TableState = DrawingMeta & {
  * @formula  discriminated union — switch on `state.kind` to read variant
  * @anchors  per-variant — see the individual `*State` declarations above
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: DrawingState = {
  *         kind: "horizontal-line",

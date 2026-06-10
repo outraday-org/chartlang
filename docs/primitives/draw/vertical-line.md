@@ -2,7 +2,7 @@
 
 # `draw.verticalLine`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.3
 > **Bucket:** `lines`
 > **Wire kind:** `vertical-line`

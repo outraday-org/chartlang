@@ -26,7 +26,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Pine-canonical). Bounded `[0, 100]`; rendered in its own pane.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_MFI_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_MFI_SCENARIO;

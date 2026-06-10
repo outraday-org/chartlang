@@ -10,7 +10,7 @@ import type { PlotLocation } from "./plotLocation";
  * Canvas glyph inventory for Phase 5 `shape` plots.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const glyph: ShapeGlyph = "cross";
  *     void glyph;
@@ -29,7 +29,7 @@ export type ShapeGlyph =
  * Canvas coordinates and style for a Phase 5 `shape` plot glyph.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const args: ShapeArgs = { x: 10, y: 20, shape: "cross", size: 8, color: null };
  *     void args;
@@ -60,7 +60,7 @@ function anchoredY(args: ShapeArgs): number {
  * Render a Phase-5 `shape` glyph at a plot anchor.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const palette: Palette;

@@ -47,7 +47,7 @@ function cypherPatternImpl(
  * @anchorCount 5
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -69,7 +69,7 @@ export function cypherPattern(anchors: AnchorQuint, opts?: LineDrawStyle): Drawi
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof cypherPattern = cypherPattern;
@@ -86,7 +86,7 @@ export function cypherPattern(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof cypherPattern = cypherPattern;
  *     // void fn;

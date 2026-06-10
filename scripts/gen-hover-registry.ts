@@ -14,7 +14,7 @@ type HoverRegistryEntry = Readonly<{
     paramTable?: ReadonlyArray<{ name: string; type: string; doc: string }>;
     examples?: ReadonlyArray<string>;
     since: string;
-    stability: "stable" | "experimental";
+    stability: "stable";
 }>;
 
 type GenerateHoverRegistryOptions = Readonly<{
@@ -31,7 +31,7 @@ const DEFAULT_OUTPUT = join(REPO_ROOT, "packages/language-service/src/hoverRegis
  * Generate the checked-in language-service hover registry from core JSDoc.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     await generateHoverRegistry({ check: true });
  */
@@ -68,7 +68,7 @@ export async function generateHoverRegistry(
  * Collect hover registry entries from a core source directory.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const entries = await collectHoverRegistryEntries("packages/core/src");
  *     void entries;
@@ -292,7 +292,7 @@ function readJsDoc(node: ts.Node): {
     params: ReadonlyMap<string, string>;
     examples: ReadonlyArray<string>;
     since: string;
-    stability: "stable" | "experimental";
+    stability: "stable";
 } {
     const jsDocs = getJsDocs(node);
     const last = jsDocs[jsDocs.length - 1];
@@ -302,14 +302,14 @@ function readJsDoc(node: ts.Node): {
             params: new Map(),
             examples: [],
             since: "",
-            stability: "experimental",
+            stability: "stable",
         };
     }
 
     const params = new Map<string, string>();
     const examples: string[] = [];
     let since = "";
-    let stability: "stable" | "experimental" = "experimental";
+    let stability = "stable" as const;
 
     for (const tag of last.tags ?? []) {
         const tagName = tag.tagName.text;
@@ -321,8 +321,6 @@ function readJsDoc(node: ts.Node): {
             since = commentToText(tag.comment);
         } else if (tagName === "stable") {
             stability = "stable";
-        } else if (tagName === "experimental") {
-            stability = "experimental";
         }
     }
 
@@ -448,7 +446,7 @@ function renderRegistry(entries: ReadonlyArray<HoverRegistryEntry>): string {
         "    paramTable?: ReadonlyArray<{ name: string; type: string; doc: string }>;",
         "    examples?: ReadonlyArray<string>;",
         "    since: string;",
-        '    stability: "stable" | "experimental";',
+        '    stability: "stable";',
         "}>;",
         "",
         "/**",

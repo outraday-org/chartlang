@@ -32,7 +32,7 @@ const CURVE_SAMPLES = 32;
  * convention Task 7's `ellipse` introduced.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

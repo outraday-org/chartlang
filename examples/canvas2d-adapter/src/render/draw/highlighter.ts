@@ -26,7 +26,7 @@ const DEFAULT_LINE_WIDTH = 6;
  * appearance (no `lineWidth` field on `HighlighterStyle`).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

@@ -27,7 +27,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * zero-volume bars propagate NaN through the window.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_EOM_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_EOM_SCENARIO;

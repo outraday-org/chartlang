@@ -116,7 +116,7 @@ function emitMfi(sumPos: number, sumNeg: number, ready: boolean): number {
  *           mfi = 100 · Σ pos / (Σ pos + Σ neg) over the trailing `length` window
  * @warmup   length + 1   (one bar to seed prevTp + `length` comparisons)
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series (PLAN.md §9.1).
  *

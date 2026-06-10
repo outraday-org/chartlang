@@ -97,7 +97,7 @@ function resultForOffset(slot: DmiSlot, offset: number): DmiResult {
  *           DI falls back to 0 when smoothedTR is 0 (matches invinite).
  * @warmup   length
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts both series in lockstep (PLAN.md §9.1) —
  * `series.current` on each output returns the value `offset` bars

@@ -1,6 +1,6 @@
 # Pine migration guide: pattern audit vs top ~50 scripts
 
-> **Status: TODO**
+> **Status: Complete**
 
 ## Goal
 

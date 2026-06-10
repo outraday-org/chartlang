@@ -2,7 +2,7 @@
 
 # `ta.trendStrengthIndex`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Trend Strength Index — Pearson correlation between `source` and the

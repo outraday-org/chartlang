@@ -14,7 +14,7 @@ import type { StateSnapshot, StateStoreKey } from "@invinite-org/chartlang-core"
  * servers.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // import type { PersistentStateStore }
  *     //     from "@invinite-org/chartlang-runtime";
@@ -31,7 +31,7 @@ export type PersistentStateStore = {
  * In-process persistent store with one last-write-wins snapshot.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // import { inMemoryPersistentStateStore }
  *     //     from "@invinite-org/chartlang-runtime";

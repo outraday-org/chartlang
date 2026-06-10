@@ -2,7 +2,7 @@
 
 # `defineIndicator.requiresIntervals`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.4
 
 Intervals the script requires the adapter to ship in

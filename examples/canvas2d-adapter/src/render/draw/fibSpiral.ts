@@ -36,7 +36,7 @@ const K = (4 * (Math.sqrt(2) - 1)) / 3;
  * `tasks/phase-3-drawing-parity/12-fibonacci-b.plan.md` §2).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

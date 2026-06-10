@@ -101,7 +101,7 @@ function fold(
  * @formula  obv[t] = obv[t − 1] + sign(close[t] − close[t − 1]) · volume[t]
  * @warmup   1 (needs a prior close to compute the delta; bar 0 emits 0)
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta, plot } from "@invinite-org/chartlang-core";

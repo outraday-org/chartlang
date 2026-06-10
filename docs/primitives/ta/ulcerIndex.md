@@ -2,7 +2,7 @@
 
 # `ta.ulcerIndex`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Ulcer Index — drawdown-based volatility. The trailing-window RMS of

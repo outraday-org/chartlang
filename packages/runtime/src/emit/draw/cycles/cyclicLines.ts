@@ -49,7 +49,7 @@ function cyclicLinesImpl(
  * @anchorCount 2
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -71,7 +71,7 @@ export function cyclicLines(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle):
  * `draw.cyclicLines(slotId, a, b, opts)`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof cyclicLines = cyclicLines;
@@ -89,7 +89,7 @@ export function cyclicLines(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof cyclicLines = cyclicLines;
  *     // void fn;

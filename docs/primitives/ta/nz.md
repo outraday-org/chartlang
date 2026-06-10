@@ -2,7 +2,7 @@
 
 # `ta.nz`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Replace `NaN` with a fallback. Returns `value` unchanged when it

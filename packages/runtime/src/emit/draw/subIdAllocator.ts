@@ -16,7 +16,7 @@ import type { RuntimeContext } from "../../runtimeContext";
  * stability contract from PLAN.md §10.3.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // import { nextSubId } from "@invinite-org/chartlang-runtime";
  *     // const subId = nextSubId(ctx, "demo.chart.ts:5:13#0");
@@ -35,7 +35,7 @@ export function nextSubId(ctx: RuntimeContext, slotId: string): number {
  * in bar `N` and bar `N+1` share the same `slotId#i`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // import { resetSubIdCounters } from "@invinite-org/chartlang-runtime";
  *     // resetSubIdCounters(ctx);

@@ -2,7 +2,7 @@
 
 # `ta.change`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 First-difference of the source: `source[0] − source[length]`.

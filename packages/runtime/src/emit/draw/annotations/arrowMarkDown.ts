@@ -45,7 +45,7 @@ function arrowMarkDownImpl(
  * @anchorCount 1
  * @bucket labels
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -61,7 +61,7 @@ export function arrowMarkDown(anchor: WorldPoint, opts?: ArrowMarkerOpts): Drawi
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof arrowMarkDown = arrowMarkDown;
@@ -78,7 +78,7 @@ export function arrowMarkDown(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof arrowMarkDown = arrowMarkDown;
  *     // void fn;

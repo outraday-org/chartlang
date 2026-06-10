@@ -18,7 +18,7 @@ import { validateEmission } from "./validateEmission";
  * is safe.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { decodeDrawing } from "@invinite-org/chartlang-adapter-kit";
  *     import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";

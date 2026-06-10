@@ -10,7 +10,7 @@ import type { Bar } from "@invinite-org/chartlang-core";
  * interval value.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
  *     const pump = createMultiStreamCandlePump({
@@ -40,7 +40,7 @@ function eventTime(event: CandleEvent): number | null {
  * are yielded before the main event whose timestamp has reached them.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
  *     const pump = createMultiStreamCandlePump({

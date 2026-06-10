@@ -38,7 +38,7 @@ function horizontalRayImpl(slotId: string, anchor: WorldPoint, opts: LineDrawSty
  * @anchorCount 1
  * @bucket lines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -57,7 +57,7 @@ export function horizontalRay(anchor: WorldPoint, opts?: LineDrawStyle): Drawing
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof horizontalRay = horizontalRay;
@@ -74,7 +74,7 @@ export function horizontalRay(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof horizontalRay = horizontalRay;
  *     // void fn;

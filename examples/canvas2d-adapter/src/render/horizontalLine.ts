@@ -14,7 +14,7 @@ import { dashPattern } from "./lineDash";
  * returning so downstream draws are not affected.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const hline: HLine;

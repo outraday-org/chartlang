@@ -24,7 +24,7 @@ const ARROWHEAD_HALF_ANGLE = Math.PI / 6; // 30° each side → 60° total
  * for a chunkier arrowhead.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     drawArrowhead(ctx, { x: 0, y: 0 }, { x: 100, y: 0 });

@@ -20,7 +20,7 @@ export type HoverRegistryEntry = Readonly<{
     paramTable?: ReadonlyArray<{ name: string; type: string; doc: string }>;
     examples?: ReadonlyArray<string>;
     since: string;
-    stability: "stable" | "experimental";
+    stability: "stable";
 }>;
 
 /**
@@ -44,7 +44,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: AbcdPatternState = {\nkind: \"abcd-pattern\",\nanchors: [\n{ time: 0, price: 0 }, { time: 1, price: 1 },\n{ time: 2, price: 0.5 }, { time: 3, price: 1.5 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AdlOpts": {
         "fqn": "AdlOpts",
@@ -55,7 +55,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: AdlOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AdrOpts": {
         "fqn": "AdrOpts",
@@ -66,7 +66,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: AdrOpts = { length: 14 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AdxOpts": {
         "fqn": "AdxOpts",
@@ -77,7 +77,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: AdxOpts = { smoothing: 14 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "alert": {
         "fqn": "alert",
@@ -100,7 +100,29 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "// Inside a compiled `compute`:\n//   alert(\"EMA crossed\", { severity: \"info\" });\nimport { alert } from \"@invinite-org/chartlang-core\";\ntry { alert(\"noop\"); } catch {}"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "AlertConditionDefinition": {
+        "fqn": "AlertConditionDefinition",
+        "kind": "type",
+        "title": "AlertConditionDefinition",
+        "summary": "Manifest-ready alert-condition descriptor with the author map key\nnormalised into `id`.",
+        "examples": [
+            "const d: AlertConditionDefinition = {\nid: \"up\",\ntitle: \"Up\",\ndescription: \"Close crossed up\",\ndefaultMessage: \"{{ticker}} crossed up\",\n};\nvoid d;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "AlertConditionDescriptor": {
+        "fqn": "AlertConditionDescriptor",
+        "kind": "type",
+        "title": "AlertConditionDescriptor",
+        "summary": "Per-condition descriptor authored under\n`DefineAlertConditionOpts.conditions`.",
+        "examples": [
+            "const d: AlertConditionDescriptor = {\ntitle: \"Up\",\ndescription: \"Close crossed up\",\ndefaultMessage: \"{{ticker}} crossed up\",\n};\nvoid d;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "AlertOpts": {
         "fqn": "AlertOpts",
@@ -111,7 +133,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: AlertOpts = {\nseverity: \"warning\",\nmeta: { reason: \"crossover\", strength: 0.42 },\n};"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AlertSeverity": {
         "fqn": "AlertSeverity",
@@ -122,7 +144,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const sev: AlertSeverity = \"warning\";"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AlmaOpts": {
         "fqn": "AlmaOpts",
@@ -133,7 +155,29 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: AlmaOpts = { offset: 0.85, sigma: 6 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "AnchoredVolumeProfileOpts": {
+        "fqn": "AnchoredVolumeProfileOpts",
+        "kind": "type",
+        "title": "AnchoredVolumeProfileOpts",
+        "summary": "Options bag for `ta.anchoredVolumeProfile`. `anchor` is a UTC\nmillisecond epoch, typically resolved from\n`input.time(..., { pickFromChart: true })`; `rowSize` selects the\nnumber of price rows when positive; `0` / omitted falls back to the\nruntime's automatic row count. `valueAreaPct` accepts either a\nfraction (`0.7`) or percentage (`70`). `bucketColor` is copied to\neach emitted horizontal-histogram bucket.",
+        "examples": [
+            "const opts: AnchoredVolumeProfileOpts = {\nanchor: 1_700_000_000_000,\nrowSize: 24,\nvalueAreaPct: 0.7,\n};"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "AnchoredVolumeProfileResult": {
+        "fqn": "AnchoredVolumeProfileResult",
+        "kind": "type",
+        "title": "AnchoredVolumeProfileResult",
+        "summary": "Multi-output result from `ta.anchoredVolumeProfile`.",
+        "examples": [
+            "declare const vp: AnchoredVolumeProfileResult;\nconst buckets = vp.buckets;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "AnchoredVwapOpts": {
         "fqn": "AnchoredVwapOpts",
@@ -144,7 +188,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: AnchoredVwapOpts = { source: \"hlc3\" };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AnchorHept": {
         "fqn": "AnchorHept",
@@ -155,7 +199,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const triple: AnchorHept = [\n{ time: 1, price: 1 }, { time: 2, price: 2 },\n{ time: 3, price: 1.5 }, { time: 4, price: 3 },\n{ time: 5, price: 2 }, { time: 6, price: 4 },\n{ time: 7, price: 3 },\n];\nvoid triple;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AnchorPair": {
         "fqn": "AnchorPair",
@@ -166,7 +210,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const segment: AnchorPair = [\n{ time: 1_700_000_000_000, price: 100 },\n{ time: 1_700_086_400_000, price: 110 },\n];\nvoid segment;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AnchorQuad": {
         "fqn": "AnchorQuad",
@@ -177,7 +221,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const abcd: AnchorQuad = [\n{ time: 1, price: 1 },\n{ time: 2, price: 2 },\n{ time: 3, price: 1.5 },\n{ time: 4, price: 3 },\n];\nvoid abcd;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AnchorQuint": {
         "fqn": "AnchorQuint",
@@ -188,7 +232,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const xabcd: AnchorQuint = [\n{ time: 1, price: 1 },\n{ time: 2, price: 2 },\n{ time: 3, price: 1.5 },\n{ time: 4, price: 3 },\n{ time: 5, price: 2 },\n];\nvoid xabcd;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AnchorTriple": {
         "fqn": "AnchorTriple",
@@ -199,7 +243,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const tri: AnchorTriple = [\n{ time: 1, price: 1 },\n{ time: 2, price: 2 },\n{ time: 3, price: 1 },\n];\nvoid tri;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AoOpts": {
         "fqn": "AoOpts",
@@ -210,7 +254,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: AoOpts = { fastLength: 5, slowLength: 34 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ArcState": {
         "fqn": "ArcState",
@@ -221,7 +265,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ArcState = {\nkind: \"arc\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 2 },\n{ time: 2, price: 0 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AroonOpts": {
         "fqn": "AroonOpts",
@@ -232,7 +276,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: AroonOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AroonOscOpts": {
         "fqn": "AroonOscOpts",
@@ -243,7 +287,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: AroonOscOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AroonResult": {
         "fqn": "AroonResult",
@@ -254,7 +298,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const a = ta.aroon(14);\nplot(a.up);\nplot(a.down);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ArrowMarkDownState": {
         "fqn": "ArrowMarkDownState",
@@ -265,7 +309,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ArrowMarkDownState = {\nkind: \"arrow-mark-down\",\nanchor: { time: 1, price: 1 },\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ArrowMarkerOpts": {
         "fqn": "ArrowMarkerOpts",
@@ -276,7 +320,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const m: ArrowMarkerOpts = { color: \"#10b981\", text: \"Long\" };\nvoid m;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ArrowMarkerState": {
         "fqn": "ArrowMarkerState",
@@ -287,7 +331,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ArrowMarkerState = {\nkind: \"arrow-marker\",\nanchor: { time: 1, price: 1 },\nstyle: { text: \"B\" },\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ArrowMarkUpState": {
         "fqn": "ArrowMarkUpState",
@@ -298,7 +342,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ArrowMarkUpState = {\nkind: \"arrow-mark-up\",\nanchor: { time: 1, price: 1 },\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ArrowOpts": {
         "fqn": "ArrowOpts",
@@ -309,7 +353,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const a: ArrowOpts = { color: \"#dc2626\", lineWidth: 2, label: \"Sell\" };\nvoid a;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ArrowState": {
         "fqn": "ArrowState",
@@ -320,7 +364,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ArrowState = {\nkind: \"arrow\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "AtrOpts": {
         "fqn": "AtrOpts",
@@ -331,7 +375,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: AtrOpts = { offset: 0 };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "Bar": {
         "fqn": "Bar",
@@ -339,10 +383,10 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "title": "Bar",
         "summary": "The OHLCV record the runtime hands to `compute` for the current bar. Every\nfield is `readonly`; scripts must not mutate it.",
         "examples": [
-            "function tick(bar: Bar): void {\nconsole.log(bar.close, bar.symbol, bar.interval);\n// Phase 2 — Pine-style derived sources:\nconsole.log(bar.hl2, bar.hlc3, bar.ohlc4, bar.hlcc4);\n}"
+            "function tick(bar: Bar): void {\nconsole.log(bar.close, bar.symbol, bar.interval);\n// Phase 2 — Pine-style derived sources:\nconsole.log(bar.hl2, bar.hlc3, bar.ohlc4, bar.hlcc4);\n// Phase 5 — visible-range fallback:\nconsole.log(bar.viewport.fromTime, bar.viewport.toTime);\n}"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "BarssinceOpts": {
         "fqn": "BarssinceOpts",
@@ -353,7 +397,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: BarssinceOpts = { offset: 0 };"
         ],
         "since": "0.4",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "barstate": {
         "fqn": "barstate",
@@ -377,6 +421,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "BarViewport": {
+        "fqn": "BarViewport",
+        "kind": "type",
+        "title": "BarViewport",
+        "summary": "Visible chart range in UTC milliseconds. Phase 5's OSS runtime\nsupplies a fallback range spanning the latest 100 bars ending at the\ncurrent head; adapters with a real viewport can replace this view in\nlater phases.",
+        "examples": [
+            "const viewport: BarViewport = {\nfromTime: 1_700_000_000_000,\ntoTime: 1_700_006_000_000,\n};"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
     "BbOpts": {
         "fqn": "BbOpts",
         "kind": "type",
@@ -386,7 +441,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: BbOpts = { multiplier: 2, offset: 0 };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "BbPercentBOpts": {
         "fqn": "BbPercentBOpts",
@@ -397,7 +452,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: BbPercentBOpts = { multiplier: 2 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "BbResult": {
         "fqn": "BbResult",
@@ -408,7 +463,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "declare const close: Series<number>;\nconst bands = ta.bb(close, 20, { multiplier: 2 });\nplot(bands.upper);"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "BbwOpts": {
         "fqn": "BbwOpts",
@@ -419,7 +474,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: BbwOpts = { multiplier: 2 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "BoolDescriptor": {
         "fqn": "BoolDescriptor",
@@ -441,7 +496,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: BopOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "BrushState": {
         "fqn": "BrushState",
@@ -452,7 +507,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: BrushState = {\nkind: \"brush\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: { stroke: \"#000\", fill: \"#fff\" },\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "BrushStyle": {
         "fqn": "BrushStyle",
@@ -463,7 +518,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: BrushStyle = { stroke: \"#000000\", fill: \"#ffffff\" };\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "bucketFor": {
         "fqn": "bucketFor",
@@ -481,7 +536,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "import { bucketFor } from \"@invinite-org/chartlang-core\";\nconst bucket = bucketFor(\"rectangle\"); // \"boxes\"\nvoid bucket;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CapabilityId": {
         "fqn": "CapabilityId",
@@ -492,7 +547,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const caps: ReadonlyArray<CapabilityId> = [\"indicators\", \"alerts\"];"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CciOpts": {
         "fqn": "CciOpts",
@@ -503,7 +558,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: CciOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ChaikinOscOpts": {
         "fqn": "ChaikinOscOpts",
@@ -514,7 +569,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: ChaikinOscOpts = { fastLength: 3, slowLength: 10 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ChandeKrollStopOpts": {
         "fqn": "ChandeKrollStopOpts",
@@ -525,7 +580,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: ChandeKrollStopOpts = { length: 10, multiplier: 1, smoothingLength: 9 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ChandeKrollStopResult": {
         "fqn": "ChandeKrollStopResult",
@@ -536,7 +591,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const c = ta.chandeKrollStop();\nplot(c.long);\nplot(c.short);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ChandelierOpts": {
         "fqn": "ChandelierOpts",
@@ -547,7 +602,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: ChandelierOpts = { length: 22, multiplier: 3 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ChandelierResult": {
         "fqn": "ChandelierResult",
@@ -558,7 +613,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const c = ta.chandelier({ length: 22, multiplier: 3 });\nplot(c.long);\nplot(c.short);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ChangeOpts": {
         "fqn": "ChangeOpts",
@@ -569,7 +624,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: ChangeOpts = { length: 1 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ChopOpts": {
         "fqn": "ChopOpts",
@@ -580,7 +635,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: ChopOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CircleState": {
         "fqn": "CircleState",
@@ -591,7 +646,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: CircleState = {\nkind: \"circle\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 0 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CmfOpts": {
         "fqn": "CmfOpts",
@@ -602,7 +657,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: CmfOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CmoOpts": {
         "fqn": "CmoOpts",
@@ -613,7 +668,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: CmoOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "Color": {
         "fqn": "Color",
@@ -624,7 +679,18 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const blue: Color = \"#3b82f6\";"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "COLOR_PALETTE": {
+        "fqn": "COLOR_PALETTE",
+        "kind": "namespace",
+        "title": "COLOR_PALETTE",
+        "summary": "Pine-style named palette values accepted by the color parser and exposed\nthrough the `color` namespace.",
+        "examples": [
+            "const red = COLOR_PALETTE.red;\nvoid red;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "ColorDescriptor": {
         "fqn": "ColorDescriptor",
@@ -646,7 +712,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const cs: CompiledScriptObject = defineIndicator({\nname: \"demo\",\napiVersion: 1,\ncompute: () => {},\n});"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ComputeContext": {
         "fqn": "ComputeContext",
@@ -657,7 +723,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const fn: ComputeFn = ({ bar, plot }) => { plot(bar.close); };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ComputeFn": {
         "fqn": "ComputeFn",
@@ -668,7 +734,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const fn: ComputeFn = (ctx) => { ctx.plot(ctx.bar.close); };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ConnorsRsiOpts": {
         "fqn": "ConnorsRsiOpts",
@@ -679,7 +745,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: ConnorsRsiOpts = { rsiLength: 3, streakLength: 2, rocLength: 100 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CoppockOpts": {
         "fqn": "CoppockOpts",
@@ -690,7 +756,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: CoppockOpts = { roc1Length: 11, roc2Length: 14, wmaLength: 10 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CrossLineState": {
         "fqn": "CrossLineState",
@@ -701,7 +767,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: CrossLineState = {\nkind: \"cross-line\",\nanchor: { time: 1, price: 1 },\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CrossoverOpts": {
         "fqn": "CrossoverOpts",
@@ -712,7 +778,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: CrossoverOpts = { offset: 0 };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CrossunderOpts": {
         "fqn": "CrossunderOpts",
@@ -723,7 +789,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: CrossunderOpts = { offset: 0 };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CurveState": {
         "fqn": "CurveState",
@@ -734,7 +800,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: CurveState = {\nkind: \"curve\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 2 },\n{ time: 2, price: 0 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CyclicLinesState": {
         "fqn": "CyclicLinesState",
@@ -745,7 +811,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: CyclicLinesState = {\nkind: \"cyclic-lines\",\nanchors: [{ time: 0, price: 0 }, { time: 100, price: 0 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "CypherPatternState": {
         "fqn": "CypherPatternState",
@@ -756,7 +822,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: CypherPatternState = {\nkind: \"cypher-pattern\",\nanchors: [\n{ time: 0, price: 0 }, { time: 1, price: 1 },\n{ time: 2, price: 0.4 }, { time: 3, price: 1.3 },\n{ time: 4, price: 0.6 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "defineAlert": {
         "fqn": "defineAlert",
@@ -774,7 +840,36 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "```ts\nimport { defineAlert } from \"@invinite-org/chartlang-core\";\n\nexport default defineAlert({\nname: \"RSI > 70\",\napiVersion: 1,\ncompute: ({ alert }) => { alert(\"overbought\"); },\n});\n```"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "defineAlertCondition": {
+        "fqn": "defineAlertCondition",
+        "kind": "function",
+        "title": "defineAlertCondition(opts)",
+        "summary": "Construct a Phase-5 alert-condition script. Returns a frozen\n`CompiledScriptObject` whose `manifest.kind` is `\"alertCondition\"`.",
+        "paramTable": [
+            {
+                "name": "opts",
+                "type": "DefineAlertConditionOpts",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "```ts\nimport { defineAlertCondition, input, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineAlertCondition({\nname: \"EMA cross\",\napiVersion: 1,\ninputs: { length: input.int(20) },\nconditions: {\nup: {\ntitle: \"Up\",\ndescription: \"Close > EMA\",\ndefaultMessage: \"{{ticker}} up\",\n},\ndown: {\ntitle: \"Down\",\ndescription: \"Close < EMA\",\ndefaultMessage: \"{{ticker}} down\",\n},\n},\ncompute({ bar, ta, inputs, signal }) {\nconst ema = ta.ema(bar.close, inputs.length as number);\nsignal?.(\"up\", ta.crossover(bar.close, ema).current);\nsignal?.(\"down\", ta.crossunder(bar.close, ema).current);\n},\n});\n```"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "DefineAlertConditionOpts": {
+        "fqn": "DefineAlertConditionOpts",
+        "kind": "type",
+        "title": "DefineAlertConditionOpts",
+        "summary": "Author-supplied options for `defineAlertCondition(...)`. Mirrors\n`DefineAlertOpts` plus the `conditions` map.",
+        "examples": [
+            "const opts: DefineAlertConditionOpts = {\nname: \"EMA cross\",\napiVersion: 1,\nconditions: {\nup: {\ntitle: \"Up\",\ndescription: \"Close > EMA\",\ndefaultMessage: \"{{ticker}} up\",\n},\n},\ncompute: () => {},\n};\nvoid opts;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "DefineAlertOpts": {
         "fqn": "DefineAlertOpts",
@@ -785,7 +880,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: DefineAlertOpts = {\nname: \"RSI overbought\",\napiVersion: 1,\ncompute: () => {},\n};"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "defineDrawing": {
         "fqn": "defineDrawing",
@@ -803,7 +898,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "```ts\nimport { defineDrawing } from \"@invinite-org/chartlang-core\";\n\nexport default defineDrawing({\nname: \"Interactive Fib Retracement\",\napiVersion: 1,\ncompute: ({ draw }) => {\ndraw.fibRetracement(\n{ time: 1_700_000_000_000, price: 100 },\n{ time: 1_700_086_400_000, price: 110 },\n);\n},\n});\n```"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DefineDrawingOpts": {
         "fqn": "DefineDrawingOpts",
@@ -814,7 +909,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: DefineDrawingOpts = {\nname: \"Interactive Fib Retracement\",\napiVersion: 1,\ncompute: () => {},\n};"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "defineIndicator": {
         "fqn": "defineIndicator",
@@ -832,7 +927,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "```ts\nimport { defineIndicator } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\nname: \"EMA(20)\",\napiVersion: 1,\ncompute: ({ bar, plot }) => { plot(bar.close); },\n});\n```"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DefineIndicatorOpts": {
         "fqn": "DefineIndicatorOpts",
@@ -843,7 +938,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: DefineIndicatorOpts = {\nname: \"demo\",\napiVersion: 1,\ncompute: () => {},\n};"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DemaOpts": {
         "fqn": "DemaOpts",
@@ -854,7 +949,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: DemaOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DisjointChannelState": {
         "fqn": "DisjointChannelState",
@@ -865,7 +960,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: DisjointChannelState = {\nkind: \"disjoint-channel\",\nanchors: [\n{ time: 0, price: 0 }, { time: 1, price: 1 },\n{ time: 0, price: 2 }, { time: 1, price: 3 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DmiOpts": {
         "fqn": "DmiOpts",
@@ -876,7 +971,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: DmiOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DmiResult": {
         "fqn": "DmiResult",
@@ -887,7 +982,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const d = ta.dmi(14);\nplot(d.plusDi);\nplot(d.minusDi);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DonchianOpts": {
         "fqn": "DonchianOpts",
@@ -898,7 +993,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: DonchianOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DonchianResult": {
         "fqn": "DonchianResult",
@@ -909,7 +1004,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const d = ta.donchian(20);\nplot(d.upper);\nplot(d.middle);\nplot(d.lower);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DoubleCurveState": {
         "fqn": "DoubleCurveState",
@@ -920,7 +1015,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: DoubleCurveState = {\nkind: \"double-curve\",\nanchors: [\n{ time: 0, price: 0 }, { time: 1, price: 1 },\n{ time: 2, price: 0 }, { time: 3, price: -1 },\n{ time: 4, price: 0 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DpoOpts": {
         "fqn": "DpoOpts",
@@ -931,7 +1026,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: DpoOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw": {
         "fqn": "draw",
@@ -942,7 +1037,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "import { draw } from \"@invinite-org/chartlang-core\";\ntry {\ndraw.horizontalLine(0);\n} catch {\n// expected: \"draw.horizontalLine called outside compiled runtime\"\n}"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.abcdPattern": {
         "fqn": "draw.abcdPattern",
@@ -962,7 +1057,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.arc": {
         "fqn": "draw.arc",
@@ -982,7 +1077,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.arrow": {
         "fqn": "draw.arrow",
@@ -1007,7 +1102,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.arrowMarkDown": {
         "fqn": "draw.arrowMarkDown",
@@ -1027,7 +1122,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.arrowMarker": {
         "fqn": "draw.arrowMarker",
@@ -1047,7 +1142,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.arrowMarkUp": {
         "fqn": "draw.arrowMarkUp",
@@ -1067,7 +1162,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.brush": {
         "fqn": "draw.brush",
@@ -1087,7 +1182,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.circle": {
         "fqn": "draw.circle",
@@ -1112,7 +1207,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.crossLine": {
         "fqn": "draw.crossLine",
@@ -1132,7 +1227,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.curve": {
         "fqn": "draw.curve",
@@ -1152,7 +1247,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.cyclicLines": {
         "fqn": "draw.cyclicLines",
@@ -1177,7 +1272,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.cypherPattern": {
         "fqn": "draw.cypherPattern",
@@ -1197,7 +1292,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.disjointChannel": {
         "fqn": "draw.disjointChannel",
@@ -1217,7 +1312,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.doubleCurve": {
         "fqn": "draw.doubleCurve",
@@ -1237,7 +1332,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.elliottCorrectionWave": {
         "fqn": "draw.elliottCorrectionWave",
@@ -1257,7 +1352,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.elliottDoubleCombo": {
         "fqn": "draw.elliottDoubleCombo",
@@ -1277,7 +1372,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.elliottImpulseWave": {
         "fqn": "draw.elliottImpulseWave",
@@ -1297,7 +1392,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.elliottTriangleWave": {
         "fqn": "draw.elliottTriangleWave",
@@ -1317,7 +1412,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.elliottTripleCombo": {
         "fqn": "draw.elliottTripleCombo",
@@ -1337,7 +1432,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.ellipse": {
         "fqn": "draw.ellipse",
@@ -1362,7 +1457,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.fibChannel": {
         "fqn": "draw.fibChannel",
@@ -1382,7 +1477,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.fibCircles": {
         "fqn": "draw.fibCircles",
@@ -1407,7 +1502,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.fibRetracement": {
         "fqn": "draw.fibRetracement",
@@ -1432,7 +1527,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.fibSpeedArcs": {
         "fqn": "draw.fibSpeedArcs",
@@ -1457,7 +1552,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.fibSpeedFan": {
         "fqn": "draw.fibSpeedFan",
@@ -1482,7 +1577,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.fibSpiral": {
         "fqn": "draw.fibSpiral",
@@ -1507,7 +1602,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.fibTimeZone": {
         "fqn": "draw.fibTimeZone",
@@ -1532,7 +1627,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.fibTrendExtension": {
         "fqn": "draw.fibTrendExtension",
@@ -1552,7 +1647,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.fibTrendTime": {
         "fqn": "draw.fibTrendTime",
@@ -1572,7 +1667,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.fibWedge": {
         "fqn": "draw.fibWedge",
@@ -1592,7 +1687,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.flatTopBottom": {
         "fqn": "draw.flatTopBottom",
@@ -1612,7 +1707,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.frame": {
         "fqn": "draw.frame",
@@ -1637,7 +1732,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.gannBox": {
         "fqn": "draw.gannBox",
@@ -1662,7 +1757,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.gannFan": {
         "fqn": "draw.gannFan",
@@ -1687,7 +1782,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.gannSquare": {
         "fqn": "draw.gannSquare",
@@ -1712,7 +1807,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.gannSquareFixed": {
         "fqn": "draw.gannSquareFixed",
@@ -1732,7 +1827,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.group": {
         "fqn": "draw.group",
@@ -1747,7 +1842,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.headAndShoulders": {
         "fqn": "draw.headAndShoulders",
@@ -1767,7 +1862,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.highlighter": {
         "fqn": "draw.highlighter",
@@ -1787,7 +1882,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.horizontalLine": {
         "fqn": "draw.horizontalLine",
@@ -1807,7 +1902,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.horizontalRay": {
         "fqn": "draw.horizontalRay",
@@ -1827,7 +1922,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.line": {
         "fqn": "draw.line",
@@ -1852,7 +1947,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.marker": {
         "fqn": "draw.marker",
@@ -1872,7 +1967,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.path": {
         "fqn": "draw.path",
@@ -1892,7 +1987,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.pen": {
         "fqn": "draw.pen",
@@ -1912,7 +2007,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.pitchfan": {
         "fqn": "draw.pitchfan",
@@ -1932,7 +2027,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.pitchfork": {
         "fqn": "draw.pitchfork",
@@ -1952,7 +2047,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.polyline": {
         "fqn": "draw.polyline",
@@ -1972,7 +2067,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.rectangle": {
         "fqn": "draw.rectangle",
@@ -1997,7 +2092,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.regressionTrend": {
         "fqn": "draw.regressionTrend",
@@ -2022,7 +2117,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.rotatedRectangle": {
         "fqn": "draw.rotatedRectangle",
@@ -2042,7 +2137,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.sineLine": {
         "fqn": "draw.sineLine",
@@ -2067,7 +2162,22 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "draw.table": {
+        "fqn": "draw.table",
+        "kind": "function",
+        "title": "draw.table(opts)",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.table.",
+        "paramTable": [
+            {
+                "name": "opts",
+                "type": "TableOpts",
+                "doc": ""
+            }
+        ],
+        "since": "0.3",
+        "stability": "stable"
     },
     "draw.text": {
         "fqn": "draw.text",
@@ -2092,7 +2202,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.threeDrivesPattern": {
         "fqn": "draw.threeDrivesPattern",
@@ -2112,7 +2222,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.timeCycles": {
         "fqn": "draw.timeCycles",
@@ -2137,7 +2247,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.trendAngle": {
         "fqn": "draw.trendAngle",
@@ -2162,7 +2272,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.trendChannel": {
         "fqn": "draw.trendChannel",
@@ -2182,7 +2292,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.triangle": {
         "fqn": "draw.triangle",
@@ -2202,7 +2312,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.trianglePattern": {
         "fqn": "draw.trianglePattern",
@@ -2222,7 +2332,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.verticalLine": {
         "fqn": "draw.verticalLine",
@@ -2242,7 +2352,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "draw.xabcdPattern": {
         "fqn": "draw.xabcdPattern",
@@ -2262,7 +2372,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DRAWING_KINDS": {
         "fqn": "DRAWING_KINDS",
@@ -2273,7 +2383,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "import { DRAWING_KINDS } from \"@invinite-org/chartlang-core\";\nfor (const k of DRAWING_KINDS) {\nvoid k;\n}"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DrawingBucket": {
         "fqn": "DrawingBucket",
@@ -2284,7 +2394,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const b: DrawingBucket = \"lines\";\nvoid b;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DrawingCounts": {
         "fqn": "DrawingCounts",
@@ -2295,7 +2405,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const c: DrawingCounts = {\nlines: 50, labels: 50, boxes: 50, polylines: 50, other: 50,\n};\nvoid c;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DrawingHandle": {
         "fqn": "DrawingHandle",
@@ -2306,18 +2416,18 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "// Inside a compiled `compute`:\n//   const h = draw.horizontalLine(supportLevel);\n//   h.update({ price: nextLevel });\n//   h.remove();\nimport type { DrawingHandle } from \"@invinite-org/chartlang-core\";\nconst _shape: DrawingHandle | null = null;\nvoid _shape;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DrawingKind": {
         "fqn": "DrawingKind",
         "kind": "type",
         "title": "DrawingKind",
-        "summary": "/**\nThe full set of 61 drawing kinds chartlang supports through `draw.*`.\nThe wire format is kebab-case; the TypeScript script surface is\ncamelCase (`draw.horizontalLine(...)`). See  {@link KIND_CAMELCASE} for\nthe canonical bijection.",
+        "summary": "/**\nThe full set of 62 drawing kinds chartlang supports through `draw.*`.\nThe wire format is kebab-case; the TypeScript script surface is\ncamelCase (`draw.horizontalLine(...)`). See  {@link KIND_CAMELCASE} for\nthe canonical bijection.",
         "examples": [
             "const k: DrawingKind = \"fib-retracement\";\nvoid k;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DrawingMeta": {
         "fqn": "DrawingMeta",
@@ -2328,7 +2438,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const m: DrawingMeta = { name: \"Support\", visible: true };\nvoid m;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DrawingState": {
         "fqn": "DrawingState",
@@ -2339,7 +2449,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: DrawingState = {\nkind: \"horizontal-line\",\nprice: 100,\nstyle: { color: \"#3b82f6\" },\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "DrawNamespace": {
         "fqn": "DrawNamespace",
@@ -2350,7 +2460,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "import type { DrawNamespace } from \"@invinite-org/chartlang-core\";\nconst _ns: DrawNamespace | null = null;\nvoid _ns;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ElliottCorrectionWaveState": {
         "fqn": "ElliottCorrectionWaveState",
@@ -2361,7 +2471,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ElliottCorrectionWaveState = {\nkind: \"elliott-correction-wave\",\nanchors: [\n{ time: 0, price: 1 },\n{ time: 1, price: 0 },\n{ time: 2, price: 0.5 },\n],\nlabels: [\"A\", \"B\", \"C\"],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ElliottDoubleComboState": {
         "fqn": "ElliottDoubleComboState",
@@ -2372,7 +2482,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ElliottDoubleComboState = {\nkind: \"elliott-double-combo\",\nanchors: [\n{ time: 0, price: 0 }, { time: 1, price: 1 },\n{ time: 2, price: 0.5 }, { time: 3, price: 1.5 },\n{ time: 4, price: 1 }, { time: 5, price: 2 },\n{ time: 6, price: 1.5 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ElliottImpulseWaveState": {
         "fqn": "ElliottImpulseWaveState",
@@ -2383,7 +2493,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ElliottImpulseWaveState = {\nkind: \"elliott-impulse-wave\",\nanchors: [\n{ time: 0, price: 0 }, { time: 1, price: 1 },\n{ time: 2, price: 0.5 }, { time: 3, price: 1.5 },\n{ time: 4, price: 1 },\n],\nlabels: [\"1\", \"2\", \"3\", \"4\", \"5\"],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ElliottTriangleWaveState": {
         "fqn": "ElliottTriangleWaveState",
@@ -2394,7 +2504,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ElliottTriangleWaveState = {\nkind: \"elliott-triangle-wave\",\nanchors: [\n{ time: 0, price: 1 }, { time: 1, price: 0 },\n{ time: 2, price: 0.8 }, { time: 3, price: 0.2 },\n{ time: 4, price: 0.5 },\n],\nlabels: [\"a\", \"b\", \"c\", \"d\", \"e\"],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ElliottTripleComboState": {
         "fqn": "ElliottTripleComboState",
@@ -2405,7 +2515,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ElliottTripleComboState = {\nkind: \"elliott-triple-combo\",\nanchors: [\n{ time: 0, price: 0 }, { time: 1, price: 1 },\n{ time: 2, price: 0.5 }, { time: 3, price: 1.5 },\n{ time: 4, price: 1 }, { time: 5, price: 2 },\n{ time: 6, price: 1.5 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "EllipseState": {
         "fqn": "EllipseState",
@@ -2416,7 +2526,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: EllipseState = {\nkind: \"ellipse\",\nanchors: [{ time: 0, price: 0 }, { time: 2, price: 1 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "EmaOpts": {
         "fqn": "EmaOpts",
@@ -2427,7 +2537,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: EmaOpts = { offset: 0 };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "EnumDescriptor": {
         "fqn": "EnumDescriptor",
@@ -2449,7 +2559,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: EnvelopeOpts = { length: 20, percent: 10, maType: \"sma\" };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "EnvelopeResult": {
         "fqn": "EnvelopeResult",
@@ -2460,7 +2570,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const e = ta.envelope(bar.close, { percent: 10 });\nplot(e.upper);\nplot(e.middle);\nplot(e.lower);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "EomOpts": {
         "fqn": "EomOpts",
@@ -2471,7 +2581,30 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: EomOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "extendedSession": {
+        "fqn": "extendedSession",
+        "kind": "function",
+        "title": "extendedSession(tz, t)",
+        "summary": "Return extended 04:00-20:00 session bounds in `tz`, or `null` on weekends.",
+        "paramTable": [
+            {
+                "name": "tz",
+                "type": "string",
+                "doc": ""
+            },
+            {
+                "name": "t",
+                "type": "Time",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "extendedSession(\"America/New_York\", 1_709_251_200_000);"
+        ],
+        "since": "0.6",
+        "stability": "stable"
     },
     "ExternalSeriesDescriptor": {
         "fqn": "ExternalSeriesDescriptor",
@@ -2493,7 +2626,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FibChannelState = {\nkind: \"fib-channel\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 1 },\n{ time: 0, price: 1 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FibCirclesState": {
         "fqn": "FibCirclesState",
@@ -2504,7 +2637,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FibCirclesState = {\nkind: \"fib-circles\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 0 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FibOpts": {
         "fqn": "FibOpts",
@@ -2515,7 +2648,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const f: FibOpts = {\nlevels: [0.382, 0.5, 0.618],\nshowLabels: true,\ncolor: \"#facc15\",\nextendRight: true,\n};\nvoid f;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FibRetracementState": {
         "fqn": "FibRetracementState",
@@ -2526,7 +2659,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FibRetracementState = {\nkind: \"fib-retracement\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: { levels: [0.382, 0.5, 0.618] },\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FibSpeedArcsState": {
         "fqn": "FibSpeedArcsState",
@@ -2537,7 +2670,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FibSpeedArcsState = {\nkind: \"fib-speed-arcs\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 0 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FibSpeedFanState": {
         "fqn": "FibSpeedFanState",
@@ -2548,7 +2681,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FibSpeedFanState = {\nkind: \"fib-speed-fan\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FibSpiralState": {
         "fqn": "FibSpiralState",
@@ -2559,7 +2692,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FibSpiralState = {\nkind: \"fib-spiral\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 0 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FibTimeZoneState": {
         "fqn": "FibTimeZoneState",
@@ -2570,7 +2703,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FibTimeZoneState = {\nkind: \"fib-time-zone\",\nanchors: [{ time: 0, price: 0 }, { time: 100, price: 0 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FibTrendExtensionState": {
         "fqn": "FibTrendExtensionState",
@@ -2581,7 +2714,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FibTrendExtensionState = {\nkind: \"fib-trend-extension\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 1 },\n{ time: 2, price: 0.5 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FibTrendTimeState": {
         "fqn": "FibTrendTimeState",
@@ -2592,7 +2725,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FibTrendTimeState = {\nkind: \"fib-trend-time\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 1 },\n{ time: 2, price: 0.5 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FibWedgeState": {
         "fqn": "FibWedgeState",
@@ -2603,7 +2736,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FibWedgeState = {\nkind: \"fib-wedge\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 1 },\n{ time: 1, price: -1 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FisherOpts": {
         "fqn": "FisherOpts",
@@ -2614,7 +2747,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: FisherOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FisherResult": {
         "fqn": "FisherResult",
@@ -2625,7 +2758,29 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const f = ta.fisher(9);\nplot(f.fisher);\nplot(f.trigger);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "FixedRangeVolumeProfileOpts": {
+        "fqn": "FixedRangeVolumeProfileOpts",
+        "kind": "type",
+        "title": "FixedRangeVolumeProfileOpts",
+        "summary": "Options bag for `ta.fixedRangeVolumeProfile`. `from` and `to` are\nUTC millisecond anchors, typically resolved from two\n`input.time(..., { pickFromChart: true })` inputs. `from > to`\nis invalid and diagnoses at runtime; `from === to` is a\nsingle-bar window.",
+        "examples": [
+            "const opts: FixedRangeVolumeProfileOpts = {\nfrom: 1_700_000_000_000,\nto: 1_700_060_000_000,\nrowSize: 24,\n};"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "FixedRangeVolumeProfileResult": {
+        "fqn": "FixedRangeVolumeProfileResult",
+        "kind": "type",
+        "title": "FixedRangeVolumeProfileResult",
+        "summary": "Multi-output result from `ta.fixedRangeVolumeProfile`.",
+        "examples": [
+            "declare const vp: FixedRangeVolumeProfileResult;\nconst buckets = vp.buckets;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "FlatTopBottomState": {
         "fqn": "FlatTopBottomState",
@@ -2636,7 +2791,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FlatTopBottomState = {\nkind: \"flat-top-bottom\",\nanchors: [\n{ time: 0, price: 1 },\n{ time: 1, price: 1 },\n{ time: 0, price: 0 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FloatDescriptor": {
         "fqn": "FloatDescriptor",
@@ -2658,7 +2813,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const f: FrameOpts = { label: \"Trade idea\", bgColor: \"#f1f5f9\" };\nvoid f;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "FrameState": {
         "fqn": "FrameState",
@@ -2669,7 +2824,30 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FrameState = {\nkind: \"frame\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nchildHandleIds: [],\nstyle: { label: \"Idea\" },\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "fromGradient": {
+        "fqn": "fromGradient",
+        "kind": "function",
+        "title": "fromGradient(t, stops)",
+        "summary": "Dynamic color from a normalised position. `t` is clamped to `[0, 1]`;\nout-of-range maps to the boundary stop. Stops must be pre-sorted by `at`\nascending. Empty stops return transparent black.",
+        "paramTable": [
+            {
+                "name": "t",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "stops",
+                "type": "ReadonlyArray<GradientStop>",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "// const blue = \"#0000ff\";\n// const red = \"#ff0000\";\n// color.fromGradient(0.5, [{ at: 0, color: blue }, { at: 1, color: red }]);"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "GannBoxState": {
         "fqn": "GannBoxState",
@@ -2680,7 +2858,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: GannBoxState = {\nkind: \"gann-box\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "GannFanState": {
         "fqn": "GannFanState",
@@ -2691,7 +2869,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: GannFanState = {\nkind: \"gann-fan\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "GannSquareFixedState": {
         "fqn": "GannSquareFixedState",
@@ -2702,7 +2880,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: GannSquareFixedState = {\nkind: \"gann-square-fixed\",\nanchor: { time: 0, price: 0 },\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "GannSquareState": {
         "fqn": "GannSquareState",
@@ -2713,7 +2891,41 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: GannSquareState = {\nkind: \"gann-square\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "getFormatter": {
+        "fqn": "getFormatter",
+        "kind": "function",
+        "title": "getFormatter(tz, fields)",
+        "summary": "Return an `Intl.DateTimeFormat` cached by timezone and field options.",
+        "paramTable": [
+            {
+                "name": "tz",
+                "type": "string",
+                "doc": ""
+            },
+            {
+                "name": "fields",
+                "type": "Intl.DateTimeFormatOptions",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const formatter = getFormatter(\"UTC\", { year: \"numeric\" });\nvoid formatter;"
+        ],
+        "since": "0.6",
+        "stability": "stable"
+    },
+    "GradientStop": {
+        "fqn": "GradientStop",
+        "kind": "type",
+        "title": "GradientStop",
+        "summary": "Gradient color stop for `color.fromGradient`.",
+        "examples": [
+            "const stop: GradientStop = { at: 0, color: \"#0000ff\" };\nvoid stop;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "GroupState": {
         "fqn": "GroupState",
@@ -2724,7 +2936,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: GroupState = {\nkind: \"group\",\nchildHandleIds: [\"h1\", \"h2\"],\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "HeadAndShouldersState": {
         "fqn": "HeadAndShouldersState",
@@ -2735,7 +2947,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: HeadAndShouldersState = {\nkind: \"head-and-shoulders\",\nanchors: [\n{ time: 0, price: 1 }, { time: 1, price: 0 },\n{ time: 2, price: 2 }, { time: 3, price: 0 },\n{ time: 4, price: 1 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "HighestOpts": {
         "fqn": "HighestOpts",
@@ -2746,7 +2958,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: HighestOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "HighlighterState": {
         "fqn": "HighlighterState",
@@ -2757,7 +2969,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: HighlighterState = {\nkind: \"highlighter\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: { color: \"#facc15\", alpha: 0.3 },\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "HighlighterStyle": {
         "fqn": "HighlighterStyle",
@@ -2768,7 +2980,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: HighlighterStyle = { color: \"#facc15\", alpha: 0.3 };\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "hline": {
         "fqn": "hline",
@@ -2791,7 +3003,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "// Inside a compiled `compute`:\n//   hline(70, { color: \"#ef4444\" });\nimport { hline } from \"@invinite-org/chartlang-core\";\ntry { hline(70); } catch {}"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "HLineOpts": {
         "fqn": "HLineOpts",
@@ -2802,7 +3014,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: HLineOpts = { color: \"#ef4444\", title: \"Stop\", lineStyle: \"dashed\" };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "HmaOpts": {
         "fqn": "HmaOpts",
@@ -2813,7 +3025,18 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: HmaOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "HorizontalHistogramBucket": {
+        "fqn": "HorizontalHistogramBucket",
+        "kind": "type",
+        "title": "HorizontalHistogramBucket",
+        "summary": "Single row in a Phase 5 horizontal-histogram plot emission.",
+        "examples": [
+            "const bucket: HorizontalHistogramBucket = { price: 100, volume: 25 };\nvoid bucket;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "HorizontalLineState": {
         "fqn": "HorizontalLineState",
@@ -2824,7 +3047,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: HorizontalLineState = {\nkind: \"horizontal-line\",\nprice: 100,\nstyle: { color: \"#3b82f6\" },\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "HorizontalRayState": {
         "fqn": "HorizontalRayState",
@@ -2835,7 +3058,40 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: HorizontalRayState = {\nkind: \"horizontal-ray\",\nanchor: { time: 1, price: 100 },\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "hsl": {
+        "fqn": "hsl",
+        "kind": "function",
+        "title": "hsl(h, s, l, alpha?)",
+        "summary": "Construct a color from HSL(A) components. `h` is clamped to `[0, 360)`;\n`s` and `l` are clamped to `[0, 100]`. Alpha defaults to `1`. NaN\ncomponents clamp to `0`.",
+        "paramTable": [
+            {
+                "name": "h",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "s",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "l",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "alpha",
+                "type": "number",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const red = hsl(0, 100, 50);\nvoid red;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "HvOpts": {
         "fqn": "HvOpts",
@@ -2846,7 +3102,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: HvOpts = { annualisationFactor: 252 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "IchimokuOpts": {
         "fqn": "IchimokuOpts",
@@ -2857,7 +3113,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: IchimokuOpts = {\nconversionLength: 9,\nbaseLength: 26,\nleadingSpanBLength: 52,\ndisplacement: 26,\n};"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "IchimokuResult": {
         "fqn": "IchimokuResult",
@@ -2868,7 +3124,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const i = ta.ichimoku();\nplot(i.tenkan);\nplot(i.kijun);\nplot(i.senkouA);\nplot(i.senkouB);\nplot(i.chikou);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "input": {
         "fqn": "input",
@@ -3187,8 +3443,8 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "examples": [
             "import { input } from \"@invinite-org/chartlang-core\";\nconst inputs: InputSchema = { length: input.int(20) };\nvoid inputs;"
         ],
-        "since": "0.1",
-        "stability": "experimental"
+        "since": "0.1 — widened in 0.4 from opaque `Readonly<Record<string, unknown>>`\nto the typed `InputDescriptor<unknown>` shape returned by `input.*`\nbuilders. Existing scripts stay source-compatible because the previous\nopaque record subsumes the new typed shape.",
+        "stability": "stable"
     },
     "IntDescriptor": {
         "fqn": "IntDescriptor",
@@ -3205,12 +3461,12 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "IntervalDescriptor",
         "kind": "type",
         "title": "IntervalDescriptor",
-        "summary": "Adapter-declared timeframe entry — the `{ value, label, group }` triple\nsurfaced in the script-settings UI. Used by `input.interval(...)` in\nPhase 4+; the surface lands here in Phase 1 so consumers can pin against a\nstable type.",
+        "summary": "Adapter-declared timeframe entry surfaced in the script-settings UI. The\noptional `intervalSeconds` override lets exotic intervals declare their\neffective duration without extending the standard parser grammar.",
         "examples": [
             "const d: IntervalDescriptor = {\nvalue: \"1D\",\nlabel: \"1 day\",\ngroup: \"Days\",\n};"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "IntervalDescriptorInput": {
         "fqn": "IntervalDescriptorInput",
@@ -3223,6 +3479,52 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "intervalToSeconds": {
+        "fqn": "intervalToSeconds",
+        "kind": "function",
+        "title": "intervalToSeconds(d)",
+        "summary": "/**\nConvert an  {@link IntervalDescriptor} to its effective second count.",
+        "paramTable": [
+            {
+                "name": "d",
+                "type": "IntervalDescriptor",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "intervalToSeconds({ value: \"1D\", label: \"1 day\", group: \"day\" });\nintervalToSeconds({ value: \"custom\", label: \"custom\", group: \"x\", intervalSeconds: 7 });"
+        ],
+        "since": "0.6",
+        "stability": "stable"
+    },
+    "isOpen": {
+        "fqn": "isOpen",
+        "kind": "function",
+        "title": "isOpen(tz, t, type)",
+        "summary": "Test whether `t` falls inside the selected half-open session in `tz`.",
+        "paramTable": [
+            {
+                "name": "tz",
+                "type": "string",
+                "doc": ""
+            },
+            {
+                "name": "t",
+                "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "type",
+                "type": "SessionType",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "isOpen(\"America/New_York\", 1_709_251_200_000, \"regular\");"
+        ],
+        "since": "0.6",
+        "stability": "stable"
+    },
     "JsonValue": {
         "fqn": "JsonValue",
         "kind": "type",
@@ -3232,7 +3534,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const meta: JsonValue = { reason: \"crossover\", strength: 0.42 };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "KamaOpts": {
         "fqn": "KamaOpts",
@@ -3243,7 +3545,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: KamaOpts = { length: 10, fastLength: 2, slowLength: 30 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "KeltnerOpts": {
         "fqn": "KeltnerOpts",
@@ -3254,7 +3556,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: KeltnerOpts = { length: 20, multiplier: 2, maType: \"ema\" };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "KeltnerResult": {
         "fqn": "KeltnerResult",
@@ -3265,7 +3567,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const k = ta.keltner({ length: 20, multiplier: 2 });\nplot(k.upper);\nplot(k.middle);\nplot(k.lower);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "KIND_BUCKET": {
         "fqn": "KIND_BUCKET",
@@ -3276,7 +3578,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "import { KIND_BUCKET } from \"@invinite-org/chartlang-core\";\nconst b = KIND_BUCKET.get(\"fib-retracement\"); // \"other\"\nvoid b;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "KIND_CAMELCASE": {
         "fqn": "KIND_CAMELCASE",
@@ -3287,7 +3589,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "import { KIND_CAMELCASE } from \"@invinite-org/chartlang-core\";\nconst camel = KIND_CAMELCASE.get(\"horizontal-line\"); // \"horizontalLine\"\nvoid camel;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "KIND_KEBABCASE": {
         "fqn": "KIND_KEBABCASE",
@@ -3298,7 +3600,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "import { KIND_KEBABCASE } from \"@invinite-org/chartlang-core\";\nconst kebab = KIND_KEBABCASE.get(\"horizontalLine\"); // \"horizontal-line\"\nvoid kebab;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "KlingerOpts": {
         "fqn": "KlingerOpts",
@@ -3309,7 +3611,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: KlingerOpts = { fastLength: 34, slowLength: 55, signalLength: 13 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "KlingerResult": {
         "fqn": "KlingerResult",
@@ -3320,7 +3622,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const k = ta.klinger();\nplot(k.klinger);\nplot(k.signal);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "KstOpts": {
         "fqn": "KstOpts",
@@ -3331,7 +3633,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: KstOpts = { roc1Length: 10, roc2Length: 15, roc3Length: 20, roc4Length: 30 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "KstResult": {
         "fqn": "KstResult",
@@ -3342,7 +3644,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const k = ta.kst(bar.close);\nplot(k.kst);\nplot(k.signal);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "LineDrawStyle": {
         "fqn": "LineDrawStyle",
@@ -3353,7 +3655,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: LineDrawStyle = { color: \"#3b82f6\", lineWidth: 2, lineStyle: \"solid\" };\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "LineState": {
         "fqn": "LineState",
@@ -3364,7 +3666,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: LineState = {\nkind: \"line\",\nanchors: [{ time: 1, price: 1 }, { time: 2, price: 2 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "LineStyle": {
         "fqn": "LineStyle",
@@ -3375,7 +3677,41 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const ls: LineStyle = \"dashed\";"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "localDateParts": {
+        "fqn": "localDateParts",
+        "kind": "function",
+        "title": "localDateParts(tz, t)",
+        "summary": "Return local year-month-day parts for `t` in `tz`.",
+        "paramTable": [
+            {
+                "name": "tz",
+                "type": "string",
+                "doc": ""
+            },
+            {
+                "name": "t",
+                "type": "Time",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "localDateParts(\"UTC\", 1_704_067_200_000);"
+        ],
+        "since": "0.6",
+        "stability": "stable"
+    },
+    "LogLevel": {
+        "fqn": "LogLevel",
+        "kind": "type",
+        "title": "LogLevel",
+        "summary": "Runtime log severity emitted by `runtime.log.*`.",
+        "examples": [
+            "const level: LogLevel = \"info\";\nvoid level;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "LowestOpts": {
         "fqn": "LowestOpts",
@@ -3386,7 +3722,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: LowestOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "LsmaOpts": {
         "fqn": "LsmaOpts",
@@ -3397,7 +3733,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: LsmaOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "MacdOpts": {
         "fqn": "MacdOpts",
@@ -3408,7 +3744,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: MacdOpts = { fastLength: 12, slowLength: 26, signalLength: 9 };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "MacdResult": {
         "fqn": "MacdResult",
@@ -3419,7 +3755,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "declare const close: Series<number>;\nconst m = ta.macd(close);\nplot(m.hist);"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "MaRibbonOpts": {
         "fqn": "MaRibbonOpts",
@@ -3430,7 +3766,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: MaRibbonOpts = { lengths: [10, 20, 30], maType: \"ema\" };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "MaRibbonResult": {
         "fqn": "MaRibbonResult",
@@ -3441,7 +3777,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "declare const r: MaRibbonResult;\nvoid r.ma_10?.current;"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "MarkerState": {
         "fqn": "MarkerState",
@@ -3452,7 +3788,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: MarkerState = {\nkind: \"marker\",\nanchor: { time: 1, price: 1 },\ntext: \"B\",\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "MassIndexOpts": {
         "fqn": "MassIndexOpts",
@@ -3463,7 +3799,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: MassIndexOpts = { emaLength: 9, sumLength: 25 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "MaTypeNoVolume": {
         "fqn": "MaTypeNoVolume",
@@ -3474,7 +3810,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const k: MaTypeNoVolume = \"ema\";"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "McginleyOpts": {
         "fqn": "McginleyOpts",
@@ -3485,7 +3821,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: McginleyOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "MedianOpts": {
         "fqn": "MedianOpts",
@@ -3496,7 +3832,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: MedianOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "MfiOpts": {
         "fqn": "MfiOpts",
@@ -3507,7 +3843,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: MfiOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "MomentumOpts": {
         "fqn": "MomentumOpts",
@@ -3518,7 +3854,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: MomentumOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "MutableSlot": {
         "fqn": "MutableSlot",
@@ -3540,7 +3876,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: NetVolumeOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "NviOpts": {
         "fqn": "NviOpts",
@@ -3551,7 +3887,43 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: NviOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "nyDayKey": {
+        "fqn": "nyDayKey",
+        "kind": "function",
+        "title": "nyDayKey(t)",
+        "summary": "Return the `YYYY-MM-DD` key for `t` in `America/New_York`.",
+        "paramTable": [
+            {
+                "name": "t",
+                "type": "Time",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "nyDayKey(1_709_251_200_000);"
+        ],
+        "since": "0.6",
+        "stability": "stable"
+    },
+    "nySessionBounds": {
+        "fqn": "nySessionBounds",
+        "kind": "function",
+        "title": "nySessionBounds(t)",
+        "summary": "Return the regular 09:30-16:00 session bounds for the New York day\ncontaining `t`.",
+        "paramTable": [
+            {
+                "name": "t",
+                "type": "Time",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "nySessionBounds(1_709_251_200_000);"
+        ],
+        "since": "0.6",
+        "stability": "stable"
     },
     "ObvOpts": {
         "fqn": "ObvOpts",
@@ -3562,7 +3934,25 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: ObvOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "parseColor": {
+        "fqn": "parseColor",
+        "kind": "function",
+        "title": "parseColor(c)",
+        "summary": "Parse the CSS color forms chartlang emits: `#rgb`, `#rrggbb`,\n`rgb(...)`, `rgba(...)`, `hsl(...)`, `hsla(...)`, and the named palette.\nReturns `null` for unparseable input.",
+        "paramTable": [
+            {
+                "name": "c",
+                "type": "Color",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const parsed = parseColor(\"#ff0000\");\nvoid parsed;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "PathOpts": {
         "fqn": "PathOpts",
@@ -3573,7 +3963,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const p: PathOpts = { color: \"#3b82f6\", lineWidth: 1, closed: true };\nvoid p;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PathState": {
         "fqn": "PathState",
@@ -3584,7 +3974,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: PathState = {\nkind: \"path\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: { closed: true },\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PenState": {
         "fqn": "PenState",
@@ -3595,7 +3985,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: PenState = {\nkind: \"pen\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PitchfanState": {
         "fqn": "PitchfanState",
@@ -3606,7 +3996,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: PitchfanState = {\nkind: \"pitchfan\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 1 },\n{ time: 2, price: 0.5 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PitchforkState": {
         "fqn": "PitchforkState",
@@ -3617,7 +4007,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: PitchforkState = {\nkind: \"pitchfork\",\nvariant: \"modifiedSchiff\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 1 },\n{ time: 2, price: 0.5 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PivotsHighLowOpts": {
         "fqn": "PivotsHighLowOpts",
@@ -3628,7 +4018,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: PivotsHighLowOpts = { leftLength: 4, rightLength: 4 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PivotsHighLowResult": {
         "fqn": "PivotsHighLowResult",
@@ -3639,7 +4029,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const p = ta.pivotsHighLow({ leftLength: 4, rightLength: 4 });\nplot(p.high);\nplot(p.low);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PivotsStandardOpts": {
         "fqn": "PivotsStandardOpts",
@@ -3650,7 +4040,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: PivotsStandardOpts = { system: \"fibonacci\" };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PivotsStandardResult": {
         "fqn": "PivotsStandardResult",
@@ -3661,7 +4051,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const p = ta.pivotsStandard();\nplot(p.pp);\nplot(p.r1);\nplot(p.s1);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PivotsStandardSystem": {
         "fqn": "PivotsStandardSystem",
@@ -3672,7 +4062,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const sys: PivotsStandardSystem = \"classic\";"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "plot": {
         "fqn": "plot",
@@ -3695,18 +4085,29 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "// Inside a compiled `compute`:\n//   plot(bar.close, { color: \"#3b82f6\" });\nimport { plot } from \"@invinite-org/chartlang-core\";\ntry { plot(0); } catch {}"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "PlotGlyphShape": {
+        "fqn": "PlotGlyphShape",
+        "kind": "type",
+        "title": "PlotGlyphShape",
+        "summary": "Marker glyphs shared by Phase 2 `marker` and Phase 5 `shape` plot styles.",
+        "examples": [
+            "const shape: PlotGlyphShape = \"circle\";\nvoid shape;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "PlotKind": {
         "fqn": "PlotKind",
         "kind": "type",
         "title": "PlotKind",
-        "summary": "Rendered-shape discriminator for `plot` emissions reaching the adapter.\nPhase 1 shipped `line` / `step-line` / `horizontal-line`. Phase 2 adds\n`histogram` / `bars` / `area` / `filled-band` / `label` / `marker`.\nPhase 5 will add `shape` / `character` / `arrow` / `candle-override` /\n`bar-override` / `bg-color` / `bar-color` / `vertical-line` /\n`horizontal-histogram`. Every expansion is additive — the\n`apiVersion: 1` script header stays unchanged.",
+        "summary": "Rendered-shape discriminator for `plot` emissions reaching the adapter.\nThe full 0.5 inventory is `line`, `step-line`, `horizontal-line`,\n`histogram`, `bars`, `area`, `filled-band`, `label`, `marker`,\n`shape`, `character`, `arrow`, `candle-override`, `bar-override`,\n`bg-color`, `bar-color`, and `horizontal-histogram`. Every expansion is\nadditive — the `apiVersion: 1` script header stays unchanged.",
         "examples": [
-            "const k: PlotKind = \"line\";\nconst histogram: PlotKind = \"histogram\";\nconst band: PlotKind = \"filled-band\";\nvoid k; void histogram; void band;"
+            "const k: PlotKind = \"line\";\nconst histogram: PlotKind = \"histogram\";\nconst shape: PlotKind = \"shape\";\nvoid k; void histogram; void shape;"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PlotLineStyle": {
         "fqn": "PlotLineStyle",
@@ -3717,7 +4118,18 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const k: PlotLineStyle = \"step\";"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "PlotLocation": {
+        "fqn": "PlotLocation",
+        "kind": "type",
+        "title": "PlotLocation",
+        "summary": "Vertical anchoring mode for glyph-like Phase 5 plot styles.",
+        "examples": [
+            "const location: PlotLocation = \"above\";\nvoid location;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "PlotOpts": {
         "fqn": "PlotOpts",
@@ -3728,18 +4140,29 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: PlotOpts = {\ncolor: \"#3b82f6\",\ntitle: \"EMA(20)\",\nlineWidth: 2,\nlineStyle: \"solid\",\npane: \"overlay\",\nstyle: { kind: \"line\" },\n};"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PlotOptsStyle": {
         "fqn": "PlotOptsStyle",
         "kind": "type",
         "title": "PlotOptsStyle",
-        "summary": "/**\nScript-author selectable plot style. The runtime maps this to the\nadapter-kit's wire `PlotStyle` discriminated union (Task 1) and\nfills in defaults from the sibling  {@link PlotOpts} fields\n(`lineWidth` / `lineStyle`). Phase 2 surfaces `line` / `step-line`\n/ `histogram` here — the kinds the runtime has wired emit paths\nfor. `horizontal-line` has its own `hline()` primitive; the other\nTask-1 kinds (`bars`, `area`, `filled-band`, `label`, `marker`)\nland per their consuming port.",
+        "summary": "/**\nScript-author selectable plot style. The runtime maps this to the\nadapter-kit's wire `PlotStyle` discriminated union and fills in defaults\nfrom sibling  {@link PlotOpts} fields (`lineWidth` / `lineStyle`) for\nline-like styles.",
         "examples": [
             "const lineStyle: PlotOptsStyle = { kind: \"line\" };\nconst histStyle: PlotOptsStyle = { kind: \"histogram\", baseline: 0 };\nvoid lineStyle; void histStyle;"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "PlotShapeGlyph": {
+        "fqn": "PlotShapeGlyph",
+        "kind": "type",
+        "title": "PlotShapeGlyph",
+        "summary": "Full glyph inventory for Phase 5 `shape` plot styles.",
+        "examples": [
+            "const shape: PlotShapeGlyph = \"flag\";\nvoid shape;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "PmoOpts": {
         "fqn": "PmoOpts",
@@ -3750,7 +4173,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: PmoOpts = { firstSmoothing: 35, secondSmoothing: 20, signalLength: 10 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PmoResult": {
         "fqn": "PmoResult",
@@ -3761,7 +4184,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const p = ta.pmo(bar.close);\nplot(p.pmo);\nplot(p.signal);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PolylineState": {
         "fqn": "PolylineState",
@@ -3772,7 +4195,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: PolylineState = {\nkind: \"polyline\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PpoOpts": {
         "fqn": "PpoOpts",
@@ -3783,7 +4206,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: PpoOpts = { fastLength: 12, slowLength: 26, signalLength: 9 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PpoResult": {
         "fqn": "PpoResult",
@@ -3794,7 +4217,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const p = ta.ppo(bar.close);\nplot(p.ppo); plot(p.signal); plot(p.hist);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "Price": {
         "fqn": "Price",
@@ -3805,7 +4228,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const last: Price = 42.31;"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PriceDescriptor": {
         "fqn": "PriceDescriptor",
@@ -3827,7 +4250,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: PsarOpts = { accelerationStart: 0.02, accelerationStep: 0.02, accelerationMax: 0.2 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PsarResult": {
         "fqn": "PsarResult",
@@ -3838,7 +4261,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const p = ta.psar();\nplot(p.sar);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PviOpts": {
         "fqn": "PviOpts",
@@ -3849,7 +4272,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: PviOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PvoOpts": {
         "fqn": "PvoOpts",
@@ -3860,7 +4283,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: PvoOpts = { fastLength: 12, slowLength: 26, signalLength: 9 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PvoResult": {
         "fqn": "PvoResult",
@@ -3871,7 +4294,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const p = ta.pvo();\nplot(p.pvo); plot(p.signal); plot(p.hist);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "PvtOpts": {
         "fqn": "PvtOpts",
@@ -3882,7 +4305,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: PvtOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "RectangleState": {
         "fqn": "RectangleState",
@@ -3893,7 +4316,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: RectangleState = {\nkind: \"rectangle\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "RegressionTrendOpts": {
         "fqn": "RegressionTrendOpts",
@@ -3904,7 +4327,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const r: RegressionTrendOpts = {\nsource: \"close\",\nstdevMultiplier: 2,\nshowUpperBand: true,\nshowLowerBand: true,\ncolor: \"#3b82f6\",\n};\nvoid r;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "RegressionTrendState": {
         "fqn": "RegressionTrendState",
@@ -3915,7 +4338,30 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: RegressionTrendState = {\nkind: \"regression-trend\",\nanchors: [{ time: 0, price: 0 }, { time: 100, price: 1 }],\nstyle: { source: \"close\", stdevMultiplier: 2 },\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "regularSession": {
+        "fqn": "regularSession",
+        "kind": "function",
+        "title": "regularSession(tz, t)",
+        "summary": "Return regular 09:30-16:00 session bounds in `tz`, or `null` on weekends.",
+        "paramTable": [
+            {
+                "name": "tz",
+                "type": "string",
+                "doc": ""
+            },
+            {
+                "name": "t",
+                "type": "Time",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "regularSession(\"America/New_York\", 1_709_251_200_000);"
+        ],
+        "since": "0.6",
+        "stability": "stable"
     },
     "request": {
         "fqn": "request",
@@ -3926,6 +4372,24 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const ns: typeof request = request;\nvoid ns;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "request.lowerTf": {
+        "fqn": "request.lowerTf",
+        "kind": "function",
+        "title": "request.lowerTf(_opts)",
+        "summary": "Read lower-timeframe bars contained by each main-stream bar.",
+        "paramTable": [
+            {
+                "name": "_opts",
+                "type": "RequestLowerTfOpts",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof request.lowerTf = request.lowerTf;\nvoid fn;"
+        ],
+        "since": "0.6",
         "stability": "stable"
     },
     "request.security": {
@@ -3944,6 +4408,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const fn: typeof request.security = request.security;\nvoid fn;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "RequestLowerTfOpts": {
+        "fqn": "RequestLowerTfOpts",
+        "kind": "type",
+        "title": "RequestLowerTfOpts",
+        "summary": "/**\nArgument to  {@link request.lowerTf} . The `interval` must be strictly lower\nthan the script's main interval; invalid orderings are rejected by the\ncompiler's `lower-tf-not-lower` diagnostic when statically known.",
+        "examples": [
+            "const opts: RequestLowerTfOpts = { interval: \"30s\" };\nvoid opts;"
+        ],
+        "since": "0.6",
         "stability": "stable"
     },
     "RequestNamespace": {
@@ -3968,6 +4443,39 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "rgb": {
+        "fqn": "rgb",
+        "kind": "function",
+        "title": "rgb(r, g, b, alpha?)",
+        "summary": "Construct a color from RGB(A) components. Each component is clamped to\n`[0, 255]`; alpha defaults to `1`. NaN components clamp to `0`.",
+        "paramTable": [
+            {
+                "name": "r",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "g",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "b",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "alpha",
+                "type": "number",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const red = rgb(255, 0, 0);\nvoid red;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
     "RocOpts": {
         "fqn": "RocOpts",
         "kind": "type",
@@ -3977,7 +4485,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: RocOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "RotatedRectangleState": {
         "fqn": "RotatedRectangleState",
@@ -3988,7 +4496,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: RotatedRectangleState = {\nkind: \"rotated-rectangle\",\nanchors: [\n{ time: 0, price: 0 }, { time: 1, price: 1 },\n{ time: 2, price: 0 }, { time: 1, price: -1 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "RsiOpts": {
         "fqn": "RsiOpts",
@@ -3999,7 +4507,29 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: RsiOpts = { offset: 0 };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "runtime": {
+        "fqn": "runtime",
+        "kind": "namespace",
+        "title": "runtime",
+        "summary": "Pine-style runtime utilities exposed to script `compute` callbacks.",
+        "examples": [
+            "// Inside compute:\n// runtime.log.info(\"close\", { value: bar.close });"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "RuntimeNamespace": {
+        "fqn": "RuntimeNamespace",
+        "kind": "type",
+        "title": "RuntimeNamespace",
+        "summary": "Script-facing runtime namespace type.",
+        "examples": [
+            "const ns: RuntimeNamespace = runtime;\nvoid ns;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "RvgiOpts": {
         "fqn": "RvgiOpts",
@@ -4010,7 +4540,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: RvgiOpts = { length: 10 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "RvgiResult": {
         "fqn": "RvgiResult",
@@ -4021,7 +4551,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const r = ta.rvgi();\nplot(r.rvgi);\nplot(r.signal);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "RviOpts": {
         "fqn": "RviOpts",
@@ -4032,7 +4562,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: RviOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ScaleAxis": {
         "fqn": "ScaleAxis",
@@ -4043,7 +4573,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ScaleAxis = \"right\";\nvoid s;"
         ],
         "since": "0.4",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "Schema": {
         "fqn": "Schema",
@@ -4054,7 +4584,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: Schema<number> = { kind: \"external-series-schema\" };\nvoid s;"
         ],
         "since": "0.4",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ScriptManifest": {
         "fqn": "ScriptManifest",
@@ -4065,7 +4595,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const m: ScriptManifest = {\napiVersion: 1,\nkind: \"indicator\",\nname: \"demo\",\ninputs: {},\ncapabilities: [\"indicators\"],\nrequestedIntervals: [],\nuserPickableInterval: false,\nseriesCapacities: {},\nmaxLookback: 0,\nshortName: \"demo\",\nformat: \"compact\",\n};"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ScriptOverrides": {
         "fqn": "ScriptOverrides",
@@ -4076,13 +4606,13 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const o: ScriptOverrides = {\nshortName: \"EMA(20)\",\nprecision: 4,\nformat: \"price\",\n};\nvoid o;"
         ],
         "since": "0.4",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "SecurityBar": {
         "fqn": "SecurityBar",
         "kind": "type",
         "title": "SecurityBar",
-        "summary": "/**\nSecondary-stream bar returned by  {@link request.security} . Each field is a\n`Series<...>` backed by the runtime's secondary-stream ring buffer, or by\nthe all-NaN fallback when `Capabilities.multiTimeframe` is `false`.",
+        "summary": "/**\nSecondary-stream bar returned by  {@link request.security} . Each field is a\n`Series<...>` aligned from the runtime's secondary-stream ring buffer to\nthe current main stream, or by the all-NaN fallback when\n`Capabilities.multiTimeframe` is `false`, the interval is unsupported, or\nthe host fails to register the secondary stream.",
         "examples": [
             "const close: SecurityBar[\"close\"] = { current: 1, length: 1 };\nvoid close;"
         ],
@@ -4098,7 +4628,62 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "function delta(close: Series<number>): number {\nreturn close.current - close[1];\n}"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "session": {
+        "fqn": "session",
+        "kind": "property",
+        "title": "session",
+        "summary": "Frozen session helper namespace.",
+        "examples": [
+            "const open = session.isOpen(\"America/New_York\", 1_709_251_200_000, \"regular\");\nvoid open;"
+        ],
+        "since": "0.6",
+        "stability": "stable"
+    },
+    "SessionBounds": {
+        "fqn": "SessionBounds",
+        "kind": "type",
+        "title": "SessionBounds",
+        "summary": "Half-open UTC millisecond session bounds.",
+        "examples": [
+            "const bounds: SessionBounds = { startMs: 0, endMs: 1 };\nvoid bounds;"
+        ],
+        "since": "0.6",
+        "stability": "stable"
+    },
+    "SessionType": {
+        "fqn": "SessionType",
+        "kind": "type",
+        "title": "SessionType",
+        "summary": "Supported market-session boundary families.",
+        "examples": [
+            "const type: SessionType = \"regular\";\nvoid type;"
+        ],
+        "since": "0.6",
+        "stability": "stable"
+    },
+    "SessionVolumeProfileOpts": {
+        "fqn": "SessionVolumeProfileOpts",
+        "kind": "type",
+        "title": "SessionVolumeProfileOpts",
+        "summary": "Options bag for `ta.sessionVolumeProfile`. `sessionStart` is an\nexplicit UTC millisecond boundary override; omitted values derive the\ncurrent session from `syminfo.session` when adapters provide it, or\nUTC-day fallback boundaries otherwise. `rowSize`, `valueAreaPct`,\n`offset`, and `bucketColor` mirror the other volume-profile primitives.",
+        "examples": [
+            "const opts: SessionVolumeProfileOpts = {\nrowSize: 24,\nvalueAreaPct: 0.7,\nsessionStart: 1_700_000_000_000,\n};"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "SessionVolumeProfileResult": {
+        "fqn": "SessionVolumeProfileResult",
+        "kind": "type",
+        "title": "SessionVolumeProfileResult",
+        "summary": "Multi-output result from `ta.sessionVolumeProfile`.",
+        "examples": [
+            "declare const vp: SessionVolumeProfileResult;\nconst poc = vp.poc.current;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "ShapeStyle": {
         "fqn": "ShapeStyle",
@@ -4109,7 +4694,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ShapeStyle = {\nstroke: \"#3b82f6\",\nfill: \"#dbeafe\",\nfillAlpha: 0.4,\nlineWidth: 1,\nlineStyle: \"solid\",\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "SineLineState": {
         "fqn": "SineLineState",
@@ -4120,7 +4705,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: SineLineState = {\nkind: \"sine-line\",\nanchors: [{ time: 0, price: 0 }, { time: 100, price: 1 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "SmaOpts": {
         "fqn": "SmaOpts",
@@ -4131,7 +4716,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: SmaOpts = { offset: 0 };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "SmiOpts": {
         "fqn": "SmiOpts",
@@ -4142,7 +4727,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: SmiOpts = { kLength: 10, firstSmoothing: 3, secondSmoothing: 5, dLength: 3 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "SmiResult": {
         "fqn": "SmiResult",
@@ -4153,7 +4738,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s = ta.smi();\nplot(s.smi);\nplot(s.signal);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "SmmaOpts": {
         "fqn": "SmmaOpts",
@@ -4164,7 +4749,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: SmmaOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "SourceDescriptor": {
         "fqn": "SourceDescriptor",
@@ -4291,18 +4876,18 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "import { STATEFUL_PRIMITIVES } from \"@invinite-org/chartlang-core\";\nfor (const entry of STATEFUL_PRIMITIVES) {\nif (entry.name === \"ta.ema\" && entry.slot) {\n// compiler injects an id here\n}\n}"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "STATEFUL_PRIMITIVES_BY_NAME": {
         "fqn": "STATEFUL_PRIMITIVES_BY_NAME",
         "kind": "property",
         "title": "STATEFUL_PRIMITIVES_BY_NAME",
-        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 90+ entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
+        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 172-entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
         "examples": [
             "import { STATEFUL_PRIMITIVES_BY_NAME } from \"@invinite-org/chartlang-core\";\nconst entry = STATEFUL_PRIMITIVES_BY_NAME.get(\"ta.ema\");\n// entry is { name: \"ta.ema\", slot: true } | undefined"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "StatefulPrimitiveEntry": {
         "fqn": "StatefulPrimitiveEntry",
@@ -4313,7 +4898,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const entry: StatefulPrimitiveEntry = { name: \"ta.nz\", slot: false };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "StateNamespace": {
         "fqn": "StateNamespace",
@@ -4326,6 +4911,28 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "StateSnapshot": {
+        "fqn": "StateSnapshot",
+        "kind": "type",
+        "title": "StateSnapshot",
+        "summary": "Canonical persistent-store snapshot.",
+        "examples": [
+            "const s: StateSnapshot = {\nlastBarTime: 1_700_000_000_000,\nstreams: {},\nslots: {},\nsavedAt: 1_700_000_060_000,\nsnapshotVersion: 1,\n};\nvoid s;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "StateStoreKey": {
+        "fqn": "StateStoreKey",
+        "kind": "type",
+        "title": "StateStoreKey",
+        "summary": "Canonical persistent-store identity tuple.",
+        "examples": [
+            "const k: StateStoreKey = {\nscriptHash: \"abc\",\ncompilerVersion: \"0.5.0\",\napiVersion: 1,\ncapabilitiesHash: \"def\",\nsymbol: \"BTCUSD\",\nmainInterval: \"1m\",\nrequestedIntervals: [],\n};\nvoid k;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
     "StdevOpts": {
         "fqn": "StdevOpts",
         "kind": "type",
@@ -4335,7 +4942,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: StdevOpts = { biased: false, offset: 0 };"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "StochOpts": {
         "fqn": "StochOpts",
@@ -4346,7 +4953,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: StochOpts = { kLength: 14, kSmoothing: 3, dLength: 3 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "StochResult": {
         "fqn": "StochResult",
@@ -4357,7 +4964,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s = ta.stoch({ kLength: 14, kSmoothing: 3, dLength: 3 });\nplot(s.k);\nplot(s.d);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "StochRsiOpts": {
         "fqn": "StochRsiOpts",
@@ -4368,7 +4975,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: StochRsiOpts = { rsiLength: 14, stochLength: 14, kSmoothing: 3, dSmoothing: 3 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "StochRsiResult": {
         "fqn": "StochRsiResult",
@@ -4379,7 +4986,18 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s = ta.stochRsi(bar.close);\nplot(s.k);\nplot(s.d);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "StreamSnapshot": {
+        "fqn": "StreamSnapshot",
+        "kind": "type",
+        "title": "StreamSnapshot",
+        "summary": "Per-stream snapshot captured during state persistence.",
+        "examples": [
+            "const s: StreamSnapshot = {\ninterval: \"1D\",\nheadIndex: 4999,\nfilled: 5000,\nbuffers: { time: [], open: [], high: [], low: [], close: [], volume: [] },\n};\nvoid s;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "StringDescriptor": {
         "fqn": "StringDescriptor",
@@ -4401,7 +5019,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: SupertrendOpts = { length: 10, multiplier: 3 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "SupertrendResult": {
         "fqn": "SupertrendResult",
@@ -4412,7 +5030,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s = ta.supertrend({ length: 10, multiplier: 3 });\nplot(s.line);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "SymbolDescriptor": {
         "fqn": "SymbolDescriptor",
@@ -4467,7 +5085,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "```ts\nimport { defineIndicator, ta, plot } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\nname: \"EMA(20)\",\napiVersion: 1,\ncompute: ({ bar }) => {\nplot(ta.ema(bar.close, 20));\n},\n});\n```"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.adl": {
         "fqn": "ta.adl",
@@ -4482,7 +5100,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.adr": {
         "fqn": "ta.adr",
@@ -4497,7 +5115,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.adx": {
         "fqn": "ta.adx",
@@ -4517,7 +5135,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.alma": {
         "fqn": "ta.alma",
@@ -4542,7 +5160,22 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "ta.anchoredVolumeProfile": {
+        "fqn": "ta.anchoredVolumeProfile",
+        "kind": "function",
+        "title": "ta.anchoredVolumeProfile(opts)",
+        "summary": "The typed surface of the `ta` namespace. The runtime registers concrete\nimplementations against this interface; scripts call it through the\n`ta` constant exported from `@invinite-org/chartlang-core`. Method: ta.anchoredVolumeProfile.",
+        "paramTable": [
+            {
+                "name": "opts",
+                "type": "AnchoredVolumeProfileOpts",
+                "doc": ""
+            }
+        ],
+        "since": "0.1",
+        "stability": "stable"
     },
     "ta.anchoredVwap": {
         "fqn": "ta.anchoredVwap",
@@ -4562,7 +5195,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.ao": {
         "fqn": "ta.ao",
@@ -4577,7 +5210,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.aroon": {
         "fqn": "ta.aroon",
@@ -4597,7 +5230,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.aroonOsc": {
         "fqn": "ta.aroonOsc",
@@ -4617,7 +5250,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.atr": {
         "fqn": "ta.atr",
@@ -4637,7 +5270,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.barssince": {
         "fqn": "ta.barssince",
@@ -4657,7 +5290,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.bb": {
         "fqn": "ta.bb",
@@ -4682,7 +5315,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.bbPercentB": {
         "fqn": "ta.bbPercentB",
@@ -4707,7 +5340,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.bbw": {
         "fqn": "ta.bbw",
@@ -4732,7 +5365,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.bop": {
         "fqn": "ta.bop",
@@ -4747,7 +5380,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.cci": {
         "fqn": "ta.cci",
@@ -4772,7 +5405,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.chaikinOsc": {
         "fqn": "ta.chaikinOsc",
@@ -4787,7 +5420,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.chandeKrollStop": {
         "fqn": "ta.chandeKrollStop",
@@ -4802,7 +5435,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.chandelier": {
         "fqn": "ta.chandelier",
@@ -4817,7 +5450,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.change": {
         "fqn": "ta.change",
@@ -4837,7 +5470,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.chop": {
         "fqn": "ta.chop",
@@ -4857,7 +5490,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.cmf": {
         "fqn": "ta.cmf",
@@ -4877,7 +5510,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.cmo": {
         "fqn": "ta.cmo",
@@ -4902,7 +5535,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.connorsRsi": {
         "fqn": "ta.connorsRsi",
@@ -4922,7 +5555,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.coppock": {
         "fqn": "ta.coppock",
@@ -4942,7 +5575,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.crossover": {
         "fqn": "ta.crossover",
@@ -4967,7 +5600,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.crossunder": {
         "fqn": "ta.crossunder",
@@ -4992,7 +5625,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.dema": {
         "fqn": "ta.dema",
@@ -5017,7 +5650,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.dmi": {
         "fqn": "ta.dmi",
@@ -5037,7 +5670,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.donchian": {
         "fqn": "ta.donchian",
@@ -5057,7 +5690,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.dpo": {
         "fqn": "ta.dpo",
@@ -5082,7 +5715,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.ema": {
         "fqn": "ta.ema",
@@ -5107,7 +5740,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.envelope": {
         "fqn": "ta.envelope",
@@ -5127,7 +5760,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.eom": {
         "fqn": "ta.eom",
@@ -5147,7 +5780,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.fisher": {
         "fqn": "ta.fisher",
@@ -5167,7 +5800,22 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "ta.fixedRangeVolumeProfile": {
+        "fqn": "ta.fixedRangeVolumeProfile",
+        "kind": "function",
+        "title": "ta.fixedRangeVolumeProfile(opts)",
+        "summary": "The typed surface of the `ta` namespace. The runtime registers concrete\nimplementations against this interface; scripts call it through the\n`ta` constant exported from `@invinite-org/chartlang-core`. Method: ta.fixedRangeVolumeProfile.",
+        "paramTable": [
+            {
+                "name": "opts",
+                "type": "FixedRangeVolumeProfileOpts",
+                "doc": ""
+            }
+        ],
+        "since": "0.1",
+        "stability": "stable"
     },
     "ta.highest": {
         "fqn": "ta.highest",
@@ -5192,7 +5840,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.historicalVolatility": {
         "fqn": "ta.historicalVolatility",
@@ -5217,7 +5865,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.hma": {
         "fqn": "ta.hma",
@@ -5242,7 +5890,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.ichimoku": {
         "fqn": "ta.ichimoku",
@@ -5257,7 +5905,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.kama": {
         "fqn": "ta.kama",
@@ -5277,7 +5925,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.keltner": {
         "fqn": "ta.keltner",
@@ -5292,7 +5940,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.klinger": {
         "fqn": "ta.klinger",
@@ -5307,7 +5955,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.kst": {
         "fqn": "ta.kst",
@@ -5327,7 +5975,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.lowest": {
         "fqn": "ta.lowest",
@@ -5352,7 +6000,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.lsma": {
         "fqn": "ta.lsma",
@@ -5377,7 +6025,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.macd": {
         "fqn": "ta.macd",
@@ -5397,7 +6045,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.maRibbon": {
         "fqn": "ta.maRibbon",
@@ -5417,7 +6065,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.massIndex": {
         "fqn": "ta.massIndex",
@@ -5432,7 +6080,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.mcginley": {
         "fqn": "ta.mcginley",
@@ -5457,7 +6105,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.median": {
         "fqn": "ta.median",
@@ -5482,7 +6130,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.mfi": {
         "fqn": "ta.mfi",
@@ -5502,7 +6150,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.momentum": {
         "fqn": "ta.momentum",
@@ -5527,7 +6175,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.netVolume": {
         "fqn": "ta.netVolume",
@@ -5542,7 +6190,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.nvi": {
         "fqn": "ta.nvi",
@@ -5557,7 +6205,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.nz": {
         "fqn": "ta.nz",
@@ -5577,7 +6225,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.obv": {
         "fqn": "ta.obv",
@@ -5592,7 +6240,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.pivotsHighLow": {
         "fqn": "ta.pivotsHighLow",
@@ -5607,7 +6255,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.pivotsStandard": {
         "fqn": "ta.pivotsStandard",
@@ -5622,7 +6270,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.pmo": {
         "fqn": "ta.pmo",
@@ -5642,7 +6290,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.ppo": {
         "fqn": "ta.ppo",
@@ -5662,7 +6310,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.psar": {
         "fqn": "ta.psar",
@@ -5677,7 +6325,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.pvi": {
         "fqn": "ta.pvi",
@@ -5692,7 +6340,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.pvo": {
         "fqn": "ta.pvo",
@@ -5707,7 +6355,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.pvt": {
         "fqn": "ta.pvt",
@@ -5722,7 +6370,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.roc": {
         "fqn": "ta.roc",
@@ -5747,7 +6395,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.rsi": {
         "fqn": "ta.rsi",
@@ -5772,7 +6420,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.rvgi": {
         "fqn": "ta.rvgi",
@@ -5787,7 +6435,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.rvi": {
         "fqn": "ta.rvi",
@@ -5812,7 +6460,22 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "ta.sessionVolumeProfile": {
+        "fqn": "ta.sessionVolumeProfile",
+        "kind": "function",
+        "title": "ta.sessionVolumeProfile(opts?)",
+        "summary": "The typed surface of the `ta` namespace. The runtime registers concrete\nimplementations against this interface; scripts call it through the\n`ta` constant exported from `@invinite-org/chartlang-core`. Method: ta.sessionVolumeProfile.",
+        "paramTable": [
+            {
+                "name": "opts",
+                "type": "SessionVolumeProfileOpts",
+                "doc": ""
+            }
+        ],
+        "since": "0.1",
+        "stability": "stable"
     },
     "ta.sma": {
         "fqn": "ta.sma",
@@ -5837,7 +6500,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.smi": {
         "fqn": "ta.smi",
@@ -5852,7 +6515,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.smma": {
         "fqn": "ta.smma",
@@ -5877,7 +6540,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.stdev": {
         "fqn": "ta.stdev",
@@ -5902,7 +6565,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.stoch": {
         "fqn": "ta.stoch",
@@ -5917,7 +6580,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.stochRsi": {
         "fqn": "ta.stochRsi",
@@ -5937,7 +6600,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.supertrend": {
         "fqn": "ta.supertrend",
@@ -5952,7 +6615,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.tema": {
         "fqn": "ta.tema",
@@ -5977,7 +6640,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.trendStrengthIndex": {
         "fqn": "ta.trendStrengthIndex",
@@ -6002,7 +6665,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.trix": {
         "fqn": "ta.trix",
@@ -6027,7 +6690,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.tsi": {
         "fqn": "ta.tsi",
@@ -6047,7 +6710,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.ulcerIndex": {
         "fqn": "ta.ulcerIndex",
@@ -6072,7 +6735,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.ultimateOsc": {
         "fqn": "ta.ultimateOsc",
@@ -6087,7 +6750,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.valuewhen": {
         "fqn": "ta.valuewhen",
@@ -6117,7 +6780,22 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "ta.visibleRangeVolumeProfile": {
+        "fqn": "ta.visibleRangeVolumeProfile",
+        "kind": "function",
+        "title": "ta.visibleRangeVolumeProfile(opts?)",
+        "summary": "The typed surface of the `ta` namespace. The runtime registers concrete\nimplementations against this interface; scripts call it through the\n`ta` constant exported from `@invinite-org/chartlang-core`. Method: ta.visibleRangeVolumeProfile.",
+        "paramTable": [
+            {
+                "name": "opts",
+                "type": "VisibleRangeVolumeProfileOpts",
+                "doc": ""
+            }
+        ],
+        "since": "0.1",
+        "stability": "stable"
     },
     "ta.vol": {
         "fqn": "ta.vol",
@@ -6132,7 +6810,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.volatilityStop": {
         "fqn": "ta.volatilityStop",
@@ -6147,7 +6825,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.vortex": {
         "fqn": "ta.vortex",
@@ -6167,7 +6845,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.vwap": {
         "fqn": "ta.vwap",
@@ -6182,7 +6860,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.vwma": {
         "fqn": "ta.vwma",
@@ -6207,7 +6885,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.williamsFractal": {
         "fqn": "ta.williamsFractal",
@@ -6222,7 +6900,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.williamsR": {
         "fqn": "ta.williamsR",
@@ -6242,7 +6920,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.wma": {
         "fqn": "ta.wma",
@@ -6267,7 +6945,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ta.zigZag": {
         "fqn": "ta.zigZag",
@@ -6282,7 +6960,69 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "table": {
+        "fqn": "table",
+        "kind": "function",
+        "title": "table(_opts)",
+        "summary": "Compile-time callable hole. The runtime swaps this for the slot-id\naware implementation, and the compiler injects the callsite id into\nevery script-side `draw.table(opts)` call.",
+        "paramTable": [
+            {
+                "name": "_opts",
+                "type": "TableOpts",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "// Inside compute:\n// const h = draw.table({\n//     position: \"top-right\",\n//     cells: [[{ text: \"P&L\" }, { text: \"+12.5%\", textColor: \"#16a34a\" }]],\n// });"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "TableCell": {
+        "fqn": "TableCell",
+        "kind": "type",
+        "title": "TableCell",
+        "summary": "One cell in a `draw.table` dashboard. Text is required; styling\nfields are optional and interpreted by the target adapter.",
+        "examples": [
+            "const cell: TableCell = {\ntext: \"P&L\",\ntextColor: \"#16a34a\",\ntextHalign: \"right\",\n};\nvoid cell;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "TableOpts": {
+        "fqn": "TableOpts",
+        "kind": "type",
+        "title": "TableOpts",
+        "summary": "Options accepted by `draw.table`.",
+        "examples": [
+            "const opts: TableOpts = {\nposition: \"top-right\",\ncells: [[{ text: \"P&L\" }, { text: \"+12.5%\", textColor: \"#16a34a\" }]],\nborderColor: \"#94a3b8\",\nborderWidth: 1,\n};\nvoid opts;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "TablePosition": {
+        "fqn": "TablePosition",
+        "kind": "type",
+        "title": "TablePosition",
+        "summary": "CSS-pixel viewport anchor used by `draw.table`. Tables are status\npanels, not world-space drawings, so the position resolves against\nthe adapter viewport per PLAN.md §10.2.",
+        "examples": [
+            "const position: TablePosition = \"top-right\";\nvoid position;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "TableState": {
+        "fqn": "TableState",
+        "kind": "type",
+        "title": "TableState",
+        "summary": "`table` — CSS-pixel viewport-anchored dashboard/status panel. It\ndeliberately carries no world-space anchors; adapters resolve\n`position` against the current viewport per PLAN.md §10.2.",
+        "examples": [
+            "const s: TableState = {\nkind: \"table\",\nposition: \"top-right\",\ncells: [[{ text: \"P&L\" }, { text: \"+12.5%\", textColor: \"#16a34a\" }]],\n};\nvoid s;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "TaNamespace": {
         "fqn": "TaNamespace",
@@ -6293,7 +7033,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "declare const close: Series<number>;\nconst e: Series<number> = ta.ema(close, 20);"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TemaOpts": {
         "fqn": "TemaOpts",
@@ -6304,7 +7044,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: TemaOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TextOpts": {
         "fqn": "TextOpts",
@@ -6315,7 +7055,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const t: TextOpts = {\ncolor: \"#1e293b\",\nsize: \"normal\",\nhalign: \"center\",\nvalign: \"middle\",\nbgColor: \"#fef3c7\",\n};\nvoid t;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TextState": {
         "fqn": "TextState",
@@ -6326,7 +7066,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: TextState = {\nkind: \"text\",\nanchor: { time: 1, price: 1 },\nbody: \"Note\",\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ThreeDrivesPatternState": {
         "fqn": "ThreeDrivesPatternState",
@@ -6337,7 +7077,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ThreeDrivesPatternState = {\nkind: \"three-drives-pattern\",\nanchors: [\n{ time: 0, price: 0 }, { time: 1, price: 1 },\n{ time: 2, price: 0.5 }, { time: 3, price: 1.5 },\n{ time: 4, price: 1 }, { time: 5, price: 2 },\n{ time: 6, price: 1.5 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "Time": {
         "fqn": "Time",
@@ -6348,7 +7088,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const t: Time = 1_700_000_000_000;"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TimeCyclesState": {
         "fqn": "TimeCyclesState",
@@ -6359,7 +7099,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: TimeCyclesState = {\nkind: \"time-cycles\",\nanchors: [{ time: 0, price: 0 }, { time: 100, price: 0 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TimeDescriptor": {
         "fqn": "TimeDescriptor",
@@ -6403,7 +7143,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: TrendAngleState = {\nkind: \"trend-angle\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 1 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TrendChannelState": {
         "fqn": "TrendChannelState",
@@ -6414,7 +7154,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: TrendChannelState = {\nkind: \"trend-channel\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 1 },\n{ time: 0, price: 1 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TrendStrengthIndexOpts": {
         "fqn": "TrendStrengthIndexOpts",
@@ -6425,7 +7165,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: TrendStrengthIndexOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TrianglePatternState": {
         "fqn": "TrianglePatternState",
@@ -6436,7 +7176,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: TrianglePatternState = {\nkind: \"triangle-pattern\",\nanchors: [\n{ time: 2, price: 0.5 },\n{ time: 0, price: 1 },\n{ time: 0, price: 0 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TriangleState": {
         "fqn": "TriangleState",
@@ -6447,7 +7187,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: TriangleState = {\nkind: \"triangle\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 1 },\n{ time: 2, price: 0 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TrixOpts": {
         "fqn": "TrixOpts",
@@ -6458,7 +7198,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: TrixOpts = { signalLength: 9 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TrixResult": {
         "fqn": "TrixResult",
@@ -6469,7 +7209,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const t = ta.trix(bar.close, 18);\nplot(t.trix);\nplot(t.signal);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TsiOpts": {
         "fqn": "TsiOpts",
@@ -6480,7 +7220,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: TsiOpts = { firstSmoothing: 25, secondSmoothing: 13, signalLength: 13 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "TsiResult": {
         "fqn": "TsiResult",
@@ -6491,7 +7231,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const t = ta.tsi(bar.close);\nplot(t.tsi);\nplot(t.signal);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "UlcerIndexOpts": {
         "fqn": "UlcerIndexOpts",
@@ -6502,7 +7242,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: UlcerIndexOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "UltimateOscOpts": {
         "fqn": "UltimateOscOpts",
@@ -6513,7 +7253,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: UltimateOscOpts = { shortLength: 7, mediumLength: 14, longLength: 28 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ValueFormat": {
         "fqn": "ValueFormat",
@@ -6524,7 +7264,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const f: ValueFormat = \"percent\";\nvoid f;"
         ],
         "since": "0.4",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ValuewhenOpts": {
         "fqn": "ValuewhenOpts",
@@ -6535,7 +7275,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: ValuewhenOpts = { offset: 0 };"
         ],
         "since": "0.4",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "VerticalLineState": {
         "fqn": "VerticalLineState",
@@ -6546,7 +7286,29 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: VerticalLineState = {\nkind: \"vertical-line\",\ntime: 1_700_000_000_000,\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "VisibleRangeVolumeProfileOpts": {
+        "fqn": "VisibleRangeVolumeProfileOpts",
+        "kind": "type",
+        "title": "VisibleRangeVolumeProfileOpts",
+        "summary": "Options bag for `ta.visibleRangeVolumeProfile`. `rowSize` selects\nthe number of price rows when positive; `0` / omitted falls back to\nthe runtime's automatic row count. `valueAreaPct` accepts either\na fraction (`0.7`) or percentage (`70`). `bucketColor` is copied to\neach emitted horizontal-histogram bucket.",
+        "examples": [
+            "const opts: VisibleRangeVolumeProfileOpts = {\nrowSize: 24,\nvalueAreaPct: 0.7,\nbucketColor: \"#90caf9\",\n};"
+        ],
+        "since": "0.5",
+        "stability": "stable"
+    },
+    "VisibleRangeVolumeProfileResult": {
+        "fqn": "VisibleRangeVolumeProfileResult",
+        "kind": "type",
+        "title": "VisibleRangeVolumeProfileResult",
+        "summary": "Multi-output result from `ta.visibleRangeVolumeProfile`.",
+        "examples": [
+            "declare const vp: VisibleRangeVolumeProfileResult;\nconst poc = vp.poc.current;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "VolatilityStopOpts": {
         "fqn": "VolatilityStopOpts",
@@ -6557,7 +7319,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: VolatilityStopOpts = { length: 20, multiplier: 2 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "VolatilityStopResult": {
         "fqn": "VolatilityStopResult",
@@ -6568,7 +7330,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const v = ta.volatilityStop({ length: 20, multiplier: 2 });\nplot(v.value);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "VolOpts": {
         "fqn": "VolOpts",
@@ -6579,7 +7341,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: VolOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "Volume": {
         "fqn": "Volume",
@@ -6590,7 +7352,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const v: Volume = 1_250_000;"
         ],
         "since": "0.1",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "VortexOpts": {
         "fqn": "VortexOpts",
@@ -6601,7 +7363,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: VortexOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "VortexResult": {
         "fqn": "VortexResult",
@@ -6612,7 +7374,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const v = ta.vortex(14);\nplot(v.plus);\nplot(v.minus);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "VwapOpts": {
         "fqn": "VwapOpts",
@@ -6623,7 +7385,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: VwapOpts = { source: \"hlc3\" };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "VwmaOpts": {
         "fqn": "VwmaOpts",
@@ -6634,7 +7396,64 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: VwmaOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "weekday": {
+        "fqn": "weekday",
+        "kind": "function",
+        "title": "weekday(tz, t)",
+        "summary": "Return the local weekday in `tz`, where Sunday is 0.",
+        "paramTable": [
+            {
+                "name": "tz",
+                "type": "string",
+                "doc": ""
+            },
+            {
+                "name": "t",
+                "type": "Time",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "weekday(\"UTC\", 1_704_067_200_000);"
+        ],
+        "since": "0.6",
+        "stability": "stable"
+    },
+    "Weekday": {
+        "fqn": "Weekday",
+        "kind": "type",
+        "title": "Weekday",
+        "summary": "Day-of-week index where Sunday is 0 and Saturday is 6.",
+        "examples": [
+            "const day: Weekday = 1;\nvoid day;"
+        ],
+        "since": "0.6",
+        "stability": "stable"
+    },
+    "weekKey": {
+        "fqn": "weekKey",
+        "kind": "function",
+        "title": "weekKey(tz, t)",
+        "summary": "Return the ISO week key (`GGGG-Www`) for `t` in `tz`.",
+        "paramTable": [
+            {
+                "name": "tz",
+                "type": "string",
+                "doc": ""
+            },
+            {
+                "name": "t",
+                "type": "Time",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "weekKey(\"UTC\", 1_704_067_200_000);"
+        ],
+        "since": "0.6",
+        "stability": "stable"
     },
     "WilliamsFractalOpts": {
         "fqn": "WilliamsFractalOpts",
@@ -6645,7 +7464,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: WilliamsFractalOpts = { length: 2 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "WilliamsFractalResult": {
         "fqn": "WilliamsFractalResult",
@@ -6656,7 +7475,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const f = ta.williamsFractal();\nplot(f.up,   { style: { kind: \"marker\", shape: \"triangle-up\",   size: 6 } });\nplot(f.down, { style: { kind: \"marker\", shape: \"triangle-down\", size: 6 } });"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "WilliamsROpts": {
         "fqn": "WilliamsROpts",
@@ -6667,7 +7486,30 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: WilliamsROpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
+    },
+    "withAlpha": {
+        "fqn": "withAlpha",
+        "kind": "function",
+        "title": "withAlpha(c, alpha)",
+        "summary": "Override an existing color's alpha channel. `alpha` is clamped to\n`[0, 1]`. NaN returns the input color unchanged. Pine's `color.new(c,\ntransp)` analogue using direct alpha.",
+        "paramTable": [
+            {
+                "name": "c",
+                "type": "Color",
+                "doc": ""
+            },
+            {
+                "name": "alpha",
+                "type": "number",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const c = withAlpha(\"#ff0000\", 0.5);\nvoid c;"
+        ],
+        "since": "0.5",
+        "stability": "stable"
     },
     "WmaOpts": {
         "fqn": "WmaOpts",
@@ -6678,7 +7520,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: WmaOpts = { offset: 0 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "WorldPoint": {
         "fqn": "WorldPoint",
@@ -6689,7 +7531,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const anchor: WorldPoint = { time: 1_700_000_000_000, price: 42.31 };\nvoid anchor;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "XabcdPatternState": {
         "fqn": "XabcdPatternState",
@@ -6700,7 +7542,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: XabcdPatternState = {\nkind: \"xabcd-pattern\",\nanchors: [\n{ time: 0, price: 0 }, { time: 1, price: 1 },\n{ time: 2, price: 0.5 }, { time: 3, price: 1.5 },\n{ time: 4, price: 1 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ZigZagOpts": {
         "fqn": "ZigZagOpts",
@@ -6711,7 +7553,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: ZigZagOpts = { deviation: 5, depth: 10 };"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     },
     "ZigZagResult": {
         "fqn": "ZigZagResult",
@@ -6722,7 +7564,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const z = ta.zigZag({ deviation: 5 });\nplot(z.value);"
         ],
         "since": "0.2",
-        "stability": "experimental"
+        "stability": "stable"
     }
 } as const,
 );

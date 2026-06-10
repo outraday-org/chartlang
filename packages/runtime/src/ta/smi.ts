@@ -86,7 +86,7 @@ function smiValue(numSmoothed: number, denSmoothed: number): number {
  *           signal = EMA(dLength)(smi)
  * @warmup   kLength + firstSmoothing + secondSmoothing + dLength − 4
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

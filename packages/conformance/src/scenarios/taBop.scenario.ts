@@ -26,7 +26,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `goldenBars.json` fixture in its own pane.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_BOP_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_BOP_SCENARIO;

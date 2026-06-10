@@ -2,7 +2,7 @@
 
 # `draw.xabcdPattern`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.3
 > **Bucket:** `polylines`
 > **Wire kind:** `xabcd-pattern`

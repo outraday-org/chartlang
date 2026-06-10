@@ -24,7 +24,7 @@ const DEFAULT_LABELS: ReadonlyArray<string> = ["a", "b", "c", "d", "e"];
  * "d", "e"]` labels.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

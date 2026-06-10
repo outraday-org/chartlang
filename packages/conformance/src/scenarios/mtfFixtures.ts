@@ -10,7 +10,7 @@ const MS_PER_DAY = 86_400_000;
  * Secondary daily candles used by MTF conformance scenarios.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { MTF_DAILY_FIXTURE_BARS } from "./mtfFixtures";
  *     void MTF_DAILY_FIXTURE_BARS.length;

@@ -2,7 +2,7 @@
 
 # `ta.highest`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Rolling maximum of the last `length` source values. NaN inputs are

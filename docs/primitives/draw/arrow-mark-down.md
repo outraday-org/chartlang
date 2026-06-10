@@ -2,7 +2,7 @@
 
 # `draw.arrowMarkDown`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.3
 > **Bucket:** `labels`
 > **Wire kind:** `arrow-mark-down`

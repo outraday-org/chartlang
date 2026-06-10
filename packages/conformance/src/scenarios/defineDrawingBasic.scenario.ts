@@ -44,7 +44,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * post-compile runtime path is unaffected by the new constructor.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DEFINE_DRAWING_BASIC_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DEFINE_DRAWING_BASIC_SCENARIO;

@@ -188,7 +188,7 @@ function tickValue(slot: HvSlot, src: number): number {
  * @warmup   length
  * @anchors  annualisationFactor
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series so `series.current` reads
  * the value `offset` bars ago (PLAN.md §9.1).

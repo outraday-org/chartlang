@@ -25,7 +25,7 @@ const DEFAULT_COLOR = "#22c55e";
  * default; an explicit `state.style.color` overrides.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

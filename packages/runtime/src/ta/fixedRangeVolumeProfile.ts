@@ -135,7 +135,7 @@ function diagnoseInvertedRange(ctx: RuntimeContext, slotId: string): void {
  *           one-bar window can emit on the anchor bar when it has
  *           finite positive volume.
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // import { input, plot, ta } from "@invinite-org/chartlang-core";
  *     // const from = input.time(0, { pickFromChart: true, title: "From" });

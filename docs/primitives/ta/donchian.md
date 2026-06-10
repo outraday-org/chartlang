@@ -2,7 +2,7 @@
 
 # `ta.donchian`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Donchian Channels — overlay volatility indicator. Highest high and

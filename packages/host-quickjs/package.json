@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-host-quickjs",
-    "version": "0.5.0",
+    "version": "1.0.0",
     "type": "module",
     "license": "MIT",
     "description": "QuickJS-WASM ScriptHost for untrusted / server-side execution",
@@ -31,7 +31,8 @@
         "esbuild": "^0.24.0"
     },
     "publishConfig": {
-        "access": "public"
+        "access": "public",
+        "provenance": true
     },
     "engines": {
         "node": ">=20"

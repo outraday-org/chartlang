@@ -2,7 +2,7 @@
 
 # `ta.cci`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Commodity Channel Index — momentum oscillator centred on `0`.

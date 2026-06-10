@@ -46,7 +46,7 @@ function rotatedRectangleImpl(
  * @anchorCount 4
  * @bucket boxes
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -70,7 +70,7 @@ export function rotatedRectangle(anchors: AnchorQuad, opts?: ShapeStyle): Drawin
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof rotatedRectangle = rotatedRectangle;
@@ -87,7 +87,7 @@ export function rotatedRectangle(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof rotatedRectangle = rotatedRectangle;
  *     // void fn;

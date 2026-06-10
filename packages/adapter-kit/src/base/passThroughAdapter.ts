@@ -9,7 +9,7 @@ import type { Adapter, CandleEvent, Capabilities, RunnerEmissions } from "../typ
  * caller doesn't need to observe outputs.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import {
  *         PassThroughAdapter,

@@ -2,7 +2,7 @@
 
 # `ta.envelope`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Envelope — overlay percent-band envelope around an MA of the

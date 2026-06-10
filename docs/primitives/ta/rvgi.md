@@ -2,7 +2,7 @@
 
 # `ta.rvgi`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Relative Vigor Index (John Ehlers, 2002). Per-bar 4-bar weighted

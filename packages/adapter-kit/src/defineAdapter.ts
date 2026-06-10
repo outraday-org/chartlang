@@ -8,7 +8,7 @@ import type { Adapter } from "./types";
  * `defineAdapter` substitutes a no-op when omitted.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: DefineAdapterOpts = {
  *         id: "demo",
@@ -45,7 +45,7 @@ export type DefineAdapterOpts = Omit<Adapter, "dispose"> & {
  * normalisation, no cloning.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { defineAdapter, capabilities, mockCandleSource }
  *         from "@invinite-org/chartlang-adapter-kit";

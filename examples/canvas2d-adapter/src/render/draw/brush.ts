@@ -25,7 +25,7 @@ const DEFAULT_LINE_WIDTH = 1;
  * `BrushStyle`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

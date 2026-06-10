@@ -8,7 +8,7 @@
  * control points they don't own.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const p: Point2 = { x: 100, y: 50 };
  *     void p;
@@ -25,7 +25,7 @@ export type Point2 = { readonly x: number; readonly y: number };
  * (Task 15).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const mid = quadraticBezier({ x: 0, y: 0 }, { x: 1, y: 2 }, { x: 2, y: 0 }, 0.5);
  *     // mid.x === 1; mid.y === 1 (apex of the convex hull).
@@ -46,7 +46,7 @@ export function quadraticBezier(p0: Point2, p1: Point2, p2: Point2, t: number): 
  * Used by curve / spiral / pattern renderers (Tasks 8, 12, 15).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const start = cubicBezier(
  *         { x: 0, y: 0 }, { x: 1, y: 3 }, { x: 2, y: 3 }, { x: 3, y: 0 }, 0,
@@ -73,7 +73,7 @@ export function cubicBezier(p0: Point2, p1: Point2, p2: Point2, p3: Point2, t: n
  * the `RenderCtx` to grow a `quadraticCurveTo` method).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const pts = sampleQuadratic({ x: 0, y: 0 }, { x: 1, y: 2 }, { x: 2, y: 0 }, 4);
  *     // pts.length === 5; pts[0] === { x: 0, y: 0 }; pts[4] === { x: 2, y: 0 }.
@@ -97,7 +97,7 @@ export function sampleQuadratic(
  * parameter `t ∈ [0, 1]`. Mirrors {@link sampleQuadratic}.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const pts = sampleCubic(
  *         { x: 0, y: 0 }, { x: 1, y: 3 }, { x: 2, y: 3 }, { x: 3, y: 0 }, 8,

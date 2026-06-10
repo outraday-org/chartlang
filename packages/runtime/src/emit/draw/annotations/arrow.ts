@@ -43,7 +43,7 @@ function arrowImpl(slotId: string, a: WorldPoint, b: WorldPoint, opts: ArrowOpts
  * @anchorCount 2
  * @bucket labels
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -63,7 +63,7 @@ export function arrow(a: WorldPoint, b: WorldPoint, opts?: ArrowOpts): DrawingHa
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof arrow = arrow;
@@ -81,7 +81,7 @@ export function arrow(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof arrow = arrow;
  *     // void fn;

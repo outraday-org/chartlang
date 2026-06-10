@@ -47,7 +47,7 @@ function initSlot(capacity: number): AroonOscSlot {
  * @formula  osc = aroon.up − aroon.down
  * @warmup   length
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

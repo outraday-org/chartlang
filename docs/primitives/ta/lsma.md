@@ -2,7 +2,7 @@
 
 # `ta.lsma`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Least Squares Moving Average — the value of the ordinary-least-

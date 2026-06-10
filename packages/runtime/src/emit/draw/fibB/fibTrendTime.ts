@@ -47,7 +47,7 @@ function fibTrendTimeImpl(slotId: string, anchors: AnchorTriple, opts: FibOpts):
  * @anchorCount 3
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -70,7 +70,7 @@ export function fibTrendTime(anchors: AnchorTriple, opts?: FibOpts): DrawingHand
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof fibTrendTime = fibTrendTime;
@@ -83,7 +83,7 @@ export function fibTrendTime(slotId: string, anchors: AnchorTriple, opts?: FibOp
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof fibTrendTime = fibTrendTime;
  *     // void fn;

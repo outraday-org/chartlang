@@ -46,7 +46,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Phase 5 conformance scenario for draw table happy scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_TABLE_HAPPY_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_TABLE_HAPPY_SCENARIO;

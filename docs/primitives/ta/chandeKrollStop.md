@@ -2,7 +2,7 @@
 
 # `ta.chandeKrollStop`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Chande Kroll Stop — two-pass ATR-offset trailing stops. The first

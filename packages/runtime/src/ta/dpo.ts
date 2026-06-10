@@ -97,7 +97,7 @@ function computeDpo(slot: DpoSlot, smaCurrent: number): number {
  *           dpo[i]        = source[i − displacement] − sma[i]
  * @warmup   length
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

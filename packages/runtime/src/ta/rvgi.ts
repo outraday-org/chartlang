@@ -100,7 +100,7 @@ function weighted4(ring: Float64RingBuffer): number {
  *           signal = (rvgi[0] + 2·rvgi[1] + 2·rvgi[2] + rvgi[3]) / 6
  * @warmup   length + 3 (numerator / denominator defined at bar 3 ; sma defined `length − 1` bars later ; signal needs another 3)
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

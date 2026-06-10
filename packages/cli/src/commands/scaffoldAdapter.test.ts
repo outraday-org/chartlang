@@ -42,7 +42,7 @@ describe("runScaffoldAdapter", () => {
         await rm(workspace, { recursive: true, force: true });
     });
 
-    it("scaffolds all six files into the supplied target", async () => {
+    it("scaffolds all eight files into the supplied target", async () => {
         const target = join(workspace, "demo-adapter");
         await runScaffoldAdapter(["demo-adapter", "--target", target]);
 
@@ -50,16 +50,35 @@ describe("runScaffoldAdapter", () => {
         await expect(stat(join(target, "tsconfig.json"))).resolves.toBeTruthy();
         await expect(stat(join(target, "src", "index.ts"))).resolves.toBeTruthy();
         await expect(stat(join(target, "src", "index.test.ts"))).resolves.toBeTruthy();
+        await expect(stat(join(target, "src", "conformance.test.ts"))).resolves.toBeTruthy();
+        await expect(stat(join(target, "scripts", "conformance-report.ts"))).resolves.toBeTruthy();
         await expect(stat(join(target, "README.md"))).resolves.toBeTruthy();
         await expect(stat(join(target, ".gitignore"))).resolves.toBeTruthy();
 
         const pkg = JSON.parse(await readFile(join(target, "package.json"), "utf8"));
         expect(pkg.name).toBe("chartlang-adapter-demo-adapter");
         expect(pkg.private).toBe(true);
+        expect(pkg.scripts["conformance:report"]).toBe("tsx scripts/conformance-report.ts");
+        expect(pkg.devDependencies["@invinite-org/chartlang-conformance"]).toBe("^1.0.0");
 
         const indexTs = await readFile(join(target, "src", "index.ts"), "utf8");
         expect(indexTs).toMatch(/defineAdapter/);
         expect(indexTs).toMatch(/id: "demo-adapter"/);
+        expect(indexTs).toMatch(/export default adapter/);
+
+        const conformanceTestTs = await readFile(
+            join(target, "src", "conformance.test.ts"),
+            "utf8",
+        );
+        expect(conformanceTestTs).toMatch(/runConformanceSuite/);
+        expect(conformanceTestTs).toMatch(/import adapter from "\.\/index\.js"/);
+
+        const conformanceReportTs = await readFile(
+            join(target, "scripts", "conformance-report.ts"),
+            "utf8",
+        );
+        expect(conformanceReportTs).toMatch(/renderConformanceMarkdown/);
+        expect(conformanceReportTs).toMatch(/conformance-report\.json/);
 
         expect(stdoutChunks.join("")).toMatch(/scaffolded chartlang-adapter-demo-adapter at /);
     });

@@ -1,6 +1,6 @@
 # Spec: `grammar.md` + `versioning.md`
 
-> **Status: TODO**
+> **Status: Complete**
 
 ## Goal
 

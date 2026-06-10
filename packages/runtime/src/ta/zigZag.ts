@@ -346,7 +346,7 @@ function tickStep(
  * @warmup   input-dependent (NaN until first confirmed pivot)
  * @anchors  deviation, depth
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

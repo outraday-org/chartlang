@@ -15,7 +15,7 @@
  * overrides are deferred to a Task-1 reshape follow-up.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { GANN_LEVELS } from "./gannLevels";
  *     for (const level of GANN_LEVELS) void level;
@@ -29,7 +29,7 @@ export const GANN_LEVELS: ReadonlyArray<number> = Object.freeze([0, 0.25, 0.5, 0
  * matches the upstream invinite default `FibGannLevel` set.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { GANN_FAN_RATIOS } from "./gannLevels";
  *     for (const r of GANN_FAN_RATIOS) void r;
@@ -53,7 +53,7 @@ export const GANN_FAN_RATIOS: ReadonlyArray<number> = Object.freeze([
  * `"<n>x1"`; 1×1 is the identity.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { GANN_FAN_LABELS } from "./gannLevels";
  *     for (const label of GANN_FAN_LABELS) void label;
@@ -77,7 +77,7 @@ export const GANN_FAN_LABELS: ReadonlyArray<string> = Object.freeze([
  * pending a Task-1 reshape to widen `LineDrawStyle` with `showLabels`).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { formatGannRatio } from "./gannLevels";
  *     formatGannRatio(1); // "1x1"

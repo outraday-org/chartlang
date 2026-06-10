@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
  * means extending both the mock and this union together.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const call: RecordedCall = { kind: "clearRect", x: 0, y: 0, w: 100, h: 100 };
  *     void call;
@@ -70,7 +70,7 @@ export type RecordedCall =
  * both records the call and survives a subsequent read.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { MockCanvas2DContext } from "chartlang-example-canvas2d-adapter/testing";
  *     const ctx = new MockCanvas2DContext();
@@ -266,7 +266,7 @@ function canonicalise(call: RecordedCall): Record<string, unknown> {
  * end-to-end render output against a single golden constant.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { MockCanvas2DContext, hashCallLog } from "chartlang-example-canvas2d-adapter/testing";
  *     const ctx = new MockCanvas2DContext();

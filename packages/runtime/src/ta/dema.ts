@@ -55,7 +55,7 @@ function initSlot(length: number, capacity: number): DemaSlot {
  *           out  = 2 · ema1 − ema2
  * @warmup   2 · length − 2
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

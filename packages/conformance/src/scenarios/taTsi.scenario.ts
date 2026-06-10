@@ -33,7 +33,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `ta.trendStrengthIndex`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_TSI_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_TSI_SCENARIO;

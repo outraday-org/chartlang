@@ -7,7 +7,7 @@
  * value; `absolute` pins it at the value.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const location: PlotLocation = "below";
  *     void location;

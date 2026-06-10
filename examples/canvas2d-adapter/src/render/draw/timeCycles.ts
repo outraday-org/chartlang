@@ -25,7 +25,7 @@ const MAX_REPEATS_PER_SIDE = 64;
  * `|toX - fromX|`. Skips silently if the diameter is non-positive.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

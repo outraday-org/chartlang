@@ -1,6 +1,6 @@
 # Adapter-author proof: scaffold hardening + tutorial + LWC walkthrough
 
-> **Status: TODO**
+> **Status: Complete**
 
 ## Goal
 

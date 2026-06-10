@@ -14,10 +14,12 @@ GitHub-specific configuration: CI workflow and pull-request template.
   tree; (3) Phase 4 Task 13 adds `pnpm hover:check` after `pnpm docs:gate`
   to regenerate the language-service hover registry and fail on drift. Any
   other change to `ci.yml` must update PLAN.md §22.6 in the same PR.
-- The commented-out `release:` job at the bottom of `ci.yml` is preserved
-  intentionally — manual release per §22.11 is the current policy. Do not
-  delete the block; uncomment it (and add `NPM_TOKEN` to repo secrets) only
-  when flipping to CI-driven releases.
+- The `release:` job at the bottom of `ci.yml` is live and runs only on
+  `push` events to `main` after the test matrix passes. It uses
+  `changesets/action@v1` to open/update the Version Packages PR and to
+  publish when that PR merges. Keep write permissions job-local and ensure
+  `NPM_TOKEN` is configured in repo secrets before merging release PRs.
+  Manual fallback is `pnpm publish:release` from a maintainer machine.
 - `pull_request_template.md` is **§22.7 verbatim** — six checklist items.
   New checklist items go in PLAN.md §22.7 first, then mirror here.
 

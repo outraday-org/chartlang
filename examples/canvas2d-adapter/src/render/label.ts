@@ -13,7 +13,7 @@ import type { RenderCtx } from "./clear";
  *   (`textBaseline = "middle"`).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const p: LabelPosition = "above";
  *     void p;
@@ -26,7 +26,7 @@ export type LabelPosition = "above" | "below" | "anchor";
  * the Canvas 2D default `"10px sans-serif"` when omitted.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const args: LabelArgs = {
  *         x: 100, y: 50, text: "PEAK", position: "above", color: "#26a69a",
@@ -62,7 +62,7 @@ function baselineFor(position: LabelPosition): "top" | "middle" | "bottom" {
  * `color` falls back to `palette.plotDefault`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const palette: Palette;

@@ -29,7 +29,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * only — clean run with no alerts and no validation diagnostics.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_PIVOTS_HIGH_LOW_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_PIVOTS_HIGH_LOW_SCENARIO;

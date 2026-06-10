@@ -7,7 +7,7 @@ import type { JsonValue, SymInfoView, SymbolType } from "@invinite-org/chartlang
  * Adapter-supplied per-mount symbol metadata payload.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const info: AdapterSymInfo = {
  *         ticker: "DEMO",
@@ -37,7 +37,7 @@ const EMPTY_META: Readonly<Record<string, JsonValue>> = Object.freeze({});
  * `""`, `Number.NaN`, `"custom"`, or `{}`.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const view = makeSymInfoView(
  *         { ticker: "DEMO", mintick: 0.01 },

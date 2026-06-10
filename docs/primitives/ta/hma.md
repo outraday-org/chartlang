@@ -2,7 +2,7 @@
 
 # `ta.hma`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Hull moving average — `WMA(2·WMA(src, N/2) − WMA(src, N), sqrt(N))`.

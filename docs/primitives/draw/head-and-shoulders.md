@@ -2,7 +2,7 @@
 
 # `draw.headAndShoulders`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.3
 > **Bucket:** `polylines`
 > **Wire kind:** `head-and-shoulders`

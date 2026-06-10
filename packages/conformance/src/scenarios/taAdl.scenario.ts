@@ -26,7 +26,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * fixture in its own pane (volume category — `overlay: false`).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_ADL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_ADL_SCENARIO;

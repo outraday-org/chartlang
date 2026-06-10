@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Happy-path `request.security` scenario with aligned secondary daily close.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { MTF_REQUEST_SECURITY_CLOSE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void MTF_REQUEST_SECURITY_CLOSE_SCENARIO;

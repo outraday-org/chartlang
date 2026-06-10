@@ -11,7 +11,7 @@ import { toHoverDoc } from "./toHoverDoc";
  * Collect registry and source-local completion items for an offset.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const items = collectCompletions("const length = 20;", 5, {});
  *     void items;

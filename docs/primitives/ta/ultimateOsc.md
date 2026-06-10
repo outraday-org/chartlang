@@ -2,7 +2,7 @@
 
 # `ta.ultimateOsc`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Larry Williams' Ultimate Oscillator. Sources from `bar.high` /

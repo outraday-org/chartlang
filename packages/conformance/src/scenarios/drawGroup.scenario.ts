@@ -39,7 +39,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * and the canvas2d renderer is a pure no-op (Phase-3 contract).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_GROUP_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_GROUP_SCENARIO;

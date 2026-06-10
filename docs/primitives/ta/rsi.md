@@ -2,7 +2,7 @@
 
 # `ta.rsi`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.1
 
 Wilder's Relative Strength Index. Output range `[0, 100]`. First

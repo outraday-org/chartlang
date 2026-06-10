@@ -2,7 +2,7 @@
 
 # `ta.pvt`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Price Volume Trend — cumulative `volume · (close − prevClose) /

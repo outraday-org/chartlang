@@ -44,7 +44,7 @@ function xabcdPatternImpl(
  * @anchorCount 5
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -66,7 +66,7 @@ export function xabcdPattern(anchors: AnchorQuint, opts?: LineDrawStyle): Drawin
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof xabcdPattern = xabcdPattern;
@@ -83,7 +83,7 @@ export function xabcdPattern(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof xabcdPattern = xabcdPattern;
  *     // void fn;

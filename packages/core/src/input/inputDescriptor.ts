@@ -44,7 +44,7 @@ export type SourceField = "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "
  * only; runtime validation lands in Phase 5.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const s: Schema<number> = { kind: "external-series-schema" };
  *     void s;

@@ -44,7 +44,7 @@ function isStreamSnapshot(value: unknown): value is StreamSnapshot {
  *
  * @since 0.5
  * @internal
- * @experimental
+ * @stable
  * @example
  *     // import { validateSnapshot }
  *     //     from "@invinite-org/chartlang-runtime/internal";

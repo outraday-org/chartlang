@@ -108,7 +108,7 @@ function compute(slot: EmaSlot, src: number, isTick: boolean): number {
  *           EMA[t] = source[t]·α + EMA[t−1]·(1−α)
  * @warmup   length − 1
  * @since 0.1
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series so `series.current` reads
  * the value `offset` bars ago (PLAN.md §9.1).

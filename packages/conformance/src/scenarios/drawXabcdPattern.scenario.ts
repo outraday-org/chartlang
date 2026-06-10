@@ -35,7 +35,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * pattern on the first bar.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_XABCD_PATTERN_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_XABCD_PATTERN_SCENARIO;

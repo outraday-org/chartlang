@@ -19,7 +19,7 @@
  *
  * @formula  out[i] = mean(input[i − length + 1 ..= i])
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { computeSmaOfFloat64 } from "./smaFloat64";
  *     // const out = computeSmaOfFloat64(new Float64Array([1, 2, 3, 4]), 2);

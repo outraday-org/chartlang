@@ -30,7 +30,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * user-pickable interval and the runtime default resolves to `"1D"`.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     import { INPUT_INTERVAL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void INPUT_INTERVAL_SCENARIO;

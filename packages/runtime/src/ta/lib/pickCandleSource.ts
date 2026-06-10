@@ -25,7 +25,7 @@ import type { SourceField } from "./readSourceField";
  *           ohlc4 = (open + high + low + close) / 4 ;
  *           hlcc4 = (high + low + close + close) / 4
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { pickCandleSource } from "./pickCandleSource";
  *     // const px = pickCandleSource(bar, "hl2");

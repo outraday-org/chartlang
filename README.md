@@ -154,6 +154,17 @@ translates emissions into draw calls on a specific chart vendor's
 surface. The contract between runtime and adapter is what makes scripts
 portable across charts. See PLAN.md §2 for the full diagram.
 
+## Releases
+
+Versions are cut with Changesets. Pending changesets are collected into
+the "Version Packages" PR; merging that PR publishes every
+`@invinite-org/chartlang-*` package from CI with npm provenance.
+
+Project release notes live in the root
+[`CHANGELOG.md`](./CHANGELOG.md), with generated per-package changelogs
+linked from there. Published announcements are on
+[GitHub Releases](https://github.com/outraday-org/chartlang/releases).
+
 ## Links
 
 - **Docs site:** [chartlang.dev](https://chartlang.dev) — placeholder

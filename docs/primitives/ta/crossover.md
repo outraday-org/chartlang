@@ -2,7 +2,7 @@
 
 # `ta.crossover`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.1
 
 `true` exactly at the bar where `a` crosses above `b`: `a.current >

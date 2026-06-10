@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * onwards.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_NZ_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_NZ_SCENARIO;

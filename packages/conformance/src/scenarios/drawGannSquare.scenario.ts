@@ -33,7 +33,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * anchors.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_GANN_SQUARE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_GANN_SQUARE_SCENARIO;

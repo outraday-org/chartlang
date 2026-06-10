@@ -25,7 +25,7 @@ import type { Point2 } from "./bezier";
  * implicitly (every renderer's stroke clips at the viewport boundary).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const view: Viewport;
  *     const a: Point2 = { x: 100, y: 100 };

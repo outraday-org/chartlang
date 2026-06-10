@@ -19,7 +19,7 @@ import { priceToY, timeToX, type Viewport } from "../coords";
  * relies on.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const view: Viewport;
  *     const anchor: WorldPoint = { time: 1_700_000_000_000, price: 105 };

@@ -1,5 +1,46 @@
 # @invinite-org/chartlang-core
 
+## 1.0.0
+
+### Major Changes
+
+- chartlang `1.0.0` -- the `apiVersion: 1` standard.
+
+  - `apiVersion: 1` frozen: compiler accepts only the frozen language
+    version; `STATEFUL_PRIMITIVES` locked at 172 entries by exact
+    name-set; every shipping export `@stable`; pre-1.0 deprecations
+    removed (`PHASE_1_SCENARIOS`).
+  - Canonical language spec published (`docs/spec/`): grammar,
+    semantics, manifest, emissions, versioning -- self-contained for
+    alternate implementations. The `v1.0.0` tag is the frozen spec
+    snapshot.
+  - Public conformance reports: `pnpm conformance --report` emits
+    `CONFORMANCE.md` + `conformance-report.json`; canvas2d reference
+    report published and drift-gated.
+  - Adapter-author path proven end-to-end: scaffolded adapters ship a
+    wired conformance test; full writing-an-adapter tutorial +
+    Lightweight Charts porting walkthrough.
+  - Pine migration guide finalised with a pattern-coverage matrix
+    audited against the top ~50 Pine scripts.
+
+### Minor Changes
+
+- d14a034: Add phase 5 server alerts, multi-timeframe request handling, runtime persistence, QuickJS hosting, expanded plot and table rendering, color helpers, alert conditions, and volume profile primitives.
+- 3cfff10: Phase 6 closeout for Tier-3 ergonomics and lower-timeframe support.
+- 3cfff10: Add `IntervalDescriptor.intervalSeconds?: number` and `intervalToSeconds`.
+- 3cfff10: Add `request.lowerTf({ interval })` and compiler diagnostics for invalid lower-timeframe intervals.
+- 3cfff10: Add the `@invinite-org/chartlang-core/time` subpath with session and timezone helpers.
+
+### Patch Changes
+
+- Freeze `apiVersion: 1`: release-grade compiler diagnostics for version
+  mismatches, an exact name-set lock on the 172-entry `STATEFUL_PRIMITIVES`
+  registry, and freeze-contract documentation on pinned surfaces. No behavioural
+  change: the structural check already enforced `apiVersion: 1`.
+- Pre-1.0 surface cleanup: remove the deprecated `PHASE_1_SCENARIOS`
+  alias (use `ALL_SCENARIOS`) and promote every shipping export from
+  `@experimental` to `@stable` ahead of the `apiVersion: 1` freeze.
+
 ## 0.5.0
 
 ### Phase 5
@@ -254,7 +295,7 @@ max: 100 }`.
 
   Three conformance scenarios (`taPmo.scenario.ts`,
   `taSmi.scenario.ts`, `taTsi.scenario.ts`) registered against
-  `PHASE_1_SCENARIOS` via the Task-1 `inlineSource` extension.
+  `ALL_SCENARIOS` via the Task-1 `inlineSource` extension.
   Plot-hash pinning deferred to Phase-2 closeout (Task 30) per the
   established cross-functional scenario convention.
 
@@ -348,7 +389,7 @@ TA_REGISTRY, PrimitiveMetadata>>>` — per-primitive `primarySeriesKey`,
   shim mirrors the new core surface.
 
   Three conformance scenarios (`taCci.scenario.ts`, `taStoch.scenario.ts`,
-  `taWilliamsR.scenario.ts`) registered against `PHASE_1_SCENARIOS` via
+  `taWilliamsR.scenario.ts`) registered against `ALL_SCENARIOS` via
   the Task-1 `inlineSource` extension. Plot-hash pinning deferred to
   Phase-2 closeout (Task 30) per the established cross-functional
   scenario convention.
@@ -415,7 +456,7 @@ TA_REGISTRY, PrimitiveMetadata>>>` — per-primitive `primarySeriesKey`,
 
   Four conformance scenarios (`taKst.scenario.ts`,
   `taFisher.scenario.ts`, `taKlinger.scenario.ts`,
-  `taRvgi.scenario.ts`) registered against `PHASE_1_SCENARIOS` via the
+  `taRvgi.scenario.ts`) registered against `ALL_SCENARIOS` via the
   Task-1 `inlineSource` extension. Plot-hash pinning deferred to
   Phase-2 closeout (Task 30) per the established multi-output scenario
   convention.
@@ -468,7 +509,7 @@ displacement] - sma[i]` with `displacement = floor(length / 2) +
 
   Three conformance scenarios (`taPpo.scenario.ts`,
   `taDpo.scenario.ts`, `taConnorsRsi.scenario.ts`) registered against
-  `PHASE_1_SCENARIOS` via the Task-1 `inlineSource` extension.
+  `ALL_SCENARIOS` via the Task-1 `inlineSource` extension.
   Plot-hash pinning deferred to Phase-2 closeout (Task 30) per the
   established cross-functional scenario convention.
 
@@ -541,7 +582,7 @@ wmaLength)` over percentage ROC. Defaults `(11, 14, 10)`. Unbounded;
 
   Three conformance scenarios (`taStochRsi.scenario.ts`,
   `taUltimateOsc.scenario.ts`, `taCoppock.scenario.ts`) registered
-  against `PHASE_1_SCENARIOS` via the Task-1 `inlineSource` extension.
+  against `ALL_SCENARIOS` via the Task-1 `inlineSource` extension.
   Plot-hash pinning deferred to Phase-2 closeout (Task 30) per the
   established cross-functional scenario convention.
 
@@ -837,7 +878,7 @@ visibleSeriesKeys: ["sar", "direction"], yDomain: auto }`,
   `MedianOpts`, `AdrOpts` (`{ length?: number; offset?: number;
 lineStyle?: PlotLineStyle }`), and `UlcerIndexOpts`.
 
-  `PHASE_1_SCENARIOS` (conformance) grows by `+3`. The three new
+  `ALL_SCENARIOS` (conformance) grows by `+3`. The three new
   scenarios assert `alert-count: 0` + the standard
   `lookback-exceeded` / `malformed-emission` diagnostic-absent gates
   (no `plot-hash` — the rolling primitives' outputs are pinned
@@ -982,7 +1023,7 @@ auto }` (the cloud renders via the Task-1 `filled-band` PlotKind
   `STATEFUL_PRIMITIVES` grows by 3 (`ta.vortex`,
   `ta.trendStrengthIndex`, `ta.ichimoku`; all `slot: true`) — final
   Phase-2 size 93. `TA_REGISTRY` grows by 3 — final size 90.
-  Conformance scenarios + `PHASE_1_SCENARIOS` array grow by 3.
+  Conformance scenarios + `ALL_SCENARIOS` array grow by 3.
 
 - 38fb475: Phase-2 Task 18 — volatility ports: `ta.bbPercentB`, `ta.bbw`, and
   `ta.donchian`.
@@ -1148,7 +1189,7 @@ kind: "auto" }`. Warmup `slowLength + signalLength − 2`.
   - `STATEFUL_PRIMITIVES` grows by four `slot: true` entries.
   - `TA_REGISTRY` + `RuntimeTaNamespace` mirror the same delta;
     `TA_REGISTRY_METADATA.pvo` carries the multi-series metadata;
-    `PHASE_1_SCENARIOS` grows by four inline scenarios.
+    `ALL_SCENARIOS` grows by four inline scenarios.
 
   All four primitives carry the §16.6 100% coverage gate via their
   five-file test set; golden hashes pinned against `syntheticBars(100,
@@ -1186,7 +1227,7 @@ volume`. Warmup 1 (bar 0 emits 0). Slot snapshots
 lineStyle? }`).
   - `STATEFUL_PRIMITIVES` grows by four `slot: true` entries.
   - `TA_REGISTRY` + `RuntimeTaNamespace` mirror the same delta;
-    `PHASE_1_SCENARIOS` grows by four inline scenarios.
+    `ALL_SCENARIOS` grows by four inline scenarios.
 
   All four primitives carry the §16.6 100% coverage gate via their
   five-file test set; golden hashes pinned against `syntheticBars(100,
@@ -1232,7 +1273,7 @@ lineStyle? }`).
   - `TA_REGISTRY` + `RuntimeTaNamespace` mirror the same delta
     (83 → 87). No new `TA_REGISTRY_METADATA` rows — all four are
     single-output `Series<number>` with auto y-domain.
-  - `PHASE_1_SCENARIOS` grows by four inline scenarios.
+  - `ALL_SCENARIOS` grows by four inline scenarios.
 
   All four primitives carry the §16.6 100% coverage gate via their
   five-file test set; golden hashes pinned against

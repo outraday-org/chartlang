@@ -2,7 +2,7 @@
 
 # `ta.aroonOsc`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Aroon Oscillator — `aroon.up − aroon.down`. Bounded in `[-100, 100]`

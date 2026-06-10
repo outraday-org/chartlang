@@ -32,7 +32,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * per PLAN.md §16.6).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { EMA_CROSS_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     // EMA_CROSS_SCENARIO.id === "ema-cross"

@@ -2,7 +2,7 @@
 
 # `ta.cmf`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Chaikin Money Flow — trailing-window sum of money-flow volume

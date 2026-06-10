@@ -332,7 +332,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * open/closed distinction.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_ALL_61_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_ALL_61_SCENARIO;

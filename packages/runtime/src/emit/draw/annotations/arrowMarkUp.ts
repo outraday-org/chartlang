@@ -41,7 +41,7 @@ function arrowMarkUpImpl(slotId: string, anchor: WorldPoint, opts: ArrowMarkerOp
  * @anchorCount 1
  * @bucket labels
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -57,7 +57,7 @@ export function arrowMarkUp(anchor: WorldPoint, opts?: ArrowMarkerOpts): Drawing
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof arrowMarkUp = arrowMarkUp;
@@ -74,7 +74,7 @@ export function arrowMarkUp(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof arrowMarkUp = arrowMarkUp;
  *     // void fn;

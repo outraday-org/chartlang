@@ -17,7 +17,7 @@ function isFiniteValue(p: PlotPoint): boolean {
  * `color` (falling back to `palette.plotDefault` when null).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const series: ReadonlyArray<PlotPoint>;

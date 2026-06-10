@@ -9,6 +9,7 @@
  * in the set for in-loop diagnostics (currently only `ta.nz`).
  *
  * @since 0.1
+ * @stable
  * @example
  *     const entry: StatefulPrimitiveEntry = { name: "ta.nz", slot: false };
  */
@@ -211,7 +212,12 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
  * logging/error as stateless loop-diagnostic entries plus `draw.table`
  * as a slot-backed viewport drawing.
  *
+ * Locked at `apiVersion: 1` (172 entries). Adding, removing, or renaming
+ * an entry is a language change and requires `apiVersion: 2` — see
+ * `docs/spec/versioning.md`.
+ *
  * @since 0.1
+ * @stable
  * @example
  *     import { STATEFUL_PRIMITIVES } from "@invinite-org/chartlang-core";
  *     for (const entry of STATEFUL_PRIMITIVES) {
@@ -228,11 +234,16 @@ export const STATEFUL_PRIMITIVES: ReadonlySet<StatefulPrimitiveEntry> = Object.f
  * Name → entry index of {@link STATEFUL_PRIMITIVES}. The compiler's
  * `callsiteIdInjection` and `statefulCallInLoop` passes consult this map
  * by callee name once per call site — O(1) lookup instead of an O(n) scan
- * over the 90+ entry set on every visited call. The map is derived from
+ * over the 172-entry set on every visited call. The map is derived from
  * the same canonical entry list as {@link STATEFUL_PRIMITIVES} so adding
  * a primitive to the set adds it here automatically.
  *
+ * Locked at `apiVersion: 1` (172 entries). Adding, removing, or renaming
+ * an entry is a language change and requires `apiVersion: 2` — see
+ * `docs/spec/versioning.md`.
+ *
  * @since 0.2
+ * @stable
  * @example
  *     import { STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/chartlang-core";
  *     const entry = STATEFUL_PRIMITIVES_BY_NAME.get("ta.ema");

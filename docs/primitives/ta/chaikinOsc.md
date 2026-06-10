@@ -2,7 +2,7 @@
 
 # `ta.chaikinOsc`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Chaikin Oscillator — `EMA(ADL, fastLength) − EMA(ADL, slowLength)`.

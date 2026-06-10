@@ -10,7 +10,7 @@ import type { MutableSlot } from "@invinite-org/chartlang-core";
  * explicit hooks.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const hooks: StateSlotSerialisers<number> = {
  *         serialiseState: (value) => value,

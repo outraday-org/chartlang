@@ -52,7 +52,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * handle-id stability across bars.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_INTERACTIVE_UPDATE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_INTERACTIVE_UPDATE_SCENARIO;

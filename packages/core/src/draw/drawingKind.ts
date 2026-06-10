@@ -26,7 +26,7 @@
  * @formula  N/A — discriminator constant set
  * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const k: DrawingKind = "fib-retracement";
  *     void k;
@@ -117,7 +117,7 @@ export type DrawingKind =
  * @formula  N/A — discriminator constant set
  * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAWING_KINDS } from "@invinite-org/chartlang-core";
  *     for (const k of DRAWING_KINDS) {
@@ -199,7 +199,7 @@ export const DRAWING_KINDS: ReadonlyArray<DrawingKind> = Object.freeze([
  * @formula  N/A — discriminator constant set
  * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { KIND_CAMELCASE } from "@invinite-org/chartlang-core";
  *     const camel = KIND_CAMELCASE.get("horizontal-line"); // "horizontalLine"
@@ -278,7 +278,7 @@ export const KIND_CAMELCASE: ReadonlyMap<DrawingKind, string> = new Map<DrawingK
  * @formula  N/A — discriminator constant set
  * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { KIND_KEBABCASE } from "@invinite-org/chartlang-core";
  *     const kebab = KIND_KEBABCASE.get("horizontalLine"); // "horizontal-line"

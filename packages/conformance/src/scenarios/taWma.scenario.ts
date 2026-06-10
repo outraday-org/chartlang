@@ -26,7 +26,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * fixture.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_WMA_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_WMA_SCENARIO;

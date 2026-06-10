@@ -32,7 +32,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * forward-compat seam.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { RSI_DIVERGENCE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     // RSI_DIVERGENCE_SCENARIO.id === "rsi-divergence-alert"

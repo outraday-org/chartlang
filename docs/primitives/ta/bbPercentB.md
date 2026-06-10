@@ -2,7 +2,7 @@
 
 # `ta.bbPercentB`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Bollinger %B — sub-pane oscillator measuring price position

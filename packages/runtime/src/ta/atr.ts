@@ -127,7 +127,7 @@ function tickValue(slot: AtrSlot, high: number, low: number, close: number): num
  *           ATR[t] = (ATR[t − 1] · (length − 1) + TR[t]) / length
  * @warmup   length − 1
  * @since 0.1
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series so `series.current` reads
  * the value `offset` bars ago (PLAN.md §9.1).

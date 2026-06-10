@@ -2,7 +2,7 @@
 
 # `ta.smi`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Stochastic Momentum Index (William Blau). Composes `ta.highest` /

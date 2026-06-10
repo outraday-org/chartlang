@@ -18,7 +18,7 @@ const FONT = "11px sans-serif";
  * so hosts can model state transitions.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const viewport: Viewport;

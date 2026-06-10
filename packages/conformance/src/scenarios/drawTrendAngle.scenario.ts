@@ -33,7 +33,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * drawing on the first bar.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_TREND_ANGLE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_TREND_ANGLE_SCENARIO;

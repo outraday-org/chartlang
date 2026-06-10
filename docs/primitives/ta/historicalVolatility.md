@@ -2,7 +2,7 @@
 
 # `ta.historicalVolatility`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Historical Volatility — sub-pane line. Standard deviation of log

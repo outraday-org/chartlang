@@ -2,7 +2,7 @@
 
 # `ta.kst`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Know Sure Thing (Martin Pring, 1992). Weighted sum of four SMA-

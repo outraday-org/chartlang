@@ -39,7 +39,7 @@ function fibChannelImpl(slotId: string, anchors: AnchorTriple, opts: FibOpts): D
  * @anchorCount 3
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -62,7 +62,7 @@ export function fibChannel(anchors: AnchorTriple, opts?: FibOpts): DrawingHandle
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof fibChannel = fibChannel;
@@ -75,7 +75,7 @@ export function fibChannel(slotId: string, anchors: AnchorTriple, opts?: FibOpts
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof fibChannel = fibChannel;
  *     // void fn;

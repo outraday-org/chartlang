@@ -2,7 +2,7 @@
 
 # `ta.stdev`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.1
 
 Rolling sample / population standard deviation over the last

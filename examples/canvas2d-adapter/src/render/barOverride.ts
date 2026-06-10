@@ -10,7 +10,7 @@ import { priceToY, timeToX, type Viewport } from "./coords";
  * OHLC bar and style inputs for a Phase 5 `bar-override` outline.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const bar: Bar;
  *     const args: BarOverrideArgs = { bar, color: "#fff", barCount: 1 };
@@ -28,7 +28,7 @@ const BODY_WIDTH_RATIO = 0.6;
  * Render a Phase-5 `bar-override` OHLC outline.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const bar: Bar;

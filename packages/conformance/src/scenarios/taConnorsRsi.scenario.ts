@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `[0, 100]` per `TA_REGISTRY_METADATA.connorsRsi`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_CONNORS_RSI_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_CONNORS_RSI_SCENARIO;

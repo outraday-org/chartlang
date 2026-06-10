@@ -2,7 +2,7 @@
 
 # `ta.adl`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Accumulation Distribution Line — cumulative money-flow volume

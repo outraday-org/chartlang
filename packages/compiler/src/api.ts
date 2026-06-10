@@ -197,10 +197,13 @@ export function transformAndAnalyse(
 }
 
 /**
- * Options accepted by `compile`. `apiVersion` is a forward-compat marker
- * fixed at `1` for Phase 1; `sourcePath` overrides the file-system-derived
- * path used in callsite ids; `sourcemap`, `minify`, and `target` mirror
- * the bundler's flags. `declaredIntervals` is the adapter's
+ * Options accepted by `compile`. `apiVersion` is the frozen language
+ * version this compiler implements. Passing `apiVersion: 1` is an explicit
+ * acknowledgement of that contract; the type stays the literal `1` so a
+ * future `apiVersion: 2` compiler is a type-level break. See
+ * `docs/spec/versioning.md`. `sourcePath` overrides the file-system-derived
+ * path used in callsite ids; `sourcemap`, `minify`, and `target` mirror the
+ * bundler's flags. `declaredIntervals` is the adapter's
  * `Capabilities.intervals` set — when supplied, `request.lowerTf` literals
  * are validated against the smallest declared main interval
  * (`lower-tf-not-lower`).

@@ -9,7 +9,7 @@ import type { RenderCtx } from "./clear";
  * `PlotStyle.shape` (`@invinite-org/chartlang-adapter-kit`).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const s: MarkerShape = "triangle-up";
  *     void s;
@@ -23,7 +23,7 @@ export type MarkerShape = "circle" | "triangle-up" | "triangle-down" | "square" 
  * as its diameter).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const args: MarkerArgs = {
  *         x: 100, y: 50, shape: "triangle-up", size: 8, color: "#26a69a",
@@ -52,7 +52,7 @@ const TWO_PI = Math.PI * 2;
  * A null `color` falls back to `palette.plotDefault`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const palette: Palette;

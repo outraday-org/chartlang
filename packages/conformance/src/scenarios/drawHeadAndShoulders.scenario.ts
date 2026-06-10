@@ -35,7 +35,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * head-and-shoulders pattern on the first bar.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_HEAD_AND_SHOULDERS_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_HEAD_AND_SHOULDERS_SCENARIO;

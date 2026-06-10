@@ -22,7 +22,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Phase 5 conformance scenario for plot kind horizontal histogram scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { PLOT_KIND_HORIZONTAL_HISTOGRAM_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void PLOT_KIND_HORIZONTAL_HISTOGRAM_SCENARIO;

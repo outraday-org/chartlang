@@ -2,7 +2,7 @@
 
 # `draw.arrowMarker`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.3
 > **Bucket:** `labels`
 > **Wire kind:** `arrow-marker`

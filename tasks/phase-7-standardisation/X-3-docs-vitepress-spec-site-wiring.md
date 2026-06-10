@@ -1,6 +1,6 @@
 # VitePress spec-site wiring + CI `docs:build` gate
 
-> **Status: TODO**
+> **Status: Complete**
 
 ## Goal
 

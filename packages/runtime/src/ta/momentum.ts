@@ -34,7 +34,7 @@ function getCtx(): RuntimeContext {
  * @formula  out[t] = source[t] − source[t − length]
  * @warmup   length
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

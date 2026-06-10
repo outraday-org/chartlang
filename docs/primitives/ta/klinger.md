@@ -2,7 +2,7 @@
 
 # `ta.klinger`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Klinger Volume Oscillator. Per-bar Volume Force accumulator drives

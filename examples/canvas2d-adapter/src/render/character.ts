@@ -9,7 +9,7 @@ import type { PlotLocation } from "./plotLocation";
  * Canvas coordinates and glyph data for a Phase 5 `character` plot.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const args: CharacterArgs = { x: 10, y: 20, char: "A", size: 12, color: null };
  *     void args;
@@ -41,7 +41,7 @@ function anchor(args: CharacterArgs): {
  * Render a Phase-5 `character` plot glyph as canvas text.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const palette: Palette;

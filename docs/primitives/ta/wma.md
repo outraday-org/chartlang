@@ -2,7 +2,7 @@
 
 # `ta.wma`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Weighted moving average — linear weights `1..N` over the trailing

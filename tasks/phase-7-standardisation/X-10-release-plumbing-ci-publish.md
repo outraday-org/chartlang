@@ -1,6 +1,6 @@
 # Release plumbing: CI publish + CHANGELOG + announce
 
-> **Status: TODO**
+> **Status: Complete**
 
 ## Goal
 

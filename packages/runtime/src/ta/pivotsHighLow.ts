@@ -167,7 +167,7 @@ function scanDownPivot(
  * @warmup   leftLength + rightLength
  * @anchors  leftLength, rightLength
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

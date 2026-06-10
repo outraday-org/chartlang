@@ -26,7 +26,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * 10 000-bar `goldenBars.json` fixture.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_TREND_STRENGTH_INDEX_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_TREND_STRENGTH_INDEX_SCENARIO;

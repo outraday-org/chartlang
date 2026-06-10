@@ -31,7 +31,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Mirrors `examples/scripts/bollinger-bands.chart.ts`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { BOLLINGER_BANDS_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     // BOLLINGER_BANDS_SCENARIO.assertions.length === 5

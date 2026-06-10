@@ -30,7 +30,7 @@ const CACHE = new WeakMap<
  * either bar array invalidates the hit; WeakMap reachability evicts naturally.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @internal
  * @example
  *     const aligned = getOrAlign(htfBars, htfCloses, ltfBars);

@@ -2,7 +2,7 @@
 
 # `ta.pvo`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Percentage Volume Oscillator — MACD shape applied to `bar.volume`

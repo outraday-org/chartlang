@@ -36,7 +36,7 @@ const ANGLE_TEXT_OFFSET_PX = 6;
  * the invinite overlay.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

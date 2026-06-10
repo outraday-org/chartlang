@@ -115,7 +115,7 @@ function tickValue(slot: LowestSlot, src: number): number {
  * @formula  out[t] = min(source[t − length + 1 .. t])  (NaN slots skipped)
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

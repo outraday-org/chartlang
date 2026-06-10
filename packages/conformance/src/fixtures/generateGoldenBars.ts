@@ -14,7 +14,7 @@ import type { Bar } from "@invinite-org/chartlang-core";
  * a byte-identical array.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { generateGoldenBars } from "@invinite-org/chartlang-conformance";
  *     const bars: GoldenBars = generateGoldenBars();
@@ -131,7 +131,7 @@ function buildBar(index: number, time: number, prevClose: number, rng: () => num
  * absolute returns — useful for indicators that read `bar.volume`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { generateGoldenBars } from "@invinite-org/chartlang-conformance";
  *     const bars = generateGoldenBars();
@@ -158,7 +158,7 @@ export function generateGoldenBars(): GoldenBars {
  * the in-memory bytes without re-reading the file.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { serialiseGoldenBars, generateGoldenBars } from "@invinite-org/chartlang-conformance";
  *     const json = serialiseGoldenBars(generateGoldenBars());
@@ -175,7 +175,7 @@ export function serialiseGoldenBars(bars: GoldenBars): string {
  * fixture-determinism test.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { writeGoldenBars } from "@invinite-org/chartlang-conformance";
  *     // writeGoldenBars("/tmp/goldenBars.json");
@@ -194,7 +194,7 @@ export function writeGoldenBars(targetPath: string): void {
  * (consumer-repo install).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { GOLDEN_BARS_PATH } from "@invinite-org/chartlang-conformance";
  *     // GOLDEN_BARS_PATH endsWith "fixtures/goldenBars.json"

@@ -27,7 +27,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * invinite naming parity — see `netVolume.ts` JSDoc).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_NET_VOLUME_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_NET_VOLUME_SCENARIO;

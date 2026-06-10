@@ -1,6 +1,6 @@
 # Pre-freeze deprecation removal + stability promotion sweep
 
-> **Status: TODO**
+> **Status: Complete**
 
 ## Goal
 

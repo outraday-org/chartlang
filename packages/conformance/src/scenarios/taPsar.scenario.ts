@@ -30,7 +30,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * no alerts).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_PSAR_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_PSAR_SCENARIO;

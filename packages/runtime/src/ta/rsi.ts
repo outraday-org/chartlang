@@ -162,7 +162,7 @@ function tickValue(slot: RsiSlot, src: number): number {
  *           RSI = 100 − 100 / (1 + avgGain / avgLoss)
  * @warmup   length
  * @since 0.1
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series so `series.current` reads
  * the value `offset` bars ago (PLAN.md §9.1).

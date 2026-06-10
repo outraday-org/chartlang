@@ -10,7 +10,7 @@ import { priceToY, timeToX, type Viewport } from "./coords";
  * OHLC bar and palette inputs for a Phase 5 `candle-override` body.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const bar: Bar;
  *     const args: CandleOverrideArgs = { bar, bull: "#0f0", bear: "#f00", barCount: 1 };
@@ -30,7 +30,7 @@ const BODY_WIDTH_RATIO = 0.6;
  * Paint a candle body with Phase-5 `candle-override` colors.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const bar: Bar;

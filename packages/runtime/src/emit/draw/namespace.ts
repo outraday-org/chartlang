@@ -167,7 +167,7 @@ const IMPL_KIND_NAMES: ReadonlySet<string> = new Set(Object.keys(KIND_IMPLS));
  * in Phase 2 (PLAN.md §5.5).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { draw } from "@invinite-org/chartlang-runtime";
  *     // type S = typeof draw;

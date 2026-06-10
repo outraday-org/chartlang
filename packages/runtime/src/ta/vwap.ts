@@ -137,7 +137,7 @@ function valueFromCum(cumPV: number, cumV: number): number {
  * @formula  vwap[t] = Σ_{u ∈ session(t)}(source[u] · volume[u]) / Σ_{u ∈ session(t)}(volume[u])
  * @warmup   0 (NaN until the first bar with cumV > 0 in the session)
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

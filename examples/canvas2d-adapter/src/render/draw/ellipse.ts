@@ -35,7 +35,7 @@ const SEGMENTS = 64;
  * `widthOffset` form) are out of scope for Phase 3.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

@@ -37,7 +37,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * surface and the y-doc-bridge type.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_CYPHER_PATTERN_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_CYPHER_PATTERN_SCENARIO;

@@ -29,7 +29,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * horizontal-line drawing on the first bar.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_HORIZONTAL_LINE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_HORIZONTAL_LINE_SCENARIO;

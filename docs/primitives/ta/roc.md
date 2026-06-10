@@ -2,7 +2,7 @@
 
 # `ta.roc`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Rate of Change — `100 × (source[0] − source[length]) / source[length]`.

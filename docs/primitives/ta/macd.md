@@ -2,7 +2,7 @@
 
 # `ta.macd`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.1
 
 MACD — fast EMA minus slow EMA, with a signal-line EMA over the

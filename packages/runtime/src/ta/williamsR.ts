@@ -55,7 +55,7 @@ function williamsRValue(hh: number, ll: number, close: number): number {
  *           wr = -100 · (hh − bar.close) / (hh − ll) ; NaN if hh === ll
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

@@ -2,7 +2,7 @@
 
 # `ta.volatilityStop`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Volatility Stop — PSAR-like trend-following stop driven by ATR

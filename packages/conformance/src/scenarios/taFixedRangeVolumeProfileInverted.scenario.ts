@@ -33,7 +33,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Phase 5 conformance scenario for ta fixed range volume profile inverted scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { TA_FIXED_RANGE_VOLUME_PROFILE_INVERTED_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_FIXED_RANGE_VOLUME_PROFILE_INVERTED_SCENARIO;

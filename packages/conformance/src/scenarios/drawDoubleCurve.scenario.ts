@@ -44,7 +44,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * resulting drawing batch.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_DOUBLE_CURVE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_DOUBLE_CURVE_SCENARIO;

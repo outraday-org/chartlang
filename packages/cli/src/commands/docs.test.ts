@@ -14,7 +14,7 @@ const MINIMAL_PRIMITIVE = `/**
  * @formula  out = source
  * @warmup   0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // ta.demo("slot", bar.close)
  */
@@ -25,7 +25,7 @@ const BAD_PRIMITIVE = `/**
  * Missing formula.
  * @warmup 0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -38,7 +38,7 @@ const MINIMAL_DRAW = `/**
  * @anchorCount 2
  * @bucket lines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // draw.line(a, b)
  */
@@ -106,7 +106,7 @@ const MINIMAL_PHASE4_REQUEST = `export const request = Object.freeze({
     /** Read a secondary stream. @since 0.4 @stable @example const v = request.security({ interval: "1D" }); */
     security(): unknown { return {}; },
 });`;
-const MINIMAL_PHASE4_OVERRIDES = `/** Overrides. @since 0.4 @experimental @example const o: ScriptOverrides = {}; */
+const MINIMAL_PHASE4_OVERRIDES = `/** Overrides. @since 0.4 @stable @example const o: ScriptOverrides = {}; */
 export type ScriptOverrides = Readonly<{
     /** Max bars. @since 0.4 @example const v: ScriptOverrides["maxBarsBack"] = 1; */
     maxBarsBack?: number;

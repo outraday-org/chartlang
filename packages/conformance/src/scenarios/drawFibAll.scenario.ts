@@ -95,7 +95,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * supersedes Task 11's `drawFibA.scenario.ts` (deleted in this PR).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_FIB_ALL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_FIB_ALL_SCENARIO;

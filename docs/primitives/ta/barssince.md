@@ -2,7 +2,7 @@
 
 # `ta.barssince`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Number of bars since `condition === true` last fired. `0` at the

@@ -170,7 +170,7 @@ function tickValue(slot: AdxSlot, high: number, low: number, close: number): num
  * @warmup   length + smoothing − 1
  * @anchors  length, smoothing
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series (PLAN.md §9.1) —
  * `series.current` returns the value `offset` bars ago.

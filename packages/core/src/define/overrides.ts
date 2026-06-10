@@ -8,7 +8,7 @@
  * K/M/B for generic non-volume values.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const f: ValueFormat = "percent";
  *     void f;
@@ -23,7 +23,7 @@ export type ValueFormat = "price" | "volume" | "percent" | "compact";
  * - `"new"` — request a fresh sub-pane keyed by the script id.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const s: ScaleAxis = "right";
  *     void s;
@@ -35,7 +35,7 @@ export type ScaleAxis = "price" | "left" | "right" | "new";
  * missing fields fall back to adapter defaults.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const o: ScriptOverrides = {
  *         shortName: "EMA(20)",

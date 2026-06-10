@@ -18,7 +18,7 @@ const EXPORT_MANIFEST_RE = /^\s*export\s+const\s+__manifest\s*=/m;
  *
  * @since 0.5
  * @internal
- * @experimental
+ * @stable
  * @example
  *     const out = moduleSourceToScript("export default { compute };");
  *     void out;

@@ -2,7 +2,7 @@
 
 # `ta.obv`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 On-Balance Volume — cumulative volume signed by close-vs-prev-close

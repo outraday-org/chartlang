@@ -14,7 +14,7 @@
  * phase verification.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { PHASE_2_INDICATORS } from "@invinite-org/chartlang-conformance";
  *     // PHASE_2_INDICATORS.length === 81
@@ -130,7 +130,7 @@ export const PHASE_2_INDICATORS: ReadonlyArray<string> = Object.freeze([
  * needs Phase-5 plumbing) has been silently violated.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { PHASE_5_DEFERRED } from "@invinite-org/chartlang-conformance";
  *     // PHASE_5_DEFERRED.includes("correlationCoeff")

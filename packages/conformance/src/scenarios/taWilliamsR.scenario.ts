@@ -26,7 +26,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * pinned `[-100, 0]` via `TA_REGISTRY_METADATA.williamsR.yDomain`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_WILLIAMS_R_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_WILLIAMS_R_SCENARIO;

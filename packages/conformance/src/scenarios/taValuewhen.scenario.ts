@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * forward across non-cross bars.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_VALUEWHEN_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_VALUEWHEN_SCENARIO;

@@ -16,7 +16,7 @@ const FONT = "11px sans-serif";
  * Render a compact latest-log pane at the bottom-left of the chart.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const viewport: Viewport;

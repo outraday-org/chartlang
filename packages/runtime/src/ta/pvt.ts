@@ -120,7 +120,7 @@ function fold(
  * @formula  pvt[t] = pvt[t − 1] + volume[t] · (close[t] − close[t − 1]) / close[t − 1]
  * @warmup   1 (needs a prior close to compute the delta; bar 0 emits 0)
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series (PLAN.md §9.1).
  *

@@ -42,7 +42,7 @@ function doubleCurveImpl(slotId: string, anchors: AnchorQuint, opts: LineDrawSty
  * @anchorCount 5
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -67,7 +67,7 @@ export function doubleCurve(anchors: AnchorQuint, opts?: LineDrawStyle): Drawing
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof doubleCurve = doubleCurve;
@@ -84,7 +84,7 @@ export function doubleCurve(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof doubleCurve = doubleCurve;
  *     // void fn;

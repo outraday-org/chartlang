@@ -6,6 +6,11 @@ import { describe, expect, it } from "vitest";
 import { createProgramForSource } from "../program";
 import { runStructuralChecks } from "./structuralChecks";
 
+const API_VERSION_2_MESSAGE =
+    "`apiVersion: 2` is not supported — this compiler implements the frozen `apiVersion: 1` contract. Future language versions require a compiler that declares support for them.";
+const MISSING_API_VERSION_MESSAGE =
+    "defineIndicator/defineDrawing/defineAlert/defineAlertCondition requires `apiVersion: 1` — the frozen language version this compiler implements.";
+
 function run(source: string) {
     const { sourceFile, checker } = createProgramForSource(source, {
         sourcePath: "demo.chart.ts",
@@ -195,6 +200,7 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 export default defineIndicator({ name: "demo", compute: () => {} });
 `);
         expect(result.diagnostics[0]?.code).toBe("api-version-mismatch");
+        expect(result.diagnostics[0]?.message).toBe(MISSING_API_VERSION_MESSAGE);
     });
 
     it("emits api-version-mismatch when apiVersion is not 1", () => {
@@ -203,6 +209,7 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 export default defineIndicator({ name: "demo", apiVersion: 2, compute: () => {} });
 `);
         expect(result.diagnostics[0]?.code).toBe("api-version-mismatch");
+        expect(result.diagnostics[0]?.message).toBe(API_VERSION_2_MESSAGE);
     });
 
     it("emits api-version-mismatch when the argument is not an object literal", () => {

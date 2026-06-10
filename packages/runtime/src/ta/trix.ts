@@ -94,7 +94,7 @@ function resultForOffset(slot: TrixSlot, offset: number, signalBuf: Float64RingB
  *           trix line first defined at `3 · length − 2`)
  * @anchors  length, signalLength
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts both outputs in lockstep (PLAN.md §9.1) —
  * `series.current` on each output returns the value `offset` bars

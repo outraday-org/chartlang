@@ -2,7 +2,7 @@
 
 # `defineIndicator.format`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.4
 
 Value-formatting hint for axis labels + cursor read-out.

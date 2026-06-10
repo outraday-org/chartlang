@@ -30,7 +30,7 @@ const CURVE_SAMPLES = 32;
  * Sampled at `CURVE_SAMPLES = 32` segments and stroked as a polyline.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

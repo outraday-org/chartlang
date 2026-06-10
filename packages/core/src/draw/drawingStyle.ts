@@ -11,7 +11,7 @@ import type { Color, LineStyle } from "../types";
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: LineDrawStyle = { color: "#3b82f6", lineWidth: 2, lineStyle: "solid" };
  *     void s;
@@ -32,7 +32,7 @@ export type LineDrawStyle = {
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ShapeStyle = {
  *         stroke: "#3b82f6",
@@ -58,7 +58,7 @@ export type ShapeStyle = {
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: HighlighterStyle = { color: "#facc15", alpha: 0.3 };
  *     void s;
@@ -75,7 +75,7 @@ export type HighlighterStyle = {
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: BrushStyle = { stroke: "#000000", fill: "#ffffff" };
  *     void s;
@@ -92,7 +92,7 @@ export type BrushStyle = {
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const t: TextOpts = {
  *         color: "#1e293b",
@@ -117,7 +117,7 @@ export type TextOpts = {
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const a: ArrowOpts = { color: "#dc2626", lineWidth: 2, label: "Sell" };
  *     void a;
@@ -134,7 +134,7 @@ export type ArrowOpts = LineDrawStyle & {
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const m: ArrowMarkerOpts = { color: "#10b981", text: "Long" };
  *     void m;
@@ -150,7 +150,7 @@ export type ArrowMarkerOpts = {
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const p: PathOpts = { color: "#3b82f6", lineWidth: 1, closed: true };
  *     void p;
@@ -169,7 +169,7 @@ export type PathOpts = LineDrawStyle & {
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const f: FibOpts = {
  *         levels: [0.382, 0.5, 0.618],
@@ -194,7 +194,7 @@ export type FibOpts = {
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const r: RegressionTrendOpts = {
  *         source: "close",
@@ -221,7 +221,7 @@ export type RegressionTrendOpts = {
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const f: FrameOpts = { label: "Trade idea", bgColor: "#f1f5f9" };
  *     void f;

@@ -27,7 +27,7 @@ const LABEL_OFFSET_PX = 4;
  * level set.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

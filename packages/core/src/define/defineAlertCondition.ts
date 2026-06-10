@@ -15,7 +15,7 @@ import type {
  * `DefineAlertOpts` plus the `conditions` map.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const opts: DefineAlertConditionOpts = {
  *         name: "EMA cross",
@@ -56,7 +56,7 @@ function freezeCondition(
  * `CompiledScriptObject` whose `manifest.kind` is `"alertCondition"`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  * ```ts
  * import { defineAlertCondition, input, ta } from "@invinite-org/chartlang-core";

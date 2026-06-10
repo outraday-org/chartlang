@@ -2,7 +2,7 @@
 
 # `ta.williamsR`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Williams %R — momentum oscillator bounded in `[-100, 0]`. Sources

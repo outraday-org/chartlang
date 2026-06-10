@@ -1,6 +1,6 @@
 # Conformance `--report`: CONFORMANCE.md + JSON sidecar + drift gate
 
-> **Status: TODO**
+> **Status: Complete**
 
 ## Goal
 

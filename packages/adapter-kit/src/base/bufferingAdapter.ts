@@ -10,7 +10,7 @@ import type { Adapter, CandleEvent, Capabilities, RunnerEmissions } from "../typ
  * fixture playback before asserting against golden bars.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import {
  *         BufferingAdapter,

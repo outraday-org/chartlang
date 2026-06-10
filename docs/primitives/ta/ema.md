@@ -2,7 +2,7 @@
 
 # `ta.ema`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.1
 
 Exponential moving average. Recurrence `EMA[t] = α·x[t] + (1 − α)·EMA[t − 1]`

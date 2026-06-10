@@ -27,7 +27,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * accumulator never resets — runs from the anchor to the last bar.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_ANCHORED_VWAP_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_ANCHORED_VWAP_SCENARIO;

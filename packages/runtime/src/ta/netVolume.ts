@@ -105,7 +105,7 @@ function fold(
  * @formula  netVolume[t] = netVolume[t − 1] + sign(close[t] − close[t − 1]) · volume[t]
  * @warmup   1 (needs a prior close to compute the delta; bar 0 emits 0)
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series (PLAN.md §9.1).
  *

@@ -26,7 +26,7 @@ async function* emptyCandleSource(): AsyncIterator<CandleEvent> {
  * element.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import defaultAdapter, { DEFAULT_ADAPTER } from "chartlang-example-canvas2d-adapter";
  *     // defaultAdapter === DEFAULT_ADAPTER

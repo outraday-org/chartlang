@@ -34,7 +34,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * move pattern on the first bar.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_ABCD_PATTERN_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_ABCD_PATTERN_SCENARIO;

@@ -34,7 +34,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * spacings between `goldenBars[0]` and `goldenBars[500]`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_FIB_TIME_ZONE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_FIB_TIME_ZONE_SCENARIO;

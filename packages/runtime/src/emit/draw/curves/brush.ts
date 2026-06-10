@@ -46,7 +46,7 @@ function brushImpl(
  * @anchorCount 2..500
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -69,7 +69,7 @@ export function brush(anchors: ReadonlyArray<WorldPoint>, opts: BrushStyle): Dra
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof brush = brush;
@@ -86,7 +86,7 @@ export function brush(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof brush = brush;
  *     // void fn;

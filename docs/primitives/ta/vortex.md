@@ -2,7 +2,7 @@
 
 # `ta.vortex`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Vortex Indicator (Botes & Siepman, 2010) — paired `+VI` / `−VI`

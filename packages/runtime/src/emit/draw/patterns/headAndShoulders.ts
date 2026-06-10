@@ -54,7 +54,7 @@ function headAndShouldersImpl(
  * @anchorCount 5
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -76,7 +76,7 @@ export function headAndShoulders(anchors: AnchorQuint, opts?: LineDrawStyle): Dr
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof headAndShoulders = headAndShoulders;
@@ -93,7 +93,7 @@ export function headAndShoulders(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof headAndShoulders = headAndShoulders;
  *     // void fn;

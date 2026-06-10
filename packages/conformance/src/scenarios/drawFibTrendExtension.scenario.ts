@@ -37,7 +37,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `goldenBars[500]`, and `goldenBars[1000]`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_FIB_TREND_EXTENSION_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_FIB_TREND_EXTENSION_SCENARIO;

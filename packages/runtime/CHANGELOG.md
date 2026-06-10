@@ -1,5 +1,51 @@
 # @invinite-org/chartlang-runtime
 
+## 1.0.0
+
+### Major Changes
+
+- chartlang `1.0.0` -- the `apiVersion: 1` standard.
+
+  - `apiVersion: 1` frozen: compiler accepts only the frozen language
+    version; `STATEFUL_PRIMITIVES` locked at 172 entries by exact
+    name-set; every shipping export `@stable`; pre-1.0 deprecations
+    removed (`PHASE_1_SCENARIOS`).
+  - Canonical language spec published (`docs/spec/`): grammar,
+    semantics, manifest, emissions, versioning -- self-contained for
+    alternate implementations. The `v1.0.0` tag is the frozen spec
+    snapshot.
+  - Public conformance reports: `pnpm conformance --report` emits
+    `CONFORMANCE.md` + `conformance-report.json`; canvas2d reference
+    report published and drift-gated.
+  - Adapter-author path proven end-to-end: scaffolded adapters ship a
+    wired conformance test; full writing-an-adapter tutorial +
+    Lightweight Charts porting walkthrough.
+  - Pine migration guide finalised with a pattern-coverage matrix
+    audited against the top ~50 Pine scripts.
+
+### Minor Changes
+
+- d14a034: Add phase 5 server alerts, multi-timeframe request handling, runtime persistence, QuickJS hosting, expanded plot and table rendering, color helpers, alert conditions, and volume profile primitives.
+- 3cfff10: Add lower-timeframe bar bucketing and cache helpers.
+- 3cfff10: Phase 6 closeout for Tier-3 ergonomics and lower-timeframe support.
+- 3cfff10: Wire runtime `request.lowerTf`, advertise sub-minute canvas2d intervals, and add LTF conformance scenarios.
+
+### Patch Changes
+
+- Pre-1.0 surface cleanup: remove the deprecated `PHASE_1_SCENARIOS`
+  alias (use `ALL_SCENARIOS`) and promote every shipping export from
+  `@experimental` to `@stable` ahead of the `apiVersion: 1` freeze.
+- Updated dependencies [d14a034]
+- Updated dependencies [3cfff10]
+- Updated dependencies [3cfff10]
+- Updated dependencies [3cfff10]
+- Updated dependencies [3cfff10]
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @invinite-org/chartlang-adapter-kit@1.0.0
+  - @invinite-org/chartlang-core@1.0.0
+
 ## 0.5.0
 
 ### Phase 5
@@ -350,7 +396,7 @@ max: 100 }`.
 
   Three conformance scenarios (`taPmo.scenario.ts`,
   `taSmi.scenario.ts`, `taTsi.scenario.ts`) registered against
-  `PHASE_1_SCENARIOS` via the Task-1 `inlineSource` extension.
+  `ALL_SCENARIOS` via the Task-1 `inlineSource` extension.
   Plot-hash pinning deferred to Phase-2 closeout (Task 30) per the
   established cross-functional scenario convention.
 
@@ -444,7 +490,7 @@ TA_REGISTRY, PrimitiveMetadata>>>` — per-primitive `primarySeriesKey`,
   shim mirrors the new core surface.
 
   Three conformance scenarios (`taCci.scenario.ts`, `taStoch.scenario.ts`,
-  `taWilliamsR.scenario.ts`) registered against `PHASE_1_SCENARIOS` via
+  `taWilliamsR.scenario.ts`) registered against `ALL_SCENARIOS` via
   the Task-1 `inlineSource` extension. Plot-hash pinning deferred to
   Phase-2 closeout (Task 30) per the established cross-functional
   scenario convention.
@@ -511,7 +557,7 @@ TA_REGISTRY, PrimitiveMetadata>>>` — per-primitive `primarySeriesKey`,
 
   Four conformance scenarios (`taKst.scenario.ts`,
   `taFisher.scenario.ts`, `taKlinger.scenario.ts`,
-  `taRvgi.scenario.ts`) registered against `PHASE_1_SCENARIOS` via the
+  `taRvgi.scenario.ts`) registered against `ALL_SCENARIOS` via the
   Task-1 `inlineSource` extension. Plot-hash pinning deferred to
   Phase-2 closeout (Task 30) per the established multi-output scenario
   convention.
@@ -564,7 +610,7 @@ displacement] - sma[i]` with `displacement = floor(length / 2) +
 
   Three conformance scenarios (`taPpo.scenario.ts`,
   `taDpo.scenario.ts`, `taConnorsRsi.scenario.ts`) registered against
-  `PHASE_1_SCENARIOS` via the Task-1 `inlineSource` extension.
+  `ALL_SCENARIOS` via the Task-1 `inlineSource` extension.
   Plot-hash pinning deferred to Phase-2 closeout (Task 30) per the
   established cross-functional scenario convention.
 
@@ -637,7 +683,7 @@ wmaLength)` over percentage ROC. Defaults `(11, 14, 10)`. Unbounded;
 
   Three conformance scenarios (`taStochRsi.scenario.ts`,
   `taUltimateOsc.scenario.ts`, `taCoppock.scenario.ts`) registered
-  against `PHASE_1_SCENARIOS` via the Task-1 `inlineSource` extension.
+  against `ALL_SCENARIOS` via the Task-1 `inlineSource` extension.
   Plot-hash pinning deferred to Phase-2 closeout (Task 30) per the
   established cross-functional scenario convention.
 
@@ -857,7 +903,7 @@ visibleSeriesKeys: ["sar", "direction"], yDomain: auto }`,
   `MedianOpts`, `AdrOpts` (`{ length?: number; offset?: number;
 lineStyle?: PlotLineStyle }`), and `UlcerIndexOpts`.
 
-  `PHASE_1_SCENARIOS` (conformance) grows by `+3`. The three new
+  `ALL_SCENARIOS` (conformance) grows by `+3`. The three new
   scenarios assert `alert-count: 0` + the standard
   `lookback-exceeded` / `malformed-emission` diagnostic-absent gates
   (no `plot-hash` — the rolling primitives' outputs are pinned
@@ -1002,7 +1048,7 @@ auto }` (the cloud renders via the Task-1 `filled-band` PlotKind
   `STATEFUL_PRIMITIVES` grows by 3 (`ta.vortex`,
   `ta.trendStrengthIndex`, `ta.ichimoku`; all `slot: true`) — final
   Phase-2 size 93. `TA_REGISTRY` grows by 3 — final size 90.
-  Conformance scenarios + `PHASE_1_SCENARIOS` array grow by 3.
+  Conformance scenarios + `ALL_SCENARIOS` array grow by 3.
 
 - 38fb475: Phase-2 Task 18 — volatility ports: `ta.bbPercentB`, `ta.bbw`, and
   `ta.donchian`.
@@ -1168,7 +1214,7 @@ kind: "auto" }`. Warmup `slowLength + signalLength − 2`.
   - `STATEFUL_PRIMITIVES` grows by four `slot: true` entries.
   - `TA_REGISTRY` + `RuntimeTaNamespace` mirror the same delta;
     `TA_REGISTRY_METADATA.pvo` carries the multi-series metadata;
-    `PHASE_1_SCENARIOS` grows by four inline scenarios.
+    `ALL_SCENARIOS` grows by four inline scenarios.
 
   All four primitives carry the §16.6 100% coverage gate via their
   five-file test set; golden hashes pinned against `syntheticBars(100,
@@ -1206,7 +1252,7 @@ volume`. Warmup 1 (bar 0 emits 0). Slot snapshots
 lineStyle? }`).
   - `STATEFUL_PRIMITIVES` grows by four `slot: true` entries.
   - `TA_REGISTRY` + `RuntimeTaNamespace` mirror the same delta;
-    `PHASE_1_SCENARIOS` grows by four inline scenarios.
+    `ALL_SCENARIOS` grows by four inline scenarios.
 
   All four primitives carry the §16.6 100% coverage gate via their
   five-file test set; golden hashes pinned against `syntheticBars(100,
@@ -1252,7 +1298,7 @@ lineStyle? }`).
   - `TA_REGISTRY` + `RuntimeTaNamespace` mirror the same delta
     (83 → 87). No new `TA_REGISTRY_METADATA` rows — all four are
     single-output `Series<number>` with auto y-domain.
-  - `PHASE_1_SCENARIOS` grows by four inline scenarios.
+  - `ALL_SCENARIOS` grows by four inline scenarios.
 
   All four primitives carry the §16.6 100% coverage gate via their
   five-file test set; golden hashes pinned against
@@ -1931,7 +1977,7 @@ rightTrough, rightShoulder, end`). The renderer treats the 5
     - `draw-containers-all`:
       `e6ba183dfc04145a5126e6ea75a4cb7117694adc13eea84853239c68810e91fe`
       `TEST_CAPABILITIES.drawings` widens with
-      `...capBuilders.allContainerDrawings()`; the `PHASE_1_SCENARIOS`
+      `...capBuilders.allContainerDrawings()`; the `ALL_SCENARIOS`
       `toEqual` array (in `scenarios.test.ts` and `index.test.ts`)
       appends the 3 new scenarios under
       `// Phase 3 Task 18 — Containers.`.
@@ -2133,7 +2179,7 @@ ReadonlyArray<DrawingHandle>)` accepts handle objects.** Landed
   `runConformanceSuite.test.ts` + `scenarios.test.ts` widens to include
   `allBoxDrawings()` plus `boxes: 100` / `polylines: 100` budgets so
   the new scenarios reach `pushDrawing`'s happy path. The 5 new
-  scenarios extend `PHASE_1_SCENARIOS` (now 96 entries) and the public
+  scenarios extend `ALL_SCENARIOS` (now 96 entries) and the public
   re-export surface.
 
   No core edits — the `DrawingState` variants and `DrawNamespace`
@@ -2488,7 +2534,7 @@ view)` calls; exhaustiveness is preserved.
   shared-primitive-helper carve-out alongside the Float64-only compute
   cores.
 
-  Reconcile `PHASE_1_SCENARIOS` cardinality with `scripts/run-conformance.ts`
+  Reconcile `ALL_SCENARIOS` cardinality with `scripts/run-conformance.ts`
   by renaming the export to `ALL_SCENARIOS` with a `@deprecated since 0.2.1`
   alias retained for one release. Add iteration-parity test so script
   and canonical export can never drift again.
@@ -2499,7 +2545,7 @@ view)` calls; exhaustiveness is preserved.
   entries with no silent skip (`report.passed + report.failed ===
 ALL_SCENARIOS.length`). CI is unaffected because `pnpm build` runs
   before `pnpm conformance`. Resolution: option (a) — rename to
-  `ALL_SCENARIOS`, keep `PHASE_1_SCENARIOS` as deprecated alias.
+  `ALL_SCENARIOS`, keep `ALL_SCENARIOS` as deprecated alias.
 
 - 38fb475: Phase-2 Task 3 — chained-MA helper family.
 

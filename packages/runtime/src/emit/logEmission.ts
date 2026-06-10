@@ -73,7 +73,7 @@ function diagnoseLogBudget(ctx: RuntimeContext): void {
  * Emit one `runtime.log.*` message for the active compute step.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // emitLog(ctx, "info", "ready");
  *     const fn: typeof emitLog = emitLog;
@@ -117,7 +117,7 @@ export function emitLog(
  * Build the script-facing runtime namespace bound to a runtime context.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // const ns = buildRuntimeNamespace(ctx);
  *     const fn: typeof buildRuntimeNamespace = buildRuntimeNamespace;

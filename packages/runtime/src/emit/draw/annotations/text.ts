@@ -37,7 +37,7 @@ function textImpl(slotId: string, anchor: WorldPoint, body: string, opts: TextOp
  * @anchorCount 1
  * @bucket labels
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -57,7 +57,7 @@ export function text(anchor: WorldPoint, body: string, opts?: TextOpts): Drawing
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof text = text;
@@ -76,7 +76,7 @@ export function text(
  * carries four arguments (slot id + anchor + body + opts).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof text = text;
  *     // void fn;

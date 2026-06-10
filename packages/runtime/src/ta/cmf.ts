@@ -103,7 +103,7 @@ function emit(sumMfv: number, sumVol: number, ready: boolean): number {
  *           where mfv = ((C − L) − (H − C)) / (H − L) · volume
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta, plot } from "@invinite-org/chartlang-core";

@@ -38,7 +38,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * extension.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_FIB_RETRACEMENT_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_FIB_RETRACEMENT_SCENARIO;

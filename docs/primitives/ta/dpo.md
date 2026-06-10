@@ -2,7 +2,7 @@
 
 # `ta.dpo`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Detrended Price Oscillator — strips the SMA trend out of price so

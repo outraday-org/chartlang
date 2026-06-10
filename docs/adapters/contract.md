@@ -8,5 +8,8 @@ the shape of the `Adapter` object, the candle-stream input contract,
 the Plot / Draw / Alert emission types it must consume, and the rules
 for silent no-op semantics when a capability is undeclared.
 
+Canonical payload schemas are specified in
+[Emission payloads](../spec/emissions.md).
+
 Stubbed during the Phase 0 bootstrap so the docs gate has a stable
 target. Content lands with the Phase 1 adapter-kit PR.

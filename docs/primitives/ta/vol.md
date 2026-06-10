@@ -2,7 +2,7 @@
 
 # `ta.vol`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Volume passthrough — emits `bar.volume` as a `Series<number>` so

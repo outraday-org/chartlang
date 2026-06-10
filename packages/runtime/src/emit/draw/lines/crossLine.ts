@@ -39,7 +39,7 @@ function crossLineImpl(slotId: string, anchor: WorldPoint, opts: LineDrawStyle):
  * @anchorCount 1
  * @bucket lines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -58,7 +58,7 @@ export function crossLine(anchor: WorldPoint, opts?: LineDrawStyle): DrawingHand
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof crossLine = crossLine;
@@ -71,7 +71,7 @@ export function crossLine(slotId: string, anchor: WorldPoint, opts?: LineDrawSty
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof crossLine = crossLine;
  *     // void fn;

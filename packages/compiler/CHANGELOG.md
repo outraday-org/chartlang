@@ -1,5 +1,53 @@
 # @invinite-org/chartlang-compiler
 
+## 1.0.0
+
+### Major Changes
+
+- chartlang `1.0.0` -- the `apiVersion: 1` standard.
+
+  - `apiVersion: 1` frozen: compiler accepts only the frozen language
+    version; `STATEFUL_PRIMITIVES` locked at 172 entries by exact
+    name-set; every shipping export `@stable`; pre-1.0 deprecations
+    removed (`PHASE_1_SCENARIOS`).
+  - Canonical language spec published (`docs/spec/`): grammar,
+    semantics, manifest, emissions, versioning -- self-contained for
+    alternate implementations. The `v1.0.0` tag is the frozen spec
+    snapshot.
+  - Public conformance reports: `pnpm conformance --report` emits
+    `CONFORMANCE.md` + `conformance-report.json`; canvas2d reference
+    report published and drift-gated.
+  - Adapter-author path proven end-to-end: scaffolded adapters ship a
+    wired conformance test; full writing-an-adapter tutorial +
+    Lightweight Charts porting walkthrough.
+  - Pine migration guide finalised with a pattern-coverage matrix
+    audited against the top ~50 Pine scripts.
+
+### Minor Changes
+
+- d14a034: Add phase 5 server alerts, multi-timeframe request handling, runtime persistence, QuickJS hosting, expanded plot and table rendering, color helpers, alert conditions, and volume profile primitives.
+- 3cfff10: Phase 6 closeout for Tier-3 ergonomics and lower-timeframe support.
+- 3cfff10: Add `request.lowerTf({ interval })` and compiler diagnostics for invalid lower-timeframe intervals.
+
+### Patch Changes
+
+- Freeze `apiVersion: 1`: release-grade compiler diagnostics for version
+  mismatches, an exact name-set lock on the 172-entry `STATEFUL_PRIMITIVES`
+  registry, and freeze-contract documentation on pinned surfaces. No behavioural
+  change: the structural check already enforced `apiVersion: 1`.
+- Pre-1.0 surface cleanup: remove the deprecated `PHASE_1_SCENARIOS`
+  alias (use `ALL_SCENARIOS`) and promote every shipping export from
+  `@experimental` to `@stable` ahead of the `apiVersion: 1` freeze.
+- Updated dependencies [d14a034]
+- Updated dependencies [3cfff10]
+- Updated dependencies [3cfff10]
+- Updated dependencies [3cfff10]
+- Updated dependencies [3cfff10]
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @invinite-org/chartlang-core@1.0.0
+
 ## 0.5.0
 
 ### Phase 5
@@ -292,7 +340,7 @@
   (`@invinite-org/chartlang-conformance`). The package now exports
   `runConformanceSuite(adapter, opts?)`, three pinned Phase-1
   scenarios (`EMA_CROSS_SCENARIO`, `BOLLINGER_BANDS_SCENARIO`,
-  `RSI_DIVERGENCE_SCENARIO` + the `PHASE_1_SCENARIOS` aggregate), the
+  `RSI_DIVERGENCE_SCENARIO` + the `ALL_SCENARIOS` aggregate), the
   deterministic 10 000-bar `goldenBars.json` fixture (Mulberry32 seed
   `0xC0DE`, four 2 500-bar regimes), and the
   `generateGoldenBars` / `serialiseGoldenBars` / `writeGoldenBars` /

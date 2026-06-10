@@ -8,7 +8,7 @@ import { parseColor } from "./parseColor";
  * Gradient color stop for `color.fromGradient`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const stop: GradientStop = { at: 0, color: "#0000ff" };
  *     void stop;
@@ -59,7 +59,7 @@ function emitRgba(r: number, g: number, b: number, alpha: number): Color {
  * Pine's `color.from_gradient`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // const blue = "#0000ff";
  *     // const red = "#ff0000";
@@ -105,7 +105,7 @@ export function fromGradient(t: number, stops: ReadonlyArray<GradientStop>): Col
  * transp)` analogue using direct alpha.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const c = withAlpha("#ff0000", 0.5);
  *     void c;
@@ -122,7 +122,7 @@ export function withAlpha(c: Color, alpha: number): Color {
  * `[0, 255]`; alpha defaults to `1`. NaN components clamp to `0`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const red = rgb(255, 0, 0);
  *     void red;
@@ -141,7 +141,7 @@ export function rgb(r: number, g: number, b: number, alpha?: number): Color {
  * components clamp to `0`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const red = hsl(0, 100, 50);
  *     void red;

@@ -2,7 +2,7 @@
 
 # `ta.stochRsi`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Stochastic of the Wilder RSI series (%K + %D). Composes

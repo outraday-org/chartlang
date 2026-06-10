@@ -91,7 +91,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * all 8 emissions.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_BOXES_ALL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_BOXES_ALL_SCENARIO;

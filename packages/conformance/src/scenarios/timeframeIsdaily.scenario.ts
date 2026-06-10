@@ -27,7 +27,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * candles, so every emitted value should be the bar close.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     import { TIMEFRAME_ISDAILY_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TIMEFRAME_ISDAILY_SCENARIO;

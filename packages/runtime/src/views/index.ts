@@ -13,7 +13,7 @@ import { makeTimeframeView } from "./timeframeView";
  * frozen snapshot as the runner advances.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const views: RuntimeViews = createRuntimeViews();
  *     views.barstate = views.barstate;
@@ -28,7 +28,7 @@ export type RuntimeViews = {
  * Build the default runtime view container for a script mount.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const views = createRuntimeViews({
  *         syminfo: makeSymInfoView({ ticker: "DEMO" }, new Set(["ticker"])),

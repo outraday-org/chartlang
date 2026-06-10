@@ -13,7 +13,7 @@ import { dashPattern } from "./lineDash";
  * `priceToY`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const p: AreaPoint = { x: 100, y: 50 };
  *     void p;
@@ -29,7 +29,7 @@ export type AreaPoint = {
  * at `baselineY`, then strokes the polyline on top.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const args: AreaArgs = {
  *         points: [{ x: 0, y: 50 }, { x: 10, y: 40 }],
@@ -63,7 +63,7 @@ export type AreaArgs = {
  * A null `color` falls back to `palette.plotDefault`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const palette: Palette;

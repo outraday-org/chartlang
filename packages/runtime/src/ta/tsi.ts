@@ -79,7 +79,7 @@ function tsiValue(num: number, den: number): number {
  * @formula  see above
  * @warmup   firstSmoothing + secondSmoothing + signalLength − 3
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

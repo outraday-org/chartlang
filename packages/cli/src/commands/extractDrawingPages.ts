@@ -17,7 +17,7 @@ import { AUTO_GENERATED_HEADER, GenDocsError } from "./genDocs.js";
  * instead of the indicator-specific tags (`@formula`, `@warmup`).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const input: DrawingDocInput = {
  *     //     camelKind: "line",
@@ -28,7 +28,7 @@ import { AUTO_GENERATED_HEADER, GenDocsError } from "./genDocs.js";
  *     //     anchorCount: 2,
  *     //     bucket: "lines",
  *     //     since: "0.3",
- *     //     stability: "experimental",
+ *     //     stability: "stable",
  *     //     example: "// draw.line(...);",
  *     //     sourceUrl: "https://example.invalid/line.ts",
  *     // };
@@ -43,7 +43,7 @@ export type DrawingDocInput = Readonly<{
     anchorCount: string;
     bucket: DrawingBucket;
     since: string;
-    stability: "stable" | "experimental" | "frozen";
+    stability: "stable" | "frozen";
     example: string;
     sourceUrl: string;
 }>;
@@ -86,9 +86,8 @@ function findTag(tags: readonly ts.JSDocTag[], name: string): ts.JSDocTag | unde
     return tags.find((t) => t.tagName.text === name);
 }
 
-function stabilityOf(tags: readonly ts.JSDocTag[]): "stable" | "experimental" | "frozen" | null {
+function stabilityOf(tags: readonly ts.JSDocTag[]): "stable" | "frozen" | null {
     if (findTag(tags, "stable")) return "stable";
-    if (findTag(tags, "experimental")) return "experimental";
     if (findTag(tags, "frozen")) return "frozen";
     return null;
 }
@@ -166,7 +165,7 @@ function pickDrawingOverload(
  * repo root (e.g. `packages/runtime/src/emit/draw/lines/line.ts`).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // import { parseDrawingSource } from "@invinite-org/chartlang-cli";
  *     // const input = await parseDrawingSource("/abs/line.ts", {
@@ -212,11 +211,7 @@ export async function parseDrawingSource(
     if (!example) throw new GenDocsError("missing-example", filePath, "missing @example tag");
     const stability = stabilityOf(tags);
     if (stability === null) {
-        throw new GenDocsError(
-            "missing-stability",
-            filePath,
-            "missing @stable / @experimental / @frozen tag",
-        );
+        throw new GenDocsError("missing-stability", filePath, "missing @stable / @frozen tag");
     }
 
     const anchorCountRaw = tagText(anchorCount);
@@ -260,7 +255,7 @@ export async function parseDrawingSource(
  * template's branch matrix is fully exercised by unit tests.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // import { generateDrawingDocsPage } from "@invinite-org/chartlang-cli";
  *     // const md = generateDrawingDocsPage(input);
@@ -353,7 +348,7 @@ type WriteFn = (path: string, content: string) => Promise<void>;
  * capture writes without touching disk.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const opts: RunGenDrawingDocsOptions = {
  *     //     sourceDir: "/abs/runtime/src/emit/draw",
@@ -387,7 +382,7 @@ async function loadRepoUrl(repoRoot: string): Promise<string> {
  * tests pass an in-memory capture to avoid touching disk.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // import { runGenDrawingDocs } from "@invinite-org/chartlang-cli";
  *     // const { written, skipped } = await runGenDrawingDocs({

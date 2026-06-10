@@ -51,7 +51,7 @@ export type PlotKind =
  * Marker glyphs shared by Phase 2 `marker` and Phase 5 `shape` plot styles.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const shape: PlotGlyphShape = "circle";
  *     void shape;
@@ -62,7 +62,7 @@ export type PlotGlyphShape = "circle" | "triangle-up" | "triangle-down" | "squar
  * Full glyph inventory for Phase 5 `shape` plot styles.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const shape: PlotShapeGlyph = "flag";
  *     void shape;
@@ -73,7 +73,7 @@ export type PlotShapeGlyph = PlotGlyphShape | "cross" | "xcross" | "flag";
  * Vertical anchoring mode for glyph-like Phase 5 plot styles.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const location: PlotLocation = "above";
  *     void location;
@@ -84,7 +84,7 @@ export type PlotLocation = "above" | "below" | "absolute";
  * Single row in a Phase 5 horizontal-histogram plot emission.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const bucket: HorizontalHistogramBucket = { price: 100, volume: 25 };
  *     void bucket;
@@ -105,7 +105,7 @@ export type HorizontalHistogramBucket = Readonly<{
  *
  * @formula  N/A — script-facing style input
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const lineStyle: PlotOptsStyle = { kind: "line" };
  *     const histStyle: PlotOptsStyle = { kind: "histogram", baseline: 0 };
@@ -126,7 +126,7 @@ export type PlotOptsStyle =
      * anchoring; `size` is in CSS pixels.
      *
      * @since 0.5
-     * @experimental
+     * @stable
      * @example
      *     plot(bar.close, { style: { kind: "shape", shape: "triangle-up", size: 8, location: "below" } });
      */
@@ -141,7 +141,7 @@ export type PlotOptsStyle =
      * non-empty UTF-8 string; `size` is in CSS pixels.
      *
      * @since 0.5
-     * @experimental
+     * @stable
      * @example
      *     plot(bar.close, { style: { kind: "character", char: "▲", size: 12, location: "above" } });
      */
@@ -155,7 +155,7 @@ export type PlotOptsStyle =
      * Directional marker at world-anchor — Pine's `plotarrow`.
      *
      * @since 0.5
-     * @experimental
+     * @stable
      * @example
      *     plot(bar.low, { style: { kind: "arrow", direction: "up", size: 10 } });
      */
@@ -164,7 +164,7 @@ export type PlotOptsStyle =
      * Candle body color override — Pine's `plotcandle`.
      *
      * @since 0.5
-     * @experimental
+     * @stable
      * @example
      *     plot(bar.close, { style: { kind: "candle-override", bull: "#26a69a", bear: "#ef5350" } });
      */
@@ -178,7 +178,7 @@ export type PlotOptsStyle =
      * OHLC bar outline override — Pine's `plotbar`.
      *
      * @since 0.5
-     * @experimental
+     * @stable
      * @example
      *     plot(bar.close, { style: { kind: "bar-override", color: "#f59e0b" } });
      */
@@ -187,7 +187,7 @@ export type PlotOptsStyle =
      * Pane background color band — Pine's `bgcolor`.
      *
      * @since 0.5
-     * @experimental
+     * @stable
      * @example
      *     plot(bar.close, { style: { kind: "bg-color", color: "#1d4ed8", transp: 80 } });
      */
@@ -196,7 +196,7 @@ export type PlotOptsStyle =
      * Main candle/bar tint — Pine's `barcolor`.
      *
      * @since 0.5
-     * @experimental
+     * @stable
      * @example
      *     plot(bar.close, { style: { kind: "bar-color", color: "#a855f7" } });
      */
@@ -205,7 +205,7 @@ export type PlotOptsStyle =
      * Right-edge volume-profile bars keyed by price bucket.
      *
      * @since 0.5
-     * @experimental
+     * @stable
      * @example
      *     plot(bar.close, { style: { kind: "horizontal-histogram", buckets: [{ price: bar.close, volume: bar.volume }] } });
      */

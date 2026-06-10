@@ -16,7 +16,7 @@
  *
  * @formula  out = prev * (length − 1) / length + sample / length
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { wilderStep } from "./wilderSmoothing";
  *     // const nextAvg = wilderStep(prevAvg, gain, 14);

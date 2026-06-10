@@ -2,7 +2,7 @@
 
 # `ta.bop`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Balance of Power — `(close − open) / (high − low)` per bar. Raw,

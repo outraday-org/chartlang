@@ -35,7 +35,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * diagnostics.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_PIVOTS_STANDARD_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_PIVOTS_STANDARD_SCENARIO;

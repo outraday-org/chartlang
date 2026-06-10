@@ -22,7 +22,7 @@ import { worldPointToCanvas } from "./worldToCanvas";
  * 5-anchor harmonic pattern and routes to its own renderer.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

@@ -68,7 +68,7 @@ function middleValue(upper: number, lower: number): number {
  *           middle = (upper + lower) / 2
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

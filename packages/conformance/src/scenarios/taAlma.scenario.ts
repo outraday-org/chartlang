@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * bar-shift (which lives on `opts.barShift` for ALMA).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_ALMA_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_ALMA_SCENARIO;

@@ -31,7 +31,7 @@ const DEFAULT_LINE_WIDTH = 1;
  * to solid after the stroke so downstream draws are unaffected.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

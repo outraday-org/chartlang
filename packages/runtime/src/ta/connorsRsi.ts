@@ -189,7 +189,7 @@ function blendCrsi(rsiHead: number, streakRsiHead: number, pctRank: number): num
  *           components that are NaN are skipped — count adjusts
  * @warmup   max(rsiLength, streakLength, rocLength) + 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

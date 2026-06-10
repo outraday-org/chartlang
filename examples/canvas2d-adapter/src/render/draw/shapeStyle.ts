@@ -23,7 +23,7 @@ const DEFAULT_FILL_ALPHA = 1;
  * its alpha-bracketed fill block.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const applied: AppliedShapeStyle = { hasFill: false, fillColor: "#000", fillAlpha: 1 };
  *     void applied;
@@ -49,7 +49,7 @@ export type AppliedShapeStyle = {
  * stroke-only for the polyline that has no fill field).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     const applied = applyShapeStyle(ctx, { stroke: "#3b82f6", fill: "#dbeafe", fillAlpha: 0.4 });

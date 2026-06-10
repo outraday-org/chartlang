@@ -21,7 +21,7 @@ import type { QuickJsCompiledScript, QuickJsHostLimits } from "./types";
  * measurement-only `maxCpuMsPerStep`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const m: HostToQuickJs = { kind: "dispose" };
  *     void m;
@@ -50,7 +50,7 @@ export type HostToQuickJs =
  * acks evolve without breaking the load contract.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const m: QuickJsToHost = { kind: "loaded" };
  *     void m;

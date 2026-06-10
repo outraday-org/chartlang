@@ -40,7 +40,7 @@ function fibWedgeImpl(slotId: string, anchors: AnchorTriple, opts: FibOpts): Dra
  * @anchorCount 3
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -63,7 +63,7 @@ export function fibWedge(anchors: AnchorTriple, opts?: FibOpts): DrawingHandle;
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof fibWedge = fibWedge;
@@ -76,7 +76,7 @@ export function fibWedge(slotId: string, anchors: AnchorTriple, opts?: FibOpts):
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof fibWedge = fibWedge;
  *     // void fn;

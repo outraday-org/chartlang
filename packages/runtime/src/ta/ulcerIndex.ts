@@ -112,7 +112,7 @@ function tickValue(slot: UlcerIndexSlot, src: number, maxSrc: number): number {
  *           out[t] = sqrt(mean(dd^2 over the last `length` finite bars))
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

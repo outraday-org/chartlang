@@ -32,7 +32,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * (`TA_REGISTRY_METADATA.ppo`).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_PPO_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_PPO_SCENARIO;

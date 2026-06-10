@@ -16,7 +16,7 @@ import type { JsonValue } from "../types";
  * internal state at snapshot time.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const s: StreamSnapshot = {
  *         interval: "1D",
@@ -54,7 +54,7 @@ export type StreamSnapshot = Readonly<{
  * mismatched versions on load.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const s: StateSnapshot = {
  *         lastBarTime: 1_700_000_000_000,
@@ -89,7 +89,7 @@ export type StateSnapshot = Readonly<{
  * - `requestedIntervals` is the frozen array of secondary stream intervals.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const k: StateStoreKey = {
  *         scriptHash: "abc",

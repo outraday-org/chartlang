@@ -2,7 +2,7 @@
 
 # `ta.connorsRsi`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Connors RSI — three-component blend of `RSI(source, rsiLength)`,

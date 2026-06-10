@@ -142,7 +142,7 @@ function computeRoc1(src: number, prevSrc: number): number {
  *           signal[t] = EMA(signalLength)(pmo)
  * @warmup   firstSmoothing + secondSmoothing − 1 (pmo line); firstSmoothing + secondSmoothing + signalLength − 3 (signal line)
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

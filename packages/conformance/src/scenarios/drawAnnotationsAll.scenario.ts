@@ -51,7 +51,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * category into this single bundle.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_ANNOTATIONS_ALL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_ANNOTATIONS_ALL_SCENARIO;

@@ -22,7 +22,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Phase 5 conformance scenario for plot kind candle override scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { PLOT_KIND_CANDLE_OVERRIDE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void PLOT_KIND_CANDLE_OVERRIDE_SCENARIO;

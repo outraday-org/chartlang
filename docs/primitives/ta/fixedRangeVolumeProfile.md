@@ -2,7 +2,7 @@
 
 # `ta.fixedRangeVolumeProfile`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.5
 
 Fixed-Range Volume Profile — bucketizes volume between two

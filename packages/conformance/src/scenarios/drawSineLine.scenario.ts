@@ -33,7 +33,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * (2 anchors defining the half-period and amplitude) on the first bar.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_SINE_LINE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_SINE_LINE_SCENARIO;

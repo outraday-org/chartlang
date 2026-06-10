@@ -2,7 +2,7 @@
 
 # `draw.table`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.5
 > **Bucket:** `other`
 > **Wire kind:** `table`

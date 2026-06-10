@@ -57,7 +57,7 @@ function combine(fast: number, slow: number): number {
  * @formula  AO[t] = SMA(hl2, fastLength)[t] − SMA(hl2, slowLength)[t]
  * @warmup   slowLength − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

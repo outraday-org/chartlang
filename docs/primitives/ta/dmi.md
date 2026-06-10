@@ -2,7 +2,7 @@
 
 # `ta.dmi`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Wilder's Directional Movement Index — `+DI` / `−DI` pair derived

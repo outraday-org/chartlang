@@ -44,7 +44,7 @@ function disjointChannelImpl(
  * @anchorCount 4
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -68,7 +68,7 @@ export function disjointChannel(anchors: AnchorQuad, opts?: LineDrawStyle): Draw
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof disjointChannel = disjointChannel;
@@ -85,7 +85,7 @@ export function disjointChannel(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof disjointChannel = disjointChannel;
  *     // void fn;

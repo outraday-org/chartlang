@@ -16,7 +16,7 @@ const DEFAULT_COLOR = "#000000";
  * `"normal"` (12 px) is the default when `size` is omitted.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const px = SIZE_TO_PX.normal; // 12
  *     void px;
@@ -34,7 +34,7 @@ export const SIZE_TO_PX: Readonly<Record<NonNullable<TextOpts["size"]>, number>>
  * value.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const a = HALIGN_TO_TEXTALIGN.center; // "center"
  *     void a;
@@ -52,7 +52,7 @@ export const HALIGN_TO_TEXTALIGN: Readonly<
  * value.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const b = VALIGN_TO_TEXTBASELINE.middle; // "middle"
  *     void b;
@@ -70,7 +70,7 @@ export const VALIGN_TO_TEXTBASELINE: Readonly<
  * apply these four values directly to `ctx` before calling `fillText`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const s: ResolvedTextOpts = {
  *         font: "12px sans-serif",
@@ -94,7 +94,7 @@ export type ResolvedTextOpts = {
  * marker's Task-7 fallback policy.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const r = resolveTextOpts({ size: "large", color: "#10b981" });
  *     // r.font === "16px sans-serif"

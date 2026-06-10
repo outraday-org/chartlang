@@ -88,7 +88,7 @@ import { renderXabcdPattern } from "./xabcdPattern";
  * `clear` call at the start of every frame wipes the canvas.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const view: Viewport;

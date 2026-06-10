@@ -50,7 +50,7 @@ function timeCyclesImpl(
  * @anchorCount 2
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -70,7 +70,7 @@ export function timeCycles(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): 
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof timeCycles = timeCycles;
@@ -88,7 +88,7 @@ export function timeCycles(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof timeCycles = timeCycles;
  *     // void fn;

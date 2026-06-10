@@ -123,7 +123,7 @@ function tickValue(slot: LsmaSlot, src: number): number {
  *           out[t] = intercept + slope · (length − 1)
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

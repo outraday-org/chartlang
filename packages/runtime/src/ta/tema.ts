@@ -57,7 +57,7 @@ function initSlot(length: number, capacity: number): TemaSlot {
  *           out  = 3 · ema1 − 3 · ema2 + ema3
  * @warmup   3 · length − 3
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

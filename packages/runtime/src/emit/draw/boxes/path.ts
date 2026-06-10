@@ -41,7 +41,7 @@ function pathImpl(
  * @anchorCount 2..20
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -63,7 +63,7 @@ export function path(anchors: ReadonlyArray<WorldPoint>, opts?: PathOpts): Drawi
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof path = path;
@@ -80,7 +80,7 @@ export function path(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof path = path;
  *     // void fn;

@@ -30,7 +30,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * initial close and emits one alert at the final counter value.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     import { STATE_TICK_COUNTER_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void STATE_TICK_COUNTER_SCENARIO;

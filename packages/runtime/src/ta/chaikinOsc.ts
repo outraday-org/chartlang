@@ -80,7 +80,7 @@ function diff(fast: number, slow: number): number {
  * @formula  chaikinOsc[t] = ema(adl(t), fastLength) − ema(adl(t), slowLength)
  * @warmup   slowLength − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series so `series.current` reads
  * the value `offset` bars ago (PLAN.md §9.1).

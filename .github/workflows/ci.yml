@@ -8,8 +8,6 @@ on:
 
 permissions:
     contents: read
-    id-token: write
-    pull-requests: write
 
 concurrency:
     group: ci-${{ github.ref }}
@@ -40,9 +38,11 @@ jobs:
             - run: pnpm test
             - run: pnpm coverage:report   # merges per-package coverage to ./coverage/lcov.info for Codecov
             - run: pnpm conformance
+            - run: pnpm tsx scripts/run-conformance.ts --report --check
             - run: pnpm bench:ci
             - run: pnpm docs:check
             - run: pnpm docs:gate
+            - run: pnpm docs:build
             - run: pnpm hover:check
             - run: pnpm readme:check
             - if: matrix.os == 'ubuntu-latest' && matrix.node == 20
@@ -52,31 +52,33 @@ jobs:
                   fail_ci_if_error: true
 
     # ──────────────────────────────────────────────────────────────────
-    # Release job intentionally OMITTED.
-    # Releases are published manually from a maintainer's machine — see
-    # §22.11 "Manual release workflow." To switch to CI-driven releases
-    # later, uncomment the block below, add NPM_TOKEN to repo secrets,
-    # and re-enable `provenance: true` in the per-package template
-    # (§22.4).
+    # Release job.
+    # Maintainers must add NPM_TOKEN to repo secrets before merging a
+    # release PR. Manual fallback: `pnpm publish:release` from a
+    # maintainer machine.
     # ──────────────────────────────────────────────────────────────────
-    #
-    # release:
-    #     name: Release
-    #     needs: test
-    #     if: github.ref == 'refs/heads/main'
-    #     runs-on: ubuntu-latest
-    #     steps:
-    #         - uses: actions/checkout@v4
-    #           with: { fetch-depth: 0 }
-    #         - uses: pnpm/action-setup@v4
-    #           with: { version: 9 }
-    #         - uses: actions/setup-node@v4
-    #           with: { node-version: 20, cache: pnpm, registry-url: "https://registry.npmjs.org" }
-    #         - run: pnpm install --frozen-lockfile
-    #         - run: pnpm build
-    #         - uses: changesets/action@v1
-    #           with:
-    #               publish: pnpm release
-    #           env:
-    #               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #               NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    release:
+        name: Release
+        needs: test
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+            id-token: write
+        steps:
+            - uses: actions/checkout@v4
+              with: { fetch-depth: 0 }
+            - uses: pnpm/action-setup@v4
+              with: { version: 9 }
+            - uses: actions/setup-node@v4
+              with: { node-version: 20, cache: pnpm, registry-url: "https://registry.npmjs.org" }
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm build
+            - uses: changesets/action@v1
+              with:
+                  publish: pnpm release
+                  title: "chore(release): version packages"
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -11,7 +11,7 @@ import { resolveCalleeName } from "../transformers/resolveCallee";
  * Result of extracting `defineAlertCondition({ conditions })` metadata.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const r: ExtractAlertConditionsResult = {
  *         alertConditions: [],
@@ -110,7 +110,7 @@ function readCondition(
  * dynamic descriptor fields produce error diagnostics and are omitted.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // const r = extractAlertConditions(sourceFile, checker, "demo.chart.ts");
  *     const fn: typeof extractAlertConditions = extractAlertConditions;

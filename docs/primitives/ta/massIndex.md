@@ -2,7 +2,7 @@
 
 # `ta.massIndex`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Mass Index — sub-pane volatility line tracking the range-EMA

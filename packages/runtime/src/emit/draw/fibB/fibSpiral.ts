@@ -47,7 +47,7 @@ function fibSpiralImpl(slotId: string, a: WorldPoint, b: WorldPoint, opts: FibOp
  * @anchorCount 2
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -66,7 +66,7 @@ export function fibSpiral(a: WorldPoint, b: WorldPoint, opts?: FibOpts): Drawing
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof fibSpiral = fibSpiral;
@@ -84,7 +84,7 @@ export function fibSpiral(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof fibSpiral = fibSpiral;
  *     // void fn;

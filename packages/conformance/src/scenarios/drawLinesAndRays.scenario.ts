@@ -53,7 +53,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * all 6 emissions.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_LINES_AND_RAYS_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_LINES_AND_RAYS_SCENARIO;

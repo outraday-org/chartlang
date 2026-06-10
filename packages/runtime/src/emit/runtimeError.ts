@@ -12,7 +12,7 @@ type RuntimeErrorHalt = Readonly<{
  * Create the private sentinel thrown by `runtime.error(...)`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const halt = makeRuntimeErrorHalt("invariant");
  *     void halt;
@@ -25,7 +25,7 @@ export function makeRuntimeErrorHalt(message: string): RuntimeErrorHalt {
  * Identify the private `runtime.error(...)` halt sentinel.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const hit = isRuntimeErrorHalt(makeRuntimeErrorHalt("x"));
  *     void hit;

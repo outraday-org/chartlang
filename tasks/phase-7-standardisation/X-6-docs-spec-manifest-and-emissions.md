@@ -1,6 +1,6 @@
 # Spec: `manifest.md` + `emissions.md`
 
-> **Status: TODO**
+> **Status: Complete**
 
 ## Goal
 

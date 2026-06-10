@@ -61,7 +61,7 @@ function bopAt(open: number, high: number, low: number, close: number): number {
  * @formula  out[t] = (close[t] − open[t]) / (high[t] − low[t])
  * @warmup   0
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta, plot } from "@invinite-org/chartlang-core";

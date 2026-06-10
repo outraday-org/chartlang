@@ -63,7 +63,7 @@ const CANVAS2D_DRAWING_KINDS: ReadonlySet<DrawingKind> = new Set([
  * `HostLimits`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { CANVAS2D_CAPABILITIES } from "chartlang-example-canvas2d-adapter";
  *     // CANVAS2D_CAPABILITIES.plots.has("line") === true
@@ -108,7 +108,7 @@ export const CANVAS2D_CAPABILITIES: Capabilities = Object.freeze({
  * Demo symbol metadata exposed by the canvas2d reference adapter.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     import { CANVAS2D_SYM_INFO } from "chartlang-example-canvas2d-adapter";
  *     void CANVAS2D_SYM_INFO.ticker;

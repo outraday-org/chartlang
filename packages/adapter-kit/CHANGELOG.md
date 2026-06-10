@@ -1,5 +1,51 @@
 # @invinite-org/chartlang-adapter-kit
 
+## 1.0.0
+
+### Major Changes
+
+- chartlang `1.0.0` -- the `apiVersion: 1` standard.
+
+  - `apiVersion: 1` frozen: compiler accepts only the frozen language
+    version; `STATEFUL_PRIMITIVES` locked at 172 entries by exact
+    name-set; every shipping export `@stable`; pre-1.0 deprecations
+    removed (`PHASE_1_SCENARIOS`).
+  - Canonical language spec published (`docs/spec/`): grammar,
+    semantics, manifest, emissions, versioning -- self-contained for
+    alternate implementations. The `v1.0.0` tag is the frozen spec
+    snapshot.
+  - Public conformance reports: `pnpm conformance --report` emits
+    `CONFORMANCE.md` + `conformance-report.json`; canvas2d reference
+    report published and drift-gated.
+  - Adapter-author path proven end-to-end: scaffolded adapters ship a
+    wired conformance test; full writing-an-adapter tutorial +
+    Lightweight Charts porting walkthrough.
+  - Pine migration guide finalised with a pattern-coverage matrix
+    audited against the top ~50 Pine scripts.
+
+### Minor Changes
+
+- d14a034: Add phase 5 server alerts, multi-timeframe request handling, runtime persistence, QuickJS hosting, expanded plot and table rendering, color helpers, alert conditions, and volume profile primitives.
+
+### Patch Changes
+
+- Freeze `apiVersion: 1`: release-grade compiler diagnostics for version
+  mismatches, an exact name-set lock on the 172-entry `STATEFUL_PRIMITIVES`
+  registry, and freeze-contract documentation on pinned surfaces. No behavioural
+  change: the structural check already enforced `apiVersion: 1`.
+- Pre-1.0 surface cleanup: remove the deprecated `PHASE_1_SCENARIOS`
+  alias (use `ALL_SCENARIOS`) and promote every shipping export from
+  `@experimental` to `@stable` ahead of the `apiVersion: 1` freeze.
+- Updated dependencies [d14a034]
+- Updated dependencies [3cfff10]
+- Updated dependencies [3cfff10]
+- Updated dependencies [3cfff10]
+- Updated dependencies [3cfff10]
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @invinite-org/chartlang-core@1.0.0
+
 ## 0.5.0
 
 ### Phase 5
@@ -746,7 +792,7 @@ rightTrough, rightShoulder, end`). The renderer treats the 5
     - `draw-containers-all`:
       `e6ba183dfc04145a5126e6ea75a4cb7117694adc13eea84853239c68810e91fe`
       `TEST_CAPABILITIES.drawings` widens with
-      `...capBuilders.allContainerDrawings()`; the `PHASE_1_SCENARIOS`
+      `...capBuilders.allContainerDrawings()`; the `ALL_SCENARIOS`
       `toEqual` array (in `scenarios.test.ts` and `index.test.ts`)
       appends the 3 new scenarios under
       `// Phase 3 Task 18 — Containers.`.
@@ -897,7 +943,7 @@ ReadonlyArray<DrawingHandle>)` accepts handle objects.** Landed
   `runConformanceSuite.test.ts` + `scenarios.test.ts` widens to include
   `allBoxDrawings()` plus `boxes: 100` / `polylines: 100` budgets so
   the new scenarios reach `pushDrawing`'s happy path. The 5 new
-  scenarios extend `PHASE_1_SCENARIOS` (now 96 entries) and the public
+  scenarios extend `ALL_SCENARIOS` (now 96 entries) and the public
   re-export surface.
 
   No core edits — the `DrawingState` variants and `DrawNamespace`

@@ -27,7 +27,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * zero-prevClose bars emit NaN.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_PVT_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_PVT_SCENARIO;

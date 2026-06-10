@@ -316,7 +316,7 @@ function restoreTaSlot(snapshot: unknown): RestoredTaSlot | null {
  *
  * @since 0.5
  * @internal
- * @experimental
+ * @stable
  * @formula  key.startsWith("ta:")
  * @example
  *     isTaSlotSnapshotKey("ta:slot#0"); // true
@@ -330,7 +330,7 @@ export function isTaSlotSnapshotKey(key: string): boolean {
  *
  * @since 0.5
  * @internal
- * @experimental
+ * @stable
  * @formula  snapshot[`ta:${slotId}`] = serialise(slot) for supported TA slots
  * @example
  *     // const entries = serialiseTaSlots(stream);
@@ -353,7 +353,7 @@ export function serialiseTaSlots(stream: StreamState): Readonly<Record<string, J
  *
  * @since 0.5
  * @internal
- * @experimental
+ * @stable
  * @formula  stream.taSlots[slotId] = restore(snapshot[`ta:${slotId}`])
  * @example
  *     // restoreTaSlots(stream, snapshot.slots);

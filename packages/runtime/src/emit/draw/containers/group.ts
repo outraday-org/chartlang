@@ -41,7 +41,7 @@ function groupImpl(slotId: string, childHandleIds: ReadonlyArray<string>): Drawi
  * @anchorCount 0 (metadata-only container)
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -67,7 +67,7 @@ export function group(childHandleIds: ReadonlyArray<string>): DrawingHandle;
  * `draw.group(slotId, childHandleIds)`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof group = group;
@@ -80,7 +80,7 @@ export function group(slotId: string, childHandleIds: ReadonlyArray<string>): Dr
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof group = group;
  *     // void fn;

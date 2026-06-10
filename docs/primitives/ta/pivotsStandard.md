@@ -2,7 +2,7 @@
 
 # `ta.pivotsStandard`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Pivots Standard — classical daily pivot-point levels (P, R1..R3,

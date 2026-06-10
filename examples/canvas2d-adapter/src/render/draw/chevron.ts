@@ -18,7 +18,7 @@ const DEFAULT_HEIGHT = 10;
  * the anchor (smaller y); `"down"` paints the tip below (larger y).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const d: ChevronDirection = "up";
  *     void d;
@@ -34,7 +34,7 @@ export type ChevronDirection = "up" | "down";
  * `baseWidth` defaults to 12 CSS px, `height` to 10 CSS px.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     drawChevron(ctx, { x: 100, y: 100 }, "up", "#22c55e");

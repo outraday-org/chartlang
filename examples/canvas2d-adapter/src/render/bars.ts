@@ -11,7 +11,7 @@ import type { RenderCtx } from "./clear";
  * columns never overlap.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const args: BarsArgs = { x: 100, y: 40, baseline: 80, color: "#26a69a" };
  *     void args;
@@ -32,7 +32,7 @@ const BARS_WIDTH_PX = 1;
  * `fillRect` per call.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const palette: Palette;

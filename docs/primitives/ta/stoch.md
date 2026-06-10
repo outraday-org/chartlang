@@ -2,7 +2,7 @@
 
 # `ta.stoch`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Stochastic Oscillator (%K + %D). Sources from `bar.high` / `bar.low`

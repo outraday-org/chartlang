@@ -12,7 +12,7 @@ type DrawingOverrides = Omit<ScriptOverrides, "maxBarsBack" | "scale">;
  * Phase-3 `maxDrawings` per-bucket cap from `DefineIndicatorOpts`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const opts: DefineDrawingOpts = {
  *         name: "Interactive Fib Retracement",
@@ -47,7 +47,7 @@ export type DefineDrawingOpts = Readonly<{
  * with fixed anchors so the runtime path can be exercised.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  * ```ts
  * import { defineDrawing } from "@invinite-org/chartlang-core";

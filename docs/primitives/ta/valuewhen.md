@@ -2,7 +2,7 @@
 
 # `ta.valuewhen`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Source value at the bar of the n-th most recent `condition === true`.

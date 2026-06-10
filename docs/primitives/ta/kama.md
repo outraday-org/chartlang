@@ -2,7 +2,7 @@
 
 # `ta.kama`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Kaufman's Adaptive Moving Average — an EMA-like recurrence whose

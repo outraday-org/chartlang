@@ -111,7 +111,7 @@ function tickValue(slot: StdevSlot, src: number): number {
  *           σ = sqrt(Σ(x − μ)² / N), N = length (biased) or length − 1 (sample)
  * @warmup   length − 1
  * @since 0.1
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series so `series.current` reads
  * the value `offset` bars ago (PLAN.md §9.1).

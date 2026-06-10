@@ -43,7 +43,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `drawing-hash` across all 3.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_CYCLES_ALL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_CYCLES_ALL_SCENARIO;

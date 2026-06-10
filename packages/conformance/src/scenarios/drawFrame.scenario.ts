@@ -33,7 +33,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * first bar with a background fill colour.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_FRAME_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_FRAME_SCENARIO;

@@ -77,7 +77,7 @@ export function flushStateSlots(ctx: RuntimeContext): void {
  * Serialise runtime state slots into a snapshot payload.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // const slots = serialiseStateSlots(ctx);
  *     const slots = {};
@@ -98,7 +98,7 @@ export function serialiseStateSlots(ctx: RuntimeContext): Readonly<Record<string
  * Seed restored state-slot payloads into the backing slot store.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // restoreStateSlots(ctx, snapshot.slots);
  *     const restored = true;

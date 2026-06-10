@@ -32,7 +32,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `goldenBars.json` fixture.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_ICHIMOKU_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_ICHIMOKU_SCENARIO;

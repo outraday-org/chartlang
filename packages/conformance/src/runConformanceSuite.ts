@@ -45,7 +45,7 @@ import { GOLDEN_BARS_PATH, type GoldenBars } from "./fixtures/generateGoldenBars
  * injection produces a stable, pinnable slot-id prefix.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import type { Scenario } from "@invinite-org/chartlang-conformance";
  *     declare const sourceText: string; // user-authored .chart.ts source
@@ -86,7 +86,7 @@ export type Scenario = {
  * to initialise the stream, then drives the remaining candles as ticks.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     import type { ScenarioEventStream } from "@invinite-org/chartlang-conformance";
  *     const stream: ScenarioEventStream = { kind: "initial-close-then-ticks" };
@@ -109,7 +109,7 @@ export type ScenarioEventStream =
  * message into the scenario's pinned value.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import type { ScenarioAssertion } from "@invinite-org/chartlang-conformance";
  *     const a: ScenarioAssertion = { kind: "alert-count", count: 0 };
@@ -150,7 +150,7 @@ export type ScenarioAssertion =
  * `actual` for hash and count comparisons.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import type { ConformanceFailure } from "@invinite-org/chartlang-conformance";
  *     const f: ConformanceFailure = {
@@ -167,22 +167,56 @@ export type ConformanceFailure = {
 };
 
 /**
+ * Per-scenario outcome retained by {@link ConformanceReport}. A
+ * scenario passes only when every assertion succeeds; `failures`
+ * contains that scenario's assertion failures and is empty for a
+ * passing scenario.
+ *
+ * @since 1.0
+ * @stable
+ * @example
+ *     import type { ScenarioResult } from "@invinite-org/chartlang-conformance";
+ *     const result: ScenarioResult = {
+ *         id: "ema-cross",
+ *         title: "EMA cross",
+ *         status: "pass",
+ *         failures: [],
+ *     };
+ *     void result;
+ */
+export type ScenarioResult = {
+    readonly id: string;
+    readonly title: string;
+    readonly status: "pass" | "fail";
+    readonly failures: ReadonlyArray<ConformanceFailure>;
+};
+
+/**
  * Aggregated outcome of one `runConformanceSuite` call. `passed`
  * counts scenarios in which every assertion succeeded; `failed`
  * counts scenarios with at least one failure; `failures` carries one
- * entry per failed assertion across all scenarios.
+ * entry per failed assertion across all scenarios. `scenarios`
+ * retains the per-scenario pass/fail row data used by public reports.
  *
- * @since 0.1
- * @experimental
+ * @since 1.0
+ * @stable
  * @example
  *     import type { ConformanceReport } from "@invinite-org/chartlang-conformance";
- *     const r: ConformanceReport = { passed: 3, failed: 0, failures: [] };
+ *     const r: ConformanceReport = {
+ *         passed: 3,
+ *         failed: 0,
+ *         failures: [],
+ *         scenarios: [
+ *             { id: "ema-cross", title: "EMA cross", status: "pass", failures: [] },
+ *         ],
+ *     };
  *     void r;
  */
 export type ConformanceReport = {
     readonly passed: number;
     readonly failed: number;
     readonly failures: ReadonlyArray<ConformanceFailure>;
+    readonly scenarios: ReadonlyArray<ScenarioResult>;
 };
 
 /**
@@ -192,7 +226,7 @@ export type ConformanceReport = {
  * default `compile` so tests can short-circuit esbuild.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import type { RunConformanceSuiteOpts } from "@invinite-org/chartlang-conformance";
  *     const o: RunConformanceSuiteOpts = { scenarios: [], candles: [] };
@@ -513,7 +547,7 @@ async function loadDefaultGoldenBars(): Promise<GoldenBars> {
  * `data:` URL. The tmp file is removed in a `finally` block.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { runConformanceSuite } from "@invinite-org/chartlang-conformance";
  *     import defaultAdapter from "chartlang-example-canvas2d-adapter";
@@ -531,6 +565,7 @@ export async function runConformanceSuite(
     const compileFn = opts?.compile ?? defaultCompile;
 
     const allFailures: ConformanceFailure[] = [];
+    const scenarioResults: ScenarioResult[] = [];
     let scenariosPassed = 0;
     let scenariosFailed = 0;
 
@@ -538,18 +573,28 @@ export async function runConformanceSuite(
 
     for (const scenario of scenarios) {
         const failures = await runOne(adapter, scenario, candles, compileFn);
+        const frozenFailures = Object.freeze(failures.slice());
         if (failures.length === 0) {
             scenariosPassed += 1;
         } else {
             scenariosFailed += 1;
-            for (const f of failures) allFailures.push(f);
+            for (const f of frozenFailures) allFailures.push(f);
         }
+        scenarioResults.push(
+            Object.freeze({
+                id: scenario.id,
+                title: scenario.title,
+                status: frozenFailures.length === 0 ? "pass" : "fail",
+                failures: frozenFailures,
+            }),
+        );
     }
 
     return Object.freeze({
         passed: scenariosPassed,
         failed: scenariosFailed,
         failures: Object.freeze(allFailures.slice()),
+        scenarios: Object.freeze(scenarioResults.slice()),
     });
 }
 

@@ -38,7 +38,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * pattern.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_TRIANGLE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_TRIANGLE_SCENARIO;

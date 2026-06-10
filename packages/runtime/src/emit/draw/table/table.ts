@@ -33,7 +33,7 @@ function tableImpl(slotId: string, opts: TableOpts): DrawingHandle {
  * @anchorCount 0 (viewport anchored)
  * @bucket other
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -54,7 +54,7 @@ export function table(opts: TableOpts): DrawingHandle;
  * `draw.table(slotId, opts)`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof table = table;
@@ -67,7 +67,7 @@ export function table(slotId: string, opts: TableOpts): DrawingHandle;
  * compiler-injected overload.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof table = table;
  *     // void fn;

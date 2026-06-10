@@ -2,7 +2,7 @@
 
 # `ta.sessionVolumeProfile`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.5
 
 Session Volume Profile — bucketizes the current session's volume

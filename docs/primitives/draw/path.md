@@ -2,7 +2,7 @@
 
 # `draw.path`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.3
 > **Bucket:** `polylines`
 > **Wire kind:** `path`

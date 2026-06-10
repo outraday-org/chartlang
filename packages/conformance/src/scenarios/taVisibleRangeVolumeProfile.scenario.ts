@@ -30,7 +30,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Phase 5 conformance scenario for ta visible range volume profile scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { TA_VISIBLE_RANGE_VOLUME_PROFILE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_VISIBLE_RANGE_VOLUME_PROFILE_SCENARIO;

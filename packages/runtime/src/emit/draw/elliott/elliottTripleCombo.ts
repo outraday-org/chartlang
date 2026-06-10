@@ -55,7 +55,7 @@ function elliottTripleComboImpl(
  * @anchorCount 7
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -79,7 +79,7 @@ export function elliottTripleCombo(anchors: AnchorHept, opts?: LineDrawStyle): D
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof elliottTripleCombo = elliottTripleCombo;
@@ -96,7 +96,7 @@ export function elliottTripleCombo(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof elliottTripleCombo = elliottTripleCombo;
  *     // void fn;

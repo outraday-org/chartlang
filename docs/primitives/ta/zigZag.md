@@ -2,7 +2,7 @@
 
 # `ta.zigZag`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 ZigZag — streaming swing-pivot detector. Walks the close series

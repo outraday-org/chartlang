@@ -7,7 +7,7 @@ import type { BarStateView } from "@invinite-org/chartlang-core";
  * Candle-event kind used to derive the per-step `barstate.*` snapshot.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const kind: EventKind = "close";
  *     void kind;
@@ -18,7 +18,7 @@ export type EventKind = "history" | "close" | "tick";
  * Inputs needed to build a `barstate.*` runtime view.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const inputs: BarStateInputs = {
  *         eventKind: "history",
@@ -37,7 +37,7 @@ export type BarStateInputs = Readonly<{
  * Build a frozen `barstate.*` view for the current script step.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const view = makeBarStateView({
  *         eventKind: "tick",

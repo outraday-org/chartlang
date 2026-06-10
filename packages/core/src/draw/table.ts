@@ -12,7 +12,7 @@ import type { DrawingHandle } from "./handle";
  * @formula  N/A — viewport anchor enum
  * @anchors  CSS viewport edge/corner/center
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const position: TablePosition = "top-right";
  *     void position;
@@ -35,7 +35,7 @@ export type TablePosition =
  * @formula  N/A — viewport table cell payload
  * @anchors  table grid cell
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const cell: TableCell = {
  *         text: "P&L",
@@ -59,7 +59,7 @@ export type TableCell = Readonly<{
  * @formula  N/A — viewport table payload
  * @anchors  position: CSS viewport anchor; cells: 2D table grid
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const opts: TableOpts = {
  *         position: "top-right",
@@ -85,7 +85,7 @@ export type TableOpts = Readonly<{
  * @formula  N/A — compiler/runtime primitive seam
  * @anchors  position + cells, viewport anchored
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // Inside compute:
  *     // const h = draw.table({

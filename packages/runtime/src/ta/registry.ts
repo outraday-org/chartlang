@@ -241,7 +241,7 @@ import { zigZag } from "./zigZag";
  *
  * @formula  N/A — type surface, see per-primitive JSDoc
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import type { RuntimeTaNamespace } from "@invinite-org/chartlang-runtime";
  *     // const fn: RuntimeTaNamespace["ema"] = (slotId, src, length) =>
@@ -427,7 +427,7 @@ export type RuntimeTaNamespace = {
  *
  * @formula  N/A — frozen registry, see per-primitive JSDoc
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { TA_REGISTRY } from "@invinite-org/chartlang-runtime";
  *     // const keys = Object.keys(TA_REGISTRY);
@@ -537,7 +537,7 @@ export const TA_REGISTRY = Object.freeze({
  *
  * @formula  N/A — metadata type, see consumer renderers
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // const stochYDomain: YDomainSpec = { kind: "fixed", min: 0, max: 100 };
  */
@@ -554,7 +554,7 @@ export type YDomainSpec = Readonly<{ kind: "auto" } | { kind: "fixed"; min: numb
  *
  * @formula  N/A — metadata type, see consumer renderers
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // const meta: PrimitiveMetadata = {
  *     //     primarySeriesKey: "k",
@@ -578,7 +578,7 @@ export type PrimitiveMetadata = Readonly<{
  *
  * @formula  N/A — frozen metadata table, see per-primitive `PrimitiveMetadata`
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // import { TA_REGISTRY_METADATA } from "@invinite-org/chartlang-runtime";
  *     // const stochMeta = TA_REGISTRY_METADATA.stoch;
@@ -797,7 +797,7 @@ export const TA_REGISTRY_METADATA: Readonly<
  *
  * @formula  N/A — script-facing namespace, see per-primitive JSDoc
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";
  *     // const out = ta.ema("slot-id", { current: 12 }, 20);

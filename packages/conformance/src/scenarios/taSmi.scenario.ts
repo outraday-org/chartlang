@@ -30,7 +30,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * on `TA_REGISTRY_METADATA.smi`).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_SMI_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_SMI_SCENARIO;

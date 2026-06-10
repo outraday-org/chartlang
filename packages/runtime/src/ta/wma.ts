@@ -97,7 +97,7 @@ function tickValue(slot: WmaSlot, src: number): number {
  *           out[t] = (Σ_{j=0..length-1} source[t − j] · (length − j)) / denom
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

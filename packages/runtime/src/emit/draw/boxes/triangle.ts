@@ -40,7 +40,7 @@ function triangleImpl(slotId: string, anchors: AnchorTriple, opts: ShapeStyle): 
  * @anchorCount 3
  * @bucket boxes
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -63,7 +63,7 @@ export function triangle(anchors: AnchorTriple, opts?: ShapeStyle): DrawingHandl
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof triangle = triangle;
@@ -76,7 +76,7 @@ export function triangle(slotId: string, anchors: AnchorTriple, opts?: ShapeStyl
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof triangle = triangle;
  *     // void fn;

@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * tick size and pins the plot sequence.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     import { SYMINFO_MINTICK_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void SYMINFO_MINTICK_SCENARIO;

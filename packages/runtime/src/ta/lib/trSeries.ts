@@ -17,7 +17,7 @@ import type { Bar } from "@invinite-org/chartlang-core";
  *
  * @formula  TR_i = max(high − low, |high − prev_close|, |low − prev_close|)
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { trueRangeAt } from "./trSeries";
  *     // const tr = trueRangeAt(bars, 5);
@@ -38,7 +38,7 @@ export function trueRangeAt(bars: ReadonlyArray<Bar>, i: number): number {
  *
  * @formula  tr[i] = trueRangeAt(bars, i) for i ∈ [0, n)
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { computeTrSeries } from "./trSeries";
  *     // const tr = computeTrSeries(bars);
@@ -60,7 +60,7 @@ export function computeTrSeries(bars: ReadonlyArray<Bar>): Float64Array {
  *
  * @formula  see wilderSmoothing.ts and computeTrSeries above.
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { computeAtrSeries } from "./trSeries";
  *     // const { atr, tr } = computeAtrSeries(bars, 14);

@@ -38,7 +38,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * delta; C is the projection origin).
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_FIB_TREND_TIME_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_FIB_TREND_TIME_SCENARIO;

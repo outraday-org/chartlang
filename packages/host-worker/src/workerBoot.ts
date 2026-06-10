@@ -12,7 +12,7 @@
  * `self` adapter and is excluded from coverage (`vitest.config.ts`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  */
 
 import { createWorkerBoot, type WorkerBootScope } from "./createWorkerBoot";

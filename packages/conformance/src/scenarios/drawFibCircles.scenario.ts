@@ -34,7 +34,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * + radius-point anchors.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_FIB_CIRCLES_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_FIB_CIRCLES_SCENARIO;

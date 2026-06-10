@@ -28,7 +28,7 @@ type Slot = { readonly out: Series<number> };
  * @formula  out[t] = source[t]
  * @warmup   0
  * @since 0.1
- * @experimental
+ * @stable
  *
  * @example
  *     // ta.demo("slot", bar.close)
@@ -81,7 +81,7 @@ const MISSING_FORMULA = `/**
  * Missing formula.
  * @warmup 0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -92,7 +92,7 @@ const MISSING_WARMUP = `/**
  * Missing warmup.
  * @formula out = 1
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -103,7 +103,7 @@ const MISSING_SINCE = `/**
  * Missing since.
  * @formula out = 1
  * @warmup 0
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -115,7 +115,7 @@ const MISSING_EXAMPLE = `/**
  * @formula out = 1
  * @warmup 0
  * @since 0.1
- * @experimental
+ * @stable
  */
 export function missingExample(slotId: string): number { return 1; }
 `;
@@ -136,7 +136,7 @@ const MISSING_EXPORT = `/**
  * @formula out = 1
  * @warmup 0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -150,7 +150,7 @@ const SAMPLE_INPUT: PrimitiveDocInput = {
     formula: "out[t] = source[t]",
     warmup: "0",
     since: "0.1",
-    stability: "experimental",
+    stability: "stable",
     params: [
         { name: "slotId", type: "string", defaultValue: "—", description: "Slot id." },
         { name: "source", type: "number", defaultValue: "—", description: "Source value." },
@@ -193,7 +193,7 @@ describe("generateDocsPage", () => {
 
     it("emits a stable Stability + Since header block", () => {
         const md = generateDocsPage(SAMPLE_INPUT);
-        expect(md).toMatch(/> \*\*Stability:\*\* experimental\n> \*\*Since:\*\* 0\.1/);
+        expect(md).toMatch(/> \*\*Stability:\*\* stable\n> \*\*Since:\*\* 0\.1/);
     });
 
     it("emits a stub when params is empty", () => {
@@ -256,7 +256,7 @@ describe("parsePrimitiveSource", () => {
         expect(input.formula).toBe("out[t] = source[t]");
         expect(input.warmup).toBe("0");
         expect(input.since).toBe("0.1");
-        expect(input.stability).toBe("experimental");
+        expect(input.stability).toBe("stable");
         expect(input.params).toEqual([
             { name: "slotId", type: "string", defaultValue: "—", description: "—" },
             { name: "source", type: "number", defaultValue: "—", description: "—" },
@@ -289,7 +289,7 @@ describe("parsePrimitiveSource", () => {
  * @formula  out = 1
  * @warmup   0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -309,7 +309,7 @@ export function defaulted(slotId: string, length: number = 14): number { return 
  * @formula  out = 1
  * @warmup   0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -329,7 +329,7 @@ export function withOpts(slotId: string, opts?: { biased?: boolean }): number { 
  * @formula  out = 1
  * @warmup   0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -350,7 +350,7 @@ export function bound(slotId: string, { x }: { x: number }): number { return x; 
  * @formula
  * @warmup   0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -370,7 +370,7 @@ export function emptyTag(slotId: string): number { return 1; }
  * @formula  out = 1
  * @warmup   0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  * \`\`\`ts
  * import { ta } from "@invinite-org/chartlang-runtime";
@@ -397,7 +397,7 @@ export function multiline(slotId: string): number { return 1; }
  * @formula  out = 1
  * @warmup   0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -417,7 +417,7 @@ export function richDesc(slotId: string): number { return 1; }
  * @formula  out = 1
  * @warmup   0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -428,7 +428,7 @@ function notExported(slotId: string): number { return 1; }
  * @formula  out = 1
  * @warmup   0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */
@@ -445,7 +445,7 @@ export function notExported2(slotId: string): number { return 1; }
  * @formula  out = 1
  * @warmup   0
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // x
  */

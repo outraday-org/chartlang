@@ -106,7 +106,7 @@ function pvoValue(fast: number, slow: number): number {
  *           hist   = pvo − signal
  * @warmup   slowLength + signalLength − 2
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts all three outputs in lockstep (PLAN.md §9.1).
  *

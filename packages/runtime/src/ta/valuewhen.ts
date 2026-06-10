@@ -109,7 +109,7 @@ function tickValue(slot: ValuewhenSlot, src: number, fired: boolean): number {
  *           NaN until `occurrence + 1` matches
  * @warmup   bar of the `occurrence + 1`-th match (data-dependent)
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

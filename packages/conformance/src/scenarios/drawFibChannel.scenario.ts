@@ -36,7 +36,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * the first bar with parallel-line offsets at the default fib levels.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_FIB_CHANNEL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_FIB_CHANNEL_SCENARIO;

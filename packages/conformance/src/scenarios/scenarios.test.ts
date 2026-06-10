@@ -14,7 +14,6 @@ import {
     DRAW_BUDGET_OVERFLOW_SCENARIO,
     DRAW_UNSUPPORTED_KIND_SCENARIO,
     EMA_CROSS_SCENARIO,
-    PHASE_1_SCENARIOS,
     PLOT_KIND_COVERAGE_SCENARIO,
     RSI_DIVERGENCE_SCENARIO,
 } from "./index";
@@ -132,10 +131,8 @@ const SINGLE_BAR: Bar = Object.freeze({
 });
 
 describe("bundled scenario constants", () => {
-    it("ALL_SCENARIOS is the frozen array PHASE_1_SCENARIOS aliases (post-rename)", () => {
-        expect(ALL_SCENARIOS).toBe(PHASE_1_SCENARIOS);
+    it("ALL_SCENARIOS is frozen", () => {
         expect(Object.isFrozen(ALL_SCENARIOS)).toBe(true);
-        expect(Object.isFrozen(PHASE_1_SCENARIOS)).toBe(true);
     });
 
     it("ALL_SCENARIOS lists each bundled exported scenario exactly once", () => {

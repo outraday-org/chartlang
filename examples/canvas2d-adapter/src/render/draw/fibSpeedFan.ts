@@ -29,7 +29,7 @@ const LABEL_OFFSET_FRACTION = 0.25;
  * ray.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

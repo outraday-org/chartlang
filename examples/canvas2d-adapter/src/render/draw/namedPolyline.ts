@@ -38,7 +38,7 @@ const LABEL_OFFSET_PX = 6;
  * No-op when `points.length === 0`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     renderNamedPolyline(

@@ -2,7 +2,7 @@
 
 # `ta.sma`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.1
 
 Simple moving average — rolling mean of the last `length` source

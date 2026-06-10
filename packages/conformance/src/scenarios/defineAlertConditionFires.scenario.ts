@@ -37,7 +37,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Phase 5 conformance scenario for define alert condition fires scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { DEFINE_ALERT_CONDITION_FIRES_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DEFINE_ALERT_CONDITION_FIRES_SCENARIO;

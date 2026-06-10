@@ -10,7 +10,7 @@ import type { Viewport } from "./coords";
  * Canvas arguments for Phase 5 `bar-color` overlays.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const args: BarOverrideArgs;
  *     const barColorArgs: BarColorArgs = args;
@@ -23,7 +23,7 @@ export type BarColorArgs = BarOverrideArgs;
  * outline path as `bar-override`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const args: BarColorArgs;

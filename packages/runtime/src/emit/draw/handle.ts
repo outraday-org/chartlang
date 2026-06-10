@@ -53,7 +53,7 @@ function emit(
  * The handle's `id` is `slotId#subId` — stable across bars.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // import {
  *     //     createDrawingHandle,

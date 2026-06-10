@@ -118,7 +118,7 @@ function fold(
  * @warmup   1 (bar 0 emits the 1000 seed)
  * @anchors  seedValue
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series (PLAN.md §9.1).
  *

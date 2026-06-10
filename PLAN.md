@@ -3910,7 +3910,8 @@ afterwards.
         "coverage:report": "pnpm tsx scripts/coverage-merge.ts",
         "scaffold": "pnpm tsx scripts/scaffold.ts",
         "changeset": "changeset",
-        "release": "pnpm build && changeset publish"
+        "release": "pnpm build && changeset publish",
+        "publish:release": "pnpm release"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.0",
@@ -4035,7 +4036,8 @@ access=public
 
 ```bash
 # Granular Access Token from npmjs.com, scoped to @invinite-org/*
-# with "Read and write" permission. Used by `pnpm release` (§22.11).
+# with "Read and write" permission. Used by the manual
+# `pnpm publish:release` fallback (§22.11).
 # Never committed — `.env` is in .gitignore.
 NPM_TOKEN=npm_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
@@ -4129,7 +4131,7 @@ same files via the same command.
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "test": "vitest run --coverage"
     },
-    "publishConfig": { "access": "public" },
+    "publishConfig": { "access": "public", "provenance": true },
     "engines": { "node": ">=20" },
     "repository": { "type": "git", "url": "https://github.com/<OWNER>/chartlang.git", "directory": "packages/<NAME>" }
 }
@@ -4137,10 +4139,9 @@ same files via the same command.
 
 > **Note on `provenance`.** npm's `provenance: true` flag (sigstore
 > signatures linking a published package to a GitHub Actions build)
-> requires CI with OIDC. Since this repo publishes manually (see
-> §22.11), `provenance` stays off. To enable it later, flip the
-> publish flow to CI per §22.6's `release` job block (commented out
-> by default) and add `"provenance": true` back into `publishConfig`.
+> requires CI with OIDC. The §22.6 release job grants `id-token: write`
+> and publishes from GitHub Actions, so every publishable package keeps
+> `"provenance": true` in `publishConfig`.
 
 **Per-package `tsconfig.json`:**
 
@@ -4333,39 +4334,42 @@ jobs:
                   fail_ci_if_error: true
 
     # ──────────────────────────────────────────────────────────────────
-    # Release job intentionally OMITTED.
-    # Releases are published manually from a maintainer's machine — see
-    # §22.11 "Manual release workflow." To switch to CI-driven releases
-    # later, uncomment the block below, add NPM_TOKEN to repo secrets,
-    # and re-enable `provenance: true` in the per-package template
-    # (§22.4).
+    # Release job.
+    # Maintainers must add NPM_TOKEN to repo secrets before merging a
+    # release PR. Manual fallback: `pnpm publish:release` from a
+    # maintainer machine.
     # ──────────────────────────────────────────────────────────────────
-    #
-    # release:
-    #     name: Release
-    #     needs: test
-    #     if: github.ref == 'refs/heads/main'
-    #     runs-on: ubuntu-latest
-    #     steps:
-    #         - uses: actions/checkout@v4
-    #           with: { fetch-depth: 0 }
-    #         - uses: pnpm/action-setup@v4
-    #           with: { version: 9 }
-    #         - uses: actions/setup-node@v4
-    #           with: { node-version: 20, cache: pnpm, registry-url: "https://registry.npmjs.org" }
-    #         - run: pnpm install --frozen-lockfile
-    #         - run: pnpm build
-    #         - uses: changesets/action@v1
-    #           with:
-    #               publish: pnpm release
-    #           env:
-    #               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #               NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    release:
+        name: Release
+        needs: test
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+            id-token: write
+        steps:
+            - uses: actions/checkout@v4
+              with: { fetch-depth: 0 }
+            - uses: pnpm/action-setup@v4
+              with: { version: 9 }
+            - uses: actions/setup-node@v4
+              with: { node-version: 20, cache: pnpm, registry-url: "https://registry.npmjs.org" }
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm build
+            - uses: changesets/action@v1
+              with:
+                  publish: pnpm release
+                  title: "chore(release): version packages"
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
 CI matrix covers the two supported Node majors and both major developer
-OSes. CI **gates** every PR but does not publish — publishing is manual
-per §22.11. No `NPM_TOKEN` secret needs to exist in the repo.
+OSes. CI **gates** every PR and publishes only from pushes to `main`
+after the Version Packages PR merges. `NPM_TOKEN` must exist in repo
+secrets before a release PR is merged.
 
 ### 22.7 `.github/pull_request_template.md`
 
@@ -4462,75 +4466,58 @@ A port PR missing any of the above does not merge. There is no "land the
 port now, add tests/docs in a follow-up" allowance. The follow-up never
 happens.
 
-### 22.11 Manual release workflow
+### 22.11 Release workflow
 
-Releases are published from a maintainer's local machine, not from CI.
-CI gates every PR (typecheck, lint, test, coverage, conformance, bench,
-docs) but never publishes. This keeps `NPM_TOKEN` out of GitHub secrets
-entirely.
+Releases are CI-driven via `changesets/action@v1`. CI gates every PR
+(typecheck, lint, test, coverage, conformance, bench, docs). On pushes
+to `main`, the release job opens or updates the "Version Packages" PR
+while pending changesets exist. Merging that PR publishes all changed
+`@invinite-org/chartlang-*` packages to npm and creates GitHub releases.
 
-**One-time setup (per maintainer):**
+**One-time setup (repository):**
 
-```bash
-# 1. Create a Granular Access Token at npmjs.com:
-#    npm Profile → Access Tokens → Generate New → Granular
-#    Packages:    @invinite-org/* (all packages and scopes I own)
-#    Permission:  Read and write
-#    Expiration:  365 days (rotate yearly)
-#    Copy the token.
-
-# 2. Locally:
-cp .env.example .env
-# Edit .env, paste the token after NPM_TOKEN=
-
-# 3. Verify the token is recognised (does NOT publish):
-set -a && source .env && set +a
-npm whoami --registry=https://registry.npmjs.org/
-#   → should print your npm username
-```
-
-Once set up, the `.env` file lives on your machine indefinitely. Rotate
-the token at most yearly.
+1. Create a Granular Access Token at npmjs.com scoped to
+   `@invinite-org/*` with read/write permission.
+2. Add it as the `NPM_TOKEN` GitHub Actions secret.
+3. Keep per-package `publishConfig.provenance: true`; the release job
+   grants `id-token: write` for npm provenance.
 
 **Releasing — every time a set of changesets is ready to ship:**
 
 ```bash
-# 1. Make sure main is clean and up to date.
-git checkout main && git pull && pnpm install --frozen-lockfile
+# 1. Ensure the feature PRs with changesets are merged to main.
+#    changesets/action opens or updates:
+#    chore(release): version packages
 
-# 2. Run the gates locally (mirror of CI — fail fast before publishing).
-pnpm typecheck
-pnpm lint
-pnpm format:check
-pnpm test
-pnpm conformance
-pnpm bench:ci
-pnpm docs:check
-pnpm readme:check
-pnpm build
+# 2. Review the generated package.json / CHANGELOG.md changes.
 
-# 3. Bump versions from accumulated changesets.
-#    Reads .changeset/*.md, updates package.json versions + CHANGELOG.md,
-#    and removes the consumed changeset files.
-pnpm changeset version
-git add -A
-git commit -m "chore: release"
-git push origin main
+# 3. Merge the Version Packages PR after CI is green.
+#    The push to main publishes from GitHub Actions.
+```
 
-# 4. Publish to npm.
-#    Source the token, then run `pnpm release` (which is `pnpm build && changeset publish`).
+**Manual fallback:**
+
+Maintainers can publish from a local machine if GitHub Actions is
+unavailable. Run the normal gates first, source `NPM_TOKEN`, then use
+the alias that mirrors CI's publish command:
+
+```bash
 set -a && source .env && set +a
-pnpm release
-
-# 5. Push the release tags changesets created.
+pnpm publish:release
 git push --follow-tags
 ```
 
+Local fallback publishes do not get CI provenance. npm will warn because
+`publishConfig.provenance` is true; use the fallback only for an
+incident where CI cannot publish.
+
 **What `pnpm release` does:**
 
-The root `package.json` (§22.3) defines `"release": "pnpm build && changeset publish"`.
-`changeset publish` walks every package whose version was bumped in step
-3, runs `npm publish` against the npm registry, and creates a git tag
+The root `package.json` (§22.3) defines
+`"release": "pnpm build && changeset publish"` and
+`"publish:release": "pnpm release"`. `changeset publish` walks every
+package whose version was bumped by the Version Packages PR, runs
+`npm publish` against the npm registry, and creates a git tag
 `<package>@<version>` for each. Packages already at the registry version
 are skipped — the command is idempotent.
 
@@ -4539,36 +4526,10 @@ are skipped — the command is idempotent.
 - `changeset publish` is per-package atomic. A failure on package N+1
   leaves N packages already published — those versions are permanent
   per npm policy.
-- Recover by running `pnpm release` again. Already-published packages
-  are skipped; only the remaining ones publish.
+- Recover by rerunning the failed GitHub Actions job or by using the
+  manual fallback. Already-published packages are skipped; only the
+  remaining ones publish.
 - If a package was published incorrectly (wrong contents, broken
   build), bump the patch version in a new release rather than running
   `npm unpublish` — npm's unpublish window is 72 hours and breaks
   consumers.
-
-**Why this works without CI:**
-
-- The four CI gates (test / lint / coverage / docs) are mirrored by the
-  local commands in step 2 — the maintainer can't accidentally ship a
-  broken release without seeing the failure on their own machine.
-- `pnpm changeset version` is deterministic — same changeset inputs
-  produce same version bumps, so a release-after-rebase doesn't
-  surprise.
-- The `.env` approach keeps the token on the maintainer's disk only.
-  No GitHub secrets to leak, no CI runner to compromise, no
-  third-party Action with `permissions: write-all`.
-
-**When to flip back to CI-driven releases:**
-
-When the team grows past 2–3 maintainers OR when sigstore provenance
-becomes a hard requirement (some downstream consumers require it for
-supply-chain audits). Switch path:
-
-1. Uncomment the `release` job in `.github/workflows/ci.yml` (§22.6).
-2. Add `NPM_TOKEN` to repo secrets (Settings → Secrets and variables →
-   Actions).
-3. Flip `"provenance": true` back into `publishConfig` in §22.4's
-   per-package template (and run `pnpm scaffold` or update each
-   `package.json`).
-4. Delete `.env` from your machine — you no longer need a local
-   token.

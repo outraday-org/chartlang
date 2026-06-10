@@ -43,7 +43,7 @@ import type { AnchorHept, AnchorQuad, AnchorQuint, AnchorTriple, WorldPoint } fr
  * @formula  N/A — namespace surface; per-method runtime impl in Tasks 5–18
  * @anchors  per-method — see the per-kind state shapes in `drawingState.ts`
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import type { DrawNamespace } from "@invinite-org/chartlang-core";
  *     const _ns: DrawNamespace | null = null;
@@ -151,7 +151,7 @@ export type DrawNamespace = {
  * @formula  N/A — namespace surface; per-method runtime impl in Tasks 5–18
  * @anchors  per-method — see the per-kind state shapes in `drawingState.ts`
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { draw } from "@invinite-org/chartlang-core";
  *     try {

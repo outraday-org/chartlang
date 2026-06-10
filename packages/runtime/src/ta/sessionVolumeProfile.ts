@@ -173,7 +173,7 @@ function collectBars(ctx: RuntimeContext, sessionStart: number): ReadonlyArray<V
  * @warmup   NaN until a session window has positive volume; missing
  *           `syminfo.session` falls back to UTC-day boundaries.
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     // import { plot, ta } from "@invinite-org/chartlang-core";
  *     // const vp = ta.sessionVolumeProfile({ rowSize: 24 });

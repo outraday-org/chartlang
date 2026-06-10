@@ -68,7 +68,7 @@ function percentBValue(src: number, upper: number, lower: number): number {
  *           pct    = (source − bands.lower) / (bands.upper − bands.lower)
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

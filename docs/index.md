@@ -31,7 +31,7 @@ diagram including the sandbox-host layer.
 
 - [Language](./language/overview.md) — the eDSL surface, series, inputs,
   alerts, version pinning, forbidden constructs.
-- [Primitives](./primitives/) — auto-generated reference for `ta.*`,
+- [Primitives](./primitives/ta/) — auto-generated reference for `ta.*`,
   `plot.*`, `draw.*`, `alert.*`, `input.*` (lands per primitive in
   Phase 1+).
 - [Adapters](./adapters/contract.md) — adapter contract, capabilities,

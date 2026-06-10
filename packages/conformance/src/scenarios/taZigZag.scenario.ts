@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * alerts and no validation diagnostics.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_ZIG_ZAG_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_ZIG_ZAG_SCENARIO;

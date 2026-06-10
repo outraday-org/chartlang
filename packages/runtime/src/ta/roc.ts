@@ -67,7 +67,7 @@ function tickValue(slot: RocSlot, src: number): number {
  * @formula  out[t] = 100 · (source[t] − source[t − length]) / source[t − length]
  * @warmup   length
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

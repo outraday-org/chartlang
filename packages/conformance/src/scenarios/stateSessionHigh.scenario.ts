@@ -31,7 +31,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * resulting per-bar plot sequence.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     import { STATE_SESSION_HIGH_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void STATE_SESSION_HIGH_SCENARIO;

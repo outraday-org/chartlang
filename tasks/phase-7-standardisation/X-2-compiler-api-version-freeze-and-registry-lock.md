@@ -1,6 +1,6 @@
 # Compiler `apiVersion: 1` freeze + `STATEFUL_PRIMITIVES` lock
 
-> **Status: TODO**
+> **Status: Complete**
 
 ## Goal
 

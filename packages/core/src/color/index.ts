@@ -12,7 +12,7 @@ export type { GradientStop } from "./colorHelpers";
  * helpers for compute-time colors.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const c = color.withAlpha(color.red, 0.5);
  *     void c;

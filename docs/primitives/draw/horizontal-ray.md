@@ -2,7 +2,7 @@
 
 # `draw.horizontalRay`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.3
 > **Bucket:** `lines`
 > **Wire kind:** `horizontal-ray`

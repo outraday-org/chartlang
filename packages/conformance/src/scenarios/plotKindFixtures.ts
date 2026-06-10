@@ -8,7 +8,7 @@
  * `plot(...)` body differ, so the surrounding wrapper lives here.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const src = plotKindSource("PlotKind arrow", 'plot(bar.close, {});');
  *     void src;

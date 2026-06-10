@@ -130,7 +130,7 @@ function tickValue(slot: CmoSlot, src: number): number {
  *           CMO[t]  = 100 · (Σ gain − Σ loss) / (Σ gain + Σ loss)
  * @warmup   length
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

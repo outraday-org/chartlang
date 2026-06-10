@@ -71,7 +71,7 @@ function dispatchMa(
  *
  * @formula  keys = (opts.lengths ?? DEFAULT_LENGTHS).map(n => `ma_${n}`)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     // import { maRibbonOutputKeys } from "@invinite-org/chartlang-runtime";
  *     // const keys = maRibbonOutputKeys({ lengths: [10, 20, 30] });
@@ -105,7 +105,7 @@ export function maRibbonOutputKeys(opts?: MaRibbonOpts): ReadonlyArray<string> {
  *           ribbon as a whole : `max(lengths) − 1`
  * @anchors  lengths, maType
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

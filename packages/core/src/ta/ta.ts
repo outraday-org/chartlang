@@ -11,7 +11,7 @@ import type { PlotLineStyle, Series, Time } from "../types";
  *
  * @formula  N/A — placeholder
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: SmaOpts = { offset: 0 };
  */
@@ -22,7 +22,7 @@ export type SmaOpts = Readonly<{ offset?: number }>;
  *
  * @formula  N/A — placeholder
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: EmaOpts = { offset: 0 };
  */
@@ -34,7 +34,7 @@ export type EmaOpts = Readonly<{ offset?: number }>;
  *
  * @formula  σ_biased = sqrt(Σ(x_i − μ)² / N); σ_sample = sqrt(Σ / (N − 1))
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: StdevOpts = { biased: false, offset: 0 };
  */
@@ -47,7 +47,7 @@ export type StdevOpts = Readonly<{ biased?: boolean; offset?: number }>;
  *
  * @formula  upper = sma + multiplier * stdev, lower = sma − multiplier * stdev
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: BbOpts = { multiplier: 2, offset: 0 };
  */
@@ -58,7 +58,7 @@ export type BbOpts = Readonly<{ multiplier?: number; offset?: number }>;
  *
  * @formula  N/A — placeholder
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: RsiOpts = { offset: 0 };
  */
@@ -71,7 +71,7 @@ export type RsiOpts = Readonly<{ offset?: number }>;
  *
  * @formula  N/A — see `ta.macd` JSDoc
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: MacdOpts = { fastLength: 12, slowLength: 26, signalLength: 9 };
  */
@@ -87,7 +87,7 @@ export type MacdOpts = Readonly<{
  *
  * @formula  N/A — placeholder
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: AtrOpts = { offset: 0 };
  */
@@ -100,7 +100,7 @@ export type AtrOpts = Readonly<{ offset?: number }>;
  *
  * @formula  N/A — see `ta.crossover` JSDoc
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: CrossoverOpts = { offset: 0 };
  */
@@ -111,7 +111,7 @@ export type CrossoverOpts = Readonly<{ offset?: number }>;
  *
  * @formula  N/A — see `ta.crossunder` JSDoc
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: CrossunderOpts = { offset: 0 };
  */
@@ -123,7 +123,7 @@ export type CrossunderOpts = Readonly<{ offset?: number }>;
  *
  * @formula  N/A — see `ta.highest` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: HighestOpts = { offset: 0 };
  */
@@ -134,7 +134,7 @@ export type HighestOpts = Readonly<{ offset?: number }>;
  *
  * @formula  N/A — see `ta.lowest` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: LowestOpts = { offset: 0 };
  */
@@ -146,7 +146,7 @@ export type LowestOpts = Readonly<{ offset?: number }>;
  *
  * @formula  out = source[0] − source[length]
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: ChangeOpts = { length: 1 };
  */
@@ -158,7 +158,7 @@ export type ChangeOpts = Readonly<{ length?: number; offset?: number }>;
  *
  * @formula  N/A — see `ta.valuewhen` JSDoc
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const opts: ValuewhenOpts = { offset: 0 };
  */
@@ -169,7 +169,7 @@ export type ValuewhenOpts = Readonly<{ offset?: number }>;
  *
  * @formula  N/A — see `ta.barssince` JSDoc
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const opts: BarssinceOpts = { offset: 0 };
  */
@@ -183,7 +183,7 @@ export type BarssinceOpts = Readonly<{ offset?: number }>;
  *
  * @formula  N/A — see `ta.wma` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: WmaOpts = { offset: 0 };
  */
@@ -194,7 +194,7 @@ export type WmaOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.vwma` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: VwmaOpts = { offset: 0 };
  */
@@ -205,7 +205,7 @@ export type VwmaOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.hma` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: HmaOpts = { offset: 0 };
  */
@@ -217,7 +217,7 @@ export type HmaOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.smma` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: SmmaOpts = { offset: 0 };
  */
@@ -228,7 +228,7 @@ export type SmmaOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.dema` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: DemaOpts = { offset: 0 };
  */
@@ -239,7 +239,7 @@ export type DemaOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.tema` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: TemaOpts = { offset: 0 };
  */
@@ -254,7 +254,7 @@ export type TemaOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.kama` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: KamaOpts = { length: 10, fastLength: 2, slowLength: 30 };
  */
@@ -277,7 +277,7 @@ export type KamaOpts = Readonly<{
  * @formula  N/A — see `ta.alma` JSDoc
  * @anchors  offset, sigma
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: AlmaOpts = { offset: 0.85, sigma: 6 };
  */
@@ -294,7 +294,7 @@ export type AlmaOpts = Readonly<{
  *
  * @formula  N/A — see `ta.lsma` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: LsmaOpts = { offset: 0 };
  */
@@ -306,7 +306,7 @@ export type LsmaOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.mcginley` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: McginleyOpts = { offset: 0 };
  */
@@ -323,7 +323,7 @@ export type McginleyOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle
  *
  * @formula  N/A — string-literal union type
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const k: MaTypeNoVolume = "ema";
  */
@@ -339,7 +339,7 @@ export type MaTypeNoVolume = "sma" | "ema" | "wma" | "smma";
  * @formula  N/A — see `ta.maRibbon` JSDoc
  * @anchors  lengths, maType
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: MaRibbonOpts = { lengths: [10, 20, 30], maType: "ema" };
  */
@@ -360,7 +360,7 @@ export type MaRibbonOpts = Readonly<{
  *
  * @formula  N/A — dynamic-key record type, see `ta.maRibbon` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     declare const r: MaRibbonResult;
  *     void r.ma_10?.current;
@@ -375,7 +375,7 @@ export type MaRibbonResult = Readonly<Record<string, Series<number>>>;
  *
  * @formula  out = SMA(hl2, fastLength) − SMA(hl2, slowLength)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: AoOpts = { fastLength: 5, slowLength: 34 };
  */
@@ -392,7 +392,7 @@ export type AoOpts = Readonly<{
  *
  * @formula  CMO = 100 · (Σ gain − Σ loss) / (Σ gain + Σ loss)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: CmoOpts = { offset: 0 };
  */
@@ -403,7 +403,7 @@ export type CmoOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  out = source[0] − source[length]
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: MomentumOpts = { offset: 0 };
  */
@@ -414,7 +414,7 @@ export type MomentumOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle
  *
  * @formula  ROC = 100 · (source[0] − source[length]) / source[length]
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: RocOpts = { offset: 0 };
  */
@@ -429,7 +429,7 @@ export type RocOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.pmo` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: PmoOpts = { firstSmoothing: 35, secondSmoothing: 20, signalLength: 10 };
  */
@@ -448,7 +448,7 @@ export type PmoOpts = Readonly<{
  *
  * @formula  see `ta.pmo` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const p = ta.pmo(bar.close);
  *     plot(p.pmo);
@@ -468,7 +468,7 @@ export type PmoResult = Readonly<{
  *
  * @formula  N/A — see `ta.smi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: SmiOpts = { kLength: 10, firstSmoothing: 3, secondSmoothing: 5, dLength: 3 };
  */
@@ -489,7 +489,7 @@ export type SmiOpts = Readonly<{
  *
  * @formula  see `ta.smi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const s = ta.smi();
  *     plot(s.smi);
@@ -509,7 +509,7 @@ export type SmiResult = Readonly<{
  *
  * @formula  N/A — see `ta.tsi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: TsiOpts = { firstSmoothing: 25, secondSmoothing: 13, signalLength: 13 };
  */
@@ -531,7 +531,7 @@ export type TsiOpts = Readonly<{
  *
  * @formula  see `ta.tsi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const t = ta.tsi(bar.close);
  *     plot(t.tsi);
@@ -550,7 +550,7 @@ export type TsiResult = Readonly<{
  *
  * @formula  N/A — see `ta.cci` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: CciOpts = { offset: 0 };
  */
@@ -563,7 +563,7 @@ export type CciOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.stoch` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: StochOpts = { kLength: 14, kSmoothing: 3, dLength: 3 };
  */
@@ -579,7 +579,7 @@ export type StochOpts = Readonly<{
  *
  * @formula  N/A — see `ta.williamsR` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: WilliamsROpts = { offset: 0 };
  */
@@ -592,7 +592,7 @@ export type WilliamsROpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyl
  *
  * @formula  k = sma(kRaw, kSmoothing); d = sma(k, dLength)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const s = ta.stoch({ kLength: 14, kSmoothing: 3, dLength: 3 });
  *     plot(s.k);
@@ -611,7 +611,7 @@ export type StochResult = Readonly<{
  *
  * @formula  N/A — see `ta.stochRsi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: StochRsiOpts = { rsiLength: 14, stochLength: 14, kSmoothing: 3, dSmoothing: 3 };
  */
@@ -631,7 +631,7 @@ export type StochRsiOpts = Readonly<{
  *
  * @formula  N/A — see `ta.ultimateOsc` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: UltimateOscOpts = { shortLength: 7, mediumLength: 14, longLength: 28 };
  */
@@ -651,7 +651,7 @@ export type UltimateOscOpts = Readonly<{
  *
  * @formula  N/A — see `ta.coppock` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: CoppockOpts = { roc1Length: 11, roc2Length: 14, wmaLength: 10 };
  */
@@ -671,7 +671,7 @@ export type CoppockOpts = Readonly<{
  *
  * @formula  N/A — see `ta.ppo` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: PpoOpts = { fastLength: 12, slowLength: 26, signalLength: 9 };
  */
@@ -690,7 +690,7 @@ export type PpoOpts = Readonly<{
  *
  * @formula  N/A — see `ta.dpo` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: DpoOpts = { offset: 0 };
  */
@@ -703,7 +703,7 @@ export type DpoOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.connorsRsi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: ConnorsRsiOpts = { rsiLength: 3, streakLength: 2, rocLength: 100 };
  */
@@ -724,7 +724,7 @@ export type ConnorsRsiOpts = Readonly<{
  *           signal = ema(ppo, signalLength) ;
  *           hist   = ppo − signal
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const p = ta.ppo(bar.close);
  *     plot(p.ppo); plot(p.signal); plot(p.hist);
@@ -750,7 +750,7 @@ export type PpoResult = Readonly<{
  *           k    = sma(kRaw, kSmoothing) ;
  *           d    = sma(k, dSmoothing)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const s = ta.stochRsi(bar.close);
  *     plot(s.k);
@@ -769,7 +769,7 @@ export type StochRsiResult = Readonly<{
  *
  * @formula  N/A — see `ta.kst` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: KstOpts = { roc1Length: 10, roc2Length: 15, roc3Length: 20, roc4Length: 30 };
  */
@@ -795,7 +795,7 @@ export type KstOpts = Readonly<{
  *           kst = r1 + 2·r2 + 3·r3 + 4·r4 ; NaN if any rN NaN ;
  *           signal = sma(kst, signalLength)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const k = ta.kst(bar.close);
  *     plot(k.kst);
@@ -813,7 +813,7 @@ export type KstResult = Readonly<{
  *
  * @formula  N/A — see `ta.fisher` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: FisherOpts = { offset: 0 };
  */
@@ -833,7 +833,7 @@ export type FisherOpts = Readonly<{ offset?: number }>;
  *           fisher = 0.5 · ln((1 + x) / (1 − x)) + 0.5 · prevFisher ;
  *           trigger[t] = prevFisher (the value of fisher before this close)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const f = ta.fisher(9);
  *     plot(f.fisher);
@@ -852,7 +852,7 @@ export type FisherResult = Readonly<{
  *
  * @formula  N/A — see `ta.klinger` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: KlingerOpts = { fastLength: 34, slowLength: 55, signalLength: 13 };
  */
@@ -875,7 +875,7 @@ export type KlingerOpts = Readonly<{
  *           klinger = ema(vf, fastLength) − ema(vf, slowLength) ;
  *           signal  = ema(klinger, signalLength)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const k = ta.klinger();
  *     plot(k.klinger);
@@ -894,7 +894,7 @@ export type KlingerResult = Readonly<{
  *
  * @formula  N/A — see `ta.rvgi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: RvgiOpts = { length: 10 };
  */
@@ -914,7 +914,7 @@ export type RvgiOpts = Readonly<{
  *           rvgi   = sma(num, length) / sma(den, length) ; NaN on flat den ;
  *           signal = (rvgi[0] + 2·rvgi[1] + 2·rvgi[2] + rvgi[3]) / 6
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const r = ta.rvgi();
  *     plot(r.rvgi);
@@ -934,7 +934,7 @@ export type RvgiResult = Readonly<{
  *
  * @formula  N/A — see `ta.aroon` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: AroonOpts = { offset: 0 };
  */
@@ -949,7 +949,7 @@ export type AroonOpts = Readonly<{
  *
  * @formula  N/A — see `ta.aroonOsc` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: AroonOscOpts = { offset: 0 };
  */
@@ -960,7 +960,7 @@ export type AroonOscOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle
  *
  * @formula  N/A — see `ta.median` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: MedianOpts = { offset: 0 };
  */
@@ -973,7 +973,7 @@ export type MedianOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }
  *
  * @formula  N/A — see `ta.adr` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: AdrOpts = { length: 14 };
  */
@@ -988,7 +988,7 @@ export type AdrOpts = Readonly<{
  *
  * @formula  N/A — see `ta.ulcerIndex` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: UlcerIndexOpts = { offset: 0 };
  */
@@ -1002,7 +1002,7 @@ export type UlcerIndexOpts = Readonly<{ offset?: number; lineStyle?: PlotLineSty
  *
  * @formula  N/A — see `ta.vol` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: VolOpts = { offset: 0 };
  */
@@ -1015,7 +1015,7 @@ export type VolOpts = Readonly<{ offset?: number }>;
  *
  * @formula  vwap = Σ(source · volume) / Σ(volume) per session window
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: VwapOpts = { source: "hlc3" };
  */
@@ -1031,7 +1031,7 @@ export type VwapOpts = Readonly<{
  *
  * @formula  vwap_anchored = Σ_{t ≥ anchor}(source · volume) / Σ_{t ≥ anchor}(volume)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: AnchoredVwapOpts = { source: "hlc3" };
  */
@@ -1049,7 +1049,7 @@ export type AnchoredVwapOpts = Readonly<{
  *
  * @formula  N/A — see `ta.visibleRangeVolumeProfile` JSDoc
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const opts: VisibleRangeVolumeProfileOpts = {
  *         rowSize: 24,
@@ -1070,7 +1070,7 @@ export type VisibleRangeVolumeProfileOpts = Readonly<{
  * @formula  POC / VAH / VAL from the visible-range volume-profile
  *           bucket set.
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const vp: VisibleRangeVolumeProfileResult;
  *     const poc = vp.poc.current;
@@ -1093,7 +1093,7 @@ export type VisibleRangeVolumeProfileResult = Readonly<{
  *
  * @formula  N/A — see `ta.anchoredVolumeProfile` JSDoc
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const opts: AnchoredVolumeProfileOpts = {
  *         anchor: 1_700_000_000_000,
@@ -1115,7 +1115,7 @@ export type AnchoredVolumeProfileOpts = Readonly<{
  * @formula  POC / VAH / VAL from the anchor→current volume-profile
  *           bucket set.
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const vp: AnchoredVolumeProfileResult;
  *     const buckets = vp.buckets;
@@ -1136,7 +1136,7 @@ export type AnchoredVolumeProfileResult = Readonly<{
  *
  * @formula  N/A — see `ta.sessionVolumeProfile` JSDoc
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const opts: SessionVolumeProfileOpts = {
  *         rowSize: 24,
@@ -1158,7 +1158,7 @@ export type SessionVolumeProfileOpts = Readonly<{
  * @formula  POC / VAH / VAL from the current-session volume-profile
  *           bucket set.
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const vp: SessionVolumeProfileResult;
  *     const poc = vp.poc.current;
@@ -1179,7 +1179,7 @@ export type SessionVolumeProfileResult = Readonly<{
  *
  * @formula  N/A — see `ta.fixedRangeVolumeProfile` JSDoc
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const opts: FixedRangeVolumeProfileOpts = {
  *         from: 1_700_000_000_000,
@@ -1202,7 +1202,7 @@ export type FixedRangeVolumeProfileOpts = Readonly<{
  * @formula  POC / VAH / VAL from the fixed-range volume-profile
  *           bucket set.
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const vp: FixedRangeVolumeProfileResult;
  *     const buckets = vp.buckets;
@@ -1222,7 +1222,7 @@ export type FixedRangeVolumeProfileResult = Readonly<{
  *
  * @formula  N/A — see `ta.obv` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: ObvOpts = { offset: 0 };
  */
@@ -1234,7 +1234,7 @@ export type ObvOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.adl` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: AdlOpts = { offset: 0 };
  */
@@ -1245,7 +1245,7 @@ export type AdlOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.bop` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: BopOpts = { offset: 0 };
  */
@@ -1258,7 +1258,7 @@ export type BopOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.cmf` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: CmfOpts = { offset: 0 };
  */
@@ -1271,7 +1271,7 @@ export type CmfOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.chaikinOsc` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: ChaikinOscOpts = { fastLength: 3, slowLength: 10 };
  */
@@ -1288,7 +1288,7 @@ export type ChaikinOscOpts = Readonly<{
  *
  * @formula  N/A — see `ta.mfi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: MfiOpts = { offset: 0 };
  */
@@ -1301,7 +1301,7 @@ export type MfiOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.netVolume` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: NetVolumeOpts = { offset: 0 };
  */
@@ -1316,7 +1316,7 @@ export type NetVolumeOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyl
  *
  * @formula  N/A — see `ta.pvo` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: PvoOpts = { fastLength: 12, slowLength: 26, signalLength: 9 };
  */
@@ -1337,7 +1337,7 @@ export type PvoOpts = Readonly<{
  *           signal = ema(pvo, signalLength) ;
  *           hist   = pvo − signal
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const p = ta.pvo();
  *     plot(p.pvo); plot(p.signal); plot(p.hist);
@@ -1357,7 +1357,7 @@ export type PvoResult = Readonly<{
  *
  * @formula  N/A — see `ta.pvt` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: PvtOpts = { offset: 0 };
  */
@@ -1370,7 +1370,7 @@ export type PvtOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.eom` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: EomOpts = { offset: 0 };
  */
@@ -1384,7 +1384,7 @@ export type EomOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.nvi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: NviOpts = { offset: 0 };
  */
@@ -1397,7 +1397,7 @@ export type NviOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  *
  * @formula  N/A — see `ta.pvi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: PviOpts = { offset: 0 };
  */
@@ -1412,7 +1412,7 @@ export type PviOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  * @formula  up   = 100 · (length − barsSinceHigh) / length ;
  *           down = 100 · (length − barsSinceLow)  / length
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const a = ta.aroon(14);
  *     plot(a.up);
@@ -1431,7 +1431,7 @@ export type AroonResult = Readonly<{
  *
  * @formula  N/A — see `ta.bbPercentB` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: BbPercentBOpts = { multiplier: 2 };
  */
@@ -1448,7 +1448,7 @@ export type BbPercentBOpts = Readonly<{
  *
  * @formula  N/A — see `ta.bbw` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: BbwOpts = { multiplier: 2 };
  */
@@ -1467,7 +1467,7 @@ export type BbwOpts = Readonly<{
  * @formula  N/A — see `ta.historicalVolatility` JSDoc
  * @anchors  annualisationFactor
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: HvOpts = { annualisationFactor: 252 };
  */
@@ -1484,7 +1484,7 @@ export type HvOpts = Readonly<{
  *
  * @formula  N/A — see `ta.rvi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: RviOpts = { offset: 0 };
  */
@@ -1501,7 +1501,7 @@ export type RviOpts = Readonly<{
  *
  * @formula  N/A — see `ta.massIndex` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: MassIndexOpts = { emaLength: 9, sumLength: 25 };
  */
@@ -1520,7 +1520,7 @@ export type MassIndexOpts = Readonly<{
  *
  * @formula  N/A — see `ta.donchian` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: DonchianOpts = { offset: 0 };
  */
@@ -1540,7 +1540,7 @@ export type DonchianOpts = Readonly<{
  *           lower = lowest(low, length) ;
  *           middle = (upper + lower) / 2
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const d = ta.donchian(20);
  *     plot(d.upper);
@@ -1568,7 +1568,7 @@ export type DonchianResult = Readonly<{
  * @formula  N/A — see `ta.keltner` JSDoc
  * @anchors  maType
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: KeltnerOpts = { length: 20, multiplier: 2, maType: "ema" };
  */
@@ -1591,7 +1591,7 @@ export type KeltnerOpts = Readonly<{
  *           upper  = middle + multiplier · atr(length) ;
  *           lower  = middle − multiplier · atr(length)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const k = ta.keltner({ length: 20, multiplier: 2 });
  *     plot(k.upper);
@@ -1614,7 +1614,7 @@ export type KeltnerResult = Readonly<{
  * @formula  N/A — see `ta.envelope` JSDoc
  * @anchors  maType
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: EnvelopeOpts = { length: 20, percent: 10, maType: "sma" };
  */
@@ -1635,7 +1635,7 @@ export type EnvelopeOpts = Readonly<{
  *           upper  = middle · (1 + percent / 100) ;
  *           lower  = middle · (1 − percent / 100)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const e = ta.envelope(bar.close, { percent: 10 });
  *     plot(e.upper);
@@ -1656,7 +1656,7 @@ export type EnvelopeResult = Readonly<{
  *
  * @formula  N/A — see `ta.chop` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: ChopOpts = { offset: 0 };
  */
@@ -1671,7 +1671,7 @@ export type ChopOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  * @formula  N/A — see `ta.psar` JSDoc
  * @anchors  accelerationStart, accelerationStep, accelerationMax
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: PsarOpts = { accelerationStart: 0.02, accelerationStep: 0.02, accelerationMax: 0.2 };
  */
@@ -1693,7 +1693,7 @@ export type PsarOpts = Readonly<{
  *           direction flips when bar.low ≤ candidateSar (up→down) or
  *           bar.high ≥ candidateSar (down→up)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const p = ta.psar();
  *     plot(p.sar);
@@ -1713,7 +1713,7 @@ export type PsarResult = Readonly<{
  *
  * @formula  N/A — see `ta.supertrend` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: SupertrendOpts = { length: 10, multiplier: 3 };
  */
@@ -1733,7 +1733,7 @@ export type SupertrendOpts = Readonly<{
  *           direction flips when close crosses prior finalUpper / finalLower ;
  *           line = direction === +1 ? finalLower : finalUpper
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const s = ta.supertrend({ length: 10, multiplier: 3 });
  *     plot(s.line);
@@ -1752,7 +1752,7 @@ export type SupertrendResult = Readonly<{
  * @formula  N/A — see `ta.chandelier` JSDoc
  * @anchors  length, multiplier
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: ChandelierOpts = { length: 22, multiplier: 3 };
  */
@@ -1772,7 +1772,7 @@ export type ChandelierOpts = Readonly<{
  * @formula  long  = highest(high, length) − multiplier · atr(length) ;
  *           short = lowest(low,   length) + multiplier · atr(length)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const c = ta.chandelier({ length: 22, multiplier: 3 });
  *     plot(c.long);
@@ -1794,7 +1794,7 @@ export type ChandelierResult = Readonly<{
  * @formula  N/A — see `ta.chandeKrollStop` JSDoc
  * @anchors  length, multiplier
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: ChandeKrollStopOpts = { length: 10, multiplier: 1, smoothingLength: 9 };
  */
@@ -1818,7 +1818,7 @@ export type ChandeKrollStopOpts = Readonly<{
  *           long  = max(firstHigh over smoothingLength bars) ;
  *           short = min(firstLow  over smoothingLength bars)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const c = ta.chandeKrollStop();
  *     plot(c.long);
@@ -1838,7 +1838,7 @@ export type ChandeKrollStopResult = Readonly<{
  * @formula  N/A — see `ta.williamsFractal` JSDoc
  * @anchors  length
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: WilliamsFractalOpts = { length: 2 };
  */
@@ -1869,7 +1869,7 @@ export type WilliamsFractalOpts = Readonly<{
  * @formula  up   = bar.high(centre) when centre is up-fractal, NaN otherwise ;
  *           down = bar.low(centre)  when centre is down-fractal, NaN otherwise
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const f = ta.williamsFractal();
  *     plot(f.up,   { style: { kind: "marker", shape: "triangle-up",   size: 6 } });
@@ -1890,7 +1890,7 @@ export type WilliamsFractalResult = Readonly<{
  * @formula  N/A — see `ta.zigZag` JSDoc
  * @anchors  deviation, depth
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: ZigZagOpts = { deviation: 5, depth: 10 };
  */
@@ -1916,7 +1916,7 @@ export type ZigZagOpts = Readonly<{
  *
  * @formula  see `ta.zigZag` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const z = ta.zigZag({ deviation: 5 });
  *     plot(z.value);
@@ -1935,7 +1935,7 @@ export type ZigZagResult = Readonly<{
  * @formula  N/A — see `ta.pivotsHighLow` JSDoc
  * @anchors  leftLength, rightLength
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: PivotsHighLowOpts = { leftLength: 4, rightLength: 4 };
  */
@@ -1961,7 +1961,7 @@ export type PivotsHighLowOpts = Readonly<{
  * @formula  high = bar.high(centre) when centre is up-pivot, NaN otherwise ;
  *           low  = bar.low(centre)  when centre is down-pivot, NaN otherwise
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const p = ta.pivotsHighLow({ leftLength: 4, rightLength: 4 });
  *     plot(p.high);
@@ -1980,7 +1980,7 @@ export type PivotsHighLowResult = Readonly<{
  *
  * @formula  N/A — string-literal union type
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const sys: PivotsStandardSystem = "classic";
  */
@@ -1994,7 +1994,7 @@ export type PivotsStandardSystem = "classic" | "fibonacci" | "camarilla" | "wood
  * @formula  N/A — see `ta.pivotsStandard` JSDoc
  * @anchors  system
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: PivotsStandardOpts = { system: "fibonacci" };
  */
@@ -2017,7 +2017,7 @@ export type PivotsStandardOpts = Readonly<{
  *
  * @formula  see `ta.pivotsStandard` JSDoc (per-system formula table)
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const p = ta.pivotsStandard();
  *     plot(p.pp);
@@ -2045,7 +2045,7 @@ export type PivotsStandardResult = Readonly<{
  * @formula  N/A — see `ta.volatilityStop` JSDoc
  * @anchors  length, multiplier
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: VolatilityStopOpts = { length: 20, multiplier: 2 };
  */
@@ -2065,7 +2065,7 @@ export type VolatilityStopOpts = Readonly<{
  *           trend down: value = min(prevStop, src + multiplier · atr) ;
  *           flip on src crossing the stop
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const v = ta.volatilityStop({ length: 20, multiplier: 2 });
  *     plot(v.value);
@@ -2086,7 +2086,7 @@ export type VolatilityStopResult = Readonly<{
  * @formula  N/A — see `ta.adx` JSDoc
  * @anchors  smoothing
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: AdxOpts = { smoothing: 14 };
  */
@@ -2106,7 +2106,7 @@ export type AdxOpts = Readonly<{
  *
  * @formula  N/A — see `ta.dmi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: DmiOpts = { offset: 0 };
  */
@@ -2124,7 +2124,7 @@ export type DmiOpts = Readonly<{
  *
  * @formula  see `ta.dmi` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const d = ta.dmi(14);
  *     plot(d.plusDi);
@@ -2144,7 +2144,7 @@ export type DmiResult = Readonly<{
  * @formula  N/A — see `ta.trix` JSDoc
  * @anchors  signalLength
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: TrixOpts = { signalLength: 9 };
  */
@@ -2161,7 +2161,7 @@ export type TrixOpts = Readonly<{
  *
  * @formula  see `ta.trix` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const t = ta.trix(bar.close, 18);
  *     plot(t.trix);
@@ -2182,7 +2182,7 @@ export type TrixResult = Readonly<{
  *
  * @formula  N/A — see `ta.vortex` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: VortexOpts = { offset: 0 };
  */
@@ -2199,7 +2199,7 @@ export type VortexOpts = Readonly<{
  *
  * @formula  see `ta.vortex` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const v = ta.vortex(14);
  *     plot(v.plus);
@@ -2219,7 +2219,7 @@ export type VortexResult = Readonly<{
  *
  * @formula  N/A — see `ta.trendStrengthIndex` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: TrendStrengthIndexOpts = { offset: 0 };
  */
@@ -2239,7 +2239,7 @@ export type TrendStrengthIndexOpts = Readonly<{
  * @formula  N/A — see `ta.ichimoku` JSDoc
  * @anchors  displacement, conversionLength, baseLength, leadingSpanBLength
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const opts: IchimokuOpts = {
  *         conversionLength: 9,
@@ -2271,7 +2271,7 @@ export type IchimokuOpts = Readonly<{
  *
  * @formula  see `ta.ichimoku` JSDoc
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const i = ta.ichimoku();
  *     plot(i.tenkan);
@@ -2294,7 +2294,7 @@ export type IchimokuResult = Readonly<{
  *
  * @formula  upper = sma + k * stdev, lower = sma − k * stdev
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const close: Series<number>;
  *     const bands = ta.bb(close, 20, { multiplier: 2 });
@@ -2313,7 +2313,7 @@ export type BbResult = Readonly<{
  * @formula  macd = ema(src, fast) − ema(src, slow); signal = ema(macd, signal);
  *           hist = macd − signal
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const close: Series<number>;
  *     const m = ta.macd(close);
@@ -2335,7 +2335,7 @@ export type MacdResult = Readonly<{
  *
  * @formula  see per-method JSDoc on the `ta` const below
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const close: Series<number>;
  *     const e: Series<number> = ta.ema(close, 20);
@@ -2463,7 +2463,7 @@ export type TaNamespace = {
  *
  * @formula  see method-specific JSDoc on the runtime implementations
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  * ```ts
  * import { defineIndicator, ta, plot } from "@invinite-org/chartlang-core";

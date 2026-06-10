@@ -67,7 +67,7 @@ const HORIZONTAL_HISTOGRAM_ROW_HEIGHT_PX = 6;
  * `canvas.getContext("2d")` is not available.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const canvas: HTMLCanvasElement;
  *     declare const candleSource: AsyncIterable<CandleEvent>;
@@ -93,7 +93,7 @@ export type CreateCanvas2dAdapterOpts = {
  * {@link runRendererLoop}.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const adapter: Canvas2dAdapterHandle;
  *     // await adapter.host.load(compiled);
@@ -471,7 +471,7 @@ function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
  * state, and redraws the frame against `opts.canvas`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { createCanvas2dAdapter } from "chartlang-example-canvas2d-adapter";
  *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
@@ -560,7 +560,7 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
  * completes; throws whatever the source / host throws.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { createCanvas2dAdapter, runRendererLoop } from "chartlang-example-canvas2d-adapter";
  *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";

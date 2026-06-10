@@ -8,7 +8,7 @@ import { timeToX, type Viewport } from "./coords";
  * Bar-band inputs for a Phase 5 `bg-color` overlay.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const args: BgColorArgs = { time: 0, color: "#00f", transp: 50, barCount: 1 };
  *     void args;
@@ -24,7 +24,7 @@ export type BgColorArgs = {
  * Paint a translucent Phase-5 `bg-color` bar band.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const viewport: Viewport;

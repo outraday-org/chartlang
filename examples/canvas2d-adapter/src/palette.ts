@@ -14,7 +14,7 @@
  * and inherit a fallback by accident.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { type Palette, DEFAULT_PALETTE } from "chartlang-example-canvas2d-adapter";
  *     const p: Palette = { ...DEFAULT_PALETTE, background: "#101820" };
@@ -39,7 +39,7 @@ export type Palette = {
  * remaining slots are chartlang-native choices.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { DEFAULT_PALETTE } from "chartlang-example-canvas2d-adapter";
  *     // DEFAULT_PALETTE.candleBullBody === "#26a69a";

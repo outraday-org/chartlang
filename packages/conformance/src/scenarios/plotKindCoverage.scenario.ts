@@ -40,7 +40,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * extended switch).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { PLOT_KIND_COVERAGE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     // PLOT_KIND_COVERAGE_SCENARIO.inlineSource !== undefined

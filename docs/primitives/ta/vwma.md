@@ -2,7 +2,7 @@
 
 # `ta.vwma`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Volume-weighted moving average — `Σ source[t−j] · volume[t−j]` over

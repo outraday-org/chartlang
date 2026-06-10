@@ -46,7 +46,7 @@ Task 4's `donchianMid`, `wilderDirectional`, `adxFromDi`,
 `078f41fe2569d659d5aba726da8bcb5d3e2ced02` in their provenance
 headers and graduate the JSDoc stability marker to `@stable` (the
 math reference is fixed; consumer primitives in Tasks 6–28 carry
-the public surface and stay `@experimental` until Phase-2 closeout).
+the public surface and stay `@stable` until Phase-2 closeout).
 
 See `lib/CLAUDE.md` for the helper-folder convention (Float64-only
 contract, per-helper NaN propagation rules, types-only coverage
@@ -96,7 +96,7 @@ exclusion).
   reads — the primitives propagate.
 - **JSDoc.** Every export carries the §17.2 set: one-line
   description, `@formula`, `@warmup`, `@since 0.1`, an
-  `@experimental | @stable` marker, and one `@example` block.
+  `@stable | @stable` marker, and one `@example` block.
   Example blocks are intentionally comment-only (no
   `defineIndicator(` call) so `pnpm docs:check`'s executor skips
   compilation — the executable examples live in the seed scripts

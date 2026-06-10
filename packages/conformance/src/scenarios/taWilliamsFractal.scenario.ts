@@ -42,7 +42,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `lookback-exceeded`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_WILLIAMS_FRACTAL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_WILLIAMS_FRACTAL_SCENARIO;

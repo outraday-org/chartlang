@@ -9,7 +9,7 @@ import type { LineStyle } from "@invinite-org/chartlang-core";
  * `pxWidth`/`pxHeight` are the canvas's drawable size in CSS pixels.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const vp: Viewport = {
  *         xMin: 0, xMax: 9, yMin: 100, yMax: 110,
@@ -32,7 +32,7 @@ export type Viewport = {
  * the script emitted a "skip this bar" gap.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const p: PlotPoint = { time: 1_700_000_000_000, value: 42.31, color: "#26a69a" };
  *     void p;
@@ -49,7 +49,7 @@ export type PlotPoint = {
  * primitive at the adapter layer.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const h: HLine = {
  *         price: 70,
@@ -74,7 +74,7 @@ export type HLine = {
  * (`yMax > yMin`); callers feed a non-empty bar window.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const y = priceToY(105, { xMin: 0, xMax: 1, yMin: 100, yMax: 110, pxWidth: 1, pxHeight: 100 });
  *     // y === 50
@@ -92,7 +92,7 @@ export function priceToY(price: number, viewport: Viewport): number {
  * now so the renderer ships with the full coordinate pair.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const p = yToPrice(50, { xMin: 0, xMax: 1, yMin: 100, yMax: 110, pxWidth: 1, pxHeight: 100 });
  *     // p === 105
@@ -109,7 +109,7 @@ export function yToPrice(y: number, viewport: Viewport): number {
  * canvas centre — no NaN propagation.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const x = timeToX(5, { xMin: 0, xMax: 10, yMin: 0, yMax: 1, pxWidth: 100, pxHeight: 1 });
  *     // x === 50

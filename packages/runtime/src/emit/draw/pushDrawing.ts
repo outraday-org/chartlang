@@ -38,7 +38,7 @@ function effectiveBudget(ctx: RuntimeContext, bucket: DrawingBucket): number {
  * lands on `ctx.emissions.diagnostics` instead.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // import { pushDrawing } from "@invinite-org/chartlang-runtime";
  *     // pushDrawing(ctx, {

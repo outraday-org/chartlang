@@ -27,7 +27,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * the most recent EMA(12)/EMA(26) crossover.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_BARSSINCE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_BARSSINCE_SCENARIO;

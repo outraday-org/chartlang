@@ -2,7 +2,7 @@
 
 # `ta.anchoredVwap`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Anchored Volume-Weighted Average Price — accumulates

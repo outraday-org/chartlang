@@ -168,7 +168,7 @@ function tickStep(slot: AroonSlot, high: number, low: number): { up: number; dow
  *           down = 100 · (length − barsSinceLow)  / length
  * @warmup   length
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

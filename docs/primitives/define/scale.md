@@ -2,7 +2,7 @@
 
 # `defineIndicator.scale`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.4
 
 Scale-axis binding. Defaults to `"price"` for overlay indicators and

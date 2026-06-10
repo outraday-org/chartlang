@@ -39,7 +39,7 @@ const LINE_ONLY_PLOTS: ReadonlySet<PlotKind> = new Set(["line"]);
  * plot capability.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { TA_ANCHORED_VOLUME_PROFILE_GATED_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_ANCHORED_VOLUME_PROFILE_GATED_SCENARIO;

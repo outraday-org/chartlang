@@ -44,7 +44,7 @@ function rectangleImpl(
  * @anchorCount 2
  * @bucket boxes
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -66,7 +66,7 @@ export function rectangle(a: WorldPoint, b: WorldPoint, opts?: ShapeStyle): Draw
  * `draw.rectangle(slotId, a, b, opts)`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof rectangle = rectangle;
@@ -84,7 +84,7 @@ export function rectangle(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof rectangle = rectangle;
  *     // void fn;

@@ -10,7 +10,7 @@ import type { DiagnosticCode } from "../types";
  * safe to forward across the structured-clone boundary.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: ValidationOk = { ok: true };
  */
@@ -21,7 +21,7 @@ export type ValidationOk = { readonly ok: true };
  * and `"unsupported-drawing-kind"` for the Phase-1 drawing stub.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: ValidationFail = {
  *         ok: false,
@@ -39,7 +39,7 @@ export type ValidationFail = {
  * Discriminated union returned by {@link validateEmission}.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const r: ValidationResult;
  *     if (r.ok) {
@@ -1553,7 +1553,7 @@ function validateDiagnostic(e: Record<string, unknown>): ValidationResult {
  * validators to the dispatch as ports land.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { validateEmission } from "@invinite-org/chartlang-adapter-kit";
  *

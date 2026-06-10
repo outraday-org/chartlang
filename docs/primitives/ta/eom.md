@@ -2,7 +2,7 @@
 
 # `ta.eom`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Ease of Movement — `length`-bar SMA of per-bar `(midpointMove) /

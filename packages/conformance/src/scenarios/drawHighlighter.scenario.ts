@@ -41,7 +41,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * resulting drawing batch.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_HIGHLIGHTER_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_HIGHLIGHTER_SCENARIO;

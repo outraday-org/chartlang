@@ -1,0 +1,1274 @@
+{
+    "adapterName": "Canvas 2D Reference Adapter (default)",
+    "generatedBy": "@invinite-org/chartlang-conformance@1.0.0",
+    "passed": 211,
+    "failed": 0,
+    "scenarios": [
+        {
+            "id": "barstate-confirmed",
+            "title": "barstate.isconfirmed gates alerts",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "bollinger-bands",
+            "title": "Bollinger Bands — upper/middle/lower line plots",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "define-alert-condition-fires",
+            "title": "defineAlertCondition fires",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "define-alert-condition-gated",
+            "title": "defineAlertCondition gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "define-alert-condition-unknown",
+            "title": "defineAlertCondition unknown id",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "define-drawing-basic",
+            "title": "defineDrawing — single fibRetracement emission",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-abcd-pattern",
+            "title": "draw.abcdPattern(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-all-61",
+            "title": "Task 19 smoke (all 61 DrawingKinds emitted on a single bar)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-annotations-all",
+            "title": "Task 9 annotations bundle (all 5 kinds on a single bar)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-arc",
+            "title": "draw.arc(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-arrow",
+            "title": "draw.arrow(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-arrow-mark-down",
+            "title": "draw.arrowMarkDown(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-arrow-mark-up",
+            "title": "draw.arrowMarkUp(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-arrow-marker",
+            "title": "draw.arrowMarker(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-boxes-all",
+            "title": "Task 6 + 7 box bundle (all 8 box kinds on a single bar)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-brush",
+            "title": "draw.brush(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-channels-all",
+            "title": "Task 10 channels bundle (all 4 kinds on a single bar)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-circle",
+            "title": "draw.circle(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-containers-all",
+            "title": "Task 18 containers-all bundle (2 container kinds)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-cross-line",
+            "title": "draw.crossLine(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-curve",
+            "title": "draw.curve(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-curves-and-freehand-all",
+            "title": "Task 8 curves + freehand bundle (all 6 kinds on a single bar)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-cycles-all",
+            "title": "Task 17 cycles-all bundle (3 cycle kinds)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-cyclic-lines",
+            "title": "draw.cyclicLines(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-cypher-pattern",
+            "title": "draw.cypherPattern(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-disjoint-channel",
+            "title": "draw.disjointChannel(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-double-curve",
+            "title": "draw.doubleCurve(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-elliott-all",
+            "title": "Task 16 elliott-all bundle (5 Elliott-wave kinds)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-elliott-correction-wave",
+            "title": "draw.elliottCorrectionWave(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-elliott-double-combo",
+            "title": "draw.elliottDoubleCombo(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-elliott-impulse-wave",
+            "title": "draw.elliottImpulseWave(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-elliott-triangle-wave",
+            "title": "draw.elliottTriangleWave(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-elliott-triple-combo",
+            "title": "draw.elliottTripleCombo(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-ellipse",
+            "title": "draw.ellipse(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fib-all",
+            "title": "Task 12 fib-all bundle (all 10 fib kinds on a single bar)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fib-channel",
+            "title": "draw.fibChannel(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fib-circles",
+            "title": "draw.fibCircles(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fib-retracement",
+            "title": "draw.fibRetracement(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fib-speed-arcs",
+            "title": "draw.fibSpeedArcs(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fib-speed-fan",
+            "title": "draw.fibSpeedFan(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fib-spiral",
+            "title": "draw.fibSpiral(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fib-time-zone",
+            "title": "draw.fibTimeZone(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fib-trend-extension",
+            "title": "draw.fibTrendExtension(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fib-trend-time",
+            "title": "draw.fibTrendTime(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fib-wedge",
+            "title": "draw.fibWedge(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-flat-top-bottom",
+            "title": "draw.flatTopBottom(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-frame",
+            "title": "draw.frame(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-gann-all",
+            "title": "Task 13 gann-all bundle (all 4 gann kinds on a single bar)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-gann-box",
+            "title": "draw.gannBox(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-gann-fan",
+            "title": "draw.gannFan(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-gann-square",
+            "title": "draw.gannSquare(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-gann-square-fixed",
+            "title": "draw.gannSquareFixed(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-group",
+            "title": "draw.group(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-handle-remove",
+            "title": "defineDrawing — handle.remove() on bar 100",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-head-and-shoulders",
+            "title": "draw.headAndShoulders(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-highlighter",
+            "title": "draw.highlighter(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-horizontal-line",
+            "title": "draw.horizontalLine(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-horizontal-ray",
+            "title": "draw.horizontalRay(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-interactive-update",
+            "title": "defineDrawing — handle.update({ price }) across bars",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-line",
+            "title": "draw.line(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-lines-and-rays",
+            "title": "Task 5 line-family bundle (6 kinds on a single bar)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-marker",
+            "title": "draw.marker(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-path",
+            "title": "draw.path(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-patterns-all",
+            "title": "Task 15 patterns-all bundle (6 harmonic-pattern kinds)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-pen",
+            "title": "draw.pen(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-pitchfan",
+            "title": "draw.pitchfan(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-pitchfork",
+            "title": "draw.pitchfork(standard) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-pitchforks-all",
+            "title": "Task 14 pitchforks-all bundle (4 pitchfork variants + 1 pitchfan)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-polyline",
+            "title": "draw.polyline(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-rectangle",
+            "title": "draw.rectangle(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-regression-trend",
+            "title": "draw.regressionTrend(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-rotated-rectangle",
+            "title": "draw.rotatedRectangle(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-sine-line",
+            "title": "draw.sineLine(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-table-gated",
+            "title": "draw.table gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-table-happy",
+            "title": "draw.table happy",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-text",
+            "title": "draw.text(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-three-drives-pattern",
+            "title": "draw.threeDrivesPattern(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-time-cycles",
+            "title": "draw.timeCycles(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-trend-angle",
+            "title": "draw.trendAngle(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-trend-channel",
+            "title": "draw.trendChannel(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-triangle",
+            "title": "draw.triangle(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-triangle-pattern",
+            "title": "draw.trianglePattern(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-vertical-line",
+            "title": "draw.verticalLine(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-xabcd-pattern",
+            "title": "draw.xabcdPattern(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ema-cross",
+            "title": "EMA(12)/EMA(26) crossover alerts",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "input-interval",
+            "title": "input.interval default resolution",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "lower-tf-capability-false",
+            "title": "request.lowerTf multiTimeframe gate",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "lower-tf-happy-path",
+            "title": "request.lowerTf bucketed bars",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "lower-tf-unsupported-interval",
+            "title": "request.lowerTf unsupported interval",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "mtf-capability-false",
+            "title": "MTF capability false",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "mtf-request-security-close",
+            "title": "MTF request.security close",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "mtf-unsupported-interval",
+            "title": "MTF unsupported interval",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-arrow",
+            "title": "PlotKind arrow",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-arrow-gated",
+            "title": "PlotKind arrow gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-bar-color",
+            "title": "PlotKind bar color",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-bar-color-gated",
+            "title": "PlotKind bar color gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-bar-override",
+            "title": "PlotKind bar override",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-bar-override-gated",
+            "title": "PlotKind bar override gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-bg-color",
+            "title": "PlotKind bg color",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-bg-color-gated",
+            "title": "PlotKind bg color gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-candle-override",
+            "title": "PlotKind candle override",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-candle-override-gated",
+            "title": "PlotKind candle override gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-character",
+            "title": "PlotKind character",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-character-gated",
+            "title": "PlotKind character gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-coverage",
+            "title": "PlotKind coverage — inline-source scenario exercising Phase-2 cap surface",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-horizontal-histogram",
+            "title": "PlotKind horizontal histogram",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-horizontal-histogram-gated",
+            "title": "PlotKind horizontal histogram gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-shape",
+            "title": "PlotKind shape",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-shape-gated",
+            "title": "PlotKind shape gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "request-security-nan-fallback",
+            "title": "request.security NaN fallback",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "rsi-divergence-alert",
+            "title": "RSI(14) overbought/oversold alerts",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "runtime-error",
+            "title": "runtime.error halts current bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "runtime-log-budget",
+            "title": "runtime.log budget",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "runtime-log-gated",
+            "title": "runtime.log gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "runtime-log-info",
+            "title": "runtime.log.info emits",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "state-session-high",
+            "title": "state.float session-high tracker",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "state-tick-counter",
+            "title": "state.tick.int tick counter",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "syminfo-mintick",
+            "title": "syminfo.mintick snapping",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-adl",
+            "title": "ta.adl()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-adr",
+            "title": "ta.adr({ length: 14 })",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-adx",
+            "title": "ta.adx(14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-alma",
+            "title": "ta.alma(close, 9, {offset:0.85, sigma:6})",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-anchored-volume-profile",
+            "title": "TA anchored volume profile",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-anchored-volume-profile-gated",
+            "title": "TA anchored volume profile gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-anchored-vwap",
+            "title": "ta.anchoredVwap(1_700_000_000_000)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-ao",
+            "title": "ta.ao()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-aroon",
+            "title": "ta.aroon(14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-aroonOsc",
+            "title": "ta.aroonOsc(14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-barssince",
+            "title": "ta.barssince(ta.crossover(ta.ema(close,12), ta.ema(close,26)))",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-bbPercentB",
+            "title": "ta.bbPercentB(close, 20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-bbw",
+            "title": "ta.bbw(close, 20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-bop",
+            "title": "ta.bop()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-cci",
+            "title": "ta.cci(hlc3, 20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-chaikinOsc",
+            "title": "ta.chaikinOsc()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-chandeKrollStop",
+            "title": "ta.chandeKrollStop()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-chandelier",
+            "title": "ta.chandelier({ length: 22, multiplier: 3 })",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-change",
+            "title": "ta.change(close, { length: 5 })",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-chop",
+            "title": "ta.chop(14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-cmf",
+            "title": "ta.cmf(20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-cmo",
+            "title": "ta.cmo(close, 9)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-connors-rsi",
+            "title": "ta.connorsRsi(close)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-coppock",
+            "title": "ta.coppock(close)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-dema",
+            "title": "ta.dema(close, 20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-dmi",
+            "title": "ta.dmi(14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-donchian",
+            "title": "ta.donchian(20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-dpo",
+            "title": "ta.dpo(close, 21)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-envelope",
+            "title": "ta.envelope(close)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-eom",
+            "title": "ta.eom(14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-fisher",
+            "title": "ta.fisher(10)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-fixed-range-volume-profile",
+            "title": "TA fixed range volume profile",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-fixed-range-volume-profile-gated",
+            "title": "TA fixed range volume profile gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-fixed-range-volume-profile-inverted",
+            "title": "TA fixed range volume profile inverted",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-highest",
+            "title": "ta.highest(high, 20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-historicalVolatility",
+            "title": "ta.historicalVolatility(close, 10)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-hma",
+            "title": "ta.hma(close, 21)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-ichimoku",
+            "title": "ta.ichimoku()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-kama",
+            "title": "ta.kama(close, {length:10, fastLength:2, slowLength:30})",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-keltner",
+            "title": "ta.keltner({ length: 20, multiplier: 2 })",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-klinger",
+            "title": "ta.klinger()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-kst",
+            "title": "ta.kst(close)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-lowest",
+            "title": "ta.lowest(low, 20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-lsma",
+            "title": "ta.lsma(close, 25)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-maRibbon",
+            "title": "ta.maRibbon(close, lengths=[10,20,30], maType=ema)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-massIndex",
+            "title": "ta.massIndex()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-mcginley",
+            "title": "ta.mcginley(close, 14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-median",
+            "title": "ta.median(close, 21)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-mfi",
+            "title": "ta.mfi(14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-momentum",
+            "title": "ta.momentum(close, 10)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-netVolume",
+            "title": "ta.netVolume()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-nvi",
+            "title": "ta.nvi()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-nz",
+            "title": "ta.nz(ta.change(close).current, 0)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-obv",
+            "title": "ta.obv()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-pivotsHighLow",
+            "title": "ta.pivotsHighLow({ leftLength: 4, rightLength: 4 })",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-pivotsStandard",
+            "title": "ta.pivotsStandard()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-pmo",
+            "title": "ta.pmo(close)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-ppo",
+            "title": "ta.ppo(close)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-psar",
+            "title": "ta.psar()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-pvi",
+            "title": "ta.pvi()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-pvo",
+            "title": "ta.pvo()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-pvt",
+            "title": "ta.pvt()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-roc",
+            "title": "ta.roc(close, 12)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-rvgi",
+            "title": "ta.rvgi()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-rvi",
+            "title": "ta.rvi(close, 10)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-session-volume-profile",
+            "title": "TA session volume profile",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-session-volume-profile-gated",
+            "title": "TA session volume profile gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-session-volume-profile-no-session",
+            "title": "TA session volume profile without session metadata",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-smi",
+            "title": "ta.smi()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-smma",
+            "title": "ta.smma(close, 14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-stoch",
+            "title": "ta.stoch(14, 3, 3)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-stochRsi",
+            "title": "ta.stochRsi(close)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-supertrend",
+            "title": "ta.supertrend({ length: 10, multiplier: 3 })",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-tema",
+            "title": "ta.tema(close, 20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-trendStrengthIndex",
+            "title": "ta.trendStrengthIndex(close, 20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-trix",
+            "title": "ta.trix(18, 9)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-tsi",
+            "title": "ta.tsi(close)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-ulcerIndex",
+            "title": "ta.ulcerIndex(close, 14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-ultimateOsc",
+            "title": "ta.ultimateOsc()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-valuewhen",
+            "title": "ta.valuewhen(ta.crossover(ta.sma(close,10), ta.sma(close,30)), close)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-visible-range-volume-profile",
+            "title": "TA visible-range volume profile",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-visible-range-volume-profile-gated",
+            "title": "TA visible-range volume profile gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-vol",
+            "title": "ta.vol() — histogram",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-volatilityStop",
+            "title": "ta.volatilityStop({ length: 20, multiplier: 2 })",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-vortex",
+            "title": "ta.vortex(14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-vwap",
+            "title": "ta.vwap({ source: 'hlc3' })",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-vwma",
+            "title": "ta.vwma(close, 20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-williams-r",
+            "title": "ta.williamsR(14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-williamsFractal",
+            "title": "ta.williamsFractal() — marker plot",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-wma",
+            "title": "ta.wma(close, 14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-zigZag",
+            "title": "ta.zigZag({ deviation: 5 })",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "timeframe-isdaily",
+            "title": "timeframe.isdaily on daily candles",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "unsupported-interval",
+            "title": "request.security unsupported interval",
+            "status": "pass",
+            "failures": []
+        }
+    ]
+}

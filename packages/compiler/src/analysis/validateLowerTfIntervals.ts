@@ -43,7 +43,7 @@ function smallestParseableMain(
  * to override the approximation.
  *
  * @since 0.6
- * @experimental
+ * @stable
  * @example
  *     // const diagnostics = validateLowerTfIntervals(
  *     //     sourceFile, checker, "demo.chart.ts", capabilities.intervals,

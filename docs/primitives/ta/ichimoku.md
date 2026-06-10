@@ -2,7 +2,7 @@
 
 # `ta.ichimoku`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Ichimoku Cloud — five-line trend / cloud overlay. Composes six

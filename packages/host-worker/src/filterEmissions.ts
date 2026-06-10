@@ -23,7 +23,7 @@ import {
  * the host; the trust boundary for the postMessage wire format is here.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // const out = filterEmissions(runner.drain());
  *     // postMessage({ kind: "emissions", nonce, emissions: out });

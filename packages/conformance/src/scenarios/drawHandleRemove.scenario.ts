@@ -56,7 +56,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * emissions; `drawing-budget-exceeded` is absent.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_HANDLE_REMOVE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_HANDLE_REMOVE_SCENARIO;

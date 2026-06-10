@@ -25,7 +25,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `bar.low` over the bundled 10 000-bar `goldenBars.json` fixture.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_LOWEST_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_LOWEST_SCENARIO;

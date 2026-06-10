@@ -10,7 +10,7 @@ import type { RenderCtx } from "./clear";
  * the caller derives via `timeToX`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const p: BandPoint = { x: 100, y: 50 };
  *     const gap: BandPoint = { x: 110, y: null };
@@ -28,7 +28,7 @@ export type BandPoint = {
  * and `lower` right-to-left).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const args: FilledBandArgs = {
  *         upper: [{ x: 0, y: 50 }, { x: 10, y: 60 }],
@@ -62,7 +62,7 @@ function isFiniteBandPoint(p: BandPoint): p is ResolvedBandPoint {
  * closes cleanly at both ends.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const palette: Palette;

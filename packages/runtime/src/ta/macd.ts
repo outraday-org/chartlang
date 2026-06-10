@@ -100,7 +100,7 @@ function resultForOffset(slot: MacdSlot, offset: number): MacdResult {
  *           hist   = macd − signal
  * @warmup   slowLength + signalLength − 1 (slow EMA seeds at slowLength − 1; signal EMA seeds signalLength − 1 bars after that)
  * @since 0.1
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts all three outputs in lockstep (PLAN.md §9.1) —
  * `series.current` on each output returns the value `offset` bars ago.

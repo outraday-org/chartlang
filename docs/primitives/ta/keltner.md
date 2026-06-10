@@ -2,7 +2,7 @@
 
 # `ta.keltner`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Keltner Channels — overlay volatility envelope. Middle band is an

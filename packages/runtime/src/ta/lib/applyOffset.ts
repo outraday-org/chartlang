@@ -18,7 +18,7 @@
  *
  * @formula  out[i] = values[i − offset] (NaN when i − offset ∉ [0, n))
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { applyOffsetToSeries } from "./applyOffset";
  *     // const shifted = applyOffsetToSeries(values, 2);

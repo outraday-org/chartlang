@@ -2,7 +2,7 @@
 
 # `ta.anchoredVolumeProfile`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.5
 
 Anchored Volume Profile — reads a user-picked time anchor and

@@ -16,7 +16,7 @@ const BODY_WIDTH_RATIO = 0.6;
  * `palette.candleBullBody`; bearish bars use `palette.candleBearBody`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const bars: ReadonlyArray<Bar>;

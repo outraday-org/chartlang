@@ -130,7 +130,7 @@ function tickValue(slot: MassIndexSlot, ratio: number): number {
  *           mi[t]    = sum(ratio[t − sumLength + 1..= t])
  * @warmup   emaLength + emaLength + sumLength − 3
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series so `series.current` reads
  * the value `offset` bars ago (PLAN.md §9.1).

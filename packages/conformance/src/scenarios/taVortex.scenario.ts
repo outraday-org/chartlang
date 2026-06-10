@@ -27,7 +27,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Vortex(14) over the bundled 10 000-bar `goldenBars.json` fixture.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_VORTEX_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_VORTEX_SCENARIO;

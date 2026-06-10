@@ -28,7 +28,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Phase 5 conformance scenario for runtime error scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { RUNTIME_ERROR_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void RUNTIME_ERROR_SCENARIO;

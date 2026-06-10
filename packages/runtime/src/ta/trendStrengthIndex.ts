@@ -175,7 +175,7 @@ function tickStep(slot: TrendStrengthIndexSlot, src: number): number {
  *           non-finite.
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the returned series so `series.current` reads
  * the value `offset` bars ago (PLAN.md §9.1).

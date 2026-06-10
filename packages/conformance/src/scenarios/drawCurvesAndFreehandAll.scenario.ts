@@ -89,7 +89,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * collapses both categories into this single bundle.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_CURVES_AND_FREEHAND_ALL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_CURVES_AND_FREEHAND_ALL_SCENARIO;

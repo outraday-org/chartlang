@@ -77,7 +77,7 @@ function detect(prevA: number, prevB: number, currA: number, currB: number): boo
  * @formula  out[t] = a[t] < b[t] && a[t − 1] ≥ b[t − 1] (else false)
  * @warmup   1
  * @since 0.1
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts the boolean series so `series.current` returns
  * the crossunder detection `offset` bars ago (PLAN.md §9.1).

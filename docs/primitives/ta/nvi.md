@@ -2,7 +2,7 @@
 
 # `ta.nvi`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Negative Volume Index — cumulative percentage-change in close on

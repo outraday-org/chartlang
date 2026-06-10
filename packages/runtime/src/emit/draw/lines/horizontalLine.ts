@@ -38,7 +38,7 @@ function horizontalLineImpl(slotId: string, price: Price, opts: LineDrawStyle): 
  * @anchorCount 1
  * @bucket lines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -54,7 +54,7 @@ export function horizontalLine(price: Price, opts?: LineDrawStyle): DrawingHandl
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof horizontalLine = horizontalLine;
@@ -67,7 +67,7 @@ export function horizontalLine(slotId: string, price: Price, opts?: LineDrawStyl
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof horizontalLine = horizontalLine;
  *     // void fn;

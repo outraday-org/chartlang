@@ -2,7 +2,7 @@
 
 # `ta.pmo`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Carl Swenlin's Price Momentum Oscillator (PMO). Three-pass smoothing

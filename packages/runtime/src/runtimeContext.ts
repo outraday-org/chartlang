@@ -36,7 +36,7 @@ import type { RuntimeViews } from "./views";
  * is sticky — further `update` / `remove` on the handle no-op.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const slot: DrawingSlot = {
  *     //     handleId: "x.chart.ts:1:1#0",

@@ -73,7 +73,7 @@ function bbwValue(upper: number, middle: number, lower: number): number {
  *           bbw   = (bands.upper − bands.lower) / bands.middle
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

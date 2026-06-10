@@ -18,7 +18,7 @@ import type { DrawingState } from "./drawingState";
  * @formula  N/A — handle is an opaque script-facing object
  * @anchors  id (slotId#subId), update(patch), remove()
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Inside a compiled `compute`:
  *     //   const h = draw.horizontalLine(supportLevel);

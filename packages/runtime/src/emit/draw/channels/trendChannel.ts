@@ -45,7 +45,7 @@ function trendChannelImpl(
  * @anchorCount 3
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -68,7 +68,7 @@ export function trendChannel(anchors: AnchorTriple, opts?: LineDrawStyle): Drawi
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof trendChannel = trendChannel;
@@ -85,7 +85,7 @@ export function trendChannel(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof trendChannel = trendChannel;
  *     // void fn;

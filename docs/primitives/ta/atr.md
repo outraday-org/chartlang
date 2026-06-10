@@ -2,7 +2,7 @@
 
 # `ta.atr`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.1
 
 Wilder's Average True Range. Sources from `bar.high` / `bar.low` /

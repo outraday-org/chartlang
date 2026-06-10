@@ -72,7 +72,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * collapses the category into this single bundle.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_CHANNELS_ALL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_CHANNELS_ALL_SCENARIO;

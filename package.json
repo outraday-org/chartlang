@@ -17,6 +17,7 @@
         "format:check": "biome format .",
         "check": "pnpm format:check && pnpm lint && pnpm build && pnpm typecheck && pnpm test && pnpm docs:check && pnpm docs:gate && pnpm readme:check && pnpm conformance",
         "conformance": "pnpm tsx scripts/run-conformance.ts",
+        "conformance:report": "pnpm tsx scripts/run-conformance.ts --report",
         "docs:check": "pnpm tsx scripts/docs-check.ts",
         "docs:generate": "pnpm chartlang docs",
         "docs:gate": "pnpm tsx scripts/docs-gate.ts",
@@ -29,7 +30,8 @@
         "test:scripts": "vitest run -c scripts/vitest.config.ts",
         "chartlang": "tsx packages/cli/src/bin.ts",
         "changeset": "changeset",
-        "release": "pnpm build && changeset publish"
+        "release": "pnpm build && changeset publish",
+        "publish:release": "pnpm release"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.0",

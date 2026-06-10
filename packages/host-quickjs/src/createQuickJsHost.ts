@@ -32,7 +32,7 @@ const DISPATCHER_SOURCE = readFileSync(resolve(HERE, "../dist/dispatcher.js"), "
  * Constructor options for {@link createQuickJsHost}.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { createQuickJsHost } from "@invinite-org/chartlang-host-quickjs";
  *
@@ -211,7 +211,7 @@ function callDispose(state: QuickJsState): void {
  * JSON-string frames only.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { createQuickJsHost } from "@invinite-org/chartlang-host-quickjs";
  *

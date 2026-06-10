@@ -2,7 +2,7 @@
 
 # `draw.trendAngle`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.3
 > **Bucket:** `lines`
 > **Wire kind:** `trend-angle`

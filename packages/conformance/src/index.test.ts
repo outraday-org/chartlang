@@ -8,17 +8,19 @@ import {
     DRAW_BUDGET_OVERFLOW_SCENARIO,
     DRAW_UNSUPPORTED_KIND_SCENARIO,
     GOLDEN_BARS_PATH,
-    PHASE_1_SCENARIOS,
     generateGoldenBars,
+    renderConformanceJson,
+    renderConformanceMarkdown,
     runConformanceSuite,
     serialiseGoldenBars,
     writeGoldenBars,
 } from "./index";
 
 describe("@invinite-org/chartlang-conformance public surface", () => {
-    it("exports the runner and bundled scenario array aliases", () => {
+    it("exports the runner and bundled scenario array", () => {
         expect(typeof runConformanceSuite).toBe("function");
-        expect(ALL_SCENARIOS).toBe(PHASE_1_SCENARIOS);
+        expect(typeof renderConformanceMarkdown).toBe("function");
+        expect(typeof renderConformanceJson).toBe("function");
         expect(Object.isFrozen(ALL_SCENARIOS)).toBe(true);
     });
 
@@ -27,7 +29,7 @@ describe("@invinite-org/chartlang-conformance public surface", () => {
         // a narrow capability bag can opt in via
         // `runConformanceSuite(adapter, { scenarios: [DRAW_UNSUPPORTED_KIND_SCENARIO] })`.
         expect(DRAW_UNSUPPORTED_KIND_SCENARIO.id).toBe("draw-unsupported-kind");
-        expect(PHASE_1_SCENARIOS.includes(DRAW_UNSUPPORTED_KIND_SCENARIO)).toBe(false);
+        expect(ALL_SCENARIOS.includes(DRAW_UNSUPPORTED_KIND_SCENARIO)).toBe(false);
     });
 
     it("re-exports DRAW_BUDGET_OVERFLOW_SCENARIO as an opt-in (not in ALL_SCENARIOS)", () => {
@@ -36,7 +38,7 @@ describe("@invinite-org/chartlang-conformance public surface", () => {
         // sizes `lines: 200`. Adapter authors with narrower caps opt in
         // via `runConformanceSuite(adapter, { scenarios: [DRAW_BUDGET_OVERFLOW_SCENARIO] })`.
         expect(DRAW_BUDGET_OVERFLOW_SCENARIO.id).toBe("draw-budget-overflow");
-        expect(PHASE_1_SCENARIOS.includes(DRAW_BUDGET_OVERFLOW_SCENARIO)).toBe(false);
+        expect(ALL_SCENARIOS.includes(DRAW_BUDGET_OVERFLOW_SCENARIO)).toBe(false);
     });
 
     it("exports the golden-bars fixture helpers", () => {

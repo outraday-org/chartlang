@@ -109,7 +109,7 @@ function tickValue(slot: MedianSlot, src: number): number {
  *           two middle values ; NaN slots dropped before sort
  * @warmup   length − 1
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

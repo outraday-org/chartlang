@@ -48,7 +48,7 @@ function frameImpl(slotId: string, a: WorldPoint, b: WorldPoint, opts: FrameOpts
  * @anchorCount 2
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -70,7 +70,7 @@ export function frame(a: WorldPoint, b: WorldPoint, opts?: FrameOpts): DrawingHa
  * `draw.frame(slotId, a, b, opts)`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof frame = frame;
@@ -88,7 +88,7 @@ export function frame(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof frame = frame;
  *     // void fn;

@@ -8,7 +8,7 @@ import { type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
  * Create the Phase 4 placeholder peek-panel extension.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const extension = peekPanelExtension();
  *     void extension;

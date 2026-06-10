@@ -2,7 +2,7 @@
 
 # `ta.trix`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 TRIX — triple-smoothed EMA rate-of-change momentum oscillator

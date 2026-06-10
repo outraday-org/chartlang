@@ -17,7 +17,7 @@ import type { Viewport } from "./coords";
  * `setLineDash` already shipped in Phase 1.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     ctx.clearRect(0, 0, 1, 1);
@@ -52,7 +52,7 @@ export type RenderCtx = {
  * frame on every redraw.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const viewport: Viewport;

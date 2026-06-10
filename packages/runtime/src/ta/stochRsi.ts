@@ -64,7 +64,7 @@ function getCtx(): RuntimeContext {
  *           d    = sma(k, dSmoothing)
  * @warmup   rsiLength + stochLength + kSmoothing + dSmoothing − 4
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

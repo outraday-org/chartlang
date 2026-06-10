@@ -43,7 +43,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * total) and pins one `drawing-hash` across all 5.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_PITCHFORKS_ALL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_PITCHFORKS_ALL_SCENARIO;

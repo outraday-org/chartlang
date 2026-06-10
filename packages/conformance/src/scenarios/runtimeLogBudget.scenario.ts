@@ -22,7 +22,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Phase 5 conformance scenario for runtime log budget scenario.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     import { RUNTIME_LOG_BUDGET_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void RUNTIME_LOG_BUDGET_SCENARIO;

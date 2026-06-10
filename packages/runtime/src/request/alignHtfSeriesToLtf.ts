@@ -23,7 +23,7 @@ import type { Bar } from "@invinite-org/chartlang-core";
  * look-ahead because the HTF cursor advances only while `htf.time <= ltf.time`.
  * @warmup None; LTF bars before the first HTF bar receive `NaN`.
  * @since 0.5
- * @experimental
+ * @stable
  * @internal
  * @example
  *     const aligned = alignHtfSeriesToLtf(htfBars, htfCloses, ltfBars);

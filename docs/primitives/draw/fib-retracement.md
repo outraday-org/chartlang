@@ -2,7 +2,7 @@
 
 # `draw.fibRetracement`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.3
 > **Bucket:** `other`
 > **Wire kind:** `fib-retracement`

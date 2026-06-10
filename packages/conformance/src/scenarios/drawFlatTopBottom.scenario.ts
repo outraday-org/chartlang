@@ -37,7 +37,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * pins the SHA-256 of the resulting drawing batch.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { DRAW_FLAT_TOP_BOTTOM_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void DRAW_FLAT_TOP_BOTTOM_SCENARIO;

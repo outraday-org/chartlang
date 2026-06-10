@@ -2,7 +2,7 @@
 
 # `ta.cmo`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Chande Momentum Oscillator — `100 · (Σ gain − Σ loss) / (Σ gain + Σ loss)`

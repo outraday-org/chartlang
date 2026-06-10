@@ -27,7 +27,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * Phase 4 will lift the boundary to `syminfo.session.regularStart`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_VWAP_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_VWAP_SCENARIO;

@@ -47,7 +47,7 @@ export type Volume = number;
  * later phases.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const viewport: BarViewport = {
  *         fromTime: 1_700_000_000_000,
@@ -226,7 +226,7 @@ export type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditio
  * same shape — preserving the adapter-kit → core dependency direction.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     const c: DrawingCounts = {
  *         lines: 50, labels: 50, boxes: 50, polylines: 50, other: 50,
@@ -344,7 +344,7 @@ export type ScriptManifest = {
      * `defineAlertCondition({ conditions })`.
      *
      * @since 0.5
-     * @experimental
+     * @stable
      * @example
      *     const defs: ScriptManifest["alertConditions"] = [
      *         { id: "up", title: "Up", description: "Close > EMA", defaultMessage: "{{ticker}} up" },
@@ -359,7 +359,7 @@ export type ScriptManifest = {
  * `DefineAlertConditionOpts.conditions`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const d: AlertConditionDescriptor = {
  *         title: "Up",
@@ -379,7 +379,7 @@ export type AlertConditionDescriptor = Readonly<{
  * normalised into `id`.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const d: AlertConditionDefinition = {
  *         id: "up",
@@ -427,7 +427,7 @@ export type ComputeContext = {
      * only for scripts whose manifest kind is `"alertCondition"`.
      *
      * @since 0.5
-     * @experimental
+     * @stable
      * @example
      *     const fn: NonNullable<ComputeContext["signal"]> = (id, fired) => {
      *         void id;

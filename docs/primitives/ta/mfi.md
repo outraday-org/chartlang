@@ -2,7 +2,7 @@
 
 # `ta.mfi`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Money Flow Index — volume-weighted RSI over a trailing window of

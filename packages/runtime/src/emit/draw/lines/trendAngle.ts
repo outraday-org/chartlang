@@ -44,7 +44,7 @@ function trendAngleImpl(
  * @anchorCount 2
  * @bucket lines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -64,7 +64,7 @@ export function trendAngle(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): 
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof trendAngle = trendAngle;
@@ -82,7 +82,7 @@ export function trendAngle(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof trendAngle = trendAngle;
  *     // void fn;

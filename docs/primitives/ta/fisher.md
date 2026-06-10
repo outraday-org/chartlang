@@ -2,7 +2,7 @@
 
 # `ta.fisher`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 John Ehlers' Fisher Transform. Normalises the rolling `bar.hl2`

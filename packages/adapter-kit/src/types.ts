@@ -24,7 +24,7 @@ import type {
  * runtime applies to the current bar's head slot.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const evt: CandleEvent = { kind: "history", bars: [] };
  */
@@ -67,10 +67,11 @@ export type CandleEvent =
  * Indicator plot styles Phase 1 ships. Re-exported from
  * `@invinite-org/chartlang-core` so the script-facing and adapter-facing
  * surfaces stay in lock-step — the full PLAN §7.2 set lands in Phase 2+,
- * additively, in the core declaration.
+ * additively, in the core declaration. Pinned set — additive only across
+ * `apiVersion: 1.x`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const k: PlotKind = "line";
  */
@@ -84,10 +85,11 @@ export type PlotKind = CorePlotKind;
  * `draw.fibRetracement`, …) is pinned via core's
  * `KIND_CAMELCASE` / `KIND_KEBABCASE` bijection. Phase-1 / Phase-2
  * adapter code that wrote `drawingKind: "line"` keeps compiling — the
- * widening is purely additive.
+ * widening is purely additive. Pinned set — additive only across
+ * `apiVersion: 1.x`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const k: DrawingKind = "fib-retracement";
  *     void k;
@@ -100,7 +102,7 @@ export type DrawingKind = CoreDrawingKind;
  * channels drop with `unsupported-alert-channel`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const c: AlertChannel = "toast";
  */
@@ -112,7 +114,7 @@ export type AlertChannel = "log" | "toast" | "webhook" | "email" | "sms" | "push
  * resolution lands in Phase 4.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const k: InputKind = "int";
  */
@@ -124,7 +126,7 @@ export type InputKind = CoreInputKind;
  * against a stable shape now.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const f: SymInfoField = "ticker";
  */
@@ -144,7 +146,7 @@ export type SymInfoField =
  * runtime's `syminfo.*` view builder.
  *
  * @since 0.4
- * @experimental
+ * @stable
  * @example
  *     const info: AdapterSymInfo = {
  *         ticker: "DEMO",
@@ -176,7 +178,7 @@ export type AdapterSymInfo = Readonly<{
  * preserves the `adapter-kit → core` dependency direction.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const c: DrawingCounts = {
  *         lines: 50, labels: 50, boxes: 50, polylines: 50, other: 50,
@@ -189,12 +191,13 @@ export type DrawingCounts = CoreDrawingCounts;
  * Capability bag an adapter declares. The runtime, host-worker, and
  * editor all gate emissions through this shape. Primitives outside the
  * declared set become silent no-ops + diagnostic (PLAN §7.4).
+ * Capability keys are pinned — additive only across `apiVersion: 1.x`.
  *
  * Phase 1 omits `feedExternalSeries`-related `inputs` entries from any
  * declared subset; Phase 4 wires the surface.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const c: Capabilities = {
  *         plots: new Set(["line"]),
@@ -223,7 +226,7 @@ export type Capabilities = {
      * alerts per PLAN §11.2.
      *
      * @since 0.4
-     * @experimental
+     * @stable
      * @example
      *     const enabled: Capabilities["alertConditions"] = false;
      *     void enabled;
@@ -233,7 +236,7 @@ export type Capabilities = {
      * Whether the adapter renders `runtime.log.*` messages per PLAN §11.3.
      *
      * @since 0.4
-     * @experimental
+     * @stable
      * @example
      *     const enabled: Capabilities["logs"] = false;
      *     void enabled;
@@ -245,7 +248,7 @@ export type Capabilities = {
      * for editor pickers and `request.security` validation (PLAN §4.5).
      *
      * @since 0.4
-     * @experimental
+     * @stable
      * @example
      *     const intervals: Capabilities["intervals"] = [
      *         { value: "1D", label: "1 day", group: "daily" },
@@ -259,7 +262,7 @@ export type Capabilities = {
      * `request.security` (PLAN §4.5).
      *
      * @since 0.4
-     * @experimental
+     * @stable
      * @example
      *     const enabled: Capabilities["multiTimeframe"] = false;
      *     void enabled;
@@ -270,7 +273,7 @@ export type Capabilities = {
      * `Number.MAX_SAFE_INTEGER` as the unlimited sentinel per PLAN §7.2.
      *
      * @since 0.4
-     * @experimental
+     * @stable
      * @example
      *     const max: Capabilities["subPanes"] = Number.MAX_SAFE_INTEGER;
      *     void max;
@@ -281,7 +284,7 @@ export type Capabilities = {
      * empty sentinels per PLAN §4.8.
      *
      * @since 0.4
-     * @experimental
+     * @stable
      * @example
      *     const fields: Capabilities["symInfoFields"] = new Set(["ticker"]);
      *     void fields;
@@ -292,7 +295,7 @@ export type Capabilities = {
      * and bucketed by PLAN §10 drawing categories.
      *
      * @since 0.4
-     * @experimental
+     * @stable
      * @example
      *     const counts: Capabilities["maxDrawingsPerScript"] = {
      *         lines: 50, labels: 50, boxes: 50, polylines: 50, other: 50,
@@ -313,7 +316,7 @@ export type Capabilities = {
  * scripts stay valid.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const line: PlotStyle = { kind: "line", lineWidth: 1, lineStyle: "solid" };
  *     const hist: PlotStyle = { kind: "histogram", baseline: 0 };
@@ -436,7 +439,7 @@ export type PlotStyle =
  * payload rules).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: PlotEmission = {
  *         kind: "plot",
@@ -470,7 +473,7 @@ export type PlotEmission = {
  * via async channels MUST use it for idempotency.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: AlertEmission = {
  *         kind: "alert",
@@ -502,7 +505,7 @@ export type AlertEmission = {
  * configured in their own UI.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const e: AlertConditionEmission = {
  *         kind: "alert-condition",
@@ -533,7 +536,7 @@ export type AlertConditionEmission = {
  * silent no-ops because they are debugging output rather than signal.
  *
  * @since 0.5
- * @experimental
+ * @stable
  * @example
  *     const e: LogEmission = {
  *         kind: "log",
@@ -562,7 +565,7 @@ export type LogEmission = {
  * "remove"` carries the last-known state.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: DrawingEmission = {
  *         kind: "drawing",
@@ -595,7 +598,7 @@ export type DrawingEmission = {
  * exceeded. Pinned set — additive only across `apiVersion: 1.x`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const code: DiagnosticCode = "unsupported-plot-kind";
  */
@@ -632,7 +635,7 @@ export type DiagnosticCode =
  * error reporters. Never user-visible on its own.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const d: RuntimeDiagnostic = {
  *         kind: "diagnostic",
@@ -658,7 +661,7 @@ export type RuntimeDiagnostic = {
  * additively adds `alertConditions` + `logs` (per PLAN §7.3).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: RunnerEmissions = {
  *         plots: [],
@@ -690,7 +693,7 @@ export type RunnerEmissions = {
  * opt in later.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const a: Adapter;
  *     for await (const e of a.candles({ interval: "chart" })) {
@@ -707,7 +710,7 @@ export type Adapter = {
      * runtime.
      *
      * @since 0.4
-     * @experimental
+     * @stable
      * @example
      *     const resolveInputs: Adapter["resolveInputs"] = (scriptId) => ({
      *         length: scriptId === "demo" ? 20 : 14,
@@ -720,7 +723,7 @@ export type Adapter = {
      * `syminfo.*`. Fields are still gated by `capabilities.symInfoFields`.
      *
      * @since 0.4
-     * @experimental
+     * @stable
      * @example
      *     const info: Adapter["symInfo"] = { ticker: "DEMO" };
      *     void info;

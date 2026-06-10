@@ -51,7 +51,7 @@ function fibTimeZoneImpl(
  * @anchorCount 2
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -71,7 +71,7 @@ export function fibTimeZone(a: WorldPoint, b: WorldPoint, opts?: FibOpts): Drawi
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof fibTimeZone = fibTimeZone;
@@ -89,7 +89,7 @@ export function fibTimeZone(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof fibTimeZone = fibTimeZone;
  *     // void fn;

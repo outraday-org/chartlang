@@ -28,7 +28,7 @@ const VIEWPORT_PAD_PX = 16;
  * non-positive.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

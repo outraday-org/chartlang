@@ -2,7 +2,7 @@
 
 # `ta.coppock`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Coppock Curve — long-term momentum indicator (Edwin Coppock, 1962).

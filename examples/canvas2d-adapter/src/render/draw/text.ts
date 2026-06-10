@@ -26,7 +26,7 @@ import { worldPointToCanvas } from "./worldToCanvas";
  * here. Mirrors `marker.ts`'s text-rendering convention.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

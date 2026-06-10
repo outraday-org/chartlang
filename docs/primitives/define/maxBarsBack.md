@@ -2,7 +2,7 @@
 
 # `defineIndicator.maxBarsBack`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.4
 
 Max bars of historical lookback the script needs. `0` keeps the

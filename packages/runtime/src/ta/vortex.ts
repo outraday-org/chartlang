@@ -234,7 +234,7 @@ function tickStep(
  *           NaN when Σ(TR, length) === 0 (degenerate flat window).
  * @warmup   length
  * @since 0.2
- * @experimental
+ * @stable
  *
  * `opts.offset` shifts both series in lockstep (PLAN.md §9.1) —
  * `series.current` on each output returns the value `offset` bars ago.

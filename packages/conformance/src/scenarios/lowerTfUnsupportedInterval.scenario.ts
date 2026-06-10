@@ -22,7 +22,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * `request.lowerTf` emits a diagnostic for intervals outside capabilities.
  *
  * @since 0.6
- * @experimental
+ * @stable
  * @example
  *     import { LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO;

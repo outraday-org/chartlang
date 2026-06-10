@@ -21,7 +21,7 @@
  * @formula  μ = mean(input[i − length + 1 ..= i]) ;
  *           σ = sqrt(Σ(x − μ)² / N), N = length (biased) or length − 1 (sample)
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { computeRollingStdDev } from "./rollingStddev";
  *     // const std = computeRollingStdDev(new Float64Array([1, 2, 3, 4]), 3);

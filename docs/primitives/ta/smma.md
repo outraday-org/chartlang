@@ -2,7 +2,7 @@
 
 # `ta.smma`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Smoothed moving average (Wilder's RMA). Recurrence

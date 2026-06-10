@@ -13,7 +13,7 @@ import type { LineStyle } from "@invinite-org/chartlang-core";
  * `"solid"` → `[]`, `"dashed"` → `[6, 4]`, `"dotted"` → `[2, 4]`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: { setLineDash(s: ReadonlyArray<number>): void };
  *     ctx.setLineDash(dashPattern("dashed"));

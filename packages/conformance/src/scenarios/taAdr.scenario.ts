@@ -27,7 +27,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * have committed — likely the full run on this fixture).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_ADR_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_ADR_SCENARIO;

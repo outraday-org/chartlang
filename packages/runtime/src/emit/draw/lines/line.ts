@@ -50,7 +50,7 @@ function lineImpl(
  * @anchorCount 2
  * @bucket lines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -72,7 +72,7 @@ export function line(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): Drawin
  * `draw.line(slotId, a, b, opts)`.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof line = line;
@@ -90,7 +90,7 @@ export function line(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof line = line;
  *     // void fn;

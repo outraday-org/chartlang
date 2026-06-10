@@ -2,7 +2,7 @@
 
 # `ta.netVolume`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Net Volume — cumulative `sign(close − prevClose) · volume`. **The

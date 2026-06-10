@@ -51,7 +51,7 @@ function elliottDoubleComboImpl(
  * @anchorCount 7
  * @bucket polylines
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -75,7 +75,7 @@ export function elliottDoubleCombo(anchors: AnchorHept, opts?: LineDrawStyle): D
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof elliottDoubleCombo = elliottDoubleCombo;
@@ -92,7 +92,7 @@ export function elliottDoubleCombo(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof elliottDoubleCombo = elliottDoubleCombo;
  *     // void fn;

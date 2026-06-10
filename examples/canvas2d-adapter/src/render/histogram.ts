@@ -11,7 +11,7 @@ import type { RenderCtx } from "./clear";
  * width in CSS pixels; the renderer centres the rectangle on `x`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     const args: HistogramArgs = {
  *         x: 100, y: 40, baseline: 80, color: "#26a69a", width: 6,
@@ -34,7 +34,7 @@ export type HistogramArgs = {
  * `palette.plotDefault`.
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const palette: Palette;

@@ -28,7 +28,7 @@ import { worldPointToCanvas } from "./worldToCanvas";
  * painted in the reference adapter.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

@@ -23,7 +23,7 @@ const DEFAULT_LINE_WIDTH = 1;
  * from C → D, no shared geometry constraint. Stroke-only.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

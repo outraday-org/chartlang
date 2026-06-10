@@ -2,7 +2,7 @@
 
 # `ta.median`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 Rolling median — middle-value statistic across the trailing

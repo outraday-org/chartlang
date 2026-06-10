@@ -79,7 +79,7 @@ function tickValue(slot: BarssinceSlot, fired: boolean): number {
  * @formula  out[t] = 0 if condition[t]; out[t − 1] + 1 if seenTrue; NaN otherwise
  * @warmup   data-dependent — NaN until the first `condition === true`
  * @since 0.2
- * @experimental
+ * @stable
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

@@ -27,7 +27,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * market; low values signal a strong trend).
  *
  * @since 0.2
- * @experimental
+ * @stable
  * @example
  *     import { TA_CHOP_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void TA_CHOP_SCENARIO;

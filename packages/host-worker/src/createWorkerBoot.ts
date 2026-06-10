@@ -14,7 +14,7 @@ import type { CompiledModuleExport, HostLimits, ScriptRunnerHandle } from "./typ
  * faking the full `WorkerGlobalScope`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const scope: WorkerBootScope = {
  *         addEventListener: () => {},
@@ -58,7 +58,7 @@ function isFrame(value: unknown): value is HostToWorker {
  * - `dispose` → release the runner; subsequent messages map to `fatal`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // import { createWorkerBoot } from "@invinite-org/chartlang-host-worker";
  *     // const scope = self;

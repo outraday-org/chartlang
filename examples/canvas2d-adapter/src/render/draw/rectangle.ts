@@ -25,7 +25,7 @@ import { worldPointToCanvas } from "./worldToCanvas";
  * `ctx.fill()` call so the subsequent stroke draws at full opacity.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const e: DrawingEmission;

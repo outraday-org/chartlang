@@ -11,7 +11,7 @@ import type { WorkerLike } from "./types";
  * via `vitest.config.ts`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     // const worker = defaultWorkerFactory();  // browser only
  *     const fn: typeof defaultWorkerFactory = defaultWorkerFactory;

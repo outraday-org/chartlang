@@ -79,12 +79,17 @@ const DOCS_LINKS: Record<string, string> = {
 // Per-package subpath exports appended after the "." entry. The scaffold is
 // idempotent, so these only materialise on regeneration — but the map keeps
 // scaffold.ts the source of truth for every package.json exports shape.
-const SUBPATH_EXPORTS: Record<string, Record<string, { types: string; import: string }>> = {
+type SubpathExport = { types: string; import: string } | string;
+
+const SUBPATH_EXPORTS: Record<string, Record<string, SubpathExport>> = {
     "packages/core": {
         "./time": {
             types: "./dist/time/index.d.ts",
             import: "./dist/time/index.js",
         },
+    },
+    "packages/conformance": {
+        "./package.json": "./package.json",
     },
 };
 

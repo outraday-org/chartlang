@@ -2,7 +2,7 @@
 
 # `ta.visibleRangeVolumeProfile`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.5
 
 Visible-Range Volume Profile — buckets the current visible range's

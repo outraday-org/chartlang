@@ -49,7 +49,7 @@ function fibSpeedFanImpl(
  * @anchorCount 2
  * @bucket other
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     import { defineIndicator } from "@invinite-org/chartlang-core";
  *     export default defineIndicator({
@@ -69,7 +69,7 @@ export function fibSpeedFan(a: WorldPoint, b: WorldPoint, opts?: FibOpts): Drawi
  * Compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // Internal — the compiler rewrites every script callsite.
  *     // const fn: typeof fibSpeedFan = fibSpeedFan;
@@ -87,7 +87,7 @@ export function fibSpeedFan(
  * compiler-injected overload.
  *
  * @since 0.3
- * @experimental
+ * @stable
  * @example
  *     // const fn: typeof fibSpeedFan = fibSpeedFan;
  *     // void fn;

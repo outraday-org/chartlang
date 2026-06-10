@@ -2,7 +2,7 @@
 
 # `ta.mcginley`
 
-> **Stability:** experimental
+> **Stability:** stable
 > **Since:** 0.2
 
 McGinley Dynamic — an adaptive moving average with an automatic
