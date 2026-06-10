@@ -4,6 +4,7 @@
 export {
     request,
     type RequestNamespace,
+    type RequestLowerTfOpts,
     type RequestSecurityOpts,
     type SecurityBar,
 } from "./request";

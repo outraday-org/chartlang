@@ -1,11 +1,13 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Bar, SecurityBar, Series } from "@invinite-org/chartlang-core";
+import type { SecurityBar, Series } from "@invinite-org/chartlang-core";
 
 import type { RuntimeContext } from "../runtimeContext";
 import type { StreamState } from "../streamState";
 import { getOrAlign } from "./alignHtfSeriesCache";
+import { pushOnce } from "./pushOnce";
+import { ascendingBarsFor } from "./streamBars";
 
 type NumericSourceKey =
     | "time"
@@ -63,67 +65,6 @@ export function makeNanSecurityBar(): SecurityBar {
         symbol: nanStringSeries,
         interval: nanStringSeries,
     });
-}
-
-function diagnosticKey(code: string, slotId: string, interval: string): string {
-    return `${code}|${slotId}|${interval}`;
-}
-
-function pushOnce(
-    ctx: RuntimeContext,
-    code: "unsupported-interval" | "multi-timeframe-not-supported" | "unknown-secondary-stream",
-    slotId: string,
-    interval: string,
-    message: string,
-): void {
-    const key = diagnosticKey(code, slotId, interval);
-    if (ctx.diagnosedRequestKeys.has(key)) return;
-    ctx.diagnosedRequestKeys.add(key);
-    ctx.emissions.diagnostics.push({
-        kind: "diagnostic",
-        severity: "warning",
-        code,
-        message,
-        slotId,
-        bar: ctx.barIndex(),
-    });
-}
-
-function barFromStream(stream: StreamState, age: number): Bar {
-    const open = stream.ohlcv.open.at(age);
-    const high = stream.ohlcv.high.at(age);
-    const low = stream.ohlcv.low.at(age);
-    const close = stream.ohlcv.close.at(age);
-    return {
-        time: stream.ohlcv.time.at(age),
-        open,
-        high,
-        low,
-        close,
-        volume: stream.ohlcv.volume.at(age),
-        symbol: stream.bar.symbol,
-        interval: stream.bar.interval,
-        hl2: (high + low) / 2,
-        hlc3: (high + low + close) / 3,
-        ohlc4: (open + high + low + close) / 4,
-        hlcc4: (high + low + close + close) / 4,
-    };
-}
-
-function barsAscending(stream: StreamState): ReadonlyArray<Bar> {
-    const bars: Bar[] = [];
-    for (let age = stream.ohlcv.close.length - 1; age >= 0; age -= 1) {
-        bars.push(barFromStream(stream, age));
-    }
-    return bars;
-}
-
-function ascendingBarsFor(ctx: RuntimeContext, stream: StreamState): ReadonlyArray<Bar> {
-    const cached = ctx.requestSecurityAscendingBars.get(stream);
-    if (cached !== undefined) return cached;
-    const bars = barsAscending(stream);
-    ctx.requestSecurityAscendingBars.set(stream, bars);
-    return bars;
 }
 
 function seriesAscending(stream: StreamState, sourceKey: NumericSourceKey): ReadonlyArray<number> {
@@ -242,7 +183,7 @@ function fallbackNaN(
     code: "unsupported-interval" | "multi-timeframe-not-supported" | "unknown-secondary-stream",
     message: string,
 ): SecurityBar {
-    pushOnce(ctx, code, slotId, interval, message);
+    pushOnce(ctx, code, slotId, interval, "security", message);
     const bar = makeNanSecurityBar();
     ctx.requestSecurityBars.set(cacheKey, bar);
     return bar;

@@ -48,6 +48,31 @@ describe("compileFile", () => {
         await expect(fs.stat(join(workspace, "ema.chart.js"))).rejects.toThrow();
     });
 
+    it("forwards declaredIntervals to the lower-tf validation", async () => {
+        const sourcePath = join(workspace, "ltf.chart.ts");
+        await fs.writeFile(
+            sourcePath,
+            `import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "ltf",
+    apiVersion: 1,
+    compute: () => {
+        request.lowerTf({ interval: "1D" });
+    },
+});
+`,
+            "utf8",
+        );
+
+        await expect(
+            compileFile(sourcePath, {
+                apiVersion: 1,
+                write: false,
+                declaredIntervals: [{ value: "1m", label: "1 minute", group: "minute" }],
+            }),
+        ).rejects.toThrow("lower-tf-not-lower");
+    });
+
     it("writes an external sourcemap sibling when sourcemap: 'external'", async () => {
         const sourcePath = join(workspace, "ema.chart.ts");
         await fs.writeFile(sourcePath, EMA_CROSS, "utf8");

@@ -9,8 +9,10 @@ import type { ExtractedDescriptor } from "./extractInputs";
 
 /**
  * Walk a script's AST and collect every static `interval` argument to
- * `request.security({ interval: ... })`. Dynamic arguments emit
- * `request-security-interval-not-literal` and are excluded.
+ * `request.security({ interval: ... })` and `request.lowerTf(...)`. Dynamic
+ * arguments emit `request-security-interval-not-literal` (for `request.security`)
+ * or `request-lower-tf-interval-not-literal` (for `request.lowerTf`) and are
+ * excluded.
  *
  * @since 0.4
  * @example
@@ -29,8 +31,19 @@ export function extractRequestedIntervals(
     const intervals = new Set<string>();
 
     const visit = (node: ts.Node): void => {
-        if (ts.isCallExpression(node) && resolveCalleeName(node, checker) === "request.security") {
-            readRequestInterval(node, sourceFile, sourcePath, inputs, diagnostics, intervals);
+        if (ts.isCallExpression(node)) {
+            const calleeName = resolveCalleeName(node, checker);
+            if (calleeName === "request.security" || calleeName === "request.lowerTf") {
+                readRequestInterval(
+                    node,
+                    calleeName,
+                    sourceFile,
+                    sourcePath,
+                    inputs,
+                    diagnostics,
+                    intervals,
+                );
+            }
         }
         ts.forEachChild(node, visit);
     };
@@ -41,6 +54,7 @@ export function extractRequestedIntervals(
 
 function readRequestInterval(
     call: ts.CallExpression,
+    calleeName: "request.security" | "request.lowerTf",
     sourceFile: ts.SourceFile,
     sourcePath: string,
     inputs: Readonly<Record<string, ExtractedDescriptor>>,
@@ -69,8 +83,11 @@ function readRequestInterval(
     diagnostics.push(
         createDiagnostic({
             severity: "error",
-            code: "request-security-interval-not-literal",
-            message: "request.security({ interval }) must be a string literal or input.enum value",
+            code:
+                calleeName === "request.lowerTf"
+                    ? "request-lower-tf-interval-not-literal"
+                    : "request-security-interval-not-literal",
+            message: `${calleeName}({ interval }) must be a string literal or input.enum value`,
             file: sourcePath,
             node: initializer,
             sourceFile,

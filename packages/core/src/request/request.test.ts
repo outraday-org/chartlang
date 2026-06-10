@@ -11,4 +11,14 @@ describe("request callable holes", () => {
             "request.security called outside an active script step",
         );
     });
+
+    it("request.lowerTf throws outside-runtime sentinel", () => {
+        expect(() => request.lowerTf({ interval: "30s" })).toThrow(
+            "request.lowerTf called outside an active script step",
+        );
+    });
+
+    it("keeps the request namespace frozen", () => {
+        expect(Object.isFrozen(request)).toBe(true);
+    });
 });

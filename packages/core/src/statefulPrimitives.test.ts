@@ -174,6 +174,7 @@ const EXPECTED_SLOT_TRUE = [
     "state.tick.bool",
     "state.tick.string",
     "request.security",
+    "request.lowerTf",
 ] as const;
 
 const EXPECTED_STATE_SLOT_TRUE = [
@@ -187,7 +188,7 @@ const EXPECTED_STATE_SLOT_TRUE = [
     "state.tick.string",
 ] as const;
 
-const EXPECTED_REQUEST_SLOT_TRUE = ["request.security"] as const;
+const EXPECTED_REQUEST_SLOT_TRUE = ["request.security", "request.lowerTf"] as const;
 
 const EXPECTED_SLOT_FALSE = [
     "ta.nz",
@@ -199,8 +200,8 @@ const EXPECTED_SLOT_FALSE = [
 const EXPECTED_ALL_NAMES = [...EXPECTED_SLOT_TRUE, ...EXPECTED_SLOT_FALSE];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 171 entries after Phase 5 fixed range volume profile", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(171);
+    it("contains exactly 172 entries after Phase 6 lower timeframe support", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(172);
     });
 
     it("carries every expected name with the right slot flag", () => {
@@ -217,14 +218,14 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 167 slot: true entries and exactly 4 slot: false entries", () => {
+    it("has exactly 168 slot: true entries and exactly 4 slot: false entries", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
             if (entry.slot) trueCount += 1;
             else falseCount += 1;
         }
-        expect(trueCount).toBe(167);
+        expect(trueCount).toBe(168);
         expect(falseCount).toBe(4);
     });
 

@@ -10,6 +10,10 @@
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
+        },
+        "./time": {
+            "types": "./dist/time/index.d.ts",
+            "import": "./dist/time/index.js"
         }
     },
     "files": ["dist", "README.md", "CHANGELOG.md"],

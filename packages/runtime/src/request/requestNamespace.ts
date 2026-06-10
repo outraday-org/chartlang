@@ -2,12 +2,16 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type {
+    Bar,
+    RequestLowerTfOpts,
     RequestNamespace,
     RequestSecurityOpts,
     SecurityBar,
+    Series,
 } from "@invinite-org/chartlang-core";
 
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
+import { makeLowerTfSeries } from "./lowerTf";
 import { makeSecurityBar } from "./security";
 
 function getCtx(name: string): RuntimeContext {
@@ -21,6 +25,11 @@ function getCtx(name: string): RuntimeContext {
 function security(slotId: string, opts: RequestSecurityOpts): SecurityBar {
     const ctx = getCtx("request.security");
     return makeSecurityBar(ctx, slotId, opts.interval);
+}
+
+function lowerTf(slotId: string, opts: RequestLowerTfOpts): Series<ReadonlyArray<Bar>> {
+    const ctx = getCtx("request.lowerTf");
+    return makeLowerTfSeries(ctx, slotId, opts.interval);
 }
 
 /**
@@ -38,6 +47,6 @@ function security(slotId: string, opts: RequestSecurityOpts): SecurityBar {
  *     void ns.security;
  */
 export function buildRequestNamespace(): RequestNamespace {
-    const ns = Object.freeze({ security });
+    const ns = Object.freeze({ security, lowerTf });
     return ns as unknown as RequestNamespace;
 }

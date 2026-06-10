@@ -31,7 +31,9 @@ export type CompileDiagnosticCode =
     | "multiple-input-interval"
     | "requires-intervals-not-literal"
     | "alert-condition-not-literal"
-    | "alert-condition-field-not-literal";
+    | "alert-condition-field-not-literal"
+    | "lower-tf-not-lower"
+    | "request-lower-tf-interval-not-literal";
 
 /**
  * Single diagnostic the compiler emits while transforming or analysing a

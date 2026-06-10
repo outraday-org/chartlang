@@ -47,6 +47,7 @@ export function dispose(state: RunnerState): void {
     state.runtimeContext.requestSecurityBars.clear();
     state.runtimeContext.requestSecurityAlignments.clear();
     state.runtimeContext.requestSecurityAscendingBars.clear();
+    state.runtimeContext.requestLowerTfViews.clear();
     state.runtimeContext.diagnosedRequestKeys.clear();
     state.runtimeContext.diagnosedInputKeys.clear();
     const counters = state.runtimeContext.drawingBucketCounters;

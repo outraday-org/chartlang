@@ -159,10 +159,9 @@ export type PlotLineStyle = "line" | "step" | "dashed" | "circles" | "cross";
 export type AlertSeverity = "info" | "warning" | "critical";
 
 /**
- * Adapter-declared timeframe entry — the `{ value, label, group }` triple
- * surfaced in the script-settings UI. Used by `input.interval(...)` in
- * Phase 4+; the surface lands here in Phase 1 so consumers can pin against a
- * stable type.
+ * Adapter-declared timeframe entry surfaced in the script-settings UI. The
+ * optional `intervalSeconds` override lets exotic intervals declare their
+ * effective duration without extending the standard parser grammar.
  *
  * @since 0.1
  * @example
@@ -176,6 +175,14 @@ export type IntervalDescriptor = {
     readonly value: string;
     readonly label: string;
     readonly group: string;
+    /**
+     * Optional positive finite second-count override used by interval
+     * ordering helpers before parsing `value`.
+     *
+     * @since 0.6
+     * @stable
+     */
+    readonly intervalSeconds?: number;
 };
 
 /**

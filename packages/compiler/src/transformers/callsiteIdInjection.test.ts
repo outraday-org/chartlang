@@ -176,6 +176,7 @@ state.tick.int(0);
 state.tick.bool(false);
 state.tick.string("");
 request.security({ interval: "1D" });
+request.lowerTf({ interval: "30s" });
 draw.line({ time: 0, price: 0 }, { time: 1, price: 1 });
 draw.horizontalLine(0);
 draw.horizontalRay({ time: 0, price: 0 });

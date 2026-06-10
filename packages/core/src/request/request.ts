@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Price, Series, Time, Volume } from "../types";
+import type { Bar, Price, Series, Time, Volume } from "../types";
 
 /**
  * Argument to {@link request.security}. The `interval` must be a string
@@ -15,6 +15,21 @@ import type { Price, Series, Time, Volume } from "../types";
  *     void opts;
  */
 export type RequestSecurityOpts = Readonly<{
+    readonly interval: string;
+}>;
+
+/**
+ * Argument to {@link request.lowerTf}. The `interval` must be strictly lower
+ * than the script's main interval; invalid orderings are rejected by the
+ * compiler's `lower-tf-not-lower` diagnostic when statically known.
+ *
+ * @since 0.6
+ * @stable
+ * @example
+ *     const opts: RequestLowerTfOpts = { interval: "30s" };
+ *     void opts;
+ */
+export type RequestLowerTfOpts = Readonly<{
     readonly interval: string;
 }>;
 
@@ -78,6 +93,18 @@ export const request = Object.freeze({
      */
     security(_opts: RequestSecurityOpts): SecurityBar {
         return sentinel("request.security");
+    },
+    /**
+     * Read lower-timeframe bars contained by each main-stream bar.
+     *
+     * @since 0.6
+     * @stable
+     * @example
+     *     const fn: typeof request.lowerTf = request.lowerTf;
+     *     void fn;
+     */
+    lowerTf(_opts: RequestLowerTfOpts): Series<ReadonlyArray<Bar>> {
+        return sentinel("request.lowerTf");
     },
 });
 

@@ -24,6 +24,7 @@ export type {
     Time,
     Volume,
 } from "./types";
+export { intervalToSeconds } from "./interval/intervalToSeconds";
 export { defineAlert, defineAlertCondition, defineDrawing, defineIndicator } from "./define";
 export type {
     DefineAlertConditionOpts,
@@ -194,7 +195,12 @@ export type { StateSnapshot, StateStoreKey, StreamSnapshot } from "./state";
 export { barstate, syminfo, timeframe } from "./views";
 export type { BarStateView, SymbolType, SymInfoView, TimeframeView } from "./views";
 export { request } from "./request";
-export type { RequestNamespace, RequestSecurityOpts, SecurityBar } from "./request";
+export type {
+    RequestLowerTfOpts,
+    RequestNamespace,
+    RequestSecurityOpts,
+    SecurityBar,
+} from "./request";
 export { runtime } from "./runtime";
 export type { LogLevel, RuntimeNamespace } from "./runtime";
 export { color, fromGradient, hsl, rgb, withAlpha } from "./color";

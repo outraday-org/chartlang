@@ -2,20 +2,21 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type {
+    CandleEvent,
+    Capabilities,
+    RunnerEmissions,
+} from "@invinite-org/chartlang-adapter-kit";
+import type {
     Bar,
     CompiledScriptObject,
     ComputeFn,
     ScriptManifest,
 } from "@invinite-org/chartlang-core";
-import type {
-    CandleEvent,
-    Capabilities,
-    RunnerEmissions,
-} from "@invinite-org/chartlang-adapter-kit";
 
+import { pushDiagnostic } from "./emit";
 import {
-    drain as drainImpl,
     dispose as disposeImpl,
+    drain as drainImpl,
     onBarClose as onBarCloseImpl,
     onBarTick as onBarTickImpl,
     onHistory as onHistoryImpl,
@@ -25,7 +26,6 @@ import {
     appendSecondaryHistory,
     replaceSecondaryHead,
 } from "./execution/secondaryStream";
-import type { MutableRunnerEmissions, RuntimeContext } from "./runtimeContext";
 import { resolveInputs } from "./inputs";
 import type { PersistentStateStore } from "./persistentStateStore";
 import {
@@ -35,10 +35,10 @@ import {
     saveStateSnapshot,
 } from "./persistentStateStore.runtime";
 import { validateSnapshot } from "./persistentStateStore.validate";
-import { pushDiagnostic } from "./emit";
-import { inMemoryStateStore, type StateStore } from "./stateStore";
-import { createStreamState, type StreamState } from "./streamState";
-import { createRuntimeViews, makeSymInfoView, type AdapterSymInfo } from "./views";
+import type { MutableRunnerEmissions, RuntimeContext } from "./runtimeContext";
+import { type StateStore, inMemoryStateStore } from "./stateStore";
+import { type StreamState, createStreamState } from "./streamState";
+import { type AdapterSymInfo, createRuntimeViews, makeSymInfoView } from "./views";
 
 /**
  * Internal handle the execution functions read and mutate per step. Lives
@@ -268,6 +268,7 @@ export function createScriptRunner(args: CreateScriptRunnerArgs): ScriptRunner {
             requestSecurityBars: new Map(),
             requestSecurityAlignments: new Map(),
             requestSecurityAscendingBars: new Map(),
+            requestLowerTfViews: new Map(),
             diagnosedRequestKeys: new Set(),
             alertConditions,
             diagnosedAlertConditionKeys: new Set(),

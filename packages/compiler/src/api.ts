@@ -5,12 +5,12 @@ import { randomBytes } from "node:crypto";
 import { readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import { STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/chartlang-core";
-import type { ScriptManifest } from "@invinite-org/chartlang-core";
+import type { IntervalDescriptor, ScriptManifest } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
 import {
-    extractCapabilities,
     extractAlertConditions,
+    extractCapabilities,
     extractInputs,
     extractMaxLookback,
     extractRequestedIntervals,
@@ -18,6 +18,7 @@ import {
     runForbiddenConstructs,
     runStatefulCallInLoop,
     runStructuralChecks,
+    validateLowerTfIntervals,
 } from "./analysis";
 import { bundleModule, formatManifestAssignment } from "./bundle";
 import type { CompileDiagnostic } from "./diagnostics";
@@ -29,7 +30,9 @@ import { emitTypes } from "./typesEmit";
 /**
  * Options accepted by `transformAndAnalyse`. `sourcePath` is the
  * package-relative POSIX path baked into every callsite id; the compiler
- * does not read any other file.
+ * does not read any other file. `declaredIntervals` is the host-supplied
+ * `Capabilities.intervals` set used by the `lower-tf-not-lower` validation —
+ * when omitted the lower-timeframe ordering check is skipped.
  *
  * @since 0.1
  * @example
@@ -37,6 +40,7 @@ import { emitTypes } from "./typesEmit";
  */
 export type TransformAndAnalyseOptions = Readonly<{
     sourcePath: string;
+    declaredIntervals?: ReadonlyArray<IntervalDescriptor>;
 }>;
 
 /**
@@ -146,6 +150,12 @@ export function transformAndAnalyse(
         intervalDiagnostics,
         sourcePath,
     );
+    const lowerTfDiagnostics = validateLowerTfIntervals(
+        sourceFile,
+        checker,
+        sourcePath,
+        opts.declaredIntervals ?? [],
+    );
     const requestedIntervals = Array.from(
         new Set([...requestedIntervalsFromCalls, ...requiresIntervals]),
     ).sort();
@@ -176,6 +186,7 @@ export function transformAndAnalyse(
         ...inputs.diagnostics,
         ...alertConditions.diagnostics,
         ...intervalDiagnostics,
+        ...lowerTfDiagnostics,
     ];
 
     return Object.freeze({
@@ -189,7 +200,10 @@ export function transformAndAnalyse(
  * Options accepted by `compile`. `apiVersion` is a forward-compat marker
  * fixed at `1` for Phase 1; `sourcePath` overrides the file-system-derived
  * path used in callsite ids; `sourcemap`, `minify`, and `target` mirror
- * the bundler's flags.
+ * the bundler's flags. `declaredIntervals` is the adapter's
+ * `Capabilities.intervals` set — when supplied, `request.lowerTf` literals
+ * are validated against the smallest declared main interval
+ * (`lower-tf-not-lower`).
  *
  * @since 0.1
  * @example
@@ -202,6 +216,7 @@ export type CompileOptions = Readonly<{
     sourcemap?: boolean | "inline" | "external";
     minify?: boolean;
     target?: "es2022";
+    declaredIntervals?: ReadonlyArray<IntervalDescriptor>;
 }>;
 
 /**
@@ -290,7 +305,12 @@ const PRINTER = ts.createPrinter({
  */
 export async function compile(source: string, opts: CompileOptions): Promise<CompiledScript> {
     const sourcePath = opts.sourcePath ?? "script.chart.ts";
-    const result = transformAndAnalyse(source, { sourcePath });
+    const result = transformAndAnalyse(source, {
+        sourcePath,
+        ...(opts.declaredIntervals === undefined
+            ? {}
+            : { declaredIntervals: opts.declaredIntervals }),
+    });
 
     const errors = result.diagnostics.filter((d) => d.severity === "error");
     if (errors.length > 0) {
@@ -484,11 +504,12 @@ async function readDirEntries(dir: string): Promise<DirEntry[]> {
 }
 
 function stripWriteFlag(opts: CompileFileOptions): CompileOptions {
-    const { apiVersion, sourcePath, sourcemap, minify, target } = opts;
+    const { apiVersion, sourcePath, sourcemap, minify, target, declaredIntervals } = opts;
     const out: { -readonly [K in keyof CompileOptions]: CompileOptions[K] } = { apiVersion };
     if (sourcePath !== undefined) out.sourcePath = sourcePath;
     if (sourcemap !== undefined) out.sourcemap = sourcemap;
     if (minify !== undefined) out.minify = minify;
     if (target !== undefined) out.target = target;
+    if (declaredIntervals !== undefined) out.declaredIntervals = declaredIntervals;
     return out;
 }

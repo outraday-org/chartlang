@@ -2,8 +2,8 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type {
-    AlertEmission,
     AlertConditionEmission,
+    AlertEmission,
     Capabilities,
     DrawingEmission,
     LogEmission,
@@ -18,11 +18,12 @@ import type {
     DrawingKind,
     DrawingState,
     SecurityBar,
+    Series,
 } from "@invinite-org/chartlang-core";
 
-import type { StateStore } from "./stateStore";
 import type { PersistentStateStore } from "./persistentStateStore";
 import type { StateSlot } from "./state/stateSlot";
+import type { StateStore } from "./stateStore";
 import type { StreamState } from "./streamState";
 import type { RuntimeViews } from "./views";
 
@@ -180,16 +181,23 @@ export type RuntimeContext = {
     readonly requestSecurityAlignments: Map<string, ReadonlyArray<number>>;
     /**
      * Per-compute cache of ascending `Bar[]` materialisations keyed by the
-     * source `StreamState`. Lets `request.security` reuse one stable bar-array
-     * identity across every source-key alignment in a bar (so the
-     * `getOrAlign` WeakMap actually hits) and avoids re-walking the same ring
-     * buffer 10× per bar. Cleared alongside {@link requestSecurityAlignments}.
-     * @since 0.5
+     * source `StreamState`. Shared by `request.security` and `request.lowerTf`
+     * (via `request/streamBars.ts:ascendingBarsFor`) so a stable bar-array
+     * identity is reused across every consumer in a bar — the `getOrAlign` /
+     * `getOrBucket` WeakMap caches actually hit and the same ring buffer is
+     * walked once per bar instead of 10×. Cleared alongside
+     * {@link requestSecurityAlignments}. @since 0.5
      */
     readonly requestSecurityAscendingBars: Map<StreamState, ReadonlyArray<Bar>>;
     /**
-     * Runtime diagnostic dedupe for `request.security` capability gates,
-     * keyed by `code|slotId|interval`. Cleared on `dispose`. @since 0.4
+     * Per-`request.lowerTf` slot cache keyed by `slotId|interval`. Values are
+     * stable `Series<ReadonlyArray<Bar>>` proxies over the latest LTF bucket
+     * materialisation. @since 0.6
+     */
+    readonly requestLowerTfViews: Map<string, Series<ReadonlyArray<Bar>>>;
+    /**
+     * Runtime diagnostic dedupe for `request.*` capability gates, keyed by
+     * `code|slotId|interval|kind`. Cleared on `dispose`. @since 0.4
      */
     readonly diagnosedRequestKeys: Set<string>;
     /**

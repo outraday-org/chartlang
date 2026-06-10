@@ -89,6 +89,9 @@ import { DRAW_VERTICAL_LINE_SCENARIO } from "./drawVerticalLine.scenario";
 import { DRAW_XABCD_PATTERN_SCENARIO } from "./drawXabcdPattern.scenario";
 import { EMA_CROSS_SCENARIO } from "./emaCross.scenario";
 import { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario";
+import { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario";
+import { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario";
+import { LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO } from "./lowerTfUnsupportedInterval.scenario";
 import { MTF_CAPABILITY_FALSE_SCENARIO } from "./mtfCapabilityFalse.scenario";
 import { MTF_REQUEST_SECURITY_CLOSE_SCENARIO } from "./mtfRequestSecurityClose.scenario";
 import { MTF_UNSUPPORTED_INTERVAL_SCENARIO } from "./mtfUnsupportedInterval.scenario";
@@ -300,6 +303,9 @@ export { DRAW_TRIANGLE_SCENARIO } from "./drawTriangle.scenario";
 export { DRAW_VERTICAL_LINE_SCENARIO } from "./drawVerticalLine.scenario";
 export { EMA_CROSS_SCENARIO } from "./emaCross.scenario";
 export { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario";
+export { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario";
+export { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario";
+export { LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO } from "./lowerTfUnsupportedInterval.scenario";
 export { MTF_CAPABILITY_FALSE_SCENARIO } from "./mtfCapabilityFalse.scenario";
 export { MTF_REQUEST_SECURITY_CLOSE_SCENARIO } from "./mtfRequestSecurityClose.scenario";
 export { MTF_UNSUPPORTED_INTERVAL_SCENARIO } from "./mtfUnsupportedInterval.scenario";
@@ -674,6 +680,9 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     MTF_REQUEST_SECURITY_CLOSE_SCENARIO,
     MTF_UNSUPPORTED_INTERVAL_SCENARIO,
     MTF_CAPABILITY_FALSE_SCENARIO,
+    LOWER_TF_HAPPY_PATH_SCENARIO,
+    LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO,
+    LOWER_TF_CAPABILITY_FALSE_SCENARIO,
     STATE_SESSION_HIGH_SCENARIO,
     STATE_TICK_COUNTER_SCENARIO,
     SYMINFO_MINTICK_SCENARIO,

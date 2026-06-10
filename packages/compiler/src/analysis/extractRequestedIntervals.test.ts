@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createProgramForSource } from "../program";
 import type { CompileDiagnostic } from "../diagnostics";
+import { createProgramForSource } from "../program";
 import { extractInputs } from "./extractInputs";
 import { extractRequestedIntervals } from "./extractRequestedIntervals";
 
@@ -72,6 +72,22 @@ export default defineIndicator({
         expect(result.diagnostics).toEqual([]);
     });
 
+    it("extracts request.security and request.lowerTf intervals together", () => {
+        const result = run(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.security({ interval: "1D" });
+        request.lowerTf({ interval: "30s" });
+    },
+});
+`);
+        expect(result.intervals).toEqual(["1D", "30s"]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
     it("emits a diagnostic for dynamic interval values", () => {
         const result = run(`
 import { defineIndicator, request } from "@invinite-org/chartlang-core";
@@ -90,6 +106,27 @@ export default defineIndicator({
         );
         expect(result.diagnostics[0]?.message).toBe(
             "request.security({ interval }) must be a string literal or input.enum value",
+        );
+    });
+
+    it("emits a diagnostic for dynamic request.lowerTf interval values", () => {
+        const result = run(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+const tf = "30s";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.lowerTf({ interval: tf });
+    },
+});
+`);
+        expect(result.intervals).toEqual([]);
+        expect(result.diagnostics.map((d) => d.code)).toEqual([
+            "request-lower-tf-interval-not-literal",
+        ]);
+        expect(result.diagnostics[0]?.message).toBe(
+            "request.lowerTf({ interval }) must be a string literal or input.enum value",
         );
     });
 

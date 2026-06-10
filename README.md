@@ -66,6 +66,8 @@ pnpm add @invinite-org/chartlang-core @invinite-org/chartlang-compiler @invinite
 > for the bootstrap. See
 > [`docs/getting-started/write-your-first-script.md`](./docs/getting-started/write-your-first-script.md)
 > for the walkthrough as it lands.
+> Pine authors can start with the
+> [Pine to chartlang migration guide](./docs/spec/pine-migration.md).
 
 ```bash
 pnpm dlx @invinite-org/chartlang-cli scaffold-script ema-cross

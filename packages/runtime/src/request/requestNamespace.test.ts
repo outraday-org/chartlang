@@ -3,15 +3,21 @@
 
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
-import type { RequestSecurityOpts, SecurityBar } from "@invinite-org/chartlang-core";
+import type {
+    Bar,
+    RequestLowerTfOpts,
+    RequestSecurityOpts,
+    SecurityBar,
+    Series,
+} from "@invinite-org/chartlang-core";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { appendSecondaryBar } from "../execution/secondaryStream";
 import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
 } from "../runtimeContext";
-import { appendSecondaryBar } from "../execution/secondaryStream";
 import { inMemoryStateStore } from "../stateStore";
 import { createStreamState } from "../streamState";
 import { createRuntimeViews } from "../views";
@@ -19,6 +25,7 @@ import { buildRequestNamespace } from "./requestNamespace";
 
 type RuntimeRequestNamespace = {
     readonly security: (slotId: string, opts: RequestSecurityOpts) => SecurityBar;
+    readonly lowerTf: (slotId: string, opts: RequestLowerTfOpts) => Series<ReadonlyArray<Bar>>;
 };
 
 function makeCapabilities(multiTimeframe: boolean): Capabilities {
@@ -30,6 +37,7 @@ function makeCapabilities(multiTimeframe: boolean): Capabilities {
         logs: false,
         inputs: new Set(),
         intervals: [
+            { value: "30s", label: "30 seconds", group: "second" },
             { value: "1m", label: "1 minute", group: "minute" },
             { value: "1D", label: "1 day", group: "daily" },
         ],
@@ -63,7 +71,11 @@ function makeContext(multiTimeframe = true): RuntimeContext {
     const stream = createStreamState({ interval: "1m", capacity: 5, symbol: "AAPL" });
     stream.bar.time = 1_700_000_000_000;
     const secondary = createStreamState({ interval: "1D", capacity: 5, symbol: "AAPL" });
-    const secondaryStreams = new Map([["1D", secondary]]);
+    const ltf = createStreamState({ interval: "30s", capacity: 10, symbol: "AAPL" });
+    const secondaryStreams = new Map([
+        ["1D", secondary],
+        ["30s", ltf],
+    ]);
     return {
         stream,
         stateStore: inMemoryStateStore(),
@@ -86,6 +98,7 @@ function makeContext(multiTimeframe = true): RuntimeContext {
         requestSecurityBars: new Map(),
         requestSecurityAlignments: new Map(),
         requestSecurityAscendingBars: new Map(),
+        requestLowerTfViews: new Map(),
         diagnosedRequestKeys: new Set(),
         resolvedInputs: Object.freeze({}),
         diagnosedInputKeys: new Set(),
@@ -118,6 +131,34 @@ function pushBars(ctx: RuntimeContext): void {
     ctx.stream.ohlcv.hlc3.append(100.16666666666667);
     ctx.stream.ohlcv.ohlc4.append(100.125);
     ctx.stream.ohlcv.hlcc4.append(100.25);
+}
+
+function pushMainClose(ctx: RuntimeContext, time: number): void {
+    ctx.stream.ohlcv.time.append(time);
+    ctx.stream.ohlcv.open.append(100);
+    ctx.stream.ohlcv.high.append(101);
+    ctx.stream.ohlcv.low.append(99);
+    ctx.stream.ohlcv.close.append(100.5);
+    ctx.stream.ohlcv.volume.append(1_000);
+    ctx.stream.ohlcv.hl2.append(100);
+    ctx.stream.ohlcv.hlc3.append(100.16666666666667);
+    ctx.stream.ohlcv.ohlc4.append(100.125);
+    ctx.stream.ohlcv.hlcc4.append(100.25);
+}
+
+function pushLtfClose(ctx: RuntimeContext, time: number): void {
+    const stream = ctx.secondaryStreams.get("30s");
+    if (stream === undefined) throw new Error("missing 30s stream");
+    appendSecondaryBar(stream, {
+        time,
+        open: 50,
+        high: 51,
+        low: 49,
+        close: 50.5,
+        volume: 500,
+        symbol: "AAPL",
+        interval: "30s",
+    });
 }
 
 function runtimeRequest(): RuntimeRequestNamespace {
@@ -263,10 +304,94 @@ describe("buildRequestNamespace", () => {
         expect(ctx.emissions.diagnostics).toHaveLength(2);
         expect(ctx.diagnosedRequestKeys).toEqual(
             new Set([
-                "multi-timeframe-not-supported|slot#0|1m",
-                "multi-timeframe-not-supported|slot#0|1D",
+                "multi-timeframe-not-supported|slot#0|1m|security",
+                "multi-timeframe-not-supported|slot#0|1D|security",
             ]),
         );
+    });
+
+    it("returns bucketed lower timeframe bars", () => {
+        const ctx = makeContext(true);
+        pushMainClose(ctx, 0);
+        pushMainClose(ctx, 60_000);
+        pushMainClose(ctx, 120_000);
+        pushLtfClose(ctx, 0);
+        pushLtfClose(ctx, 30_000);
+        pushLtfClose(ctx, 60_000);
+        pushLtfClose(ctx, 90_000);
+        pushLtfClose(ctx, 120_000);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const series = runtimeRequest().lowerTf("slot#ltf", { interval: "30s" });
+
+        expect(series.current.map((bar) => bar.time)).toEqual([120_000]);
+        expect(series[1].map((bar) => bar.time)).toEqual([60_000, 90_000]);
+        expect(series[2].map((bar) => bar.time)).toEqual([0, 30_000]);
+        expect(series[10]).toEqual([]);
+        expect(series.length).toBe(3);
+        expect(runtimeRequest().lowerTf("slot#ltf", { interval: "30s" })).toBe(series);
+    });
+
+    it("returns empty lower timeframe buckets with deduped diagnostics", () => {
+        const ctx = makeContext(false);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        expect(request.lowerTf("slot#ltf", { interval: "30s" }).current).toEqual([]);
+        expect(request.lowerTf("slot#ltf", { interval: "30s" }).current).toEqual([]);
+
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "multi-timeframe-not-supported",
+                message:
+                    "Adapter declares multiTimeframe: false; request.lowerTf returns empty buckets",
+                slotId: "slot#ltf",
+                bar: 3,
+            },
+        ]);
+    });
+
+    it("emits unsupported-interval once for lower timeframe requests", () => {
+        const ctx = makeContext(true);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        expect(request.lowerTf("slot#ltf", { interval: "15s" }).current).toEqual([]);
+        expect(request.lowerTf("slot#ltf", { interval: "15s" }).current).toEqual([]);
+
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "unsupported-interval",
+                message: 'Requested interval "15s" is not in Capabilities.intervals',
+                slotId: "slot#ltf",
+                bar: 3,
+            },
+        ]);
+    });
+
+    it("emits unknown-secondary-stream once for unregistered lower timeframe streams", () => {
+        const ctx = makeContext(true);
+        ctx.secondaryStreams.clear();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        expect(request.lowerTf("slot#ltf", { interval: "30s" }).current).toEqual([]);
+        expect(request.lowerTf("slot#ltf", { interval: "30s" }).current).toEqual([]);
+
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "unknown-secondary-stream",
+                message: 'Requested interval "30s" has no registered secondary stream',
+                slotId: "slot#ltf",
+                bar: 3,
+            },
+        ]);
     });
 
     it("does not re-emit when the diagnostic key is already known", () => {

@@ -213,6 +213,32 @@ export default defineIndicator({
         expect(codes).toContain("stateful-call-inside-loop");
     });
 
+    it("emits lower-tf-not-lower when declaredIntervals are supplied", () => {
+        const source = `
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.lowerTf({ interval: "1D" });
+    },
+});
+`;
+        const declaredIntervals = [{ value: "1m", label: "1 minute", group: "minute" }];
+        const withIntervals = transformAndAnalyse(source, {
+            sourcePath: "demo.chart.ts",
+            declaredIntervals,
+        });
+        expect(withIntervals.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+            "lower-tf-not-lower",
+        );
+
+        const withoutIntervals = transformAndAnalyse(source, { sourcePath: "demo.chart.ts" });
+        expect(withoutIntervals.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain(
+            "lower-tf-not-lower",
+        );
+    });
+
     it("flows warnings through (dynamic-series-index) without bailing", () => {
         const source = `
 import { defineIndicator } from "@invinite-org/chartlang-core";

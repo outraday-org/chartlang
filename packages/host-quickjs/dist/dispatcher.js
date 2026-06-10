@@ -559,9 +559,9 @@ var SOURCE_FIELDS = /* @__PURE__ */ new Set([
 function resolveInputs(manifest, overrides, ctx) {
   const out = {};
   for (const [key, descriptor] of Object.entries(manifest.inputs)) {
-    const fallback = defaultValueFor(descriptor);
+    const fallback2 = defaultValueFor(descriptor);
     if (!Object.hasOwn(overrides, key) || overrides[key] === void 0) {
-      out[key] = fallback;
+      out[key] = fallback2;
       continue;
     }
     const override = overrides[key];
@@ -570,7 +570,7 @@ function resolveInputs(manifest, overrides, ctx) {
       continue;
     }
     pushInputDiagnostic(ctx, key, descriptor.kind, override);
-    out[key] = fallback;
+    out[key] = fallback2;
   }
   return Object.freeze(out);
 }
@@ -623,6 +623,144 @@ function describeValue(value) {
   return typeof value;
 }
 
+// ../runtime/dist/request/bucketLtfBarsByMainContainment.js
+function bucketLtfBarsByMainContainment(mainBars, ltfBars) {
+  if (mainBars.length === 0)
+    return [];
+  const buckets = Array.from({ length: mainBars.length }, () => []);
+  let mainIndex = 0;
+  let ltfIndex = 0;
+  while (ltfIndex < ltfBars.length && ltfBars[ltfIndex].time < mainBars[0].time) {
+    ltfIndex += 1;
+  }
+  while (ltfIndex < ltfBars.length) {
+    const ltf = ltfBars[ltfIndex];
+    while (mainIndex + 1 < mainBars.length && mainBars[mainIndex + 1].time <= ltf.time) {
+      mainIndex += 1;
+    }
+    buckets[mainIndex].push(ltf);
+    ltfIndex += 1;
+  }
+  return buckets;
+}
+
+// ../runtime/dist/request/bucketLtfBarsCache.js
+var CACHE = /* @__PURE__ */ new WeakMap();
+function getOrBucket(mainBars, ltfBars) {
+  let byLtf = CACHE.get(mainBars);
+  if (byLtf === void 0) {
+    byLtf = /* @__PURE__ */ new WeakMap();
+    CACHE.set(mainBars, byLtf);
+  }
+  const cached = byLtf.get(ltfBars);
+  if (cached !== void 0 && cached.mainLength === mainBars.length && cached.ltfLength === ltfBars.length) {
+    return cached.buckets;
+  }
+  const buckets = bucketLtfBarsByMainContainment(mainBars, ltfBars);
+  byLtf.set(ltfBars, { mainLength: mainBars.length, ltfLength: ltfBars.length, buckets });
+  return buckets;
+}
+
+// ../runtime/dist/request/pushOnce.js
+function pushOnce(ctx, code, slotId, interval, kind, message2) {
+  const key = `${code}|${slotId}|${interval}|${kind}`;
+  if (ctx.diagnosedRequestKeys.has(key))
+    return;
+  ctx.diagnosedRequestKeys.add(key);
+  ctx.emissions.diagnostics.push({
+    kind: "diagnostic",
+    severity: "warning",
+    code,
+    message: message2,
+    slotId,
+    bar: ctx.barIndex()
+  });
+}
+
+// ../runtime/dist/request/streamBars.js
+function barFromStream(stream, age) {
+  const open = stream.ohlcv.open.at(age);
+  const high = stream.ohlcv.high.at(age);
+  const low = stream.ohlcv.low.at(age);
+  const close = stream.ohlcv.close.at(age);
+  return {
+    time: stream.ohlcv.time.at(age),
+    open,
+    high,
+    low,
+    close,
+    volume: stream.ohlcv.volume.at(age),
+    symbol: stream.bar.symbol,
+    interval: stream.bar.interval,
+    hl2: (high + low) / 2,
+    hlc3: (high + low + close) / 3,
+    ohlc4: (open + high + low + close) / 4,
+    hlcc4: (high + low + close + close) / 4
+  };
+}
+function ascendingBarsFor(ctx, stream) {
+  const cached = ctx.requestSecurityAscendingBars.get(stream);
+  if (cached !== void 0)
+    return cached;
+  const bars = [];
+  for (let age = stream.ohlcv.close.length - 1; age >= 0; age -= 1) {
+    bars.push(barFromStream(stream, age));
+  }
+  ctx.requestSecurityAscendingBars.set(stream, bars);
+  return bars;
+}
+
+// ../runtime/dist/request/lowerTf.js
+var EMPTY_BUCKET = Object.freeze([]);
+function fallback(ctx, slotId, interval, code, message2) {
+  pushOnce(ctx, code, slotId, interval, "lowerTf", message2);
+  return EMPTY_BUCKET;
+}
+function bucketAt(ctx, slotId, interval, age) {
+  if (!ctx.capabilities.multiTimeframe) {
+    return fallback(ctx, slotId, interval, "multi-timeframe-not-supported", "Adapter declares multiTimeframe: false; request.lowerTf returns empty buckets");
+  }
+  const known = ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
+  if (!known) {
+    return fallback(ctx, slotId, interval, "unsupported-interval", `Requested interval "${interval}" is not in Capabilities.intervals`);
+  }
+  const secondary = ctx.secondaryStreams.get(interval);
+  if (secondary === void 0) {
+    return fallback(ctx, slotId, interval, "unknown-secondary-stream", `Requested interval "${interval}" has no registered secondary stream`);
+  }
+  const mainBars = ascendingBarsFor(ctx, ctx.stream);
+  const ltfBars = ascendingBarsFor(ctx, secondary);
+  const buckets = getOrBucket(mainBars, ltfBars);
+  const index = buckets.length - 1 - age;
+  return buckets[index] ?? EMPTY_BUCKET;
+}
+function makeLowerTfSeries(ctx, slotId, interval) {
+  const cacheKey = `${slotId}|${interval}`;
+  const existing = ctx.requestLowerTfViews.get(cacheKey);
+  if (existing !== void 0)
+    return existing;
+  const target = {
+    get current() {
+      return bucketAt(ctx, slotId, interval, 0);
+    },
+    get length() {
+      return ctx.stream.ohlcv.close.length;
+    }
+  };
+  const view = new Proxy(Object.freeze(target), {
+    get(obj, prop, receiver) {
+      if (typeof prop === "string") {
+        const n = Number(prop);
+        if (Number.isInteger(n) && n >= 0)
+          return bucketAt(ctx, slotId, interval, n);
+      }
+      return Reflect.get(obj, prop, receiver);
+    }
+  });
+  ctx.requestLowerTfViews.set(cacheKey, view);
+  return view;
+}
+
 // ../runtime/dist/request/alignHtfSeriesToLtf.js
 function alignHtfSeriesToLtf(htf, htfSeries, ltf) {
   const out = new Array(ltf.length);
@@ -644,12 +782,12 @@ function alignHtfSeriesToLtf(htf, htfSeries, ltf) {
 }
 
 // ../runtime/dist/request/alignHtfSeriesCache.js
-var CACHE = /* @__PURE__ */ new WeakMap();
+var CACHE2 = /* @__PURE__ */ new WeakMap();
 function getOrAlign(htfBars, htfSeries, ltfBars) {
-  let byLtf = CACHE.get(htfBars);
+  let byLtf = CACHE2.get(htfBars);
   if (byLtf === void 0) {
     byLtf = /* @__PURE__ */ new WeakMap();
-    CACHE.set(htfBars, byLtf);
+    CACHE2.set(htfBars, byLtf);
   }
   let bySeries = byLtf.get(ltfBars);
   if (bySeries === void 0) {
@@ -702,58 +840,6 @@ function makeNanSecurityBar() {
     symbol: nanStringSeries,
     interval: nanStringSeries
   });
-}
-function diagnosticKey(code, slotId, interval) {
-  return `${code}|${slotId}|${interval}`;
-}
-function pushOnce(ctx, code, slotId, interval, message2) {
-  const key = diagnosticKey(code, slotId, interval);
-  if (ctx.diagnosedRequestKeys.has(key))
-    return;
-  ctx.diagnosedRequestKeys.add(key);
-  ctx.emissions.diagnostics.push({
-    kind: "diagnostic",
-    severity: "warning",
-    code,
-    message: message2,
-    slotId,
-    bar: ctx.barIndex()
-  });
-}
-function barFromStream(stream, age) {
-  const open = stream.ohlcv.open.at(age);
-  const high = stream.ohlcv.high.at(age);
-  const low = stream.ohlcv.low.at(age);
-  const close = stream.ohlcv.close.at(age);
-  return {
-    time: stream.ohlcv.time.at(age),
-    open,
-    high,
-    low,
-    close,
-    volume: stream.ohlcv.volume.at(age),
-    symbol: stream.bar.symbol,
-    interval: stream.bar.interval,
-    hl2: (high + low) / 2,
-    hlc3: (high + low + close) / 3,
-    ohlc4: (open + high + low + close) / 4,
-    hlcc4: (high + low + close + close) / 4
-  };
-}
-function barsAscending(stream) {
-  const bars = [];
-  for (let age = stream.ohlcv.close.length - 1; age >= 0; age -= 1) {
-    bars.push(barFromStream(stream, age));
-  }
-  return bars;
-}
-function ascendingBarsFor(ctx, stream) {
-  const cached = ctx.requestSecurityAscendingBars.get(stream);
-  if (cached !== void 0)
-    return cached;
-  const bars = barsAscending(stream);
-  ctx.requestSecurityAscendingBars.set(stream, bars);
-  return bars;
 }
 function seriesAscending(stream, sourceKey) {
   const values = [];
@@ -843,7 +929,7 @@ function makeLiveSecurityBar(ctx, slotId, interval, secondary) {
   });
 }
 function fallbackNaN(ctx, cacheKey, slotId, interval, code, message2) {
-  pushOnce(ctx, code, slotId, interval, message2);
+  pushOnce(ctx, code, slotId, interval, "security", message2);
   const bar = makeNanSecurityBar();
   ctx.requestSecurityBars.set(cacheKey, bar);
   return bar;
@@ -881,8 +967,12 @@ function security(slotId, opts) {
   const ctx = getCtx2("request.security");
   return makeSecurityBar(ctx, slotId, opts.interval);
 }
+function lowerTf(slotId, opts) {
+  const ctx = getCtx2("request.lowerTf");
+  return makeLowerTfSeries(ctx, slotId, opts.interval);
+}
 function buildRequestNamespace() {
-  const ns = Object.freeze({ security });
+  const ns = Object.freeze({ security, lowerTf });
   return ns;
 }
 
@@ -971,901 +1061,18 @@ function createRuntimeViews(opts = {}) {
   };
 }
 
-// ../runtime/dist/execution/drain.js
-function drain(state2) {
-  const out = Object.freeze({
-    plots: state2.emissions.plots,
-    drawings: state2.emissions.drawings,
-    alerts: state2.emissions.alerts,
-    alertConditions: state2.emissions.alertConditions ?? [],
-    logs: state2.emissions.logs,
-    diagnostics: state2.emissions.diagnostics,
-    fromBar: state2.emissions.fromBar,
-    toBar: state2.emissions.toBar
-  });
-  state2.emissions.plots = [];
-  state2.emissions.drawings = [];
-  state2.emissions.alerts = [];
-  state2.emissions.alertConditions = [];
-  state2.emissions.logs = [];
-  state2.emissions.diagnostics = [];
-  return out;
-}
-
-// ../runtime/dist/execution/dispose.js
-function dispose(state2) {
-  flushStateSlots(state2.runtimeContext);
-  for (const buf of Object.values(state2.mainStream.ohlcv)) {
-    buf.reset();
-  }
-  for (const stream of state2.runtimeContext.secondaryStreams.values()) {
-    for (const buf of Object.values(stream.ohlcv)) {
-      buf.reset();
-    }
-    stream.taSlots.clear();
-  }
-  state2.mainStream.taSlots.clear();
-  state2.emissions.plots = [];
-  state2.emissions.drawings = [];
-  state2.emissions.alerts = [];
-  state2.emissions.diagnostics = [];
-  state2.runtimeContext.drawingSlots.clear();
-  state2.runtimeContext.drawingSubIdCounters.clear();
-  state2.runtimeContext.stateSlots.clear();
-  state2.runtimeContext.secondaryStreams.clear();
-  state2.runtimeContext.requestSecurityBars.clear();
-  state2.runtimeContext.requestSecurityAlignments.clear();
-  state2.runtimeContext.requestSecurityAscendingBars.clear();
-  state2.runtimeContext.diagnosedRequestKeys.clear();
-  state2.runtimeContext.diagnosedInputKeys.clear();
-  const counters = state2.runtimeContext.drawingBucketCounters;
-  counters.lines = 0;
-  counters.labels = 0;
-  counters.boxes = 0;
-  counters.polylines = 0;
-  counters.other = 0;
-}
-
-// ../runtime/dist/ta/adl.js
-function getCtx3() {
-  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
-  if (ctx === null) {
-    throw new Error("ta.adl called outside an active script step");
-  }
-  return ctx;
-}
-function initSlot(capacity) {
-  const outBuffer = new Float64RingBuffer(capacity);
-  return {
-    outBuffer,
-    series: makeSeriesView(outBuffer),
-    cumAdl: 0,
-    prevClosedCumAdl: 0
-  };
-}
-function mfvAt(close, high, low, volume) {
-  if (!Number.isFinite(close) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(volume)) {
-    return 0;
-  }
-  const range = high - low;
-  if (range === 0)
-    return 0;
-  const clv = (close - low - (high - close)) / range;
-  return clv * volume;
-}
-function adl(slotId, _opts) {
-  const ctx = getCtx3();
-  let slot = ctx.stream.taSlots.get(slotId);
-  if (slot === void 0) {
-    slot = initSlot(ctx.stream.ohlcv.close.capacity);
-    ctx.stream.taSlots.set(slotId, slot);
-  }
-  const { close, high, low, volume } = ctx.stream.bar;
-  const mfv = mfvAt(close, high, low, volume);
-  if (ctx.isTick) {
-    slot.outBuffer.replaceHead(slot.prevClosedCumAdl + mfv);
-    return slot.series;
-  }
-  slot.prevClosedCumAdl = slot.cumAdl;
-  slot.cumAdl += mfv;
-  slot.outBuffer.append(slot.cumAdl);
-  return slot.series;
-}
-
-// ../runtime/dist/ta/adr.js
-var DEFAULT_LENGTH = 14;
-var MS_PER_DAY = 864e5;
-function getCtx4() {
-  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
-  if (ctx === null) {
-    throw new Error("ta.adr called outside an active script step");
-  }
-  return ctx;
-}
-function initSlot2(length, capacity) {
-  const outBuffer = new Float64RingBuffer(capacity);
-  return {
-    outBuffer,
-    series: makeSeriesView(outBuffer),
-    length,
-    completedRanges: new Float64RingBuffer(length),
-    sumRanges: 0,
-    dailyHigh: Number.NaN,
-    dailyLow: Number.NaN,
-    currentDayKey: Number.NaN
-  };
-}
-function commitDay(slot) {
-  if (!Number.isFinite(slot.dailyHigh) || !Number.isFinite(slot.dailyLow))
-    return;
-  const range = slot.dailyHigh - slot.dailyLow;
-  if (slot.completedRanges.length === slot.length) {
-    slot.sumRanges -= slot.completedRanges.at(slot.length - 1);
-  }
-  slot.completedRanges.append(range);
-  slot.sumRanges += range;
-}
-function emit(slot) {
-  if (slot.completedRanges.length < slot.length)
-    return Number.NaN;
-  return slot.sumRanges / slot.length;
-}
-function closeStep(slot, high, low, time) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(time)) {
-    return emit(slot);
-  }
-  const dayKey = Math.floor(time / MS_PER_DAY);
-  if (Number.isNaN(slot.currentDayKey)) {
-    slot.currentDayKey = dayKey;
-    slot.dailyHigh = high;
-    slot.dailyLow = low;
-    return emit(slot);
-  }
-  if (dayKey !== slot.currentDayKey) {
-    commitDay(slot);
-    slot.currentDayKey = dayKey;
-    slot.dailyHigh = high;
-    slot.dailyLow = low;
-    return emit(slot);
-  }
-  if (high > slot.dailyHigh)
-    slot.dailyHigh = high;
-  if (low < slot.dailyLow)
-    slot.dailyLow = low;
-  return emit(slot);
-}
-function adr(slotId, opts) {
-  const ctx = getCtx4();
-  let slot = ctx.stream.taSlots.get(slotId);
-  if (slot === void 0) {
-    const length = opts?.length ?? DEFAULT_LENGTH;
-    slot = initSlot2(length, ctx.stream.ohlcv.close.capacity);
-    ctx.stream.taSlots.set(slotId, slot);
-  }
-  const { high, low, time } = ctx.stream.bar;
-  if (ctx.isTick) {
-    slot.outBuffer.replaceHead(emit(slot));
-  } else {
-    slot.outBuffer.append(closeStep(slot, high, low, time));
-  }
-  return slot.series;
-}
-
-// ../runtime/dist/ta/lib/wilderSmoothing.js
-function wilderStep(prev, sample, length) {
-  return (prev * (length - 1) + sample) / length;
-}
-
-// ../runtime/dist/ta/lib/directionalState.js
-function initDirectionalState(length) {
-  return {
-    length,
-    barCount: 0,
-    prevHigh: Number.NaN,
-    prevLow: Number.NaN,
-    prevClose: Number.NaN,
-    prevPrevHigh: Number.NaN,
-    prevPrevLow: Number.NaN,
-    prevPrevClose: Number.NaN,
-    seedPlusDm: 0,
-    seedMinusDm: 0,
-    seedTr: 0,
-    smoothedPlusDm: Number.NaN,
-    smoothedMinusDm: Number.NaN,
-    smoothedTr: Number.NaN,
-    prevClosedSmoothedPlusDm: Number.NaN,
-    prevClosedSmoothedMinusDm: Number.NaN,
-    prevClosedSmoothedTr: Number.NaN,
-    plusDi: Number.NaN,
-    minusDi: Number.NaN
-  };
-}
-function trueRange(high, low, prevClose) {
-  if (!Number.isFinite(prevClose))
-    return high - low;
-  return Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
-}
-function rawDirectionalMovement(high, low, prevHigh, prevLow) {
-  const upMove = high - prevHigh;
-  const downMove = prevLow - low;
-  const pDm = upMove > downMove && upMove > 0 ? upMove : 0;
-  const mDm = downMove > upMove && downMove > 0 ? downMove : 0;
-  return { pDm, mDm };
-}
-function advanceDirectionalClose(dirState, high, low, close) {
-  const { length } = dirState;
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
-    return { plusDi: dirState.plusDi, minusDi: dirState.minusDi };
-  }
-  dirState.barCount += 1;
-  if (dirState.barCount === 1) {
-    dirState.prevPrevHigh = dirState.prevHigh;
-    dirState.prevPrevLow = dirState.prevLow;
-    dirState.prevPrevClose = dirState.prevClose;
-    dirState.prevHigh = high;
-    dirState.prevLow = low;
-    dirState.prevClose = close;
-    dirState.seedTr += high - low;
-    return { plusDi: Number.NaN, minusDi: Number.NaN };
-  }
-  const tr = trueRange(high, low, dirState.prevClose);
-  const { pDm, mDm } = rawDirectionalMovement(high, low, dirState.prevHigh, dirState.prevLow);
-  dirState.prevPrevHigh = dirState.prevHigh;
-  dirState.prevPrevLow = dirState.prevLow;
-  dirState.prevPrevClose = dirState.prevClose;
-  dirState.prevHigh = high;
-  dirState.prevLow = low;
-  dirState.prevClose = close;
-  if (dirState.barCount <= length) {
-    dirState.seedPlusDm += pDm;
-    dirState.seedMinusDm += mDm;
-    dirState.seedTr += tr;
-    return { plusDi: Number.NaN, minusDi: Number.NaN };
-  }
-  if (dirState.barCount === length + 1) {
-    dirState.prevClosedSmoothedPlusDm = dirState.seedPlusDm;
-    dirState.prevClosedSmoothedMinusDm = dirState.seedMinusDm;
-    dirState.prevClosedSmoothedTr = dirState.seedTr;
-    dirState.seedPlusDm += pDm;
-    dirState.seedMinusDm += mDm;
-    dirState.seedTr += tr;
-    dirState.smoothedPlusDm = dirState.seedPlusDm;
-    dirState.smoothedMinusDm = dirState.seedMinusDm;
-    dirState.smoothedTr = dirState.seedTr;
-    const tr0 = dirState.smoothedTr;
-    const plusDi2 = tr0 === 0 ? 0 : 100 * dirState.smoothedPlusDm / tr0;
-    const minusDi2 = tr0 === 0 ? 0 : 100 * dirState.smoothedMinusDm / tr0;
-    dirState.plusDi = plusDi2;
-    dirState.minusDi = minusDi2;
-    return { plusDi: plusDi2, minusDi: minusDi2 };
-  }
-  dirState.prevClosedSmoothedPlusDm = dirState.smoothedPlusDm;
-  dirState.prevClosedSmoothedMinusDm = dirState.smoothedMinusDm;
-  dirState.prevClosedSmoothedTr = dirState.smoothedTr;
-  dirState.smoothedPlusDm = wilderStep(dirState.smoothedPlusDm, pDm, length);
-  dirState.smoothedMinusDm = wilderStep(dirState.smoothedMinusDm, mDm, length);
-  dirState.smoothedTr = wilderStep(dirState.smoothedTr, tr, length);
-  const tr1 = dirState.smoothedTr;
-  const plusDi = tr1 === 0 ? 0 : 100 * dirState.smoothedPlusDm / tr1;
-  const minusDi = tr1 === 0 ? 0 : 100 * dirState.smoothedMinusDm / tr1;
-  dirState.plusDi = plusDi;
-  dirState.minusDi = minusDi;
-  return { plusDi, minusDi };
-}
-function tickDirectional(dirState, high, low, close) {
-  if (dirState.barCount < dirState.length + 1) {
-    return { plusDi: Number.NaN, minusDi: Number.NaN };
-  }
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
-    return { plusDi: dirState.plusDi, minusDi: dirState.minusDi };
-  }
-  const tr = trueRange(high, low, dirState.prevPrevClose);
-  const { pDm, mDm } = rawDirectionalMovement(high, low, dirState.prevPrevHigh, dirState.prevPrevLow);
-  if (dirState.barCount === dirState.length + 1) {
-    const seedPlusDm = dirState.prevClosedSmoothedPlusDm + pDm;
-    const seedMinusDm = dirState.prevClosedSmoothedMinusDm + mDm;
-    const seedTr = dirState.prevClosedSmoothedTr + tr;
-    const plusDi2 = (
-      /* c8 ignore next */
-      seedTr === 0 ? 0 : 100 * seedPlusDm / seedTr
-    );
-    const minusDi2 = (
-      /* c8 ignore next */
-      seedTr === 0 ? 0 : 100 * seedMinusDm / seedTr
-    );
-    return { plusDi: plusDi2, minusDi: minusDi2 };
-  }
-  const plusDmSm = wilderStep(dirState.prevClosedSmoothedPlusDm, pDm, dirState.length);
-  const minusDmSm = wilderStep(dirState.prevClosedSmoothedMinusDm, mDm, dirState.length);
-  const trSm = wilderStep(dirState.prevClosedSmoothedTr, tr, dirState.length);
-  const plusDi = (
-    /* c8 ignore next */
-    trSm === 0 ? 0 : 100 * plusDmSm / trSm
-  );
-  const minusDi = (
-    /* c8 ignore next */
-    trSm === 0 ? 0 : 100 * minusDmSm / trSm
-  );
-  return { plusDi, minusDi };
-}
-
-// ../runtime/dist/ta/adx.js
-var DEFAULT_SMOOTHING = 14;
-function getCtx5() {
-  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
-  if (ctx === null) {
-    throw new Error("ta.adx called outside an active script step");
-  }
-  return ctx;
-}
-function initSlot3(length, smoothingLength, capacity) {
-  const outBuffer = new Float64RingBuffer(capacity);
-  return {
-    outBuffer,
-    series: makeSeriesView(outBuffer),
-    smoothingLength,
-    dirState: initDirectionalState(length),
-    dxSeed: 0,
-    dxSeedCount: 0,
-    adx: Number.NaN,
-    prevClosedAdx: Number.NaN,
-    prevClosedDxSeed: 0,
-    prevClosedDxSeedCount: 0,
-    shiftedViews: /* @__PURE__ */ new Map()
-  };
-}
-function viewForOffset(slot, offset) {
-  if (offset === 0)
-    return slot.series;
-  let view = slot.shiftedViews.get(offset);
-  if (view === void 0) {
-    view = makeShiftedSeriesView(slot.outBuffer, offset);
-    slot.shiftedViews.set(offset, view);
-  }
-  return view;
-}
-function dxFromDi(plusDi, minusDi) {
-  const sum = plusDi + minusDi;
-  if (sum === 0)
-    return 0;
-  return 100 * Math.abs(plusDi - minusDi) / sum;
-}
-function closeValue(slot, high, low, close) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
-    return Number.isFinite(slot.adx) ? slot.adx : Number.NaN;
-  }
-  const { plusDi, minusDi } = advanceDirectionalClose(slot.dirState, high, low, close);
-  if (!Number.isFinite(plusDi) || !Number.isFinite(minusDi)) {
-    slot.prevClosedAdx = slot.adx;
-    slot.prevClosedDxSeed = slot.dxSeed;
-    slot.prevClosedDxSeedCount = slot.dxSeedCount;
-    return Number.NaN;
-  }
-  const dx = dxFromDi(plusDi, minusDi);
-  slot.prevClosedAdx = slot.adx;
-  slot.prevClosedDxSeed = slot.dxSeed;
-  slot.prevClosedDxSeedCount = slot.dxSeedCount;
-  if (slot.dxSeedCount < slot.smoothingLength) {
-    slot.dxSeed += dx;
-    slot.dxSeedCount += 1;
-    if (slot.dxSeedCount === slot.smoothingLength) {
-      slot.adx = slot.dxSeed / slot.smoothingLength;
-      return slot.adx;
-    }
-    return Number.NaN;
-  }
-  slot.adx = wilderStep(slot.adx, dx, slot.smoothingLength);
-  return slot.adx;
-}
-function tickValue(slot, high, low, close) {
-  const { plusDi, minusDi } = tickDirectional(slot.dirState, high, low, close);
-  if (!Number.isFinite(plusDi) || !Number.isFinite(minusDi)) {
-    return (
-      /* c8 ignore next */
-      Number.isFinite(slot.adx) ? slot.adx : Number.NaN
-    );
-  }
-  const dx = dxFromDi(plusDi, minusDi);
-  if (slot.prevClosedDxSeedCount < slot.smoothingLength) {
-    const provisionalCount = slot.prevClosedDxSeedCount + 1;
-    if (provisionalCount < slot.smoothingLength)
-      return Number.NaN;
-    return (slot.prevClosedDxSeed + dx) / slot.smoothingLength;
-  }
-  return wilderStep(slot.prevClosedAdx, dx, slot.smoothingLength);
-}
-function adx(slotId, length, opts) {
-  const ctx = getCtx5();
-  const smoothingLength = opts?.smoothing ?? DEFAULT_SMOOTHING;
-  let slot = ctx.stream.taSlots.get(slotId);
-  if (slot === void 0) {
-    slot = initSlot3(length, smoothingLength, ctx.stream.ohlcv.close.capacity);
-    ctx.stream.taSlots.set(slotId, slot);
-  }
-  const bar = ctx.stream.bar;
-  if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue(slot, bar.high, bar.low, bar.close));
-  } else {
-    slot.outBuffer.append(closeValue(slot, bar.high, bar.low, bar.close));
-  }
-  return viewForOffset(slot, opts?.offset ?? 0);
-}
-
-// ../runtime/dist/ta/lib/sourceValue.js
-function readSourceValue(source) {
-  if (typeof source === "number")
-    return source;
-  return source.current;
-}
-
-// ../runtime/dist/ta/alma.js
-var DEFAULT_OFFSET = 0.85;
-var DEFAULT_SIGMA = 6;
-function getCtx6() {
-  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
-  if (ctx === null) {
-    throw new Error("ta.alma called outside an active script step");
-  }
-  return ctx;
-}
-function initSlot4(length, offsetCentre, sigma, capacity) {
-  const outBuffer = new Float64RingBuffer(capacity);
-  const m = offsetCentre * (length - 1);
-  const s = length / sigma;
-  const weights = new Float64Array(length);
-  let normaliser = 0;
-  for (let j = 0; j < length; j += 1) {
-    const d = j - m;
-    const w = Math.exp(-(d * d) / (2 * s * s));
-    weights[j] = w;
-    normaliser += w;
-  }
-  return {
-    outBuffer,
-    series: makeSeriesView(outBuffer),
-    length,
-    sourceWindow: new Float64RingBuffer(length),
-    weights,
-    normaliser
-  };
-}
-function weightedFromWindow(slot, headOverride) {
-  let sum = 0;
-  for (let j = 0; j < slot.length; j += 1) {
-    const ageFromHead = slot.length - 1 - j;
-    const v = ageFromHead === 0 && headOverride !== void 0 ? headOverride : slot.sourceWindow.at(ageFromHead);
-    if (!Number.isFinite(v))
-      return Number.NaN;
-    sum += v * slot.weights[j];
-  }
-  return sum / slot.normaliser;
-}
-function closeValue2(slot, src) {
-  slot.sourceWindow.append(src);
-  if (slot.sourceWindow.length < slot.length)
-    return Number.NaN;
-  return weightedFromWindow(slot);
-}
-function tickValue2(slot, src) {
-  if (slot.sourceWindow.length < slot.length)
-    return Number.NaN;
-  if (!Number.isFinite(src))
-    return Number.NaN;
-  return weightedFromWindow(slot, src);
-}
-function alma(slotId, source, length, opts) {
-  const ctx = getCtx6();
-  let slot = ctx.stream.taSlots.get(slotId);
-  if (slot === void 0) {
-    slot = initSlot4(length, opts?.offset ?? DEFAULT_OFFSET, opts?.sigma ?? DEFAULT_SIGMA, ctx.stream.ohlcv.close.capacity);
-    ctx.stream.taSlots.set(slotId, slot);
-  }
-  const src = readSourceValue(source);
-  if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue2(slot, src));
-  } else {
-    slot.outBuffer.append(closeValue2(slot, src));
-  }
-  return slot.series;
-}
-
-// ../runtime/dist/ta/lib/volume-profile/bucketEdges.js
-function buildBucketEdges(priceMin, priceMax, rowsLayout, rowSize, tickSize) {
-  if (!Number.isFinite(priceMin) || !Number.isFinite(priceMax) || rowSize <= 0) {
-    return new Float64Array([priceMin, priceMin]);
-  }
-  if (priceMax <= priceMin)
-    return new Float64Array([priceMin, priceMin]);
-  if (rowsLayout === "ticksPerRow") {
-    const bucketWidth = rowSize * tickSize;
-    if (bucketWidth <= 0)
-      return new Float64Array([priceMin, priceMin]);
-    const startEdge = Math.floor(priceMin / bucketWidth) * bucketWidth;
-    const endEdge = Math.ceil(priceMax / bucketWidth) * bucketWidth;
-    const count2 = Math.max(1, Math.round((endEdge - startEdge) / bucketWidth));
-    const edges2 = new Float64Array(count2 + 1);
-    for (let i = 0; i <= count2; i += 1)
-      edges2[i] = startEdge + i * bucketWidth;
-    return edges2;
-  }
-  const count = Math.max(1, Math.floor(rowSize));
-  const width = (priceMax - priceMin) / count;
-  const edges = new Float64Array(count + 1);
-  for (let i = 0; i <= count; i += 1)
-    edges[i] = priceMin + i * width;
-  return edges;
-}
-
-// ../runtime/dist/ta/lib/volume-profile/bucketizeVolume.js
-function bucketizeVolumeDetailed(bars, bucketEdges, volumeSplit) {
-  const bucketCount = bucketEdges.length - 1;
-  if (bucketCount <= 0)
-    return { buckets: [], pocIdx: -1, rows: [], totalVolume: 0 };
-  const upPerBucket = new Float64Array(bucketCount);
-  const downPerBucket = new Float64Array(bucketCount);
-  for (const bar of bars) {
-    const vol2 = Number.isFinite(bar.volume) ? bar.volume : 0;
-    if (vol2 <= 0)
-      continue;
-    const low = bar.low;
-    const high = bar.high;
-    if (!Number.isFinite(low) || !Number.isFinite(high))
-      continue;
-    if (!Number.isFinite(bar.open) || !Number.isFinite(bar.close))
-      continue;
-    if (high <= low)
-      continue;
-    const span = high - low;
-    const isUp = bar.close >= bar.open;
-    for (let b = 0; b < bucketCount; b += 1) {
-      const edgeLow = bucketEdges[b];
-      const edgeHigh = bucketEdges[b + 1];
-      if (edgeHigh <= low)
-        continue;
-      if (edgeLow >= high)
-        break;
-      const overlap = Math.min(edgeHigh, high) - Math.max(edgeLow, low);
-      if (overlap <= 0)
-        continue;
-      const share = vol2 * overlap / span;
-      if (isUp)
-        upPerBucket[b] += share;
-      else
-        downPerBucket[b] += share;
-    }
-  }
-  const rows = new Array(bucketCount);
-  const buckets = new Array(bucketCount);
-  let totalVolume = 0;
-  let pocIdx = -1;
-  let pocVolume = -1;
-  for (let b = 0; b < bucketCount; b += 1) {
-    const rawUp = upPerBucket[b];
-    const rawDown = downPerBucket[b];
-    const split = splitVolume(rawUp, rawDown, volumeSplit);
-    const low = bucketEdges[b];
-    const high = bucketEdges[b + 1];
-    const mid = (low + high) / 2;
-    rows[b] = {
-      downVolume: split.downVolume,
-      high,
-      low,
-      mid,
-      upVolume: split.upVolume,
-      volume: split.volume
-    };
-    buckets[b] = { price: mid, volume: split.volume };
-    totalVolume += split.volume;
-    if (split.volume > pocVolume) {
-      pocVolume = split.volume;
-      pocIdx = b;
-    }
-  }
-  return { buckets, pocIdx, rows, totalVolume };
-}
-function splitVolume(rawUp, rawDown, volumeSplit) {
-  switch (volumeSplit) {
-    case "total": {
-      const volume = rawUp + rawDown;
-      return { downVolume: 0, upVolume: volume, volume };
-    }
-    case "delta": {
-      const upVolume = Math.max(0, rawUp - rawDown);
-      const downVolume = Math.max(0, rawDown - rawUp);
-      return { downVolume, upVolume, volume: upVolume + downVolume };
-    }
-    case "upDown":
-      return { downVolume: rawDown, upVolume: rawUp, volume: rawUp + rawDown };
-  }
-}
-
-// ../runtime/dist/ta/lib/volume-profile/types.js
-var DEFAULT_TICK_SIZE = 0.01;
-
-// ../runtime/dist/ta/lib/volume-profile/valueArea.js
-function computeValueArea(rows, valueAreaPct = 70, pocIdx = findPocIndex(rows)) {
-  if (rows.length === 0 || pocIdx < 0 || pocIdx >= rows.length) {
-    return {
-      cumulativeVolume: 0,
-      poc: Number.NaN,
-      pocIdx,
-      vahIdx: pocIdx,
-      valHigh: Number.NaN,
-      valIdx: pocIdx,
-      valLow: Number.NaN
-    };
-  }
-  const totalVolume = rows.reduce((sum, row) => sum + row.volume, 0);
-  const targetPct = Math.max(0, Math.min(100, valueAreaPct));
-  const target = totalVolume * (targetPct / 100);
-  let lowIdx = pocIdx;
-  let highIdx = pocIdx;
-  let cumulative = rows[pocIdx].volume;
-  while (cumulative < target && (lowIdx > 0 || highIdx + 1 < rows.length)) {
-    const aboveAvailable = highIdx + 1 < rows.length;
-    const belowAvailable = lowIdx - 1 >= 0;
-    let aboveSum = 0;
-    if (aboveAvailable) {
-      aboveSum = rows[highIdx + 1].volume;
-      if (highIdx + 2 < rows.length)
-        aboveSum += rows[highIdx + 2].volume;
-    }
-    let belowSum = 0;
-    if (belowAvailable) {
-      belowSum = rows[lowIdx - 1].volume;
-      if (lowIdx - 2 >= 0)
-        belowSum += rows[lowIdx - 2].volume;
-    }
-    if (aboveAvailable && (!belowAvailable || aboveSum >= belowSum)) {
-      const takeTwo = highIdx + 2 < rows.length;
-      cumulative += rows[highIdx + 1].volume;
-      highIdx += 1;
-      if (takeTwo && cumulative < target) {
-        cumulative += rows[highIdx + 1].volume;
-        highIdx += 1;
-      }
-    } else {
-      const takeTwo = lowIdx - 2 >= 0;
-      cumulative += rows[lowIdx - 1].volume;
-      lowIdx -= 1;
-      if (takeTwo && cumulative < target) {
-        cumulative += rows[lowIdx - 1].volume;
-        lowIdx -= 1;
-      }
-    }
-  }
-  return {
-    cumulativeVolume: cumulative,
-    poc: rows[pocIdx].mid,
-    pocIdx,
-    vahIdx: highIdx,
-    valHigh: rows[highIdx].high,
-    valIdx: lowIdx,
-    valLow: rows[lowIdx].low
-  };
-}
-function findPocIndex(rows) {
-  let pocIdx = -1;
-  let pocVolume = -1;
-  for (let i = 0; i < rows.length; i += 1) {
-    if (rows[i].volume > pocVolume) {
-      pocIdx = i;
-      pocVolume = rows[i].volume;
-    }
-  }
-  return pocIdx;
-}
-
-// ../runtime/dist/ta/lib/volume-profile/developingSeries.js
-var WARMUP_BARS = 30;
-function computeDevelopingSeries(args) {
-  const { laneBars, finerBars, windowFromIdx, windowToIdx, config } = args;
-  const laneCount = laneBars.length;
-  const developingPoc = new Float64Array(laneCount);
-  const developingVahHigh = new Float64Array(laneCount);
-  const developingVahLow = new Float64Array(laneCount);
-  developingPoc.fill(Number.NaN);
-  developingVahHigh.fill(Number.NaN);
-  developingVahLow.fill(Number.NaN);
-  if (laneCount === 0)
-    return { developingPoc, developingVahHigh, developingVahLow };
-  const fromIdx = Math.max(0, Math.min(laneCount - 1, windowFromIdx));
-  const toIdx = Math.max(fromIdx, Math.min(laneCount - 1, windowToIdx));
-  const source = finerBars.length > 0 ? finerBars : laneBars;
-  const sourceStart = lowerBoundTime(source, laneBars[fromIdx].time);
-  let sourceEnd = sourceStart;
-  for (let i = fromIdx; i <= toIdx; i += 1) {
-    while (sourceEnd < source.length && source[sourceEnd].time <= laneBars[i].time)
-      sourceEnd += 1;
-    const slice = source.slice(sourceStart, sourceEnd);
-    if (slice.length <= WARMUP_BARS)
-      continue;
-    const { priceMax, priceMin } = derivePriceRange(slice);
-    const edges = buildBucketEdges(priceMin, priceMax, config.rowsLayout ?? "numberOfRows", config.rowSize, config.tickSize ?? DEFAULT_TICK_SIZE);
-    const bucketized = bucketizeVolumeDetailed(slice, edges, config.volumeSplit ?? "upDown");
-    if (bucketized.totalVolume <= 0)
-      continue;
-    const valueArea = computeValueArea(bucketized.rows, config.valueAreaPct, bucketized.pocIdx);
-    developingPoc[i] = valueArea.poc;
-    developingVahHigh[i] = valueArea.valHigh;
-    developingVahLow[i] = valueArea.valLow;
-  }
-  return { developingPoc, developingVahHigh, developingVahLow };
-}
-function lowerBoundTime(bars, target) {
-  let lo = 0;
-  let hi = bars.length;
-  while (lo < hi) {
-    const mid = lo + hi >>> 1;
-    if (bars[mid].time < target)
-      lo = mid + 1;
-    else
-      hi = mid;
-  }
-  return lo;
-}
-function derivePriceRange(bars) {
-  let priceMin = Number.POSITIVE_INFINITY;
-  let priceMax = Number.NEGATIVE_INFINITY;
-  for (const bar of bars) {
-    if (!Number.isFinite(bar.low) || !Number.isFinite(bar.high))
-      continue;
-    if (bar.low < priceMin)
-      priceMin = bar.low;
-    if (bar.high > priceMax)
-      priceMax = bar.high;
-  }
-  if (priceMin === Number.POSITIVE_INFINITY)
-    return { priceMax: 0, priceMin: 0 };
-  return { priceMax, priceMin };
-}
-
-// ../runtime/dist/ta/lib/volume-profile/tooHeavy.js
-var VOLUME_PROFILE_HEAVY_THRESHOLD = 5e4;
-var VOLUME_PROFILE_MAX_BUCKETS = 2e3;
-function assessVolumeProfileCost(args) {
-  if (args.finerCandleCount > VOLUME_PROFILE_HEAVY_THRESHOLD) {
-    return { heavy: true, reason: "too-many-finer-bars", recommendedRowSize: null };
-  }
-  const maxBuckets = args.maxBuckets ?? VOLUME_PROFILE_MAX_BUCKETS;
-  const estimate = estimateBucketCount(args);
-  if (estimate.kind === "estimated" && estimate.bucketCount > maxBuckets) {
-    return {
-      heavy: true,
-      reason: "too-many-buckets",
-      recommendedRowSize: args.rowsLayout === "ticksPerRow" ? Math.ceil((estimate.priceMax - estimate.priceMin) / (maxBuckets * estimate.tickSize)) : Math.max(1, maxBuckets)
-    };
-  }
-  return { heavy: false, reason: null, recommendedRowSize: null };
-}
-function estimateBucketCount(args) {
-  const { priceMax, priceMin, rowSize } = args;
-  if (rowSize === void 0 || priceMin === void 0 || priceMax === void 0 || !Number.isFinite(priceMin) || !Number.isFinite(priceMax) || rowSize <= 0 || priceMax <= priceMin) {
-    return { bucketCount: 0, kind: "invalid" };
-  }
-  const tickSize = args.tickSize ?? 0.01;
-  if (args.rowsLayout === "ticksPerRow") {
-    const width = rowSize * tickSize;
-    return width > 0 ? {
-      bucketCount: Math.ceil((priceMax - priceMin) / width),
-      kind: "estimated",
-      priceMax,
-      priceMin,
-      rowSize,
-      tickSize
-    } : { bucketCount: 0, kind: "invalid" };
-  }
-  return {
-    bucketCount: Math.floor(rowSize),
-    kind: "estimated",
-    priceMax,
-    priceMin,
-    rowSize,
-    tickSize
-  };
-}
-
-// ../runtime/dist/ta/lib/volume-profile/volumeProfileShared.js
-function computeProfile(args) {
-  const { laneBars, config } = args;
-  const finerBars = args.finerBars ?? [];
-  if (laneBars.length === 0)
-    return emptyProfile(false, null, null);
-  const fromIdx = Math.max(0, Math.min(laneBars.length - 1, args.windowFromIdx));
-  const toIdx = Math.max(fromIdx, Math.min(laneBars.length - 1, args.windowToIdx));
-  const laneSlice = laneBars.slice(fromIdx, toIdx + 1);
-  const finerSlice = sliceBarsByTime(finerBars, laneSlice[0].time, laneSlice[laneSlice.length - 1].time);
-  const bucketSource = finerSlice.length > 0 ? finerSlice : laneSlice;
-  const range = derivePriceRange(bucketSource);
-  const costStatus = assessVolumeProfileCost({
-    finerCandleCount: finerSlice.length,
-    priceMax: range.priceMax,
-    priceMin: range.priceMin,
-    rowSize: config.rowSize,
-    rowsLayout: config.rowsLayout ?? "numberOfRows",
-    tickSize: config.tickSize ?? DEFAULT_TICK_SIZE
-  });
-  if (costStatus.heavy)
-    return emptyProfile(costStatus.heavy, costStatus.reason, costStatus.recommendedRowSize);
-  if (range.priceMax <= range.priceMin)
-    return emptyProfile(false, null, null);
-  const edges = buildBucketEdges(range.priceMin, range.priceMax, config.rowsLayout ?? "numberOfRows", config.rowSize, config.tickSize ?? DEFAULT_TICK_SIZE);
-  const bucketized = bucketizeVolumeDetailed(bucketSource, edges, config.volumeSplit ?? "upDown");
-  if (bucketized.totalVolume <= 0)
-    return emptyProfile(false, null, null);
-  const valueArea = computeValueArea(bucketized.rows, config.valueAreaPct, bucketized.pocIdx);
-  const valueAreaMask = new Float64Array(bucketized.rows.length);
-  const lo = Math.min(valueArea.vahIdx, valueArea.valIdx);
-  const hi = Math.max(valueArea.vahIdx, valueArea.valIdx);
-  for (let i = 0; i < valueAreaMask.length; i += 1)
-    valueAreaMask[i] = i >= lo && i <= hi ? 1 : 0;
-  const base = {
-    buckets: bucketized.buckets,
-    costStatus,
-    poc: valueArea.poc,
-    rows: bucketized.rows,
-    valHigh: valueArea.valHigh,
-    valLow: valueArea.valLow,
-    valueAreaMask
-  };
-  if (args.computeDeveloping === true) {
-    return {
-      ...base,
-      developing: computeDevelopingSeries({
-        config,
-        finerBars,
-        laneBars,
-        windowFromIdx: fromIdx,
-        windowToIdx: toIdx
-      })
-    };
-  }
-  return base;
-}
-function emptyProfile(heavy, reason, recommendedRowSize) {
-  return {
-    buckets: [],
-    costStatus: { heavy, reason, recommendedRowSize },
-    poc: Number.NaN,
-    rows: [],
-    valHigh: Number.NaN,
-    valLow: Number.NaN,
-    valueAreaMask: new Float64Array(0)
-  };
-}
-function sliceBarsByTime(bars, timeFromMs, timeToMs) {
-  if (bars.length === 0)
-    return bars;
-  const start = lowerBoundTime2(bars, timeFromMs);
-  const end = upperBoundTime(bars, timeToMs);
-  if (start >= end)
-    return [];
-  return bars.slice(start, end);
-}
-function lowerBoundTime2(bars, target) {
-  let lo = 0;
-  let hi = bars.length;
-  while (lo < hi) {
-    const mid = lo + hi >>> 1;
-    if (bars[mid].time < target)
-      lo = mid + 1;
-    else
-      hi = mid;
-  }
-  return lo;
-}
-function upperBoundTime(bars, target) {
-  let lo = 0;
-  let hi = bars.length;
-  while (lo < hi) {
-    const mid = lo + hi >>> 1;
-    if (bars[mid].time <= target)
-      lo = mid + 1;
-    else
-      hi = mid;
-  }
-  return lo;
-}
+// ../core/dist/interval/intervalToSeconds.js
+var MULTIPLIERS = Object.freeze({
+  s: 1,
+  "": 60,
+  m: 60,
+  H: 3600,
+  h: 3600,
+  D: 86400,
+  W: 604800,
+  M: 2592e3,
+  Y: 31536e3
+});
 
 // ../core/dist/input/input.js
 var input = Object.freeze({
@@ -2156,6 +1363,18 @@ var request = Object.freeze({
    */
   security(_opts) {
     return sentinel2("request.security");
+  },
+  /**
+   * Read lower-timeframe bars contained by each main-stream bar.
+   *
+   * @since 0.6
+   * @stable
+   * @example
+   *     const fn: typeof request.lowerTf = request.lowerTf;
+   *     void fn;
+   */
+  lowerTf(_opts) {
+    return sentinel2("request.lowerTf");
   }
 });
 
@@ -2571,6 +1790,7 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "state.tick.bool", slot: true },
   { name: "state.tick.string", slot: true },
   { name: "request.security", slot: true },
+  { name: "request.lowerTf", slot: true },
   { name: "defineAlertCondition.signal", slot: false },
   { name: "runtime.log", slot: false },
   { name: "runtime.error", slot: false }
@@ -4499,7 +3719,7 @@ var OUTSIDE_CTX_MESSAGE2 = "draw called outside an active script step";
 function mergeState(prev, patch) {
   return { ...prev, ...patch, kind: prev.kind };
 }
-function emit2(ctx, handleId, kind, op, state2) {
+function emit(ctx, handleId, kind, op, state2) {
   pushDrawing(ctx, {
     kind: "drawing",
     handleId,
@@ -4528,7 +3748,7 @@ function createDrawingHandle(slotId, subId, kind, initialState) {
     slot = existing;
     op = "update";
   }
-  emit2(ctx, handleId, kind, op, slot.state);
+  emit(ctx, handleId, kind, op, slot.state);
   return {
     id: handleId,
     update(patch) {
@@ -4539,7 +3759,7 @@ function createDrawingHandle(slotId, subId, kind, initialState) {
       if (s === void 0 || s.removed)
         return;
       s.state = mergeState(s.state, patch);
-      emit2(liveCtx, handleId, kind, "update", s.state);
+      emit(liveCtx, handleId, kind, "update", s.state);
     },
     remove() {
       const liveCtx = ACTIVE_RUNTIME_CONTEXT.current;
@@ -4549,7 +3769,7 @@ function createDrawingHandle(slotId, subId, kind, initialState) {
       if (s === void 0 || s.removed)
         return;
       s.removed = true;
-      emit2(liveCtx, handleId, kind, "remove", s.state);
+      emit(liveCtx, handleId, kind, "remove", s.state);
     }
   };
 }
@@ -6119,6 +5339,903 @@ function plot2(arg1, arg2, arg3) {
     throw new Error(OUTSIDE_CTX_MESSAGE66);
   }
   plotImpl(ctx, arg1, arg2, arg3 ?? {});
+}
+
+// ../runtime/dist/execution/drain.js
+function drain(state2) {
+  const out = Object.freeze({
+    plots: state2.emissions.plots,
+    drawings: state2.emissions.drawings,
+    alerts: state2.emissions.alerts,
+    alertConditions: state2.emissions.alertConditions ?? [],
+    logs: state2.emissions.logs,
+    diagnostics: state2.emissions.diagnostics,
+    fromBar: state2.emissions.fromBar,
+    toBar: state2.emissions.toBar
+  });
+  state2.emissions.plots = [];
+  state2.emissions.drawings = [];
+  state2.emissions.alerts = [];
+  state2.emissions.alertConditions = [];
+  state2.emissions.logs = [];
+  state2.emissions.diagnostics = [];
+  return out;
+}
+
+// ../runtime/dist/execution/dispose.js
+function dispose(state2) {
+  flushStateSlots(state2.runtimeContext);
+  for (const buf of Object.values(state2.mainStream.ohlcv)) {
+    buf.reset();
+  }
+  for (const stream of state2.runtimeContext.secondaryStreams.values()) {
+    for (const buf of Object.values(stream.ohlcv)) {
+      buf.reset();
+    }
+    stream.taSlots.clear();
+  }
+  state2.mainStream.taSlots.clear();
+  state2.emissions.plots = [];
+  state2.emissions.drawings = [];
+  state2.emissions.alerts = [];
+  state2.emissions.diagnostics = [];
+  state2.runtimeContext.drawingSlots.clear();
+  state2.runtimeContext.drawingSubIdCounters.clear();
+  state2.runtimeContext.stateSlots.clear();
+  state2.runtimeContext.secondaryStreams.clear();
+  state2.runtimeContext.requestSecurityBars.clear();
+  state2.runtimeContext.requestSecurityAlignments.clear();
+  state2.runtimeContext.requestSecurityAscendingBars.clear();
+  state2.runtimeContext.requestLowerTfViews.clear();
+  state2.runtimeContext.diagnosedRequestKeys.clear();
+  state2.runtimeContext.diagnosedInputKeys.clear();
+  const counters = state2.runtimeContext.drawingBucketCounters;
+  counters.lines = 0;
+  counters.labels = 0;
+  counters.boxes = 0;
+  counters.polylines = 0;
+  counters.other = 0;
+}
+
+// ../runtime/dist/ta/adl.js
+function getCtx3() {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null) {
+    throw new Error("ta.adl called outside an active script step");
+  }
+  return ctx;
+}
+function initSlot(capacity) {
+  const outBuffer = new Float64RingBuffer(capacity);
+  return {
+    outBuffer,
+    series: makeSeriesView(outBuffer),
+    cumAdl: 0,
+    prevClosedCumAdl: 0
+  };
+}
+function mfvAt(close, high, low, volume) {
+  if (!Number.isFinite(close) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(volume)) {
+    return 0;
+  }
+  const range = high - low;
+  if (range === 0)
+    return 0;
+  const clv = (close - low - (high - close)) / range;
+  return clv * volume;
+}
+function adl(slotId, _opts) {
+  const ctx = getCtx3();
+  let slot = ctx.stream.taSlots.get(slotId);
+  if (slot === void 0) {
+    slot = initSlot(ctx.stream.ohlcv.close.capacity);
+    ctx.stream.taSlots.set(slotId, slot);
+  }
+  const { close, high, low, volume } = ctx.stream.bar;
+  const mfv = mfvAt(close, high, low, volume);
+  if (ctx.isTick) {
+    slot.outBuffer.replaceHead(slot.prevClosedCumAdl + mfv);
+    return slot.series;
+  }
+  slot.prevClosedCumAdl = slot.cumAdl;
+  slot.cumAdl += mfv;
+  slot.outBuffer.append(slot.cumAdl);
+  return slot.series;
+}
+
+// ../runtime/dist/ta/adr.js
+var DEFAULT_LENGTH = 14;
+var MS_PER_DAY = 864e5;
+function getCtx4() {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null) {
+    throw new Error("ta.adr called outside an active script step");
+  }
+  return ctx;
+}
+function initSlot2(length, capacity) {
+  const outBuffer = new Float64RingBuffer(capacity);
+  return {
+    outBuffer,
+    series: makeSeriesView(outBuffer),
+    length,
+    completedRanges: new Float64RingBuffer(length),
+    sumRanges: 0,
+    dailyHigh: Number.NaN,
+    dailyLow: Number.NaN,
+    currentDayKey: Number.NaN
+  };
+}
+function commitDay(slot) {
+  if (!Number.isFinite(slot.dailyHigh) || !Number.isFinite(slot.dailyLow))
+    return;
+  const range = slot.dailyHigh - slot.dailyLow;
+  if (slot.completedRanges.length === slot.length) {
+    slot.sumRanges -= slot.completedRanges.at(slot.length - 1);
+  }
+  slot.completedRanges.append(range);
+  slot.sumRanges += range;
+}
+function emit2(slot) {
+  if (slot.completedRanges.length < slot.length)
+    return Number.NaN;
+  return slot.sumRanges / slot.length;
+}
+function closeStep(slot, high, low, time) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(time)) {
+    return emit2(slot);
+  }
+  const dayKey = Math.floor(time / MS_PER_DAY);
+  if (Number.isNaN(slot.currentDayKey)) {
+    slot.currentDayKey = dayKey;
+    slot.dailyHigh = high;
+    slot.dailyLow = low;
+    return emit2(slot);
+  }
+  if (dayKey !== slot.currentDayKey) {
+    commitDay(slot);
+    slot.currentDayKey = dayKey;
+    slot.dailyHigh = high;
+    slot.dailyLow = low;
+    return emit2(slot);
+  }
+  if (high > slot.dailyHigh)
+    slot.dailyHigh = high;
+  if (low < slot.dailyLow)
+    slot.dailyLow = low;
+  return emit2(slot);
+}
+function adr(slotId, opts) {
+  const ctx = getCtx4();
+  let slot = ctx.stream.taSlots.get(slotId);
+  if (slot === void 0) {
+    const length = opts?.length ?? DEFAULT_LENGTH;
+    slot = initSlot2(length, ctx.stream.ohlcv.close.capacity);
+    ctx.stream.taSlots.set(slotId, slot);
+  }
+  const { high, low, time } = ctx.stream.bar;
+  if (ctx.isTick) {
+    slot.outBuffer.replaceHead(emit2(slot));
+  } else {
+    slot.outBuffer.append(closeStep(slot, high, low, time));
+  }
+  return slot.series;
+}
+
+// ../runtime/dist/ta/lib/wilderSmoothing.js
+function wilderStep(prev, sample, length) {
+  return (prev * (length - 1) + sample) / length;
+}
+
+// ../runtime/dist/ta/lib/directionalState.js
+function initDirectionalState(length) {
+  return {
+    length,
+    barCount: 0,
+    prevHigh: Number.NaN,
+    prevLow: Number.NaN,
+    prevClose: Number.NaN,
+    prevPrevHigh: Number.NaN,
+    prevPrevLow: Number.NaN,
+    prevPrevClose: Number.NaN,
+    seedPlusDm: 0,
+    seedMinusDm: 0,
+    seedTr: 0,
+    smoothedPlusDm: Number.NaN,
+    smoothedMinusDm: Number.NaN,
+    smoothedTr: Number.NaN,
+    prevClosedSmoothedPlusDm: Number.NaN,
+    prevClosedSmoothedMinusDm: Number.NaN,
+    prevClosedSmoothedTr: Number.NaN,
+    plusDi: Number.NaN,
+    minusDi: Number.NaN
+  };
+}
+function trueRange(high, low, prevClose) {
+  if (!Number.isFinite(prevClose))
+    return high - low;
+  return Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+}
+function rawDirectionalMovement(high, low, prevHigh, prevLow) {
+  const upMove = high - prevHigh;
+  const downMove = prevLow - low;
+  const pDm = upMove > downMove && upMove > 0 ? upMove : 0;
+  const mDm = downMove > upMove && downMove > 0 ? downMove : 0;
+  return { pDm, mDm };
+}
+function advanceDirectionalClose(dirState, high, low, close) {
+  const { length } = dirState;
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+    return { plusDi: dirState.plusDi, minusDi: dirState.minusDi };
+  }
+  dirState.barCount += 1;
+  if (dirState.barCount === 1) {
+    dirState.prevPrevHigh = dirState.prevHigh;
+    dirState.prevPrevLow = dirState.prevLow;
+    dirState.prevPrevClose = dirState.prevClose;
+    dirState.prevHigh = high;
+    dirState.prevLow = low;
+    dirState.prevClose = close;
+    dirState.seedTr += high - low;
+    return { plusDi: Number.NaN, minusDi: Number.NaN };
+  }
+  const tr = trueRange(high, low, dirState.prevClose);
+  const { pDm, mDm } = rawDirectionalMovement(high, low, dirState.prevHigh, dirState.prevLow);
+  dirState.prevPrevHigh = dirState.prevHigh;
+  dirState.prevPrevLow = dirState.prevLow;
+  dirState.prevPrevClose = dirState.prevClose;
+  dirState.prevHigh = high;
+  dirState.prevLow = low;
+  dirState.prevClose = close;
+  if (dirState.barCount <= length) {
+    dirState.seedPlusDm += pDm;
+    dirState.seedMinusDm += mDm;
+    dirState.seedTr += tr;
+    return { plusDi: Number.NaN, minusDi: Number.NaN };
+  }
+  if (dirState.barCount === length + 1) {
+    dirState.prevClosedSmoothedPlusDm = dirState.seedPlusDm;
+    dirState.prevClosedSmoothedMinusDm = dirState.seedMinusDm;
+    dirState.prevClosedSmoothedTr = dirState.seedTr;
+    dirState.seedPlusDm += pDm;
+    dirState.seedMinusDm += mDm;
+    dirState.seedTr += tr;
+    dirState.smoothedPlusDm = dirState.seedPlusDm;
+    dirState.smoothedMinusDm = dirState.seedMinusDm;
+    dirState.smoothedTr = dirState.seedTr;
+    const tr0 = dirState.smoothedTr;
+    const plusDi2 = tr0 === 0 ? 0 : 100 * dirState.smoothedPlusDm / tr0;
+    const minusDi2 = tr0 === 0 ? 0 : 100 * dirState.smoothedMinusDm / tr0;
+    dirState.plusDi = plusDi2;
+    dirState.minusDi = minusDi2;
+    return { plusDi: plusDi2, minusDi: minusDi2 };
+  }
+  dirState.prevClosedSmoothedPlusDm = dirState.smoothedPlusDm;
+  dirState.prevClosedSmoothedMinusDm = dirState.smoothedMinusDm;
+  dirState.prevClosedSmoothedTr = dirState.smoothedTr;
+  dirState.smoothedPlusDm = wilderStep(dirState.smoothedPlusDm, pDm, length);
+  dirState.smoothedMinusDm = wilderStep(dirState.smoothedMinusDm, mDm, length);
+  dirState.smoothedTr = wilderStep(dirState.smoothedTr, tr, length);
+  const tr1 = dirState.smoothedTr;
+  const plusDi = tr1 === 0 ? 0 : 100 * dirState.smoothedPlusDm / tr1;
+  const minusDi = tr1 === 0 ? 0 : 100 * dirState.smoothedMinusDm / tr1;
+  dirState.plusDi = plusDi;
+  dirState.minusDi = minusDi;
+  return { plusDi, minusDi };
+}
+function tickDirectional(dirState, high, low, close) {
+  if (dirState.barCount < dirState.length + 1) {
+    return { plusDi: Number.NaN, minusDi: Number.NaN };
+  }
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+    return { plusDi: dirState.plusDi, minusDi: dirState.minusDi };
+  }
+  const tr = trueRange(high, low, dirState.prevPrevClose);
+  const { pDm, mDm } = rawDirectionalMovement(high, low, dirState.prevPrevHigh, dirState.prevPrevLow);
+  if (dirState.barCount === dirState.length + 1) {
+    const seedPlusDm = dirState.prevClosedSmoothedPlusDm + pDm;
+    const seedMinusDm = dirState.prevClosedSmoothedMinusDm + mDm;
+    const seedTr = dirState.prevClosedSmoothedTr + tr;
+    const plusDi2 = (
+      /* c8 ignore next */
+      seedTr === 0 ? 0 : 100 * seedPlusDm / seedTr
+    );
+    const minusDi2 = (
+      /* c8 ignore next */
+      seedTr === 0 ? 0 : 100 * seedMinusDm / seedTr
+    );
+    return { plusDi: plusDi2, minusDi: minusDi2 };
+  }
+  const plusDmSm = wilderStep(dirState.prevClosedSmoothedPlusDm, pDm, dirState.length);
+  const minusDmSm = wilderStep(dirState.prevClosedSmoothedMinusDm, mDm, dirState.length);
+  const trSm = wilderStep(dirState.prevClosedSmoothedTr, tr, dirState.length);
+  const plusDi = (
+    /* c8 ignore next */
+    trSm === 0 ? 0 : 100 * plusDmSm / trSm
+  );
+  const minusDi = (
+    /* c8 ignore next */
+    trSm === 0 ? 0 : 100 * minusDmSm / trSm
+  );
+  return { plusDi, minusDi };
+}
+
+// ../runtime/dist/ta/adx.js
+var DEFAULT_SMOOTHING = 14;
+function getCtx5() {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null) {
+    throw new Error("ta.adx called outside an active script step");
+  }
+  return ctx;
+}
+function initSlot3(length, smoothingLength, capacity) {
+  const outBuffer = new Float64RingBuffer(capacity);
+  return {
+    outBuffer,
+    series: makeSeriesView(outBuffer),
+    smoothingLength,
+    dirState: initDirectionalState(length),
+    dxSeed: 0,
+    dxSeedCount: 0,
+    adx: Number.NaN,
+    prevClosedAdx: Number.NaN,
+    prevClosedDxSeed: 0,
+    prevClosedDxSeedCount: 0,
+    shiftedViews: /* @__PURE__ */ new Map()
+  };
+}
+function viewForOffset(slot, offset) {
+  if (offset === 0)
+    return slot.series;
+  let view = slot.shiftedViews.get(offset);
+  if (view === void 0) {
+    view = makeShiftedSeriesView(slot.outBuffer, offset);
+    slot.shiftedViews.set(offset, view);
+  }
+  return view;
+}
+function dxFromDi(plusDi, minusDi) {
+  const sum = plusDi + minusDi;
+  if (sum === 0)
+    return 0;
+  return 100 * Math.abs(plusDi - minusDi) / sum;
+}
+function closeValue(slot, high, low, close) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+    return Number.isFinite(slot.adx) ? slot.adx : Number.NaN;
+  }
+  const { plusDi, minusDi } = advanceDirectionalClose(slot.dirState, high, low, close);
+  if (!Number.isFinite(plusDi) || !Number.isFinite(minusDi)) {
+    slot.prevClosedAdx = slot.adx;
+    slot.prevClosedDxSeed = slot.dxSeed;
+    slot.prevClosedDxSeedCount = slot.dxSeedCount;
+    return Number.NaN;
+  }
+  const dx = dxFromDi(plusDi, minusDi);
+  slot.prevClosedAdx = slot.adx;
+  slot.prevClosedDxSeed = slot.dxSeed;
+  slot.prevClosedDxSeedCount = slot.dxSeedCount;
+  if (slot.dxSeedCount < slot.smoothingLength) {
+    slot.dxSeed += dx;
+    slot.dxSeedCount += 1;
+    if (slot.dxSeedCount === slot.smoothingLength) {
+      slot.adx = slot.dxSeed / slot.smoothingLength;
+      return slot.adx;
+    }
+    return Number.NaN;
+  }
+  slot.adx = wilderStep(slot.adx, dx, slot.smoothingLength);
+  return slot.adx;
+}
+function tickValue(slot, high, low, close) {
+  const { plusDi, minusDi } = tickDirectional(slot.dirState, high, low, close);
+  if (!Number.isFinite(plusDi) || !Number.isFinite(minusDi)) {
+    return (
+      /* c8 ignore next */
+      Number.isFinite(slot.adx) ? slot.adx : Number.NaN
+    );
+  }
+  const dx = dxFromDi(plusDi, minusDi);
+  if (slot.prevClosedDxSeedCount < slot.smoothingLength) {
+    const provisionalCount = slot.prevClosedDxSeedCount + 1;
+    if (provisionalCount < slot.smoothingLength)
+      return Number.NaN;
+    return (slot.prevClosedDxSeed + dx) / slot.smoothingLength;
+  }
+  return wilderStep(slot.prevClosedAdx, dx, slot.smoothingLength);
+}
+function adx(slotId, length, opts) {
+  const ctx = getCtx5();
+  const smoothingLength = opts?.smoothing ?? DEFAULT_SMOOTHING;
+  let slot = ctx.stream.taSlots.get(slotId);
+  if (slot === void 0) {
+    slot = initSlot3(length, smoothingLength, ctx.stream.ohlcv.close.capacity);
+    ctx.stream.taSlots.set(slotId, slot);
+  }
+  const bar = ctx.stream.bar;
+  if (ctx.isTick) {
+    slot.outBuffer.replaceHead(tickValue(slot, bar.high, bar.low, bar.close));
+  } else {
+    slot.outBuffer.append(closeValue(slot, bar.high, bar.low, bar.close));
+  }
+  return viewForOffset(slot, opts?.offset ?? 0);
+}
+
+// ../runtime/dist/ta/lib/sourceValue.js
+function readSourceValue(source) {
+  if (typeof source === "number")
+    return source;
+  return source.current;
+}
+
+// ../runtime/dist/ta/alma.js
+var DEFAULT_OFFSET = 0.85;
+var DEFAULT_SIGMA = 6;
+function getCtx6() {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null) {
+    throw new Error("ta.alma called outside an active script step");
+  }
+  return ctx;
+}
+function initSlot4(length, offsetCentre, sigma, capacity) {
+  const outBuffer = new Float64RingBuffer(capacity);
+  const m = offsetCentre * (length - 1);
+  const s = length / sigma;
+  const weights = new Float64Array(length);
+  let normaliser = 0;
+  for (let j = 0; j < length; j += 1) {
+    const d = j - m;
+    const w = Math.exp(-(d * d) / (2 * s * s));
+    weights[j] = w;
+    normaliser += w;
+  }
+  return {
+    outBuffer,
+    series: makeSeriesView(outBuffer),
+    length,
+    sourceWindow: new Float64RingBuffer(length),
+    weights,
+    normaliser
+  };
+}
+function weightedFromWindow(slot, headOverride) {
+  let sum = 0;
+  for (let j = 0; j < slot.length; j += 1) {
+    const ageFromHead = slot.length - 1 - j;
+    const v = ageFromHead === 0 && headOverride !== void 0 ? headOverride : slot.sourceWindow.at(ageFromHead);
+    if (!Number.isFinite(v))
+      return Number.NaN;
+    sum += v * slot.weights[j];
+  }
+  return sum / slot.normaliser;
+}
+function closeValue2(slot, src) {
+  slot.sourceWindow.append(src);
+  if (slot.sourceWindow.length < slot.length)
+    return Number.NaN;
+  return weightedFromWindow(slot);
+}
+function tickValue2(slot, src) {
+  if (slot.sourceWindow.length < slot.length)
+    return Number.NaN;
+  if (!Number.isFinite(src))
+    return Number.NaN;
+  return weightedFromWindow(slot, src);
+}
+function alma(slotId, source, length, opts) {
+  const ctx = getCtx6();
+  let slot = ctx.stream.taSlots.get(slotId);
+  if (slot === void 0) {
+    slot = initSlot4(length, opts?.offset ?? DEFAULT_OFFSET, opts?.sigma ?? DEFAULT_SIGMA, ctx.stream.ohlcv.close.capacity);
+    ctx.stream.taSlots.set(slotId, slot);
+  }
+  const src = readSourceValue(source);
+  if (ctx.isTick) {
+    slot.outBuffer.replaceHead(tickValue2(slot, src));
+  } else {
+    slot.outBuffer.append(closeValue2(slot, src));
+  }
+  return slot.series;
+}
+
+// ../runtime/dist/ta/lib/volume-profile/bucketEdges.js
+function buildBucketEdges(priceMin, priceMax, rowsLayout, rowSize, tickSize) {
+  if (!Number.isFinite(priceMin) || !Number.isFinite(priceMax) || rowSize <= 0) {
+    return new Float64Array([priceMin, priceMin]);
+  }
+  if (priceMax <= priceMin)
+    return new Float64Array([priceMin, priceMin]);
+  if (rowsLayout === "ticksPerRow") {
+    const bucketWidth = rowSize * tickSize;
+    if (bucketWidth <= 0)
+      return new Float64Array([priceMin, priceMin]);
+    const startEdge = Math.floor(priceMin / bucketWidth) * bucketWidth;
+    const endEdge = Math.ceil(priceMax / bucketWidth) * bucketWidth;
+    const count2 = Math.max(1, Math.round((endEdge - startEdge) / bucketWidth));
+    const edges2 = new Float64Array(count2 + 1);
+    for (let i = 0; i <= count2; i += 1)
+      edges2[i] = startEdge + i * bucketWidth;
+    return edges2;
+  }
+  const count = Math.max(1, Math.floor(rowSize));
+  const width = (priceMax - priceMin) / count;
+  const edges = new Float64Array(count + 1);
+  for (let i = 0; i <= count; i += 1)
+    edges[i] = priceMin + i * width;
+  return edges;
+}
+
+// ../runtime/dist/ta/lib/volume-profile/bucketizeVolume.js
+function bucketizeVolumeDetailed(bars, bucketEdges, volumeSplit) {
+  const bucketCount = bucketEdges.length - 1;
+  if (bucketCount <= 0)
+    return { buckets: [], pocIdx: -1, rows: [], totalVolume: 0 };
+  const upPerBucket = new Float64Array(bucketCount);
+  const downPerBucket = new Float64Array(bucketCount);
+  for (const bar of bars) {
+    const vol2 = Number.isFinite(bar.volume) ? bar.volume : 0;
+    if (vol2 <= 0)
+      continue;
+    const low = bar.low;
+    const high = bar.high;
+    if (!Number.isFinite(low) || !Number.isFinite(high))
+      continue;
+    if (!Number.isFinite(bar.open) || !Number.isFinite(bar.close))
+      continue;
+    if (high <= low)
+      continue;
+    const span = high - low;
+    const isUp = bar.close >= bar.open;
+    for (let b = 0; b < bucketCount; b += 1) {
+      const edgeLow = bucketEdges[b];
+      const edgeHigh = bucketEdges[b + 1];
+      if (edgeHigh <= low)
+        continue;
+      if (edgeLow >= high)
+        break;
+      const overlap = Math.min(edgeHigh, high) - Math.max(edgeLow, low);
+      if (overlap <= 0)
+        continue;
+      const share = vol2 * overlap / span;
+      if (isUp)
+        upPerBucket[b] += share;
+      else
+        downPerBucket[b] += share;
+    }
+  }
+  const rows = new Array(bucketCount);
+  const buckets = new Array(bucketCount);
+  let totalVolume = 0;
+  let pocIdx = -1;
+  let pocVolume = -1;
+  for (let b = 0; b < bucketCount; b += 1) {
+    const rawUp = upPerBucket[b];
+    const rawDown = downPerBucket[b];
+    const split = splitVolume(rawUp, rawDown, volumeSplit);
+    const low = bucketEdges[b];
+    const high = bucketEdges[b + 1];
+    const mid = (low + high) / 2;
+    rows[b] = {
+      downVolume: split.downVolume,
+      high,
+      low,
+      mid,
+      upVolume: split.upVolume,
+      volume: split.volume
+    };
+    buckets[b] = { price: mid, volume: split.volume };
+    totalVolume += split.volume;
+    if (split.volume > pocVolume) {
+      pocVolume = split.volume;
+      pocIdx = b;
+    }
+  }
+  return { buckets, pocIdx, rows, totalVolume };
+}
+function splitVolume(rawUp, rawDown, volumeSplit) {
+  switch (volumeSplit) {
+    case "total": {
+      const volume = rawUp + rawDown;
+      return { downVolume: 0, upVolume: volume, volume };
+    }
+    case "delta": {
+      const upVolume = Math.max(0, rawUp - rawDown);
+      const downVolume = Math.max(0, rawDown - rawUp);
+      return { downVolume, upVolume, volume: upVolume + downVolume };
+    }
+    case "upDown":
+      return { downVolume: rawDown, upVolume: rawUp, volume: rawUp + rawDown };
+  }
+}
+
+// ../runtime/dist/ta/lib/volume-profile/types.js
+var DEFAULT_TICK_SIZE = 0.01;
+
+// ../runtime/dist/ta/lib/volume-profile/valueArea.js
+function computeValueArea(rows, valueAreaPct = 70, pocIdx = findPocIndex(rows)) {
+  if (rows.length === 0 || pocIdx < 0 || pocIdx >= rows.length) {
+    return {
+      cumulativeVolume: 0,
+      poc: Number.NaN,
+      pocIdx,
+      vahIdx: pocIdx,
+      valHigh: Number.NaN,
+      valIdx: pocIdx,
+      valLow: Number.NaN
+    };
+  }
+  const totalVolume = rows.reduce((sum, row) => sum + row.volume, 0);
+  const targetPct = Math.max(0, Math.min(100, valueAreaPct));
+  const target = totalVolume * (targetPct / 100);
+  let lowIdx = pocIdx;
+  let highIdx = pocIdx;
+  let cumulative = rows[pocIdx].volume;
+  while (cumulative < target && (lowIdx > 0 || highIdx + 1 < rows.length)) {
+    const aboveAvailable = highIdx + 1 < rows.length;
+    const belowAvailable = lowIdx - 1 >= 0;
+    let aboveSum = 0;
+    if (aboveAvailable) {
+      aboveSum = rows[highIdx + 1].volume;
+      if (highIdx + 2 < rows.length)
+        aboveSum += rows[highIdx + 2].volume;
+    }
+    let belowSum = 0;
+    if (belowAvailable) {
+      belowSum = rows[lowIdx - 1].volume;
+      if (lowIdx - 2 >= 0)
+        belowSum += rows[lowIdx - 2].volume;
+    }
+    if (aboveAvailable && (!belowAvailable || aboveSum >= belowSum)) {
+      const takeTwo = highIdx + 2 < rows.length;
+      cumulative += rows[highIdx + 1].volume;
+      highIdx += 1;
+      if (takeTwo && cumulative < target) {
+        cumulative += rows[highIdx + 1].volume;
+        highIdx += 1;
+      }
+    } else {
+      const takeTwo = lowIdx - 2 >= 0;
+      cumulative += rows[lowIdx - 1].volume;
+      lowIdx -= 1;
+      if (takeTwo && cumulative < target) {
+        cumulative += rows[lowIdx - 1].volume;
+        lowIdx -= 1;
+      }
+    }
+  }
+  return {
+    cumulativeVolume: cumulative,
+    poc: rows[pocIdx].mid,
+    pocIdx,
+    vahIdx: highIdx,
+    valHigh: rows[highIdx].high,
+    valIdx: lowIdx,
+    valLow: rows[lowIdx].low
+  };
+}
+function findPocIndex(rows) {
+  let pocIdx = -1;
+  let pocVolume = -1;
+  for (let i = 0; i < rows.length; i += 1) {
+    if (rows[i].volume > pocVolume) {
+      pocIdx = i;
+      pocVolume = rows[i].volume;
+    }
+  }
+  return pocIdx;
+}
+
+// ../runtime/dist/ta/lib/volume-profile/developingSeries.js
+var WARMUP_BARS = 30;
+function computeDevelopingSeries(args) {
+  const { laneBars, finerBars, windowFromIdx, windowToIdx, config } = args;
+  const laneCount = laneBars.length;
+  const developingPoc = new Float64Array(laneCount);
+  const developingVahHigh = new Float64Array(laneCount);
+  const developingVahLow = new Float64Array(laneCount);
+  developingPoc.fill(Number.NaN);
+  developingVahHigh.fill(Number.NaN);
+  developingVahLow.fill(Number.NaN);
+  if (laneCount === 0)
+    return { developingPoc, developingVahHigh, developingVahLow };
+  const fromIdx = Math.max(0, Math.min(laneCount - 1, windowFromIdx));
+  const toIdx = Math.max(fromIdx, Math.min(laneCount - 1, windowToIdx));
+  const source = finerBars.length > 0 ? finerBars : laneBars;
+  const sourceStart = lowerBoundTime(source, laneBars[fromIdx].time);
+  let sourceEnd = sourceStart;
+  for (let i = fromIdx; i <= toIdx; i += 1) {
+    while (sourceEnd < source.length && source[sourceEnd].time <= laneBars[i].time)
+      sourceEnd += 1;
+    const slice = source.slice(sourceStart, sourceEnd);
+    if (slice.length <= WARMUP_BARS)
+      continue;
+    const { priceMax, priceMin } = derivePriceRange(slice);
+    const edges = buildBucketEdges(priceMin, priceMax, config.rowsLayout ?? "numberOfRows", config.rowSize, config.tickSize ?? DEFAULT_TICK_SIZE);
+    const bucketized = bucketizeVolumeDetailed(slice, edges, config.volumeSplit ?? "upDown");
+    if (bucketized.totalVolume <= 0)
+      continue;
+    const valueArea = computeValueArea(bucketized.rows, config.valueAreaPct, bucketized.pocIdx);
+    developingPoc[i] = valueArea.poc;
+    developingVahHigh[i] = valueArea.valHigh;
+    developingVahLow[i] = valueArea.valLow;
+  }
+  return { developingPoc, developingVahHigh, developingVahLow };
+}
+function lowerBoundTime(bars, target) {
+  let lo = 0;
+  let hi = bars.length;
+  while (lo < hi) {
+    const mid = lo + hi >>> 1;
+    if (bars[mid].time < target)
+      lo = mid + 1;
+    else
+      hi = mid;
+  }
+  return lo;
+}
+function derivePriceRange(bars) {
+  let priceMin = Number.POSITIVE_INFINITY;
+  let priceMax = Number.NEGATIVE_INFINITY;
+  for (const bar of bars) {
+    if (!Number.isFinite(bar.low) || !Number.isFinite(bar.high))
+      continue;
+    if (bar.low < priceMin)
+      priceMin = bar.low;
+    if (bar.high > priceMax)
+      priceMax = bar.high;
+  }
+  if (priceMin === Number.POSITIVE_INFINITY)
+    return { priceMax: 0, priceMin: 0 };
+  return { priceMax, priceMin };
+}
+
+// ../runtime/dist/ta/lib/volume-profile/tooHeavy.js
+var VOLUME_PROFILE_HEAVY_THRESHOLD = 5e4;
+var VOLUME_PROFILE_MAX_BUCKETS = 2e3;
+function assessVolumeProfileCost(args) {
+  if (args.finerCandleCount > VOLUME_PROFILE_HEAVY_THRESHOLD) {
+    return { heavy: true, reason: "too-many-finer-bars", recommendedRowSize: null };
+  }
+  const maxBuckets = args.maxBuckets ?? VOLUME_PROFILE_MAX_BUCKETS;
+  const estimate = estimateBucketCount(args);
+  if (estimate.kind === "estimated" && estimate.bucketCount > maxBuckets) {
+    return {
+      heavy: true,
+      reason: "too-many-buckets",
+      recommendedRowSize: args.rowsLayout === "ticksPerRow" ? Math.ceil((estimate.priceMax - estimate.priceMin) / (maxBuckets * estimate.tickSize)) : Math.max(1, maxBuckets)
+    };
+  }
+  return { heavy: false, reason: null, recommendedRowSize: null };
+}
+function estimateBucketCount(args) {
+  const { priceMax, priceMin, rowSize } = args;
+  if (rowSize === void 0 || priceMin === void 0 || priceMax === void 0 || !Number.isFinite(priceMin) || !Number.isFinite(priceMax) || rowSize <= 0 || priceMax <= priceMin) {
+    return { bucketCount: 0, kind: "invalid" };
+  }
+  const tickSize = args.tickSize ?? 0.01;
+  if (args.rowsLayout === "ticksPerRow") {
+    const width = rowSize * tickSize;
+    return width > 0 ? {
+      bucketCount: Math.ceil((priceMax - priceMin) / width),
+      kind: "estimated",
+      priceMax,
+      priceMin,
+      rowSize,
+      tickSize
+    } : { bucketCount: 0, kind: "invalid" };
+  }
+  return {
+    bucketCount: Math.floor(rowSize),
+    kind: "estimated",
+    priceMax,
+    priceMin,
+    rowSize,
+    tickSize
+  };
+}
+
+// ../runtime/dist/ta/lib/volume-profile/volumeProfileShared.js
+function computeProfile(args) {
+  const { laneBars, config } = args;
+  const finerBars = args.finerBars ?? [];
+  if (laneBars.length === 0)
+    return emptyProfile(false, null, null);
+  const fromIdx = Math.max(0, Math.min(laneBars.length - 1, args.windowFromIdx));
+  const toIdx = Math.max(fromIdx, Math.min(laneBars.length - 1, args.windowToIdx));
+  const laneSlice = laneBars.slice(fromIdx, toIdx + 1);
+  const finerSlice = sliceBarsByTime(finerBars, laneSlice[0].time, laneSlice[laneSlice.length - 1].time);
+  const bucketSource = finerSlice.length > 0 ? finerSlice : laneSlice;
+  const range = derivePriceRange(bucketSource);
+  const costStatus = assessVolumeProfileCost({
+    finerCandleCount: finerSlice.length,
+    priceMax: range.priceMax,
+    priceMin: range.priceMin,
+    rowSize: config.rowSize,
+    rowsLayout: config.rowsLayout ?? "numberOfRows",
+    tickSize: config.tickSize ?? DEFAULT_TICK_SIZE
+  });
+  if (costStatus.heavy)
+    return emptyProfile(costStatus.heavy, costStatus.reason, costStatus.recommendedRowSize);
+  if (range.priceMax <= range.priceMin)
+    return emptyProfile(false, null, null);
+  const edges = buildBucketEdges(range.priceMin, range.priceMax, config.rowsLayout ?? "numberOfRows", config.rowSize, config.tickSize ?? DEFAULT_TICK_SIZE);
+  const bucketized = bucketizeVolumeDetailed(bucketSource, edges, config.volumeSplit ?? "upDown");
+  if (bucketized.totalVolume <= 0)
+    return emptyProfile(false, null, null);
+  const valueArea = computeValueArea(bucketized.rows, config.valueAreaPct, bucketized.pocIdx);
+  const valueAreaMask = new Float64Array(bucketized.rows.length);
+  const lo = Math.min(valueArea.vahIdx, valueArea.valIdx);
+  const hi = Math.max(valueArea.vahIdx, valueArea.valIdx);
+  for (let i = 0; i < valueAreaMask.length; i += 1)
+    valueAreaMask[i] = i >= lo && i <= hi ? 1 : 0;
+  const base = {
+    buckets: bucketized.buckets,
+    costStatus,
+    poc: valueArea.poc,
+    rows: bucketized.rows,
+    valHigh: valueArea.valHigh,
+    valLow: valueArea.valLow,
+    valueAreaMask
+  };
+  if (args.computeDeveloping === true) {
+    return {
+      ...base,
+      developing: computeDevelopingSeries({
+        config,
+        finerBars,
+        laneBars,
+        windowFromIdx: fromIdx,
+        windowToIdx: toIdx
+      })
+    };
+  }
+  return base;
+}
+function emptyProfile(heavy, reason, recommendedRowSize) {
+  return {
+    buckets: [],
+    costStatus: { heavy, reason, recommendedRowSize },
+    poc: Number.NaN,
+    rows: [],
+    valHigh: Number.NaN,
+    valLow: Number.NaN,
+    valueAreaMask: new Float64Array(0)
+  };
+}
+function sliceBarsByTime(bars, timeFromMs, timeToMs) {
+  if (bars.length === 0)
+    return bars;
+  const start = lowerBoundTime2(bars, timeFromMs);
+  const end = upperBoundTime(bars, timeToMs);
+  if (start >= end)
+    return [];
+  return bars.slice(start, end);
+}
+function lowerBoundTime2(bars, target) {
+  let lo = 0;
+  let hi = bars.length;
+  while (lo < hi) {
+    const mid = lo + hi >>> 1;
+    if (bars[mid].time < target)
+      lo = mid + 1;
+    else
+      hi = mid;
+  }
+  return lo;
+}
+function upperBoundTime(bars, target) {
+  let lo = 0;
+  let hi = bars.length;
+  while (lo < hi) {
+    const mid = lo + hi >>> 1;
+    if (bars[mid].time <= target)
+      lo = mid + 1;
+    else
+      hi = mid;
+  }
+  return lo;
 }
 
 // ../runtime/dist/ta/lib/volume-profile/scaffold.js
@@ -14406,8 +14523,8 @@ function resolveMainStreamSnapshot(snapshot6, mainInterval) {
   const direct = mainInterval === "" ? void 0 : snapshot6.streams[mainInterval];
   if (direct !== void 0)
     return direct;
-  const fallback = firstStreamKey(snapshot6);
-  return fallback === null ? void 0 : snapshot6.streams[fallback];
+  const fallback2 = firstStreamKey(snapshot6);
+  return fallback2 === null ? void 0 : snapshot6.streams[fallback2];
 }
 function restoreStateSnapshot(state2, snapshot6) {
   const stream = resolveMainStreamSnapshot(snapshot6, state2.mainStream.bar.interval);
@@ -14473,8 +14590,8 @@ async function maybeSaveStateSnapshot(state2, savedAt, intervalMs) {
 // ../runtime/dist/createScriptRunner.js
 function resolveCapacity(manifest) {
   const requested = manifest.seriesCapacities.ohlcv;
-  const fallback = manifest.maxLookback + 1;
-  return Math.max(1, requested ?? fallback);
+  const fallback2 = manifest.maxLookback + 1;
+  return Math.max(1, requested ?? fallback2);
 }
 function createSecondaryStreams(manifest, capacity) {
   const streams = /* @__PURE__ */ new Map();
@@ -14582,6 +14699,7 @@ function createScriptRunner(args) {
       requestSecurityBars: /* @__PURE__ */ new Map(),
       requestSecurityAlignments: /* @__PURE__ */ new Map(),
       requestSecurityAscendingBars: /* @__PURE__ */ new Map(),
+      requestLowerTfViews: /* @__PURE__ */ new Map(),
       diagnosedRequestKeys: /* @__PURE__ */ new Set(),
       alertConditions,
       diagnosedAlertConditionKeys: /* @__PURE__ */ new Set(),

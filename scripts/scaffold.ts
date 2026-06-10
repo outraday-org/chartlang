@@ -76,6 +76,18 @@ const DOCS_LINKS: Record<string, string> = {
     "examples/canvas2d-adapter": "docs/adapters/writing-an-adapter.md",
 };
 
+// Per-package subpath exports appended after the "." entry. The scaffold is
+// idempotent, so these only materialise on regeneration — but the map keeps
+// scaffold.ts the source of truth for every package.json exports shape.
+const SUBPATH_EXPORTS: Record<string, Record<string, { types: string; import: string }>> = {
+    "packages/core": {
+        "./time": {
+            types: "./dist/time/index.d.ts",
+            import: "./dist/time/index.js",
+        },
+    },
+};
+
 const MIT_HEADER =
     "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n" +
     "// See the LICENSE file in the repo root for full license text.\n";
@@ -138,6 +150,7 @@ function pkgJson(dir: string, name: string, description: string): string {
                 types: "./dist/index.d.ts",
                 import: "./dist/index.js",
             },
+            ...SUBPATH_EXPORTS[dir],
         },
         files: ["dist", "README.md", "CHANGELOG.md"],
         scripts: {

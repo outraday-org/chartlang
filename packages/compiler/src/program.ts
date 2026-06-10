@@ -35,6 +35,12 @@ declare module "@invinite-org/chartlang-core" {
     export type LineStyle = "solid" | "dashed" | "dotted";
     export type AlertSeverity = "info" | "warning" | "critical";
     export type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditions";
+    export type IntervalDescriptor = Readonly<{
+        readonly value: string;
+        readonly label: string;
+        readonly group: string;
+        readonly intervalSeconds?: number;
+    }>;
     export type ValueFormat = "price" | "volume" | "percent" | "compact";
     export type ScaleAxis = "price" | "left" | "right" | "new";
     export type DrawingCounts = {
@@ -883,6 +889,7 @@ declare module "@invinite-org/chartlang-core" {
     };
     export const timeframe: TimeframeView;
     export type RequestSecurityOpts = Readonly<{ interval: string }>;
+    export type RequestLowerTfOpts = Readonly<{ interval: string }>;
     export type SecurityBar = Readonly<{
         readonly time: Series<Time>;
         readonly open: Series<Price>;
@@ -899,8 +906,10 @@ declare module "@invinite-org/chartlang-core" {
     }>;
     export type RequestNamespace = Readonly<{
         security(opts: RequestSecurityOpts): SecurityBar;
+        lowerTf(opts: RequestLowerTfOpts): Series<ReadonlyArray<Bar>>;
     }>;
     export const request: RequestNamespace;
+    export function intervalToSeconds(d: IntervalDescriptor): number;
     export type ScriptManifest = {
         readonly apiVersion: 1;
         readonly kind: "indicator" | "drawing" | "alert" | "alertCondition";
@@ -1029,6 +1038,22 @@ declare module "@invinite-org/chartlang-core" {
     export type StatefulPrimitiveEntry = Readonly<{ name: string; slot: boolean }>;
     export const STATEFUL_PRIMITIVES: ReadonlySet<StatefulPrimitiveEntry>;
     export const STATEFUL_PRIMITIVES_BY_NAME: ReadonlyMap<string, StatefulPrimitiveEntry>;
+}
+
+declare module "@invinite-org/chartlang-core/time" {
+    import type { Time } from "@invinite-org/chartlang-core";
+    export type SessionType = "regular" | "extended";
+    export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    export type SessionBounds = Readonly<{ startMs: number; endMs: number }>;
+    export const session: Readonly<{
+        regular(tz: string, t: Time): SessionBounds | null;
+        extended(tz: string, t: Time): SessionBounds | null;
+        isOpen(tz: string, t: Time, type: SessionType): boolean;
+    }>;
+    export function weekday(tz: string, t: Time): Weekday;
+    export function nyDayKey(t: Time): string;
+    export function nySessionBounds(t: Time): SessionBounds;
+    export function weekKey(tz: string, t: Time): string;
 }
 `;
 

@@ -11,6 +11,7 @@ export type { ExtractMaxLookbackResult } from "./extractMaxLookback";
 export { extractInputs } from "./extractInputs";
 export type { ExtractedDescriptor, ExtractInputsResult } from "./extractInputs";
 export { extractRequestedIntervals } from "./extractRequestedIntervals";
+export { validateLowerTfIntervals } from "./validateLowerTfIntervals";
 export { extractRequiresIntervals } from "./extractRequiresIntervals";
 export { extractAlertConditions } from "./extractAlertConditions";
 export type { ExtractAlertConditionsResult } from "./extractAlertConditions";

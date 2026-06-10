@@ -38,6 +38,9 @@ const PHASE_5_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: b
         { name: "runtime.error", slot: false },
     ] as const);
 
+const PHASE_6_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
+    Object.freeze([{ name: "request.lowerTf", slot: true }] as const);
+
 const PHASE_2_TA_CARDINALITY = PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length;
 const PHASE_4_STATEFUL_CARDINALITY = 163;
 
@@ -64,11 +67,13 @@ describe("Phase 2 surface", () => {
         );
     });
 
-    it("STATEFUL_PRIMITIVES keeps the Phase-4 baseline plus explicit Phase-5 entries", () => {
+    it("STATEFUL_PRIMITIVES keeps the Phase-4 baseline plus explicit Phase-5 and Phase-6 entries", () => {
         expect(STATEFUL_PRIMITIVES.size).toBe(
-            PHASE_4_STATEFUL_CARDINALITY + PHASE_5_STATEFUL_ADDITIONS.length,
+            PHASE_4_STATEFUL_CARDINALITY +
+                PHASE_5_STATEFUL_ADDITIONS.length +
+                PHASE_6_STATEFUL_ADDITIONS.length,
         );
-        for (const expected of PHASE_5_STATEFUL_ADDITIONS) {
+        for (const expected of [...PHASE_5_STATEFUL_ADDITIONS, ...PHASE_6_STATEFUL_ADDITIONS]) {
             expect(STATEFUL_PRIMITIVES).toContainEqual(expected);
         }
     });

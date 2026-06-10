@@ -52,6 +52,30 @@ describe("compile", () => {
         }
     });
 
+    it("throws CompileError for lower-tf-not-lower when declaredIntervals are supplied", async () => {
+        const source = `
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "ltf too high",
+    apiVersion: 1,
+    compute: () => {
+        request.lowerTf({ interval: "1D" });
+    },
+});
+`;
+        try {
+            await compile(source, {
+                apiVersion: 1,
+                sourcePath: "ltf.chart.ts",
+                declaredIntervals: [{ value: "1m", label: "1 minute", group: "minute" }],
+            });
+            expect.unreachable("compile should have thrown");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CompileError);
+            expect((err as CompileError).diagnostics[0]?.code).toBe("lower-tf-not-lower");
+        }
+    });
+
     it("throws CompileError for non-literal input defaults", async () => {
         const source = `
 import { defineIndicator, input } from "@invinite-org/chartlang-core";

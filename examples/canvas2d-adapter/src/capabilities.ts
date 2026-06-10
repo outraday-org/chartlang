@@ -11,6 +11,8 @@ import {
 } from "@invinite-org/chartlang-adapter-kit";
 
 const CANVAS2D_INTERVALS = [
+    { value: "15s", label: "15 seconds", group: "second" },
+    { value: "30s", label: "30 seconds", group: "second" },
     { value: "1m", label: "1 minute", group: "minute" },
     { value: "5m", label: "5 minutes", group: "minute" },
     { value: "15m", label: "15 minutes", group: "minute" },

@@ -186,6 +186,7 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "state.tick.bool", slot: true },
     { name: "state.tick.string", slot: true },
     { name: "request.security", slot: true },
+    { name: "request.lowerTf", slot: true },
     { name: "defineAlertCondition.signal", slot: false },
     { name: "runtime.log", slot: false },
     { name: "runtime.error", slot: false },
@@ -206,8 +207,7 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
  * in-loop diagnostic. Subsequent Phase-2 batch tasks (Tasks 6–28) each
  * append `slot: true` entries; Phase 3 appends 61 `draw.<camelKind>`
  * entries (all `slot: true`), and Phase 4 appends 8 `state.*` /
- * `state.tick.*` entries plus `request.security` — cardinality grows
- * to 163. Phase 5 appends alert-condition signalling plus runtime
+ * `state.tick.*` entries plus request primitives. Phase 5 appends alert-condition signalling plus runtime
  * logging/error as stateless loop-diagnostic entries plus `draw.table`
  * as a slot-backed viewport drawing.
  *
