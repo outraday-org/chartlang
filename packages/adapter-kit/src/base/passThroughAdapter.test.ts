@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { PassThroughAdapter } from "./passThroughAdapter";
-import { capabilities } from "../capabilities";
-import { mockCandleSource } from "../mocks";
-import type { Capabilities, RunnerEmissions } from "../types";
+import { PassThroughAdapter } from "./passThroughAdapter.js";
+import { capabilities } from "../capabilities/index.js";
+import { mockCandleSource } from "../mocks/index.js";
+import type { Capabilities, RunnerEmissions } from "../types.js";
 
 const caps: Capabilities = {
     plots: capabilities.line(),

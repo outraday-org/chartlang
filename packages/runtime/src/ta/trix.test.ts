@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { computeEmaOfFloat64 } from "./lib/emaFloat64";
-import { trix } from "./trix";
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
+import { computeEmaOfFloat64 } from "./lib/emaFloat64.js";
+import { trix } from "./trix.js";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 function referenceTrix(
     closes: Float64Array,

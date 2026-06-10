@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { priceToY, timeToX, yToPrice, type Viewport } from "./coords";
+import { priceToY, timeToX, yToPrice, type Viewport } from "./coords.js";
 
 const viewport: Viewport = {
     xMin: 0,

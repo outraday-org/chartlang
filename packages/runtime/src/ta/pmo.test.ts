@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { pmo } from "./pmo";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { pmo } from "./pmo.js";
 
 describe("ta.pmo", () => {
     it("emits NaN for the warmup window (defaults 35/20/10)", () => {

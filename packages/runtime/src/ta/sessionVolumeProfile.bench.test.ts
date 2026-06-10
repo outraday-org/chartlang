@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { withPrefilledContext } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { sessionVolumeProfile } from "./sessionVolumeProfile";
+import { withPrefilledContext } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { sessionVolumeProfile } from "./sessionVolumeProfile.js";
 
 // THRESHOLD_MS — coverage smoke guard only. The dedicated
 // sessionVolumeProfile.bench.ts case is the benchmark harness for the

@@ -4,13 +4,13 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import type { ConformanceFailure, ConformanceReport, ScenarioResult } from "../runConformanceSuite";
+import type { ConformanceFailure, ConformanceReport, ScenarioResult } from "../runConformanceSuite.js";
 
 import {
     renderConformanceJson,
     renderConformanceMarkdown,
     type ConformanceReportMeta,
-} from "./renderReport";
+} from "./renderReport.js";
 
 const META: ConformanceReportMeta = {
     adapterName: "Canvas2D reference adapter",

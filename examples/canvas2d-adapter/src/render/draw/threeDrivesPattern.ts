@@ -9,10 +9,10 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { ThreeDrivesPatternState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
-import { renderNamedPolyline } from "./namedPolyline";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
+import { renderNamedPolyline } from "./namedPolyline.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 const LABELS: ReadonlyArray<string> = ["S", "D1", "R1", "D2", "R2", "D3", "E"];
 

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { type TableOpts, table } from "./table";
+import { type TableOpts, table } from "./table.js";
 
 describe("draw.table compile-time hole", () => {
     it("throws outside the compiled runtime", () => {

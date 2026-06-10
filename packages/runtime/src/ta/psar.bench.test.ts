@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { psar } from "./psar";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { psar } from "./psar.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. PSAR runs
 // O(1) per bar (closed-form recurrence with no scans); pair with

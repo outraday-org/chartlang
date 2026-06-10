@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { adl } from "./adl";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { adl } from "./adl.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.adl is a few arithmetic ops +
 // one accumulator update per bar — well under the 300 ms ceiling.

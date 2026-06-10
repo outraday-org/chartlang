@@ -4,7 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { Float64RingBuffer, RingBuffer, type RingBufferLike } from "./ringBuffer";
+import { Float64RingBuffer, RingBuffer, type RingBufferLike } from "./ringBuffer.js";
 
 describe("RingBuffer<T>", () => {
     it("starts empty", () => {

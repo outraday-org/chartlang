@@ -5,8 +5,8 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { bop } from "./bop";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { bop } from "./bop.js";
 
 // Each bar carries (open, close, half-range, dt) where the half-range
 // adds equally above max(open, close) and below min(open, close) so

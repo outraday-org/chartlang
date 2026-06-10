@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { EMA_CROSS } from "./__fixtures__/scripts";
-import { transformAndAnalyse } from "./api";
+import { EMA_CROSS } from "./__fixtures__/scripts.js";
+import { transformAndAnalyse } from "./api.js";
 
 describe("transformAndAnalyse — bench", () => {
     bench(

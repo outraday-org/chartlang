@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import { drawHorizontalHistogram } from "./horizontalHistogram";
-import type { Viewport } from "./coords";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawHorizontalHistogram } from "./horizontalHistogram.js";
+import type { Viewport } from "./coords.js";
 
 const VIEWPORT: Viewport = { xMin: 0, xMax: 1, yMin: 0, yMax: 100, pxWidth: 100, pxHeight: 100 };
 

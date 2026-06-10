@@ -22,8 +22,8 @@ import {
     type WorkerLike,
 } from "@invinite-org/chartlang-host-worker";
 
-import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities";
-import { DEFAULT_PALETTE, type Palette } from "./palette";
+import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities.js";
+import { DEFAULT_PALETTE, type Palette } from "./palette.js";
 import {
     clear,
     drawAlertBadge,
@@ -48,7 +48,7 @@ import {
     type PlotPoint,
     type RenderCtx,
     type Viewport,
-} from "./render";
+} from "./render/index.js";
 
 const DEFAULT_INTERVAL = "1D";
 const MAX_RECENT_ALERTS = 8;

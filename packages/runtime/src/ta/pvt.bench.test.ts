@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { pvt } from "./pvt";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { pvt } from "./pvt.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.pvt is one divide + multiply +
 // add per bar — well under the 300 ms ceiling over 10k bars.

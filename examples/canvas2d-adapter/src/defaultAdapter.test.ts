@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { CANVAS2D_CAPABILITIES } from "./capabilities";
-import { DEFAULT_ADAPTER } from "./defaultAdapter";
+import { CANVAS2D_CAPABILITIES } from "./capabilities.js";
+import { DEFAULT_ADAPTER } from "./defaultAdapter.js";
 
 describe("DEFAULT_ADAPTER", () => {
     it("exposes the canvas2d capability bag verbatim", () => {

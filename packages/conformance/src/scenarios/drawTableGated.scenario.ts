@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { type DrawingKind, capabilities } from "@invinite-org/chartlang-adapter-kit";
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 
 const INLINE_SOURCE = `import { defineIndicator } from "@invinite-org/chartlang-core";
 export default defineIndicator({

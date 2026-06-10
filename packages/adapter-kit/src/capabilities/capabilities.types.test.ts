@@ -5,8 +5,8 @@ import type { DrawingCounts, IntervalDescriptor } from "@invinite-org/chartlang-
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import type { SymInfoField } from "../types";
-import { capabilities } from "./capabilities";
+import type { SymInfoField } from "../types.js";
+import { capabilities } from "./capabilities.js";
 
 describe("capabilities Phase 4 builder types", () => {
     it("intervals(...) returns the typed intervals partial", () => {

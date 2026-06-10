@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { nyDayKey } from "./nyDayKey";
+import { nyDayKey } from "./nyDayKey.js";
 
 describe("nyDayKey", () => {
     it("uses the America/New_York day across UTC midnight", () => {

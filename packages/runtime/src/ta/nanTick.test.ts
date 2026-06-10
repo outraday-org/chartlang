@@ -10,19 +10,19 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { adx } from "./adx";
-import { chop } from "./chop";
-import { connorsRsi } from "./connorsRsi";
-import { coppock } from "./coppock";
-import { dmi } from "./dmi";
-import { historicalVolatility } from "./historicalVolatility";
-import { klinger } from "./klinger";
-import { netVolume } from "./netVolume";
-import { rvgi } from "./rvgi";
-import { trendStrengthIndex } from "./trendStrengthIndex";
-import { ultimateOsc } from "./ultimateOsc";
-import { harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
+import { adx } from "./adx.js";
+import { chop } from "./chop.js";
+import { connorsRsi } from "./connorsRsi.js";
+import { coppock } from "./coppock.js";
+import { dmi } from "./dmi.js";
+import { historicalVolatility } from "./historicalVolatility.js";
+import { klinger } from "./klinger.js";
+import { netVolume } from "./netVolume.js";
+import { rvgi } from "./rvgi.js";
+import { trendStrengthIndex } from "./trendStrengthIndex.js";
+import { ultimateOsc } from "./ultimateOsc.js";
+import { harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 function nanTickBar(bars: ReadonlyArray<Bar>, mutation: Partial<Bar>): Bar {
     return { ...bars[bars.length - 1], ...mutation };

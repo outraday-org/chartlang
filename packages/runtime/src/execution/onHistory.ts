@@ -3,8 +3,8 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import type { RunnerState } from "../createScriptRunner";
-import { onBarClose } from "./onBarClose";
+import type { RunnerState } from "../createScriptRunner.js";
+import { onBarClose } from "./onBarClose.js";
 
 /**
  * Bulk-fill warmup. Walks `bars` forward and runs `onBarClose` per

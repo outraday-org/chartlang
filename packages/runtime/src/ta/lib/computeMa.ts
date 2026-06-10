@@ -6,9 +6,9 @@
 // Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
 // provenance contract; the math is the reference, the code style is not.
 
-import { computeMaOfFloat64 } from "./computeMaOfFloat64";
-import type { MaType } from "./maTypes";
-import { vwmaFloat64 } from "./vwmaFloat64";
+import { computeMaOfFloat64 } from "./computeMaOfFloat64.js";
+import type { MaType } from "./maTypes.js";
+import { vwmaFloat64 } from "./vwmaFloat64.js";
 
 /**
  * Error thrown by {@link computeMa} when `kind === "vwma"` is called

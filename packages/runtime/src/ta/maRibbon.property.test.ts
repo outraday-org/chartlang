@@ -5,9 +5,9 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { computeMaOfFloat64 } from "./lib/computeMaOfFloat64";
-import { maRibbon, maRibbonOutputKeys } from "./maRibbon";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { computeMaOfFloat64 } from "./lib/computeMaOfFloat64.js";
+import { maRibbon, maRibbonOutputKeys } from "./maRibbon.js";
 
 const arbBar = fc
     .tuple(fc.double({ min: 1, max: 1000, noNaN: true }), fc.integer({ min: 0, max: 60_000 }))

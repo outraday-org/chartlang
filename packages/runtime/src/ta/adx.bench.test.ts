@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { adx } from "./adx";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { adx } from "./adx.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. ADX folds
 // the DMI recurrence + a second Wilder-step over DX; total work per

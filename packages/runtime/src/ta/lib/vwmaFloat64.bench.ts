@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { syntheticBars } from "../__fixtures__/syntheticBars";
-import { vwmaFloat64 } from "./vwmaFloat64";
+import { syntheticBars } from "../__fixtures__/syntheticBars.js";
+import { vwmaFloat64 } from "./vwmaFloat64.js";
 
 const BARS = syntheticBars(10_000, 1);
 const SOURCE = new Float64Array(BARS.map((b) => b.close));

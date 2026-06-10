@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { TA_REGISTRY, TA_REGISTRY_METADATA, ta } from "./registry";
+import { TA_REGISTRY, TA_REGISTRY_METADATA, ta } from "./registry.js";
 
 describe("TA_REGISTRY", () => {
     it("ships exactly 94 entries after the Phase 5 fixed range volume profile port", () => {

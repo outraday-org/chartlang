@@ -24,11 +24,11 @@
 
 import type { DpoOpts, Series } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
-import { sma } from "./sma";
-import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
+import { sma } from "./sma.js";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
 
 type DpoSlot = {
     readonly outBuffer: Float64RingBuffer;

@@ -18,12 +18,12 @@ import type {
     Series,
 } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { ema } from "./ema";
-import { sma } from "./sma";
-import { smma } from "./smma";
-import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
-import { wma } from "./wma";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { ema } from "./ema.js";
+import { sma } from "./sma.js";
+import { smma } from "./smma.js";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
+import { wma } from "./wma.js";
 
 const DEFAULT_LENGTHS: ReadonlyArray<number> = Object.freeze([10, 20, 30, 40, 50]);
 const DEFAULT_MA_TYPE: MaTypeNoVolume = "sma";

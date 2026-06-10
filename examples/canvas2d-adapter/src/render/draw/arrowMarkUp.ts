@@ -11,10 +11,10 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { ArrowMarkUpState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
-import { drawChevron } from "./chevron";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
+import { drawChevron } from "./chevron.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 const DEFAULT_COLOR = "#22c55e";
 

@@ -17,10 +17,10 @@
 
 import type { StochOpts, StochResult } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { highest } from "./highest";
-import { lowest } from "./lowest";
-import { sma } from "./sma";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { highest } from "./highest.js";
+import { lowest } from "./lowest.js";
+import { sma } from "./sma.js";
 
 const DEFAULT_K_LENGTH = 14;
 const DEFAULT_K_SMOOTHING = 3;

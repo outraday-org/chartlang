@@ -4,8 +4,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { fromGradient, hsl, rgb, withAlpha } from "./colorHelpers";
-import { parseColor } from "./parseColor";
+import { fromGradient, hsl, rgb, withAlpha } from "./colorHelpers.js";
+import { parseColor } from "./parseColor.js";
 
 const parseableColor = fc
     .tuple(

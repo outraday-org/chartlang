@@ -4,8 +4,8 @@
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { EMA_CROSS } from "./__fixtures__/scripts";
-import { transformAndAnalyse } from "./api";
+import { EMA_CROSS } from "./__fixtures__/scripts.js";
+import { transformAndAnalyse } from "./api.js";
 
 function printFile(file: ts.SourceFile): string {
     const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });

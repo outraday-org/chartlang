@@ -4,10 +4,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { ema } from "./ema";
-import { computeEmaOfFloat64 } from "./lib/emaFloat64";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { ema } from "./ema.js";
+import { computeEmaOfFloat64 } from "./lib/emaFloat64.js";
 
 describe("ta.ema — property invariants", () => {
     it("output length grows by 1 per close", () => {

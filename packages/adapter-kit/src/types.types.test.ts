@@ -12,8 +12,8 @@ import { describe, expect, it } from "vitest";
 
 import { bucketFor } from ".";
 import type { DrawingBucket } from ".";
-import type { defineAdapter } from "./defineAdapter";
-import type { mockCandleSource } from "./mocks";
+import type { defineAdapter } from "./defineAdapter.js";
+import type { mockCandleSource } from "./mocks/index.js";
 import type {
     Adapter,
     AdapterSymInfo,
@@ -31,7 +31,7 @@ import type {
     PlotStyle,
     RunnerEmissions,
     RuntimeDiagnostic,
-} from "./types";
+} from "./types.js";
 
 describe("type assertions", () => {
     it("Adapter.candles returns AsyncIterable<CandleEvent>", () => {

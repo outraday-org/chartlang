@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { hashStringStable } from "./hash";
+import { hashStringStable } from "./hash.js";
 
 describe("hashStringStable", () => {
     it("returns an 8-character lowercase hex string", () => {

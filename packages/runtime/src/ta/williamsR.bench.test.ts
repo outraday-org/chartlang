@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { williamsR } from "./williamsR";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { williamsR } from "./williamsR.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Composes
 // `ta.highest` + `ta.lowest` (both O(1) amortised); 10k bars run

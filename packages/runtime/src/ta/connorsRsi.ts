@@ -25,11 +25,11 @@
 
 import type { ConnorsRsiOpts, Series } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
-import { rsi } from "./rsi";
-import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
+import { rsi } from "./rsi.js";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
 
 const DEFAULT_RSI_LENGTH = 3;
 const DEFAULT_STREAK_LENGTH = 2;

@@ -3,8 +3,8 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import { harness } from "./runPrimitive";
-import { syntheticBars } from "./syntheticBars";
+import { harness } from "./runPrimitive.js";
+import { syntheticBars } from "./syntheticBars.js";
 
 /**
  * Drive `n` synthetic bars through `step`, returning a sink value the

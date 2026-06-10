@@ -4,7 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { nz } from "./nz";
+import { nz } from "./nz.js";
 
 describe("ta.nz — property invariants", () => {
     it("returns the value unchanged for any finite double", () => {

@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DRAWING_KINDS, KIND_CAMELCASE } from "./draw";
-import { STATEFUL_PRIMITIVES, STATEFUL_PRIMITIVES_BY_NAME } from "./statefulPrimitives";
+import { DRAWING_KINDS, KIND_CAMELCASE } from "./draw/index.js";
+import { STATEFUL_PRIMITIVES, STATEFUL_PRIMITIVES_BY_NAME } from "./statefulPrimitives.js";
 
 const EXPECTED_SLOT_TRUE = [
     "ta.sma",

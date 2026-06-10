@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createProgramForSource } from "../program";
-import { runStructuralChecks } from "./structuralChecks";
+import { createProgramForSource } from "../program.js";
+import { runStructuralChecks } from "./structuralChecks.js";
 
 const API_VERSION_2_MESSAGE =
     "`apiVersion: 2` is not supported — this compiler implements the frozen `apiVersion: 1` contract. Future language versions require a compiler that declares support for them.";

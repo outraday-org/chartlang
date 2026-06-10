@@ -3,7 +3,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { weekday } from "./weekday";
+import { weekday } from "./weekday.js";
 
 describe("weekday", () => {
     it("returns Sunday as 0 through Saturday as 6", () => {

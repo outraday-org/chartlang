@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { cci } from "./cci";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { cci } from "./cci.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. CCI's per-
 // close mean-abs-dev rescan is O(length); 10k × 20 ~ 200k operations

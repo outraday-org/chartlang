@@ -4,7 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { donchianMid } from "./donchianMid";
+import { donchianMid } from "./donchianMid.js";
 
 const arbPairs = fc.integer({ min: 10, max: 60 }).chain((n) =>
     fc.tuple(

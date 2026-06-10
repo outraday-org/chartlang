@@ -7,8 +7,8 @@ export {
     restoreStateSlots,
     resetTentativeStateSlots,
     serialiseStateSlots,
-} from "./lifecycle";
-export type { StateSlotSnapshot } from "./lifecycle";
-export { buildStateNamespace } from "./stateNamespace";
-export type { StateSlotSerialisers } from "./stateSlot";
-export { asMutableSlot, StateSlot } from "./stateSlot";
+} from "./lifecycle.js";
+export type { StateSlotSnapshot } from "./lifecycle.js";
+export { buildStateNamespace } from "./stateNamespace.js";
+export type { StateSlotSerialisers } from "./stateSlot.js";
+export { asMutableSlot, StateSlot } from "./stateSlot.js";

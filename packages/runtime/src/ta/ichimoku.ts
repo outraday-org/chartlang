@@ -16,11 +16,11 @@
 
 import type { IchimokuOpts, IchimokuResult } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
-import { highest } from "./highest";
-import { lowest } from "./lowest";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
+import { highest } from "./highest.js";
+import { lowest } from "./lowest.js";
 
 const DEFAULT_CONVERSION_LENGTH = 9;
 const DEFAULT_BASE_LENGTH = 26;

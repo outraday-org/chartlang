@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { RunnerState } from "../createScriptRunner";
-import { flushStateSlots } from "../state";
+import type { RunnerState } from "../createScriptRunner.js";
+import { flushStateSlots } from "../state/index.js";
 
 /**
  * Tear down the runner's buffers and state. After `dispose`:

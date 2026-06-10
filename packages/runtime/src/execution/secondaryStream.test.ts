@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createStreamState } from "../streamState";
-import { replaceSecondaryHead } from "./secondaryStream";
+import { createStreamState } from "../streamState.js";
+import { replaceSecondaryHead } from "./secondaryStream.js";
 
 describe("secondary stream helpers", () => {
     it("appends a bar when replacing the head of an empty stream", () => {

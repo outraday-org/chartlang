@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { RuntimeContext } from "../runtimeContext";
-import { pushDiagnostic } from "./emissionsQueue";
+import type { RuntimeContext } from "../runtimeContext.js";
+import { pushDiagnostic } from "./emissionsQueue.js";
 
 /**
  * Resolve the pane requested by a `plot()` call against the Phase-1

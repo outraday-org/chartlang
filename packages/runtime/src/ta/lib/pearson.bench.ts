@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { syntheticBars } from "../__fixtures__/syntheticBars";
-import { pearson } from "./pearson";
+import { syntheticBars } from "../__fixtures__/syntheticBars.js";
+import { pearson } from "./pearson.js";
 
 const N = 10_000;
 const { a, b } = (() => {

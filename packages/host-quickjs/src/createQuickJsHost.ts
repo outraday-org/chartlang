@@ -14,8 +14,8 @@ import type {
 import { validateEmission } from "@invinite-org/chartlang-adapter-kit";
 import { getQuickJS } from "quickjs-emscripten";
 
-import { DEFAULT_QUICKJS_LIMITS } from "./limits";
-import type { HostToQuickJs, QuickJsToHost } from "./protocol";
+import { DEFAULT_QUICKJS_LIMITS } from "./limits.js";
+import type { HostToQuickJs, QuickJsToHost } from "./protocol.js";
 import type {
     QuickJsContextLike,
     QuickJsHandleLike,
@@ -23,7 +23,7 @@ import type {
     QuickJsLike,
     QuickJsRuntimeLike,
     ScriptHost,
-} from "./types";
+} from "./types.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DISPATCHER_SOURCE = readFileSync(resolve(HERE, "../dist/dispatcher.js"), "utf8");

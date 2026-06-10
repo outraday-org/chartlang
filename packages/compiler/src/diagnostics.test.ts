@@ -4,7 +4,7 @@
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { createDiagnostic } from "./diagnostics";
+import { createDiagnostic } from "./diagnostics.js";
 
 function sourceFor(text: string): ts.SourceFile {
     return ts.createSourceFile("demo.chart.ts", text, ts.ScriptTarget.ES2022, true);

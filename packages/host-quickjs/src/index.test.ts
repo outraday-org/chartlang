@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import * as publicSurface from "./index";
+import * as publicSurface from "./index.js";
 
 describe("public surface", () => {
     it("exports the runtime values", () => {

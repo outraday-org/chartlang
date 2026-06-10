@@ -4,7 +4,7 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import type { InputDescriptor, IntDescriptor, SourceDescriptor } from "./inputDescriptor";
+import type { InputDescriptor, IntDescriptor, SourceDescriptor } from "./inputDescriptor.js";
 
 function narrowDescriptor(
     descriptor: InputDescriptor<unknown>,

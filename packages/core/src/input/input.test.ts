@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { input } from "./input";
+import { input } from "./input.js";
 
 describe("input builders", () => {
     it("builds a frozen int descriptor", () => {

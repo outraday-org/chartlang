@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { computeEmaOfFloat64 } from "./lib/emaFloat64";
-import { macd } from "./macd";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { computeEmaOfFloat64 } from "./lib/emaFloat64.js";
+import { macd } from "./macd.js";
 
 describe("ta.macd", () => {
     it("MACD line equals ema(src, fast) − ema(src, slow)", () => {

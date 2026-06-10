@@ -7,7 +7,7 @@ import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { bench, describe } from "vitest";
 
-import { createScriptRunner } from "../createScriptRunner";
+import { createScriptRunner } from "../createScriptRunner.js";
 
 const ITERATIONS = 10_000;
 

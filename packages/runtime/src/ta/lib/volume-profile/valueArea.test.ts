@@ -6,9 +6,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { GOLDEN_VALUE_AREA } from "./__fixtures__/volumeProfileFixtures";
-import type { VolumeProfileRow } from "./types";
-import { computeValueArea } from "./valueArea";
+import { GOLDEN_VALUE_AREA } from "./__fixtures__/volumeProfileFixtures.js";
+import type { VolumeProfileRow } from "./types.js";
+import { computeValueArea } from "./valueArea.js";
 
 function row(volume: number, idx: number): VolumeProfileRow {
     return { downVolume: 0, high: idx + 1, low: idx, mid: idx + 0.5, upVolume: volume, volume };

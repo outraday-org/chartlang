@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { CompileDiagnostic } from "../diagnostics";
-import { createProgramForSource } from "../program";
-import { extractRequiresIntervals } from "./extractRequiresIntervals";
+import type { CompileDiagnostic } from "../diagnostics.js";
+import { createProgramForSource } from "../program.js";
+import { extractRequiresIntervals } from "./extractRequiresIntervals.js";
 
 function run(source: string): Readonly<{
     intervals: ReadonlyArray<string>;

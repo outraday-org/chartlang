@@ -4,9 +4,9 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { pivotsStandard } from "./pivotsStandard";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { pivotsStandard } from "./pivotsStandard.js";
 
 const MS_PER_DAY = 86_400_000;
 

@@ -20,9 +20,9 @@
 
 import type { PivotsHighLowOpts, PivotsHighLowResult } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView } from "../seriesView.js";
 
 const DEFAULT_LEFT = 4;
 const DEFAULT_RIGHT = 4;

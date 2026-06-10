@@ -4,9 +4,9 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { tsi } from "./tsi";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { tsi } from "./tsi.js";
 
 describe("ta.tsi", () => {
     it("emits NaN through the warmup window (defaults 25/13/13)", () => {

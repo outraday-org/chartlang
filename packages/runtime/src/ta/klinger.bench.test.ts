@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { klinger } from "./klinger";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { klinger } from "./klinger.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Klinger
 // composes 3 EMA sub-slots + O(1) per-bar VF accumulator. Easily

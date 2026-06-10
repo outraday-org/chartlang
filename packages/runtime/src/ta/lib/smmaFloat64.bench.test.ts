@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { syntheticBars } from "../__fixtures__/syntheticBars";
-import { smmaFloat64 } from "./smmaFloat64";
+import { syntheticBars } from "../__fixtures__/syntheticBars.js";
+import { smmaFloat64 } from "./smmaFloat64.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. SMMA is a
 // single-pass recurrence; 10k bars take ~1ms on M2. Budget 300ms for

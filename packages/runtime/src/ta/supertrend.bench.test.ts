@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { supertrend } from "./supertrend";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { supertrend } from "./supertrend.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Supertrend
 // runs O(1) per bar plus a composed `ta.atr` (also O(1)); pair with

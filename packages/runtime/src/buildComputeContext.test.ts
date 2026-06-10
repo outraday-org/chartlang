@@ -6,12 +6,12 @@ import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { DRAWING_KINDS, KIND_CAMELCASE } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { buildComputeContext } from "./buildComputeContext";
-import type { RunnerState } from "./createScriptRunner";
-import type { MutableRunnerEmissions } from "./runtimeContext";
-import { inMemoryStateStore } from "./stateStore";
-import { createStreamState } from "./streamState";
-import { createRuntimeViews, makeBarStateView, makeSymInfoView, makeTimeframeView } from "./views";
+import { buildComputeContext } from "./buildComputeContext.js";
+import type { RunnerState } from "./createScriptRunner.js";
+import type { MutableRunnerEmissions } from "./runtimeContext.js";
+import { inMemoryStateStore } from "./stateStore.js";
+import { createStreamState } from "./streamState.js";
+import { createRuntimeViews, makeBarStateView, makeSymInfoView, makeTimeframeView } from "./views/index.js";
 
 function freshCapabilities(): Capabilities {
     return {

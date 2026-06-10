@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 
 // One `draw.rectangle(...)` call on the first bar against the bundled
 // 10 000-bar `goldenBars.json` fixture. Pricing is hardcoded so the

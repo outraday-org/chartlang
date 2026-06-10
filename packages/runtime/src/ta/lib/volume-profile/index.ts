@@ -4,16 +4,16 @@
 // Translated, not transcribed — ReadonlyArray<number> inputs, JSDoc, runtime.
 // See packages/runtime/src/ta/CLAUDE.md for the port convention.
 
-export { buildBucketEdges } from "./bucketEdges";
-export { bucketizeVolume, bucketizeVolumeDetailed } from "./bucketizeVolume";
-export { computeDevelopingSeries, derivePriceRange } from "./developingSeries";
-export { findInterceptIndex } from "./intercept";
+export { buildBucketEdges } from "./bucketEdges.js";
+export { bucketizeVolume, bucketizeVolumeDetailed } from "./bucketizeVolume.js";
+export { computeDevelopingSeries, derivePriceRange } from "./developingSeries.js";
+export { findInterceptIndex } from "./intercept.js";
 export {
     assessVolumeProfileCost,
     VOLUME_PROFILE_HEAVY_THRESHOLD,
     VOLUME_PROFILE_MAX_BUCKETS,
-} from "./tooHeavy";
-export { DEFAULT_TICK_SIZE } from "./types";
+} from "./tooHeavy.js";
+export { DEFAULT_TICK_SIZE } from "./types.js";
 export type {
     BucketizedVolume,
     DevelopingProfileSeries,
@@ -27,9 +27,9 @@ export type {
     VolumeProfileResult,
     VolumeProfileRow,
     VolumeSplit,
-} from "./types";
-export { computeValueArea } from "./valueArea";
-export { computeProfile, sliceBarsByTime } from "./volumeProfileShared";
+} from "./types.js";
+export { computeValueArea } from "./valueArea.js";
+export { computeProfile, sliceBarsByTime } from "./volumeProfileShared.js";
 export {
     commitVolumeProfileSnapshot,
     createVolumeProfileCore,
@@ -41,4 +41,4 @@ export {
     type VolumeProfileCore,
     type VolumeProfileSnapshot,
     volumeProfileConfigFromOpts,
-} from "./scaffold";
+} from "./scaffold.js";

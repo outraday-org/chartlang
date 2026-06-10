@@ -4,7 +4,7 @@
 // Translated, not transcribed — ReadonlyArray<number> inputs, JSDoc, runtime.
 // See packages/runtime/src/ta/CLAUDE.md for the port convention.
 
-import type { VolumeProfileBar } from "../types";
+import type { VolumeProfileBar } from "../types.js";
 
 export function bar(opts: {
     close: number;

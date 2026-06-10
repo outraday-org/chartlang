@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { MockCanvas2DContext } from "../../testing";
-import { drawArrowhead } from "./arrowhead";
+import { MockCanvas2DContext } from "../../testing.js";
+import { drawArrowhead } from "./arrowhead.js";
 
 describe("drawArrowhead", () => {
     it("issues beginPath + moveTo(to) + 2 lineTo + closePath + fill", () => {

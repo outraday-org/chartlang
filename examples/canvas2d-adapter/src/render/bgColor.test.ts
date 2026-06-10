@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { MockCanvas2DContext } from "../testing";
-import { drawBgColor } from "./bgColor";
-import type { Viewport } from "./coords";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawBgColor } from "./bgColor.js";
+import type { Viewport } from "./coords.js";
 
 const VIEWPORT: Viewport = { xMin: 0, xMax: 10, yMin: 0, yMax: 1, pxWidth: 100, pxHeight: 50 };
 

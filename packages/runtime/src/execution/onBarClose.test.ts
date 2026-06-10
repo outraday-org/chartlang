@@ -8,9 +8,9 @@ import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { createScriptRunner } from "../createScriptRunner";
-import type { RunnerState } from "../createScriptRunner";
-import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext";
+import { createScriptRunner } from "../createScriptRunner.js";
+import type { RunnerState } from "../createScriptRunner.js";
+import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext.js";
 
 function makeCapabilities(): Capabilities {
     return {

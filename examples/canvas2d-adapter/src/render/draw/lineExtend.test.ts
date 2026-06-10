@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Viewport } from "../coords";
-import { extendLineSegment } from "./lineExtend";
+import type { Viewport } from "../coords.js";
+import { extendLineSegment } from "./lineExtend.js";
 
 const VIEW: Viewport = {
     xMin: 0,

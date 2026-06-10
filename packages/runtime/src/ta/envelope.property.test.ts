@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { envelope } from "./envelope";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { envelope } from "./envelope.js";
 
 describe("ta.envelope — property invariants", () => {
     it("upper >= middle >= lower (when middle >= 0); upper <= middle <= lower (when middle < 0)", () => {

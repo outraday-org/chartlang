@@ -3,8 +3,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { input } from "../input";
-import { defineAlertCondition } from "./defineAlertCondition";
+import { input } from "../input/index.js";
+import { defineAlertCondition } from "./defineAlertCondition.js";
 
 describe("defineAlertCondition", () => {
     it("returns a frozen CompiledScriptObject with alert-condition manifest metadata", () => {

@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { stochRsi } from "./stochRsi";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { stochRsi } from "./stochRsi.js";
 
 describe("ta.stochRsi", () => {
     it("emits NaN through the warmup window (defaults 14, 14, 3, 3)", () => {

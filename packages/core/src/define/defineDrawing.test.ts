@@ -3,8 +3,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { input } from "../input";
-import { defineDrawing } from "./defineDrawing";
+import { input } from "../input/index.js";
+import { defineDrawing } from "./defineDrawing.js";
 
 describe("defineDrawing", () => {
     it("returns a frozen CompiledScriptObject with kind 'drawing'", () => {

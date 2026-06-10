@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { maRibbon } from "./maRibbon";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { maRibbon } from "./maRibbon.js";
 
 describe("ta.maRibbon — golden", () => {
     it("matches the pinned per-output hashes for 100 bars × default opts", () => {

@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { pvi } from "./pvi";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { pvi } from "./pvi.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.pvi is one compare + one
 // multiply per bar (when the predicate holds) — well under the 300 ms

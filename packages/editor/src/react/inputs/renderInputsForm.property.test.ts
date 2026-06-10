@@ -4,8 +4,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { inputsFormTestManifest } from "../../__fixtures__/inputsFormTestManifest";
-import { renderInputsForm } from "./renderInputsForm";
+import { inputsFormTestManifest } from "../../__fixtures__/inputsFormTestManifest.js";
+import { renderInputsForm } from "./renderInputsForm.js";
 
 describe("renderInputsForm property behavior", () => {
     it("round-trips field changes through a fresh immutable value record", () => {

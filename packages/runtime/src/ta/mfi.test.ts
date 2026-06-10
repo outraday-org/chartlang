@@ -4,9 +4,9 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { mfi } from "./mfi";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { mfi } from "./mfi.js";
 
 const mkBar = (high: number, low: number, close: number, volume: number, t = 0): Bar => ({
     time: 1_700_000_000_000 + t,

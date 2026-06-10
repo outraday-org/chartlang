@@ -8,7 +8,7 @@ import {
     type DirectionalState,
     initDirectionalState,
     tickDirectional,
-} from "./directionalState";
+} from "./directionalState.js";
 
 describe("initDirectionalState", () => {
     it("allocates a zero-/NaN-initialised record with the requested length", () => {

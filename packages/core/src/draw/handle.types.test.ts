@@ -4,8 +4,8 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import type { DrawingState } from "./drawingState";
-import type { DrawingHandle } from "./handle";
+import type { DrawingState } from "./drawingState.js";
+import type { DrawingHandle } from "./handle.js";
 
 describe("DrawingHandle", () => {
     it("exposes id, update(patch), remove() — and nothing else", () => {

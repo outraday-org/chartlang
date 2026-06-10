@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import { drawMarker } from "./marker";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawMarker } from "./marker.js";
 
 describe("drawMarker", () => {
     it("circle emits one arc + closePath + fill, centred on (x, y)", () => {

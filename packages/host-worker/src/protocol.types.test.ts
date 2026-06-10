@@ -10,8 +10,8 @@ import type {
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { HostToWorker, WorkerToHost } from "./protocol";
-import type { HostCompiledScript, HostLimits } from "./types";
+import type { HostToWorker, WorkerToHost } from "./protocol.js";
+import type { HostCompiledScript, HostLimits } from "./types.js";
 
 describe("HostToWorker", () => {
     it("is a discriminated union over `kind`", () => {

@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { lowest } from "./lowest";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { lowest } from "./lowest.js";
 
 describe("ta.lowest", () => {
     it("emits NaN until the window is filled", () => {

@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { ppo } from "./ppo";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { ppo } from "./ppo.js";
 
 /**
  * Golden hash pinned against a 100-bar Mulberry32(seed=42) synthetic

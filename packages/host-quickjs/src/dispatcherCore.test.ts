@@ -6,8 +6,8 @@ import type { Capabilities, RunnerEmissions } from "@invinite-org/chartlang-adap
 import type { CompiledScriptObject, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it, vi } from "vitest";
 
-import { createDispatcher, type DispatcherDeps } from "./dispatcherCore";
-import type { HostToQuickJs } from "./protocol";
+import { createDispatcher, type DispatcherDeps } from "./dispatcherCore.js";
+import type { HostToQuickJs } from "./protocol.js";
 
 function makeManifest(): ScriptManifest {
     return {

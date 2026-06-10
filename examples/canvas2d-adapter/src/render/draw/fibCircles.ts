@@ -9,10 +9,10 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { FibCirclesState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
-import { FIB_LEVELS, formatLevel } from "./fibLevels";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
+import { FIB_LEVELS, formatLevel } from "./fibLevels.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 const DEFAULT_COLOR = "#facc15";
 const DEFAULT_LINE_WIDTH = 1;

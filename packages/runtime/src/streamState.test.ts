@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createStreamState, updateFallbackViewport } from "./streamState";
+import { createStreamState, updateFallbackViewport } from "./streamState.js";
 
 describe("createStreamState", () => {
     it("constructs the full per-stream shape with the supplied symbol/interval", () => {

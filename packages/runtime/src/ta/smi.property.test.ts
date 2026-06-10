@@ -5,8 +5,8 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { smi } from "./smi";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { smi } from "./smi.js";
 
 const arbBar = fc
     .tuple(

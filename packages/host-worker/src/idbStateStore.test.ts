@@ -6,8 +6,8 @@ import "fake-indexeddb/auto";
 import type { StateSnapshot, StateStoreKey } from "@invinite-org/chartlang-core";
 import { afterEach, describe, expect, it } from "vitest";
 
-import * as idbEntry from "./idb";
-import { idbStateStore } from "./idbStateStore";
+import * as idbEntry from "./idb.js";
+import { idbStateStore } from "./idbStateStore.js";
 
 const originalIndexedDb = globalThis.indexedDB;
 

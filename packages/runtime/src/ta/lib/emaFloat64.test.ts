@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { computeEmaOfFloat64 } from "./emaFloat64";
+import { computeEmaOfFloat64 } from "./emaFloat64.js";
 
 describe("computeEmaOfFloat64", () => {
     it("returns an empty output for empty input", () => {

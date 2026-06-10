@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { bop } from "./bop";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { bop } from "./bop.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.bop is two subtracts + one divide
 // per bar — among the lightest primitives in the registry.

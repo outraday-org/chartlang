@@ -13,7 +13,7 @@ import {
     generateGoldenBars,
     serialiseGoldenBars,
     writeGoldenBars,
-} from "./generateGoldenBars";
+} from "./generateGoldenBars.js";
 
 const BAR_COUNT = 10_000;
 const SEGMENT = 2_500;

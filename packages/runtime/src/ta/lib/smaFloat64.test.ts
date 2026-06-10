@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { computeSmaOfFloat64 } from "./smaFloat64";
+import { computeSmaOfFloat64 } from "./smaFloat64.js";
 
 describe("computeSmaOfFloat64", () => {
     it("returns an all-NaN buffer for empty input", () => {

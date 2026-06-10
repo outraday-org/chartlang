@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { VOLUME_PROFILE_HEAVY_THRESHOLD, assessVolumeProfileCost } from "./tooHeavy";
+import { VOLUME_PROFILE_HEAVY_THRESHOLD, assessVolumeProfileCost } from "./tooHeavy.js";
 
 describe("assessVolumeProfileCost", () => {
     it("below the threshold returns heavy false", () => {

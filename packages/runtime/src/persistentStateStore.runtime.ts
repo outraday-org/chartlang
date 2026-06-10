@@ -3,11 +3,11 @@
 
 import type { StateSnapshot, StreamSnapshot } from "@invinite-org/chartlang-core";
 
-import type { RunnerState } from "./createScriptRunner";
-import { pushDiagnostic } from "./emit";
-import { validateSnapshot } from "./persistentStateStore.validate";
-import { restoreStateSlots, serialiseStateSlots } from "./state";
-import { isTaSlotSnapshotKey, restoreTaSlots, serialiseTaSlots } from "./ta/persistence";
+import type { RunnerState } from "./createScriptRunner.js";
+import { pushDiagnostic } from "./emit/index.js";
+import { validateSnapshot } from "./persistentStateStore.validate.js";
+import { restoreStateSlots, serialiseStateSlots } from "./state/index.js";
+import { isTaSlotSnapshotKey, restoreTaSlots, serialiseTaSlots } from "./ta/persistence.js";
 
 /**
  * Default PLAN §6.9 write cadence for persistent snapshots.

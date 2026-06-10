@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { computeSmaOfFloat64 } from "./lib/smaFloat64";
-import { sma } from "./sma";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { computeSmaOfFloat64 } from "./lib/smaFloat64.js";
+import { sma } from "./sma.js";
 
 describe("ta.sma", () => {
     it("matches computeSmaOfFloat64 over a 50-bar synthetic walk", () => {

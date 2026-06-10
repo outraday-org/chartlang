@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { cubicBezier, quadraticBezier, sampleCubic, sampleQuadratic, type Point2 } from "./bezier";
+import { cubicBezier, quadraticBezier, sampleCubic, sampleQuadratic, type Point2 } from "./bezier.js";
 
 const P0: Point2 = { x: 0, y: 0 };
 const P1: Point2 = { x: 1, y: 2 };

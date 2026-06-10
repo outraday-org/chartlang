@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { williamsFractal } from "./williamsFractal";
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
+import { williamsFractal } from "./williamsFractal.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 describe("ta.williamsFractal — golden", () => {
     it("matches the pinned hashes for 100 bars × default length=2", () => {

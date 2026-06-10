@@ -4,7 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { wilderDirectional } from "./wilderDirectional";
+import { wilderDirectional } from "./wilderDirectional.js";
 
 const arbCandles = fc
     .integer({ min: 20, max: 60 })

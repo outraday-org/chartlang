@@ -4,8 +4,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { computeSmaOfFloat64 } from "./smaFloat64";
-import { vwmaFloat64 } from "./vwmaFloat64";
+import { computeSmaOfFloat64 } from "./smaFloat64.js";
+import { vwmaFloat64 } from "./vwmaFloat64.js";
 
 const arbFinite = fc.double({ min: 1, max: 1000, noNaN: true });
 const arbPositiveVol = fc.double({ min: 1, max: 10_000, noNaN: true });

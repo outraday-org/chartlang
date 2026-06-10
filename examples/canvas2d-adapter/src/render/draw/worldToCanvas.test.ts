@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Viewport } from "../coords";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { Viewport } from "../coords.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 const VIEW: Viewport = {
     xMin: 1_700_000_000_000,

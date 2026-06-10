@@ -3,7 +3,7 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import { appendBarToStream, replaceStreamHead, type StreamState } from "../streamState";
+import { appendBarToStream, replaceStreamHead, type StreamState } from "../streamState.js";
 
 /**
  * Append a finalised candle to a secondary stream without running compute.

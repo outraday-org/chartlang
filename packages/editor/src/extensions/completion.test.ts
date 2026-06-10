@@ -6,8 +6,8 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "codemirror";
 import { describe, expect, it } from "vitest";
 
-import { completionExtension, completionStart } from "./completion";
-import { createTestLanguageService, waitFor } from "../__fixtures__/testHelpers";
+import { completionExtension, completionStart } from "./completion.js";
+import { createTestLanguageService, waitFor } from "../__fixtures__/testHelpers.js";
 
 describe("completionExtension", () => {
     it("resolves completion replacement offsets", () => {

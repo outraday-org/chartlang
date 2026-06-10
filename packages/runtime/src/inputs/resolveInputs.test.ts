@@ -5,11 +5,11 @@ import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { input, type ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import type { RuntimeContext } from "../runtimeContext";
-import { inMemoryStateStore } from "../stateStore";
-import { createStreamState } from "../streamState";
-import { createRuntimeViews } from "../views";
-import { resolveInputs } from "./resolveInputs";
+import type { RuntimeContext } from "../runtimeContext.js";
+import { inMemoryStateStore } from "../stateStore.js";
+import { createStreamState } from "../streamState.js";
+import { createRuntimeViews } from "../views/index.js";
+import { resolveInputs } from "./resolveInputs.js";
 
 function manifest(inputs: ScriptManifest["inputs"]): ScriptManifest {
     return {

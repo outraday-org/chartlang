@@ -4,7 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { inMemoryStateStore } from "./stateStore";
+import { inMemoryStateStore } from "./stateStore.js";
 
 describe("inMemoryStateStore", () => {
     it("returns undefined for unknown slots and false from has()", () => {

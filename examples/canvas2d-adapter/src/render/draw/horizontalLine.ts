@@ -9,9 +9,9 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { HorizontalLineState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import { priceToY, type Viewport } from "../coords";
-import { dashPattern } from "../lineDash";
+import type { RenderCtx } from "../clear.js";
+import { priceToY, type Viewport } from "../coords.js";
+import { dashPattern } from "../lineDash.js";
 
 const DEFAULT_COLOR = "#000000";
 const DEFAULT_LINE_WIDTH = 1;

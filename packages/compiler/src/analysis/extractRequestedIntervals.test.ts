@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { CompileDiagnostic } from "../diagnostics";
-import { createProgramForSource } from "../program";
-import { extractInputs } from "./extractInputs";
-import { extractRequestedIntervals } from "./extractRequestedIntervals";
+import type { CompileDiagnostic } from "../diagnostics.js";
+import { createProgramForSource } from "../program.js";
+import { extractInputs } from "./extractInputs.js";
+import { extractRequestedIntervals } from "./extractRequestedIntervals.js";
 
 function run(source: string): Readonly<{
     intervals: ReadonlyArray<string>;

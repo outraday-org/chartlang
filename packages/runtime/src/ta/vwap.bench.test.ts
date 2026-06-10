@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { vwap } from "./vwap";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { vwap } from "./vwap.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.vwap is one source read + one
 // accumulator update — well under the 300 ms ceiling.

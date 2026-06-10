@@ -6,7 +6,7 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import * as kernel from "./alignHtfSeriesToLtf";
+import * as kernel from "./alignHtfSeriesToLtf.js";
 
 type CacheEntry = {
     readonly htfLength: number;

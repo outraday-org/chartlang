@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { dmi } from "./dmi";
-import { wilderDirectional } from "./lib/wilderDirectional";
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
+import { dmi } from "./dmi.js";
+import { wilderDirectional } from "./lib/wilderDirectional.js";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 describe("ta.dmi", () => {
     it("matches the reference wilderDirectional output over 60 bars × length=14", () => {

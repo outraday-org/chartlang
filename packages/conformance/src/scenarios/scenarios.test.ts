@@ -7,7 +7,7 @@ import type { compile as CompileFn, CompiledScript } from "@invinite-org/chartla
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { runConformanceSuite, type Scenario, type ScenarioAssertion } from "../runConformanceSuite";
+import { runConformanceSuite, type Scenario, type ScenarioAssertion } from "../runConformanceSuite.js";
 import {
     ALL_SCENARIOS,
     BOLLINGER_BANDS_SCENARIO,
@@ -16,8 +16,8 @@ import {
     EMA_CROSS_SCENARIO,
     PLOT_KIND_COVERAGE_SCENARIO,
     RSI_DIVERGENCE_SCENARIO,
-} from "./index";
-import * as scenarioRegistry from "./index";
+} from "./index.js";
+import * as scenarioRegistry from "./index.js";
 
 const TEST_CAPABILITIES: Capabilities = {
     plots: capBuilders.union(capBuilders.line(), capBuilders.horizontalLine()),

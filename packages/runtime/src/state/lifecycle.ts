@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { RuntimeContext } from "../runtimeContext";
+import type { RuntimeContext } from "../runtimeContext.js";
 
 /**
  * Persisted representation for a runtime state slot. Keys use

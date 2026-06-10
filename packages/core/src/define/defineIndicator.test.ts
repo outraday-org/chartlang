@@ -3,8 +3,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { input } from "../input";
-import { defineIndicator } from "./defineIndicator";
+import { input } from "../input/index.js";
+import { defineIndicator } from "./defineIndicator.js";
 
 describe("defineIndicator", () => {
     it("returns a frozen CompiledScriptObject with default manifest fields", () => {

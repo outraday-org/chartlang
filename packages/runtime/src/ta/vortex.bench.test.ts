@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { vortex } from "./vortex";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { vortex } from "./vortex.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Vortex is
 // O(1) per close (rolling-sum windows) — same ballpark as ATR / DMI;

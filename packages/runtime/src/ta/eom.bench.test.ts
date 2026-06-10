@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { eom } from "./eom";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { eom } from "./eom.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.eom is one running-sum update +
 // nanCount adjustment per bar (no window re-walk) — well under the

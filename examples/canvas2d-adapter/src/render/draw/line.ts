@@ -11,11 +11,11 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { LineState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
-import { dashPattern } from "../lineDash";
-import { extendLineSegment } from "./lineExtend";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
+import { dashPattern } from "../lineDash.js";
+import { extendLineSegment } from "./lineExtend.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 const DEFAULT_COLOR = "#000000";
 const DEFAULT_LINE_WIDTH = 1;

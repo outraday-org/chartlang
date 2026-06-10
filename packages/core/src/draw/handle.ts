@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { DrawingState } from "./drawingState";
+import type { DrawingState } from "./drawingState.js";
 
 /**
  * Script-facing handle returned by every `draw.<kind>(...)` call. The

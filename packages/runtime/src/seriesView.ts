@@ -3,7 +3,7 @@
 
 import type { Series } from "@invinite-org/chartlang-core";
 
-import type { RingBufferLike } from "./ringBuffer";
+import type { RingBufferLike } from "./ringBuffer.js";
 
 /**
  * Wrap a `RingBufferLike<T>` in the user-facing `Series<T>` Proxy shape

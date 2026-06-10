@@ -4,8 +4,8 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getOrAlign } from "./alignHtfSeriesCache";
-import * as kernel from "./alignHtfSeriesToLtf";
+import { getOrAlign } from "./alignHtfSeriesCache.js";
+import * as kernel from "./alignHtfSeriesToLtf.js";
 
 function makeBar(time: number): Bar {
     return {

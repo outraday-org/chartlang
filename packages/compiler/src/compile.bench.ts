@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { EMA_CROSS } from "./__fixtures__/scripts";
-import { compile } from "./api";
+import { EMA_CROSS } from "./__fixtures__/scripts.js";
+import { compile } from "./api.js";
 
 describe("compile — bench", () => {
     bench("EMA-cross end-to-end compile", async () => {

@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createProgramForSource } from "../program";
-import { extractAlertConditions } from "./extractAlertConditions";
+import { createProgramForSource } from "../program.js";
+import { extractAlertConditions } from "./extractAlertConditions.js";
 
 function run(source: string) {
     const { sourceFile, checker } = createProgramForSource(source, {

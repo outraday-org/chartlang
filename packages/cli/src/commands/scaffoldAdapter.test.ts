@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { runScaffoldAdapter } from "./scaffoldAdapter";
+import { runScaffoldAdapter } from "./scaffoldAdapter.js";
 
 describe("runScaffoldAdapter", () => {
     let workspace: string;

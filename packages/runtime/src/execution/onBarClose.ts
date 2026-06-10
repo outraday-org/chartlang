@@ -3,14 +3,14 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import { buildComputeContext } from "../buildComputeContext";
-import type { RunnerState } from "../createScriptRunner";
-import { isRuntimeErrorHalt, pushDiagnostic } from "../emit";
-import { resetSubIdCounters } from "../emit/draw";
-import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext";
-import { commitStateSlots, flushStateSlots } from "../state";
-import { appendBarToStream, updateFallbackViewport } from "../streamState";
-import { type EventKind, refreshRuntimeViews } from "../views";
+import { buildComputeContext } from "../buildComputeContext.js";
+import type { RunnerState } from "../createScriptRunner.js";
+import { isRuntimeErrorHalt, pushDiagnostic } from "../emit/index.js";
+import { resetSubIdCounters } from "../emit/draw/index.js";
+import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext.js";
+import { commitStateSlots, flushStateSlots } from "../state/index.js";
+import { appendBarToStream, updateFallbackViewport } from "../streamState.js";
+import { type EventKind, refreshRuntimeViews } from "../views/index.js";
 
 /**
  * §6.7 main step. Appends every OHLCV ring buffer, mutates the runner's

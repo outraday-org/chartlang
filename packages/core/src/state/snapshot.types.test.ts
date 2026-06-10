@@ -4,8 +4,8 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import type { JsonValue } from "../types";
-import type { StateSnapshot, StateStoreKey, StreamSnapshot } from "./snapshot";
+import type { JsonValue } from "../types.js";
+import type { StateSnapshot, StateStoreKey, StreamSnapshot } from "./snapshot.js";
 
 const streamSnapshot: StreamSnapshot = {
     interval: "1D",

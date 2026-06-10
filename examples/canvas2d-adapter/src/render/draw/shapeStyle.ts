@@ -9,8 +9,8 @@
 
 import type { ShapeStyle } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import { dashPattern } from "../lineDash";
+import type { RenderCtx } from "../clear.js";
+import { dashPattern } from "../lineDash.js";
 
 const DEFAULT_STROKE = "#000000";
 const DEFAULT_LINE_WIDTH = 1;

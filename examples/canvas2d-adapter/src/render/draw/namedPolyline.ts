@@ -13,8 +13,8 @@
 
 import type { LineDrawStyle } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Point2 } from "./bezier";
+import type { RenderCtx } from "../clear.js";
+import type { Point2 } from "./bezier.js";
 
 const DEFAULT_COLOR = "#f59e0b";
 const DEFAULT_LINE_WIDTH = 1;

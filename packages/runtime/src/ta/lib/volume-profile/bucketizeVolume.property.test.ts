@@ -7,8 +7,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { bucketizeVolumeDetailed } from "./bucketizeVolume";
-import type { VolumeProfileBar } from "./types";
+import { bucketizeVolumeDetailed } from "./bucketizeVolume.js";
+import type { VolumeProfileBar } from "./types.js";
 
 const arbBars = fc
     .array(

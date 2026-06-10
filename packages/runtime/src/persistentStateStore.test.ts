@@ -4,7 +4,7 @@
 import type { StateSnapshot, StateStoreKey } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { inMemoryPersistentStateStore } from "./persistentStateStore";
+import { inMemoryPersistentStateStore } from "./persistentStateStore.js";
 
 const key: StateStoreKey = {
     scriptHash: "script",

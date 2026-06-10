@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Palette } from "../palette";
-import type { RenderCtx } from "./clear";
-import { priceToY, type HLine, type Viewport } from "./coords";
-import { dashPattern } from "./lineDash";
+import type { Palette } from "../palette.js";
+import type { RenderCtx } from "./clear.js";
+import { priceToY, type HLine, type Viewport } from "./coords.js";
+import { dashPattern } from "./lineDash.js";
 
 /**
  * Draw one horizontal line spanning the full canvas width at the

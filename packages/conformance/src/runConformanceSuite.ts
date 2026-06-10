@@ -22,7 +22,7 @@ import { compile as defaultCompile, type CompiledScript } from "@invinite-org/ch
 import type { Bar, CompiledScriptObject } from "@invinite-org/chartlang-core";
 import { createScriptRunner } from "@invinite-org/chartlang-runtime";
 
-import { GOLDEN_BARS_PATH, type GoldenBars } from "./fixtures/generateGoldenBars";
+import { GOLDEN_BARS_PATH, type GoldenBars } from "./fixtures/generateGoldenBars.js";
 
 /**
  * A single conformance scenario. The script source comes from
@@ -599,6 +599,6 @@ export async function runConformanceSuite(
 }
 
 async function loadBundledScenarios(): Promise<ReadonlyArray<Scenario>> {
-    const { ALL_SCENARIOS } = await import("./scenarios/index");
+    const { ALL_SCENARIOS } = await import("./scenarios/index.js");
     return ALL_SCENARIOS;
 }

@@ -1,5 +1,5 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-export { runtime } from "./runtime";
-export type { LogLevel, RuntimeNamespace } from "./runtime";
+export { runtime } from "./runtime.js";
+export type { LogLevel, RuntimeNamespace } from "./runtime.js";

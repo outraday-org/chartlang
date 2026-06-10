@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { chandelier } from "./chandelier";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { chandelier } from "./chandelier.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Chandelier
 // composes ATR + highest + lowest sub-slots (each O(1) per close);

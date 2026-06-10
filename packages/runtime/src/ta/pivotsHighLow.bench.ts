@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { pivotsHighLow } from "./pivotsHighLow";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { pivotsHighLow } from "./pivotsHighLow.js";
 
 describe("ta.pivotsHighLow hot loop", () => {
     bench(

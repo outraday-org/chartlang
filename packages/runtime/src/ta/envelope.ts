@@ -18,14 +18,14 @@ import type {
     Series,
 } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
-import { ema } from "./ema";
-import { sma } from "./sma";
-import { smma } from "./smma";
-import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
-import { wma } from "./wma";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView } from "../seriesView.js";
+import { ema } from "./ema.js";
+import { sma } from "./sma.js";
+import { smma } from "./smma.js";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
+import { wma } from "./wma.js";
 
 const DEFAULT_LENGTH = 20;
 const DEFAULT_PERCENT = 10;

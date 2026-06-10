@@ -4,9 +4,9 @@
 import type { Series } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { valuewhen } from "./valuewhen";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { valuewhen } from "./valuewhen.js";
 
 function boolSeries(value: boolean): Series<boolean> {
     return { current: value, length: 1 } as unknown as Series<boolean>;

@@ -4,9 +4,9 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { anchoredVwap } from "./anchoredVwap";
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
+import { anchoredVwap } from "./anchoredVwap.js";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 function flatBars(prices: ReadonlyArray<number>, volumes: ReadonlyArray<number>): Bar[] {
     const t0 = 1_700_000_000_000;

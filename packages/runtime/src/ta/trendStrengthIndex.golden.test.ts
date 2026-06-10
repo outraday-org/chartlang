@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { trendStrengthIndex } from "./trendStrengthIndex";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { trendStrengthIndex } from "./trendStrengthIndex.js";
 
 describe("ta.trendStrengthIndex — golden", () => {
     it("matches the pinned hash for 100 bars × length=20", () => {

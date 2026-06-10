@@ -3,14 +3,14 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import { buildComputeContext } from "../buildComputeContext";
-import type { RunnerState } from "../createScriptRunner";
-import { isRuntimeErrorHalt, pushDiagnostic } from "../emit";
-import { resetSubIdCounters } from "../emit/draw";
-import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext";
-import { resetTentativeStateSlots } from "../state";
-import { replaceTickHead, updateFallbackViewport } from "../streamState";
-import { refreshRuntimeViews } from "../views";
+import { buildComputeContext } from "../buildComputeContext.js";
+import type { RunnerState } from "../createScriptRunner.js";
+import { isRuntimeErrorHalt, pushDiagnostic } from "../emit/index.js";
+import { resetSubIdCounters } from "../emit/draw/index.js";
+import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext.js";
+import { resetTentativeStateSlots } from "../state/index.js";
+import { replaceTickHead, updateFallbackViewport } from "../streamState.js";
+import { refreshRuntimeViews } from "../views/index.js";
 
 /**
  * §6.7 tick path. Replaces the head slot on every close-side OHLCV

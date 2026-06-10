@@ -3,8 +3,8 @@
 
 import type { MutableSlot, StateNamespace } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { asMutableSlot, StateSlot } from "./stateSlot";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { asMutableSlot, StateSlot } from "./stateSlot.js";
 
 type StoredStateSlot<T> = {
     readonly committed: T;

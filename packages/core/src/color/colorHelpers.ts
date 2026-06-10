@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Color } from "../types";
-import { parseColor } from "./parseColor";
+import type { Color } from "../types.js";
+import { parseColor } from "./parseColor.js";
 
 /**
  * Gradient color stop for `color.fromGradient`.

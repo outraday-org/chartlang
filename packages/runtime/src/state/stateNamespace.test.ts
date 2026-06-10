@@ -10,11 +10,11 @@ import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
-} from "../runtimeContext";
-import { inMemoryStateStore, type StateStore } from "../stateStore";
-import { createStreamState } from "../streamState";
-import { commitStateSlots, flushStateSlots, resetTentativeStateSlots } from "./lifecycle";
-import { buildStateNamespace } from "./stateNamespace";
+} from "../runtimeContext.js";
+import { inMemoryStateStore, type StateStore } from "../stateStore.js";
+import { createStreamState } from "../streamState.js";
+import { commitStateSlots, flushStateSlots, resetTentativeStateSlots } from "./lifecycle.js";
+import { buildStateNamespace } from "./stateNamespace.js";
 
 type RuntimeStateNamespace = {
     readonly float: (slotId: string, init: number) => MutableSlot<number>;

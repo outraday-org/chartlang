@@ -4,7 +4,7 @@
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { emitTypes } from "./typesEmit";
+import { emitTypes } from "./typesEmit.js";
 
 const MANIFEST: ScriptManifest = Object.freeze({
     apiVersion: 1,

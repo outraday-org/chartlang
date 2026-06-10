@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 
 // Smoke scenario for Task 19 — emits ONE of every `DrawingKind` (61
 // total) in a single script on the first bar. Anchors are hardcoded

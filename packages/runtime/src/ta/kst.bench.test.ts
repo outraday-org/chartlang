@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { kst } from "./kst";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { kst } from "./kst.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. KST composes
 // 4 SMA sub-slots + 1 signal SMA over O(1) per-bar ROCs against a

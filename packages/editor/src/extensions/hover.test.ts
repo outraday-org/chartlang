@@ -6,8 +6,8 @@ import { activateHover } from "@codemirror/view";
 import { EditorView } from "codemirror";
 import { describe, expect, it } from "vitest";
 
-import { hoverExtension } from "./hover";
-import { createTestLanguageService, waitFor } from "../__fixtures__/testHelpers";
+import { hoverExtension } from "./hover.js";
+import { createTestLanguageService, waitFor } from "../__fixtures__/testHelpers.js";
 
 describe("hoverExtension", () => {
     it("renders hover docs with a title, summary, and params", async () => {

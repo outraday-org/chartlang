@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { cmo } from "./cmo";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { cmo } from "./cmo.js";
 
 describe("ta.cmo — golden", () => {
     it("matches the pinned hash for 100 bars × length=9", () => {

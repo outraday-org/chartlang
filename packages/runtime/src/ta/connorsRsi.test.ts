@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { connorsRsi } from "./connorsRsi";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { connorsRsi } from "./connorsRsi.js";
 
 describe("ta.connorsRsi", () => {
     it("emits values in [0, 100] (or NaN) after warmup", () => {

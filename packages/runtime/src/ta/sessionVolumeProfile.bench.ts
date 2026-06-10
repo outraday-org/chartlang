@@ -3,9 +3,9 @@
 
 import { bench, describe } from "vitest";
 
-import { withPrefilledContext } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { sessionVolumeProfile } from "./sessionVolumeProfile";
+import { withPrefilledContext } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { sessionVolumeProfile } from "./sessionVolumeProfile.js";
 
 const BARS = syntheticBars(5_000);
 const SESSION_START = BARS[4_000].time;

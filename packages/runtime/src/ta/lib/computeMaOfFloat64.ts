@@ -6,11 +6,11 @@
 // Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
 // provenance contract; the math is the reference, the code style is not.
 
-import { computeEmaOfFloat64 } from "./emaFloat64";
-import type { MaTypeNoVolume } from "./maTypes";
-import { computeSmaOfFloat64 } from "./smaFloat64";
-import { smmaFloat64 } from "./smmaFloat64";
-import { wmaFloat64 } from "./wmaFloat64";
+import { computeEmaOfFloat64 } from "./emaFloat64.js";
+import type { MaTypeNoVolume } from "./maTypes.js";
+import { computeSmaOfFloat64 } from "./smaFloat64.js";
+import { smmaFloat64 } from "./smmaFloat64.js";
+import { wmaFloat64 } from "./wmaFloat64.js";
 
 /**
  * Chained-MA dispatcher over a `Float64Array` input. Routes by

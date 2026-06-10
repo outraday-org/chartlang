@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
-import { MTF_DAILY_FIXTURE_BARS } from "./mtfFixtures";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
+import { MTF_DAILY_FIXTURE_BARS } from "./mtfFixtures.js";
 
 const INLINE_SOURCE = `import { defineIndicator } from "@invinite-org/chartlang-core";
 export default defineIndicator({

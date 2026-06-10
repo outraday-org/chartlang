@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { cmo } from "./cmo";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { cmo } from "./cmo.js";
 
 // THRESHOLD_MS — ceil(median × 3). cmo is two ring-buffer mutations
 // + two adds per bar.

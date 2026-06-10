@@ -5,9 +5,9 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { computeEmaOfFloat64 } from "./lib/emaFloat64";
-import { tema } from "./tema";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { computeEmaOfFloat64 } from "./lib/emaFloat64.js";
+import { tema } from "./tema.js";
 
 const arbBar = fc
     .tuple(fc.double({ min: 1, max: 1000, noNaN: true }), fc.integer({ min: 0, max: 60_000 }))

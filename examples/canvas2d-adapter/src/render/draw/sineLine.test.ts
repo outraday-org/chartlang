@@ -5,9 +5,9 @@ import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { SineLineState } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import type { Viewport } from "../coords";
-import { MockCanvas2DContext } from "../../testing";
-import { renderSineLine } from "./sineLine";
+import type { Viewport } from "../coords.js";
+import { MockCanvas2DContext } from "../../testing.js";
+import { renderSineLine } from "./sineLine.js";
 
 const VIEW: Viewport = {
     xMin: 0,

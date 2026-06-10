@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { computeMa } from "./computeMa";
-import { computeMaOfFloat64 } from "./computeMaOfFloat64";
-import type { MaType, MaTypeNoVolume } from "./maTypes";
-import { vwmaFloat64 } from "./vwmaFloat64";
+import { computeMa } from "./computeMa.js";
+import { computeMaOfFloat64 } from "./computeMaOfFloat64.js";
+import type { MaType, MaTypeNoVolume } from "./maTypes.js";
+import { vwmaFloat64 } from "./vwmaFloat64.js";
 
 const SOURCE = new Float64Array([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
 const VOLUME = new Float64Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);

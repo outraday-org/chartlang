@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { nz } from "./nz";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { nz } from "./nz.js";
 
 /**
  * Golden hash pinned against a 100-bar Mulberry32(seed=42) walk where

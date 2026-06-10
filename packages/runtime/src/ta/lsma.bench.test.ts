@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { lsma } from "./lsma";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { lsma } from "./lsma.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through the two-pass O(length) regression walk.

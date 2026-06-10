@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createProgramForSource } from "../program";
-import { runForbiddenConstructs } from "./forbiddenConstructs";
+import { createProgramForSource } from "../program.js";
+import { runForbiddenConstructs } from "./forbiddenConstructs.js";
 
 function run(source: string) {
     const { sourceFile } = createProgramForSource(source, {

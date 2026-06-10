@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import { drawArea } from "./area";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawArea } from "./area.js";
 
 const POINTS = [
     { x: 0, y: 50 },

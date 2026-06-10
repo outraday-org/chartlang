@@ -4,8 +4,8 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import type { Series } from "../types";
-import type { RequestNamespace, RequestSecurityOpts, SecurityBar } from "./request";
+import type { Series } from "../types.js";
+import type { RequestNamespace, RequestSecurityOpts, SecurityBar } from "./request.js";
 
 const numberSeries: Series<number> = { current: 0, length: 0 };
 const stringSeries: Series<string> = { current: "", length: 0 };

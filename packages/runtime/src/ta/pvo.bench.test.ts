@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { pvo } from "./pvo";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { pvo } from "./pvo.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.pvo composes three EMA
 // sub-slots over bar.volume; well under the 300 ms ceiling over 10k

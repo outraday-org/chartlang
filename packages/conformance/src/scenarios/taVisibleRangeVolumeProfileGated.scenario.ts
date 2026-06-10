@@ -3,7 +3,7 @@
 
 import type { PlotKind } from "@invinite-org/chartlang-adapter-kit";
 
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 
 const INLINE_SOURCE = `import { defineIndicator } from "@invinite-org/chartlang-core";
 export default defineIndicator({

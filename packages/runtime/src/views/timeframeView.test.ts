@@ -4,7 +4,7 @@
 import type { IntervalDescriptor } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { makeTimeframeView } from "./timeframeView";
+import { makeTimeframeView } from "./timeframeView.js";
 
 function descriptor(value: string, group: string): IntervalDescriptor {
     return { value, label: value, group };

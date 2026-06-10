@@ -4,7 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { wmaFloat64 } from "./wmaFloat64";
+import { wmaFloat64 } from "./wmaFloat64.js";
 
 const arbFinite = fc.double({ min: 1, max: 1000, noNaN: true });
 const arbLength = fc.integer({ min: 2, max: 12 });

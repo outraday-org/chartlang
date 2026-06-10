@@ -5,9 +5,9 @@ import type { Adapter, CandleEvent, Capabilities } from "@invinite-org/chartlang
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { runConformanceSuite } from "../runConformanceSuite";
-import { TA_SESSION_VOLUME_PROFILE_SCENARIO } from "./taSessionVolumeProfile.scenario";
-import { TA_SESSION_VOLUME_PROFILE_NO_SESSION_SCENARIO } from "./taSessionVolumeProfileNoSession.scenario";
+import { runConformanceSuite } from "../runConformanceSuite.js";
+import { TA_SESSION_VOLUME_PROFILE_SCENARIO } from "./taSessionVolumeProfile.scenario.js";
+import { TA_SESSION_VOLUME_PROFILE_NO_SESSION_SCENARIO } from "./taSessionVolumeProfileNoSession.scenario.js";
 
 const TEST_CAPABILITIES: Capabilities = {
     plots: capabilities.allPhase5Plots(),

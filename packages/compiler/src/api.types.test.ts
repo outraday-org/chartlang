@@ -16,8 +16,8 @@ import {
     compileFile,
     compileProject,
     transformAndAnalyse,
-} from "./api";
-import type { CompileDiagnostic, CompileDiagnosticCode } from "./diagnostics";
+} from "./api.js";
+import type { CompileDiagnostic, CompileDiagnosticCode } from "./diagnostics.js";
 
 describe("transformAndAnalyse — types", () => {
     it("accepts a source string + TransformAndAnalyseOptions", () => {

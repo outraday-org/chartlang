@@ -3,10 +3,10 @@
 
 import { createScriptRunner } from "@invinite-org/chartlang-runtime";
 
-import { filterEmissions } from "./filterEmissions";
-import { watchStep } from "./limits";
-import type { HostToWorker, WorkerToHost } from "./protocol";
-import type { CompiledModuleExport, HostLimits, ScriptRunnerHandle } from "./types";
+import { filterEmissions } from "./filterEmissions.js";
+import { watchStep } from "./limits.js";
+import type { HostToWorker, WorkerToHost } from "./protocol.js";
+import type { CompiledModuleExport, HostLimits, ScriptRunnerHandle } from "./types.js";
 
 /**
  * Duck-typed slice of the worker global scope the boot factory needs. Lets

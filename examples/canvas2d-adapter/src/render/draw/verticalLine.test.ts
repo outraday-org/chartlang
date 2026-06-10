@@ -5,9 +5,9 @@ import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { VerticalLineState } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { timeToX, type Viewport } from "../coords";
-import { MockCanvas2DContext } from "../../testing";
-import { renderVerticalLine } from "./verticalLine";
+import { timeToX, type Viewport } from "../coords.js";
+import { MockCanvas2DContext } from "../../testing.js";
+import { renderVerticalLine } from "./verticalLine.js";
 
 const VIEW: Viewport = {
     xMin: 0,

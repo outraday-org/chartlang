@@ -23,9 +23,9 @@ export type {
     Series,
     Time,
     Volume,
-} from "./types";
-export { intervalToSeconds } from "./interval/intervalToSeconds";
-export { defineAlert, defineAlertCondition, defineDrawing, defineIndicator } from "./define";
+} from "./types.js";
+export { intervalToSeconds } from "./interval/intervalToSeconds.js";
+export { defineAlert, defineAlertCondition, defineDrawing, defineIndicator } from "./define/index.js";
 export type {
     DefineAlertConditionOpts,
     DefineAlertOpts,
@@ -34,8 +34,8 @@ export type {
     ScaleAxis,
     ScriptOverrides,
     ValueFormat,
-} from "./define";
-export { ta } from "./ta";
+} from "./define/index.js";
+export { ta } from "./ta/index.js";
 export type {
     AdlOpts,
     AdrOpts,
@@ -168,9 +168,9 @@ export type {
     WmaOpts,
     ZigZagOpts,
     ZigZagResult,
-} from "./ta/ta";
-export type { StatefulPrimitiveEntry } from "./statefulPrimitives";
-export { input } from "./input";
+} from "./ta/ta.js";
+export type { StatefulPrimitiveEntry } from "./statefulPrimitives.js";
+export { input } from "./input/index.js";
 export type {
     BoolDescriptor,
     ColorDescriptor,
@@ -188,28 +188,28 @@ export type {
     StringDescriptor,
     SymbolDescriptor,
     TimeDescriptor,
-} from "./input";
-export { state } from "./state";
-export type { MutableSlot, StateNamespace } from "./state";
-export type { StateSnapshot, StateStoreKey, StreamSnapshot } from "./state";
-export { barstate, syminfo, timeframe } from "./views";
-export type { BarStateView, SymbolType, SymInfoView, TimeframeView } from "./views";
-export { request } from "./request";
+} from "./input/index.js";
+export { state } from "./state/index.js";
+export type { MutableSlot, StateNamespace } from "./state/index.js";
+export type { StateSnapshot, StateStoreKey, StreamSnapshot } from "./state/index.js";
+export { barstate, syminfo, timeframe } from "./views/index.js";
+export type { BarStateView, SymbolType, SymInfoView, TimeframeView } from "./views/index.js";
+export { request } from "./request/index.js";
 export type {
     RequestLowerTfOpts,
     RequestNamespace,
     RequestSecurityOpts,
     SecurityBar,
-} from "./request";
-export { runtime } from "./runtime";
-export type { LogLevel, RuntimeNamespace } from "./runtime";
-export { color, fromGradient, hsl, rgb, withAlpha } from "./color";
-export type { GradientStop } from "./color";
-export { hline, plot } from "./plot";
-export type { HLineOpts, PlotKind, PlotOpts, PlotOptsStyle } from "./plot/plot";
-export { alert } from "./alert";
-export type { AlertOpts } from "./alert/alert";
-export { STATEFUL_PRIMITIVES, STATEFUL_PRIMITIVES_BY_NAME } from "./statefulPrimitives";
+} from "./request/index.js";
+export { runtime } from "./runtime/index.js";
+export type { LogLevel, RuntimeNamespace } from "./runtime/index.js";
+export { color, fromGradient, hsl, rgb, withAlpha } from "./color/index.js";
+export type { GradientStop } from "./color/index.js";
+export { hline, plot } from "./plot/index.js";
+export type { HLineOpts, PlotKind, PlotOpts, PlotOptsStyle } from "./plot/plot.js";
+export { alert } from "./alert/index.js";
+export type { AlertOpts } from "./alert/alert.js";
+export { STATEFUL_PRIMITIVES, STATEFUL_PRIMITIVES_BY_NAME } from "./statefulPrimitives.js";
 export {
     DRAWING_KINDS,
     KIND_BUCKET,
@@ -217,7 +217,7 @@ export {
     KIND_KEBABCASE,
     bucketFor,
     draw,
-} from "./draw";
+} from "./draw/index.js";
 export type {
     AbcdPatternState,
     AnchorHept,
@@ -307,4 +307,4 @@ export type {
     VerticalLineState,
     WorldPoint,
     XabcdPatternState,
-} from "./draw";
+} from "./draw/index.js";

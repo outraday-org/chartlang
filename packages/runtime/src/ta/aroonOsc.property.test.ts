@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { aroonOsc } from "./aroonOsc";
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
+import { aroonOsc } from "./aroonOsc.js";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
 
 describe("ta.aroonOsc — property invariants", () => {
     it("output ∈ [-100, 100] where defined", () => {

@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { Float64RingBuffer } from "./ringBuffer";
-import { makeSeriesView } from "./seriesView";
+import { Float64RingBuffer } from "./ringBuffer.js";
+import { makeSeriesView } from "./seriesView.js";
 
 const ITERATIONS = 100_000;
 const CAPACITY = 64;

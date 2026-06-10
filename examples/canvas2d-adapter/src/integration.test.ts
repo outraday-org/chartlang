@@ -16,10 +16,10 @@ import {
 } from "@invinite-org/chartlang-host-worker";
 import { describe, expect, it } from "vitest";
 
-import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities";
-import { createCanvas2dAdapter, runRendererLoop } from "./createCanvas2dAdapter";
-import { createMultiStreamCandlePump } from "./streamPump";
-import { MockCanvas2DContext, hashCallLog } from "./testing";
+import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities.js";
+import { createCanvas2dAdapter, runRendererLoop } from "./createCanvas2dAdapter.js";
+import { createMultiStreamCandlePump } from "./streamPump.js";
+import { MockCanvas2DContext, hashCallLog } from "./testing.js";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = resolvePath(here, "../../..");

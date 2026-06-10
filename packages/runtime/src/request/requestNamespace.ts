@@ -10,9 +10,9 @@ import type {
     Series,
 } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeLowerTfSeries } from "./lowerTf";
-import { makeSecurityBar } from "./security";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeLowerTfSeries } from "./lowerTf.js";
+import { makeSecurityBar } from "./security.js";
 
 function getCtx(name: string): RuntimeContext {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;

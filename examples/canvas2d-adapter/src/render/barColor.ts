@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { BarOverrideArgs } from "./barOverride";
-import { drawBarOverride } from "./barOverride";
-import type { RenderCtx } from "./clear";
-import type { Viewport } from "./coords";
+import type { BarOverrideArgs } from "./barOverride.js";
+import { drawBarOverride } from "./barOverride.js";
+import type { RenderCtx } from "./clear.js";
+import type { Viewport } from "./coords.js";
 
 /**
  * Canvas arguments for Phase 5 `bar-color` overlays.

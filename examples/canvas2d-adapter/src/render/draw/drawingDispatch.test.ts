@@ -71,9 +71,9 @@ import {
 } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import type { Viewport } from "../coords";
-import { MockCanvas2DContext } from "../../testing";
-import { drawingDispatch } from "./drawingDispatch";
+import type { Viewport } from "../coords.js";
+import { MockCanvas2DContext } from "../../testing.js";
+import { drawingDispatch } from "./drawingDispatch.js";
 
 const VIEW: Viewport = {
     xMin: 0,

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { runtime } from "./runtime";
+import { runtime } from "./runtime.js";
 
 describe("runtime namespace hole", () => {
     it("throws for log methods outside the compiled runtime", () => {

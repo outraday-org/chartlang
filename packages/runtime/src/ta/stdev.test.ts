@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { computeRollingStdDev } from "./lib/rollingStddev";
-import { stdev } from "./stdev";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { computeRollingStdDev } from "./lib/rollingStddev.js";
+import { stdev } from "./stdev.js";
 
 describe("ta.stdev", () => {
     it("matches computeRollingStdDev (population) over a 50-bar synthetic walk", () => {

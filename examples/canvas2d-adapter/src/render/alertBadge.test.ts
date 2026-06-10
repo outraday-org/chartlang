@@ -4,9 +4,9 @@
 import type { AlertEmission } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import { drawAlertBadge } from "./alertBadge";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawAlertBadge } from "./alertBadge.js";
 
 function alert(severity: AlertEmission["severity"]): AlertEmission {
     return {

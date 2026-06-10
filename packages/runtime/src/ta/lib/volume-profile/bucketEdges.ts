@@ -4,7 +4,7 @@
 // Translated, not transcribed — ReadonlyArray<number> inputs, JSDoc, runtime.
 // See packages/runtime/src/ta/CLAUDE.md for the port convention.
 
-import type { RowsLayout } from "./types";
+import type { RowsLayout } from "./types.js";
 
 /**
  * Build `bucketCount + 1` price edges for a volume profile.

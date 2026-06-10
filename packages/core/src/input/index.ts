@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-export { input } from "./input";
+export { input } from "./input.js";
 export type {
     BoolDescriptor,
     ColorDescriptor,
@@ -19,4 +19,4 @@ export type {
     StringDescriptor,
     SymbolDescriptor,
     TimeDescriptor,
-} from "./inputDescriptor";
+} from "./inputDescriptor.js";

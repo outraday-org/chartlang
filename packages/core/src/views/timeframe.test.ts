@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { timeframe } from "./timeframe";
+import { timeframe } from "./timeframe.js";
 
 describe("timeframe", () => {
     it("defaults every field to the empty sentinel", () => {

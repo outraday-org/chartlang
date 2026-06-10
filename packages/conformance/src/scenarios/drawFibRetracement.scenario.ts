@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 
 // Per task spec: anchors leg = `bars[0].time` → `bars[500].time`.
 // goldenBars[0].time = 1_700_000_000_000; goldenBars[500].time =

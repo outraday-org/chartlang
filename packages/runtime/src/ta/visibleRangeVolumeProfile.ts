@@ -9,8 +9,8 @@ import type {
     VisibleRangeVolumeProfileResult,
 } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
 import {
     type VolumeProfileBar,
     type VolumeProfileCore,
@@ -19,7 +19,7 @@ import {
     emitVolumeProfileHistogram,
     resolveVolumeProfileSnapshot,
     volumeProfileConfigFromOpts,
-} from "./lib/volume-profile";
+} from "./lib/volume-profile/index.js";
 
 type VisibleRangeVolumeProfileSlot = VolumeProfileCore & {
     readonly result: VisibleRangeVolumeProfileResult;

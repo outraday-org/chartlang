@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { williamsFractal } from "./williamsFractal";
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
+import { williamsFractal } from "./williamsFractal.js";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
 
 describe("ta.williamsFractal — property invariants", () => {
     it("up / down output is either NaN or finite (price level, never boolean)", () => {

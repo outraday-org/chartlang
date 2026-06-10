@@ -7,9 +7,9 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
 
-import type { Viewport } from "../coords";
+import type { Viewport } from "../coords.js";
 
-import type { Point2 } from "./bezier";
+import type { Point2 } from "./bezier.js";
 
 /**
  * Project the segment `(a, b)` to the viewport edges in the directions

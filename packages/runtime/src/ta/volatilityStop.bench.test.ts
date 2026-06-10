@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { volatilityStop } from "./volatilityStop";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { volatilityStop } from "./volatilityStop.js";
 
 // THRESHOLD_MS — pair with the Wave-5/6 S/R baseline at 300ms.
 // VolatilityStop is O(1) per close plus a composed `ta.atr` (also

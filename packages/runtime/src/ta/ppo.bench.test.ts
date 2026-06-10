@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { ppo } from "./ppo";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { ppo } from "./ppo.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. PPO
 // composes three `ta.ema` sub-slots — each O(1) per bar (recurrence).

@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { change } from "./change";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { change } from "./change.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.change is two ring-buffer reads
 // + a subtract — lighter than SMA.

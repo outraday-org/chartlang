@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CompiledScriptObject, ComputeFn, InputSchema } from "../types";
-import type { ScriptOverrides } from "./overrides";
+import type { CompiledScriptObject, ComputeFn, InputSchema } from "../types.js";
+import type { ScriptOverrides } from "./overrides.js";
 
 type AlertOverrides = Omit<ScriptOverrides, "scale" | "format" | "precision">;
 

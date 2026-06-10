@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { PlotLineStyle, Series, Time } from "../types";
+import type { PlotLineStyle, Series, Time } from "../types.js";
 
 /**
  * Options bag for `ta.sma`. `offset` shifts the output forward by `n`

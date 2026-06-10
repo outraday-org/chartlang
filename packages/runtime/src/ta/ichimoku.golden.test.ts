@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { ichimoku } from "./ichimoku";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { ichimoku } from "./ichimoku.js";
 
 describe("ta.ichimoku — golden", () => {
     it("matches the pinned hashes for 200 bars × default (9, 26, 52, 26)", () => {

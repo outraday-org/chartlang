@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { cubicBezier, quadraticBezier, sampleCubic, sampleQuadratic, type Point2 } from "./bezier";
+import { cubicBezier, quadraticBezier, sampleCubic, sampleQuadratic, type Point2 } from "./bezier.js";
 
 function pseudo(seed: number): () => number {
     let s = seed >>> 0;

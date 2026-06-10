@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { wilderDirectional } from "./wilderDirectional";
+import { wilderDirectional } from "./wilderDirectional.js";
 
 function expectAllNaN(out: {
     plusDm: Float64Array;

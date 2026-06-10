@@ -4,7 +4,7 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { bucketLtfBarsByMainContainment } from "./bucketLtfBarsByMainContainment";
+import { bucketLtfBarsByMainContainment } from "./bucketLtfBarsByMainContainment.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon is well under
 // 1ms for this O(n+m) two-pointer walk, but wall-clock measurements in a

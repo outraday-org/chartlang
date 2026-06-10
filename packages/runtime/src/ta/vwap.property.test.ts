@@ -5,8 +5,8 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { vwap } from "./vwap";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { vwap } from "./vwap.js";
 
 const MS_PER_DAY = 86_400_000;
 const DAY_START = Math.floor(1_700_000_000_000 / MS_PER_DAY) * MS_PER_DAY;

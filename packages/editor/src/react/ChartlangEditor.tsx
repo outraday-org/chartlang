@@ -3,8 +3,8 @@
 
 import { type ReactElement, useCallback, useEffect, useRef } from "react";
 
-import { createChartlangEditor } from "../createChartlangEditor";
-import type { ChartlangEditorOpts, ChartlangEditor as MountedChartlangEditor } from "../types";
+import { createChartlangEditor } from "../createChartlangEditor.js";
+import type { ChartlangEditorOpts, ChartlangEditor as MountedChartlangEditor } from "../types.js";
 
 /**
  * Props for the React CodeMirror chartlang editor wrapper.

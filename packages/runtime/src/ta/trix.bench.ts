@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { trix } from "./trix";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { trix } from "./trix.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 describe("ta.trix hot loop", () => {
     bench(

@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { MutableRunnerEmissions } from "../runtimeContext";
-import { pushAlert, pushAlertCondition, pushLog, pushPlot } from "./emissionsQueue";
-import { drain } from "../execution/drain";
-import type { RunnerState } from "../createScriptRunner";
+import type { MutableRunnerEmissions } from "../runtimeContext.js";
+import { pushAlert, pushAlertCondition, pushLog, pushPlot } from "./emissionsQueue.js";
+import { drain } from "../execution/drain.js";
+import type { RunnerState } from "../createScriptRunner.js";
 import { describe, expect, it } from "vitest";
 
 function queue(): MutableRunnerEmissions {

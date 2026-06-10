@@ -5,9 +5,9 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { computeEmaOfFloat64 } from "./lib/emaFloat64";
-import { trix } from "./trix";
-import { harness } from "./__fixtures__/runPrimitive";
+import { computeEmaOfFloat64 } from "./lib/emaFloat64.js";
+import { trix } from "./trix.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
 
 const arbCloseBar = fc
     .tuple(fc.double({ min: 1, max: 1000, noNaN: true }), fc.integer({ min: 0, max: 60_000 }))

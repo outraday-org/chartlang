@@ -6,10 +6,10 @@ import type { Capabilities, DrawingEmission } from "@invinite-org/chartlang-adap
 import type { LineState } from "@invinite-org/chartlang-core";
 import { bench, describe } from "vitest";
 
-import type { RuntimeContext } from "../../runtimeContext";
-import { createStreamState } from "../../streamState";
-import { inMemoryStateStore } from "../../stateStore";
-import { pushDrawing } from "./pushDrawing";
+import type { RuntimeContext } from "../../runtimeContext.js";
+import { createStreamState } from "../../streamState.js";
+import { inMemoryStateStore } from "../../stateStore.js";
+import { pushDrawing } from "./pushDrawing.js";
 
 const ITERATIONS = 10_000;
 

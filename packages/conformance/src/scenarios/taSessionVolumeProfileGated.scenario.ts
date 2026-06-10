@@ -3,7 +3,7 @@
 
 import type { PlotKind } from "@invinite-org/chartlang-adapter-kit";
 
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 
 const SESSION_START = 1_704_067_200_000;
 

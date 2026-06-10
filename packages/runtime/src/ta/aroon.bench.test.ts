@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { aroon } from "./aroon";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { aroon } from "./aroon.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Aroon scans
 // a `length + 1` window per close (15 finite-checks × 2 series × 10k

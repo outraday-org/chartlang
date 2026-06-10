@@ -4,8 +4,8 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { mockCandleSource } from "./mockCandleSource";
-import type { CandleEvent } from "../types";
+import { mockCandleSource } from "./mockCandleSource.js";
+import type { CandleEvent } from "../types.js";
 
 function makeBar(time: number, close: number): Bar {
     return {

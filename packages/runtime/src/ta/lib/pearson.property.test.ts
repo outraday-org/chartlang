@@ -4,7 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { pearson } from "./pearson";
+import { pearson } from "./pearson.js";
 
 const arbPair = fc.integer({ min: 10, max: 50 }).chain((n) =>
     fc.tuple(

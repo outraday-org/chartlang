@@ -3,9 +3,9 @@
 
 import type { JsonValue, Series } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { makeSeriesView } from "../seriesView";
-import type { StreamState } from "../streamState";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { makeSeriesView } from "../seriesView.js";
+import type { StreamState } from "../streamState.js";
 
 const TA_SLOT_PREFIX = "ta:";
 

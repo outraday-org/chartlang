@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { netVolume } from "./netVolume";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { netVolume } from "./netVolume.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.netVolume is one subtract +
 // sign + add per bar (same shape as ta.obv) — well under the 300 ms

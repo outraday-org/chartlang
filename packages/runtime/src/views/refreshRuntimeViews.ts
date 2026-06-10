@@ -3,9 +3,9 @@
 
 import type { IntervalDescriptor } from "@invinite-org/chartlang-core";
 
-import type { RunnerState } from "../createScriptRunner";
-import { makeBarStateView, type EventKind } from "./barstateView";
-import { makeTimeframeView } from "./timeframeView";
+import type { RunnerState } from "../createScriptRunner.js";
+import { makeBarStateView, type EventKind } from "./barstateView.js";
+import { makeTimeframeView } from "./timeframeView.js";
 
 function findDescriptor(
     intervals: ReadonlyArray<IntervalDescriptor>,

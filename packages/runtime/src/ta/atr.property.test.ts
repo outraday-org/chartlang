@@ -4,10 +4,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { atr } from "./atr";
-import { computeAtrSeries } from "./lib/trSeries";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { atr } from "./atr.js";
+import { computeAtrSeries } from "./lib/trSeries.js";
 
 describe("ta.atr — property invariants", () => {
     it("ATR ≥ 0 where defined", () => {

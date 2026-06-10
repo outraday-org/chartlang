@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { vortex } from "./vortex";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { vortex } from "./vortex.js";
 
 describe("ta.vortex hot loop", () => {
     bench(

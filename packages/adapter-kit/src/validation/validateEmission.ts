@@ -3,7 +3,7 @@
 
 import { DRAWING_KINDS, type DrawingKind } from "@invinite-org/chartlang-core";
 
-import type { DiagnosticCode } from "../types";
+import type { DiagnosticCode } from "../types.js";
 
 /**
  * Successful validation. `e` was a well-formed Phase-1 emission and is

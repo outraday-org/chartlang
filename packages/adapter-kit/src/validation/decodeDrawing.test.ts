@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { DrawingEmission } from "../types";
-import { decodeDrawing } from "./decodeDrawing";
+import type { DrawingEmission } from "../types.js";
+import { decodeDrawing } from "./decodeDrawing.js";
 
 const wellFormedLine: DrawingEmission = {
     kind: "drawing",

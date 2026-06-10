@@ -14,8 +14,8 @@ import {
     generateDocsPage,
     parsePrimitiveSource,
     runGenDocs,
-} from "./genDocs";
-import type { PrimitiveDocInput } from "./genDocs";
+} from "./genDocs.js";
+import type { PrimitiveDocInput } from "./genDocs.js";
 
 const MINIMAL_PRIMITIVE = `// MIT header
 import type { Series } from "@invinite-org/chartlang-core";

@@ -6,10 +6,10 @@ import type { Capabilities, DrawingEmission } from "@invinite-org/chartlang-adap
 import type { LineState } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import type { RuntimeContext } from "../../runtimeContext";
-import { createStreamState } from "../../streamState";
-import { inMemoryStateStore } from "../../stateStore";
-import { pushDrawing } from "./pushDrawing";
+import type { RuntimeContext } from "../../runtimeContext.js";
+import { createStreamState } from "../../streamState.js";
+import { inMemoryStateStore } from "../../stateStore.js";
+import { pushDrawing } from "./pushDrawing.js";
 
 // THRESHOLD_MS — wall-clock budget for 10 000 line drawing emissions
 // (each `op: "create"` runs capability gate + `validateEmission` line

@@ -4,7 +4,7 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { computeAtrSeries, computeTrSeries, trueRangeAt } from "./trSeries";
+import { computeAtrSeries, computeTrSeries, trueRangeAt } from "./trSeries.js";
 
 function bar(open: number, high: number, low: number, close: number, i = 0): Bar {
     return {

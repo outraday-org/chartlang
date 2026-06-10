@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { barstate } from "./barstate";
+import { barstate } from "./barstate.js";
 
 describe("barstate", () => {
     it("defaults every field to false", () => {

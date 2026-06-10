@@ -6,9 +6,9 @@ import type { Capabilities, CandleEvent } from "@invinite-org/chartlang-adapter-
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createWorkerBoot, type WorkerBootScope } from "./createWorkerBoot";
-import type { HostLimits } from "./types";
-import type { HostToWorker, WorkerToHost } from "./protocol";
+import { createWorkerBoot, type WorkerBootScope } from "./createWorkerBoot.js";
+import type { HostLimits } from "./types.js";
+import type { HostToWorker, WorkerToHost } from "./protocol.js";
 
 function makeCapabilities(): Capabilities {
     return {

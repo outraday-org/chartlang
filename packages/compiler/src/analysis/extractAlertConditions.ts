@@ -4,8 +4,8 @@
 import type { AlertConditionDefinition } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
-import { type CompileDiagnostic, createDiagnostic } from "../diagnostics";
-import { resolveCalleeName } from "../transformers/resolveCallee";
+import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
+import { resolveCalleeName } from "../transformers/resolveCallee.js";
 
 /**
  * Result of extracting `defineAlertCondition({ conditions })` metadata.

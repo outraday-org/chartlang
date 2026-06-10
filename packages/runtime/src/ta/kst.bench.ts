@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { kst } from "./kst";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { kst } from "./kst.js";
 
 describe("ta.kst hot loop", () => {
     bench(

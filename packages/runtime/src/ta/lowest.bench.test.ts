@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { lowest } from "./lowest";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { lowest } from "./lowest.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Mirror of
 // ta.highest's threshold.

@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { smi } from "./smi";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { smi } from "./smi.js";
 
 describe("ta.smi hot loop", () => {
     bench(

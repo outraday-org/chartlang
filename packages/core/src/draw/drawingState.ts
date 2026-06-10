@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Color, JsonValue, Price, Time } from "../types";
+import type { Color, JsonValue, Price, Time } from "../types.js";
 import type {
     ArrowMarkerOpts,
     ArrowOpts,
@@ -14,8 +14,8 @@ import type {
     RegressionTrendOpts,
     ShapeStyle,
     TextOpts,
-} from "./drawingStyle";
-import type { TableCell, TablePosition } from "./table";
+} from "./drawingStyle.js";
+import type { TableCell, TablePosition } from "./table.js";
 import type {
     AnchorHept,
     AnchorPair,
@@ -23,7 +23,7 @@ import type {
     AnchorQuint,
     AnchorTriple,
     WorldPoint,
-} from "./worldPoint";
+} from "./worldPoint.js";
 
 /**
  * Script-mutable metadata fields every {@link DrawingState} variant

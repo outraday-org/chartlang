@@ -4,8 +4,8 @@
 import { DRAWING_KINDS, KIND_CAMELCASE } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { alert, draw, hline, plot, ta } from "./primitives";
-import { TA_REGISTRY } from "./ta";
+import { alert, draw, hline, plot, ta } from "./primitives.js";
+import { TA_REGISTRY } from "./ta/index.js";
 
 describe("primitives — ta seam (Task 7 wired)", () => {
     it("`ta` re-exports TA_REGISTRY by identity", () => {

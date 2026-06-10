@@ -4,9 +4,9 @@
 import type { AlertOpts, JsonValue } from "@invinite-org/chartlang-core";
 import type { AlertChannel, AlertEmission } from "@invinite-org/chartlang-adapter-kit";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { pushAlert, pushDiagnostic } from "./emissionsQueue";
-import { hashStringStable } from "./hash";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { pushAlert, pushDiagnostic } from "./emissionsQueue.js";
+import { hashStringStable } from "./hash.js";
 
 const OUTSIDE_CTX_MESSAGE = "alert called outside an active script step";
 

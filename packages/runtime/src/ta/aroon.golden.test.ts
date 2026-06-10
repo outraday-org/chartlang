@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { aroon } from "./aroon";
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
+import { aroon } from "./aroon.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 describe("ta.aroon — golden", () => {
     it("matches the pinned hashes for 100 bars × length=14", () => {

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { readSourceField } from "./readSourceField";
+import { readSourceField } from "./readSourceField.js";
 
 describe("readSourceField", () => {
     it("returns the canonical field when the params bag holds one", () => {

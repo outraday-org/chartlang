@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-export { runConformanceSuite } from "./runConformanceSuite";
-export { renderConformanceJson, renderConformanceMarkdown } from "./report/renderReport";
-export type { ConformanceReportMeta } from "./report/renderReport";
+export { runConformanceSuite } from "./runConformanceSuite.js";
+export { renderConformanceJson, renderConformanceMarkdown } from "./report/renderReport.js";
+export type { ConformanceReportMeta } from "./report/renderReport.js";
 export type {
     ConformanceFailure,
     ConformanceReport,
@@ -12,7 +12,7 @@ export type {
     ScenarioAssertion,
     ScenarioEventStream,
     ScenarioResult,
-} from "./runConformanceSuite";
+} from "./runConformanceSuite.js";
 export {
     ALL_SCENARIOS,
     BARSTATE_CONFIRMED_SCENARIO,
@@ -211,11 +211,11 @@ export {
     TA_ZIG_ZAG_SCENARIO,
     TIMEFRAME_ISDAILY_SCENARIO,
     UNSUPPORTED_INTERVAL_SCENARIO,
-} from "./scenarios";
+} from "./scenarios/index.js";
 export {
     GOLDEN_BARS_PATH,
     generateGoldenBars,
     serialiseGoldenBars,
     writeGoldenBars,
-} from "./fixtures/generateGoldenBars";
-export type { GoldenBars } from "./fixtures/generateGoldenBars";
+} from "./fixtures/generateGoldenBars.js";
+export type { GoldenBars } from "./fixtures/generateGoldenBars.js";

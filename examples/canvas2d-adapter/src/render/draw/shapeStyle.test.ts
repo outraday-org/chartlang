@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { MockCanvas2DContext } from "../../testing";
-import { applyShapeStyle } from "./shapeStyle";
+import { MockCanvas2DContext } from "../../testing.js";
+import { applyShapeStyle } from "./shapeStyle.js";
 
 describe("applyShapeStyle", () => {
     it("sets strokeStyle / lineWidth / setLineDash from the style", () => {

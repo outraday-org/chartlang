@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { dema } from "./dema";
-import { computeEmaOfFloat64 } from "./lib/emaFloat64";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { dema } from "./dema.js";
+import { computeEmaOfFloat64 } from "./lib/emaFloat64.js";
 
 function referenceDema(input: Float64Array, length: number): Float64Array {
     const ema1 = computeEmaOfFloat64(input, length);

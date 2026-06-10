@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { computeMaOfFloat64 } from "./lib/computeMaOfFloat64";
-import { maRibbon, maRibbonOutputKeys } from "./maRibbon";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { computeMaOfFloat64 } from "./lib/computeMaOfFloat64.js";
+import { maRibbon, maRibbonOutputKeys } from "./maRibbon.js";
 
 describe("ta.maRibbon", () => {
     it("default opts → 5 outputs keyed ma_10..ma_50, sma dispatch", () => {

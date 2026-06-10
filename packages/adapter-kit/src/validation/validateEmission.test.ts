@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { validateEmission } from "./validateEmission";
+import { validateEmission } from "./validateEmission.js";
 
 const validPlot = {
     kind: "plot" as const,

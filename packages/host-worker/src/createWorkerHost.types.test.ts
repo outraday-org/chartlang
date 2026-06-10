@@ -9,8 +9,8 @@ import type {
 } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expectTypeOf, it } from "vitest";
 
-import { createWorkerHost, type CreateWorkerHostOpts } from "./createWorkerHost";
-import type { HostCompiledScript, HostLimits, ScriptHost, WorkerLike } from "./types";
+import { createWorkerHost, type CreateWorkerHostOpts } from "./createWorkerHost.js";
+import type { HostCompiledScript, HostLimits, ScriptHost, WorkerLike } from "./types.js";
 
 describe("createWorkerHost", () => {
     it("returns a ScriptHost", () => {

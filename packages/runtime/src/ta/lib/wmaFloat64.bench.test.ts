@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { syntheticBars } from "../__fixtures__/syntheticBars";
-import { wmaFloat64 } from "./wmaFloat64";
+import { syntheticBars } from "../__fixtures__/syntheticBars.js";
+import { wmaFloat64 } from "./wmaFloat64.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through wmaFloat64 × length=20 takes a few ms on M2; budget 300ms

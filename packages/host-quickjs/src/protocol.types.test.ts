@@ -14,8 +14,8 @@ import type {
 } from "@invinite-org/chartlang-host-worker";
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { HostToQuickJs, QuickJsToHost } from "./protocol";
-import type { QuickJsCompiledScript, QuickJsHostLimits } from "./types";
+import type { HostToQuickJs, QuickJsToHost } from "./protocol.js";
+import type { QuickJsCompiledScript, QuickJsHostLimits } from "./types.js";
 
 describe("HostToQuickJs", () => {
     it("uses the host-worker frame discriminants", () => {

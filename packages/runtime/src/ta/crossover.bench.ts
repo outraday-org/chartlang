@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { crossover } from "./crossover";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { crossover } from "./crossover.js";
 
 describe("ta.crossover hot loop", () => {
     bench(

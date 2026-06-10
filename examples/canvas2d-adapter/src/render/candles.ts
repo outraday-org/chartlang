@@ -3,9 +3,9 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import type { Palette } from "../palette";
-import type { RenderCtx } from "./clear";
-import { priceToY, timeToX, type Viewport } from "./coords";
+import type { Palette } from "../palette.js";
+import type { RenderCtx } from "./clear.js";
+import { priceToY, timeToX, type Viewport } from "./coords.js";
 
 const BODY_WIDTH_RATIO = 0.6;
 

@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { ulcerIndex } from "./ulcerIndex";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { ulcerIndex } from "./ulcerIndex.js";
 
 describe("ta.ulcerIndex hot loop", () => {
     bench(

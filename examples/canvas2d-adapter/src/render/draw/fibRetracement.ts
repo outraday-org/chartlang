@@ -9,11 +9,11 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { FibRetracementState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import { priceToY, type Viewport } from "../coords";
-import { FIB_LEVELS, formatLevel } from "./fibLevels";
-import { extendLineSegment } from "./lineExtend";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import { priceToY, type Viewport } from "../coords.js";
+import { FIB_LEVELS, formatLevel } from "./fibLevels.js";
+import { extendLineSegment } from "./lineExtend.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 const DEFAULT_COLOR = "#facc15";
 const DEFAULT_LINE_WIDTH = 1;

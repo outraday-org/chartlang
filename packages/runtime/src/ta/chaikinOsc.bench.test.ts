@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { chaikinOsc } from "./chaikinOsc";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { chaikinOsc } from "./chaikinOsc.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.chaikinOsc composes three EMA
 // sub-slots over ADL; per-bar cost is well under the 300 ms ceiling

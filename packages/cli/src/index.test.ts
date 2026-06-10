@@ -3,7 +3,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { runCli } from "./index";
+import { runCli } from "./index.js";
 
 describe("runCli dispatcher", () => {
     let stdoutChunks: string[];

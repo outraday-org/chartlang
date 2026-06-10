@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { hma } from "./hma";
-import { wmaFloat64 } from "./lib/wmaFloat64";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { hma } from "./hma.js";
+import { wmaFloat64 } from "./lib/wmaFloat64.js";
 
 function referenceHma(closes: Float64Array, length: number): Float64Array {
     const halfLen = Math.max(1, Math.floor(length / 2));

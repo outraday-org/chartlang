@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { MockCanvas2DContext, hashCallLog } from "./testing";
+import { MockCanvas2DContext, hashCallLog } from "./testing.js";
 
 describe("MockCanvas2DContext", () => {
     it("records every method with its arguments", () => {

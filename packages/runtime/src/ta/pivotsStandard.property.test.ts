@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { pivotsStandard } from "./pivotsStandard";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { pivotsStandard } from "./pivotsStandard.js";
 
 describe("ta.pivotsStandard — property invariants", () => {
     it("output length equals input length", () => {

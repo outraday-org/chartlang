@@ -7,8 +7,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { EMA_CROSS } from "./__fixtures__/scripts";
-import { compileFile, writeAtomic } from "./api";
+import { EMA_CROSS } from "./__fixtures__/scripts.js";
+import { compileFile, writeAtomic } from "./api.js";
 
 let workspace: string;
 

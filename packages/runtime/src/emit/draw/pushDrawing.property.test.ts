@@ -7,10 +7,10 @@ import type { LineState } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import type { RuntimeContext } from "../../runtimeContext";
-import { createStreamState } from "../../streamState";
-import { inMemoryStateStore } from "../../stateStore";
-import { pushDrawing } from "./pushDrawing";
+import type { RuntimeContext } from "../../runtimeContext.js";
+import { createStreamState } from "../../streamState.js";
+import { inMemoryStateStore } from "../../stateStore.js";
+import { pushDrawing } from "./pushDrawing.js";
 
 function makeCaps(): Capabilities {
     return {

@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { chandelier } from "./chandelier";
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
+import { chandelier } from "./chandelier.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 describe("ta.chandelier — golden", () => {
     it("matches the pinned hashes for 100 bars × length=22 / multiplier=3", () => {

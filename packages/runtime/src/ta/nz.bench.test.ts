@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { nz } from "./nz";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { nz } from "./nz.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. ta.nz is a
 // branch + return so 10k iterations are dominated by loop overhead;

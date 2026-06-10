@@ -7,9 +7,9 @@ import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities, RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { createScriptRunner } from "./createScriptRunner";
-import { alert, plot } from "./emit";
-import type { StateStore } from "./stateStore";
+import { createScriptRunner } from "./createScriptRunner.js";
+import { alert, plot } from "./emit/index.js";
+import type { StateStore } from "./stateStore.js";
 
 type RuntimeStateNamespace = {
     readonly int: (slotId: string, init: number) => MutableSlot<number>;

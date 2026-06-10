@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { rvi } from "./rvi";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { rvi } from "./rvi.js";
 
 describe("ta.rvi — property invariants", () => {
     it("output is in [0, 100] when defined", () => {

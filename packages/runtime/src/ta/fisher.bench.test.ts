@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { fisher } from "./fisher";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { fisher } from "./fisher.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Fisher
 // composes `ta.highest` + `ta.lowest` (each O(1) amortised) + a

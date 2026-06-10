@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { lowest } from "./lowest";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { lowest } from "./lowest.js";
 
 describe("ta.lowest hot loop", () => {
     bench(

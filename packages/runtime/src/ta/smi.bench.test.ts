@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { smi } from "./smi";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { smi } from "./smi.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. SMI
 // composes highest/lowest + 4 EMA layers + signal EMA — each O(1)

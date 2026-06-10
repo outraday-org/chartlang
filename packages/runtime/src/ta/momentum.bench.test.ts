@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { momentum } from "./momentum";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { momentum } from "./momentum.js";
 
 // THRESHOLD_MS — ceil(median × 3). momentum is a thin shim around
 // ta.change (one ring read + a subtract).

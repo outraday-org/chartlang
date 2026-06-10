@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { bbw } from "./bbw";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { bbw } from "./bbw.js";
 
 describe("ta.bbw — property invariants", () => {
     it("output is non-negative when defined (positive sources)", () => {

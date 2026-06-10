@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { vol } from "./vol";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { vol } from "./vol.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.vol is a single field read + an
 // append — lightest primitive in the registry.

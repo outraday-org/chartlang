@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { netVolume } from "./netVolume";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { netVolume } from "./netVolume.js";
 
 describe("ta.netVolume hot loop", () => {
     bench(

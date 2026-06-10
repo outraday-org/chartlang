@@ -13,7 +13,7 @@ import { describe, expect, it } from "vitest";
 import volume1d from "./__fixtures__/align-htf-series-1m-ltf-1d-htf-volume.json";
 import close1h from "./__fixtures__/align-htf-series-1m-ltf-1h-htf-close.json";
 import close4hNan from "./__fixtures__/align-htf-series-5m-ltf-4h-htf-close-nan.json";
-import { alignHtfSeriesToLtf } from "./alignHtfSeriesToLtf";
+import { alignHtfSeriesToLtf } from "./alignHtfSeriesToLtf.js";
 
 type JsonNumber = number | null;
 

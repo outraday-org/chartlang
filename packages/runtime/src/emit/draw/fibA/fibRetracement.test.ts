@@ -9,10 +9,10 @@ import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
-} from "../../../runtimeContext";
-import { createStreamState } from "../../../streamState";
-import { inMemoryStateStore } from "../../../stateStore";
-import { fibRetracement } from "./fibRetracement";
+} from "../../../runtimeContext.js";
+import { createStreamState } from "../../../streamState.js";
+import { inMemoryStateStore } from "../../../stateStore.js";
+import { fibRetracement } from "./fibRetracement.js";
 
 function makeCaps(overrides: Partial<Capabilities> = {}): Capabilities {
     return {

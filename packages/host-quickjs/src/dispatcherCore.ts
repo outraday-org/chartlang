@@ -5,8 +5,8 @@ import type { createScriptRunner } from "@invinite-org/chartlang-runtime";
 import type { Capabilities, RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
 import type { CompiledScriptObject } from "@invinite-org/chartlang-core";
 
-import { moduleSourceToScript } from "./moduleSourceToScript";
-import type { HostToQuickJs, QuickJsToHost } from "./protocol";
+import { moduleSourceToScript } from "./moduleSourceToScript.js";
+import type { HostToQuickJs, QuickJsToHost } from "./protocol.js";
 
 type LoadFrame = Extract<HostToQuickJs, { readonly kind: "load" }>;
 type PushFrame = Extract<HostToQuickJs, { readonly kind: "candleEvent" }>;

@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { coppock } from "./coppock";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { coppock } from "./coppock.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Coppock's
 // per-close WMA walk is O(wmaLength); 10k × wmaLength=10 ~ 100k ops

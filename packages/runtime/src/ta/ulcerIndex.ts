@@ -12,11 +12,11 @@
 
 import type { Series, UlcerIndexOpts } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
-import { highest } from "./highest";
-import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView } from "../seriesView.js";
+import { highest } from "./highest.js";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
 
 type UlcerIndexSlot = {
     readonly outBuffer: Float64RingBuffer;

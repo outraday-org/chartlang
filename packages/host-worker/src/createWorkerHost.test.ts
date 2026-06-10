@@ -6,10 +6,10 @@ import type { Capabilities, RunnerEmissions } from "@invinite-org/chartlang-adap
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it, vi } from "vitest";
 
-import { createWorkerHost } from "./createWorkerHost";
-import { DEFAULT_LIMITS } from "./limits";
-import type { HostToWorker, WorkerToHost } from "./protocol";
-import type { HostCompiledScript, WorkerLike } from "./types";
+import { createWorkerHost } from "./createWorkerHost.js";
+import { DEFAULT_LIMITS } from "./limits.js";
+import type { HostToWorker, WorkerToHost } from "./protocol.js";
+import type { HostCompiledScript, WorkerLike } from "./types.js";
 
 function makeCapabilities(): Capabilities {
     return {

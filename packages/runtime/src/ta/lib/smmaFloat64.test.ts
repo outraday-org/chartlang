@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { smmaFloat64 } from "./smmaFloat64";
+import { smmaFloat64 } from "./smmaFloat64.js";
 
 describe("smmaFloat64", () => {
     it("returns an empty output for empty input", () => {

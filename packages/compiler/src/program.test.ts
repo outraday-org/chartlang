@@ -5,8 +5,8 @@ import { STATEFUL_PRIMITIVES } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { VALID_DEFINE } from "./__fixtures__/scripts";
-import { COMPILER_OPTIONS, CORE_MODULE_PATH, createProgramForSource } from "./program";
+import { VALID_DEFINE } from "./__fixtures__/scripts.js";
+import { COMPILER_OPTIONS, CORE_MODULE_PATH, createProgramForSource } from "./program.js";
 
 describe("createProgramForSource", () => {
     it("loads the synthetic source file at the supplied path", () => {

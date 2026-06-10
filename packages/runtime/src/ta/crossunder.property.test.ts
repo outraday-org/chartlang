@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { crossunder } from "./crossunder";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { crossunder } from "./crossunder.js";
 
 describe("ta.crossunder — property invariants", () => {
     it("output is always boolean (never NaN)", () => {

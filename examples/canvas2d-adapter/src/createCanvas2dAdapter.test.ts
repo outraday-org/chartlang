@@ -15,14 +15,14 @@ import type { DrawingState } from "@invinite-org/chartlang-core";
 import type { HostCompiledScript, ScriptHost } from "@invinite-org/chartlang-host-worker";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CANVAS2D_CAPABILITIES } from "./capabilities";
+import { CANVAS2D_CAPABILITIES } from "./capabilities.js";
 import {
     createCanvas2dAdapter,
     runRendererLoop,
     type Canvas2dAdapterHandle,
-} from "./createCanvas2dAdapter";
-import { SAMPLE_BARS } from "./__fixtures__/sampleBars";
-import { MockCanvas2DContext } from "./testing";
+} from "./createCanvas2dAdapter.js";
+import { SAMPLE_BARS } from "./__fixtures__/sampleBars.js";
+import { MockCanvas2DContext } from "./testing.js";
 
 function plotEmission(overrides: Partial<PlotEmission> & { slotId: string }): PlotEmission {
     return {

@@ -1,0 +1,14 @@
+{
+    "apiVersion": 1,
+    "kind": "indicator",
+    "name": "RSI Divergence Alert",
+    "inputs": {},
+    "capabilities": [
+        "alerts",
+        "indicators"
+    ],
+    "requestedIntervals": [],
+    "userPickableInterval": false,
+    "seriesCapacities": {},
+    "maxLookback": 0
+}

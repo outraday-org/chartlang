@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Price, Time } from "../types";
+import type { Price, Time } from "../types.js";
 import type {
     ArrowMarkerOpts,
     ArrowOpts,
@@ -14,10 +14,10 @@ import type {
     RegressionTrendOpts,
     ShapeStyle,
     TextOpts,
-} from "./drawingStyle";
-import type { DrawingHandle } from "./handle";
-import type { TableOpts } from "./table";
-import type { AnchorHept, AnchorQuad, AnchorQuint, AnchorTriple, WorldPoint } from "./worldPoint";
+} from "./drawingStyle.js";
+import type { DrawingHandle } from "./handle.js";
+import type { TableOpts } from "./table.js";
+import type { AnchorHept, AnchorQuad, AnchorQuint, AnchorTriple, WorldPoint } from "./worldPoint.js";
 
 /**
  * The script-facing `draw.*` namespace. Each method is stateful across

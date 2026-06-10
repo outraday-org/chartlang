@@ -12,10 +12,10 @@
 
 import type { AroonOscOpts, Series } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
-import { aroon } from "./aroon";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView } from "../seriesView.js";
+import { aroon } from "./aroon.js";
 
 type AroonOscSlot = {
     readonly outBuffer: Float64RingBuffer;

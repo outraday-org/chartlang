@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { withPrefilledContext } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { fixedRangeVolumeProfile } from "./fixedRangeVolumeProfile";
+import { withPrefilledContext } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { fixedRangeVolumeProfile } from "./fixedRangeVolumeProfile.js";
 
 // THRESHOLD_MS — coverage smoke guard only. The dedicated
 // fixedRangeVolumeProfile.bench.ts case is the benchmark harness for the

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { JsonValue } from "../types";
+import type { JsonValue } from "../types.js";
 
 /**
  * Symbol-type union. Adapters that cannot map a symbol to a canonical type

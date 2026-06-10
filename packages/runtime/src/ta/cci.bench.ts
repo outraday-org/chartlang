@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { cci } from "./cci";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { cci } from "./cci.js";
 
 describe("ta.cci hot loop", () => {
     bench(

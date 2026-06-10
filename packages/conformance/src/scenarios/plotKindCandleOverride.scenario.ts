@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
-import { plotKindSource } from "./plotKindFixtures";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
+import { plotKindSource } from "./plotKindFixtures.js";
 
 const INLINE_SOURCE = plotKindSource(
     "PlotKind candle override",

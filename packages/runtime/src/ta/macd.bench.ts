@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { macd } from "./macd";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { macd } from "./macd.js";
 
 describe("ta.macd hot loop", () => {
     bench(

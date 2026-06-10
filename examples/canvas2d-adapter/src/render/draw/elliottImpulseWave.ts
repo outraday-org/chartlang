@@ -9,10 +9,10 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { ElliottImpulseWaveState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
-import { renderNamedPolyline } from "./namedPolyline";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
+import { renderNamedPolyline } from "./namedPolyline.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 const DEFAULT_LABELS: ReadonlyArray<string> = ["1", "2", "3", "4", "5"];
 

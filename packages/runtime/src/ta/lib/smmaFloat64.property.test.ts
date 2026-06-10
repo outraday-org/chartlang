@@ -4,8 +4,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { computeEmaOfFloat64 } from "./emaFloat64";
-import { smmaFloat64 } from "./smmaFloat64";
+import { computeEmaOfFloat64 } from "./emaFloat64.js";
+import { smmaFloat64 } from "./smmaFloat64.js";
 
 const arbFinite = fc.double({ min: 1, max: 1000, noNaN: true });
 const arbLength = fc.integer({ min: 2, max: 12 });

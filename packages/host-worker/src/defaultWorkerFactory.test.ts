@@ -3,7 +3,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { defaultWorkerFactory } from "./defaultWorkerFactory";
+import { defaultWorkerFactory } from "./defaultWorkerFactory.js";
 
 describe("defaultWorkerFactory", () => {
     const original = Reflect.has(globalThis, "Worker")

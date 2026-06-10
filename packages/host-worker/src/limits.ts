@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { HostLimits } from "./types";
+import type { HostLimits } from "./types.js";
 
 /**
  * Phase-1 default `HostLimits`. `maxCpuMsPerStep` is the only enforced cap;

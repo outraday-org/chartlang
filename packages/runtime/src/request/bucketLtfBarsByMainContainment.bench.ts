@@ -4,7 +4,7 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { bench, describe } from "vitest";
 
-import { bucketLtfBarsByMainContainment } from "./bucketLtfBarsByMainContainment";
+import { bucketLtfBarsByMainContainment } from "./bucketLtfBarsByMainContainment.js";
 
 function makeBars(count: number, stepMs: number): ReadonlyArray<Bar> {
     return Array.from({ length: count }, (_, i) => {

@@ -5,10 +5,10 @@ import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import type { RuntimeContext } from "../../runtimeContext";
-import { createStreamState } from "../../streamState";
-import { inMemoryStateStore } from "../../stateStore";
-import { nextSubId, resetSubIdCounters } from "./subIdAllocator";
+import type { RuntimeContext } from "../../runtimeContext.js";
+import { createStreamState } from "../../streamState.js";
+import { inMemoryStateStore } from "../../stateStore.js";
+import { nextSubId, resetSubIdCounters } from "./subIdAllocator.js";
 
 function makeCaps(): Capabilities {
     return {

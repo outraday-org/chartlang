@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { adxFromDi } from "./adxFromDi";
+import { adxFromDi } from "./adxFromDi.js";
 
 describe("adxFromDi", () => {
     it("returns an all-NaN buffer for length ≤ 0", () => {

@@ -260,7 +260,7 @@ function indexTs(): string {
 function indexTestTs(): string {
     return `${MIT_HEADER}\nimport { describe, expect, it } from "vitest";
 
-import * as publicSurface from "./index";
+import * as publicSurface from "./index.js";
 
 describe("public surface", () => {
     it("loads the package barrel", () => {

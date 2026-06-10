@@ -9,10 +9,10 @@ import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
-} from "../../../runtimeContext";
-import { createStreamState } from "../../../streamState";
-import { inMemoryStateStore } from "../../../stateStore";
-import { elliottDoubleCombo } from "./elliottDoubleCombo";
+} from "../../../runtimeContext.js";
+import { createStreamState } from "../../../streamState.js";
+import { inMemoryStateStore } from "../../../stateStore.js";
+import { elliottDoubleCombo } from "./elliottDoubleCombo.js";
 
 function makeCaps(overrides: Partial<Capabilities> = {}): Capabilities {
     return {

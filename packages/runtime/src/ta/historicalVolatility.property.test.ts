@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { historicalVolatility } from "./historicalVolatility";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { historicalVolatility } from "./historicalVolatility.js";
 
 describe("ta.historicalVolatility — property invariants", () => {
     it("output is non-negative when defined (positive closes)", () => {

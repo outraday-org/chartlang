@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { wma } from "./wma";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { wma } from "./wma.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through an O(length) window walk per close; well within SMA's 2x

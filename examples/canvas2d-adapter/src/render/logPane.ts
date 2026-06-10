@@ -3,9 +3,9 @@
 
 import type { LogEmission } from "@invinite-org/chartlang-adapter-kit";
 
-import type { Palette } from "../palette";
-import type { RenderCtx } from "./clear";
-import type { Viewport } from "./coords";
+import type { Palette } from "../palette.js";
+import type { RenderCtx } from "./clear.js";
+import type { Viewport } from "./coords.js";
 
 const MAX_VISIBLE_LOGS = 5;
 const PADDING = 8;

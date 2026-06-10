@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_LIMITS, watchStep } from "./limits";
+import { DEFAULT_LIMITS, watchStep } from "./limits.js";
 
 describe("DEFAULT_LIMITS", () => {
     it("matches the documented Phase-1 defaults", () => {

@@ -16,7 +16,7 @@ import type {
     RegressionTrendOpts,
     ShapeStyle,
     TextOpts,
-} from "./drawingStyle";
+} from "./drawingStyle.js";
 
 describe("drawingStyle bags", () => {
     it("LineDrawStyle carries optional color/lineWidth/lineStyle/extend flags", () => {

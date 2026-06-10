@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { atr } from "./atr";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { atr } from "./atr.js";
 
 describe("ta.atr hot loop", () => {
     bench(

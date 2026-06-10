@@ -3,12 +3,12 @@
 
 import type { PlotEmission } from "@invinite-org/chartlang-adapter-kit";
 
-import { pushDiagnostic, pushPlot } from "../../../emit";
-import { Float64RingBuffer } from "../../../ringBuffer";
-import type { RuntimeContext } from "../../../runtimeContext";
+import { pushDiagnostic, pushPlot } from "../../../emit/index.js";
+import { Float64RingBuffer } from "../../../ringBuffer.js";
+import type { RuntimeContext } from "../../../runtimeContext.js";
 
-import { type VolumeProfileBar, type VolumeProfileResult, computeProfile } from "./index";
-import type { ProfileConfig } from "./index";
+import { type VolumeProfileBar, type VolumeProfileResult, computeProfile } from "./index.js";
+import type { ProfileConfig } from "./index.js";
 
 /**
  * Histogram bucket shape shared by all four volume-profile primitives.

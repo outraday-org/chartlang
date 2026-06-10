@@ -10,7 +10,7 @@ import type {
     VolumeProfileBucket,
     VolumeProfileRow,
     VolumeSplit,
-} from "./types";
+} from "./types.js";
 
 /**
  * Distribute each bar's volume across overlapping price buckets and

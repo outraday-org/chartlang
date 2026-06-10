@@ -5,7 +5,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "codemirror";
 import { describe, expect, it } from "vitest";
 
-import { peekPanelExtension } from "./peekPanel";
+import { peekPanelExtension } from "./peekPanel.js";
 
 describe("peekPanelExtension", () => {
     it("renders and removes the Phase 4 placeholder panel", () => {

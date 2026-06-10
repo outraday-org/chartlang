@@ -5,8 +5,8 @@ import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import { validateEmission } from "@invinite-org/chartlang-adapter-kit";
 import { bucketFor, type DrawingBucket } from "@invinite-org/chartlang-core";
 
-import type { RuntimeContext } from "../../runtimeContext";
-import { pushDiagnostic } from "../emissionsQueue";
+import type { RuntimeContext } from "../../runtimeContext.js";
+import { pushDiagnostic } from "../emissionsQueue.js";
 
 function effectiveBudget(ctx: RuntimeContext, bucket: DrawingBucket): number {
     const adapterCap = ctx.capabilities.maxDrawingsPerScript[bucket];

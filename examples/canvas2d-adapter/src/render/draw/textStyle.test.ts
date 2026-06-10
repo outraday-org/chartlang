@@ -8,7 +8,7 @@ import {
     resolveTextOpts,
     SIZE_TO_PX,
     VALIGN_TO_TEXTBASELINE,
-} from "./textStyle";
+} from "./textStyle.js";
 
 describe("SIZE_TO_PX", () => {
     it("maps every named size keyword to its pixel value", () => {

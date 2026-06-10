@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { roc } from "./roc";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { roc } from "./roc.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.roc is two ring-buffer reads
 // + an arithmetic.

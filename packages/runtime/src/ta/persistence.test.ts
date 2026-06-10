@@ -3,13 +3,13 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createStreamState } from "../streamState";
-import { harnessWithCtx } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { ema } from "./ema";
-import { isTaSlotSnapshotKey, restoreTaSlots, serialiseTaSlots } from "./persistence";
-import { rsi } from "./rsi";
-import { sma } from "./sma";
+import { createStreamState } from "../streamState.js";
+import { harnessWithCtx } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { ema } from "./ema.js";
+import { isTaSlotSnapshotKey, restoreTaSlots, serialiseTaSlots } from "./persistence.js";
+import { rsi } from "./rsi.js";
+import { sma } from "./sma.js";
 
 function buffer(values: ReadonlyArray<number | null> = [1, 2, 3]) {
     return {

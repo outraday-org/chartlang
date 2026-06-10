@@ -8,7 +8,7 @@ import type {
     ComputeFn,
     InputSchema,
     ScriptManifest,
-} from "../types";
+} from "../types.js";
 
 /**
  * Author-supplied options for `defineAlertCondition(...)`. Mirrors

@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { KIND_BUCKET, bucketFor } from "./buckets";
-import type { DrawingBucket } from "./buckets";
-import { DRAWING_KINDS } from "./drawingKind";
-import type { DrawingKind } from "./drawingKind";
+import { KIND_BUCKET, bucketFor } from "./buckets.js";
+import type { DrawingBucket } from "./buckets.js";
+import { DRAWING_KINDS } from "./drawingKind.js";
+import type { DrawingKind } from "./drawingKind.js";
 
 const VALID_BUCKETS: ReadonlySet<DrawingBucket> = new Set([
     "lines",

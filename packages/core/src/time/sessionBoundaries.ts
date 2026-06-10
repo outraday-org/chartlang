@@ -6,11 +6,11 @@
 // Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
 // provenance contract; the math is the reference, the code style is not.
 
-import type { Time } from "../types";
-import { getFormatter } from "./_lib/dateTimeFormatCache";
-import { localDateParts } from "./nyDayKey";
-import type { SessionBounds, SessionType } from "./types";
-import { weekday } from "./weekday";
+import type { Time } from "../types.js";
+import { getFormatter } from "./_lib/dateTimeFormatCache.js";
+import { localDateParts } from "./nyDayKey.js";
+import type { SessionBounds, SessionType } from "./types.js";
+import { weekday } from "./weekday.js";
 
 const MINUTE_MS = 60_000;
 

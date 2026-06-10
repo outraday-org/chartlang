@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { ta } from "./ta";
+import { ta } from "./ta.js";
 
 describe("ta callable holes", () => {
     it("ta.sma throws outside-runtime sentinel", () => {

@@ -3,9 +3,9 @@
 
 import type { DrawingHandle, TableOpts, TableState } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT } from "../../../runtimeContext";
-import { createDrawingHandle } from "../handle";
-import { nextSubId } from "../subIdAllocator";
+import { ACTIVE_RUNTIME_CONTEXT } from "../../../runtimeContext.js";
+import { createDrawingHandle } from "../handle.js";
+import { nextSubId } from "../subIdAllocator.js";
 
 const OUTSIDE_CTX_MESSAGE = "draw.table called outside an active script step";
 

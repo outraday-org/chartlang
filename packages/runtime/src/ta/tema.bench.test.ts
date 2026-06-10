@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { tema } from "./tema";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { tema } from "./tema.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through three chained EMA sub-slots; ~3× SMA's budget per task §10.

@@ -12,7 +12,7 @@ import type {
 } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { filterEmissions } from "./filterEmissions";
+import { filterEmissions } from "./filterEmissions.js";
 
 function validPlot(): PlotEmission {
     return {

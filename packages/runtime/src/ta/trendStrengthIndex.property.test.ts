@@ -5,9 +5,9 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { pearson } from "./lib/pearson";
-import { trendStrengthIndex } from "./trendStrengthIndex";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { pearson } from "./lib/pearson.js";
+import { trendStrengthIndex } from "./trendStrengthIndex.js";
 
 const arbCloseBar = fc.double({ min: 1, max: 1000, noNaN: true }).map(
     (close, _i): Bar => ({

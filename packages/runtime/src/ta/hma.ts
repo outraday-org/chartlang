@@ -12,9 +12,9 @@
 
 import type { HmaOpts, Series } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
-import { wma } from "./wma";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
+import { wma } from "./wma.js";
 
 type HmaSlot = {
     readonly series: Series<number>;

@@ -6,10 +6,10 @@ import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { LineState } from "@invinite-org/chartlang-core";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../../runtimeContext";
-import { createStreamState } from "../../streamState";
-import { inMemoryStateStore } from "../../stateStore";
-import { createDrawingHandle } from "./handle";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../../runtimeContext.js";
+import { createStreamState } from "../../streamState.js";
+import { inMemoryStateStore } from "../../stateStore.js";
+import { createDrawingHandle } from "./handle.js";
 
 function makeCaps(): Capabilities {
     return {

@@ -5,10 +5,10 @@ import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import type { MutableRunnerEmissions, RuntimeContext } from "../runtimeContext";
-import { createStreamState } from "../streamState";
-import { inMemoryStateStore } from "../stateStore";
-import { resolvePane } from "./paneResolver";
+import type { MutableRunnerEmissions, RuntimeContext } from "../runtimeContext.js";
+import { createStreamState } from "../streamState.js";
+import { inMemoryStateStore } from "../stateStore.js";
+import { resolvePane } from "./paneResolver.js";
 
 function makeCapabilities(subPanes = 0): Capabilities {
     return {

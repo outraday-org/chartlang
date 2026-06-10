@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { connorsRsi } from "./connorsRsi";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { connorsRsi } from "./connorsRsi.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Connors RSI
 // composes two `ta.rsi` sub-slots (each Wilder, O(1) per bar) + a

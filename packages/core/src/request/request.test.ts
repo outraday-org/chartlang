@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { request } from "./request";
+import { request } from "./request.js";
 
 describe("request callable holes", () => {
     it("request.security throws outside-runtime sentinel", () => {

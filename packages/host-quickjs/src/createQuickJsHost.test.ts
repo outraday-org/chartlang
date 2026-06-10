@@ -6,14 +6,14 @@ import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { createQuickJsHost, type CreateQuickJsHostOpts } from "./createQuickJsHost";
+import { createQuickJsHost, type CreateQuickJsHostOpts } from "./createQuickJsHost.js";
 import type {
     QuickJsContextLike,
     QuickJsHandleLike,
     QuickJsHostLimits,
     QuickJsLike,
     ScriptHost,
-} from "./types";
+} from "./types.js";
 
 function makeCapabilities(): Capabilities {
     return {

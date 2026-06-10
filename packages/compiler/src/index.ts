@@ -9,17 +9,17 @@ export {
     transformAndAnalyse,
     walkChartFiles,
     writeAtomic,
-} from "./api";
+} from "./api.js";
 export type {
     CompileFileOptions,
     CompileOptions,
     CompiledScript,
     TransformAndAnalyseOptions,
     TransformAndAnalyseResult,
-} from "./api";
-export { bundleModule, formatManifestAssignment } from "./bundle";
-export type { BundleModuleOptions, BundleModuleResult } from "./bundle";
-export type { CompileDiagnostic, CompileDiagnosticCode } from "./diagnostics";
-export { emitTypes } from "./typesEmit";
-export type { EmitTypesOptions } from "./typesEmit";
-export { resolveCalleeName } from "./transformers/resolveCallee";
+} from "./api.js";
+export { bundleModule, formatManifestAssignment } from "./bundle.js";
+export type { BundleModuleOptions, BundleModuleResult } from "./bundle.js";
+export type { CompileDiagnostic, CompileDiagnosticCode } from "./diagnostics.js";
+export { emitTypes } from "./typesEmit.js";
+export type { EmitTypesOptions } from "./typesEmit.js";
+export { resolveCalleeName } from "./transformers/resolveCallee.js";

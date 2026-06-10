@@ -6,8 +6,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { syntheticProfileBars } from "./__fixtures__/volumeProfileFixtures";
-import { computeProfile, sliceBarsByTime } from "./volumeProfileShared";
+import { syntheticProfileBars } from "./__fixtures__/volumeProfileFixtures.js";
+import { computeProfile, sliceBarsByTime } from "./volumeProfileShared.js";
 
 describe("computeProfile", () => {
     it("returns an empty profile for empty lanes", () => {

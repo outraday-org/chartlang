@@ -20,11 +20,11 @@
 
 import type { FisherOpts, FisherResult, Series } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
-import { highest } from "./highest";
-import { lowest } from "./lowest";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView } from "../seriesView.js";
+import { highest } from "./highest.js";
+import { lowest } from "./lowest.js";
 
 type FisherSlot = {
     result: FisherResult | null;

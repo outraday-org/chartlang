@@ -4,7 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { adxFromDi } from "./adxFromDi";
+import { adxFromDi } from "./adxFromDi.js";
 
 const arbDiPair = fc.integer({ min: 10, max: 50 }).chain((n) =>
     fc.tuple(

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { draw } from "./draw";
+import { draw } from "./draw.js";
 
 describe("draw throwing stub", () => {
     it("throws when a top-level draw method is called outside the runtime", () => {

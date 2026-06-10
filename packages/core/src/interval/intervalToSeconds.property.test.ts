@@ -4,7 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { intervalToSeconds } from "./intervalToSeconds";
+import { intervalToSeconds } from "./intervalToSeconds.js";
 
 const multipliers = [
     ["s", 1],

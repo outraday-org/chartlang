@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { state } from "./state";
+import { state } from "./state.js";
 
 describe("state callable holes", () => {
     it("throws sentinels for state.* slots outside an active script step", () => {

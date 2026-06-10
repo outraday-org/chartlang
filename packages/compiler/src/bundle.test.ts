@@ -4,7 +4,7 @@
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { bundleModule, formatManifestAssignment } from "./bundle";
+import { bundleModule, formatManifestAssignment } from "./bundle.js";
 
 const TS_SOURCE = `
 const greeting: string = "hi";
@@ -21,6 +21,24 @@ describe("bundleModule", () => {
         });
         expect(result.moduleSource).toMatch(/export\s*\{/);
         expect("sourcemap" in result).toBe(false);
+    });
+
+    it("inlines `@invinite-org/chartlang-core` so no import statements remain", async () => {
+        // §5.2: the bundle is self-contained ESM. With the previous
+        // `esbuild.transform` codepath, the bare import line survived and the
+        // worker / QuickJS hosts both failed to load the module.
+        const src = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({ name: "x", apiVersion: 1, compute: () => {} });
+`;
+        const result = await bundleModule({
+            transformedSource: src,
+            sourcePath: "x.chart.ts",
+            sourcemap: false,
+            minify: false,
+        });
+        expect(result.moduleSource).not.toMatch(/^\s*import\b/m);
+        expect(result.moduleSource).not.toContain("@invinite-org/chartlang-core");
     });
 
     it("returns external sourcemap JSON when sourcemap === 'external'", async () => {

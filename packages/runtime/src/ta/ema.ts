@@ -12,10 +12,10 @@
 
 import type { EmaOpts, Series } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
-import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
 
 type EmaSlot = {
     readonly kind: "ta.ema";

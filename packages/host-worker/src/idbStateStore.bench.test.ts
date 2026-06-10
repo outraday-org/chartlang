@@ -6,7 +6,7 @@ import "fake-indexeddb/auto";
 import type { StateSnapshot, StateStoreKey, StreamSnapshot } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { idbStateStore } from "./idbStateStore";
+import { idbStateStore } from "./idbStateStore.js";
 
 // THRESHOLD_MS bounds one save + load for a representative 5,000-bar snapshot
 // under `fake-indexeddb`. The shim is pure JS and lacks native browser IDB's

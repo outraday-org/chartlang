@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { williamsFractal } from "./williamsFractal";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { williamsFractal } from "./williamsFractal.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 describe("ta.williamsFractal hot loop", () => {
     bench(

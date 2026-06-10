@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { vwma } from "./vwma";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { vwma } from "./vwma.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. VWMA walks
 // two parallel windows per close — roughly 1.5× SMA's budget per

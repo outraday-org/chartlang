@@ -24,19 +24,19 @@ import type {
     CreateScriptRunnerArgs,
     ScriptRunner,
     createScriptRunner,
-} from "./createScriptRunner";
-import type { Float64RingBuffer, RingBuffer, RingBufferLike } from "./ringBuffer";
+} from "./createScriptRunner.js";
+import type { Float64RingBuffer, RingBuffer, RingBufferLike } from "./ringBuffer.js";
 import type {
     ACTIVE_RUNTIME_CONTEXT,
     DrawingSlot,
     MutableRunnerEmissions,
     RuntimeContext,
-} from "./runtimeContext";
-import type { makeSeriesView } from "./seriesView";
-import type { StateStore, inMemoryStateStore } from "./stateStore";
-import type { PersistentStateStore, inMemoryPersistentStateStore } from "./persistentStateStore";
-import type { BarView, OhlcvBuffers, StreamState, createStreamState } from "./streamState";
-import type { AdapterSymInfo, RuntimeViews } from "./views";
+} from "./runtimeContext.js";
+import type { makeSeriesView } from "./seriesView.js";
+import type { StateStore, inMemoryStateStore } from "./stateStore.js";
+import type { PersistentStateStore, inMemoryPersistentStateStore } from "./persistentStateStore.js";
+import type { BarView, OhlcvBuffers, StreamState, createStreamState } from "./streamState.js";
+import type { AdapterSymInfo, RuntimeViews } from "./views/index.js";
 
 describe("type assertions", () => {
     it("RingBufferLike<T> declares the §6.6 surface", () => {

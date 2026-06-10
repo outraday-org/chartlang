@@ -9,10 +9,10 @@ import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
-} from "../runtimeContext";
-import { createStreamState } from "../streamState";
-import { inMemoryStateStore } from "../stateStore";
-import { alert } from "./alert";
+} from "../runtimeContext.js";
+import { createStreamState } from "../streamState.js";
+import { inMemoryStateStore } from "../stateStore.js";
+import { alert } from "./alert.js";
 
 // THRESHOLD_MS — 10 000 unique-slot alert emissions; alerts include
 // a FNV-1a hash + JSON.stringify call per push. Keep the same smoke-test

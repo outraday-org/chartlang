@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Palette } from "../palette";
-import type { RenderCtx } from "./clear";
-import { priceToY, timeToX, type PlotPoint, type Viewport } from "./coords";
+import type { Palette } from "../palette.js";
+import type { RenderCtx } from "./clear.js";
+import { priceToY, timeToX, type PlotPoint, type Viewport } from "./coords.js";
 
 function isFiniteValue(p: PlotPoint): boolean {
     return p.value !== null && Number.isFinite(p.value);

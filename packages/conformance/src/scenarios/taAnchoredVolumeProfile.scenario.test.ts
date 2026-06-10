@@ -10,8 +10,8 @@ import type {
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { runConformanceSuite } from "../runConformanceSuite";
-import { TA_ANCHORED_VOLUME_PROFILE_SCENARIO } from "./taAnchoredVolumeProfile.scenario";
+import { runConformanceSuite } from "../runConformanceSuite.js";
+import { TA_ANCHORED_VOLUME_PROFILE_SCENARIO } from "./taAnchoredVolumeProfile.scenario.js";
 
 const TEST_CAPABILITIES: Capabilities = {
     plots: capabilities.allPhase5Plots(),

@@ -8,7 +8,7 @@ import type {
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
 
-import type { QuickJsCompiledScript, QuickJsHostLimits } from "./types";
+import type { QuickJsCompiledScript, QuickJsHostLimits } from "./types.js";
 
 /**
  * Messages the host posts into the QuickJS runtime. JSON-clean by

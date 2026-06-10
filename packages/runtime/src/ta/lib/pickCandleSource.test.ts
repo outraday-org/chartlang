@@ -4,7 +4,7 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { pickCandleSource } from "./pickCandleSource";
+import { pickCandleSource } from "./pickCandleSource.js";
 
 const SAMPLE: Bar = {
     time: 0,

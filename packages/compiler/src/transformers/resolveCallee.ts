@@ -3,7 +3,7 @@
 
 import ts from "typescript";
 
-import { CORE_MODULE_PATH } from "../program";
+import { CORE_MODULE_PATH } from "../program.js";
 
 /**
  * Resolve a `CallExpression`'s callee to its fully-qualified name. Returns

@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { mcginley } from "./mcginley";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { mcginley } from "./mcginley.js";
 
 describe("ta.mcginley hot loop", () => {
     bench(

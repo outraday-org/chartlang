@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { ConformanceFailure, ConformanceReport, ScenarioResult } from "../runConformanceSuite";
+import type { ConformanceFailure, ConformanceReport, ScenarioResult } from "../runConformanceSuite.js";
 
 /**
  * Metadata included in generated conformance reports.

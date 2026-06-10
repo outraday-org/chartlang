@@ -4,8 +4,8 @@
 import type { StatefulPrimitiveEntry } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
-import { type CompileDiagnostic, createDiagnostic } from "../diagnostics";
-import { resolveCalleeName, resolveCoreSymbolForElementAccess } from "./resolveCallee";
+import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
+import { resolveCalleeName, resolveCoreSymbolForElementAccess } from "./resolveCallee.js";
 
 /**
  * Output of `injectCallsiteIds` — the rewritten source file plus any

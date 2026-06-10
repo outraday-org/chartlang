@@ -3,10 +3,10 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { capabilities } from "./capabilities";
-import { defineAdapter } from "./defineAdapter";
-import { mockCandleSource } from "./mocks";
-import type { Capabilities } from "./types";
+import { capabilities } from "./capabilities/index.js";
+import { defineAdapter } from "./defineAdapter.js";
+import { mockCandleSource } from "./mocks/index.js";
+import type { Capabilities } from "./types.js";
 
 const minimalCapabilities: Capabilities = {
     plots: capabilities.allLines(),

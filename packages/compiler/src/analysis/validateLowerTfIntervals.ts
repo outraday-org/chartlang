@@ -4,8 +4,8 @@
 import { type IntervalDescriptor, intervalToSeconds } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
-import { type CompileDiagnostic, createDiagnostic } from "../diagnostics";
-import { resolveCalleeName } from "../transformers/resolveCallee";
+import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
+import { resolveCalleeName } from "../transformers/resolveCallee.js";
 
 function secondsOrNull(descriptor: IntervalDescriptor): number | null {
     try {

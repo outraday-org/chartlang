@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { MockCanvas2DContext } from "../testing";
-import { drawBarColor } from "./barColor";
-import type { Viewport } from "./coords";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawBarColor } from "./barColor.js";
+import type { Viewport } from "./coords.js";
 
 const VIEWPORT: Viewport = { xMin: 0, xMax: 10, yMin: 0, yMax: 100, pxWidth: 100, pxHeight: 100 };
 const BAR = { time: 5, open: 40, high: 60, low: 30, close: 50, volume: 1, interval: "1D" };

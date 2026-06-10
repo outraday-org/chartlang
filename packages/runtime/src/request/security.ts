@@ -3,11 +3,11 @@
 
 import type { SecurityBar, Series } from "@invinite-org/chartlang-core";
 
-import type { RuntimeContext } from "../runtimeContext";
-import type { StreamState } from "../streamState";
-import { getOrAlign } from "./alignHtfSeriesCache";
-import { pushOnce } from "./pushOnce";
-import { ascendingBarsFor } from "./streamBars";
+import type { RuntimeContext } from "../runtimeContext.js";
+import type { StreamState } from "../streamState.js";
+import { getOrAlign } from "./alignHtfSeriesCache.js";
+import { pushOnce } from "./pushOnce.js";
+import { ascendingBarsFor } from "./streamBars.js";
 
 type NumericSourceKey =
     | "time"

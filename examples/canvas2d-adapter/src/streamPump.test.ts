@@ -6,7 +6,7 @@ import type { CandleEvent } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { createMultiStreamCandlePump } from "./streamPump";
+import { createMultiStreamCandlePump } from "./streamPump.js";
 
 function bar(i: number, interval = "1m"): Bar {
     return {

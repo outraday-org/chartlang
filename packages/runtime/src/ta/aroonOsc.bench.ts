@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { aroonOsc } from "./aroonOsc";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { aroonOsc } from "./aroonOsc.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 describe("ta.aroonOsc hot loop", () => {
     bench(

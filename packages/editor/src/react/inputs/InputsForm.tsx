@@ -3,7 +3,7 @@
 
 import type { ReactElement } from "react";
 
-import { renderInputsForm, type InputsFormField } from "./renderInputsForm";
+import { renderInputsForm, type InputsFormField } from "./renderInputsForm.js";
 
 /**
  * Props for the React script inputs form binding.

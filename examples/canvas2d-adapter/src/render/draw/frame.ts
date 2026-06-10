@@ -13,9 +13,9 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { FrameState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 const DEFAULT_STROKE = "#64748b";
 const DEFAULT_LABEL_COLOR = "#1e293b";

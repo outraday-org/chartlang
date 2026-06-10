@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { smma } from "./smma";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { smma } from "./smma.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. SMMA mirrors
 // EMA: O(1) per close (recurrence). Within SMA's budget per task §10.

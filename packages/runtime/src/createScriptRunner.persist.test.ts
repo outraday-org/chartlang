@@ -7,11 +7,11 @@ import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { createScriptRunner } from "./createScriptRunner";
-import { inMemoryPersistentStateStore } from "./persistentStateStore";
-import type { PersistentStateStore } from "./persistentStateStore";
-import { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext";
-import { StateSlot } from "./state";
+import { createScriptRunner } from "./createScriptRunner.js";
+import { inMemoryPersistentStateStore } from "./persistentStateStore.js";
+import type { PersistentStateStore } from "./persistentStateStore.js";
+import { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext.js";
+import { StateSlot } from "./state/index.js";
 
 function makeCapabilities(): Capabilities {
     return {

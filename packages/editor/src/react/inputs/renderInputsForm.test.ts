@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { inputsFormTestManifest as manifest } from "../../__fixtures__/inputsFormTestManifest";
-import { testCapabilities } from "../../__fixtures__/testHelpers";
-import { renderInputsForm } from "./renderInputsForm";
+import { inputsFormTestManifest as manifest } from "../../__fixtures__/inputsFormTestManifest.js";
+import { testCapabilities } from "../../__fixtures__/testHelpers.js";
+import { renderInputsForm } from "./renderInputsForm.js";
 
 describe("renderInputsForm", () => {
     it("builds fields for every current input descriptor kind", () => {

@@ -4,11 +4,11 @@
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { collectCompletions } from "./collectCompletions";
-import { isInsideIntervalLiteral } from "./isInsideIntervalLiteral";
-import { makeDiagnostic, mapDiagnostic } from "./mapDiagnostic";
-import { findTokenAtOffset, resolveFqnAtOffset } from "./resolveFqnAtOffset";
-import { toHoverDoc } from "./toHoverDoc";
+import { collectCompletions } from "./collectCompletions.js";
+import { isInsideIntervalLiteral } from "./isInsideIntervalLiteral.js";
+import { makeDiagnostic, mapDiagnostic } from "./mapDiagnostic.js";
+import { findTokenAtOffset, resolveFqnAtOffset } from "./resolveFqnAtOffset.js";
+import { toHoverDoc } from "./toHoverDoc.js";
 
 describe("language-service helpers", () => {
     it("resolves FQNs and returns null for non-identifiers", () => {

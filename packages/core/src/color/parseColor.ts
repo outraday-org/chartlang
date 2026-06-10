@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Color } from "../types";
+import type { Color } from "../types.js";
 
 /**
  * Pine-style named palette values accepted by the color parser and exposed

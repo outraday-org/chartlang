@@ -1,17 +1,17 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-export { runStructuralChecks } from "./structuralChecks";
-export type { StructuralCheckResult } from "./structuralChecks";
-export { runForbiddenConstructs } from "./forbiddenConstructs";
-export { runStatefulCallInLoop } from "./statefulCallInLoop";
-export { extractCapabilities } from "./extractCapabilities";
-export { extractMaxLookback } from "./extractMaxLookback";
-export type { ExtractMaxLookbackResult } from "./extractMaxLookback";
-export { extractInputs } from "./extractInputs";
-export type { ExtractedDescriptor, ExtractInputsResult } from "./extractInputs";
-export { extractRequestedIntervals } from "./extractRequestedIntervals";
-export { validateLowerTfIntervals } from "./validateLowerTfIntervals";
-export { extractRequiresIntervals } from "./extractRequiresIntervals";
-export { extractAlertConditions } from "./extractAlertConditions";
-export type { ExtractAlertConditionsResult } from "./extractAlertConditions";
+export { runStructuralChecks } from "./structuralChecks.js";
+export type { StructuralCheckResult } from "./structuralChecks.js";
+export { runForbiddenConstructs } from "./forbiddenConstructs.js";
+export { runStatefulCallInLoop } from "./statefulCallInLoop.js";
+export { extractCapabilities } from "./extractCapabilities.js";
+export { extractMaxLookback } from "./extractMaxLookback.js";
+export type { ExtractMaxLookbackResult } from "./extractMaxLookback.js";
+export { extractInputs } from "./extractInputs.js";
+export type { ExtractedDescriptor, ExtractInputsResult } from "./extractInputs.js";
+export { extractRequestedIntervals } from "./extractRequestedIntervals.js";
+export { validateLowerTfIntervals } from "./validateLowerTfIntervals.js";
+export { extractRequiresIntervals } from "./extractRequiresIntervals.js";
+export { extractAlertConditions } from "./extractAlertConditions.js";
+export type { ExtractAlertConditionsResult } from "./extractAlertConditions.js";

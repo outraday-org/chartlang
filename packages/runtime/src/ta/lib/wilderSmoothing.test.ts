@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { wilderStep } from "./wilderSmoothing";
+import { wilderStep } from "./wilderSmoothing.js";
 
 describe("wilderStep", () => {
     it("returns prev when the sample equals prev", () => {

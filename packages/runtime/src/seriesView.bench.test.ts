@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { Float64RingBuffer } from "./ringBuffer";
-import { makeSeriesView } from "./seriesView";
+import { Float64RingBuffer } from "./ringBuffer.js";
+import { makeSeriesView } from "./seriesView.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon (M-series).
 // 100k Proxy hits over a 64-slot Float64 buffer take ~50ms on M2;

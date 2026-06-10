@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { syntheticBars } from "../__fixtures__/syntheticBars";
-import { advanceDirectionalClose, initDirectionalState } from "./directionalState";
+import { syntheticBars } from "../__fixtures__/syntheticBars.js";
+import { advanceDirectionalClose, initDirectionalState } from "./directionalState.js";
 
 const THRESHOLD_MS = 1500;
 

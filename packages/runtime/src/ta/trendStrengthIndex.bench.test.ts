@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { trendStrengthIndex } from "./trendStrengthIndex";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { trendStrengthIndex } from "./trendStrengthIndex.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Pearson is
 // O(length) per close (window-rescan), so for length=20 over 10k bars

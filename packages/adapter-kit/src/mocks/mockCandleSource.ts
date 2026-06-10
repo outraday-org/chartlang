@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { Bar } from "@invinite-org/chartlang-core";
-import type { CandleEvent } from "../types";
+import type { CandleEvent } from "../types.js";
 
 /**
  * How a {@link mockCandleSource} surfaces the supplied bars: `history`

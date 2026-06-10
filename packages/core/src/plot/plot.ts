@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Color, LineStyle, Series } from "../types";
+import type { Color, LineStyle, Series } from "../types.js";
 
 /**
  * Rendered-shape discriminator for `plot` emissions reaching the adapter.

@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { color, fromGradient, hsl, rgb, withAlpha } from "./index";
-import { parseColor } from "./parseColor";
+import { color, fromGradient, hsl, rgb, withAlpha } from "./index.js";
+import { parseColor } from "./parseColor.js";
 
 function expectRgbClose(actual: string, expected: Readonly<{ r: number; g: number; b: number }>) {
     const parsed = parseColor(actual);

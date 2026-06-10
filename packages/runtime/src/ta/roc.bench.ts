@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { roc } from "./roc";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { roc } from "./roc.js";
 
 describe("ta.roc hot loop", () => {
     bench(

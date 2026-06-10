@@ -3,11 +3,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { SAMPLE_BARS } from "../__fixtures__/sampleBars";
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import { drawCandles } from "./candles";
-import type { Viewport } from "./coords";
+import { SAMPLE_BARS } from "../__fixtures__/sampleBars.js";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawCandles } from "./candles.js";
+import type { Viewport } from "./coords.js";
 
 const viewport: Viewport = {
     xMin: SAMPLE_BARS[0].time,

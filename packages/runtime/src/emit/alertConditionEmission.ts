@@ -3,8 +3,8 @@
 
 import type { AlertConditionEmission } from "@invinite-org/chartlang-adapter-kit";
 
-import type { RuntimeContext } from "../runtimeContext";
-import { pushAlertCondition, pushDiagnostic } from "./emissionsQueue";
+import type { RuntimeContext } from "../runtimeContext.js";
+import { pushAlertCondition, pushDiagnostic } from "./emissionsQueue.js";
 
 function diagnoseOnce(
     ctx: RuntimeContext,

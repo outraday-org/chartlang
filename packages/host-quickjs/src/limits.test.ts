@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_QUICKJS_LIMITS } from "./limits";
+import { DEFAULT_QUICKJS_LIMITS } from "./limits.js";
 
 describe("DEFAULT_QUICKJS_LIMITS", () => {
     it("matches the documented Phase-5 defaults", () => {

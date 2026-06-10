@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
-import { EMA_CROSS, VALID_DEFINE } from "./__fixtures__/scripts";
-import { CompileError, compile } from "./api";
+import { EMA_CROSS, VALID_DEFINE } from "./__fixtures__/scripts.js";
+import { CompileError, compile } from "./api.js";
 
 const HOSTILE = `
 import { defineIndicator } from "@invinite-org/chartlang-core";
@@ -149,6 +150,60 @@ export default defineIndicator({
         const error = new CompileError([]);
         expect(error.message).toBe("Compilation failed");
         expect(error.diagnostics).toEqual([]);
+    });
+
+    it("produces a self-contained bundle with no `import` statements (data: URL ready)", async () => {
+        // §5.2 contract: the compile output bundles `@invinite-org/chartlang-core`
+        // and tree-shakes. Hosts load via `data:text/javascript` URLs which
+        // cannot resolve bare specifiers — any surviving import line breaks
+        // every browser worker + QuickJS load path.
+        const result = await compile(EMA_CROSS, {
+            apiVersion: 1,
+            sourcePath: "ema-cross.chart.ts",
+        });
+        expect(result.moduleSource).not.toMatch(/^\s*import\b/m);
+        expect(result.moduleSource).not.toContain("@invinite-org/chartlang-core");
+        // The PLAN §5.2 budget for unminified output is ~5–50 KB; a leaked
+        // `defineIndicator` body would not fit under the upper bound.
+        expect(result.moduleSource.length).toBeGreaterThan(1_000);
+        expect(result.moduleSource.length).toBeLessThan(60_000);
+    });
+
+    it("the real examples/scripts/ema-cross.chart.ts bundle is between 5KB and 50KB per PLAN §5.2", async () => {
+        const realSrc = await readFile(
+            new URL("../../../examples/scripts/ema-cross.chart.ts", import.meta.url),
+            "utf8",
+        );
+        const result = await compile(realSrc, {
+            apiVersion: 1,
+            sourcePath: "examples/scripts/ema-cross.chart.ts",
+        });
+        // PLAN §5.2: compiled output is ~5-50 KB. Bundling pulls in core's
+        // `defineIndicator` stub + supporting runtime shims; the bundled
+        // size should land inside that envelope, while the previous
+        // transform-only path produced ~1.3 KB (broken at runtime).
+        expect(result.moduleSource.length).toBeGreaterThan(5_000);
+        expect(result.moduleSource.length).toBeLessThan(50_000);
+        expect(result.moduleSource).not.toMatch(/^\s*import\b/m);
+    });
+
+    it("the bundled output loads as an ES module via a data: URL and exposes a `default`", async () => {
+        // This is the worker host (`createWorkerBoot.ts`'s `importCompiledModule`)
+        // path simulated end-to-end: compile a real script, encode as a
+        // `data:text/javascript;charset=utf-8,...` URL, dynamically `import` it,
+        // and assert the default export is a callable `compute`.
+        const result = await compile(EMA_CROSS, {
+            apiVersion: 1,
+            sourcePath: "ema-cross.chart.ts",
+        });
+        const dataUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(result.moduleSource)}`;
+        const mod = (await import(/* @vite-ignore */ dataUrl)) as {
+            readonly default: { readonly compute: (...args: unknown[]) => unknown };
+            readonly __manifest: { readonly name: string };
+        };
+        expect(typeof mod.default).toBe("object");
+        expect(typeof mod.default.compute).toBe("function");
+        expect(mod.__manifest.name).toBe("EMA cross");
     });
 
     it("compiles a defineDrawing script with manifest.kind 'drawing' and capabilities ['drawings']", async () => {

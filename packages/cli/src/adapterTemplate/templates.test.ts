@@ -13,7 +13,7 @@ import {
     README_MD,
     TSCONFIG,
     titleCase,
-} from "./templates";
+} from "./templates.js";
 
 describe("titleCase", () => {
     it("uppercases the first character", () => {

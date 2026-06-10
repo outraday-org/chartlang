@@ -9,8 +9,8 @@ import type { compile as CompileFn, CompiledScript } from "@invinite-org/chartla
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { generateGoldenBars } from "./fixtures/generateGoldenBars";
-import { type Scenario, type ScenarioAssertion, runConformanceSuite } from "./runConformanceSuite";
+import { generateGoldenBars } from "./fixtures/generateGoldenBars.js";
+import { type Scenario, type ScenarioAssertion, runConformanceSuite } from "./runConformanceSuite.js";
 import {
     ALL_SCENARIOS,
     BARSTATE_CONFIRMED_SCENARIO,
@@ -31,7 +31,7 @@ import {
     SYMINFO_MINTICK_SCENARIO,
     TIMEFRAME_ISDAILY_SCENARIO,
     UNSUPPORTED_INTERVAL_SCENARIO,
-} from "./scenarios";
+} from "./scenarios/index.js";
 
 const TEST_CAPABILITIES: Capabilities = {
     plots: capBuilders.union(capBuilders.line(), capBuilders.horizontalLine()),

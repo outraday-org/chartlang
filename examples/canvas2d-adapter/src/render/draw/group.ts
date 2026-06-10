@@ -11,8 +11,8 @@
 
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
 
 /**
  * Render a `group` drawing emission. The group container is

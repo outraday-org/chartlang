@@ -4,9 +4,9 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import { syminfo } from "./syminfo";
-import type { SymbolType, SymInfoView } from "./syminfo";
-import type { JsonValue } from "../types";
+import { syminfo } from "./syminfo.js";
+import type { SymbolType, SymInfoView } from "./syminfo.js";
+import type { JsonValue } from "../types.js";
 
 describe("syminfo type surface", () => {
     it("exposes a typed read-only view", () => {

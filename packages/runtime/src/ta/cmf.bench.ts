@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { cmf } from "./cmf";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { cmf } from "./cmf.js";
 
 describe("ta.cmf hot loop", () => {
     bench(

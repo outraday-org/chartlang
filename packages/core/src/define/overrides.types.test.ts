@@ -4,7 +4,7 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import type { ScaleAxis, ScriptOverrides, ValueFormat } from "./overrides";
+import type { ScaleAxis, ScriptOverrides, ValueFormat } from "./overrides.js";
 
 function describeFormat(format: ValueFormat): string {
     if (format === "price") return "price";

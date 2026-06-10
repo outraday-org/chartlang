@@ -4,7 +4,7 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import { defineIndicator, ta } from "./index";
+import { defineIndicator, ta } from "./index.js";
 import type {
     Bar,
     BarStateView,
@@ -29,7 +29,7 @@ import type {
     TimeframeView,
     ValueFormat,
     Volume,
-} from "./index";
+} from "./index.js";
 
 describe("public type surface", () => {
     it("Series<number> numeric index resolves to number", () => {

@@ -3,9 +3,9 @@
 
 import type { LineStyle } from "@invinite-org/chartlang-core";
 
-import type { Palette } from "../palette";
-import type { RenderCtx } from "./clear";
-import { dashPattern } from "./lineDash";
+import type { Palette } from "../palette.js";
+import type { RenderCtx } from "./clear.js";
+import { dashPattern } from "./lineDash.js";
 
 /**
  * Pre-mapped polyline vertex consumed by {@link drawArea}. `x` / `y`

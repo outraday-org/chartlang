@@ -4,8 +4,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { Float64RingBuffer, RingBuffer } from "./ringBuffer";
-import { makeSeriesView, makeShiftedSeriesView } from "./seriesView";
+import { Float64RingBuffer, RingBuffer } from "./ringBuffer.js";
+import { makeSeriesView, makeShiftedSeriesView } from "./seriesView.js";
 
 describe("makeSeriesView (Float64 backing)", () => {
     it("series.current === buf.at(0)", () => {

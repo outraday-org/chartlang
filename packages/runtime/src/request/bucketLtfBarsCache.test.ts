@@ -4,7 +4,7 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { getOrBucket } from "./bucketLtfBarsCache";
+import { getOrBucket } from "./bucketLtfBarsCache.js";
 
 const bar = (time: number): Bar => ({
     time,

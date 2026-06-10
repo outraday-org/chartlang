@@ -6,8 +6,8 @@ import { EditorView } from "@codemirror/view";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { testCapabilities, waitFor } from "../__fixtures__/testHelpers";
-import { ChartlangEditor } from "./ChartlangEditor";
+import { testCapabilities, waitFor } from "../__fixtures__/testHelpers.js";
+import { ChartlangEditor } from "./ChartlangEditor.js";
 
 const intervalSource = `
 import { defineIndicator, request } from "@invinite-org/chartlang-core";

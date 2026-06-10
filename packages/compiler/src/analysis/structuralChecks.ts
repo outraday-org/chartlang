@@ -3,8 +3,8 @@
 
 import ts from "typescript";
 
-import { type CompileDiagnostic, createDiagnostic } from "../diagnostics";
-import { resolveCalleeName } from "../transformers/resolveCallee";
+import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
+import { resolveCalleeName } from "../transformers/resolveCallee.js";
 
 const DEFINE_CALLS = new Set([
     "defineIndicator",

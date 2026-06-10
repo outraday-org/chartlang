@@ -7,10 +7,10 @@ import type {
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
 
-import { defaultWorkerFactory } from "./defaultWorkerFactory";
-import { DEFAULT_LIMITS } from "./limits";
-import type { HostToWorker, WorkerToHost } from "./protocol";
-import type { HostLimits, ScriptHost, WorkerLike } from "./types";
+import { defaultWorkerFactory } from "./defaultWorkerFactory.js";
+import { DEFAULT_LIMITS } from "./limits.js";
+import type { HostToWorker, WorkerToHost } from "./protocol.js";
+import type { HostLimits, ScriptHost, WorkerLike } from "./types.js";
 
 /**
  * Constructor options for {@link createWorkerHost}.

@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { trendStrengthIndex } from "./trendStrengthIndex";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { trendStrengthIndex } from "./trendStrengthIndex.js";
 
 describe("ta.trendStrengthIndex hot loop", () => {
     bench(

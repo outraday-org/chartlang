@@ -7,8 +7,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import type { VolumeProfileRow } from "./types";
-import { computeValueArea } from "./valueArea";
+import type { VolumeProfileRow } from "./types.js";
+import { computeValueArea } from "./valueArea.js";
 
 function rows(volumes: ReadonlyArray<number>): Array<VolumeProfileRow> {
     return volumes.map((volume, index) => ({

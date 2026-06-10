@@ -4,8 +4,8 @@
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { createProgramForSource } from "../program";
-import { resolveCalleeName, resolveCoreSymbolForElementAccess } from "./resolveCallee";
+import { createProgramForSource } from "../program.js";
+import { resolveCalleeName, resolveCoreSymbolForElementAccess } from "./resolveCallee.js";
 
 function firstCall(
     sourceFile: ts.SourceFile,

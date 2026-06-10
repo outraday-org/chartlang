@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { dpo } from "./dpo";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { dpo } from "./dpo.js";
 
 describe("ta.dpo hot loop", () => {
     bench(

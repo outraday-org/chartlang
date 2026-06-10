@@ -3,8 +3,8 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import type { RuntimeContext } from "../runtimeContext";
-import type { StreamState } from "../streamState";
+import type { RuntimeContext } from "../runtimeContext.js";
+import type { StreamState } from "../streamState.js";
 
 /**
  * Materialise the bar at ring-buffer `age` from a stream state.

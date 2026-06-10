@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { chandeKrollStop } from "./chandeKrollStop";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { chandeKrollStop } from "./chandeKrollStop.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. CKS composes
 // ATR + highest + lowest sub-slots (each O(1) per close) plus a

@@ -19,13 +19,13 @@ import {
     runStatefulCallInLoop,
     runStructuralChecks,
     validateLowerTfIntervals,
-} from "./analysis";
-import { bundleModule, formatManifestAssignment } from "./bundle";
-import type { CompileDiagnostic } from "./diagnostics";
-import { buildManifest } from "./manifest";
-import { createProgramForSource } from "./program";
-import { injectCallsiteIds } from "./transformers/callsiteIdInjection";
-import { emitTypes } from "./typesEmit";
+} from "./analysis/index.js";
+import { bundleModule, formatManifestAssignment } from "./bundle.js";
+import type { CompileDiagnostic } from "./diagnostics.js";
+import { buildManifest } from "./manifest.js";
+import { createProgramForSource } from "./program.js";
+import { injectCallsiteIds } from "./transformers/callsiteIdInjection.js";
+import { emitTypes } from "./typesEmit.js";
 
 /**
  * Options accepted by `transformAndAnalyse`. `sourcePath` is the

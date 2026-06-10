@@ -11,9 +11,9 @@ import {
     generateDrawingDocsPage,
     parseDrawingSource,
     runGenDrawingDocs,
-} from "./extractDrawingPages";
-import type { DrawingDocInput } from "./extractDrawingPages";
-import { AUTO_GENERATED_HEADER, GenDocsError } from "./genDocs";
+} from "./extractDrawingPages.js";
+import type { DrawingDocInput } from "./extractDrawingPages.js";
+import { AUTO_GENERATED_HEADER, GenDocsError } from "./genDocs.js";
 
 const MINIMAL_LINE = `/**
  * Draw a straight line between two world anchors.

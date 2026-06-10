@@ -4,9 +4,9 @@
 import type { JsonValue, LogLevel, RuntimeNamespace } from "@invinite-org/chartlang-core";
 import type { LogEmission } from "@invinite-org/chartlang-adapter-kit";
 
-import type { RuntimeContext } from "../runtimeContext";
-import { pushDiagnostic, pushLog } from "./emissionsQueue";
-import { makeRuntimeErrorHalt } from "./runtimeError";
+import type { RuntimeContext } from "../runtimeContext.js";
+import { pushDiagnostic, pushLog } from "./emissionsQueue.js";
+import { makeRuntimeErrorHalt } from "./runtimeError.js";
 
 const MAX_LOGS_PER_STEP = 1000;
 

@@ -14,7 +14,7 @@ import {
     runConformanceSuite,
     serialiseGoldenBars,
     writeGoldenBars,
-} from "./index";
+} from "./index.js";
 
 describe("@invinite-org/chartlang-conformance public surface", () => {
     it("exports the runner and bundled scenario array", () => {

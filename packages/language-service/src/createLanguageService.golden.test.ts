@@ -4,7 +4,7 @@
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { createLanguageService } from "./createLanguageService";
+import { createLanguageService } from "./createLanguageService.js";
 
 const source = `
 import { defineIndicator, input, ta } from "@invinite-org/chartlang-core";

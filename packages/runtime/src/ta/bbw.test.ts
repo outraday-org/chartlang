@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { bb } from "./bb";
-import { bbw } from "./bbw";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { bb } from "./bb.js";
+import { bbw } from "./bbw.js";
 
 describe("ta.bbw", () => {
     it("emits NaN until warmup completes (length - 1 closed bars)", () => {

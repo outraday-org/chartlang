@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { obv } from "./obv";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { obv } from "./obv.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.obv is one subtract + sign + add
 // per bar — well under the 300 ms ceiling over 10k bars.

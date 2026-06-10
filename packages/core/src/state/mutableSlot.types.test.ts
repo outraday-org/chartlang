@@ -4,7 +4,7 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import type { MutableSlot } from "./mutableSlot";
+import type { MutableSlot } from "./mutableSlot.js";
 
 describe("MutableSlot type surface", () => {
     it("exposes value as a readable and writable property", () => {

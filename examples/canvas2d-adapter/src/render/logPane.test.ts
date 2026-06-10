@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 
 import type { LogEmission } from "@invinite-org/chartlang-adapter-kit";
 
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import { drawLogPane } from "./logPane";
-import type { Viewport } from "./coords";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawLogPane } from "./logPane.js";
+import type { Viewport } from "./coords.js";
 
 const VIEWPORT: Viewport = {
     xMin: 0,

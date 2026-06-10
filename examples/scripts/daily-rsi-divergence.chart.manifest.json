@@ -1,0 +1,26 @@
+{
+    "apiVersion": 1,
+    "kind": "indicator",
+    "name": "Daily RSI Divergence",
+    "inputs": {
+        "tf": {
+            "kind": "interval",
+            "defaultValue": "1D",
+            "title": "Main timeframe"
+        },
+        "length": {
+            "kind": "int",
+            "defaultValue": 14,
+            "min": 2,
+            "max": 200,
+            "title": "RSI length"
+        }
+    },
+    "capabilities": [
+        "indicators"
+    ],
+    "requestedIntervals": [],
+    "userPickableInterval": true,
+    "seriesCapacities": {},
+    "maxLookback": 0
+}

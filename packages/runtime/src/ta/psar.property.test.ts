@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { psar } from "./psar";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { psar } from "./psar.js";
 
 describe("ta.psar — property invariants", () => {
     it("direction ∈ {+1, -1, NaN} on every bar", () => {

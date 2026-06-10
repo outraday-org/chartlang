@@ -4,7 +4,7 @@
 // Translated, not transcribed — ReadonlyArray<number> inputs, JSDoc, runtime.
 // See packages/runtime/src/ta/CLAUDE.md for the port convention.
 
-import type { RowsLayout, VolumeProfileCostStatus } from "./types";
+import type { RowsLayout, VolumeProfileCostStatus } from "./types.js";
 
 /**
  * Finer-bar count threshold from the invinite profile renderer.

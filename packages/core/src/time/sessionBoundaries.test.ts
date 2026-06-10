@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { extendedSession, isOpen, nySessionBounds, regularSession } from "./sessionBoundaries";
+import { extendedSession, isOpen, nySessionBounds, regularSession } from "./sessionBoundaries.js";
 
 describe("session boundaries", () => {
     it("returns null for weekend sessions", () => {

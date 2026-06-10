@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { ao } from "./ao";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { ao } from "./ao.js";
 
 // THRESHOLD_MS — ceil(median × 3). ao runs two SMA sub-slots per bar
 // + a subtract.

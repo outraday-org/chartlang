@@ -3,7 +3,7 @@
 
 import type { InputKind } from "@invinite-org/chartlang-adapter-kit";
 
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 
 const FROM_TIME = 1_704_320_000_000;
 const TO_TIME = 1_704_323_600_000;

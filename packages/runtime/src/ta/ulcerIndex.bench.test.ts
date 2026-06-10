@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { ulcerIndex } from "./ulcerIndex";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { ulcerIndex } from "./ulcerIndex.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. ulcerIndex's
 // per-bar work is `ta.highest`'s monotone-deque max plus O(1)

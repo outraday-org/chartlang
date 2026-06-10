@@ -2,8 +2,8 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { PlotKind } from "@invinite-org/chartlang-adapter-kit";
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
-import { plotKindSource } from "./plotKindFixtures";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
+import { plotKindSource } from "./plotKindFixtures.js";
 
 const INLINE_SOURCE = plotKindSource(
     "PlotKind bar override gated",

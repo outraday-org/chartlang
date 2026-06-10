@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { hma } from "./hma";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { hma } from "./hma.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. HMA composes
 // three WMA sub-slots (half + full + final) — roughly 3× SMA's budget

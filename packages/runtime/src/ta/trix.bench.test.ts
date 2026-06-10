@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { trix } from "./trix";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { trix } from "./trix.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. TRIX
 // composes four EMA sub-slots per bar (three for the triple chain +

@@ -3,9 +3,9 @@
 
 import ts from "typescript";
 
-import type { HoverRegistryEntry } from "../hoverRegistry.generated";
-import type { CompletionItem } from "../types";
-import { toHoverDoc } from "./toHoverDoc";
+import type { HoverRegistryEntry } from "../hoverRegistry.generated.js";
+import type { CompletionItem } from "../types.js";
+import { toHoverDoc } from "./toHoverDoc.js";
 
 /**
  * Collect registry and source-local completion items for an offset.

@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { dmi } from "./dmi";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { dmi } from "./dmi.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. DMI is one
 // Wilder-step recurrence per bar (constant work) over 10k bars; pair

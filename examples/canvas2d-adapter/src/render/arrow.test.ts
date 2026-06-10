@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import { drawArrow } from "./arrow";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawArrow } from "./arrow.js";
 
 describe("drawArrow", () => {
     it("renders an up arrow as a filled triangle", () => {

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { pearson } from "./pearson";
+import { pearson } from "./pearson.js";
 
 describe("pearson", () => {
     it("returns all-NaN for length < 2", () => {

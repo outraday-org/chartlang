@@ -3,9 +3,9 @@
 
 import { bench, describe } from "vitest";
 
-import { anchoredVwap } from "./anchoredVwap";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
+import { anchoredVwap } from "./anchoredVwap.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 const ANCHOR = syntheticBars(1, 1)[0].time;
 

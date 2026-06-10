@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 
 // Bundle scenario for Tasks 6 + 7 — one emission per box-family kind
 // on the first bar. Supersedes Task 6's `drawBoxesA.scenario.ts` per

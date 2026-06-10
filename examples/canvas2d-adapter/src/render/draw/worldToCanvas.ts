@@ -3,7 +3,7 @@
 
 import type { WorldPoint } from "@invinite-org/chartlang-core";
 
-import { priceToY, timeToX, type Viewport } from "../coords";
+import { priceToY, timeToX, type Viewport } from "../coords.js";
 
 /**
  * Project a world `(time, price)` point to canvas `(x, y)` pixel

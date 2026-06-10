@@ -15,6 +15,6 @@
  * @stable
  */
 
-import { createWorkerBoot, type WorkerBootScope } from "./createWorkerBoot";
+import { createWorkerBoot, type WorkerBootScope } from "./createWorkerBoot.js";
 
 createWorkerBoot(self as unknown as WorkerBootScope);

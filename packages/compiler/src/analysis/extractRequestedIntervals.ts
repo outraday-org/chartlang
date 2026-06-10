@@ -3,9 +3,9 @@
 
 import ts from "typescript";
 
-import { type CompileDiagnostic, createDiagnostic } from "../diagnostics";
-import { resolveCalleeName } from "../transformers/resolveCallee";
-import type { ExtractedDescriptor } from "./extractInputs";
+import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
+import { resolveCalleeName } from "../transformers/resolveCallee.js";
+import type { ExtractedDescriptor } from "./extractInputs.js";
 
 /**
  * Walk a script's AST and collect every static `interval` argument to

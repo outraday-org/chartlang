@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { alert } from "./alert";
+import { alert } from "./alert.js";
 
 describe("alert callable hole", () => {
     it("throws outside-runtime sentinel with default opts", () => {

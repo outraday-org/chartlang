@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { cmf } from "./cmf";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { cmf } from "./cmf.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.cmf is rolling-sum with
 // substitute-on-evict — well under the 300 ms ceiling over 10k bars

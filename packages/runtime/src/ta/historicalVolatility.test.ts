@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { historicalVolatility } from "./historicalVolatility";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { historicalVolatility } from "./historicalVolatility.js";
 
 function referenceHv(closes: ReadonlyArray<number>, length: number, ann: number): number[] {
     const out: number[] = [];

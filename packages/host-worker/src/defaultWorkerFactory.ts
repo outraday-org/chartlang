@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { WorkerLike } from "./types";
+import type { WorkerLike } from "./types.js";
 
 /**
  * Browser-only fallback when `createWorkerHost` is called without an

@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { massIndex } from "./massIndex";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { massIndex } from "./massIndex.js";
 
 describe("ta.massIndex hot loop", () => {
     bench(

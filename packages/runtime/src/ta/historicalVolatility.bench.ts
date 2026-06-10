@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { historicalVolatility } from "./historicalVolatility";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { historicalVolatility } from "./historicalVolatility.js";
 
 describe("ta.historicalVolatility hot loop", () => {
     bench(

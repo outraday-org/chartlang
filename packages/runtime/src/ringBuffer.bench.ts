@@ -3,7 +3,7 @@
 
 import { bench, describe } from "vitest";
 
-import { Float64RingBuffer } from "./ringBuffer";
+import { Float64RingBuffer } from "./ringBuffer.js";
 
 const ITERATIONS = 100_000;
 const CAPACITY = 64;

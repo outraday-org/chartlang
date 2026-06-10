@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { chaikinOsc } from "./chaikinOsc";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { chaikinOsc } from "./chaikinOsc.js";
 
 describe("ta.chaikinOsc hot loop", () => {
     bench(

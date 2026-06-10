@@ -97,7 +97,7 @@ import { STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 import { expectTypeOf } from "expect-type";
 
-import { TA_REGISTRY } from "../registry";
+import { TA_REGISTRY } from "../registry.js";
 
 type OffsetOpts = Readonly<{ offset?: number }>;
 type AssertOffset<T extends OffsetOpts> = T;

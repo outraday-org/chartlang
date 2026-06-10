@@ -4,7 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { hashStringStable } from "./hash";
+import { hashStringStable } from "./hash.js";
 
 describe("hashStringStable — properties", () => {
     it("is deterministic: same input → same output across runs", () => {

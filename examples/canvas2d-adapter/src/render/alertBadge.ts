@@ -3,8 +3,8 @@
 
 import type { AlertEmission } from "@invinite-org/chartlang-adapter-kit";
 
-import type { Palette } from "../palette";
-import type { RenderCtx } from "./clear";
+import type { Palette } from "../palette.js";
+import type { RenderCtx } from "./clear.js";
 
 const BADGE_RADIUS = 4;
 const TWO_PI = Math.PI * 2;

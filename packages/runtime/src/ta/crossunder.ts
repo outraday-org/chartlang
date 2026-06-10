@@ -8,10 +8,10 @@
 
 import type { CrossunderOpts, Series } from "@invinite-org/chartlang-core";
 
-import { RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
-import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
+import { RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
 
 type CrossSlot = {
     readonly outBuffer: RingBuffer<boolean>;

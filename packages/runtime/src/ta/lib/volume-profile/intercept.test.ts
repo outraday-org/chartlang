@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { findInterceptIndex } from "./intercept";
+import { findInterceptIndex } from "./intercept.js";
 
 function c(low: number, high: number): { low: number; high: number } {
     return { high, low };

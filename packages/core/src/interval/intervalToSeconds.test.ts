@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { intervalToSeconds } from "./intervalToSeconds";
+import { intervalToSeconds } from "./intervalToSeconds.js";
 
 const d = (value: string, intervalSeconds?: number) => ({
     value,

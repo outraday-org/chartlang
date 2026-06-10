@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { median } from "./median";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { median } from "./median.js";
 
 describe("ta.median hot loop", () => {
     bench(

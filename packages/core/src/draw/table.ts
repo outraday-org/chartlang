@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Color } from "../types";
-import type { DrawingHandle } from "./handle";
+import type { Color } from "../types.js";
+import type { DrawingHandle } from "./handle.js";
 
 /**
  * CSS-pixel viewport anchor used by `draw.table`. Tables are status

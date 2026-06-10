@@ -6,7 +6,7 @@ import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { createQuickJsHost } from "./createQuickJsHost";
+import { createQuickJsHost } from "./createQuickJsHost.js";
 
 // THRESHOLD_MS documents the Phase-5 §8.3 budget for the QuickJS host:
 // QuickJS may be up to roughly 10x slower than host-worker for alert-class

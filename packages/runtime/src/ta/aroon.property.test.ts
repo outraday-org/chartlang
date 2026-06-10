@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { aroon } from "./aroon";
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
+import { aroon } from "./aroon.js";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
 
 describe("ta.aroon — property invariants", () => {
     it("up ∈ [0, 100] and down ∈ [0, 100] where defined", () => {

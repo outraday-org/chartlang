@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { keltner } from "./keltner";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { keltner } from "./keltner.js";
 
 describe("ta.keltner hot loop", () => {
     bench(

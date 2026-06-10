@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { crossunder } from "./crossunder";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { crossunder } from "./crossunder.js";
 
 const THRESHOLD_MS = 1500;
 

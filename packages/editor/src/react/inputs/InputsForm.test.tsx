@@ -4,9 +4,9 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { inputsFormTestManifest } from "../../__fixtures__/inputsFormTestManifest";
-import { testCapabilities } from "../../__fixtures__/testHelpers";
-import { InputsForm } from "./InputsForm";
+import { inputsFormTestManifest } from "../../__fixtures__/inputsFormTestManifest.js";
+import { testCapabilities } from "../../__fixtures__/testHelpers.js";
+import { InputsForm } from "./InputsForm.js";
 
 afterEach(() => cleanup());
 

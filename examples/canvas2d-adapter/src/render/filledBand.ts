@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Palette } from "../palette";
-import type { RenderCtx } from "./clear";
+import type { Palette } from "../palette.js";
+import type { RenderCtx } from "./clear.js";
 
 /**
  * One side of a filled band — `y` is `null` to mark a per-bar gap (no

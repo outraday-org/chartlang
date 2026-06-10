@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { pivotsStandard } from "./pivotsStandard";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { pivotsStandard } from "./pivotsStandard.js";
 
 // THRESHOLD_MS — pair with the Wave-5/6 S/R baseline at 300ms.
 // PivotsStandard is O(1) per close (constant-time day aggregate +

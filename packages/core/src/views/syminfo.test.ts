@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { syminfo } from "./syminfo";
+import { syminfo } from "./syminfo.js";
 
 describe("syminfo", () => {
     it("defaults every field to the empty sentinel", () => {

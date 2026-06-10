@@ -5,10 +5,10 @@ import type { PlotEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { makeSymInfoView } from "../views";
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { sessionVolumeProfile } from "./sessionVolumeProfile";
-import { visibleRangeVolumeProfile } from "./visibleRangeVolumeProfile";
+import { makeSymInfoView } from "../views/index.js";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { sessionVolumeProfile } from "./sessionVolumeProfile.js";
+import { visibleRangeVolumeProfile } from "./visibleRangeVolumeProfile.js";
 
 const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;

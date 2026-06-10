@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Bar, Price, Series, Time, Volume } from "../types";
+import type { Bar, Price, Series, Time, Volume } from "../types.js";
 
 /**
  * Argument to {@link request.security}. The `interval` must be a string

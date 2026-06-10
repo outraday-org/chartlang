@@ -4,7 +4,7 @@
 // Translated, not transcribed — ReadonlyArray<number> inputs, JSDoc, runtime.
 // See packages/runtime/src/ta/CLAUDE.md for the port convention.
 
-import type { ValueAreaResult, VolumeProfileRow } from "./types";
+import type { ValueAreaResult, VolumeProfileRow } from "./types.js";
 
 /**
  * Compute greedy expand-from-POC value-area bounds.

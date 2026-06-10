@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { MutableSlot } from "./mutableSlot";
+import type { MutableSlot } from "./mutableSlot.js";
 
 const sentinel = (name: string): never => {
     throw new Error(`${name} called outside an active script step`);

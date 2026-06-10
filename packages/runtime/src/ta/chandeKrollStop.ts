@@ -19,12 +19,12 @@
 
 import type { ChandeKrollStopOpts, ChandeKrollStopResult } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
-import { atr } from "./atr";
-import { highest } from "./highest";
-import { lowest } from "./lowest";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView } from "../seriesView.js";
+import { atr } from "./atr.js";
+import { highest } from "./highest.js";
+import { lowest } from "./lowest.js";
 
 const DEFAULT_LENGTH = 10;
 const DEFAULT_MULTIPLIER = 1;

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { makeBarStateView, type EventKind } from "./barstateView";
+import { makeBarStateView, type EventKind } from "./barstateView.js";
 
 describe("makeBarStateView", () => {
     it("derives every boolean from event kind, bar index, and latest-bar status", () => {

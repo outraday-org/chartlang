@@ -10,10 +10,10 @@ import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
-} from "../../../runtimeContext";
-import { createStreamState } from "../../../streamState";
-import { inMemoryStateStore } from "../../../stateStore";
-import { regressionTrend } from "./regressionTrend";
+} from "../../../runtimeContext.js";
+import { createStreamState } from "../../../streamState.js";
+import { inMemoryStateStore } from "../../../stateStore.js";
+import { regressionTrend } from "./regressionTrend.js";
 
 function makeCaps(overrides: Partial<Capabilities> = {}): Capabilities {
     return {

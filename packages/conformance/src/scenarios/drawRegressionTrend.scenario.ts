@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 
 // `bars[100..200]` window per task spec — `bars[100].time =
 // 1_700_006_000_000`, `bars[200].time = 1_700_012_000_000`. The OLS

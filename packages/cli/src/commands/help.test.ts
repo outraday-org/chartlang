@@ -3,7 +3,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { printHelp, runHelp } from "./help";
+import { printHelp, runHelp } from "./help.js";
 
 describe("printHelp", () => {
     it("writes the help text to the supplied stream", () => {

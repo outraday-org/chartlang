@@ -14,11 +14,11 @@
 
 import type { Series, TrixOpts, TrixResult } from "@invinite-org/chartlang-core";
 
-import { ema } from "./ema";
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
-import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
+import { ema } from "./ema.js";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
 
 const DEFAULT_SIGNAL = 9;
 

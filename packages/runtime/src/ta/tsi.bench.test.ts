@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { tsi } from "./tsi";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { tsi } from "./tsi.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. TSI chains
 // 4 EMA layers + signal EMA — each O(1) per bar. 10k bars fits well

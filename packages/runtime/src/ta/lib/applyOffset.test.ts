@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { applyOffsetToSeries } from "./applyOffset";
+import { applyOffsetToSeries } from "./applyOffset.js";
 
 describe("applyOffsetToSeries", () => {
     it("returns the same reference when offset is 0", () => {

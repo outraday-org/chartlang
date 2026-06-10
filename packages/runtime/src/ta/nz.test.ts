@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { nz } from "./nz";
+import { nz } from "./nz.js";
 
 describe("ta.nz", () => {
     it("returns the value unchanged when it is finite", () => {

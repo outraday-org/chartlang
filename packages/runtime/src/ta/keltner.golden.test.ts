@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { keltner } from "./keltner";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { keltner } from "./keltner.js";
 
 describe("ta.keltner — golden", () => {
     it("matches the pinned hashes for 100 bars × length=20, multiplier=2, maType=ema", () => {

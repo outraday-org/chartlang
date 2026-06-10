@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { chandeKrollStop } from "./chandeKrollStop";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { chandeKrollStop } from "./chandeKrollStop.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 describe("ta.chandeKrollStop hot loop", () => {
     bench(

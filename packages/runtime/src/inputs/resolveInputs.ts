@@ -3,7 +3,7 @@
 
 import type { InputDescriptor, ScriptManifest } from "@invinite-org/chartlang-core";
 
-import type { RuntimeContext } from "../runtimeContext";
+import type { RuntimeContext } from "../runtimeContext.js";
 
 const SOURCE_FIELDS = new Set<string>([
     "open",

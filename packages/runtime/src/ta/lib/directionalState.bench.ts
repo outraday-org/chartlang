@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { syntheticBars } from "../__fixtures__/syntheticBars";
-import { advanceDirectionalClose, initDirectionalState } from "./directionalState";
+import { syntheticBars } from "../__fixtures__/syntheticBars.js";
+import { advanceDirectionalClose, initDirectionalState } from "./directionalState.js";
 
 describe("advanceDirectionalClose hot loop", () => {
     const bars = syntheticBars(10_000, 1);

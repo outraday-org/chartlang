@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { maRibbon } from "./maRibbon";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { maRibbon } from "./maRibbon.js";
 
 describe("ta.maRibbon hot loop", () => {
     bench(

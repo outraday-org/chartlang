@@ -4,7 +4,7 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import { input } from "./input";
+import { input } from "./input.js";
 import type {
     BoolDescriptor,
     ColorDescriptor,
@@ -20,7 +20,7 @@ import type {
     StringDescriptor,
     SymbolDescriptor,
     TimeDescriptor,
-} from "./inputDescriptor";
+} from "./inputDescriptor.js";
 
 describe("input builder type surface", () => {
     it("resolves scalar builder return types", () => {

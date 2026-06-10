@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import { drawLabel } from "./label";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawLabel } from "./label.js";
 
 describe("drawLabel", () => {
     it("emits the canonical fillStyle / font / textAlign / textBaseline / fillText sequence", () => {

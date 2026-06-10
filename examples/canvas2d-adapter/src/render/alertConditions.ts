@@ -3,9 +3,9 @@
 
 import type { AlertConditionEmission } from "@invinite-org/chartlang-adapter-kit";
 
-import type { Palette } from "../palette";
-import type { RenderCtx } from "./clear";
-import type { Viewport } from "./coords";
+import type { Palette } from "../palette.js";
+import type { RenderCtx } from "./clear.js";
+import type { Viewport } from "./coords.js";
 
 const PANEL_X_PAD = 12;
 const PANEL_Y = 18;

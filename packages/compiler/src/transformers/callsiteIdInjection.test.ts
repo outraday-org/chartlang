@@ -5,8 +5,8 @@ import { STATEFUL_PRIMITIVES, STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { createProgramForSource } from "../program";
-import { injectCallsiteIds } from "./callsiteIdInjection";
+import { createProgramForSource } from "../program.js";
+import { injectCallsiteIds } from "./callsiteIdInjection.js";
 
 function printSourceFile(file: ts.SourceFile): string {
     const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });

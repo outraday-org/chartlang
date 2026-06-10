@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { zigZag } from "./zigZag";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { zigZag } from "./zigZag.js";
 
 describe("ta.zigZag — golden", () => {
     it("matches the pinned hashes for 100 bars × deviation=5 × depth=10", () => {

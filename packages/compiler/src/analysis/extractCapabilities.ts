@@ -3,7 +3,7 @@
 
 import ts from "typescript";
 
-import { resolveCalleeName } from "../transformers/resolveCallee";
+import { resolveCalleeName } from "../transformers/resolveCallee.js";
 
 type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditions";
 

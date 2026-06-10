@@ -9,10 +9,10 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { XabcdPatternState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
-import { renderNamedPolyline } from "./namedPolyline";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
+import { renderNamedPolyline } from "./namedPolyline.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 const LABELS: ReadonlyArray<string> = ["X", "A", "B", "C", "D"];
 

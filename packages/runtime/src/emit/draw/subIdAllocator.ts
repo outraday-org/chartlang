@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { RuntimeContext } from "../../runtimeContext";
+import type { RuntimeContext } from "../../runtimeContext.js";
 
 /**
  * Return the next sub-id for a given compiler-injected `slotId` within

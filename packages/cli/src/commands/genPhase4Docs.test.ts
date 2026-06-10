@@ -12,9 +12,9 @@ import {
     generatePhase4DocsPage,
     parsePhase4DocEntry,
     runGenPhase4Docs,
-} from "./genPhase4Docs";
-import type { Phase4DocInput } from "./genPhase4Docs";
-import { AUTO_GENERATED_HEADER } from "./genDocs";
+} from "./genPhase4Docs.js";
+import type { Phase4DocInput } from "./genPhase4Docs.js";
+import { AUTO_GENERATED_HEADER } from "./genDocs.js";
 
 const REPO_ROOT = resolvePath(__dirname, "../../..", "..");
 

@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { linearRegression } from "./lib/linearRegression";
-import { lsma } from "./lsma";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { linearRegression } from "./lib/linearRegression.js";
+import { lsma } from "./lsma.js";
 
 describe("ta.lsma", () => {
     it("matches the linearRegression reference over a 50-bar synthetic walk", () => {

@@ -5,9 +5,9 @@ import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { HorizontalLineState } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { priceToY, type Viewport } from "../coords";
-import { MockCanvas2DContext } from "../../testing";
-import { renderHorizontalLine } from "./horizontalLine";
+import { priceToY, type Viewport } from "../coords.js";
+import { MockCanvas2DContext } from "../../testing.js";
+import { renderHorizontalLine } from "./horizontalLine.js";
 
 const VIEW: Viewport = {
     xMin: 0,

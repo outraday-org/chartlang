@@ -10,9 +10,9 @@ import type {
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { runConformanceSuite } from "../runConformanceSuite";
-import { TA_FIXED_RANGE_VOLUME_PROFILE_SCENARIO } from "./taFixedRangeVolumeProfile.scenario";
-import { TA_FIXED_RANGE_VOLUME_PROFILE_INVERTED_SCENARIO } from "./taFixedRangeVolumeProfileInverted.scenario";
+import { runConformanceSuite } from "../runConformanceSuite.js";
+import { TA_FIXED_RANGE_VOLUME_PROFILE_SCENARIO } from "./taFixedRangeVolumeProfile.scenario.js";
+import { TA_FIXED_RANGE_VOLUME_PROFILE_INVERTED_SCENARIO } from "./taFixedRangeVolumeProfileInverted.scenario.js";
 
 const TEST_CAPABILITIES: Capabilities = {
     plots: capabilities.allPhase5Plots(),

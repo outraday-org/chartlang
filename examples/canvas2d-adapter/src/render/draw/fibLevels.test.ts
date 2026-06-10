@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { FIB_LEVELS, formatLevel } from "./fibLevels";
+import { FIB_LEVELS, formatLevel } from "./fibLevels.js";
 
 describe("FIB_LEVELS", () => {
     it("ships exactly 13 entries", () => {

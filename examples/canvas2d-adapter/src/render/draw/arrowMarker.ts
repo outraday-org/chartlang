@@ -11,10 +11,10 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { ArrowMarkerState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
-import { drawArrowhead } from "./arrowhead";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
+import { drawArrowhead } from "./arrowhead.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 // Defaults to invinite's toolbar blue per y-doc-bridge.ts comment.
 const DEFAULT_COLOR = "#3b82f6";

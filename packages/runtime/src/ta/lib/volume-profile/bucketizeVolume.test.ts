@@ -6,8 +6,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { GOLDEN_BUCKETS, bar } from "./__fixtures__/volumeProfileFixtures";
-import { bucketizeVolume, bucketizeVolumeDetailed } from "./bucketizeVolume";
+import { GOLDEN_BUCKETS, bar } from "./__fixtures__/volumeProfileFixtures.js";
+import { bucketizeVolume, bucketizeVolumeDetailed } from "./bucketizeVolume.js";
 
 describe("bucketizeVolume", () => {
     it("single bar entirely inside one bucket goes wholly into that bucket as up", () => {

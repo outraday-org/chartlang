@@ -3,10 +3,10 @@
 
 import type { BarStateView, SymInfoView, TimeframeView } from "@invinite-org/chartlang-core";
 
-import { makeBarStateView } from "./barstateView";
-export { refreshRuntimeViews } from "./refreshRuntimeViews";
-import { makeSymInfoView } from "./symInfoView";
-import { makeTimeframeView } from "./timeframeView";
+import { makeBarStateView } from "./barstateView.js";
+export { refreshRuntimeViews } from "./refreshRuntimeViews.js";
+import { makeSymInfoView } from "./symInfoView.js";
+import { makeTimeframeView } from "./timeframeView.js";
 
 /**
  * Mutable runtime view container. Each field is replaced with a fresh
@@ -43,8 +43,8 @@ export function createRuntimeViews(opts: { readonly syminfo?: SymInfoView } = {}
     };
 }
 
-export { makeBarStateView } from "./barstateView";
-export { makeSymInfoView } from "./symInfoView";
-export { makeTimeframeView } from "./timeframeView";
-export type { BarStateInputs, EventKind } from "./barstateView";
-export type { AdapterSymInfo } from "./symInfoView";
+export { makeBarStateView } from "./barstateView.js";
+export { makeSymInfoView } from "./symInfoView.js";
+export { makeTimeframeView } from "./timeframeView.js";
+export type { BarStateInputs, EventKind } from "./barstateView.js";
+export type { AdapterSymInfo } from "./symInfoView.js";

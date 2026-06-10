@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { validateSnapshot } from "./persistentStateStore.validate";
+import { validateSnapshot } from "./persistentStateStore.validate.js";
 
 const wellFormed = {
     lastBarTime: 1_700_000_000_000,

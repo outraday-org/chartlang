@@ -4,13 +4,13 @@
 // Translated, not transcribed — ReadonlyArray<number> inputs, JSDoc, runtime.
 // See packages/runtime/src/ta/CLAUDE.md for the port convention.
 
-import { buildBucketEdges } from "./bucketEdges";
-import { bucketizeVolumeDetailed } from "./bucketizeVolume";
-import { computeDevelopingSeries, derivePriceRange } from "./developingSeries";
-import { assessVolumeProfileCost } from "./tooHeavy";
-import type { VolumeProfileBar, VolumeProfileConfig, VolumeProfileResult } from "./types";
-import { DEFAULT_TICK_SIZE } from "./types";
-import { computeValueArea } from "./valueArea";
+import { buildBucketEdges } from "./bucketEdges.js";
+import { bucketizeVolumeDetailed } from "./bucketizeVolume.js";
+import { computeDevelopingSeries, derivePriceRange } from "./developingSeries.js";
+import { assessVolumeProfileCost } from "./tooHeavy.js";
+import type { VolumeProfileBar, VolumeProfileConfig, VolumeProfileResult } from "./types.js";
+import { DEFAULT_TICK_SIZE } from "./types.js";
+import { computeValueArea } from "./valueArea.js";
 
 /**
  * Compute the pure shared volume-profile payload used by all four

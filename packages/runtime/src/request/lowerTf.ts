@@ -3,10 +3,10 @@
 
 import type { Bar, Series } from "@invinite-org/chartlang-core";
 
-import type { RuntimeContext } from "../runtimeContext";
-import { getOrBucket } from "./bucketLtfBarsCache";
-import { pushOnce } from "./pushOnce";
-import { ascendingBarsFor } from "./streamBars";
+import type { RuntimeContext } from "../runtimeContext.js";
+import { getOrBucket } from "./bucketLtfBarsCache.js";
+import { pushOnce } from "./pushOnce.js";
+import { ascendingBarsFor } from "./streamBars.js";
 
 const EMPTY_BUCKET: ReadonlyArray<Bar> = Object.freeze([]);
 

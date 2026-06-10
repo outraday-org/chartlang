@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { chandelier } from "./chandelier";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { chandelier } from "./chandelier.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 describe("ta.chandelier hot loop", () => {
     bench(

@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { EMA_CROSS, VALID_DEFINE } from "./__fixtures__/scripts";
-import { compileProject, walkChartFiles } from "./api";
+import { EMA_CROSS, VALID_DEFINE } from "./__fixtures__/scripts.js";
+import { compileProject, walkChartFiles } from "./api.js";
 
 let workspace: string;
 

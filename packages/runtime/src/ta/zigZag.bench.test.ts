@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { zigZag } from "./zigZag";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { zigZag } from "./zigZag.js";
 
 // THRESHOLD_MS — pair with the Wave-5/6 S/R baseline at 300ms.
 // ZigZag is O(1) per close (running peak update + threshold check),

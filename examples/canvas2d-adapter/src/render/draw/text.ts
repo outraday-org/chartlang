@@ -11,10 +11,10 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { TextState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
-import { resolveTextOpts } from "./textStyle";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
+import { resolveTextOpts } from "./textStyle.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 /**
  * Render a `text` drawing emission. Projects the single anchor to

@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { ichimoku } from "./ichimoku";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { ichimoku } from "./ichimoku.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Ichimoku
 // composes 6 highest/lowest sub-slots (each O(length) per close in

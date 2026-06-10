@@ -5,8 +5,8 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { anchoredVwap } from "./anchoredVwap";
-import { harness } from "./__fixtures__/runPrimitive";
+import { anchoredVwap } from "./anchoredVwap.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
 
 const T0 = 1_700_000_000_000;
 

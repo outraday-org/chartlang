@@ -4,8 +4,8 @@
 import { DRAWING_KINDS, KIND_CAMELCASE } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import type { DrawingKind, SymInfoField } from "../types";
-import { PHASE_5_PLOT_KINDS, capabilities } from "./capabilities";
+import type { DrawingKind, SymInfoField } from "../types.js";
+import { PHASE_5_PLOT_KINDS, capabilities } from "./capabilities.js";
 
 const PHASE_3_DRAWING_KINDS: ReadonlyArray<DrawingKind> = DRAWING_KINDS.filter(
     (kind) => kind !== "table",

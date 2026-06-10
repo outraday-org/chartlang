@@ -5,9 +5,9 @@ import type { Series } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { barssince } from "./barssince";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { barssince } from "./barssince.js";
 
 function boolSeries(value: boolean): Series<boolean> {
     return { current: value, length: 1 } as unknown as Series<boolean>;

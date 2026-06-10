@@ -4,8 +4,8 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import { barstate } from "./barstate";
-import type { BarStateView } from "./barstate";
+import { barstate } from "./barstate.js";
+import type { BarStateView } from "./barstate.js";
 
 describe("barstate type surface", () => {
     it("exposes a typed read-only view", () => {

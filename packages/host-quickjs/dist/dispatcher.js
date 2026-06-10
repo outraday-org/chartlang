@@ -14789,16 +14789,29 @@ function createScriptRunner(args) {
 // src/moduleSourceToScript.ts
 var EXPORT_DEFAULT_RE = /^\s*export\s+default\s+/m;
 var EXPORT_DEFAULT_GLOBAL_RE = /^\s*export\s+default\s+/gm;
+var EXPORT_RENAMED_DEFAULT_RE = /^\s*export\s*\{\s*([A-Za-z_$][\w$]*)\s+as\s+default\s*,?\s*\}\s*;?/m;
+var EXPORT_RENAMED_DEFAULT_GLOBAL_RE = /^\s*export\s*\{\s*([A-Za-z_$][\w$]*)\s+as\s+default\s*,?\s*\}\s*;?/gm;
 var EXPORT_MANIFEST_RE = /^\s*export\s+const\s+__manifest\s*=/m;
 function moduleSourceToScript(source) {
-  const defaultMatches = source.match(EXPORT_DEFAULT_GLOBAL_RE);
-  if (defaultMatches === null || defaultMatches.length === 0) {
+  const literalCount = (source.match(EXPORT_DEFAULT_GLOBAL_RE) ?? []).length;
+  const renamedCount = (source.match(EXPORT_RENAMED_DEFAULT_GLOBAL_RE) ?? []).length;
+  const total = literalCount + renamedCount;
+  if (total === 0) {
     throw new Error("compiled module did not declare an export default");
   }
-  if (defaultMatches.length > 1) {
+  if (total > 1) {
     throw new Error("compiled module declared multiple export default statements");
   }
-  return source.replace(EXPORT_DEFAULT_RE, "globalThis.__chartlang_compiled_default = ").replace(EXPORT_MANIFEST_RE, "globalThis.__chartlang_compiled_manifest =");
+  let out = source;
+  if (literalCount === 1) {
+    out = out.replace(EXPORT_DEFAULT_RE, "globalThis.__chartlang_compiled_default = ");
+  } else {
+    out = out.replace(
+      EXPORT_RENAMED_DEFAULT_RE,
+      (_match, ident) => `globalThis.__chartlang_compiled_default = ${ident};`
+    );
+  }
+  return out.replace(EXPORT_MANIFEST_RE, "globalThis.__chartlang_compiled_manifest =");
 }
 
 // src/dispatcherCore.ts

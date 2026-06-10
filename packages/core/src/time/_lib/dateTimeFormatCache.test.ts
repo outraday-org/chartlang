@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { getFormatter } from "./dateTimeFormatCache";
+import { getFormatter } from "./dateTimeFormatCache.js";
 
 describe("getFormatter", () => {
     it("caches by timezone and fields", () => {

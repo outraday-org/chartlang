@@ -3,7 +3,7 @@
 
 import type { RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
 
-import type { RunnerState } from "../createScriptRunner";
+import type { RunnerState } from "../createScriptRunner.js";
 
 /**
  * Snapshot and reset. Returns the runner's currently-accumulated

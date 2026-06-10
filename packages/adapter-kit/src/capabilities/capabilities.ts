@@ -5,7 +5,7 @@ import { DRAWING_KINDS } from "@invinite-org/chartlang-core";
 
 import type { DrawingCounts, IntervalDescriptor } from "@invinite-org/chartlang-core";
 
-import type { AlertChannel, DrawingKind, PlotKind, SymInfoField } from "../types";
+import type { AlertChannel, DrawingKind, PlotKind, SymInfoField } from "../types.js";
 
 /**
  * Canonical Phase-5 plot-kind set. Adapters that can render the full

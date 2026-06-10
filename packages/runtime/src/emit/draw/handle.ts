@@ -3,8 +3,8 @@
 
 import type { DrawingHandle, DrawingKind, DrawingState } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../../runtimeContext";
-import { pushDrawing } from "./pushDrawing";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../../runtimeContext.js";
+import { pushDrawing } from "./pushDrawing.js";
 
 const OUTSIDE_CTX_MESSAGE = "draw called outside an active script step";
 

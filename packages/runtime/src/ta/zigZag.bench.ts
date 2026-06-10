@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { zigZag } from "./zigZag";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { zigZag } from "./zigZag.js";
 
 describe("ta.zigZag hot loop", () => {
     bench(

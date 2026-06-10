@@ -4,8 +4,8 @@
 import type { Series } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { barssince } from "./barssince";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { barssince } from "./barssince.js";
 
 function boolSeries(value: boolean): Series<boolean> {
     return { current: value, length: 1 } as unknown as Series<boolean>;

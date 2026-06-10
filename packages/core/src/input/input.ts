@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Color, Price, Time } from "../types";
+import type { Color, Price, Time } from "../types.js";
 import type {
     BoolDescriptor,
     ColorDescriptor,
@@ -17,7 +17,7 @@ import type {
     StringDescriptor,
     SymbolDescriptor,
     TimeDescriptor,
-} from "./inputDescriptor";
+} from "./inputDescriptor.js";
 
 /**
  * The `input.*` namespace. Every builder is a compile-time literal: the

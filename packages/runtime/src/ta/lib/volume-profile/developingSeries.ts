@@ -4,11 +4,11 @@
 // Translated, not transcribed — ReadonlyArray<number> inputs, JSDoc, runtime.
 // See packages/runtime/src/ta/CLAUDE.md for the port convention.
 
-import { buildBucketEdges } from "./bucketEdges";
-import { bucketizeVolumeDetailed } from "./bucketizeVolume";
-import type { DevelopingProfileSeries, VolumeProfileBar, VolumeProfileConfig } from "./types";
-import { DEFAULT_TICK_SIZE } from "./types";
-import { computeValueArea } from "./valueArea";
+import { buildBucketEdges } from "./bucketEdges.js";
+import { bucketizeVolumeDetailed } from "./bucketizeVolume.js";
+import type { DevelopingProfileSeries, VolumeProfileBar, VolumeProfileConfig } from "./types.js";
+import { DEFAULT_TICK_SIZE } from "./types.js";
+import { computeValueArea } from "./valueArea.js";
 
 const WARMUP_BARS = 30;
 

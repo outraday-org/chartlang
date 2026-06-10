@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { maRibbon } from "./maRibbon";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { maRibbon } from "./maRibbon.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through 5 SMA sub-slots (default lengths) — ~K× single-MA cost.

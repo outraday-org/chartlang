@@ -4,7 +4,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { linearRegression } from "./linearRegression";
+import { linearRegression } from "./linearRegression.js";
 
 const arbSeries = fc.integer({ min: 10, max: 60 }).chain((n) =>
     fc.tuple(

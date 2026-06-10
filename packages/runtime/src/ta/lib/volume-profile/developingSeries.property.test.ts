@@ -7,8 +7,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { computeDevelopingSeries } from "./developingSeries";
-import type { VolumeProfileBar } from "./types";
+import { computeDevelopingSeries } from "./developingSeries.js";
+import type { VolumeProfileBar } from "./types.js";
 
 describe("computeDevelopingSeries — property invariants", () => {
     it("output lengths equal lane bar count", () => {

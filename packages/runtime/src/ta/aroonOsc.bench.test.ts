@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { aroonOsc } from "./aroonOsc";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { aroonOsc } from "./aroonOsc.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 // THRESHOLD_MS — ceil(median × 3). AroonOsc composes Aroon (one
 // sub-slot scan) and adds one subtraction per bar; budget the same

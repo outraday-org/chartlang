@@ -4,10 +4,10 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { wilderStep } from "./lib/wilderSmoothing";
-import { rsi } from "./rsi";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { wilderStep } from "./lib/wilderSmoothing.js";
+import { rsi } from "./rsi.js";
 
 function computeRsiReference(closes: number[], length: number): number[] {
     const n = closes.length;

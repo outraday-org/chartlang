@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { asMutableSlot, StateSlot } from "./stateSlot";
+import { asMutableSlot, StateSlot } from "./stateSlot.js";
 
 describe("StateSlot", () => {
     it.each([

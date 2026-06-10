@@ -4,8 +4,8 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import type { DefineIndicatorOpts } from "./defineIndicator";
-import type { ScaleAxis, ValueFormat } from "./overrides";
+import type { DefineIndicatorOpts } from "./defineIndicator.js";
+import type { ScaleAxis, ValueFormat } from "./overrides.js";
 
 describe("DefineIndicatorOpts", () => {
     it("accepts optional Phase 4 script overrides", () => {

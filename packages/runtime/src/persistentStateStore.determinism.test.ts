@@ -8,10 +8,10 @@ import type { Capabilities, RunnerEmissions } from "@invinite-org/chartlang-adap
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { createScriptRunner } from "./createScriptRunner";
-import { plot } from "./emit";
-import { inMemoryPersistentStateStore } from "./persistentStateStore";
-import type { RuntimeTaNamespace } from "./ta";
+import { createScriptRunner } from "./createScriptRunner.js";
+import { plot } from "./emit/index.js";
+import { inMemoryPersistentStateStore } from "./persistentStateStore.js";
+import type { RuntimeTaNamespace } from "./ta/index.js";
 
 type RuntimeStateNamespace = {
     readonly int: (slotId: string, init: number) => MutableSlot<number>;

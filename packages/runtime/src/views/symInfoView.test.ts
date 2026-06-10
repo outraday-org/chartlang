@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { makeSymInfoView, type AdapterSymInfo } from "./symInfoView";
+import { makeSymInfoView, type AdapterSymInfo } from "./symInfoView.js";
 
 const PAYLOAD: AdapterSymInfo = {
     ticker: "DEMO",

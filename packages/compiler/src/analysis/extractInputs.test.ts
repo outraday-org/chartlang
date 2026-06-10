@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createProgramForSource } from "../program";
-import { extractInputs } from "./extractInputs";
+import { createProgramForSource } from "../program.js";
+import { extractInputs } from "./extractInputs.js";
 
 function sourceFor(inputs: string): string {
     return `

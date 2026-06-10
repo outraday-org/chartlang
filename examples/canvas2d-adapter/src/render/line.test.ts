@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import type { Viewport } from "./coords";
-import { drawLine } from "./line";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import type { Viewport } from "./coords.js";
+import { drawLine } from "./line.js";
 
 const viewport: Viewport = {
     xMin: 0,

@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { supertrend } from "./supertrend";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { supertrend } from "./supertrend.js";
 
 describe("ta.supertrend hot loop", () => {
     bench(

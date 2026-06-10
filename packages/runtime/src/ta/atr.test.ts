@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { atr } from "./atr";
-import { computeAtrSeries } from "./lib/trSeries";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { atr } from "./atr.js";
+import { computeAtrSeries } from "./lib/trSeries.js";
 
 describe("ta.atr", () => {
     it("matches computeAtrSeries over a 50-bar synthetic walk", () => {

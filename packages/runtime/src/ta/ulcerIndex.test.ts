@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { ulcerIndex } from "./ulcerIndex";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { ulcerIndex } from "./ulcerIndex.js";
 
 describe("ta.ulcerIndex", () => {
     it("emits NaN until the rolling-max term is warm", () => {

@@ -3,7 +3,7 @@
 
 import type { CompileDiagnostic } from "@invinite-org/chartlang-compiler";
 
-import type { LspDiagnostic, LspSeverity } from "../types";
+import type { LspDiagnostic, LspSeverity } from "../types.js";
 
 /**
  * Map a compiler diagnostic into the language-service diagnostic shape.

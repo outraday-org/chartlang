@@ -8,9 +8,9 @@ import { fileURLToPath } from "node:url";
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { mulberry32 } from "./__fixtures__/syntheticBars";
-import { fixedRangeVolumeProfile } from "./fixedRangeVolumeProfile";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { mulberry32 } from "./__fixtures__/syntheticBars.js";
+import { fixedRangeVolumeProfile } from "./fixedRangeVolumeProfile.js";
 
 type Expected = Readonly<{
     bucketCount: number;

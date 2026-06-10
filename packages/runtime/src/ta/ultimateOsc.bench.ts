@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { ultimateOsc } from "./ultimateOsc";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { ultimateOsc } from "./ultimateOsc.js";
 
 describe("ta.ultimateOsc hot loop", () => {
     bench(

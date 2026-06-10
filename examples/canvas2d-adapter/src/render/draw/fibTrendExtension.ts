@@ -9,9 +9,9 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { FibTrendExtensionState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import { priceToY, timeToX, type Viewport } from "../coords";
-import { FIB_LEVELS, formatLevel } from "./fibLevels";
+import type { RenderCtx } from "../clear.js";
+import { priceToY, timeToX, type Viewport } from "../coords.js";
+import { FIB_LEVELS, formatLevel } from "./fibLevels.js";
 
 const DEFAULT_COLOR = "#facc15";
 const DEFAULT_LINE_WIDTH = 1;

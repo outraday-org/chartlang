@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Scenario, ScenarioAssertion } from "../runConformanceSuite";
+import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 
 // Task-19 budget-overflow companion. Emits 150 distinct `draw.line(...)`
 // callsites on the first bar — overflows the per-bucket `lines: 100`

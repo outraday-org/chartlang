@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { adr } from "./adr";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { adr } from "./adr.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. ADR's per-bar
 // cost is O(1) (min/max update + occasional day-boundary commit); 10k

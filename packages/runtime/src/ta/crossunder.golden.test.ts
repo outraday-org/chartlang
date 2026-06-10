@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashBoolArray, syntheticBars } from "./__fixtures__/syntheticBars";
-import { crossunder } from "./crossunder";
-import { ema } from "./ema";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashBoolArray, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { crossunder } from "./crossunder.js";
+import { ema } from "./ema.js";
 
 describe("ta.crossunder — golden", () => {
     it("matches the pinned hash for fastEMA crossing under slowEMA across 100 bars", () => {

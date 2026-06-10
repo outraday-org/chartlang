@@ -10,7 +10,7 @@ import {
     validateEmission,
 } from "@invinite-org/chartlang-adapter-kit";
 
-import type { MutableRunnerEmissions } from "../runtimeContext";
+import type { MutableRunnerEmissions } from "../runtimeContext.js";
 
 /**
  * Push a `PlotEmission` onto the runner's mutable plot queue. The

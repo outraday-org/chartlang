@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Time } from "../types";
-import { localDateParts } from "./nyDayKey";
+import type { Time } from "../types.js";
+import { localDateParts } from "./nyDayKey.js";
 
 function isoWeek(year: number, month: number, day: number): { year: number; week: number } {
     const date = new Date(Date.UTC(year, month - 1, day));

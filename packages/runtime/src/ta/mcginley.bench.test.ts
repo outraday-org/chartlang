@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { mcginley } from "./mcginley";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { mcginley } from "./mcginley.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through the scalar recurrence (no window walk).

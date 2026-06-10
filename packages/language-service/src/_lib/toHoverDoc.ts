@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { HoverRegistryEntry } from "../hoverRegistry.generated";
-import type { HoverDoc } from "../types";
+import type { HoverRegistryEntry } from "../hoverRegistry.generated.js";
+import type { HoverDoc } from "../types.js";
 
 /**
  * Convert a generated hover-registry entry into the public hover payload.

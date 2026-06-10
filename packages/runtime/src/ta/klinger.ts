@@ -14,10 +14,10 @@
 
 import type { KlingerOpts, KlingerResult, Series } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView } from "../seriesView";
-import { ema } from "./ema";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView } from "../seriesView.js";
+import { ema } from "./ema.js";
 
 const DEFAULT_FAST_LENGTH = 34;
 const DEFAULT_SLOW_LENGTH = 55;

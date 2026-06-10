@@ -5,7 +5,7 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { bucketLtfBarsByMainContainment } from "./bucketLtfBarsByMainContainment";
+import { bucketLtfBarsByMainContainment } from "./bucketLtfBarsByMainContainment.js";
 
 const bar = (time: number): Bar => ({
     time,

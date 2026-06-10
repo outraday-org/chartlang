@@ -6,7 +6,7 @@
 // Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
 // provenance contract; the math is the reference, the code style is not.
 
-import { wilderStep } from "./wilderSmoothing";
+import { wilderStep } from "./wilderSmoothing.js";
 
 /**
  * Wilder directional movement bundle. All four arrays have length

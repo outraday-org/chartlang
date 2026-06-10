@@ -11,8 +11,8 @@ import {
     hoverExtension,
     linterExtension,
     peekPanelExtension,
-} from "./extensions";
-import type { ChartlangEditor, ChartlangEditorOpts } from "./types";
+} from "./extensions/index.js";
+import type { ChartlangEditor, ChartlangEditorOpts } from "./types.js";
 
 /**
  * Create a framework-agnostic CodeMirror 6 chartlang editor.

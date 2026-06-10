@@ -6,9 +6,9 @@ import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { createWorkerBoot, type WorkerBootScope } from "./createWorkerBoot";
-import { createWorkerHost } from "./createWorkerHost";
-import type { HostCompiledScript, WorkerLike } from "./types";
+import { createWorkerBoot, type WorkerBootScope } from "./createWorkerBoot.js";
+import { createWorkerHost } from "./createWorkerHost.js";
+import type { HostCompiledScript, WorkerLike } from "./types.js";
 
 // THRESHOLD_MS — wall-clock budget for `ITERATIONS` push→drain round-trips
 // over a `MessageChannel`-backed shim. Each iteration loads a fresh worker,

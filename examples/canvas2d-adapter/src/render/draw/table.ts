@@ -4,8 +4,8 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { TableCell, TablePosition, TableState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
 
 const VIEWPORT_PADDING_PX = 8;
 const CELL_PAD_X_PX = 6;

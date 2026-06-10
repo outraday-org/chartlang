@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { syntheticBars } from "../__fixtures__/syntheticBars";
-import { linearRegression } from "./linearRegression";
+import { syntheticBars } from "../__fixtures__/syntheticBars.js";
+import { linearRegression } from "./linearRegression.js";
 
 const N = 10_000;
 const source = (() => {

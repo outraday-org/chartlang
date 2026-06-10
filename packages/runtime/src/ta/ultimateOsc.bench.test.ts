@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { ultimateOsc } from "./ultimateOsc";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { ultimateOsc } from "./ultimateOsc.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Ultimate
 // Oscillator maintains six running sums + six ring buffers; per-close

@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Time } from "../types";
-import { getFormatter } from "./_lib/dateTimeFormatCache";
-import type { Weekday } from "./types";
+import type { Time } from "../types.js";
+import { getFormatter } from "./_lib/dateTimeFormatCache.js";
+import type { Weekday } from "./types.js";
 
 const WEEKDAYS = Object.freeze(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
 

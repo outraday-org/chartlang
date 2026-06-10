@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { dmi } from "./dmi";
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
+import { dmi } from "./dmi.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 describe("ta.dmi — golden", () => {
     it("matches the pinned hashes for 100 bars × length=14", () => {

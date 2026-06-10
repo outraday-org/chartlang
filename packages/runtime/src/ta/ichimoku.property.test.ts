@@ -5,10 +5,10 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { ichimoku } from "./ichimoku";
-import { donchianMid } from "./lib/donchianMid";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { ichimoku } from "./ichimoku.js";
+import { donchianMid } from "./lib/donchianMid.js";
 
 function referenceIchimoku(
     bars: ReadonlyArray<Bar>,

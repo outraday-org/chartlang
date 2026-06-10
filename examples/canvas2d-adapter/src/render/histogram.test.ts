@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import { drawHistogram } from "./histogram";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawHistogram } from "./histogram.js";
 
 describe("drawHistogram", () => {
     it("emits one fillStyle set + one fillRect with the column centred on x", () => {

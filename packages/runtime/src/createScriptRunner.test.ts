@@ -7,9 +7,9 @@ import { capabilities, mockCandleSource } from "@invinite-org/chartlang-adapter-
 import type { Capabilities, CandleEvent } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { createScriptRunner } from "./createScriptRunner";
-import { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext";
-import { inMemoryStateStore } from "./stateStore";
+import { createScriptRunner } from "./createScriptRunner.js";
+import { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext.js";
+import { inMemoryStateStore } from "./stateStore.js";
 
 function makeCapabilities(maxLookback = 5000): Capabilities {
     return {

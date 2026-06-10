@@ -3,8 +3,8 @@
 
 import type { DrawingState } from "@invinite-org/chartlang-core";
 
-import type { DrawingEmission } from "../types";
-import { validateEmission } from "./validateEmission";
+import type { DrawingEmission } from "../types.js";
+import { validateEmission } from "./validateEmission.js";
 
 /**
  * Narrow a {@link DrawingEmission} to its typed {@link DrawingState}.

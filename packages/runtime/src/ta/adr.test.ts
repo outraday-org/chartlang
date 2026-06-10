@@ -4,8 +4,8 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { adr } from "./adr";
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
+import { adr } from "./adr.js";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
 
 const MS_PER_DAY = 86_400_000;
 // UTC midnight (2023-11-14T00:00:00Z). Aligned to the day boundary so

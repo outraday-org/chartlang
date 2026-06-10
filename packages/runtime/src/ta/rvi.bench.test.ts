@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { rvi } from "./rvi";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { rvi } from "./rvi.js";
 
 const THRESHOLD_MS = 1500;
 

@@ -9,7 +9,7 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { bucketLtfBarsByMainContainment } from "./bucketLtfBarsByMainContainment";
+import { bucketLtfBarsByMainContainment } from "./bucketLtfBarsByMainContainment.js";
 
 function makeBar(time: number, interval: string): Bar {
     return {

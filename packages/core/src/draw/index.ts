@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-export { DRAWING_KINDS, KIND_CAMELCASE, KIND_KEBABCASE } from "./drawingKind";
-export type { DrawingKind } from "./drawingKind";
-export { bucketFor, KIND_BUCKET } from "./buckets";
-export type { DrawingBucket } from "./buckets";
+export { DRAWING_KINDS, KIND_CAMELCASE, KIND_KEBABCASE } from "./drawingKind.js";
+export type { DrawingKind } from "./drawingKind.js";
+export { bucketFor, KIND_BUCKET } from "./buckets.js";
+export type { DrawingBucket } from "./buckets.js";
 export type {
     AnchorHept,
     AnchorPair,
@@ -12,7 +12,7 @@ export type {
     AnchorQuint,
     AnchorTriple,
     WorldPoint,
-} from "./worldPoint";
+} from "./worldPoint.js";
 export type {
     ArrowMarkerOpts,
     ArrowOpts,
@@ -25,7 +25,7 @@ export type {
     RegressionTrendOpts,
     ShapeStyle,
     TextOpts,
-} from "./drawingStyle";
+} from "./drawingStyle.js";
 export type {
     AbcdPatternState,
     ArcState,
@@ -91,9 +91,9 @@ export type {
     TrianglePatternState,
     VerticalLineState,
     XabcdPatternState,
-} from "./drawingState";
-export type { DrawingHandle } from "./handle";
-export { table } from "./table";
-export type { TableCell, TableOpts, TablePosition } from "./table";
-export { draw } from "./draw";
-export type { DrawNamespace } from "./draw";
+} from "./drawingState.js";
+export type { DrawingHandle } from "./handle.js";
+export { table } from "./table.js";
+export type { TableCell, TableOpts, TablePosition } from "./table.js";
+export { draw } from "./draw.js";
+export type { DrawNamespace } from "./draw.js";

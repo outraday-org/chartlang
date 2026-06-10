@@ -4,11 +4,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { adx } from "./adx";
-import { adxFromDi } from "./lib/adxFromDi";
-import { wilderDirectional } from "./lib/wilderDirectional";
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
+import { adx } from "./adx.js";
+import { adxFromDi } from "./lib/adxFromDi.js";
+import { wilderDirectional } from "./lib/wilderDirectional.js";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
 
 // Floating-point slack for the [0, 100] band — Wilder smoothing
 // accumulates per-step error on degenerate (flat-window) samples.

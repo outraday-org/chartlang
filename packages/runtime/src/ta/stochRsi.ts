@@ -16,12 +16,12 @@
 
 import type { Series, StochRsiOpts, StochRsiResult } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { highest } from "./highest";
-import { lowest } from "./lowest";
-import { rsi } from "./rsi";
-import { sma } from "./sma";
-import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { highest } from "./highest.js";
+import { lowest } from "./lowest.js";
+import { rsi } from "./rsi.js";
+import { sma } from "./sma.js";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
 
 const DEFAULT_RSI_LENGTH = 14;
 const DEFAULT_STOCH_LENGTH = 14;

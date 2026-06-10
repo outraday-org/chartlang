@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { highest } from "./highest";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { highest } from "./highest.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through a monotonic-deque max — slightly heavier than SMA's running

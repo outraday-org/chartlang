@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createProgramForSource } from "../program";
-import { extractMaxLookback } from "./extractMaxLookback";
+import { createProgramForSource } from "../program.js";
+import { extractMaxLookback } from "./extractMaxLookback.js";
 
 function run(source: string) {
     const { sourceFile, checker } = createProgramForSource(source, {

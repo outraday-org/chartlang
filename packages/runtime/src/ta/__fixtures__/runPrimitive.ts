@@ -5,10 +5,10 @@ import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities, MutableRunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../../runtimeContext";
-import { inMemoryStateStore } from "../../stateStore";
-import { createStreamState, updateFallbackViewport } from "../../streamState";
-import { createRuntimeViews } from "../../views";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../../runtimeContext.js";
+import { inMemoryStateStore } from "../../stateStore.js";
+import { createStreamState, updateFallbackViewport } from "../../streamState.js";
+import { createRuntimeViews } from "../../views/index.js";
 
 const TEST_CAPABILITIES: Capabilities = {
     plots: capabilities.allPhase5Plots(),

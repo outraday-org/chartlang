@@ -4,10 +4,10 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { ema } from "./ema";
-import { computeEmaOfFloat64 } from "./lib/emaFloat64";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { ema } from "./ema.js";
+import { computeEmaOfFloat64 } from "./lib/emaFloat64.js";
 
 describe("ta.ema", () => {
     it("matches computeEmaOfFloat64 over a 50-bar synthetic walk", () => {

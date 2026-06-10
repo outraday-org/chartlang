@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { massIndex } from "./massIndex";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { massIndex } from "./massIndex.js";
 
 describe("ta.massIndex — property invariants", () => {
     it("output is finite or NaN (no Infinity)", () => {

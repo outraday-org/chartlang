@@ -13,11 +13,11 @@
 
 import type { ChaikinOscOpts, Series } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
-import { adl } from "./adl";
-import { ema } from "./ema";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
+import { adl } from "./adl.js";
+import { ema } from "./ema.js";
 
 const DEFAULT_FAST = 3;
 const DEFAULT_SLOW = 10;

@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { runCompile } from "./compile";
+import { runCompile } from "./compile.js";
 
 const EMA_CROSS_SRC = `
 import { defineIndicator } from "@invinite-org/chartlang-core";

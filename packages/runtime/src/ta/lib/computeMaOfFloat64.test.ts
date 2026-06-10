@@ -3,12 +3,12 @@
 
 import { describe, expect, it } from "vitest";
 
-import { computeMaOfFloat64 } from "./computeMaOfFloat64";
-import { computeEmaOfFloat64 } from "./emaFloat64";
-import type { MaTypeNoVolume } from "./maTypes";
-import { computeSmaOfFloat64 } from "./smaFloat64";
-import { smmaFloat64 } from "./smmaFloat64";
-import { wmaFloat64 } from "./wmaFloat64";
+import { computeMaOfFloat64 } from "./computeMaOfFloat64.js";
+import { computeEmaOfFloat64 } from "./emaFloat64.js";
+import type { MaTypeNoVolume } from "./maTypes.js";
+import { computeSmaOfFloat64 } from "./smaFloat64.js";
+import { smmaFloat64 } from "./smmaFloat64.js";
+import { wmaFloat64 } from "./wmaFloat64.js";
 
 const SOURCE = new Float64Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 const LENGTH = 3;

@@ -5,10 +5,10 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { computeTrSeries } from "./lib/trSeries";
-import { vortex } from "./vortex";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { computeTrSeries } from "./lib/trSeries.js";
+import { vortex } from "./vortex.js";
 
 function referenceVortex(
     bars: ReadonlyArray<Bar>,

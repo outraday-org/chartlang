@@ -3,7 +3,7 @@
 
 import type { Adapter, CandleEvent } from "@invinite-org/chartlang-adapter-kit";
 
-import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities";
+import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities.js";
 
 async function* emptyCandleSource(): AsyncIterator<CandleEvent> {
     /* intentionally empty — the conformance harness drives the

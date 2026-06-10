@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { computeRollingStdDev } from "./rollingStddev";
+import { computeRollingStdDev } from "./rollingStddev.js";
 
 describe("computeRollingStdDev", () => {
     it("returns an all-NaN buffer for length ≤ 0", () => {

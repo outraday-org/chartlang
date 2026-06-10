@@ -8,7 +8,7 @@
 
 import type { PitchforkState } from "@invinite-org/chartlang-core";
 
-import type { Point2 } from "./bezier";
+import type { Point2 } from "./bezier.js";
 
 type PitchforkVariant = PitchforkState["variant"];
 

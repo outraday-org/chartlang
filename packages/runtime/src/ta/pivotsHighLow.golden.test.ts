@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { pivotsHighLow } from "./pivotsHighLow";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { pivotsHighLow } from "./pivotsHighLow.js";
 
 describe("ta.pivotsHighLow — golden", () => {
     it("matches the pinned hashes for 100 bars × leftLength=4 × rightLength=4", () => {

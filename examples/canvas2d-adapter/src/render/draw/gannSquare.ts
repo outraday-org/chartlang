@@ -9,10 +9,10 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { GannSquareState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
-import { GANN_LEVELS } from "./gannLevels";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
+import { GANN_LEVELS } from "./gannLevels.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 const DEFAULT_COLOR = "#a855f7";
 const DEFAULT_LINE_WIDTH = 1;

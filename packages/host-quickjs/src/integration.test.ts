@@ -12,7 +12,7 @@ import type {
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { createQuickJsHost } from "./createQuickJsHost";
+import { createQuickJsHost } from "./createQuickJsHost.js";
 
 type ScriptFixture = Readonly<{
     name: string;

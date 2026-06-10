@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { psar } from "./psar";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { psar } from "./psar.js";
 
 describe("ta.psar hot loop", () => {
     bench(

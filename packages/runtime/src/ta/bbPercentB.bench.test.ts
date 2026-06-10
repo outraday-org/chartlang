@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { bbPercentB } from "./bbPercentB";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { bbPercentB } from "./bbPercentB.js";
 
 const THRESHOLD_MS = 1500;
 

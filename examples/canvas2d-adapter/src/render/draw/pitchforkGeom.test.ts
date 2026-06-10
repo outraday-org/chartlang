@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Point2 } from "./bezier";
-import { medianOriginFor, medianTargetFor } from "./pitchforkGeom";
+import type { Point2 } from "./bezier.js";
+import { medianOriginFor, medianTargetFor } from "./pitchforkGeom.js";
 
 const A: Point2 = { x: 0, y: 0 };
 const B: Point2 = { x: 10, y: 10 };

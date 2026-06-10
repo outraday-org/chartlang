@@ -4,7 +4,7 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import type { Price, Time } from "../types";
+import type { Price, Time } from "../types.js";
 import type {
     AnchorHept,
     AnchorPair,
@@ -12,7 +12,7 @@ import type {
     AnchorQuint,
     AnchorTriple,
     WorldPoint,
-} from "./worldPoint";
+} from "./worldPoint.js";
 
 describe("WorldPoint", () => {
     it("exposes `time: Time` and `price: Price` only", () => {

@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { wma } from "./wma";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { wma } from "./wma.js";
 
 describe("ta.wma hot loop", () => {
     bench(

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { makeNanSecurityBar } from "./security";
+import { makeNanSecurityBar } from "./security.js";
 
 describe("makeNanSecurityBar", () => {
     it("returns a frozen SecurityBar with NaN numeric series", () => {

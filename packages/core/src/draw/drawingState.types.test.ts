@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DRAWING_KINDS } from "./drawingKind";
-import type { DrawingKind } from "./drawingKind";
-import type { DrawingState } from "./drawingState";
+import { DRAWING_KINDS } from "./drawingKind.js";
+import type { DrawingKind } from "./drawingKind.js";
+import type { DrawingState } from "./drawingState.js";
 
 /**
  * Exhaustiveness: switching on every `DrawingKind` and assigning the

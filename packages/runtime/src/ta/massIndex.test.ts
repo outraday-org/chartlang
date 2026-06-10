@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { massIndex } from "./massIndex";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { massIndex } from "./massIndex.js";
 
 describe("ta.massIndex", () => {
     it("emits NaN until warmup completes (2 · emaLength + sumLength − 3)", () => {

@@ -5,10 +5,10 @@ import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { TablePosition } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { MockCanvas2DContext } from "../../testing";
-import type { RecordedCall } from "../../testing";
-import type { Viewport } from "../coords";
-import { renderTable } from "./table";
+import { MockCanvas2DContext } from "../../testing.js";
+import type { RecordedCall } from "../../testing.js";
+import type { Viewport } from "../coords.js";
+import { renderTable } from "./table.js";
 
 const VIEWPORT: Viewport = {
     xMin: 1_700_000_000_000,

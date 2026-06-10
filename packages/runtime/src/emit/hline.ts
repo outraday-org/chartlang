@@ -4,8 +4,8 @@
 import type { HLineOpts } from "@invinite-org/chartlang-core";
 import type { PlotEmission, PlotStyle } from "@invinite-org/chartlang-adapter-kit";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { pushDiagnostic, pushPlot } from "./emissionsQueue";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { pushDiagnostic, pushPlot } from "./emissionsQueue.js";
 
 const OUTSIDE_CTX_MESSAGE = "hline called outside an active script step";
 

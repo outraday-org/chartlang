@@ -6,8 +6,8 @@
 
 import { bench, describe } from "vitest";
 
-import { bucketizeVolumeDetailed } from "./bucketizeVolume";
-import type { VolumeProfileBar } from "./types";
+import { bucketizeVolumeDetailed } from "./bucketizeVolume.js";
+import type { VolumeProfileBar } from "./types.js";
 
 const BARS = buildBars(5_000);
 const EDGES = buildEdges(200);

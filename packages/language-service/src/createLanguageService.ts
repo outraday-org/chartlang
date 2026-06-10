@@ -5,12 +5,12 @@ import { CompileError, compile } from "@invinite-org/chartlang-compiler";
 import type { IntervalDescriptor } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
-import { collectCompletions } from "./_lib/collectCompletions";
-import { isInsideIntervalLiteral } from "./_lib/isInsideIntervalLiteral";
-import { makeDiagnostic, mapDiagnostic } from "./_lib/mapDiagnostic";
-import { findTokenAtOffset, resolveFqnAtOffset } from "./_lib/resolveFqnAtOffset";
-import { toHoverDoc } from "./_lib/toHoverDoc";
-import { HOVER_REGISTRY } from "./hoverRegistry.generated";
+import { collectCompletions } from "./_lib/collectCompletions.js";
+import { isInsideIntervalLiteral } from "./_lib/isInsideIntervalLiteral.js";
+import { makeDiagnostic, mapDiagnostic } from "./_lib/mapDiagnostic.js";
+import { findTokenAtOffset, resolveFqnAtOffset } from "./_lib/resolveFqnAtOffset.js";
+import { toHoverDoc } from "./_lib/toHoverDoc.js";
+import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 import type {
     CompletionItem,
     DefinitionLocation,
@@ -18,7 +18,7 @@ import type {
     LanguageServiceOptions,
     LspDiagnostic,
     SignatureHelp,
-} from "./types";
+} from "./types.js";
 
 /**
  * Create a headless chartlang language service.

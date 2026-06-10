@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { klinger } from "./klinger";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { klinger } from "./klinger.js";
 
 describe("ta.klinger — golden", () => {
     it("matches the pinned hash for 100 bars × default opts (34, 55, 13)", () => {

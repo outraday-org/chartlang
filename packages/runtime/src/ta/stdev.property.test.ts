@@ -4,10 +4,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { computeRollingStdDev } from "./lib/rollingStddev";
-import { stdev } from "./stdev";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { computeRollingStdDev } from "./lib/rollingStddev.js";
+import { stdev } from "./stdev.js";
 
 describe("ta.stdev — property invariants", () => {
     it("σ ≥ 0 when finite", () => {

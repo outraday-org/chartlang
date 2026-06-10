@@ -21,11 +21,11 @@ import {
     advanceDirectionalClose,
     initDirectionalState,
     tickDirectional,
-} from "./lib/directionalState";
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
-import { wilderStep } from "./lib/wilderSmoothing";
+} from "./lib/directionalState.js";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
+import { wilderStep } from "./lib/wilderSmoothing.js";
 
 const DEFAULT_SMOOTHING = 14;
 

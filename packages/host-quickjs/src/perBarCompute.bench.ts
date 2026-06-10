@@ -6,7 +6,7 @@ import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { bench, describe } from "vitest";
 
-import { createQuickJsHost } from "./createQuickJsHost";
+import { createQuickJsHost } from "./createQuickJsHost.js";
 
 const ITERATIONS = 1_000;
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Adapter, CandleEvent, Capabilities, RunnerEmissions } from "../types";
+import type { Adapter, CandleEvent, Capabilities, RunnerEmissions } from "../types.js";
 
 /**
  * `Adapter` that records every `onEmissions` batch and exposes a

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { session } from "./session";
+import { session } from "./session.js";
 
 describe("session namespace", () => {
     it("is frozen and delegates", () => {

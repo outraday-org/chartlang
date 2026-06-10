@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { williamsFractal } from "./williamsFractal";
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
+import { williamsFractal } from "./williamsFractal.js";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Williams
 // Fractal is O(length) per close (centred window scan). Default

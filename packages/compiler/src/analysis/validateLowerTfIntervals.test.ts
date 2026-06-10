@@ -4,8 +4,8 @@
 import type { IntervalDescriptor } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { createProgramForSource } from "../program";
-import { validateLowerTfIntervals } from "./validateLowerTfIntervals";
+import { createProgramForSource } from "../program.js";
+import { validateLowerTfIntervals } from "./validateLowerTfIntervals.js";
 
 const interval = (value: string): IntervalDescriptor => ({ value, label: value, group: "test" });
 

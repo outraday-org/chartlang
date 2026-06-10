@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { trix } from "./trix";
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
+import { trix } from "./trix.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 describe("ta.trix — golden", () => {
     it("matches the pinned hashes for 100 bars × length=18, signal=9", () => {

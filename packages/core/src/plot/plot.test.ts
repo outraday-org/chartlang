@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { hline, plot } from "./plot";
-import type { PlotKind, PlotOptsStyle } from "./plot";
+import { hline, plot } from "./plot.js";
+import type { PlotKind, PlotOptsStyle } from "./plot.js";
 
 describe("plot callable hole", () => {
     it("plot throws outside-runtime sentinel for scalar input", () => {

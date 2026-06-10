@@ -4,10 +4,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { dmi } from "./dmi";
-import { wilderDirectional } from "./lib/wilderDirectional";
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
+import { dmi } from "./dmi.js";
+import { wilderDirectional } from "./lib/wilderDirectional.js";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
 
 describe("ta.dmi — property invariants", () => {
     it("plusDi ∈ [0, 100] and minusDi ∈ [0, 100] where defined", () => {

@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { median } from "./median";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { median } from "./median.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. The per-bar
 // sort over a 21-slot Float64Array view is the dominant cost (~O(L log

@@ -6,7 +6,7 @@ import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, CompiledScriptObject } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { createScriptRunner } from "../createScriptRunner";
+import { createScriptRunner } from "../createScriptRunner.js";
 
 function caps(alertConditions: boolean): Capabilities {
     return {

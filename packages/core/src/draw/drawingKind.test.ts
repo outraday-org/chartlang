@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DRAWING_KINDS, KIND_CAMELCASE, KIND_KEBABCASE } from "./drawingKind";
-import type { DrawingKind } from "./drawingKind";
+import { DRAWING_KINDS, KIND_CAMELCASE, KIND_KEBABCASE } from "./drawingKind.js";
+import type { DrawingKind } from "./drawingKind.js";
 
 const EXPECTED_ORDER: ReadonlyArray<DrawingKind> = [
     "line",

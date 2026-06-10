@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { computeEmaOfFloat64 } from "./lib/emaFloat64";
-import { ppo } from "./ppo";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { computeEmaOfFloat64 } from "./lib/emaFloat64.js";
+import { ppo } from "./ppo.js";
 
 /**
  * Reference PPO — full-recompute against an array of source values.

@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { chandeKrollStop } from "./chandeKrollStop";
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
+import { chandeKrollStop } from "./chandeKrollStop.js";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
 
 describe("ta.chandeKrollStop — property invariants", () => {
     it("warmup: first `length + smoothingLength - 2` outputs are NaN with finite inputs", () => {

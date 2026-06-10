@@ -4,7 +4,7 @@
 import { createScriptRunner } from "@invinite-org/chartlang-runtime";
 import type { CompiledScriptObject } from "@invinite-org/chartlang-core";
 
-import { createDispatcher } from "./dispatcherCore";
+import { createDispatcher } from "./dispatcherCore.js";
 
 declare global {
     var __chartlang_compiled_default: CompiledScriptObject | undefined;

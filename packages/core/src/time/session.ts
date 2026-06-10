@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Time } from "../types";
-import { extendedSession, isOpen, regularSession } from "./sessionBoundaries";
-import type { SessionBounds, SessionType } from "./types";
+import type { Time } from "../types.js";
+import { extendedSession, isOpen, regularSession } from "./sessionBoundaries.js";
+import type { SessionBounds, SessionType } from "./types.js";
 
 /**
  * Frozen session helper namespace.

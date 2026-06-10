@@ -8,12 +8,12 @@
 
 import type { SmiOpts, SmiResult } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
-import { ema } from "./ema";
-import { highest } from "./highest";
-import { lowest } from "./lowest";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
+import { ema } from "./ema.js";
+import { highest } from "./highest.js";
+import { lowest } from "./lowest.js";
 
 const DEFAULT_K_LENGTH = 10;
 const DEFAULT_FIRST = 3;

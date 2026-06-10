@@ -11,11 +11,11 @@
 
 import type { RsiOpts, Series } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
-import { wilderStep } from "./lib/wilderSmoothing";
-import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
+import { wilderStep } from "./lib/wilderSmoothing.js";
+import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
 
 type RsiSlot = {
     readonly kind: "ta.rsi";

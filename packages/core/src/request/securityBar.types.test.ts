@@ -4,8 +4,8 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import type { Price, Series, Time, Volume } from "../types";
-import type { SecurityBar } from "./request";
+import type { Price, Series, Time, Volume } from "../types.js";
+import type { SecurityBar } from "./request.js";
 
 describe("SecurityBar type surface", () => {
     it("exposes numeric OHLCV and derived fields as typed series", () => {

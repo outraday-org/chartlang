@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { syntheticBars } from "../__fixtures__/syntheticBars";
-import { pearson } from "./pearson";
+import { syntheticBars } from "../__fixtures__/syntheticBars.js";
+import { pearson } from "./pearson.js";
 
 const THRESHOLD_MS = 1500;
 

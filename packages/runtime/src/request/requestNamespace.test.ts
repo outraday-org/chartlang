@@ -12,16 +12,16 @@ import type {
 } from "@invinite-org/chartlang-core";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { appendSecondaryBar } from "../execution/secondaryStream";
+import { appendSecondaryBar } from "../execution/secondaryStream.js";
 import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
-} from "../runtimeContext";
-import { inMemoryStateStore } from "../stateStore";
-import { createStreamState } from "../streamState";
-import { createRuntimeViews } from "../views";
-import { buildRequestNamespace } from "./requestNamespace";
+} from "../runtimeContext.js";
+import { inMemoryStateStore } from "../stateStore.js";
+import { createStreamState } from "../streamState.js";
+import { createRuntimeViews } from "../views/index.js";
+import { buildRequestNamespace } from "./requestNamespace.js";
 
 type RuntimeRequestNamespace = {
     readonly security: (slotId: string, opts: RequestSecurityOpts) => SecurityBar;

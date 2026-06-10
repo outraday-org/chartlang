@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { sma } from "./sma";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { sma } from "./sma.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. 10k bars
 // through ta.sma takes ~10ms on M2; budget 300ms for CI Linux runners.

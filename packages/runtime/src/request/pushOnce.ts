@@ -3,7 +3,7 @@
 
 import type { DiagnosticCode } from "@invinite-org/chartlang-adapter-kit";
 
-import type { RuntimeContext } from "../runtimeContext";
+import type { RuntimeContext } from "../runtimeContext.js";
 
 /**
  * Emit a request diagnostic at most once per code, slot, interval, and kind.

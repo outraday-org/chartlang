@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { donchianMid } from "./donchianMid";
+import { donchianMid } from "./donchianMid.js";
 
 describe("donchianMid", () => {
     it("returns an all-NaN buffer for length ≤ 0", () => {

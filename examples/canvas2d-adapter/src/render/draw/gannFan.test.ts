@@ -5,10 +5,10 @@ import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { GannFanState } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import type { Viewport } from "../coords";
-import { MockCanvas2DContext } from "../../testing";
-import { GANN_FAN_RATIOS } from "./gannLevels";
-import { renderGannFan } from "./gannFan";
+import type { Viewport } from "../coords.js";
+import { MockCanvas2DContext } from "../../testing.js";
+import { GANN_FAN_RATIOS } from "./gannLevels.js";
+import { renderGannFan } from "./gannFan.js";
 
 const VIEW: Viewport = {
     xMin: 0,

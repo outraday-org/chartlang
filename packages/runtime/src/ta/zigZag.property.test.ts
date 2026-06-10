@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { zigZag } from "./zigZag";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { zigZag } from "./zigZag.js";
 
 describe("ta.zigZag — property invariants", () => {
     it("direction ∈ {+1, -1, NaN} on every bar", () => {

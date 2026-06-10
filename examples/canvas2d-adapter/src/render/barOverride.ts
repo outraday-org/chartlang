@@ -3,8 +3,8 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "./clear";
-import { priceToY, timeToX, type Viewport } from "./coords";
+import type { RenderCtx } from "./clear.js";
+import { priceToY, timeToX, type Viewport } from "./coords.js";
 
 /**
  * OHLC bar and style inputs for a Phase 5 `bar-override` outline.

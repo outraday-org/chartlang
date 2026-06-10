@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { Float64RingBuffer } from "./ringBuffer";
+import { Float64RingBuffer } from "./ringBuffer.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon (M-series).
 // 100k append+at(0) iterations on a 64-slot Float64RingBuffer take

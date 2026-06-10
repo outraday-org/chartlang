@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { pivotsHighLow } from "./pivotsHighLow";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { pivotsHighLow } from "./pivotsHighLow.js";
 
 // THRESHOLD_MS — pair with the Wave-5/6 S/R baseline at 300ms.
 // PivotsHighLow is O(leftLength + rightLength) per close (single

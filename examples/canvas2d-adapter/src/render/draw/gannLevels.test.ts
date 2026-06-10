@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { GANN_FAN_LABELS, GANN_FAN_RATIOS, GANN_LEVELS, formatGannRatio } from "./gannLevels";
+import { GANN_FAN_LABELS, GANN_FAN_RATIOS, GANN_LEVELS, formatGannRatio } from "./gannLevels.js";
 
 describe("GANN_LEVELS", () => {
     it("pins the 5 canonical 1/4 subdivisions [0, 0.25, 0.5, 0.75, 1]", () => {

@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Palette } from "../palette";
-import type { RenderCtx } from "./clear";
-import { drawMarker } from "./marker";
-import type { PlotLocation } from "./plotLocation";
+import type { Palette } from "../palette.js";
+import type { RenderCtx } from "./clear.js";
+import { drawMarker } from "./marker.js";
+import type { PlotLocation } from "./plotLocation.js";
 
 /**
  * Canvas glyph inventory for Phase 5 `shape` plots.

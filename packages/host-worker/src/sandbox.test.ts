@@ -6,9 +6,9 @@ import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { createWorkerBoot, type WorkerBootScope } from "./createWorkerBoot";
-import { createWorkerHost } from "./createWorkerHost";
-import type { HostCompiledScript, WorkerLike } from "./types";
+import { createWorkerBoot, type WorkerBootScope } from "./createWorkerBoot.js";
+import { createWorkerHost } from "./createWorkerHost.js";
+import type { HostCompiledScript, WorkerLike } from "./types.js";
 
 /**
  * Phase-1 sandbox placeholder per CONTRIBUTING §16.3. The full sandbox-escape

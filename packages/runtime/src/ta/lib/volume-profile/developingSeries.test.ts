@@ -6,8 +6,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { syntheticProfileBars } from "./__fixtures__/volumeProfileFixtures";
-import { computeDevelopingSeries, derivePriceRange } from "./developingSeries";
+import { syntheticProfileBars } from "./__fixtures__/volumeProfileFixtures.js";
+import { computeDevelopingSeries, derivePriceRange } from "./developingSeries.js";
 
 const CONFIG = {
     rowSize: 10,

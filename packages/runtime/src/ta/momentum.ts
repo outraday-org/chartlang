@@ -8,9 +8,9 @@
 
 import type { MomentumOpts, Series } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { change } from "./change";
-import type { ScalarOrSeries } from "./lib/sourceValue";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { change } from "./change.js";
+import type { ScalarOrSeries } from "./lib/sourceValue.js";
 
 type MomentumSlot = {
     series: Series<number> | null;

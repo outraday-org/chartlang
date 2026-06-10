@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildBucketEdges } from "./bucketEdges";
+import { buildBucketEdges } from "./bucketEdges.js";
 
 describe("buildBucketEdges", () => {
     it("ticksPerRow uses rowSize * tickSize as bucket width", () => {

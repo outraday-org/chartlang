@@ -9,10 +9,10 @@ import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
-} from "./runtimeContext";
-import { inMemoryStateStore } from "./stateStore";
-import { createStreamState } from "./streamState";
-import { createRuntimeViews } from "./views";
+} from "./runtimeContext.js";
+import { inMemoryStateStore } from "./stateStore.js";
+import { createStreamState } from "./streamState.js";
+import { createRuntimeViews } from "./views/index.js";
 
 function freshEmissions(): MutableRunnerEmissions {
     return {

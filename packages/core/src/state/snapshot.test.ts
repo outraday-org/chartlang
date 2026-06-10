@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import * as snapshotModule from "./snapshot";
-import type { StateSnapshot, StateStoreKey, StreamSnapshot } from "./snapshot";
+import * as snapshotModule from "./snapshot.js";
+import type { StateSnapshot, StateStoreKey, StreamSnapshot } from "./snapshot.js";
 
 describe("state snapshot type module", () => {
     it("has no runtime surface", () => {

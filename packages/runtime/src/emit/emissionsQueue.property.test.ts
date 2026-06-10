@@ -5,8 +5,8 @@ import type { AlertEmission, PlotEmission } from "@invinite-org/chartlang-adapte
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import type { MutableRunnerEmissions } from "../runtimeContext";
-import { pushAlert, pushPlot } from "./emissionsQueue";
+import type { MutableRunnerEmissions } from "../runtimeContext.js";
+import { pushAlert, pushPlot } from "./emissionsQueue.js";
 
 function makeQueue(): MutableRunnerEmissions {
     return {

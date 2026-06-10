@@ -13,32 +13,32 @@ import type {
     ScriptManifest,
 } from "@invinite-org/chartlang-core";
 
-import { pushDiagnostic } from "./emit";
+import { pushDiagnostic } from "./emit/index.js";
 import {
     dispose as disposeImpl,
     drain as drainImpl,
     onBarClose as onBarCloseImpl,
     onBarTick as onBarTickImpl,
     onHistory as onHistoryImpl,
-} from "./execution";
+} from "./execution/index.js";
 import {
     appendSecondaryBar,
     appendSecondaryHistory,
     replaceSecondaryHead,
-} from "./execution/secondaryStream";
-import { resolveInputs } from "./inputs";
-import type { PersistentStateStore } from "./persistentStateStore";
+} from "./execution/secondaryStream.js";
+import { resolveInputs } from "./inputs/index.js";
+import type { PersistentStateStore } from "./persistentStateStore.js";
 import {
     PERSISTENCE_INTERVAL_MS,
     maybeSaveStateSnapshot,
     restoreStateSnapshot,
     saveStateSnapshot,
-} from "./persistentStateStore.runtime";
-import { validateSnapshot } from "./persistentStateStore.validate";
-import type { MutableRunnerEmissions, RuntimeContext } from "./runtimeContext";
-import { type StateStore, inMemoryStateStore } from "./stateStore";
-import { type StreamState, createStreamState } from "./streamState";
-import { type AdapterSymInfo, createRuntimeViews, makeSymInfoView } from "./views";
+} from "./persistentStateStore.runtime.js";
+import { validateSnapshot } from "./persistentStateStore.validate.js";
+import type { MutableRunnerEmissions, RuntimeContext } from "./runtimeContext.js";
+import { type StateStore, inMemoryStateStore } from "./stateStore.js";
+import { type StreamState, createStreamState } from "./streamState.js";
+import { type AdapterSymInfo, createRuntimeViews, makeSymInfoView } from "./views/index.js";
 
 /**
  * Internal handle the execution functions read and mutate per step. Lives

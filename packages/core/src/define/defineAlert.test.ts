@@ -3,8 +3,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { input } from "../input";
-import { defineAlert } from "./defineAlert";
+import { input } from "../input/index.js";
+import { defineAlert } from "./defineAlert.js";
 
 describe("defineAlert", () => {
     it("returns a frozen CompiledScriptObject with kind 'alert'", () => {

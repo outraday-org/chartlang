@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { vwmaFloat64 } from "./lib/vwmaFloat64";
-import { vwma } from "./vwma";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { vwmaFloat64 } from "./lib/vwmaFloat64.js";
+import { vwma } from "./vwma.js";
 
 describe("ta.vwma", () => {
     it("matches vwmaFloat64 over a 50-bar synthetic walk", () => {

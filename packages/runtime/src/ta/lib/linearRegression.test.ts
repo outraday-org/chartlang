@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { linearRegression } from "./linearRegression";
+import { linearRegression } from "./linearRegression.js";
 
 describe("linearRegression", () => {
     it("returns all-NaN outputs for length < 2", () => {

@@ -8,10 +8,10 @@ import type { Capabilities, DrawingEmission } from "@invinite-org/chartlang-adap
 import type { LineState } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import type { RuntimeContext } from "../../runtimeContext";
-import { createStreamState } from "../../streamState";
-import { inMemoryStateStore } from "../../stateStore";
-import { pushDrawing } from "./pushDrawing";
+import type { RuntimeContext } from "../../runtimeContext.js";
+import { createStreamState } from "../../streamState.js";
+import { inMemoryStateStore } from "../../stateStore.js";
+import { pushDrawing } from "./pushDrawing.js";
 
 // Re-pin by copying the `actual` hash from a failure message — same
 // workflow as `plot-hash` (PLAN.md §22.10 reproducibility contract).

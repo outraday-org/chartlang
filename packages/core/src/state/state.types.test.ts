@@ -4,8 +4,8 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import type { MutableSlot } from "./mutableSlot";
-import type { StateNamespace } from "./state";
+import type { MutableSlot } from "./mutableSlot.js";
+import type { StateNamespace } from "./state.js";
 
 function slot<T>(initial: T): MutableSlot<T> {
     let current = initial;

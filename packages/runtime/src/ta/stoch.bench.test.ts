@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { stoch } from "./stoch";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { stoch } from "./stoch.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. Stoch
 // composes `ta.highest` + `ta.lowest` + two `ta.sma` layers; each

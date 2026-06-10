@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { MockCanvas2DContext } from "../../testing";
-import type { Point2 } from "./bezier";
-import { renderNamedPolyline } from "./namedPolyline";
+import { MockCanvas2DContext } from "../../testing.js";
+import type { Point2 } from "./bezier.js";
+import { renderNamedPolyline } from "./namedPolyline.js";
 
 const POINTS: ReadonlyArray<Point2> = [
     { x: 0, y: 0 },

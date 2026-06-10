@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { vwmaFloat64 } from "./vwmaFloat64";
+import { vwmaFloat64 } from "./vwmaFloat64.js";
 
 describe("vwmaFloat64", () => {
     it("returns an empty output for empty input", () => {

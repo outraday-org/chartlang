@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { rvgi } from "./rvgi";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { rvgi } from "./rvgi.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. RVGI
 // composes 2 SMA sub-slots + O(1) per-bar 4-bar weighted sums.

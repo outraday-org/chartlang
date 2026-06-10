@@ -4,10 +4,10 @@
 import type { AlertConditionEmission } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import { drawAlertConditions } from "./alertConditions";
-import type { Viewport } from "./coords";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawAlertConditions } from "./alertConditions.js";
+import type { Viewport } from "./coords.js";
 
 const VIEWPORT: Viewport = {
     xMin: 0,

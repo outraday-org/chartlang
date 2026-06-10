@@ -3,9 +3,9 @@
 
 import { bench, describe } from "vitest";
 
-import { harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { visibleRangeVolumeProfile } from "./visibleRangeVolumeProfile";
+import { harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { visibleRangeVolumeProfile } from "./visibleRangeVolumeProfile.js";
 
 const BARS = syntheticBars(5_000, 501);
 const { ctxRef } = harnessWithCtx(BARS, BARS.length + 1, () => null);

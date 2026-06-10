@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { chaikinOsc } from "./chaikinOsc";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { chaikinOsc } from "./chaikinOsc.js";
 
 describe("ta.chaikinOsc — property invariants", () => {
     it("output length equals input length", () => {

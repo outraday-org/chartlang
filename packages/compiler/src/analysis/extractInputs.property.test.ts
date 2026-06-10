@@ -4,8 +4,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { createProgramForSource } from "../program";
-import { extractInputs } from "./extractInputs";
+import { createProgramForSource } from "../program.js";
+import { extractInputs } from "./extractInputs.js";
 
 function run(defaultValue: number, min: number, max: number) {
     const source = `

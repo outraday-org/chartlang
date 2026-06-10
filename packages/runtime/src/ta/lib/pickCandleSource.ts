@@ -13,7 +13,7 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import type { SourceField } from "./readSourceField";
+import type { SourceField } from "./readSourceField.js";
 
 /**
  * Read one of the eight canonical source values off a `Bar`. The

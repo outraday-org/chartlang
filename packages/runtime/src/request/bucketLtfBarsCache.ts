@@ -3,7 +3,7 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import { bucketLtfBarsByMainContainment } from "./bucketLtfBarsByMainContainment";
+import { bucketLtfBarsByMainContainment } from "./bucketLtfBarsByMainContainment.js";
 
 type Bucketed = ReadonlyArray<ReadonlyArray<Bar>>;
 type CacheEntry = {

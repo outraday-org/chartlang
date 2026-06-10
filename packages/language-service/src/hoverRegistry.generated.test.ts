@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { HOVER_REGISTRY } from "./hoverRegistry.generated";
+import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 
 describe("HOVER_REGISTRY", () => {
     it("contains the apiVersion 1 language-service symbol set", () => {

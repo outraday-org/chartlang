@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { dpo } from "./dpo";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { dpo } from "./dpo.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. DPO
 // composes one `ta.sma` sub-slot (O(1) per bar via running sum) and

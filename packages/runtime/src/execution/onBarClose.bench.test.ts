@@ -7,7 +7,7 @@ import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { createScriptRunner } from "../createScriptRunner";
+import { createScriptRunner } from "../createScriptRunner.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon (M-series).
 // 10k bars of empty-compute onBarClose runs sub-50ms on M2; budget

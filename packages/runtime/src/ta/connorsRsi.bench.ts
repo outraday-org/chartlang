@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { connorsRsi } from "./connorsRsi";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { connorsRsi } from "./connorsRsi.js";
 
 describe("ta.connorsRsi hot loop", () => {
     bench(

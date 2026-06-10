@@ -1,3 +1,3 @@
-export { barstate, type BarStateView } from "./barstate";
-export { syminfo, type SymbolType, type SymInfoView } from "./syminfo";
-export { timeframe, type TimeframeView } from "./timeframe";
+export { barstate, type BarStateView } from "./barstate.js";
+export { syminfo, type SymbolType, type SymInfoView } from "./syminfo.js";
+export { timeframe, type TimeframeView } from "./timeframe.js";

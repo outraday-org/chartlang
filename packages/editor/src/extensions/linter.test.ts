@@ -6,8 +6,8 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "codemirror";
 import { describe, expect, it } from "vitest";
 
-import { linterExtension } from "./linter";
-import { createTestLanguageService, waitFor } from "../__fixtures__/testHelpers";
+import { linterExtension } from "./linter.js";
+import { createTestLanguageService, waitFor } from "../__fixtures__/testHelpers.js";
 
 describe("linterExtension", () => {
     it("maps language-service diagnostics and renders gutter pins", async () => {

@@ -9,9 +9,9 @@
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { PitchfanState } from "@invinite-org/chartlang-core";
 
-import type { RenderCtx } from "../clear";
-import type { Viewport } from "../coords";
-import { worldPointToCanvas } from "./worldToCanvas";
+import type { RenderCtx } from "../clear.js";
+import type { Viewport } from "../coords.js";
+import { worldPointToCanvas } from "./worldToCanvas.js";
 
 const DEFAULT_COLOR = "#ec4899";
 const DEFAULT_LINE_WIDTH = 1;

@@ -3,14 +3,14 @@
 
 export { KIND_BUCKET, bucketFor } from "@invinite-org/chartlang-core";
 export type { DrawingBucket, DrawingState } from "@invinite-org/chartlang-core";
-export { defineAdapter } from "./defineAdapter";
-export type { DefineAdapterOpts } from "./defineAdapter";
-export { PHASE_5_PLOT_KINDS, capabilities } from "./capabilities";
-export { decodeDrawing, validateEmission } from "./validation";
-export type { ValidationFail, ValidationOk, ValidationResult } from "./validation";
-export { mockCandleSource } from "./mocks";
-export type { MockCandleSourceMode, MockCandleSourceOpts } from "./mocks";
-export { BufferingAdapter, PassThroughAdapter } from "./base";
+export { defineAdapter } from "./defineAdapter.js";
+export type { DefineAdapterOpts } from "./defineAdapter.js";
+export { PHASE_5_PLOT_KINDS, capabilities } from "./capabilities/index.js";
+export { decodeDrawing, validateEmission } from "./validation/index.js";
+export type { ValidationFail, ValidationOk, ValidationResult } from "./validation/index.js";
+export { mockCandleSource } from "./mocks/index.js";
+export type { MockCandleSourceMode, MockCandleSourceOpts } from "./mocks/index.js";
+export { BufferingAdapter, PassThroughAdapter } from "./base/index.js";
 export type {
     Adapter,
     AdapterSymInfo,
@@ -31,4 +31,4 @@ export type {
     RunnerEmissions,
     RuntimeDiagnostic,
     SymInfoField,
-} from "./types";
+} from "./types.js";

@@ -5,7 +5,7 @@ import type { Bar } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { alignHtfSeriesToLtf } from "./alignHtfSeriesToLtf";
+import { alignHtfSeriesToLtf } from "./alignHtfSeriesToLtf.js";
 
 function makeBar(time: number): Bar {
     return {

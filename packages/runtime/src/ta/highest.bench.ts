@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { highest } from "./highest";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { highest } from "./highest.js";
 
 describe("ta.highest hot loop", () => {
     bench(

@@ -8,7 +8,7 @@ import type {
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
 
-import type { HostCompiledScript, HostLimits } from "./types";
+import type { HostCompiledScript, HostLimits } from "./types.js";
 
 /**
  * Messages the main thread posts into the worker. JSON-clean by construction

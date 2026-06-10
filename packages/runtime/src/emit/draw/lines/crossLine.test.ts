@@ -10,10 +10,10 @@ import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
-} from "../../../runtimeContext";
-import { createStreamState } from "../../../streamState";
-import { inMemoryStateStore } from "../../../stateStore";
-import { crossLine } from "./crossLine";
+} from "../../../runtimeContext.js";
+import { createStreamState } from "../../../streamState.js";
+import { inMemoryStateStore } from "../../../stateStore.js";
+import { crossLine } from "./crossLine.js";
 
 function makeCaps(overrides: Partial<Capabilities> = {}): Capabilities {
     return {

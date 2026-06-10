@@ -21,11 +21,11 @@ import type {
     Series,
 } from "@invinite-org/chartlang-core";
 
-import type { PersistentStateStore } from "./persistentStateStore";
-import type { StateSlot } from "./state/stateSlot";
-import type { StateStore } from "./stateStore";
-import type { StreamState } from "./streamState";
-import type { RuntimeViews } from "./views";
+import type { PersistentStateStore } from "./persistentStateStore.js";
+import type { StateSlot } from "./state/stateSlot.js";
+import type { StateStore } from "./stateStore.js";
+import type { StreamState } from "./streamState.js";
+import type { RuntimeViews } from "./views/index.js";
 
 /**
  * Per-handle drawing slot the runtime persists across bars. The key is

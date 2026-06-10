@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { stoch } from "./stoch";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { stoch } from "./stoch.js";
 
 describe("ta.stoch", () => {
     it("emits NaN until warmup (kLength + kSmoothing + dLength - 3) bars elapse", () => {

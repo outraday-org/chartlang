@@ -15,8 +15,8 @@ import {
     runRendererLoop,
     type Canvas2dAdapterHandle,
     type CreateCanvas2dAdapterOpts,
-} from "./createCanvas2dAdapter";
-import type { Palette } from "./palette";
+} from "./createCanvas2dAdapter.js";
+import type { Palette } from "./palette.js";
 
 describe("createCanvas2dAdapter", () => {
     it("returns Adapter & { readonly host: ScriptHost }", () => {

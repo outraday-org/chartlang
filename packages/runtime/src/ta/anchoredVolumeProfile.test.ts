@@ -5,9 +5,9 @@ import type { PlotEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { anchoredVolumeProfile } from "./anchoredVolumeProfile";
-import { visibleRangeVolumeProfile } from "./visibleRangeVolumeProfile";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { anchoredVolumeProfile } from "./anchoredVolumeProfile.js";
+import { visibleRangeVolumeProfile } from "./visibleRangeVolumeProfile.js";
 
 function bars(count: number): Bar[] {
     const out: Bar[] = [];

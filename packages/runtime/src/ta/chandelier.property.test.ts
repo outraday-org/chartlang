@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { chandelier } from "./chandelier";
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
+import { chandelier } from "./chandelier.js";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
 
 describe("ta.chandelier — property invariants", () => {
     it("long ≤ trailing highest(high) and short ≥ trailing lowest(low) where defined (multiplier ≥ 0)", () => {

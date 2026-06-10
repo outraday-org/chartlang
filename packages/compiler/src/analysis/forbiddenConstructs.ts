@@ -3,7 +3,7 @@
 
 import ts from "typescript";
 
-import { type CompileDiagnostic, createDiagnostic } from "../diagnostics";
+import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
 
 const HOSTILE_GLOBAL_NAMES = new Set([
     "fetch",

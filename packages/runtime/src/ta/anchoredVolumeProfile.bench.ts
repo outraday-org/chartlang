@@ -3,9 +3,9 @@
 
 import { bench, describe } from "vitest";
 
-import { withPrefilledContext } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { anchoredVolumeProfile } from "./anchoredVolumeProfile";
+import { withPrefilledContext } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { anchoredVolumeProfile } from "./anchoredVolumeProfile.js";
 
 describe("ta.anchoredVolumeProfile bench", () => {
     bench("5,000 bars anchored at bar 2,500", () => {

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { wmaFloat64 } from "./wmaFloat64";
+import { wmaFloat64 } from "./wmaFloat64.js";
 
 describe("wmaFloat64", () => {
     it("returns an empty output for empty input", () => {

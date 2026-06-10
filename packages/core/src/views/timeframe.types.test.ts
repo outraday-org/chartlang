@@ -4,8 +4,8 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import { timeframe } from "./timeframe";
-import type { TimeframeView } from "./timeframe";
+import { timeframe } from "./timeframe.js";
+import type { TimeframeView } from "./timeframe.js";
 
 describe("timeframe type surface", () => {
     it("exposes a typed read-only view", () => {

@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { mfi } from "./mfi";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { mfi } from "./mfi.js";
 
 // THRESHOLD_MS — ceil(median × 3). ta.mfi is a per-bar typical-price
 // + 4 ring-buffer slot operations; well under the 300 ms ceiling

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildManifest } from "./manifest";
+import { buildManifest } from "./manifest.js";
 
 describe("buildManifest", () => {
     it("returns a recursively-frozen manifest", () => {

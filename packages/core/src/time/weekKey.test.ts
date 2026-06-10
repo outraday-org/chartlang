@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { weekKey } from "./weekKey";
+import { weekKey } from "./weekKey.js";
 
 describe("weekKey", () => {
     it("handles ISO week-year edges", () => {

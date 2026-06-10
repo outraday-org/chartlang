@@ -28,6 +28,7 @@
         "quickjs-emscripten": "^0.31.0"
     },
     "devDependencies": {
+        "@invinite-org/chartlang-compiler": "workspace:*",
         "esbuild": "^0.24.0"
     },
     "publishConfig": {

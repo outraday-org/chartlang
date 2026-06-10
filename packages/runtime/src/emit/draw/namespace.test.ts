@@ -10,10 +10,10 @@ import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
-} from "../../runtimeContext";
-import { createStreamState } from "../../streamState";
-import { inMemoryStateStore } from "../../stateStore";
-import { DRAW_NAMESPACE } from "./namespace";
+} from "../../runtimeContext.js";
+import { createStreamState } from "../../streamState.js";
+import { inMemoryStateStore } from "../../stateStore.js";
+import { DRAW_NAMESPACE } from "./namespace.js";
 
 function makeCaps(): Capabilities {
     return {

@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { ichimoku } from "./ichimoku";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { ichimoku } from "./ichimoku.js";
 
 describe("ta.ichimoku hot loop", () => {
     bench(

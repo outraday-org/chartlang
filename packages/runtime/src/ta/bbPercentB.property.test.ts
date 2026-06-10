@@ -4,9 +4,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { arbBar } from "./__fixtures__/propertyHelpers";
-import { harness } from "./__fixtures__/runPrimitive";
-import { bbPercentB } from "./bbPercentB";
+import { arbBar } from "./__fixtures__/propertyHelpers.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { bbPercentB } from "./bbPercentB.js";
 
 describe("ta.bbPercentB — property invariants", () => {
     it("output is finite or NaN (no Infinity)", () => {

@@ -3,11 +3,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { bb } from "./bb";
-import { computeRollingStdDev } from "./lib/rollingStddev";
-import { computeSmaOfFloat64 } from "./lib/smaFloat64";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { bb } from "./bb.js";
+import { computeRollingStdDev } from "./lib/rollingStddev.js";
+import { computeSmaOfFloat64 } from "./lib/smaFloat64.js";
 
 describe("ta.bb", () => {
     it("middle band matches SMA, upper/lower match SMA ± multiplier·σ", () => {

@@ -4,8 +4,8 @@
 import { STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { createProgramForSource } from "../program";
-import { runStatefulCallInLoop } from "./statefulCallInLoop";
+import { createProgramForSource } from "../program.js";
+import { runStatefulCallInLoop } from "./statefulCallInLoop.js";
 
 function run(source: string) {
     const { sourceFile, checker } = createProgramForSource(source, {

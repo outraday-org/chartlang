@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { COLOR_PALETTE, parseColor } from "./parseColor";
+import { COLOR_PALETTE, parseColor } from "./parseColor.js";
 
 describe("parseColor", () => {
     it("parses short and long hex colors", () => {

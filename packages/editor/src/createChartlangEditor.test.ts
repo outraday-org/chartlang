@@ -4,8 +4,8 @@
 import { currentCompletions, startCompletion } from "@codemirror/autocomplete";
 import { describe, expect, it } from "vitest";
 
-import { createChartlangEditor } from "./createChartlangEditor";
-import { testCapabilities, waitFor } from "./__fixtures__/testHelpers";
+import { createChartlangEditor } from "./createChartlangEditor.js";
+import { testCapabilities, waitFor } from "./__fixtures__/testHelpers.js";
 
 const intervalSource = `
 import { defineIndicator, request } from "@invinite-org/chartlang-core";

@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
-import { supertrend } from "./supertrend";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { supertrend } from "./supertrend.js";
 
 describe("ta.supertrend — golden", () => {
     it("matches the pinned hashes for 100 bars × length=10 × multiplier=3", () => {

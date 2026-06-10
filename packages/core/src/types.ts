@@ -1,14 +1,14 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { ScaleAxis, ValueFormat } from "./define/overrides";
-import type { DrawNamespace } from "./draw/draw";
-import type { InputDescriptor } from "./input/inputDescriptor";
-import type { RequestNamespace } from "./request";
-import type { RuntimeNamespace } from "./runtime";
-import type { StateNamespace } from "./state/state";
-import type { TaNamespace } from "./ta/ta";
-import type { BarStateView, SymInfoView, TimeframeView } from "./views";
+import type { ScaleAxis, ValueFormat } from "./define/overrides.js";
+import type { DrawNamespace } from "./draw/draw.js";
+import type { InputDescriptor } from "./input/inputDescriptor.js";
+import type { RequestNamespace } from "./request/index.js";
+import type { RuntimeNamespace } from "./runtime/index.js";
+import type { StateNamespace } from "./state/state.js";
+import type { TaNamespace } from "./ta/ta.js";
+import type { BarStateView, SymInfoView, TimeframeView } from "./views/index.js";
 
 /**
  * UTC milliseconds since epoch — the only time representation the runtime
@@ -407,9 +407,9 @@ export type ComputeContext = {
     readonly bar: Bar;
     readonly inputs: Readonly<Record<string, unknown>>;
     readonly ta: TaNamespace;
-    readonly plot: typeof import("./plot/plot").plot;
-    readonly hline: typeof import("./plot/plot").hline;
-    readonly alert: typeof import("./alert/alert").alert;
+    readonly plot: typeof import("./plot/plot.js").plot;
+    readonly hline: typeof import("./plot/plot.js").hline;
+    readonly alert: typeof import("./alert/alert.js").alert;
     /** Pine `var` / `varip` state slots. @since 0.4 */
     readonly state: StateNamespace;
     /** Bar-state view derived for the active step. @since 0.4 */

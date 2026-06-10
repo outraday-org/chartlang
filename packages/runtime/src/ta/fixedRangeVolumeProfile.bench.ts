@@ -3,9 +3,9 @@
 
 import { bench, describe } from "vitest";
 
-import { withPrefilledContext } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { fixedRangeVolumeProfile } from "./fixedRangeVolumeProfile";
+import { withPrefilledContext } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { fixedRangeVolumeProfile } from "./fixedRangeVolumeProfile.js";
 
 describe("ta.fixedRangeVolumeProfile bench", () => {
     bench("5,000 bars over range 1,000-4,000", () => {

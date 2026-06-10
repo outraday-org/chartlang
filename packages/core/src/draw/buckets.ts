@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { DrawingKind } from "./drawingKind";
+import type { DrawingKind } from "./drawingKind.js";
 
 /**
  * Canonical bucket name a {@link DrawingKind} maps to under the

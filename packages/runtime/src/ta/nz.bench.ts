@@ -3,8 +3,8 @@
 
 import { bench, describe } from "vitest";
 
-import { syntheticBars } from "./__fixtures__/syntheticBars";
-import { nz } from "./nz";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
+import { nz } from "./nz.js";
 
 describe("ta.nz hot loop", () => {
     bench(

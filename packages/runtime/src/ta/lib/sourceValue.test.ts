@@ -4,7 +4,7 @@
 import type { Series } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { readSourceValue } from "./sourceValue";
+import { readSourceValue } from "./sourceValue.js";
 
 describe("readSourceValue", () => {
     it("passes numbers through verbatim", () => {

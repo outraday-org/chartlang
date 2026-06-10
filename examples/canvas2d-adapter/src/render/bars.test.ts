@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_PALETTE } from "../palette";
-import { MockCanvas2DContext } from "../testing";
-import { drawBars } from "./bars";
+import { DEFAULT_PALETTE } from "../palette.js";
+import { MockCanvas2DContext } from "../testing.js";
+import { drawBars } from "./bars.js";
 
 describe("drawBars", () => {
     it("emits one fillStyle set + one 1 px wide fillRect", () => {

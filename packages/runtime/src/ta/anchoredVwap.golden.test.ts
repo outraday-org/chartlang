@@ -3,9 +3,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { anchoredVwap } from "./anchoredVwap";
-import { harness } from "./__fixtures__/runPrimitive";
-import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars";
+import { anchoredVwap } from "./anchoredVwap.js";
+import { harness } from "./__fixtures__/runPrimitive.js";
+import { hashFloat64Array, syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 describe("ta.anchoredVwap — golden", () => {
     it("matches the pinned hash for 100 bars × anchor at bar 0", () => {

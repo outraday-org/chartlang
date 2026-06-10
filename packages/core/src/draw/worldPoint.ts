@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Price, Time } from "../types";
+import type { Price, Time } from "../types.js";
 
 /**
  * World coordinate — `(time, price)` is the only persisted frame for

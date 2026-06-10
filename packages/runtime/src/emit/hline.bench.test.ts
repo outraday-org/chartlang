@@ -9,10 +9,10 @@ import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
-} from "../runtimeContext";
-import { createStreamState } from "../streamState";
-import { inMemoryStateStore } from "../stateStore";
-import { hline } from "./hline";
+} from "../runtimeContext.js";
+import { createStreamState } from "../streamState.js";
+import { inMemoryStateStore } from "../stateStore.js";
+import { hline } from "./hline.js";
 
 // THRESHOLD_MS — 10 000 unique-slot hline emissions; same budget as
 // `plot.bench.test.ts` (the path is nearly identical, just a different

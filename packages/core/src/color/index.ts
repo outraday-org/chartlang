@@ -1,11 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { fromGradient, hsl, rgb, withAlpha } from "./colorHelpers";
-import { COLOR_PALETTE } from "./parseColor";
+import { fromGradient, hsl, rgb, withAlpha } from "./colorHelpers.js";
+import { COLOR_PALETTE } from "./parseColor.js";
 
-export { fromGradient, hsl, rgb, withAlpha } from "./colorHelpers";
-export type { GradientStop } from "./colorHelpers";
+export { fromGradient, hsl, rgb, withAlpha } from "./colorHelpers.js";
+export type { GradientStop } from "./colorHelpers.js";
 
 /**
  * Pine-style color namespace. Includes the named palette plus dynamic

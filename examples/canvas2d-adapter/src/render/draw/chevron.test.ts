@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { MockCanvas2DContext } from "../../testing";
-import { drawChevron } from "./chevron";
+import { MockCanvas2DContext } from "../../testing.js";
+import { drawChevron } from "./chevron.js";
 
 describe("drawChevron", () => {
     it("issues fillStyle set + beginPath + moveTo + 2 lineTo + closePath + fill", () => {

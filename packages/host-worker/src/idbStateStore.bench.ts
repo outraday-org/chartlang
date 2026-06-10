@@ -6,7 +6,7 @@ import "fake-indexeddb/auto";
 import type { StateSnapshot, StateStoreKey, StreamSnapshot } from "@invinite-org/chartlang-core";
 import { bench, describe } from "vitest";
 
-import { idbStateStore } from "./idbStateStore";
+import { idbStateStore } from "./idbStateStore.js";
 
 function key(): StateStoreKey {
     return {

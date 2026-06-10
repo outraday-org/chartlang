@@ -9,9 +9,9 @@ import type {
     SessionVolumeProfileResult,
 } from "@invinite-org/chartlang-core";
 
-import { pushDiagnostic } from "../emit";
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext";
-import { makeSeriesView, makeShiftedSeriesView } from "../seriesView";
+import { pushDiagnostic } from "../emit/index.js";
+import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
 import {
     type VolumeProfileBar,
     type VolumeProfileCore,
@@ -20,7 +20,7 @@ import {
     emitVolumeProfileHistogram,
     resolveVolumeProfileSnapshot,
     volumeProfileConfigFromOpts,
-} from "./lib/volume-profile";
+} from "./lib/volume-profile/index.js";
 
 const DAY_MS = 86_400_000;
 

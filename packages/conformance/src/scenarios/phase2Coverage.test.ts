@@ -5,7 +5,7 @@ import { STATEFUL_PRIMITIVES } from "@invinite-org/chartlang-core";
 import { TA_REGISTRY } from "@invinite-org/chartlang-runtime";
 import { describe, expect, it } from "vitest";
 
-import { PHASE_2_INDICATORS, PHASE_5_DEFERRED } from "./phase2Inventory";
+import { PHASE_2_INDICATORS, PHASE_5_DEFERRED } from "./phase2Inventory.js";
 
 const PHASE_1_INDICATORS: ReadonlyArray<string> = Object.freeze([
     "sma",

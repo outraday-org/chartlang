@@ -3,12 +3,12 @@
 
 import type { ComputeContext } from "@invinite-org/chartlang-core";
 
-import type { RunnerState } from "./createScriptRunner";
-import { alert, draw, hline, plot, ta } from "./primitives";
-import { emitAlertCondition } from "./emit/alertConditionEmission";
-import { buildRuntimeNamespace } from "./emit/logEmission";
-import { buildRequestNamespace } from "./request";
-import { buildStateNamespace } from "./state";
+import type { RunnerState } from "./createScriptRunner.js";
+import { alert, draw, hline, plot, ta } from "./primitives.js";
+import { emitAlertCondition } from "./emit/alertConditionEmission.js";
+import { buildRuntimeNamespace } from "./emit/logEmission.js";
+import { buildRequestNamespace } from "./request/index.js";
+import { buildStateNamespace } from "./state/index.js";
 
 /**
  * Build the `ComputeContext` the runner hands the compiled script on

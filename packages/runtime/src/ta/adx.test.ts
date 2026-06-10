@@ -3,11 +3,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { adx } from "./adx";
-import { adxFromDi } from "./lib/adxFromDi";
-import { wilderDirectional } from "./lib/wilderDirectional";
-import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive";
-import { syntheticBars } from "./__fixtures__/syntheticBars";
+import { adx } from "./adx.js";
+import { adxFromDi } from "./lib/adxFromDi.js";
+import { wilderDirectional } from "./lib/wilderDirectional.js";
+import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
+import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 
 describe("ta.adx", () => {
     it("matches the reference adxFromDi(wilderDirectional(...)) over 80 bars × length=14, smoothing=14", () => {

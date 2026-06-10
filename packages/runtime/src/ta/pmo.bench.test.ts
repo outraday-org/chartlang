@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { benchHotLoop } from "./__fixtures__/benchHotLoop";
-import { pmo } from "./pmo";
+import { benchHotLoop } from "./__fixtures__/benchHotLoop.js";
+import { pmo } from "./pmo.js";
 
 // THRESHOLD_MS — ceil(median × 3) on local Apple-silicon. PMO chains
 // two Swenlin EMA stages + one standard signal EMA — all O(1) per bar.
