@@ -4,11 +4,19 @@
 import type { EditorView } from "codemirror";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { CompiledScriptObject } from "@invinite-org/chartlang-core";
+import type { ChartlangLanguageService } from "@invinite-org/chartlang-language-service";
 
 /**
  * Options accepted by the framework-agnostic CodeMirror editor factory.
  *
- * @since 0.4
+ * `service` injects a consumer-provided {@link ChartlangLanguageService}.
+ * When supplied, the factory does not construct an internal service and
+ * `setCapabilities(...)` becomes a no-op — the injected service owns its
+ * own capability surface. Browser consumers who compile server-side use
+ * this seam to wire a hybrid service (local hover / completions, remote
+ * `compileToDiagnostics`).
+ *
+ * @since 0.5
  * @stable
  * @example
  *     const opts: ChartlangEditorOpts = { doc: "export default {};" };
@@ -18,6 +26,7 @@ export type ChartlangEditorOpts = Readonly<{
     doc?: string;
     parent?: HTMLElement;
     targetCapabilities?: Capabilities;
+    service?: ChartlangLanguageService;
     onSourceChange?: (next: string) => void;
     onCompiled?: (compiled: CompiledScriptObject) => void;
     lintDebounceMs?: number;

@@ -2,10 +2,15 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { currentCompletions, startCompletion } from "@codemirror/autocomplete";
+import { forceLinting } from "@codemirror/lint";
 import { describe, expect, it } from "vitest";
 
 import { createChartlangEditor } from "./createChartlangEditor.js";
-import { testCapabilities, waitFor } from "./__fixtures__/testHelpers.js";
+import {
+    createTestLanguageService,
+    testCapabilities,
+    waitFor,
+} from "./__fixtures__/testHelpers.js";
 
 const intervalSource = `
 import { defineIndicator, request } from "@invinite-org/chartlang-core";
@@ -79,6 +84,78 @@ describe("createChartlangEditor", () => {
         expect(currentCompletions(editor.view.state).map((item) => item.label)).not.toContain("1m");
 
         editor.setCapabilities(testCapabilities);
+        editor.destroy();
+    });
+
+    it("uses an injected service for hover / completions / diagnostics", async () => {
+        const calls: string[] = [];
+        const service = createTestLanguageService({
+            compileToDiagnostics: async (source) => {
+                calls.push(`compile:${source}`);
+                return [
+                    {
+                        range: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 4 },
+                        severity: "error",
+                        code: "injected",
+                        message: "from injected service",
+                    },
+                ];
+            },
+            getCompletions: () => [
+                {
+                    label: "injectedSymbol",
+                    kind: "function",
+                    insertText: "injectedSymbol",
+                },
+            ],
+        });
+        const editor = createChartlangEditor({
+            doc: "abc",
+            service,
+            lintDebounceMs: 1,
+        });
+
+        forceLinting(editor.view);
+        await waitFor(() => calls.length > 0);
+        expect(calls[0]).toBe("compile:abc");
+
+        startCompletion(editor.view);
+        await waitFor(() =>
+            currentCompletions(editor.view.state).some((c) => c.label === "injectedSymbol"),
+        );
+
+        editor.destroy();
+    });
+
+    it("setCapabilities is a no-op when a service is injected", async () => {
+        let compileCalls = 0;
+        const service = createTestLanguageService({
+            compileToDiagnostics: async () => {
+                compileCalls += 1;
+                return [];
+            },
+        });
+        const editor = createChartlangEditor({
+            doc: "x",
+            service,
+            lintDebounceMs: 1,
+        });
+
+        forceLinting(editor.view);
+        await waitFor(() => compileCalls > 0);
+        const after = compileCalls;
+
+        // Calling setCapabilities should NOT swap the service. Drive
+        // another lint pass and confirm the injected service still ran
+        // — not a freshly constructed real service that would crash on
+        // the bare "x" source via the compiler/esbuild path.
+        editor.setCapabilities(testCapabilities);
+        editor.setCapabilities(null);
+
+        editor.setSource("y");
+        forceLinting(editor.view);
+        await waitFor(() => compileCalls > after);
+
         editor.destroy();
     });
 });

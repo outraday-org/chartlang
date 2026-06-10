@@ -57,4 +57,84 @@ describe("mockCandleSource", () => {
         const events = await collect(mockCandleSource([]));
         expect(events).toEqual([{ kind: "history", bars: [] }]);
     });
+
+    describe("history-then-stream mode", () => {
+        const bars: ReadonlyArray<Bar> = [
+            makeBar(0, 1),
+            makeBar(60_000, 2),
+            makeBar(120_000, 3),
+            makeBar(180_000, 4),
+        ];
+
+        it("emits one history batch then a close-per-bar for the trailing tail", async () => {
+            const events = await collect(
+                mockCandleSource(bars, {
+                    interval: "1D",
+                    mode: "history-then-stream",
+                    streamTail: 2,
+                }),
+            );
+            expect(events).toHaveLength(3);
+            expect(events[0]).toEqual({ kind: "history", bars: bars.slice(0, 2) });
+            expect(events[1]).toEqual({ kind: "close", bar: bars[2] });
+            expect(events[2]).toEqual({ kind: "close", bar: bars[3] });
+        });
+
+        it("defaults streamTail to 1 when omitted", async () => {
+            const events = await collect(
+                mockCandleSource(bars, { interval: "1D", mode: "history-then-stream" }),
+            );
+            expect(events).toHaveLength(2);
+            expect(events[0]).toEqual({ kind: "history", bars: bars.slice(0, bars.length - 1) });
+            expect(events[1]).toEqual({ kind: "close", bar: bars[bars.length - 1] });
+        });
+
+        it("clamps streamTail at bars.length (all bars stream after an empty history)", async () => {
+            const events = await collect(
+                mockCandleSource(bars, {
+                    interval: "1D",
+                    mode: "history-then-stream",
+                    streamTail: 100,
+                }),
+            );
+            expect(events).toHaveLength(bars.length + 1);
+            expect(events[0]).toEqual({ kind: "history", bars: [] });
+            for (let i = 0; i < bars.length; i++) {
+                expect(events[i + 1]).toEqual({ kind: "close", bar: bars[i] });
+            }
+        });
+
+        it("clamps a negative streamTail to 0 (degenerates to a pure history batch)", async () => {
+            const events = await collect(
+                mockCandleSource(bars, {
+                    interval: "1D",
+                    mode: "history-then-stream",
+                    streamTail: -5,
+                }),
+            );
+            expect(events).toEqual([{ kind: "history", bars }]);
+        });
+
+        it("treats a non-finite streamTail as 0", async () => {
+            const events = await collect(
+                mockCandleSource(bars, {
+                    interval: "1D",
+                    mode: "history-then-stream",
+                    streamTail: Number.NaN,
+                }),
+            );
+            expect(events).toEqual([{ kind: "history", bars }]);
+        });
+
+        it("with an empty bars array yields a single empty history batch", async () => {
+            const events = await collect(
+                mockCandleSource([], {
+                    interval: "1D",
+                    mode: "history-then-stream",
+                    streamTail: 5,
+                }),
+            );
+            expect(events).toEqual([{ kind: "history", bars: [] }]);
+        });
+    });
 });

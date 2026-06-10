@@ -17,7 +17,7 @@ export default defineIndicator({
                 { time: 1_700_000_000_000, price: 100 },
                 { time: 1_700_015_000_000, price: 120 },
                 { time: 1_700_030_000_000, price: 90 },
-            ];
+            ] as const;
             draw.pitchfork(anchors, { variant: "standard" });
             draw.pitchfork(anchors, { variant: "schiff" });
             draw.pitchfork(anchors, { variant: "modifiedSchiff" });

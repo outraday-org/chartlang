@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createWorkerHost } from "./createWorkerHost.js";
 import { DEFAULT_LIMITS } from "./limits.js";
 import type { HostToWorker, WorkerToHost } from "./protocol.js";
-import type { HostCompiledScript, WorkerLike } from "./types.js";
+import type { HostCompiledScript, WorkerErrorEvent, WorkerLike } from "./types.js";
 
 function makeCapabilities(): Capabilities {
     return {
@@ -64,15 +64,31 @@ type FakeWorker = WorkerLike & {
     readonly sent: ReadonlyArray<HostToWorker>;
     readonly terminateMock: ReturnType<typeof vi.fn>;
     deliver(msg: WorkerToHost): void;
+    deliverError(ev: WorkerErrorEvent): void;
+    readonly hasErrorListener: () => boolean;
 };
 
-function makeFakeWorker(opts?: { withTerminate?: boolean }): FakeWorker {
+type FakeOpts = {
+    readonly withTerminate?: boolean;
+    /** Drop "error" subscriptions to simulate a `MessagePort`-backed fake. */
+    readonly withErrorSupport?: boolean;
+};
+
+function makeFakeWorker(opts?: FakeOpts): FakeWorker {
     const sent: Array<HostToWorker> = [];
-    let listener: ((ev: MessageEvent<unknown>) => void) | null = null;
+    let messageListener: ((ev: MessageEvent<unknown>) => void) | null = null;
+    let errorListener: ((ev: WorkerErrorEvent) => void) | null = null;
     const terminateMock = vi.fn<() => void>();
+    const errorSupport = opts?.withErrorSupport !== false;
     const w: WorkerLike = {
-        addEventListener(_type, l) {
-            listener = l;
+        addEventListener(type: "message" | "error", l: unknown) {
+            if (type === "message") {
+                messageListener = l as (ev: MessageEvent<unknown>) => void;
+                return;
+            }
+            if (errorSupport) {
+                errorListener = l as (ev: WorkerErrorEvent) => void;
+            }
         },
         postMessage(msg) {
             sent.push(msg as HostToWorker);
@@ -85,8 +101,15 @@ function makeFakeWorker(opts?: { withTerminate?: boolean }): FakeWorker {
         },
         terminateMock,
         deliver(msg: WorkerToHost) {
-            if (listener === null) throw new Error("no listener attached");
-            listener({ data: msg } as MessageEvent<unknown>);
+            if (messageListener === null) throw new Error("no listener attached");
+            messageListener({ data: msg } as MessageEvent<unknown>);
+        },
+        deliverError(ev: WorkerErrorEvent) {
+            if (errorListener === null) throw new Error("no error listener attached");
+            errorListener(ev);
+        },
+        hasErrorListener() {
+            return errorListener !== null;
         },
     });
 }
@@ -109,6 +132,16 @@ describe("createWorkerHost", () => {
             ...DEFAULT_LIMITS,
             maxCpuMsPerStep: 200,
         });
+    });
+
+    it("exposes maxLoadTimeoutMs through the merged limits", () => {
+        const worker = makeFakeWorker();
+        const host = createWorkerHost({
+            capabilities: makeCapabilities(),
+            workerLike: worker,
+            limits: { maxLoadTimeoutMs: 7_500 },
+        });
+        expect(host.limits.maxLoadTimeoutMs).toBe(7_500);
     });
 
     it("resolves load() when the worker posts 'loaded'", async () => {
@@ -279,5 +312,132 @@ describe("createWorkerHost", () => {
         const worker = makeFakeWorker();
         const host = createWorkerHost({ capabilities: makeCapabilities(), workerLike: worker });
         expect(Object.isFrozen(host)).toBe(true);
+    });
+
+    it("subscribes to the worker's error event when the WorkerLike supports it", () => {
+        const worker = makeFakeWorker();
+        createWorkerHost({ capabilities: makeCapabilities(), workerLike: worker });
+        expect(worker.hasErrorListener()).toBe(true);
+    });
+
+    it("rejects an in-flight load() when the worker fires an error event", async () => {
+        const worker = makeFakeWorker();
+        const onWorkerError = vi.fn<(m: string) => void>();
+        const host = createWorkerHost({
+            capabilities: makeCapabilities(),
+            workerLike: worker,
+            onWorkerError,
+        });
+        const p = host.load(emptyCompiled());
+        worker.deliverError({ message: "worker-boot.js 404" });
+        await expect(p).rejects.toThrow("worker failed to boot: worker-boot.js 404");
+        expect(onWorkerError).toHaveBeenCalledWith("worker failed to boot: worker-boot.js 404");
+    });
+
+    it("rejects a subsequent load() after the worker has already errored", async () => {
+        const worker = makeFakeWorker();
+        const host = createWorkerHost({ capabilities: makeCapabilities(), workerLike: worker });
+        worker.deliverError({ message: "import failed" });
+        await expect(host.load(emptyCompiled())).rejects.toThrow(
+            "worker failed to boot: import failed",
+        );
+    });
+
+    it("extracts the boot error message from ev.error when ev.message is empty", async () => {
+        const worker = makeFakeWorker();
+        const host = createWorkerHost({ capabilities: makeCapabilities(), workerLike: worker });
+        const p = host.load(emptyCompiled());
+        worker.deliverError({ error: new Error("ctor exploded") });
+        await expect(p).rejects.toThrow("worker failed to boot: ctor exploded");
+    });
+
+    it("extracts the boot error message from a string ev.error", async () => {
+        const worker = makeFakeWorker();
+        const host = createWorkerHost({ capabilities: makeCapabilities(), workerLike: worker });
+        const p = host.load(emptyCompiled());
+        worker.deliverError({ error: "plain string failure" });
+        await expect(p).rejects.toThrow("worker failed to boot: plain string failure");
+    });
+
+    it("falls back to a generic message when the error event carries no description", async () => {
+        const worker = makeFakeWorker();
+        const host = createWorkerHost({ capabilities: makeCapabilities(), workerLike: worker });
+        const p = host.load(emptyCompiled());
+        worker.deliverError({});
+        await expect(p).rejects.toThrow("worker failed to boot: unknown worker error");
+    });
+
+    it("rejects load() when the worker never replies within maxLoadTimeoutMs", async () => {
+        vi.useFakeTimers();
+        try {
+            const worker = makeFakeWorker();
+            const host = createWorkerHost({
+                capabilities: makeCapabilities(),
+                workerLike: worker,
+                limits: { maxLoadTimeoutMs: 25 },
+            });
+            const p = host.load(emptyCompiled());
+            const expectation = expect(p).rejects.toThrow(
+                "worker load() timed out after 25ms — worker never replied with 'loaded'",
+            );
+            await vi.advanceTimersByTimeAsync(25);
+            await expectation;
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("clears the load timeout when the worker replies before it fires", async () => {
+        vi.useFakeTimers();
+        try {
+            const worker = makeFakeWorker();
+            const host = createWorkerHost({
+                capabilities: makeCapabilities(),
+                workerLike: worker,
+                limits: { maxLoadTimeoutMs: 25 },
+            });
+            const p = host.load(emptyCompiled());
+            worker.deliver({ kind: "loaded" });
+            await p;
+            // Advance past the original timeout. If the timer wasn't cleared,
+            // it would fire and surface as an unhandled rejection — vitest
+            // would surface the leak loudly here.
+            await vi.advanceTimersByTimeAsync(50);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("clears the load timeout on dispose() so it can't fire later", async () => {
+        vi.useFakeTimers();
+        try {
+            const worker = makeFakeWorker();
+            const host = createWorkerHost({
+                capabilities: makeCapabilities(),
+                workerLike: worker,
+                limits: { maxLoadTimeoutMs: 25 },
+            });
+            // Kick off load() so a timeout is armed, then dispose without
+            // replying. Advance past the deadline — the timeout must not
+            // surface a rejection because dispose cleared it.
+            const p = host.load(emptyCompiled());
+            // Swallow the reject the consumer must own. We're verifying
+            // there is no rogue timer firing; rejection during dispose is
+            // out of scope for this assertion.
+            p.catch(() => undefined);
+            host.dispose();
+            await vi.advanceTimersByTimeAsync(50);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("works with a WorkerLike that does not support error events", async () => {
+        const worker = makeFakeWorker({ withErrorSupport: false });
+        const host = createWorkerHost({ capabilities: makeCapabilities(), workerLike: worker });
+        expect(worker.hasErrorListener()).toBe(false);
+        const p = host.load(emptyCompiled());
+        worker.deliver({ kind: "loaded" });
+        await expect(p).resolves.toBeUndefined();
     });
 });

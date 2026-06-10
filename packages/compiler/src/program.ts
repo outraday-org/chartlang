@@ -82,6 +82,14 @@ declare module "@invinite-org/chartlang-core" {
         readonly [n: number]: T;
         readonly length: number;
     };
+    /**
+     * A \`ta.*\` source-position argument. The runtime
+     * (\`packages/runtime/src/ta/lib/sourceValue.ts\`) accepts either a
+     * series reference or a scalar; the script-author surface mirrors
+     * that contract so \`ta.ema(bar.close, 12)\` (scalar) and
+     * \`ta.ema(other, 12)\` (series) both typecheck.
+     */
+    export type ScalarOrSeries = Series<number> | number;
     export type SmaOpts = Readonly<{ offset?: number }>;
     export type EmaOpts = Readonly<{ offset?: number }>;
     export type StdevOpts = Readonly<{ biased?: boolean; offset?: number }>;
@@ -489,54 +497,151 @@ declare module "@invinite-org/chartlang-core" {
         signal: Series<number>;
         hist: Series<number>;
     }>;
+    export type AdxOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
+    export type DmiOpts = Readonly<{
+        offset?: number;
+        outputs?: Readonly<
+            Record<"plusDi" | "minusDi", { lineStyle?: PlotLineStyle }>
+        >;
+    }>;
+    export type DmiResult = Readonly<{
+        plusDi: Series<number>;
+        minusDi: Series<number>;
+    }>;
+    export type TrixOpts = Readonly<{ offset?: number; signalLength?: number }>;
+    export type TrixResult = Readonly<{
+        trix: Series<number>;
+        signal: Series<number>;
+    }>;
+    export type VortexOpts = Readonly<{ offset?: number }>;
+    export type VortexResult = Readonly<{
+        plus: Series<number>;
+        minus: Series<number>;
+    }>;
+    export type TrendStrengthIndexOpts = Readonly<{
+        offset?: number;
+        lineStyle?: PlotLineStyle;
+    }>;
+    export type IchimokuOpts = Readonly<{
+        conversionLength?: number;
+        baseLength?: number;
+        leadingSpanBLength?: number;
+        displacement?: number;
+        offset?: number;
+        outputs?: Readonly<
+            Record<
+                "tenkan" | "kijun" | "senkouA" | "senkouB" | "chikou",
+                { lineStyle?: PlotLineStyle }
+            >
+        >;
+    }>;
+    export type IchimokuResult = Readonly<{
+        tenkan: Series<number>;
+        kijun: Series<number>;
+        senkouA: Series<number>;
+        senkouB: Series<number>;
+        chikou: Series<number>;
+    }>;
+    export type MedianOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
+    export type AdrOpts = Readonly<{
+        length?: number;
+        offset?: number;
+        lineStyle?: PlotLineStyle;
+    }>;
+    export type UlcerIndexOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
+    export type PmoOpts = Readonly<{
+        length?: number;
+        signalLength?: number;
+        offset?: number;
+    }>;
+    export type PmoResult = Readonly<{
+        pmo: Series<number>;
+        signal: Series<number>;
+    }>;
+    export type SmiOpts = Readonly<{
+        kLength?: number;
+        dLength?: number;
+        smoothLength?: number;
+        offset?: number;
+    }>;
+    export type SmiResult = Readonly<{
+        smi: Series<number>;
+        signal: Series<number>;
+    }>;
+    export type TsiOpts = Readonly<{
+        shortLength?: number;
+        longLength?: number;
+        signalLength?: number;
+        offset?: number;
+    }>;
+    export type TsiResult = Readonly<{
+        tsi: Series<number>;
+        signal: Series<number>;
+    }>;
+    export type ValuewhenOpts = Readonly<{ offset?: number }>;
+    export type BarssinceOpts = Readonly<{ offset?: number }>;
     export type TaNamespace = {
-        sma(source: Series<number>, length: number, opts?: SmaOpts): Series<number>;
-        ema(source: Series<number>, length: number, opts?: EmaOpts): Series<number>;
-        stdev(source: Series<number>, length: number, opts?: StdevOpts): Series<number>;
-        bb(source: Series<number>, length: number, opts?: BbOpts): BbResult;
-        rsi(source: Series<number>, length: number, opts?: RsiOpts): Series<number>;
-        macd(source: Series<number>, opts?: MacdOpts): MacdResult;
+        sma(source: ScalarOrSeries, length: number, opts?: SmaOpts): Series<number>;
+        ema(source: ScalarOrSeries, length: number, opts?: EmaOpts): Series<number>;
+        stdev(source: ScalarOrSeries, length: number, opts?: StdevOpts): Series<number>;
+        bb(source: ScalarOrSeries, length: number, opts?: BbOpts): BbResult;
+        rsi(source: ScalarOrSeries, length: number, opts?: RsiOpts): Series<number>;
+        macd(source: ScalarOrSeries, opts?: MacdOpts): MacdResult;
         atr(length: number, opts?: AtrOpts): Series<number>;
         crossover(
-            a: Series<number>,
-            b: Series<number> | number,
+            a: ScalarOrSeries,
+            b: ScalarOrSeries,
             opts?: CrossoverOpts,
         ): Series<boolean>;
         crossunder(
-            a: Series<number>,
-            b: Series<number> | number,
+            a: ScalarOrSeries,
+            b: ScalarOrSeries,
             opts?: CrossunderOpts,
         ): Series<boolean>;
         nz(value: number, replacement?: number): number;
-        highest(source: Series<number>, length: number, opts?: HighestOpts): Series<number>;
-        lowest(source: Series<number>, length: number, opts?: LowestOpts): Series<number>;
-        change(source: Series<number>, opts?: ChangeOpts): Series<number>;
+        highest(source: ScalarOrSeries, length: number, opts?: HighestOpts): Series<number>;
+        lowest(source: ScalarOrSeries, length: number, opts?: LowestOpts): Series<number>;
+        change(source: ScalarOrSeries, opts?: ChangeOpts): Series<number>;
         valuewhen(
             condition: Series<boolean>,
-            source: Series<number>,
+            source: ScalarOrSeries,
             occurrence?: number,
+            opts?: ValuewhenOpts,
         ): Series<number>;
-        barssince(condition: Series<boolean>): Series<number>;
-        wma(source: Series<number>, length: number, opts?: WmaOpts): Series<number>;
-        vwma(source: Series<number>, length: number, opts?: VwmaOpts): Series<number>;
-        hma(source: Series<number>, length: number, opts?: HmaOpts): Series<number>;
-        smma(source: Series<number>, length: number, opts?: SmmaOpts): Series<number>;
-        dema(source: Series<number>, length: number, opts?: DemaOpts): Series<number>;
-        tema(source: Series<number>, length: number, opts?: TemaOpts): Series<number>;
-        kama(source: Series<number>, opts?: KamaOpts): Series<number>;
-        alma(source: Series<number>, length: number, opts?: AlmaOpts): Series<number>;
-        lsma(source: Series<number>, length: number, opts?: LsmaOpts): Series<number>;
-        mcginley(source: Series<number>, length: number, opts?: McginleyOpts): Series<number>;
-        maRibbon(source: Series<number>, opts?: MaRibbonOpts): MaRibbonResult;
+        barssince(condition: Series<boolean>, opts?: BarssinceOpts): Series<number>;
+        wma(source: ScalarOrSeries, length: number, opts?: WmaOpts): Series<number>;
+        vwma(source: ScalarOrSeries, length: number, opts?: VwmaOpts): Series<number>;
+        hma(source: ScalarOrSeries, length: number, opts?: HmaOpts): Series<number>;
+        smma(source: ScalarOrSeries, length: number, opts?: SmmaOpts): Series<number>;
+        dema(source: ScalarOrSeries, length: number, opts?: DemaOpts): Series<number>;
+        tema(source: ScalarOrSeries, length: number, opts?: TemaOpts): Series<number>;
+        kama(source: ScalarOrSeries, opts?: KamaOpts): Series<number>;
+        alma(source: ScalarOrSeries, length: number, opts?: AlmaOpts): Series<number>;
+        lsma(source: ScalarOrSeries, length: number, opts?: LsmaOpts): Series<number>;
+        mcginley(source: ScalarOrSeries, length: number, opts?: McginleyOpts): Series<number>;
+        maRibbon(source: ScalarOrSeries, opts?: MaRibbonOpts): MaRibbonResult;
         ao(opts?: AoOpts): Series<number>;
-        cmo(source: Series<number>, length: number, opts?: CmoOpts): Series<number>;
-        momentum(source: Series<number>, length: number, opts?: MomentumOpts): Series<number>;
-        roc(source: Series<number>, length: number, opts?: RocOpts): Series<number>;
-        cci(source: Series<number>, length: number, opts?: CciOpts): Series<number>;
+        cmo(source: ScalarOrSeries, length: number, opts?: CmoOpts): Series<number>;
+        momentum(source: ScalarOrSeries, length: number, opts?: MomentumOpts): Series<number>;
+        roc(source: ScalarOrSeries, length: number, opts?: RocOpts): Series<number>;
+        cci(source: ScalarOrSeries, length: number, opts?: CciOpts): Series<number>;
         stoch(opts?: StochOpts): StochResult;
+        stochRsi(source: ScalarOrSeries, opts?: StochRsiOpts): StochRsiResult;
+        ultimateOsc(opts?: UltimateOscOpts): Series<number>;
+        coppock(source: ScalarOrSeries, opts?: CoppockOpts): Series<number>;
         williamsR(length: number, opts?: WilliamsROpts): Series<number>;
         aroon(length: number, opts?: AroonOpts): AroonResult;
         aroonOsc(length: number, opts?: AroonOscOpts): Series<number>;
+        median(source: ScalarOrSeries, length: number, opts?: MedianOpts): Series<number>;
+        adr(opts?: AdrOpts): Series<number>;
+        ulcerIndex(
+            source: ScalarOrSeries,
+            length: number,
+            opts?: UlcerIndexOpts,
+        ): Series<number>;
+        pmo(source: ScalarOrSeries, opts?: PmoOpts): PmoResult;
+        smi(opts?: SmiOpts): SmiResult;
+        tsi(source: ScalarOrSeries, opts?: TsiOpts): TsiResult;
         vol(opts?: VolOpts): Series<number>;
         vwap(opts?: VwapOpts): Series<number>;
         anchoredVwap(anchorTime: number, opts?: AnchoredVwapOpts): Series<number>;
@@ -568,29 +673,39 @@ declare module "@invinite-org/chartlang-core" {
         pivotsStandard(opts?: PivotsStandardOpts): PivotsStandardResult;
         volatilityStop(opts?: VolatilityStopOpts): VolatilityStopResult;
         bbPercentB(
-            source: Series<number>,
+            source: ScalarOrSeries,
             length: number,
             opts?: BbPercentBOpts,
         ): Series<number>;
-        bbw(source: Series<number>, length: number, opts?: BbwOpts): Series<number>;
+        bbw(source: ScalarOrSeries, length: number, opts?: BbwOpts): Series<number>;
         donchian(length: number, opts?: DonchianOpts): DonchianResult;
         keltner(opts?: KeltnerOpts): KeltnerResult;
-        envelope(source: Series<number>, opts?: EnvelopeOpts): EnvelopeResult;
+        envelope(source: ScalarOrSeries, opts?: EnvelopeOpts): EnvelopeResult;
         chop(length: number, opts?: ChopOpts): Series<number>;
         historicalVolatility(
-            source: Series<number>,
+            source: ScalarOrSeries,
             length: number,
             opts?: HvOpts,
         ): Series<number>;
-        rvi(source: Series<number>, length: number, opts?: RviOpts): Series<number>;
+        rvi(source: ScalarOrSeries, length: number, opts?: RviOpts): Series<number>;
         massIndex(opts?: MassIndexOpts): Series<number>;
-        ppo(source: Series<number>, opts?: PpoOpts): PpoResult;
-        dpo(source: Series<number>, length: number, opts?: DpoOpts): Series<number>;
-        connorsRsi(source: Series<number>, opts?: ConnorsRsiOpts): Series<number>;
-        kst(source: Series<number>, opts?: KstOpts): KstResult;
+        ppo(source: ScalarOrSeries, opts?: PpoOpts): PpoResult;
+        dpo(source: ScalarOrSeries, length: number, opts?: DpoOpts): Series<number>;
+        connorsRsi(source: ScalarOrSeries, opts?: ConnorsRsiOpts): Series<number>;
+        kst(source: ScalarOrSeries, opts?: KstOpts): KstResult;
         fisher(length: number, opts?: FisherOpts): FisherResult;
         klinger(opts?: KlingerOpts): KlingerResult;
         rvgi(opts?: RvgiOpts): RvgiResult;
+        adx(length: number, opts?: AdxOpts): Series<number>;
+        dmi(length: number, opts?: DmiOpts): DmiResult;
+        trix(source: ScalarOrSeries, length: number, opts?: TrixOpts): TrixResult;
+        vortex(length: number, opts?: VortexOpts): VortexResult;
+        trendStrengthIndex(
+            source: ScalarOrSeries,
+            length: number,
+            opts?: TrendStrengthIndexOpts,
+        ): Series<number>;
+        ichimoku(opts?: IchimokuOpts): IchimokuResult;
     };
     export const ta: TaNamespace;
     export type PlotKind =
@@ -938,12 +1053,77 @@ declare module "@invinite-org/chartlang-core" {
     export type Time = number;
     export type Price = number;
     export type WorldPoint = { readonly time: Time; readonly price: Price };
+    export type AnchorPair = readonly [WorldPoint, WorldPoint];
+    export type AnchorTriple = readonly [WorldPoint, WorldPoint, WorldPoint];
+    export type AnchorQuad = readonly [WorldPoint, WorldPoint, WorldPoint, WorldPoint];
+    export type AnchorQuint = readonly [
+        WorldPoint,
+        WorldPoint,
+        WorldPoint,
+        WorldPoint,
+        WorldPoint,
+    ];
+    export type AnchorHept = readonly [
+        WorldPoint,
+        WorldPoint,
+        WorldPoint,
+        WorldPoint,
+        WorldPoint,
+        WorldPoint,
+        WorldPoint,
+    ];
     export type LineDrawStyle = Readonly<{
         color?: Color;
         lineWidth?: number;
         lineStyle?: LineStyle;
         extendLeft?: boolean;
         extendRight?: boolean;
+    }>;
+    export type ShapeStyle = Readonly<{
+        stroke?: Color;
+        fill?: Color;
+        lineWidth?: number;
+        lineStyle?: LineStyle;
+        fillAlpha?: number;
+    }>;
+    export type HighlighterStyle = Readonly<{
+        color: Color;
+        alpha: number;
+    }>;
+    export type BrushStyle = Readonly<{
+        stroke: Color;
+        fill: Color;
+    }>;
+    export type TextOpts = Readonly<{
+        color?: Color;
+        size?: "tiny" | "small" | "normal" | "large" | "huge";
+        halign?: "left" | "center" | "right";
+        valign?: "top" | "middle" | "bottom";
+        bgColor?: Color;
+    }>;
+    export type ArrowOpts = LineDrawStyle & Readonly<{ label?: string }>;
+    export type ArrowMarkerOpts = Readonly<{
+        color?: Color;
+        text?: string;
+    }>;
+    export type PathOpts = LineDrawStyle & Readonly<{ closed?: boolean }>;
+    export type FibOpts = Readonly<{
+        levels?: ReadonlyArray<number>;
+        showLabels?: boolean;
+        color?: Color;
+        extendLeft?: boolean;
+        extendRight?: boolean;
+    }>;
+    export type RegressionTrendOpts = Readonly<{
+        source?: "close" | "open" | "high" | "low" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
+        stdevMultiplier?: number;
+        showUpperBand?: boolean;
+        showLowerBand?: boolean;
+        color?: Color;
+    }>;
+    export type FrameOpts = Readonly<{
+        label?: string;
+        bgColor?: Color;
     }>;
     export type TablePosition =
         | "top-left" | "top-center" | "top-right"
@@ -969,16 +1149,96 @@ declare module "@invinite-org/chartlang-core" {
         update(patch: Readonly<Record<string, unknown>>): void;
         remove(): void;
     }>;
-    // Phase-3 line-family draw surface (Task 5). Tasks 6-18 widen
-    // DrawNamespace as their kinds ship. The compiler only needs
-    // method signatures here to route call-site id injection.
+    // Phase-3 draw surface — every kind listed in
+    // \`packages/core/src/draw/draw.ts:DrawNamespace\`. The shim must
+    // stay in lockstep; missing methods make valid scripts fail the
+    // semantic-typecheck gate added in PLAN §5.2 step 1.
     export type DrawNamespace = {
+        // Lines / Rays
         line(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
         horizontalLine(price: Price, opts?: LineDrawStyle): DrawingHandle;
         horizontalRay(anchor: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
         verticalLine(time: Time, opts?: LineDrawStyle): DrawingHandle;
         crossLine(anchor: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
         trendAngle(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+        // Boxes A
+        rectangle(a: WorldPoint, b: WorldPoint, opts?: ShapeStyle): DrawingHandle;
+        rotatedRectangle(anchors: AnchorQuad, opts?: ShapeStyle): DrawingHandle;
+        triangle(anchors: AnchorTriple, opts?: ShapeStyle): DrawingHandle;
+        polyline(anchors: ReadonlyArray<WorldPoint>, opts?: LineDrawStyle): DrawingHandle;
+        // Boxes B
+        circle(centre: WorldPoint, radiusAnchor: WorldPoint, opts?: ShapeStyle): DrawingHandle;
+        ellipse(a: WorldPoint, b: WorldPoint, opts?: ShapeStyle): DrawingHandle;
+        path(anchors: ReadonlyArray<WorldPoint>, opts?: PathOpts): DrawingHandle;
+        marker(
+            anchor: WorldPoint,
+            opts?: TextOpts & Readonly<{ text?: string; value?: number }>,
+        ): DrawingHandle;
+        // Curves
+        arc(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
+        curve(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
+        doubleCurve(anchors: AnchorQuint, opts?: LineDrawStyle): DrawingHandle;
+        // Freehand
+        pen(anchors: ReadonlyArray<WorldPoint>, opts?: LineDrawStyle): DrawingHandle;
+        highlighter(anchors: ReadonlyArray<WorldPoint>, opts: HighlighterStyle): DrawingHandle;
+        brush(anchors: ReadonlyArray<WorldPoint>, opts: BrushStyle): DrawingHandle;
+        // Annotations
+        text(anchor: WorldPoint, body: string, opts?: TextOpts): DrawingHandle;
+        arrow(a: WorldPoint, b: WorldPoint, opts?: ArrowOpts): DrawingHandle;
+        arrowMarker(anchor: WorldPoint, opts?: ArrowMarkerOpts): DrawingHandle;
+        arrowMarkUp(anchor: WorldPoint, opts?: ArrowMarkerOpts): DrawingHandle;
+        arrowMarkDown(anchor: WorldPoint, opts?: ArrowMarkerOpts): DrawingHandle;
+        // Channels
+        trendChannel(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
+        flatTopBottom(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
+        disjointChannel(anchors: AnchorQuad, opts?: LineDrawStyle): DrawingHandle;
+        regressionTrend(a: WorldPoint, b: WorldPoint, opts?: RegressionTrendOpts): DrawingHandle;
+        // Fibonacci A
+        fibRetracement(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
+        fibTrendExtension(anchors: AnchorTriple, opts?: FibOpts): DrawingHandle;
+        fibChannel(anchors: AnchorTriple, opts?: FibOpts): DrawingHandle;
+        fibTimeZone(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
+        fibWedge(anchors: AnchorTriple, opts?: FibOpts): DrawingHandle;
+        // Fibonacci B
+        fibSpeedFan(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
+        fibSpeedArcs(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
+        fibSpiral(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
+        fibCircles(a: WorldPoint, b: WorldPoint, opts?: FibOpts): DrawingHandle;
+        fibTrendTime(anchors: AnchorTriple, opts?: FibOpts): DrawingHandle;
+        // Gann
+        gannBox(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+        gannSquareFixed(anchor: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+        gannSquare(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+        gannFan(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+        // Pitchforks
+        pitchfork(
+            anchors: AnchorTriple,
+            opts?: LineDrawStyle & Readonly<{
+                variant?: "standard" | "schiff" | "modifiedSchiff" | "inside";
+            }>,
+        ): DrawingHandle;
+        pitchfan(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
+        // Harmonic Patterns
+        xabcdPattern(anchors: AnchorQuint, opts?: LineDrawStyle): DrawingHandle;
+        cypherPattern(anchors: AnchorQuint, opts?: LineDrawStyle): DrawingHandle;
+        headAndShoulders(anchors: AnchorQuint, opts?: LineDrawStyle): DrawingHandle;
+        abcdPattern(anchors: AnchorQuad, opts?: LineDrawStyle): DrawingHandle;
+        trianglePattern(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
+        threeDrivesPattern(anchors: AnchorHept, opts?: LineDrawStyle): DrawingHandle;
+        // Elliott Waves
+        elliottImpulseWave(anchors: AnchorQuint, opts?: LineDrawStyle): DrawingHandle;
+        elliottCorrectionWave(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHandle;
+        elliottTriangleWave(anchors: AnchorQuint, opts?: LineDrawStyle): DrawingHandle;
+        elliottDoubleCombo(anchors: AnchorHept, opts?: LineDrawStyle): DrawingHandle;
+        elliottTripleCombo(anchors: AnchorHept, opts?: LineDrawStyle): DrawingHandle;
+        // Cycles
+        cyclicLines(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+        timeCycles(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+        sineLine(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle;
+        // Containers
+        group(childHandleIds: ReadonlyArray<string>): DrawingHandle;
+        frame(a: WorldPoint, b: WorldPoint, opts?: FrameOpts): DrawingHandle;
+        // Viewport overlays
         table(opts: TableOpts): DrawingHandle;
     };
     export const draw: DrawNamespace;

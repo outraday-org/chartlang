@@ -18,7 +18,7 @@ export default defineIndicator({
         to: input.time(${TO_TIME}, { pickFromChart: true, title: "To" }),
     },
     compute({ inputs, ta, plot }) {
-        const vp = ta.fixedRangeVolumeProfile({ from: inputs.from, to: inputs.to, rowSize: 24 });
+        const vp = ta.fixedRangeVolumeProfile({ from: inputs.from as number, to: inputs.to as number, rowSize: 24 });
         plot(vp.poc, { title: "FRVP POC", style: { kind: "horizontal-histogram", buckets: vp.buckets } });
     },
 });

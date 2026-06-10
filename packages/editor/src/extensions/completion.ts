@@ -5,11 +5,9 @@ import type { Completion, CompletionContext } from "@codemirror/autocomplete";
 import { autocompletion } from "@codemirror/autocomplete";
 import type { Extension } from "@codemirror/state";
 import type {
+    ChartlangLanguageService,
     CompletionItem,
-    createLanguageService,
 } from "@invinite-org/chartlang-language-service";
-
-type LanguageService = ReturnType<typeof createLanguageService>;
 
 /**
  * Create a CM6 autocomplete extension backed by chartlang language-service
@@ -21,7 +19,7 @@ type LanguageService = ReturnType<typeof createLanguageService>;
  *     const extension = completionExtension(() => createLanguageService());
  *     void extension;
  */
-export function completionExtension(getService: () => LanguageService): Extension {
+export function completionExtension(getService: () => ChartlangLanguageService): Extension {
     return autocompletion({
         override: [
             (context: CompletionContext) => {

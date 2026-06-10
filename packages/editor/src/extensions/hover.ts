@@ -3,10 +3,7 @@
 
 import type { Extension } from "@codemirror/state";
 import { hoverTooltip } from "@codemirror/view";
-import type { createLanguageService } from "@invinite-org/chartlang-language-service";
-import type { HoverDoc } from "@invinite-org/chartlang-language-service";
-
-type LanguageService = ReturnType<typeof createLanguageService>;
+import type { ChartlangLanguageService, HoverDoc } from "@invinite-org/chartlang-language-service";
 
 /**
  * Create a CM6 hover tooltip extension backed by chartlang language-service
@@ -18,7 +15,7 @@ type LanguageService = ReturnType<typeof createLanguageService>;
  *     const extension = hoverExtension(() => createLanguageService());
  *     void extension;
  */
-export function hoverExtension(getService: () => LanguageService): Extension {
+export function hoverExtension(getService: () => ChartlangLanguageService): Extension {
     return hoverTooltip((view, pos) => {
         const doc = getService().getHoverDoc(view.state.doc.toString(), pos);
         if (doc === null) return null;

@@ -24,7 +24,11 @@ function pair(): { worker: WorkerLike; scope: WorkerBootScope } {
     ch.port2.start();
     return {
         worker: {
-            addEventListener(_type, listener) {
+            // See `integration.test.ts` for the gating rationale: the host
+            // subscribes to both `message` and `error`; `MessagePort` only
+            // delivers `message`.
+            addEventListener(type, listener) {
+                if (type !== "message") return;
                 ch.port1.addEventListener("message", (ev) => listener(ev as MessageEvent<unknown>));
             },
             postMessage(msg) {

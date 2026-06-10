@@ -21,7 +21,13 @@ function pair(): { worker: WorkerLike; scope: WorkerBootScope } {
     ch.port1.start();
     ch.port2.start();
     const worker: WorkerLike = {
-        addEventListener(_type, listener) {
+        // The host subscribes to both "message" and "error" — `MessagePort`
+        // only exposes "message" delivery, so the "error" subscription is a
+        // silent no-op (matches production where browsers fire `error` only
+        // for the parent `Worker`, not the wrapped port). Without this guard
+        // the host's error listener would receive every message event.
+        addEventListener(type, listener) {
+            if (type !== "message") return;
             ch.port1.addEventListener("message", (ev) => {
                 listener(ev as MessageEvent<unknown>);
             });

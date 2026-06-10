@@ -34,7 +34,8 @@ function pair(): { worker: WorkerLike; scope: WorkerBootScope } {
     ch.port1.start();
     ch.port2.start();
     const worker: WorkerLike = {
-        addEventListener(_type, listener) {
+        addEventListener(type, listener) {
+            if (type !== "message") return;
             ch.port1.addEventListener("message", (ev) => {
                 listener(ev as MessageEvent<unknown>);
             });

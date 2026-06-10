@@ -17,7 +17,13 @@ import type {
 } from "./drawingStyle.js";
 import type { DrawingHandle } from "./handle.js";
 import type { TableOpts } from "./table.js";
-import type { AnchorHept, AnchorQuad, AnchorQuint, AnchorTriple, WorldPoint } from "./worldPoint.js";
+import type {
+    AnchorHept,
+    AnchorQuad,
+    AnchorQuint,
+    AnchorTriple,
+    WorldPoint,
+} from "./worldPoint.js";
 
 /**
  * The script-facing `draw.*` namespace. Each method is stateful across

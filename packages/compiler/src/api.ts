@@ -22,6 +22,7 @@ import {
 } from "./analysis/index.js";
 import { bundleModule, formatManifestAssignment } from "./bundle.js";
 import type { CompileDiagnostic } from "./diagnostics.js";
+import { mapTsDiagnostic } from "./diagnostics.js";
 import { buildManifest } from "./manifest.js";
 import { createProgramForSource } from "./program.js";
 import { injectCallsiteIds } from "./transformers/callsiteIdInjection.js";
@@ -93,7 +94,7 @@ export function transformAndAnalyse(
     opts: TransformAndAnalyseOptions,
 ): TransformAndAnalyseResult {
     const sourcePath = opts.sourcePath;
-    const { sourceFile, checker } = createProgramForSource(source, { sourcePath });
+    const { program, sourceFile, checker } = createProgramForSource(source, { sourcePath });
 
     const structural = runStructuralChecks(sourceFile, checker, sourcePath);
     const forbidden = runForbiddenConstructs(sourceFile, sourcePath);
@@ -103,8 +104,19 @@ export function transformAndAnalyse(
         sourcePath,
         STATEFUL_PRIMITIVES_BY_NAME,
     );
+    // PLAN §5.2 step 1: the pipeline starts with tsc programmatic-API
+    // typechecking against `@invinite-org/chartlang-core`'s ambient
+    // declarations. Surface every semantic error coming from the
+    // user's source file under the stable `type-error` code. Shim
+    // diagnostics are dropped — they always come from the synthetic
+    // core.d.ts and would only ever signal a chartlang-side bug.
+    const semanticDiagnostics: CompileDiagnostic[] = program
+        .getSemanticDiagnostics(sourceFile)
+        .filter((d) => d.file?.fileName === sourceFile.fileName)
+        .map((d) => mapTsDiagnostic(d, sourcePath));
 
     const earlyDiagnostics: CompileDiagnostic[] = [
+        ...semanticDiagnostics,
         ...structural.diagnostics,
         ...forbidden,
         ...statefulInLoop,

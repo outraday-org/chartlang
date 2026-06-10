@@ -14,6 +14,10 @@
         "./idb": {
             "types": "./dist/idb.d.ts",
             "import": "./dist/idb.js"
+        },
+        "./worker-boot": {
+            "types": "./dist/worker-boot.d.ts",
+            "import": "./dist/worker-boot.js"
         }
     },
     "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],

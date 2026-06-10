@@ -2,9 +2,9 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
-import type { createLanguageService } from "@invinite-org/chartlang-language-service";
+import type { ChartlangLanguageService } from "@invinite-org/chartlang-language-service";
 
-export type TestLanguageService = ReturnType<typeof createLanguageService>;
+export type TestLanguageService = ChartlangLanguageService;
 
 export const testCapabilities: Capabilities = {
     plots: new Set(["line"]),

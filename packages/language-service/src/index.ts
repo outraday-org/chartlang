@@ -3,6 +3,7 @@
 
 export { createLanguageService } from "./createLanguageService.js";
 export type {
+    ChartlangLanguageService,
     CompletionItem,
     DefinitionLocation,
     HoverDoc,

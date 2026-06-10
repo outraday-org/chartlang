@@ -15,7 +15,8 @@ pnpm add @invinite-org/chartlang-editor
 
 | Export | Purpose |
 |---|---|
-| `createChartlangEditor(opts)` | Mounts the CM6 editor shell. |
+| `createChartlangEditor(opts)` | Mounts the CM6 editor shell. Accepts `opts.service` to inject a custom `ChartlangLanguageService`. |
+| `ChartlangLanguageService` (type) | Re-exported language-service shape; pass any conforming object to `opts.service`. |
 | `hoverExtension(getService)` | Language-service hover integration. |
 | `completionExtension(getService)` | Completion source, including intervals. |
 | `linterExtension(getService, onCompiled?, debounceMs?)` | Async diagnostics with gutter. |

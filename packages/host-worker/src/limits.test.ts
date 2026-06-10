@@ -11,6 +11,7 @@ describe("DEFAULT_LIMITS", () => {
             maxHeapBytes: 64 * 1024 * 1024,
             maxCpuMsPerStep: 50,
             maxRingBufferBars: 5_000,
+            maxLoadTimeoutMs: 30_000,
         });
     });
 

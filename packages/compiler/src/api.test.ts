@@ -239,14 +239,88 @@ export default defineIndicator({
         );
     });
 
-    it("flows warnings through (dynamic-series-index) without bailing", () => {
+    it("surfaces TypeScript semantic errors as `type-error` diagnostics with file/line/column", () => {
+        // PLAN §5.2 step 1: tsc programmatic-API typechecking against
+        // @invinite-org/chartlang-core ambient declarations must abort
+        // `compile`. Bug repro: `const x: number = "oops"` slipped
+        // through silently and the bad script ran anyway.
         const source = `
 import { defineIndicator } from "@invinite-org/chartlang-core";
-declare const bar: import("@invinite-org/chartlang-core").Bar;
+export default defineIndicator({
+    name: "T",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        const x: number = "oops";
+        plot(x);
+        void bar;
+    },
+});
+`;
+        const result = transformAndAnalyse(source, { sourcePath: "demo.chart.ts" });
+        const typeErrors = result.diagnostics.filter((d) => d.code === "type-error");
+        expect(typeErrors).toHaveLength(1);
+        const first = typeErrors[0];
+        expect(first?.severity).toBe("error");
+        expect(first?.file).toBe("demo.chart.ts");
+        expect(first?.line).toBe(7);
+        expect(first?.message).toMatch(/^TS2322:/);
+        expect(first?.message).toContain("string");
+        expect(first?.message).toContain("number");
+    });
+
+    it("flags wrong-arg-type calls on `ta.*` primitives as `type-error`", () => {
+        const source = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "T",
+    apiVersion: 1,
+    compute({ ta, plot }) {
+        const x = ta.ema("not-a-source", 14);
+        plot(x);
+    },
+});
+`;
+        const result = transformAndAnalyse(source, { sourcePath: "demo.chart.ts" });
+        const typeErrors = result.diagnostics.filter((d) => d.code === "type-error");
+        expect(typeErrors.length).toBeGreaterThan(0);
+        const first = typeErrors[0];
+        expect(first?.severity).toBe("error");
+        expect(first?.file).toBe("demo.chart.ts");
+        expect(first?.message).toMatch(/^TS\d+:/);
+    });
+
+    it("does not surface ambient-shim diagnostics — only the user's source file", () => {
+        // Sanity: a clean script must not pick up shim-internal noise.
+        const source = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "ok",
+    apiVersion: 1,
+    compute: () => {},
+});
+`;
+        const result = transformAndAnalyse(source, { sourcePath: "demo.chart.ts" });
+        const typeErrors = result.diagnostics.filter((d) => d.code === "type-error");
+        expect(typeErrors).toEqual([]);
+    });
+
+    it("flows warnings through (dynamic-series-index) without bailing", () => {
+        // The `dynamic-series-index` warning fires when a script reads a
+        // Series at a non-literal index. We need a real `Series<number>`
+        // to index into — `bar.close` is a scalar `Price` per the
+        // public type contract — so the fixture imports `ta.ema` and
+        // indexes its return.
+        const source = `
+import { defineIndicator, ta } from "@invinite-org/chartlang-core";
 export default defineIndicator({
     name: "demo",
     apiVersion: 1,
-    compute: () => { const i = 1; const v = bar.close[i]; void v; },
+    compute: ({ bar }) => {
+        const ema = ta.ema(bar.close, 12);
+        const i = 1;
+        const v = ema[i];
+        void v;
+    },
 });
 `;
         const result = transformAndAnalyse(source, { sourcePath: "demo.chart.ts" });

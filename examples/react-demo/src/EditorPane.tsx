@@ -1,28 +1,18 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { javascript } from "@codemirror/lang-javascript";
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import {
-    completionExtension,
-    hoverExtension,
-    linterExtension,
-    peekPanelExtension,
-} from "@invinite-org/chartlang-editor";
-import { basicSetup } from "codemirror";
-import { type ReactElement, useEffect, useRef } from "react";
+import { ChartlangEditor } from "@invinite-org/chartlang-editor/react";
+import { type ReactElement } from "react";
 
 import type { createHybridLanguageService } from "./hybridLanguageService";
 
 type LanguageService = ReturnType<typeof createHybridLanguageService>;
 
-const LINT_DEBOUNCE_MS = 500;
-
 /**
- * Props for {@link EditorPane}. The pane mounts the CodeMirror view
- * once and never re-creates it — source updates flow through the
- * imperative `view.dispatch(...)` path, not through React re-renders.
+ * Props for {@link EditorPane}. The hybrid language service injects
+ * a server-backed `compileToDiagnostics` while keeping the local
+ * service for the pure-TS surface (hover, completions, signature
+ * help, definitions, intervals).
  */
 export type EditorPaneProps = Readonly<{
     initialSource: string;
@@ -31,54 +21,19 @@ export type EditorPaneProps = Readonly<{
 }>;
 
 /**
- * Left half of the demo — assembles the same extensions
- * `createChartlangEditor` uses, but bound to the hybrid service.
+ * Left half of the demo. Renders the React `<ChartlangEditor>` with
+ * the hybrid service injected via `opts.service`, so the editor uses
+ * the demo's `/api/compile` endpoint instead of the in-browser
+ * compiler (which would crash through the esbuild stub on first
+ * compile).
  */
 export function EditorPane(props: EditorPaneProps): ReactElement {
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const viewRef = useRef<EditorView | null>(null);
-    const onSourceChangeRef = useRef(props.onSourceChange);
-    onSourceChangeRef.current = props.onSourceChange;
-
-    useEffect(() => {
-        const container = containerRef.current;
-        if (container === null) return;
-
-        const service = props.service;
-        const state = EditorState.create({
-            doc: props.initialSource,
-            extensions: [
-                basicSetup,
-                javascript({ typescript: true }),
-                hoverExtension(() => service),
-                completionExtension(() => service),
-                linterExtension(() => service, undefined, LINT_DEBOUNCE_MS),
-                peekPanelExtension(),
-                EditorView.updateListener.of((update) => {
-                    if (update.docChanged) {
-                        onSourceChangeRef.current(update.state.doc.toString());
-                    }
-                }),
-                EditorView.theme(
-                    {
-                        "&": { height: "100%", fontSize: "13px" },
-                        ".cm-scroller": { fontFamily: "ui-monospace, monospace" },
-                    },
-                    { dark: true },
-                ),
-            ],
-        });
-
-        const view = new EditorView({ state, parent: container });
-        viewRef.current = view;
-        return () => {
-            view.destroy();
-            viewRef.current = null;
-        };
-        // The editor is created once. The hybrid service is stable across
-        // the lifetime of the app, and source updates flow through CM
-        // dispatch — not React re-render.
-    }, [props.initialSource, props.service]);
-
-    return <div className="editor-pane" ref={containerRef} />;
+    return (
+        <ChartlangEditor
+            className="editor-pane"
+            onSourceChange={props.onSourceChange}
+            service={props.service}
+            source={props.initialSource}
+        />
+    );
 }

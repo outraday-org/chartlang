@@ -16,7 +16,7 @@ export default defineIndicator({
         anchor: input.time(${ANCHOR_TIME}, { pickFromChart: true, title: "Anchor" }),
     },
     compute({ inputs, ta, plot }) {
-        const vp = ta.anchoredVolumeProfile({ anchor: inputs.anchor, rowSize: 24, bucketColor: "#90caf9" });
+        const vp = ta.anchoredVolumeProfile({ anchor: inputs.anchor as number, rowSize: 24, bucketColor: "#90caf9" });
         plot(vp.poc, { title: "AVP POC", style: { kind: "horizontal-histogram", buckets: vp.buckets } });
     },
 });

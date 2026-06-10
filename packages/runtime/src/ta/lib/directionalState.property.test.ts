@@ -4,7 +4,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { advanceDirectionalClose, initDirectionalState, tickDirectional } from "./directionalState.js";
+import {
+    advanceDirectionalClose,
+    initDirectionalState,
+    tickDirectional,
+} from "./directionalState.js";
 
 const arbOhlcSeries = fc
     .integer({ min: 5, max: 25 })

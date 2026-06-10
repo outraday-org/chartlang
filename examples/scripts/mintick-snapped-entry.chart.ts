@@ -15,7 +15,7 @@ export default defineIndicator({
         offsetPercent: input.float(2, { min: 0, max: 50, step: 0.1, title: "Offset (%)" }),
     },
     compute({ bar, syminfo, plot, inputs }) {
-        const target = bar.close * (1 + inputs.offsetPercent / 100);
+        const target = bar.close * (1 + (inputs.offsetPercent as number) / 100);
         if (!Number.isFinite(syminfo.mintick)) {
             plot(target, { color: "#10b981", title: "Target (raw)" });
             return;

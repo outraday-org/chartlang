@@ -3,7 +3,10 @@
 
 import { javascript } from "@codemirror/lang-javascript";
 import { EditorState } from "@codemirror/state";
-import { createLanguageService } from "@invinite-org/chartlang-language-service";
+import {
+    type ChartlangLanguageService,
+    createLanguageService,
+} from "@invinite-org/chartlang-language-service";
 import { EditorView, basicSetup } from "codemirror";
 
 import {
@@ -17,6 +20,12 @@ import type { ChartlangEditor, ChartlangEditorOpts } from "./types.js";
 /**
  * Create a framework-agnostic CodeMirror 6 chartlang editor.
  *
+ * Pass `opts.service` to inject a custom {@link ChartlangLanguageService}
+ * (for example a server-backed hybrid service whose `compileToDiagnostics`
+ * POSTs to a build endpoint). When injected, the editor never constructs
+ * its own service and `setCapabilities(...)` becomes a no-op — the
+ * consumer-owned service holds the capability surface.
+ *
  * @since 0.4
  * @stable
  * @example
@@ -25,11 +34,14 @@ import type { ChartlangEditor, ChartlangEditorOpts } from "./types.js";
  *     editor.destroy();
  */
 export function createChartlangEditor(opts: ChartlangEditorOpts = {}): ChartlangEditor {
-    let service = createLanguageService(
-        opts.targetCapabilities === undefined
-            ? {}
-            : { targetCapabilities: opts.targetCapabilities },
-    );
+    const isInjected = opts.service !== undefined;
+    let service: ChartlangLanguageService =
+        opts.service ??
+        createLanguageService(
+            opts.targetCapabilities === undefined
+                ? {}
+                : { targetCapabilities: opts.targetCapabilities },
+        );
 
     const state = EditorState.create({
         doc: opts.doc ?? "",
@@ -60,6 +72,9 @@ export function createChartlangEditor(opts: ChartlangEditorOpts = {}): Chartlang
             view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
         },
         setCapabilities(caps): void {
+            // A consumer-provided service owns its own capability surface;
+            // rebuilding it here would silently throw the injection away.
+            if (isInjected) return;
             service = createLanguageService(caps === null ? {} : { targetCapabilities: caps });
         },
     });

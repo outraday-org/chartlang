@@ -9,6 +9,12 @@ import type { ChartlangEditorOpts, ChartlangEditor as MountedChartlangEditor } f
 /**
  * Props for the React CodeMirror chartlang editor wrapper.
  *
+ * Pass `service` to inject a custom language-service (typically the only
+ * viable browser architecture — local hover / completions, remote
+ * `compileToDiagnostics`). When supplied, `targetCapabilities` becomes
+ * a no-op because the injected service owns its capability surface; the
+ * component does not re-mount on `service` identity changes either.
+ *
  * @since 0.4
  * @stable
  * @example
@@ -19,6 +25,7 @@ export type ChartlangEditorProps = Readonly<{
     source: string;
     onSourceChange?: (next: string) => void;
     targetCapabilities?: ChartlangEditorOpts["targetCapabilities"];
+    service?: ChartlangEditorOpts["service"];
     onCompiled?: ChartlangEditorOpts["onCompiled"];
     className?: string;
 }>;
@@ -37,9 +44,11 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
     const editorRef = useRef<MountedChartlangEditor | null>(null);
     const sourceRef = useRef(props.source);
     const targetCapabilitiesRef = useRef(props.targetCapabilities);
+    const serviceRef = useRef(props.service);
     const onSourceChangeRef = useRef(props.onSourceChange);
 
     targetCapabilitiesRef.current = props.targetCapabilities;
+    serviceRef.current = props.service;
     onSourceChangeRef.current = props.onSourceChange;
 
     const setContainer = useCallback((node: HTMLDivElement | null): void => {
@@ -55,6 +64,7 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
             ...(targetCapabilitiesRef.current === undefined
                 ? {}
                 : { targetCapabilities: targetCapabilitiesRef.current }),
+            ...(serviceRef.current === undefined ? {} : { service: serviceRef.current }),
             onSourceChange: (next) => {
                 sourceRef.current = next;
                 onSourceChangeRef.current?.(next);
@@ -72,6 +82,9 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
     }, [props.source]);
 
     useEffect(() => {
+        // When a consumer service is injected, the editor's
+        // `setCapabilities` is a no-op (the injected service owns its
+        // own capability surface). Calling it is still safe.
         editorRef.current?.setCapabilities(props.targetCapabilities ?? null);
     }, [props.targetCapabilities]);
 

@@ -19,7 +19,7 @@ pnpm add @invinite-org/chartlang-host-quickjs quickjs-emscripten
 ## Public surface
 
 - `createQuickJsHost(opts) -> ScriptHost`.
-- `DEFAULT_QUICKJS_LIMITS` — 64 MB heap, 1 ms step.
+- `DEFAULT_QUICKJS_LIMITS` — 64 MB heap, 1 ms step, 30 s load-timeout.
 - `HostToQuickJs` / `QuickJsToHost` — wire protocol mirror.
 
 ## Minimum-viable API call

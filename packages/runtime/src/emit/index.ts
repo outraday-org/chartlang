@@ -10,7 +10,13 @@ export {
     pushDrawing,
     resetSubIdCounters,
 } from "./draw/index.js";
-export { pushAlert, pushAlertCondition, pushDiagnostic, pushLog, pushPlot } from "./emissionsQueue.js";
+export {
+    pushAlert,
+    pushAlertCondition,
+    pushDiagnostic,
+    pushLog,
+    pushPlot,
+} from "./emissionsQueue.js";
 export { hashStringStable } from "./hash.js";
 export { hline } from "./hline.js";
 export { buildRuntimeNamespace, emitLog } from "./logEmission.js";

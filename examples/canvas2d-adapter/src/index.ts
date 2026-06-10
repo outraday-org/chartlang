@@ -4,7 +4,11 @@
 import { DEFAULT_ADAPTER } from "./defaultAdapter.js";
 
 export { createCanvas2dAdapter, runRendererLoop } from "./createCanvas2dAdapter.js";
-export type { Canvas2dAdapterHandle, CreateCanvas2dAdapterOpts } from "./createCanvas2dAdapter.js";
+export type {
+    Canvas2dAdapterHandle,
+    CreateCanvas2dAdapterOpts,
+    RunRendererLoopOpts,
+} from "./createCanvas2dAdapter.js";
 export { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities.js";
 export { DEFAULT_PALETTE } from "./palette.js";
 export type { Palette } from "./palette.js";

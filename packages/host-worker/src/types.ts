@@ -11,6 +11,11 @@ import type { CandleEvent, RunnerEmissions } from "@invinite-org/chartlang-adapt
  * per-worker heap caps — Phase 5's QuickJS host adds real limits).
  * `maxRingBufferBars` is forwarded for runtime sizing decisions.
  *
+ * `maxLoadTimeoutMs` bounds how long `host.load()` is allowed to wait for the
+ * worker's `loaded` reply before rejecting with a descriptive timeout error.
+ * A silently-dead worker (failed module fetch, exception during boot, OS-level
+ * crash) would otherwise leave `load()` pending forever.
+ *
  * @since 0.1
  * @stable
  * @example
@@ -18,12 +23,14 @@ import type { CandleEvent, RunnerEmissions } from "@invinite-org/chartlang-adapt
  *         maxHeapBytes: 64 * 1024 * 1024,
  *         maxCpuMsPerStep: 50,
  *         maxRingBufferBars: 5_000,
+ *         maxLoadTimeoutMs: 30_000,
  *     };
  */
 export type HostLimits = {
     readonly maxHeapBytes: number;
     readonly maxCpuMsPerStep: number;
     readonly maxRingBufferBars: number;
+    readonly maxLoadTimeoutMs: number;
 };
 
 /**
@@ -88,6 +95,11 @@ export type ScriptHost = {
  * `Worker`. `terminate` is optional because `MessagePort` doesn't expose it —
  * the host feature-detects before calling.
  *
+ * The `addEventListener("error", ...)` overload models the browser `Worker`'s
+ * boot/runtime failure channel. `MessagePort`-backed fakes accept the
+ * subscription but never fire it; the host unconditionally subscribes and
+ * relies on the boundary's natural no-op.
+ *
  * @since 0.1
  * @stable
  * @example
@@ -97,8 +109,27 @@ export type ScriptHost = {
  */
 export type WorkerLike = {
     addEventListener(type: "message", listener: (ev: MessageEvent<unknown>) => void): void;
+    addEventListener(type: "error", listener: (ev: WorkerErrorEvent) => void): void;
     postMessage(msg: unknown): void;
     terminate?(): void;
+};
+
+/**
+ * The minimum subset of `ErrorEvent` the host reads when a real `Worker`
+ * fails to boot or crashes. Defined locally because `MessagePort` doesn't
+ * dispatch `ErrorEvent` and we don't want to drag a DOM-typed alias through
+ * the worker boundary.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const ev: WorkerErrorEvent = { message: "boot failed" };
+ *     void ev;
+ */
+export type WorkerErrorEvent = {
+    readonly message?: string;
+    readonly filename?: string;
+    readonly error?: unknown;
 };
 
 /**

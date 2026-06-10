@@ -26,18 +26,25 @@ export type QuickJsCompiledScript = Readonly<{
  * Hard runtime caps for the QuickJS host. `maxHeapBytes` defaults to 64 MB per
  * PLAN §8.3; `maxStepMs` defaults to 1 ms per compute step.
  *
+ * `maxLoadTimeoutMs` mirrors `host-worker`'s field for `ScriptHost` parity.
+ * QuickJS does not actually boot asynchronously — it lazily evaluates the
+ * dispatcher source inline on first `load()` — so the value is informational
+ * and surfaced on `host.limits` only to keep the cross-host shape uniform.
+ *
  * @since 0.5
  * @stable
  * @example
  *     const limits: QuickJsHostLimits = {
  *         maxHeapBytes: 64 * 1024 * 1024,
  *         maxStepMs: 1,
+ *         maxLoadTimeoutMs: 30_000,
  *     };
  *     void limits;
  */
 export type QuickJsHostLimits = Readonly<{
     maxHeapBytes: number;
     maxStepMs: number;
+    maxLoadTimeoutMs: number;
 }>;
 
 /**

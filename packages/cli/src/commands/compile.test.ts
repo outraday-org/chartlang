@@ -13,7 +13,7 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 export default defineIndicator({
     name: "EMA cross",
     apiVersion: 1,
-    compute: ({ bar }) => {
+    compute: ({ bar, ta, plot }) => {
         const fast = ta.ema(bar.close, 12);
         plot(fast);
     },

@@ -17,9 +17,12 @@ Not published — copy from `examples/canvas2d-adapter/`.
   factory; returns an `Adapter` plus an attached `ScriptHost` so
   consumers can `await adapter.host.load(compiled)` before
   driving the renderer loop.
-- `runRendererLoop(handle) → Promise<void>` — convenience helper
-  that iterates the candle source, pushes each event to the host,
-  drains, and feeds emissions back into `adapter.onEmissions`.
+- `runRendererLoop(handle, opts?) → Promise<void>` — convenience
+  helper that iterates the candle source, pushes each event to the
+  host, drains, and feeds emissions back into `adapter.onEmissions`.
+  Pass `opts.signal` (an `AbortSignal`) to cancel the loop cleanly;
+  on abort the loop returns silently — no throw — so React consumers
+  can unmount mid-stream without swallowing rejections.
 - `CANVAS2D_CAPABILITIES` — `Capabilities` bag declaring the 9
   Phase-1+2 plot kinds, all 61 Phase-3 drawing kinds, `log` +
   `toast` alert channels, three intervals, and per-bucket

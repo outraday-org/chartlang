@@ -5,7 +5,12 @@ import type { PlotEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { harness, harnessWithCtx, tick, withPrefilledContext } from "./__fixtures__/runPrimitive.js";
+import {
+    harness,
+    harnessWithCtx,
+    tick,
+    withPrefilledContext,
+} from "./__fixtures__/runPrimitive.js";
 import { visibleRangeVolumeProfile } from "./visibleRangeVolumeProfile.js";
 
 function bars(prices: ReadonlyArray<number>, volumes: ReadonlyArray<number>): Bar[] {

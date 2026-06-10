@@ -4,7 +4,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import type { ConformanceFailure, ConformanceReport, ScenarioResult } from "../runConformanceSuite.js";
+import type {
+    ConformanceFailure,
+    ConformanceReport,
+    ScenarioResult,
+} from "../runConformanceSuite.js";
 
 import {
     renderConformanceJson,

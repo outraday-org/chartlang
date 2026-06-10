@@ -6,12 +6,10 @@ import { lintGutter, linter } from "@codemirror/lint";
 import type { Extension, Text } from "@codemirror/state";
 import type { CompiledScriptObject } from "@invinite-org/chartlang-core";
 import type {
-    createLanguageService,
+    ChartlangLanguageService,
     LspDiagnostic,
     LspSeverity,
 } from "@invinite-org/chartlang-language-service";
-
-type LanguageService = ReturnType<typeof createLanguageService>;
 
 /**
  * Create a CM6 linter extension backed by chartlang compiler diagnostics.
@@ -23,7 +21,7 @@ type LanguageService = ReturnType<typeof createLanguageService>;
  *     void extension;
  */
 export function linterExtension(
-    getService: () => LanguageService,
+    getService: () => ChartlangLanguageService,
     onCompiled?: (compiled: CompiledScriptObject) => void,
     debounceMs = 250,
 ): Extension {

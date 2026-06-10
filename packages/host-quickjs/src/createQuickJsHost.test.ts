@@ -204,6 +204,7 @@ describe("createQuickJsHost", () => {
             maxHeapBytes: 64 * 1024 * 1024,
             maxCpuMsPerStep: 1,
             maxRingBufferBars: 5_000,
+            maxLoadTimeoutMs: 30_000,
         });
         host.dispose();
     });

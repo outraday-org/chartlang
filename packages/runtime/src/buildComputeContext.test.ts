@@ -11,7 +11,12 @@ import type { RunnerState } from "./createScriptRunner.js";
 import type { MutableRunnerEmissions } from "./runtimeContext.js";
 import { inMemoryStateStore } from "./stateStore.js";
 import { createStreamState } from "./streamState.js";
-import { createRuntimeViews, makeBarStateView, makeSymInfoView, makeTimeframeView } from "./views/index.js";
+import {
+    createRuntimeViews,
+    makeBarStateView,
+    makeSymInfoView,
+    makeTimeframeView,
+} from "./views/index.js";
 
 function freshCapabilities(): Capabilities {
     return {

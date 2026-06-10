@@ -14,6 +14,10 @@ import type { CompiledArtifact } from "./hybridLanguageService";
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 480;
+// Stream the last ~5% of bars after a single history batch, so the
+// chart paints instantly and a few "ticks" still drive the alert /
+// recent-bar surfaces during the demo.
+const STREAM_TAIL_BARS = 30;
 
 /**
  * Props for {@link ChartPane}. The pane re-mounts the canvas adapter
@@ -31,12 +35,16 @@ type AdapterHandle = ReturnType<typeof createCanvas2dAdapter>;
  * Right half of the demo. Holds a single `<canvas>` reference; each new
  * artifact disposes the previous adapter, spins up a fresh one, loads
  * the compiled module, and runs the renderer loop in the background.
+ *
+ * Cancellation flows through an `AbortController` that is wired into
+ * `runRendererLoop({ signal })`, so the loop exits silently when a new
+ * artifact arrives mid-stream instead of throwing through the disposed
+ * adapter.
  */
 export function ChartPane(props: ChartPaneProps): ReactElement {
     const { artifact, bars } = props;
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const adapterRef = useRef<AdapterHandle | null>(null);
-    const generationRef = useRef(0);
     const onAlertRef = useRef(props.onAlert);
     onAlertRef.current = props.onAlert;
 
@@ -44,19 +52,20 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
         const canvas = canvasRef.current;
         if (canvas === null || artifact === null || bars.length === 0) return;
 
-        generationRef.current += 1;
-        const generation = generationRef.current;
-
         // Tear down the previous adapter cleanly before spinning up a
         // fresh one. `dispose()` clears the renderer state and
         // terminates the underlying worker.
         adapterRef.current?.dispose();
         adapterRef.current = null;
 
-        let cancelled = false;
+        const controller = new AbortController();
         const adapter = createCanvas2dAdapter({
             canvas,
-            candleSource: mockCandleSource(bars, { interval: "1D", mode: "stream" }),
+            candleSource: mockCandleSource(bars, {
+                interval: "1D",
+                mode: "history-then-stream",
+                streamTail: STREAM_TAIL_BARS,
+            }),
             onAlert: (alert) => onAlertRef.current(alert),
         });
         adapterRef.current = adapter;
@@ -67,19 +76,17 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
                     moduleSource: artifact.moduleSource,
                     manifest: artifact.manifest as ScriptManifest,
                 });
-                if (cancelled || generationRef.current !== generation) return;
-                await runRendererLoop(adapter);
+                if (controller.signal.aborted) return;
+                await runRendererLoop(adapter, { signal: controller.signal });
             } catch (err) {
-                // A new artifact landed mid-flight (so we disposed the
-                // host underneath ourselves); silently drop.
-                if (cancelled || generationRef.current !== generation) return;
+                if (controller.signal.aborted) return;
                 console.error("chart render failed", err);
             }
         };
         void start();
 
         return () => {
-            cancelled = true;
+            controller.abort();
             adapter.dispose();
             if (adapterRef.current === adapter) adapterRef.current = null;
         };

@@ -7,6 +7,9 @@ import type { HostLimits } from "./types.js";
  * Phase-1 default `HostLimits`. `maxCpuMsPerStep` is the only enforced cap;
  * `maxHeapBytes` is advisory (no per-worker heap API exists in browsers
  * today) and `maxRingBufferBars` is forwarded for runtime sizing decisions.
+ * `maxLoadTimeoutMs` bounds `host.load()` so a silently-dead worker can't
+ * hang a consumer indefinitely; 30s is generous for module fetch + parse
+ * on a slow network and still bounded enough to recover.
  * Frozen so consumers cannot mutate the singleton.
  *
  * @since 0.1
@@ -20,6 +23,7 @@ export const DEFAULT_LIMITS: HostLimits = Object.freeze({
     maxHeapBytes: 64 * 1024 * 1024,
     maxCpuMsPerStep: 50,
     maxRingBufferBars: 5_000,
+    maxLoadTimeoutMs: 30_000,
 });
 
 /**

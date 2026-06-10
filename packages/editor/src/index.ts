@@ -9,3 +9,4 @@ export {
     peekPanelExtension,
 } from "./extensions/index.js";
 export type { ChartlangEditor, ChartlangEditorOpts } from "./types.js";
+export type { ChartlangLanguageService } from "@invinite-org/chartlang-language-service";

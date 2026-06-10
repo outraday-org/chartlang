@@ -884,4 +884,136 @@ describe("runRendererLoop", () => {
         }) as unknown as Canvas2dAdapterHandle;
         await expect(runRendererLoop(fake)).rejects.toThrow(/not produced by/);
     });
+
+    it("returns immediately when the signal is already aborted", async () => {
+        const host = stubHost([emissions()]);
+        const { adapter } = buildAdapter({
+            candles: candleStream([{ kind: "close", bar: SAMPLE_BARS[0] }]),
+            host,
+        });
+        const controller = new AbortController();
+        controller.abort();
+        await runRendererLoop(adapter, { signal: controller.signal });
+        expect(host.pushed).toEqual([]);
+        expect(host.drains).toEqual([]);
+    });
+
+    it("breaks out of the loop on the next iteration after an abort", async () => {
+        const host = stubHost([emissions(), emissions(), emissions()]);
+        const controller = new AbortController();
+        const events: CandleEvent[] = [
+            { kind: "close", bar: SAMPLE_BARS[0] },
+            { kind: "close", bar: SAMPLE_BARS[1] },
+            { kind: "close", bar: SAMPLE_BARS[2] },
+        ];
+        // Yield every event regardless of abort state — the
+        // runRendererLoop body's top-of-iteration abort check is what
+        // we want to hit here, not the early-return inside the generator.
+        async function* yieldAll(): AsyncIterable<CandleEvent> {
+            for (const event of events) {
+                yield event;
+                controller.abort();
+            }
+        }
+        const { adapter } = buildAdapter({
+            candles: yieldAll(),
+            host,
+        });
+        await expect(
+            runRendererLoop(adapter, { signal: controller.signal }),
+        ).resolves.toBeUndefined();
+        // First iteration ran end-to-end; the abort triggered at the
+        // end of that iteration, so the second iteration's top-of-loop
+        // abort check short-circuits and the second event is never
+        // pushed.
+        expect(host.pushed.length).toBe(1);
+        expect(host.drains.length).toBe(1);
+    });
+
+    it("ignores abort when the signal is never triggered", async () => {
+        const host = stubHost([emissions(), emissions()]);
+        const controller = new AbortController();
+        const { adapter } = buildAdapter({
+            candles: candleStream([
+                { kind: "close", bar: SAMPLE_BARS[0] },
+                { kind: "close", bar: SAMPLE_BARS[1] },
+            ]),
+            host,
+        });
+        await runRendererLoop(adapter, { signal: controller.signal });
+        expect(host.pushed.length).toBe(2);
+        expect(host.drains.length).toBe(2);
+    });
+
+    it("aborts mid-push so the post-push branch returns silently", async () => {
+        const controller = new AbortController();
+        const event: CandleEvent = { kind: "close", bar: SAMPLE_BARS[0] };
+        const baseHost = stubHost([emissions()]);
+        const host: ScriptHost = {
+            ...baseHost,
+            push: async (e: CandleEvent) => {
+                baseHost.pushed.push(e);
+                controller.abort();
+            },
+        };
+        const { adapter } = buildAdapter({
+            candles: candleStream([event]),
+            host,
+        });
+        await runRendererLoop(adapter, { signal: controller.signal });
+        // push ran once; abort fired during it; we never reached drain.
+        expect(baseHost.pushed).toEqual([event]);
+        expect(baseHost.drains).toEqual([]);
+    });
+
+    it("aborts during the post-yield microtask so the pre-drain branch returns", async () => {
+        const controller = new AbortController();
+        const event: CandleEvent = { kind: "close", bar: SAMPLE_BARS[0] };
+        const baseHost = stubHost([emissions()]);
+        const host: ScriptHost = {
+            ...baseHost,
+            push: async (e: CandleEvent) => {
+                baseHost.pushed.push(e);
+                // Schedule the abort to fire on the next macrotask — the
+                // setTimeout(0) yield inside runRendererLoop awaits a
+                // queueMicrotask of its own, so a setTimeout-scheduled
+                // abort lands strictly after push() resolves but before
+                // the post-yield abort check.
+                setTimeout(() => controller.abort(), 0);
+            },
+        };
+        const { adapter } = buildAdapter({
+            candles: candleStream([event]),
+            host,
+        });
+        await runRendererLoop(adapter, { signal: controller.signal });
+        expect(baseHost.pushed).toEqual([event]);
+        expect(baseHost.drains).toEqual([]);
+    });
+
+    it("aborts after drain so the pre-emit branch returns without onEmissions", async () => {
+        const controller = new AbortController();
+        const event: CandleEvent = { kind: "close", bar: SAMPLE_BARS[0] };
+        const ctx = new MockCanvas2DContext();
+        const baseHost = stubHost([emissions()]);
+        const host: ScriptHost = {
+            ...baseHost,
+            drain: async () => {
+                const head = baseHost.state.nextDrains.shift() ?? emissions();
+                baseHost.drains.push(head);
+                controller.abort();
+                return head;
+            },
+        };
+        const { adapter } = buildAdapter({
+            ctx,
+            candles: candleStream([event]),
+            host,
+        });
+        const baseline = ctx.calls.length;
+        await runRendererLoop(adapter, { signal: controller.signal });
+        expect(baseHost.drains.length).toBe(1);
+        // onEmissions was NOT called, so no new ctx calls were appended.
+        expect(ctx.calls.length).toBe(baseline);
+    });
 });

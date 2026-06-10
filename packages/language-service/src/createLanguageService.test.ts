@@ -65,6 +65,55 @@ export default defineIndicator({
         await expect(service.compileToDiagnostics(script)).resolves.toEqual([]);
     });
 
+    it("maps TypeScript semantic errors to `type-error` diagnostics with correct range", async () => {
+        // Regression test for the PLAN §5.2 step 1 gap: a script with a
+        // semantic type error must surface a diagnostic the editor's
+        // linter can underline (1-based line/column range from the
+        // user's source file).
+        const service = createLanguageService();
+        const bad = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "T",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        const x: number = "oops";
+        plot(x);
+        void bar;
+    },
+});
+`;
+        const diagnostics = await service.compileToDiagnostics(bad);
+        const typeErrors = diagnostics.filter((d) => d.code === "type-error");
+        expect(typeErrors.length).toBeGreaterThan(0);
+        const first = typeErrors[0];
+        expect(first?.severity).toBe("error");
+        expect(first?.range.startLine).toBe(7);
+        expect(first?.range.startColumn).toBeGreaterThan(0);
+        expect(first?.message).toContain("TS2322");
+        expect(first?.message).toContain("string");
+        expect(first?.message).toContain("number");
+    });
+
+    it("maps a wrong-arg-type call on `ta.ema` to a `type-error` diagnostic", async () => {
+        const service = createLanguageService();
+        const bad = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "T",
+    apiVersion: 1,
+    compute({ ta, plot }) {
+        const x = ta.ema("not-a-source", 14);
+        plot(x);
+    },
+});
+`;
+        const diagnostics = await service.compileToDiagnostics(bad);
+        const typeErrors = diagnostics.filter((d) => d.code === "type-error");
+        expect(typeErrors.length).toBeGreaterThan(0);
+        expect(typeErrors[0]?.message).toMatch(/^TS\d+:/);
+    });
+
     it("returns capability hints for unsupported intervals, MTF, and plot kinds", async () => {
         const service = createLanguageService({ targetCapabilities: capabilities });
         const diagnostics = await service.compileToDiagnostics(script);
@@ -111,7 +160,14 @@ export default defineIndicator({
 });
 `;
 
-        expect(await service.compileToDiagnostics(dynamic)).toEqual([]);
+        // The fixture intentionally exercises malformed plot/request
+        // shapes that the capability-hint pass walks. Those same shapes
+        // now also trip the semantic typecheck — assert ONLY that the
+        // capability-hint codes are absent, not that the diagnostic
+        // array is empty.
+        const diagnostics = await service.compileToDiagnostics(dynamic);
+        const hints = diagnostics.filter((d) => d.code !== "type-error");
+        expect(hints).toEqual([]);
         expect(createLanguageService(undefined).getAvailableIntervals()).toEqual([]);
     });
 

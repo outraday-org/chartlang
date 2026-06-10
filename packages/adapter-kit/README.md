@@ -24,7 +24,10 @@ pnpm add @invinite-org/chartlang-adapter-kit
   diagnostic, log, and alert-condition payloads.
 - `decodeDrawing(e) -> DrawingState | null`.
 - `bucketFor(kind)`, `KIND_BUCKET`, and drawing kind maps from core.
-- `mockCandleSource(bars, opts)` for tests and conformance scenarios.
+- `mockCandleSource(bars, opts)` for tests, conformance scenarios,
+  and demos. `opts.mode` selects `"history"` (default), `"stream"`,
+  or `"history-then-stream"` (one history batch followed by per-bar
+  `close` events for the trailing `streamTail` bars).
 - `PassThroughAdapter`, `BufferingAdapter`.
 - Types: `Adapter`, `Capabilities`, `CandleEvent`, emissions, diagnostics,
   input kinds, `SymInfoField`, `RunnerEmissions`, and `DefineAdapterOpts`.

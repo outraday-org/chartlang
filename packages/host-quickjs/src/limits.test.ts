@@ -10,6 +10,7 @@ describe("DEFAULT_QUICKJS_LIMITS", () => {
         expect(DEFAULT_QUICKJS_LIMITS).toEqual({
             maxHeapBytes: 64 * 1024 * 1024,
             maxStepMs: 1,
+            maxLoadTimeoutMs: 30_000,
         });
     });
 

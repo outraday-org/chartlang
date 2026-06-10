@@ -12,6 +12,7 @@ import { findTokenAtOffset, resolveFqnAtOffset } from "./_lib/resolveFqnAtOffset
 import { toHoverDoc } from "./_lib/toHoverDoc.js";
 import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 import type {
+    ChartlangLanguageService,
     CompletionItem,
     DefinitionLocation,
     HoverDoc,
@@ -30,14 +31,7 @@ import type {
  *     const hovers = service.getCompletions("", 0);
  *     void hovers;
  */
-export function createLanguageService(opts: LanguageServiceOptions = {}): {
-    compileToDiagnostics(source: string): Promise<ReadonlyArray<LspDiagnostic>>;
-    getHoverDoc(source: string, offset: number): HoverDoc | null;
-    getCompletions(source: string, offset: number): ReadonlyArray<CompletionItem>;
-    getSignatureHelp(source: string, offset: number): SignatureHelp | null;
-    getDefinition(source: string, offset: number): DefinitionLocation | null;
-    getAvailableIntervals(): ReadonlyArray<IntervalDescriptor>;
-} {
+export function createLanguageService(opts: LanguageServiceOptions = {}): ChartlangLanguageService {
     const capabilities = opts.targetCapabilities;
 
     return Object.freeze({

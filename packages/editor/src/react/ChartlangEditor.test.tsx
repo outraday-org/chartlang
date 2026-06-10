@@ -2,11 +2,16 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { currentCompletions, startCompletion } from "@codemirror/autocomplete";
+import { forceLinting } from "@codemirror/lint";
 import { EditorView } from "@codemirror/view";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { testCapabilities, waitFor } from "../__fixtures__/testHelpers.js";
+import {
+    createTestLanguageService,
+    testCapabilities,
+    waitFor,
+} from "../__fixtures__/testHelpers.js";
 import { ChartlangEditor } from "./ChartlangEditor.js";
 
 const intervalSource = `
@@ -86,6 +91,33 @@ describe("ChartlangEditor", () => {
 
         expect(currentCompletions(view.state).map((item) => item.label)).not.toContain("1m");
         expect(container.querySelectorAll(".cm-editor")).toHaveLength(1);
+    });
+
+    it("threads an injected service through to the linter and completions", async () => {
+        let compileCalls = 0;
+        const service = createTestLanguageService({
+            compileToDiagnostics: async () => {
+                compileCalls += 1;
+                return [];
+            },
+            getCompletions: () => [
+                {
+                    label: "injectedSymbol",
+                    kind: "function",
+                    insertText: "injectedSymbol",
+                },
+            ],
+        });
+        const { container } = render(<ChartlangEditor service={service} source="abc" />);
+        const view = findMountedView(container);
+
+        forceLinting(view);
+        await waitFor(() => compileCalls > 0);
+
+        startCompletion(view);
+        await waitFor(() =>
+            currentCompletions(view.state).some((c) => c.label === "injectedSymbol"),
+        );
     });
 });
 

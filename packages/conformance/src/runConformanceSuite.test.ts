@@ -10,7 +10,11 @@ import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import { generateGoldenBars } from "./fixtures/generateGoldenBars.js";
-import { type Scenario, type ScenarioAssertion, runConformanceSuite } from "./runConformanceSuite.js";
+import {
+    type Scenario,
+    type ScenarioAssertion,
+    runConformanceSuite,
+} from "./runConformanceSuite.js";
 import {
     ALL_SCENARIOS,
     BARSTATE_CONFIRMED_SCENARIO,

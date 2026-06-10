@@ -553,11 +553,36 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
 }
 
 /**
+ * Optional second argument for {@link runRendererLoop}. Pass a
+ * `signal` from an `AbortController` to cancel the loop cleanly:
+ * once the signal aborts, the loop drops the current iteration's
+ * remaining work, breaks out of the async-iterator, and resolves
+ * (no throw). This is the convention every consumer needs when a
+ * React component unmounts mid-stream — the loop returns silently
+ * and the caller does not have to swallow rejections.
+ *
+ * @since 0.5
+ * @stable
+ * @example
+ *     const opts: RunRendererLoopOpts = { signal: new AbortController().signal };
+ *     void opts;
+ */
+export type RunRendererLoopOpts = Readonly<{
+    signal?: AbortSignal;
+}>;
+
+/**
  * Drive a built adapter through one full pass of its candle source:
  * iterate the events, mirror them into the renderer's bar window,
  * `await host.push(event)` for each, and call `host.drain()` +
  * `adapter.onEmissions(...)` between events. Returns when the source
  * completes; throws whatever the source / host throws.
+ *
+ * Pass `opts.signal` (typically from an `AbortController`) to cancel
+ * the loop cleanly. On abort the loop returns silently — no throw —
+ * after finishing at most one in-flight `host.push` / `host.drain`.
+ * This lets React consumers unmount mid-stream without swallowing
+ * rejections from a torn-down adapter.
  *
  * @since 0.1
  * @stable
@@ -574,21 +599,31 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
  *     const fn: typeof runRendererLoop = runRendererLoop;
  *     void fn;
  */
-export async function runRendererLoop(handle: Canvas2dAdapterHandle): Promise<void> {
+export async function runRendererLoop(
+    handle: Canvas2dAdapterHandle,
+    opts: RunRendererLoopOpts = {},
+): Promise<void> {
     const state = HANDLE_STATE.get(handle);
     const interval = HANDLE_INTERVAL.get(handle);
     if (state === undefined || interval === undefined) {
         throw new Error("runRendererLoop: handle was not produced by createCanvas2dAdapter");
     }
+    const signal = opts.signal;
+    const aborted = (): boolean => signal?.aborted ?? false;
+    if (aborted()) return;
     for await (const event of handle.candles({ interval })) {
+        if (aborted()) return;
         applyCandleEvent(state, event);
         await handle.host.push(event);
+        if (aborted()) return;
         // Yield once so an async worker host can complete its
         // candle-event dispatch before the drain frame is processed.
         // In-process hosts resolve `push` synchronously and the
         // microtask flush below is a no-op for them.
         await new Promise<void>((r) => setTimeout(r, 0));
+        if (aborted()) return;
         const emissions = await handle.host.drain();
+        if (aborted()) return;
         handle.onEmissions(emissions);
     }
 }

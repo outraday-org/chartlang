@@ -38,6 +38,38 @@ describe("compile", () => {
         expect(matches).toHaveLength(4);
     });
 
+    it("throws CompileError with a `type-error` diagnostic when a TS semantic error fires", async () => {
+        // Regression for the gap reported in PLAN §5.2 step 1: semantic
+        // type errors (`const x: number = "oops"`) previously slipped
+        // through silently. The fix wires `program.getSemanticDiagnostics`
+        // into the pipeline under the `type-error` code.
+        const TYPE_ERR = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "T",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        const x: number = "oops";
+        plot(x);
+        void bar;
+    },
+});
+`;
+        try {
+            await compile(TYPE_ERR, { apiVersion: 1, sourcePath: "demo.chart.ts" });
+            expect.unreachable("compile should have thrown a CompileError");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CompileError);
+            const compileError = err as CompileError;
+            const first = compileError.diagnostics[0];
+            expect(first?.code).toBe("type-error");
+            expect(first?.severity).toBe("error");
+            expect(first?.file).toBe("demo.chart.ts");
+            expect(first?.line).toBe(7);
+            expect(first?.message).toContain("TS2322");
+        }
+    });
+
     it("throws CompileError carrying the diagnostic array when Math.random is used", async () => {
         await expect(() =>
             compile(HOSTILE, { apiVersion: 1, sourcePath: "bad.chart.ts" }),

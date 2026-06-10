@@ -33,7 +33,8 @@ export type CompileDiagnosticCode =
     | "alert-condition-not-literal"
     | "alert-condition-field-not-literal"
     | "lower-tf-not-lower"
-    | "request-lower-tf-interval-not-literal";
+    | "request-lower-tf-interval-not-literal"
+    | "type-error";
 
 /**
  * Single diagnostic the compiler emits while transforming or analysing a
@@ -109,4 +110,58 @@ export function createDiagnostic(args: {
         return Object.freeze({ ...base, nodeText: snippet });
     }
     return Object.freeze(base);
+}
+
+/**
+ * Build a frozen `CompileDiagnostic` from a raw TypeScript `ts.Diagnostic`.
+ * Used by the `compile()` pipeline to surface semantic type-checker errors
+ * (TS2322, TS2345, …) under the `type-error` code. Carries the original
+ * `TS<code>` numeric prefix in the message so editor consumers can route
+ * to the TypeScript documentation if they want.
+ *
+ * Diagnostics without a `file` (global-scope, project-shape) are mapped to
+ * the script's `sourcePath` at line/column `1:1` so callers always get a
+ * stable location they can attribute to the user's source. The message is
+ * flattened across `DiagnosticMessageChain` nodes.
+ *
+ * @since 0.7
+ * @example
+ *     // const compileDiagnostic = mapTsDiagnostic(tsDiagnostic, "demo.chart.ts");
+ *     const fn: typeof mapTsDiagnostic = mapTsDiagnostic;
+ *     void fn;
+ */
+export function mapTsDiagnostic(diagnostic: ts.Diagnostic, sourcePath: string): CompileDiagnostic {
+    const message = flattenDiagnosticMessage(diagnostic.messageText);
+    const file = diagnostic.file;
+    if (file === undefined || diagnostic.start === undefined) {
+        return Object.freeze({
+            severity: "error",
+            code: "type-error",
+            message: `TS${diagnostic.code}: ${message}`,
+            file: sourcePath,
+            line: 1,
+            column: 1,
+        });
+    }
+    const { line, character } = file.getLineAndCharacterOfPosition(diagnostic.start);
+    return Object.freeze({
+        severity: "error",
+        code: "type-error",
+        message: `TS${diagnostic.code}: ${message}`,
+        file: sourcePath,
+        line: line + 1,
+        column: character + 1,
+    });
+}
+
+function flattenDiagnosticMessage(message: string | ts.DiagnosticMessageChain): string {
+    if (typeof message === "string") return message;
+    const parts: string[] = [message.messageText];
+    const next = message.next;
+    if (next === undefined) return parts.join(" ");
+    const queue: ReadonlyArray<ts.DiagnosticMessageChain> = next;
+    for (const chain of queue) {
+        parts.push(flattenDiagnosticMessage(chain));
+    }
+    return parts.join(" ");
 }

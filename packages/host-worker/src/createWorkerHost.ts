@@ -10,7 +10,7 @@ import type {
 import { defaultWorkerFactory } from "./defaultWorkerFactory.js";
 import { DEFAULT_LIMITS } from "./limits.js";
 import type { HostToWorker, WorkerToHost } from "./protocol.js";
-import type { HostLimits, ScriptHost, WorkerLike } from "./types.js";
+import type { HostLimits, ScriptHost, WorkerErrorEvent, WorkerLike } from "./types.js";
 
 /**
  * Constructor options for {@link createWorkerHost}.
@@ -49,6 +49,13 @@ function hasTerminate(w: WorkerLike): w is WorkerLike & { terminate: () => void 
     return typeof w.terminate === "function";
 }
 
+function describeWorkerError(ev: WorkerErrorEvent): string {
+    if (typeof ev.message === "string" && ev.message.length > 0) return ev.message;
+    if (ev.error instanceof Error && ev.error.message.length > 0) return ev.error.message;
+    if (typeof ev.error === "string" && ev.error.length > 0) return ev.error;
+    return "unknown worker error";
+}
+
 /**
  * Build a browser-default `ScriptHost` around a Web Worker. The host
  * round-trips `load` / `push` / `drain` / `dispose` calls across the worker
@@ -81,20 +88,37 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
     const pendingDrains = new Map<number, (e: RunnerEmissions) => void>();
     let loadedResolve: (() => void) | null = null;
     let loadedReject: ((err: Error) => void) | null = null;
+    let loadTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    // Latches the first worker-level error so a subsequent `load()` call
+    // refuses to wait on a dead worker (no `loaded` reply will ever arrive).
+    let fatalError: string | null = null;
+
+    function clearLoadTimeout(): void {
+        if (loadTimeoutHandle !== null) {
+            clearTimeout(loadTimeoutHandle);
+            loadTimeoutHandle = null;
+        }
+    }
+
+    function failLoad(err: Error): void {
+        clearLoadTimeout();
+        loadedReject?.(err);
+        loadedResolve = null;
+        loadedReject = null;
+    }
 
     worker.addEventListener("message", (ev: MessageEvent<unknown>) => {
         const msg = ev.data as WorkerToHost;
         switch (msg.kind) {
             case "loaded": {
+                clearLoadTimeout();
                 loadedResolve?.();
                 loadedResolve = null;
                 loadedReject = null;
                 break;
             }
             case "loadError": {
-                loadedReject?.(new Error(msg.message));
-                loadedResolve = null;
-                loadedReject = null;
+                failLoad(new Error(msg.message));
                 break;
             }
             case "emissions": {
@@ -116,15 +140,43 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
         }
     });
 
+    // The error channel is fed by browser `Worker`'s `onerror` event.
+    // `MessagePort`-backed fakes accept the subscription silently and never
+    // fire it, which is the right behaviour: a port doesn't have its own
+    // boot/error channel. The cast narrows `addEventListener`'s overload
+    // signature to the error variant.
+    const addErrorListener = worker.addEventListener as (
+        type: "error",
+        listener: (ev: WorkerErrorEvent) => void,
+    ) => void;
+    addErrorListener("error", (ev) => {
+        const description = describeWorkerError(ev);
+        fatalError = description;
+        const message = `worker failed to boot: ${description}`;
+        failLoad(new Error(message));
+        opts.onWorkerError?.(message);
+    });
+
     return Object.freeze<ScriptHost>({
         load(compiled) {
             return new Promise<void>((resolve, reject) => {
+                if (fatalError !== null) {
+                    reject(new Error(`worker failed to boot: ${fatalError}`));
+                    return;
+                }
                 if (loadedResolve !== null) {
                     reject(new Error("load() already in flight"));
                     return;
                 }
                 loadedResolve = resolve;
                 loadedReject = reject;
+                loadTimeoutHandle = setTimeout(() => {
+                    failLoad(
+                        new Error(
+                            `worker load() timed out after ${limits.maxLoadTimeoutMs}ms — worker never replied with 'loaded'`,
+                        ),
+                    );
+                }, limits.maxLoadTimeoutMs);
                 const frame: HostToWorker = {
                     kind: "load",
                     compiled: {
@@ -161,6 +213,7 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
             if (hasTerminate(worker)) {
                 worker.terminate();
             }
+            clearLoadTimeout();
             pendingDrains.clear();
         },
         limits,

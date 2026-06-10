@@ -66,6 +66,7 @@ function makeHostLimits(limits: QuickJsHostLimits, capabilities: Capabilities): 
         maxHeapBytes: limits.maxHeapBytes,
         maxCpuMsPerStep: limits.maxStepMs,
         maxRingBufferBars: capabilities.maxLookback,
+        maxLoadTimeoutMs: limits.maxLoadTimeoutMs,
     });
 }
 

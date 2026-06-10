@@ -17,4 +17,5 @@ import type { QuickJsHostLimits } from "./types.js";
 export const DEFAULT_QUICKJS_LIMITS: QuickJsHostLimits = Object.freeze({
     maxHeapBytes: 64 * 1024 * 1024,
     maxStepMs: 1,
+    maxLoadTimeoutMs: 30_000,
 });

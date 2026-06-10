@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
+import type { IntervalDescriptor } from "@invinite-org/chartlang-core";
 
 /**
  * One-based editor range used by language-service diagnostics.
@@ -138,4 +139,34 @@ export type DefinitionLocation = Readonly<{
  */
 export type LanguageServiceOptions = Readonly<{
     targetCapabilities?: Capabilities;
+}>;
+
+/**
+ * Headless language-service surface consumed by the editor extensions
+ * and any embedding consumer. The {@link createLanguageService} factory
+ * returns a value of this exact shape; consumers can also supply their
+ * own implementation (for example a server-backed `compileToDiagnostics`
+ * that POSTs to a build endpoint) and inject it into
+ * `createChartlangEditor` via `opts.service`.
+ *
+ * @since 0.4
+ * @stable
+ * @example
+ *     const stub: ChartlangLanguageService = {
+ *         compileToDiagnostics: async () => [],
+ *         getHoverDoc: () => null,
+ *         getCompletions: () => [],
+ *         getSignatureHelp: () => null,
+ *         getDefinition: () => null,
+ *         getAvailableIntervals: () => [],
+ *     };
+ *     void stub;
+ */
+export type ChartlangLanguageService = Readonly<{
+    compileToDiagnostics(source: string): Promise<ReadonlyArray<LspDiagnostic>>;
+    getHoverDoc(source: string, offset: number): HoverDoc | null;
+    getCompletions(source: string, offset: number): ReadonlyArray<CompletionItem>;
+    getSignatureHelp(source: string, offset: number): SignatureHelp | null;
+    getDefinition(source: string, offset: number): DefinitionLocation | null;
+    getAvailableIntervals(): ReadonlyArray<IntervalDescriptor>;
 }>;
