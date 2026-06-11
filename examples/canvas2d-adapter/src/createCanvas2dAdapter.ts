@@ -51,7 +51,9 @@ import {
 } from "./render/index.js";
 
 const DEFAULT_INTERVAL = "1D";
-const MAX_RECENT_ALERTS = 8;
+// Badges persist on the chart at the bar where each alert fired, so the
+// buffer is sized for a whole session rather than a short feed.
+const MAX_RECENT_ALERTS = 256;
 const Y_AXIS_PADDING = 0.05;
 const HISTOGRAM_BAR_WIDTH_PX = 4;
 const HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX = 96;
@@ -83,6 +85,13 @@ export type CreateCanvas2dAdapterOpts = {
     readonly palette?: Palette;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     readonly onAlert?: (a: AlertEmission) => void;
+    /**
+     * When supplied, only alerts for which this returns `true` are kept
+     * in the on-canvas badge buffer (`recentAlerts`). `onAlert` still
+     * receives every alert. Lets a host hide e.g. history-replay
+     * alerts from the chart without losing its own feed.
+     */
+    readonly alertBadgeFilter?: (a: AlertEmission) => boolean;
     readonly host?: ScriptHost;
     readonly workerLike?: WorkerLike;
 };
@@ -352,9 +361,13 @@ function renderFrame(state: AdapterState): void {
         return;
     }
     const lastBar = state.bars[state.bars.length - 1];
-    const x = timeToX(lastBar.time, viewport);
-    const y = priceToY(lastBar.high, viewport);
     for (const alert of state.recentAlerts) {
+        // Anchor each badge at the bar where the alert fired; alerts
+        // whose bar index is outside the rendered range (e.g. a host
+        // that trimmed history) fall back to the latest bar.
+        const anchorBar = state.bars[alert.bar] ?? lastBar;
+        const x = timeToX(anchorBar.time, viewport);
+        const y = priceToY(anchorBar.high, viewport);
         drawAlertBadge(state.ctx, alert, { x, y }, state.palette);
     }
     drawAlertConditions(state.ctx, state.currentAlertConditions, viewport, state.palette);
@@ -389,10 +402,13 @@ function applyAlert(
     state: AdapterState,
     alert: AlertEmission,
     onAlert?: (a: AlertEmission) => void,
+    badgeFilter?: (a: AlertEmission) => boolean,
 ): void {
-    state.recentAlerts.push(alert);
-    while (state.recentAlerts.length > MAX_RECENT_ALERTS) {
-        state.recentAlerts.shift();
+    if (badgeFilter === undefined || badgeFilter(alert)) {
+        state.recentAlerts.push(alert);
+        while (state.recentAlerts.length > MAX_RECENT_ALERTS) {
+            state.recentAlerts.shift();
+        }
     }
     onAlert?.(alert);
 }
@@ -426,10 +442,11 @@ function ingest(
     state: AdapterState,
     emissions: RunnerEmissions,
     onAlert?: (a: AlertEmission) => void,
+    badgeFilter?: (a: AlertEmission) => boolean,
 ): void {
     applyValidated(emissions.plots, (plot) => applyPlot(state, plot));
     applyValidated(emissions.drawings, (drawing) => applyDrawing(state, drawing));
-    applyValidated(emissions.alerts, (alert) => applyAlert(state, alert, onAlert));
+    applyValidated(emissions.alerts, (alert) => applyAlert(state, alert, onAlert, badgeFilter));
     state.currentAlertConditions.length = 0;
     applyValidated(emissions.alertConditions, (condition) => applyAlertCondition(state, condition));
     applyValidated(emissions.logs, (log) => applyLog(state, log));
@@ -529,7 +546,7 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         symInfo: CANVAS2D_SYM_INFO,
         candles: () => opts.candleSource,
         onEmissions: (emissions) => {
-            ingest(state, emissions, opts.onAlert);
+            ingest(state, emissions, opts.onAlert, opts.alertBadgeFilter);
             renderFrame(state);
         },
         dispose: () => {

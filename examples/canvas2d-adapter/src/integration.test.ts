@@ -548,4 +548,4 @@ describe("canvas2d adapter integration", () => {
 // change re-shapes the renderer's draw sequence. The hash canonicalises
 // floats to 4 decimal places (see `hashCallLog` in `./testing`) so
 // microscopic numeric drift does not re-hash the log.
-const PINNED_HASH = "a7f041f1ce9b818d5578db39b4021a54632a86ea3a5cb5b35625aa2400934d5f";
+const PINNED_HASH = "01d9153aa41fe9b07e2346b0d42ec19159227a208d09535b790825794eb9068f";

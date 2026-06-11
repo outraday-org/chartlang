@@ -13,7 +13,7 @@ import {
     type CompiledArtifact,
     createHybridLanguageService,
 } from "./hybridLanguageService";
-import { INITIAL_SOURCE } from "./initialSource";
+import { DEMO_SCRIPTS } from "./scripts";
 
 const MAX_ALERTS_SHOWN = 6;
 
@@ -96,6 +96,8 @@ export function App(): ReactElement {
     const [artifact, setArtifact] = useState<CompiledArtifact | null>(null);
     const [bars, setBars] = useState<ReadonlyArray<Bar>>([]);
     const [alerts, setAlerts] = useState<ReadonlyArray<AlertEmission>>([]);
+    const [scriptId, setScriptId] = useState(DEMO_SCRIPTS[0]?.id ?? "");
+    const script = DEMO_SCRIPTS.find((s) => s.id === scriptId) ?? DEMO_SCRIPTS[0];
     const setStatusRef = useRef(setStatus);
     const setDiagnosticsRef = useRef(setDiagnostics);
     const setArtifactRef = useRef(setArtifact);
@@ -138,13 +140,32 @@ export function App(): ReactElement {
     return (
         <div className="app">
             <header className="header">
-                <h1>chartlang react demo</h1>
+                <div className="header-left">
+                    <h1>chartlang react demo</h1>
+                    <select
+                        className="script-select"
+                        onChange={(event) => {
+                            setScriptId(event.target.value);
+                            setAlerts([]);
+                            setArtifact(null);
+                            setDiagnostics([]);
+                        }}
+                        value={script?.id ?? ""}
+                    >
+                        {DEMO_SCRIPTS.map((s) => (
+                            <option key={s.id} value={s.id}>
+                                {s.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
                 <StatusBadge status={status} />
             </header>
             <main className="panes">
                 <section className="pane pane-editor">
                     <EditorPane
-                        initialSource={INITIAL_SOURCE}
+                        initialSource={script?.source ?? ""}
+                        key={script?.id ?? "none"}
                         onSourceChange={() => {
                             /* editor drives compile via the linter extension */
                         }}
@@ -152,7 +173,12 @@ export function App(): ReactElement {
                     />
                 </section>
                 <section className="pane pane-chart">
-                    <ChartPane artifact={artifact} bars={bars} onAlert={handleAlert} />
+                    <ChartPane
+                        artifact={artifact}
+                        bars={bars}
+                        onAlert={handleAlert}
+                        onPlayStart={() => setAlerts([])}
+                    />
                 </section>
             </main>
             <footer className="footer">

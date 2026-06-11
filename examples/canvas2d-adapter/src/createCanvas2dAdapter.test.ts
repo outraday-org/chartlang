@@ -168,6 +168,7 @@ function buildAdapter(args: {
     candles?: AsyncIterable<CandleEvent>;
     resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     onAlert?: (a: AlertEmission) => void;
+    alertBadgeFilter?: (a: AlertEmission) => boolean;
 }): { adapter: Canvas2dAdapterHandle; ctx: MockCanvas2DContext; host: StubHost } {
     const ctx = args.ctx ?? new MockCanvas2DContext();
     const host = (args.host as StubHost | undefined) ?? stubHost();
@@ -179,6 +180,7 @@ function buildAdapter(args: {
         host,
         ...(args.resolveInputs !== undefined ? { resolveInputs: args.resolveInputs } : {}),
         ...(args.onAlert !== undefined ? { onAlert: args.onAlert } : {}),
+        ...(args.alertBadgeFilter !== undefined ? { alertBadgeFilter: args.alertBadgeFilter } : {}),
     });
     return { adapter, ctx, host };
 }
@@ -603,19 +605,47 @@ describe("onEmissions dispatch", () => {
         expect(ctx.calls.some((c) => c.kind === "moveTo")).toBe(true);
     });
 
-    it("forwards alerts to opts.onAlert and pins the recent-alerts queue to 8", () => {
+    it("forwards alerts to opts.onAlert and pins the badge buffer to 256", () => {
         const seen: AlertEmission[] = [];
         const { adapter } = buildAdapter({
             onAlert: (a) => {
                 seen.push(a);
             },
         });
-        const alerts: AlertEmission[] = Array.from({ length: 12 }, (_, i) =>
+        const alerts: AlertEmission[] = Array.from({ length: 300 }, (_, i) =>
             alertEmission({ slotId: "a", dedupeKey: `k${i}`, bar: i }),
         );
         adapter.onEmissions(emissions({ alerts }));
-        // All 12 reach the consumer callback.
-        expect(seen.length).toBe(12);
+        // All 300 reach the consumer callback even though the on-canvas
+        // badge buffer trims to the most recent 256.
+        expect(seen.length).toBe(300);
+    });
+
+    it("alertBadgeFilter gates the on-canvas badge but never the onAlert callback", async () => {
+        const seen: AlertEmission[] = [];
+        const host = stubHost([
+            emissions({
+                alerts: [
+                    alertEmission({ slotId: "a", dedupeKey: "k0", bar: 0 }),
+                    alertEmission({ slotId: "a", dedupeKey: "k1", bar: 1 }),
+                ],
+            }),
+        ]);
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            host,
+            candles: candleStream([{ kind: "history", bars: SAMPLE_BARS.slice(0, 3) }]),
+            onAlert: (a) => {
+                seen.push(a);
+            },
+            alertBadgeFilter: (a) => a.bar >= 1,
+        });
+        await runRendererLoop(adapter);
+        // Both alerts reach the consumer; only bar 1 becomes a badge (the
+        // badge is the sole arc in a candles-only frame).
+        expect(seen.map((a) => a.bar)).toEqual([0, 1]);
+        expect(ctx.calls.filter((c) => c.kind === "arc").length).toBe(1);
     });
 
     it("drops a malformed plot via validateEmission without throwing", () => {

@@ -56,6 +56,26 @@ body {
     letter-spacing: 0.01em;
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.script-select {
+    background: var(--bg-elev-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.script-select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
 .panes {
     display: grid;
     grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
@@ -92,10 +112,47 @@ body {
 
 .chart-pane {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 10px;
     width: 100%;
     height: 100%;
+}
+
+.chart-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 800px;
+}
+
+.play-button {
+    background: var(--bg-elev-2);
+    color: var(--ok);
+    border: 1px solid var(--ok);
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 14px;
+    cursor: pointer;
+}
+
+.play-button-active {
+    color: var(--error);
+    border-color: var(--error);
+}
+
+.play-button:disabled {
+    color: var(--text-dim);
+    border-color: var(--border);
+    cursor: default;
+}
+
+.chart-mode {
+    color: var(--text-dim);
+    font-size: 11px;
 }
 
 .chart-canvas {
