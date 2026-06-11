@@ -3894,7 +3894,7 @@ afterwards.
     "packageManager": "pnpm@9.12.0",
     "engines": { "node": ">=20" },
     "scripts": {
-        "build": "pnpm -r --parallel build",
+        "build": "pnpm -r build",
         "typecheck": "pnpm -r --parallel typecheck",
         "test": "vitest run --coverage",
         "test:watch": "vitest",
