@@ -15,12 +15,7 @@
     "bin": {
         "chartlang": "./dist/bin.js"
     },
-    "files": [
-        "dist",
-        "README.md",
-        "CHANGELOG.md",
-        "LICENSE"
-    ],
+    "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
     "scripts": {
         "build": "tsc -p tsconfig.json",
         "typecheck": "tsc -p tsconfig.json --noEmit",

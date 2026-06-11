@@ -4358,6 +4358,7 @@ jobs:
             - uses: changesets/action@v1
               with:
                   publish: pnpm release
+                  version: pnpm changeset:version
                   title: "chore(release): version packages"
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
