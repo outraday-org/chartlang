@@ -4363,6 +4363,10 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  # setup-node's registry-url writes an .npmrc that reads
+                  # auth from NODE_AUTH_TOKEN — without it every publish
+                  # PUT is unauthenticated and npm replies E404.
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
 CI matrix covers the two supported Node majors and both major developer
