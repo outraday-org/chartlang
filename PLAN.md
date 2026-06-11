@@ -4317,10 +4317,10 @@ jobs:
                   node-version: ${{ matrix.node }}
                   cache: pnpm
             - run: pnpm install --frozen-lockfile
+            - run: pnpm build
             - run: pnpm typecheck
             - run: pnpm lint
             - run: pnpm format:check
-            - run: pnpm build
             - run: pnpm test
             - run: pnpm conformance
             - run: pnpm bench:ci
