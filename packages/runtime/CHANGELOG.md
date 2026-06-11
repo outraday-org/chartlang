@@ -1,5 +1,11 @@
 # @invinite-org/chartlang-runtime
 
+## 1.0.2
+
+### Patch Changes
+
+- 9f5d7cb: `onHistory` now accumulates emissions across the bulk history walk so a single `drain` after a `history` event returns every bar's emissions (PLAN §6.1), instead of only the final bar's. Previously the per-bar reset inside `onBarClose` (correct for per-event drains) discarded the prior bars' emissions because `onHistory` walked the bars with no accumulator. Visible symptom in adapter consumers: indicator plots only rendered for the streamed tail after warmup, not the bulk-filled history.
+
 ## 1.0.1
 
 ### Patch Changes

@@ -1,7 +1,7 @@
 {
     "name": "chartlang-example-react-demo",
     "private": true,
-    "version": "0.0.0",
+    "version": "0.0.1",
     "type": "module",
     "license": "MIT",
     "description": "End-user demo — React editor + canvas2d adapter live-render integration test",
