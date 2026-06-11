@@ -1,5 +1,26 @@
 # @invinite-org/chartlang-compiler
 
+## 1.0.1
+
+### Patch Changes
+
+- 4d44a9c: Surface TypeScript semantic type errors from `compile()` and `createLanguageService().compileToDiagnostics()`.
+
+  The compiler was creating a `ts.Program` for symbol resolution but never requesting `program.getSemanticDiagnostics(sourceFile)`, so scripts like `const x: number = "oops"` slipped past the gate and reached the runtime. The pipeline now wires the program's semantic diagnostics into `transformAndAnalyse`, filtered to the user's source file and mapped to a new stable `type-error` diagnostic code (with the original `TS<code>` prefix preserved in the message so editor tooling can route to TypeScript documentation).
+
+  Companion fix: the in-memory `@invinite-org/chartlang-core` ambient shim in `packages/compiler/src/program.ts` was significantly out of lockstep with the real core surface. The shim now ships the full 61-method `DrawNamespace`, every missing `TaNamespace` method (`adx`, `dmi`, `trix`, `ichimoku`, `tsi`, `smi`, `pmo`, `stochRsi`, `ultimateOsc`, `coppock`, `vortex`, `trendStrengthIndex`, `ulcerIndex`, `adr`, `median`), and `ScalarOrSeries`-widened `ta.*` source parameters that match the runtime's `readSourceValue` contract.
+
+- d1de692: Fix end-user-blocking bug where compiled scripts could not load in either sandbox host: `compile()` now emits a self-contained ESM bundle (`esbuild.build` with `bundle: true`) so the bare `@invinite-org/chartlang-core` import is inlined and tree-shaken, matching PLAN §5.2's "~5–50 KB ESM" contract. The host-worker `data:` URL load path now succeeds end-to-end. The host-quickjs `moduleSourceToScript` regex also accepts the `export { name as default };` form produced by `esbuild`'s bundled output (the previous regex only matched literal `export default <expr>;`, so every real compile output threw "compiled module did not declare an export default").
+- d1de692: Fix end-user-blocking Node-ESM packaging bug. Every published `dist/index.js` previously failed to load under Node's strict ESM resolver because `tsc` had been configured with `moduleResolution: "Bundler"` and emitted relative specifiers verbatim, so `dist/index.js` carried `from "./api"` (extensionless) and Node rejected the resolution. Workspace consumers never saw this because tsx / vitest / Vite resolve loosely, but `npm install @invinite-org/chartlang-compiler` followed by `import` failed immediately for any Node consumer, and `examples/react-demo/vite.config.ts`'s server-side compile plugin broke at dev-config-load time.
+
+  This release switches `tsconfig.base.json` to `module: "NodeNext"` / `moduleResolution: "NodeNext"`, and rewrites every relative import / export / dynamic-import / `typeof import("…")` specifier across all packages' source to carry an explicit `.js` (or `/index.js`) suffix. The new resolution mode also surfaces this bug class as a compile error rather than runtime breakage, so it cannot regress.
+
+  No behavioural change for runtime consumers — the rewritten specifiers resolve to the same TypeScript sources at build time and the same `dist/<path>.js` files at consumer-load time.
+
+- Updated dependencies [d1de692]
+- Updated dependencies [98599b2]
+  - @invinite-org/chartlang-core@1.0.1
+
 ## 1.0.0
 
 ### Major Changes

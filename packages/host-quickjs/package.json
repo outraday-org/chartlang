@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-host-quickjs",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "module",
     "license": "MIT",
     "description": "QuickJS-WASM ScriptHost for untrusted / server-side execution",
@@ -12,7 +12,12 @@
             "import": "./dist/index.js"
         }
     },
-    "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
+    "files": [
+        "dist",
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE"
+    ],
     "scripts": {
         "build": "tsc -p tsconfig.json && pnpm tsx ./scripts/buildDispatcher.ts",
         "bench:ci": "vitest bench --run",
