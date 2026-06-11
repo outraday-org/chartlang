@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-adapter-kit",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "type": "module",
     "license": "MIT",
     "description": "SDK for writing chartlang adapters in consumer repos",
@@ -12,7 +12,12 @@
             "import": "./dist/index.js"
         }
     },
-    "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
+    "files": [
+        "dist",
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE"
+    ],
     "scripts": {
         "build": "tsc -p tsconfig.json",
         "typecheck": "tsc -p tsconfig.json --noEmit",

@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-conformance",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "module",
     "license": "MIT",
     "description": "Adapter conformance test suite",
@@ -13,7 +13,13 @@
         },
         "./package.json": "./package.json"
     },
-    "files": ["dist", "fixtures", "README.md", "CHANGELOG.md", "LICENSE"],
+    "files": [
+        "dist",
+        "fixtures",
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE"
+    ],
     "dependencies": {
         "@invinite-org/chartlang-adapter-kit": "workspace:^",
         "@invinite-org/chartlang-compiler": "workspace:^",

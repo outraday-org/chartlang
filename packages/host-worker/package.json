@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-host-worker",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "module",
     "license": "MIT",
     "description": "Web Worker ScriptHost for the browser",
@@ -20,7 +20,12 @@
             "import": "./dist/worker-boot.js"
         }
     },
-    "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
+    "files": [
+        "dist",
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE"
+    ],
     "scripts": {
         "build": "tsc -p tsconfig.json && pnpm tsx ./scripts/buildWorkerBoot.ts",
         "build:worker-boot": "pnpm tsx ./scripts/buildWorkerBoot.ts",
