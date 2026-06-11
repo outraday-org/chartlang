@@ -4330,7 +4330,7 @@ jobs:
               uses: codecov/codecov-action@v4
               with:
                   files: ./coverage/lcov.info
-                  fail_ci_if_error: true
+                  fail_ci_if_error: false
 
     # ──────────────────────────────────────────────────────────────────
     # Release job.

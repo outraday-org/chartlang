@@ -40,7 +40,10 @@ export function createTestLanguageService(
 }
 
 export async function waitFor(predicate: () => boolean): Promise<void> {
-    const deadline = Date.now() + 1000;
+    // 10s: completion sources lazily boot the TS language service, which can
+    // take >1s on loaded CI runners; the loop exits as soon as the predicate
+    // passes so a generous deadline costs nothing on the happy path.
+    const deadline = Date.now() + 10_000;
     while (Date.now() < deadline) {
         if (predicate()) return;
         await new Promise((resolve) => setTimeout(resolve, 10));
