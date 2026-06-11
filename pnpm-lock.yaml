@@ -26,6 +26,9 @@ importers:
       expect-type:
         specifier: ^1.0.0
         version: 1.3.0
+      fast-check:
+        specifier: ^3.20.0
+        version: 3.23.2
       tsx:
         specifier: ^4.19.0
         version: 4.22.4
@@ -223,6 +226,9 @@ importers:
       '@invinite-org/chartlang-language-service':
         specifier: workspace:*
         version: link:../language-service
+      '@lezer/highlight':
+        specifier: ^1
+        version: 1.2.3
       codemirror:
         specifier: ^6
         version: 6.0.2
