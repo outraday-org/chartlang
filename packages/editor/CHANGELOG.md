@@ -1,5 +1,11 @@
 # @invinite-org/chartlang-editor
 
+## 1.2.0
+
+### Minor Changes
+
+- 9f5d7cb: Add a `chartlangDark` CodeMirror theme + syntax highlight extension tuned for dark UIs (One-Dark-inspired palette, harmonised with the react-demo chrome), and an `extensions` passthrough on `ChartlangEditorOpts` and the React `<ChartlangEditor>` wrapper. Consumer extensions are appended after the built-in editor extensions, so themes / read-only flags / custom keymaps override the `basicSetup` defaults. The React prop is read at mount time only (mirrors `service` semantics).
+
 ## 1.1.0
 
 ### Minor Changes
