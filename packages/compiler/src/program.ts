@@ -1025,6 +1025,19 @@ declare module "@invinite-org/chartlang-core" {
     }>;
     export const request: RequestNamespace;
     export function intervalToSeconds(d: IntervalDescriptor): number;
+    export type OutputDeclaration = Readonly<{
+        readonly title: string;
+        readonly kind: "series-number";
+    }>;
+    export type DependencyDeclaration = Readonly<{
+        readonly localId: string;
+        readonly producerName: string;
+        readonly producerSourcePath: string;
+        readonly producerExportName: string;
+        readonly effectiveInputs: Readonly<Record<string, JsonValue>>;
+        readonly outputs: ReadonlyArray<OutputDeclaration>;
+        readonly isDrawn: boolean;
+    }>;
     export type ScriptManifest = {
         readonly apiVersion: 1;
         readonly kind: "indicator" | "drawing" | "alert" | "alertCondition";
@@ -1043,6 +1056,11 @@ declare module "@invinite-org/chartlang-core" {
         readonly shortName?: string;
         readonly requiresIntervals?: ReadonlyArray<string>;
         readonly alertConditions?: ReadonlyArray<AlertConditionDefinition>;
+        readonly dependencies?: ReadonlyArray<DependencyDeclaration>;
+        readonly outputs?: ReadonlyArray<OutputDeclaration>;
+        readonly exportName?: string;
+        readonly siblings?: ReadonlyArray<ScriptManifest>;
+        readonly isDrawn?: boolean;
     };
     export type AlertConditionDescriptor = Readonly<{
         title: string;
@@ -1262,7 +1280,25 @@ declare module "@invinite-org/chartlang-core" {
     export type CompiledScriptObject = {
         readonly manifest: ScriptManifest;
         readonly compute: ComputeFn;
+        readonly output: (name: string) => Series<number>;
+        readonly withInputs: (
+            overrides: Readonly<Record<string, unknown>>,
+        ) => CompiledScriptObject;
     };
+    export type CompiledScriptBundle = Readonly<{
+        readonly primary: CompiledScriptObject;
+        readonly siblings: ReadonlyArray<{
+            readonly exportName: string;
+            readonly compiled: CompiledScriptObject;
+        }>;
+        readonly dependencies: ReadonlyArray<{
+            readonly localId: string;
+            readonly compiled: CompiledScriptObject;
+        }>;
+    }>;
+    export function isCompiledScriptBundle(
+        v: CompiledScriptObject | CompiledScriptBundle,
+    ): v is CompiledScriptBundle;
     export type DefineIndicatorOpts = Readonly<{
         name: string;
         apiVersion: 1;

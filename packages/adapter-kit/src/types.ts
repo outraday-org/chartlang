@@ -597,10 +597,28 @@ export type DrawingEmission = {
  * when an emission is dropped, an input fails coercion, or a budget is
  * exceeded. Pinned set — additive only across `apiVersion: 1.x`.
  *
+ * Phase 7 adds the `dep-*` family covering compile-time and runtime
+ * failures of the indicator-composition surface introduced by
+ * `CompiledScriptObject.output` / `.withInputs`:
+ *
+ * - `dep-error` — dependency `compute` threw; parent's bar dropped.
+ * - `dep-cycle` — compile-time dependency cycle detected.
+ * - `dep-unknown-output` — `<binding>.output("x")` references a title
+ *   the producer doesn't emit via `plot(value, { title })`.
+ * - `dep-invalid-input-override` — `.withInputs({...})` carries a key
+ *   not in the producer's `inputs` schema, or fails coercion.
+ * - `dep-dynamic` — dep binding cannot be statically resolved
+ *   (non-`const`, conditional initialiser, computed access).
+ * - `dep-output-not-titled` — producer's `plot(...)` has no `title`,
+ *   so consumers cannot reference it by name.
+ *
  * @since 0.1
  * @stable
  * @example
  *     const code: DiagnosticCode = "unsupported-plot-kind";
+ *     const dep: DiagnosticCode = "dep-cycle";
+ *     void code;
+ *     void dep;
  */
 export type DiagnosticCode =
     | "unsupported-plot-kind"
@@ -628,7 +646,13 @@ export type DiagnosticCode =
     | "state-snapshot-future-dated"
     | "state-snapshot-malformed"
     | "state-snapshot-save-failed"
-    | "malformed-emission";
+    | "malformed-emission"
+    | "dep-error"
+    | "dep-cycle"
+    | "dep-unknown-output"
+    | "dep-invalid-input-override"
+    | "dep-dynamic"
+    | "dep-output-not-titled";
 
 /**
  * A non-rendered diagnostic the runtime / host surfaces to the editor +

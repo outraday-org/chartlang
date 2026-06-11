@@ -4,3 +4,5 @@
 export { resolveCalleeName } from "./resolveCallee.js";
 export { injectCallsiteIds } from "./callsiteIdInjection.js";
 export type { InjectCallsiteIdsResult } from "./callsiteIdInjection.js";
+export { rewriteDependencyAccessors } from "./rewriteDependencyAccessors.js";
+export type { RewriteDependencyAccessorsResult } from "./rewriteDependencyAccessors.js";

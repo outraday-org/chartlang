@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 export { runStructuralChecks } from "./structuralChecks.js";
-export type { StructuralCheckResult } from "./structuralChecks.js";
+export type { StructuralBindingInfo, StructuralCheckResult } from "./structuralChecks.js";
 export { runForbiddenConstructs } from "./forbiddenConstructs.js";
 export { runStatefulCallInLoop } from "./statefulCallInLoop.js";
 export { extractCapabilities } from "./extractCapabilities.js";
@@ -15,3 +15,13 @@ export { validateLowerTfIntervals } from "./validateLowerTfIntervals.js";
 export { extractRequiresIntervals } from "./extractRequiresIntervals.js";
 export { extractAlertConditions } from "./extractAlertConditions.js";
 export type { ExtractAlertConditionsResult } from "./extractAlertConditions.js";
+export { extractDependencyGraph } from "./extractDependencyGraph.js";
+export type {
+    DepConsumesEntry,
+    DepGraph,
+    DrawnScript,
+    PrivateDep,
+    ProducerRef,
+    ProducerSnapshot,
+    ResolveProducer,
+} from "./extractDependencyGraph.js";

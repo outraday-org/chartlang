@@ -9,7 +9,11 @@ import type ts from "typescript";
  * filtering stays compatible across versions.
  *
  * Phase 1 ships eight emittable codes plus Phase 4's
- * `request.security` and input-extraction codes.
+ * `request.security` and input-extraction codes. Phase 7 adds
+ * `multiple-default-exports`, `non-const-define-binding`, and the six
+ * `dep-*` codes for indicator-composition analysis (plus
+ * `duplicate-output-title` for clashing `plot(value, { title })`
+ * declarations in the same script).
  *
  * @since 0.1
  * @example
@@ -34,7 +38,15 @@ export type CompileDiagnosticCode =
     | "alert-condition-field-not-literal"
     | "lower-tf-not-lower"
     | "request-lower-tf-interval-not-literal"
-    | "type-error";
+    | "type-error"
+    | "multiple-default-exports"
+    | "non-const-define-binding"
+    | "dep-cycle"
+    | "dep-unknown-output"
+    | "dep-invalid-input-override"
+    | "dep-dynamic"
+    | "dep-output-not-titled"
+    | "duplicate-output-title";
 
 /**
  * Single diagnostic the compiler emits while transforming or analysing a

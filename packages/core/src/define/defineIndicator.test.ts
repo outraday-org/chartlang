@@ -68,6 +68,22 @@ describe("defineIndicator", () => {
         expect(script.manifest.maxDrawings).toEqual(maxDrawings);
     });
 
+    it("attaches an output sentinel that throws when invoked directly", () => {
+        const script = defineIndicator({ name: "demo", apiVersion: 1, compute: () => {} });
+        expect(typeof script.output).toBe("function");
+        expect(() => script.output("line")).toThrowError(
+            /output\("line"\) can only be called on a compiled chartlang/,
+        );
+    });
+
+    it("attaches a withInputs sentinel that throws when invoked directly", () => {
+        const script = defineIndicator({ name: "demo", apiVersion: 1, compute: () => {} });
+        expect(typeof script.withInputs).toBe("function");
+        expect(() => script.withInputs({ length: 14 })).toThrowError(
+            /withInputs can only be called on a compiled chartlang/,
+        );
+    });
+
     it("propagates script override fields into the manifest verbatim", () => {
         const requiresIntervals = ["1D", "1W"] as const;
         const script = defineIndicator({

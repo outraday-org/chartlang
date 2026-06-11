@@ -31,6 +31,10 @@ pnpm add @invinite-org/chartlang-adapter-kit
 - `PassThroughAdapter`, `BufferingAdapter`.
 - Types: `Adapter`, `Capabilities`, `CandleEvent`, emissions, diagnostics,
   input kinds, `SymInfoField`, `RunnerEmissions`, and `DefineAdapterOpts`.
+- Phase 7 indicator-composition diagnostics: `DiagnosticCode` widens with
+  `dep-error`, `dep-cycle`, `dep-unknown-output`,
+  `dep-invalid-input-override`, `dep-dynamic`, `dep-output-not-titled` for
+  the new `.output(...)` / `.withInputs(...)` surface.
 
 ## Minimum-viable API call
 

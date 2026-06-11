@@ -15,6 +15,9 @@ const HOSTILE_GLOBAL_NAMES = new Set([
     "Date",
     "eval",
     "require",
+    // Phase 7 — the indicator-composition rewriter synthesises calls to
+    // this helper; user scripts must not name-collide with the slot.
+    "__chartlang_depOutput",
 ]);
 
 const COMPARISON_OPS = new Set<ts.SyntaxKind>([

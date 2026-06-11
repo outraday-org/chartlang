@@ -9,6 +9,7 @@ export type {
     BarViewport,
     CapabilityId,
     Color,
+    CompiledScriptBundle,
     CompiledScriptObject,
     ComputeContext,
     ComputeFn,
@@ -24,6 +25,7 @@ export type {
     Time,
     Volume,
 } from "./types.js";
+export { isCompiledScriptBundle } from "./types.js";
 export { intervalToSeconds } from "./interval/intervalToSeconds.js";
 export {
     defineAlert,
@@ -36,6 +38,8 @@ export type {
     DefineAlertOpts,
     DefineDrawingOpts,
     DefineIndicatorOpts,
+    DependencyDeclaration,
+    OutputDeclaration,
     ScaleAxis,
     ScriptOverrides,
     ValueFormat,

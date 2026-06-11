@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { DependencyDeclaration, OutputDeclaration } from "./define/dependency.js";
 import type { ScaleAxis, ValueFormat } from "./define/overrides.js";
 import type { DrawNamespace } from "./draw/draw.js";
 import type { InputDescriptor } from "./input/inputDescriptor.js";
@@ -352,6 +353,76 @@ export type ScriptManifest = {
      *     void defs;
      */
     readonly alertConditions?: ReadonlyArray<AlertConditionDefinition>;
+    /**
+     * Statically-resolved dependency graph nodes consumed by this
+     * script. Empty / omitted for scripts with no
+     * `<binding>.output(...)` calls. Each entry is one consumer-side
+     * `const` binding pointing at another `defineIndicator(...)`
+     * result.
+     *
+     * @since 0.7
+     * @stable
+     * @example
+     *     const v: ScriptManifest["dependencies"] = [];
+     *     void v;
+     */
+    readonly dependencies?: ReadonlyArray<DependencyDeclaration>;
+    /**
+     * Titled outputs this script exposes for consumption by other
+     * indicators. Derived from `plot(value, { title })` calls in
+     * this script's compute body. Empty / omitted when the script
+     * has no titled plots.
+     *
+     * @since 0.7
+     * @stable
+     * @example
+     *     const v: ScriptManifest["outputs"] = [
+     *         { title: "line", kind: "series-number" },
+     *     ];
+     *     void v;
+     */
+    readonly outputs?: ReadonlyArray<OutputDeclaration>;
+    /**
+     * The ES-module binding name this manifest was reached through.
+     * `"default"` for `export default defineIndicator(...)`; the
+     * named-binding identifier otherwise. Always present when the
+     * source file has more than one drawn indicator; omitted on
+     * single-script files for back-compat.
+     *
+     * @since 0.7
+     * @stable
+     * @example
+     *     const v: ScriptManifest["exportName"] = "default";
+     *     void v;
+     */
+    readonly exportName?: string;
+    /**
+     * Other drawn manifests in the same compiled file. Present
+     * only when this manifest is the file's default export and the
+     * file has additional named-exported drawn indicators. Omitted
+     * for single-script files and for non-default-export entries
+     * in the array-form manifest sidecar.
+     *
+     * @since 0.7
+     * @stable
+     * @example
+     *     const v: ScriptManifest["siblings"] = [];
+     *     void v;
+     */
+    readonly siblings?: ReadonlyArray<ScriptManifest>;
+    /**
+     * `true` when this manifest belongs to a drawn (exported)
+     * indicator — the host should mount it. `false` when this
+     * manifest belongs to a private dep — emissions are dropped.
+     * Defaults to `true` for back-compat.
+     *
+     * @since 0.7
+     * @stable
+     * @example
+     *     const v: ScriptManifest["isDrawn"] = true;
+     *     void v;
+     */
+    readonly isDrawn?: boolean;
 };
 
 /**
@@ -462,6 +533,13 @@ export type ComputeFn = (ctx: ComputeContext) => void;
  * The compiler rewrites `manifest` fields at build time; the runtime invokes
  * `compute` per bar.
  *
+ * The `output` / `withInputs` accessors (Phase 7) are compiler-rewritten
+ * sentinels — the indicator-composition compiler pass statically replaces
+ * every consumer-side call site before bundling, so the runtime never
+ * executes the throwing bodies. Direct invocation from an un-compiled
+ * script (e.g. a unit test that imports the module directly) hits the
+ * sentinel and throws, which is the desired failure.
+ *
  * @since 0.1
  * @example
  *     const cs: CompiledScriptObject = defineIndicator({
@@ -473,7 +551,94 @@ export type ComputeFn = (ctx: ComputeContext) => void;
 export type CompiledScriptObject = {
     readonly manifest: ScriptManifest;
     readonly compute: ComputeFn;
+    /**
+     * Read the named output of this indicator inside another
+     * indicator's compute body. Output names come from the
+     * producer's `plot(value, { title })` calls. The compiler
+     * rewrites every consumer-side call site before bundling;
+     * direct invocation throws the dep-accessor sentinel.
+     *
+     * @since 0.7
+     * @stable
+     * @example
+     *     declare const baseTrend: CompiledScriptObject;
+     *     const line: Series<number> = baseTrend.output("line");
+     *     void line;
+     */
+    readonly output: (name: string) => Series<number>;
+    /**
+     * Return a new `CompiledScriptObject` whose dependency-binding
+     * effective inputs are the merge of the producer's defaults with
+     * the supplied overrides. Static — the compiler folds the
+     * override into the inlined dep manifest at bundle time.
+     *
+     * @since 0.7
+     * @stable
+     * @example
+     *     declare const baseTrend: CompiledScriptObject;
+     *     const trend = baseTrend.withInputs({ length: 50 });
+     *     void trend;
+     */
+    readonly withInputs: (
+        overrides: Readonly<Record<string, unknown>>,
+    ) => CompiledScriptObject;
 };
+
+/**
+ * The compiled artefact for a `.chart.ts` file when it contains
+ * multiple drawn indicators or any dependency graph. The Phase-7
+ * runtime accepts either this shape or the legacy
+ * `CompiledScriptObject` (single-script files).
+ *
+ * `primary` is the default-exported drawn script. `siblings` are
+ * every other drawn export (named consts). `dependencies` is every
+ * private-dep compiled object — keyed by `localId` so the runtime
+ * can look them up by the `DependencyDeclaration.localId` it sees
+ * on each consumer's manifest.
+ *
+ * @since 0.7
+ * @stable
+ * @example
+ *     declare const primary: CompiledScriptObject;
+ *     const bundle: CompiledScriptBundle = {
+ *         primary,
+ *         siblings: [],
+ *         dependencies: [],
+ *     };
+ *     void bundle;
+ */
+export type CompiledScriptBundle = Readonly<{
+    readonly primary: CompiledScriptObject;
+    readonly siblings: ReadonlyArray<{
+        readonly exportName: string;
+        readonly compiled: CompiledScriptObject;
+    }>;
+    readonly dependencies: ReadonlyArray<{
+        readonly localId: string;
+        readonly compiled: CompiledScriptObject;
+    }>;
+}>;
+
+/**
+ * Narrowing helper that distinguishes the new
+ * {@link CompiledScriptBundle} envelope from the legacy single-script
+ * {@link CompiledScriptObject}. The runner uses it to pick the
+ * multi-script execution path without re-parsing manifests.
+ *
+ * @since 0.7
+ * @stable
+ * @example
+ *     declare const v: CompiledScriptObject | CompiledScriptBundle;
+ *     if (isCompiledScriptBundle(v)) {
+ *         void v.primary;
+ *     } else {
+ *         void v.manifest;
+ *     }
+ */
+export const isCompiledScriptBundle = (
+    v: CompiledScriptObject | CompiledScriptBundle,
+): v is CompiledScriptBundle =>
+    Object.prototype.hasOwnProperty.call(v, "primary");
 
 /**
  * JSON-compatible payload type for `alert(...).meta` and other places the

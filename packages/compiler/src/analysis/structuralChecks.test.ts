@@ -233,4 +233,56 @@ export default defineIndicator({ name, apiVersion: 1, compute: () => {}, "extra"
         // shorthand `name` doesn't set the manifest name — falls back to "".
         expect(result.name).toBe("");
     });
+
+    it("returns a single-default bindings list for a single-script file", () => {
+        const result = run(`
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({ name: "demo", apiVersion: 1, compute: () => {} });
+`);
+        expect(result.bindings).toHaveLength(1);
+        expect(result.bindings[0]?.exportKind).toBe("default");
+        expect(result.bindings[0]?.bindingName).toBe("default");
+        expect(result.bindings[0]?.defineKind).toBe("indicator");
+    });
+
+    it("classifies default + named + private bindings inside one file", () => {
+        const result = run(`
+import { defineIndicator } from "@invinite-org/chartlang-core";
+const base = defineIndicator({ name: "Base", apiVersion: 1, compute: () => {} });
+export const slow = defineIndicator({ name: "Slow", apiVersion: 1, compute: () => {} });
+export default defineIndicator({ name: "Main", apiVersion: 1, compute: () => {} });
+void base;
+`);
+        expect(result.diagnostics).toHaveLength(0);
+        expect(result.bindings).toHaveLength(3);
+        const kinds = result.bindings.map((b) => b.exportKind);
+        expect(kinds).toContain("default");
+        expect(kinds).toContain("named");
+        expect(kinds).toContain("private");
+        const slow = result.bindings.find((b) => b.bindingName === "slow");
+        expect(slow?.exportKind).toBe("named");
+        const baseBinding = result.bindings.find((b) => b.bindingName === "base");
+        expect(baseBinding?.exportKind).toBe("private");
+    });
+
+    it("emits multiple-default-exports for two default `defineIndicator` exports", () => {
+        const result = run(`
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({ name: "one", apiVersion: 1, compute: () => {} });
+export default defineIndicator({ name: "two", apiVersion: 1, compute: () => {} });
+`);
+        const codes = result.diagnostics.map((d) => d.code);
+        expect(codes).toContain("multiple-default-exports");
+    });
+
+    it("emits non-const-define-binding for `let` and `var` define bindings", () => {
+        const result = run(`
+import { defineIndicator } from "@invinite-org/chartlang-core";
+let X = defineIndicator({ name: "x", apiVersion: 1, compute: () => {} });
+export default defineIndicator({ name: "main", apiVersion: 1, compute: () => {} });
+void X;
+`);
+        const codes = result.diagnostics.map((d) => d.code);
+        expect(codes).toContain("non-const-define-binding");
+    });
 });

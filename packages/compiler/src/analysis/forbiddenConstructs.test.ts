@@ -303,4 +303,12 @@ void x;
         // misfire — confirm Phase-1 keeps it strict (this fires).
         expect(result.some((diagnostic) => diagnostic.code === "hostile-global")).toBe(true);
     });
+
+    it("rejects user-written __chartlang_depOutput identifier references", () => {
+        const result = run(`
+const value = __chartlang_depOutput("demo.chart.ts:1:1#0", "fast", "line");
+void value;
+`);
+        expect(result.some((d) => d.code === "hostile-global")).toBe(true);
+    });
 });

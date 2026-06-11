@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { CompiledScriptObject, ComputeFn, DrawingCounts, InputSchema } from "../types.js";
+import { attachDepAccessorSentinels } from "./depAccessorSentinel.js";
 import type { ScriptOverrides } from "./overrides.js";
 
 /**
@@ -77,8 +78,10 @@ export function defineIndicator(opts: DefineIndicatorOpts): CompiledScriptObject
             : { requiresIntervals: opts.requiresIntervals }),
         ...(opts.shortName === undefined ? {} : { shortName: opts.shortName }),
     };
-    return Object.freeze({
-        manifest: Object.freeze(manifest),
-        compute: opts.compute,
-    });
+    return Object.freeze(
+        attachDepAccessorSentinels({
+            manifest: Object.freeze(manifest),
+            compute: opts.compute,
+        }),
+    );
 }

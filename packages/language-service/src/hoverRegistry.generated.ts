@@ -377,6 +377,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.1",
         "stability": "stable"
     },
+    "attachDepAccessorSentinels": {
+        "fqn": "attachDepAccessorSentinels",
+        "kind": "property",
+        "title": "attachDepAccessorSentinels",
+        "summary": "/**\nAttach the  {@link depAccessorSentinel} -backed `output` /\n`withInputs` accessors to a `{ manifest, compute }` pair so the\n`defineIndicator` / `defineAlert` / `defineDrawing` /\n`defineAlertCondition` constructors return a complete\n{@link CompiledScriptObject} . The compiler rewrites both accessors\nto static dep lookups at bundle time — the throwing bodies only\nfire when an un-compiled module is invoked directly.",
+        "examples": [
+            "declare const manifest: ScriptManifest;\ndeclare const compute: ComputeFn;\nconst cs: CompiledScriptObject = attachDepAccessorSentinels({\nmanifest,\ncompute,\n});\nvoid cs;"
+        ],
+        "since": "0.7",
+        "stability": "stable"
+    },
     "Bar": {
         "fqn": "Bar",
         "kind": "type",
@@ -703,6 +714,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "CompiledScriptBundle": {
+        "fqn": "CompiledScriptBundle",
+        "kind": "type",
+        "title": "CompiledScriptBundle",
+        "summary": "The compiled artefact for a `.chart.ts` file when it contains\nmultiple drawn indicators or any dependency graph. The Phase-7\nruntime accepts either this shape or the legacy\n`CompiledScriptObject` (single-script files).",
+        "examples": [
+            "declare const primary: CompiledScriptObject;\nconst bundle: CompiledScriptBundle = {\nprimary,\nsiblings: [],\ndependencies: [],\n};\nvoid bundle;"
+        ],
+        "since": "0.7",
+        "stability": "stable"
+    },
     "CompiledScriptObject": {
         "fqn": "CompiledScriptObject",
         "kind": "type",
@@ -949,6 +971,28 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: DemaOpts = { offset: 0 };"
         ],
         "since": "0.2",
+        "stability": "stable"
+    },
+    "depAccessorSentinel": {
+        "fqn": "depAccessorSentinel",
+        "kind": "property",
+        "title": "depAccessorSentinel",
+        "summary": "Sentinel thrown when `output` / `withInputs` are called outside the\ncompiler-rewritten bundle path. The Phase-7 compiler statically\nreplaces every consumer-side `.output(\"title\")` call site with a\nsynthesised `__chartlang_depOutput(...)` runtime call, and every\n`.withInputs({...})` chain with a folded dep manifest, so these\nbodies are unreachable when the bundle is loaded normally. Hand-\nrunning an un-compiled script in a unit test hits the sentinel,\nwhich is the desired failure.",
+        "examples": [
+            "try {\ndepAccessorSentinel(\"output(\\\"line\\\")\");\n} catch (err) {\nvoid (err as Error).message;\n}"
+        ],
+        "since": "0.7",
+        "stability": "stable"
+    },
+    "DependencyDeclaration": {
+        "fqn": "DependencyDeclaration",
+        "kind": "type",
+        "title": "DependencyDeclaration",
+        "summary": "One node in a script's compiled dependency graph. Emitted by the\ncompiler's `extractDependencyGraph` pass (Task 2) and consumed by\nthe runtime's dep executor (Task 4).",
+        "examples": [
+            "const dep: DependencyDeclaration = {\nlocalId: \"fastTrend\",\nproducerName: \"Base Trend\",\nproducerSourcePath: \"trend-confirmation.chart.ts\",\nproducerExportName: \"default\",\neffectiveInputs: { length: 20 },\noutputs: [{ title: \"line\", kind: \"series-number\" }],\nisDrawn: false,\n};\nvoid dep;"
+        ],
+        "since": "0.7",
         "stability": "stable"
     },
     "DisjointChannelState": {
@@ -3497,6 +3541,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.6",
         "stability": "stable"
     },
+    "isCompiledScriptBundle": {
+        "fqn": "isCompiledScriptBundle",
+        "kind": "property",
+        "title": "isCompiledScriptBundle",
+        "summary": "/**\nNarrowing helper that distinguishes the new\n{@link CompiledScriptBundle} envelope from the legacy single-script\n{@link CompiledScriptObject} . The runner uses it to pick the\nmulti-script execution path without re-parsing manifests.",
+        "examples": [
+            "declare const v: CompiledScriptObject | CompiledScriptBundle;\nif (isCompiledScriptBundle(v)) {\nvoid v.primary;\n} else {\nvoid v.manifest;\n}"
+        ],
+        "since": "0.7",
+        "stability": "stable"
+    },
     "isOpen": {
         "fqn": "isOpen",
         "kind": "function",
@@ -3934,6 +3989,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: ObvOpts = { offset: 0 };"
         ],
         "since": "0.2",
+        "stability": "stable"
+    },
+    "OutputDeclaration": {
+        "fqn": "OutputDeclaration",
+        "kind": "type",
+        "title": "OutputDeclaration",
+        "summary": "One titled output a script exposes for consumption by other\nindicators. Derived from the producer's `plot(value, { title })`\ncalls during compile. `title` is the key consumers reference via\n`<binding>.output(\"title\")`.",
+        "examples": [
+            "const out: OutputDeclaration = {\ntitle: \"line\",\nkind: \"series-number\",\n};\nvoid out;"
+        ],
+        "since": "0.7",
         "stability": "stable"
     },
     "parseColor": {

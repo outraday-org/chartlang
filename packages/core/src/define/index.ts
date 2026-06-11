@@ -5,4 +5,5 @@ export * from "./defineIndicator.js";
 export * from "./defineAlert.js";
 export * from "./defineAlertCondition.js";
 export * from "./defineDrawing.js";
+export type { DependencyDeclaration, OutputDeclaration } from "./dependency.js";
 export type { ScaleAxis, ScriptOverrides, ValueFormat } from "./overrides.js";

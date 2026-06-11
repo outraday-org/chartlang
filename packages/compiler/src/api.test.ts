@@ -330,4 +330,101 @@ export default defineIndicator({
         expect(warnings[0]?.code).toBe("dynamic-series-index");
         expect(result.manifest.seriesCapacities).toEqual({ dynamicFallback: 5000 });
     });
+
+    it("keeps the manifest free of `dependencies`/`outputs` for single-script files (back-compat)", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "demo",
+    apiVersion: 1,
+    compute: ({ bar }) => { plot(bar.close); },
+});
+`,
+            { sourcePath: "single.chart.ts" },
+        );
+        expect(result.manifest.dependencies).toBeUndefined();
+        expect(result.manifest.outputs).toBeUndefined();
+    });
+
+    it("attaches dependencies + outputs to the default manifest for a private-dep + consumer file", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+const base = defineIndicator({
+    name: "Base",
+    apiVersion: 1,
+    compute: ({ bar }) => { plot(bar.close, { title: "line" }); },
+});
+export default defineIndicator({
+    name: "Main",
+    apiVersion: 1,
+    compute: ({ bar }) => {
+        const value = base.output("line");
+        plot(value, { title: "echo" });
+        void bar;
+    },
+});
+`,
+            { sourcePath: "composition.chart.ts" },
+        );
+        const errors = result.diagnostics.filter((d) => d.severity === "error");
+        expect(errors).toEqual([]);
+        expect(result.manifest.outputs).toEqual([{ title: "echo", kind: "series-number" }]);
+        expect(result.manifest.dependencies).toHaveLength(1);
+        const dep = result.manifest.dependencies?.[0];
+        expect(dep?.localId).toBe("base");
+        expect(dep?.producerSourcePath).toBe("composition.chart.ts");
+        expect(dep?.outputs).toEqual([{ title: "line", kind: "series-number" }]);
+    });
+
+    it("marks the dependency as drawn when the producer is a named-export sibling", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+export const sibling = defineIndicator({
+    name: "Sib",
+    apiVersion: 1,
+    compute: ({ bar }) => { plot(bar.close, { title: "echo" }); },
+});
+export default defineIndicator({
+    name: "Main",
+    apiVersion: 1,
+    compute: ({ bar }) => {
+        const value = sibling.output("echo");
+        plot(value, { title: "main" });
+        void bar;
+    },
+});
+`,
+            { sourcePath: "named-sibling.chart.ts" },
+        );
+        const errors = result.diagnostics.filter((d) => d.severity === "error");
+        expect(errors).toEqual([]);
+        const dep = result.manifest.dependencies?.[0];
+        expect(dep?.localId).toBe("sibling");
+        expect(dep?.isDrawn).toBe(true);
+        expect(dep?.producerExportName).toBe("sibling");
+    });
+
+    it("surfaces dep-unknown-output as an error diagnostic", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+const base = defineIndicator({
+    name: "Base",
+    apiVersion: 1,
+    compute: ({ bar }) => { plot(bar.close, { title: "line" }); },
+});
+export default defineIndicator({
+    name: "Main",
+    apiVersion: 1,
+    compute: () => { void base.output("missing"); },
+});
+`,
+            { sourcePath: "missing-output.chart.ts" },
+        );
+        const codes = result.diagnostics.map((d) => d.code);
+        expect(codes).toContain("dep-unknown-output");
+    });
 });

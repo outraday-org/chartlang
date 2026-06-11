@@ -9,4 +9,23 @@ describe("public surface", () => {
     it("loads the package barrel", () => {
         expect(publicSurface).toBeDefined();
     });
+
+    it("re-exports isCompiledScriptBundle as a runtime function", () => {
+        expect(typeof publicSurface.isCompiledScriptBundle).toBe("function");
+    });
+
+    it("isCompiledScriptBundle narrows by 'primary' ownership", () => {
+        const indicator = publicSurface.defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: () => {},
+        });
+        expect(publicSurface.isCompiledScriptBundle(indicator)).toBe(false);
+        const bundle = {
+            primary: indicator,
+            siblings: [],
+            dependencies: [],
+        };
+        expect(publicSurface.isCompiledScriptBundle(bundle)).toBe(true);
+    });
 });

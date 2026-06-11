@@ -1,0 +1,51 @@
+{
+    "drawn": [
+        {
+            "exportName": "sideA",
+            "bindingName": "sideA",
+            "outputs": [],
+            "consumes": [
+                {
+                    "localId": "base",
+                    "producerRef": {
+                        "kind": "same-file",
+                        "bindingName": "base"
+                    },
+                    "effectiveInputs": {}
+                }
+            ]
+        },
+        {
+            "exportName": "default",
+            "bindingName": "default",
+            "outputs": [],
+            "consumes": [
+                {
+                    "localId": "base",
+                    "producerRef": {
+                        "kind": "same-file",
+                        "bindingName": "base"
+                    },
+                    "effectiveInputs": {}
+                }
+            ]
+        }
+    ],
+    "privateDeps": [
+        {
+            "localId": "base",
+            "producerRef": {
+                "kind": "same-file",
+                "bindingName": "base"
+            },
+            "effectiveInputs": {},
+            "outputs": [
+                {
+                    "title": "line",
+                    "kind": "series-number"
+                }
+            ]
+        }
+    ],
+    "diagnosticCodes": []
+}

@@ -4,15 +4,18 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import { defineIndicator, ta } from "./index.js";
+import { defineIndicator, isCompiledScriptBundle, ta } from "./index.js";
 import type {
     Bar,
     BarStateView,
     AlertConditionDefinition,
     BbResult,
+    CompiledScriptBundle,
     CompiledScriptObject,
     ComputeContext,
+    DependencyDeclaration,
     MacdResult,
+    OutputDeclaration,
     Price,
     RequestNamespace,
     RequestSecurityOpts,
@@ -121,6 +124,51 @@ describe("public type surface", () => {
         >();
         expectTypeOf<ComputeContext["signal"]>().toEqualTypeOf<
             ((conditionId: string, fired: boolean) => void) | undefined
+        >();
+    });
+
+    it("ScriptManifest exposes Phase 7 indicator-composition fields", () => {
+        expectTypeOf<ScriptManifest["dependencies"]>().toEqualTypeOf<
+            ReadonlyArray<DependencyDeclaration> | undefined
+        >();
+        expectTypeOf<ScriptManifest["outputs"]>().toEqualTypeOf<
+            ReadonlyArray<OutputDeclaration> | undefined
+        >();
+        expectTypeOf<ScriptManifest["exportName"]>().toEqualTypeOf<string | undefined>();
+        expectTypeOf<ScriptManifest["siblings"]>().toEqualTypeOf<
+            ReadonlyArray<ScriptManifest> | undefined
+        >();
+        expectTypeOf<ScriptManifest["isDrawn"]>().toEqualTypeOf<boolean | undefined>();
+    });
+
+    it("CompiledScriptObject carries the Phase 7 dep accessors", () => {
+        expectTypeOf<CompiledScriptObject["output"]>().toEqualTypeOf<
+            (name: string) => Series<number>
+        >();
+        expectTypeOf<CompiledScriptObject["withInputs"]>().toEqualTypeOf<
+            (overrides: Readonly<Record<string, unknown>>) => CompiledScriptObject
+        >();
+    });
+
+    it("CompiledScriptBundle pins primary / siblings / dependencies", () => {
+        expectTypeOf<CompiledScriptBundle["primary"]>().toEqualTypeOf<CompiledScriptObject>();
+        expectTypeOf<CompiledScriptBundle["siblings"]>().toEqualTypeOf<
+            ReadonlyArray<{
+                readonly exportName: string;
+                readonly compiled: CompiledScriptObject;
+            }>
+        >();
+        expectTypeOf<CompiledScriptBundle["dependencies"]>().toEqualTypeOf<
+            ReadonlyArray<{
+                readonly localId: string;
+                readonly compiled: CompiledScriptObject;
+            }>
+        >();
+    });
+
+    it("isCompiledScriptBundle narrows the union", () => {
+        expectTypeOf<typeof isCompiledScriptBundle>().toEqualTypeOf<
+            (v: CompiledScriptObject | CompiledScriptBundle) => v is CompiledScriptBundle
         >();
     });
 });

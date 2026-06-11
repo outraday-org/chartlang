@@ -22,9 +22,14 @@ pnpm add @invinite-org/chartlang-core
 - Secondary stream: `request.security({ interval })` typed surface.
 - Emissions: `plot`, `hline`, `alert`, and the 61-kind `draw.*` namespace.
 - Registry: `STATEFUL_PRIMITIVES` for compiler slot-id injection.
+- Indicator composition (Phase 7): `CompiledScriptObject.output(title)` /
+  `.withInputs(overrides)` accessors for binding one indicator's output to
+  another. Both are compiler-rewritten sentinels — direct invocation throws.
+  `isCompiledScriptBundle(v)` narrows the multi-script bundle.
 - Types: `Series<T>`, `Bar`, `InputDescriptor`, `MutableSlot<T>`,
   `ScriptManifest`, `ComputeContext`, `DrawingState`, `DrawingHandle`,
-  `DrawingCounts`, `SecurityBar`, view types, and option/result types.
+  `DrawingCounts`, `SecurityBar`, view types, option/result types, plus
+  `DependencyDeclaration`, `OutputDeclaration`, `CompiledScriptBundle`.
 
 ## Minimum-viable API call
 

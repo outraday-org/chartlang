@@ -9,6 +9,7 @@ import type {
     InputSchema,
     ScriptManifest,
 } from "../types.js";
+import { attachDepAccessorSentinels } from "./depAccessorSentinel.js";
 
 /**
  * Author-supplied options for `defineAlertCondition(...)`. Mirrors
@@ -104,5 +105,5 @@ export function defineAlertCondition(opts: DefineAlertConditionOpts): CompiledSc
         maxLookback: 0,
         alertConditions,
     });
-    return Object.freeze({ manifest, compute: opts.compute });
+    return Object.freeze(attachDepAccessorSentinels({ manifest, compute: opts.compute }));
 }

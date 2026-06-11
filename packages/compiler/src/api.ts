@@ -5,12 +5,19 @@ import { randomBytes } from "node:crypto";
 import { readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import { STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/chartlang-core";
-import type { IntervalDescriptor, ScriptManifest } from "@invinite-org/chartlang-core";
+import type {
+    DependencyDeclaration,
+    IntervalDescriptor,
+    OutputDeclaration,
+    ScriptManifest,
+} from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
+import type { DepGraph, DrawnScript } from "./analysis/extractDependencyGraph.js";
 import {
     extractAlertConditions,
     extractCapabilities,
+    extractDependencyGraph,
     extractInputs,
     extractMaxLookback,
     extractRequestedIntervals,
@@ -26,6 +33,7 @@ import { mapTsDiagnostic } from "./diagnostics.js";
 import { buildManifest } from "./manifest.js";
 import { createProgramForSource } from "./program.js";
 import { injectCallsiteIds } from "./transformers/callsiteIdInjection.js";
+import { rewriteDependencyAccessors } from "./transformers/rewriteDependencyAccessors.js";
 import { emitTypes } from "./typesEmit.js";
 
 /**
@@ -115,11 +123,20 @@ export function transformAndAnalyse(
         .filter((d) => d.file?.fileName === sourceFile.fileName)
         .map((d) => mapTsDiagnostic(d, sourcePath));
 
+    const depGraph: DepGraph = extractDependencyGraph(
+        sourceFile,
+        checker,
+        sourcePath,
+        structural.bindings,
+        () => null,
+    );
+
     const earlyDiagnostics: CompileDiagnostic[] = [
         ...semanticDiagnostics,
         ...structural.diagnostics,
         ...forbidden,
         ...statefulInLoop,
+        ...depGraph.diagnostics,
     ];
     const hasError = earlyDiagnostics.some((d) => d.severity === "error");
     if (hasError) {
@@ -140,7 +157,9 @@ export function transformAndAnalyse(
         });
     }
 
-    const injection = injectCallsiteIds(sourceFile, checker, {
+    const rewrite = rewriteDependencyAccessors(sourceFile, depGraph, sourcePath);
+    const rewrittenSource = rewrite.transformed;
+    const injection = injectCallsiteIds(rewrittenSource, checker, {
         sourcePath,
         statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
     });
@@ -175,6 +194,20 @@ export function transformAndAnalyse(
         structural.overrides;
     void structuralRequiresIntervals;
 
+    // The structural pass guarantees a single default-export drawn
+    // entry before we reach this code (errors short-circuit above);
+    // we surface the default here for manifest assembly.
+    const defaultDrawn = depGraph.drawn.find((d) => d.exportName === "default");
+    /* v8 ignore start */
+    if (defaultDrawn === undefined) {
+        // The structural pass guarantees a default-export drawn entry
+        // before we reach this code (errors short-circuit above).
+        throw new Error("internal: depGraph.drawn missing default entry");
+    }
+    /* v8 ignore stop */
+    const dependencies = buildDependencyDeclarations(defaultDrawn, depGraph, sourcePath);
+    const outputs = defaultDrawn.outputs.length === 0 ? undefined : defaultDrawn.outputs;
+
     const manifest = buildManifest({
         name: structural.name,
         kind: structural.kind,
@@ -189,11 +222,14 @@ export function transformAndAnalyse(
         ...(alertConditions.alertConditions.length === 0
             ? {}
             : { alertConditions: alertConditions.alertConditions }),
+        ...(dependencies === undefined || dependencies.length === 0 ? {} : { dependencies }),
+        ...(outputs === undefined ? {} : { outputs }),
     });
 
     const allDiagnostics: CompileDiagnostic[] = [
         ...earlyDiagnostics,
         ...injection.diagnostics,
+        ...rewrite.diagnostics,
         ...lookback.diagnostics,
         ...inputs.diagnostics,
         ...alertConditions.diagnostics,
@@ -517,6 +553,65 @@ async function readDirEntries(dir: string): Promise<DirEntry[]> {
         }),
     );
 }
+
+function buildDependencyDeclarations(
+    drawn: DrawnScript,
+    depGraph: DepGraph,
+    sourcePath: string,
+): ReadonlyArray<DependencyDeclaration> {
+    if (drawn.consumes.length === 0) return Object.freeze([]);
+    const declarations: DependencyDeclaration[] = [];
+    for (const consume of drawn.consumes) {
+        declarations.push(buildOneDependencyDeclaration(consume, depGraph, sourcePath));
+    }
+    return Object.freeze(declarations);
+}
+
+function buildOneDependencyDeclaration(
+    consume: DrawnScript["consumes"][number],
+    depGraph: DepGraph,
+    sourcePath: string,
+): DependencyDeclaration {
+    const ref = consume.producerRef;
+    const outputsCopy = consume.outputs.map(
+        (o): OutputDeclaration => Object.freeze({ title: o.title, kind: o.kind }),
+    );
+    /* v8 ignore next */
+    if (ref.kind !== "same-file") return buildCrossFileDeclaration(consume, ref, outputsCopy);
+    const isDrawn = depGraph.drawn.some(
+        (d) => d.bindingName === ref.bindingName && d.exportName !== "default",
+    );
+    const exportName =
+        depGraph.drawn.find((d) => d.bindingName === ref.bindingName)?.exportName ??
+        ref.bindingName;
+    return Object.freeze({
+        localId: consume.localId,
+        producerName: ref.bindingName,
+        producerSourcePath: sourcePath,
+        producerExportName: exportName,
+        effectiveInputs: Object.freeze({ ...consume.effectiveInputs }),
+        outputs: Object.freeze(outputsCopy),
+        isDrawn,
+    });
+}
+
+/* v8 ignore start */
+function buildCrossFileDeclaration(
+    consume: DrawnScript["consumes"][number],
+    ref: Extract<DrawnScript["consumes"][number]["producerRef"], { kind: "cross-file" }>,
+    outputsCopy: ReadonlyArray<OutputDeclaration>,
+): DependencyDeclaration {
+    return Object.freeze({
+        localId: consume.localId,
+        producerName: ref.exportName,
+        producerSourcePath: ref.sourcePath,
+        producerExportName: ref.exportName,
+        effectiveInputs: Object.freeze({ ...consume.effectiveInputs }),
+        outputs: Object.freeze(outputsCopy),
+        isDrawn: false,
+    });
+}
+/* v8 ignore stop */
 
 function stripWriteFlag(opts: CompileFileOptions): CompileOptions {
     const { apiVersion, sourcePath, sourcemap, minify, target, declaredIntervals } = opts;

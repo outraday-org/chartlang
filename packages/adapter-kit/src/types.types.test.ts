@@ -75,7 +75,7 @@ describe("type assertions", () => {
         >();
     });
 
-    it("DiagnosticCode contains every Phase-1 code", () => {
+    it("DiagnosticCode contains every Phase-1 + Phase-7 code", () => {
         type ExpectedCodes =
             | "unsupported-plot-kind"
             | "unsupported-drawing-kind"
@@ -102,7 +102,13 @@ describe("type assertions", () => {
             | "state-snapshot-future-dated"
             | "state-snapshot-malformed"
             | "state-snapshot-save-failed"
-            | "malformed-emission";
+            | "malformed-emission"
+            | "dep-error"
+            | "dep-cycle"
+            | "dep-unknown-output"
+            | "dep-invalid-input-override"
+            | "dep-dynamic"
+            | "dep-output-not-titled";
         expectTypeOf<DiagnosticCode>().toEqualTypeOf<ExpectedCodes>();
     });
 

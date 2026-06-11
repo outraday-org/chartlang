@@ -145,6 +145,12 @@ const VALID_DIAGNOSTIC_CODES: ReadonlySet<string> = new Set<DiagnosticCode>([
     "state-snapshot-malformed",
     "state-snapshot-save-failed",
     "malformed-emission",
+    "dep-error",
+    "dep-cycle",
+    "dep-unknown-output",
+    "dep-invalid-input-override",
+    "dep-dynamic",
+    "dep-output-not-titled",
 ]);
 
 function bad(message: string, code: DiagnosticCode = "malformed-emission"): ValidationFail {

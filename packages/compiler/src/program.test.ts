@@ -174,4 +174,57 @@ void STATEFUL_PRIMITIVES_BY_NAME;
         const diagnostics = program.getSemanticDiagnostics(sourceFile);
         expect(diagnostics.map((diagnostic) => diagnostic.messageText)).toEqual([]);
     });
+
+    it("resolves the Phase 7 indicator-composition surface without semantic errors", () => {
+        const source = `
+import type {
+    CompiledScriptBundle,
+    CompiledScriptObject,
+    DependencyDeclaration,
+    OutputDeclaration,
+    ScriptManifest,
+    Series,
+} from "@invinite-org/chartlang-core";
+import { defineIndicator, isCompiledScriptBundle, ta } from "@invinite-org/chartlang-core";
+
+const baseTrend = defineIndicator({
+    name: "Base Trend",
+    apiVersion: 1,
+    compute: ({ bar, plot }) => {
+        plot(ta.ema(bar.close, 50), { title: "line" });
+    },
+});
+
+const fastTrend = baseTrend.withInputs({ length: 20 });
+
+export default defineIndicator({
+    name: "Trend Confirmation",
+    apiVersion: 1,
+    compute: ({ plot }) => {
+        const fast: Series<number> = fastTrend.output("line");
+        plot(fast);
+    },
+});
+
+declare const dep: DependencyDeclaration;
+declare const out: OutputDeclaration;
+declare const manifest: ScriptManifest;
+declare const bundle: CompiledScriptBundle | CompiledScriptObject;
+void dep;
+void out;
+void manifest.dependencies;
+void manifest.outputs;
+void manifest.exportName;
+void manifest.siblings;
+void manifest.isDrawn;
+if (isCompiledScriptBundle(bundle)) {
+    void bundle.primary;
+}
+`;
+        const { program, sourceFile } = createProgramForSource(source, {
+            sourcePath: "composition.chart.ts",
+        });
+        const diagnostics = program.getSemanticDiagnostics(sourceFile);
+        expect(diagnostics.map((diagnostic) => diagnostic.messageText)).toEqual([]);
+    });
 });

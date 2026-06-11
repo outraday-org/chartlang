@@ -29,3 +29,31 @@ export default defineIndicator({
     },
 });
 `;
+
+export const MULTI_EXPORT_COMPOSITION = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+
+const base = defineIndicator({
+    name: "Base",
+    apiVersion: 1,
+    compute: ({ bar }) => { plot(bar.close, { title: "line" }); },
+});
+
+export const sibling = defineIndicator({
+    name: "Sibling",
+    apiVersion: 1,
+    compute: ({ bar }) => { plot(bar.close, { title: "echo" }); },
+});
+
+export default defineIndicator({
+    name: "Composition",
+    apiVersion: 1,
+    compute: ({ bar }) => {
+        const baseLine = base.output("line");
+        const siblingEcho = sibling.output("echo");
+        plot(baseLine, { title: "main-line" });
+        plot(siblingEcho, { title: "main-echo" });
+        void bar;
+    },
+});
+`;

@@ -4961,4 +4961,18 @@ describe("validateEmission — diagnostic", () => {
             message: expect.stringContaining("bar"),
         });
     });
+
+    it("accepts every Phase-7 dep-* diagnostic code", () => {
+        const depCodes = [
+            "dep-error",
+            "dep-cycle",
+            "dep-unknown-output",
+            "dep-invalid-input-override",
+            "dep-dynamic",
+            "dep-output-not-titled",
+        ] as const;
+        for (const code of depCodes) {
+            expect(validateEmission({ ...validDiagnostic, code })).toEqual({ ok: true });
+        }
+    });
 });
