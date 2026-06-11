@@ -55,6 +55,9 @@ export function createChartlangEditor(opts: ChartlangEditorOpts = {}): Chartlang
             EditorView.updateListener.of((update) => {
                 if (update.docChanged) opts.onSourceChange?.(update.state.doc.toString());
             }),
+            // Consumer extensions land LAST so themes / read-only flags /
+            // custom keymaps can override the basicSetup defaults.
+            ...(opts.extensions ?? []),
         ],
     });
     const view =

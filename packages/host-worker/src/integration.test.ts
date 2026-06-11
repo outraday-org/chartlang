@@ -127,8 +127,10 @@ describe("host-worker integration", () => {
         };
         await host.load(compiled);
 
-        // History warms the runner — three closes drained as one final step
-        // queue (runtime clears per-bar emissions on each onBarClose).
+        // History warms the runner — a bulk push is one event followed by
+        // one drain, and onHistory accumulates every bar's emissions across
+        // the walk (PLAN §6.1 "everything since last drain"), so three
+        // history bars yield three plots.
         await host.push({
             kind: "history",
             bars: [bar(1, 1), bar(2, 2), bar(3, 3)],
@@ -136,9 +138,11 @@ describe("host-worker integration", () => {
         await new Promise((r) => setTimeout(r, 20));
 
         const historyDrain = await host.drain();
-        expect(historyDrain.plots).toHaveLength(1);
-        expect(historyDrain.plots[0].value).toBe(42);
-        expect(historyDrain.plots[0].slotId).toBe("integration.chart.ts:1:1#0");
+        expect(historyDrain.plots).toHaveLength(3);
+        for (const plot of historyDrain.plots) {
+            expect(plot.value).toBe(42);
+            expect(plot.slotId).toBe("integration.chart.ts:1:1#0");
+        }
 
         // A subsequent close advances the runner; drain returns exactly the
         // new bar's plot.
@@ -146,7 +150,7 @@ describe("host-worker integration", () => {
         await new Promise((r) => setTimeout(r, 10));
         const tickDrain = await host.drain();
         expect(tickDrain.plots).toHaveLength(1);
-        expect(tickDrain.plots[0].bar).toBe(historyDrain.plots[0].bar + 1);
+        expect(tickDrain.plots[0].bar).toBe(historyDrain.plots[2].bar + 1);
 
         host.dispose();
     });

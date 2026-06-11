@@ -93,6 +93,18 @@ describe("ChartlangEditor", () => {
         expect(container.querySelectorAll(".cm-editor")).toHaveLength(1);
     });
 
+    it("forwards consumer extensions through to the underlying view", () => {
+        const { container } = render(
+            <ChartlangEditor
+                extensions={[EditorView.editable.of(false)]}
+                source="const value = 1;"
+            />,
+        );
+        const view = findMountedView(container);
+
+        expect(view.state.facet(EditorView.editable)).toBe(false);
+    });
+
     it("threads an injected service through to the linter and completions", async () => {
         let compileCalls = 0;
         const service = createTestLanguageService({

@@ -15,6 +15,11 @@ import type { ChartlangEditorOpts, ChartlangEditor as MountedChartlangEditor } f
  * a no-op because the injected service owns its capability surface; the
  * component does not re-mount on `service` identity changes either.
  *
+ * `extensions` forwards arbitrary CodeMirror extensions (themes,
+ * keymaps, etc.) to {@link createChartlangEditor}. The array is read
+ * at mount time only — like `service`, later identity changes do not
+ * re-mount the editor.
+ *
  * @since 0.4
  * @stable
  * @example
@@ -27,6 +32,7 @@ export type ChartlangEditorProps = Readonly<{
     targetCapabilities?: ChartlangEditorOpts["targetCapabilities"];
     service?: ChartlangEditorOpts["service"];
     onCompiled?: ChartlangEditorOpts["onCompiled"];
+    extensions?: ChartlangEditorOpts["extensions"];
     className?: string;
 }>;
 
@@ -45,10 +51,12 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
     const sourceRef = useRef(props.source);
     const targetCapabilitiesRef = useRef(props.targetCapabilities);
     const serviceRef = useRef(props.service);
+    const extensionsRef = useRef(props.extensions);
     const onSourceChangeRef = useRef(props.onSourceChange);
 
     targetCapabilitiesRef.current = props.targetCapabilities;
     serviceRef.current = props.service;
+    extensionsRef.current = props.extensions;
     onSourceChangeRef.current = props.onSourceChange;
 
     const setContainer = useCallback((node: HTMLDivElement | null): void => {
@@ -65,6 +73,7 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
                 ? {}
                 : { targetCapabilities: targetCapabilitiesRef.current }),
             ...(serviceRef.current === undefined ? {} : { service: serviceRef.current }),
+            ...(extensionsRef.current === undefined ? {} : { extensions: extensionsRef.current }),
             onSourceChange: (next) => {
                 sourceRef.current = next;
                 onSourceChangeRef.current?.(next);

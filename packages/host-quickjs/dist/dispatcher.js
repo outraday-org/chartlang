@@ -14186,9 +14186,31 @@ async function onBarTick(state2, rawBar) {
 
 // ../runtime/dist/execution/onHistory.js
 async function onHistory(state2, bars) {
+  if (bars.length === 0)
+    return;
+  const fromBar = state2.barIndex;
+  const plots = state2.emissions.plots;
+  const drawings = state2.emissions.drawings;
+  const alerts = state2.emissions.alerts;
+  const alertConditions = state2.emissions.alertConditions ?? [];
+  const logs = state2.emissions.logs;
+  const diagnostics = state2.emissions.diagnostics;
   for (const bar of bars) {
     await onBarClose(state2, bar, "history");
+    plots.push(...state2.emissions.plots);
+    drawings.push(...state2.emissions.drawings);
+    alerts.push(...state2.emissions.alerts);
+    alertConditions.push(...state2.emissions.alertConditions ?? []);
+    logs.push(...state2.emissions.logs);
+    diagnostics.push(...state2.emissions.diagnostics);
   }
+  state2.emissions.plots = plots;
+  state2.emissions.drawings = drawings;
+  state2.emissions.alerts = alerts;
+  state2.emissions.alertConditions = alertConditions;
+  state2.emissions.logs = logs;
+  state2.emissions.diagnostics = diagnostics;
+  state2.emissions.fromBar = fromBar;
 }
 
 // ../runtime/dist/execution/secondaryStream.js

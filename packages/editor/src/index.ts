@@ -8,5 +8,6 @@ export {
     linterExtension,
     peekPanelExtension,
 } from "./extensions/index.js";
+export { chartlangDark } from "./theme.js";
 export type { ChartlangEditor, ChartlangEditorOpts } from "./types.js";
 export type { ChartlangLanguageService } from "@invinite-org/chartlang-language-service";
