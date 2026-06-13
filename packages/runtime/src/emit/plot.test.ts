@@ -205,7 +205,6 @@ describe("plot — style selection (opts.style)", () => {
                 "step-line",
                 "horizontal-line",
                 "histogram",
-                "bars",
                 "area",
                 "filled-band",
                 "label",

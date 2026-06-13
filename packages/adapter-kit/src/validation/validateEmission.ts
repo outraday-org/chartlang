@@ -55,7 +55,6 @@ const VALID_PLOT_STYLE_KINDS: ReadonlySet<string> = new Set([
     "step-line",
     "horizontal-line",
     "histogram",
-    "bars",
     "area",
     "filled-band",
     "label",
@@ -246,7 +245,7 @@ function validateAreaStyle(style: Record<string, unknown>): ValidationResult {
     return { ok: true };
 }
 
-function validateHistogramOrBarsStyle(style: Record<string, unknown>): ValidationResult {
+function validateHistogramStyle(style: Record<string, unknown>): ValidationResult {
     const baseline = style.baseline;
     if (!isFiniteNumber(baseline)) {
         return bad("style.baseline: must be a finite number");
@@ -415,8 +414,7 @@ function validatePlotStyle(style: unknown): ValidationResult {
         case "horizontal-line":
             return validateLineLikeStyle(style);
         case "histogram":
-        case "bars":
-            return validateHistogramOrBarsStyle(style);
+            return validateHistogramStyle(style);
         case "area":
             return validateAreaStyle(style);
         case "filled-band":

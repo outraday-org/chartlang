@@ -6,13 +6,12 @@ import { describe, expect, it } from "vitest";
 import { CANVAS2D_CAPABILITIES } from "./capabilities.js";
 
 describe("CANVAS2D_CAPABILITIES", () => {
-    it("declares all 17 Phase-1 through Phase-5 plot kinds (cardinality + membership)", () => {
-        expect(CANVAS2D_CAPABILITIES.plots.size).toBe(17);
+    it("declares all 16 Phase-1 through Phase-5 plot kinds (cardinality + membership)", () => {
+        expect(CANVAS2D_CAPABILITIES.plots.size).toBe(16);
         expect([...CANVAS2D_CAPABILITIES.plots].sort()).toEqual(
             [
                 "area",
                 "arrow",
-                "bars",
                 "bar-color",
                 "bar-override",
                 "bg-color",

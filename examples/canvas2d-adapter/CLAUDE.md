@@ -75,7 +75,7 @@ Reference adapter package — **not published to npm**.
   the canonicalisation rule for the new record so `hashCallLog`
   stays stable.
 - **`src/render/` Phase-2 renderers stay pure-on-`RenderCtx`.**
-  `histogram.ts` / `bars.ts` / `area.ts` / `filledBand.ts` / `label.ts`
+  `histogram.ts` / `area.ts` / `filledBand.ts` / `label.ts`
   / `marker.ts` each take a `RenderCtx` + a typed args bag + a
   `Palette` and emit exactly one canonical call sequence. Each has a
   paired `<name>.test.ts` asserting the call sequence against

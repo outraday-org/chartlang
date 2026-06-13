@@ -24,13 +24,13 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
 /**
  * PlotKind coverage scenario. Exercises the Phase-2
  * `Scenario.inlineSource` extension and the wider
- * `CANVAS2D_CAPABILITIES.plots` surface (9 kinds, post-Task-1) by
+ * `CANVAS2D_CAPABILITIES.plots` surface by
  * running a thin inline script through the full
  * compile → runtime → adapter → renderer pipeline.
  *
  * The script itself emits only `line` (from `plot`) and
  * `horizontal-line` (from `hline`) — deliberately. The Phase-2 plot
- * kinds (`histogram` / `bars` / `area` / `filled-band` / `label` /
+ * kinds (`histogram` / `area` / `filled-band` / `label` /
  * `marker` etc.) have since shipped and each carries its own
  * dedicated `plotKind*.scenario.ts` pair. The point of THIS scenario
  * is to lock in the inline-source path + prove the wider capability

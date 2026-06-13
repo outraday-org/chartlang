@@ -360,15 +360,6 @@ describe("validateEmission — Phase-2 plot kinds", () => {
         ).toEqual({ ok: true });
     });
 
-    it("accepts bars with a finite baseline", () => {
-        expect(
-            validateEmission({
-                ...validPlot,
-                style: { kind: "bars", baseline: 50 },
-            }),
-        ).toEqual({ ok: true });
-    });
-
     it("rejects histogram with a non-finite baseline", () => {
         expect(
             validateEmission({
@@ -378,11 +369,11 @@ describe("validateEmission — Phase-2 plot kinds", () => {
         ).toMatchObject({ ok: false, message: expect.stringContaining("baseline") });
     });
 
-    it("rejects bars with a missing baseline", () => {
+    it("rejects histogram with a missing baseline", () => {
         expect(
             validateEmission({
                 ...validPlot,
-                style: { kind: "bars" },
+                style: { kind: "histogram" },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("baseline") });
     });

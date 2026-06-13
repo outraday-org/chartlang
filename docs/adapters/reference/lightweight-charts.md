@@ -23,7 +23,6 @@ and [plugins](https://tradingview.github.io/lightweight-charts/docs/plugins/intr
 | Area series | `PlotKind: "area"` | yes | One area series per `slotId`; map chartlang color into line/top/bottom options. |
 | Price line | `PlotKind: "horizontal-line"` | yes | Use `createPriceLine` on an anchor series; replace the line when value/style changes. |
 | Histogram series | `PlotKind: "histogram"` | optional | Declare only if column styling is implemented. |
-| Bar series | `PlotKind: "bars"` | optional | Declare only if the adapter maps chartlang numeric values to bar data deliberately. |
 | Series markers | `PlotKind: "marker"`, `"shape"`, `"character"`, `"arrow"` | optional | Implement through the markers plugin or declare unsupported. |
 | Candle/bar styling | `"candle-override"`, `"bar-override"`, `"bg-color"`, `"bar-color"` | optional | Declare only after the adapter owns style mutation and restoration. |
 | Series primitives | simple drawing kinds | yes for implemented kinds | Lines, rays, rectangles, text, and markers can be custom primitives attached to a series. |

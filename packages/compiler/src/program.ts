@@ -713,7 +713,6 @@ declare module "@invinite-org/chartlang-core" {
         | "step-line"
         | "horizontal-line"
         | "histogram"
-        | "bars"
         | "area"
         | "filled-band"
         | "label"

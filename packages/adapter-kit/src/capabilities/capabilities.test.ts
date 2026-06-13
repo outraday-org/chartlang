@@ -38,9 +38,9 @@ describe("capabilities builders", () => {
         expect(s.has("horizontal-line")).toBe(true);
     });
 
-    it("allPhase5Plots() returns the canonical 17-kind Phase-5 inventory", () => {
+    it("allPhase5Plots() returns the canonical 16-kind Phase-5 inventory", () => {
         const s = capabilities.allPhase5Plots();
-        expect(s.size).toBe(17);
+        expect(s.size).toBe(16);
         expect([...s].sort()).toEqual([...PHASE_5_PLOT_KINDS].sort());
     });
 
@@ -48,12 +48,6 @@ describe("capabilities builders", () => {
         const s = capabilities.histogram();
         expect(s.size).toBe(1);
         expect(s.has("histogram")).toBe(true);
-    });
-
-    it("bars() returns a set containing only 'bars'", () => {
-        const s = capabilities.bars();
-        expect(s.size).toBe(1);
-        expect(s.has("bars")).toBe(true);
     });
 
     it("area() returns a set containing only 'area'", () => {
@@ -80,15 +74,14 @@ describe("capabilities builders", () => {
         expect(s.has("marker")).toBe(true);
     });
 
-    it("allPhase2Plots() returns the nine Phase-1+Phase-2 plot kinds", () => {
+    it("allPhase2Plots() returns the eight Phase-1+Phase-2 plot kinds", () => {
         const s = capabilities.allPhase2Plots();
-        expect(s.size).toBe(9);
+        expect(s.size).toBe(8);
         for (const k of [
             "line",
             "step-line",
             "horizontal-line",
             "histogram",
-            "bars",
             "area",
             "filled-band",
             "label",

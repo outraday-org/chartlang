@@ -6,7 +6,7 @@ import type { Color, LineStyle, Series } from "../types.js";
 /**
  * Rendered-shape discriminator for `plot` emissions reaching the adapter.
  * The full 0.5 inventory is `line`, `step-line`, `horizontal-line`,
- * `histogram`, `bars`, `area`, `filled-band`, `label`, `marker`,
+ * `histogram`, `area`, `filled-band`, `label`, `marker`,
  * `shape`, `character`, `arrow`, `candle-override`, `bar-override`,
  * `bg-color`, `bar-color`, and `horizontal-histogram`. Every expansion is
  * additive — the `apiVersion: 1` script header stays unchanged.
@@ -14,7 +14,6 @@ import type { Color, LineStyle, Series } from "../types.js";
  * Typical Phase-2 consumers:
  *
  * - `histogram` → volume bars, MACD histogram, momentum-style oscillators.
- * - `bars` → narrow vertical bar plotted at integer x (signed momentum).
  * - `area` → filled region under a polyline (BB midline, regression).
  * - `filled-band` → Bollinger / Keltner / Donchian / Ichimoku envelopes.
  * - `label` → text annotations at a world-space anchor (fractal, pivot).
@@ -33,7 +32,6 @@ export type PlotKind =
     | "step-line"
     | "horizontal-line"
     | "histogram"
-    | "bars"
     | "area"
     | "filled-band"
     | "label"

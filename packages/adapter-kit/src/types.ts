@@ -309,7 +309,7 @@ export type Capabilities = {
 
 /**
  * Plot style discriminated union. Phase 1 shipped `line` / `step-line` /
- * `horizontal-line`; Phase 2 adds `histogram` / `bars` / `area` /
+ * `horizontal-line`; Phase 2 adds `histogram` / `area` /
  * `filled-band` / `label` / `marker` per PLAN §7.3. Phase 5 will extend
  * further (`shape`, `character`, `arrow`, `vertical-line`,
  * `bar-override`, …). Every expansion is additive — `apiVersion: 1`
@@ -341,7 +341,7 @@ export type PlotStyle =
       }
     /** Phase 2 — column rising from `baseline` to `value`. @since 0.2 */
     | {
-          readonly kind: "histogram" | "bars";
+          readonly kind: "histogram";
           readonly baseline: number;
       }
     /** Phase 2 — filled polygon under a polyline. @since 0.2 */

@@ -31,7 +31,6 @@ describe("PlotKind and PlotOptsStyle types", () => {
             "step-line",
             "horizontal-line",
             "histogram",
-            "bars",
             "area",
             "filled-band",
             "label",
@@ -45,7 +44,7 @@ describe("PlotKind and PlotOptsStyle types", () => {
             "bar-color",
             "horizontal-histogram",
         ];
-        expect(kinds).toHaveLength(17);
+        expect(kinds).toHaveLength(16);
     });
 
     it("accepts each new PlotOptsStyle variant", () => {

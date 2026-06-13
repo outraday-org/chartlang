@@ -1734,7 +1734,7 @@ export type SymInfoField =
     | "exchange" | "timezone" | "session" | "meta";
 
 export type PlotKind =
-    | "line" | "step-line" | "area" | "histogram" | "bars"
+    | "line" | "step-line" | "area" | "histogram"
     | "horizontal-line" | "vertical-line" | "filled-band"
     | "label" | "marker" | "cursors"
     | "horizontal-histogram"                   // volume profile family — horizontal bar
@@ -1857,7 +1857,7 @@ type PlotStyle =
         lineWidth: number; lineStyle: "solid" | "dashed" | "dotted" }
     | { kind: "horizontal-line";
         lineWidth: number; lineStyle: "solid" | "dashed" | "dotted" }
-    | { kind: "histogram" | "bars"; baseline: number }
+    | { kind: "histogram"; baseline: number }
     | { kind: "area";
         lineWidth: number; lineStyle: "solid" | "dashed" | "dotted";
         fillAlpha: number }

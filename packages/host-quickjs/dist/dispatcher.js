@@ -2070,7 +2070,6 @@ var PHASE_5_PLOT_KINDS = Object.freeze([
   "step-line",
   "horizontal-line",
   "histogram",
-  "bars",
   "area",
   "filled-band",
   "label",
@@ -2091,7 +2090,6 @@ var VALID_PLOT_STYLE_KINDS = /* @__PURE__ */ new Set([
   "step-line",
   "horizontal-line",
   "histogram",
-  "bars",
   "area",
   "filled-band",
   "label",
@@ -2257,7 +2255,7 @@ function validateAreaStyle(style) {
   }
   return { ok: true };
 }
-function validateHistogramOrBarsStyle(style) {
+function validateHistogramStyle(style) {
   const baseline = style.baseline;
   if (!isFiniteNumber(baseline)) {
     return bad("style.baseline: must be a finite number");
@@ -2415,8 +2413,7 @@ function validatePlotStyle(style) {
     case "horizontal-line":
       return validateLineLikeStyle(style);
     case "histogram":
-    case "bars":
-      return validateHistogramOrBarsStyle(style);
+      return validateHistogramStyle(style);
     case "area":
       return validateAreaStyle(style);
     case "filled-band":

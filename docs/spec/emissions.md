@@ -78,7 +78,6 @@ The v1 `PlotKind` set has 17 members:
 | `"step-line"` | `lineWidth: positive finite number`, `lineStyle: LineStyle`. |
 | `"horizontal-line"` | `lineWidth: positive finite number`, `lineStyle: LineStyle`. |
 | `"histogram"` | `baseline: finite number`. |
-| `"bars"` | `baseline: finite number`. |
 | `"area"` | `lineWidth: positive finite number`, `lineStyle: LineStyle`, `fillAlpha: finite number in [0, 1]`. |
 | `"filled-band"` | `upper: finite number or null`, `lower: finite number or null`, `alpha: finite number in [0, 1]`; at least one bound must be non-null. |
 | `"label"` | `text: non-empty string up to 128 characters`, `position: "above" \| "below" \| "anchor"`. |

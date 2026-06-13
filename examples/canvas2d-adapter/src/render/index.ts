@@ -13,8 +13,6 @@ export { priceToY, timeToX, yToPrice } from "./coords.js";
 export type { HLine, PlotPoint, Viewport } from "./coords.js";
 export { drawHistogram } from "./histogram.js";
 export type { HistogramArgs } from "./histogram.js";
-export { drawBars } from "./bars.js";
-export type { BarsArgs } from "./bars.js";
 export { drawArea } from "./area.js";
 export type { AreaArgs, AreaPoint } from "./area.js";
 export { drawFilledBand } from "./filledBand.js";

@@ -26,7 +26,6 @@ const CANVAS2D_PLOT_KINDS: ReadonlyArray<PlotKind> = Object.freeze([
     "step-line",
     "horizontal-line",
     "histogram",
-    "bars",
     "area",
     "filled-band",
     "label",

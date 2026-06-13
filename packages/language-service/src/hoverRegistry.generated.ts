@@ -4168,7 +4168,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "PlotKind",
         "kind": "type",
         "title": "PlotKind",
-        "summary": "Rendered-shape discriminator for `plot` emissions reaching the adapter.\nThe full 0.5 inventory is `line`, `step-line`, `horizontal-line`,\n`histogram`, `bars`, `area`, `filled-band`, `label`, `marker`,\n`shape`, `character`, `arrow`, `candle-override`, `bar-override`,\n`bg-color`, `bar-color`, and `horizontal-histogram`. Every expansion is\nadditive — the `apiVersion: 1` script header stays unchanged.",
+        "summary": "Rendered-shape discriminator for `plot` emissions reaching the adapter.\nThe full 0.5 inventory is `line`, `step-line`, `horizontal-line`,\n`histogram`, `area`, `filled-band`, `label`, `marker`,\n`shape`, `character`, `arrow`, `candle-override`, `bar-override`,\n`bg-color`, `bar-color`, and `horizontal-histogram`. Every expansion is\nadditive — the `apiVersion: 1` script header stays unchanged.",
         "examples": [
             "const k: PlotKind = \"line\";\nconst histogram: PlotKind = \"histogram\";\nconst shape: PlotKind = \"shape\";\nvoid k; void histogram; void shape;"
         ],

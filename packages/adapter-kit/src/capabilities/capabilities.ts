@@ -24,7 +24,6 @@ export const PHASE_5_PLOT_KINDS: ReadonlyArray<PlotKind> = Object.freeze([
     "step-line",
     "horizontal-line",
     "histogram",
-    "bars",
     "area",
     "filled-band",
     "label",
@@ -43,7 +42,7 @@ export const PHASE_5_PLOT_KINDS: ReadonlyArray<PlotKind> = Object.freeze([
  * Helpers that assemble the `ReadonlySet` pieces of a `Capabilities`
  * bag. Phase 1 shipped the three line variants + an alert-channel
  * builder + a generic `union` combinator. Phase 2 adds one builder per
- * new `PlotKind` (`histogram`, `bars`, `area`, `filledBand`, `label`,
+ * new `PlotKind` (`histogram`, `area`, `filledBand`, `label`,
  * `marker`) plus `allPhase2Plots()` — the union of every Phase-1 +
  * Phase-2 kind.
  *
@@ -74,10 +73,6 @@ export const capabilities = {
     histogram(): ReadonlySet<PlotKind> {
         return new Set<PlotKind>(["histogram"]);
     },
-    /** Phase-2 narrow-bars plot kind. @since 0.2 @stable */
-    bars(): ReadonlySet<PlotKind> {
-        return new Set<PlotKind>(["bars"]);
-    },
     /** Phase-2 filled-area plot kind. @since 0.2 @stable */
     area(): ReadonlySet<PlotKind> {
         return new Set<PlotKind>(["area"]);
@@ -96,7 +91,7 @@ export const capabilities = {
         return new Set<PlotKind>(["marker"]);
     },
     /** Union of every plot kind that ships through Phase 2 — `line`,
-     *  `step-line`, `horizontal-line`, `histogram`, `bars`, `area`,
+     *  `step-line`, `horizontal-line`, `histogram`, `area`,
      *  `filled-band`, `label`, `marker`. Phase-5 kinds are deliberately
      *  excluded; the bundled `capabilities.union(...)` combinator
      *  composes additional sets when needed.
@@ -107,7 +102,6 @@ export const capabilities = {
             "step-line",
             "horizontal-line",
             "histogram",
-            "bars",
             "area",
             "filled-band",
             "label",

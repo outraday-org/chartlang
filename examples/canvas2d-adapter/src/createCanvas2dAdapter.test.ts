@@ -842,6 +842,18 @@ describe("runRendererLoop", () => {
         expect(ctx.calls.some((c) => c.kind === "arc")).toBe(true);
     });
 
+    it("anchors an alert whose bar index is out of range to the latest bar", async () => {
+        // bar 999 is past the 3-bar history, so `state.bars[alert.bar]` is
+        // undefined and the badge falls back to the latest bar instead of
+        // throwing on an undefined anchor.
+        const host = stubHost([emissions({ alerts: [alertEmission({ slotId: "a", bar: 999 })] })]);
+        const events: CandleEvent[] = [{ kind: "history", bars: SAMPLE_BARS.slice(0, 3) }];
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({ ctx, candles: candleStream(events), host });
+        await runRendererLoop(adapter);
+        expect(ctx.calls.some((c) => c.kind === "arc")).toBe(true);
+    });
+
     it("handles a tick event before any history (renders the tick as the lone bar)", async () => {
         const host = stubHost([emissions()]);
         const events: CandleEvent[] = [{ kind: "tick", bar: SAMPLE_BARS[0] }];
