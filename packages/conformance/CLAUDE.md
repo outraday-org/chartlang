@@ -82,3 +82,24 @@ plot hashes, alert counts, and diagnostic codes.
   `slotId: "<inline:ta-wma>.chart.ts:7:13#0"`. Do not change the
   literal format without updating every Phase-2 scenario's pinned
   slotIds.
+
+## Phase-7 invariants
+
+- **`Scenario.additionalSources` requires `inlineSource`.** When set,
+  the runner writes the consumer's inline source AND every
+  `additionalSources` entry into a per-scenario tmp directory under
+  `.cache/<scenarioId>-<rand>/` so the compiler's default file-walking
+  producer resolver can resolve `./X.chart` siblings. The consumer's
+  `sourcePath` becomes the absolute path of the on-disk `inline.chart.ts`.
+  Cleanup `rm -rf`s the directory in the `finally` block. The
+  mutual-exclusion guard (`additionalSources` without `inlineSource`)
+  throws at `resolveSource`.
+- **Dep-family scenarios pin emission hashes + `dep-*` diagnostic
+  codes.** The four `dep-*` scenarios in `ALL_SCENARIOS`
+  (`dep-private-single-file`, `dep-multi-export`, `dep-diamond`,
+  `dep-error-halts-parent`) run the full compile→bundle→runtime pipe
+  against the canvas2d capability bag. `DEP_CROSS_FILE_SCENARIO` is
+  exported but excluded from `ALL_SCENARIOS` — the runtime leg of
+  cross-file dep rewriting is deferred (see its JSDoc). Re-pin via the
+  runner's "expected vs actual" failure message exactly like every
+  other scenario.

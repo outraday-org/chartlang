@@ -1,10 +1,12 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { EMA_CROSS, VALID_DEFINE } from "./__fixtures__/scripts.js";
+import { EMA_CROSS, MULTI_EXPORT_COMPOSITION, VALID_DEFINE } from "./__fixtures__/scripts.js";
 import { CompileError, compile } from "./api.js";
 
 const HOSTILE = `
@@ -256,5 +258,102 @@ export default defineDrawing({
         expect(result.manifest.kind).toBe("drawing");
         expect(result.manifest.name).toBe("fib-tool");
         expect(result.manifest.capabilities).toEqual(["drawings"]);
+    });
+
+    it("emits a multi-export bundle with an indented manifest array tail", async () => {
+        const result = await compile(MULTI_EXPORT_COMPOSITION, {
+            apiVersion: 1,
+            sourcePath: "multi.chart.ts",
+        });
+        // Default manifest carries the `siblings` field so the runtime
+        // can mount the named exports alongside it.
+        expect(result.manifest.exportName).toBe("default");
+        expect(result.manifest.isDrawn).toBe(true);
+        expect(result.manifest.siblings).toBeDefined();
+        expect(result.manifest.siblings).toHaveLength(1);
+        expect(result.moduleSource).toContain("__chartlang_depOutput");
+        expect(result.moduleSource).toContain('"exportName": "default"');
+        expect(result.moduleSource).toContain('"exportName": "sibling"');
+    });
+
+    it("emits a `__dependencies` export when the default manifest declares private deps", async () => {
+        // Task 6 contract: hosts read `mod.__dependencies` to discover
+        // every private dep and mount it as a `DepRunner`. The export
+        // is prepended to the pre-bundle source (via
+        // {@link formatDependenciesAssignment}) so esbuild keeps each
+        // dep binding alive in the tree-shake — withInputs-derived
+        // cross-file aliases reduce to bare references that the
+        // tree-shaker would otherwise drop. After bundling esbuild
+        // re-emits the export through the standard
+        // `export { __dependencies, ... };` namespace block.
+        const result = await compile(MULTI_EXPORT_COMPOSITION, {
+            apiVersion: 1,
+            sourcePath: "multi.chart.ts",
+        });
+        expect(result.moduleSource).toMatch(/var __dependencies = \[/);
+        expect(result.moduleSource).toMatch(/export\s*\{[^}]*__dependencies/);
+        expect(result.moduleSource).toContain('localId: "base"');
+        expect(result.moduleSource).toContain("compiled: base");
+    });
+
+    it("omits `__dependencies` for single-script files (back-compat byte-identity)", async () => {
+        const result = await compile(EMA_CROSS, {
+            apiVersion: 1,
+            sourcePath: "ema-cross.chart.ts",
+        });
+        expect(result.moduleSource).not.toContain("__dependencies");
+    });
+
+    it("compiles a cross-file consumer + producer via the default resolver and bakes the alias overrides into __dependencies", async () => {
+        // Exercises `compile()`'s default cross-file resolver path —
+        // no explicit `resolveProducer`, no `compileProject` driving
+        // the recursion. The consumer's `baseTrend.withInputs({...})`
+        // alias must reduce to a bare reference (so the runtime
+        // sentinel never fires) and the merged effective inputs must
+        // appear inside `__dependencies[i].inputOverrides`.
+        const dir = await mkdtemp(join(tmpdir(), "chartlang-compile-xfile-"));
+        try {
+            const producerSource = `import { defineIndicator, input, plot, ta } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "cross-file producer",
+    apiVersion: 1,
+    overlay: true,
+    inputs: { length: input.int(14, { min: 2, max: 250 }) },
+    compute({ bar, ta, inputs, plot }) {
+        plot(ta.ema(bar.close, inputs.length as number), { title: "line" });
+    },
+});`;
+            const consumerSource = `import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+import baseTrend from "./base-trend.chart";
+const trend = baseTrend.withInputs({ length: 30 });
+export default defineIndicator({
+    name: "cross-file consumer",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, plot }) {
+        const value = trend.output("line").current;
+        plot(value - bar.close, { title: "gap" });
+    },
+});`;
+            await writeFile(join(dir, "base-trend.chart.ts"), producerSource, "utf8");
+            const consumerPath = join(dir, "consumer.chart.ts");
+            await writeFile(consumerPath, consumerSource, "utf8");
+            const result = await compile(consumerSource, {
+                apiVersion: 1,
+                sourcePath: consumerPath,
+            });
+            // The producer is inlined as a self-contained IIFE.
+            expect(result.moduleSource).toMatch(/__producer_[0-9a-f]+__default/);
+            // The withInputs chain has been collapsed away.
+            expect(result.moduleSource).not.toMatch(/baseTrend\.withInputs/);
+            expect(result.moduleSource).toMatch(/var trend = baseTrend;/);
+            // The merged effective inputs flow through __dependencies.
+            expect(result.moduleSource).toMatch(/inputOverrides:\s*\{[^}]*"length":\s*30/);
+            // The output accessor is rewritten to the runtime helper.
+            expect(result.moduleSource).toContain('__chartlang_depOutput(');
+            expect(result.moduleSource).toContain('"trend"');
+        } finally {
+            await rm(dir, { recursive: true, force: true });
+        }
     });
 });

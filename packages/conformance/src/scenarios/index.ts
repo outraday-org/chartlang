@@ -9,6 +9,11 @@ import { DEFINE_ALERT_CONDITION_FIRES_SCENARIO } from "./defineAlertConditionFir
 import { DEFINE_ALERT_CONDITION_GATED_SCENARIO } from "./defineAlertConditionGated.scenario.js";
 import { DEFINE_ALERT_CONDITION_UNKNOWN_SCENARIO } from "./defineAlertConditionUnknown.scenario.js";
 import { DEFINE_DRAWING_BASIC_SCENARIO } from "./defineDrawingBasic.scenario.js";
+import { DEP_CROSS_FILE_SCENARIO } from "./depCrossFile.scenario.js";
+import { DEP_DIAMOND_SCENARIO } from "./depDiamond.scenario.js";
+import { DEP_ERROR_HALTS_PARENT_SCENARIO } from "./depErrorHaltsParent.scenario.js";
+import { DEP_MULTI_EXPORT_SCENARIO } from "./depMultiExport.scenario.js";
+import { DEP_PRIVATE_SINGLE_FILE_SCENARIO } from "./depPrivateSingleFile.scenario.js";
 import { DRAW_ABCD_PATTERN_SCENARIO } from "./drawAbcdPattern.scenario.js";
 import { DRAW_ALL_61_SCENARIO } from "./drawAll61.scenario.js";
 import { DRAW_ANNOTATIONS_ALL_SCENARIO } from "./drawAnnotationsAll.scenario.js";
@@ -230,6 +235,11 @@ export { DEFINE_ALERT_CONDITION_FIRES_SCENARIO } from "./defineAlertConditionFir
 export { DEFINE_ALERT_CONDITION_GATED_SCENARIO } from "./defineAlertConditionGated.scenario.js";
 export { DEFINE_ALERT_CONDITION_UNKNOWN_SCENARIO } from "./defineAlertConditionUnknown.scenario.js";
 export { DEFINE_DRAWING_BASIC_SCENARIO } from "./defineDrawingBasic.scenario.js";
+export { DEP_CROSS_FILE_SCENARIO } from "./depCrossFile.scenario.js";
+export { DEP_DIAMOND_SCENARIO } from "./depDiamond.scenario.js";
+export { DEP_ERROR_HALTS_PARENT_SCENARIO } from "./depErrorHaltsParent.scenario.js";
+export { DEP_MULTI_EXPORT_SCENARIO } from "./depMultiExport.scenario.js";
+export { DEP_PRIVATE_SINGLE_FILE_SCENARIO } from "./depPrivateSingleFile.scenario.js";
 export { DRAW_ANNOTATIONS_ALL_SCENARIO } from "./drawAnnotationsAll.scenario.js";
 export { DRAW_ARC_SCENARIO } from "./drawArc.scenario.js";
 export { DRAW_ARROW_SCENARIO } from "./drawArrow.scenario.js";
@@ -723,4 +733,10 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     SYMINFO_MINTICK_SCENARIO,
     TIMEFRAME_ISDAILY_SCENARIO,
     UNSUPPORTED_INTERVAL_SCENARIO,
+    // Phase 7 — indicator composition (Task 8).
+    DEP_PRIVATE_SINGLE_FILE_SCENARIO,
+    DEP_MULTI_EXPORT_SCENARIO,
+    DEP_DIAMOND_SCENARIO,
+    DEP_ERROR_HALTS_PARENT_SCENARIO,
+    DEP_CROSS_FILE_SCENARIO,
 ]);

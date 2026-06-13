@@ -17,6 +17,10 @@ type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditions";
  * `resolveCalleeName`. The result is deduplicated and sorted for
  * deterministic manifest output.
  *
+ * The optional `scope` parameter narrows the walk to a single AST subtree
+ * (typically one binding's `defineCall`) so multi-export files can derive
+ * per-binding capability sets. Defaults to the whole `sourceFile`.
+ *
  * @since 0.1
  * @example
  *     // const caps = extractCapabilities(sourceFile, checker, "indicator");
@@ -28,6 +32,7 @@ export function extractCapabilities(
     sourceFile: ts.SourceFile,
     checker: ts.TypeChecker,
     kind: "indicator" | "drawing" | "alert" | "alertCondition" = "indicator",
+    scope: ts.Node = sourceFile,
 ): ReadonlyArray<CapabilityId> {
     const SEED_BY_KIND: Readonly<
         Record<"indicator" | "drawing" | "alert" | "alertCondition", CapabilityId>
@@ -49,7 +54,7 @@ export function extractCapabilities(
         }
         ts.forEachChild(node, visit);
     };
-    ts.forEachChild(sourceFile, visit);
+    visit(scope);
 
     const ordered = Array.from(found).sort();
     return Object.freeze(ordered);

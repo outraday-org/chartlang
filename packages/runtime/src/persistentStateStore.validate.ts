@@ -39,10 +39,32 @@ function isStreamSnapshot(value: unknown): value is StreamSnapshot {
     return bufferKeys.every((key) => isBufferArray(buffers[key]));
 }
 
+function isSlotsRecord(value: unknown): boolean {
+    return isRecord(value) && Object.values(value).every((entry) => isJsonValue(entry));
+}
+
+function isRunnerSnapshot(value: unknown): boolean {
+    return isRecord(value) && isSlotsRecord(value.slots);
+}
+
+function isRunnerSnapshotMap(value: unknown): boolean {
+    return isRecord(value) && Object.values(value).every((entry) => isRunnerSnapshot(entry));
+}
+
 /**
  * Validate a PLAN §6.9 persistent state snapshot before restore/save.
  *
- * @since 0.5
+ * Accepts two shapes:
+ *
+ * - **Legacy flat shape** (pre-0.7): `slots: Record<string, JsonValue>`
+ *   carries every primary-runner slot — both `state.*` and `ta.*`. Loaded
+ *   into the primary runner; dep / sibling sections default to absent.
+ * - **Structured shape** (0.7+): `primary.slots` is required.
+ *   `siblings[exportName].slots` and `dependencies[localId].slots`
+ *   are optional; each section is independently restored into its
+ *   matching runner.
+ *
+ * @since 0.5 — widened in 0.7 to accept structured per-runner sections.
  * @internal
  * @stable
  * @example
@@ -54,7 +76,17 @@ export function validateSnapshot(snap: unknown): snap is StateSnapshot {
     if (!isRecord(snap)) return false;
     if (snap.snapshotVersion !== 1) return false;
     if (!isSnapshotNumber(snap.lastBarTime) || !isSnapshotNumber(snap.savedAt)) return false;
-    if (!isRecord(snap.streams) || !isRecord(snap.slots)) return false;
+    if (!isRecord(snap.streams)) return false;
     if (!Object.values(snap.streams).every((stream) => isStreamSnapshot(stream))) return false;
-    return Object.values(snap.slots).every((slot) => isJsonValue(slot));
+
+    if ("primary" in snap) {
+        if (!isRunnerSnapshot(snap.primary)) return false;
+        if (snap.siblings !== undefined && !isRunnerSnapshotMap(snap.siblings)) return false;
+        if (snap.dependencies !== undefined && !isRunnerSnapshotMap(snap.dependencies)) {
+            return false;
+        }
+        return true;
+    }
+
+    return isSlotsRecord(snap.slots);
 }

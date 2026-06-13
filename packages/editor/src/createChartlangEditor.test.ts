@@ -55,6 +55,43 @@ describe("createChartlangEditor", () => {
         expect(parent.contains(editor.view.dom)).toBe(false);
     });
 
+    it("routes dep-aware completions through the language service", async () => {
+        // Task 7 regression: the bundled language service must surface
+        // producer output titles when the cursor is inside
+        // `<binding>.output("|")`. The editor itself doesn't grow new
+        // API — the new behaviour flows through the existing completion
+        // extension end-to-end.
+        const composition = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+const baseTrend = defineIndicator({
+    name: "Base",
+    apiVersion: 1,
+    compute: ({ bar }) => {
+        plot(bar.close, { title: "trend" });
+        plot(bar.close, { title: "signal" });
+    },
+});
+const x = baseTrend.output("");
+void x;
+`;
+        const editor = createChartlangEditor({
+            doc: composition,
+            lintDebounceMs: 1,
+        });
+        const offset = composition.indexOf('output("') + 'output("'.length;
+        editor.view.dispatch({ selection: { anchor: offset } });
+
+        startCompletion(editor.view);
+        await waitFor(
+            () => currentCompletions(editor.view.state).some((c) => c.label === "trend"),
+        );
+
+        const labels = currentCompletions(editor.view.state).map((c) => c.label);
+        expect(labels).toEqual(expect.arrayContaining(["trend", "signal"]));
+
+        editor.destroy();
+    });
+
     it("hot-swaps capabilities for interval completions", async () => {
         const editor = createChartlangEditor({
             doc: intervalSource,

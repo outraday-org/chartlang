@@ -211,4 +211,42 @@ describe("host-quickjs integration parity", () => {
             await expect(runQuickJs(fixture)).resolves.toBe(await runWorker(fixture));
         });
     }
+
+    it("mounts a §22.10 multi-export bundle and forwards sibling plots with `export:` prefix", async () => {
+        // The dispatcher's moduleSourceToScript rewriter captures named
+        // exports onto a host-visible global map; `loadCompiled` builds
+        // a `CompiledScriptBundle` the runtime walks. Sibling plots
+        // forward through with the runtime's `export:<name>/` prefix.
+        const primaryManifest: ScriptManifest = {
+            ...manifest("primary"),
+            exportName: "default",
+            isDrawn: true,
+        };
+        const siblingManifest: ScriptManifest = {
+            ...manifest("sibling"),
+            exportName: "sibling",
+            isDrawn: true,
+        };
+        const moduleSource = `
+export const sibling = {
+    manifest: ${JSON.stringify(siblingManifest)},
+    compute: ({ plot }) => {
+        plot("sibling.chart.ts:1:1#0", 42, { title: "sibling-plot" });
+    },
+};
+export default {
+    manifest: ${JSON.stringify(primaryManifest)},
+    compute: () => {},
+};
+export const __manifest = ${JSON.stringify([primaryManifest, siblingManifest])};
+`;
+        const host = createQuickJsHost({ capabilities: makeCapabilities() });
+        await host.load({ moduleSource, manifest: primaryManifest });
+        await host.push({ kind: "close", bar: bars(1)[0] });
+        const emissions = await host.drain();
+        host.dispose();
+        const exportPrefixed = emissions.plots.filter((p) => p.slotId.startsWith("export:sibling/"));
+        expect(exportPrefixed.length).toBeGreaterThan(0);
+        expect(exportPrefixed[0]?.value).toBe(42);
+    });
 });

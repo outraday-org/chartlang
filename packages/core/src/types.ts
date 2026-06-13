@@ -579,9 +579,7 @@ export type CompiledScriptObject = {
      *     const trend = baseTrend.withInputs({ length: 50 });
      *     void trend;
      */
-    readonly withInputs: (
-        overrides: Readonly<Record<string, unknown>>,
-    ) => CompiledScriptObject;
+    readonly withInputs: (overrides: Readonly<Record<string, unknown>>) => CompiledScriptObject;
 };
 
 /**
@@ -616,6 +614,17 @@ export type CompiledScriptBundle = Readonly<{
     readonly dependencies: ReadonlyArray<{
         readonly localId: string;
         readonly compiled: CompiledScriptObject;
+        /**
+         * Merged `.withInputs({...})` overrides the consumer applied
+         * to its alias binding. Forwarded into the `DepRunner` as the
+         * dep's input overrides so the producer's `compute` reads the
+         * consumer-supplied values instead of the producer's manifest
+         * defaults. Omitted for direct private deps that don't apply
+         * overrides.
+         *
+         * @since 0.7
+         */
+        readonly inputOverrides?: Readonly<Record<string, unknown>>;
     }>;
 }>;
 
@@ -637,8 +646,7 @@ export type CompiledScriptBundle = Readonly<{
  */
 export const isCompiledScriptBundle = (
     v: CompiledScriptObject | CompiledScriptBundle,
-): v is CompiledScriptBundle =>
-    Object.prototype.hasOwnProperty.call(v, "primary");
+): v is CompiledScriptBundle => Object.prototype.hasOwnProperty.call(v, "primary");
 
 /**
  * JSON-compatible payload type for `alert(...).meta` and other places the

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import { createProgramForSource } from "../program.js";
@@ -76,5 +77,68 @@ void v;
 `);
         expect(result.maxLookback).toBe(0);
         expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("scopes the walk to a single binding when `scope` is provided", () => {
+        const source = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+
+export const sibling = defineIndicator({
+    name: "Sibling",
+    apiVersion: 1,
+    compute() {
+        const a = bar.close[3];
+        void a;
+    },
+});
+
+export default defineIndicator({
+    name: "Default",
+    apiVersion: 1,
+    compute() {
+        const b = bar.close[11];
+        void b;
+    },
+});
+`;
+        const { sourceFile, checker } = createProgramForSource(source, {
+            sourcePath: "demo.chart.ts",
+        });
+        const defineCalls: ts.CallExpression[] = [];
+        const collect = (node: ts.Node): void => {
+            if (
+                ts.isCallExpression(node) &&
+                ts.isIdentifier(node.expression) &&
+                node.expression.text === "defineIndicator"
+            ) {
+                defineCalls.push(node);
+            }
+            ts.forEachChild(node, collect);
+        };
+        ts.forEachChild(sourceFile, collect);
+
+        const siblingCall = defineCalls[0];
+        const defaultCall = defineCalls[1];
+        expect(siblingCall).toBeDefined();
+        expect(defaultCall).toBeDefined();
+
+        const sibling = extractMaxLookback(
+            sourceFile,
+            checker,
+            "demo.chart.ts",
+            siblingCall as ts.Node,
+        );
+        const def = extractMaxLookback(
+            sourceFile,
+            checker,
+            "demo.chart.ts",
+            defaultCall as ts.Node,
+        );
+        const file = extractMaxLookback(sourceFile, checker, "demo.chart.ts");
+
+        expect(sibling.maxLookback).toBe(3);
+        expect(def.maxLookback).toBe(11);
+        expect(file.maxLookback).toBe(11);
     });
 });

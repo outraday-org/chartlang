@@ -4,7 +4,7 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import { defineIndicator, isCompiledScriptBundle, ta } from "./index.js";
+import { defineIndicator, type isCompiledScriptBundle, ta } from "./index.js";
 import type {
     Bar,
     BarStateView,

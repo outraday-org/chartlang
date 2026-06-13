@@ -60,9 +60,38 @@ export function rewriteDependencyAccessors(
     const knownLocalIds = new Set<string>();
     for (const drawn of depGraph.drawn) knownLocalIds.add(drawn.bindingName);
     for (const dep of depGraph.privateDeps) knownLocalIds.add(dep.localId);
+    // `withInputs`-derived aliases (synthetic private deps with no
+    // `defineCall` of their own). Every such alias's declaration is
+    // rewritten from `const <alias> = <root>.withInputs({...})...;` to
+    // `const <alias> = <root>;` so the runtime sentinel never fires
+    // when the bundle is loaded. The merged effective inputs flow into
+    // the dep runner through the manifest's `dependencies` entry; the
+    // alias binding itself just needs to be a `CompiledScriptObject`
+    // reference.
+    const aliasLocalIds = new Set<string>();
+    for (const dep of depGraph.privateDeps) {
+        if (dep.defineCall === null) aliasLocalIds.add(dep.localId);
+    }
 
     const factory: ts.TransformerFactory<ts.SourceFile> = (context) => {
         const visit: ts.Visitor = (node) => {
+            if (
+                ts.isVariableDeclaration(node) &&
+                ts.isIdentifier(node.name) &&
+                aliasLocalIds.has(node.name.text) &&
+                node.initializer !== undefined
+            ) {
+                const root = resolveChainRoot(node.initializer);
+                if (root !== null) {
+                    return ts.factory.updateVariableDeclaration(
+                        node,
+                        node.name,
+                        node.exclamationToken,
+                        node.type,
+                        ts.factory.createIdentifier(root.text),
+                    );
+                }
+            }
             if (
                 ts.isCallExpression(node) &&
                 ts.isPropertyAccessExpression(node.expression) &&
@@ -99,6 +128,28 @@ export function rewriteDependencyAccessors(
         transformed,
         diagnostics: Object.freeze([] as ReadonlyArray<CompileDiagnostic>),
     });
+}
+
+/**
+ * Walk back from a `<root>.withInputs({...}).withInputs({...})` chain
+ * to its rooted identifier. The analysis pass already validates every
+ * alias's chain shape (`dep-dynamic` errors abort the rewrite long
+ * before we reach this function), so only the happy path is exercised
+ * in production; the defensive `null` branches keep the rewriter
+ * conservative if a future caller misuses it.
+ */
+function resolveChainRoot(expression: ts.Expression): ts.Identifier | null {
+    let current: ts.Expression = expression;
+    while (ts.isCallExpression(current)) {
+        const callee = current.expression;
+        /* v8 ignore next 2 */
+        if (!ts.isPropertyAccessExpression(callee)) return null;
+        if (callee.name.text !== "withInputs") return null;
+        current = callee.expression;
+    }
+    /* v8 ignore next 2 */
+    if (!ts.isIdentifier(current)) return null;
+    return current;
 }
 
 function resolveReceiverRoot(receiver: ts.Expression): ts.Identifier | null {

@@ -80,6 +80,10 @@ export type ExtractInputsResult = Readonly<{
  * `defineIndicator({ inputs: { ... } })`, `defineAlert`, or
  * `defineDrawing` into the manifest's `inputs` record.
  *
+ * The optional `scope` parameter narrows the walk to a single AST subtree
+ * (typically one binding's `defineCall`) so multi-export files derive
+ * per-binding inputs. Defaults to the whole `sourceFile`.
+ *
  * @since 0.4
  * @example
  *     // const r = extractInputs(sourceFile, checker, "demo.chart.ts");
@@ -91,6 +95,7 @@ export function extractInputs(
     sourceFile: ts.SourceFile,
     checker: ts.TypeChecker,
     sourcePath: string = sourceFile.fileName,
+    scope: ts.Node = sourceFile,
 ): ExtractInputsResult {
     const inputs: Record<string, ExtractedDescriptor> = {};
     const diagnostics: CompileDiagnostic[] = [];
@@ -156,7 +161,7 @@ export function extractInputs(
         }
         ts.forEachChild(node, visit);
     };
-    ts.forEachChild(sourceFile, visit);
+    visit(scope);
 
     return Object.freeze({
         inputs: Object.freeze({ ...inputs }),

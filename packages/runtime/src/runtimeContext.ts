@@ -21,6 +21,7 @@ import type {
     Series,
 } from "@invinite-org/chartlang-core";
 
+import type { DepOutputStore } from "./dep/DepOutputStore.js";
 import type { PersistentStateStore } from "./persistentStateStore.js";
 import type { StateSlot } from "./state/stateSlot.js";
 import type { StateStore } from "./stateStore.js";
@@ -155,9 +156,10 @@ export type RuntimeContext = {
     readonly scriptMaxDrawings: DrawingCounts | null;
     /**
      * Runtime `state.*` / `state.tick.*` slot store keyed by
-     * `${slotId}:state`. Non-tick slots keep committed/tentative values;
-     * tick slots commit writes immediately. Cleared on `dispose` after
-     * flushing snapshots to `stateStore`. @since 0.4
+     * `${slotIdPrefix ?? ""}${slotId}:state`. Non-tick slots keep
+     * committed/tentative values; tick slots commit writes immediately.
+     * Cleared on `dispose` after flushing snapshots to `stateStore`.
+     * @since 0.4
      */
     readonly stateSlots: Map<string, StateSlot<unknown>>;
     /**
@@ -237,6 +239,37 @@ export type RuntimeContext = {
      * @since 0.4
      */
     readonly views: RuntimeViews;
+    /**
+     * Prefix prepended when emissions from this context flow into the
+     * parent runner's queues, and mirrored into every `stateSlots` /
+     * `StateStore` key written by `state.*` / `state.tick.*` so each
+     * runner's persisted state is isolated. `"dep:<localId>/"` for
+     * private dep runners, `"export:<exportName>/"` for sibling
+     * runners, and `""` (or absent) for primary single-script and
+     * bundle-primary runners.
+     *
+     * @since 0.7
+     */
+    slotIdPrefix?: string;
+    /**
+     * `true` when this context belongs to a private dep runner — its
+     * emissions are dropped (or captured into the dep output store) by
+     * `applyDepEmissionPolicy`. `false` / absent for primary and
+     * sibling runners.
+     *
+     * @since 0.7
+     */
+    isDep?: boolean;
+    /**
+     * Per-bar titled-output buffer shared by the primary and every
+     * sibling of a `CompiledScriptBundle`. Populated by
+     * `applyDepEmissionPolicy` after each dep/sibling's compute; read
+     * by `__chartlang_depOutput` during the consumer's compute. `null`
+     * / absent for single-script runners with no deps.
+     *
+     * @since 0.7
+     */
+    depOutputStore?: DepOutputStore | null;
 };
 
 /**

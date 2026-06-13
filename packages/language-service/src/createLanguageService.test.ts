@@ -248,3 +248,153 @@ export default defineIndicator({
         expect(createLanguageService().getAvailableIntervals()).toEqual([]);
     });
 });
+
+describe("createLanguageService — indicator-composition (Task 7)", () => {
+    const composition = `
+import { defineIndicator, input, plot } from "@invinite-org/chartlang-core";
+
+const baseTrend = defineIndicator({
+    name: "Base",
+    apiVersion: 1,
+    inputs: { length: input.int(20) },
+    compute: ({ bar }) => {
+        plot(bar.close, { title: "line" });
+    },
+});
+
+export const fast = baseTrend.withInputs({ length: 10 });
+export default defineIndicator({
+    name: "Consumer",
+    apiVersion: 1,
+    compute: ({ bar }) => {
+        const value = fast.output("line");
+        void value; void bar;
+    },
+});
+`;
+
+    it("hovers over .output(...) with the producer's titled outputs", () => {
+        const service = createLanguageService();
+        const offset = composition.indexOf('fast.output("line")') + 'fast.output("'.length;
+
+        const hover = service.getHoverDoc(composition, offset);
+        expect(hover?.title).toContain("fast.output");
+        expect(hover?.summary).toContain('"line"');
+    });
+
+    it("hovers over .withInputs({...}) with the producer's input schema", () => {
+        const service = createLanguageService();
+        const offset = composition.indexOf("withInputs({ length: 10") + 13;
+
+        const hover = service.getHoverDoc(composition, offset);
+        expect(hover?.title).toContain("baseTrend.withInputs");
+        expect(hover?.summary).toContain("length: int (default: 20)");
+    });
+
+    it("returns null hover when the offset is not on a known FQN or dep accessor", () => {
+        const service = createLanguageService();
+        expect(service.getHoverDoc("const x = 1;", 4)).toBeNull();
+    });
+
+    it("returns completions for output titles inside <binding>.output(\"|\")", () => {
+        const service = createLanguageService();
+        const offset = composition.indexOf('fast.output("line")') + 'fast.output("'.length;
+
+        const completions = service.getCompletions(composition, offset);
+        expect(completions.map((c) => c.label)).toEqual(["line"]);
+    });
+
+    it("returns completions for override keys inside <binding>.withInputs({ |})", () => {
+        const service = createLanguageService();
+        const offset = composition.indexOf("withInputs({ length: 10") + 13;
+
+        const completions = service.getCompletions(composition, offset);
+        expect(completions.map((c) => c.label)).toEqual(["length"]);
+    });
+
+    it("surfaces dep-unknown-output as a compile diagnostic", async () => {
+        const service = createLanguageService();
+        const bad = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+const producer = defineIndicator({
+    name: "P",
+    apiVersion: 1,
+    compute: ({ bar }) => { plot(bar.close, { title: "real" }); },
+});
+export default defineIndicator({
+    name: "C",
+    apiVersion: 1,
+    compute: () => { producer.output("missing"); },
+});
+`;
+        const diagnostics = await service.compileToDiagnostics(bad);
+        expect(diagnostics.some((d) => d.code === "dep-unknown-output")).toBe(true);
+    });
+
+    it("surfaces dep-invalid-input-override as a compile diagnostic", async () => {
+        const service = createLanguageService();
+        const bad = `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+const producer = defineIndicator({
+    name: "P",
+    apiVersion: 1,
+    inputs: { length: input.int(20) },
+    compute: () => undefined,
+});
+export const tuned = producer.withInputs({ unknown: 1 });
+export default defineIndicator({
+    name: "C",
+    apiVersion: 1,
+    compute: () => undefined,
+});
+`;
+        const diagnostics = await service.compileToDiagnostics(bad);
+        expect(diagnostics.some((d) => d.code === "dep-invalid-input-override")).toBe(true);
+    });
+
+    it("surfaces dep-output-not-titled as a compile diagnostic", async () => {
+        const service = createLanguageService();
+        const bad = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+const producer = defineIndicator({
+    name: "P",
+    apiVersion: 1,
+    compute: ({ bar }) => { plot(bar.close); },
+});
+export default defineIndicator({
+    name: "C",
+    apiVersion: 1,
+    compute: () => { producer.output("anything"); },
+});
+`;
+        const diagnostics = await service.compileToDiagnostics(bad);
+        expect(diagnostics.some((d) => d.code === "dep-output-not-titled")).toBe(true);
+    });
+
+    it("returns go-to-definition for .output(\"title\") matching a producer's plot title", () => {
+        const service = createLanguageService();
+        const offset = composition.indexOf('fast.output("line")') + 'fast.output("'.length;
+
+        const def = service.getDefinition(composition, offset);
+        expect(def).not.toBeNull();
+        expect(def?.file).toBe("script.chart.ts");
+        expect(def?.line).toBeGreaterThan(0);
+        expect(def?.column).toBeGreaterThan(0);
+    });
+
+    it("returns null go-to-definition when no matching plot title exists", () => {
+        const service = createLanguageService();
+        const bad = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+const producer = defineIndicator({
+    name: "P",
+    apiVersion: 1,
+    compute: ({ bar }) => { plot(bar.close, { title: "real" }); },
+});
+const x = producer.output("missing");
+void x;
+`;
+        const offset = bad.indexOf('"missing"') + 1;
+        expect(service.getDefinition(bad, offset)).toBeNull();
+    });
+});

@@ -74,11 +74,38 @@ fixture in `@invinite-org/chartlang-conformance`. The adapter passes
 the suite when every scenario's assertions hold. See
 [Conformance](../adapters/conformance.md).
 
+## Dep local id
+
+The JavaScript identifier of the `const` binding that holds a dep
+instance — `fastTrend` in `const fastTrend = baseTrend.withInputs({})`.
+The compiler keys the runtime's per-dep state slot section by this id;
+the slot ids of every primitive call inside the dep's compute carry
+the `dep:<localId>/` prefix. See
+[Indicator composition](../language/indicator-composition.md#multi-export-files).
+
+## Dependency
+
+A `CompiledScriptObject` bound to a local `const` and consumed via
+`<binding>.output("title")` from another script's `compute`. The
+compiler statically resolves every `.output(...)` call; the runtime
+mounts each unique dep instance once per bar and forwards its titled
+outputs to its consumers. See
+[Indicator composition](../language/indicator-composition.md).
+
 ## Drawing budget
 
 The per-bucket cap on `draw.*` emissions per script per bar. The
 runtime enforces `min(manifest.maxDrawings, capabilities.maxDrawingsPerScript)`
 per bucket. Overflow creates drop with `drawing-budget-exceeded`.
+
+## Drawn indicator
+
+A `defineIndicator(...)` result that's part of the module's exported
+surface — either the default export or any named `export const`. The
+host mounts and renders every drawn indicator; a single `.chart.ts`
+file MAY ship multiple drawn indicators side-by-side. Contrast with
+[private dep](#private-dep). See
+[Indicator composition](../language/indicator-composition.md).
 
 ## Drawing handle
 
@@ -122,6 +149,15 @@ and adapters use it to size buffers, register secondary streams, render
 settings UIs, and check `apiVersion` support. See
 [Script manifest](../spec/manifest.md).
 
+## Output
+
+A producer's named `plot(value, { title })` call, consumable by other
+scripts as a `Series<number>` view via `<binding>.output("title")`.
+Output titles are the consumer's stable handle; an untitled `plot(...)`
+in a producer disables consumption via that call and triggers
+`dep-output-not-titled` when a consumer references it. See
+[Indicator composition](../language/indicator-composition.md#output-title-reads).
+
 ## Pane
 
 Where a plot renders: `"overlay"` (on the main chart), `"new"` (a fresh
@@ -135,6 +171,16 @@ A `RunnerEmissions.plots[]` entry. Emitted by `plot(value, opts?)` or
 `hline(price, opts?)`. Carries a `style` discriminated union the
 adapter inspects to pick the rendering path. Gaps are wired as
 `value: null`. See [Emission payloads § PlotEmission](../spec/emissions.md#plotemission).
+
+## Private dep
+
+A non-exported `const` binding holding a `CompiledScriptObject`. The
+host mounts the dep as a data feed only — its compute runs every bar
+and its titled outputs flow to consumers, but its renderable emissions
+(plots / drawings / alerts / logs) are dropped before they reach the
+adapter. Slot ids carry the `dep:<localId>/` prefix in diagnostics.
+Contrast with [drawn indicator](#drawn-indicator). See
+[Indicator composition](../language/indicator-composition.md).
 
 ## Script
 

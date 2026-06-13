@@ -17,6 +17,12 @@ import { idbStateStore } from "./idbStateStore.js";
 // still catching a ~9× regression.
 const THRESHOLD_MS = 150;
 
+// BUNDLE_THRESHOLD_MS extends the same guardrail to a bundle snapshot
+// carrying 3 deps + 2 siblings on top of the 5,000-bar primary stream. The
+// structured shape is roughly twice as large as the flat shape; pad the
+// budget proportionally and keep the same ~9× regression-detection margin.
+const BUNDLE_THRESHOLD_MS = 200;
+
 function key(): StateStoreKey {
     return {
         scriptHash: "threshold-script",
@@ -49,9 +55,28 @@ function snapshot(): StateSnapshot {
     return {
         lastBarTime: 5_000,
         streams: { "1m": stream() },
-        slots: { counter: 5_000 },
         savedAt: Date.now(),
         snapshotVersion: 1,
+        primary: { slots: { counter: 5_000 } },
+    };
+}
+
+function bundleSnapshot(): StateSnapshot {
+    const slots = (id: string): Readonly<Record<string, number>> => ({
+        [`${id}/counter:state`]: 5_000,
+        [`${id}/lookback:state`]: 4_999,
+    });
+    return {
+        ...snapshot(),
+        siblings: {
+            slow: { slots: slots("export:slow") },
+            medium: { slots: slots("export:medium") },
+        },
+        dependencies: {
+            fast: { slots: slots("dep:fast") },
+            base: { slots: slots("dep:base") },
+            ema: { slots: slots("dep:ema") },
+        },
     };
 }
 
@@ -69,5 +94,20 @@ describe("idbStateStore threshold", () => {
         const elapsed = performance.now() - start;
 
         expect(elapsed).toBeLessThan(THRESHOLD_MS);
+    });
+
+    it(`saves and loads a 5,000-bar dep-bundle snapshot under ${BUNDLE_THRESHOLD_MS}ms`, async () => {
+        const store = idbStateStore({
+            dbName: `chartlang-idb-bundle-threshold-${Date.now()}-${Math.random()}`,
+            key: key(),
+        });
+        const snap = bundleSnapshot();
+
+        const start = performance.now();
+        await store.save(snap);
+        await store.load();
+        const elapsed = performance.now() - start;
+
+        expect(elapsed).toBeLessThan(BUNDLE_THRESHOLD_MS);
     });
 });

@@ -17,6 +17,21 @@ const EXPORT_RENAMED_DEFAULT_GLOBAL_RE =
 
 const EXPORT_MANIFEST_RE = /^\s*export\s+const\s+__manifest\s*=/m;
 
+// `export const __dependencies = [...];` — §22.10 indicator-composition
+// private-dep sidecar from the compiler's `formatDependenciesAssignment`
+// emitter. Same shape as `__manifest`; rewrites to the host-realm-visible
+// `globalThis.__chartlang_compiled_dependencies` slot.
+const EXPORT_DEPENDENCIES_RE = /^\s*export\s+const\s+__dependencies\s*=/m;
+
+// `export const <name> = ...;` — every other named const export. Drives
+// the §22.10 multi-export sibling capture. Anchored to start-of-line so
+// it never matches `var foo = "export const X = 1"` string literals.
+// The reserved sidecar exports (`__manifest`, `__dependencies`) are
+// rewritten by their dedicated patterns *before* this one runs, so the
+// generic named-export rewrite never sees them in practice.
+const EXPORT_NAMED_CONST_GLOBAL_RE =
+    /^(\s*)export\s+const\s+([A-Za-z_$][\w$]*)\s*=/gm;
+
 /**
  * Rewrites a compiled ESM module source so the QuickJS dispatcher can capture
  * the default export and optional `__manifest` const into known globals. The
@@ -62,5 +77,21 @@ export function moduleSourceToScript(source: string): string {
             (_match, ident: string) => `globalThis.__chartlang_compiled_default = ${ident};`,
         );
     }
-    return out.replace(EXPORT_MANIFEST_RE, "globalThis.__chartlang_compiled_manifest =");
+    out = out.replace(EXPORT_MANIFEST_RE, "globalThis.__chartlang_compiled_manifest =");
+    out = out.replace(EXPORT_DEPENDENCIES_RE, "globalThis.__chartlang_compiled_dependencies =");
+    // §22.10 indicator-composition: every remaining `export const X = …;`
+    // is a drawn-sibling. Rewrite the binding to seed the host-realm-
+    // visible global map with the assigned value so the dispatcher can
+    // pluck the compiled `{ manifest, compute }` out when building the
+    // `CompiledScriptBundle`. The expression after `=` survives intact,
+    // so any trailing semicolon and the value-side reach the global slot
+    // unchanged.
+    out = out.replace(
+        EXPORT_NAMED_CONST_GLOBAL_RE,
+        (_match, leading: string, name: string) => {
+            const key = JSON.stringify(name);
+            return `${leading}(globalThis.__chartlang_compiled_named = globalThis.__chartlang_compiled_named || {})[${key}] =`;
+        },
+    );
+    return out;
 }

@@ -3,7 +3,11 @@
 
 import type { createScriptRunner } from "@invinite-org/chartlang-runtime";
 import type { Capabilities, RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
-import type { CompiledScriptObject } from "@invinite-org/chartlang-core";
+import type {
+    CompiledScriptBundle,
+    CompiledScriptObject,
+    ScriptManifest,
+} from "@invinite-org/chartlang-core";
 
 import { moduleSourceToScript } from "./moduleSourceToScript.js";
 import type { HostToQuickJs, QuickJsToHost } from "./protocol.js";
@@ -36,6 +40,58 @@ export type DispatcherDeps = Readonly<{
     runnerFactory: typeof createScriptRunner;
     getCompiledDefault: () => CompiledScriptObject | undefined;
     setCompiledDefault: (value: CompiledScriptObject | undefined) => void;
+    /**
+     * Named-export slot for §22.10 indicator-composition multi-export
+     * bundles. The guest module's rewritten source assigns
+     * `globalThis.__chartlang_compiled_named[exportName] = compiled;` for
+     * every drawn sibling; the host realm reads back through this getter.
+     * Single-script bundles return `undefined`.
+     *
+     * @since 0.7
+     */
+    getCompiledNamed?: () => Readonly<Record<string, CompiledScriptObject>> | undefined;
+    /** @since 0.7 */
+    setCompiledNamed?: (
+        value: Readonly<Record<string, CompiledScriptObject>> | undefined,
+    ) => void;
+    /**
+     * Private-dep slot for §22.10 indicator-composition bundles. The
+     * guest's `export const __dependencies = [...]` rewrites to
+     * `globalThis.__chartlang_compiled_dependencies = [...]`; the host
+     * realm reads it here. Single-script bundles return `undefined`.
+     *
+     * @since 0.7
+     */
+    getCompiledDependencies?: () =>
+        | ReadonlyArray<{
+              readonly localId: string;
+              readonly compiled: CompiledScriptObject;
+              readonly inputOverrides?: Readonly<Record<string, unknown>>;
+          }>
+        | undefined;
+    /** @since 0.7 */
+    setCompiledDependencies?: (
+        value:
+            | ReadonlyArray<{
+                  readonly localId: string;
+                  readonly compiled: CompiledScriptObject;
+                  readonly inputOverrides?: Readonly<Record<string, unknown>>;
+              }>
+            | undefined,
+    ) => void;
+    /**
+     * Sidecar manifest slot. Single object for back-compat single-script
+     * bundles; array for multi-export bundles. Drives the dispatcher's
+     * bundle-detection branch when paired with `getCompiledNamed` /
+     * `getCompiledDependencies`.
+     *
+     * @since 0.7
+     */
+    getCompiledManifest?: () => ScriptManifest | ReadonlyArray<ScriptManifest> | undefined;
+    /** @since 0.7 */
+    setCompiledManifest?: (
+        value: ScriptManifest | ReadonlyArray<ScriptManifest> | undefined,
+    ) => void;
 }>;
 
 /**
@@ -111,16 +167,54 @@ function reviveCapabilities(value: Capabilities): Capabilities {
 export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
     let runner: ScriptRunnerHandle | null = null;
 
-    function loadCompiled(source: string): CompiledScriptObject {
+    function loadCompiled(source: string): CompiledScriptObject | CompiledScriptBundle {
         deps.setCompiledDefault(undefined);
+        deps.setCompiledNamed?.(undefined);
+        deps.setCompiledDependencies?.(undefined);
+        deps.setCompiledManifest?.(undefined);
         deps.loadEval(
             `((Function, eval) => {\n${moduleSourceToScript(source)}\n})(undefined, undefined);`,
         );
-        const compiled = deps.getCompiledDefault();
-        if (compiled === undefined) {
+        const compiledDefault = deps.getCompiledDefault();
+        if (compiledDefault === undefined) {
             throw new Error("compiled module did not set a default export");
         }
-        return compiled;
+        const manifest = deps.getCompiledManifest?.();
+        const dependencies = deps.getCompiledDependencies?.() ?? [];
+        const isBundle = Array.isArray(manifest) || dependencies.length > 0;
+        if (!isBundle) {
+            return compiledDefault;
+        }
+        const named = deps.getCompiledNamed?.() ?? {};
+        const siblings: Array<{
+            readonly exportName: string;
+            readonly compiled: CompiledScriptObject;
+        }> = [];
+        if (Array.isArray(manifest)) {
+            for (let i = 1; i < manifest.length; i += 1) {
+                const entry = manifest[i];
+                const exportName = entry.exportName;
+                if (exportName === undefined || exportName === "default") continue;
+                const sibling = named[exportName];
+                if (sibling === undefined) continue;
+                siblings.push(Object.freeze({ exportName, compiled: sibling }));
+            }
+        }
+        return Object.freeze({
+            primary: compiledDefault,
+            siblings: Object.freeze(siblings),
+            dependencies: Object.freeze(
+                dependencies.map((d) =>
+                    Object.freeze({
+                        localId: d.localId,
+                        compiled: d.compiled,
+                        ...(d.inputOverrides === undefined
+                            ? {}
+                            : { inputOverrides: d.inputOverrides }),
+                    }),
+                ),
+            ),
+        });
     }
 
     async function load(json: string): Promise<string> {
@@ -172,6 +266,9 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
             void runner?.dispose();
             runner = null;
             deps.setCompiledDefault(undefined);
+            deps.setCompiledNamed?.(undefined);
+            deps.setCompiledDependencies?.(undefined);
+            deps.setCompiledManifest?.(undefined);
             return reply({ kind: "ack" });
         } catch (err) {
             return reply({ kind: "fatal", message: message(err) });

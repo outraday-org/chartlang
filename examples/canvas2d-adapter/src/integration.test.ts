@@ -549,3 +549,199 @@ describe("canvas2d adapter integration", () => {
 // floats to 4 decimal places (see `hashCallLog` in `./testing`) so
 // microscopic numeric drift does not re-hash the log.
 const PINNED_HASH = "01d9153aa41fe9b07e2346b0d42ec19159227a208d09535b790825794eb9068f";
+
+// §22.10 indicator-composition: a hand-crafted multi-export bundle
+// equivalent to a `MULTI_EXPORT_COMPOSITION`-shaped `.chart.ts` file
+// after the compiler's bundling. The default export plots whatever
+// the consumer reads from the runtime-installed `__chartlang_depOutput`
+// global; the named export plots its own line (forwards through the
+// host with the `export:<exportName>/` prefix). The optional
+// `__dependencies` export carries one private dep that publishes a
+// titled plot — its emissions are DROPPED by the runtime emission
+// filter; only the consumer (default) reads its output.
+const COMPOSITION_PRIMARY_MANIFEST: ScriptManifest = {
+    apiVersion: 1,
+    kind: "indicator",
+    name: "composition primary",
+    inputs: {},
+    capabilities: ["indicators"],
+    requestedIntervals: [],
+    userPickableInterval: false,
+    seriesCapacities: { ohlcv: 32 },
+    maxLookback: 10,
+    exportName: "default",
+    isDrawn: true,
+};
+
+const COMPOSITION_SIBLING_MANIFEST: ScriptManifest = {
+    apiVersion: 1,
+    kind: "indicator",
+    name: "composition sibling",
+    inputs: {},
+    capabilities: ["indicators"],
+    requestedIntervals: [],
+    userPickableInterval: false,
+    seriesCapacities: { ohlcv: 32 },
+    maxLookback: 10,
+    exportName: "sibling",
+    isDrawn: true,
+    outputs: [{ title: "sibling-line", kind: "line" }],
+};
+
+const COMPOSITION_DEP_MANIFEST: ScriptManifest = {
+    apiVersion: 1,
+    kind: "indicator",
+    name: "composition base",
+    inputs: {},
+    capabilities: ["indicators"],
+    requestedIntervals: [],
+    userPickableInterval: false,
+    seriesCapacities: { ohlcv: 32 },
+    maxLookback: 10,
+    outputs: [{ title: "base-line", kind: "line" }],
+};
+
+function compositionModuleSource(): string {
+    // Mirrors the shape the compiler emits for a §22.10 multi-export
+    // `.chart.ts`. The dep `base` is a private (non-exported) const —
+    // its emissions are dropped by the runtime emission filter; the
+    // `sibling` named export plots its own line which forwards
+    // through with the `export:sibling/` prefix.
+    return `
+export const sibling = {
+    manifest: ${JSON.stringify(COMPOSITION_SIBLING_MANIFEST)},
+    compute: (ctx) => {
+        ctx.plot("sibling.chart.ts:1:1#0", ctx.bar.close + 100, {
+            color: "#22c55e",
+            title: "sibling-line",
+        });
+    },
+};
+const base = {
+    manifest: ${JSON.stringify(COMPOSITION_DEP_MANIFEST)},
+    compute: (ctx) => {
+        ctx.plot("base.chart.ts:1:1#0", ctx.bar.close, {
+            color: "#0ea5e9",
+            title: "base-line",
+        });
+    },
+};
+export default {
+    manifest: ${JSON.stringify(COMPOSITION_PRIMARY_MANIFEST)},
+    compute: (ctx) => {
+        // Primary emits its own plot. Reading the dep's output via
+        // \`__chartlang_depOutput\` is exercised by the runtime-level
+        // tests (Task 4); here we only verify the bundle wiring.
+        ctx.plot("primary.chart.ts:6:1#0", ctx.bar.close * 2, {
+            color: "#ef4444",
+            title: "primary-line",
+        });
+    },
+};
+export const __manifest = ${JSON.stringify([
+    COMPOSITION_PRIMARY_MANIFEST,
+    COMPOSITION_SIBLING_MANIFEST,
+])};
+export const __dependencies = [{ localId: "base", compiled: base }];
+`;
+}
+
+const COMPOSITION_DEP_ERROR_MODULE_SOURCE = `
+const base = {
+    manifest: ${JSON.stringify({ ...COMPOSITION_DEP_MANIFEST, outputs: undefined })},
+    compute: () => {
+        throw new Error("dep boom");
+    },
+};
+export default {
+    manifest: ${JSON.stringify({ ...COMPOSITION_PRIMARY_MANIFEST, siblings: undefined })},
+    compute: () => {},
+};
+export const __manifest = ${JSON.stringify([{ ...COMPOSITION_PRIMARY_MANIFEST, siblings: undefined }])};
+export const __dependencies = [{ localId: "base", compiled: base }];
+`;
+
+describe("canvas2d adapter — indicator-composition (§22.10) bundle scenarios", () => {
+    it("forwards sibling plots with `export:<name>/` prefix and drops private-dep plots", async () => {
+        const { worker, scope } = pair();
+        createWorkerBoot(scope);
+        const emissions: RunnerEmissions[] = [];
+        const workerErrors: string[] = [];
+        const host = captureHost(
+            createWorkerHost({
+                capabilities: CANVAS2D_CAPABILITIES,
+                workerLike: worker,
+                onWorkerError: (m) => workerErrors.push(m),
+            }),
+            emissions,
+        );
+        const ctx = new MockCanvas2DContext();
+        const adapter = createCanvas2dAdapter({
+            canvas: { width: 640, height: 320 },
+            ctx,
+            candleSource: mockCandleSource(HISTORY_BARS.slice(0, 30), {
+                interval: "1D",
+                mode: "stream",
+            }),
+            capabilities: CANVAS2D_CAPABILITIES,
+            host,
+        });
+        await adapter.host.load({
+            moduleSource: compositionModuleSource(),
+            manifest: COMPOSITION_PRIMARY_MANIFEST,
+        });
+        await runRendererLoop(adapter);
+
+        const allPlots = emissions.flatMap((frame) => frame.plots);
+        const slotIds = allPlots.map((p) => p.slotId);
+
+        // Sibling plots reach drain with the `export:sibling/` prefix.
+        expect(slotIds.some((id) => id.startsWith("export:sibling/"))).toBe(true);
+
+        // Private-dep plots are dropped — no `dep:<localId>/` slotId
+        // ever surfaces in the parent's emissions.
+        expect(slotIds.some((id) => id.startsWith("dep:"))).toBe(false);
+
+        // The primary's own plot flows through without a prefix.
+        expect(slotIds.some((id) => id.startsWith("primary.chart.ts:"))).toBe(true);
+
+        expect(workerErrors).toEqual([]);
+        adapter.dispose();
+    });
+
+    it("surfaces a `dep-error` diagnostic when a private dep throws inside compute", async () => {
+        const { worker, scope } = pair();
+        createWorkerBoot(scope);
+        const emissions: RunnerEmissions[] = [];
+        const workerErrors: string[] = [];
+        const host = captureHost(
+            createWorkerHost({
+                capabilities: CANVAS2D_CAPABILITIES,
+                workerLike: worker,
+                onWorkerError: (m) => workerErrors.push(m),
+            }),
+            emissions,
+        );
+        const ctx = new MockCanvas2DContext();
+        const adapter = createCanvas2dAdapter({
+            canvas: { width: 640, height: 320 },
+            ctx,
+            candleSource: mockCandleSource(HISTORY_BARS.slice(0, 5), {
+                interval: "1D",
+                mode: "stream",
+            }),
+            capabilities: CANVAS2D_CAPABILITIES,
+            host,
+        });
+        await adapter.host.load({
+            moduleSource: COMPOSITION_DEP_ERROR_MODULE_SOURCE,
+            manifest: COMPOSITION_PRIMARY_MANIFEST,
+        });
+        await runRendererLoop(adapter);
+
+        const diagnostics = emissions.flatMap((frame) => frame.diagnostics);
+        const depErrorDiagnostics = diagnostics.filter((d) => d.code === "dep-error");
+        expect(depErrorDiagnostics.length).toBeGreaterThan(0);
+        adapter.dispose();
+    });
+});

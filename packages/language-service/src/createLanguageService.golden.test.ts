@@ -86,4 +86,65 @@ describe("language-service goldens", () => {
           ]
         `);
     });
+
+    it("matches the dep-aware .output(...) hover fixture", () => {
+        const composition = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+const baseTrend = defineIndicator({
+    name: "Base",
+    apiVersion: 1,
+    compute: ({ bar }) => {
+        plot(bar.close, { title: "trend" });
+    },
+});
+const x = baseTrend.output("trend");
+void x;
+`;
+        const service = createLanguageService();
+        const offset = composition.indexOf('"trend")') + 1;
+        const hover = service.getHoverDoc(composition, offset);
+
+        expect(hover).toMatchInlineSnapshot(`
+          {
+            "summary": "Outputs declared by the producer:
+          - "trend" — Series<number>",
+            "title": "baseTrend.output(name)",
+          }
+        `);
+    });
+
+    it("matches the dep-aware <binding>.output(\"|\") completion fixture", () => {
+        const composition = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+const baseTrend = defineIndicator({
+    name: "Base",
+    apiVersion: 1,
+    compute: ({ bar }) => {
+        plot(bar.close, { title: "trend" });
+        plot(bar.close, { title: "signal" });
+    },
+});
+const x = baseTrend.output("trend");
+void x;
+`;
+        const service = createLanguageService();
+        const offset = composition.indexOf('output("trend")') + 'output("'.length;
+
+        expect(service.getCompletions(composition, offset)).toMatchInlineSnapshot(`
+          [
+            {
+              "detail": "Series<number> output",
+              "insertText": "trend",
+              "kind": "property",
+              "label": "trend",
+            },
+            {
+              "detail": "Series<number> output",
+              "insertText": "signal",
+              "kind": "property",
+              "label": "signal",
+            },
+          ]
+        `);
+    });
 });

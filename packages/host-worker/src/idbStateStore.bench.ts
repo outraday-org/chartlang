@@ -40,9 +40,28 @@ function snapshot(): StateSnapshot {
     return {
         lastBarTime: 5_000,
         streams: { "1m": stream() },
-        slots: { counter: 5_000 },
         savedAt: Date.now(),
         snapshotVersion: 1,
+        primary: { slots: { counter: 5_000 } },
+    };
+}
+
+function bundleSnapshot(): StateSnapshot {
+    const slots = (id: string): Readonly<Record<string, number>> => ({
+        [`${id}/counter:state`]: 5_000,
+        [`${id}/lookback:state`]: 4_999,
+    });
+    return {
+        ...snapshot(),
+        siblings: {
+            slow: { slots: slots("export:slow") },
+            medium: { slots: slots("export:medium") },
+        },
+        dependencies: {
+            fast: { slots: slots("dep:fast") },
+            base: { slots: slots("dep:base") },
+            ema: { slots: slots("dep:ema") },
+        },
     };
 }
 
@@ -53,6 +72,16 @@ describe("idbStateStore", () => {
             key: key(),
         });
         const snap = snapshot();
+        await store.save(snap);
+        await store.load();
+    });
+
+    bench("save + load 5,000-bar bundle snapshot", async () => {
+        const store = idbStateStore({
+            dbName: `chartlang-idb-bundle-bench-${Date.now()}-${Math.random()}`,
+            key: key(),
+        });
+        const snap = bundleSnapshot();
         await store.save(snap);
         await store.load();
     });

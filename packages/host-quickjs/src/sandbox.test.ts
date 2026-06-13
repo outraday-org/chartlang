@@ -288,6 +288,45 @@ export default {
         });
     });
 
+    it("permits the runtime-installed __chartlang_depOutput global to flow through the guest realm", async () => {
+        // §22.10 indicator-composition: the bundler synthesises a
+        // top-of-bundle shim `const __chartlang_depOutput =
+        // globalThis.__chartlang_depOutput ?? …` and the runtime
+        // installs the global before bundle evaluation. A guest module
+        // referencing the global through the shim must NOT trip a
+        // sandbox-escape diagnostic — the global is supplied by the
+        // host realm via the runtime's `installDepOutputGlobal()` and
+        // simply prefixes a fallback throw when absent.
+        const hostErrors: string[] = [];
+        const host = makeHost(hostErrors);
+        const m = manifest("dep-output-shim");
+        await host.load({
+            manifest: m,
+            moduleSource: `
+const __chartlang_depOutput = globalThis.__chartlang_depOutput ?? (() => { throw new Error("missing"); });
+export default {
+    manifest: ${JSON.stringify(m)},
+    compute: ({ plot }) => {
+        // The shim's identifier is reachable at runtime; pin that the
+        // sandbox neither rejects the binding name nor silently nukes
+        // it. Using \`typeof\` keeps the plot value a clean number.
+        const reachable = typeof __chartlang_depOutput === "function" ? 1 : 0;
+        plot("sandbox.dep-shim:1:1#0", reachable, {});
+    },
+};
+`,
+        });
+        await host.push({ kind: "close", bar: bar() });
+        const out = await host.drain();
+
+        expectNoNonTimingHostErrors(hostErrors);
+        expect(out.plots[0]).toMatchObject({
+            slotId: "sandbox.dep-shim:1:1#0",
+            value: 1,
+        });
+        host.dispose();
+    });
+
     it("blocks Proxy revoke after emit from corrupting drain output", async () => {
         const result = await run(
             "proxy revoke",

@@ -12,6 +12,15 @@ import * as esbuild from "esbuild";
  * sourcemap `sourcefile` field; `sourcemap` mirrors the compile API contract;
  * `minify` toggles esbuild's minifier.
  *
+ * `inlinedProducers` is the §22.10 indicator-composition extension — when
+ * non-empty, the bundler synthesises the `__chartlang_depOutput` runtime
+ * shim and concatenates each producer's pre-rewritten TS source ahead of
+ * the consumer's. The producer source must already have its `export
+ * default <expr>` / `export const <name>` lines rewritten to local
+ * `const __producer_<hash>__default = …` / `const __producer_<hash>__<name>
+ * = …` form and its top-level `import` lines stripped so the combined
+ * source parses as one ESM module.
+ *
  * @since 0.1
  * @example
  *     const opts: BundleModuleOptions = {
@@ -26,6 +35,28 @@ export type BundleModuleOptions = Readonly<{
     sourcePath: string;
     sourcemap: boolean | "inline" | "external";
     minify: boolean;
+    inlinedProducers?: ReadonlyArray<InlinedProducer>;
+}>;
+
+/**
+ * One pre-rewritten cross-file producer the bundler inlines ahead of the
+ * consumer's source. `hash` is a stable identifier derived from the
+ * producer's absolute path; `rewrittenSource` is the producer's printed
+ * TS source with `export` statements lowered to local `const`s and
+ * top-level `import`s stripped.
+ *
+ * @since 0.7
+ * @stable
+ * @example
+ *     const p: InlinedProducer = {
+ *         hash: "a1b2c3",
+ *         rewrittenSource: "const __producer_a1b2c3__default = {};",
+ *     };
+ *     void p;
+ */
+export type InlinedProducer = Readonly<{
+    readonly hash: string;
+    readonly rewrittenSource: string;
 }>;
 
 /**
@@ -48,6 +79,14 @@ export type BundleModuleResult = Readonly<{
 // `@invinite-org/chartlang-core` bare specifier resolves through the compiler
 // package's own `node_modules/` symlink. Computed once at module load.
 const COMPILER_PACKAGE_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
+
+// `__chartlang_depOutput` is the runtime helper that lets inlined producers
+// read each other's titled outputs via `__chartlang_depOutput(slotId,
+// depLocalId, title)`. When `@invinite-org/chartlang-runtime` ≥ 0.7 mounts
+// the bundle, it sets `globalThis.__chartlang_depOutput` before evaluation;
+// otherwise the throwing fallback signals a runtime / compiler skew. The
+// shim keeps the §5.2 "zero remaining `import` statements" contract intact.
+const DEP_OUTPUT_SHIM = `const __chartlang_depOutput = globalThis.__chartlang_depOutput ?? (() => { throw new Error("@invinite-org/chartlang-runtime >= 0.7 is required to evaluate this bundle"); });`;
 
 /**
  * Drive esbuild's `build` API against an in-memory transformed TS source and
@@ -76,10 +115,15 @@ export async function bundleModule(opts: BundleModuleOptions): Promise<BundleMod
         opts.sourcemap === false ? false : opts.sourcemap === "inline" ? "inline" : "external";
 
     const wantsExternalMap = opts.sourcemap === true || opts.sourcemap === "external";
+    const producers = opts.inlinedProducers ?? [];
+    const combinedSource =
+        producers.length === 0
+            ? opts.transformedSource
+            : `${DEP_OUTPUT_SHIM}\n${producers.map((p) => p.rewrittenSource).join("\n")}\n${opts.transformedSource}`;
 
     const buildOpts: esbuild.BuildOptions = {
         stdin: {
-            contents: opts.transformedSource,
+            contents: combinedSource,
             loader: "ts",
             sourcefile: opts.sourcePath,
             resolveDir: COMPILER_PACKAGE_DIR,
@@ -89,6 +133,7 @@ export async function bundleModule(opts: BundleModuleOptions): Promise<BundleMod
         target: "es2022",
         platform: "neutral",
         sourcemap: esbuildSourcemap,
+        sourcesContent: true,
         minify: opts.minify,
         treeShaking: true,
         write: false,
@@ -124,8 +169,14 @@ export async function bundleModule(opts: BundleModuleOptions): Promise<BundleMod
 /**
  * Synthesise the bottom-of-bundle `export const __manifest = …;` assignment.
  * The runtime reads this constant via dynamic `import(...)` to recover the
- * frozen `ScriptManifest` that travels alongside the compiled JS. Serialised
- * via `JSON.stringify` for determinism (insertion-order key emission).
+ * frozen `ScriptManifest` (or array of manifests, for multi-export files)
+ * that travels alongside the compiled JS. Serialised via `JSON.stringify`
+ * for determinism (insertion-order key emission).
+ *
+ * Single-object branch stays byte-identical to Phase 1 — no indent. The
+ * array branch (one entry per drawn indicator in source order, default
+ * first) is indented at 4 spaces for readability; runtimes branch on
+ * `Array.isArray(__manifest)`.
  *
  * @since 0.1
  * @example
@@ -134,6 +185,78 @@ export async function bundleModule(opts: BundleModuleOptions): Promise<BundleMod
  *     const fn: typeof formatManifestAssignment = formatManifestAssignment;
  *     void fn;
  */
-export function formatManifestAssignment(manifest: ScriptManifest): string {
-    return `export const __manifest = ${JSON.stringify(manifest)};\n`;
+export function formatManifestAssignment(
+    manifestOrArray: ScriptManifest | ReadonlyArray<ScriptManifest>,
+): string {
+    const json = Array.isArray(manifestOrArray)
+        ? JSON.stringify(manifestOrArray, null, 4)
+        : JSON.stringify(manifestOrArray);
+    return `export const __manifest = ${json};\n`;
+}
+
+/**
+ * One inlined private-dep entry for the bundler's `__dependencies`
+ * export. `localId` matches the `DependencyDeclaration.localId` on the
+ * consumer's manifest; `bindingExpression` is the JS expression the
+ * runtime walks to reach the dep's compiled `{ manifest, compute }`
+ * object. In Phase-7, `bindingExpression === localId` because the
+ * compiler keys deps by their JS binding name and the bundler
+ * preserves the top-level `const` declaration.
+ *
+ * `effectiveInputs` carries the merged `.withInputs({...})` overrides
+ * the consumer applied to its alias binding. When present and
+ * non-empty, the runtime feeds it into the `DepRunner` as the dep's
+ * input overrides so the producer's `compute` reads the consumer-
+ * supplied values instead of its own manifest defaults. Empty / absent
+ * for direct `defineIndicator(...)` private deps.
+ *
+ * @since 0.7
+ * @stable
+ * @example
+ *     const entry: DependencyAssignmentEntry = {
+ *         localId: "base",
+ *         bindingExpression: "base",
+ *     };
+ *     void entry;
+ */
+export type DependencyAssignmentEntry = Readonly<{
+    readonly localId: string;
+    readonly bindingExpression: string;
+    readonly effectiveInputs?: Readonly<Record<string, unknown>>;
+}>;
+
+/**
+ * Synthesise the bottom-of-bundle `export const __dependencies = […];`
+ * assignment that exposes private-dep `CompiledScriptObject` instances
+ * to the host. Hosts mount each entry as a `DepRunner` (Task 4); the
+ * binding reference keeps esbuild's tree-shaker from dropping the
+ * compiled module-local `const` that produced it.
+ *
+ * Returns the empty string when `deps` is empty so single-script
+ * bundles stay byte-identical to the Phase 1/2/3 baseline.
+ *
+ * @since 0.7
+ * @stable
+ * @example
+ *     // const line = formatDependenciesAssignment([
+ *     //     { localId: "base", bindingExpression: "base" },
+ *     // ]);
+ *     // line === 'export const __dependencies = [\n    { localId: "base", compiled: base },\n];\n'
+ *     const fn: typeof formatDependenciesAssignment = formatDependenciesAssignment;
+ *     void fn;
+ */
+export function formatDependenciesAssignment(
+    deps: ReadonlyArray<DependencyAssignmentEntry>,
+): string {
+    if (deps.length === 0) return "";
+    const entries = deps
+        .map((d) => {
+            const overrides =
+                d.effectiveInputs !== undefined && Object.keys(d.effectiveInputs).length > 0
+                    ? `, inputOverrides: ${JSON.stringify(d.effectiveInputs)}`
+                    : "";
+            return `    { localId: ${JSON.stringify(d.localId)}, compiled: ${d.bindingExpression}${overrides} },`;
+        })
+        .join("\n");
+    return `export const __dependencies = [\n${entries}\n];\n`;
 }

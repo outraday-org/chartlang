@@ -40,6 +40,15 @@
   runtime can recover the manifest via dynamic `import(...)`. The `.d.ts`
   sibling (`typesEmit.ts`) declares the symbol in lockstep — both halves
   must stay aligned.
+- **`__dependencies` is prepended PRE-bundle, not appended.** The
+  `export const __dependencies = [...]` line synthesised by
+  `formatDependenciesAssignment` lands inside the source `compile()`
+  hands to `bundleModule`. Cross-file `withInputs`-aliased bindings
+  (`const trend = baseTrend;` after the chain rewrite) are bare
+  references that esbuild's tree-shaker drops if nothing else
+  references them — the export keeps each alias alive in the
+  tree-shake. The dep-cross-file conformance scenario fails at load
+  time if this contract regresses.
 - **`compileFile` writes are atomic.** `writeAtomic` renders to a
   `<target>.tmp.<rand>` sibling and `rename`s into place; on failure the
   temp file is unlinked. Anyone touching `compileFile` must preserve this

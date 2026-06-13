@@ -811,12 +811,17 @@ declare module "@invinite-org/chartlang-core" {
             volume: ReadonlyArray<number | null>;
         }>;
     }>;
+    export type RunnerSnapshot = Readonly<{
+        slots: Readonly<Record<string, JsonValue>>;
+    }>;
     export type StateSnapshot = Readonly<{
         lastBarTime: number;
         streams: Readonly<Record<string, StreamSnapshot>>;
-        slots: Readonly<Record<string, JsonValue>>;
         savedAt: number;
         snapshotVersion: 1;
+        primary: RunnerSnapshot;
+        siblings?: Readonly<Record<string, RunnerSnapshot>>;
+        dependencies?: Readonly<Record<string, RunnerSnapshot>>;
     }>;
     export type StateStoreKey = Readonly<{
         scriptHash: string;
@@ -1421,10 +1426,12 @@ export type ProgramForSource = Readonly<{
  */
 export function createProgramForSource(
     source: string,
-    opts: { readonly sourcePath: string },
+    opts: {
+        readonly sourcePath: string;
+        readonly chartImports?: ReadonlyArray<string>;
+    },
 ): ProgramForSource {
     const sourcePath = normalisePath(opts.sourcePath);
-    const VIRTUAL_FILE_SET: ReadonlySet<string> = new Set([sourcePath, CORE_MODULE_PATH]);
     const sourceFile = ts.createSourceFile(
         sourcePath,
         source,
@@ -1440,6 +1447,36 @@ export function createProgramForSource(
         ts.ScriptKind.TS,
     );
 
+    // Synthesise an ambient declaration for every `.chart` / `.chart.ts`
+    // import the caller pre-scanned. Each module exports a default
+    // `CompiledScriptObject` so consumer-side typecheck passes; the
+    // analysis pass walks the real `ProducerSnapshot` for output-title
+    // validation (see `extractDependencyGraph.ts`).
+    const chartImports = opts.chartImports ?? [];
+    const chartShimPath = "/__chartlang__/chart-imports.d.ts";
+    const VIRTUAL_FILE_SET = new Set<string>([sourcePath, CORE_MODULE_PATH]);
+    let chartShimFile: ts.SourceFile | undefined;
+    if (chartImports.length > 0) {
+        VIRTUAL_FILE_SET.add(chartShimPath);
+        const body = chartImports
+            .map(
+                (specifier) => `
+declare module ${JSON.stringify(specifier)} {
+    import type { CompiledScriptObject } from "@invinite-org/chartlang-core";
+    const value: CompiledScriptObject;
+    export default value;
+}`,
+            )
+            .join("\n");
+        chartShimFile = ts.createSourceFile(
+            chartShimPath,
+            body,
+            ts.ScriptTarget.ES2022,
+            true,
+            ts.ScriptKind.TS,
+        );
+    }
+
     const fallbackHost = ts.createCompilerHost(COMPILER_OPTIONS, true);
 
     const host: ts.CompilerHost = {
@@ -1452,6 +1489,9 @@ export function createProgramForSource(
         ): ts.SourceFile | undefined {
             if (fileName === sourcePath) return sourceFile;
             if (fileName === CORE_MODULE_PATH) return shimFile;
+            if (fileName === chartShimPath && chartShimFile !== undefined) {
+                return chartShimFile;
+            }
             return fallbackHost.getSourceFile(
                 fileName,
                 languageVersionOrOptions,
@@ -1464,8 +1504,10 @@ export function createProgramForSource(
         },
     };
 
+    const rootNames: string[] = [sourcePath, CORE_MODULE_PATH];
+    if (chartShimFile !== undefined) rootNames.push(chartShimPath);
     const program = ts.createProgram({
-        rootNames: [sourcePath, CORE_MODULE_PATH],
+        rootNames,
         options: COMPILER_OPTIONS,
         host,
     });

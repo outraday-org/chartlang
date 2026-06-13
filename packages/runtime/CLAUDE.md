@@ -107,3 +107,46 @@
   diagnostic and the original emission is dropped. Dedup runs by
   reverse-linear-scan over the in-bar queue; same `(slotId, bar)`
   collapses last-write-wins.
+- **`slotIdPrefix` is the `state.*` slot-key prefix.** Every
+  `state.*` / `state.tick.*` call routes through
+  `state/stateNamespace.ts:stateKey(ctx, slotId)`, which prepends
+  `ctx.slotIdPrefix ?? ""` and writes `${prefix}${slotId}:state`
+  into both `runtimeContext.stateSlots` and the runner's
+  `StateStore`. The primary runner's prefix is absent (byte-
+  identical to the Phase-1 `${slotId}:state` key); `DepRunner`
+  contexts carry `dep:<localId>/`; `SiblingRunner` contexts carry
+  `export:<exportName>/`. TA slots live on the shared
+  `mainStream.taSlots` (not on any stateStore) and do NOT carry
+  the prefix — the bundle's deps + siblings share the primary's
+  mainStream by the Task-4 bundle-runner invariant, so TA slot
+  ids (file-relative `<sourcePath>:<line>:<col>#<callIndex>`)
+  can't collide across runners. Reason: this gives bundle
+  warm-restart the same byte-identity guarantee as Phase-1 while
+  letting each runner's persisted state survive independently.
+- **`StateSnapshot` is structured per-runner.** `primary.slots`
+  holds the primary's `state.*` slots plus every TA slot from
+  the shared mainStream. `siblings[exportName].slots` and
+  `dependencies[localId].slots` hold each sub-runner's
+  prefix-keyed `state.*` slots only. Sections are absent when
+  the bundle has no deps / no siblings. Legacy flat-shape
+  snapshots (pre-0.7) still load — `validateSnapshot` accepts
+  both, and flat-shape data restores into the primary only.
+  Restore drops snapshot sections whose `localId` /
+  `exportName` is not declared by the current bundle and pushes
+  a single `state-snapshot-malformed` diagnostic per orphan.
+- **Bundle runners walk deps → siblings → primary every bar.**
+  `onBarClose` / `onBarTick` call `resetBarEmissions(state)` once
+  (clearing the parent's queues), then iterate `state.depRunners`
+  followed by `state.siblingRunners`, then drive the primary via
+  `runComputeBody` (NOT `runComputeStep` — that resets again).
+  `DepOutputStore.beginBar()` runs after the parent reset. Single-
+  script runners pass through with empty `depRunners`/`siblingRunners`
+  arrays and a `null` store. Dep halts flip `state.depErroredThisBar`
+  which clears the primary's plots/drawings/alerts/alertConditions/
+  logs (NOT diagnostics) after `runComputeBody` returns. Sibling
+  halts do NOT propagate. `__chartlang_depOutput` is installed on
+  `globalThis` the first time a bundle mounts; the compiler-emitted
+  bundle's inline shim resolves to that global reference, and the
+  helper reads `ACTIVE_RUNTIME_CONTEXT.current.depOutputStore` per
+  step — JavaScript's single-threaded execution model makes the
+  shared global safe.

@@ -369,6 +369,253 @@ describe("createWorkerBoot", () => {
         await waitFor("loaded");
     });
 
+    it("mounts a multi-export bundle when the module sidecar is an array", async () => {
+        // §22.10 indicator-composition: a multi-export `.chart.ts` file
+        // emits an array `__manifest` sidecar + one named export per
+        // drawn sibling. The boot detects the array shape and builds a
+        // `CompiledScriptBundle` so the runtime mounts both the primary
+        // and the sibling. The sibling's plot reaches `drain()` with an
+        // `export:<name>/` slot-id prefix.
+        const primaryManifest: ScriptManifest = {
+            ...manifest(),
+            name: "primary",
+            exportName: "default",
+            isDrawn: true,
+        };
+        const siblingManifest: ScriptManifest = {
+            ...manifest(),
+            name: "sibling",
+            exportName: "sibling",
+            isDrawn: true,
+        };
+        const moduleSource = `
+            const sibling = {
+                manifest: ${JSON.stringify(siblingManifest)},
+                compute: (ctx) => {
+                    ctx.plot("sibling.chart.ts:1:1#0", 99, { title: "echo" });
+                },
+            };
+            const d = {
+                manifest: ${JSON.stringify(primaryManifest)},
+                compute: () => {},
+            };
+            export { sibling };
+            export default d;
+            export const __manifest = ${JSON.stringify([primaryManifest, siblingManifest])};
+        `;
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: primaryManifest },
+            capabilities: makeCapabilities(),
+            limits: LIMITS,
+        });
+        await waitFor("loaded");
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(1, 1) } });
+        await deliver({ kind: "drain", nonce: 11 });
+        const reply = await waitFor("emissions");
+        if (reply.kind !== "emissions") throw new Error("expected emissions");
+        const slotIds = reply.emissions.plots.map((p) => p.slotId);
+        // The sibling's plot reaches drain with the export-name prefix.
+        expect(slotIds.some((id) => id.startsWith("export:sibling/"))).toBe(true);
+    });
+
+    it("mounts a bundle when the module exports __dependencies even without an array sidecar", async () => {
+        // The bundle detection branches on EITHER array `__manifest` OR a
+        // non-empty `__dependencies` export. This case carries a private
+        // dep but only a single drawn primary (so `__manifest` stays a
+        // single object).
+        const primaryManifest: ScriptManifest = {
+            ...manifest(),
+            name: "primary",
+            dependencies: [
+                Object.freeze({
+                    localId: "base",
+                    sourcePath: "demo.chart.ts",
+                    exportName: "default",
+                    inputOverrides: Object.freeze({}),
+                }),
+            ],
+        };
+        const depManifest: ScriptManifest = {
+            ...manifest(),
+            name: "base",
+            outputs: Object.freeze([Object.freeze({ title: "line", kind: "line" as const })]),
+        };
+        const moduleSource = `
+            const base = {
+                manifest: ${JSON.stringify(depManifest)},
+                compute: (ctx) => {
+                    ctx.plot("base.chart.ts:1:1#0", 7, { title: "line" });
+                },
+            };
+            const d = {
+                manifest: ${JSON.stringify(primaryManifest)},
+                compute: () => {},
+            };
+            export default d;
+            export const __manifest = ${JSON.stringify(primaryManifest)};
+            export const __dependencies = [{ localId: "base", compiled: base }];
+        `;
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: primaryManifest },
+            capabilities: makeCapabilities(),
+            limits: LIMITS,
+        });
+        await waitFor("loaded");
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(1, 1) } });
+        await deliver({ kind: "drain", nonce: 12 });
+        const reply = await waitFor("emissions");
+        if (reply.kind !== "emissions") throw new Error("expected emissions");
+        // The dep's plot is DROPPED from the parent (private-dep
+        // emission policy). No plot reaches drain with a `dep:` slot-id.
+        expect(reply.emissions.plots.some((p) => p.slotId.startsWith("dep:"))).toBe(false);
+    });
+
+    it("forwards `inputOverrides` from __dependencies entries into the runtime bundle", async () => {
+        // §22.10 indicator-composition: a cross-file consumer's
+        // `baseTrend.withInputs({...})` alias bakes the merged input
+        // overrides into the `__dependencies[i].inputOverrides` slot
+        // so the runtime mounts the dep with the consumer-supplied
+        // values instead of the producer's defaults.
+        const primaryManifest: ScriptManifest = {
+            ...manifest(),
+            name: "primary",
+            dependencies: [
+                Object.freeze({
+                    localId: "base",
+                    sourcePath: "demo.chart.ts",
+                    exportName: "default",
+                    inputOverrides: Object.freeze({ length: 20 }),
+                }),
+            ],
+        };
+        const depManifest: ScriptManifest = {
+            ...manifest(),
+            name: "base",
+            outputs: Object.freeze([Object.freeze({ title: "line", kind: "line" as const })]),
+        };
+        const moduleSource = `
+            const base = {
+                manifest: ${JSON.stringify(depManifest)},
+                compute: (ctx) => {
+                    ctx.plot("base.chart.ts:1:1#0", 7, { title: "line" });
+                },
+            };
+            const d = {
+                manifest: ${JSON.stringify(primaryManifest)},
+                compute: () => {},
+            };
+            export default d;
+            export const __manifest = ${JSON.stringify(primaryManifest)};
+            export const __dependencies = [{ localId: "base", compiled: base, inputOverrides: { length: 20 } }];
+        `;
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: primaryManifest },
+            capabilities: makeCapabilities(),
+            limits: LIMITS,
+        });
+        const loaded = await waitFor("loaded");
+        // The mount succeeded without throwing — the worker accepted
+        // the `__dependencies[i].inputOverrides` field and forwarded
+        // it through to the runtime's `createScriptRunner`.
+        expect(loaded.kind).toBe("loaded");
+    });
+
+    it("skips a sibling entry when the named export is missing or malformed", async () => {
+        // Defence-in-depth: a malformed bundle that declares a sibling
+        // in `__manifest` but never exports the matching binding still
+        // loads — the boot drops the bad entry and mounts the primary.
+        const primaryManifest: ScriptManifest = {
+            ...manifest(),
+            name: "primary",
+            exportName: "default",
+            isDrawn: true,
+        };
+        const siblingManifest: ScriptManifest = {
+            ...manifest(),
+            name: "sibling",
+            exportName: "sibling",
+            isDrawn: true,
+        };
+        const moduleSource = `
+            const d = {
+                manifest: ${JSON.stringify(primaryManifest)},
+                compute: () => {},
+            };
+            // Note: no \`sibling\` export, but the sidecar still lists it.
+            export default d;
+            export const __manifest = ${JSON.stringify([primaryManifest, siblingManifest])};
+        `;
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: primaryManifest },
+            capabilities: makeCapabilities(),
+            limits: LIMITS,
+        });
+        await waitFor("loaded");
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(1, 1) } });
+        await deliver({ kind: "drain", nonce: 13 });
+        const reply = await waitFor("emissions");
+        if (reply.kind !== "emissions") throw new Error("expected emissions");
+        expect(reply.emissions.plots).toEqual([]);
+    });
+
+    it("skips a sibling entry when the manifest array entry omits exportName or names default", async () => {
+        // §22.10 contract: only non-default entries with an `exportName`
+        // become siblings. Both `undefined` exportName and `"default"`
+        // are filtered out — the first manifest in the array is the
+        // primary, never a sibling.
+        const primaryManifest: ScriptManifest = {
+            ...manifest(),
+            name: "primary",
+            exportName: "default",
+            isDrawn: true,
+        };
+        const malformedNoName: ScriptManifest = {
+            ...manifest(),
+            name: "malformed-no-name",
+            isDrawn: true,
+        };
+        const malformedDefault: ScriptManifest = {
+            ...manifest(),
+            name: "malformed-default-dup",
+            exportName: "default",
+            isDrawn: true,
+        };
+        const moduleSource = `
+            const d = {
+                manifest: ${JSON.stringify(primaryManifest)},
+                compute: () => {},
+            };
+            export default d;
+            export const __manifest = ${JSON.stringify([primaryManifest, malformedNoName, malformedDefault])};
+        `;
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: primaryManifest },
+            capabilities: makeCapabilities(),
+            limits: LIMITS,
+        });
+        await waitFor("loaded");
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(1, 1) } });
+        await deliver({ kind: "drain", nonce: 14 });
+        const reply = await waitFor("emissions");
+        if (reply.kind !== "emissions") throw new Error("expected emissions");
+        expect(reply.emissions.plots).toEqual([]);
+    });
+
     it("disposes the runner; subsequent drain raises fatal", async () => {
         const { scope, deliver, waitFor } = makeScope();
         createWorkerBoot(scope);

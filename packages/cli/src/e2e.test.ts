@@ -18,6 +18,8 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/session-high-alert.chart.ts",
     "examples/scripts/daily-rsi-divergence.chart.ts",
     "examples/scripts/mintick-snapped-entry.chart.ts",
+    "examples/scripts/base-trend.chart.ts",
+    "examples/scripts/trend-confirmation.chart.ts",
 ] as const;
 
 const COMPILE_TIMEOUT_MS = 15_000;
@@ -57,6 +59,41 @@ describe("example scripts compile end-to-end", () => {
             );
             expect(Object.keys(session.manifest.inputs)).toEqual(["alertOnCross"]);
             expect(session.manifest.userPickableInterval).toBe(false);
+        },
+        COMPILE_TIMEOUT_MS,
+    );
+
+    it(
+        "emits a single-object sidecar for base-trend.chart.ts (single drawn indicator)",
+        async () => {
+            const baseTrend = await compileFile(
+                resolvePath(REPO_ROOT, "examples/scripts/base-trend.chart.ts"),
+                { apiVersion: 1, write: false },
+            );
+            // Single-script files keep the byte-identical single-object
+            // sidecar form; the array form only appears when multiple
+            // drawn indicators co-exist in one file.
+            expect(baseTrend.moduleSource).toMatch(/__manifest\s*=\s*\{/);
+            expect(baseTrend.moduleSource).not.toMatch(/__manifest\s*=\s*\[/);
+            expect(baseTrend.manifest.dependencies).toBeUndefined();
+        },
+        COMPILE_TIMEOUT_MS,
+    );
+
+    it(
+        "emits an array sidecar + __dependencies for trend-confirmation.chart.ts (multi-export composition)",
+        async () => {
+            const confirmation = await compileFile(
+                resolvePath(REPO_ROOT, "examples/scripts/trend-confirmation.chart.ts"),
+                { apiVersion: 1, write: false },
+            );
+            // Multi-export files carry the array-form __manifest plus
+            // the __dependencies export the host mounts (Task 6).
+            expect(confirmation.moduleSource).toMatch(/__manifest\s*=\s*\[/);
+            expect(confirmation.moduleSource).toMatch(/__dependencies\s*=\s*\[/);
+            expect(confirmation.manifest.dependencies).toBeDefined();
+            expect(confirmation.manifest.dependencies?.some((d) => d.localId === "fastTrend"))
+                .toBe(true);
         },
         COMPILE_TIMEOUT_MS,
     );

@@ -5,10 +5,12 @@ import type {
     AdapterSymInfo,
     CandleEvent,
     Capabilities,
+    DiagnosticCode,
     RunnerEmissions,
+    RuntimeDiagnostic,
 } from "@invinite-org/chartlang-adapter-kit";
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
-import { describe, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { HostToWorker, WorkerToHost } from "./protocol.js";
 import type { HostCompiledScript, HostLimits } from "./types.js";
@@ -66,4 +68,76 @@ describe("HostCompiledScript", () => {
         expectTypeOf<HostCompiledScript["moduleSource"]>().toEqualTypeOf<string>();
         expectTypeOf<HostCompiledScript["manifest"]>().toEqualTypeOf<ScriptManifest>();
     });
+});
+
+describe("RuntimeDiagnostic — Phase-7 dep-* codes", () => {
+    // §22.10 indicator-composition: the host-worker round-trips every
+    // `dep-*` diagnostic code through the postMessage wire (structured
+    // clone of `RunnerEmissions.diagnostics`). The type-level coverage
+    // here pins the contract so a future narrowing of the union breaks
+    // the build instead of silently dropping codes.
+    it("accepts `dep-error`", () => {
+        const code: DiagnosticCode = "dep-error";
+        const d: RuntimeDiagnostic = {
+            kind: "diagnostic",
+            severity: "error",
+            code,
+            message: "boom",
+            slotId: "dep:trend/inner:1:1#0",
+            bar: 3,
+        };
+        expectTypeOf(d.code).toMatchTypeOf<DiagnosticCode>();
+    });
+
+    it("accepts `dep-cycle`", () => {
+        const code: DiagnosticCode = "dep-cycle";
+        expectTypeOf(code).toMatchTypeOf<DiagnosticCode>();
+    });
+
+    it("accepts `dep-unknown-output`", () => {
+        const code: DiagnosticCode = "dep-unknown-output";
+        expectTypeOf(code).toMatchTypeOf<DiagnosticCode>();
+    });
+
+    it("accepts `dep-invalid-input-override`", () => {
+        const code: DiagnosticCode = "dep-invalid-input-override";
+        expectTypeOf(code).toMatchTypeOf<DiagnosticCode>();
+    });
+
+    it("accepts `dep-dynamic`", () => {
+        const code: DiagnosticCode = "dep-dynamic";
+        expectTypeOf(code).toMatchTypeOf<DiagnosticCode>();
+    });
+
+    it("accepts `dep-output-not-titled`", () => {
+        const code: DiagnosticCode = "dep-output-not-titled";
+        expectTypeOf(code).toMatchTypeOf<DiagnosticCode>();
+    });
+});
+
+describe("WorkerToHost.emissions — dep-* round-trip via structuredClone", () => {
+    // structuredClone is the postMessage wire boundary. Any field that
+    // survives the clone survives the worker boundary. Pin every Phase-7
+    // `dep-*` code with the wider-message smoke test from task §3.
+    const depCodes = [
+        "dep-error",
+        "dep-cycle",
+        "dep-unknown-output",
+        "dep-invalid-input-override",
+        "dep-dynamic",
+        "dep-output-not-titled",
+    ] as const;
+    for (const code of depCodes) {
+        it(`round-trips a '${code}' diagnostic byte-identically`, () => {
+            const dx: RuntimeDiagnostic = {
+                kind: "diagnostic",
+                severity: "error",
+                code,
+                message: "boom",
+                slotId: "dep:trend/inner-slot:1:1#0",
+                bar: 3,
+            };
+            expect(structuredClone(dx)).toEqual(dx);
+        });
+    }
 });

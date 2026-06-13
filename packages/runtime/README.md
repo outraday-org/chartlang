@@ -31,6 +31,15 @@ pnpm add @invinite-org/chartlang-runtime
 - Emissions: `plot`, `hline`, `alert`, `draw`, drawing handles, budget checks,
   and validation-backed diagnostic drops.
 - Context: `ACTIVE_RUNTIME_CONTEXT` is set only around script steps.
+- Composition (Phase 7): `createScriptRunner` accepts a `CompiledScriptBundle`
+  in addition to a single `CompiledScriptObject`. Mounts one `DepRunner`
+  per private dep and one `SiblingRunner` per drawn export; runs deps then
+  siblings then primary each bar; filters emissions per export-status
+  (private dep visuals dropped, sibling visuals forwarded with
+  `export:<name>/` slot-id prefix). Dep halts drop the primary's bar.
+- Internal subpath `@invinite-org/chartlang-runtime/internal`: exports
+  `__chartlang_depOutput` for compiler-emitted bundles. Not a script-author
+  surface.
 
 ## Minimum-viable API call
 

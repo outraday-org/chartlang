@@ -41,36 +41,64 @@ export type StreamSnapshot = Readonly<{
 }>;
 
 /**
+ * Per-runner persistence section. Carries one runner's `state.*`
+ * (and primary-only TA) slot map keyed by `${slotIdPrefix}${slotId}:state`
+ * (PLAN.md §5.5 + Task 5). `slots` is `JsonValue` so the snapshot
+ * round-trips through `JSON.stringify` and structured-clone.
+ *
+ * Used inside {@link StateSnapshot} for `primary`,
+ * `siblings[exportName]`, and `dependencies[localId]` sections —
+ * one section per runner mounted by a `CompiledScriptBundle`.
+ *
+ * @since 0.7
+ * @stable
+ * @example
+ *     const r: RunnerSnapshot = {
+ *         slots: { "x:state": { committed: 1, tentative: 1 } },
+ *     };
+ *     void r;
+ */
+export type RunnerSnapshot = Readonly<{
+    slots: Readonly<Record<string, JsonValue>>;
+}>;
+
+/**
  * Canonical persistent-store snapshot.
  *
  * Written on `dispose()` and on every `kind: "close"` event when stale for
- * at least 60 seconds (PLAN.md §6.9). `slots` carries every stateful
- * primitive's per-callsite payload keyed by the compiler-injected slot id
- * (PLAN.md §5.5). Each value is `JsonValue`; primitive authors with non-JSON
- * internal state register serialisation hooks in the runtime layer.
+ * at least 60 seconds (PLAN.md §6.9). Each runner's `state.*` payload is
+ * keyed by the compiler-injected slot id with the runner's
+ * `slotIdPrefix` prepended (PLAN.md §5.5 + Task 5). Primary-runner TA
+ * slots live in `primary.slots` alongside `state.*` slots (the bundle's
+ * deps + siblings share the primary's mainStream, so TA slots have no
+ * per-runner section).
  *
- * `snapshotVersion: 1` is the only currently-supported wire version. A future
- * schema change must bump this literal so the runtime can drop snapshots with
- * mismatched versions on load.
+ * `snapshotVersion: 1` is the only currently-supported wire version.
+ * The 0.7 widening is additive — the runtime validator accepts both the
+ * legacy flat `slots:` shape (loaded as primary-only) and the structured
+ * `primary` / `siblings?` / `dependencies?` shape (always written going
+ * forward).
  *
- * @since 0.5
+ * @since 0.5 — widened to per-runner sections in 0.7
  * @stable
  * @example
  *     const s: StateSnapshot = {
  *         lastBarTime: 1_700_000_000_000,
  *         streams: {},
- *         slots: {},
  *         savedAt: 1_700_000_060_000,
  *         snapshotVersion: 1,
+ *         primary: { slots: {} },
  *     };
  *     void s;
  */
 export type StateSnapshot = Readonly<{
     lastBarTime: number;
     streams: Readonly<Record<string, StreamSnapshot>>;
-    slots: Readonly<Record<string, JsonValue>>;
     savedAt: number;
     snapshotVersion: 1;
+    primary: RunnerSnapshot;
+    siblings?: Readonly<Record<string, RunnerSnapshot>>;
+    dependencies?: Readonly<Record<string, RunnerSnapshot>>;
 }>;
 
 /**

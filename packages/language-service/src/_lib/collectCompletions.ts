@@ -5,6 +5,9 @@ import ts from "typescript";
 
 import type { HoverRegistryEntry } from "../hoverRegistry.generated.js";
 import type { CompletionItem } from "../types.js";
+import { isInsideOutputStringLiteral } from "./isInsideOutputStringLiteral.js";
+import { isInsideWithInputsKey } from "./isInsideWithInputsKey.js";
+import { resolveDepInputsFor, resolveDepOutputsFor } from "./resolveDepAccessor.js";
 import { toHoverDoc } from "./toHoverDoc.js";
 
 /**
@@ -18,9 +21,34 @@ import { toHoverDoc } from "./toHoverDoc.js";
  */
 export function collectCompletions(
     source: string,
-    _offset: number,
+    offset: number,
     registry: Readonly<Record<string, HoverRegistryEntry>>,
 ): ReadonlyArray<CompletionItem> {
+    if (isInsideOutputStringLiteral(source, offset)) {
+        return Object.freeze(
+            resolveDepOutputsFor(source, offset).map((title) =>
+                Object.freeze({
+                    label: title,
+                    kind: "property" as const,
+                    insertText: title,
+                    detail: "Series<number> output",
+                }),
+            ),
+        );
+    }
+    if (isInsideWithInputsKey(source, offset)) {
+        return Object.freeze(
+            resolveDepInputsFor(source, offset).map((entry) =>
+                Object.freeze({
+                    label: entry.name,
+                    kind: "property" as const,
+                    insertText: entry.name,
+                    detail: `${entry.kind} (default: ${entry.defaultText})`,
+                }),
+            ),
+        );
+    }
+
     const registryItems = Object.values(registry).map(registryCompletion);
     const localItems = collectLocalIdentifiers(source).map((label) =>
         Object.freeze({

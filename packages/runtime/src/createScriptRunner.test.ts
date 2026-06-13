@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import { capabilities, mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
+import type { CandleEvent, Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { defineIndicator, input } from "@invinite-org/chartlang-core";
 import type { Bar } from "@invinite-org/chartlang-core";
-import { capabilities, mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
-import type { Capabilities, CandleEvent } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
 import { createScriptRunner } from "./createScriptRunner.js";
@@ -470,6 +470,31 @@ describe("createScriptRunner", () => {
             capabilities: makeCapabilities(),
         });
         await runner.onBarClose(makeBar(0));
+        await runner.dispose();
+    });
+
+    it("mounts a CompiledScriptBundle with sibling lacking an outputs field", async () => {
+        const sibling = defineIndicator({
+            name: "slow",
+            apiVersion: 1,
+            compute: () => undefined,
+        });
+        const primary = defineIndicator({
+            name: "primary",
+            apiVersion: 1,
+            compute: () => undefined,
+        });
+        const bundle = Object.freeze({
+            primary,
+            dependencies: [],
+            siblings: [{ exportName: "slow", compiled: sibling }],
+        });
+        const runner = createScriptRunner({
+            compiled: bundle,
+            capabilities: makeCapabilities(),
+        });
+        await runner.onBarClose(makeBar(0));
+        expect(runner.drain().diagnostics).toHaveLength(0);
         await runner.dispose();
     });
 

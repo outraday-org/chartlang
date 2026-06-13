@@ -126,4 +126,56 @@ export default defineIndicator({
             /__chartlang_depOutput\("demo\.chart\.ts:\d+:\d+#0", "layered", "line"\)/,
         );
     });
+
+    it("strips the withInputs chain from cross-file alias declarations", () => {
+        // Cross-file alias `const trend = baseTrend.withInputs({...})`
+        // must lower to `const trend = baseTrend;` at compile time so
+        // the runtime sentinel (`baseTrend.withInputs` throws when
+        // called outside the compiler pipeline) never fires when the
+        // bundle is loaded. The merged effective inputs flow into the
+        // dep runner through `__dependencies[i].inputOverrides`.
+        const text = rewrite(
+            `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+import baseTrend from "./base-trend.chart";
+const trend = baseTrend.withInputs({ length: 14 });
+export default defineIndicator({
+    name: "Main",
+    apiVersion: 1,
+    compute: () => { void trend.output("line"); },
+});
+`,
+            () => ({
+                name: "Base",
+                outputs: [{ title: "line", kind: "series-number" }],
+                inputs: { length: { kind: "int", defaultValue: 14 } },
+            }),
+        );
+        // The chained `.withInputs(...)` call is gone, leaving a bare
+        // reference to the import binding.
+        expect(text).not.toMatch(/baseTrend\.withInputs/);
+        expect(text).toMatch(/const trend = baseTrend;/);
+    });
+
+    it("strips a multi-link withInputs chain on a same-file alias", () => {
+        // Two .withInputs(...) layers on a same-file private dep
+        // collapse to the bare root identifier.
+        const text = rewrite(`
+import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+const base = defineIndicator({
+    name: "Base",
+    apiVersion: 1,
+    inputs: { length: { kind: "int", defaultValue: 14 } },
+    compute: ({ bar }) => { plot(ta.ema(bar.close, 10), { title: "line" }); },
+});
+const layered = base.withInputs({ length: 5 }).withInputs({ length: 21 });
+export default defineIndicator({
+    name: "Main",
+    apiVersion: 1,
+    compute: () => { void layered.output("line"); },
+});
+`);
+        expect(text).not.toMatch(/base\.withInputs/);
+        expect(text).toMatch(/const layered = base;/);
+    });
 });

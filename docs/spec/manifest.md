@@ -35,6 +35,11 @@ MUST round-trip through `JSON.stringify` and `structuredClone` unchanged.
 | `requiresIntervals` | No | string array | Author-declared interval ids that must exist in adapter `Capabilities.intervals`. Sorted and deduplicated in compiled sidecars. |
 | `shortName` | No | string | Compact legend or chip label. Missing means hosts derive a short label from `name`. |
 | `alertConditions` | No | alert-condition descriptor array | Static condition list for `defineAlertCondition` scripts. |
+| `dependencies` | No | dependency-declaration array | Each `<binding>.output(...)` read in `compute` records one entry. Producer name, outputs, and effective input overrides are static. Optional; absent on scripts that have no deps. `@since 0.7`. |
+| `outputs` | No | output-declaration array | Titles + kinds of every `plot(value, { title })` call this script makes. Consumed by downstream scripts via `<binding>.output("title")`. Optional; absent on scripts whose `plot` calls have no titles. `@since 0.7`. |
+| `exportName` | No | string | The module-export binding name when the file declares multiple drawn indicators — `"default"` for the default export, the local name for `export const foo`. Absent on single-script files for byte-identical back-compat. `@since 0.7`. |
+| `siblings` | No | script-manifest array | Every other drawn manifest in the same compiled file. Populated only on the default manifest's emission to the host when the array sidecar form is used. `@since 0.7`. |
+| `isDrawn` | No | boolean | `true` when the binding is part of the module's exported surface (default or named) and the host should mount + render it. `false` for private `const` deps acting only as data feeds. `@since 0.7`. |
 
 `maxDrawings` is part of the public `ScriptManifest` type and of manifests
 returned by the script constructors. The current compiler sidecar builder does
@@ -84,6 +89,39 @@ Each `alertConditions` entry has this shape:
 `AlertConditionEmission.conditionId` MUST match one manifest
 `alertConditions[].id`. Unknown ids are invalid runtime signals and produce
 `unknown-alert-condition`.
+
+### Indicator Dependencies
+
+`dependencies`, `outputs`, `exportName`, `siblings`, and `isDrawn` are
+additive optional fields introduced by indicator composition. Single-
+script files emit byte-identical manifests when none of the new fields
+apply.
+
+Each `dependencies[]` entry has this shape:
+
+| Field | Required | Type | Meaning |
+| --- | --- | --- | --- |
+| `localId` | Yes | non-empty string | The consumer-side `const` binding name. Doubles as the dep id at runtime. |
+| `producerName` | Yes | string | The producer's `defineIndicator(...)` `name`. Display label only. |
+| `producerSourcePath` | Yes | string | Where the producer was declared. Same-file producers carry the consumer's `sourcePath`; cross-file imports carry the import specifier. |
+| `producerExportName` | Yes | string | Which export of the producer module is bound — `"default"` for cross-file `import X from "./Y.chart"`, the binding name for same-file `const X = defineIndicator(...)`. |
+| `effectiveInputs` | Yes | record of JSON values | The folded `withInputs` overrides the consumer applied. Empty object when no `withInputs` was chained. |
+| `outputs` | Yes | output-declaration array | The producer's titled outputs the consumer may read. |
+| `isDrawn` | Yes | boolean | `true` when the dep is also a drawn export of the same file; `false` for private `const` deps. |
+
+Each `outputs[]` entry has this shape:
+
+| Field | Required | Type | Meaning |
+| --- | --- | --- | --- |
+| `title` | Yes | non-empty string | Plot title from the producer's `plot(value, { title })` call. |
+| `kind` | Yes | `"series-number"` | The runtime view type returned by `<binding>.output(title)`. Frozen at `"series-number"` for `apiVersion: 1`. |
+
+The compiler's sidecar is a single `ScriptManifest` when the file declares
+exactly one drawn indicator and a `ReadonlyArray<ScriptManifest>` when two
+or more drawn indicators co-exist. In the array form, the first entry is
+the default export's manifest; subsequent entries are the named exports.
+The default's `siblings` field is omitted in the array form (the array
+itself is the sibling surface).
 
 ## Input Descriptors
 

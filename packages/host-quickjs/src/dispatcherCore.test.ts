@@ -3,7 +3,11 @@
 
 import { capabilities as capsHelpers } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities, RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
-import type { CompiledScriptObject, ScriptManifest } from "@invinite-org/chartlang-core";
+import type {
+    CompiledScriptBundle,
+    CompiledScriptObject,
+    ScriptManifest,
+} from "@invinite-org/chartlang-core";
 import { describe, expect, it, vi } from "vitest";
 
 import { createDispatcher, type DispatcherDeps } from "./dispatcherCore.js";
@@ -98,20 +102,41 @@ function makeFakeRunner(opts?: {
 }
 
 type Slot = { value: CompiledScriptObject | undefined };
+type NamedSlot = { value: Readonly<Record<string, CompiledScriptObject>> | undefined };
+type DepsSlot = {
+    value:
+        | ReadonlyArray<{ readonly localId: string; readonly compiled: CompiledScriptObject }>
+        | undefined;
+};
+type ManifestSlot = {
+    value: ScriptManifest | ReadonlyArray<ScriptManifest> | undefined;
+};
 
 function makeDeps(opts?: {
     slot?: Slot;
     runner?: FakeRunner;
     loadEvalThrow?: Error;
     skipSetDefault?: boolean;
+    bundleSeed?: (
+        defaultSlot: Slot,
+        named: NamedSlot,
+        deps: DepsSlot,
+        manifest: ManifestSlot,
+    ) => void;
 }): {
     deps: DispatcherDeps;
     runner: FakeRunner;
     slot: Slot;
+    named: NamedSlot;
+    depsSlot: DepsSlot;
+    manifestSlot: ManifestSlot;
     loadEval: ReturnType<typeof vi.fn>;
     runnerFactory: ReturnType<typeof vi.fn>;
 } {
     const slot: Slot = opts?.slot ?? { value: undefined };
+    const named: NamedSlot = { value: undefined };
+    const depsSlot: DepsSlot = { value: undefined };
+    const manifestSlot: ManifestSlot = { value: undefined };
     const runner = opts?.runner ?? makeFakeRunner();
     const compiledStub: CompiledScriptObject = {
         manifest: makeManifest(),
@@ -119,6 +144,10 @@ function makeDeps(opts?: {
     };
     const loadEval = vi.fn((_source: string) => {
         if (opts?.loadEvalThrow !== undefined) throw opts.loadEvalThrow;
+        if (opts?.bundleSeed !== undefined) {
+            opts.bundleSeed(slot, named, depsSlot, manifestSlot);
+            return undefined;
+        }
         if (!opts?.skipSetDefault) {
             slot.value = compiledStub;
         }
@@ -134,8 +163,20 @@ function makeDeps(opts?: {
         setCompiledDefault: (v) => {
             slot.value = v;
         },
+        getCompiledNamed: () => named.value,
+        setCompiledNamed: (v) => {
+            named.value = v;
+        },
+        getCompiledDependencies: () => depsSlot.value,
+        setCompiledDependencies: (v) => {
+            depsSlot.value = v;
+        },
+        getCompiledManifest: () => manifestSlot.value,
+        setCompiledManifest: (v) => {
+            manifestSlot.value = v;
+        },
     };
-    return { deps, runner, slot, loadEval, runnerFactory };
+    return { deps, runner, slot, named, depsSlot, manifestSlot, loadEval, runnerFactory };
 }
 
 function loadFrame(extra: Partial<Extract<HostToQuickJs, { kind: "load" }>> = {}): string {
@@ -291,6 +332,161 @@ describe("createDispatcher", () => {
             const handlers = createDispatcher(deps);
             const reply = JSON.parse(await handlers.load(loadFrame()));
             expect(reply).toEqual({ kind: "loadError", message: "stringy boom" });
+        });
+
+        it("mounts a multi-export bundle when the manifest sidecar is an array", async () => {
+            // §22.10 indicator-composition: the guest's rewritten module
+            // assigns both `default` and one or more named exports into
+            // host-realm-visible globals; the dispatcher reads them back
+            // and packages a `CompiledScriptBundle` for the runtime.
+            const primary: CompiledScriptObject = {
+                manifest: makeManifest(),
+                compute: () => {},
+            };
+            const sibling: CompiledScriptObject = {
+                manifest: { ...makeManifest(), name: "sibling" },
+                compute: () => {},
+            };
+            const manifest: ReadonlyArray<ScriptManifest> = [
+                { ...makeManifest(), exportName: "default", isDrawn: true },
+                { ...makeManifest(), name: "sibling", exportName: "sibling", isDrawn: true },
+            ];
+            const { deps, runnerFactory } = makeDeps({
+                bundleSeed: (defaultSlot, named, _depsSlot, manifestSlot) => {
+                    defaultSlot.value = primary;
+                    named.value = { sibling };
+                    manifestSlot.value = manifest;
+                },
+            });
+            const handlers = createDispatcher(deps);
+            const reply = JSON.parse(await handlers.load(loadFrame()));
+            expect(reply).toEqual({ kind: "loaded" });
+            const args = runnerFactory.mock.calls[0][0] as Parameters<
+                DispatcherDeps["runnerFactory"]
+            >[0];
+            const bundle = args.compiled as CompiledScriptBundle;
+            expect(bundle.primary).toBe(primary);
+            expect(bundle.siblings).toHaveLength(1);
+            expect(bundle.siblings[0]).toEqual({ exportName: "sibling", compiled: sibling });
+            expect(bundle.dependencies).toEqual([]);
+        });
+
+        it("mounts a bundle when the guest emits __dependencies even without an array manifest", async () => {
+            const primary: CompiledScriptObject = {
+                manifest: makeManifest(),
+                compute: () => {},
+            };
+            const dep: CompiledScriptObject = {
+                manifest: { ...makeManifest(), name: "base" },
+                compute: () => {},
+            };
+            const { deps, runnerFactory } = makeDeps({
+                bundleSeed: (defaultSlot, _named, depsSlot, _manifestSlot) => {
+                    defaultSlot.value = primary;
+                    depsSlot.value = [{ localId: "base", compiled: dep }];
+                },
+            });
+            const handlers = createDispatcher(deps);
+            const reply = JSON.parse(await handlers.load(loadFrame()));
+            expect(reply).toEqual({ kind: "loaded" });
+            const args = runnerFactory.mock.calls[0][0] as Parameters<
+                DispatcherDeps["runnerFactory"]
+            >[0];
+            const bundle = args.compiled as CompiledScriptBundle;
+            expect(bundle.primary).toBe(primary);
+            expect(bundle.siblings).toEqual([]);
+            expect(bundle.dependencies).toEqual([{ localId: "base", compiled: dep }]);
+        });
+
+        it("forwards __dependencies inputOverrides through to the bundle", async () => {
+            // §22.10 indicator-composition: a cross-file consumer's
+            // merged `.withInputs({...})` overrides are baked into the
+            // compiled `__dependencies[i].inputOverrides` slot. The
+            // dispatcher must preserve them on the bundle so the
+            // runtime mounts the dep with the consumer-supplied values.
+            const primary: CompiledScriptObject = {
+                manifest: makeManifest(),
+                compute: () => {},
+            };
+            const dep: CompiledScriptObject = {
+                manifest: { ...makeManifest(), name: "base" },
+                compute: () => {},
+            };
+            const { deps, runnerFactory } = makeDeps({
+                bundleSeed: (defaultSlot, _named, depsSlot, _manifestSlot) => {
+                    defaultSlot.value = primary;
+                    depsSlot.value = [
+                        { localId: "base", compiled: dep, inputOverrides: { length: 30 } },
+                    ];
+                },
+            });
+            const handlers = createDispatcher(deps);
+            const reply = JSON.parse(await handlers.load(loadFrame()));
+            expect(reply).toEqual({ kind: "loaded" });
+            const args = runnerFactory.mock.calls[0][0] as Parameters<
+                DispatcherDeps["runnerFactory"]
+            >[0];
+            const bundle = args.compiled as CompiledScriptBundle;
+            expect(bundle.dependencies).toEqual([
+                { localId: "base", compiled: dep, inputOverrides: { length: 30 } },
+            ]);
+        });
+
+        it("skips a sibling entry when its named export is missing from the global map", async () => {
+            // The dispatcher tolerates a malformed bundle (manifest
+            // promises a sibling but the guest never seeded the named
+            // export). The primary still loads; the sibling is dropped.
+            const primary: CompiledScriptObject = {
+                manifest: makeManifest(),
+                compute: () => {},
+            };
+            const manifest: ReadonlyArray<ScriptManifest> = [
+                { ...makeManifest(), exportName: "default", isDrawn: true },
+                { ...makeManifest(), name: "missing", exportName: "missing", isDrawn: true },
+            ];
+            const { deps, runnerFactory } = makeDeps({
+                bundleSeed: (defaultSlot, named, _depsSlot, manifestSlot) => {
+                    defaultSlot.value = primary;
+                    // Crucially: `missing` is NOT in the named map.
+                    named.value = {};
+                    manifestSlot.value = manifest;
+                },
+            });
+            const handlers = createDispatcher(deps);
+            const reply = JSON.parse(await handlers.load(loadFrame()));
+            expect(reply).toEqual({ kind: "loaded" });
+            const args = runnerFactory.mock.calls[0][0] as Parameters<
+                DispatcherDeps["runnerFactory"]
+            >[0];
+            const bundle = args.compiled as CompiledScriptBundle;
+            expect(bundle.siblings).toEqual([]);
+        });
+
+        it("skips entries that omit exportName or name the default export", async () => {
+            const primary: CompiledScriptObject = {
+                manifest: makeManifest(),
+                compute: () => {},
+            };
+            const manifest: ReadonlyArray<ScriptManifest> = [
+                { ...makeManifest(), exportName: "default", isDrawn: true },
+                { ...makeManifest(), name: "no-export-name" },
+                { ...makeManifest(), name: "default-dup", exportName: "default" },
+            ];
+            const { deps, runnerFactory } = makeDeps({
+                bundleSeed: (defaultSlot, named, _depsSlot, manifestSlot) => {
+                    defaultSlot.value = primary;
+                    named.value = {};
+                    manifestSlot.value = manifest;
+                },
+            });
+            const handlers = createDispatcher(deps);
+            const reply = JSON.parse(await handlers.load(loadFrame()));
+            expect(reply).toEqual({ kind: "loaded" });
+            const args = runnerFactory.mock.calls[0][0] as Parameters<
+                DispatcherDeps["runnerFactory"]
+            >[0];
+            const bundle = args.compiled as CompiledScriptBundle;
+            expect(bundle.siblings).toEqual([]);
         });
     });
 

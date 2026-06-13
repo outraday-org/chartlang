@@ -8,11 +8,22 @@ import type {
 } from "@invinite-org/chartlang-adapter-kit";
 import type {
     Bar,
+    CompiledScriptBundle,
     CompiledScriptObject,
     ComputeFn,
     ScriptManifest,
 } from "@invinite-org/chartlang-core";
+import { isCompiledScriptBundle } from "@invinite-org/chartlang-core";
 
+import {
+    type DepOutputStore,
+    type DepRunner,
+    type SiblingRunner,
+    createDepOutputStore,
+    createDepRunner,
+    createSiblingRunner,
+    installDepOutputGlobal,
+} from "./dep/index.js";
 import { pushDiagnostic } from "./emit/index.js";
 import {
     dispose as disposeImpl,
@@ -62,6 +73,32 @@ export type RunnerState = {
     readonly mainStream: StreamState;
     readonly runtimeContext: RuntimeContext;
     readonly emissions: MutableRunnerEmissions;
+    /**
+     * Sub-runners for every private dep entry of a
+     * `CompiledScriptBundle`. Empty array for single-script callers.
+     * Walked in declaration order before the primary's compute each
+     * bar. @since 0.7
+     */
+    readonly depRunners: ReadonlyArray<DepRunner>;
+    /**
+     * Sub-runners for every drawn named-export entry of a
+     * `CompiledScriptBundle`. Empty for single-script callers.
+     * Walked in declaration order after deps, before the primary's
+     * compute. @since 0.7
+     */
+    readonly siblingRunners: ReadonlyArray<SiblingRunner>;
+    /**
+     * Shared titled-output buffer for the bundle. `null` for
+     * single-script callers (no deps to read from). @since 0.7
+     */
+    readonly depOutputStore: DepOutputStore | null;
+    /**
+     * Per-bar flag set by `runDepStep` when any dep halts. Read by
+     * `onBarClose` / `onBarTick` after the primary's compute returns,
+     * clearing the primary's plot/drawing/alert queues. Reset at the
+     * top of every bar. @since 0.7
+     */
+    depErroredThisBar: boolean;
     barIndex: number;
 };
 
@@ -114,7 +151,15 @@ export type ScriptRunner = {
  *     // };
  */
 export type CreateScriptRunnerArgs = {
-    readonly compiled: CompiledScriptObject;
+    /**
+     * Either a single `CompiledScriptObject` (Phase-1 contract — preserved
+     * byte-identically) or a `CompiledScriptBundle` whose primary script
+     * is mounted alongside one `DepRunner` per private dep entry and one
+     * `SiblingRunner` per drawn named export.
+     *
+     * @since 0.1 — widened to bundle in 0.7
+     */
+    readonly compiled: CompiledScriptObject | CompiledScriptBundle;
     readonly capabilities: Capabilities;
     readonly stateStore?: StateStore;
     readonly persistentStateStore?: PersistentStateStore;
@@ -188,30 +233,17 @@ function pushSecondaryEvent(state: RunnerState, streamKey: string, event: Candle
     }
 }
 
-/**
- * Build a `ScriptRunner` for a compiled chartlang script. The runner
- * owns one `StreamState`, one `MutableRunnerEmissions` queue set, and
- * the `RuntimeContext` Task 7-8 primitives read through
- * `ACTIVE_RUNTIME_CONTEXT`. Phase 1 ships a single-stream model; the
- * `requestedIntervals` field on the manifest is always empty.
- *
- * Capacity sizing follows PLAN §6.6: prefer
- * `manifest.seriesCapacities.ohlcv` (compiler-emitted per-series
- * lookback) and fall back to `manifest.maxLookback + 1`, clamped to a
- * minimum of 1 so an empty-history script still has a valid head slot.
- *
- * @since 0.1
- * @example
- *     // import { createScriptRunner } from "@invinite-org/chartlang-runtime";
- *     // const runner = createScriptRunner({ compiled, capabilities });
- *     // await runner.onHistory([]);
- *     // runner.drain();
- *     // runner.dispose();
- */
-export function createScriptRunner(args: CreateScriptRunnerArgs): ScriptRunner {
-    const capacity = resolveCapacity(args.compiled.manifest);
+function primaryOf(compiled: CompiledScriptObject | CompiledScriptBundle): CompiledScriptObject {
+    return isCompiledScriptBundle(compiled) ? compiled.primary : compiled;
+}
+
+function buildPrimaryState(
+    args: CreateScriptRunnerArgs,
+    primary: CompiledScriptObject,
+): RunnerState {
+    const capacity = resolveCapacity(primary.manifest);
     const mainStream = createStreamState({ interval: "", capacity, symbol: "" });
-    const secondaryStreams = createSecondaryStreams(args.compiled.manifest, capacity);
+    const secondaryStreams = createSecondaryStreams(primary.manifest, capacity);
     const stateStore = args.stateStore ?? inMemoryStateStore();
     const now = args.now ?? Date.now;
     const views = createRuntimeViews({
@@ -228,15 +260,12 @@ export function createScriptRunner(args: CreateScriptRunnerArgs): ScriptRunner {
         toBar: 0,
     };
     const alertConditions = new Map(
-        (args.compiled.manifest.alertConditions ?? []).map((condition) => [
-            condition.id,
-            condition,
-        ]),
+        (primary.manifest.alertConditions ?? []).map((condition) => [condition.id, condition]),
     );
 
     const state: RunnerState = {
-        manifest: args.compiled.manifest,
-        compute: args.compiled.compute,
+        manifest: primary.manifest,
+        compute: primary.compute,
         capabilities: args.capabilities,
         stateStore,
         persistenceIntervalMs: args.persistenceIntervalMs ?? PERSISTENCE_INTERVAL_MS,
@@ -262,7 +291,7 @@ export function createScriptRunner(args: CreateScriptRunnerArgs): ScriptRunner {
                 polylines: 0,
                 other: 0,
             },
-            scriptMaxDrawings: args.compiled.manifest.maxDrawings ?? null,
+            scriptMaxDrawings: primary.manifest.maxDrawings ?? null,
             stateSlots: new Map(),
             secondaryStreams,
             requestSecurityBars: new Map(),
@@ -279,17 +308,107 @@ export function createScriptRunner(args: CreateScriptRunnerArgs): ScriptRunner {
             views,
         },
         emissions,
+        depRunners: [],
+        siblingRunners: [],
+        depOutputStore: null,
+        depErroredThisBar: false,
         barIndex: 0,
     };
     const overrides =
-        args.inputOverrides ??
-        args.resolveInputs?.(args.compiled.manifest.name) ??
-        Object.freeze({});
+        args.inputOverrides ?? args.resolveInputs?.(primary.manifest.name) ?? Object.freeze({});
     state.runtimeContext.resolvedInputs = resolveInputs(
-        args.compiled.manifest,
+        primary.manifest,
         overrides,
         state.runtimeContext,
     );
+    return state;
+}
+
+function attachBundle(
+    primary: RunnerState,
+    bundle: CompiledScriptBundle,
+    capabilities: Capabilities,
+    now: () => number,
+): void {
+    const consumerLookback = Math.max(
+        primary.manifest.maxLookback,
+        ...bundle.siblings.map((s) => s.compiled.manifest.maxLookback),
+    );
+    const storeCapacity = Math.max(1, consumerLookback + 1);
+    const producers = [
+        ...bundle.dependencies.map((d) => ({
+            producerId: d.localId,
+            outputs: (d.compiled.manifest.outputs ?? []).map((o) => ({
+                title: o.title,
+            })),
+        })),
+        ...bundle.siblings.map((s) => ({
+            producerId: s.exportName,
+            outputs: (s.compiled.manifest.outputs ?? []).map((o) => ({
+                title: o.title,
+            })),
+        })),
+    ];
+    const store = createDepOutputStore({ producers, capacity: storeCapacity });
+    const depRunners: DepRunner[] = bundle.dependencies.map((entry) =>
+        createDepRunner({
+            compiled: entry.compiled,
+            localId: entry.localId,
+            parentCapabilities: capabilities,
+            mainStream: primary.mainStream,
+            secondaryStreams: primary.runtimeContext.secondaryStreams,
+            depOutputStore: store,
+            inputOverrides: entry.inputOverrides ?? Object.freeze({}),
+            now,
+        }),
+    );
+    const siblingRunners: SiblingRunner[] = bundle.siblings.map((entry) =>
+        createSiblingRunner({
+            compiled: entry.compiled,
+            exportName: entry.exportName,
+            parentCapabilities: capabilities,
+            mainStream: primary.mainStream,
+            secondaryStreams: primary.runtimeContext.secondaryStreams,
+            depOutputStore: store,
+            inputOverrides: Object.freeze({}),
+            now,
+        }),
+    );
+    Object.assign(primary, {
+        depRunners,
+        siblingRunners,
+        depOutputStore: store,
+    });
+    primary.runtimeContext.depOutputStore = store;
+    installDepOutputGlobal();
+}
+
+/**
+ * Build a `ScriptRunner` for a compiled chartlang script. The runner
+ * owns one `StreamState`, one `MutableRunnerEmissions` queue set, and
+ * the `RuntimeContext` Task 7-8 primitives read through
+ * `ACTIVE_RUNTIME_CONTEXT`. Phase 1 ships a single-stream model; the
+ * `requestedIntervals` field on the manifest is always empty.
+ *
+ * Capacity sizing follows PLAN §6.6: prefer
+ * `manifest.seriesCapacities.ohlcv` (compiler-emitted per-series
+ * lookback) and fall back to `manifest.maxLookback + 1`, clamped to a
+ * minimum of 1 so an empty-history script still has a valid head slot.
+ *
+ * @since 0.1 — widened to accept `CompiledScriptBundle` in 0.7.
+ * @example
+ *     // import { createScriptRunner } from "@invinite-org/chartlang-runtime";
+ *     // const runner = createScriptRunner({ compiled, capabilities });
+ *     // await runner.onHistory([]);
+ *     // runner.drain();
+ *     // runner.dispose();
+ */
+export function createScriptRunner(args: CreateScriptRunnerArgs): ScriptRunner {
+    const primary = primaryOf(args.compiled);
+    const state = buildPrimaryState(args, primary);
+    if (isCompiledScriptBundle(args.compiled)) {
+        attachBundle(state, args.compiled, args.capabilities, state.now);
+    }
 
     return Object.freeze({
         async onHistory(bars) {

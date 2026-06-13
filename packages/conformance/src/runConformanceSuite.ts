@@ -19,7 +19,12 @@ import type {
     RuntimeDiagnostic,
 } from "@invinite-org/chartlang-adapter-kit";
 import { compile as defaultCompile, type CompiledScript } from "@invinite-org/chartlang-compiler";
-import type { Bar, CompiledScriptObject } from "@invinite-org/chartlang-core";
+import type {
+    Bar,
+    CompiledScriptBundle,
+    CompiledScriptObject,
+    ScriptManifest,
+} from "@invinite-org/chartlang-core";
 import { createScriptRunner } from "@invinite-org/chartlang-runtime";
 
 import { GOLDEN_BARS_PATH, type GoldenBars } from "./fixtures/generateGoldenBars.js";
@@ -72,6 +77,17 @@ export type Scenario = {
      * {@link Scenario.scriptPath}. `@since 0.2`.
      */
     readonly inlineSource?: string;
+    /**
+     * Extra `.chart.ts` source files written next to the inline
+     * consumer's compile-time directory so its
+     * `import "./producer.chart"` resolves through the compiler's
+     * default file-walking producer resolver. Map keys are paths
+     * relative to the consumer's tmp directory (`"./producer.chart.ts"`);
+     * values are the source text. Phase-7 indicator-composition
+     * cross-file scenarios use this. Only valid alongside
+     * {@link Scenario.inlineSource}. `@since 0.7`.
+     */
+    readonly additionalSources?: Readonly<Record<string, string>>;
     readonly intervalCount: number;
     readonly capabilitiesOverride?: Partial<Capabilities>;
     readonly candleLimit?: number;
@@ -394,49 +410,141 @@ async function pushRunnerEvent(
     await runner.push(event);
 }
 
-async function loadCompiledModule(
-    compiled: CompiledScript,
-    scenarioId: string,
-): Promise<CompiledScriptObject> {
-    await mkdir(CACHE_DIR, { recursive: true });
-    const suffix = randomBytes(8).toString("hex");
-    const tmpPath = resolvePath(CACHE_DIR, `${scenarioId}-${suffix}.mjs`);
-    await writeFile(tmpPath, compiled.moduleSource, "utf8");
-    try {
-        const url = pathToFileURL(tmpPath).href;
-        const mod = (await import(/* @vite-ignore */ url)) as {
-            readonly default: CompiledScriptObject;
-        };
-        return Object.freeze({
-            ...mod.default,
-            manifest: compiled.manifest,
-        });
-    } finally {
-        await rm(tmpPath, { force: true });
-    }
+type CompiledModuleExport = {
+    readonly default: CompiledScriptObject;
+    readonly __manifest?: ScriptManifest | ReadonlyArray<ScriptManifest>;
+    readonly __dependencies?: ReadonlyArray<{
+        readonly localId: string;
+        readonly compiled: CompiledScriptObject;
+    }>;
+    readonly [exportName: string]: unknown;
+};
+
+function isCompiledScriptObject(value: unknown): value is CompiledScriptObject {
+    /* v8 ignore next */
+    if (value === null || typeof value !== "object") return false;
+    const candidate = value as Readonly<Record<string, unknown>>;
+    return typeof candidate.compute === "function" && "manifest" in candidate;
 }
 
-async function resolveSource(scenario: Scenario): Promise<{
+function buildBundleFromModule(
+    mod: CompiledModuleExport,
+    primaryManifest: ScriptManifest,
+): CompiledScriptObject | CompiledScriptBundle {
+    const manifest = mod.__manifest;
+    const dependencies = mod.__dependencies ?? [];
+    const isBundle = Array.isArray(manifest) || dependencies.length > 0;
+    const primary: CompiledScriptObject = Object.freeze({
+        ...mod.default,
+        manifest: primaryManifest,
+    });
+    if (!isBundle) {
+        return primary;
+    }
+    const siblings: Array<{ readonly exportName: string; readonly compiled: CompiledScriptObject }> =
+        [];
+    if (Array.isArray(manifest)) {
+        for (let i = 1; i < manifest.length; i += 1) {
+            const entry = manifest[i];
+            const exportName = entry.exportName;
+            /* v8 ignore next */
+            if (exportName === undefined || exportName === "default") continue;
+            const compiled = mod[exportName];
+            /* v8 ignore next */
+            if (!isCompiledScriptObject(compiled)) continue;
+            siblings.push(Object.freeze({ exportName, compiled }));
+        }
+    }
+    return Object.freeze({
+        primary,
+        siblings: Object.freeze(siblings),
+        dependencies: Object.freeze(
+            dependencies.map((d) => Object.freeze({ localId: d.localId, compiled: d.compiled })),
+        ),
+    });
+}
+
+async function loadCompiledModuleAt(
+    compiled: CompiledScript,
+    tmpPath: string,
+): Promise<CompiledScriptObject | CompiledScriptBundle> {
+    await writeFile(tmpPath, compiled.moduleSource, "utf8");
+    const url = pathToFileURL(tmpPath).href;
+    const mod = (await import(/* @vite-ignore */ url)) as CompiledModuleExport;
+    return buildBundleFromModule(mod, compiled.manifest);
+}
+
+type ResolvedSource = {
     readonly source: string;
     readonly sourcePath: string;
-}> {
+    /**
+     * Per-scenario tmp directory the runner created so the compiler's
+     * default file-walking producer resolver can pick up
+     * {@link Scenario.additionalSources}. `null` when the scenario
+     * does not need a writable workspace (every existing scenario).
+     */
+    readonly workspaceDir: string | null;
+    /** Absolute path of the bundle's tmp `.mjs` file. */
+    readonly bundlePath: string;
+};
+
+async function resolveSource(scenario: Scenario): Promise<ResolvedSource> {
     const hasScriptPath = scenario.scriptPath !== undefined;
     const hasInlineSource = scenario.inlineSource !== undefined;
     if (hasScriptPath && hasInlineSource) {
         throw new Error(`Scenario "${scenario.id}" cannot define both scriptPath and inlineSource`);
     }
+    if (!hasScriptPath && !hasInlineSource) {
+        throw new Error(
+            `Scenario "${scenario.id}" must define either scriptPath or inlineSource`,
+        );
+    }
+    if (scenario.additionalSources !== undefined && !hasInlineSource) {
+        throw new Error(
+            `Scenario "${scenario.id}" additionalSources requires inlineSource`,
+        );
+    }
+    await mkdir(CACHE_DIR, { recursive: true });
+    const suffix = randomBytes(8).toString("hex");
+    // Multi-file workspace: write inline + additionalSources to disk so the
+    // compiler's default producer resolver walks the directory tree.
+    if (scenario.inlineSource !== undefined && scenario.additionalSources !== undefined) {
+        const workspaceDir = resolvePath(CACHE_DIR, `${scenario.id}-${suffix}`);
+        await mkdir(workspaceDir, { recursive: true });
+        const inlinePath = resolvePath(workspaceDir, "inline.chart.ts");
+        await writeFile(inlinePath, scenario.inlineSource, "utf8");
+        for (const [relativePath, content] of Object.entries(scenario.additionalSources)) {
+            const absPath = resolvePath(workspaceDir, relativePath);
+            await mkdir(dirname(absPath), { recursive: true });
+            await writeFile(absPath, content, "utf8");
+        }
+        return {
+            source: scenario.inlineSource,
+            sourcePath: inlinePath,
+            workspaceDir,
+            bundlePath: resolvePath(workspaceDir, "bundle.mjs"),
+        };
+    }
     if (scenario.inlineSource !== undefined) {
         return {
             source: scenario.inlineSource,
             sourcePath: `<inline:${scenario.id}>.chart.ts`,
+            workspaceDir: null,
+            bundlePath: resolvePath(CACHE_DIR, `${scenario.id}-${suffix}.mjs`),
         };
     }
-    if (scenario.scriptPath !== undefined) {
-        const absScriptPath = resolveScriptPath(scenario.scriptPath);
-        const source = await readFile(absScriptPath, "utf8");
-        return { source, sourcePath: scenario.scriptPath };
+    /* v8 ignore next 3 — guarded by mutual-exclusion check above */
+    if (scenario.scriptPath === undefined) {
+        throw new Error(`Scenario "${scenario.id}" must define either scriptPath or inlineSource`);
     }
-    throw new Error(`Scenario "${scenario.id}" must define either scriptPath or inlineSource`);
+    const absScriptPath = resolveScriptPath(scenario.scriptPath);
+    const source = await readFile(absScriptPath, "utf8");
+    return {
+        source,
+        sourcePath: scenario.scriptPath,
+        workspaceDir: null,
+        bundlePath: resolvePath(CACHE_DIR, `${scenario.id}-${suffix}.mjs`),
+    };
 }
 
 async function runOne(
@@ -445,17 +553,26 @@ async function runOne(
     candles: ReadonlyArray<Bar>,
     compileFn: typeof defaultCompile,
 ): Promise<ReadonlyArray<ConformanceFailure>> {
-    const { source, sourcePath } = await resolveSource(scenario);
-    const compiled = await compileFn(source, {
-        apiVersion: 1,
-        sourcePath,
-    });
-
-    const scriptObj = await loadCompiledModule(compiled, scenario.id);
+    const resolved = await resolveSource(scenario);
+    let compiledScript: CompiledScriptObject | CompiledScriptBundle;
+    try {
+        const compiled = await compileFn(resolved.source, {
+            apiVersion: 1,
+            sourcePath: resolved.sourcePath,
+        });
+        compiledScript = await loadCompiledModuleAt(compiled, resolved.bundlePath);
+    } catch (error) {
+        if (resolved.workspaceDir !== null) {
+            await rm(resolved.workspaceDir, { recursive: true, force: true });
+        } else {
+            await rm(resolved.bundlePath, { force: true });
+        }
+        throw error;
+    }
 
     const capabilities = mergeCapabilities(adapter.capabilities, scenario.capabilitiesOverride);
     const runner: RunnerWithPush = createScriptRunner({
-        compiled: scriptObj,
+        compiled: compiledScript,
         capabilities,
         ...(adapter.symInfo === undefined ? {} : { symInfo: adapter.symInfo }),
         ...(adapter.resolveInputs === undefined ? {} : { resolveInputs: adapter.resolveInputs }),
@@ -507,6 +624,11 @@ async function runOne(
         }
     } finally {
         await runner.dispose();
+        if (resolved.workspaceDir !== null) {
+            await rm(resolved.workspaceDir, { recursive: true, force: true });
+        } else {
+            await rm(resolved.bundlePath, { force: true });
+        }
     }
 
     const run: BufferedRun = { plots, drawings, alerts, alertConditions, logs, diagnostics };

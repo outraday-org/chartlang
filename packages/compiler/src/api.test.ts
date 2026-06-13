@@ -4,7 +4,7 @@
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { EMA_CROSS } from "./__fixtures__/scripts.js";
+import { EMA_CROSS, MULTI_EXPORT_COMPOSITION } from "./__fixtures__/scripts.js";
 import { transformAndAnalyse } from "./api.js";
 
 function printFile(file: ts.SourceFile): string {
@@ -426,5 +426,50 @@ export default defineIndicator({
         );
         const codes = result.diagnostics.map((d) => d.code);
         expect(codes).toContain("dep-unknown-output");
+    });
+
+    it("populates `siblings` and stamps each manifest with exportName + isDrawn for multi-export files", () => {
+        const result = transformAndAnalyse(MULTI_EXPORT_COMPOSITION, {
+            sourcePath: "multi-export.chart.ts",
+        });
+        expect(result.siblings).toBeDefined();
+        expect(result.siblings).toHaveLength(1);
+        expect(result.manifest.exportName).toBe("default");
+        expect(result.manifest.isDrawn).toBe(true);
+        const sibling = result.siblings?.[0];
+        expect(sibling?.exportName).toBe("sibling");
+        expect(sibling?.isDrawn).toBe(true);
+        expect(sibling?.name).toBe("sibling");
+    });
+
+    it("omits `siblings` on single-script files (back-compat)", () => {
+        const result = transformAndAnalyse(EMA_CROSS, {
+            sourcePath: "ema-cross.chart.ts",
+        });
+        expect(result.siblings).toBeUndefined();
+        expect(result.manifest.exportName).toBeUndefined();
+        expect(result.manifest.isDrawn).toBeUndefined();
+    });
+
+    it("omits manifest.outputs when a drawn binding has no titled plots", () => {
+        const source = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export const sibling = defineIndicator({
+    name: "Sibling",
+    apiVersion: 1,
+    compute: () => {},
+});
+export default defineIndicator({
+    name: "Default",
+    apiVersion: 1,
+    compute: () => {},
+});
+`;
+        const result = transformAndAnalyse(source, {
+            sourcePath: "outputs-empty.chart.ts",
+        });
+        expect(result.manifest.outputs).toBeUndefined();
+        const sibling = result.siblings?.[0];
+        expect(sibling?.outputs).toBeUndefined();
     });
 });

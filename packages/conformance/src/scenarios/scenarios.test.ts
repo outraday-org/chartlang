@@ -114,6 +114,12 @@ function scenarioIds(scenarios: ReadonlyArray<Scenario>): ReadonlyArray<string> 
 }
 
 function scenarioSourcePath(scenario: Scenario): string {
+    if (scenario.additionalSources !== undefined) {
+        // Cross-file scenarios receive an absolute `inline.chart.ts`
+        // path under the runner's per-scenario tmp directory. The path
+        // is random per run, so we compare on a prefix-match instead.
+        return "__cross_file__";
+    }
     if (scenario.inlineSource !== undefined) return `<inline:${scenario.id}>.chart.ts`;
     if (scenario.scriptPath !== undefined) return scenario.scriptPath;
     throw new Error(`Scenario "${scenario.id}" must define either scriptPath or inlineSource`);
@@ -181,7 +187,10 @@ describe("bundled scenario constants", () => {
         });
 
         expect(report.passed + report.failed).toBe(ALL_SCENARIOS.length);
-        expect(visitedSourcePaths).toEqual(ALL_SCENARIOS.map(scenarioSourcePath));
+        const normalised = visitedSourcePaths.map((path, index) =>
+            ALL_SCENARIOS[index].additionalSources === undefined ? path : "__cross_file__",
+        );
+        expect(normalised).toEqual(ALL_SCENARIOS.map(scenarioSourcePath));
     });
 
     it.each([

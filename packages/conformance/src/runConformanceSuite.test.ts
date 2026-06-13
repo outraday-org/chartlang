@@ -21,6 +21,11 @@ import {
     DEFINE_ALERT_CONDITION_FIRES_SCENARIO,
     DEFINE_ALERT_CONDITION_GATED_SCENARIO,
     DEFINE_ALERT_CONDITION_UNKNOWN_SCENARIO,
+    DEP_CROSS_FILE_SCENARIO,
+    DEP_DIAMOND_SCENARIO,
+    DEP_ERROR_HALTS_PARENT_SCENARIO,
+    DEP_MULTI_EXPORT_SCENARIO,
+    DEP_PRIVATE_SINGLE_FILE_SCENARIO,
     DRAW_TABLE_GATED_SCENARIO,
     DRAW_TABLE_HAPPY_SCENARIO,
     EMA_CROSS_SCENARIO,
@@ -135,6 +140,7 @@ function makeNoopCompile(visitedSourcePaths?: string[]): typeof CompileFn {
 }
 
 function scenarioSourcePath(scenario: Scenario): string {
+    if (scenario.additionalSources !== undefined) return "__cross_file__";
     if (scenario.inlineSource !== undefined) return `<inline:${scenario.id}>.chart.ts`;
     if (scenario.scriptPath !== undefined) return scenario.scriptPath;
     throw new Error(`Scenario "${scenario.id}" must define either scriptPath or inlineSource`);
@@ -168,6 +174,14 @@ const PHASE_5_DRAW_TABLE_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     DRAW_TABLE_GATED_SCENARIO,
 ]);
 
+const PHASE_7_DEP_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
+    DEP_PRIVATE_SINGLE_FILE_SCENARIO,
+    DEP_MULTI_EXPORT_SCENARIO,
+    DEP_DIAMOND_SCENARIO,
+    DEP_ERROR_HALTS_PARENT_SCENARIO,
+    DEP_CROSS_FILE_SCENARIO,
+]);
+
 describe("runConformanceSuite", () => {
     it("defaults to every bundled scenario without running the full conformance gate", async () => {
         const visitedSourcePaths: string[] = [];
@@ -182,7 +196,10 @@ describe("runConformanceSuite", () => {
             ALL_SCENARIOS.map((scenario) => scenario.id),
         );
         expect(report.scenarios.every((scenario) => Object.isFrozen(scenario.failures))).toBe(true);
-        expect(visitedSourcePaths).toEqual(ALL_SCENARIOS.map(scenarioSourcePath));
+        const normalised = visitedSourcePaths.map((path, index) =>
+            ALL_SCENARIOS[index].additionalSources === undefined ? path : "__cross_file__",
+        );
+        expect(normalised).toEqual(ALL_SCENARIOS.map(scenarioSourcePath));
     });
 
     it("runs every Phase-4 scenario end-to-end", async () => {
@@ -226,6 +243,93 @@ describe("runConformanceSuite", () => {
         expect(report.passed).toBe(PHASE_5_DRAW_TABLE_SCENARIOS.length);
         expect(report.failures).toEqual([]);
     }, 60_000);
+
+    it("runs Phase-7 indicator-composition scenarios end-to-end", async () => {
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: PHASE_7_DEP_SCENARIOS,
+            candles: SMALL_BARS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(PHASE_7_DEP_SCENARIOS.length);
+        expect(report.failures).toEqual([]);
+    }, 60_000);
+
+    it("rejects a scenario that defines additionalSources without inlineSource", async () => {
+        const scenario: Scenario = Object.freeze({
+            id: "needs-inline",
+            title: "additionalSources without inlineSource",
+            scriptPath: "examples/scripts/ema-cross.chart.ts",
+            additionalSources: Object.freeze({ "./extra.chart.ts": "/* extra */" }),
+            intervalCount: 1,
+            assertions: Object.freeze([] as ReadonlyArray<ScenarioAssertion>),
+        });
+        await expect(
+            runConformanceSuite(makeAdapter(), {
+                scenarios: [scenario],
+                candles: SMALL_BARS.slice(0, 1),
+            }),
+        ).rejects.toThrow(/additionalSources requires inlineSource/);
+    });
+
+    it("cleans up the cross-file workspace on compile failure", async () => {
+        const scenario: Scenario = Object.freeze({
+            id: "cross-file-bad",
+            title: "cross-file workspace cleanup",
+            inlineSource: "this is not valid TS @@@",
+            additionalSources: Object.freeze({
+                "./producer.chart.ts": "// noop",
+            }),
+            intervalCount: 1,
+            assertions: Object.freeze([] as ReadonlyArray<ScenarioAssertion>),
+        });
+        await expect(
+            runConformanceSuite(makeAdapter(), {
+                scenarios: [scenario],
+                candles: SMALL_BARS.slice(0, 1),
+            }),
+        ).rejects.toThrow();
+    });
+
+    it("DEP_CROSS_FILE_SCENARIO ships additionalSources for the cross-file affordance", () => {
+        expect(DEP_CROSS_FILE_SCENARIO.additionalSources).toBeDefined();
+        expect(Object.keys(DEP_CROSS_FILE_SCENARIO.additionalSources ?? {})).toContain(
+            "./base-trend.chart.ts",
+        );
+        expect(DEP_CROSS_FILE_SCENARIO.inlineSource).toMatch(/import baseTrend from/);
+    });
+
+    it("Scenario.additionalSources success path cleans up the workspace after the run", async () => {
+        // Synthetic same-file scenario that uses additionalSources to
+        // exercise the runner's workspace-dir success cleanup branch.
+        // The extra file is a sibling module the consumer never imports.
+        const scenario: Scenario = Object.freeze({
+            id: "addl-sources-success",
+            title: "additionalSources success path",
+            inlineSource:
+                'import { defineIndicator } from "@invinite-org/chartlang-core";\n' +
+                'export default defineIndicator({\n' +
+                '    name: "addl",\n' +
+                '    apiVersion: 1,\n' +
+                '    compute({ bar, plot }) {\n' +
+                '        plot(bar.close);\n' +
+                '    },\n' +
+                '});\n',
+            additionalSources: Object.freeze({
+                "./sibling.chart.ts": "// unused producer\nexport const noop = 1;\n",
+            }),
+            intervalCount: 1,
+            candleLimit: 2,
+            assertions: Object.freeze([
+                { kind: "alert-count", count: 0 },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [scenario],
+            candles: SMALL_BARS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(1);
+    });
 
     it("extracts the input-interval scenario manifest contract", async () => {
         const { compile } = await import("@invinite-org/chartlang-compiler");

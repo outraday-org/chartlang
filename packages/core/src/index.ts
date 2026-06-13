@@ -200,7 +200,12 @@ export type {
 } from "./input/index.js";
 export { state } from "./state/index.js";
 export type { MutableSlot, StateNamespace } from "./state/index.js";
-export type { StateSnapshot, StateStoreKey, StreamSnapshot } from "./state/index.js";
+export type {
+    RunnerSnapshot,
+    StateSnapshot,
+    StateStoreKey,
+    StreamSnapshot,
+} from "./state/index.js";
 export { barstate, syminfo, timeframe } from "./views/index.js";
 export type { BarStateView, SymbolType, SymInfoView, TimeframeView } from "./views/index.js";
 export { request } from "./request/index.js";

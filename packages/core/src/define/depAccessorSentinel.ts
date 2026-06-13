@@ -24,8 +24,7 @@ import type { CompiledScriptObject, ComputeFn, ScriptManifest, Series } from "..
  */
 export const depAccessorSentinel = (name: string): never => {
     throw new Error(
-        `${name} can only be called on a compiled chartlang ` +
-            `indicator binding inside another indicator's compute body`,
+        `${name} can only be called on a compiled chartlang indicator binding inside another indicator's compute body`,
     );
 };
 

@@ -3,8 +3,10 @@
 //
 // Demo script catalogue. The first three mirror the Phase-1 examples in
 // `examples/scripts/`; "Smoothed RSI Cross" is demo-only and shows one
-// indicator's output feeding another (`ta.ema` of `ta.rsi`). Inlined as
-// strings so the demo does not need a build-time file read.
+// indicator's output feeding another (`ta.ema` of `ta.rsi`). "Trend
+// Composition" demonstrates Phase-7 indicator composition — one file
+// with a private dep, a named export, and a default-export consumer.
+// Inlined as strings so the demo does not need a build-time file read.
 
 export type DemoScript = Readonly<{
     id: string;
@@ -110,9 +112,53 @@ export default defineIndicator({
 });
 `;
 
+const TREND_COMPOSITION = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, input, plot, ta } from "@invinite-org/chartlang-core";
+
+// Private dep — bound to a local \`const\`, never exported. Mounted as a
+// data feed only; its own plots are dropped by the runtime filter.
+const baseTrend = defineIndicator({
+    name: "Base Trend",
+    apiVersion: 1,
+    overlay: true,
+    inputs: { length: input.int(20, { min: 2, max: 250 }) },
+    compute({ bar, ta, inputs, plot }) {
+        plot(ta.ema(bar.close, inputs.length as number), { title: "line" });
+    },
+});
+
+// Drawn sibling — named export. Renders under the \`export:slowTrend/\`
+// slot-id prefix, separate from the default export's slots.
+export const slowTrend = defineIndicator({
+    name: "Slow Trend",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, ta, plot }) {
+        plot(ta.ema(bar.close, 50), { color: "#9ca3af", title: "line" });
+    },
+});
+
+// Drawn primary — default export. Consumes both deps and marks crossovers.
+export default defineIndicator({
+    name: "Trend Composition",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, ta, plot }) {
+        const fast = baseTrend.output("line");
+        const slow = slowTrend.output("line");
+        if (ta.crossover(fast, slow).current) {
+            plot(bar.close, { color: "#22c55e", title: "Cross" });
+        }
+    },
+});
+`;
+
 export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
     { id: "ema-cross", label: "EMA Cross", source: EMA_CROSS },
     { id: "bollinger-bands", label: "Bollinger Bands", source: BOLLINGER_BANDS },
     { id: "rsi-divergence-alert", label: "RSI Divergence Alert", source: RSI_DIVERGENCE_ALERT },
     { id: "smoothed-rsi-cross", label: "Smoothed RSI Cross", source: SMOOTHED_RSI_CROSS },
+    { id: "trend-composition", label: "Trend Composition", source: TREND_COMPOSITION },
 ];

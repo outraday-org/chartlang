@@ -106,6 +106,13 @@ describe("RuntimeContext shape", () => {
         expect(ctx.isTick).toBe(true);
     });
 
+    it("composition fields default to absent", () => {
+        const ctx = freshContext();
+        expect(ctx.slotIdPrefix).toBeUndefined();
+        expect(ctx.isDep).toBeUndefined();
+        expect(ctx.depOutputStore).toBeUndefined();
+    });
+
     it("mutating emissions arrays in place stays visible to readers", () => {
         const ctx = freshContext();
         ctx.emissions.plots.push({

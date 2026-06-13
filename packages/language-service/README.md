@@ -24,6 +24,13 @@ pnpm add @invinite-org/chartlang-language-service
 | `getAvailableIntervals()` | Reads intervals from target capabilities. |
 | `HOVER_REGISTRY` | Checked-in generated hover-doc table. |
 
+Dep-aware surfaces (Phase 0.7 indicator composition):
+hovers + completions for `<binding>.output(...)` and
+`<binding>.withInputs({...})` resolve same-file producer titles and
+input schemas. The new `dep-*` compile diagnostics surface inline via
+`compileToDiagnostics`. Go-to-definition on `.output("title")` jumps
+to the producer's matching `plot(value, { title })` call.
+
 ## Minimum-viable API call
 
 ```ts

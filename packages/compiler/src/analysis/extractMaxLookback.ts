@@ -35,6 +35,11 @@ export type ExtractMaxLookbackResult = Readonly<{
  * reads on Phase-1 series shapes: `bar.<ohlcv>[N]`, `ta.<name>(...)[N]`,
  * and identifier-bound series variables (`const e = ta.ema(...); e[N];`).
  *
+ * The optional `scope` parameter narrows both the series-variable
+ * collection and the lookback walk to a single AST subtree (typically
+ * one binding's `defineCall`) so multi-export files derive per-binding
+ * `maxLookback` values. Defaults to the whole `sourceFile`.
+ *
  * @since 0.1
  * @example
  *     // const { maxLookback, seriesCapacities, diagnostics } =
@@ -46,12 +51,13 @@ export function extractMaxLookback(
     sourceFile: ts.SourceFile,
     checker: ts.TypeChecker,
     sourcePath: string,
+    scope: ts.Node = sourceFile,
 ): ExtractMaxLookbackResult {
     let maxLookback = 0;
     const seriesCapacities: Record<string, number> = {};
     const diagnostics: CompileDiagnostic[] = [];
 
-    const seriesVarNames = collectSeriesVarNames(sourceFile, checker);
+    const seriesVarNames = collectSeriesVarNames(scope, checker);
 
     const visit = (node: ts.Node): void => {
         if (ts.isElementAccessExpression(node)) {
@@ -78,7 +84,7 @@ export function extractMaxLookback(
         }
         ts.forEachChild(node, visit);
     };
-    ts.forEachChild(sourceFile, visit);
+    visit(scope);
 
     return Object.freeze({
         maxLookback,
@@ -87,10 +93,7 @@ export function extractMaxLookback(
     });
 }
 
-function collectSeriesVarNames(
-    sourceFile: ts.SourceFile,
-    checker: ts.TypeChecker,
-): ReadonlySet<string> {
+function collectSeriesVarNames(scope: ts.Node, checker: ts.TypeChecker): ReadonlySet<string> {
     const names = new Set<string>();
     const visit = (node: ts.Node): void => {
         if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
@@ -104,7 +107,7 @@ function collectSeriesVarNames(
         }
         ts.forEachChild(node, visit);
     };
-    ts.forEachChild(sourceFile, visit);
+    visit(scope);
     return names;
 }
 

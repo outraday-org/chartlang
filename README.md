@@ -146,6 +146,9 @@ portable across charts. See PLAN.md §2 for the full diagram.
   budget-overflow scenarios. The
   [canvas2d reference adapter](./examples/canvas2d-adapter) ships a
   green `CONFORMANCE.md` you can diff against.
+- **Compose indicators.** Bind one indicator to a `const`, read
+  its outputs from another's `compute`. See
+  [Indicator composition](./docs/language/indicator-composition.md).
 
 ## Releases
 

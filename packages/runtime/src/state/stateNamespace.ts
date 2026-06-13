@@ -11,7 +11,19 @@ type StoredStateSlot<T> = {
     readonly tentative: T;
 };
 
-const stateKey = (slotId: string): string => `${slotId}:state`;
+/**
+ * Compose the runtime's `state.*` slot key from the compiler-injected
+ * `slotId` plus the active context's `slotIdPrefix`. The primary runner
+ * has an absent / empty prefix — its keys stay byte-identical to the
+ * Phase-1 `${slotId}:state` shape so single-script snapshots load
+ * unchanged. `DepRunner` contexts carry `dep:<localId>/`,
+ * `SiblingRunner` contexts carry `export:<exportName>/`.
+ *
+ * @since 0.7
+ * @internal
+ */
+const stateKey = (ctx: RuntimeContext, slotId: string): string =>
+    `${ctx.slotIdPrefix ?? ""}${slotId}:state`;
 
 function getCtx(name: string): RuntimeContext {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
@@ -28,7 +40,7 @@ function getOrAllocate<T>(
     tickPersistent: boolean,
 ): MutableSlot<T> {
     const ctx = getCtx(name);
-    const key = stateKey(slotId);
+    const key = stateKey(ctx, slotId);
     const existing = ctx.stateSlots.get(key);
     if (existing !== undefined) {
         return asMutableSlot(existing as StateSlot<T>);

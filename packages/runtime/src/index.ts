@@ -36,3 +36,21 @@ export type { RuntimeTaNamespace, ScalarOrSeries } from "./ta/index.js";
 // bar range; the line value at the last index is the end-of-range fit.
 export { linearRegression } from "./ta/lib/linearRegression.js";
 export type { LinearRegressionFrame } from "./ta/lib/linearRegression.js";
+// Indicator-composition surface (Phase 7).
+export type {
+    CreateDepRunnerArgs,
+    DepOutputDeclaration,
+    DepOutputStore,
+    DepRunner,
+    DepRunnerLike,
+    SiblingRunner,
+    SiblingRunnerLike,
+} from "./dep/index.js";
+export {
+    applyDepEmissionPolicy,
+    createDepOutputStore,
+    createDepRunner,
+    createSiblingRunner,
+    runDepStep,
+    runSiblingStep,
+} from "./dep/index.js";

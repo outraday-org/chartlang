@@ -48,6 +48,9 @@ export function buildManifest(args: {
     readonly alertConditions?: ReadonlyArray<AlertConditionDefinition>;
     readonly dependencies?: ReadonlyArray<DependencyDeclaration>;
     readonly outputs?: ReadonlyArray<OutputDeclaration>;
+    readonly exportName?: string;
+    readonly isDrawn?: boolean;
+    readonly siblings?: ReadonlyArray<ScriptManifest>;
 }): ScriptManifest {
     const capabilities = Object.freeze(args.capabilities.slice());
     const requestedIntervals = Object.freeze(args.requestedIntervals.slice());
@@ -100,6 +103,10 @@ export function buildManifest(args: {
             : Object.freeze(
                   args.outputs.map((o) => Object.freeze({ title: o.title, kind: o.kind })),
               );
+    const siblings =
+        args.siblings === undefined || args.siblings.length === 0
+            ? undefined
+            : Object.freeze(args.siblings.slice());
     return Object.freeze({
         apiVersion: 1 as const,
         kind: args.kind,
@@ -119,5 +126,8 @@ export function buildManifest(args: {
         ...(alertConditions === undefined ? {} : { alertConditions }),
         ...(dependencies === undefined ? {} : { dependencies }),
         ...(outputs === undefined ? {} : { outputs }),
+        ...(args.exportName === undefined ? {} : { exportName: args.exportName }),
+        ...(args.isDrawn === undefined ? {} : { isDrawn: args.isDrawn }),
+        ...(siblings === undefined ? {} : { siblings }),
     });
 }

@@ -8,6 +8,10 @@ import ts from "typescript";
 import { collectCompletions } from "./_lib/collectCompletions.js";
 import { isInsideIntervalLiteral } from "./_lib/isInsideIntervalLiteral.js";
 import { makeDiagnostic, mapDiagnostic } from "./_lib/mapDiagnostic.js";
+import {
+    resolveDepAccessorDefinition,
+    resolveDepAccessorHover,
+} from "./_lib/resolveDepAccessor.js";
 import { findTokenAtOffset, resolveFqnAtOffset } from "./_lib/resolveFqnAtOffset.js";
 import { toHoverDoc } from "./_lib/toHoverDoc.js";
 import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
@@ -53,9 +57,11 @@ export function createLanguageService(opts: LanguageServiceOptions = {}): Chartl
 
         getHoverDoc(source: string, offset: number): HoverDoc | null {
             const fqn = resolveFqnAtOffset(source, offset);
-            if (fqn === null) return null;
-            const entry = HOVER_REGISTRY[fqn];
-            return entry === undefined ? null : toHoverDoc(entry);
+            if (fqn !== null) {
+                const entry = HOVER_REGISTRY[fqn];
+                if (entry !== undefined) return toHoverDoc(entry);
+            }
+            return resolveDepAccessorHover(source, offset);
         },
 
         getCompletions(source: string, offset: number): ReadonlyArray<CompletionItem> {
@@ -96,12 +102,14 @@ export function createLanguageService(opts: LanguageServiceOptions = {}): Chartl
 
         getDefinition(source: string, offset: number): DefinitionLocation | null {
             const fqn = resolveFqnAtOffset(source, offset);
-            if (fqn === null || HOVER_REGISTRY[fqn] === undefined) return null;
-            return Object.freeze({
-                file: "packages/core/dist/index.d.ts",
-                line: 1,
-                column: 1,
-            });
+            if (fqn !== null && HOVER_REGISTRY[fqn] !== undefined) {
+                return Object.freeze({
+                    file: "packages/core/dist/index.d.ts",
+                    line: 1,
+                    column: 1,
+                });
+            }
+            return resolveDepAccessorDefinition(source, offset);
         },
 
         getAvailableIntervals(): ReadonlyArray<IntervalDescriptor> {

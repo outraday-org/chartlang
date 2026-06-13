@@ -64,7 +64,10 @@ function makeEmissions(): MutableRunnerEmissions {
     };
 }
 
-function makeContext(stateStore: StateStore = inMemoryStateStore()): RuntimeContext {
+function makeContext(
+    stateStore: StateStore = inMemoryStateStore(),
+    overrides: Readonly<{ slotIdPrefix?: string }> = {},
+): RuntimeContext {
     const stream = createStreamState({ interval: "", capacity: 5, symbol: "" });
     return {
         stream,
@@ -84,6 +87,7 @@ function makeContext(stateStore: StateStore = inMemoryStateStore()): RuntimeCont
         },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        ...(overrides.slotIdPrefix === undefined ? {} : { slotIdPrefix: overrides.slotIdPrefix }),
     };
 }
 
@@ -183,5 +187,51 @@ describe("buildStateNamespace", () => {
             committed: "b",
             tentative: "a",
         });
+    });
+
+    it("prefixes dep-context slot keys with dep:<localId>/", () => {
+        const store = inMemoryStateStore();
+        const ctx = makeContext(store, { slotIdPrefix: "dep:fast/" });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const slot = runtimeState().int("slot#0", 0);
+        slot.value = 11;
+        commitStateSlots(ctx);
+        flushStateSlots(ctx);
+
+        expect(ctx.stateSlots.has("dep:fast/slot#0:state")).toBe(true);
+        expect(store.get("dep:fast/slot#0:state")).toEqual({
+            committed: 11,
+            tentative: 11,
+        });
+        expect(store.has("slot#0:state")).toBe(false);
+    });
+
+    it("prefixes sibling-context slot keys with export:<exportName>/", () => {
+        const store = inMemoryStateStore();
+        const ctx = makeContext(store, { slotIdPrefix: "export:slow/" });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const slot = runtimeState().tick.float("slot#0", 0);
+        slot.value = 2.5;
+        flushStateSlots(ctx);
+
+        expect(ctx.stateSlots.has("export:slow/slot#0:state")).toBe(true);
+        expect(store.get("export:slow/slot#0:state")).toEqual({
+            committed: 2.5,
+            tentative: 0,
+        });
+    });
+
+    it("restores prefixed values from a prefix-aware StateStore", () => {
+        const store = inMemoryStateStore();
+        store.set("dep:fast/slot#0:state", { committed: 42, tentative: 7 });
+        const ctx = makeContext(store, { slotIdPrefix: "dep:fast/" });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const slot = runtimeState().int("slot#0", 0);
+        expect(slot.value).toBe(7);
+        resetTentativeStateSlots(ctx);
+        expect(slot.value).toBe(42);
     });
 });

@@ -39,9 +39,16 @@ const snapshot: StateSnapshot = {
             buffers: { time: [], open: [], high: [], low: [], close: [], volume: [] },
         },
     },
-    slots: {},
     savedAt: 1_700_000_060_000,
     snapshotVersion: 1,
+    primary: { slots: {} },
+};
+
+const structured: StateSnapshot = {
+    ...snapshot,
+    primary: { slots: { "counter:state": { committed: 7, tentative: 7 } } },
+    siblings: { slow: { slots: { "export:slow/x:state": { committed: 3, tentative: 3 } } } },
+    dependencies: { fast: { slots: { "dep:fast/x:state": { committed: 9, tentative: 9 } } } },
 };
 
 describe("inMemoryPersistentStateStore", () => {
@@ -63,5 +70,11 @@ describe("inMemoryPersistentStateStore", () => {
         await store.save(snapshot);
         await store.clear();
         expect(await store.load()).toBeNull();
+    });
+
+    it("round-trips a structured snapshot with siblings and dependencies", async () => {
+        const store = inMemoryPersistentStateStore({ key });
+        await store.save(structured);
+        expect(await store.load()).toEqual(structured);
     });
 });

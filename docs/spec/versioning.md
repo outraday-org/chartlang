@@ -77,6 +77,16 @@ Removing a manifest field, renaming a field, changing a discriminator, making
 an optional field required, or changing the meaning of existing manifest data
 requires `apiVersion: 2`.
 
+#### Indicator composition (`1.x` additive)
+
+The indicator-composition feature lands entirely as additive optional
+fields within `apiVersion: 1.x`: `dependencies`, `outputs`, `exportName`,
+`siblings`, and `isDrawn` on `ScriptManifest`. Single-script files emit
+byte-identical manifests because every new field stays absent on the
+back-compat path. Older runtimes that ignore the new fields keep
+loading `1.x` manifests without behaviour change. See
+[Script manifest § Indicator Dependencies](./manifest.md#indicator-dependencies).
+
 ### Emission Wire Schemas
 
 Runtime emission shapes are frozen at v1. Existing plot, drawing, alert, log,
@@ -88,6 +98,16 @@ Within `1.x`, implementations MAY add optional fields and MAY add new
 Adapters MUST treat unsupported additive kinds as capability fallbacks, not as
 schema corruption. Renames, removals, required-field additions, and semantic
 changes require `apiVersion: 2`.
+
+`DiagnosticCode` is additive across `1.x`. The indicator-composition
+feature extends the set with six new codes — `dep-error`, `dep-cycle`,
+`dep-unknown-output`, `dep-invalid-input-override`, `dep-dynamic`, and
+`dep-output-not-titled` — bringing the total to 32. Adapters that don't
+recognise an additive code MUST log + ignore it, never treat it as
+schema corruption. The 172-entry `STATEFUL_PRIMITIVES` set remains
+unchanged; the new `.output(...)` / `.withInputs(...)` accessors are
+compiler-rewritten sentinels on `CompiledScriptObject`, not runtime
+primitives.
 
 ## Compiler Support Window
 

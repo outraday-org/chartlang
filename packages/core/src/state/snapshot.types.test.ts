@@ -5,7 +5,7 @@ import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
 import type { JsonValue } from "../types.js";
-import type { StateSnapshot, StateStoreKey, StreamSnapshot } from "./snapshot.js";
+import type { RunnerSnapshot, StateSnapshot, StateStoreKey, StreamSnapshot } from "./snapshot.js";
 
 const streamSnapshot: StreamSnapshot = {
     interval: "1D",
@@ -21,12 +21,22 @@ const streamSnapshot: StreamSnapshot = {
     },
 };
 
+const runnerSnapshot: RunnerSnapshot = {
+    slots: { "script.ts:1:1#0": { previous: 101, seen: true } },
+};
+
 const snapshot: StateSnapshot = {
     lastBarTime: 1_700_000_060_000,
     streams: { main: streamSnapshot },
-    slots: { "script.ts:1:1#0": { previous: 101, seen: true } },
     savedAt: 1_700_000_120_000,
     snapshotVersion: 1,
+    primary: runnerSnapshot,
+};
+
+const fullSnapshot: StateSnapshot = {
+    ...snapshot,
+    siblings: { slow: { slots: { "slot:state": { committed: 1, tentative: 1 } } } },
+    dependencies: { fast: { slots: { "dep:fast/slot:state": { committed: 2, tentative: 2 } } } },
 };
 
 const key: StateStoreKey = {
@@ -42,18 +52,33 @@ const key: StateStoreKey = {
 describe("snapshot type surface", () => {
     it("keeps StateSnapshot structurally JSON-clean", () => {
         expectTypeOf(snapshot).toMatchTypeOf<JsonValue>();
-        expectTypeOf(snapshot.slots).toMatchTypeOf<Readonly<Record<string, JsonValue>>>();
+        expectTypeOf(snapshot.primary.slots).toMatchTypeOf<Readonly<Record<string, JsonValue>>>();
         expectTypeOf(snapshot.streams.main).toEqualTypeOf<StreamSnapshot>();
+    });
+
+    it("keeps RunnerSnapshot structurally JSON-clean", () => {
+        expectTypeOf(runnerSnapshot).toMatchTypeOf<JsonValue>();
+        expectTypeOf(runnerSnapshot.slots).toMatchTypeOf<Readonly<Record<string, JsonValue>>>();
+    });
+
+    it("accepts the structured shape with all runner sections", () => {
+        expectTypeOf(fullSnapshot).toMatchTypeOf<StateSnapshot>();
+        expectTypeOf(fullSnapshot.siblings).toMatchTypeOf<
+            Readonly<Record<string, RunnerSnapshot>> | undefined
+        >();
+        expectTypeOf(fullSnapshot.dependencies).toMatchTypeOf<
+            Readonly<Record<string, RunnerSnapshot>> | undefined
+        >();
     });
 
     it("pins literal wire versions", () => {
         const invalidSnapshot = {
             lastBarTime: 1,
             streams: {},
-            slots: {},
             savedAt: 2,
             // @ts-expect-error snapshotVersion 1 is the only supported wire version.
             snapshotVersion: 0,
+            primary: { slots: {} },
         } satisfies StateSnapshot;
 
         const invalidKey = {
@@ -109,9 +134,9 @@ describe("snapshot type surface", () => {
         const readonlySnapshot = {
             lastBarTime: 1_700_000_000_000,
             streams: { main: readonlyStream },
-            slots: { "script.ts:1:1#0": { current: 100.5 } },
             savedAt: 1_700_000_060_000,
             snapshotVersion: 1,
+            primary: { slots: { "script.ts:1:1#0": { current: 100.5 } } },
         } as const satisfies StateSnapshot;
 
         const readonlyKey = {

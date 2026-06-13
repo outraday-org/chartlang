@@ -4575,6 +4575,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.1",
         "stability": "stable"
     },
+    "RunnerSnapshot": {
+        "fqn": "RunnerSnapshot",
+        "kind": "type",
+        "title": "RunnerSnapshot",
+        "summary": "/**\nPer-runner persistence section. Carries one runner's `state.*`\n(and primary-only TA) slot map keyed by `${slotIdPrefix}${slotId}:state`\n(PLAN.md §5.5 + Task 5). `slots` is `JsonValue` so the snapshot\nround-trips through `JSON.stringify` and structured-clone.",
+        "examples": [
+            "const r: RunnerSnapshot = {\nslots: { \"x:state\": { committed: 1, tentative: 1 } },\n};\nvoid r;"
+        ],
+        "since": "0.7",
+        "stability": "stable"
+    },
     "runtime": {
         "fqn": "runtime",
         "kind": "namespace",
@@ -4983,9 +4994,9 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "title": "StateSnapshot",
         "summary": "Canonical persistent-store snapshot.",
         "examples": [
-            "const s: StateSnapshot = {\nlastBarTime: 1_700_000_000_000,\nstreams: {},\nslots: {},\nsavedAt: 1_700_000_060_000,\nsnapshotVersion: 1,\n};\nvoid s;"
+            "const s: StateSnapshot = {\nlastBarTime: 1_700_000_000_000,\nstreams: {},\nsavedAt: 1_700_000_060_000,\nsnapshotVersion: 1,\nprimary: { slots: {} },\n};\nvoid s;"
         ],
-        "since": "0.5",
+        "since": "0.5 — widened to per-runner sections in 0.7",
         "stability": "stable"
     },
     "StateStoreKey": {

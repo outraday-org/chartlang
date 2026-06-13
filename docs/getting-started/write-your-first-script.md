@@ -159,3 +159,5 @@ Every page is regenerated from JSDoc by `pnpm docs:generate`; the
   a new chart library how to render chartlang emissions.
 - [Language overview](../language/overview.md) for the eDSL surface,
   series semantics, and the list of forbidden constructs.
+- [Indicator composition](../language/indicator-composition.md) to
+  read one indicator's outputs from another's `compute`.

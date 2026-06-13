@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { defineIndicator } from "@invinite-org/chartlang-core";
-import type { Bar, StateStoreKey } from "@invinite-org/chartlang-core";
+import type { Bar, MutableSlot, StateStoreKey } from "@invinite-org/chartlang-core";
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
@@ -165,9 +165,9 @@ describe("createScriptRunner persistence", () => {
                 return {
                     lastBarTime: makeBar(0).time,
                     streams: {},
-                    slots: {},
                     savedAt: 1,
                     snapshotVersion: 1,
+                    primary: { slots: {} },
                 };
             },
             async save() {},
@@ -510,6 +510,93 @@ describe("createScriptRunner persistence", () => {
         await runner.dispose();
 
         expect(streamKey).toBe("main");
+    });
+
+    it("restores a CompiledScriptBundle's dep + sibling state across mounts", async () => {
+        type RuntimeStateNamespace = {
+            readonly int: (slotId: string, init: number) => MutableSlot<number>;
+        };
+        const store = inMemoryPersistentStateStore({ key: key() });
+
+        const primary = withLookback(
+            defineIndicator({
+                name: "bundle-primary",
+                apiVersion: 1,
+                compute: ({ state }) => {
+                    const ns = state as unknown as RuntimeStateNamespace;
+                    const counter = ns.int("counter", 0);
+                    counter.value = counter.value + 1;
+                },
+            }),
+        );
+        const slow = withLookback(
+            defineIndicator({
+                name: "bundle-slow",
+                apiVersion: 1,
+                compute: ({ state }) => {
+                    const ns = state as unknown as RuntimeStateNamespace;
+                    const counter = ns.int("counter", 0);
+                    counter.value = counter.value + 1;
+                },
+            }),
+        );
+        const fast = withLookback(
+            defineIndicator({
+                name: "bundle-fast",
+                apiVersion: 1,
+                compute: ({ state }) => {
+                    const ns = state as unknown as RuntimeStateNamespace;
+                    const counter = ns.int("counter", 0);
+                    counter.value = counter.value + 1;
+                },
+            }),
+        );
+
+        const bundle = {
+            primary,
+            siblings: [{ exportName: "slow", compiled: slow }],
+            dependencies: [{ localId: "fast", compiled: fast }],
+        };
+
+        const seed = createScriptRunner({
+            compiled: bundle,
+            capabilities: makeCapabilities(),
+            persistentStateStore: store,
+            now: () => 1,
+        });
+        for (let i = 0; i < 5; i += 1) {
+            await seed.onBarClose(makeBar(i));
+        }
+        await seed.dispose();
+
+        const observed: number[] = [];
+        const observedPrimary = withLookback(
+            defineIndicator({
+                name: "bundle-primary",
+                apiVersion: 1,
+                compute: ({ state }) => {
+                    const ns = state as unknown as RuntimeStateNamespace;
+                    const counter = ns.int("counter", 0);
+                    counter.value = counter.value + 1;
+                    observed.push(counter.value);
+                },
+            }),
+        );
+        const observedBundle = {
+            ...bundle,
+            primary: observedPrimary,
+        };
+        const warm = createScriptRunner({
+            compiled: observedBundle,
+            capabilities: makeCapabilities(),
+            persistentStateStore: store,
+            now: () => 2,
+        });
+        await warm.warmStart(makeBar(5).time);
+        await warm.onBarClose(makeBar(5));
+        await warm.onBarClose(makeBar(6));
+
+        expect(observed).toEqual([6, 7]);
     });
 
     it("saves and restores registered secondary stream snapshots", async () => {

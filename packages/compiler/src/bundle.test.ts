@@ -4,7 +4,11 @@
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { bundleModule, formatManifestAssignment } from "./bundle.js";
+import {
+    bundleModule,
+    formatDependenciesAssignment,
+    formatManifestAssignment,
+} from "./bundle.js";
 
 const TS_SOURCE = `
 const greeting: string = "hi";
@@ -124,5 +128,114 @@ describe("formatManifestAssignment", () => {
             maxLookback: 0,
         });
         expect(formatManifestAssignment(manifest)).toBe(formatManifestAssignment(manifest));
+    });
+
+    it("emits indented JSON array when given a ReadonlyArray of manifests", () => {
+        const def: ScriptManifest = Object.freeze({
+            apiVersion: 1,
+            kind: "indicator",
+            name: "Default",
+            inputs: Object.freeze({}),
+            capabilities: Object.freeze(["indicators"]),
+            requestedIntervals: Object.freeze([]),
+            userPickableInterval: false,
+            seriesCapacities: Object.freeze({}),
+            maxLookback: 0,
+            exportName: "default",
+            isDrawn: true,
+        });
+        const sibling: ScriptManifest = Object.freeze({
+            apiVersion: 1,
+            kind: "indicator",
+            name: "Sibling",
+            inputs: Object.freeze({}),
+            capabilities: Object.freeze(["indicators"]),
+            requestedIntervals: Object.freeze([]),
+            userPickableInterval: false,
+            seriesCapacities: Object.freeze({}),
+            maxLookback: 0,
+            exportName: "sibling",
+            isDrawn: true,
+        });
+        const line = formatManifestAssignment(Object.freeze([def, sibling]));
+        expect(line.startsWith("export const __manifest = [")).toBe(true);
+        expect(line).toContain('"exportName": "default"');
+        expect(line).toContain('"exportName": "sibling"');
+        const json = line.replace(/^export const __manifest = /, "").replace(/;\n$/, "");
+        const parsed = JSON.parse(json) as Array<{ exportName: string }>;
+        expect(parsed).toHaveLength(2);
+        expect(parsed[0]?.exportName).toBe("default");
+        expect(parsed[1]?.exportName).toBe("sibling");
+    });
+});
+
+describe("formatDependenciesAssignment", () => {
+    it("returns the empty string when the deps list is empty", () => {
+        expect(formatDependenciesAssignment([])).toBe("");
+    });
+
+    it("emits a single-entry export const __dependencies line", () => {
+        const line = formatDependenciesAssignment([
+            { localId: "base", bindingExpression: "base" },
+        ]);
+        expect(line).toBe(
+            'export const __dependencies = [\n    { localId: "base", compiled: base },\n];\n',
+        );
+    });
+
+    it("emits one entry per dep in declaration order", () => {
+        const line = formatDependenciesAssignment([
+            { localId: "fast", bindingExpression: "fast" },
+            { localId: "slow", bindingExpression: "slow" },
+        ]);
+        expect(line).toContain('{ localId: "fast", compiled: fast },');
+        expect(line).toContain('{ localId: "slow", compiled: slow },');
+        // Declaration order is preserved.
+        expect(line.indexOf("fast")).toBeLessThan(line.indexOf("slow"));
+    });
+
+    it("escapes special characters in the localId via JSON.stringify", () => {
+        const line = formatDependenciesAssignment([
+            { localId: 'has"quote', bindingExpression: "ok" },
+        ]);
+        expect(line).toContain('localId: "has\\"quote"');
+    });
+});
+
+describe("bundleModule inlinedProducers", () => {
+    it("synthesises the __chartlang_depOutput shim when producers are inlined", async () => {
+        const result = await bundleModule({
+            transformedSource: "export default 1;\n",
+            sourcePath: "consumer.chart.ts",
+            sourcemap: false,
+            minify: false,
+            inlinedProducers: [
+                {
+                    hash: "abc123",
+                    rewrittenSource: "const __producer_abc123__default = 42;",
+                },
+            ],
+        });
+        expect(result.moduleSource).toContain("__chartlang_depOutput");
+        expect(result.moduleSource).toContain("globalThis.__chartlang_depOutput");
+    });
+
+    it("tree-shakes unused inlined producers when not referenced from the consumer", async () => {
+        // The shim is always emitted with producers, but esbuild's
+        // tree-shaker removes the unused producer declaration when the
+        // consumer never references the synthesised identifier.
+        const result = await bundleModule({
+            transformedSource: "export default 1;\n",
+            sourcePath: "consumer.chart.ts",
+            sourcemap: false,
+            minify: false,
+            inlinedProducers: [
+                {
+                    hash: "abc123",
+                    rewrittenSource: "const __producer_abc123__default = 99;",
+                },
+            ],
+        });
+        expect(result.moduleSource).not.toContain("99");
     });
 });

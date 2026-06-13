@@ -158,9 +158,22 @@ export type ScriptRunnerHandle = {
 /**
  * The default ESM-export shape the worker boot expects from a dynamically
  * imported compiled module. Matches `@invinite-org/chartlang-compiler`'s
- * bundled output (`export default defineIndicator(...)`).
+ * bundled output:
  *
- * @since 0.1
+ * - **Single-script** files export `default` + `__manifest:
+ *   ScriptManifest` (and may omit `__manifest`).
+ * - **Multi-export / composition** files (§22.10) additionally export
+ *   one named const per drawn sibling (`mod[exportName]`), an array
+ *   `__manifest: ReadonlyArray<ScriptManifest>`, and (when the default
+ *   manifest carries `dependencies`) `__dependencies` carrying every
+ *   private-dep compiled object.
+ *
+ * The `[exportName: string]: unknown` index signature keeps sibling
+ * reads narrow without forcing every host caller to assert types — the
+ * host walks `mod[exportName]` with the local
+ * `isCompiledScriptObject` guard before forwarding.
+ *
+ * @since 0.1 — widened in 0.7 for indicator-composition bundles.
  * @stable
  * @example
  *     const m: CompiledModuleExport = {
@@ -170,4 +183,37 @@ export type ScriptRunnerHandle = {
  */
 export type CompiledModuleExport = {
     readonly default: CompiledScriptObject;
+    /**
+     * Sidecar manifest. Single object for back-compat single-script
+     * bundles; array of `ScriptManifest` (default first) for
+     * multi-export composition bundles.
+     *
+     * @since 0.7
+     */
+    readonly __manifest?: ScriptManifest | ReadonlyArray<ScriptManifest>;
+    /**
+     * Inlined private deps a multi-export bundle exposes for host
+     * mounting. Each entry's `compiled` is the `defineIndicator(...)`
+     * return value bound to a module-local `const <localId>` in the
+     * consumer's source.
+     *
+     * @since 0.7
+     */
+    readonly __dependencies?: ReadonlyArray<{
+        readonly localId: string;
+        readonly compiled: CompiledScriptObject;
+        /**
+         * Merged `.withInputs({...})` overrides the consumer applied
+         * to its alias binding. Forwarded to the runtime so the
+         * `DepRunner` evaluates the producer's `compute` with the
+         * consumer-supplied inputs instead of the producer's
+         * manifest defaults. Omitted for direct
+         * `defineIndicator(...)` private deps that don't apply
+         * overrides.
+         *
+         * @since 0.7
+         */
+        readonly inputOverrides?: Readonly<Record<string, unknown>>;
+    }>;
+    readonly [exportName: string]: unknown;
 };

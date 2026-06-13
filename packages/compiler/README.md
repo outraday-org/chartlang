@@ -29,6 +29,9 @@ pnpm add @invinite-org/chartlang-compiler
 - Phase 4 diagnostics include `input-call-not-literal`,
   `input-schema-not-literal`, `requires-intervals-not-literal`, and
   `request-security-interval-not-literal`.
+- `createProducerResolver({ rootDir }, compileProducer)` — cross-file
+  `.chart.ts` resolver feeding indicator-composition (§22.10). Pass it
+  to `compile` / `compileFile` / `compileProject` as `resolveProducer`.
 
 ## Minimum-viable API call
 

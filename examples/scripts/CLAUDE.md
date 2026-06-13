@@ -11,6 +11,11 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   `barstate.isfirst`, `daily-rsi-divergence.chart.ts` for
   `timeframe.isdaily` + `input.interval`, and
   `mintick-snapped-entry.chart.ts` for `syminfo.mintick` snapping.
+- Phase 7 ships `base-trend.chart.ts` (producer with one titled output)
+  and `trend-confirmation.chart.ts` (multi-export consumer — one private
+  dep `fastTrend`, one drawn named export `slowTrend`, one default
+  consumer reading both). The CLI's e2e test asserts the single-script
+  vs multi-export sidecar shapes both round-trip.
 
 ## Conventions
 

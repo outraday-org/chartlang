@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { EMA_CROSS } from "./__fixtures__/scripts.js";
+import { EMA_CROSS, MULTI_EXPORT_COMPOSITION } from "./__fixtures__/scripts.js";
 import { compileFile, writeAtomic } from "./api.js";
 
 let workspace: string;
@@ -160,6 +160,22 @@ describe("writeAtomic", () => {
         const entries = await fs.readdir(workspace);
         const leaked = entries.filter((name) => name.startsWith("atomic-target.tmp."));
         expect(leaked).toEqual([]);
+    });
+
+    it("writes an array-shape sidecar JSON for multi-export files", async () => {
+        const sourcePath = join(workspace, "multi.chart.ts");
+        await fs.writeFile(sourcePath, MULTI_EXPORT_COMPOSITION, "utf8");
+
+        await compileFile(sourcePath, { apiVersion: 1 });
+
+        const manifestContent = await fs.readFile(
+            join(workspace, "multi.chart.manifest.json"),
+            "utf8",
+        );
+        const parsed = JSON.parse(manifestContent) as Array<{ exportName: string }>;
+        expect(Array.isArray(parsed)).toBe(true);
+        expect(parsed[0]?.exportName).toBe("default");
+        expect(parsed[1]?.exportName).toBe("sibling");
     });
 
     it("swallows the unlink failure when the temp file never landed on disk", async () => {

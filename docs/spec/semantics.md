@@ -189,6 +189,59 @@ Snapshots are saved on runner disposal and on the configured close-event save
 cadence. Snapshot validation or save failures MUST be converted into
 diagnostics, not thrown through script code.
 
+## Dependency Execution Order
+
+A compiled `.chart.ts` MAY declare multiple `defineIndicator(...)`
+results in one file. The export form selects whether the host renders
+each result:
+
+| Export form | Runtime role | Slot-id prefix |
+| --- | --- | --- |
+| `export default defineIndicator(...)` | Primary script — drawn. | (none) |
+| `export const foo = defineIndicator(...)` | Sibling — drawn. | `export:foo/` |
+| `const foo = defineIndicator(...)` | Private dep — data feed only. | `dep:foo/` |
+
+For each main-stream `close` or `tick` event, a conforming runtime MUST
+execute scripts in this deterministic order:
+
+1. Every private dep, in topological order (deps with no nested deps
+   first).
+2. Every drawn sibling, in source declaration order.
+3. The primary (default-export) script.
+
+Renderable emissions are routed by source role:
+
+- Private-dep `plot` / `draw.*` / `alert` / `runtime.log` emissions are
+  captured into the `DepOutputStore` (so consumers can read them via
+  `__chartlang_depOutput`) and then dropped before they reach the
+  adapter.
+- Sibling `plot` / `draw.*` emissions are forwarded to the adapter with
+  the `export:<exportName>/` prefix applied to their slot ids. Sibling
+  alerts and logs forward unchanged.
+- The primary script's emissions forward to the adapter under their
+  existing slot-id format (`<sourcePath>:<line>:<col>#<callIndex>`,
+  unchanged from Phase 1).
+- Diagnostics from **every** source forward to the adapter. Diagnostics
+  raised inside a dep or sibling carry a slot id prefixed by the
+  source's role (`dep:<localId>/` or `export:<exportName>/`).
+
+State slots inherit the same prefix scheme — see
+[Callsite-Id Stability and State Slots](#callsite-id-stability-and-state-slots).
+Each dep / sibling has its own slot store section in the persistent
+snapshot; warm-restart replays restore every section deterministically.
+
+If a private dep's `compute` throws (or calls `runtime.error(...)`),
+the runtime MUST:
+
+1. Emit a `dep-error` diagnostic carrying the inner message + the
+   dep's namespaced slot id.
+2. Drop the primary script's renderable emissions for that bar.
+3. Preserve sibling emissions for that bar — siblings are independent.
+4. Resume normal execution on the following bar.
+
+A sibling's `runtime.error(...)` halts only that sibling's bar; the
+primary keeps running.
+
 ## Multi-Stream Alignment
 
 Secondary streams are keyed by interval value. The manifest's

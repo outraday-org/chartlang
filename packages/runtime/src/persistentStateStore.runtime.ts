@@ -1,11 +1,17 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { StateSnapshot, StreamSnapshot } from "@invinite-org/chartlang-core";
+import type {
+    JsonValue,
+    RunnerSnapshot,
+    StateSnapshot,
+    StreamSnapshot,
+} from "@invinite-org/chartlang-core";
 
 import type { RunnerState } from "./createScriptRunner.js";
 import { pushDiagnostic } from "./emit/index.js";
 import { validateSnapshot } from "./persistentStateStore.validate.js";
+import type { RuntimeContext } from "./runtimeContext.js";
 import { restoreStateSlots, serialiseStateSlots } from "./state/index.js";
 import { isTaSlotSnapshotKey, restoreTaSlots, serialiseTaSlots } from "./ta/persistence.js";
 
@@ -37,10 +43,48 @@ function captureStreams(state: RunnerState): Readonly<Record<string, StreamSnaps
     return Object.freeze(streams);
 }
 
+function primarySectionSlots(state: RunnerState): Readonly<Record<string, JsonValue>> {
+    return Object.freeze({
+        ...serialiseStateSlots(state.runtimeContext),
+        ...serialiseTaSlots(state.mainStream),
+    } as Record<string, JsonValue>);
+}
+
+function runnerSection(ctx: RuntimeContext): RunnerSnapshot {
+    return Object.freeze({
+        slots: Object.freeze({ ...serialiseStateSlots(ctx) } as Record<string, JsonValue>),
+    });
+}
+
+function captureSiblings(state: RunnerState): Readonly<Record<string, RunnerSnapshot>> | undefined {
+    if (state.siblingRunners.length === 0) return undefined;
+    const out: Record<string, RunnerSnapshot> = {};
+    for (const sibling of state.siblingRunners) {
+        out[sibling.exportName] = runnerSection(sibling.state.runtimeContext);
+    }
+    return Object.freeze(out);
+}
+
+function captureDependencies(
+    state: RunnerState,
+): Readonly<Record<string, RunnerSnapshot>> | undefined {
+    if (state.depRunners.length === 0) return undefined;
+    const out: Record<string, RunnerSnapshot> = {};
+    for (const dep of state.depRunners) {
+        out[dep.localId] = runnerSection(dep.state.runtimeContext);
+    }
+    return Object.freeze(out);
+}
+
 /**
- * Capture the runner's current stream and state-slot snapshot.
+ * Capture the runner's current stream + per-runner state-slot snapshot.
  *
- * @since 0.5
+ * Returns the structured shape carrying `primary.slots`, optional
+ * `siblings[exportName].slots`, and optional `dependencies[localId].slots`.
+ * TA slots live in `primary.slots` because the bundle's deps and siblings
+ * share the primary's `mainStream` (Task-4 invariant).
+ *
+ * @since 0.5 — widened to per-runner sections in 0.7.
  * @internal
  * @example
  *     // const snapshot = captureStateSnapshot(state, Date.now());
@@ -49,16 +93,16 @@ function captureStreams(state: RunnerState): Readonly<Record<string, StreamSnaps
  */
 export function captureStateSnapshot(state: RunnerState, savedAt: number): StateSnapshot | null {
     const streams = captureStreams(state);
-    const slots = {
-        ...serialiseStateSlots(state.runtimeContext),
-        ...serialiseTaSlots(state.mainStream),
-    };
-    const candidate = {
+    const siblings = captureSiblings(state);
+    const dependencies = captureDependencies(state);
+    const candidate: StateSnapshot = {
         lastBarTime: state.mainStream.bar.time,
         streams,
-        slots: Object.freeze(slots),
         savedAt,
         snapshotVersion: 1,
+        primary: { slots: primarySectionSlots(state) },
+        ...(siblings === undefined ? {} : { siblings }),
+        ...(dependencies === undefined ? {} : { dependencies }),
     };
     if (!validateSnapshot(candidate)) return null;
     return candidate;
@@ -78,10 +122,76 @@ function resolveMainStreamSnapshot(
     return fallback === null ? undefined : snapshot.streams[fallback];
 }
 
+function nonTaSlots(slots: Readonly<Record<string, JsonValue>>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const [slotKey, value] of Object.entries(slots)) {
+        if (!isTaSlotSnapshotKey(slotKey)) {
+            out[slotKey] = value;
+        }
+    }
+    return out;
+}
+
+function pushMalformedSection(state: RunnerState, message: string): void {
+    pushDiagnostic(state.emissions, {
+        kind: "diagnostic",
+        severity: "warning",
+        code: "state-snapshot-malformed",
+        message,
+        slotId: null,
+        bar: state.barIndex,
+    });
+}
+
+function restoreSiblingSections(
+    state: RunnerState,
+    siblings: Readonly<Record<string, RunnerSnapshot>>,
+): void {
+    const lookup = new Map(state.siblingRunners.map((sib) => [sib.exportName, sib]));
+    for (const [exportName, section] of Object.entries(siblings)) {
+        const sibling = lookup.get(exportName);
+        if (sibling === undefined) {
+            pushMalformedSection(
+                state,
+                `persistent state snapshot referenced unknown sibling "${exportName}"`,
+            );
+            continue;
+        }
+        restoreStateSlots(sibling.state.runtimeContext, section.slots);
+    }
+}
+
+function restoreDependencySections(
+    state: RunnerState,
+    dependencies: Readonly<Record<string, RunnerSnapshot>>,
+): void {
+    const lookup = new Map(state.depRunners.map((dep) => [dep.localId, dep]));
+    for (const [localId, section] of Object.entries(dependencies)) {
+        const dep = lookup.get(localId);
+        if (dep === undefined) {
+            pushMalformedSection(
+                state,
+                `persistent state snapshot referenced unknown dependency "${localId}"`,
+            );
+            continue;
+        }
+        restoreStateSlots(dep.state.runtimeContext, section.slots);
+    }
+}
+
 /**
- * Restore a validated snapshot into the runner's stream and slot store.
+ * Restore a validated snapshot into the runner's stream + slot stores.
  *
- * @since 0.5
+ * Walks every per-runner section: `primary.slots` rehydrates the
+ * primary's `state.*` slots (and TA slots on the shared mainStream);
+ * `siblings[exportName].slots` and `dependencies[localId].slots`
+ * rehydrate each matching sub-runner. Snapshot sections whose id is not
+ * declared by the current bundle are skipped with a
+ * `state-snapshot-malformed` diagnostic.
+ *
+ * Legacy flat-shape snapshots (pre-0.7) restore into the primary only.
+ *
+ * @since 0.5 — widened to per-runner sections in 0.7.
  * @internal
  * @example
  *     // restoreStateSnapshot(state, snapshot);
@@ -100,16 +210,42 @@ export function restoreStateSnapshot(state: RunnerState, snapshot: StateSnapshot
             secondary.restoreFromSnapshot(secondarySnapshot);
         }
     }
-    restoreTaSlots(state.mainStream, snapshot.slots);
-    // Non-TA slots: everything not under the ta: namespace persists as
-    // generic state.* slot data.
-    const stateSlots: Record<string, unknown> = {};
-    for (const [slotKey, value] of Object.entries(snapshot.slots)) {
-        if (!isTaSlotSnapshotKey(slotKey)) {
-            stateSlots[slotKey] = value;
-        }
+
+    const primarySlots = primarySlotsOf(snapshot);
+    restoreTaSlots(state.mainStream, primarySlots);
+    restoreStateSlots(state.runtimeContext, nonTaSlots(primarySlots));
+
+    if (snapshot.siblings !== undefined) {
+        restoreSiblingSections(state, snapshot.siblings);
     }
-    restoreStateSlots(state.runtimeContext, stateSlots);
+    if (snapshot.dependencies !== undefined) {
+        restoreDependencySections(state, snapshot.dependencies);
+    }
+}
+
+/**
+ * Resolve the primary runner's slot map from either the structured shape
+ * (`snapshot.primary.slots`) or the legacy flat shape (`snapshot.slots`).
+ * The validator accepts both but the strict `StateSnapshot` type only
+ * mirrors the structured shape; the dual shape is read through this
+ * legacy-aware view. {@link validateSnapshot} guarantees at least one of
+ * the two shapes is present so we never fall through.
+ *
+ * @internal
+ */
+type LegacySnapshotView = Readonly<{
+    readonly primary?: RunnerSnapshot;
+    readonly slots?: Readonly<Record<string, JsonValue>>;
+}>;
+
+const EMPTY_SLOTS: Readonly<Record<string, JsonValue>> = Object.freeze({});
+
+function primarySlotsOf(snapshot: StateSnapshot): Readonly<Record<string, JsonValue>> {
+    const view = snapshot as LegacySnapshotView;
+    if (view.primary !== undefined) return view.primary.slots;
+    /* c8 ignore next 2 — validateSnapshot guarantees one of primary/slots is present. */
+    if (view.slots === undefined) return EMPTY_SLOTS;
+    return view.slots;
 }
 
 /**

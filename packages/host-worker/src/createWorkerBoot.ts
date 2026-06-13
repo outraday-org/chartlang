@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { CompiledScriptBundle, CompiledScriptObject } from "@invinite-org/chartlang-core";
 import { createScriptRunner } from "@invinite-org/chartlang-runtime";
 
 import { filterEmissions } from "./filterEmissions.js";
@@ -40,6 +41,61 @@ function isFrame(value: unknown): value is HostToWorker {
     if (value === null || typeof value !== "object") return false;
     const k = (value as { readonly kind?: unknown }).kind;
     return typeof k === "string";
+}
+
+function isCompiledScriptObject(v: unknown): v is CompiledScriptObject {
+    if (v === null || typeof v !== "object") return false;
+    const o = v as { readonly compute?: unknown; readonly manifest?: unknown };
+    return typeof o.compute === "function" && typeof o.manifest === "object" && o.manifest !== null;
+}
+
+/**
+ * Bridge a dynamically-imported compiled module into the runtime's
+ * single-or-bundle compiled-script shape. Detects the §22.10
+ * indicator-composition bundle by either (a) the array form of
+ * `__manifest` or (b) a non-empty `__dependencies` export — both are
+ * additive over the Phase-1 single-script wire format. Single-script
+ * callers see the same `mod.default` `CompiledScriptObject` they did
+ * before, byte-identical.
+ *
+ * Sibling exports are recovered by reading each non-`default` manifest
+ * entry's `exportName` off the array sidecar and pulling the matching
+ * named export off the module namespace object. Entries the local
+ * `isCompiledScriptObject` guard rejects are skipped silently so a
+ * malformed bundle still loads its primary script.
+ */
+function buildBundleFromModule(
+    mod: CompiledModuleExport,
+): CompiledScriptObject | CompiledScriptBundle {
+    const manifest = mod.__manifest;
+    const dependencies = mod.__dependencies ?? [];
+    const isBundle = Array.isArray(manifest) || dependencies.length > 0;
+    if (!isBundle) {
+        return mod.default;
+    }
+    const siblings: Array<{ readonly exportName: string; readonly compiled: CompiledScriptObject }> = [];
+    if (Array.isArray(manifest)) {
+        for (let i = 1; i < manifest.length; i += 1) {
+            const entry = manifest[i];
+            const exportName = entry.exportName;
+            if (exportName === undefined || exportName === "default") continue;
+            const compiled = mod[exportName];
+            if (!isCompiledScriptObject(compiled)) continue;
+            siblings.push(Object.freeze({ exportName, compiled }));
+        }
+    }
+    const frozenDeps = dependencies.map((d) =>
+        Object.freeze({
+            localId: d.localId,
+            compiled: d.compiled,
+            ...(d.inputOverrides === undefined ? {} : { inputOverrides: d.inputOverrides }),
+        }),
+    );
+    return Object.freeze({
+        primary: mod.default,
+        siblings: Object.freeze(siblings),
+        dependencies: Object.freeze(frozenDeps),
+    });
 }
 
 /**
@@ -82,8 +138,9 @@ export function createWorkerBoot(scope: WorkerBootScope): void {
         if (msg.kind === "load") {
             try {
                 const mod = await importCompiledModule(msg.compiled.moduleSource);
+                const compiled = buildBundleFromModule(mod);
                 runner = createScriptRunner({
-                    compiled: mod.default,
+                    compiled,
                     capabilities: msg.capabilities,
                     ...(msg.symInfo !== undefined ? { symInfo: msg.symInfo } : {}),
                     ...(msg.inputOverrides !== undefined

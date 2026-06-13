@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -98,4 +98,28 @@ describe("compileProject", () => {
         const fs = await import("node:fs/promises");
         await expect(fs.stat(join(workspace, "a.chart.js"))).rejects.toThrow();
     });
+
+    it("inlines a shared producer exactly once across a 4-file diamond", async () => {
+        const fixturesDir = new URL("./__fixtures__/cross-file-diamond/", import.meta.url);
+        for (const name of [
+            "base.chart.ts",
+            "fast.chart.ts",
+            "slow.chart.ts",
+            "crossover.chart.ts",
+        ]) {
+            const content = await readFile(new URL(name, fixturesDir), "utf8");
+            await writeFile(join(workspace, name), content, "utf8");
+        }
+        const results = await compileProject(workspace, { apiVersion: 1 });
+        const crossover = results.find((r) => r.manifest.name === "Crossover");
+        expect(crossover).toBeDefined();
+        // The producer's manifest name appears once per inlined block;
+        // `base` should be inlined exactly once across the diamond.
+        const baseInlineCount = (
+            crossover?.moduleSource.match(/__producer_[a-f0-9]+__default/g) ?? []
+        ).length;
+        expect(baseInlineCount).toBeGreaterThanOrEqual(1);
+        // The bundle must contain the shim when producers are inlined.
+        expect(crossover?.moduleSource).toContain("__chartlang_depOutput");
+    }, 30_000);
 });

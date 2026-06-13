@@ -4,4 +4,9 @@
 export { state } from "./state.js";
 export type { StateNamespace } from "./state.js";
 export type { MutableSlot } from "./mutableSlot.js";
-export type { StateSnapshot, StateStoreKey, StreamSnapshot } from "./snapshot.js";
+export type {
+    RunnerSnapshot,
+    StateSnapshot,
+    StateStoreKey,
+    StreamSnapshot,
+} from "./snapshot.js";

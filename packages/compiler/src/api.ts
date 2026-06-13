@@ -3,7 +3,7 @@
 
 import { randomBytes } from "node:crypto";
 import { readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve as resolvePath } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import { STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/chartlang-core";
 import type {
     DependencyDeclaration,
@@ -27,7 +27,17 @@ import {
     runStructuralChecks,
     validateLowerTfIntervals,
 } from "./analysis/index.js";
-import { bundleModule, formatManifestAssignment } from "./bundle.js";
+import {
+    bundleModule,
+    formatDependenciesAssignment,
+    formatManifestAssignment,
+} from "./bundle.js";
+import {
+    type CompiledProducerArtefacts,
+    createProducerResolver,
+    type ProducerCompiled,
+    type ResolveCrossFileProducer,
+} from "./dependency/index.js";
 import type { CompileDiagnostic } from "./diagnostics.js";
 import { mapTsDiagnostic } from "./diagnostics.js";
 import { buildManifest } from "./manifest.js";
@@ -43,6 +53,12 @@ import { emitTypes } from "./typesEmit.js";
  * `Capabilities.intervals` set used by the `lower-tf-not-lower` validation —
  * when omitted the lower-timeframe ordering check is skipped.
  *
+ * `resolveProducer` is the sync §22.10 indicator-composition snapshot
+ * lookup; `compile` builds this from the pre-resolved cross-file
+ * `ProducerCompiled` snapshots before invoking the transform pass. When
+ * omitted (e.g. direct unit-test calls), cross-file dep edges resolve to
+ * `null` and the analysis pass treats them as unresolvable.
+ *
  * @since 0.1
  * @example
  *     const opts: TransformAndAnalyseOptions = { sourcePath: "demo.chart.ts" };
@@ -50,6 +66,14 @@ import { emitTypes } from "./typesEmit.js";
 export type TransformAndAnalyseOptions = Readonly<{
     sourcePath: string;
     declaredIntervals?: ReadonlyArray<IntervalDescriptor>;
+    resolveProducer?: (
+        moduleSpecifier: string,
+        exportName: string,
+    ) => Readonly<{
+        readonly name: string;
+        readonly outputs: ReadonlyArray<{ readonly title: string; readonly kind: string }>;
+        readonly inputs: Readonly<Record<string, unknown>>;
+    }> | null;
 }>;
 
 /**
@@ -57,6 +81,12 @@ export type TransformAndAnalyseOptions = Readonly<{
  * ids have been injected; `manifest` is the recursively-frozen
  * `ScriptManifest`; `diagnostics` is the flat list of every diagnostic
  * emitted by any pass (errors abort the rewrite, warnings flow through).
+ *
+ * `siblings` is populated only for §22.10 multi-export indicator-composition
+ * files (files with more than one drawn `defineIndicator(...)` binding) —
+ * it carries every named-export manifest in source order. Single-script
+ * files omit the field entirely so existing snapshot assertions stay
+ * byte-identical.
  *
  * @since 0.1
  * @example
@@ -73,6 +103,7 @@ export type TransformAndAnalyseResult = Readonly<{
     transformed: ts.SourceFile;
     manifest: ScriptManifest;
     diagnostics: ReadonlyArray<CompileDiagnostic>;
+    siblings?: ReadonlyArray<ScriptManifest>;
 }>;
 
 /**
@@ -102,7 +133,11 @@ export function transformAndAnalyse(
     opts: TransformAndAnalyseOptions,
 ): TransformAndAnalyseResult {
     const sourcePath = opts.sourcePath;
-    const { program, sourceFile, checker } = createProgramForSource(source, { sourcePath });
+    const chartImports = preScanChartImports(source, sourcePath);
+    const { program, sourceFile, checker } = createProgramForSource(source, {
+        sourcePath,
+        chartImports,
+    });
 
     const structural = runStructuralChecks(sourceFile, checker, sourcePath);
     const forbidden = runForbiddenConstructs(sourceFile, sourcePath);
@@ -128,7 +163,25 @@ export function transformAndAnalyse(
         checker,
         sourcePath,
         structural.bindings,
-        () => null,
+        opts.resolveProducer === undefined
+            ? () => null
+            : (modSpec, expName) => {
+                  const snap = opts.resolveProducer?.(modSpec, expName);
+                  /* v8 ignore next */
+                  if (snap === undefined || snap === null) return null;
+                  return Object.freeze({
+                      name: snap.name,
+                      outputs: Object.freeze(
+                          snap.outputs.map((o) =>
+                              Object.freeze({
+                                  title: o.title,
+                                  kind: o.kind as "series-number",
+                              }),
+                          ),
+                      ),
+                      inputs: snap.inputs,
+                  });
+              },
     );
 
     const earlyDiagnostics: CompileDiagnostic[] = [
@@ -163,33 +216,14 @@ export function transformAndAnalyse(
         sourcePath,
         statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
     });
-    const capabilities = extractCapabilities(sourceFile, checker, structural.kind);
-    const lookback = extractMaxLookback(sourceFile, checker, sourcePath);
-    const inputs = extractInputs(sourceFile, checker, sourcePath);
     const alertConditions = extractAlertConditions(sourceFile, checker, sourcePath);
     const intervalDiagnostics: CompileDiagnostic[] = [];
-    const requestedIntervalsFromCalls = extractRequestedIntervals(
-        sourceFile,
-        checker,
-        inputs.inputs,
-        intervalDiagnostics,
-        sourcePath,
-    );
-    const requiresIntervals = extractRequiresIntervals(
-        sourceFile,
-        checker,
-        intervalDiagnostics,
-        sourcePath,
-    );
     const lowerTfDiagnostics = validateLowerTfIntervals(
         sourceFile,
         checker,
         sourcePath,
         opts.declaredIntervals ?? [],
     );
-    const requestedIntervals = Array.from(
-        new Set([...requestedIntervalsFromCalls, ...requiresIntervals]),
-    ).sort();
     const { requiresIntervals: structuralRequiresIntervals, ...structuralOverrides } =
         structural.overrides;
     void structuralRequiresIntervals;
@@ -205,33 +239,93 @@ export function transformAndAnalyse(
         throw new Error("internal: depGraph.drawn missing default entry");
     }
     /* v8 ignore stop */
-    const dependencies = buildDependencyDeclarations(defaultDrawn, depGraph, sourcePath);
-    const outputs = defaultDrawn.outputs.length === 0 ? undefined : defaultDrawn.outputs;
 
-    const manifest = buildManifest({
-        name: structural.name,
-        kind: structural.kind,
-        capabilities,
-        requestedIntervals,
-        userPickableInterval: inputs.userPickableInterval,
-        seriesCapacities: lookback.seriesCapacities,
-        maxLookback: lookback.maxLookback,
-        inputs: inputs.inputs,
-        ...structuralOverrides,
-        ...(requiresIntervals.length === 0 ? {} : { requiresIntervals }),
-        ...(alertConditions.alertConditions.length === 0
-            ? {}
-            : { alertConditions: alertConditions.alertConditions }),
-        ...(dependencies === undefined || dependencies.length === 0 ? {} : { dependencies }),
-        ...(outputs === undefined ? {} : { outputs }),
-    });
+    const isMultiExport = depGraph.drawn.length > 1;
+
+    // File-level extractions (single-export back-compat path) — full source
+    // walk so existing single-script manifests stay byte-identical.
+    const fileCapabilities = extractCapabilities(sourceFile, checker, structural.kind);
+    const fileLookback = extractMaxLookback(sourceFile, checker, sourcePath);
+    const fileInputs = extractInputs(sourceFile, checker, sourcePath);
+    const fileRequestedIntervalsFromCalls = extractRequestedIntervals(
+        sourceFile,
+        checker,
+        fileInputs.inputs,
+        intervalDiagnostics,
+        sourcePath,
+    );
+    const fileRequiresIntervals = extractRequiresIntervals(
+        sourceFile,
+        checker,
+        intervalDiagnostics,
+        sourcePath,
+    );
+    const fileRequestedIntervals = Array.from(
+        new Set([...fileRequestedIntervalsFromCalls, ...fileRequiresIntervals]),
+    ).sort();
+
+    const namedManifests: ScriptManifest[] = [];
+    if (isMultiExport) {
+        for (const drawn of depGraph.drawn) {
+            if (drawn.exportName === "default") continue;
+            namedManifests.push(
+                buildDrawnManifest(
+                    drawn,
+                    depGraph,
+                    sourceFile,
+                    checker,
+                    sourcePath,
+                    structural.kind,
+                    structuralOverrides,
+                    alertConditions.alertConditions,
+                ),
+            );
+        }
+    }
+
+    const defaultDependencies = buildDependencyDeclarations(defaultDrawn, depGraph, sourcePath);
+    const defaultOutputs = defaultDrawn.outputs.length === 0 ? undefined : defaultDrawn.outputs;
+
+    const manifest = isMultiExport
+        ? buildDrawnManifest(
+              defaultDrawn,
+              depGraph,
+              sourceFile,
+              checker,
+              sourcePath,
+              structural.kind,
+              structuralOverrides,
+              alertConditions.alertConditions,
+              namedManifests,
+          )
+        : buildManifest({
+              name: structural.name,
+              kind: structural.kind,
+              capabilities: fileCapabilities,
+              requestedIntervals: fileRequestedIntervals,
+              userPickableInterval: fileInputs.userPickableInterval,
+              seriesCapacities: fileLookback.seriesCapacities,
+              maxLookback: fileLookback.maxLookback,
+              inputs: fileInputs.inputs,
+              ...structuralOverrides,
+              ...(fileRequiresIntervals.length === 0
+                  ? {}
+                  : { requiresIntervals: fileRequiresIntervals }),
+              ...(alertConditions.alertConditions.length === 0
+                  ? {}
+                  : { alertConditions: alertConditions.alertConditions }),
+              ...(defaultDependencies === undefined || defaultDependencies.length === 0
+                  ? {}
+                  : { dependencies: defaultDependencies }),
+              ...(defaultOutputs === undefined ? {} : { outputs: defaultOutputs }),
+          });
 
     const allDiagnostics: CompileDiagnostic[] = [
         ...earlyDiagnostics,
         ...injection.diagnostics,
         ...rewrite.diagnostics,
-        ...lookback.diagnostics,
-        ...inputs.diagnostics,
+        ...fileLookback.diagnostics,
+        ...fileInputs.diagnostics,
         ...alertConditions.diagnostics,
         ...intervalDiagnostics,
         ...lowerTfDiagnostics,
@@ -241,7 +335,92 @@ export function transformAndAnalyse(
         transformed: injection.transformed,
         manifest,
         diagnostics: Object.freeze(allDiagnostics.slice()),
+        ...(isMultiExport ? { siblings: Object.freeze(namedManifests.slice()) } : {}),
     });
+}
+
+function buildDrawnManifest(
+    drawn: DrawnScript,
+    depGraph: DepGraph,
+    sourceFile: ts.SourceFile,
+    checker: ts.TypeChecker,
+    sourcePath: string,
+    kind: "indicator" | "drawing" | "alert" | "alertCondition",
+    structuralOverrides: Omit<
+        ReturnType<typeof runStructuralChecks>["overrides"],
+        "requiresIntervals"
+    >,
+    sharedAlertConditions: ReturnType<typeof extractAlertConditions>["alertConditions"],
+    siblings?: ReadonlyArray<ScriptManifest>,
+): ScriptManifest {
+    const intervalDiagnostics: CompileDiagnostic[] = [];
+    const scope = drawn.defineCall;
+    const capabilities = extractCapabilities(sourceFile, checker, kind, scope);
+    const lookback = extractMaxLookback(sourceFile, checker, sourcePath, scope);
+    const inputs = extractInputs(sourceFile, checker, sourcePath, scope);
+    const requestedFromCalls = extractRequestedIntervals(
+        sourceFile,
+        checker,
+        inputs.inputs,
+        intervalDiagnostics,
+        sourcePath,
+    );
+    const requiresIntervalsScoped = extractRequiresIntervals(
+        sourceFile,
+        checker,
+        intervalDiagnostics,
+        sourcePath,
+    );
+    const requestedIntervals = Array.from(
+        new Set([...requestedFromCalls, ...requiresIntervalsScoped]),
+    ).sort();
+    const dependencies = buildDependencyDeclarations(drawn, depGraph, sourcePath);
+    const outputs = drawn.outputs.length === 0 ? undefined : drawn.outputs;
+    const isDefault = drawn.exportName === "default";
+    const nameForManifest = isDefault ? readDefineCallName(drawn.defineCall) : drawn.bindingName;
+
+    return buildManifest({
+        name: nameForManifest,
+        kind,
+        capabilities,
+        requestedIntervals,
+        userPickableInterval: inputs.userPickableInterval,
+        seriesCapacities: lookback.seriesCapacities,
+        maxLookback: lookback.maxLookback,
+        inputs: inputs.inputs,
+        ...structuralOverrides,
+        /* v8 ignore start */
+        ...(requiresIntervalsScoped.length === 0
+            ? {}
+            : { requiresIntervals: requiresIntervalsScoped }),
+        ...(sharedAlertConditions.length === 0 ? {} : { alertConditions: sharedAlertConditions }),
+        /* v8 ignore stop */
+        ...(dependencies === undefined || dependencies.length === 0 ? {} : { dependencies }),
+        ...(outputs === undefined ? {} : { outputs }),
+        exportName: drawn.exportName,
+        isDrawn: true,
+        ...(siblings !== undefined && siblings.length > 0 ? { siblings } : {}),
+    });
+}
+
+function readDefineCallName(defineCall: ts.CallExpression): string {
+    const arg = defineCall.arguments[0];
+    /* v8 ignore next 3 */
+    if (arg === undefined || !ts.isObjectLiteralExpression(arg)) {
+        return "";
+    }
+    for (const property of arg.properties) {
+        /* v8 ignore next */
+        if (!ts.isPropertyAssignment(property)) continue;
+        const name = property.name;
+        /* v8 ignore next */
+        if (!ts.isIdentifier(name) || name.text !== "name") continue;
+        const initializer = property.initializer;
+        if (ts.isStringLiteral(initializer)) return initializer.text;
+        /* v8 ignore next */
+    }
+    /* v8 ignore next 2 */
+    return "";
 }
 
 /**
@@ -268,6 +447,24 @@ export type CompileOptions = Readonly<{
     minify?: boolean;
     target?: "es2022";
     declaredIntervals?: ReadonlyArray<IntervalDescriptor>;
+    /**
+     * Cross-file `.chart.ts` resolver. When undefined, `compile` builds
+     * a default per-call resolver rooted at the file's directory.
+     * `compileProject` shares one resolver across every file so the
+     * inline-once invariant holds (a producer referenced by N consumers
+     * compiles exactly once per project compile).
+     *
+     * @since 0.7
+     */
+    resolveProducer?: ResolveCrossFileProducer;
+    /**
+     * Absolute path the cross-file resolver should treat as the project
+     * root. Defaults to the directory of `sourcePath`'s absolute
+     * resolution. Imports resolving outside this tree return `null`.
+     *
+     * @since 0.7
+     */
+    rootDir?: string;
 }>;
 
 /**
@@ -356,29 +553,135 @@ const PRINTER = ts.createPrinter({
  */
 export async function compile(source: string, opts: CompileOptions): Promise<CompiledScript> {
     const sourcePath = opts.sourcePath ?? "script.chart.ts";
-    const result = transformAndAnalyse(source, {
+    const resolveProducer = opts.resolveProducer ?? createDefaultProducerResolver(sourcePath, opts);
+
+    // Pre-scan the consumer's source for `import X from "./Y.chart"`
+    // statements + resolve them in parallel. Each producer's resolved
+    // snapshot feeds the sync lookup passed to `transformAndAnalyse`;
+    // the same snapshots become the bundler's `inlinedProducers`.
+    const preScan = preScanChartImports(source, sourcePath);
+    const resolved = await Promise.all(
+        preScan.map(async (specifier) => {
+            const compiled = await resolveProducer(specifier, sourcePath);
+            return { specifier, compiled };
+        }),
+    );
+    const resolvedBySpecifier = new Map<string, ProducerCompiled | null>();
+    for (const entry of resolved) {
+        resolvedBySpecifier.set(entry.specifier, entry.compiled);
+    }
+
+    const transformOpts: TransformAndAnalyseOptions = {
         sourcePath,
+        /* v8 ignore next 3 */
         ...(opts.declaredIntervals === undefined
             ? {}
             : { declaredIntervals: opts.declaredIntervals }),
-    });
+        resolveProducer: (modSpec, expName) => {
+            const compiled = resolvedBySpecifier.get(modSpec);
+            /* v8 ignore next 3 */
+            if (compiled === undefined || compiled === null) {
+                return null;
+            }
+            const manifest = compiled.drawnByExportName.get(expName);
+            /* v8 ignore next 3 */
+            if (manifest === undefined) {
+                return null;
+            }
+            /* v8 ignore next */
+            const outputs = manifest.outputs ?? [];
+            return Object.freeze({
+                name: manifest.name,
+                outputs: Object.freeze(
+                    outputs.map((o) => Object.freeze({ title: o.title, kind: o.kind })),
+                ),
+                inputs: Object.fromEntries(
+                    Object.entries(manifest.inputs).map(([key, descriptor]) => [
+                        key,
+                        descriptor as unknown,
+                    ]),
+                ),
+            });
+        },
+    };
+    const result = transformAndAnalyse(source, transformOpts);
 
     const errors = result.diagnostics.filter((d) => d.severity === "error");
     if (errors.length > 0) {
         throw new CompileError(Object.freeze(errors.slice()));
     }
 
-    const transformedSource = PRINTER.printFile(result.transformed);
+    const printedSource = PRINTER.printFile(result.transformed);
     const sourcemap = opts.sourcemap ?? false;
+    // Walk every direct dep's transitive producer tree to build a
+    // topologically-ordered list (leaves first). Dedup by hash so a
+    // producer reached via two paths inlines exactly once.
+    const orderedProducers: ProducerCompiled[] = [];
+    const seenHashes = new Set<string>();
+    const collectTransitive = (p: ProducerCompiled): void => {
+        if (seenHashes.has(p.hash)) return;
+        for (const nested of p.transitiveProducers) collectTransitive(nested);
+        seenHashes.add(p.hash);
+        orderedProducers.push(p);
+    };
+    for (const { compiled } of resolved) {
+        /* v8 ignore next */
+        if (compiled === null) continue;
+        collectTransitive(compiled);
+    }
+    // Lower each cross-file `import <name> from "./X.chart"` line in
+    // the consumer's source to `const <name> = __producer_<hash>__default;`
+    // so the inlined producer's local binding feeds the rest of the
+    // consumer's body. Imports of non-resolved producers stay as-is so
+    // esbuild surfaces the unresolved-import error.
+    const specifierToHash = new Map<string, string>();
+    for (const entry of resolved) {
+        /* v8 ignore next */
+        if (entry.compiled === null) continue;
+        specifierToHash.set(entry.specifier, entry.compiled.hash);
+    }
+    const consumerSourceWithRewrittenImports = rewriteConsumerChartImports(
+        printedSource,
+        specifierToHash,
+    );
+    // §22.10 indicator-composition: when the default manifest declares
+    // private deps, append a hidden `export const __dependencies = [...]`
+    // BEFORE handing the source to esbuild so the bundler sees every
+    // alias binding referenced from the export graph. Pre-bundle inclusion
+    // is load-bearing — appending after `bundleModule` would let esbuild's
+    // tree-shaker drop aliases declared via `const trend = baseTrend;`
+    // (cross-file aliases reduce to a bare reference after the §22.10
+    // `withInputs` chain rewrite, which esbuild treats as side-effect-free
+    // and DCE-eligible).
+    const defaultDeps = result.manifest.dependencies ?? [];
+    const depsAssignment = formatDependenciesAssignment(
+        defaultDeps.map((d) => ({
+            localId: d.localId,
+            bindingExpression: d.localId,
+            ...(Object.keys(d.effectiveInputs).length === 0
+                ? {}
+                : { effectiveInputs: d.effectiveInputs }),
+        })),
+    );
+    const transformedSource = `${consumerSourceWithRewrittenImports}\n${depsAssignment}`;
+    const inlinedProducers = orderedProducers.map((p) => ({
+        hash: p.hash,
+        rewrittenSource: p.rewrittenSource,
+    }));
     const bundle = await bundleModule({
         transformedSource,
         sourcePath,
         sourcemap,
         minify: opts.minify ?? false,
+        ...(inlinedProducers.length === 0 ? {} : { inlinedProducers }),
     });
 
-    const moduleSource = `${bundle.moduleSource}${formatManifestAssignment(result.manifest)}`;
-    const types = emitTypes({ manifest: result.manifest, sourcePath });
+    const sidecar: ScriptManifest | ReadonlyArray<ScriptManifest> =
+        result.siblings === undefined
+            ? result.manifest
+            : Object.freeze([result.manifest, ...result.siblings]);
+    const moduleSource = `${bundle.moduleSource}${formatManifestAssignment(sidecar)}`;
+    const types = emitTypes({ manifest: sidecar, sourcePath });
 
     if (bundle.sourcemap !== undefined) {
         return Object.freeze({
@@ -451,8 +754,13 @@ export async function compileFile(path: string, opts: CompileFileOptions): Promi
     const manifestPath = `${base}.chart.manifest.json`;
     const dtsPath = `${base}.chart.d.ts`;
 
+    const sidecar: ScriptManifest | ReadonlyArray<ScriptManifest> =
+        result.manifest.siblings === undefined
+            ? result.manifest
+            : Object.freeze([result.manifest, ...result.manifest.siblings]);
+
     await writeAtomic(jsPath, result.moduleSource);
-    await writeAtomic(manifestPath, JSON.stringify(result.manifest, null, 4));
+    await writeAtomic(manifestPath, JSON.stringify(sidecar, null, 4));
     await writeAtomic(dtsPath, result.types);
     if (
         (opts.sourcemap === true || opts.sourcemap === "external") &&
@@ -525,12 +833,26 @@ export async function compileProject(
     opts: CompileOptions,
 ): Promise<ReadonlyArray<CompiledScript>> {
     const files = await walkChartFiles(rootDir);
+    let absoluteRoot: string;
+    if (isAbsolute(rootDir)) {
+        absoluteRoot = rootDir;
+        /* v8 ignore next 3 */
+    } else {
+        absoluteRoot = resolvePath(process.cwd(), rootDir);
+    }
+    const sharedResolver: ResolveCrossFileProducer =
+        opts.resolveProducer ??
+        createProducerResolver({ rootDir: absoluteRoot }, (source, producerSourcePath) =>
+            compileProducerArtefacts(source, producerSourcePath, sharedResolver),
+        );
     const compiled = await Promise.all(
         files.map((file) =>
             compileFile(file, {
                 ...opts,
                 write: false,
                 sourcePath: toPosixRelative(process.cwd(), file),
+                resolveProducer: sharedResolver,
+                rootDir: absoluteRoot,
             }),
         ),
     );
@@ -614,12 +936,222 @@ function buildCrossFileDeclaration(
 /* v8 ignore stop */
 
 function stripWriteFlag(opts: CompileFileOptions): CompileOptions {
-    const { apiVersion, sourcePath, sourcemap, minify, target, declaredIntervals } = opts;
+    const {
+        apiVersion,
+        sourcePath,
+        sourcemap,
+        minify,
+        target,
+        declaredIntervals,
+        resolveProducer,
+        rootDir,
+    } = opts;
     const out: { -readonly [K in keyof CompileOptions]: CompileOptions[K] } = { apiVersion };
     if (sourcePath !== undefined) out.sourcePath = sourcePath;
     if (sourcemap !== undefined) out.sourcemap = sourcemap;
     if (minify !== undefined) out.minify = minify;
     if (target !== undefined) out.target = target;
     if (declaredIntervals !== undefined) out.declaredIntervals = declaredIntervals;
+    if (resolveProducer !== undefined) out.resolveProducer = resolveProducer;
+    if (rootDir !== undefined) out.rootDir = rootDir;
     return out;
+}
+
+/**
+ * Lower each cross-file `import <name> from "./X.chart"` line in the
+ * consumer's printed TS source to `const <name> = __producer_<hash>__default;`
+ * so the inlined producer's local binding wires into the consumer's body.
+ * Imports of unresolved specifiers (no entry in `specifierToHash`) stay
+ * as-is so esbuild surfaces the resolution failure.
+ *
+ * Phase 1 only supports the default-import form — named imports remain
+ * untouched and will be addressed when same-file named-export composition
+ * crosses file boundaries.
+ *
+ * @since 0.7
+ */
+function rewriteConsumerChartImports(
+    source: string,
+    specifierToHash: ReadonlyMap<string, string>,
+): string {
+    if (specifierToHash.size === 0) return source;
+    return source.replace(
+        /^\s*import\s+([A-Za-z_$][A-Za-z0-9_$]*)\s+from\s+(['"])([^'"]+)\2;\s*$/gm,
+        (match, name: string, _quote: string, specifier: string) => {
+            const hash = specifierToHash.get(specifier);
+            /* v8 ignore next */
+            if (hash === undefined) return match;
+            return `const ${name} = __producer_${hash}__default;`;
+        },
+    );
+}
+
+/**
+ * Pre-scan a `.chart.ts` source for `.chart.ts` / `.chart` import
+ * specifiers using a one-pass AST walk. Returns a deduplicated array of
+ * specifiers in source-declaration order. The list feeds `compile`'s
+ * async resolver before `transformAndAnalyse` runs so the analysis pass
+ * can resolve cross-file producer snapshots synchronously.
+ *
+ * @since 0.7
+ */
+function preScanChartImports(source: string, sourcePath: string): ReadonlyArray<string> {
+    const sourceFile = ts.createSourceFile(
+        sourcePath,
+        source,
+        ts.ScriptTarget.ES2022,
+        true,
+        ts.ScriptKind.TS,
+    );
+    const specifiers: string[] = [];
+    const seen = new Set<string>();
+    for (const statement of sourceFile.statements) {
+        if (!ts.isImportDeclaration(statement)) continue;
+        const specifier = statement.moduleSpecifier;
+        /* v8 ignore next 3 */
+        if (!ts.isStringLiteral(specifier)) {
+            continue;
+        }
+        const text = specifier.text;
+        if (!text.endsWith(".chart") && !text.endsWith(".chart.ts")) continue;
+        /* v8 ignore next 3 */
+        if (seen.has(text)) {
+            continue;
+        }
+        seen.add(text);
+        specifiers.push(text);
+    }
+    return Object.freeze(specifiers);
+}
+
+/**
+ * Build a per-`compile` cross-file resolver rooted at the consumer's
+ * directory. `compileProject` overrides this by sharing a single
+ * resolver across every file so the inline-once invariant holds.
+ *
+ * @since 0.7
+ */
+function createDefaultProducerResolver(
+    sourcePath: string,
+    opts: CompileOptions,
+): ResolveCrossFileProducer {
+    let absSourcePath: string;
+    /* v8 ignore next 3 */
+    if (isAbsolute(sourcePath)) {
+        absSourcePath = sourcePath;
+    } else {
+        absSourcePath = resolvePath(process.cwd(), sourcePath);
+    }
+    const rootDir = opts.rootDir ?? dirname(absSourcePath);
+    const resolver: ResolveCrossFileProducer = createProducerResolver(
+        { rootDir },
+        (source, producerSourcePath) =>
+            compileProducerArtefacts(source, producerSourcePath, resolver),
+    );
+    return resolver;
+}
+
+/**
+ * Compile one producer file for the resolver. Pre-scans its imports,
+ * resolves them recursively (so transitive producers populate the
+ * cache before we hand control back), runs the producer's own
+ * `compile` + `transformAndAnalyse`, and returns the artefacts the
+ * resolver wraps into a {@link ProducerCompiled} snapshot.
+ *
+ * @since 0.7
+ */
+async function compileProducerArtefacts(
+    source: string,
+    producerSourcePath: string,
+    resolver: ResolveCrossFileProducer,
+): Promise<CompiledProducerArtefacts | null> {
+    try {
+        // Pre-resolve the producer's own cross-file deps so the
+        // recursive `compile` can pull the matching snapshot from the
+        // shared resolver's cache instead of compiling twice.
+        const preScan = preScanChartImports(source, producerSourcePath);
+        const nested = await Promise.all(
+            preScan.map(async (specifier) => ({
+                specifier,
+                compiled: await resolver(specifier, producerSourcePath),
+            })),
+        );
+        const result = await compile(source, {
+            apiVersion: 1,
+            sourcePath: producerSourcePath,
+            resolveProducer: resolver,
+        });
+        const transformAndAnalyseResult = transformAndAnalyse(source, {
+            sourcePath: producerSourcePath,
+            resolveProducer: buildSyncSnapshotResolver(nested),
+        });
+        const transformedSource = PRINTER.printFile(transformAndAnalyseResult.transformed);
+        const transitiveProducers: ProducerCompiled[] = [];
+        const specifierToHash = new Map<string, string>();
+        for (const { specifier, compiled } of nested) {
+            /* v8 ignore next */
+            if (compiled === null) continue;
+            transitiveProducers.push(compiled);
+            specifierToHash.set(specifier, compiled.hash);
+        }
+        let siblings: ReadonlyArray<ScriptManifest>;
+        if (transformAndAnalyseResult.siblings === undefined) {
+            siblings = Object.freeze([]);
+            /* v8 ignore next 3 */
+        } else {
+            siblings = transformAndAnalyseResult.siblings;
+        }
+        return Object.freeze({
+            moduleSource: result.moduleSource,
+            transformedSource,
+            manifest: result.manifest,
+            siblings,
+            transitiveProducers: Object.freeze(transitiveProducers),
+            specifierToHash,
+        });
+        /* v8 ignore next 3 */
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Build a sync snapshot resolver from a pre-resolved list of cross-file
+ * producers. Returns the producer manifest's `ProducerSnapshot` shape
+ * `transformAndAnalyse` calls when walking consumer-side
+ * `<binding>.output("title")` references.
+ */
+function buildSyncSnapshotResolver(
+    nested: ReadonlyArray<{ specifier: string; compiled: ProducerCompiled | null }>,
+): NonNullable<TransformAndAnalyseOptions["resolveProducer"]> {
+    const bySpecifier = new Map<string, ProducerCompiled>();
+    for (const entry of nested) {
+        if (entry.compiled !== null) bySpecifier.set(entry.specifier, entry.compiled);
+    }
+    return (modSpec, expName) => {
+        const compiled = bySpecifier.get(modSpec);
+        /* v8 ignore next 3 */
+        if (compiled === undefined) {
+            return null;
+        }
+        const manifest = compiled.drawnByExportName.get(expName);
+        /* v8 ignore next 3 */
+        if (manifest === undefined) {
+            return null;
+        }
+        /* v8 ignore next */
+        const outputs = manifest.outputs ?? [];
+        return Object.freeze({
+            name: manifest.name,
+            outputs: Object.freeze(
+                outputs.map((o) => Object.freeze({ title: o.title, kind: o.kind })),
+            ),
+            inputs: Object.fromEntries(
+                Object.entries(manifest.inputs).map(([key, descriptor]) => [
+                    key,
+                    descriptor as unknown,
+                ]),
+            ),
+        });
+    };
 }

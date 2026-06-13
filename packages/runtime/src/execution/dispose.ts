@@ -25,6 +25,13 @@ import { flushStateSlots } from "../state/index.js";
  *     // dispose(state);
  */
 export function dispose(state: RunnerState): void {
+    for (const dep of state.depRunners) {
+        dispose(dep.state);
+    }
+    for (const sibling of state.siblingRunners) {
+        dispose(sibling.state);
+    }
+    state.depOutputStore?.dispose();
     flushStateSlots(state.runtimeContext);
     for (const buf of Object.values(state.mainStream.ohlcv)) {
         buf.reset();

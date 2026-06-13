@@ -64,9 +64,21 @@ function snapshot(savedAt: number, payload = "payload"): StateSnapshot {
                 },
             },
         },
-        slots: { payload },
         savedAt,
         snapshotVersion: 1,
+        primary: { slots: { payload } },
+    };
+}
+
+function structuredSnapshot(savedAt: number): StateSnapshot {
+    return {
+        ...snapshot(savedAt, "primary-payload"),
+        siblings: {
+            slow: { slots: { "export:slow/counter:state": { committed: 4, tentative: 4 } } },
+        },
+        dependencies: {
+            fast: { slots: { "dep:fast/counter:state": { committed: 7, tentative: 7 } } },
+        },
     };
 }
 
@@ -337,6 +349,16 @@ describe("idbStateStore", () => {
     it("round-trips a saved snapshot", async () => {
         const store = idbStateStore({ dbName: dbName("round-trip"), key: key("round-trip") });
         const snap = snapshot(1_000);
+        await store.save(snap);
+        await expect(store.load()).resolves.toEqual(snap);
+    });
+
+    it("round-trips a structured snapshot with siblings and dependencies", async () => {
+        const store = idbStateStore({
+            dbName: dbName("structured-round-trip"),
+            key: key("structured-round-trip"),
+        });
+        const snap = structuredSnapshot(1_500);
         await store.save(snap);
         await expect(store.load()).resolves.toEqual(snap);
     });

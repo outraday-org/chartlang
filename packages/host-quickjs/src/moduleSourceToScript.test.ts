@@ -100,6 +100,63 @@ describe("moduleSourceToScript", () => {
         expect(out).toContain('globalThis.__chartlang_compiled_manifest = {"apiVersion":1};');
     });
 
+    it("rewrites a top-level named export onto the host-visible global map", () => {
+        // §22.10 indicator-composition multi-export sibling capture. The
+        // dispatcher reads `globalThis.__chartlang_compiled_named.X`
+        // back when building the `CompiledScriptBundle`.
+        const src = [
+            "export const sibling = { compute: () => {} };",
+            "export default { compute };",
+        ].join("\n");
+        const out = moduleSourceToScript(src);
+        expect(out).toContain(
+            '(globalThis.__chartlang_compiled_named = globalThis.__chartlang_compiled_named || {})["sibling"] =',
+        );
+        // No surviving `export` keyword — the bundle is evaluated as a
+        // top-level script.
+        expect(out).not.toMatch(/^\s*export\b/m);
+    });
+
+    it("rewrites multiple named exports independently", () => {
+        const src = [
+            "export const fast = 1;",
+            "export const slow = 2;",
+            "export default { compute };",
+        ].join("\n");
+        const out = moduleSourceToScript(src);
+        expect(out).toContain('["fast"] =');
+        expect(out).toContain('["slow"] =');
+        expect(out).toContain("globalThis.__chartlang_compiled_default = { compute };");
+        expect(out).not.toMatch(/^\s*export\b/m);
+    });
+
+    it("rewrites __dependencies into a host-visible global", () => {
+        const src = [
+            "export default {};",
+            "export const __dependencies = [{ localId: 'base', compiled: base }];",
+        ].join("\n");
+        const out = moduleSourceToScript(src);
+        expect(out).toContain(
+            "globalThis.__chartlang_compiled_dependencies = [{ localId: 'base', compiled: base }];",
+        );
+        expect(out).not.toMatch(/^\s*export\b/m);
+    });
+
+    it("does not match the reserved __manifest / __dependencies names as siblings", () => {
+        // The named-export rewrite excludes the reserved sidecar
+        // identifiers; each gets its own dedicated rewrite.
+        const src = [
+            "export default {};",
+            'export const __manifest = { a: 1 };',
+            "export const __dependencies = [];",
+        ].join("\n");
+        const out = moduleSourceToScript(src);
+        expect(out).not.toContain('["__manifest"] =');
+        expect(out).not.toContain('["__dependencies"] =');
+        expect(out).toContain("globalThis.__chartlang_compiled_manifest = { a: 1 };");
+        expect(out).toContain("globalThis.__chartlang_compiled_dependencies = [];");
+    });
+
     it("rewrites real `compile(...)` output (esbuild-bundled, renamed-default form)", async () => {
         // Acceptance criterion §3 of the bundle fix: the host-quickjs adapter
         // must absorb the actual shape produced by the compiler's bundler,
