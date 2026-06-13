@@ -304,6 +304,33 @@ export default defineDrawing({
         expect(result.moduleSource).not.toContain("__dependencies");
     });
 
+    it("bakes each producer's titled outputs onto its defineIndicator call so the runtime self-describes", async () => {
+        // Phase-7 composition fix: every producer the runtime mounts
+        // (private dep + named-export sibling) must carry
+        // `outputs: [...]` on its define-call so `manifest.outputs` is
+        // populated and the host allocates a dep-output ring buffer.
+        const result = await compile(MULTI_EXPORT_COMPOSITION, {
+            apiVersion: 1,
+            sourcePath: "multi.chart.ts",
+        });
+        expect(result.moduleSource).toMatch(
+            /name: "Base"[\s\S]*?outputs: \[\{ title: "line", kind: "series-number" \}\]/,
+        );
+        expect(result.moduleSource).toMatch(
+            /name: "Sibling"[\s\S]*?outputs: \[\{ title: "echo", kind: "series-number" \}\]/,
+        );
+    });
+
+    it("leaves a titled single-export script's outputs out of the bundle body when nothing consumes it untitled-only", async () => {
+        // EMA_CROSS plots `fast` untitled, so the default has zero
+        // titled outputs ⇒ no injection ⇒ no `outputs:` in the body.
+        const result = await compile(EMA_CROSS, {
+            apiVersion: 1,
+            sourcePath: "ema-cross.chart.ts",
+        });
+        expect(result.moduleSource).not.toMatch(/outputs: \[\{ title:/);
+    });
+
     it("compiles a cross-file consumer + producer via the default resolver and bakes the alias overrides into __dependencies", async () => {
         // Exercises `compile()`'s default cross-file resolver path —
         // no explicit `resolveProducer`, no `compileProject` driving

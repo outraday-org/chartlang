@@ -84,6 +84,30 @@ describe("defineIndicator", () => {
         );
     });
 
+    it("omits manifest.outputs when opts.outputs is undefined", () => {
+        const script = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: () => {},
+        });
+        expect(script.manifest.outputs).toBeUndefined();
+        expect("outputs" in script.manifest).toBe(false);
+    });
+
+    it("copies opts.outputs into the manifest verbatim", () => {
+        const outputs = [
+            { title: "line", kind: "series-number" },
+            { title: "signal", kind: "series-number" },
+        ] as const;
+        const script = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            outputs,
+            compute: () => {},
+        });
+        expect(script.manifest.outputs).toEqual(outputs);
+    });
+
     it("propagates script override fields into the manifest verbatim", () => {
         const requiresIntervals = ["1D", "1W"] as const;
         const script = defineIndicator({

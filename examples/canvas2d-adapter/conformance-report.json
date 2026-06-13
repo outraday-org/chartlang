@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.0.1",
-    "passed": 225,
+    "passed": 226,
     "failed": 0,
     "scenarios": [
         {
@@ -43,6 +43,12 @@
         {
             "id": "dep-cross-file",
             "title": "Cross-file producer import resolves through the compiler",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "dep-crossover-gate",
+            "title": "Consumed producer outputs drive a crossover-gated plot",
             "status": "pass",
             "failures": []
         },

@@ -40,7 +40,7 @@ export default defineIndicator({
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
     {
         kind: "plot-hash",
-        sha256: "00c391fbd8b08f5a7af636749a23c1907e2f1904e7594f679d146b2ff6fd0675",
+        sha256: "f9aebd15337ab978e8fcfb01f5aab84919d9578b588580a0fa3c4e0a777c7ade",
     },
     { kind: "alert-count", count: 0 },
     { kind: "diagnostic-code-absent", code: "dep-error" },

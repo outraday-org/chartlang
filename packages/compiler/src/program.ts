@@ -1312,6 +1312,7 @@ declare module "@invinite-org/chartlang-core" {
         inputs?: InputSchema;
         compute: ComputeFn;
         maxDrawings?: DrawingCounts;
+        outputs?: ReadonlyArray<OutputDeclaration>;
     }> & ScriptOverrides;
     export type DefineAlertOpts = Readonly<{
         name: string;

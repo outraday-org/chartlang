@@ -29,19 +29,22 @@ Task 1 (`overlay` on the manifest + `HLineOpts.pane`).
 
 ## Desired Behavior
 
-- `RuntimeContext` gains `readonly defaultPane: string`. The runner
-  resolves it at mount:
+- `RuntimeContext` gains `readonly defaultPane: string` and
+  `readonly scriptPane: string`. The runner resolves them at mount:
   - `manifest.overlay !== false` → `"overlay"`.
   - `manifest.overlay === false` → `"script:<sanitised-name>"` where
     `sanitised-name` is `manifest.name` with `/[^a-zA-Z0-9_-]/g`
     replaced by `-`. Empty / all-stripped name falls back to
     `"script:default"`.
+  - `scriptPane` is always the stable `"script:<sanitised-name>"`
+    key, even when `defaultPane === "overlay"`. Explicit
+    `pane: "new"` uses this key so a script gets one joined subpane,
+    not one subpane per plot callsite.
 - `resolvePane(requested, ctx, slotId)` returns:
   - `requested === "overlay"` → `"overlay"`.
   - `requested === undefined` → `ctx.defaultPane`.
-  - `requested === "new"` → `ctx.defaultPane` if it's already a non-
-    overlay key; otherwise `"script:<sanitised-name>"` computed from
-    the runner's mount-time pane key.
+  - `requested === "new"` → `ctx.scriptPane` (one stable subpane per
+    script).
   - any other string and `capabilities.subPanes >= 1` → that string,
     unchanged.
   - any non-overlay string and `capabilities.subPanes === 0` → fold
@@ -58,9 +61,9 @@ Task 1 (`overlay` on the manifest + `HLineOpts.pane`).
 
 ## Requirements
 
-### 1. `packages/runtime/src/runtimeContext.ts` — add `defaultPane`
+### 1. `packages/runtime/src/runtimeContext.ts` — add pane fields
 
-Add the field after `resolvedInputs` (~line 228):
+Add the fields after `resolvedInputs` (~line 228):
 
 ```ts
 /**
@@ -73,37 +76,50 @@ Add the field after `resolvedInputs` (~line 228):
  * @since 0.2
  */
 readonly defaultPane: string;
+
+/**
+ * Stable non-overlay pane key for this script. Explicit
+ * `pane: "new"` resolves here even when `defaultPane === "overlay"`
+ * so every `"new"` plot in a script joins one script-owned subpane.
+ * @since 0.2
+ */
+readonly scriptPane: string;
 ```
 
-Field is `readonly` — once mount-time-resolved, the runner does not
-mutate it.
+Fields are `readonly` — once mount-time-resolved, the runner does not
+mutate them.
 
 ### 2. `packages/runtime/src/createScriptRunner.ts` — resolve at mount
 
-Add a small helper (file-private):
+Add small helpers (file-private):
 
 ```ts
 const SANITISE_PANE_KEY = /[^a-zA-Z0-9_-]/g;
-function resolveDefaultPane(manifest: ScriptManifest): string {
-    if (manifest.overlay !== false) return "overlay";
+function resolveScriptPane(manifest: ScriptManifest): string {
     const sanitised = manifest.name.replace(SANITISE_PANE_KEY, "-");
     return `script:${sanitised === "" ? "default" : sanitised}`;
 }
+
+function resolveDefaultPane(manifest: ScriptManifest): string {
+    return manifest.overlay === false ? resolveScriptPane(manifest) : "overlay";
+}
 ```
 
-Pass the result into the `RuntimeContext` construction site. The
-field is `readonly` so it gets set inside the literal — no
+Pass both results into the `RuntimeContext` construction site. The
+fields are `readonly` so they get set inside the literal — no
 post-hoc assignment.
 
 ### 3. `packages/runtime/src/createScriptRunner.test.ts` — defaultPane tests
 
-Add three cases:
+Add four cases:
 
 - `overlay: true` manifest → `runner.context.defaultPane === "overlay"`.
 - `overlay: false` manifest + `name: "RSI Cross"` →
   `runner.context.defaultPane === "script:RSI-Cross"`.
 - `overlay: false` manifest + `name: "$$$"` (all chars sanitised) →
   `runner.context.defaultPane === "script:default"`.
+- `overlay: true` manifest + `name: "RSI Cross"` still sets
+  `runner.context.scriptPane === "script:RSI-Cross"`.
 
 (Use the existing test harness's `createTestRunner` /
 `mountTestRunner` helper — match whichever pattern the file already
@@ -124,14 +140,11 @@ export function resolvePane(
     // No explicit pane — fall back to the script's mount-time default.
     if (requested === undefined) return ctx.defaultPane;
 
-    // `"new"` coalesces to the script default when that default is
-    // already a subpane key; otherwise compute one on the spot.
+    // `"new"` coalesces to the stable script-owned pane. This avoids
+    // one subpane per plot callsite while still letting overlay-default
+    // scripts opt one plot into a subpane.
     if (requested === "new") {
-        if (ctx.defaultPane !== "overlay") return ctx.defaultPane;
-        // overlay: true script asked for "new" explicitly on this
-        // emission — fall through to named-pane handling below using
-        // the slotId-derived key.
-        return resolveNamedPane(`slot:${slotId}`, ctx, slotId);
+        return resolveNamedPane(ctx.scriptPane, ctx, slotId);
     }
 
     return resolveNamedPane(requested, ctx, slotId);
@@ -169,7 +182,7 @@ Replace the existing fold-tests with:
 - `requested === "overlay"` always returns `"overlay"`, no
   diagnostic, regardless of `subPanes`.
 - `requested === "new"` + `overlay`-default ctx + `subPanes: 1` →
-  returns `"slot:<slotId>"`, no diagnostic.
+  returns `"script:<sanitised>"`, no diagnostic.
 - `requested === "new"` + `script:rsi`-default ctx + `subPanes: 1`
   → returns `"script:rsi"`, no diagnostic.
 - `requested === "rsi"` + `subPanes: 1` → returns `"rsi"`, no
@@ -178,10 +191,11 @@ Replace the existing fold-tests with:
   pushes the `unsupported-pane` warning (covers the bare-bones
   adapter fallback path).
 - `requested === "new"` + `overlay`-default ctx + `subPanes: 0` →
-  returns `"overlay"`, pushes diagnostic (the `slot:<id>` path
+  returns `"overlay"`, pushes diagnostic (the `script:<id>` path
   flows through `resolveNamedPane` which folds).
 
-Update `makeCtx` to accept `defaultPane` (default `"overlay"`).
+Update `makeCtx` to accept `defaultPane` (default `"overlay"`) and
+`scriptPane` (default `"script:test"`).
 
 ### 6. `packages/runtime/src/emit/paneResolver.property.test.ts` — new file
 
@@ -288,8 +302,8 @@ default-no-flag mount, that assertion stays valid — confirm.)
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `packages/runtime/src/runtimeContext.ts` | Modify | Add `readonly defaultPane: string` |
-| `packages/runtime/src/createScriptRunner.ts` | Modify | Resolve `defaultPane` at mount from `manifest.overlay` |
+| `packages/runtime/src/runtimeContext.ts` | Modify | Add `readonly defaultPane: string` + `readonly scriptPane: string` |
+| `packages/runtime/src/createScriptRunner.ts` | Modify | Resolve `defaultPane` and `scriptPane` at mount from `manifest.overlay` / `manifest.name` |
 | `packages/runtime/src/createScriptRunner.test.ts` | Modify | Tests for the three default-pane branches |
 | `packages/runtime/src/emit/paneResolver.ts` | Modify | Rewrite — real router; widen return type to `string` |
 | `packages/runtime/src/emit/paneResolver.test.ts` | Modify | Replace fold-tests with router-tests |
@@ -315,15 +329,16 @@ string, which is the explicit intent of the feature.
 
 ## Acceptance Criteria
 
-- `RuntimeContext.defaultPane` is set at mount; three branches
-  (overlay-true, overlay-false-named, overlay-false-empty-name)
+- `RuntimeContext.defaultPane` and `RuntimeContext.scriptPane` are set
+  at mount; overlay-true, overlay-false-named,
+  overlay-false-empty-name, and overlay-true-scriptPane branches are
   asserted.
 - `resolvePane` returns the requested pane unchanged when
   `subPanes >= 1` and the request is non-overlay.
 - `resolvePane` returns the manifest default when `requested ===
   undefined`.
 - `resolvePane(\"new\", ...)` coalesces to `ctx.defaultPane` when
-  that default is already a subpane, or to `slot:<slotId>` when
+  that default is already a subpane, or to `ctx.scriptPane` when
   the script is overlay-default.
 - `subPanes === 0` adapters still see overlay-folded emissions +
   the `unsupported-pane` diagnostic.

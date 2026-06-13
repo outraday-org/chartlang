@@ -157,6 +157,75 @@ export default defineIndicator({
         expect(text).toMatch(/const trend = baseTrend;/);
     });
 
+    it("injects a producer private dep's titled outputs into its defineIndicator opts", () => {
+        // The bug guard: a private dep producing `plot(..., { title })`
+        // must carry `outputs: [...]` on its define-call so the runtime
+        // object's `manifest.outputs` is populated and the dep-output
+        // store allocates a ring buffer for the title.
+        const text = rewrite(`
+import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+const base = defineIndicator({
+    name: "Base",
+    apiVersion: 1,
+    compute: ({ bar, ta, plot }) => { plot(ta.ema(bar.close, 10), { title: "line" }); },
+});
+export default defineIndicator({
+    name: "Main",
+    apiVersion: 1,
+    compute: () => { void base.output("line"); },
+});
+`);
+        // The private dep's opts literal gains the outputs array.
+        expect(text).toMatch(
+            /name: "Base"[\s\S]*outputs: \[\{ title: "line", kind: "series-number" \}\]/,
+        );
+        // The default consumer here has no titled plots, so it stays
+        // outputs-free.
+        expect(text).not.toMatch(/name: "Main"[\s\S]*outputs:/);
+    });
+
+    it("injects outputs for both a named-export sibling and the default consumer", () => {
+        const text = rewrite(`
+import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+export const slow = defineIndicator({
+    name: "Slow",
+    apiVersion: 1,
+    compute: ({ bar, ta, plot }) => { plot(ta.ema(bar.close, 20), { title: "line" }); },
+});
+export default defineIndicator({
+    name: "Main",
+    apiVersion: 1,
+    compute: ({ plot }) => { plot(slow.output("line").current, { title: "spread" }); },
+});
+`);
+        expect(text).toMatch(
+            /name: "Slow"[\s\S]*outputs: \[\{ title: "line", kind: "series-number" \}\]/,
+        );
+        expect(text).toMatch(
+            /name: "Main"[\s\S]*outputs: \[\{ title: "spread", kind: "series-number" \}\]/,
+        );
+    });
+
+    it("leaves a single-export script with no titled plots untouched", () => {
+        // No titled plot ⇒ no outputs ⇒ no injection ⇒ byte-identical.
+        const source = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "Plain",
+    apiVersion: 1,
+    compute: ({ bar, plot }) => { plot(bar.close); },
+});
+`;
+        const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+        const { sourceFile, checker } = createProgramForSource(source, {
+            sourcePath: "demo.chart.ts",
+        });
+        const original = printer.printFile(sourceFile);
+        const rewritten = rewrite(source);
+        expect(rewritten).not.toContain("outputs:");
+        expect(rewritten).toBe(original);
+    });
+
     it("strips a multi-link withInputs chain on a same-file alias", () => {
         // Two .withInputs(...) layers on a same-file private dep
         // collapse to the bare root identifier.

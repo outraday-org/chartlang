@@ -3,6 +3,7 @@
 
 import type { CompiledScriptObject, ComputeFn, DrawingCounts, InputSchema } from "../types.js";
 import { attachDepAccessorSentinels } from "./depAccessorSentinel.js";
+import type { OutputDeclaration } from "./dependency.js";
 import type { ScriptOverrides } from "./overrides.js";
 
 /**
@@ -29,6 +30,16 @@ export type DefineIndicatorOpts = Readonly<{
     compute: ComputeFn;
     /** Per-bucket cap on `draw.*` emissions per bar. @since 0.3 */
     maxDrawings?: DrawingCounts;
+    /**
+     * Titled outputs this producer exposes for `<binding>.output(...)`
+     * consumption. Injected by the compiler from the producer's
+     * `plot(value, { title })` calls so the runtime object is
+     * self-describing — hosts read `manifest.outputs` to allocate the
+     * dep-output ring buffer. Hand-authored scripts omit it; absent
+     * `outputs` keeps the emitted manifest byte-identical to a script
+     * with no titled plots. @since 0.7
+     */
+    outputs?: ReadonlyArray<OutputDeclaration>;
 }> &
     ScriptOverrides;
 
@@ -77,6 +88,7 @@ export function defineIndicator(opts: DefineIndicatorOpts): CompiledScriptObject
             ? {}
             : { requiresIntervals: opts.requiresIntervals }),
         ...(opts.shortName === undefined ? {} : { shortName: opts.shortName }),
+        ...(opts.outputs === undefined ? {} : { outputs: opts.outputs }),
     };
     return Object.freeze(
         attachDepAccessorSentinels({

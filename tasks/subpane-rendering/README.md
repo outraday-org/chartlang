@@ -114,16 +114,18 @@ Make `pane: "overlay" | "new" | "<id>"` route end-to-end:
 
 ### Runtime (`packages/runtime/`)
 
-- `RuntimeContext` gains `readonly defaultPane: string` — `"overlay"`
-  when the manifest's `overlay` flag is `true` / absent;
-  `"script:${manifest.name-or-slotPrefix}"` when `overlay: false`.
-  `createScriptRunner` resolves it once at mount.
+- `RuntimeContext` gains `readonly defaultPane: string` and
+  `readonly scriptPane: string`. `defaultPane` is `"overlay"` when the
+  manifest's `overlay` flag is `true` / absent and `scriptPane` when
+  `overlay: false`. `scriptPane` is always
+  `"script:${sanitisedManifestName}"`, so explicit `pane: "new"` has a
+  stable target even for overlay-default scripts. `createScriptRunner`
+  resolves both once at mount.
 - `paneResolver.ts` becomes a real router:
   - `requested === "overlay"` → `"overlay"`.
   - `requested === undefined` → `ctx.defaultPane`.
-  - `requested === "new"` → `ctx.defaultPane` if it's already a
-    subpane key; otherwise `"script:${ctx.scriptKey}"` (same coalesce
-    used by the manifest path).
+  - `requested === "new"` → `ctx.scriptPane` (same coalesce used by
+    the manifest path when `defaultPane` is already a subpane key).
   - Named (`"rsi"`, etc.) → returned unchanged if
     `capabilities.subPanes >= 1`; otherwise folded to overlay with
     the existing diagnostic.
