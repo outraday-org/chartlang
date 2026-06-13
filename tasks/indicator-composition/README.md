@@ -1,6 +1,6 @@
 # Indicator Composition
 
-> **Status: TODO.** Implements
+> **Status: DONE.** Implements
 > [`INDICATOR_COMPOSITION_REQUIREMENTS.md`](../../INDICATOR_COMPOSITION_REQUIREMENTS.md)
 > as an additive `apiVersion: 1.x` extension. PLAN.md does not yet
 > reference this feature — the closest neighbour is the
@@ -269,14 +269,14 @@ Task 8 (conformance + docs + examples + changeset)
 
 | # | Title | Package(s) | Dependencies | Est. Complexity |
 |---|---|---|---|---|
-| 1 | [Core types, manifest extensions, diagnostic codes](./1-core-types.md) | core, adapter-kit | None | Medium |
-| 2 | [Compiler — dependency graph analysis + validation](./2-compiler-analysis.md) | compiler | 1 | High |
-| 3 | [Compiler — multi-export bundle + inline deps + `.d.ts` accessors](./3-compiler-bundling.md) | compiler | 2 | High |
-| 4 | [Runtime — dep executor + output store + emission filter](./4-runtime-dep-executor.md) | runtime | 3 | High |
-| 5 | [Runtime — slot-id namespacing + persistence isolation](./5-runtime-state-persistence.md) | core, runtime | 4 | Medium |
-| 6 | [Host + adapter — multi-script mount + new `DiagnosticCode` round-trip](./6-host-adapter-passthrough.md) | host-worker, host-quickjs, adapter-kit, canvas2d-adapter | 5 | Medium |
-| 7 | [Language service — hover, completion, diagnostics for deps](./7-language-service.md) | language-service, editor | 6 | Medium |
-| 8 | [Conformance scenarios + docs + example scripts + changeset](./8-conformance-docs-example.md) | conformance, cli, docs, examples | 7 | High |
+| 1 | [Core types, manifest extensions, diagnostic codes](./X-1-core-types.md) | core, adapter-kit | None | Medium |
+| 2 | [Compiler — dependency graph analysis + validation](./X-2-compiler-analysis.md) | compiler | 1 | High |
+| 3 | [Compiler — multi-export bundle + inline deps + `.d.ts` accessors](./X-3-compiler-bundling.md) | compiler | 2 | High |
+| 4 | [Runtime — dep executor + output store + emission filter](./X-4-runtime-dep-executor.md) | runtime | 3 | High |
+| 5 | [Runtime — slot-id namespacing + persistence isolation](./X-5-runtime-state-persistence.md) | core, runtime | 4 | Medium |
+| 6 | [Host + adapter — multi-script mount + new `DiagnosticCode` round-trip](./X-6-host-adapter-passthrough.md) | host-worker, host-quickjs, adapter-kit, canvas2d-adapter | 5 | Medium |
+| 7 | [Language service — hover, completion, diagnostics for deps](./X-7-language-service.md) | language-service, editor | 6 | Medium |
+| 8 | [Conformance scenarios + docs + example scripts + changeset](./X-8-conformance-docs-example.md) | conformance, cli, docs, examples | 7 | High |
 
 ## Code Reuse
 

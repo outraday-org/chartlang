@@ -1,6 +1,6 @@
 # Task 6 — Host + adapter multi-script mount + DiagnosticCode round-trip
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # Task 5 — Runtime slot-id namespacing + persistence isolation
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

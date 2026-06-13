@@ -1,6 +1,6 @@
 # Task 8 — Conformance scenarios, docs, example scripts, changeset closeout
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

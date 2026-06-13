@@ -1,6 +1,6 @@
 # Task 3 — Compiler multi-export bundling + dep inlining + `.d.ts`
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

@@ -1,6 +1,6 @@
 # Task 1 — Core types, manifest extensions, diagnostic codes
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

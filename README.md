@@ -34,7 +34,17 @@ export default defineIndicator({
 
 ## Try it
 
-Two runnable demos exercise the full stack end-to-end:
+First install and build the workspace once from the repo root — the
+demos resolve `@invinite-org/chartlang-*` from each package's built
+`dist/`:
+
+```bash
+pnpm install
+pnpm build
+```
+
+Then run either of the two demos, which exercise the full stack
+end-to-end:
 
 - **React editor + live chart** — type the script on the left, watch
   it render on the right. Hot reloads on every keystroke through the
@@ -74,6 +84,11 @@ pnpm add @invinite-org/chartlang-core @invinite-org/chartlang-compiler @invinite
 
 ## Why chartlang
 
+- **TypeScript is the language — not a new dialect to learn.** Scripts
+  are ordinary `.chart.ts` files with full type-checking, editor
+  autocomplete, and refactoring out of the box. No bespoke grammar
+  means LLMs already write it fluently, so authoring (and AI-assisted
+  authoring) works on day one.
 - **Open source, MIT-licensed, no chart-vendor lock-in.** The
   language, compiler, runtime, and adapter contract are all in this
   repo. No proprietary scripting dialect.

@@ -1,6 +1,6 @@
 # Task 7 — Language service hover, completion, diagnostics for deps
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

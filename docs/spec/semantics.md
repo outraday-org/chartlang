@@ -108,6 +108,9 @@ The determinism preconditions are:
 - Adapter capabilities are immutable for the lifetime of one script runner.
 - Input overrides are resolved once at mount and then frozen for every compute
   step.
+- Host-side input changes take effect by remounting or reloading the compiled
+  script with a new override record. Runtimes do not mutate an active
+  runner's input bag mid-stream.
 - Secondary streams are delivered in deterministic order by their
   `streamKey`.
 - A persistent snapshot, when used, has already been validated before restore.

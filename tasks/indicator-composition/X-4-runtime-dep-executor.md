@@ -1,6 +1,6 @@
 # Task 4 — Runtime dep executor, output store, emission filter
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

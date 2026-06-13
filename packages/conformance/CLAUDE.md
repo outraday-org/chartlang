@@ -95,11 +95,11 @@ plot hashes, alert counts, and diagnostic codes.
   mutual-exclusion guard (`additionalSources` without `inlineSource`)
   throws at `resolveSource`.
 - **Dep-family scenarios pin emission hashes + `dep-*` diagnostic
-  codes.** The four `dep-*` scenarios in `ALL_SCENARIOS`
+  codes.** The five `dep-*` scenarios in `ALL_SCENARIOS`
   (`dep-private-single-file`, `dep-multi-export`, `dep-diamond`,
-  `dep-error-halts-parent`) run the full compile→bundle→runtime pipe
-  against the canvas2d capability bag. `DEP_CROSS_FILE_SCENARIO` is
-  exported but excluded from `ALL_SCENARIOS` — the runtime leg of
-  cross-file dep rewriting is deferred (see its JSDoc). Re-pin via the
+  `dep-error-halts-parent`, `dep-cross-file`) run the full
+  compile→bundle→runtime pipe against the canvas2d capability bag.
+  `dep-cross-file` uses `additionalSources` so the compiler resolves
+  an imported sibling `.chart.ts` producer on disk. Re-pin via the
   runner's "expected vs actual" failure message exactly like every
   other scenario.

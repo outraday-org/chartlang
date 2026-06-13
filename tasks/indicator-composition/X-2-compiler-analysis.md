@@ -1,6 +1,6 @@
 # Task 2 — Compiler dependency graph analysis + validation
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

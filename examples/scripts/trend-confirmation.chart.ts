@@ -1,23 +1,19 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+import { defineIndicator } from "@invinite-org/chartlang-core";
+import baseTrend from "./base-trend.chart";
 
-const fastTrend = defineIndicator({
-    name: "Trend Fast",
-    apiVersion: 1,
-    overlay: true,
-    compute({ bar, ta, plot }) {
-        plot(ta.ema(bar.close, 20), { title: "line" });
-    },
-});
+const fastTrend = baseTrend.withInputs({ length: 20 });
+const slowSource = baseTrend.withInputs({ length: 100 });
 
 export const slowTrend = defineIndicator({
     name: "Trend Slow",
     apiVersion: 1,
     overlay: true,
-    compute({ bar, ta, plot }) {
-        plot(ta.ema(bar.close, 100), { title: "line", color: "#9ca3af" });
+    compute({ plot }) {
+        const slow = slowSource.output("line");
+        plot(slow.current, { title: "line", color: "#9ca3af" });
     },
 });
 

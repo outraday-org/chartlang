@@ -100,6 +100,11 @@ Chained `withInputs` calls fold in declaration order — the last write
 wins. The compiler statically validates the chain; the runtime never
 sees `.withInputs(...)` invocations.
 
+Host-side input panel changes are applied by remounting or reloading
+the script with a fresh override record. An active runner's resolved
+input bag is frozen for deterministic replay, including dependency
+sub-runners.
+
 ## `.output("title")` reads
 
 `<binding>.output("title")` returns a `Series<number>` view over the
