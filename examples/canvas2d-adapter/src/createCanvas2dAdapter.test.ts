@@ -365,6 +365,32 @@ describe("onEmissions dispatch", () => {
         expect(ctx.calls.filter((c) => c.kind === "stroke").length).toBeGreaterThan(0);
     });
 
+    it("accumulates glyph overlays from one slotId across distinct bars", () => {
+        // A callsite that emits a glyph on many bars (e.g. a crossover
+        // mark) must render one glyph per bar. Keying overlays by slotId
+        // alone collapses every emission to the last bar — this guards
+        // that regression by asserting both bars render their character.
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "cross",
+                        style: { kind: "character", char: "X", size: 12 },
+                        time: SAMPLE_BARS[0].time,
+                    }),
+                    plotEmission({
+                        slotId: "cross",
+                        style: { kind: "character", char: "X", size: 12 },
+                        time: SAMPLE_BARS[1].time,
+                    }),
+                ],
+            }),
+        );
+        const marks = ctx.calls.filter((c) => c.kind === "fillText" && c.text === "X");
+        expect(marks.length).toBe(2);
+    });
+
     it("plotSeries that contain null gap values are skipped by viewport computation", async () => {
         // Run through runRendererLoop so bars are populated before the
         // emission whose plotSeries contains a null. The viewport loop must

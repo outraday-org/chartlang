@@ -149,7 +149,11 @@ export default defineIndicator({
         const fast = baseTrend.output("line");
         const slow = slowTrend.output("line");
         if (ta.crossover(fast, slow).current) {
-            plot(bar.close, { color: "#22c55e", title: "Cross" });
+            plot(bar.low, {
+                color: "#22c55e",
+                title: "Cross",
+                style: { kind: "shape", shape: "triangle-up", size: 10, location: "below" },
+            });
         }
     },
 });

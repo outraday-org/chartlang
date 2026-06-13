@@ -395,7 +395,15 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
         });
         return;
     }
-    state.plotOverlays.set(plot.slotId, plot);
+    // Glyph / per-bar overlays (shape, marker, character, arrow,
+    // bg-color, bar-color, candle/bar-override, horizontal-histogram)
+    // are keyed by slot id AND bar time so a callsite that emits on
+    // many bars accumulates one overlay per bar. Keying by slot id
+    // alone would collapse every emission to the last bar's value —
+    // e.g. crossover marks would show only at the final crossover.
+    // Re-emission within an in-progress bar (ticks) shares the bar's
+    // time, so last-write-wins per bar is preserved.
+    state.plotOverlays.set(`${plot.slotId}@${plot.time}`, plot);
 }
 
 function applyAlert(
