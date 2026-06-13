@@ -73,7 +73,10 @@ function buildBundleFromModule(
     if (!isBundle) {
         return mod.default;
     }
-    const siblings: Array<{ readonly exportName: string; readonly compiled: CompiledScriptObject }> = [];
+    const siblings: Array<{
+        readonly exportName: string;
+        readonly compiled: CompiledScriptObject;
+    }> = [];
     if (Array.isArray(manifest)) {
         for (let i = 1; i < manifest.length; i += 1) {
             const entry = manifest[i];

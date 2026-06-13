@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.0.1",
-    "passed": 220,
+    "passed": 225,
     "failed": 0,
     "scenarios": [
         {
@@ -37,6 +37,36 @@
         {
             "id": "define-drawing-basic",
             "title": "defineDrawing — single fibRetracement emission",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "dep-cross-file",
+            "title": "Cross-file producer import resolves through the compiler",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "dep-diamond",
+            "title": "Two private deps in one file feed one consumer",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "dep-error-halts-parent",
+            "title": "Dep error halts the consumer's emissions for the failing bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "dep-multi-export",
+            "title": "Private dep + named export + default consumer in one file",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "dep-private-single-file",
+            "title": "Private dep + default consumer in one file",
             "status": "pass",
             "failures": []
         },

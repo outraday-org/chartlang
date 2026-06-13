@@ -639,9 +639,9 @@ export default {
     },
 };
 export const __manifest = ${JSON.stringify([
-    COMPOSITION_PRIMARY_MANIFEST,
-    COMPOSITION_SIBLING_MANIFEST,
-])};
+        COMPOSITION_PRIMARY_MANIFEST,
+        COMPOSITION_SIBLING_MANIFEST,
+    ])};
 export const __dependencies = [{ localId: "base", compiled: base }];
 `;
 }

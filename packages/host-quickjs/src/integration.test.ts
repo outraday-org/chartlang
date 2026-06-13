@@ -245,7 +245,9 @@ export const __manifest = ${JSON.stringify([primaryManifest, siblingManifest])};
         await host.push({ kind: "close", bar: bars(1)[0] });
         const emissions = await host.drain();
         host.dispose();
-        const exportPrefixed = emissions.plots.filter((p) => p.slotId.startsWith("export:sibling/"));
+        const exportPrefixed = emissions.plots.filter((p) =>
+            p.slotId.startsWith("export:sibling/"),
+        );
         expect(exportPrefixed.length).toBeGreaterThan(0);
         expect(exportPrefixed[0]?.value).toBe(42);
     });

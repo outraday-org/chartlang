@@ -95,7 +95,7 @@ describe("language-service helpers", () => {
         ]);
     });
 
-    it("detects only `<binding>.output(\"|\")` string-literal positions", () => {
+    it('detects only `<binding>.output("|")` string-literal positions', () => {
         const source = 'baseTrend.output("line")';
         const insideStringOffset = source.indexOf("line") + 1;
         const afterCallOffset = source.length;
@@ -105,7 +105,7 @@ describe("language-service helpers", () => {
         // `.plot("|")` — wrong method name.
         expect(isInsideOutputStringLiteral('baseTrend.plot("line")', 17)).toBe(false);
         // No arguments — the predicate must not match.
-        expect(isInsideOutputStringLiteral('baseTrend.output()', 15)).toBe(false);
+        expect(isInsideOutputStringLiteral("baseTrend.output()", 15)).toBe(false);
         // Non-property-access callee.
         expect(isInsideOutputStringLiteral('output("line")', 9)).toBe(false);
         // Second arg position is not the first.
@@ -115,7 +115,7 @@ describe("language-service helpers", () => {
     });
 
     it("detects only `<binding>.withInputs({ |})` KEY positions", () => {
-        const source = 'baseTrend.withInputs({ length: 20 })';
+        const source = "baseTrend.withInputs({ length: 20 })";
         const atKeyName = source.indexOf("length") + 1;
         const atValueLiteral = source.indexOf("20") + 1;
         const afterCloseBrace = source.length;
@@ -124,20 +124,18 @@ describe("language-service helpers", () => {
         expect(isInsideWithInputsKey(source, atValueLiteral)).toBe(false);
         expect(isInsideWithInputsKey(source, afterCloseBrace)).toBe(false);
         // Wrong method name.
-        expect(
-            isInsideWithInputsKey('baseTrend.somethingElse({ length: 20 })', 27),
-        ).toBe(false);
+        expect(isInsideWithInputsKey("baseTrend.somethingElse({ length: 20 })", 27)).toBe(false);
         // Non-object argument.
-        expect(isInsideWithInputsKey('baseTrend.withInputs(123)', 22)).toBe(false);
+        expect(isInsideWithInputsKey("baseTrend.withInputs(123)", 22)).toBe(false);
         // Argument not at index 0.
-        expect(isInsideWithInputsKey('baseTrend.withInputs(1, { a: 1 })', 27)).toBe(false);
+        expect(isInsideWithInputsKey("baseTrend.withInputs(1, { a: 1 })", 27)).toBe(false);
         // Non-property-access callee.
-        expect(isInsideWithInputsKey('withInputs({ a: 1 })', 14)).toBe(false);
+        expect(isInsideWithInputsKey("withInputs({ a: 1 })", 14)).toBe(false);
         // Object literal at non-call position (variable initialiser).
-        expect(isInsideWithInputsKey('const x = { a: 1 };', 13)).toBe(false);
+        expect(isInsideWithInputsKey("const x = { a: 1 };", 13)).toBe(false);
         // Shorthand-property assignment is not a value-position guard hit
         // — predicate stays true (key position).
-        expect(isInsideWithInputsKey('baseTrend.withInputs({ length })', 23)).toBe(true);
+        expect(isInsideWithInputsKey("baseTrend.withInputs({ length })", 23)).toBe(true);
     });
 
     it("resolves dep accessor hovers for output() and withInputs()", () => {
@@ -206,9 +204,9 @@ void x; void y;
     });
 
     it("collects output titles + input descriptors for completion", () => {
-        const outOffset = PRODUCER_SOURCE.indexOf('output("line")') + "output(\"".length;
+        const outOffset = PRODUCER_SOURCE.indexOf('output("line")') + 'output("'.length;
         expect(resolveDepOutputsFor(PRODUCER_SOURCE, outOffset)).toEqual(["line", "signal"]);
-        expect(resolveDepOutputsFor("baseTrend.output(\"\")", 18)).toEqual([]);
+        expect(resolveDepOutputsFor('baseTrend.output("")', 18)).toEqual([]);
 
         const inOffset = PRODUCER_SOURCE.indexOf("withInputs({ length: 10") + 13;
         const inputs = resolveDepInputsFor(PRODUCER_SOURCE, inOffset);
@@ -229,7 +227,8 @@ void x; void y;
     });
 
     it("resolves dep accessor go-to-definition to the matching plot title", () => {
-        const offset = PRODUCER_SOURCE.indexOf('baseTrend.output("line")') + "baseTrend.output(\"".length;
+        const offset =
+            PRODUCER_SOURCE.indexOf('baseTrend.output("line")') + 'baseTrend.output("'.length;
         const def = resolveDepAccessorDefinition(PRODUCER_SOURCE, offset);
         expect(def).not.toBeNull();
         expect(def?.file).toBe("script.chart.ts");
@@ -280,21 +279,15 @@ void y;
 const ghost = somethingElse();
 const x = ghost.output("line");
 `;
-        expect(
-            resolveDepAccessorDefinition(notDefine, notDefine.indexOf('"line"') + 1),
-        ).toBeNull();
+        expect(resolveDepAccessorDefinition(notDefine, notDefine.indexOf('"line"') + 1)).toBeNull();
     });
 
     it("returns empty completions when dep predicates match but resolver is empty", () => {
-        const items = collectCompletions(
-            'ghost.output("")',
-            'ghost.output("'.length,
-            {},
-        );
+        const items = collectCompletions('ghost.output("")', 'ghost.output("'.length, {});
         expect(items).toEqual([]);
     });
 
-    it("returns producer output titles inside <binding>.output(\"|\")", () => {
+    it('returns producer output titles inside <binding>.output("|")', () => {
         const offset = PRODUCER_SOURCE.indexOf('output("line")') + 'output("'.length;
         const completions = collectCompletions(PRODUCER_SOURCE, offset, {});
         expect(completions.map((c) => c.label)).toEqual(["line", "signal"]);

@@ -350,9 +350,7 @@ export function rewriteProducerSource(
             }
             // Non-chart import (e.g. `@invinite-org/chartlang-core`): hoist
             // verbatim so esbuild dedupes against the consumer's imports.
-            hoistedImports.push(
-                fullText.slice(statement.getStart(sourceFile), statement.getEnd()),
-            );
+            hoistedImports.push(fullText.slice(statement.getStart(sourceFile), statement.getEnd()));
             continue;
         }
         if (ts.isExportDeclaration(statement)) continue;

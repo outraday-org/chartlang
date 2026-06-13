@@ -51,9 +51,7 @@ export type DispatcherDeps = Readonly<{
      */
     getCompiledNamed?: () => Readonly<Record<string, CompiledScriptObject>> | undefined;
     /** @since 0.7 */
-    setCompiledNamed?: (
-        value: Readonly<Record<string, CompiledScriptObject>> | undefined,
-    ) => void;
+    setCompiledNamed?: (value: Readonly<Record<string, CompiledScriptObject>> | undefined) => void;
     /**
      * Private-dep slot for §22.10 indicator-composition bundles. The
      * guest's `export const __dependencies = [...]` rewrites to

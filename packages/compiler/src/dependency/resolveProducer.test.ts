@@ -66,9 +66,13 @@ describe("rewriteProducerSource", () => {
             'import { defineIndicator, input } from "@invinite-org/chartlang-core";\nexport default 1;\n',
             "abc123",
         );
-        expect(out).toContain('import { defineIndicator, input } from "@invinite-org/chartlang-core";');
+        expect(out).toContain(
+            'import { defineIndicator, input } from "@invinite-org/chartlang-core";',
+        );
         // The hoisted line lands above the IIFE, not inside it.
-        const hoistedIdx = out.indexOf('import { defineIndicator, input } from "@invinite-org/chartlang-core";');
+        const hoistedIdx = out.indexOf(
+            'import { defineIndicator, input } from "@invinite-org/chartlang-core";',
+        );
         const iifeIdx = out.indexOf("const __producer_abc123__default = (() => {");
         expect(hoistedIdx).toBeGreaterThanOrEqual(0);
         expect(iifeIdx).toBeGreaterThan(hoistedIdx);

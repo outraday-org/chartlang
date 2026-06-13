@@ -11,22 +11,22 @@ describe("HOVER_REGISTRY", () => {
     });
 
     it("contains indicator-composition (Phase 0.7) type entries", () => {
-        expect(HOVER_REGISTRY["DependencyDeclaration"]).toMatchObject({
+        expect(HOVER_REGISTRY.DependencyDeclaration).toMatchObject({
             fqn: "DependencyDeclaration",
             kind: "type",
             since: "0.7",
         });
-        expect(HOVER_REGISTRY["OutputDeclaration"]).toMatchObject({
+        expect(HOVER_REGISTRY.OutputDeclaration).toMatchObject({
             fqn: "OutputDeclaration",
             kind: "type",
             since: "0.7",
         });
-        expect(HOVER_REGISTRY["CompiledScriptBundle"]).toMatchObject({
+        expect(HOVER_REGISTRY.CompiledScriptBundle).toMatchObject({
             fqn: "CompiledScriptBundle",
             kind: "type",
             since: "0.7",
         });
-        expect(HOVER_REGISTRY["isCompiledScriptBundle"]).toMatchObject({
+        expect(HOVER_REGISTRY.isCompiledScriptBundle).toMatchObject({
             fqn: "isCompiledScriptBundle",
             since: "0.7",
         });

@@ -307,13 +307,13 @@ describe("runConformanceSuite", () => {
             title: "additionalSources success path",
             inlineSource:
                 'import { defineIndicator } from "@invinite-org/chartlang-core";\n' +
-                'export default defineIndicator({\n' +
+                "export default defineIndicator({\n" +
                 '    name: "addl",\n' +
-                '    apiVersion: 1,\n' +
-                '    compute({ bar, plot }) {\n' +
-                '        plot(bar.close);\n' +
-                '    },\n' +
-                '});\n',
+                "    apiVersion: 1,\n" +
+                "    compute({ bar, plot }) {\n" +
+                "        plot(bar.close);\n" +
+                "    },\n" +
+                "});\n",
             additionalSources: Object.freeze({
                 "./sibling.chart.ts": "// unused producer\nexport const noop = 1;\n",
             }),

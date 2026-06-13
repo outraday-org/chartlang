@@ -296,7 +296,7 @@ export default defineIndicator({
         expect(service.getHoverDoc("const x = 1;", 4)).toBeNull();
     });
 
-    it("returns completions for output titles inside <binding>.output(\"|\")", () => {
+    it('returns completions for output titles inside <binding>.output("|")', () => {
         const service = createLanguageService();
         const offset = composition.indexOf('fast.output("line")') + 'fast.output("'.length;
 
@@ -371,7 +371,7 @@ export default defineIndicator({
         expect(diagnostics.some((d) => d.code === "dep-output-not-titled")).toBe(true);
     });
 
-    it("returns go-to-definition for .output(\"title\") matching a producer's plot title", () => {
+    it('returns go-to-definition for .output("title") matching a producer\'s plot title', () => {
         const service = createLanguageService();
         const offset = composition.indexOf('fast.output("line")') + 'fast.output("'.length;
 

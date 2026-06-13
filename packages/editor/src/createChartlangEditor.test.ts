@@ -82,9 +82,7 @@ void x;
         editor.view.dispatch({ selection: { anchor: offset } });
 
         startCompletion(editor.view);
-        await waitFor(
-            () => currentCompletions(editor.view.state).some((c) => c.label === "trend"),
-        );
+        await waitFor(() => currentCompletions(editor.view.state).some((c) => c.label === "trend"));
 
         const labels = currentCompletions(editor.view.state).map((c) => c.label);
         expect(labels).toEqual(expect.arrayContaining(["trend", "signal"]));

@@ -12,6 +12,7 @@ function unavailable(name: string): (...args: ReadonlyArray<unknown>) => never {
 }
 
 export const randomBytes = unavailable("crypto.randomBytes");
+export const createHash = unavailable("crypto.createHash");
 export const readFile = unavailable("fs.readFile");
 export const readdir = unavailable("fs.readdir");
 export const rename = unavailable("fs.rename");
@@ -34,6 +35,7 @@ export const pathToFileURL = (p: string): URL => new URL(`file://${p}`);
 
 export default {
     randomBytes,
+    createHash,
     readFile,
     readdir,
     rename,

@@ -441,8 +441,10 @@ function buildBundleFromModule(
     if (!isBundle) {
         return primary;
     }
-    const siblings: Array<{ readonly exportName: string; readonly compiled: CompiledScriptObject }> =
-        [];
+    const siblings: Array<{
+        readonly exportName: string;
+        readonly compiled: CompiledScriptObject;
+    }> = [];
     if (Array.isArray(manifest)) {
         for (let i = 1; i < manifest.length; i += 1) {
             const entry = manifest[i];
@@ -495,14 +497,10 @@ async function resolveSource(scenario: Scenario): Promise<ResolvedSource> {
         throw new Error(`Scenario "${scenario.id}" cannot define both scriptPath and inlineSource`);
     }
     if (!hasScriptPath && !hasInlineSource) {
-        throw new Error(
-            `Scenario "${scenario.id}" must define either scriptPath or inlineSource`,
-        );
+        throw new Error(`Scenario "${scenario.id}" must define either scriptPath or inlineSource`);
     }
     if (scenario.additionalSources !== undefined && !hasInlineSource) {
-        throw new Error(
-            `Scenario "${scenario.id}" additionalSources requires inlineSource`,
-        );
+        throw new Error(`Scenario "${scenario.id}" additionalSources requires inlineSource`);
     }
     await mkdir(CACHE_DIR, { recursive: true });
     const suffix = randomBytes(8).toString("hex");

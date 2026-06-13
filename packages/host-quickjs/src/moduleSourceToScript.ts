@@ -29,8 +29,7 @@ const EXPORT_DEPENDENCIES_RE = /^\s*export\s+const\s+__dependencies\s*=/m;
 // The reserved sidecar exports (`__manifest`, `__dependencies`) are
 // rewritten by their dedicated patterns *before* this one runs, so the
 // generic named-export rewrite never sees them in practice.
-const EXPORT_NAMED_CONST_GLOBAL_RE =
-    /^(\s*)export\s+const\s+([A-Za-z_$][\w$]*)\s*=/gm;
+const EXPORT_NAMED_CONST_GLOBAL_RE = /^(\s*)export\s+const\s+([A-Za-z_$][\w$]*)\s*=/gm;
 
 /**
  * Rewrites a compiled ESM module source so the QuickJS dispatcher can capture
@@ -86,12 +85,9 @@ export function moduleSourceToScript(source: string): string {
     // `CompiledScriptBundle`. The expression after `=` survives intact,
     // so any trailing semicolon and the value-side reach the global slot
     // unchanged.
-    out = out.replace(
-        EXPORT_NAMED_CONST_GLOBAL_RE,
-        (_match, leading: string, name: string) => {
-            const key = JSON.stringify(name);
-            return `${leading}(globalThis.__chartlang_compiled_named = globalThis.__chartlang_compiled_named || {})[${key}] =`;
-        },
-    );
+    out = out.replace(EXPORT_NAMED_CONST_GLOBAL_RE, (_match, leading: string, name: string) => {
+        const key = JSON.stringify(name);
+        return `${leading}(globalThis.__chartlang_compiled_named = globalThis.__chartlang_compiled_named || {})[${key}] =`;
+    });
     return out;
 }

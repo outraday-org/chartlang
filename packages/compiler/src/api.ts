@@ -27,11 +27,7 @@ import {
     runStructuralChecks,
     validateLowerTfIntervals,
 } from "./analysis/index.js";
-import {
-    bundleModule,
-    formatDependenciesAssignment,
-    formatManifestAssignment,
-} from "./bundle.js";
+import { bundleModule, formatDependenciesAssignment, formatManifestAssignment } from "./bundle.js";
 import {
     type CompiledProducerArtefacts,
     createProducerResolver,

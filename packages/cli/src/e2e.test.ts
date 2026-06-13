@@ -92,8 +92,9 @@ describe("example scripts compile end-to-end", () => {
             expect(confirmation.moduleSource).toMatch(/__manifest\s*=\s*\[/);
             expect(confirmation.moduleSource).toMatch(/__dependencies\s*=\s*\[/);
             expect(confirmation.manifest.dependencies).toBeDefined();
-            expect(confirmation.manifest.dependencies?.some((d) => d.localId === "fastTrend"))
-                .toBe(true);
+            expect(confirmation.manifest.dependencies?.some((d) => d.localId === "fastTrend")).toBe(
+                true,
+            );
         },
         COMPILE_TIMEOUT_MS,
     );

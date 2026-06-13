@@ -220,7 +220,7 @@ describe("filterEmissions", () => {
             severity: "error",
             code,
             message: `${code} message`,
-            slotId: `dep:trend/inner.chart.ts:1:1#0`,
+            slotId: "dep:trend/inner.chart.ts:1:1#0",
             bar: 3,
         }));
         const out = filterEmissions(snapshot({ diagnostics }));

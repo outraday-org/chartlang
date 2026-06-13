@@ -155,8 +155,7 @@ function findAccessorAtOffset(source: string, offset: number): AccessorHit | nul
                 const method = callee.name.text;
                 if (method === "output") {
                     const arg = current.arguments[0];
-                    const title =
-                        arg !== undefined && ts.isStringLiteral(arg) ? arg.text : null;
+                    const title = arg !== undefined && ts.isStringLiteral(arg) ? arg.text : null;
                     return Object.freeze({
                         kind: "output",
                         bindingName: callee.expression.text,
@@ -253,8 +252,7 @@ function extractProducerInfo(
     /* v8 ignore stop */
 
     const computeFn = findPropertyAssignment(opts, "compute");
-    const plotCalls =
-        computeFn === null ? [] : collectPlotCalls(computeFn, sourceFile);
+    const plotCalls = computeFn === null ? [] : collectPlotCalls(computeFn, sourceFile);
 
     const inputsLiteral = findPropertyAssignment(opts, "inputs");
     const inputs =
@@ -325,8 +323,7 @@ function collectInputs(
         if (!ts.isIdentifier(callee.expression) || callee.expression.text !== "input") continue;
         const kind = callee.name.text;
         const firstArg = init.arguments[0];
-        const defaultText =
-            firstArg === undefined ? "—" : firstArg.getText(sourceFile);
+        const defaultText = firstArg === undefined ? "—" : firstArg.getText(sourceFile);
         out.push({ name, kind, defaultText });
     }
     return out;
@@ -347,7 +344,7 @@ function formatOutputHover(bindingName: string, producer: ProducerInfo): HoverDo
         return Object.freeze({
             title: `${bindingName}.output(...)`,
             summary:
-                "Producer does not expose any titled outputs. Add `plot(value, { title: \"<name>\" })` calls in the producer's `compute` body.",
+                'Producer does not expose any titled outputs. Add `plot(value, { title: "<name>" })` calls in the producer\'s `compute` body.',
         });
     }
     const lines = producer.plotCalls.map((call) => `- "${call.title}" — Series<number>`);

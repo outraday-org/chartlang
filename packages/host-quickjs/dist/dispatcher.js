@@ -15348,13 +15348,10 @@ function moduleSourceToScript(source) {
   }
   out = out.replace(EXPORT_MANIFEST_RE, "globalThis.__chartlang_compiled_manifest =");
   out = out.replace(EXPORT_DEPENDENCIES_RE, "globalThis.__chartlang_compiled_dependencies =");
-  out = out.replace(
-    EXPORT_NAMED_CONST_GLOBAL_RE,
-    (_match, leading, name) => {
-      const key = JSON.stringify(name);
-      return `${leading}(globalThis.__chartlang_compiled_named = globalThis.__chartlang_compiled_named || {})[${key}] =`;
-    }
-  );
+  out = out.replace(EXPORT_NAMED_CONST_GLOBAL_RE, (_match, leading, name) => {
+    const key = JSON.stringify(name);
+    return `${leading}(globalThis.__chartlang_compiled_named = globalThis.__chartlang_compiled_named || {})[${key}] =`;
+  });
   return out;
 }
 

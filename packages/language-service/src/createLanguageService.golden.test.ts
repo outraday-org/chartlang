@@ -113,7 +113,7 @@ void x;
         `);
     });
 
-    it("matches the dep-aware <binding>.output(\"|\") completion fixture", () => {
+    it('matches the dep-aware <binding>.output("|") completion fixture', () => {
         const composition = `
 import { defineIndicator, plot } from "@invinite-org/chartlang-core";
 const baseTrend = defineIndicator({

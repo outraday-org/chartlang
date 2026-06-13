@@ -4,11 +4,7 @@
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import {
-    bundleModule,
-    formatDependenciesAssignment,
-    formatManifestAssignment,
-} from "./bundle.js";
+import { bundleModule, formatDependenciesAssignment, formatManifestAssignment } from "./bundle.js";
 
 const TS_SOURCE = `
 const greeting: string = "hi";
@@ -175,9 +171,7 @@ describe("formatDependenciesAssignment", () => {
     });
 
     it("emits a single-entry export const __dependencies line", () => {
-        const line = formatDependenciesAssignment([
-            { localId: "base", bindingExpression: "base" },
-        ]);
+        const line = formatDependenciesAssignment([{ localId: "base", bindingExpression: "base" }]);
         expect(line).toBe(
             'export const __dependencies = [\n    { localId: "base", compiled: base },\n];\n',
         );

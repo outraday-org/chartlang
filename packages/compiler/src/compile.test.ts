@@ -350,7 +350,7 @@ export default defineIndicator({
             // The merged effective inputs flow through __dependencies.
             expect(result.moduleSource).toMatch(/inputOverrides:\s*\{[^}]*"length":\s*30/);
             // The output accessor is rewritten to the runtime helper.
-            expect(result.moduleSource).toContain('__chartlang_depOutput(');
+            expect(result.moduleSource).toContain("__chartlang_depOutput(");
             expect(result.moduleSource).toContain('"trend"');
         } finally {
             await rm(dir, { recursive: true, force: true });

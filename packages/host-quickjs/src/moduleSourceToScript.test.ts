@@ -147,7 +147,7 @@ describe("moduleSourceToScript", () => {
         // identifiers; each gets its own dedicated rewrite.
         const src = [
             "export default {};",
-            'export const __manifest = { a: 1 };',
+            "export const __manifest = { a: 1 };",
             "export const __dependencies = [];",
         ].join("\n");
         const out = moduleSourceToScript(src);
