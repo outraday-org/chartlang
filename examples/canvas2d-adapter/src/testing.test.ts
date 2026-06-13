@@ -19,6 +19,7 @@ describe("MockCanvas2DContext", () => {
         ctx.closePath();
         ctx.setLineDash([1, 2, 3]);
         ctx.fillText("PEAK", 21, 22);
+        ctx.translate(18, 19);
         expect(ctx.calls).toEqual([
             { kind: "clearRect", x: 1, y: 2, w: 3, h: 4 },
             { kind: "beginPath" },
@@ -31,6 +32,19 @@ describe("MockCanvas2DContext", () => {
             { kind: "closePath" },
             { kind: "setLineDash", segments: [1, 2, 3] },
             { kind: "fillText", text: "PEAK", x: 21, y: 22 },
+            { kind: "translate", x: 18, y: 19 },
+        ]);
+    });
+
+    it("records save / restore / translate for the per-pane render walk", () => {
+        const ctx = new MockCanvas2DContext();
+        ctx.save();
+        ctx.translate(0, 280);
+        ctx.restore();
+        expect(ctx.calls).toEqual([
+            { kind: "save" },
+            { kind: "translate", x: 0, y: 280 },
+            { kind: "restore" },
         ]);
     });
 
@@ -142,6 +156,14 @@ describe("hashCallLog", () => {
         a.fillText("PEAK", 1.123456, 2.654321);
         const b = new MockCanvas2DContext();
         b.fillText("PEAK", 1.1234564, 2.6543212);
+        expect(hashCallLog(a.calls)).toBe(hashCallLog(b.calls));
+    });
+
+    it("canonicalises translate coordinates to 4 decimal places", () => {
+        const a = new MockCanvas2DContext();
+        a.translate(1.123456, 2.654321);
+        const b = new MockCanvas2DContext();
+        b.translate(1.1234564, 2.6543212);
         expect(hashCallLog(a.calls)).toBe(hashCallLog(b.calls));
     });
 

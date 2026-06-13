@@ -6,6 +6,7 @@ import type { Bar, CompiledScriptObject } from "@invinite-org/chartlang-core";
 
 import type { RunnerState } from "../createScriptRunner.js";
 import { pushDiagnostic } from "../emit/emissionsQueue.js";
+import { resolveDefaultPane, resolveScriptPane } from "../emit/paneResolver.js";
 import { resetBarEmissions, runComputeBody } from "../execution/runComputeStep.js";
 import { resolveInputs } from "../inputs/resolveInputs.js";
 import type { MutableRunnerEmissions } from "../runtimeContext.js";
@@ -158,6 +159,8 @@ function buildSubRunnerState(
             logBudget: 0,
             logBudgetExceededDiagnosed: false,
             resolvedInputs: Object.freeze({}),
+            defaultPane: resolveDefaultPane(args.compiled.manifest),
+            scriptPane: resolveScriptPane(args.compiled.manifest),
             // Overrides target the primary script's slots only in v1;
             // dep-output plots are not host-overridable.
             plotOverrides: Object.freeze({}),

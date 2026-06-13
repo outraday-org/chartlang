@@ -79,6 +79,7 @@ export function defineIndicator(opts: DefineIndicatorOpts): CompiledScriptObject
     };
     const manifest = {
         ...base,
+        ...(opts.overlay === undefined ? {} : { overlay: opts.overlay }),
         ...(opts.maxDrawings === undefined ? {} : { maxDrawings: opts.maxDrawings }),
         ...(opts.maxBarsBack === undefined ? {} : { maxBarsBack: opts.maxBarsBack }),
         ...(opts.format === undefined ? {} : { format: opts.format }),

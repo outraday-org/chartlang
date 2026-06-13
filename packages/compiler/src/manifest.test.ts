@@ -59,6 +59,51 @@ describe("buildManifest", () => {
         expect(manifest.shortName).toBe("DEMO");
     });
 
+    it("propagates overlay: false through buildManifest", () => {
+        const manifest = buildManifest({
+            name: "rsi",
+            kind: "indicator",
+            capabilities: ["indicators"],
+            requestedIntervals: [],
+            userPickableInterval: false,
+            seriesCapacities: {},
+            maxLookback: 0,
+            inputs: {},
+            overlay: false,
+        });
+        expect(manifest.overlay).toBe(false);
+    });
+
+    it("propagates overlay: true through buildManifest", () => {
+        const manifest = buildManifest({
+            name: "rsi",
+            kind: "indicator",
+            capabilities: ["indicators"],
+            requestedIntervals: [],
+            userPickableInterval: false,
+            seriesCapacities: {},
+            maxLookback: 0,
+            inputs: {},
+            overlay: true,
+        });
+        expect(manifest.overlay).toBe(true);
+    });
+
+    it("omits overlay when buildManifest receives no value", () => {
+        const manifest = buildManifest({
+            name: "rsi",
+            kind: "indicator",
+            capabilities: ["indicators"],
+            requestedIntervals: [],
+            userPickableInterval: false,
+            seriesCapacities: {},
+            maxLookback: 0,
+            inputs: {},
+        });
+        expect(manifest.overlay).toBeUndefined();
+        expect("overlay" in manifest).toBe(false);
+    });
+
     it("supports kind 'drawing' for defineDrawing scripts", () => {
         const manifest = buildManifest({
             name: "fib-tool",
@@ -253,6 +298,72 @@ describe("manifest.plots (compiled)", () => {
         });
         const roundTripped = JSON.parse(JSON.stringify(manifest.plots));
         expect(roundTripped).toEqual(manifest.plots);
+    });
+
+    it("round-trips overlay: false through the compiled bundle's __manifest", async () => {
+        const source = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "rsi-subpane",
+    apiVersion: 1,
+    overlay: false,
+    compute: ({ bar }) => { plot(bar.close); },
+});
+`;
+        const result = await compile(source, {
+            apiVersion: 1,
+            sourcePath: "rsi-subpane.chart.ts",
+        });
+        expect(result.manifest.overlay).toBe(false);
+        const dataUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(result.moduleSource)}`;
+        const mod = (await import(/* @vite-ignore */ dataUrl)) as {
+            readonly __manifest: { readonly overlay?: boolean };
+        };
+        expect(mod.__manifest.overlay).toBe(false);
+    });
+
+    it("round-trips overlay: true through the compiled bundle's __manifest", async () => {
+        const source = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "overlay-true",
+    apiVersion: 1,
+    overlay: true,
+    compute: ({ bar }) => { plot(bar.close); },
+});
+`;
+        const result = await compile(source, {
+            apiVersion: 1,
+            sourcePath: "overlay-true.chart.ts",
+        });
+        expect(result.manifest.overlay).toBe(true);
+        const dataUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(result.moduleSource)}`;
+        const mod = (await import(/* @vite-ignore */ dataUrl)) as {
+            readonly __manifest: { readonly overlay?: boolean };
+        };
+        expect(mod.__manifest.overlay).toBe(true);
+    });
+
+    it("omits overlay from the compiled __manifest when not declared", async () => {
+        const source = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "no-overlay",
+    apiVersion: 1,
+    compute: ({ bar }) => { plot(bar.close); },
+});
+`;
+        const result = await compile(source, {
+            apiVersion: 1,
+            sourcePath: "no-overlay.chart.ts",
+        });
+        expect(result.manifest.overlay).toBeUndefined();
+        expect("overlay" in result.manifest).toBe(false);
+        const dataUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(result.moduleSource)}`;
+        const mod = (await import(/* @vite-ignore */ dataUrl)) as {
+            readonly __manifest: Record<string, unknown>;
+        };
+        expect("overlay" in mod.__manifest).toBe(false);
     });
 
     it("orders plots by source position for any shuffle of the callsites", async () => {

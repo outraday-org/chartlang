@@ -1,7 +1,6 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-export { clear } from "./clear.js";
 export type { RenderCtx } from "./clear.js";
 export { drawCandles } from "./candles.js";
 export { drawLine } from "./line.js";
@@ -58,3 +57,7 @@ export {
     worldPointToCanvas,
 } from "./draw/index.js";
 export type { Point2 } from "./draw/index.js";
+export { computePaneLayout, type PaneLayoutEntry, type PaneRect } from "./paneLayout.js";
+export { clearPaneRect } from "./clearPaneRect.js";
+export { drawPaneSeparator } from "./paneSeparator.js";
+export { drawYAxis } from "./yAxis.js";

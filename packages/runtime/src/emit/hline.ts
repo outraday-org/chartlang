@@ -7,6 +7,7 @@ import type { HLineOpts } from "@invinite-org/chartlang-core";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
 import { applyPlotOverride } from "./applyPlotOverride.js";
 import { pushDiagnostic, pushPlot } from "./emissionsQueue.js";
+import { resolvePane } from "./paneResolver.js";
 
 const OUTSIDE_CTX_MESSAGE = "hline called outside an active script step";
 
@@ -29,6 +30,8 @@ function hlineImpl(ctx: RuntimeContext, slotId: string, price: number, opts: HLi
         return;
     }
 
+    const pane = resolvePane(opts.pane, ctx, slotId);
+
     const emission: PlotEmission = {
         kind: "plot",
         slotId,
@@ -39,7 +42,7 @@ function hlineImpl(ctx: RuntimeContext, slotId: string, price: number, opts: HLi
         value: Number.isFinite(price) ? price : null,
         color: opts.color ?? null,
         meta: {},
-        pane: "overlay",
+        pane,
     };
 
     pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));
@@ -55,10 +58,12 @@ function hlineImpl(ctx: RuntimeContext, slotId: string, price: number, opts: HLi
  * overload). Direct invocation without a slot id throws the sentinel
  * error.
  *
- * `hline` is fixed to `pane: "overlay"` — horizontal lines never
- * route to a sub-pane in any phase. The `kind` discriminator is
- * always `"horizontal-line"`; adapters that don't declare the
- * capability drop with `unsupported-plot-kind`.
+ * `hline` follows the same pane router as {@link plot} — see
+ * {@link resolvePane}: `opts.pane` defaults to the script's
+ * manifest-resolved pane, `"new"` joins the per-script subpane, and a
+ * named pane folds to overlay on `subPanes: 0` adapters. The `kind`
+ * discriminator is always `"horizontal-line"`; adapters that don't
+ * declare the capability drop with `unsupported-plot-kind`.
  *
  * @since 0.1
  * @example

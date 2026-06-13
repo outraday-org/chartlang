@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import { hline, plot } from "./plot.js";
-import type { PlotKind, PlotOptsStyle } from "./plot.js";
+import type { HLineOpts, PlotKind, PlotOptsStyle } from "./plot.js";
 
 describe("plot callable hole", () => {
     it("plot throws outside-runtime sentinel for scalar input", () => {
@@ -68,5 +68,16 @@ describe("PlotKind and PlotOptsStyle types", () => {
             "bar-color",
             "horizontal-histogram",
         ]);
+    });
+});
+
+describe("HLineOpts.pane", () => {
+    it("accepts the three-variant pane shape", () => {
+        const overlay: HLineOpts = { pane: "overlay" };
+        const fresh: HLineOpts = { pane: "new" };
+        const named: HLineOpts = { pane: "rsi" };
+        void overlay;
+        void fresh;
+        void named;
     });
 });

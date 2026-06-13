@@ -323,6 +323,20 @@ export type ScriptManifest = {
     readonly seriesCapacities: Readonly<Record<string, number>>;
     readonly maxLookback: number;
     /**
+     * `overlay: false` on `defineIndicator(...)` is persisted here as the
+     * script-level default pane signal. Absent / `true` means the script
+     * defaults to the price overlay pane; `false` means the runtime
+     * routes every `plot()` / `hline()` call without an explicit `pane`
+     * opt into a per-script subpane key.
+     *
+     * @since 0.2
+     * @stable
+     * @example
+     *     const m: Pick<ScriptManifest, "overlay"> = { overlay: false };
+     *     void m;
+     */
+    readonly overlay?: boolean;
+    /**
      * Per-bucket cap on `draw.*` emissions the script intends to
      * produce per bar. The runtime enforces
      * `min(this, adapter.capabilities.maxDrawingsPerScript)` per

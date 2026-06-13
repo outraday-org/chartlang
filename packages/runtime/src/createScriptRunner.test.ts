@@ -252,6 +252,74 @@ describe("createScriptRunner", () => {
         expect(e.visible).toBe(false);
     });
 
+    it("routes plots to overlay on an overlay:true mount", async () => {
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            overlay: true,
+            compute: ({ plot }) => {
+                plot("p:1:1#0", 42);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: { ...makeCapabilities(), subPanes: 1 },
+        });
+        await runner.onBarClose(makeBar(0));
+        expect(runner.drain().plots[0].pane).toBe("overlay");
+    });
+
+    it("routes plots to the sanitised script pane on an overlay:false mount", async () => {
+        const compiled = defineIndicator({
+            name: "RSI Cross",
+            apiVersion: 1,
+            overlay: false,
+            compute: ({ plot }) => {
+                plot("p:1:1#0", 42);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: { ...makeCapabilities(), subPanes: 1 },
+        });
+        await runner.onBarClose(makeBar(0));
+        expect(runner.drain().plots[0].pane).toBe("script:RSI-Cross");
+    });
+
+    it("falls back to script:default when an overlay:false name is empty", async () => {
+        const compiled = defineIndicator({
+            name: "",
+            apiVersion: 1,
+            overlay: false,
+            compute: ({ plot }) => {
+                plot("p:1:1#0", 42);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: { ...makeCapabilities(), subPanes: 1 },
+        });
+        await runner.onBarClose(makeBar(0));
+        expect(runner.drain().plots[0].pane).toBe("script:default");
+    });
+
+    it("gives an overlay:true script a stable scriptPane for explicit pane: 'new'", async () => {
+        const compiled = defineIndicator({
+            name: "RSI Cross",
+            apiVersion: 1,
+            overlay: true,
+            compute: ({ plot }) => {
+                plot("p:1:1#0", 42, { pane: "new" });
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: { ...makeCapabilities(), subPanes: 1 },
+        });
+        await runner.onBarClose(makeBar(0));
+        expect(runner.drain().plots[0].pane).toBe("script:RSI-Cross");
+    });
+
     it("refreshes barstate and timeframe before every compute step", async () => {
         const seen: Array<{
             readonly ishistory: boolean;

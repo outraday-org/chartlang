@@ -787,6 +787,7 @@ declare module "@invinite-org/chartlang-core" {
         title?: string;
         lineWidth?: number;
         lineStyle?: LineStyle;
+        pane?: "overlay" | "new" | string;
     }>;
     export function plot(value: number | Series<number>, opts?: PlotOpts): void;
     export function hline(price: number, opts?: HLineOpts): void;
@@ -1057,6 +1058,7 @@ declare module "@invinite-org/chartlang-core" {
         readonly userPickableInterval: boolean;
         readonly seriesCapacities: Readonly<Record<string, number>>;
         readonly maxLookback: number;
+        readonly overlay?: boolean;
         readonly maxDrawings?: DrawingCounts;
         readonly maxBarsBack?: number;
         readonly format?: ValueFormat;

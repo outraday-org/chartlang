@@ -21,6 +21,6 @@ export {
 export { hashStringStable } from "./hash.js";
 export { hline } from "./hline.js";
 export { buildRuntimeNamespace, emitLog } from "./logEmission.js";
-export { resolvePane } from "./paneResolver.js";
+export { resolveDefaultPane, resolvePane, resolveScriptPane } from "./paneResolver.js";
 export { plot } from "./plot.js";
 export { isRuntimeErrorHalt, makeRuntimeErrorHalt } from "./runtimeError.js";

@@ -93,6 +93,60 @@ export default defineIndicator({
         expect(Object.isFrozen(result.overrides.requiresIntervals)).toBe(true);
     });
 
+    it("extracts overlay: false on defineIndicator", () => {
+        const result = run(`
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "demo",
+    apiVersion: 1,
+    overlay: false,
+    compute: () => {},
+});
+`);
+        expect(result.diagnostics).toHaveLength(0);
+        expect(result.overrides).toEqual({ overlay: false });
+    });
+
+    it("extracts overlay: true on defineIndicator", () => {
+        const result = run(`
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "demo",
+    apiVersion: 1,
+    overlay: true,
+    compute: () => {},
+});
+`);
+        expect(result.diagnostics).toHaveLength(0);
+        expect(result.overrides).toEqual({ overlay: true });
+    });
+
+    it("ignores non-boolean overlay initializer", () => {
+        const result = run(`
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "demo",
+    apiVersion: 1,
+    overlay: 1 as unknown as boolean,
+    compute: () => {},
+});
+`);
+        expect(result.overrides).toEqual({});
+    });
+
+    it("ignores overlay on non-indicator define calls", () => {
+        const drawingResult = run(`
+import { defineDrawing } from "@invinite-org/chartlang-core";
+export default defineDrawing({
+    name: "fib",
+    apiVersion: 1,
+    overlay: false as unknown as never,
+    compute: () => {},
+});
+`);
+        expect(drawingResult.overrides).toEqual({});
+    });
+
     it("keeps defineAlert and defineDrawing override subsets distinct", () => {
         const alertResult = run(`
 import { defineAlert } from "@invinite-org/chartlang-core";

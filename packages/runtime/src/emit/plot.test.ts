@@ -40,6 +40,8 @@ function makeCtx(
         barIndex?: number;
         barTime?: number;
         plotOverrides?: RuntimeContext["plotOverrides"];
+        defaultPane?: string;
+        scriptPane?: string;
     } = {},
 ): {
     ctx: RuntimeContext;
@@ -67,6 +69,8 @@ function makeCtx(
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        defaultPane: opts.defaultPane ?? "overlay",
+        scriptPane: opts.scriptPane ?? "script:test",
         plotOverrides: opts.plotOverrides ?? {},
     };
     return { ctx, emissions };
@@ -105,6 +109,15 @@ describe("plot — happy path", () => {
         expect(e.color).toBeNull();
         expect(e.meta).toEqual({});
         expect(e.title).toBe("");
+        expect(emissions.diagnostics).toEqual([]);
+    });
+
+    it("emits the script pane when the mount default is a subpane (overlay:false, subPanes >= 1)", () => {
+        const caps = makeCaps({ subPanes: 1 });
+        const { ctx, emissions } = makeCtx({ caps, defaultPane: "script:rsi-cross" });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42);
+        expect(emissions.plots[0].pane).toBe("script:rsi-cross");
         expect(emissions.diagnostics).toEqual([]);
     });
 

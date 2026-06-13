@@ -26,10 +26,12 @@ import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities.js";
 import { DEFAULT_PALETTE, type Palette } from "./palette.js";
 import {
     type HLine,
+    type PaneLayoutEntry,
     type PlotPoint,
     type RenderCtx,
     type Viewport,
-    clear,
+    clearPaneRect,
+    computePaneLayout,
     drawAlertBadge,
     drawAlertConditions,
     drawArrow,
@@ -44,7 +46,9 @@ import {
     drawHorizontalLine,
     drawLine,
     drawLogPane,
+    drawPaneSeparator,
     drawShape,
+    drawYAxis,
     drawingDispatch,
     priceToY,
     timeToX,
@@ -55,6 +59,10 @@ const DEFAULT_INTERVAL = "1D";
 // buffer is sized for a whole session rather than a short feed.
 const MAX_RECENT_ALERTS = 256;
 const Y_AXIS_PADDING = 0.05;
+// Right-edge gutter reserved on every pane for the price-axis labels.
+// The plot area (`viewport.pxWidth`) is the pane width minus this gutter,
+// so candles / series / hlines stop short of the labels.
+const Y_AXIS_GUTTER_PX = 52;
 const HISTOGRAM_BAR_WIDTH_PX = 4;
 const HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX = 96;
 const HORIZONTAL_HISTOGRAM_ROW_HEIGHT_PX = 6;
@@ -110,20 +118,44 @@ export type CreateCanvas2dAdapterOpts = {
  */
 export type Canvas2dAdapterHandle = Adapter & { readonly host: ScriptHost };
 
+// `HLine` lives in `render/coords.ts` (consumed structurally by
+// `drawHorizontalLine`); the adapter widens it with the resolved pane
+// key so the render walk can route each hline into its pane's rect.
+type PanedHLine = HLine & { readonly paneKey: string };
+
 type AdapterState = {
     readonly ctx: RenderCtx;
     readonly canvas: { width: number; height: number };
     readonly bars: Bar[];
+    // Distinct pane keys in first-emit order; `"overlay"` is always at
+    // index 0. Mutable — `applyPlot` pushes a new key on first sight and
+    // `dispose` resets it.
+    paneOrder: string[];
+    // Keyed by `${paneKey}|${slotId}` so the same callsite can land in
+    // different panes and a pane's y-scale only sees its own series.
     readonly plotSeries: Map<string, PlotPoint[]>;
     readonly plotSeriesStyle: Map<string, PlotStyle>;
     readonly plotOverlays: Map<string, PlotEmission>;
-    readonly hlines: Map<string, HLine>;
+    // Keyed by slotId (last-write-wins); the value carries its pane key.
+    readonly hlines: Map<string, PanedHLine>;
     readonly recentAlerts: AlertEmission[];
     readonly currentAlertConditions: AlertConditionEmission[];
     readonly recentLogs: LogEmission[];
     readonly drawings: Map<string, DrawingEmission>;
     readonly palette: Palette;
 };
+
+function paneSlotKey(paneKey: string, slotId: string): string {
+    return `${paneKey}|${slotId}`;
+}
+
+// Per-pane filter prefix for `plotSeries` / `plotSeriesStyle` keys. The
+// canonical key separator (`|`) is owned by `paneSlotKey`; this returns
+// the prefix only so callers can `key.startsWith(...)` without
+// re-asserting the separator at each site.
+function paneKeyPrefix(paneKey: string): string {
+    return `${paneKey}|`;
+}
 
 const HANDLE_STATE: WeakMap<Canvas2dAdapterHandle, AdapterState> = new WeakMap();
 const HANDLE_INTERVAL: WeakMap<Canvas2dAdapterHandle, string> = new WeakMap();
@@ -143,36 +175,67 @@ function resolveCtx(opts: CreateCanvas2dAdapterOpts): RenderCtx {
     return ctx;
 }
 
-function computeViewport(state: AdapterState): Viewport {
-    const { bars, plotSeries, canvas } = state;
-    if (bars.length === 0) {
-        return {
-            xMin: 0,
-            xMax: 1,
-            yMin: 0,
-            yMax: 1,
-            pxWidth: canvas.width,
-            pxHeight: canvas.height,
-        };
-    }
-    let xMin = Number.POSITIVE_INFINITY;
-    let xMax = Number.NEGATIVE_INFINITY;
+// Collect the y-range a single pane should span. The overlay pane sees
+// bars ∪ overlay-keyed series ∪ overlay-keyed hlines; a subpane sees
+// only its own series + hlines (so an RSI band in 0-100 never stretches
+// the price scale). Returns `+Inf` / `-Inf` if no finite candidate was
+// observed — the caller maps that to the (0, 1) fallback.
+function computeYRange(state: AdapterState, paneKey: string): { yMin: number; yMax: number } {
     let yMin = Number.POSITIVE_INFINITY;
     let yMax = Number.NEGATIVE_INFINITY;
-    for (const bar of bars) {
-        if (bar.time < xMin) xMin = bar.time;
-        if (bar.time > xMax) xMax = bar.time;
-        if (bar.low < yMin) yMin = bar.low;
-        if (bar.high > yMax) yMax = bar.high;
+    if (paneKey === "overlay") {
+        for (const bar of state.bars) {
+            if (bar.low < yMin) yMin = bar.low;
+            if (bar.high > yMax) yMax = bar.high;
+        }
     }
-    for (const series of plotSeries.values()) {
+    const prefix = paneKeyPrefix(paneKey);
+    for (const [key, series] of state.plotSeries) {
+        if (!key.startsWith(prefix)) continue;
         for (const point of series) {
             if (point.value === null) continue;
             if (point.value < yMin) yMin = point.value;
             if (point.value > yMax) yMax = point.value;
         }
     }
-    if (yMin === yMax) {
+    for (const hline of state.hlines.values()) {
+        if (hline.paneKey !== paneKey) continue;
+        if (hline.price < yMin) yMin = hline.price;
+        if (hline.price > yMax) yMax = hline.price;
+    }
+    return { yMin, yMax };
+}
+
+// Build the y-scale for a single pane. The `pxWidth`/`pxHeight` come from
+// the pane's rect, so the pure render helpers (which map against
+// `viewport.pxHeight`) emit pane-relative y.
+function computePaneViewport(state: AdapterState, entry: PaneLayoutEntry): Viewport {
+    const { bars } = state;
+    const { rect, paneKey } = entry;
+    // Reserve the right gutter for the price axis; the plot area is the
+    // pane width minus the gutter (clamped so a sub-gutter pane stays ≥ 1).
+    const plotWidth = Math.max(1, rect.w - Y_AXIS_GUTTER_PX);
+    if (bars.length === 0) {
+        return {
+            xMin: 0,
+            xMax: 1,
+            yMin: 0,
+            yMax: 1,
+            pxWidth: plotWidth,
+            pxHeight: rect.h,
+        };
+    }
+    let xMin = Number.POSITIVE_INFINITY;
+    let xMax = Number.NEGATIVE_INFINITY;
+    for (const bar of bars) {
+        if (bar.time < xMin) xMin = bar.time;
+        if (bar.time > xMax) xMax = bar.time;
+    }
+    let { yMin, yMax } = computeYRange(state, paneKey);
+    if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
+        yMin = 0;
+        yMax = 1;
+    } else if (yMin === yMax) {
         yMin -= 1;
         yMax += 1;
     }
@@ -182,8 +245,8 @@ function computeViewport(state: AdapterState): Viewport {
         xMax: xMax === xMin ? xMin + 1 : xMax,
         yMin: yMin - yPad,
         yMax: yMax + yPad,
-        pxWidth: canvas.width,
-        pxHeight: canvas.height,
+        pxWidth: plotWidth,
+        pxHeight: rect.h,
     };
 }
 
@@ -335,24 +398,11 @@ function renderGlyphOverlays(state: AdapterState, viewport: Viewport): void {
     }
 }
 
-function renderFrame(state: AdapterState): void {
-    const viewport = computeViewport(state);
-    clear(state.ctx, viewport, state.palette);
-    renderBackgroundOverlays(state, viewport);
-    drawCandles(state.ctx, state.bars, viewport, state.palette);
-    renderBarOverlays(state, viewport);
-    for (const [slotId, series] of state.plotSeries) {
-        const style = state.plotSeriesStyle.get(slotId);
-        if (style !== undefined && style.kind === "histogram") {
-            renderHistogramSeries(state.ctx, series, style.baseline, viewport, state.palette);
-            continue;
-        }
-        drawLine(state.ctx, series, viewport, state.palette);
-    }
-    renderGlyphOverlays(state, viewport);
-    for (const hline of state.hlines.values()) {
-        drawHorizontalLine(state.ctx, hline, viewport, state.palette);
-    }
+// Drawings, alert badges, alert conditions, and the log pane are all
+// overlay-bound (pane-routed drawings are deferred — see the README).
+// Drawn against the overlay viewport inside the overlay-pane translate
+// so they share the price pane's coordinate space.
+function renderOverlayTail(state: AdapterState, viewport: Viewport): void {
     for (const drawing of state.drawings.values()) {
         drawingDispatch(state.ctx, drawing, viewport);
     }
@@ -374,21 +424,88 @@ function renderFrame(state: AdapterState): void {
     drawLogPane(state.ctx, state.recentLogs, viewport, state.palette);
 }
 
+function renderFrame(state: AdapterState): void {
+    const layout = computePaneLayout(state.paneOrder, state.canvas);
+    // Captured during the pane walk so `renderOverlayTail` reuses the
+    // overlay pane's viewport without a second O(bars+series) pass.
+    // `computePaneLayout` is required to emit `"overlay"` at index 0, so
+    // the first loop iteration populates this.
+    let overlayViewport: Viewport | undefined;
+    let overlayRectY = 0;
+
+    for (const entry of layout) {
+        const viewport = computePaneViewport(state, entry);
+        if (entry.paneKey === "overlay") {
+            overlayViewport = viewport;
+            overlayRectY = entry.rect.y;
+        }
+        clearPaneRect(state.ctx, entry.rect, state.palette);
+        state.ctx.save();
+        // Shift the origin to the pane's top so the pure render helpers,
+        // which map y against `viewport.pxHeight`, draw inside the rect.
+        state.ctx.translate(0, entry.rect.y);
+
+        // Price axis first (faint gridlines + gutter labels) so candles and
+        // series draw on top. Skipped on empty frames — there is no scale.
+        if (state.bars.length > 0) drawYAxis(state.ctx, viewport, state.palette);
+
+        if (entry.paneKey === "overlay") {
+            renderBackgroundOverlays(state, viewport);
+            drawCandles(state.ctx, state.bars, viewport, state.palette);
+            renderBarOverlays(state, viewport);
+        }
+        const prefix = paneKeyPrefix(entry.paneKey);
+        for (const [key, series] of state.plotSeries) {
+            if (!key.startsWith(prefix)) continue;
+            const style = state.plotSeriesStyle.get(key);
+            if (style !== undefined && style.kind === "histogram") {
+                renderHistogramSeries(state.ctx, series, style.baseline, viewport, state.palette);
+                continue;
+            }
+            drawLine(state.ctx, series, viewport, state.palette);
+        }
+        if (entry.paneKey === "overlay") renderGlyphOverlays(state, viewport);
+        for (const hline of state.hlines.values()) {
+            if (hline.paneKey !== entry.paneKey) continue;
+            drawHorizontalLine(state.ctx, hline, viewport, state.palette);
+        }
+
+        state.ctx.restore();
+        // The separator divides a subpane from the pane above it; drawn
+        // in untranslated canvas space because `rect.y` is absolute.
+        if (entry.paneKey !== "overlay") {
+            drawPaneSeparator(state.ctx, entry.rect, state.palette);
+        }
+    }
+
+    if (overlayViewport !== undefined) {
+        state.ctx.save();
+        state.ctx.translate(0, overlayRectY);
+        renderOverlayTail(state, overlayViewport);
+        state.ctx.restore();
+    }
+}
+
 function applyPlot(state: AdapterState, plot: PlotEmission): void {
     // A host override hid this slot: contribute nothing — no series point,
-    // hline, or overlay. `computeViewport` derives its y-range from
+    // hline, or overlay. `computePaneViewport` derives its y-range from
     // `plotSeries`, so dropping the point here also excludes the hidden
     // slot from the scale (a hidden oscillator never stretches the viewport).
     if (plot.visible === false) return;
+    const paneKey = plot.pane;
+    if (paneKey !== "overlay" && !state.paneOrder.includes(paneKey)) {
+        state.paneOrder.push(paneKey);
+    }
     if (
         plot.style.kind === "line" ||
         plot.style.kind === "step-line" ||
         plot.style.kind === "histogram"
     ) {
-        const series = state.plotSeries.get(plot.slotId) ?? [];
+        const key = paneSlotKey(paneKey, plot.slotId);
+        const series = state.plotSeries.get(key) ?? [];
         series.push({ time: plot.time, value: plot.value, color: plot.color });
-        state.plotSeries.set(plot.slotId, series);
-        state.plotSeriesStyle.set(plot.slotId, plot.style);
+        state.plotSeries.set(key, series);
+        state.plotSeriesStyle.set(key, plot.style);
         return;
     }
     if (plot.style.kind === "horizontal-line") {
@@ -397,6 +514,7 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             color: plot.color,
             lineWidth: plot.style.lineWidth,
             lineStyle: plot.style.lineStyle,
+            paneKey,
         });
         return;
     }
@@ -520,6 +638,7 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         ctx,
         canvas: { width: opts.canvas.width, height: opts.canvas.height },
         bars: [],
+        paneOrder: ["overlay"],
         plotSeries: new Map(),
         plotSeriesStyle: new Map(),
         plotOverlays: new Map(),
@@ -564,6 +683,7 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         },
         dispose: () => {
             state.bars.length = 0;
+            state.paneOrder = ["overlay"];
             state.plotSeries.clear();
             state.plotSeriesStyle.clear();
             state.plotOverlays.clear();

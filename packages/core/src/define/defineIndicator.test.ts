@@ -108,6 +108,36 @@ describe("defineIndicator", () => {
         expect(script.manifest.outputs).toEqual(outputs);
     });
 
+    it("omits manifest.overlay when opts.overlay is undefined", () => {
+        const script = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: () => {},
+        });
+        expect(script.manifest.overlay).toBeUndefined();
+        expect("overlay" in script.manifest).toBe(false);
+    });
+
+    it("propagates opts.overlay=false into the manifest", () => {
+        const script = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            overlay: false,
+            compute: () => {},
+        });
+        expect(script.manifest.overlay).toBe(false);
+    });
+
+    it("propagates opts.overlay=true into the manifest", () => {
+        const script = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            overlay: true,
+            compute: () => {},
+        });
+        expect(script.manifest.overlay).toBe(true);
+    });
+
     it("propagates script override fields into the manifest verbatim", () => {
         const requiresIntervals = ["1D", "1W"] as const;
         const script = defineIndicator({

@@ -44,16 +44,16 @@ plot hashes, alert counts, and diagnostic codes.
   no-op `Adapter` for the same reason — spinning up a Worker host
   + canvas renderer would be wasted work for an emission-contract
   test.
-- **The `unsupported-pane` diagnostic is NOT asserted on the
-  RSI-divergence scenario.** Phase 1's `paneResolver` only emits the
-  diagnostic when a `plot(..., { pane: "new" })` call explicitly
-  requests a non-overlay pane; the RSI script's `overlay: false`
-  flag on `defineIndicator` does NOT translate to a per-emission
-  `pane: "new"`. Phase 4 reshapes the `overlay` flag into a routing
-  signal — until then this assertion would always fail. The
-  runConformanceSuite test suite still exercises the
-  `diagnostic-code-present` path via a synthetic script that
-  passes `pane: "new"` explicitly.
+- **Pane routing is exercised by the `rsi-subpane-routing`
+  scenario.** Scripts declaring `defineIndicator({ overlay: false })`
+  emit on the script-level default pane key (`script:<sanitised-name>`);
+  the scenario asserts every `PlotEmission.pane` equals that key (via the
+  `all-plots-on-pane` variant) and **no** `unsupported-pane` diagnostic
+  is pushed against an adapter declaring `subPanes >= 1` (the canvas2d
+  reference). Adapters declaring `subPanes: 0` instead see the
+  `unsupported-pane` warning + the overlay fold — exercised by
+  `runConformanceSuite.test.ts` against a synthetic `pane: "new"` script
+  under a `subPanes: 0` capability bag.
 - **`assertions: ReadonlyArray<ScenarioAssertion>` is declared
   ABOVE each `Scenario` literal, not inlined.** TypeScript's literal
   narrowing of `Object.freeze([...])` produces a tuple type that

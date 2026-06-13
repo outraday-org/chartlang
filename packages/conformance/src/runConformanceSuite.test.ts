@@ -32,6 +32,7 @@ import {
     INPUT_INTERVAL_SCENARIO,
     PLOT_STYLE_OVERRIDES_SCENARIO,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
+    RSI_SUBPANE_ROUTING_SCENARIO,
     RUNTIME_ERROR_SCENARIO,
     RUNTIME_LOG_BUDGET_SCENARIO,
     RUNTIME_LOG_GATED_SCENARIO,
@@ -1016,4 +1017,77 @@ export default defineIndicator({
         expect(report.failed).toBe(0);
         expect(report.passed).toBe(1);
     });
+
+    it("all-plots-on-pane passes when every plot lands on the asserted pane", async () => {
+        // `overlay: false` routes every plot to `script:<name>`; the
+        // adapter must advertise sub-panes or the pane folds to overlay.
+        const subPaneAdapter: Adapter = {
+            ...makeAdapter(),
+            capabilities: { ...TEST_CAPABILITIES, subPanes: Number.MAX_SAFE_INTEGER },
+        };
+        const report = await runConformanceSuite(subPaneAdapter, {
+            scenarios: [RSI_SUBPANE_ROUTING_SCENARIO],
+            candles: SMALL_BARS,
+        });
+        expect(report.failures).toEqual([]);
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(1);
+    }, 30_000);
+
+    it("all-plots-on-pane fails with expected + actual when a plot is off-pane", async () => {
+        // An `overlay: true` script emits on `"overlay"`, so asserting a
+        // non-overlay pane key surfaces the divergence with the first
+        // divergent slotId + actual pane.
+        const scenario: Scenario = Object.freeze({
+            id: "all-plots-on-pane-fail",
+            title: "all-plots-on-pane mismatch",
+            inlineSource:
+                'import { defineIndicator } from "@invinite-org/chartlang-core";\n' +
+                'export default defineIndicator({ name: "op", apiVersion: 1, overlay: true,\n' +
+                '  compute({ bar, plot }) { plot(bar.close, { title: "c" }); } });\n',
+            intervalCount: 1,
+            candleLimit: 2,
+            assertions: Object.freeze([
+                { kind: "all-plots-on-pane", pane: "script:nope" },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [scenario],
+            candles: SMALL_BARS.slice(0, 2),
+        });
+        expect(report.failed).toBe(1);
+        const [failure] = report.failures;
+        expect(failure.assertionKind).toBe("all-plots-on-pane");
+        expect(failure.message).toContain('expected every plot.pane === "script:nope"');
+        expect(failure.message).toContain('pane="overlay"');
+        expect(failure.message).toContain("slotId=");
+    }, 30_000);
+
+    it("all-plots-on-pane fails when the script emits zero plots (no vacuous pass)", async () => {
+        // A script that never calls plot() — the assertion would otherwise
+        // vacuously pass because `wrong.length === 0`. The empty-plots guard
+        // surfaces this as a real failure so a future regression that
+        // silences emissions does not slip past the contract.
+        const scenario: Scenario = Object.freeze({
+            id: "all-plots-on-pane-empty",
+            title: "all-plots-on-pane empty emissions",
+            inlineSource:
+                'import { defineIndicator } from "@invinite-org/chartlang-core";\n' +
+                'export default defineIndicator({ name: "op", apiVersion: 1,\n' +
+                "  compute() { /* deliberately emit nothing */ } });\n",
+            intervalCount: 1,
+            candleLimit: 2,
+            assertions: Object.freeze([
+                { kind: "all-plots-on-pane", pane: "script:op" },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [scenario],
+            candles: SMALL_BARS.slice(0, 2),
+        });
+        expect(report.failed).toBe(1);
+        const [failure] = report.failures;
+        expect(failure.assertionKind).toBe("all-plots-on-pane");
+        expect(failure.message).toContain("no plots were emitted");
+    }, 30_000);
 });

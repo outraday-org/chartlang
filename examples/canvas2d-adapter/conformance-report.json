@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.0.1",
-    "passed": 227,
+    "passed": 228,
     "failed": 0,
     "scenarios": [
         {
@@ -709,6 +709,12 @@
         {
             "id": "rsi-divergence-alert",
             "title": "RSI(14) overbought/oversold alerts",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "rsi-subpane-routing",
+            "title": "RSI(14) routed to script-level subpane",
             "status": "pass",
             "failures": []
         },

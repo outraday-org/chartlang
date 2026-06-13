@@ -119,6 +119,10 @@ describe("public type surface", () => {
         expectTypeOf<ScriptOverrides["format"]>().toEqualTypeOf<ValueFormat | undefined>();
     });
 
+    it("ScriptManifest exposes the subpane-routing overlay flag", () => {
+        expectTypeOf<ScriptManifest["overlay"]>().toEqualTypeOf<boolean | undefined>();
+    });
+
     it("ScriptManifest exposes Phase 5 alert-condition metadata", () => {
         expectTypeOf<ScriptManifest["kind"]>().toEqualTypeOf<
             "indicator" | "drawing" | "alert" | "alertCondition"

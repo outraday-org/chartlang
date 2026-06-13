@@ -26,6 +26,7 @@ export type Palette = {
     readonly candleBearBody: string;
     readonly candleWick: string;
     readonly gridLine: string;
+    readonly paneBorder: string;
     readonly plotDefault: string;
     readonly alertInfo: string;
     readonly alertWarning: string;
@@ -52,6 +53,7 @@ export const DEFAULT_PALETTE: Palette = Object.freeze({
     candleBearBody: "#ef5350",
     candleWick: "#cccccc",
     gridLine: "#2a2f3a",
+    paneBorder: "#3a4150",
     plotDefault: "#90caf9",
     alertInfo: "#2196f3",
     alertWarning: "#ff9800",

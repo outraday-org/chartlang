@@ -189,6 +189,13 @@ export type ScenarioEventStream =
  * presentation fields. `expected: undefined` asserts an omitted
  * field (e.g. a visible plot carries no `visible` flag). `@since 0.8`.
  *
+ * The `all-plots-on-pane` variant asserts every emitted
+ * `PlotEmission.pane` equals a single expected pane key — it pins the
+ * post-`subpane-rendering` routing contract (e.g. an `overlay: false`
+ * script emits every plot + hline on `script:<sanitised-name>`). The
+ * failure message reports the expected key plus the first divergent
+ * emission's `slotId` / `pane`. `@since 0.9`.
+ *
  * @since 0.1
  * @stable
  * @example
@@ -229,7 +236,9 @@ export type ScenarioAssertion =
           readonly kind: "drawing-hash";
           readonly handleId?: string;
           readonly sha256: string;
-      };
+      }
+    /** @since 0.9 */
+    | { readonly kind: "all-plots-on-pane"; readonly pane: string };
 
 /**
  * A single conformance failure entry. `message` carries enough
@@ -532,6 +541,23 @@ function evalAssertion(
                 scenarioId,
                 assertionKind: "drawing-hash",
                 message: `drawing-hash[${label}]: expected ${assertion.sha256}, actual ${hash} (${count} emissions)`,
+            };
+        }
+        case "all-plots-on-pane": {
+            if (run.plots.length === 0) {
+                return {
+                    scenarioId,
+                    assertionKind: "all-plots-on-pane",
+                    message: `all-plots-on-pane: expected every plot.pane === "${assertion.pane}", but no plots were emitted (nothing to assert against)`,
+                };
+            }
+            const wrong = run.plots.filter((p) => p.pane !== assertion.pane);
+            if (wrong.length === 0) return null;
+            const first = wrong[0];
+            return {
+                scenarioId,
+                assertionKind: "all-plots-on-pane",
+                message: `all-plots-on-pane: expected every plot.pane === "${assertion.pane}", got ${wrong.length} divergent (first divergent slotId=${first.slotId}, pane="${first.pane}")`,
             };
         }
     }

@@ -230,6 +230,23 @@ export type RuntimeContext = {
      */
     resolvedInputs: Readonly<Record<string, unknown>>;
     /**
+     * Mount-time script pane default. The runner sets it from
+     * `manifest.overlay`:
+     *   - `overlay` absent / `true` → `"overlay"`.
+     *   - `overlay === false` → `"script:<sanitised(manifest.name)>"`.
+     * `resolvePane` reads this value when a `plot()` / `hline()` call
+     * has no explicit `pane` opt.
+     * @since 0.2
+     */
+    readonly defaultPane: string;
+    /**
+     * Stable non-overlay pane key for this script. Explicit
+     * `pane: "new"` resolves here even when `defaultPane === "overlay"`
+     * so every `"new"` plot in a script joins one script-owned subpane.
+     * @since 0.2
+     */
+    readonly scriptPane: string;
+    /**
      * Host-supplied per-slot presentation overrides, keyed by
      * `PlotEmission.slotId`. Applied at emit time by `applyPlotOverride`.
      * Mutable — `setPlotOverrides` swaps it live (presentation-only, so

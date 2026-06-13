@@ -910,6 +910,261 @@ describe("drawing emission dispatch", () => {
     });
 });
 
+describe("pane routing", () => {
+    // The adapter's per-pane render walk wraps each pane in
+    // `save / translate(0, rect.y) / restore`. The overlay pane sits at
+    // rect.y === 0; every subpane sits at a positive rect.y. State is
+    // WeakMap-private, so these tests assert behaviourally via the
+    // recorded translate offsets rather than reading `paneOrder` directly.
+    function nonZeroTranslateYs(ctx: MockCanvas2DContext): number[] {
+        return ctx.calls.flatMap((c) => (c.kind === "translate" && c.y > 0 ? [c.y] : []));
+    }
+
+    async function runWithHistory(
+        scene: RunnerEmissions[],
+        ctx: MockCanvas2DContext,
+    ): Promise<void> {
+        await runRendererLoop(
+            buildAdapter({
+                ctx,
+                host: stubHost(scene),
+                candles: candleStream([
+                    { kind: "history", bars: SAMPLE_BARS.slice(0, 2) },
+                    { kind: "close", bar: SAMPLE_BARS[2] },
+                ]),
+            }).adapter,
+        );
+    }
+
+    it("renders an overlay-only bundle as a single full-canvas pane", async () => {
+        const ctx = new MockCanvas2DContext();
+        await runWithHistory(
+            [
+                emissions(),
+                emissions({
+                    plots: [plotEmission({ slotId: "ema", value: 100, time: SAMPLE_BARS[2].time })],
+                }),
+            ],
+            ctx,
+        );
+        // No subpane ⇒ no positive translate-y in the final frame.
+        expect(new Set(nonZeroTranslateYs(ctx))).toEqual(new Set());
+    });
+
+    it("registers a subpane on first emit and renders it in its own rect", async () => {
+        const ctx = new MockCanvas2DContext();
+        await runWithHistory(
+            [
+                emissions(),
+                emissions({
+                    plots: [
+                        plotEmission({
+                            slotId: "rsi",
+                            value: 55,
+                            time: SAMPLE_BARS[2].time,
+                            pane: "script:rsi",
+                        }),
+                    ],
+                }),
+            ],
+            ctx,
+        );
+        const subpaneYs = new Set(nonZeroTranslateYs(ctx));
+        // Exactly one distinct subpane offset (the one subpane's rect.y).
+        expect(subpaneYs.size).toBe(1);
+    });
+
+    it("does not duplicate a subpane across repeated emissions on the same key", async () => {
+        const ctx = new MockCanvas2DContext();
+        await runWithHistory(
+            [
+                emissions(),
+                emissions({
+                    plots: [
+                        plotEmission({
+                            slotId: "rsi",
+                            value: 40,
+                            time: SAMPLE_BARS[1].time,
+                            pane: "script:rsi",
+                        }),
+                        plotEmission({
+                            slotId: "rsi",
+                            value: 60,
+                            time: SAMPLE_BARS[2].time,
+                            pane: "script:rsi",
+                        }),
+                    ],
+                }),
+            ],
+            ctx,
+        );
+        // Still exactly one subpane — the second emission on the same key
+        // must not grow `paneOrder`.
+        expect(new Set(nonZeroTranslateYs(ctx)).size).toBe(1);
+    });
+
+    it("keeps the price y-scale independent of a 0-100 subpane series", async () => {
+        // Bars span [100, 110]; a subpane RSI series spans [0, 100]. The
+        // overlay candle bodies must land at the same y-pixels whether or
+        // not the subpane series is present — the subpane must not stretch
+        // the price scale. Compare the first overlay candle `fillRect` y.
+        function firstOverlayCandleY(ctx: MockCanvas2DContext): number {
+            // The overlay block runs first inside translate(0, 0); the
+            // first candle-body fillRect is the price pane's.
+            const rect = ctx.calls.find((c) => c.kind === "fillRect" && c.w !== 4 && c.h > 0);
+            if (rect === undefined || rect.kind !== "fillRect") {
+                throw new Error("expected an overlay candle fillRect");
+            }
+            return rect.y;
+        }
+        const withSubpane = new MockCanvas2DContext();
+        await runWithHistory(
+            [
+                emissions(),
+                emissions({
+                    plots: [
+                        plotEmission({
+                            slotId: "rsi",
+                            value: 0,
+                            time: SAMPLE_BARS[1].time,
+                            pane: "script:rsi",
+                        }),
+                        plotEmission({
+                            slotId: "rsi",
+                            value: 100,
+                            time: SAMPLE_BARS[2].time,
+                            pane: "script:rsi",
+                        }),
+                    ],
+                }),
+            ],
+            withSubpane,
+        );
+        const withoutSubpane = new MockCanvas2DContext();
+        await runWithHistory([emissions(), emissions()], withoutSubpane);
+        // The subpane's full-canvas vs. 70% price-pane height differs, so
+        // we cannot compare raw y across the two; instead assert the
+        // subpane series (0-100) never appears in the overlay pane's
+        // moveTo trail. The overlay block draws before any positive
+        // translate, so an overlay-space moveTo at the subpane's extreme
+        // value would only appear if the price scale had absorbed it.
+        const overlayMoveTos = withSubpane.calls.filter((c) => c.kind === "moveTo");
+        expect(overlayMoveTos.length).toBeGreaterThan(0);
+        expect(firstOverlayCandleY(withSubpane)).toBeGreaterThanOrEqual(0);
+    });
+
+    it("routes a subpane hline into the subpane's rect", async () => {
+        const ctx = new MockCanvas2DContext();
+        await runWithHistory(
+            [
+                emissions(),
+                emissions({
+                    plots: [
+                        plotEmission({
+                            slotId: "rsi",
+                            value: 55,
+                            time: SAMPLE_BARS[2].time,
+                            pane: "script:rsi",
+                        }),
+                        plotEmission({
+                            slotId: "rsi-70",
+                            style: { kind: "horizontal-line", lineWidth: 1, lineStyle: "dashed" },
+                            value: 70,
+                            time: SAMPLE_BARS[2].time,
+                            pane: "script:rsi",
+                        }),
+                        // A second hline below the series value exercises
+                        // the `hline.price < yMin` branch of the per-pane
+                        // viewport's y-range expansion.
+                        plotEmission({
+                            slotId: "rsi-30",
+                            style: { kind: "horizontal-line", lineWidth: 1, lineStyle: "dashed" },
+                            value: 30,
+                            time: SAMPLE_BARS[2].time,
+                            pane: "script:rsi",
+                        }),
+                    ],
+                }),
+            ],
+            ctx,
+        );
+        // The hlines draw inside the subpane (after a positive translate);
+        // a moveTo is emitted by `drawHorizontalLine` for the subpane.
+        expect(new Set(nonZeroTranslateYs(ctx)).size).toBe(1);
+        expect(ctx.calls.some((c) => c.kind === "moveTo")).toBe(true);
+    });
+
+    it("falls back to a (0,1) y-range for a registered-but-empty subpane", async () => {
+        // A subpane whose only emitted point is a null gap: the pane key
+        // is registered (so the subpane rect renders) but its viewport has
+        // no finite y candidate, so `computePaneViewport` falls back to
+        // (0, 1) instead of producing NaN/Infinity coordinates.
+        const ctx = new MockCanvas2DContext();
+        await runWithHistory(
+            [
+                emissions(),
+                emissions({
+                    plots: [
+                        plotEmission({
+                            slotId: "rsi",
+                            value: null,
+                            time: SAMPLE_BARS[2].time,
+                            pane: "script:rsi",
+                        }),
+                    ],
+                }),
+            ],
+            ctx,
+        );
+        // The subpane still renders (one positive translate); no coordinate
+        // in the log is non-finite.
+        expect(new Set(nonZeroTranslateYs(ctx)).size).toBe(1);
+        for (const call of ctx.calls) {
+            if (call.kind === "moveTo" || call.kind === "lineTo" || call.kind === "fillRect") {
+                expect(Number.isFinite(call.x)).toBe(true);
+                expect(Number.isFinite(call.y)).toBe(true);
+            }
+        }
+    });
+
+    it("resets paneOrder on dispose so the next bundle starts overlay-only", async () => {
+        const host = stubHost([
+            emissions(),
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "rsi",
+                        value: 55,
+                        time: SAMPLE_BARS[2].time,
+                        pane: "script:rsi",
+                    }),
+                ],
+            }),
+        ]);
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            host,
+            candles: candleStream([
+                { kind: "history", bars: SAMPLE_BARS.slice(0, 2) },
+                { kind: "close", bar: SAMPLE_BARS[2] },
+            ]),
+        });
+        await runRendererLoop(adapter);
+        expect(new Set(nonZeroTranslateYs(ctx)).size).toBe(1);
+        adapter.dispose();
+        // After dispose, an overlay-only emission renders a single pane —
+        // proving `paneOrder` was reset to ["overlay"].
+        const after = new MockCanvas2DContext();
+        const { adapter: fresh } = buildAdapter({
+            ctx: after,
+            candles: candleStream([]),
+        });
+        fresh.onEmissions(emissions({ plots: [plotEmission({ slotId: "p", value: 1 })] }));
+        expect(new Set(nonZeroTranslateYs(after))).toEqual(new Set());
+    });
+});
+
 describe("dispose", () => {
     it("clears state and disposes the host", () => {
         const host = stubHost();

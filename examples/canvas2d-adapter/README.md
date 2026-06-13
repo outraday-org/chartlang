@@ -55,12 +55,23 @@ renderer (Tasks 5–18):
 keyed by `handleId` (last-write-wins; `op: "remove"` drops the key)
 and `renderFrame` walks the map through `drawingDispatch` against
 the computed `Viewport`.
+
 - Sub-path `chartlang-example-canvas2d-adapter/testing`:
   - `MockCanvas2DContext` — hand-rolled Canvas 2D mock for tests.
   - `RecordedCall` — discriminated union over the mock's
     captured calls.
   - `hashCallLog(calls) → string` — deterministic SHA-256 over
     a canonicalised call log (floats rounded to 4 dp).
+
+## Pane-aware rendering
+
+`AdapterState.plotSeries` is keyed by `${paneKey}|${slotId}`; `paneOrder` is
+`["overlay", ...subpaneKeys]` in first-emit order. `renderFrame` walks
+`computePaneLayout(state.paneOrder, state.canvas)` and draws each pane in its rect
+via `ctx.save(); ctx.translate(0, rect.y); ...; ctx.restore()`, so the pure
+`render/<kind>.ts` helpers keep emitting y relative to `viewport.pxHeight`. The
+price pane takes the top 80%, subpanes share the bottom 20%, and each gets an
+independent y-scale + right-gutter price axis; bars/drawings/alerts are overlay-bound.
 
 ## Minimum-viable API call
 

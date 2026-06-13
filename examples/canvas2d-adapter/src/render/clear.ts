@@ -14,7 +14,10 @@ import type { Viewport } from "./coords.js";
  * `fillText` (label renderer), `globalAlpha` (area + filled-band
  * fills), `font` (label renderer), `textAlign` + `textBaseline`
  * (label-position dispatch). `closePath` / `fill` / `fillRect` /
- * `setLineDash` already shipped in Phase 1.
+ * `setLineDash` already shipped in Phase 1. `translate` (subpane
+ * rendering) shifts the origin so the per-pane render walk can draw
+ * each pane inside its rect without the pure helpers knowing the
+ * pane offset.
  *
  * @since 0.1
  * @stable
@@ -25,6 +28,7 @@ import type { Viewport } from "./coords.js";
  */
 export type RenderCtx = {
     clearRect(x: number, y: number, w: number, h: number): void;
+    translate(x: number, y: number): void;
     save(): void;
     restore(): void;
     beginPath(): void;

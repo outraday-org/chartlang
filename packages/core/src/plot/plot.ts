@@ -239,18 +239,37 @@ export type PlotOpts = Readonly<{
 }>;
 
 /**
- * Styling options accepted by `hline(...)`. Unlike `plot`, `hline` is always
- * a single horizontal line at a fixed price; no pane override.
+ * Styling options accepted by `hline(...)`. `pane` follows the same shape as
+ * {@link PlotOpts.pane}: omit to fall back to the script's manifest-resolved
+ * default (overlay unless `defineIndicator({ overlay: false })` was declared);
+ * `"overlay"` pins the line to the price pane; `"new"` opens / joins the
+ * per-script subpane; named panes route to a shared subpane key.
  *
  * @since 0.1
+ * @stable
  * @example
- *     const opts: HLineOpts = { color: "#ef4444", title: "Stop", lineStyle: "dashed" };
+ *     const opts: HLineOpts = {
+ *         color: "#ef4444",
+ *         title: "RSI 70",
+ *         lineStyle: "dashed",
+ *         pane: "new",
+ *     };
  */
 export type HLineOpts = Readonly<{
     color?: Color;
     title?: string;
     lineWidth?: number;
     lineStyle?: LineStyle;
+    /**
+     * Routes the horizontal line to a pane. Mirrors {@link PlotOpts.pane}:
+     * omit to fall back to the script's manifest-resolved default,
+     * `"overlay"` pins to the price pane, `"new"` joins the per-script
+     * subpane, and named keys route to a shared subpane (folded to overlay
+     * with `unsupported-pane` on `subPanes: 0` adapters).
+     *
+     * @since 0.2
+     */
+    pane?: "overlay" | "new" | string;
 }>;
 
 /**

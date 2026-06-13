@@ -27,6 +27,15 @@ type ScaleAxis = "price" | "left" | "right" | "new";
  *     void o;
  */
 export type StructuralScriptOverrides = Readonly<{
+    /**
+     * `defineIndicator({ overlay })` literal-boolean extraction. Persisted
+     * onto `ScriptManifest.overlay` so the runtime can derive each script's
+     * default pane at mount. Only `true` / `false` literals are picked up;
+     * any other initializer is silently ignored.
+     *
+     * @since 0.2
+     */
+    overlay?: boolean;
     maxBarsBack?: number;
     format?: ValueFormat;
     precision?: number;
@@ -147,6 +156,7 @@ function extractOverrides(
     argument: ts.ObjectLiteralExpression,
     kind: "indicator" | "drawing" | "alert" | "alertCondition",
 ): StructuralScriptOverrides {
+    let overlay: boolean | undefined;
     let maxBarsBack: number | undefined;
     let format: ValueFormat | undefined;
     let precision: number | undefined;
@@ -159,7 +169,10 @@ function extractOverrides(
         const propertyName = property.name;
         if (!ts.isIdentifier(propertyName)) continue;
         const initializer = property.initializer;
-        if (propertyName.text === "maxBarsBack" && kind !== "drawing") {
+        if (propertyName.text === "overlay" && kind === "indicator") {
+            if (initializer.kind === ts.SyntaxKind.TrueKeyword) overlay = true;
+            else if (initializer.kind === ts.SyntaxKind.FalseKeyword) overlay = false;
+        } else if (propertyName.text === "maxBarsBack" && kind !== "drawing") {
             if (ts.isNumericLiteral(initializer)) maxBarsBack = Number(initializer.text);
         } else if (propertyName.text === "format" && kind !== "alert") {
             format = readValueFormat(initializer);
@@ -175,6 +188,7 @@ function extractOverrides(
     }
 
     return Object.freeze({
+        ...(overlay === undefined ? {} : { overlay }),
         ...(maxBarsBack === undefined ? {} : { maxBarsBack }),
         ...(format === undefined ? {} : { format }),
         ...(precision === undefined ? {} : { precision }),

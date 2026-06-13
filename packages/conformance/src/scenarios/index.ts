@@ -121,6 +121,7 @@ import { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js
 import { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
 import { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario.js";
 import { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario.js";
+import { RSI_SUBPANE_ROUTING_SCENARIO } from "./rsiSubpaneRouting.scenario.js";
 import { RUNTIME_ERROR_SCENARIO } from "./runtimeError.scenario.js";
 import { RUNTIME_LOG_BUDGET_SCENARIO } from "./runtimeLogBudget.scenario.js";
 import { RUNTIME_LOG_GATED_SCENARIO } from "./runtimeLogGated.scenario.js";
@@ -351,6 +352,7 @@ export { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js
 export { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
 export { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario.js";
 export { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario.js";
+export { RSI_SUBPANE_ROUTING_SCENARIO } from "./rsiSubpaneRouting.scenario.js";
 export { RUNTIME_ERROR_SCENARIO } from "./runtimeError.scenario.js";
 export { RUNTIME_LOG_BUDGET_SCENARIO } from "./runtimeLogBudget.scenario.js";
 export { RUNTIME_LOG_GATED_SCENARIO } from "./runtimeLogGated.scenario.js";
@@ -745,4 +747,8 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     DEP_CROSS_FILE_SCENARIO,
     DEP_CROSSOVER_GATE_SCENARIO,
     PLOT_STYLE_OVERRIDES_SCENARIO,
+    // subpane-rendering Task 5 — `overlay: false` routes every plot +
+    // hline to `script:<name>`; asserted via the `all-plots-on-pane`
+    // variant against the canvas2d reference (subPanes >= 1).
+    RSI_SUBPANE_ROUTING_SCENARIO,
 ]);

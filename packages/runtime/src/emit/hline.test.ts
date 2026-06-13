@@ -38,6 +38,8 @@ function makeCtx(
         caps?: Capabilities;
         barIndex?: number;
         plotOverrides?: RuntimeContext["plotOverrides"];
+        defaultPane?: string;
+        scriptPane?: string;
     } = {},
 ): {
     ctx: RuntimeContext;
@@ -65,6 +67,8 @@ function makeCtx(
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        defaultPane: opts.defaultPane ?? "overlay",
+        scriptPane: opts.scriptPane ?? "script:test",
         plotOverrides: opts.plotOverrides ?? {},
     };
     return { ctx, emissions };
@@ -116,6 +120,45 @@ describe("hline — happy path", () => {
         expect(e.color).toBe("#f00");
         expect(e.style.lineWidth).toBe(3);
         expect(e.style.lineStyle).toBe("dotted");
+    });
+});
+
+describe("hline — pane routing", () => {
+    it("emits pane 'overlay' on an overlay-default mount", () => {
+        const { ctx, emissions } = makeCtx({ defaultPane: "overlay" });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        hline("a:1:1#0", 70);
+        expect(emissions.plots[0].pane).toBe("overlay");
+        expect(emissions.diagnostics).toEqual([]);
+    });
+
+    it("emits the script pane on an overlay:false mount (subPanes >= 1)", () => {
+        const { ctx, emissions } = makeCtx({
+            caps: makeCaps({ subPanes: 1 }),
+            defaultPane: "script:rsi",
+            scriptPane: "script:rsi",
+        });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        hline("a:1:1#0", 70);
+        expect(emissions.plots[0].pane).toBe("script:rsi");
+        expect(emissions.diagnostics).toEqual([]);
+    });
+
+    it("emits an explicit named pane unchanged when subPanes >= 1", () => {
+        const { ctx, emissions } = makeCtx({ caps: makeCaps({ subPanes: 1 }) });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        hline("a:1:1#0", 70, { pane: "rsi" });
+        expect(emissions.plots[0].pane).toBe("rsi");
+        expect(emissions.diagnostics).toEqual([]);
+    });
+
+    it("folds an explicit named pane to overlay + warns when subPanes === 0", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        hline("a:1:1#0", 70, { pane: "rsi" });
+        expect(emissions.plots[0].pane).toBe("overlay");
+        expect(emissions.diagnostics).toHaveLength(1);
+        expect(emissions.diagnostics[0].code).toBe("unsupported-pane");
     });
 });
 

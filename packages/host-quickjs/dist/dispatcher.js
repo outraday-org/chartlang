@@ -3598,6 +3598,38 @@ function pushDiagnostic(queue, d) {
   queue.diagnostics.push(d);
 }
 
+// ../runtime/dist/emit/paneResolver.js
+var SANITISE_PANE_KEY = /[^a-zA-Z0-9_-]/g;
+function resolveScriptPane(manifest) {
+  const sanitised = manifest.name.replace(SANITISE_PANE_KEY, "-");
+  return `script:${sanitised === "" ? "default" : sanitised}`;
+}
+function resolveDefaultPane(manifest) {
+  return manifest.overlay === false ? resolveScriptPane(manifest) : "overlay";
+}
+function resolveNamedPane(pane, ctx, slotId) {
+  if (ctx.capabilities.subPanes >= 1)
+    return pane;
+  pushDiagnostic(ctx.emissions, {
+    kind: "diagnostic",
+    severity: "warning",
+    code: "unsupported-pane",
+    message: `Adapter declares subPanes: 0; pane "${pane}" folded to overlay.`,
+    slotId,
+    bar: ctx.barIndex()
+  });
+  return "overlay";
+}
+function resolvePane(requested, ctx, slotId) {
+  if (requested === "overlay")
+    return "overlay";
+  if (requested === void 0)
+    return ctx.defaultPane;
+  if (requested === "new")
+    return resolveNamedPane(ctx.scriptPane, ctx, slotId);
+  return resolveNamedPane(requested, ctx, slotId);
+}
+
 // ../runtime/dist/ta/adl.js
 function getCtx3() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
@@ -5980,6 +6012,7 @@ function hlineImpl(ctx, slotId, price, opts) {
     });
     return;
   }
+  const pane = resolvePane(opts.pane, ctx, slotId);
   const emission = {
     kind: "plot",
     slotId,
@@ -5990,7 +6023,7 @@ function hlineImpl(ctx, slotId, price, opts) {
     value: Number.isFinite(price) ? price : null,
     color: opts.color ?? null,
     meta: {},
-    pane: "overlay"
+    pane
   };
   pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));
 }
@@ -6117,33 +6150,6 @@ function buildRuntimeNamespace(ctx) {
       throw makeRuntimeErrorHalt(message2);
     }
   });
-}
-
-// ../runtime/dist/emit/paneResolver.js
-function resolvePane(requested, ctx, slotId) {
-  const pane = requested ?? "overlay";
-  if (pane === "overlay")
-    return "overlay";
-  if (ctx.capabilities.subPanes >= 1) {
-    pushDiagnostic(ctx.emissions, {
-      kind: "diagnostic",
-      severity: "warning",
-      code: "unsupported-pane",
-      message: `Pane "${pane}" requested but Phase-1 runtime flattens to overlay.`,
-      slotId,
-      bar: ctx.barIndex()
-    });
-    return "overlay";
-  }
-  pushDiagnostic(ctx.emissions, {
-    kind: "diagnostic",
-    severity: "warning",
-    code: "unsupported-pane",
-    message: `Adapter declares subPanes: 0; pane "${pane}" folded to overlay.`,
-    slotId,
-    bar: ctx.barIndex()
-  });
-  return "overlay";
 }
 
 // ../runtime/dist/emit/plot.js
@@ -14303,6 +14309,8 @@ function buildSubRunnerState(args, slotIdPrefix, isDep) {
       logBudget: 0,
       logBudgetExceededDiagnosed: false,
       resolvedInputs: Object.freeze({}),
+      defaultPane: resolveDefaultPane(args.compiled.manifest),
+      scriptPane: resolveScriptPane(args.compiled.manifest),
       // Overrides target the primary script's slots only in v1;
       // dep-output plots are not host-overridable.
       plotOverrides: Object.freeze({}),
@@ -15209,6 +15217,8 @@ function buildPrimaryState(args, primary) {
       logBudget: 0,
       logBudgetExceededDiagnosed: false,
       resolvedInputs: Object.freeze({}),
+      defaultPane: resolveDefaultPane(primary.manifest),
+      scriptPane: resolveScriptPane(primary.manifest),
       plotOverrides: Object.freeze({}),
       diagnosedInputKeys: /* @__PURE__ */ new Set(),
       views

@@ -25,7 +25,7 @@ import {
     createSiblingRunner,
     installDepOutputGlobal,
 } from "./dep/index.js";
-import { pushDiagnostic } from "./emit/index.js";
+import { pushDiagnostic, resolveDefaultPane, resolveScriptPane } from "./emit/index.js";
 import {
     dispose as disposeImpl,
     drain as drainImpl,
@@ -321,6 +321,8 @@ function buildPrimaryState(
             logBudget: 0,
             logBudgetExceededDiagnosed: false,
             resolvedInputs: Object.freeze({}),
+            defaultPane: resolveDefaultPane(primary.manifest),
+            scriptPane: resolveScriptPane(primary.manifest),
             plotOverrides: Object.freeze({}),
             diagnosedInputKeys: new Set(),
             views,

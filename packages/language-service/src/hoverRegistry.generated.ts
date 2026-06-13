@@ -3053,9 +3053,9 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "HLineOpts",
         "kind": "type",
         "title": "HLineOpts",
-        "summary": "Styling options accepted by `hline(...)`. Unlike `plot`, `hline` is always\na single horizontal line at a fixed price; no pane override.",
+        "summary": "/**\nStyling options accepted by `hline(...)`. `pane` follows the same shape as\n{@link PlotOpts.pane} : omit to fall back to the script's manifest-resolved\ndefault (overlay unless `defineIndicator({ overlay: false })` was declared);\n`\"overlay\"` pins the line to the price pane; `\"new\"` opens / joins the\nper-script subpane; named panes route to a shared subpane key.",
         "examples": [
-            "const opts: HLineOpts = { color: \"#ef4444\", title: \"Stop\", lineStyle: \"dashed\" };"
+            "const opts: HLineOpts = {\ncolor: \"#ef4444\",\ntitle: \"RSI 70\",\nlineStyle: \"dashed\",\npane: \"new\",\n};"
         ],
         "since": "0.1",
         "stability": "stable"

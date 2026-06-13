@@ -40,6 +40,7 @@ export function buildManifest(args: {
     readonly seriesCapacities: Readonly<Record<string, number>>;
     readonly maxLookback: number;
     readonly inputs: ManifestInputDescriptors;
+    readonly overlay?: boolean;
     readonly maxBarsBack?: number;
     readonly format?: ValueFormat;
     readonly precision?: number;
@@ -123,6 +124,7 @@ export function buildManifest(args: {
         userPickableInterval: args.userPickableInterval,
         seriesCapacities,
         maxLookback: args.maxLookback,
+        ...(args.overlay === undefined ? {} : { overlay: args.overlay }),
         ...(args.maxBarsBack === undefined ? {} : { maxBarsBack: args.maxBarsBack }),
         ...(args.format === undefined ? {} : { format: args.format }),
         ...(args.precision === undefined ? {} : { precision: args.precision }),
