@@ -371,6 +371,52 @@ export default defineIndicator({
         expect(diagnostics.some((d) => d.code === "dep-output-not-titled")).toBe(true);
     });
 
+    it("surfaces dep-dynamic as a compile diagnostic", async () => {
+        const service = createLanguageService();
+        const bad = `
+import { defineIndicator, input, plot } from "@invinite-org/chartlang-core";
+const producer = defineIndicator({
+    name: "P",
+    apiVersion: 1,
+    inputs: { length: input.int(20) },
+    compute: ({ bar }) => { plot(bar.close, { title: "line" }); },
+});
+const dynLen = 10;
+const tuned = producer.withInputs({ length: dynLen });
+export default defineIndicator({
+    name: "C",
+    apiVersion: 1,
+    compute: () => { tuned.output("line"); },
+});
+`;
+        const diagnostics = await service.compileToDiagnostics(bad);
+        expect(diagnostics.some((d) => d.code === "dep-dynamic")).toBe(true);
+    });
+
+    it("surfaces dep-cycle as a compile diagnostic", async () => {
+        const service = createLanguageService();
+        const bad = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+const a = defineIndicator({
+    name: "A",
+    apiVersion: 1,
+    compute: ({ bar }) => { b.output("line"); plot(bar.close, { title: "line" }); },
+});
+const b = defineIndicator({
+    name: "B",
+    apiVersion: 1,
+    compute: ({ bar }) => { a.output("line"); plot(bar.close, { title: "line" }); },
+});
+export default defineIndicator({
+    name: "C",
+    apiVersion: 1,
+    compute: () => { a.output("line"); b.output("line"); },
+});
+`;
+        const diagnostics = await service.compileToDiagnostics(bad);
+        expect(diagnostics.some((d) => d.code === "dep-cycle")).toBe(true);
+    });
+
     it('returns go-to-definition for .output("title") matching a producer\'s plot title', () => {
         const service = createLanguageService();
         const offset = composition.indexOf('fast.output("line")') + 'fast.output("'.length;

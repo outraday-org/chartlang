@@ -1299,6 +1299,7 @@ declare module "@invinite-org/chartlang-core" {
         readonly dependencies: ReadonlyArray<{
             readonly localId: string;
             readonly compiled: CompiledScriptObject;
+            readonly inputOverrides?: Readonly<Record<string, unknown>>;
         }>;
     }>;
     export function isCompiledScriptBundle(
