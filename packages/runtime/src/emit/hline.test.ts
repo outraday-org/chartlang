@@ -10,8 +10,8 @@ import {
     type MutableRunnerEmissions,
     type RuntimeContext,
 } from "../runtimeContext.js";
-import { createStreamState } from "../streamState.js";
 import { inMemoryStateStore } from "../stateStore.js";
+import { createStreamState } from "../streamState.js";
 import { hline } from "./hline.js";
 
 function makeCaps(overrides: Partial<Capabilities> = {}): Capabilities {
@@ -33,7 +33,13 @@ function makeCaps(overrides: Partial<Capabilities> = {}): Capabilities {
     };
 }
 
-function makeCtx(opts: { caps?: Capabilities; barIndex?: number } = {}): {
+function makeCtx(
+    opts: {
+        caps?: Capabilities;
+        barIndex?: number;
+        plotOverrides?: RuntimeContext["plotOverrides"];
+    } = {},
+): {
     ctx: RuntimeContext;
     emissions: MutableRunnerEmissions;
 } {
@@ -59,6 +65,7 @@ function makeCtx(opts: { caps?: Capabilities; barIndex?: number } = {}): {
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        plotOverrides: opts.plotOverrides ?? {},
     };
     return { ctx, emissions };
 }
@@ -94,6 +101,21 @@ describe("hline — happy path", () => {
         expect(e.title).toBe("Stop");
         expect(e.style.lineWidth).toBe(2);
         expect(e.style.lineStyle).toBe("dashed");
+    });
+
+    it("applies a matching slot override from the context", () => {
+        const { ctx, emissions } = makeCtx({
+            plotOverrides: {
+                "a:1:1#0": { visible: false, color: "#f00", lineWidth: 3, lineStyle: "dotted" },
+            },
+        });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        hline("a:1:1#0", 70, { color: "#000" });
+        const e = emissions.plots[0];
+        expect(e.visible).toBe(false);
+        expect(e.color).toBe("#f00");
+        expect(e.style.lineWidth).toBe(3);
+        expect(e.style.lineStyle).toBe("dotted");
     });
 });
 

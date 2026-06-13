@@ -4219,6 +4219,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.2",
         "stability": "stable"
     },
+    "PlotOverride": {
+        "fqn": "PlotOverride",
+        "kind": "type",
+        "title": "PlotOverride",
+        "summary": "Host-supplied presentation override for a single plot slot, keyed by\n`PlotEmission.slotId`. Applied by the runtime at emit time; never\naffects `compute`. `lineWidth` / `lineStyle` apply only to the\nline-family plot kinds (`line`, `step-line`, `horizontal-line`,\n`area`); ignored as a silent no-op on other kinds.",
+        "examples": [
+            "const override: PlotOverride = {\nvisible: false,\ncolor: \"#ff0000\",\nlineWidth: 2,\nlineStyle: \"dashed\",\n};\nvoid override;"
+        ],
+        "since": "0.8",
+        "stability": "stable"
+    },
     "PlotShapeGlyph": {
         "fqn": "PlotShapeGlyph",
         "kind": "type",
@@ -4228,6 +4239,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const shape: PlotShapeGlyph = \"flag\";\nvoid shape;"
         ],
         "since": "0.5",
+        "stability": "stable"
+    },
+    "PlotSlotDescriptor": {
+        "fqn": "PlotSlotDescriptor",
+        "kind": "type",
+        "title": "PlotSlotDescriptor",
+        "summary": "One plotted-slot descriptor in `ScriptManifest.plots`. The compiler\nemits one entry per `plot()` / `plot.*()` / `hline()` callsite so an\nembedder can build a style/visibility UI keyed by the stable `slotId`\nbefore the first emission. `title` is present only when the call's\nopts carries a string-literal `title`.",
+        "examples": [
+            "const slot: PlotSlotDescriptor = {\nslotId: \"ema.ts:12:5#0\",\nkind: \"line\",\ntitle: \"EMA\",\n};\nvoid slot;"
+        ],
+        "since": "0.8",
         "stability": "stable"
     },
     "PmoOpts": {

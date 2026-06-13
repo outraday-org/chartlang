@@ -3,6 +3,7 @@
 
 export { alert } from "./alert.js";
 export { emitAlertCondition } from "./alertConditionEmission.js";
+export { applyPlotOverride } from "./applyPlotOverride.js";
 export {
     createDrawingHandle,
     draw,

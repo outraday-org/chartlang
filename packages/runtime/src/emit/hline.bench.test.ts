@@ -10,8 +10,8 @@ import {
     type MutableRunnerEmissions,
     type RuntimeContext,
 } from "../runtimeContext.js";
-import { createStreamState } from "../streamState.js";
 import { inMemoryStateStore } from "../stateStore.js";
+import { createStreamState } from "../streamState.js";
 import { hline } from "./hline.js";
 
 // THRESHOLD_MS — 10 000 unique-slot hline emissions; same budget as
@@ -68,6 +68,7 @@ describe("hline threshold", () => {
             drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
             scriptMaxDrawings: null,
             stateSlots: new Map(),
+            plotOverrides: {},
         };
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
         const start = performance.now();

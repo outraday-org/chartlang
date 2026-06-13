@@ -27,6 +27,8 @@ export type {
     LogEmission,
     PlotEmission,
     PlotKind,
+    PlotOverride,
+    PlotSlotDescriptor,
     PlotStyle,
     RunnerEmissions,
     RuntimeDiagnostic,

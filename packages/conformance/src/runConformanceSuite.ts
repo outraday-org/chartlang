@@ -15,10 +15,11 @@ import type {
     DrawingEmission,
     LogEmission,
     PlotEmission,
+    PlotOverride,
     RunnerEmissions,
     RuntimeDiagnostic,
 } from "@invinite-org/chartlang-adapter-kit";
-import { compile as defaultCompile, type CompiledScript } from "@invinite-org/chartlang-compiler";
+import { type CompiledScript, compile as defaultCompile } from "@invinite-org/chartlang-compiler";
 import type {
     Bar,
     CompiledScriptBundle,
@@ -93,7 +94,62 @@ export type Scenario = {
     readonly candleLimit?: number;
     readonly secondaryCandles?: Readonly<Record<string, ReadonlyArray<Bar>>>;
     readonly eventStream?: ScenarioEventStream;
+    /**
+     * Mount-time plot overrides, keyed by ordinal index into the compiled
+     * `manifest.plots` so the scenario survives `slotId`-format changes —
+     * the runner resolves each `slotIndex` to its real `slotId` from the
+     * compiled manifest and passes the map to `createScriptRunner`. Only
+     * valid against the primary script's plot slots. `@since 0.8`.
+     */
+    readonly plotOverrides?: ReadonlyArray<PlotSlotOverride>;
+    /**
+     * Mid-stream presentation-override updates applied via
+     * `runner.setPlotOverrides(...)`. Each event's `overrides` REPLACES the
+     * whole override map after the bar at `atBar` is pushed. The just-pushed
+     * bar's emissions were already baked during `compute` and are returned
+     * by the immediately following `drain` unchanged; the swap takes effect
+     * starting with bar `atBar + 1`'s `compute`. Keyed by `manifest.plots`
+     * ordinal like {@link Scenario.plotOverrides}. `@since 0.8`.
+     */
+    readonly overrideEvents?: ReadonlyArray<ScenarioOverrideEvent>;
     readonly assertions: ReadonlyArray<ScenarioAssertion>;
+};
+
+/**
+ * One plot override targeting a slot by its ordinal index into the
+ * compiled `manifest.plots` array (source order). The runner resolves the
+ * index to the real `slotId` at run time.
+ *
+ * @since 0.8
+ * @stable
+ * @example
+ *     import type { PlotSlotOverride } from "@invinite-org/chartlang-conformance";
+ *     const o: PlotSlotOverride = { slotIndex: 0, override: { visible: false } };
+ *     void o;
+ */
+export type PlotSlotOverride = {
+    readonly slotIndex: number;
+    readonly override: PlotOverride;
+};
+
+/**
+ * A mid-stream `setPlotOverrides` event. `overrides` is the full
+ * replacement map (the runtime replaces, not merges) applied after the
+ * bar at `atBar` is pushed and before it is drained.
+ *
+ * @since 0.8
+ * @stable
+ * @example
+ *     import type { ScenarioOverrideEvent } from "@invinite-org/chartlang-conformance";
+ *     const e: ScenarioOverrideEvent = {
+ *         atBar: 3,
+ *         overrides: [{ slotIndex: 0, override: { visible: true } }],
+ *     };
+ *     void e;
+ */
+export type ScenarioOverrideEvent = {
+    readonly atBar: number;
+    readonly overrides: ReadonlyArray<PlotSlotOverride>;
 };
 
 /**
@@ -114,15 +170,24 @@ export type ScenarioEventStream =
 
 /**
  * Assertion the runner evaluates against a scenario's buffered
- * emissions. The six variants cover plot-series hashing, alert
- * counting, alert-message substring search, diagnostic absence,
- * diagnostic presence, and (Phase 3) drawing-series hashing.
+ * emissions. The variants cover plot-series hashing, single
+ * override-baked plot-field inspection, alert counting,
+ * alert-message substring search, diagnostic absence, diagnostic
+ * presence, and (Phase 3) drawing-series hashing.
  *
  * The `drawing-hash` variant pins SHA-256 over JSON-stringified
  * `{ handleId, kind, op, state, bar }` tuples in emission order
  * (filtered by `handleId` if supplied). Re-pinning workflow
  * mirrors `plot-hash`: copy the `actual` hash from the failure
  * message into the scenario's pinned value.
+ *
+ * The `plot-field` variant inspects a single override-baked field
+ * (`visible` / `color` / `style.lineWidth`) on the emission for a
+ * `(slotIndex, bar)` pair — `slotIndex` is the ordinal into the
+ * compiled `manifest.plots`. It exists because `plot-hash`
+ * deliberately hashes only `{ bar, value }` and cannot see
+ * presentation fields. `expected: undefined` asserts an omitted
+ * field (e.g. a visible plot carries no `visible` flag). `@since 0.8`.
  *
  * @since 0.1
  * @stable
@@ -140,6 +205,13 @@ export type ScenarioEventStream =
  */
 export type ScenarioAssertion =
     | { readonly kind: "plot-hash"; readonly slotId?: string; readonly sha256: string }
+    | {
+          readonly kind: "plot-field";
+          readonly slotIndex: number;
+          readonly bar: number;
+          readonly field: "visible" | "color" | "lineWidth";
+          readonly expected: string | number | boolean | undefined;
+      }
     | { readonly kind: "alert-count"; readonly count: number }
     | { readonly kind: "alert-message-contains"; readonly pattern: string; readonly min: number }
     | { readonly kind: "log-emission-count"; readonly expected: number }
@@ -263,6 +335,8 @@ type BufferedRun = {
     readonly alertConditions: ReadonlyArray<AlertConditionEmission>;
     readonly logs: ReadonlyArray<LogEmission>;
     readonly diagnostics: ReadonlyArray<RuntimeDiagnostic>;
+    /** Slot ids from the compiled `manifest.plots`, in source order. */
+    readonly plotSlotIds: ReadonlyArray<string>;
 };
 
 type RunnerWithPush = ReturnType<typeof createScriptRunner>;
@@ -274,12 +348,38 @@ function mergeCapabilities(
     return override === undefined ? base : Object.freeze({ ...base, ...override });
 }
 
+/**
+ * Convert an ordinal-keyed override list into the `Record<slotId,
+ * PlotOverride>` the runtime expects, resolving each `slotIndex` to its
+ * real `slotId` from the compiled `manifest.plots`. An out-of-range
+ * `slotIndex` resolves to no entry — the harness stays robust when driven
+ * with a stubbed compiler that emits no `manifest.plots`; a genuinely
+ * mis-authored override surfaces loudly as a failing `plot-field`
+ * assertion instead.
+ */
+function resolveOverrideMap(
+    overrides: ReadonlyArray<PlotSlotOverride>,
+    plotSlotIds: ReadonlyArray<string>,
+): Record<string, PlotOverride> {
+    const map: Record<string, PlotOverride> = {};
+    for (const { slotIndex, override } of overrides) {
+        const slotId = plotSlotIds[slotIndex];
+        if (slotId !== undefined) map[slotId] = override;
+    }
+    return map;
+}
+
 const PACKAGE_DIR = resolvePath(fileURLToPath(import.meta.url), "../..");
 const REPO_ROOT = resolvePath(PACKAGE_DIR, "../..");
 const CACHE_DIR = resolvePath(PACKAGE_DIR, ".cache");
 
 function resolveScriptPath(scriptPath: string): string {
     return isAbsolute(scriptPath) ? scriptPath : resolvePath(REPO_ROOT, scriptPath);
+}
+
+function readLineWidth(emission: PlotEmission): number | undefined {
+    const style: Readonly<Record<string, unknown>> = emission.style;
+    return typeof style.lineWidth === "number" ? style.lineWidth : undefined;
 }
 
 function hashPlotSeries(
@@ -323,6 +423,42 @@ function evalAssertion(
                 scenarioId,
                 assertionKind: "plot-hash",
                 message: `plot-hash[${slotLabel}]: expected ${assertion.sha256}, actual ${hash} (${count} points)`,
+            };
+        }
+        case "plot-field": {
+            const slotId = run.plotSlotIds[assertion.slotIndex];
+            if (slotId === undefined) {
+                return {
+                    scenarioId,
+                    assertionKind: "plot-field",
+                    message: `plot-field[slot ${assertion.slotIndex}]: no plot slot at that ordinal in manifest.plots (${run.plotSlotIds.length} slots)`,
+                };
+            }
+            const emission = run.plots.find((p) => p.slotId === slotId && p.bar === assertion.bar);
+            if (emission === undefined) {
+                return {
+                    scenarioId,
+                    assertionKind: "plot-field",
+                    message: `plot-field[${slotId}@bar ${assertion.bar}]: no plot emission for that slot and bar`,
+                };
+            }
+            let actual: string | number | boolean | undefined;
+            switch (assertion.field) {
+                case "lineWidth":
+                    actual = readLineWidth(emission);
+                    break;
+                case "color":
+                    actual = emission.color ?? undefined;
+                    break;
+                default:
+                    actual = emission.visible;
+                    break;
+            }
+            if (actual === assertion.expected) return null;
+            return {
+                scenarioId,
+                assertionKind: "plot-field",
+                message: `plot-field[${slotId}@bar ${assertion.bar}].${assertion.field}: expected ${String(assertion.expected)}, actual ${String(actual)}`,
             };
         }
         case "alert-count": {
@@ -553,11 +689,13 @@ async function runOne(
 ): Promise<ReadonlyArray<ConformanceFailure>> {
     const resolved = await resolveSource(scenario);
     let compiledScript: CompiledScriptObject | CompiledScriptBundle;
+    let plotSlotIds: ReadonlyArray<string> = [];
     try {
         const compiled = await compileFn(resolved.source, {
             apiVersion: 1,
             sourcePath: resolved.sourcePath,
         });
+        plotSlotIds = (compiled.manifest.plots ?? []).map((slot) => slot.slotId);
         compiledScript = await loadCompiledModuleAt(compiled, resolved.bundlePath);
     } catch (error) {
         if (resolved.workspaceDir !== null) {
@@ -574,6 +712,9 @@ async function runOne(
         capabilities,
         ...(adapter.symInfo === undefined ? {} : { symInfo: adapter.symInfo }),
         ...(adapter.resolveInputs === undefined ? {} : { resolveInputs: adapter.resolveInputs }),
+        ...(scenario.plotOverrides === undefined
+            ? {}
+            : { plotOverrides: resolveOverrideMap(scenario.plotOverrides, plotSlotIds) }),
     });
 
     const plots: PlotEmission[] = [];
@@ -611,6 +752,20 @@ async function runOne(
             } else {
                 await pushRunnerEvent(runner, { kind: "close", bar });
             }
+            // Apply any live override event scheduled for the bar just pushed
+            // (`eventIndex` is the 0-based bar ordinal). `compute` already
+            // ran inside `pushRunnerEvent`, so this bar's emissions are
+            // already baked with the PRE-swap map and the immediately
+            // following `drain` returns them unchanged; the swap takes effect
+            // starting with bar `eventIndex + 1`'s `compute`.
+            // `setPlotOverrides` replaces the whole map — the runtime does
+            // not merge.
+            if (scenario.overrideEvents !== undefined) {
+                for (const event of scenario.overrideEvents) {
+                    if (event.atBar !== eventIndex) continue;
+                    runner.setPlotOverrides(resolveOverrideMap(event.overrides, plotSlotIds));
+                }
+            }
             eventIndex += 1;
             const drained: RunnerEmissions = runner.drain();
             for (const p of drained.plots) plots.push(p);
@@ -629,7 +784,15 @@ async function runOne(
         }
     }
 
-    const run: BufferedRun = { plots, drawings, alerts, alertConditions, logs, diagnostics };
+    const run: BufferedRun = {
+        plots,
+        drawings,
+        alerts,
+        alertConditions,
+        logs,
+        diagnostics,
+        plotSlotIds,
+    };
     const failures: ConformanceFailure[] = [];
     for (const assertion of scenario.assertions) {
         const failure = evalAssertion(scenario.id, run, assertion);

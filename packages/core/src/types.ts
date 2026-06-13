@@ -5,6 +5,7 @@ import type { DependencyDeclaration, OutputDeclaration } from "./define/dependen
 import type { ScaleAxis, ValueFormat } from "./define/overrides.js";
 import type { DrawNamespace } from "./draw/draw.js";
 import type { InputDescriptor } from "./input/inputDescriptor.js";
+import type { PlotKind } from "./plot/plot.js";
 import type { RequestNamespace } from "./request/index.js";
 import type { RuntimeNamespace } from "./runtime/index.js";
 import type { StateNamespace } from "./state/state.js";
@@ -243,6 +244,54 @@ export type DrawingCounts = {
 };
 
 /**
+ * One plotted-slot descriptor in `ScriptManifest.plots`. The compiler
+ * emits one entry per `plot()` / `plot.*()` / `hline()` callsite so an
+ * embedder can build a style/visibility UI keyed by the stable `slotId`
+ * before the first emission. `title` is present only when the call's
+ * opts carries a string-literal `title`.
+ *
+ * @since 0.8
+ * @stable
+ * @example
+ *     const slot: PlotSlotDescriptor = {
+ *         slotId: "ema.ts:12:5#0",
+ *         kind: "line",
+ *         title: "EMA",
+ *     };
+ *     void slot;
+ */
+export type PlotSlotDescriptor = {
+    readonly slotId: string;
+    readonly kind: PlotKind;
+    readonly title?: string;
+};
+
+/**
+ * Host-supplied presentation override for a single plot slot, keyed by
+ * `PlotEmission.slotId`. Applied by the runtime at emit time; never
+ * affects `compute`. `lineWidth` / `lineStyle` apply only to the
+ * line-family plot kinds (`line`, `step-line`, `horizontal-line`,
+ * `area`); ignored as a silent no-op on other kinds.
+ *
+ * @since 0.8
+ * @stable
+ * @example
+ *     const override: PlotOverride = {
+ *         visible: false,
+ *         color: "#ff0000",
+ *         lineWidth: 2,
+ *         lineStyle: "dashed",
+ *     };
+ *     void override;
+ */
+export type PlotOverride = {
+    readonly visible?: boolean;
+    readonly color?: string;
+    readonly lineWidth?: number;
+    readonly lineStyle?: LineStyle;
+};
+
+/**
  * The metadata sidecar the compiler emits next to a compiled script. The
  * runtime reads this to size ring buffers, gate against adapter capabilities,
  * and pick secondary candle streams.
@@ -382,6 +431,21 @@ export type ScriptManifest = {
      *     void v;
      */
     readonly outputs?: ReadonlyArray<OutputDeclaration>;
+    /**
+     * Static plot-slot descriptors — one per `plot()` / `hline()` callsite,
+     * in callsite order. Lets an embedder enumerate plottable slots (and
+     * key per-slot style/visibility overrides) without waiting for the
+     * first emission. Absent on scripts that issue no plot/hline calls.
+     *
+     * @since 0.8
+     * @stable
+     * @example
+     *     const v: ScriptManifest["plots"] = [
+     *         { slotId: "ema.ts:12:5#0", kind: "line", title: "EMA" },
+     *     ];
+     *     void v;
+     */
+    readonly plots?: ReadonlyArray<PlotSlotDescriptor>;
     /**
      * The ES-module binding name this manifest was reached through.
      * `"default"` for `export default defineIndicator(...)`; the

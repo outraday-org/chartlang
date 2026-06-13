@@ -93,9 +93,15 @@ Once resolved, input values are frozen — they do not mutate between
 bars. Script-author logic that needs to react to a change should react
 on the next remount.
 
+Inputs tune `compute` and are frozen at mount. For presentation-only
+recolor / show-hide of individual plots from the embedder — without
+editing the script or remounting — see
+[plot overrides](../adapters/contract.md#plot-overrides).
+
 ## Cross-links
 
 - The manifest field layout: [Script manifest § Input descriptors](../spec/manifest.md#input-descriptors).
 - Compiler diagnostics: [grammar § Input Extraction](../spec/grammar.md#input-extraction).
 - The per-builder reference pages under
   [Input primitives](../primitives/input/int.md).
+- Embedder presentation overrides: [Plot overrides](../adapters/plot-overrides.md).

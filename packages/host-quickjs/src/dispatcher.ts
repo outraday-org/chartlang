@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { createScriptRunner } from "@invinite-org/chartlang-runtime";
 import type { CompiledScriptObject, ScriptManifest } from "@invinite-org/chartlang-core";
+import { createScriptRunner } from "@invinite-org/chartlang-runtime";
 
 import { createDispatcher } from "./dispatcherCore.js";
 
@@ -36,6 +36,7 @@ declare global {
     var __chartlang_compiled_manifest: ScriptManifest | ReadonlyArray<ScriptManifest> | undefined;
     var __chartlang_load: (json: string) => Promise<string>;
     var __chartlang_push: (json: string) => Promise<string>;
+    var __chartlang_setPlotOverrides: (json: string) => string;
     var __chartlang_drain: (json: string) => string;
     var __chartlang_dispose: () => string;
 }
@@ -75,5 +76,6 @@ const handlers = createDispatcher({
 
 globalThis.__chartlang_load = handlers.load;
 globalThis.__chartlang_push = handlers.push;
+globalThis.__chartlang_setPlotOverrides = handlers.setPlotOverrides;
 globalThis.__chartlang_drain = handlers.drain;
 globalThis.__chartlang_dispose = handlers.dispose;

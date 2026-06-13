@@ -4,6 +4,7 @@
 import type {
     AdapterSymInfo,
     Capabilities,
+    PlotOverride,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
 
@@ -20,6 +21,9 @@ import type { HostLimits, ScriptHost, WorkerErrorEvent, WorkerLike } from "./typ
  * - `symInfo` — optional adapter-supplied metadata for runtime `syminfo.*`.
  * - `resolveInputs` — optional adapter callback. The host resolves it during
  *   `load()` and sends the plain override record to the worker.
+ * - `resolvePlotOverrides` — optional adapter callback for the initial per-slot
+ *   presentation overrides. Resolved during `load()`; the plain record is sent
+ *   to the worker beside `inputOverrides`.
  * - `workerLike` — injection seam for tests. Production callers omit it; the
  *   host then constructs a real `Worker` via {@link defaultWorkerFactory}.
  * - `limits` — partial `HostLimits` overrides; missing fields fall through to
@@ -40,6 +44,7 @@ export type CreateWorkerHostOpts = {
     readonly capabilities: Capabilities;
     readonly symInfo?: AdapterSymInfo;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    readonly resolvePlotOverrides?: (scriptId: string) => Readonly<Record<string, PlotOverride>>;
     readonly workerLike?: WorkerLike;
     readonly limits?: Partial<HostLimits>;
     readonly onWorkerError?: (message: string) => void;
@@ -188,6 +193,9 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
                     ...(opts.resolveInputs !== undefined
                         ? { inputOverrides: opts.resolveInputs(compiled.manifest.name) }
                         : {}),
+                    ...(opts.resolvePlotOverrides !== undefined
+                        ? { plotOverrides: opts.resolvePlotOverrides(compiled.manifest.name) }
+                        : {}),
                     limits,
                 };
                 worker.postMessage(frame);
@@ -197,6 +205,10 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
             const frame: HostToWorker = { kind: "candleEvent", event };
             worker.postMessage(frame);
             return Promise.resolve();
+        },
+        setPlotOverrides(overrides) {
+            const frame: HostToWorker = { kind: "setPlotOverrides", overrides };
+            worker.postMessage(frame);
         },
         drain() {
             const n = nonceCounter;

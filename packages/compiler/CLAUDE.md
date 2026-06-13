@@ -66,3 +66,17 @@
   bodies). Future per-port batches (Tasks 6–28) append `slot: true`
   entries; only `ta.nz` carries `slot: false`. The `program.ts`
   ambient shim mirrors the shape — keep the two in lockstep.
+- **`manifest.plots[*].slotId` must equal the injected callsite
+  literal.** `injectCallsiteIds` accumulates one `PlotSlotDescriptor`
+  per `plot()` / `hline()` callsite using the *same* minted `slotId` it
+  injects as the leading argument (never a second derivation) — the
+  runtime echoes that literal as `PlotEmission.slotId`, so any drift
+  silently breaks host-side override keying. The plot **kind** is NOT a
+  callee member (chartlang has no `plot.*` member API); it is derived
+  from the opts object literal's `style.kind` string literal
+  (`plotKindFromCallsite`), mirroring the runtime's `buildStyle`. Bare
+  `plot` (no `style`) ⇒ `line`; `hline` ⇒ `horizontal-line`; a dynamic
+  / non-literal `style` ⇒ best-effort `line` (slot still listed). For
+  multi-export files the flat plot-slot list attaches to the **default
+  manifest only** (mirrors how `outputs?` scopes; per-export plot
+  partitioning is deferred).

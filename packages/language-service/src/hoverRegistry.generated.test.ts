@@ -7,7 +7,7 @@ import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 
 describe("HOVER_REGISTRY", () => {
     it("contains the apiVersion 1 language-service symbol set", () => {
-        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(515);
+        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(517);
     });
 
     it("contains indicator-composition (Phase 0.7) type entries", () => {

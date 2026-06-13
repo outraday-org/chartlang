@@ -100,6 +100,20 @@
   is null. The overload pattern is the seam that lets the runtime
   satisfy core's `ComputeContext.plot = typeof corePlot` typing
   while delivering a slotId-aware impl at runtime.
+- **`RuntimeContext.plotOverrides` is the one mutable presentation
+  field — frozen entries, swappable container.** Resolved once at mount
+  (`args.plotOverrides ?? args.resolvePlotOverrides?.(name) ?? {}`) and
+  applied at emit time by `emit/applyPlotOverride.ts` keyed by
+  `PlotEmission.slotId`. `ScriptRunner.setPlotOverrides(next)` replaces
+  the whole map in place with `Object.freeze({ ...next })` — cheap, no
+  recompute, reflected on the next `drain`. It is presentation-only
+  (visibility / color / line cosmetics), so unlike `resolvedInputs` it
+  is NOT part of the persisted compute snapshot and does not break the
+  frozen-input determinism guarantee; a warm start re-resolves it from
+  the host. `visible` is only ever written as `false` (never `true`), so
+  a no-override or visible-override run is byte-identical to the
+  pre-feature baseline. Dep / sibling runners default `plotOverrides` to
+  `{}` — overrides target the primary script's slots only in v1.
 - **`pushPlot` / `pushAlert` validate via Task 4's
   `validateEmission`; `pushDiagnostic` does not.** Diagnostics are
   the failure sink — recursively validating them would loop. A

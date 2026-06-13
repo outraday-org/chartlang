@@ -1,8 +1,12 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type {
+    CandleEvent,
+    PlotOverride,
+    RunnerEmissions,
+} from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, CompiledScriptObject, ScriptManifest } from "@invinite-org/chartlang-core";
-import type { CandleEvent, RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
 
 /**
  * Resource caps a `ScriptHost` reports to its consumer. Phase-1 `host-worker`
@@ -84,6 +88,12 @@ export type HostCompiledScript = {
 export type ScriptHost = {
     load(compiled: HostCompiledScript): Promise<void>;
     push(event: CandleEvent): Promise<void>;
+    /**
+     * Live-swap the per-slot presentation overrides keyed by
+     * `PlotEmission.slotId`. Presentation-only — no recompute; the next
+     * `drain` reflects the new map. @since 0.8
+     */
+    setPlotOverrides(overrides: Readonly<Record<string, PlotOverride>>): void;
     drain(): Promise<RunnerEmissions>;
     dispose(): void;
     readonly limits: HostLimits;
@@ -152,6 +162,7 @@ export type ScriptRunnerHandle = {
     onBarTick(bar: Bar): Promise<void>;
     push(event: CandleEvent): Promise<void>;
     drain(): RunnerEmissions;
+    setPlotOverrides(overrides: Readonly<Record<string, PlotOverride>>): void;
     dispose(): Promise<void>;
 };
 

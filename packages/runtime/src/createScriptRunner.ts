@@ -4,6 +4,7 @@
 import type {
     CandleEvent,
     Capabilities,
+    PlotOverride,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
 import type {
@@ -129,6 +130,20 @@ export type ScriptRunner = {
     push(event: CandleEvent): Promise<void>;
     warmStart(currentMainBarTime: number): Promise<void>;
     drain(): RunnerEmissions;
+    /**
+     * Replace the per-slot presentation override map live. Cheap and
+     * recompute-free — the swap takes effect on the NEXT push's
+     * `compute`; the just-pushed bar's drain returns the pre-swap
+     * emissions (already baked during that bar's `compute`). Entries
+     * are frozen on assignment; overrides are presentation-only and
+     * never feed `compute`.
+     *
+     * @since 0.8
+     * @stable
+     * @example
+     *     // runner.setPlotOverrides({ "ema.chart.ts:12:5#0": { visible: false } });
+     */
+    setPlotOverrides(next: Readonly<Record<string, PlotOverride>>): void;
     dispose(): Promise<void>;
 };
 
@@ -168,6 +183,8 @@ export type CreateScriptRunnerArgs = {
     readonly symInfo?: AdapterSymInfo;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     readonly inputOverrides?: Readonly<Record<string, unknown>>;
+    readonly resolvePlotOverrides?: (scriptId: string) => Readonly<Record<string, PlotOverride>>;
+    readonly plotOverrides?: Readonly<Record<string, PlotOverride>>;
 };
 
 function resolveCapacity(manifest: ScriptManifest): number {
@@ -304,6 +321,7 @@ function buildPrimaryState(
             logBudget: 0,
             logBudgetExceededDiagnosed: false,
             resolvedInputs: Object.freeze({}),
+            plotOverrides: Object.freeze({}),
             diagnosedInputKeys: new Set(),
             views,
         },
@@ -321,6 +339,10 @@ function buildPrimaryState(
         overrides,
         state.runtimeContext,
     );
+    state.runtimeContext.plotOverrides =
+        args.plotOverrides ??
+        args.resolvePlotOverrides?.(primary.manifest.name) ??
+        Object.freeze({});
     return state;
 }
 
@@ -470,6 +492,9 @@ export function createScriptRunner(args: CreateScriptRunnerArgs): ScriptRunner {
         },
         drain() {
             return drainImpl(state);
+        },
+        setPlotOverrides(next) {
+            state.runtimeContext.plotOverrides = Object.freeze({ ...next });
         },
         async dispose() {
             const finalSave = saveStateSnapshot(state, state.now());

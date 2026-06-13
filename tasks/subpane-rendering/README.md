@@ -48,43 +48,54 @@ Make `pane: "overlay" | "new" | "<id>"` route end-to-end:
   `subPanes >= 1`, one for `subPanes === 0`. Tests in
   `paneResolver.test.ts:75-93` pin the fold.
 - **`packages/runtime/src/runtimeContext.ts`** — `RuntimeContext`
-  has no `defaultPane` / `overlay` field. `createScriptRunner.ts`
-  receives the manifest at mount but does not surface its
-  routing-relevant flags into the per-step context.
-- **`packages/core/src/define/defineIndicator.ts:24-33`** —
+  (lines 115-260) has no `defaultPane` / `overlay` field; `resolvedInputs`
+  sits at line 231 as the insertion landmark. `createScriptRunner.ts`
+  receives the manifest at mount (`buildPrimaryState`, lines 257-347)
+  but does not surface its routing-relevant flags into the per-step
+  context.
+- **`packages/core/src/define/defineIndicator.ts:28`** —
   `DefineIndicatorOpts.overlay?: boolean` is accepted by the
   constructor, **destructured but never stored on the manifest**
   (the `manifest = { ...base, ...(opts.maxDrawings ? {...}) }`
-  block at lines 69-80 has no `overlay` spread). The compiler's
-  ambient shim at `packages/compiler/src/program.ts:1305` lists the
-  field as well.
-- **`packages/core/src/types.ts:266`** — `ScriptManifest` has no
-  `overlay` / `defaultPane` field.
-- **`packages/core/src/plot/plot.ts:217-239`** — `PlotOpts.pane?:
+  block at lines 80-92 has no `overlay` spread). The compiler's
+  ambient shim at `packages/compiler/src/program.ts:1313-1321`
+  lists `overlay` on `DefineIndicatorOpts`; the matching
+  `ScriptManifest` shim at lines 1050-1074 does NOT.
+- **`packages/core/src/types.ts:315`** — `ScriptManifest` (lines
+  315-490) has no `overlay` / `defaultPane` field.
+- **`packages/core/src/plot/plot.ts:232-239`** — `PlotOpts.pane?:
   "overlay" | "new" | string` is already the canonical shape and
-  documents Phase-2+ as the lift-off target. `HLineOpts` (lines 251-
-  256) has **no** `pane` field — hlines today always go to overlay
-  (`packages/runtime/src/emit/hline.ts:41`).
+  documents Phase-2+ as the lift-off target. `HLineOpts` (lines 249-
+  254) has **no** `pane` field, and its JSDoc actively documents
+  "no pane override" (lines 242-243) — Task 1 lifts that paragraph.
+  Hlines today always go to overlay
+  (`packages/runtime/src/emit/hline.ts:42`).
 - **`packages/adapter-kit/src/types.ts:457-468`** — `PlotEmission.pane`
   is already on the wire contract; no schema change needed for the
   emission shape. `Capabilities.subPanes` (lines 271-281) carries the
   sentinel; canvas2d declares `Number.MAX_SAFE_INTEGER`
-  (`examples/canvas2d-adapter/src/capabilities.ts:84`).
+  (`examples/canvas2d-adapter/src/capabilities.ts:83`).
 - **`examples/canvas2d-adapter/src/createCanvas2dAdapter.ts`** —
   `AdapterState.plotSeries: Map<string, PlotPoint[]>` (line 117) is
-  keyed by `slotId` only. `computeViewport` (line 146) computes one
+  keyed by `slotId` only. `computeViewport` (lines 146-188) computes one
   shared y-scale from **bars ∪ every plotSeries point**, so an RSI
   series in 0-100 expands the viewport and the price chart squashes.
-  `applyPlot` (line 377) discards `plot.pane`. `renderFrame` (line
-  338) draws bars + every plot series in the same coordinate space.
+  `applyPlot` (lines 377-399) discards `plot.pane`. `renderFrame`
+  (lines 338-375) draws bars + every plot series in the same
+  coordinate space. State-init at lines 519-532, `dispose` at lines
+  565-576. `RenderCtx` (`render/clear.ts:26-47`) has no `translate`
+  method today — Task 4 adds it alongside the matching
+  `MockCanvas2DContext` extension (`testing.ts:18-57`).
 - **`packages/conformance/CLAUDE.md`** documents the carve-out: "The
   `unsupported-pane` diagnostic is NOT asserted on the RSI-divergence
   scenario." A synthetic explicit-`pane: "new"` script is used to
   exercise the diagnostic path in `runConformanceSuite.test.ts`.
-- **`examples/react-demo/src/scripts.ts`** ships four demo scripts;
-  two (`rsi-divergence-alert`, `smoothed-rsi-cross`) carry
-  `overlay: false` but render on the price pane today because the
-  flag never reaches the runtime.
+- **`examples/react-demo/src/scripts.ts`** ships five demo scripts
+  (`ema-cross`, `bollinger-bands`, `rsi-divergence-alert`,
+  `smoothed-rsi-cross`, `trend-composition` — `DEMO_SCRIPTS` array
+  at lines 162-168). The two RSI scripts carry `overlay: false`
+  (lines 69, 95) but render on the price pane today because the
+  flag is dropped by `defineIndicator`.
 
 ## Target State
 
@@ -176,11 +187,12 @@ Make `pane: "overlay" | "new" | "<id>"` route end-to-end:
 ### Conformance (`packages/conformance/`)
 
 - New scenario `rsiSubpaneRouting.scenario.ts` (added to
-  `PHASE_1_SCENARIOS`). The script declares `overlay: false`, plots
-  RSI(14) + hlines at 30/70, and the assertions pin: (1) the
-  `pane` field on every emitted `PlotEmission` is **not** `"overlay"`;
-  (2) **no** `unsupported-pane` diagnostic is pushed; (3) the pane
-  key is stable across all plots in the script.
+  `ALL_SCENARIOS` at `scenarios/index.ts:478`). The script declares
+  `overlay: false`, plots RSI(14) + hlines at 30/70, and the
+  assertions pin: (1) every emitted `PlotEmission.pane` equals
+  `"script:rsi-subpane-routing"` (new `all-plots-on-pane` assertion
+  variant); (2) **no** `unsupported-pane` diagnostic is pushed
+  (existing `diagnostic-code-absent` variant).
 - The existing carve-out in `packages/conformance/CLAUDE.md` is
   rewritten: "The `unsupported-pane` diagnostic IS asserted on the
   subpane-routing scenario when the adapter declares `subPanes ===
@@ -254,14 +266,16 @@ consume the field.
 
 | Reuse | Source | Notes |
 |---|---|---|
-| `PlotOpts.pane` shape (`"overlay" \| "new" \| string`) | `packages/core/src/plot/plot.ts:239` | `HLineOpts.pane` in Task 1 copies this exact type alias. Don't introduce a parallel literal union. |
+| `PlotOpts.pane` shape (`"overlay" \| "new" \| string`) | `packages/core/src/plot/plot.ts:237` | `HLineOpts.pane` in Task 1 copies this exact type alias. Don't introduce a parallel literal union. |
 | `resolvePane` function signature | `packages/runtime/src/emit/paneResolver.ts:23` | Task 2 rewrites the body but keeps the signature `(requested, ctx, slotId) => string`. The hline emit re-uses the same call site. |
 | `pushDiagnostic` + `unsupported-pane` code | `packages/runtime/src/emit/emissionsQueue.ts` | Task 2 keeps the diagnostic on the `subPanes: 0` branch; only the unfold branch changes. |
-| `Capabilities.subPanes` sentinel | `packages/adapter-kit/src/types.ts:271-281` + `examples/canvas2d-adapter/src/capabilities.ts:84` | No change. The adapter already declares the unlimited sentinel. |
+| `Capabilities.subPanes` sentinel | `packages/adapter-kit/src/types.ts:271-281` + `examples/canvas2d-adapter/src/capabilities.ts:83` | No change. The adapter already declares the unlimited sentinel. |
+| `StructuralScriptOverrides` spread idiom | `packages/compiler/src/analysis/structuralChecks.ts:29-36` + `:146-185` | Task 1's `overlay` extraction adds one row alongside `maxBarsBack` / `format` / etc. |
+| `diagnostic-code-absent` `ScenarioAssertion` variant | `packages/conformance/src/runConformanceSuite.ts:218` | Already exists. Task 5 uses it for the no-`unsupported-pane` assertion; only `all-plots-on-pane` is new. |
 | `Viewport` + `priceToY` / `timeToX` / `yToPrice` | `examples/canvas2d-adapter/src/render/coords.ts` | Task 3 reuses these per-pane — `priceToY` already takes a `Viewport`, so the per-pane y-scale falls out by passing a per-pane viewport. |
 | `Object.freeze` capabilities pattern | `examples/canvas2d-adapter/src/capabilities.ts:75-105` | No change. |
-| `Scenario` + `inlineSource` pattern | Phase-2 scenarios (e.g. `taWma.scenario.ts`) | Task 4's `rsiSubpaneRouting.scenario.ts` mirrors the Phase-2 inline-source convention; the virtual `sourcePath` is `<inline:rsi-subpane-routing>.chart.ts`. |
-| `DEMO_SCRIPTS` array shape | `examples/react-demo/src/scripts.ts:113-118` | Task 4 appends one entry; no schema change. |
+| `Scenario` + `inlineSource` pattern | Phase-2 scenarios (e.g. `taWma.scenario.ts`) | Task 5's `rsiSubpaneRouting.scenario.ts` mirrors the Phase-2 inline-source convention; the virtual `sourcePath` is auto-derived by the runner as `<inline:rsi-subpane-routing>.chart.ts`. `Scenario` has no `barCount` / `sourcePath` fields — use `intervalCount: 1`. |
+| `DEMO_SCRIPTS` array shape | `examples/react-demo/src/scripts.ts:162-168` | Task 5 inserts one entry between `smoothed-rsi-cross` and `trend-composition`; no schema change. |
 
 ## Provenance
 

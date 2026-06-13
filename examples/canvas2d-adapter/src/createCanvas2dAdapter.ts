@@ -1,10 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Bar } from "@invinite-org/chartlang-core";
 import {
-    defineAdapter,
-    validateEmission,
     type Adapter,
     type AlertConditionEmission,
     type AlertEmission,
@@ -15,16 +12,23 @@ import {
     type PlotEmission,
     type PlotStyle,
     type RunnerEmissions,
+    defineAdapter,
+    validateEmission,
 } from "@invinite-org/chartlang-adapter-kit";
+import type { Bar } from "@invinite-org/chartlang-core";
 import {
-    createWorkerHost,
     type ScriptHost,
     type WorkerLike,
+    createWorkerHost,
 } from "@invinite-org/chartlang-host-worker";
 
 import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities.js";
 import { DEFAULT_PALETTE, type Palette } from "./palette.js";
 import {
+    type HLine,
+    type PlotPoint,
+    type RenderCtx,
+    type Viewport,
     clear,
     drawAlertBadge,
     drawAlertConditions,
@@ -36,18 +40,14 @@ import {
     drawCandles,
     drawCharacter,
     drawHistogram,
-    drawHorizontalLine,
     drawHorizontalHistogram,
-    drawLogPane,
+    drawHorizontalLine,
     drawLine,
+    drawLogPane,
     drawShape,
     drawingDispatch,
     priceToY,
     timeToX,
-    type HLine,
-    type PlotPoint,
-    type RenderCtx,
-    type Viewport,
 } from "./render/index.js";
 
 const DEFAULT_INTERVAL = "1D";
@@ -375,6 +375,11 @@ function renderFrame(state: AdapterState): void {
 }
 
 function applyPlot(state: AdapterState, plot: PlotEmission): void {
+    // A host override hid this slot: contribute nothing — no series point,
+    // hline, or overlay. `computeViewport` derives its y-range from
+    // `plotSeries`, so dropping the point here also excludes the hidden
+    // slot from the scale (a hidden oscillator never stretches the viewport).
+    if (plot.visible === false) return;
     if (
         plot.style.kind === "line" ||
         plot.style.kind === "step-line" ||

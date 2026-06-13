@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { HLineOpts } from "@invinite-org/chartlang-core";
 import type { PlotEmission, PlotStyle } from "@invinite-org/chartlang-adapter-kit";
+import type { HLineOpts } from "@invinite-org/chartlang-core";
 
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { applyPlotOverride } from "./applyPlotOverride.js";
 import { pushDiagnostic, pushPlot } from "./emissionsQueue.js";
 
 const OUTSIDE_CTX_MESSAGE = "hline called outside an active script step";
@@ -41,7 +42,7 @@ function hlineImpl(ctx: RuntimeContext, slotId: string, price: number, opts: HLi
         pane: "overlay",
     };
 
-    pushPlot(ctx.emissions, emission);
+    pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));
 }
 
 /**

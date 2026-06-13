@@ -8,9 +8,9 @@ import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import {
-    runConformanceSuite,
     type Scenario,
     type ScenarioAssertion,
+    runConformanceSuite,
 } from "../runConformanceSuite.js";
 import {
     ALL_SCENARIOS,
@@ -235,6 +235,7 @@ describe("bundled scenario constants", () => {
     it("every assertion declares a valid kind", () => {
         const valid: ReadonlySet<ScenarioAssertion["kind"]> = new Set([
             "plot-hash",
+            "plot-field",
             "alert-count",
             "alert-message-contains",
             "log-emission-count",

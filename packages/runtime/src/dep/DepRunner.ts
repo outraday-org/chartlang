@@ -158,6 +158,9 @@ function buildSubRunnerState(
             logBudget: 0,
             logBudgetExceededDiagnosed: false,
             resolvedInputs: Object.freeze({}),
+            // Overrides target the primary script's slots only in v1;
+            // dep-output plots are not host-overridable.
+            plotOverrides: Object.freeze({}),
             diagnosedInputKeys: new Set(),
             views: createRuntimeViews(),
             slotIdPrefix,

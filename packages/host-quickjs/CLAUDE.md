@@ -9,7 +9,18 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
 - **Dispatcher source is evaluated once per QuickJS context.** The host reads
   `dist/dispatcher.js`, evaluates it during the first `load()`, then calls only
   `__chartlang_load(json)`, `__chartlang_push(json)`,
-  `__chartlang_drain(json)`, and `__chartlang_dispose()` for that context.
+  `__chartlang_setPlotOverrides(json)`, `__chartlang_drain(json)`, and
+  `__chartlang_dispose()` for that context. `__chartlang_setPlotOverrides` is a
+  synchronous host→guest call (like `drain`) that swaps the runtime's live
+  presentation-override map and replies `ack`; the JSON membrane drops any
+  getter / function-shaped fields so no live reference crosses (pinned by
+  `sandbox.test.ts`). After changing the dispatcher you MUST rebuild
+  (`pnpm -F @invinite-org/chartlang-host-quickjs build:dispatcher`) — the real-
+  QuickJS tests load `dist/dispatcher.js`, not `src/`.
+- **`ScriptHost` is a type alias of `host-worker`'s `ScriptHost`** (`types.ts`):
+  any method added there (e.g. `setPlotOverrides`) is inherited here
+  automatically — do not redeclare a divergent shape or cross-host parity
+  breaks.
 - **Boundary values are JSON strings.** Do not pass host functions or mutable
   host objects into QuickJS. The dispatcher parses host frames and stringifies
   reply frames.

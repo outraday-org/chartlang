@@ -2,14 +2,14 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
-import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
+import type { Capabilities, PlotOverride } from "@invinite-org/chartlang-adapter-kit";
+import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { createWorkerBoot, createWorkerHost } from "@invinite-org/chartlang-host-worker";
 import type {
     HostCompiledScript,
     WorkerBootScope,
     WorkerLike,
 } from "@invinite-org/chartlang-host-worker";
-import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import { createQuickJsHost } from "./createQuickJsHost.js";
@@ -205,12 +205,86 @@ async function runQuickJs(fixture: ScriptFixture): Promise<string> {
     return JSON.stringify(emissions);
 }
 
+const OVERRIDE_FIXTURE: ScriptFixture = {
+    name: "plot overrides",
+    manifest: manifest("plot overrides"),
+    source: source(
+        manifest("plot overrides"),
+        `({ bar, plot }) => {
+            plot("parity.ovr:1:1#0", bar.close, {});
+            plot("parity.ovr:1:2#0", bar.high, {});
+        }`,
+    ),
+};
+
+// Mount-time overrides keyed by the fixture's literal slot ids (resolved via
+// the host constructor's `resolvePlotOverrides` opt). Slot 1 is hidden; slot 2
+// is recolored + thickened. The runtime bakes these into the emission
+// (`visible` / `color` / `style.lineWidth`), so the drained JSON must be
+// byte-identical across both hosts.
+const OVERRIDE_MAP: Readonly<Record<string, PlotOverride>> = {
+    "parity.ovr:1:1#0": { visible: false },
+    "parity.ovr:1:2#0": { color: "#ff0000", lineWidth: 3 },
+};
+
+function resolveOverrides(): Readonly<Record<string, PlotOverride>> {
+    return OVERRIDE_MAP;
+}
+
+async function runWorkerWithOverrides(): Promise<string> {
+    const { worker, scope } = pair();
+    createWorkerBoot(scope);
+    const host = createWorkerHost({
+        capabilities: makeCapabilities(),
+        workerLike: worker,
+        resolvePlotOverrides: resolveOverrides,
+    });
+    await host.load({ moduleSource: OVERRIDE_FIXTURE.source, manifest: OVERRIDE_FIXTURE.manifest });
+    await host.push({ kind: "history", bars: bars(10) });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const emissions = await host.drain();
+    host.dispose();
+    return JSON.stringify(emissions);
+}
+
+async function runQuickJsWithOverrides(): Promise<string> {
+    const host = createQuickJsHost({
+        capabilities: makeCapabilities(),
+        resolvePlotOverrides: resolveOverrides,
+    });
+    await host.load({ moduleSource: OVERRIDE_FIXTURE.source, manifest: OVERRIDE_FIXTURE.manifest });
+    await host.push({ kind: "history", bars: bars(10) });
+    const emissions = await host.drain();
+    host.dispose();
+    return JSON.stringify(emissions);
+}
+
 describe("host-quickjs integration parity", () => {
     for (const fixture of FIXTURES) {
         it(`matches host-worker emissions for ${fixture.name}`, async () => {
             await expect(runQuickJs(fixture)).resolves.toBe(await runWorker(fixture));
         });
     }
+
+    it("matches host-worker emissions for mount-time plot overrides", async () => {
+        const quickjs = await runQuickJsWithOverrides();
+        const worker = await runWorkerWithOverrides();
+        expect(quickjs).toBe(worker);
+        // Sanity: the overrides actually baked into the wire (not a no-op match).
+        const drained = JSON.parse(quickjs) as {
+            plots: ReadonlyArray<{
+                slotId: string;
+                visible?: boolean;
+                color: string | null;
+                style: { lineWidth?: number };
+            }>;
+        };
+        const hidden = drained.plots.find((p) => p.slotId === "parity.ovr:1:1#0");
+        const recolored = drained.plots.find((p) => p.slotId === "parity.ovr:1:2#0");
+        expect(hidden?.visible).toBe(false);
+        expect(recolored?.color).toBe("#ff0000");
+        expect(recolored?.style.lineWidth).toBe(3);
+    });
 
     it("mounts a §22.10 multi-export bundle and forwards sibling plots with `export:` prefix", async () => {
         // The dispatcher's moduleSourceToScript rewriter captures named

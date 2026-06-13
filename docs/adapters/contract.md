@@ -22,6 +22,7 @@ import type {
     AdapterSymInfo,
     CandleEvent,
     Capabilities,
+    PlotOverride,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
 
@@ -30,6 +31,9 @@ export type Adapter = {
     readonly name: string;
     readonly capabilities: Capabilities;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    readonly resolvePlotOverrides?: (
+        scriptId: string,
+    ) => Readonly<Record<string, PlotOverride>>;
     readonly symInfo?: AdapterSymInfo;
     candles(opts: { interval: string | "chart" }): AsyncIterable<CandleEvent>;
     onEmissions(emissions: RunnerEmissions): void;
@@ -46,6 +50,7 @@ fields. Adapter packages always ship a default export shaped like this.
 | `name` | Human-readable adapter name. |
 | `capabilities` | The adapter's capability bag. The runtime gates every emission against this — see [Capabilities](./capabilities.md). |
 | `resolveInputs?` | Optional callback that returns per-script input overrides at mount. Merged over manifest defaults by the runtime. |
+| `resolvePlotOverrides?` | Optional callback that returns per-script, `slotId`-keyed presentation overrides at mount. See [Plot overrides](#plot-overrides). |
 | `symInfo?` | Optional per-mount symbol metadata. Populates `syminfo.*` in scripts; still gated by `capabilities.symInfoFields`. |
 | `candles` | Async iterable of `history`, `close`, and `tick` events. The runtime consumes them in delivery order. |
 | `onEmissions` | The runtime hands each drained `RunnerEmissions` batch here. Translate into chart operations. |
@@ -157,6 +162,37 @@ one batch:
 The complete schema and ordering rules:
 [Execution semantics § Emission ordering](../spec/semantics.md#emission-ordering)
 and [Emission payloads](../spec/emissions.md).
+
+## Plot overrides
+
+A **plot override** lets the embedder recolor or show/hide an individual
+plot of a running script **without editing the script source** — the
+TradingView "Style tab" model. Overrides are:
+
+- **Keyed by `slotId`.** Every plotted value carries a stable,
+  compiler-issued `slotId`. The static [`manifest.plots`](../spec/manifest.md#plot-slot-descriptors)
+  list gives the embedder every slot (id, kind, title) the moment the
+  script compiles — before the first candle — so it can render a Style-tab
+  row per plot and key its overrides by `slotId`.
+- **Presentation-only.** A `PlotOverride` carries
+  `{ visible?, color?, lineWidth?, lineStyle? }`. `visible: false` sets
+  `PlotEmission.visible = false` (adapters skip render + scale inclusion;
+  the slot stays listed); `color` overwrites `PlotEmission.color`;
+  `lineWidth` / `lineStyle` merge into the `style` object for the
+  line-family kinds (`line`, `step-line`, `horizontal-line`, `area`) and
+  are a silent no-op on other kinds. Unlike `inputs` (which feed `compute`
+  and are frozen at mount), overrides are applied at emit time.
+- **Runtime-applied.** The runtime bakes the override into the drained
+  emission, so an adapter just renders `emission.color` / `emission.visible`
+  — it needs no override map of its own.
+- **Live-updatable.** The host carries an initial map (resolved from
+  `Adapter.resolvePlotOverrides`) in its `load` frame and can push live
+  updates via `host.setPlotOverrides(...)` — no recompile, no remount. The
+  next drain reflects the change. See [Worker host](../hosts/worker.md) and
+  [Writing a host](../hosts/writing-a-host.md).
+
+The full walkthrough — slot list → override → live `setPlotOverrides` — is
+in [Plot overrides](./plot-overrides.md).
 
 ## Silent no-ops, not errors
 

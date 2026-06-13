@@ -222,7 +222,7 @@ export function drawPaneSeparator(
     rect: PaneRect,
     palette: Palette,
 ): void {
-    ctx.strokeStyle = palette.grid;
+    ctx.strokeStyle = palette.gridLine;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(rect.x, rect.y + 0.5);
@@ -231,8 +231,12 @@ export function drawPaneSeparator(
 }
 ```
 
-`+ 0.5` keeps the line crisp on integer-aligned canvases (matches
-the convention used by `horizontalLine.ts`).
+`+ 0.5` keeps the line crisp on integer-aligned canvases (standard
+HTML canvas half-pixel convention). `horizontalLine.ts` itself does
+NOT currently use this offset for its strokes — this helper is
+introducing the convention for the pane divider specifically,
+because subpane dividers are visually thin and must hit a single
+device pixel.
 
 ### 6. `examples/canvas2d-adapter/src/render/paneSeparator.test.ts`
 
@@ -250,13 +254,17 @@ export { clearPaneRect } from "./clearPaneRect.js";
 export { drawPaneSeparator } from "./paneSeparator.js";
 ```
 
-### 8. `examples/canvas2d-adapter/src/render/clear.ts` — verify `RenderCtx` shape
+### 8. `examples/canvas2d-adapter/src/render/clear.ts` — `RenderCtx` shape
 
 `clearPaneRect` and `drawPaneSeparator` import `RenderCtx` from
-`clear.ts`. Verify the type already includes `fillStyle`,
+`clear.ts`. The type (lines 26-47) already includes `fillStyle`,
 `fillRect`, `strokeStyle`, `lineWidth`, `beginPath`, `moveTo`,
-`lineTo`, `stroke` — all Phase-1 / Phase-2 surface. No change
-expected; flag if missing.
+`lineTo`, `stroke` — every method these two helpers touch. **No
+`translate` method exists yet** — that's required by Task 4's
+render-loop rewrite (per-pane `ctx.save / translate / restore`)
+and the matching `MockCanvas2DContext` extension. Task 3 does NOT
+need `translate`; if Task 3 lands first, the Task-4 PR adds the
+type + mock surface together. Do not pre-add `translate` here.
 
 ### Edge cases
 

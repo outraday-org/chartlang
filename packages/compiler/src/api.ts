@@ -9,6 +9,7 @@ import type {
     DependencyDeclaration,
     IntervalDescriptor,
     OutputDeclaration,
+    PlotSlotDescriptor,
     ScriptManifest,
 } from "@invinite-org/chartlang-core";
 import ts from "typescript";
@@ -30,9 +31,9 @@ import {
 import { bundleModule, formatDependenciesAssignment, formatManifestAssignment } from "./bundle.js";
 import {
     type CompiledProducerArtefacts,
-    createProducerResolver,
     type ProducerCompiled,
     type ResolveCrossFileProducer,
+    createProducerResolver,
 } from "./dependency/index.js";
 import type { CompileDiagnostic } from "./diagnostics.js";
 import { mapTsDiagnostic } from "./diagnostics.js";
@@ -208,9 +209,11 @@ export function transformAndAnalyse(
 
     const rewrite = rewriteDependencyAccessors(sourceFile, depGraph, sourcePath);
     const rewrittenSource = rewrite.transformed;
+    const plotSlots: PlotSlotDescriptor[] = [];
     const injection = injectCallsiteIds(rewrittenSource, checker, {
         sourcePath,
         statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
+        plotSlots,
     });
     const alertConditions = extractAlertConditions(sourceFile, checker, sourcePath);
     const intervalDiagnostics: CompileDiagnostic[] = [];
@@ -293,6 +296,7 @@ export function transformAndAnalyse(
               structuralOverrides,
               alertConditions.alertConditions,
               namedManifests,
+              plotSlots,
           )
         : buildManifest({
               name: structural.name,
@@ -314,6 +318,7 @@ export function transformAndAnalyse(
                   ? {}
                   : { dependencies: defaultDependencies }),
               ...(defaultOutputs === undefined ? {} : { outputs: defaultOutputs }),
+              ...(plotSlots.length === 0 ? {} : { plots: plotSlots }),
           });
 
     const allDiagnostics: CompileDiagnostic[] = [
@@ -348,6 +353,7 @@ function buildDrawnManifest(
     >,
     sharedAlertConditions: ReturnType<typeof extractAlertConditions>["alertConditions"],
     siblings?: ReadonlyArray<ScriptManifest>,
+    plotSlots?: ReadonlyArray<PlotSlotDescriptor>,
 ): ScriptManifest {
     const intervalDiagnostics: CompileDiagnostic[] = [];
     const scope = drawn.defineCall;
@@ -393,6 +399,7 @@ function buildDrawnManifest(
         /* v8 ignore stop */
         ...(dependencies === undefined || dependencies.length === 0 ? {} : { dependencies }),
         ...(outputs === undefined ? {} : { outputs }),
+        ...(plotSlots === undefined || plotSlots.length === 0 ? {} : { plots: plotSlots }),
         exportName: drawn.exportName,
         isDrawn: true,
         ...(siblings !== undefined && siblings.length > 0 ? { siblings } : {}),

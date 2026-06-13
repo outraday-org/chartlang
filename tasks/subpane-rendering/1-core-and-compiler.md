@@ -17,23 +17,35 @@ None.
 
 ## Current Behavior
 
-- `DefineIndicatorOpts.overlay?: boolean` (`packages/core/src/define/defineIndicator.ts:27`)
+- `DefineIndicatorOpts.overlay?: boolean` (`packages/core/src/define/defineIndicator.ts:28`)
   is accepted by the constructor but **never spread onto the manifest**
-  (`defineIndicator.ts:69-80`). Authors who write `overlay: false` see
+  (`defineIndicator.ts:80-92`). Authors who write `overlay: false` see
   the flag silently dropped — `defineIndicator({ overlay: false })()`
   produces a manifest identical to the no-`overlay` form.
-- `ScriptManifest` (`packages/core/src/types.ts:266-369`) has no
-  `overlay` field.
-- `HLineOpts` (`packages/core/src/plot/plot.ts:251-256`) has no `pane`
-  field. The runtime hline emit (`packages/runtime/src/emit/hline.ts:41`)
-  is hard-pinned to `pane: "overlay"`.
+- `ScriptManifest` (`packages/core/src/types.ts:315-490`) has no
+  `overlay` field. Existing optional fields include `maxDrawings`,
+  `maxBarsBack`, `format`, `precision`, `scale`, `shortName`,
+  `requiresIntervals`, `alertConditions`, `dependencies`, `outputs`,
+  `plots`, `exportName`, `siblings`, `isDrawn`.
+- `HLineOpts` (`packages/core/src/plot/plot.ts:249-254`) has no `pane`
+  field; the current JSDoc (lines 242-243) actively documents "Unlike
+  `plot`, `hline` is always a single horizontal line at a fixed price;
+  no pane override" — that paragraph must be lifted. The runtime hline
+  emit (`packages/runtime/src/emit/hline.ts:42`) is hard-pinned to
+  `pane: "overlay"`.
 - The compiler's ambient core shim
-  (`packages/compiler/src/program.ts:1280-1298`) declares
+  (`packages/compiler/src/program.ts:1050-1074`) declares
   `ScriptManifest` without the `overlay` field; `DefineIndicatorOpts`
-  at lines 1302-1309 lists `overlay?: boolean` (so it passes type
-  checks already), but the field has no destination.
-- `packages/compiler/src/manifest.ts` builds the JSON manifest from
-  the `defineIndicator` call expression; it does not read `overlay`.
+  at lines 1313-1321 already lists `overlay?: boolean` (so the
+  authoring side passes type checks), but the field has no destination.
+- `packages/compiler/src/manifest.ts` (`buildManifest` at lines 34-140)
+  builds the JSON manifest from a typed args bag passed by the caller;
+  it does not currently accept or emit `overlay`. Existing conditional
+  spreads include `maxBarsBack`, `format`, `precision`, `scale`,
+  `requiresIntervals`, `shortName`, `alertConditions`, `dependencies`,
+  `outputs`, `plots`, `exportName`, `isDrawn`, `siblings` (lines 126-138).
+  The AST extraction that populates the args bag lives at the
+  `buildManifest` call site (search compiler for `buildManifest(`).
 
 ## Desired Behavior
 
@@ -84,20 +96,22 @@ keep the JSDoc-driven docs page ordering stable.
 
 ### 2. `packages/core/src/define/defineIndicator.ts` — store `overlay`
 
-Spread `overlay` into the manifest builder block (lines 69-80):
+Spread `overlay` into the manifest builder block (currently lines 80-92):
 
 ```ts
 const manifest = {
     ...base,
     ...(opts.overlay === undefined ? {} : { overlay: opts.overlay }),
     ...(opts.maxDrawings === undefined ? {} : { maxDrawings: opts.maxDrawings }),
-    // ... existing spreads stay
+    // ... existing spreads (maxBarsBack, format, precision, scale,
+    //     requiresIntervals, shortName, outputs) stay.
 };
 ```
 
 Conditional spread — absent stays absent, present (including `true`)
 is preserved. Matches the existing `maxDrawings` / `maxBarsBack` /
-etc. pattern.
+etc. pattern. Place the spread alphabetically (after `maxDrawings`) so
+the runtime sees a stable field order.
 
 ### 3. `packages/core/src/define/defineIndicator.test.ts` — round-trip test
 
@@ -110,7 +124,8 @@ Add two cases:
 
 ### 4. `packages/core/src/plot/plot.ts` — extend `HLineOpts`
 
-Add `pane?: "overlay" | "new" | string` with JSDoc:
+Replace the current JSDoc (which actively states "no pane override")
+and append `pane?: "overlay" | "new" | string`:
 
 ```ts
 /**
@@ -139,26 +154,87 @@ export type HLineOpts = Readonly<{
 }>;
 ```
 
-### 5. `packages/core/src/plot/plot.types.test.ts` — type round-trip
+The "Unlike `plot`, `hline` is always a single horizontal line at a
+fixed price; no pane override" sentence must be deleted — the
+contract is now exactly the opposite.
 
-Add `expectType<HLineOpts>({ pane: "new" })` and
-`expectType<HLineOpts>({ pane: "rsi" })` lines under the existing
-HLine type assertions (if the file already pattern-matches HLine
-shape; otherwise add the standard `void` pattern used elsewhere in
-that file).
+### 5. `packages/core/src/plot/plot.test.ts` — type-level coverage
 
-### 6. `packages/compiler/src/manifest.ts` — emit `overlay`
+The repo has **no `plot.types.test.ts`** — type assertions live in
+`packages/core/src/plot/plot.test.ts`. Append a new `describe` block:
 
-Locate the manifest object builder (the function that walks the
-`defineIndicator({...})` argument literal and copies recognised
-fields onto the emitted `__manifest`). Add a read for the `overlay`
-property; when present and statically `true` / `false`, copy it onto
-the manifest JSON. When the property is absent or not a boolean
-literal, do not emit the field (matches existing handling for
-`maxBarsBack`, `format`, etc.).
+```ts
+describe("HLineOpts.pane", () => {
+    it("accepts the three-variant pane shape", () => {
+        const overlay: HLineOpts = { pane: "overlay" };
+        const fresh: HLineOpts = { pane: "new" };
+        const named: HLineOpts = { pane: "rsi" };
+        void overlay;
+        void fresh;
+        void named;
+    });
+});
+```
 
-The shape mirrors `defineIndicator.ts` — copy the conditional spread
-idiom.
+Mirror the existing `void`-pattern used by the `PlotKind` /
+`PlotOptsStyle` blocks at the bottom of the file.
+
+### 6. `packages/compiler/src/manifest.ts` + `analysis/structuralChecks.ts` — extract & emit `overlay`
+
+Two coupled edits, mirroring the existing `maxBarsBack` / `format`
+flow:
+
+(a) `packages/compiler/src/analysis/structuralChecks.ts` —
+`StructuralScriptOverrides` (lines 29-36) and `extractOverrides`
+(lines 146-185):
+
+```ts
+export type StructuralScriptOverrides = Readonly<{
+    overlay?: boolean;        // NEW
+    maxBarsBack?: number;
+    format?: ValueFormat;
+    precision?: number;
+    scale?: ScaleAxis;
+    requiresIntervals?: ReadonlyArray<string>;
+    shortName?: string;
+}>;
+```
+
+Inside the `for (const property of argument.properties)` loop, add a
+literal-boolean reader for the `overlay` property (only for `kind ===
+"indicator"` — `defineDrawing` / `defineAlert` don't accept it):
+
+```ts
+} else if (propertyName.text === "overlay" && kind === "indicator") {
+    if (initializer.kind === ts.SyntaxKind.TrueKeyword) overlay = true;
+    else if (initializer.kind === ts.SyntaxKind.FalseKeyword) overlay = false;
+}
+```
+
+…and spread it into the frozen return:
+
+```ts
+return Object.freeze({
+    ...(overlay === undefined ? {} : { overlay }),
+    ...(maxBarsBack === undefined ? {} : { maxBarsBack }),
+    // ... existing spreads stay
+});
+```
+
+(b) `packages/compiler/src/manifest.ts` (`buildManifest` lines 34-140):
+
+- Add `readonly overlay?: boolean;` to the `args` type, placed
+  alphabetically after `inputs` (matches the `ScriptManifest` order
+  from Step 1).
+- Add `...(args.overlay === undefined ? {} : { overlay: args.overlay }),`
+  to the conditional-spread block at lines 126-138, alphabetically
+  positioned (after `maxBarsBack` if `maxDrawings` isn't yet emitted
+  by this builder).
+
+The `api.ts` call sites at lines 195, 301, 384 forward
+`...structural.overrides` via spread, so adding `overlay` to
+`StructuralScriptOverrides` is enough — those call sites need no
+further change.
 
 ### 7. `packages/compiler/src/manifest.test.ts` — bundle round-trip
 
@@ -170,17 +246,21 @@ that omitting the property leaves `__manifest.overlay` absent.
 
 ### 8. `packages/compiler/src/program.ts` ambient shim
 
-Update the `ScriptManifest` declaration block (~lines 1280-1298) to
-include `readonly overlay?: boolean;`. The shim is the compiler's
-authoritative view of core's types — keep it in lockstep with
-`packages/core/src/types.ts` per the package CLAUDE.md invariant.
+Update the `ScriptManifest` declaration block (currently lines 1050-1074)
+to include `readonly overlay?: boolean;` placed alphabetically. The
+`DefineIndicatorOpts` block at lines 1313-1321 already lists `overlay`;
+no edit needed there. The shim is the compiler's authoritative view of
+core's types — keep it in lockstep with `packages/core/src/types.ts`
+per the `packages/compiler/CLAUDE.md` invariant ("Core resolves through
+an ambient shim").
 
 ### 9. `packages/core/README.md`
 
-Bump the "Public surface" section's stability marker line for
-`HLineOpts` if it lists a field count; ensure the `ScriptManifest`
-example block (if one exists) covers `overlay`. Stay under the 100-
-line cap.
+The file is currently 59 lines (well under the 100-line cap). The
+public-surface section (lines 14-32) lists exports without a field
+count, so no field-count update is required. If a `ScriptManifest`
+example block exists that omits `overlay`, leave it as the
+no-`overlay` happy path; do not add net-new sections.
 
 ### Edge cases
 
@@ -200,16 +280,16 @@ line cap.
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `packages/core/src/types.ts` | Modify | Add `overlay?: boolean` to `ScriptManifest` |
+| `packages/core/src/types.ts` | Modify | Add `overlay?: boolean` to `ScriptManifest` (after line 489) |
 | `packages/core/src/types.types.test.ts` | Modify | Cover the new field |
-| `packages/core/src/define/defineIndicator.ts` | Modify | Spread `overlay` onto the manifest |
+| `packages/core/src/define/defineIndicator.ts` | Modify | Spread `overlay` onto the manifest (lines 80-92) |
 | `packages/core/src/define/defineIndicator.test.ts` | Modify | Round-trip + absence tests |
-| `packages/core/src/plot/plot.ts` | Modify | Add `pane?` to `HLineOpts` + JSDoc |
-| `packages/core/src/plot/plot.types.test.ts` | Modify | Type assertion for `HLineOpts.pane` |
-| `packages/core/README.md` | Modify (if needed) | Reflect new optional fields |
-| `packages/compiler/src/manifest.ts` | Modify | Emit `overlay` on `__manifest` JSON |
-| `packages/compiler/src/manifest.test.ts` | Modify | Bundle round-trip for `overlay` |
-| `packages/compiler/src/program.ts` | Modify | Ambient shim — add `overlay?` to `ScriptManifest` |
+| `packages/core/src/plot/plot.ts` | Modify | Add `pane?` to `HLineOpts`, rewrite JSDoc to drop the "no pane override" wording |
+| `packages/core/src/plot/plot.test.ts` | Modify | Type assertion `describe` block for `HLineOpts.pane` |
+| `packages/compiler/src/manifest.ts` | Modify | Add `overlay?: boolean` to `buildManifest` args + conditional spread |
+| `packages/compiler/src/analysis/structuralChecks.ts` | Modify | Add `overlay?: boolean` to `StructuralScriptOverrides` + read in `extractOverrides` |
+| `packages/compiler/src/manifest.test.ts` | Modify | Round-trip for `overlay`: direct `buildManifest` test + `compile()` bundle test |
+| `packages/compiler/src/program.ts` | Modify | Ambient shim — add `overlay?` to `ScriptManifest` (lines 1050-1074) |
 
 ## Gates
 

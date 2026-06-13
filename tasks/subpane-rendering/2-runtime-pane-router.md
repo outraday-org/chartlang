@@ -20,12 +20,26 @@ Task 1 (`overlay` on the manifest + `HLineOpts.pane`).
   `"overlay"`. Every non-overlay request is folded to overlay with
   an `unsupported-pane` diagnostic. Two branches differ only in the
   diagnostic message.
-- `packages/runtime/src/runtimeContext.ts:113-240` — `RuntimeContext`
-  has no pane-related fields. The manifest is read at mount by
-  `createScriptRunner` but no pane signal is propagated.
-- `packages/runtime/src/emit/hline.ts:41` — `pane: "overlay"` is a
-  hard-coded literal on every `hline()` emission.
-- `paneResolver.test.ts:75-93` — tests pin the fold behaviour.
+- `packages/runtime/src/runtimeContext.ts:115-260` — `RuntimeContext`
+  has no pane-related fields. `resolvedInputs` sits at line 231 (use
+  that as the insertion landmark for the new fields). `capabilities`
+  lives at line 120; `barIndex: () => number` at line 122; the
+  context already exposes `ctx.capabilities.subPanes` for the
+  resolver, so no plumbing through additional args is needed.
+- `packages/runtime/src/createScriptRunner.ts:257-347` — the
+  `buildPrimaryState` factory constructs `runtimeContext` as an
+  object literal (lines 291-327). It reads `primary.manifest` at
+  line 311 (for `maxDrawings`) but does not surface
+  `manifest.overlay` / `manifest.name` as pane signals.
+- `packages/runtime/src/emit/hline.ts:42` — `pane: "overlay"` is a
+  hard-coded literal on every `hline()` emission. The JSDoc at
+  lines 58-61 actively documents "fixed to `pane: \"overlay\"` —
+  horizontal lines never route to a sub-pane in any phase" — that
+  paragraph must be lifted by this task.
+- `paneResolver.test.ts:75-93` — tests pin the fold behaviour. The
+  test file's `makeCtx` helper (lines 31-58) currently constructs a
+  partial `RuntimeContext` directly — add `defaultPane` /
+  `scriptPane` to that constructor.
 
 ## Desired Behavior
 
@@ -63,7 +77,7 @@ Task 1 (`overlay` on the manifest + `HLineOpts.pane`).
 
 ### 1. `packages/runtime/src/runtimeContext.ts` — add pane fields
 
-Add the fields after `resolvedInputs` (~line 228):
+Add the fields after `resolvedInputs` (line 231):
 
 ```ts
 /**
@@ -91,7 +105,8 @@ mutate them.
 
 ### 2. `packages/runtime/src/createScriptRunner.ts` — resolve at mount
 
-Add small helpers (file-private):
+Add small helpers (file-private, after the existing module-top
+imports):
 
 ```ts
 const SANITISE_PANE_KEY = /[^a-zA-Z0-9_-]/g;
@@ -105,25 +120,44 @@ function resolveDefaultPane(manifest: ScriptManifest): string {
 }
 ```
 
-Pass both results into the `RuntimeContext` construction site. The
-fields are `readonly` so they get set inside the literal — no
-post-hoc assignment.
+Wire both helpers into the `buildPrimaryState` factory's
+`runtimeContext` literal (currently lines 291-327): add
+`defaultPane: resolveDefaultPane(primary.manifest)` and
+`scriptPane: resolveScriptPane(primary.manifest)` keys. The fields
+are `readonly` so they get set inside the literal — no post-hoc
+assignment.
+
+For bundle runners (`attachBundle` and any dep / sibling sub-runner
+factories elsewhere in the file), set the same two fields from each
+sub-runner's manifest so deps + siblings get their own pane keys.
+The `slotIdPrefix` invariant from `packages/runtime/CLAUDE.md` still
+applies — pane keys do NOT carry the dep / sibling prefix; the
+sanitised manifest name is enough because every sub-runner has a
+distinct name.
 
 ### 3. `packages/runtime/src/createScriptRunner.test.ts` — defaultPane tests
 
-Add four cases:
+The file uses the `createScriptRunner({...})` factory directly with
+hand-rolled compiled-script objects; there is no `createTestRunner`
+helper. Add four cases that reach into the runner's internal state
+(use the pattern existing tests use — search for `runtimeContext` /
+state access in the file):
 
-- `overlay: true` manifest → `runner.context.defaultPane === "overlay"`.
+- `overlay: true` manifest → `defaultPane === "overlay"`.
 - `overlay: false` manifest + `name: "RSI Cross"` →
-  `runner.context.defaultPane === "script:RSI-Cross"`.
+  `defaultPane === "script:RSI-Cross"`.
 - `overlay: false` manifest + `name: "$$$"` (all chars sanitised) →
-  `runner.context.defaultPane === "script:default"`.
+  `defaultPane === "script:default"`.
 - `overlay: true` manifest + `name: "RSI Cross"` still sets
-  `runner.context.scriptPane === "script:RSI-Cross"`.
+  `scriptPane === "script:RSI-Cross"` (so an explicit `pane: "new"`
+  call inside the script still has a stable target).
 
-(Use the existing test harness's `createTestRunner` /
-`mountTestRunner` helper — match whichever pattern the file already
-uses.)
+If the test file doesn't already expose `runtimeContext` directly
+on the public `ScriptRunner` surface, observe the pane indirectly:
+mount a script that calls `plot(42, { pane: "new" })` (or
+`plot(42)` without a `pane` opt) and assert the resolved
+`pane` field on the drained emission. Either reading approach is
+acceptable as long as both branches are covered.
 
 ### 4. `packages/runtime/src/emit/paneResolver.ts` — rewrite
 
@@ -194,53 +228,72 @@ Replace the existing fold-tests with:
   returns `"overlay"`, pushes diagnostic (the `script:<id>` path
   flows through `resolveNamedPane` which folds).
 
-Update `makeCtx` to accept `defaultPane` (default `"overlay"`) and
-`scriptPane` (default `"script:test"`).
+Update `makeCtx` (lines 31-58 of the current test file) so the
+returned `ctx` object literal carries `defaultPane: "overlay"` and
+`scriptPane: "script:test"` by default, with optional overrides
+threaded through a second arg (`makeCtx(subPanes, { defaultPane,
+scriptPane })`). Match the file's existing keyword-arg pattern.
 
 ### 6. `packages/runtime/src/emit/paneResolver.property.test.ts` — new file
 
 `fast-check` property: for every `requested ∈ string ∪ undefined`
 and every `subPanes ∈ {0, 1, MAX_SAFE_INTEGER}`, the resolver
 returns a non-empty string and pushes at most one diagnostic per
-call. Pin the seed via `vitest.setup.ts` (no per-test override).
+call. The package's `vitest.setup.ts` already pins
+`fc.configureGlobal({ seed: 42, numRuns: 25 })` per the
+`packages/runtime/CLAUDE.md` invariant — no per-test seed override.
+Sibling property tests in `packages/runtime/src/emit/` (e.g.
+`hline.property.test.ts`, `plot.property.test.ts`,
+`emissionsQueue.property.test.ts`) are the file-shape reference.
 
 ### 7. `packages/runtime/src/emit/hline.ts` — route through resolver
 
-Today the file emits `pane: "overlay"` directly. Change:
+Today the file emits `pane: "overlay"` directly (line 42) and runs
+the value through `Number.isFinite` plus an `applyPlotOverride`
+wrapper. Preserve both guards; only the `pane` value changes:
 
 ```ts
 import { resolvePane } from "./paneResolver.js";
 // ...
-function hlineImpl(
-    ctx: RuntimeContext,
-    slotId: string,
-    price: number,
-    opts: HLineOpts,
-): void {
+function hlineImpl(ctx: RuntimeContext, slotId: string, price: number, opts: HLineOpts): void {
+    const style: PlotStyle = {
+        kind: "horizontal-line",
+        lineWidth: opts.lineWidth ?? 1,
+        lineStyle: opts.lineStyle ?? "solid",
+    };
+    if (!ctx.capabilities.plots.has("horizontal-line")) {
+        pushDiagnostic(ctx.emissions, {
+            kind: "diagnostic",
+            severity: "warning",
+            code: "unsupported-plot-kind",
+            message: 'Adapter cannot render plot kind "horizontal-line".',
+            slotId,
+            bar: ctx.barIndex(),
+        });
+        return;
+    }
     const pane = resolvePane(opts.pane, ctx, slotId);
     const emission: PlotEmission = {
         kind: "plot",
         slotId,
         title: opts.title ?? "",
-        style: {
-            kind: "horizontal-line",
-            lineWidth: opts.lineWidth ?? 1,
-            lineStyle: opts.lineStyle ?? "solid",
-        },
+        style,
         bar: ctx.barIndex(),
         time: ctx.stream.bar.time,
-        value: price,
+        value: Number.isFinite(price) ? price : null,
         color: opts.color ?? null,
         meta: {},
         pane,
     };
-    pushPlot(ctx.emissions, emission);
+    pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));
 }
 ```
 
-Drop the old "`hline` is fixed to `pane: \"overlay\"`" JSDoc paragraph;
-the new behaviour is "follows the same router as `plot()` — see
-{@link resolvePane}". Keep the `@since`, `@example`, `@stable` tags.
+Drop the old "`hline` is fixed to `pane: \"overlay\"` — horizontal
+lines never route to a sub-pane in any phase" JSDoc paragraph (lines
+58-61 of the current file); the new behaviour is "follows the same
+router as `plot()` — see {@link resolvePane}". Keep the `@since` and
+`@example` tags.
 
 ### 8. `packages/runtime/src/emit/hline.test.ts` — new pane assertions
 
@@ -257,7 +310,7 @@ Add:
 ### 9. `packages/runtime/src/emit/plot.ts` — no behavioural change
 
 `plot.ts` already calls `resolvePane(opts.pane, ctx, slotId)`
-(line 106). The widened return type (`string`) flows through; no
+(line 107). The widened return type (`string`) flows through; no
 edit needed. Spot-check the existing `plot.test.ts` cases:
 
 - `plot(close)` on `overlay: true` continues to emit

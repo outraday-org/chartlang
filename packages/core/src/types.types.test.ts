@@ -14,8 +14,12 @@ import type {
     CompiledScriptObject,
     ComputeContext,
     DependencyDeclaration,
+    LineStyle,
     MacdResult,
     OutputDeclaration,
+    PlotKind,
+    PlotOverride,
+    PlotSlotDescriptor,
     Price,
     RequestNamespace,
     RequestSecurityOpts,
@@ -170,5 +174,24 @@ describe("public type surface", () => {
         expectTypeOf<typeof isCompiledScriptBundle>().toEqualTypeOf<
             (v: CompiledScriptObject | CompiledScriptBundle) => v is CompiledScriptBundle
         >();
+    });
+
+    it("ScriptManifest exposes the plot-override static slot list", () => {
+        expectTypeOf<ScriptManifest["plots"]>().toEqualTypeOf<
+            ReadonlyArray<PlotSlotDescriptor> | undefined
+        >();
+    });
+
+    it("PlotSlotDescriptor pins slotId / kind / optional title", () => {
+        expectTypeOf<PlotSlotDescriptor["slotId"]>().toEqualTypeOf<string>();
+        expectTypeOf<PlotSlotDescriptor["kind"]>().toEqualTypeOf<PlotKind>();
+        expectTypeOf<PlotSlotDescriptor["title"]>().toEqualTypeOf<string | undefined>();
+    });
+
+    it("PlotOverride fields are all optional and JSON-clean", () => {
+        expectTypeOf<PlotOverride["visible"]>().toEqualTypeOf<boolean | undefined>();
+        expectTypeOf<PlotOverride["color"]>().toEqualTypeOf<string | undefined>();
+        expectTypeOf<PlotOverride["lineWidth"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<PlotOverride["lineStyle"]>().toEqualTypeOf<LineStyle | undefined>();
     });
 });

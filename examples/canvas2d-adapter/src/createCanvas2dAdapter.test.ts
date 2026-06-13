@@ -2,8 +2,8 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type {
-    AlertEmission,
     AlertConditionEmission,
+    AlertEmission,
     CandleEvent,
     DrawingEmission,
     LogEmission,
@@ -15,13 +15,13 @@ import type { DrawingState } from "@invinite-org/chartlang-core";
 import type { HostCompiledScript, ScriptHost } from "@invinite-org/chartlang-host-worker";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { SAMPLE_BARS } from "./__fixtures__/sampleBars.js";
 import { CANVAS2D_CAPABILITIES } from "./capabilities.js";
 import {
+    type Canvas2dAdapterHandle,
     createCanvas2dAdapter,
     runRendererLoop,
-    type Canvas2dAdapterHandle,
 } from "./createCanvas2dAdapter.js";
-import { SAMPLE_BARS } from "./__fixtures__/sampleBars.js";
 import { MockCanvas2DContext } from "./testing.js";
 
 function plotEmission(overrides: Partial<PlotEmission> & { slotId: string }): PlotEmission {
@@ -36,6 +36,7 @@ function plotEmission(overrides: Partial<PlotEmission> & { slotId: string }): Pl
         color: overrides.color ?? null,
         meta: overrides.meta ?? {},
         pane: overrides.pane ?? "overlay",
+        ...(overrides.visible === undefined ? {} : { visible: overrides.visible }),
     };
 }
 
@@ -768,6 +769,97 @@ describe("onEmissions dispatch", () => {
         // No bars in state yet (no candle source iterated) — so the alert
         // branch hits the "no bars" early return. Add a bar via runRendererLoop.
         expect(ctx.calls.some((c) => c.kind === "arc")).toBe(false);
+    });
+});
+
+describe("plot overrides", () => {
+    it("renders no series for a visible:false line emission", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({ slotId: "hidden", value: 100, visible: false }),
+                    plotEmission({
+                        slotId: "hidden",
+                        value: 101,
+                        time: SAMPLE_BARS[1].time,
+                        visible: false,
+                    }),
+                ],
+            }),
+        );
+        // A hidden slot contributes no series point, so the line renderer
+        // never strokes it.
+        expect(ctx.calls.some((c) => c.kind === "stroke")).toBe(false);
+    });
+
+    it("excludes a hidden slot from the pane viewport", async () => {
+        // A visible line at a normal value plus a hidden line at an extreme
+        // value: the hidden slot must not stretch the y-scale, so the visible
+        // series renders at the same pixel position as if the hidden slot
+        // were never emitted.
+        function firstMoveToY(scene: RunnerEmissions[]): number {
+            const ctx = new MockCanvas2DContext();
+            return runRendererLoop(
+                buildAdapter({
+                    ctx,
+                    host: stubHost(scene),
+                    candles: candleStream([
+                        { kind: "history", bars: SAMPLE_BARS.slice(0, 2) },
+                        { kind: "close", bar: SAMPLE_BARS[2] },
+                    ]),
+                }).adapter,
+            ).then(() => {
+                const moveTo = ctx.calls.find((c) => c.kind === "moveTo");
+                if (moveTo === undefined || moveTo.kind !== "moveTo") {
+                    throw new Error("expected a moveTo call from the visible series");
+                }
+                return moveTo.y;
+            });
+        }
+        const withHidden = await firstMoveToY([
+            emissions(),
+            emissions({
+                plots: [
+                    plotEmission({ slotId: "shown", value: 100, time: SAMPLE_BARS[2].time }),
+                    plotEmission({
+                        slotId: "hidden",
+                        value: 1_000_000,
+                        time: SAMPLE_BARS[2].time,
+                        visible: false,
+                    }),
+                ],
+            }),
+        ]);
+        const withoutHidden = await firstMoveToY([
+            emissions(),
+            emissions({
+                plots: [plotEmission({ slotId: "shown", value: 100, time: SAMPLE_BARS[2].time })],
+            }),
+        ]);
+        expect(withHidden).toBe(withoutHidden);
+    });
+
+    it("renders a recolored line with the override-baked color", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({ slotId: "c", value: 100, color: "#ff0000" }),
+                    plotEmission({
+                        slotId: "c",
+                        value: 101,
+                        time: SAMPLE_BARS[1].time,
+                        color: "#ff0000",
+                    }),
+                ],
+            }),
+        );
+        expect(
+            ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === "#ff0000",
+            ),
+        ).toBe(true);
     });
 });
 

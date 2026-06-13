@@ -12,8 +12,8 @@ import {
     type MutableRunnerEmissions,
     type RuntimeContext,
 } from "../runtimeContext.js";
-import { createStreamState } from "../streamState.js";
 import { inMemoryStateStore } from "../stateStore.js";
+import { createStreamState } from "../streamState.js";
 import { plot } from "./plot.js";
 
 // Inline 50-bar mini-fixture — graduates to Task 12's goldenBars.json
@@ -67,6 +67,7 @@ describe("plot — golden", () => {
             drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
             scriptMaxDrawings: null,
             stateSlots: new Map(),
+            plotOverrides: {},
         };
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
 

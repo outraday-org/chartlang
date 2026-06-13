@@ -181,6 +181,77 @@ describe("createScriptRunner", () => {
         expect(diagnostics.every((d) => d.code === "input-coercion-failed")).toBe(true);
     });
 
+    it("applies mount-time plot overrides supplied directly via args.plotOverrides", async () => {
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: ({ plot }) => {
+                plot("p:1:1#0", 1, { color: "#000" });
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            plotOverrides: { "p:1:1#0": { visible: false, color: "#f00" } },
+        });
+
+        await runner.onBarClose(makeBar(0));
+        const e = runner.drain().plots[0];
+
+        expect(e.visible).toBe(false);
+        expect(e.color).toBe("#f00");
+    });
+
+    it("resolves mount-time plot overrides through the resolvePlotOverrides callback", async () => {
+        const seen: string[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: ({ plot }) => {
+                plot("p:1:1#0", 1, { color: "#000" });
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            resolvePlotOverrides: (scriptId) => {
+                seen.push(scriptId);
+                return scriptId === "demo" ? { "p:1:1#0": { color: "#0f0" } } : {};
+            },
+        });
+
+        await runner.onBarClose(makeBar(0));
+
+        expect(seen).toEqual(["demo"]);
+        expect(runner.drain().plots[0].color).toBe("#0f0");
+    });
+
+    it("setPlotOverrides swaps the map live, reflected on the next drain with no extra compute", async () => {
+        let computeCalls = 0;
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: ({ plot }) => {
+                computeCalls += 1;
+                plot("p:1:1#0", 1, { color: "#000" });
+            },
+        });
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+
+        await runner.onBarClose(makeBar(0));
+        expect(runner.drain().plots[0].color).toBe("#000");
+        const callsAfterFirstDrain = computeCalls;
+
+        // Live swap — must not trigger a recompute.
+        runner.setPlotOverrides({ "p:1:1#0": { visible: false, color: "#f00" } });
+        expect(computeCalls).toBe(callsAfterFirstDrain);
+
+        await runner.onBarClose(makeBar(1));
+        const e = runner.drain().plots[0];
+        expect(e.color).toBe("#f00");
+        expect(e.visible).toBe(false);
+    });
+
     it("refreshes barstate and timeframe before every compute step", async () => {
         const seen: Array<{
             readonly ishistory: boolean;

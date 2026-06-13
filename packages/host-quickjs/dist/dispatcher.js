@@ -2470,6 +2470,9 @@ function validatePlotEmission(e) {
     return metaResult;
   if (typeof e.pane !== "string")
     return bad("plot.pane: must be a string");
+  if (e.visible !== void 0 && typeof e.visible !== "boolean") {
+    return bad("plot.visible: must be a boolean");
+  }
   return { ok: true };
 }
 function validateAlertEmission(e) {
@@ -4542,6 +4545,31 @@ function emitAlertCondition(ctx, conditionId, fired) {
   pushAlertCondition(ctx.emissions, emission);
 }
 
+// ../runtime/dist/emit/applyPlotOverride.js
+function isLineFamily(kind) {
+  return kind === "line" || kind === "step-line" || kind === "horizontal-line" || kind === "area";
+}
+function applyPlotOverride(emission, override) {
+  if (override === void 0)
+    return emission;
+  let next = emission;
+  if (override.visible === false)
+    next = { ...next, visible: false };
+  if (override.color !== void 0)
+    next = { ...next, color: override.color };
+  if ((override.lineWidth !== void 0 || override.lineStyle !== void 0) && isLineFamily(next.style.kind)) {
+    next = {
+      ...next,
+      style: {
+        ...next.style,
+        ...override.lineWidth !== void 0 ? { lineWidth: override.lineWidth } : {},
+        ...override.lineStyle !== void 0 ? { lineStyle: override.lineStyle } : {}
+      }
+    };
+  }
+  return next;
+}
+
 // ../runtime/dist/emit/draw/pushDrawing.js
 function effectiveBudget(ctx, bucket) {
   const adapterCap = ctx.capabilities.maxDrawingsPerScript[bucket];
@@ -5964,7 +5992,7 @@ function hlineImpl(ctx, slotId, price, opts) {
     meta: {},
     pane: "overlay"
   };
-  pushPlot(ctx.emissions, emission);
+  pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));
 }
 function hline2(arg1, arg2, arg3) {
   if (typeof arg1 !== "string") {
@@ -6215,7 +6243,7 @@ function plotImpl(ctx, slotId, value, opts) {
     meta: {},
     pane
   };
-  pushPlot(ctx.emissions, emission);
+  pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));
 }
 function plot2(arg1, arg2, arg3) {
   if (typeof arg1 !== "string") {
@@ -14275,6 +14303,9 @@ function buildSubRunnerState(args, slotIdPrefix, isDep) {
       logBudget: 0,
       logBudgetExceededDiagnosed: false,
       resolvedInputs: Object.freeze({}),
+      // Overrides target the primary script's slots only in v1;
+      // dep-output plots are not host-overridable.
+      plotOverrides: Object.freeze({}),
       diagnosedInputKeys: /* @__PURE__ */ new Set(),
       views: createRuntimeViews(),
       slotIdPrefix,
@@ -15178,6 +15209,7 @@ function buildPrimaryState(args, primary) {
       logBudget: 0,
       logBudgetExceededDiagnosed: false,
       resolvedInputs: Object.freeze({}),
+      plotOverrides: Object.freeze({}),
       diagnosedInputKeys: /* @__PURE__ */ new Set(),
       views
     },
@@ -15190,6 +15222,7 @@ function buildPrimaryState(args, primary) {
   };
   const overrides = args.inputOverrides ?? args.resolveInputs?.(primary.manifest.name) ?? Object.freeze({});
   state2.runtimeContext.resolvedInputs = resolveInputs(primary.manifest, overrides, state2.runtimeContext);
+  state2.runtimeContext.plotOverrides = args.plotOverrides ?? args.resolvePlotOverrides?.(primary.manifest.name) ?? Object.freeze({});
   return state2;
 }
 function attachBundle(primary, bundle, capabilities2, now) {
@@ -15307,6 +15340,9 @@ function createScriptRunner(args) {
     },
     drain() {
       return drain(state2);
+    },
+    setPlotOverrides(next) {
+      state2.runtimeContext.plotOverrides = Object.freeze({ ...next });
     },
     async dispose() {
       const finalSave = saveStateSnapshot(state2, state2.now());
@@ -15431,7 +15467,8 @@ ${moduleSourceToScript(source)}
         compiled,
         capabilities: reviveCapabilities(frame2.capabilities),
         ...frame2.symInfo === void 0 ? {} : { symInfo: frame2.symInfo },
-        ...frame2.inputOverrides === void 0 ? {} : { inputOverrides: frame2.inputOverrides }
+        ...frame2.inputOverrides === void 0 ? {} : { inputOverrides: frame2.inputOverrides },
+        ...frame2.plotOverrides === void 0 ? {} : { plotOverrides: frame2.plotOverrides }
       });
       return reply({ kind: "loaded" });
     } catch (err) {
@@ -15445,6 +15482,18 @@ ${moduleSourceToScript(source)}
       }
       const frame2 = JSON.parse(json);
       await runner.push(frame2.event);
+      return reply({ kind: "ack" });
+    } catch (err) {
+      return reply({ kind: "fatal", message: message(err) });
+    }
+  }
+  function setPlotOverrides(json) {
+    try {
+      if (runner === null) {
+        throw new Error("setPlotOverrides before load");
+      }
+      const frame2 = JSON.parse(json);
+      runner.setPlotOverrides(frame2.overrides);
       return reply({ kind: "ack" });
     } catch (err) {
       return reply({ kind: "fatal", message: message(err) });
@@ -15475,7 +15524,7 @@ ${moduleSourceToScript(source)}
       return reply({ kind: "fatal", message: message(err) });
     }
   }
-  return Object.freeze({ load, push, drain: drain2, dispose: dispose2 });
+  return Object.freeze({ load, push, setPlotOverrides, drain: drain2, dispose: dispose2 });
 }
 
 // src/dispatcher.ts
@@ -15509,5 +15558,6 @@ var handlers = createDispatcher({
 });
 globalThis.__chartlang_load = handlers.load;
 globalThis.__chartlang_push = handlers.push;
+globalThis.__chartlang_setPlotOverrides = handlers.setPlotOverrides;
 globalThis.__chartlang_drain = handlers.drain;
 globalThis.__chartlang_dispose = handlers.dispose;

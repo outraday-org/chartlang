@@ -19,6 +19,8 @@ export type {
     JsonValue,
     LineStyle,
     PlotLineStyle,
+    PlotOverride,
+    PlotSlotDescriptor,
     Price,
     ScriptManifest,
     Series,

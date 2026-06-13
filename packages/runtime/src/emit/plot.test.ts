@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Series } from "@invinite-org/chartlang-core";
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
+import type { Series } from "@invinite-org/chartlang-core";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -11,8 +11,8 @@ import {
     type MutableRunnerEmissions,
     type RuntimeContext,
 } from "../runtimeContext.js";
-import { createStreamState } from "../streamState.js";
 import { inMemoryStateStore } from "../stateStore.js";
+import { createStreamState } from "../streamState.js";
 import { plot } from "./plot.js";
 
 function makeCaps(overrides: Partial<Capabilities> = {}): Capabilities {
@@ -34,7 +34,14 @@ function makeCaps(overrides: Partial<Capabilities> = {}): Capabilities {
     };
 }
 
-function makeCtx(opts: { caps?: Capabilities; barIndex?: number; barTime?: number } = {}): {
+function makeCtx(
+    opts: {
+        caps?: Capabilities;
+        barIndex?: number;
+        barTime?: number;
+        plotOverrides?: RuntimeContext["plotOverrides"];
+    } = {},
+): {
     ctx: RuntimeContext;
     emissions: MutableRunnerEmissions;
 } {
@@ -60,6 +67,7 @@ function makeCtx(opts: { caps?: Capabilities; barIndex?: number; barTime?: numbe
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        plotOverrides: opts.plotOverrides ?? {},
     };
     return { ctx, emissions };
 }
@@ -121,6 +129,33 @@ describe("plot — happy path", () => {
         expect(e.title).toBe("EMA");
         expect(e.style.lineWidth).toBe(2);
         expect(e.style.lineStyle).toBe("dashed");
+    });
+});
+
+describe("plot — plot overrides", () => {
+    it("applies a matching slot override from the context (visible/color/line)", () => {
+        const { ctx, emissions } = makeCtx({
+            plotOverrides: {
+                "a:1:1#0": { visible: false, color: "#f00", lineWidth: 4, lineStyle: "dashed" },
+            },
+        });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 1, { color: "#000", lineWidth: 1, lineStyle: "solid" });
+        const e = emissions.plots[0];
+        expect(e.visible).toBe(false);
+        expect(e.color).toBe("#f00");
+        expect(e.style.lineWidth).toBe(4);
+        expect(e.style.lineStyle).toBe("dashed");
+    });
+
+    it("leaves the emission untouched when no override matches the slot", () => {
+        const { ctx, emissions } = makeCtx({
+            plotOverrides: { "other:1:1#0": { visible: false } },
+        });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 1);
+        expect(emissions.plots[0].visible).toBeUndefined();
+        expect(emissions.plots[0].color).toBeNull();
     });
 });
 

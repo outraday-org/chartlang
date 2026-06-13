@@ -6,7 +6,7 @@ import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { createQuickJsHost, type CreateQuickJsHostOpts } from "./createQuickJsHost.js";
+import { type CreateQuickJsHostOpts, createQuickJsHost } from "./createQuickJsHost.js";
 import type {
     QuickJsContextLike,
     QuickJsHandleLike,
@@ -99,10 +99,12 @@ class FakeContext implements QuickJsContextLike {
     loadReply: unknown = { kind: "loaded" };
     drainReply: unknown | null = null;
     disposeReply: unknown = { kind: "loaded" };
+    setPlotOverridesReply: unknown = { kind: "ack" };
     pushThrow: string | null = null;
     pushThrowValue: unknown = null;
     onPush: (() => void) | null = null;
     lastLoadFrame: unknown = null;
+    lastSetPlotOverridesFrame: unknown = null;
 
     evalCode(code: string, filename?: string): unknown {
         this.calls.push(`${filename ?? "eval"}:${code.length}`);
@@ -132,6 +134,12 @@ class FakeContext implements QuickJsContextLike {
         }
         if (key === "__chartlang_dispose") {
             return new FakeHandle(() => JSON.stringify(this.disposeReply));
+        }
+        if (key === "__chartlang_setPlotOverrides") {
+            return new FakeHandle((json?: string) => {
+                this.lastSetPlotOverridesFrame = JSON.parse(json ?? "{}");
+                return JSON.stringify(this.setPlotOverridesReply);
+            });
         }
         const fn = async (json?: string) => {
             if (key === "__chartlang_load") {
@@ -253,6 +261,7 @@ describe("createQuickJsHost", () => {
             capabilities: { ...makeCapabilities(), symInfoFields: new Set(["ticker"]) },
             symInfo: { ticker: "DEMO" },
             resolveInputs: () => ({ length: 20 }),
+            resolvePlotOverrides: () => ({ "p:1:1#0": { visible: false, color: "#f00" } }),
             quickJsLike,
         });
 
@@ -261,6 +270,7 @@ describe("createQuickJsHost", () => {
         expect(context.lastLoadFrame).toMatchObject({
             symInfo: { ticker: "DEMO" },
             inputOverrides: { length: 20 },
+            plotOverrides: { "p:1:1#0": { visible: false, color: "#f00" } },
             capabilities: {
                 plots: expect.any(Array),
                 drawings: expect.any(Array),
@@ -269,6 +279,79 @@ describe("createQuickJsHost", () => {
                 symInfoFields: ["ticker"],
             },
         });
+        host.dispose();
+    });
+
+    it("relays setPlotOverrides through the JSON membrane after load", async () => {
+        const context = new FakeContext();
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike: () => ({
+                newRuntime: () => ({
+                    setMemoryLimit: () => undefined,
+                    setInterruptHandler: () => undefined,
+                    executePendingJobs: () => undefined,
+                    newContext: () => context,
+                }),
+            }),
+        });
+
+        await host.load(compiled(plotSource()));
+        host.setPlotOverrides({ "p:1:1#0": { color: "#0f0" } });
+
+        expect(context.lastSetPlotOverridesFrame).toEqual({
+            kind: "setPlotOverrides",
+            overrides: { "p:1:1#0": { color: "#0f0" } },
+        });
+        host.dispose();
+    });
+
+    it("reports a host error when setPlotOverrides is called before load", () => {
+        let lastError = "";
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike: () => ({
+                newRuntime: () => ({
+                    setMemoryLimit: () => undefined,
+                    setInterruptHandler: () => undefined,
+                    executePendingJobs: () => undefined,
+                    newContext: () => new FakeContext(),
+                }),
+            }),
+            onHostError: (message) => {
+                lastError = message;
+            },
+        });
+
+        host.setPlotOverrides({ "p:1:1#0": { color: "#0f0" } });
+
+        expect(lastError).toBe("setPlotOverrides before load");
+        host.dispose();
+    });
+
+    it("reports a host error when the guest replies fatal to setPlotOverrides", async () => {
+        const context = new FakeContext();
+        context.setPlotOverridesReply = { kind: "fatal", message: "override fatal" };
+        let lastError = "";
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike: () => ({
+                newRuntime: () => ({
+                    setMemoryLimit: () => undefined,
+                    setInterruptHandler: () => undefined,
+                    executePendingJobs: () => undefined,
+                    newContext: () => context,
+                }),
+            }),
+            onHostError: (message) => {
+                lastError = message;
+            },
+        });
+
+        await host.load(compiled(plotSource()));
+        host.setPlotOverrides({ "p:1:1#0": { color: "#0f0" } });
+
+        expect(lastError).toBe("override fatal");
         host.dispose();
     });
 

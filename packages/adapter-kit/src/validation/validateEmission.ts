@@ -465,6 +465,9 @@ function validatePlotEmission(e: Record<string, unknown>): ValidationResult {
     const metaResult = walkMeta(e.meta, "plot.meta");
     if (!metaResult.ok) return metaResult;
     if (typeof e.pane !== "string") return bad("plot.pane: must be a string");
+    if (e.visible !== undefined && typeof e.visible !== "boolean") {
+        return bad("plot.visible: must be a boolean");
+    }
     return { ok: true };
 }
 

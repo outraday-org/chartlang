@@ -64,9 +64,17 @@ current bar.
 | `bar` | non-negative integer | Main-stream bar index. |
 | `time` | finite number | UTC milliseconds for the bar. |
 | `value` | finite number or `null` | Numeric value. `null` is the gap marker for non-finite script output. |
-| `color` | string or `null` | CSS color override or `null` for adapter default. |
+| `color` | string or `null` | CSS color override or `null` for adapter default. May be overwritten by a host plot override. |
 | `meta` | record of `JsonValue` | Reserved metadata record. Runtime plot emitters currently use `{}`. |
 | `pane` | string | `"overlay"`, `"new"`, or a named pane id. Current runtime folds non-overlay requests to `"overlay"` with `unsupported-pane`. |
+| `visible` | optional boolean | Omitted ⇒ visible. Only ever present as `false`, set by the runtime when a host [plot override](../adapters/contract.md#plot-overrides) hides the slot. An adapter MUST skip rendering and scale inclusion for a `visible: false` plot while keeping the slot listed. |
+
+Hiding a plot via an override is presentation state, not a diagnostic: a
+`visible: false` emission is a deliberate host instruction, so no
+`RuntimeDiagnostic` accompanies it (the same silent-no-op spirit as the
+[capability fallbacks](#capability-gating)). Because `visible` is omitted unless
+a slot is explicitly hidden, every no-override emission is byte-identical to a
+run with no override channel at all.
 
 ### Plot Kinds
 

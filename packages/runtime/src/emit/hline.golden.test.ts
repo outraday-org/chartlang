@@ -12,8 +12,8 @@ import {
     type MutableRunnerEmissions,
     type RuntimeContext,
 } from "../runtimeContext.js";
-import { createStreamState } from "../streamState.js";
 import { inMemoryStateStore } from "../stateStore.js";
+import { createStreamState } from "../streamState.js";
 import { hline } from "./hline.js";
 
 const MINI_FIXTURE_BARS = 50;
@@ -64,6 +64,7 @@ describe("hline — golden", () => {
             drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
             scriptMaxDrawings: null,
             stateSlots: new Map(),
+            plotOverrides: {},
         };
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
 

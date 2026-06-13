@@ -23,10 +23,13 @@ export type ScriptHost = {
     load(compiled: HostCompiledScript): Promise<void>;
     push(event: CandleEvent): Promise<void>;
     drain(): Promise<RunnerEmissions>;
+    setPlotOverrides(overrides: Readonly<Record<string, PlotOverride>>): void;
     dispose(): void;
     readonly limits: HostLimits;
 };
 ```
+
+`PlotOverride` is re-exported from `@invinite-org/chartlang-adapter-kit`.
 
 `HostCompiledScript` is `{ moduleSource: string; manifest: ScriptManifest }`.
 The compiled output of `pnpm chartlang compile` is exactly this shape
@@ -85,9 +88,10 @@ must satisfy two invariants:
 
 | Direction | Frame |
 | --- | --- |
-| Host → guest | `{ kind: "load", compiled, capabilities, symInfo?, inputOverrides?, limits }` |
+| Host → guest | `{ kind: "load", compiled, capabilities, symInfo?, inputOverrides?, plotOverrides?, limits }` |
 | Host → guest | `{ kind: "candleEvent", event }` (fire-and-forget) |
 | Host → guest | `{ kind: "drain", nonce }` |
+| Host → guest | `{ kind: "setPlotOverrides", overrides }` |
 | Host → guest | `{ kind: "dispose" }` |
 | Guest → host | `{ kind: "loaded" }` or `{ kind: "loadError", message }` |
 | Guest → host | `{ kind: "emissions", nonce, emissions }` |
@@ -96,6 +100,17 @@ must satisfy two invariants:
 
 The `nonce` on `drain` is mandatory — drains are round-trips and
 pipelining is allowed.
+
+The optional `plotOverrides` on the `load` frame is the initial
+`slotId`-keyed [plot override](../adapters/contract.md#plot-overrides) map
+(resolved from `Adapter.resolvePlotOverrides`), mirroring `inputOverrides`.
+The `setPlotOverrides` frame is a live, presentation-only update: the boot
+scope calls `runner.setPlotOverrides(overrides)`, which replaces the
+runtime's override map in place (no recompute). Because overrides are
+applied at emit time — not fed to `compute` — they are safe to change
+mid-run without breaking the frozen-input determinism guarantee. The
+QuickJS host relays `setPlotOverrides` as a synchronous host→guest call
+(like `drain`); the Worker host posts it fire-and-forget.
 
 ## Determinism contract
 

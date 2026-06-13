@@ -26,6 +26,18 @@ Task 3 (pane-layout helpers exist and pass their own tests).
   emission's `pane` field is discarded.
 - `renderFrame` (lines 338-375) clears once, draws bars, walks
   every `plotSeries` entry in the single viewport.
+- State-init block lives at lines 519-532 of the same file; the
+  `dispose` block lives at lines 565-576.
+- `examples/canvas2d-adapter/src/render/clear.ts:26-47` defines the
+  shared `RenderCtx` structural type. It has **no `translate`
+  method** today — the Phase-1/2 surface is `clearRect`, `save`,
+  `restore`, `beginPath`, `moveTo`, `lineTo`, `stroke`, `fillRect`,
+  `fill`, `arc`, `closePath`, `setLineDash`, `fillText`, plus the
+  `strokeStyle` / `fillStyle` / `lineWidth` / `globalAlpha` / `font`
+  / `textAlign` / `textBaseline` setters.
+- `examples/canvas2d-adapter/src/testing.ts:18-57` defines
+  `RecordedCall` (no `translate` variant) and `MockCanvas2DContext`
+  (no `translate` method, no `canonicalise` rule).
 
 ## Desired Behavior
 
@@ -83,7 +95,7 @@ type AdapterState = {
 ```
 
 Initialise `paneOrder: ["overlay"]` in the state-init block
-(~line 510). On `dispose` (line 554), reset
+(lines 519-532). On `dispose` (lines 565-576), reset
 `state.paneOrder = ["overlay"]` along with the existing `Map.clear`
 calls.
 
@@ -316,15 +328,50 @@ in the commit message: "pane layout refactor — call log shape
 changed (save/translate/restore + clearPaneRect); behaviour
 unchanged for overlay-only scripts."
 
-### 9. `MockCanvas2DContext` extensions if needed
+### 9. `RenderCtx` + `MockCanvas2DContext` — add `translate`
 
-Verify `save` / `restore` / `translate` are in the mock's
-`RecordedCall` union (`grep "translate\|save\b\|restore"
-examples/canvas2d-adapter/src/testing.ts`). If absent: add the
-records + canonicalisation rules, extend `testing.test.ts` per
-method, ensure `hashCallLog` hashes the new records (existing
-convention is unconditional). This is a direct prerequisite of the
-render-loop change so it lands in the same task.
+`save` and `restore` are already on both the type and the mock
+(verified). `translate` is **not** present in either; this task
+adds it. Direct prerequisite of the render-loop change, so it lands
+here.
+
+(a) `examples/canvas2d-adapter/src/render/clear.ts:26-47` — extend
+the `RenderCtx` type with a single new method:
+
+```ts
+translate(x: number, y: number): void;
+```
+
+Per the `examples/canvas2d-adapter/CLAUDE.md` Phase-2 invariant
+("Extensions must update both the type and the mock in lockstep"),
+the mock and the type ship together.
+
+(b) `examples/canvas2d-adapter/src/testing.ts:18-57` — add a new
+`RecordedCall` variant:
+
+```ts
+| { readonly kind: "translate"; readonly x: number; readonly y: number }
+```
+
+(c) `MockCanvas2DContext` (lines 82-206) — add the method that
+pushes the record:
+
+```ts
+translate(x: number, y: number): void {
+    this.calls.push({ kind: "translate", x, y });
+}
+```
+
+(d) `canonicalise` (~line 251-257) — add a `translate` case that
+rounds `x` / `y` to 4 decimals using the same `roundFloat`
+convention applied to `moveTo` / `lineTo`. `hashCallLog` is
+unconditional over `calls`, so no further wiring is needed there.
+
+(e) `examples/canvas2d-adapter/src/testing.test.ts` — add a single
+case asserting `ctx.translate(10, 20)` pushes
+`{ kind: "translate", x: 10, y: 20 }`. Add a canonicalisation case
+that confirms float rounding. Match the file's existing
+per-method-then-canonicalise convention.
 
 ### 10. `examples/canvas2d-adapter/README.md`
 
@@ -376,8 +423,9 @@ Stay under the 100-line cap.
 | `examples/canvas2d-adapter/src/createCanvas2dAdapter.ts` | Modify | Pane-aware state, `applyPlot`, `computePaneViewport`, `renderFrame` |
 | `examples/canvas2d-adapter/src/createCanvas2dAdapter.test.ts` | Modify | Pane-routing assertions |
 | `examples/canvas2d-adapter/src/integration.test.ts` | Modify | Re-pin overlay-only hash with commit-note rationale |
-| `examples/canvas2d-adapter/src/testing.ts` | Modify (if needed) | `save` / `restore` / `translate` mock support |
-| `examples/canvas2d-adapter/src/testing.test.ts` | Modify (if needed) | Cover new mock methods |
+| `examples/canvas2d-adapter/src/render/clear.ts` | Modify | Add `translate(x, y): void` to `RenderCtx` |
+| `examples/canvas2d-adapter/src/testing.ts` | Modify | Add `translate` to `RecordedCall` + mock method + canonicalise rule |
+| `examples/canvas2d-adapter/src/testing.test.ts` | Modify | Cover the new `translate` method + canonicalisation |
 | `examples/canvas2d-adapter/README.md` | Modify | Document pane-aware state shape |
 
 ## Gates

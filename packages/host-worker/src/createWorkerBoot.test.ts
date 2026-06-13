@@ -2,13 +2,13 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
-import type { Capabilities, CandleEvent } from "@invinite-org/chartlang-adapter-kit";
+import type { CandleEvent, Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createWorkerBoot, type WorkerBootScope } from "./createWorkerBoot.js";
-import type { HostLimits } from "./types.js";
+import { type WorkerBootScope, createWorkerBoot } from "./createWorkerBoot.js";
 import type { HostToWorker, WorkerToHost } from "./protocol.js";
+import type { HostLimits } from "./types.js";
 
 function makeCapabilities(): Capabilities {
     return {
@@ -281,6 +281,77 @@ describe("createWorkerBoot", () => {
         expect(reply.nonce).toBe(7);
         expect(reply.emissions.plots).toEqual([]);
         expect(reply.emissions.alerts).toEqual([]);
+    });
+
+    it("threads load-frame plotOverrides into the runner and applies them on emit", async () => {
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        const m: ScriptManifest = { ...manifest() };
+        const moduleSource = `
+            export default {
+                manifest: ${JSON.stringify(m)},
+                compute: ({ bar, plot }) => {
+                    plot("p:1:1#0", bar.close, { color: "#000" });
+                },
+            };
+        `;
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: m },
+            capabilities: makeCapabilities(),
+            plotOverrides: { "p:1:1#0": { visible: false, color: "#f00" } },
+            limits: LIMITS,
+        });
+        await waitFor("loaded");
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(1, 5) } });
+        await deliver({ kind: "drain", nonce: 1 });
+        const reply = await waitFor("emissions");
+        if (reply.kind !== "emissions") throw new Error("expected emissions");
+        expect(reply.emissions.plots[0]).toMatchObject({ visible: false, color: "#f00" });
+    });
+
+    it("swaps overrides live via setPlotOverrides without a recompute", async () => {
+        const { scope, deliver, captured } = makeScope();
+        createWorkerBoot(scope);
+        const m: ScriptManifest = { ...manifest() };
+        const moduleSource = `
+            export default {
+                manifest: ${JSON.stringify(m)},
+                compute: ({ bar, plot }) => {
+                    plot("p:1:1#0", bar.close, { color: "#000" });
+                },
+            };
+        `;
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: m },
+            capabilities: makeCapabilities(),
+            limits: LIMITS,
+        });
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(1, 5) } });
+        await deliver({ kind: "drain", nonce: 1 });
+        await deliver({ kind: "setPlotOverrides", overrides: { "p:1:1#0": { color: "#0f0" } } });
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(2, 6) } });
+        await deliver({ kind: "drain", nonce: 2 });
+
+        const byNonce = (nonce: number) =>
+            captured.find((c) => c.kind === "emissions" && c.nonce === nonce);
+        const first = byNonce(1);
+        const second = byNonce(2);
+        if (first?.kind !== "emissions" || second?.kind !== "emissions") {
+            throw new Error("expected two emissions replies");
+        }
+        expect(first.emissions.plots[0].color).toBe("#000");
+        expect(second.emissions.plots[0].color).toBe("#0f0");
+    });
+
+    it("posts 'fatal' for a setPlotOverrides before load", async () => {
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        await deliver({ kind: "setPlotOverrides", overrides: {} });
+        const reply = await waitFor("fatal");
+        if (reply.kind !== "fatal") throw new Error("expected fatal");
+        expect(reply.message).toContain("setPlotOverrides before load");
     });
 
     it("dispatches close + tick candleEvents", async () => {

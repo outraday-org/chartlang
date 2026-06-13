@@ -7,10 +7,12 @@ export type { ConformanceReportMeta } from "./report/renderReport.js";
 export type {
     ConformanceFailure,
     ConformanceReport,
+    PlotSlotOverride,
     RunConformanceSuiteOpts,
     Scenario,
     ScenarioAssertion,
     ScenarioEventStream,
+    ScenarioOverrideEvent,
     ScenarioResult,
 } from "./runConformanceSuite.js";
 export {
@@ -123,6 +125,7 @@ export {
     PLOT_KIND_HORIZONTAL_HISTOGRAM_SCENARIO,
     PLOT_KIND_SHAPE_GATED_SCENARIO,
     PLOT_KIND_SHAPE_SCENARIO,
+    PLOT_STYLE_OVERRIDES_SCENARIO,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
     RSI_DIVERGENCE_SCENARIO,
     STATE_SESSION_HIGH_SCENARIO,

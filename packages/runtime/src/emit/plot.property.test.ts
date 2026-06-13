@@ -11,8 +11,8 @@ import {
     type MutableRunnerEmissions,
     type RuntimeContext,
 } from "../runtimeContext.js";
-import { createStreamState } from "../streamState.js";
 import { inMemoryStateStore } from "../stateStore.js";
+import { createStreamState } from "../streamState.js";
 import { plot } from "./plot.js";
 
 function makeCaps(): Capabilities {
@@ -59,6 +59,7 @@ function makeCtx(barIndex: number): {
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        plotOverrides: {},
     };
     return { ctx, emissions };
 }

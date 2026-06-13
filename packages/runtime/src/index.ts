@@ -24,7 +24,7 @@ export type { AdapterSymInfo, BarStateInputs, EventKind, RuntimeViews } from "./
 export { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext.js";
 export { createScriptRunner } from "./createScriptRunner.js";
 export type { CreateScriptRunnerArgs, ScriptRunner } from "./createScriptRunner.js";
-export { alert, draw, hline, plot, pushDrawing } from "./emit/index.js";
+export { alert, applyPlotOverride, draw, hline, plot, pushDrawing } from "./emit/index.js";
 export { TA_REGISTRY, ta } from "./ta/index.js";
 export { maRibbonOutputKeys } from "./ta/index.js";
 export type { RuntimeTaNamespace, ScalarOrSeries } from "./ta/index.js";

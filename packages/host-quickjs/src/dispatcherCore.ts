@@ -1,19 +1,20 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { createScriptRunner } from "@invinite-org/chartlang-runtime";
 import type { Capabilities, RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
 import type {
     CompiledScriptBundle,
     CompiledScriptObject,
     ScriptManifest,
 } from "@invinite-org/chartlang-core";
+import type { createScriptRunner } from "@invinite-org/chartlang-runtime";
 
 import { moduleSourceToScript } from "./moduleSourceToScript.js";
 import type { HostToQuickJs, QuickJsToHost } from "./protocol.js";
 
 type LoadFrame = Extract<HostToQuickJs, { readonly kind: "load" }>;
 type PushFrame = Extract<HostToQuickJs, { readonly kind: "candleEvent" }>;
+type SetPlotOverridesFrame = Extract<HostToQuickJs, { readonly kind: "setPlotOverrides" }>;
 type DrainFrame = Extract<HostToQuickJs, { readonly kind: "drain" }>;
 type ScriptRunnerHandle = ReturnType<typeof createScriptRunner>;
 
@@ -93,7 +94,7 @@ export type DispatcherDeps = Readonly<{
 }>;
 
 /**
- * The four QuickJS-guest entrypoints the host calls across the JSON-string
+ * The QuickJS-guest entrypoints the host calls across the JSON-string
  * membrane. They mirror {@link HostToQuickJs} kinds and always return a
  * JSON-string reply matching a {@link QuickJsToHost} frame.
  *
@@ -107,6 +108,7 @@ export type DispatcherDeps = Readonly<{
 export type DispatcherHandlers = Readonly<{
     load: (json: string) => Promise<string>;
     push: (json: string) => Promise<string>;
+    setPlotOverrides: (json: string) => string;
     drain: (json: string) => string;
     dispose: () => string;
 }>;
@@ -226,6 +228,9 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
                 ...(frame.inputOverrides === undefined
                     ? {}
                     : { inputOverrides: frame.inputOverrides }),
+                ...(frame.plotOverrides === undefined
+                    ? {}
+                    : { plotOverrides: frame.plotOverrides }),
             });
             return reply({ kind: "loaded" });
         } catch (err) {
@@ -240,6 +245,19 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
             }
             const frame = JSON.parse(json) as PushFrame;
             await runner.push(frame.event);
+            return reply({ kind: "ack" });
+        } catch (err) {
+            return reply({ kind: "fatal", message: message(err) });
+        }
+    }
+
+    function setPlotOverrides(json: string): string {
+        try {
+            if (runner === null) {
+                throw new Error("setPlotOverrides before load");
+            }
+            const frame = JSON.parse(json) as SetPlotOverridesFrame;
+            runner.setPlotOverrides(frame.overrides);
             return reply({ kind: "ack" });
         } catch (err) {
             return reply({ kind: "fatal", message: message(err) });
@@ -273,5 +291,5 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
         }
     }
 
-    return Object.freeze({ load, push, drain, dispose });
+    return Object.freeze({ load, push, setPlotOverrides, drain, dispose });
 }

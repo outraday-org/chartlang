@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { StatefulPrimitiveEntry } from "@invinite-org/chartlang-core";
+import type { PlotSlotDescriptor, StatefulPrimitiveEntry } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
+import { plotKindFromCallsite, readLiteralTitle } from "./plotKindFromCallsite.js";
 import { resolveCalleeName, resolveCoreSymbolForElementAccess } from "./resolveCallee.js";
 
 /**
@@ -54,9 +55,11 @@ export function injectCallsiteIds(
         readonly sourcePath: string;
         readonly statefulByName: ReadonlyMap<string, StatefulPrimitiveEntry>;
         readonly slotsSeen?: Map<string, ts.CallExpression>;
+        readonly plotSlots?: PlotSlotDescriptor[];
     },
 ): InjectCallsiteIdsResult {
     const { sourcePath, statefulByName } = opts;
+    const plotSlots = opts.plotSlots;
     const slotsSeen = opts.slotsSeen ?? new Map<string, ts.CallExpression>();
     const diagnostics: CompileDiagnostic[] = [];
 
@@ -104,6 +107,23 @@ export function injectCallsiteIds(
                         return ts.visitEachChild(node, visit, context);
                     }
                     slotsSeen.set(slotId, node);
+                    if (
+                        plotSlots !== undefined &&
+                        (calleeName === "plot" || calleeName === "hline")
+                    ) {
+                        const optsArg = node.arguments[1];
+                        // best-effort dynamic-kind fallback: a callsite whose
+                        // `style` is non-literal is still listed as "line".
+                        const kind = plotKindFromCallsite(calleeName, optsArg) ?? "line";
+                        const title = readLiteralTitle(optsArg);
+                        plotSlots.push(
+                            Object.freeze({
+                                slotId,
+                                kind,
+                                ...(title === undefined ? {} : { title }),
+                            }),
+                        );
+                    }
                     const visitedArguments = node.arguments.map((argument) =>
                         ts.visitNode(argument, visit, ts.isExpression),
                     ) as ReadonlyArray<ts.Expression>;

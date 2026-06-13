@@ -118,6 +118,7 @@ import { PLOT_KIND_HORIZONTAL_HISTOGRAM_SCENARIO } from "./plotKindHorizontalHis
 import { PLOT_KIND_HORIZONTAL_HISTOGRAM_GATED_SCENARIO } from "./plotKindHorizontalHistogramGated.scenario.js";
 import { PLOT_KIND_SHAPE_SCENARIO } from "./plotKindShape.scenario.js";
 import { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js";
+import { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
 import { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario.js";
 import { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario.js";
 import { RUNTIME_ERROR_SCENARIO } from "./runtimeError.scenario.js";
@@ -347,6 +348,7 @@ export { PLOT_KIND_HORIZONTAL_HISTOGRAM_SCENARIO } from "./plotKindHorizontalHis
 export { PLOT_KIND_HORIZONTAL_HISTOGRAM_GATED_SCENARIO } from "./plotKindHorizontalHistogramGated.scenario.js";
 export { PLOT_KIND_SHAPE_SCENARIO } from "./plotKindShape.scenario.js";
 export { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js";
+export { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
 export { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario.js";
 export { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario.js";
 export { RUNTIME_ERROR_SCENARIO } from "./runtimeError.scenario.js";
@@ -742,4 +744,5 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     DEP_ERROR_HALTS_PARENT_SCENARIO,
     DEP_CROSS_FILE_SCENARIO,
     DEP_CROSSOVER_GATE_SCENARIO,
+    PLOT_STYLE_OVERRIDES_SCENARIO,
 ]);

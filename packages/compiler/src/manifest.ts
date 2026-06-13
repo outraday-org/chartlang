@@ -6,6 +6,7 @@ import type {
     CapabilityId,
     DependencyDeclaration,
     OutputDeclaration,
+    PlotSlotDescriptor,
     ScriptManifest,
 } from "@invinite-org/chartlang-core";
 
@@ -48,6 +49,7 @@ export function buildManifest(args: {
     readonly alertConditions?: ReadonlyArray<AlertConditionDefinition>;
     readonly dependencies?: ReadonlyArray<DependencyDeclaration>;
     readonly outputs?: ReadonlyArray<OutputDeclaration>;
+    readonly plots?: ReadonlyArray<PlotSlotDescriptor>;
     readonly exportName?: string;
     readonly isDrawn?: boolean;
     readonly siblings?: ReadonlyArray<ScriptManifest>;
@@ -103,6 +105,10 @@ export function buildManifest(args: {
             : Object.freeze(
                   args.outputs.map((o) => Object.freeze({ title: o.title, kind: o.kind })),
               );
+    const plots =
+        args.plots === undefined || args.plots.length === 0
+            ? undefined
+            : Object.freeze(args.plots.map((s) => Object.freeze({ ...s })));
     const siblings =
         args.siblings === undefined || args.siblings.length === 0
             ? undefined
@@ -126,6 +132,7 @@ export function buildManifest(args: {
         ...(alertConditions === undefined ? {} : { alertConditions }),
         ...(dependencies === undefined ? {} : { dependencies }),
         ...(outputs === undefined ? {} : { outputs }),
+        ...(plots === undefined ? {} : { plots }),
         ...(args.exportName === undefined ? {} : { exportName: args.exportName }),
         ...(args.isDrawn === undefined ? {} : { isDrawn: args.isDrawn }),
         ...(siblings === undefined ? {} : { siblings }),

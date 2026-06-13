@@ -103,3 +103,36 @@ plot hashes, alert counts, and diagnostic codes.
   an imported sibling `.chart.ts` producer on disk. Re-pin via the
   runner's "expected vs actual" failure message exactly like every
   other scenario.
+
+## Phase-8 invariants
+
+- **The suite drives the RUNTIME directly, NOT the hosts.**
+  `runConformanceSuite` compiles each scenario and runs it through
+  `createScriptRunner` (the runtime's `ScriptRunner`); it never imports
+  `host-worker` / `host-quickjs`, and the package depends on
+  adapter-kit / compiler / core / runtime ONLY. Do not add a host
+  dependency here to "run scenarios through both hosts" — that inverts
+  the dependency graph. **Cross-host byte-identical parity** (incl. the
+  plot-override wire) lives in
+  `packages/host-quickjs/src/integration.test.ts`, which boots both
+  hosts and diffs the drained JSON. The "determinism / parity" wording
+  elsewhere refers to the runtime emission-order contract, not a
+  host-driving harness.
+- **Plot overrides are keyed by `manifest.plots` ORDINAL, never a
+  literal slotId.** `PLOT_STYLE_OVERRIDES_SCENARIO` declares
+  `plotOverrides` (mount) + `overrideEvents` (live `setPlotOverrides`)
+  whose `slotIndex` the runner resolves to the real `slotId` from the
+  compiled `manifest.plots` at run time — so the scenario survives
+  slotId-format changes. An out-of-range `slotIndex` resolves to no
+  entry (keeps the suite robust under a stubbed compiler that emits no
+  `manifest.plots`); a genuinely mis-authored override then surfaces as
+  a failing `plot-field` assertion rather than a throw.
+- **The `plot-field` assertion inspects override-baked presentation
+  fields.** `plot-hash` deliberately hashes only `{ bar, value }`
+  (color/width are excluded so existing hashes stay stable), so
+  `plot-field` exists to assert `visible` / `color` / `style.lineWidth`
+  on the emission for a `(slotIndex, bar)` pair. `expected: undefined`
+  asserts an omitted field — a visible plot carries no `visible` flag,
+  and a non-line-family style carries no `lineWidth`. The empty-override
+  parity guarantee is pinned by re-using `plot-hash` on the recolored
+  slot (its numeric series is byte-identical to the no-override run).

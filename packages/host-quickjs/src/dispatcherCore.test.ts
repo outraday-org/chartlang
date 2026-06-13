@@ -10,7 +10,7 @@ import type {
 } from "@invinite-org/chartlang-core";
 import { describe, expect, it, vi } from "vitest";
 
-import { createDispatcher, type DispatcherDeps } from "./dispatcherCore.js";
+import { type DispatcherDeps, createDispatcher } from "./dispatcherCore.js";
 import type { HostToQuickJs } from "./protocol.js";
 
 function makeManifest(): ScriptManifest {
@@ -70,6 +70,7 @@ export default {
 type FakeRunner = {
     push: ReturnType<typeof vi.fn>;
     drain: ReturnType<typeof vi.fn>;
+    setPlotOverrides: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;
     onHistory: ReturnType<typeof vi.fn>;
     onBarClose: ReturnType<typeof vi.fn>;
@@ -80,6 +81,7 @@ type FakeRunner = {
 function makeFakeRunner(opts?: {
     pushThrow?: Error;
     drainThrow?: Error;
+    setPlotOverridesThrow?: Error;
     disposeThrow?: Error;
     emissions?: RunnerEmissions;
 }): FakeRunner {
@@ -90,6 +92,9 @@ function makeFakeRunner(opts?: {
         drain: vi.fn(() => {
             if (opts?.drainThrow !== undefined) throw opts.drainThrow;
             return opts?.emissions ?? emptyEmissions();
+        }),
+        setPlotOverrides: vi.fn(() => {
+            if (opts?.setPlotOverridesThrow !== undefined) throw opts.setPlotOverridesThrow;
         }),
         dispose: vi.fn(async () => {
             if (opts?.disposeThrow !== undefined) throw opts.disposeThrow;
@@ -194,6 +199,14 @@ function drainFrame(nonce = 7): string {
     return JSON.stringify({ kind: "drain", nonce } as HostToQuickJs);
 }
 
+function setPlotOverridesFrame(
+    overrides: Record<string, { visible?: boolean; color?: string }> = {
+        "p:1:1#0": { visible: false },
+    },
+): string {
+    return JSON.stringify({ kind: "setPlotOverrides", overrides } as HostToQuickJs);
+}
+
 function pushFrame(): string {
     return JSON.stringify({
         kind: "candleEvent",
@@ -208,6 +221,7 @@ describe("createDispatcher", () => {
         expect(Object.isFrozen(handlers)).toBe(true);
         expect(typeof handlers.load).toBe("function");
         expect(typeof handlers.push).toBe("function");
+        expect(typeof handlers.setPlotOverrides).toBe("function");
         expect(typeof handlers.drain).toBe("function");
         expect(typeof handlers.dispose).toBe("function");
     });
@@ -270,6 +284,29 @@ describe("createDispatcher", () => {
             >[0];
             expect(args.symInfo).toEqual({ ticker: "X" });
             expect(args.inputOverrides).toEqual({ len: 5 });
+        });
+
+        it("forwards optional plotOverrides into the runner factory", async () => {
+            const { deps, runnerFactory } = makeDeps();
+            const handlers = createDispatcher(deps);
+            const reply = await handlers.load(
+                loadFrame({ plotOverrides: { "p:1:1#0": { color: "#f00" } } }),
+            );
+            expect(JSON.parse(reply).kind).toBe("loaded");
+            const args = runnerFactory.mock.calls[0][0] as Parameters<
+                DispatcherDeps["runnerFactory"]
+            >[0];
+            expect(args.plotOverrides).toEqual({ "p:1:1#0": { color: "#f00" } });
+        });
+
+        it("omits plotOverrides from the runner factory args when absent on the frame", async () => {
+            const { deps, runnerFactory } = makeDeps();
+            const handlers = createDispatcher(deps);
+            await handlers.load(loadFrame());
+            const args = runnerFactory.mock.calls[0][0] as Parameters<
+                DispatcherDeps["runnerFactory"]
+            >[0];
+            expect("plotOverrides" in args).toBe(false);
         });
 
         it("revives non-array capability collections into empty Sets", async () => {
@@ -542,6 +579,37 @@ describe("createDispatcher", () => {
             await handlers.load(loadFrame());
             const reply = JSON.parse(handlers.drain(drainFrame()));
             expect(reply).toEqual({ kind: "fatal", message: "drain boom" });
+        });
+    });
+
+    describe("setPlotOverrides", () => {
+        it("replies with `fatal` before load", () => {
+            const { deps } = makeDeps();
+            const handlers = createDispatcher(deps);
+            const reply = JSON.parse(handlers.setPlotOverrides(setPlotOverridesFrame()));
+            expect(reply).toEqual({ kind: "fatal", message: "setPlotOverrides before load" });
+        });
+
+        it("forwards the parsed overrides to runner.setPlotOverrides and replies with `ack`", async () => {
+            const { deps, runner } = makeDeps();
+            const handlers = createDispatcher(deps);
+            await handlers.load(loadFrame());
+            const reply = JSON.parse(
+                handlers.setPlotOverrides(setPlotOverridesFrame({ "p:1:1#0": { color: "#0f0" } })),
+            );
+            expect(reply).toEqual({ kind: "ack" });
+            expect(runner.setPlotOverrides).toHaveBeenCalledWith({ "p:1:1#0": { color: "#0f0" } });
+        });
+
+        it("replies with `fatal` when runner.setPlotOverrides throws", async () => {
+            const runner = makeFakeRunner({
+                setPlotOverridesThrow: new Error("override boom"),
+            });
+            const { deps } = makeDeps({ runner });
+            const handlers = createDispatcher(deps);
+            await handlers.load(loadFrame());
+            const reply = JSON.parse(handlers.setPlotOverrides(setPlotOverridesFrame()));
+            expect(reply).toEqual({ kind: "fatal", message: "override boom" });
         });
     });
 

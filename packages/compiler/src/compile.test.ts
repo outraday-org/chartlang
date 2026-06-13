@@ -31,13 +31,17 @@ describe("compile", () => {
         expect(result.manifest.capabilities).toEqual(["alerts", "indicators"]);
     });
 
-    it("emits 4 callsite-id literals for the EMA-cross fixture", async () => {
+    it("emits 4 distinct callsite-id literals for the EMA-cross fixture", async () => {
         const result = await compile(EMA_CROSS, {
             apiVersion: 1,
             sourcePath: "ema-cross.chart.ts",
         });
+        // 4 stateful callsites are rewritten with an injected id. The single
+        // `plot` callsite's id also appears in the appended `__manifest`
+        // `plots` array (the manifest echoes the injected id), so dedupe to
+        // count distinct injected ids.
         const matches = result.moduleSource.match(/"ema-cross\.chart\.ts:\d+:\d+#0"/g) ?? [];
-        expect(matches).toHaveLength(4);
+        expect(new Set(matches).size).toBe(4);
     });
 
     it("throws CompileError with a `type-error` diagnostic when a TS semantic error fires", async () => {

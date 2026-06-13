@@ -8,6 +8,7 @@ import type {
     AdapterSymInfo,
     Capabilities,
     LogEmission,
+    PlotOverride,
     RunnerEmissions,
     RuntimeDiagnostic,
 } from "@invinite-org/chartlang-adapter-kit";
@@ -49,6 +50,7 @@ export type CreateQuickJsHostOpts = Readonly<{
     capabilities: Capabilities;
     symInfo?: AdapterSymInfo;
     resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    resolvePlotOverrides?: (scriptId: string) => Readonly<Record<string, PlotOverride>>;
     quickJsLike?: QuickJsLike;
     limits?: Partial<QuickJsHostLimits>;
     onHostError?: (message: string) => void;
@@ -168,7 +170,7 @@ async function callAsyncJson(
 
 function callSyncJson(
     state: QuickJsState,
-    fnName: "__chartlang_drain",
+    fnName: "__chartlang_drain" | "__chartlang_setPlotOverrides",
     frame: HostToQuickJs,
 ): QuickJsToHost {
     const fn = state.context.getProp(state.context.global, fnName);
@@ -271,6 +273,9 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
                 ...(opts.resolveInputs === undefined
                     ? {}
                     : { inputOverrides: opts.resolveInputs(compiled.manifest.name) }),
+                ...(opts.resolvePlotOverrides === undefined
+                    ? {}
+                    : { plotOverrides: opts.resolvePlotOverrides(compiled.manifest.name) }),
                 limits,
             };
             const reply = await callAsyncJson(qjs, "__chartlang_load", frame);
@@ -307,6 +312,20 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
                 postHostError(text);
             } finally {
                 stepStartedAtMs = null;
+            }
+        },
+        setPlotOverrides(overrides) {
+            const qjs = state;
+            if (qjs === null) {
+                postHostError("setPlotOverrides before load");
+                return;
+            }
+            const reply = callSyncJson(qjs, "__chartlang_setPlotOverrides", {
+                kind: "setPlotOverrides",
+                overrides,
+            });
+            if (reply.kind === "fatal") {
+                postHostError(reply.message);
             }
         },
         async drain() {

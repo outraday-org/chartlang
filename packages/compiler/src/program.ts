@@ -1033,6 +1033,11 @@ declare module "@invinite-org/chartlang-core" {
         readonly title: string;
         readonly kind: "series-number";
     }>;
+    export type PlotSlotDescriptor = Readonly<{
+        readonly slotId: string;
+        readonly kind: PlotKind;
+        readonly title?: string;
+    }>;
     export type DependencyDeclaration = Readonly<{
         readonly localId: string;
         readonly producerName: string;
@@ -1062,6 +1067,7 @@ declare module "@invinite-org/chartlang-core" {
         readonly alertConditions?: ReadonlyArray<AlertConditionDefinition>;
         readonly dependencies?: ReadonlyArray<DependencyDeclaration>;
         readonly outputs?: ReadonlyArray<OutputDeclaration>;
+        readonly plots?: ReadonlyArray<PlotSlotDescriptor>;
         readonly exportName?: string;
         readonly siblings?: ReadonlyArray<ScriptManifest>;
         readonly isDrawn?: boolean;

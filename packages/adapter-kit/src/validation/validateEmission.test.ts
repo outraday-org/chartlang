@@ -239,6 +239,22 @@ describe("validateEmission — plot", () => {
             message: expect.stringContaining("pane"),
         });
     });
+
+    it("accepts visible: false (host-hidden slot)", () => {
+        expect(validateEmission({ ...validPlot, visible: false })).toEqual({ ok: true });
+    });
+
+    it("accepts visible: true (explicit override)", () => {
+        expect(validateEmission({ ...validPlot, visible: true })).toEqual({ ok: true });
+    });
+
+    it("rejects a non-boolean visible", () => {
+        expect(validateEmission({ ...validPlot, visible: "no" })).toMatchObject({
+            ok: false,
+            code: "malformed-emission",
+            message: expect.stringContaining("visible"),
+        });
+    });
 });
 
 describe("validateEmission — alert condition", () => {

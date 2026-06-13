@@ -327,6 +327,56 @@ export default {
         host.dispose();
     });
 
+    it("delivers setPlotOverrides as plain JSON — getter/Function-shaped values are dropped, compute state untouched", async () => {
+        const hostErrors: string[] = [];
+        const host = makeHost(hostErrors);
+        const m = manifest("plot-override-wire");
+        await host.load({
+            manifest: m,
+            moduleSource: `
+export default {
+    manifest: ${JSON.stringify(m)},
+    compute: ({ bar, plot }) => {
+        plot("sandbox.override:1:1#0", bar.close, { color: "#000" });
+    },
+};
+`,
+        });
+
+        // A malicious host-side override payload carrying a live getter and a
+        // Function-shaped value. JSON.stringify on the host membrane drops the
+        // function and resolves the getter to its plain value before the
+        // payload ever reaches the guest — no live reference crosses.
+        const malicious: Record<string, unknown> = {
+            "sandbox.override:1:1#0": {
+                color: "#0f0",
+                get visible() {
+                    return false;
+                },
+                evil: () => "pwned",
+            },
+        };
+        host.setPlotOverrides(malicious as never);
+
+        await host.push({ kind: "close", bar: bar() });
+        const out = await host.drain();
+
+        expectNoNonTimingHostErrors(hostErrors);
+        const plot = out.plots[0];
+        // Plain JSON fields applied; the override is presentation-only and did
+        // not corrupt the computed value (bar.close === 1 for index 0).
+        expect(plot).toMatchObject({
+            slotId: "sandbox.override:1:1#0",
+            value: 1,
+            color: "#0f0",
+            visible: false,
+        });
+        // No live function reached the guest — the override carried no callable
+        // surface into the realm (the emission is plain data only).
+        expect(typeof (plot as unknown as { evil?: unknown }).evil).toBe("undefined");
+        host.dispose();
+    });
+
     it("blocks Proxy revoke after emit from corrupting drain output", async () => {
         const result = await run(
             "proxy revoke",

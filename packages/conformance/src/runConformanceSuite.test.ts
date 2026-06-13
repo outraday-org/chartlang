@@ -30,6 +30,7 @@ import {
     DRAW_TABLE_HAPPY_SCENARIO,
     EMA_CROSS_SCENARIO,
     INPUT_INTERVAL_SCENARIO,
+    PLOT_STYLE_OVERRIDES_SCENARIO,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
     RUNTIME_ERROR_SCENARIO,
     RUNTIME_LOG_BUDGET_SCENARIO,
@@ -253,6 +254,69 @@ describe("runConformanceSuite", () => {
         expect(report.passed).toBe(PHASE_7_DEP_SCENARIOS.length);
         expect(report.failures).toEqual([]);
     }, 60_000);
+
+    it("runs the plot-style-overrides scenario end-to-end (mount + live overrides)", async () => {
+        // Exercises the mount-time `plotOverrides` arg, the mid-stream
+        // `setPlotOverrides` event routing, and the `plot-field` assertion
+        // happy path (visible / color / lineWidth + the live-cleared visible).
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [PLOT_STYLE_OVERRIDES_SCENARIO],
+            candles: SMALL_BARS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.failures).toEqual([]);
+    }, 30_000);
+
+    it("plot-field reports a missing slot ordinal, a missing emission, and a value mismatch", async () => {
+        const scenario: Scenario = Object.freeze({
+            id: "plot-field-failures",
+            title: "plot-field failure branches",
+            inlineSource:
+                'import { defineIndicator } from "@invinite-org/chartlang-core";\n' +
+                'export default defineIndicator({ name: "pf", apiVersion: 1, overlay: true,\n' +
+                "  compute({ bar, plot }) {\n" +
+                '    plot(bar.close, { title: "c" });\n' +
+                '    plot(bar.volume, { title: "v", style: { kind: "histogram", baseline: 0 } });\n' +
+                "  } });\n",
+            intervalCount: 1,
+            candleLimit: 2,
+            capabilitiesOverride: {
+                plots: new Set([
+                    ...capBuilders.line(),
+                    ...capBuilders.horizontalLine(),
+                    ...capBuilders.histogram(),
+                ]),
+            },
+            assertions: Object.freeze([
+                // slot 5 does not exist (only two plot slots in the manifest).
+                { kind: "plot-field", slotIndex: 5, bar: 0, field: "visible", expected: false },
+                // slot 0 exists but never emits at bar 99.
+                { kind: "plot-field", slotIndex: 0, bar: 99, field: "color", expected: "#fff" },
+                // slot 0 emits at bar 0 but with no color (mismatch vs "#fff").
+                { kind: "plot-field", slotIndex: 0, bar: 0, field: "color", expected: "#fff" },
+                // slot 1 is a histogram — its style carries no `lineWidth`, so
+                // reading lineWidth yields undefined (matches expected here).
+                {
+                    kind: "plot-field",
+                    slotIndex: 1,
+                    bar: 0,
+                    field: "lineWidth",
+                    expected: undefined,
+                },
+            ] as ReadonlyArray<ScenarioAssertion>),
+        });
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [scenario],
+            candles: SMALL_BARS.slice(0, 2),
+        });
+        expect(report.failed).toBe(1);
+        const messages = report.failures.map((f) => f.message);
+        expect(messages.some((m) => m.includes("no plot slot at that ordinal"))).toBe(true);
+        expect(messages.some((m) => m.includes("no plot emission for that slot and bar"))).toBe(
+            true,
+        );
+        expect(messages.some((m) => /\.color: expected #fff, actual/.test(m))).toBe(true);
+    }, 30_000);
 
     it("rejects a scenario that defines additionalSources without inlineSource", async () => {
         const scenario: Scenario = Object.freeze({

@@ -154,15 +154,19 @@ describe("createWorkerHost", () => {
         await expect(p).resolves.toBeUndefined();
     });
 
-    it("posts the load frame with capabilities, sym-info, input overrides, and merged limits", async () => {
+    it("posts the load frame with capabilities, sym-info, input/plot overrides, and merged limits", async () => {
         const worker = makeFakeWorker();
         const caps = makeCapabilities();
         const symInfo = { ticker: "DEMO" };
         const resolveInputs = vi.fn((scriptId: string) => ({ length: scriptId.length }));
+        const resolvePlotOverrides = vi.fn((_scriptId: string) => ({
+            "p:1:1#0": { visible: false },
+        }));
         const host = createWorkerHost({
             capabilities: caps,
             symInfo,
             resolveInputs,
+            resolvePlotOverrides,
             workerLike: worker,
             limits: { maxRingBufferBars: 999 },
         });
@@ -172,11 +176,33 @@ describe("createWorkerHost", () => {
         expect(frame.capabilities).toBe(caps);
         expect(frame.symInfo).toBe(symInfo);
         expect(frame.inputOverrides).toEqual({ length: 4 });
+        expect(frame.plotOverrides).toEqual({ "p:1:1#0": { visible: false } });
         expect(frame.limits.maxRingBufferBars).toBe(999);
         expect(frame.compiled.manifest.name).toBe("demo");
         expect(resolveInputs).toHaveBeenCalledWith("demo");
+        expect(resolvePlotOverrides).toHaveBeenCalledWith("demo");
         worker.deliver({ kind: "loaded" });
         await p;
+    });
+
+    it("omits plotOverrides on the load frame when resolvePlotOverrides is not supplied", async () => {
+        const worker = makeFakeWorker();
+        const host = createWorkerHost({ capabilities: makeCapabilities(), workerLike: worker });
+        const p = host.load(emptyCompiled());
+        const frame = worker.sent[0];
+        if (frame.kind !== "load") throw new Error("expected load frame");
+        expect("plotOverrides" in frame).toBe(false);
+        worker.deliver({ kind: "loaded" });
+        await p;
+    });
+
+    it("posts a setPlotOverrides frame for host.setPlotOverrides(...)", () => {
+        const worker = makeFakeWorker();
+        const host = createWorkerHost({ capabilities: makeCapabilities(), workerLike: worker });
+        host.setPlotOverrides({ "p:1:1#0": { color: "#f00" } });
+        const last = worker.sent[worker.sent.length - 1];
+        if (last.kind !== "setPlotOverrides") throw new Error("expected setPlotOverrides");
+        expect(last.overrides).toEqual({ "p:1:1#0": { color: "#f00" } });
     });
 
     it("rejects a second load() while the first is still in flight", async () => {

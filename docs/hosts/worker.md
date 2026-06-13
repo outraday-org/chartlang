@@ -36,14 +36,15 @@ adapter.onEmissions(emissions);
 host.dispose();
 ```
 
-`createWorkerHost` returns a frozen `ScriptHost`. The four lifecycle
-methods are:
+`createWorkerHost` returns a frozen `ScriptHost`. The lifecycle methods
+are:
 
 | Method | Purpose |
 | --- | --- |
-| `load(compiled)` | Send the compiled bundle plus the adapter's capabilities and resolved inputs to the worker. Awaits the boot `loaded` reply or rejects after `maxLoadTimeoutMs` (default 30 s). |
+| `load(compiled)` | Send the compiled bundle plus the adapter's capabilities, resolved inputs, and resolved plot overrides to the worker. Awaits the boot `loaded` reply or rejects after `maxLoadTimeoutMs` (default 30 s). |
 | `push(event)` | Forward a `history`, `close`, or `tick` `CandleEvent` to the worker. Fire-and-forget. |
 | `drain()` | Round-trip a request for the queued `RunnerEmissions` batch since the last drain. |
+| `setPlotOverrides(overrides)` | Replace the live `slotId`-keyed [plot overrides](../adapters/contract.md#plot-overrides) — visibility / color / line cosmetics. Presentation-only, no recompute; the next `drain()` reflects it. Fire-and-forget. |
 | `dispose()` | Terminate the worker and reject any pending drains. |
 
 `host.limits` exposes the resolved `HostLimits` (`maxCpuMsPerStep: 50`,
@@ -84,6 +85,11 @@ pattern for Worker boot files.
   the runtime's `syminfo.*` view.
 - `resolveInputs` — optional adapter callback. The host calls it during
   `load()` and forwards the plain override record to the worker.
+- `resolvePlotOverrides` — optional adapter callback for the initial
+  `slotId`-keyed [plot overrides](../adapters/contract.md#plot-overrides).
+  The host calls it during `load()` and forwards the plain override record
+  on the `load` frame; push live changes afterward via
+  `host.setPlotOverrides(...)`.
 - `workerLike` — test seam. Tests supply a `MessageChannel` port; in
   production omit it and the host constructs a real `Worker`.
 - `limits` — partial `HostLimits` overrides. Missing fields fall through

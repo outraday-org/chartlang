@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.0.1",
-    "passed": 226,
+    "passed": 227,
     "failed": 0,
     "scenarios": [
         {
@@ -691,6 +691,12 @@
         {
             "id": "plot-kind-shape-gated",
             "title": "PlotKind shape gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-style-overrides",
+            "title": "Plot style overrides",
             "status": "pass",
             "failures": []
         },

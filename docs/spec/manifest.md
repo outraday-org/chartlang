@@ -37,6 +37,7 @@ MUST round-trip through `JSON.stringify` and `structuredClone` unchanged.
 | `alertConditions` | No | alert-condition descriptor array | Static condition list for `defineAlertCondition` scripts. |
 | `dependencies` | No | dependency-declaration array | Each `<binding>.output(...)` read in `compute` records one entry. Producer name, outputs, and effective input overrides are static. Optional; absent on scripts that have no deps. `@since 0.7`. |
 | `outputs` | No | output-declaration array | Titles + kinds of every `plot(value, { title })` call this script makes. Consumed by downstream scripts via `<binding>.output("title")`. Optional; absent on scripts whose `plot` calls have no titles. `@since 0.7`. |
+| `plots` | No | plot-slot-descriptor array | One entry per `plot()` / `hline()` callsite, in source order, carrying the callsite `slotId`, statically-known plot `kind`, and literal `title` when present. Lets an embedder build a Style-tab plot list (and key host overrides by `slotId`) before the first emission. Optional; absent on scripts with no plot/hline callsites. `@since 0.8`. |
 | `exportName` | No | string | The module-export binding name when the file declares multiple drawn indicators — `"default"` for the default export, the local name for `export const foo`. Absent on single-script files for byte-identical back-compat. `@since 0.7`. |
 | `siblings` | No | script-manifest array | Every other drawn manifest in the same compiled file. Populated only on the default manifest's emission to the host when the array sidecar form is used. `@since 0.7`. |
 | `isDrawn` | No | boolean | `true` when the binding is part of the module's exported surface (default or named) and the host should mount + render it. `false` for private `const` deps acting only as data feeds. `@since 0.7`. |
@@ -122,6 +123,26 @@ or more drawn indicators co-exist. In the array form, the first entry is
 the default export's manifest; subsequent entries are the named exports.
 The default's `siblings` field is omitted in the array form (the array
 itself is the sibling surface).
+
+### Plot Slot Descriptors
+
+`plots` is the static slot list an embedder reads to build a Style-tab plot
+list — and to key host [plot overrides](../adapters/contract.md#plot-overrides)
+by `slotId` — **before** any candle is pushed. It covers every plotted value,
+including untitled plots that `outputs` omits. Each `plots[]` entry has this
+shape:
+
+| Field | Required | Type | Meaning |
+| --- | --- | --- | --- |
+| `slotId` | Yes | non-empty string | The compiler-issued callsite id — the same id that appears as `PlotEmission.slotId` at runtime. |
+| `kind` | Yes | `PlotKind` | The statically-known plot kind. Derived from the callee (`hline` ⇒ `"horizontal-line"`) and the opts `style.kind` string literal; a dynamic/non-literal style falls back to `"line"` (best-effort). |
+| `title` | No | string | Present only when the callsite's opts object literal carries a string-literal `title`. Omitted otherwise. |
+
+Entries are in source (callsite) order and the array round-trips through
+`JSON.stringify` / `structuredClone` like every other manifest field. In a
+multi-export file the flat plot list is attached to the **default** manifest
+only; sibling manifests carry no `plots` (per-export partitioning is deferred
+follow-up work).
 
 ## Input Descriptors
 

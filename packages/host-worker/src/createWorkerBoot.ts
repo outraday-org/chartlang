@@ -149,6 +149,9 @@ export function createWorkerBoot(scope: WorkerBootScope): void {
                     ...(msg.inputOverrides !== undefined
                         ? { inputOverrides: msg.inputOverrides }
                         : {}),
+                    ...(msg.plotOverrides !== undefined
+                        ? { plotOverrides: msg.plotOverrides }
+                        : {}),
                 });
                 limits = msg.limits;
                 scope.postMessage({ kind: "loaded" });
@@ -175,6 +178,13 @@ export function createWorkerBoot(scope: WorkerBootScope): void {
                     if (overshoot > 0) {
                         scope.postMessage({ kind: "step-overshoot", observedMs: overshoot });
                     }
+                    break;
+                }
+                case "setPlotOverrides": {
+                    if (runner === null) {
+                        throw new Error("setPlotOverrides before load");
+                    }
+                    runner.setPlotOverrides(msg.overrides);
                     break;
                 }
                 case "drain": {

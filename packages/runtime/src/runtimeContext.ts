@@ -8,6 +8,7 @@ import type {
     DrawingEmission,
     LogEmission,
     PlotEmission,
+    PlotOverride,
     RuntimeDiagnostic,
 } from "@invinite-org/chartlang-adapter-kit";
 import type {
@@ -228,6 +229,14 @@ export type RuntimeContext = {
      * at mount and reused by every compute step. @since 0.4
      */
     resolvedInputs: Readonly<Record<string, unknown>>;
+    /**
+     * Host-supplied per-slot presentation overrides, keyed by
+     * `PlotEmission.slotId`. Applied at emit time by `applyPlotOverride`.
+     * Mutable — `setPlotOverrides` swaps it live (presentation-only, so
+     * it does not break the frozen-input determinism guarantee). Entries
+     * themselves are frozen. @since 0.8
+     */
+    plotOverrides: Readonly<Record<string, PlotOverride>>;
     /**
      * Runtime diagnostic dedupe for mount-time input override failures,
      * keyed by manifest input key. Cleared on `dispose`. @since 0.4

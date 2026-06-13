@@ -9,6 +9,8 @@ import type {
     DrawingKind as CoreDrawingKind,
     InputKind as CoreInputKind,
     PlotKind as CorePlotKind,
+    PlotOverride as CorePlotOverride,
+    PlotSlotDescriptor as CorePlotSlotDescriptor,
     DrawingState,
     IntervalDescriptor,
     JsonValue,
@@ -76,6 +78,38 @@ export type CandleEvent =
  *     const k: PlotKind = "line";
  */
 export type PlotKind = CorePlotKind;
+
+/**
+ * One plotted-slot descriptor in `ScriptManifest.plots`. Re-exported
+ * from `@invinite-org/chartlang-core` so the script-facing and
+ * adapter-facing surfaces stay in lockstep — adapter authors key
+ * style/visibility UI rows by the stable `slotId`.
+ *
+ * @since 0.8
+ * @stable
+ * @example
+ *     const slot: PlotSlotDescriptor = {
+ *         slotId: "ema.ts:12:5#0",
+ *         kind: "line",
+ *         title: "EMA",
+ *     };
+ *     void slot;
+ */
+export type PlotSlotDescriptor = CorePlotSlotDescriptor;
+
+/**
+ * Host-supplied presentation override for a single plot slot, keyed by
+ * `PlotEmission.slotId`. Re-exported from `@invinite-org/chartlang-core`
+ * so adapter authors and hosts share the same shape. Applied by the
+ * runtime at emit time; never affects `compute`.
+ *
+ * @since 0.8
+ * @stable
+ * @example
+ *     const override: PlotOverride = { visible: false, color: "#ff0000" };
+ *     void override;
+ */
+export type PlotOverride = CorePlotOverride;
 
 /**
  * Drawing kind discriminator. Phase 3 widens the Phase-1 `"line"`
@@ -465,6 +499,18 @@ export type PlotEmission = {
     readonly color: string | null;
     readonly meta: Readonly<Record<string, JsonValue>>;
     readonly pane: "overlay" | "new" | string;
+    /**
+     * Omitted ⇒ visible. Set to `false` by the runtime when a host
+     * override hides this slot; the adapter SHOULD skip rendering and
+     * y-scale inclusion but keep the slot listed.
+     *
+     * @since 0.8
+     * @stable
+     * @example
+     *     const hidden: PlotEmission["visible"] = false;
+     *     void hidden;
+     */
+    readonly visible?: boolean;
 };
 
 /**
@@ -742,6 +788,21 @@ export type Adapter = {
      *     void resolveInputs;
      */
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    /**
+     * Optional per-script plot-override resolver. Called by hosts at
+     * mount with the script id/name; returns a `slotId → PlotOverride`
+     * map the runtime applies to emissions. Presentation-only — never
+     * affects `compute`. Hosts may also push live updates after mount
+     * (see `ScriptHost.setPlotOverrides`).
+     *
+     * @since 0.8
+     * @stable
+     * @example
+     *     const resolvePlotOverrides: Adapter["resolvePlotOverrides"] =
+     *         () => ({ "ema.ts:12:5#0": { visible: false } });
+     *     void resolvePlotOverrides;
+     */
+    readonly resolvePlotOverrides?: (scriptId: string) => Readonly<Record<string, PlotOverride>>;
     /**
      * Optional per-mount symbol metadata payload used to populate
      * `syminfo.*`. Fields are still gated by `capabilities.symInfoFields`.
