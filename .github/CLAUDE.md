@@ -27,12 +27,24 @@ GitHub-specific configuration: CI workflow and pull-request template.
   `needs.test.result` is `success` **or** `skipped`, failing on
   `failure`/`cancelled`. If you rename the job or its matrix legs, update
   the ruleset's required contexts to match.
+- The `detect` job emits `is_release_merge` by querying the PR(s)
+  associated with the pushed commit
+  (`/commits/{sha}/pulls`, robust across merge/squash/rebase) and checking
+  for `head.ref == 'changeset-release/main'`. `test` skips its matrix on a
+  push to `main` **only** when that is true — the merge of the "Version
+  Packages" PR, whose code was already tested on the PR that produced it.
+  Every other push (feature merges) still runs the matrix. The job needs
+  `pull-requests: read` and uses `GH_TOKEN: ${{ github.token }}`.
 - The `release:` job at the bottom of `ci.yml` is live and runs only on
-  `push` events to `main` after the test matrix passes. It uses
-  `changesets/action@v1` to open/update the Version Packages PR and to
-  publish when that PR merges. Keep write permissions job-local and ensure
-  `NPM_TOKEN` is configured in repo secrets before merging release PRs.
-  Manual fallback is `pnpm publish:release` from a maintainer machine.
+  `push` events to `main`. Its `if` uses `always()` plus
+  `needs.test.result != 'failure'/'cancelled'` so it still publishes when
+  `test` was **skipped** on the publish push, but never publishes when the
+  matrix actually ran and failed. It uses `changesets/action@v1` to
+  open/update the Version Packages PR (changesets present) and to publish
+  `changeset publish` when none remain. Keep write permissions job-local
+  and ensure `NPM_TOKEN` is configured in repo secrets before merging
+  release PRs. Manual fallback is `pnpm publish:release` from a maintainer
+  machine.
 - `pull_request_template.md` is **§22.7 verbatim** — six checklist items.
   New checklist items go in PLAN.md §22.7 first, then mirror here.
 
