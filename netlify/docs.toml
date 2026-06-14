@@ -1,0 +1,26 @@
+# netlify/docs.toml — build config for docs.chartlang.invinite.com.
+# Registered in Netlify as the base config for Site "chartlang-docs".
+
+[build]
+    base = "."
+    command = "pnpm install --frozen-lockfile && pnpm docs:build"
+    publish = "docs/.vitepress/dist"
+
+[build.environment]
+    NODE_VERSION = "20"
+    PNPM_VERSION = "9.12.0"
+
+# VitePress generates per-route HTML. No /api/* routes on this site —
+# pure static.
+
+[[headers]]
+    for = "/*"
+    [headers.values]
+        X-Content-Type-Options = "nosniff"
+        Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache fingerprinted assets aggressively; HTML stays short-cache.
+[[headers]]
+    for = "/assets/*"
+    [headers.values]
+        Cache-Control = "public, max-age=31536000, immutable"

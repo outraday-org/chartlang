@@ -17,7 +17,20 @@ GitHub-specific configuration: CI workflow and pull-request template.
   `pnpm hover:check` — regenerates
   `skills/chartlang-coding/references/primitives.md` from `ta.*`/`draw.*`
   JSDoc and byte-diffs against the committed file (repo tooling, not in
-  PLAN.md §22.6).
+  PLAN.md §22.6); (5) the landing-site task set adds
+  `pnpm --filter chartlang-site typecheck` + `… build` steps (after the
+  conformance block, before `pnpm bench:ci`) so a broken marketing site
+  fails the matrix, plus a separate `e2e-site` job (Ubuntu, Node 20,
+  `needs: test`, own `e2e-site-${{ github.ref }}` concurrency group)
+  that installs Chromium, builds `apps/site`, runs its Playwright suite,
+  and uploads `apps/site/playwright-report/` on failure.
+- **GitHub Pages is retired.** The old `workflows/docs.yml` (VitePress
+  build → Pages deploy) is deleted; docs deploy from `main` via the
+  Netlify GitHub App, and `pnpm docs:build` in the `test` job is the
+  only docs CI gate. Pages must be disabled at the repo level manually
+  (no public API); previews + production deploys for both Netlify sites
+  are posted by the Netlify GitHub App, so no `netlify-*` workflow
+  exists here.
 - The `ci-gate` job (`name: CI Gate`) is the **single required status
   check** in the branch ruleset, replacing the four `Test (os / Node n)`
   matrix contexts. The `test` job is skipped on the

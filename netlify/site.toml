@@ -1,0 +1,48 @@
+# netlify/site.toml — build config for chartlang.invinite.com.
+# Registered in Netlify as the base config for Site "chartlang-site".
+#
+# @tanstack/react-start emits dist/client (static assets) + dist/server
+# (the SSR + server-route bundle); there is no build-time Netlify preset.
+# Netlify's TanStack Start adapter turns dist/server into functions at
+# deploy time, so `publish` points at the static client output.
+
+[build]
+    base = "."
+    command = "pnpm install --frozen-lockfile && pnpm --filter chartlang-site build"
+    publish = "apps/site/dist/client"
+
+[build.environment]
+    NODE_VERSION = "20"
+    PNPM_VERSION = "9.12.0"
+
+[functions]
+    # esbuild ships native binaries and locates them relative to its own
+    # package — bundling it into the ESM function breaks it ("__filename is
+    # not defined"). Keep it external so the Lambda runtime loads it from
+    # node_modules. Mirrors apps/site/vite.config.ts's ssr external.
+    external_node_modules = ["esbuild"]
+
+[[redirects]]
+    from = "/api/*"
+    to = "/.netlify/functions/:splat"
+    status = 200
+
+# Headers — security baseline. No CSP yet (the editor uses inline scripts
+# via CodeMirror); revisit when a CSP audit is on the roadmap.
+[[headers]]
+    for = "/*"
+    [headers.values]
+        X-Content-Type-Options = "nosniff"
+        Referrer-Policy = "strict-origin-when-cross-origin"
+        Permissions-Policy = "geolocation=(), camera=(), microphone=()"
+
+# CORS baseline for the public compile endpoint. The real cross-origin
+# enforcement (and Netlify-preview `*.netlify.app` allowance) lives in
+# the server route's Origin check — Netlify's static headers can't echo a
+# dynamic preview origin, so this pins the production domain only.
+[[headers]]
+    for = "/api/compile"
+    [headers.values]
+        Access-Control-Allow-Origin = "https://chartlang.invinite.com"
+        Access-Control-Allow-Methods = "POST, OPTIONS"
+        Access-Control-Allow-Headers = "Content-Type"

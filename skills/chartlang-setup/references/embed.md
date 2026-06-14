@@ -35,10 +35,13 @@ export async function compileScript(
 
 `compile()` returns a frozen `CompiledScript` —
 `{ moduleSource, manifest, types, sourcemap? }`. Only `moduleSource` and
-`manifest` cross the boundary to the host. The reference middleware is
-[`examples/react-demo/server/compilePlugin.ts`](https://github.com/outraday-org/chartlang/blob/main/examples/react-demo/server/compilePlugin.ts),
-a Vite dev-server plugin — call it from a `POST /api/compile` endpoint
-and ship the response to the browser editor.
+`manifest` cross the boundary to the host. The reference server route is
+[`apps/site/src/routes/api/compile.ts`](https://github.com/outraday-org/chartlang/blob/main/apps/site/src/routes/api/compile.ts)
+(with its server-only helper
+[`apps/site/src/lib/server/compile.ts`](https://github.com/outraday-org/chartlang/blob/main/apps/site/src/lib/server/compile.ts)),
+a TanStack Start server route deployed as a Netlify Function — it
+exposes `POST /api/compile` and ships the response to the browser
+editor.
 
 ## 2. Host the bundle
 
@@ -117,12 +120,14 @@ advertise is a silent no-op (see [`adapter.md`](./adapter.md)).
 
 ## Full wiring
 
-- [`examples/react-demo/`](https://github.com/outraday-org/chartlang/tree/main/examples/react-demo)
-  — editor + live chart. `src/ChartPane.tsx` shows the React pattern
-  (every new compile disposes the previous adapter and spins up a fresh
-  one against the same canvas); `vite.config.ts` shows the alias stubs
-  that let the language service load in-browser for hover/completion
-  while the real `compile()` runs server-side over `/api/compile`.
+- [`apps/site/`](https://github.com/outraday-org/chartlang/tree/main/apps/site)
+  — the marketing site with an embedded editor + live chart.
+  `src/components/demo/ChartPane.tsx` shows the React pattern (every new
+  compile disposes the previous adapter and spins up a fresh one against
+  the same canvas); `vite.config.ts` shows the client-only stub plugin
+  that lets the language service load in-browser for hover/completion
+  while the real `compile()` runs server-side over the `/api/compile`
+  server route (`src/routes/api/compile.ts`).
 - [`examples/canvas2d-adapter/playground/`](https://github.com/outraday-org/chartlang/tree/main/examples/canvas2d-adapter/playground)
   — the vanilla (no-framework) version of the same loop.
 

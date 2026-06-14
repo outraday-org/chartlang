@@ -13,6 +13,9 @@ One script, many charts.
 [![coverage](https://img.shields.io/codecov/c/github/outraday-org/chartlang)](https://codecov.io/gh/outraday-org/chartlang)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
+> Live at [chartlang.invinite.com](https://chartlang.invinite.com).
+> Docs at [docs.chartlang.invinite.com](https://docs.chartlang.invinite.com).
+
 ```typescript
 import { defineIndicator } from "@invinite-org/chartlang-core";
 
@@ -34,27 +37,23 @@ export default defineIndicator({
 
 ## Try it
 
-First install and build the workspace once from the repo root — the
-demos resolve `@invinite-org/chartlang-*` from each package's built
-`dist/`:
+Three ways to exercise the full stack end-to-end:
 
-```bash
-pnpm install
-pnpm build
-```
-
-Then run either of the two demos, which exercise the full stack
-end-to-end:
-
-- **React editor + live chart** — type the script on the left, watch
-  it render on the right. Hot reloads on every keystroke through the
-  real compiler.
+- **Live demo** — open
+  [chartlang.invinite.com](https://chartlang.invinite.com) in any
+  browser. The landing page embeds a live editor + chart playground
+  that compiles your script in a Netlify Function and renders it
+  through the reference canvas2d adapter — nothing to install.
+- **Run the site locally** — clone this repo and run the
+  marketing + demo site against the workspace packages. See
+  [Run the site locally](./docs/getting-started/run-the-site-locally.md):
   ```bash
-  cd examples/react-demo && pnpm dev
-  # then open http://localhost:5173
+  pnpm install && pnpm site:dev
+  # then open http://localhost:3000
   ```
 - **Vanilla canvas2d playground** — minimal HTML page that loads the
-  pre-compiled `examples/scripts/ema-cross.chart.js` triple.
+  pre-compiled `examples/scripts/ema-cross.chart.js` triple (build the
+  workspace once with `pnpm install && pnpm build` first):
   ```bash
   pnpm dlx vite --port 5273
   # then open http://localhost:5273/examples/canvas2d-adapter/playground/
@@ -190,8 +189,8 @@ linked from there. Published announcements are on
 
 ## Links
 
-- **Docs site:** [outraday-org.github.io/chartlang](https://outraday-org.github.io/chartlang/)
-  (deployed from `main` by the Docs workflow; `chartlang.dev` once DNS is wired).
+- **Docs site:** [docs.chartlang.invinite.com](https://docs.chartlang.invinite.com)
+  (deployed from `main` by Netlify).
 - **Language overview:** [`./docs/language/overview.md`](./docs/language/overview.md).
 - **Language spec:** [`./docs/spec/grammar.md`](./docs/spec/grammar.md).
 - **Primitive reference:** [`./docs/primitives/`](./docs/primitives/) —

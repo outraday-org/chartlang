@@ -1,9 +1,9 @@
 # docs/
 
 The chartlang documentation site. Structure mirrors PLAN.md §17.1 — that
-section is the source of truth for the page tree. VitePress (or similar)
-will eventually build this directory into `chartlang.dev`; the build wiring
-lands in Phase 1+ alongside real content.
+section is the source of truth for the page tree. VitePress builds this
+directory and Netlify deploys it to `docs.chartlang.invinite.com` (see
+the repo-root `DEPLOYMENT.md`).
 
 ## Conventions
 
@@ -43,12 +43,32 @@ lands in Phase 1+ alongside real content.
 
 - `.gitkeep` is **removed** from any directory that has at least one
   hand-authored `.md` stub. Today that covers `getting-started/`,
-  `language/`, `adapters/` (top level), `hosts/`, `spec/`, and
-  `reference/` — none of which had a `.gitkeep` to begin with (Task 1
+  `language/`, `adapters/` (top level), `hosts/`, `spec/`, `reference/`,
+  and `skills/` — none of which had a `.gitkeep` to begin with (Task 1
   only seeded `.gitkeep` in the auto-generated leaves).
 
-- No VitePress config (`docs/.vitepress/config.ts`) ships in Phase 0.
-  It lands with the first PR that adds a `docs:build` step to CI.
+- `docs/.vitepress/config.ts` is live. `base` defaults to `/`
+  (`process.env.DOCS_BASE ?? "/"`) — the docs deploy to
+  `docs.chartlang.invinite.com` at the root. No CI workflow sets
+  `DOCS_BASE` after the Netlify custom-domain cutover; the env fallback
+  stays for local flexibility only. Do not hard-code a sub-path base.
+
+- **Custom brand theme at `docs/.vitepress/theme/`.** VitePress
+  auto-discovers `theme/index.ts`, which `extends` the default theme
+  (never replaces it). `theme/style.css`
+  `@import`s the repo-root single source of truth
+  `../../../brand/brand.css` (see root `CLAUDE.md` / `brand/README.md`)
+  and remaps VitePress's `--vp-*` variables onto the brand tokens so the
+  default theme's components inherit the indigo + slate + emerald look —
+  do not add per-component overrides. The nav logo + favicons are wired
+  to `/logo.svg` and `/logo.ico`, which are **not committed** here —
+  `pnpm brand:sync` (run by `docs:dev` / `docs:build`) copies them from
+  the single source `brand/chartlang_logo.{svg,ico}` into the
+  git-ignored `docs/public/logo.{svg,ico}`. Never hand-edit or commit
+  those copies; swap the logo in `brand/` (see `brand/README.md`). The
+  fonts (`@fontsource-variable/*`) and the Shiki theme
+  (`github-dark-dimmed`) match `apps/site/` so the two sites read as one
+  product.
 
 ## Gate interactions
 
@@ -81,3 +101,4 @@ already wired and enforces the `primitives/ta/` byte equality today.
 | `hosts/` | Host implementations + author guide. | 3 |
 | `spec/` | Canonical language spec. | 5 |
 | `reference/` | Glossary + FAQ. | 2 |
+| `skills/` | Hand-written overview of the `skills/` Agent Skills (index + one page per skill). Not auto-generated, not gated. | 3 |

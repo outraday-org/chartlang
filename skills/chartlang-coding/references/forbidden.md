@@ -6,7 +6,7 @@ escape hatch in `apiVersion: 1`** — every restriction holds for every
 v1 script.
 
 The normative source for this list is
-[grammar § Forbidden constructs](https://outraday-org.github.io/chartlang/spec/grammar.html#forbidden-constructs).
+[grammar § Forbidden constructs](https://docs.chartlang.invinite.com/spec/grammar#forbidden-constructs).
 This reference groups the constructs by *why* they are forbidden, so
 you can route a user's error to the right rule without scanning a
 diagnostic-code table.
@@ -133,8 +133,8 @@ network.
 ## Cross-links
 
 - The normative diagnostic table:
-  [grammar § Forbidden constructs](https://outraday-org.github.io/chartlang/spec/grammar.html#forbidden-constructs).
+  [grammar § Forbidden constructs](https://docs.chartlang.invinite.com/spec/grammar#forbidden-constructs).
 - The narrative rationale: `docs/language/forbidden-constructs.md`
   in the chartlang repo.
 - The determinism contract:
-  [Execution semantics § Determinism](https://outraday-org.github.io/chartlang/spec/semantics.html#determinism).
+  [Execution semantics § Determinism](https://docs.chartlang.invinite.com/spec/semantics#determinism).

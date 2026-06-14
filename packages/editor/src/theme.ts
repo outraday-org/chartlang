@@ -6,8 +6,8 @@ import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 
-// Palette pinned here so the consuming dark UI (e.g. react-demo) and the
-// CodeMirror surface stay perceptually aligned. Numbers are duplicated
+// Palette pinned here so the consuming dark UI (e.g. the apps/site embedded
+// demo) and the CodeMirror surface stay perceptually aligned. Numbers are duplicated
 // nowhere — they are the source of truth for the editor chrome.
 const BG = "#0e1218";
 const FG = "#d8dee9";
@@ -125,8 +125,8 @@ const highlightStyle = HighlightStyle.define([
  *
  * Compose as the last extension passed to {@link createChartlangEditor}
  * (via `opts.extensions`) so it overrides the default light theme that
- * `basicSetup` ships. The palette is harmonised with the react-demo's
- * dark chrome (`#0e1218` background, `#161b22` panels) and the syntax
+ * `basicSetup` ships. The palette is harmonised with the apps/site embedded
+ * demo's dark chrome (`#0e1218` background, `#161b22` panels) and the syntax
  * highlight pass is a One-Dark-inspired token set.
  *
  * @since 1.2

@@ -93,9 +93,10 @@ pnpm add @invinite-org/chartlang-compiler \
 ```
 
 `compile()` reaches node builtins and native esbuild — never ship it to
-the browser. The reference embed (`examples/react-demo/`) runs `compile`
-behind a `POST /api/compile` endpoint and stubs the language service's
-node imports for in-browser hover/completion; see `embed.md`.
+the browser. The reference embed (`apps/site/`) runs `compile` behind a
+`POST /api/compile` **Netlify Function** (a TanStack Start server route,
+not a Vite dev middleware) and stubs the language service's node imports
+for in-browser hover/completion; see `embed.md`.
 
 ## 4. Capability gating (cross-cutting)
 

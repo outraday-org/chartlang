@@ -13,7 +13,7 @@
             "examples/scripts/*.chart.d.ts",
             "examples/scripts/*.chart.manifest.json",
             "examples/canvas2d-adapter/e2e-smoke.ts",
-            "examples/react-demo/**",
+            "apps/**",
             "parity-smoke.mts"
         ]
     },

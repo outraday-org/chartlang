@@ -2,17 +2,30 @@ import { defineConfig } from "vitepress";
 
 const REPO_BLOB_URL = "https://github.com/outraday-org/chartlang/blob/main/";
 
+// Custom theme lives at ./theme/index.ts — shared brand tokens with
+// apps/site/ via ../../../brand/brand.css. Logo, fonts, palette, and the
+// Shiki code-block theme are aligned between the marketing site and the
+// docs so they read as one product. See
+// tasks/landing-site-netlify-deploy/5-docs-rebrand-and-netlify-configs.md.
 export default defineConfig({
     title: "chartlang",
     description:
         "Open TypeScript eDSL for indicator, drawing, and alert scripts that run on any conforming chart adapter.",
-    // GitHub Pages serves the site under /chartlang/; the Docs workflow
-    // sets DOCS_BASE. Local dev and a future custom-domain deploy keep
-    // the root base.
+    // The docs deploy to docs.chartlang.invinite.com at the root, so the
+    // base defaults to "/". No CI workflow sets DOCS_BASE after the
+    // custom-domain cutover (Task 6 removes the GitHub Pages workflow); the
+    // env fallback stays for local flexibility and is harmless.
     base: process.env.DOCS_BASE ?? "/",
+    head: [
+        ["link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }],
+        ["link", { rel: "icon", type: "image/x-icon", href: "/logo.ico" }],
+    ],
     ignoreDeadLinks: false,
     markdown: {
         html: false,
+        // Match apps/site's CodeBlock Shiki theme so snippets render
+        // identically across the marketing site and the docs.
+        theme: "github-dark-dimmed",
         config(md) {
             const defaultRender =
                 md.renderer.rules.link_open ??
@@ -36,6 +49,8 @@ export default defineConfig({
     },
     srcExclude: ["**/CLAUDE.md"],
     themeConfig: {
+        logo: { src: "/logo.svg", alt: "chartlang" },
+        siteTitle: "chartlang",
         nav: [
             { text: "Getting Started", link: "/getting-started/write-your-first-script" },
             { text: "Language", link: "/language/overview" },
@@ -44,8 +59,19 @@ export default defineConfig({
             { text: "Adapters", link: "/adapters/contract" },
             { text: "Hosts", link: "/hosts/worker" },
             { text: "Reference", link: "/reference/glossary" },
+            { text: "Skills", link: "/skills/" },
         ],
         sidebar: {
+            "/skills/": [
+                {
+                    text: "Skills",
+                    items: [
+                        { text: "Overview", link: "/skills/" },
+                        { text: "chartlang-coding", link: "/skills/chartlang-coding" },
+                        { text: "chartlang-setup", link: "/skills/chartlang-setup" },
+                    ],
+                },
+            ],
             "/getting-started/": [
                 {
                     text: "Getting Started",
@@ -57,6 +83,10 @@ export default defineConfig({
                         {
                             text: "Embed in your chart",
                             link: "/getting-started/embed-in-our-chart",
+                        },
+                        {
+                            text: "Run the site locally",
+                            link: "/getting-started/run-the-site-locally",
                         },
                         {
                             text: "Write your first adapter",
