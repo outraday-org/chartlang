@@ -352,15 +352,15 @@ Status meanings:
 ### Strategy Primitives
 
 Pine `strategy.entry`, `strategy.exit`, `strategy.close`, order fills, P&L
-accounting, risk sizing, and equity curves are outside chartlang v1. PLAN §19
-lists strategy primitives as Beyond 1.0 and says they require a future
+accounting, risk sizing, and equity curves are outside chartlang v1.
+Strategy primitives are Beyond 1.0 and require a future
 `Capabilities.strategy` flag.
 
 ### Hosted Fundamentals Built-ins
 
 Pine `request.financial`, `request.dividends`, `request.splits`,
 `request.earnings`, and `request.economic` depend on TradingView-hosted data.
-PLAN §21 keeps chartlang data-source neutral. Use
+chartlang stays data-source neutral. Use
 `input.externalSeries(...)` when an adapter supplies equivalent data; there is
 no v1 built-in data request.
 
@@ -374,14 +374,14 @@ delivery outside the core language contract.
 
 Pine `library()` and Pine `import` packages are not portable chartlang v1.
 Scripts may use normal TypeScript helper modules that compile into the bundle,
-but reusable language-level libraries are listed as Beyond 1.0 in PLAN §19.
+but reusable language-level libraries are Beyond 1.0.
 
 ### Persistent Collections and Large Arrays
 
 Bounded literal arrays and ordinary TypeScript objects are valid where they
 stay within the grammar subset. Persistent `state.array(...)`,
-`state.map(...)`, matrices, and large mutable collections are deferred in PLAN
-§19 until a serialization policy is agreed.
+`state.map(...)`, matrices, and large mutable collections are deferred
+until a serialization policy is agreed.
 
 ### Imperative Drawing Mutation Differences
 
@@ -402,7 +402,7 @@ depend on Pine's historical lookahead behavior need an explicit rewrite.
 
 TradingView-only UI affordances, private publication metadata, screener
 columns, broker integration, and marketplace metadata are not part of the v1
-language contract. PLAN §19 defers marketplace metadata beyond 1.0.
+language contract. Marketplace metadata is deferred beyond 1.0.
 
 ## Appendix: Audit Method and Script List
 

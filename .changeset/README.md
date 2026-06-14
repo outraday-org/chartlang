@@ -7,5 +7,5 @@ Every PR that touches publishable code must include a changeset:
 
     pnpm changeset
 
-See PLAN.md §22.11 ("Manual release workflow") for the publish flow,
-and `CONTRIBUTING.md` for the per-PR checklist.
+See `CONTRIBUTING.md` (section 5, "Changeset workflow") for the
+publish flow and the per-PR checklist.

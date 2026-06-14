@@ -7,7 +7,7 @@
  * camelCase (`draw.horizontalLine(...)`). See {@link KIND_CAMELCASE} for
  * the canonical bijection.
  *
- * Variant collapses pinned in PLAN.md §3.1:
+ * Variant collapses:
  *
  * - `ray` / `extended-line` collapse into `line` with `extendLeft` /
  *   `extendRight` flags on the state.

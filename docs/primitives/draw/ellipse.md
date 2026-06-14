@@ -11,7 +11,7 @@ Draw an axis-aligned ellipse inscribed in the bounding box of two
 world anchors. The renderer derives `(centerX, centerY, radiusX,
 radiusY)` from the projected bbox and paints a polyline
 approximation. Rotated ellipses (invinite's `widthOffset` form)
-are out of scope for Phase 3.
+are out of scope for now.
 
 ## Anchors
 
@@ -48,4 +48,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/boxes/ellipse.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

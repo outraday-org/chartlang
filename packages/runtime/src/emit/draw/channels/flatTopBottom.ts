@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // Behaviour from
 //   invinite/src/components/trading-chart/tools/flat-top-bottom-tool.ts.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     AnchorTriple,
@@ -39,8 +39,7 @@ function flatTopBottomImpl(
  * rails. Anchors `[leftEdge, rightEdge, oppositeHook]`: leftEdge and
  * rightEdge fix the time range; the opposite-edge price comes from
  * `oppositeHook.price`. Mirrors invinite's `flat-top-bottom-tool.ts`
- * shape — note the landed core shape persists 3 anchors (see
- * `tasks/phase-3-drawing-parity/10-channels.plan.md` §1).
+ * shape — note the landed core shape persists 3 anchors.
  *
  * @anchors `anchors` — `[leftEdge, rightEdge, oppositeHook]` triple
  * @anchorCount 3

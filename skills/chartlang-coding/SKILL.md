@@ -80,7 +80,7 @@ Every constructor accepts `name: string` (literal), `apiVersion: 1`
 (numeric literal), optional `inputs`, and a `compute` function.
 Constructor-specific fields (`overlay`, `maxDrawings`,
 `requiresIntervals`, `conditions`, ...) are listed in the
-[grammar spec](https://outraday-org.github.io/chartlang/spec/grammar.html).
+[grammar spec](https://docs.chartlang.invinite.com/spec/grammar).
 
 ## 3. Series and indexing
 

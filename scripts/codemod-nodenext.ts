@@ -21,7 +21,7 @@
  *   - examples/canvas2d-adapter/src/**\/*.{ts,tsx}
  *
  * Out of scope: node_modules, dist, coverage, examples/scripts/*.chart.js (compiled
- * artifacts), examples/react-demo (Vite app — keeps bundler resolution),
+ * artifacts), apps/site (Vite app — keeps bundler resolution),
  * root scripts/ (tooling). The scratch harnesses (parity-smoke.mts and
  * examples/canvas2d-adapter/e2e-smoke.ts) are left alone unless NodeNext breaks
  * them.

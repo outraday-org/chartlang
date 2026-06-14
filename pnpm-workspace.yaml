@@ -1,4 +1,4 @@
 packages:
     - "packages/*"
+    - "apps/*"
     - "examples/canvas2d-adapter"
-    - "examples/react-demo"

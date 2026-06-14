@@ -335,7 +335,7 @@ The full capability bag has these 13 keys: `plots`, `drawings`, `alerts`,
 Adapter conformance reporting is described in
 [Adapter conformance](../adapters/conformance.md). Runtime determinism and
 the §15.3 conformance trio are described in
-[Execution semantics](./semantics.md#determinism) and the phase plan.
+[Execution semantics](./semantics.md#determinism).
 
 ## Mechanical Verification
 

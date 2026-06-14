@@ -72,7 +72,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "AdxOpts",
         "kind": "type",
         "title": "AdxOpts",
-        "summary": "Options bag for `ta.adx` (Wilder's Average Directional Index).\n`smoothing` is the second-stage Wilder window applied to DX\n(default `14` — matches the DI window). `offset` shifts the\noutput (PLAN.md §9.1). `lineStyle` is a forward-compat plot-\nstyling hint surfaced for §9.1 ergonomics — not consumed by the\nprimitive itself.",
+        "summary": "Options bag for `ta.adx` (Wilder's Average Directional Index).\n`smoothing` is the second-stage Wilder window applied to DX\n(default `14` — matches the DI window). `offset` shifts the\noutput. `lineStyle` is a forward-compat plot-\nstyling hint surfaced for §9.1 ergonomics — not consumed by the\nprimitive itself.",
         "examples": [
             "const opts: AdxOpts = { smoothing: 14 };"
         ],
@@ -83,7 +83,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "alert",
         "kind": "function",
         "title": "alert(_message, _opts?)",
-        "summary": "Compile-time callable hole for `alert(message, opts?)`. The compiler\nrewrites every callsite (Task 2) to dispatch to the runtime; calling this\noutside the runtime throws the sentinel.",
+        "summary": "Compile-time callable hole for `alert(message, opts?)`. The compiler\nrewrites every callsite to dispatch to the runtime; calling this\noutside the runtime throws the sentinel.",
         "paramTable": [
             {
                 "name": "_message",
@@ -271,7 +271,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "AroonOpts",
         "kind": "type",
         "title": "AroonOpts",
-        "summary": "Options bag for `ta.aroon`. `offset` shifts the read window backwards\n(PLAN.md §9.1). `outputs` carries per-output styling hints that\ndownstream `plot()` callsites can lift defaults from; the runtime\nitself ignores it in Phase 2 — script-author `plot(a.up,\n{ lineStyle })` is the styling seam.",
+        "summary": "Options bag for `ta.aroon`. `offset` shifts the read window backwards\n. `outputs` carries per-output styling hints that\ndownstream `plot()` callsites can lift defaults from; the runtime\nitself ignores it in Phase 2 — script-author `plot(a.up,\n{ lineStyle })` is the styling seam.",
         "examples": [
             "const opts: AroonOpts = { offset: 0 };"
         ],
@@ -458,7 +458,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "BbPercentBOpts",
         "kind": "type",
         "title": "BbPercentBOpts",
-        "summary": "Options bag for `ta.bbPercentB`. `multiplier` scales the BB envelope\n(defaults to `2`, mirroring Pine / TradingView). `offset` shifts the\nread window backwards (PLAN.md §9.1); `lineStyle` is a forward-compat\nplot-styling hint surfaced for §9.1 ergonomics.",
+        "summary": "Options bag for `ta.bbPercentB`. `multiplier` scales the BB envelope\n(defaults to `2`, mirroring Pine / TradingView). `offset` shifts the\nread window backwards; `lineStyle` is a forward-compat\nplot-styling hint surfaced for §9.1 ergonomics.",
         "examples": [
             "const opts: BbPercentBOpts = { multiplier: 2 };"
         ],
@@ -564,7 +564,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "CciOpts",
         "kind": "type",
         "title": "CciOpts",
-        "summary": "Options bag for `ta.cci`. `offset` shifts the read window backwards\n(Phase-2 backfill — see PLAN.md §9.1). `lineStyle` is a pass-through\nfor the script-author's downstream `plot(cci, { lineStyle })` call\nand is not consumed by the primitive itself.",
+        "summary": "Options bag for `ta.cci`. `offset` shifts the read window backwards\n(Phase-2 backfill). `lineStyle` is a pass-through\nfor the script-author's downstream `plot(cci, { lineStyle })` call\nand is not consumed by the primitive itself.",
         "examples": [
             "const opts: CciOpts = { offset: 0 };"
         ],
@@ -575,7 +575,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "ChaikinOscOpts",
         "kind": "type",
         "title": "ChaikinOscOpts",
-        "summary": "Options bag for `ta.chaikinOsc` (Chaikin Oscillator). Defaults\nmatch Pine / invinite: `fastLength = 3`, `slowLength = 10`. `offset`\nshifts the read window backwards (PLAN.md §9.1 universal offset).",
+        "summary": "Options bag for `ta.chaikinOsc` (Chaikin Oscillator). Defaults\nmatch Pine / invinite: `fastLength = 3`, `slowLength = 10`. `offset`\nshifts the read window backwards (universal offset).",
         "examples": [
             "const opts: ChaikinOscOpts = { fastLength: 3, slowLength: 10 };"
         ],
@@ -586,7 +586,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "ChandeKrollStopOpts",
         "kind": "type",
         "title": "ChandeKrollStopOpts",
-        "summary": "Options bag for `ta.chandeKrollStop`. `length` controls BOTH the\nATR period AND the first-pass rolling extreme window (default\n`10`); `multiplier` scales the ATR offset (default `1`);\n`smoothingLength` is the second-pass extreme window (default `9`)\n— matches Chande Kroll's 1995 paper. `offset` shifts the read\nwindow backwards (PLAN.md §9.1 — accepted on the surface).",
+        "summary": "Options bag for `ta.chandeKrollStop`. `length` controls BOTH the\nATR period AND the first-pass rolling extreme window (default\n`10`); `multiplier` scales the ATR offset (default `1`);\n`smoothingLength` is the second-pass extreme window (default `9`)\n— matches Chande Kroll's 1995 paper. `offset` shifts the read\nwindow backwards (accepted on the surface).",
         "examples": [
             "const opts: ChandeKrollStopOpts = { length: 10, multiplier: 1, smoothingLength: 9 };"
         ],
@@ -608,7 +608,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "ChandelierOpts",
         "kind": "type",
         "title": "ChandelierOpts",
-        "summary": "Options bag for `ta.chandelier` (Chandelier Exit). `length` is the\nATR period AND the rolling extreme window (default `22`);\n`multiplier` scales the ATR offset (default `3`). `offset` shifts\nthe read window backwards (PLAN.md §9.1 — accepted on the surface).",
+        "summary": "Options bag for `ta.chandelier` (Chandelier Exit). `length` is the\nATR period AND the rolling extreme window (default `22`);\n`multiplier` scales the ATR offset (default `3`). `offset` shifts\nthe read window backwards (accepted on the surface).",
         "examples": [
             "const opts: ChandelierOpts = { length: 22, multiplier: 3 };"
         ],
@@ -641,7 +641,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "ChopOpts",
         "kind": "type",
         "title": "ChopOpts",
-        "summary": "Options bag for `ta.chop` (Choppiness Index). `offset` is the\nuniversal bar-shift (PLAN.md §9.1 — accepted on the surface).\n`lineStyle` is a forward-compat plot-styling hint surfaced for\n§9.1 ergonomics — not consumed by the primitive itself.",
+        "summary": "Options bag for `ta.chop` (Choppiness Index). `offset` is the\nuniversal bar-shift (accepted on the surface).\n`lineStyle` is a forward-compat plot-styling hint surfaced for\n§9.1 ergonomics — not consumed by the primitive itself.",
         "examples": [
             "const opts: ChopOpts = { offset: 0 };"
         ],
@@ -762,7 +762,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "ConnorsRsiOpts",
         "kind": "type",
         "title": "ConnorsRsiOpts",
-        "summary": "Options bag for `ta.connorsRsi`. `rsiLength` / `streakLength` /\n`rocLength` default to Larry Connors' canonical `3` / `2` / `100`.\n`offset` shifts the read window backwards (PLAN.md §9.1).",
+        "summary": "Options bag for `ta.connorsRsi`. `rsiLength` / `streakLength` /\n`rocLength` default to Larry Connors' canonical `3` / `2` / `100`.\n`offset` shifts the read window backwards.",
         "examples": [
             "const opts: ConnorsRsiOpts = { rsiLength: 3, streakLength: 2, rocLength: 100 };"
         ],
@@ -908,7 +908,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "defineDrawing",
         "kind": "function",
         "title": "defineDrawing(opts)",
-        "summary": "/**\nConstruct a Phase-3 drawing script object. Mirrors `defineIndicator`\nstructurally; only `manifest.kind` (`\"drawing\"`) and the declared\n`capabilities` (`[\"drawings\"]`) differ. The runtime treats indicator\nand drawing scripts identically at the per-bar level — the\ndiscriminator is a host-side hint the editor uses to distinguish\ndrawing scripts from indicator scripts in the script-picker UI\n(PLAN.md §4.1).",
+        "summary": "/**\nConstruct a Phase-3 drawing script object. Mirrors `defineIndicator`\nstructurally; only `manifest.kind` (`\"drawing\"`) and the declared\n`capabilities` (`[\"drawings\"]`) differ. The runtime treats indicator\nand drawing scripts identically at the per-bar level — the\ndiscriminator is a host-side hint the editor uses to distinguish\ndrawing scripts from indicator scripts in the script-picker UI\n.",
         "paramTable": [
             {
                 "name": "opts",
@@ -1010,7 +1010,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "DmiOpts",
         "kind": "type",
         "title": "DmiOpts",
-        "summary": "Options bag for `ta.dmi` (Directional Movement Index). `offset`\nshifts both output series in lockstep (PLAN.md §9.1). `outputs`\ncarries per-output styling hints downstream `plot()` callsites\ncan lift defaults from; the runtime itself ignores it in Phase 2\n— script-author `plot(d.plusDi, { lineStyle })` is the styling\nseam.",
+        "summary": "Options bag for `ta.dmi` (Directional Movement Index). `offset`\nshifts both output series in lockstep. `outputs`\ncarries per-output styling hints downstream `plot()` callsites\ncan lift defaults from; the runtime itself ignores it in Phase 2\n— script-author `plot(d.plusDi, { lineStyle })` is the styling\nseam.",
         "examples": [
             "const opts: DmiOpts = { offset: 0 };"
         ],
@@ -1032,7 +1032,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "DonchianOpts",
         "kind": "type",
         "title": "DonchianOpts",
-        "summary": "Options bag for `ta.donchian`. `offset` shifts the read window\nbackwards (PLAN.md §9.1). `outputs` carries per-output styling\nhints downstream `plot()` callsites can lift defaults from; the\nruntime itself ignores it in Phase 2.",
+        "summary": "Options bag for `ta.donchian`. `offset` shifts the read window\nbackwards. `outputs` carries per-output styling\nhints downstream `plot()` callsites can lift defaults from; the\nruntime itself ignores it in Phase 2.",
         "examples": [
             "const opts: DonchianOpts = { offset: 0 };"
         ],
@@ -1065,7 +1065,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "DpoOpts",
         "kind": "type",
         "title": "DpoOpts",
-        "summary": "Options bag for `ta.dpo`. `offset` shifts the read window backwards\n(PLAN.md §9.1). `lineStyle` is a forward-compat plot-styling hint\nsurfaced for §9.1 ergonomics — not consumed by the primitive\nitself.",
+        "summary": "Options bag for `ta.dpo`. `offset` shifts the read window backwards\n. `lineStyle` is a forward-compat plot-styling hint\nsurfaced for §9.1 ergonomics — not consumed by the primitive\nitself.",
         "examples": [
             "const opts: DpoOpts = { offset: 0 };"
         ],
@@ -1076,7 +1076,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw",
         "kind": "property",
         "title": "draw",
-        "summary": "Compile-time callable hole for the `draw.*` namespace. Every `get`\non the proxy returns a function that throws the\n`\"draw.<method> called outside compiled runtime\"` sentinel — same\nconvention as the `plot` / `hline` / `alert` stubs in\n`plot/plot.ts:plot` / `alert/alert.ts:alert`. The runtime swaps this\nstub for the real namespace at boot per the\n`@invinite-org/chartlang-runtime` `primitives.ts` seam (PLAN.md\n§5.5).",
+        "summary": "Compile-time callable hole for the `draw.*` namespace. Every `get`\non the proxy returns a function that throws the\n`\"draw.<method> called outside compiled runtime\"` sentinel — same\nconvention as the `plot` / `hline` / `alert` stubs in\n`plot/plot.ts:plot` / `alert/alert.ts:alert`. The runtime swaps this\nstub for the real namespace at boot per the\n`@invinite-org/chartlang-runtime` `primitives.ts` seam.",
         "examples": [
             "import { draw } from \"@invinite-org/chartlang-core\";\ntry {\ndraw.horizontalLine(0);\n} catch {\n// expected: \"draw.horizontalLine called outside compiled runtime\"\n}"
         ],
@@ -1087,7 +1087,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.abcdPattern",
         "kind": "function",
         "title": "draw.abcdPattern(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.abcdPattern.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.abcdPattern.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1107,7 +1107,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.arc",
         "kind": "function",
         "title": "draw.arc(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.arc.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.arc.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1127,7 +1127,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.arrow",
         "kind": "function",
         "title": "draw.arrow(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.arrow.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.arrow.",
         "paramTable": [
             {
                 "name": "a",
@@ -1152,7 +1152,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.arrowMarkDown",
         "kind": "function",
         "title": "draw.arrowMarkDown(anchor, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.arrowMarkDown.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.arrowMarkDown.",
         "paramTable": [
             {
                 "name": "anchor",
@@ -1172,7 +1172,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.arrowMarker",
         "kind": "function",
         "title": "draw.arrowMarker(anchor, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.arrowMarker.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.arrowMarker.",
         "paramTable": [
             {
                 "name": "anchor",
@@ -1192,7 +1192,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.arrowMarkUp",
         "kind": "function",
         "title": "draw.arrowMarkUp(anchor, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.arrowMarkUp.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.arrowMarkUp.",
         "paramTable": [
             {
                 "name": "anchor",
@@ -1212,7 +1212,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.brush",
         "kind": "function",
         "title": "draw.brush(anchors, opts)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.brush.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.brush.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1232,7 +1232,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.circle",
         "kind": "function",
         "title": "draw.circle(centre, radiusAnchor, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.circle.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.circle.",
         "paramTable": [
             {
                 "name": "centre",
@@ -1257,7 +1257,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.crossLine",
         "kind": "function",
         "title": "draw.crossLine(anchor, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.crossLine.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.crossLine.",
         "paramTable": [
             {
                 "name": "anchor",
@@ -1277,7 +1277,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.curve",
         "kind": "function",
         "title": "draw.curve(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.curve.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.curve.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1297,7 +1297,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.cyclicLines",
         "kind": "function",
         "title": "draw.cyclicLines(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.cyclicLines.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.cyclicLines.",
         "paramTable": [
             {
                 "name": "a",
@@ -1322,7 +1322,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.cypherPattern",
         "kind": "function",
         "title": "draw.cypherPattern(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.cypherPattern.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.cypherPattern.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1342,7 +1342,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.disjointChannel",
         "kind": "function",
         "title": "draw.disjointChannel(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.disjointChannel.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.disjointChannel.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1362,7 +1362,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.doubleCurve",
         "kind": "function",
         "title": "draw.doubleCurve(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.doubleCurve.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.doubleCurve.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1382,7 +1382,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.elliottCorrectionWave",
         "kind": "function",
         "title": "draw.elliottCorrectionWave(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.elliottCorrectionWave.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.elliottCorrectionWave.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1402,7 +1402,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.elliottDoubleCombo",
         "kind": "function",
         "title": "draw.elliottDoubleCombo(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.elliottDoubleCombo.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.elliottDoubleCombo.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1422,7 +1422,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.elliottImpulseWave",
         "kind": "function",
         "title": "draw.elliottImpulseWave(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.elliottImpulseWave.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.elliottImpulseWave.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1442,7 +1442,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.elliottTriangleWave",
         "kind": "function",
         "title": "draw.elliottTriangleWave(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.elliottTriangleWave.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.elliottTriangleWave.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1462,7 +1462,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.elliottTripleCombo",
         "kind": "function",
         "title": "draw.elliottTripleCombo(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.elliottTripleCombo.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.elliottTripleCombo.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1482,7 +1482,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.ellipse",
         "kind": "function",
         "title": "draw.ellipse(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.ellipse.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.ellipse.",
         "paramTable": [
             {
                 "name": "a",
@@ -1507,7 +1507,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.fibChannel",
         "kind": "function",
         "title": "draw.fibChannel(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibChannel.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibChannel.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1527,7 +1527,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.fibCircles",
         "kind": "function",
         "title": "draw.fibCircles(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibCircles.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibCircles.",
         "paramTable": [
             {
                 "name": "a",
@@ -1552,7 +1552,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.fibRetracement",
         "kind": "function",
         "title": "draw.fibRetracement(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibRetracement.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibRetracement.",
         "paramTable": [
             {
                 "name": "a",
@@ -1577,7 +1577,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.fibSpeedArcs",
         "kind": "function",
         "title": "draw.fibSpeedArcs(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibSpeedArcs.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibSpeedArcs.",
         "paramTable": [
             {
                 "name": "a",
@@ -1602,7 +1602,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.fibSpeedFan",
         "kind": "function",
         "title": "draw.fibSpeedFan(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibSpeedFan.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibSpeedFan.",
         "paramTable": [
             {
                 "name": "a",
@@ -1627,7 +1627,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.fibSpiral",
         "kind": "function",
         "title": "draw.fibSpiral(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibSpiral.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibSpiral.",
         "paramTable": [
             {
                 "name": "a",
@@ -1652,7 +1652,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.fibTimeZone",
         "kind": "function",
         "title": "draw.fibTimeZone(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibTimeZone.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibTimeZone.",
         "paramTable": [
             {
                 "name": "a",
@@ -1677,7 +1677,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.fibTrendExtension",
         "kind": "function",
         "title": "draw.fibTrendExtension(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibTrendExtension.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibTrendExtension.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1697,7 +1697,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.fibTrendTime",
         "kind": "function",
         "title": "draw.fibTrendTime(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibTrendTime.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibTrendTime.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1717,7 +1717,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.fibWedge",
         "kind": "function",
         "title": "draw.fibWedge(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibWedge.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.fibWedge.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1737,7 +1737,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.flatTopBottom",
         "kind": "function",
         "title": "draw.flatTopBottom(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.flatTopBottom.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.flatTopBottom.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1757,7 +1757,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.frame",
         "kind": "function",
         "title": "draw.frame(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.frame.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.frame.",
         "paramTable": [
             {
                 "name": "a",
@@ -1782,7 +1782,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.gannBox",
         "kind": "function",
         "title": "draw.gannBox(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.gannBox.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.gannBox.",
         "paramTable": [
             {
                 "name": "a",
@@ -1807,7 +1807,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.gannFan",
         "kind": "function",
         "title": "draw.gannFan(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.gannFan.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.gannFan.",
         "paramTable": [
             {
                 "name": "a",
@@ -1832,7 +1832,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.gannSquare",
         "kind": "function",
         "title": "draw.gannSquare(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.gannSquare.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.gannSquare.",
         "paramTable": [
             {
                 "name": "a",
@@ -1857,7 +1857,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.gannSquareFixed",
         "kind": "function",
         "title": "draw.gannSquareFixed(anchor, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.gannSquareFixed.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.gannSquareFixed.",
         "paramTable": [
             {
                 "name": "anchor",
@@ -1877,7 +1877,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.group",
         "kind": "function",
         "title": "draw.group(childHandleIds)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.group.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.group.",
         "paramTable": [
             {
                 "name": "childHandleIds",
@@ -1892,7 +1892,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.headAndShoulders",
         "kind": "function",
         "title": "draw.headAndShoulders(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.headAndShoulders.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.headAndShoulders.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1912,7 +1912,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.highlighter",
         "kind": "function",
         "title": "draw.highlighter(anchors, opts)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.highlighter.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.highlighter.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -1932,7 +1932,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.horizontalLine",
         "kind": "function",
         "title": "draw.horizontalLine(price, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.horizontalLine.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.horizontalLine.",
         "paramTable": [
             {
                 "name": "price",
@@ -1952,7 +1952,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.horizontalRay",
         "kind": "function",
         "title": "draw.horizontalRay(anchor, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.horizontalRay.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.horizontalRay.",
         "paramTable": [
             {
                 "name": "anchor",
@@ -1972,7 +1972,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.line",
         "kind": "function",
         "title": "draw.line(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.line.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.line.",
         "paramTable": [
             {
                 "name": "a",
@@ -1997,7 +1997,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.marker",
         "kind": "function",
         "title": "draw.marker(anchor, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.marker.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.marker.",
         "paramTable": [
             {
                 "name": "anchor",
@@ -2017,7 +2017,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.path",
         "kind": "function",
         "title": "draw.path(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.path.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.path.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -2037,7 +2037,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.pen",
         "kind": "function",
         "title": "draw.pen(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.pen.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.pen.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -2057,7 +2057,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.pitchfan",
         "kind": "function",
         "title": "draw.pitchfan(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.pitchfan.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.pitchfan.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -2077,7 +2077,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.pitchfork",
         "kind": "function",
         "title": "draw.pitchfork(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.pitchfork.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.pitchfork.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -2097,7 +2097,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.polyline",
         "kind": "function",
         "title": "draw.polyline(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.polyline.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.polyline.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -2117,7 +2117,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.rectangle",
         "kind": "function",
         "title": "draw.rectangle(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.rectangle.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.rectangle.",
         "paramTable": [
             {
                 "name": "a",
@@ -2142,7 +2142,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.regressionTrend",
         "kind": "function",
         "title": "draw.regressionTrend(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.regressionTrend.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.regressionTrend.",
         "paramTable": [
             {
                 "name": "a",
@@ -2167,7 +2167,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.rotatedRectangle",
         "kind": "function",
         "title": "draw.rotatedRectangle(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.rotatedRectangle.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.rotatedRectangle.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -2187,7 +2187,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.sineLine",
         "kind": "function",
         "title": "draw.sineLine(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.sineLine.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.sineLine.",
         "paramTable": [
             {
                 "name": "a",
@@ -2212,7 +2212,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.table",
         "kind": "function",
         "title": "draw.table(opts)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.table.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.table.",
         "paramTable": [
             {
                 "name": "opts",
@@ -2227,7 +2227,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.text",
         "kind": "function",
         "title": "draw.text(anchor, body, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.text.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.text.",
         "paramTable": [
             {
                 "name": "anchor",
@@ -2252,7 +2252,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.threeDrivesPattern",
         "kind": "function",
         "title": "draw.threeDrivesPattern(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.threeDrivesPattern.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.threeDrivesPattern.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -2272,7 +2272,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.timeCycles",
         "kind": "function",
         "title": "draw.timeCycles(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.timeCycles.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.timeCycles.",
         "paramTable": [
             {
                 "name": "a",
@@ -2297,7 +2297,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.trendAngle",
         "kind": "function",
         "title": "draw.trendAngle(a, b, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.trendAngle.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.trendAngle.",
         "paramTable": [
             {
                 "name": "a",
@@ -2322,7 +2322,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.trendChannel",
         "kind": "function",
         "title": "draw.trendChannel(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.trendChannel.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.trendChannel.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -2342,7 +2342,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.triangle",
         "kind": "function",
         "title": "draw.triangle(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.triangle.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.triangle.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -2362,7 +2362,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.trianglePattern",
         "kind": "function",
         "title": "draw.trianglePattern(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.trianglePattern.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.trianglePattern.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -2382,7 +2382,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.verticalLine",
         "kind": "function",
         "title": "draw.verticalLine(time, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.verticalLine.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.verticalLine.",
         "paramTable": [
             {
                 "name": "time",
@@ -2402,7 +2402,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "draw.xabcdPattern",
         "kind": "function",
         "title": "draw.xabcdPattern(anchors, opts?)",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.xabcdPattern.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull. Method: draw.xabcdPattern.",
         "paramTable": [
             {
                 "name": "anchors",
@@ -2444,7 +2444,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "DrawingCounts",
         "kind": "type",
         "title": "DrawingCounts",
-        "summary": "Per-script drawing-emission budget. Excess `draw.*` calls drop with\n`drawing-budget-exceeded` once a bucket is full. Mirrors Pine's\n`max_*_count` family. The runtime enforces\n`min(scriptManifest.maxDrawings, adapter.capabilities.maxDrawingsPerScript)`\nper bucket per PLAN.md §10 / §4.1.",
+        "summary": "Per-script drawing-emission budget. Excess `draw.*` calls drop with\n`drawing-budget-exceeded` once a bucket is full. Mirrors Pine's\n`max_*_count` family. The runtime enforces\n`min(scriptManifest.maxDrawings, adapter.capabilities.maxDrawingsPerScript)`\nper bucket.",
         "examples": [
             "const c: DrawingCounts = {\nlines: 50, labels: 50, boxes: 50, polylines: 50, other: 50,\n};\nvoid c;"
         ],
@@ -2477,7 +2477,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "DrawingMeta",
         "kind": "type",
         "title": "DrawingMeta",
-        "summary": "/**\nScript-mutable metadata fields every  {@link DrawingState} variant\ncarries. `name` surfaces in the editor layer; `visible: false` hides\nthe drawing without removing it. See PLAN.md §10.0 for the contract.",
+        "summary": "/**\nScript-mutable metadata fields every  {@link DrawingState} variant\ncarries. `name` surfaces in the editor layer; `visible: false` hides\nthe drawing without removing it.",
         "examples": [
             "const m: DrawingMeta = { name: \"Support\", visible: true };\nvoid m;"
         ],
@@ -2488,7 +2488,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "DrawingState",
         "kind": "type",
         "title": "DrawingState",
-        "summary": "/**\nPer-kind state union — every  {@link DrawingKind} maps to exactly one\nvariant. Collab-only fields (Yjs `id`, `layerId`, `createdAt`,\n`authorId`, `parentGroupId`, `parentFrameId`, `visibleIntervals`)\nfrom the invinite source are stripped per PLAN.md §10.4.",
+        "summary": "/**\nPer-kind state union — every  {@link DrawingKind} maps to exactly one\nvariant. Collab-only fields (Yjs `id`, `layerId`, `createdAt`,\n`authorId`, `parentGroupId`, `parentFrameId`, `visibleIntervals`)\nfrom the invinite source are stripped.",
         "examples": [
             "const s: DrawingState = {\nkind: \"horizontal-line\",\nprice: 100,\nstyle: { color: \"#3b82f6\" },\n};\nvoid s;"
         ],
@@ -2499,7 +2499,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "DrawNamespace",
         "kind": "type",
         "title": "DrawNamespace",
-        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull.",
+        "summary": "/**\nThe script-facing `draw.*` namespace. Each method is stateful across\ncalls — the compiler injects a callsite slot id so the runtime can\ntrack the per-handle `DrawingState` across bars — and returns a\n{@link DrawingHandle} . Adapters that omit a kind degrade silently\nwith `unsupported-drawing-kind`; excess emissions\ndrop with `drawing-budget-exceeded` once the per-script bucket is\nfull.",
         "examples": [
             "import type { DrawNamespace } from \"@invinite-org/chartlang-core\";\nconst _ns: DrawNamespace | null = null;\nvoid _ns;"
         ],
@@ -2598,7 +2598,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "EnvelopeOpts",
         "kind": "type",
         "title": "EnvelopeOpts",
-        "summary": "Options bag for `ta.envelope` (price-percent envelope). `length`\nis the MA period (default `20`); `percent` is the band offset as a\npercentage of the middle MA (default `10`); `maType` picks the MA\nkind (default `\"sma\"`). `offset` is the universal bar-shift\n(PLAN.md §9.1 — accepted on the surface).",
+        "summary": "Options bag for `ta.envelope` (price-percent envelope). `length`\nis the MA period (default `20`); `percent` is the band offset as a\npercentage of the middle MA (default `10`); `maType` picks the MA\nkind (default `\"sma\"`). `offset` is the universal bar-shift\n(accepted on the surface).",
         "examples": [
             "const opts: EnvelopeOpts = { length: 20, percent: 10, maType: \"sma\" };"
         ],
@@ -2786,7 +2786,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "FisherOpts",
         "kind": "type",
         "title": "FisherOpts",
-        "summary": "Options bag for `ta.fisher`. `length` is positional on the call\n(`ta.fisher(length, opts?)`); the bag carries only the universal\n`offset` (PLAN.md §9.1 — accepted on the surface).",
+        "summary": "Options bag for `ta.fisher`. `length` is positional on the call\n(`ta.fisher(length, opts?)`); the bag carries only the universal\n`offset` (accepted on the surface).",
         "examples": [
             "const opts: FisherOpts = { offset: 0 };"
         ],
@@ -2997,7 +2997,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "HighestOpts",
         "kind": "type",
         "title": "HighestOpts",
-        "summary": "Options bag for `ta.highest`. `offset` shifts the read window backwards\nby `n` bars (Phase-2 backfill — see PLAN.md §9.1).",
+        "summary": "Options bag for `ta.highest`. `offset` shifts the read window backwards\nby `n` bars (Phase-2 backfill).",
         "examples": [
             "const opts: HighestOpts = { offset: 0 };"
         ],
@@ -3141,7 +3141,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "HvOpts",
         "kind": "type",
         "title": "HvOpts",
-        "summary": "Options bag for `ta.historicalVolatility`. `annualisationFactor`\ndefaults to `365` (TradingView's \"Crypto\" / 24-7 convention; use\n`252` for trading-day equity series). `offset` shifts the read\nwindow backwards (PLAN.md §9.1).",
+        "summary": "Options bag for `ta.historicalVolatility`. `annualisationFactor`\ndefaults to `365` (TradingView's \"Crypto\" / 24-7 convention; use\n`252` for trading-day equity series). `offset` shifts the read\nwindow backwards.",
         "examples": [
             "const opts: HvOpts = { annualisationFactor: 252 };"
         ],
@@ -3152,7 +3152,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "IchimokuOpts",
         "kind": "type",
         "title": "IchimokuOpts",
-        "summary": "Options bag for `ta.ichimoku`. Defaults follow Pine / TradingView\ncanonical Ichimoku — `conversionLength = 9, baseLength = 26,\nleadingSpanBLength = 52, displacement = 26`. `offset` shifts all\nfive outputs in lockstep (PLAN.md §9.1). `outputs` carries\nper-output styling hints downstream `plot()` callsites can lift\ndefaults from; the runtime itself ignores it in Phase 2.",
+        "summary": "Options bag for `ta.ichimoku`. Defaults follow Pine / TradingView\ncanonical Ichimoku — `conversionLength = 9, baseLength = 26,\nleadingSpanBLength = 52, displacement = 26`. `offset` shifts all\nfive outputs in lockstep. `outputs` carries\nper-output styling hints downstream `plot()` callsites can lift\ndefaults from; the runtime itself ignores it in Phase 2.",
         "examples": [
             "const opts: IchimokuOpts = {\nconversionLength: 9,\nbaseLength: 26,\nleadingSpanBLength: 52,\ndisplacement: 26,\n};"
         ],
@@ -3606,7 +3606,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "KeltnerOpts",
         "kind": "type",
         "title": "KeltnerOpts",
-        "summary": "Options bag for `ta.keltner` (Keltner Channels). `length` is the\nMA / ATR period (default `20`); `multiplier` scales the ATR-derived\nband offset from the middle MA (default `2`); `maType` picks the\nmiddle MA kind (default `\"ema\"` per the Linda Raschke / TradingView\ncanonical form — Chester Keltner's original used SMA over a hand-\nrolled \"typical range\", but every modern reference defaults to EMA\nover close + Wilder ATR). `offset` is the universal bar-shift\n(PLAN.md §9.1 — accepted on the surface). `outputs` carries\nper-output styling hints downstream `plot()` callsites can lift\ndefaults from; the runtime itself ignores it in Phase 2.",
+        "summary": "Options bag for `ta.keltner` (Keltner Channels). `length` is the\nMA / ATR period (default `20`); `multiplier` scales the ATR-derived\nband offset from the middle MA (default `2`); `maType` picks the\nmiddle MA kind (default `\"ema\"` per the Linda Raschke / TradingView\ncanonical form — Chester Keltner's original used SMA over a hand-\nrolled \"typical range\", but every modern reference defaults to EMA\nover close + Wilder ATR). `offset` is the universal bar-shift\n(accepted on the surface). `outputs` carries\nper-output styling hints downstream `plot()` callsites can lift\ndefaults from; the runtime itself ignores it in Phase 2.",
         "examples": [
             "const opts: KeltnerOpts = { length: 20, multiplier: 2, maType: \"ema\" };"
         ],
@@ -3661,7 +3661,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "KlingerOpts",
         "kind": "type",
         "title": "KlingerOpts",
-        "summary": "Options bag for `ta.klinger` (Klinger Volume Oscillator). Defaults\n`(fastLength=34, slowLength=55, signalLength=13)` match invinite.\n`offset` shifts the read window backwards (PLAN.md §9.1 — accepted\non the surface).",
+        "summary": "Options bag for `ta.klinger` (Klinger Volume Oscillator). Defaults\n`(fastLength=34, slowLength=55, signalLength=13)` match invinite.\n`offset` shifts the read window backwards (accepted\non the surface).",
         "examples": [
             "const opts: KlingerOpts = { fastLength: 34, slowLength: 55, signalLength: 13 };"
         ],
@@ -3683,7 +3683,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "KstOpts",
         "kind": "type",
         "title": "KstOpts",
-        "summary": "Options bag for `ta.kst` (Know Sure Thing). Defaults match Pring's\ncanonical settings `(10, 15, 20, 30, 10, 10, 10, 15, 9)`. Source is\npositional (`ta.kst(source, opts?)`). `offset` shifts the read window\nbackwards (PLAN.md §9.1 — accepted on the surface).",
+        "summary": "Options bag for `ta.kst` (Know Sure Thing). Defaults match Pring's\ncanonical settings `(10, 15, 20, 30, 10, 10, 10, 15, 9)`. Source is\npositional (`ta.kst(source, opts?)`). `offset` shifts the read window\nbackwards (accepted on the surface).",
         "examples": [
             "const opts: KstOpts = { roc1Length: 10, roc2Length: 15, roc3Length: 20, roc4Length: 30 };"
         ],
@@ -3705,7 +3705,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "LineDrawStyle",
         "kind": "type",
         "title": "LineDrawStyle",
-        "summary": "Line / ray / horizontal-line / vertical-line / channel-edge stroke\nstyle. `extendLeft` / `extendRight` collapse the invinite `ray` and\n`extended-line` tools into a single `line` kind (PLAN.md §3.1).",
+        "summary": "Line / ray / horizontal-line / vertical-line / channel-edge stroke\nstyle. `extendLeft` / `extendRight` collapse the invinite `ray` and\n`extended-line` tools into a single `line` kind.",
         "examples": [
             "const s: LineDrawStyle = { color: \"#3b82f6\", lineWidth: 2, lineStyle: \"solid\" };\nvoid s;"
         ],
@@ -3716,7 +3716,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "LineState",
         "kind": "type",
         "title": "LineState",
-        "summary": "`line` — two-anchor straight line. Carries `extendLeft` /\n`extendRight` flags so the invinite `ray` / `extended-line` tools\ncollapse into this single kind per PLAN.md §3.1.",
+        "summary": "`line` — two-anchor straight line. Carries `extendLeft` /\n`extendRight` flags so the invinite `ray` / `extended-line` tools\ncollapse into this single kind.",
         "examples": [
             "const s: LineState = {\nkind: \"line\",\nanchors: [{ time: 1, price: 1 }, { time: 2, price: 2 }],\nstyle: {},\n};\nvoid s;"
         ],
@@ -3816,7 +3816,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "MaRibbonOpts",
         "kind": "type",
         "title": "MaRibbonOpts",
-        "summary": "Options bag for `ta.maRibbon` (a fan of K MAs at different lengths).\nDefaults: `lengths = [10, 20, 30, 40, 50]`, `maType = \"sma\"`.\n`offset` is the universal bar-shift (per PLAN.md §9.1) applied to\nevery output series. `outputs` is forward-compat per-key plot styling\n(typed but not consumed by the runtime impl).",
+        "summary": "Options bag for `ta.maRibbon` (a fan of K MAs at different lengths).\nDefaults: `lengths = [10, 20, 30, 40, 50]`, `maType = \"sma\"`.\n`offset` is the universal bar-shift applied to\nevery output series. `outputs` is forward-compat per-key plot styling\n(typed but not consumed by the runtime impl).",
         "examples": [
             "const opts: MaRibbonOpts = { lengths: [10, 20, 30], maType: \"ema\" };"
         ],
@@ -3849,7 +3849,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "MassIndexOpts",
         "kind": "type",
         "title": "MassIndexOpts",
-        "summary": "Options bag for `ta.massIndex`. `emaLength` defaults to `9` (the\ninner EMA-of-range and outer EMA-of-EMA window); `sumLength`\ndefaults to `25` (the rolling-sum-of-ratio window). `offset`\nshifts the read window backwards (PLAN.md §9.1).",
+        "summary": "Options bag for `ta.massIndex`. `emaLength` defaults to `9` (the\ninner EMA-of-range and outer EMA-of-EMA window); `sumLength`\ndefaults to `25` (the rolling-sum-of-ratio window). `offset`\nshifts the read window backwards.",
         "examples": [
             "const opts: MassIndexOpts = { emaLength: 9, sumLength: 25 };"
         ],
@@ -3984,7 +3984,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "ObvOpts",
         "kind": "type",
         "title": "ObvOpts",
-        "summary": "Options bag for `ta.obv` (On-Balance Volume). `offset` shifts the\nread window backwards (PLAN.md §9.1 universal offset). `lineStyle`\nis a forward-compat plot-styling hint surfaced for §9.1 ergonomics —\nnot consumed by the primitive itself.",
+        "summary": "Options bag for `ta.obv` (On-Balance Volume). `offset` shifts the\nread window backwards (universal offset). `lineStyle`\nis a forward-compat plot-styling hint surfaced for §9.1 ergonomics —\nnot consumed by the primitive itself.",
         "examples": [
             "const opts: ObvOpts = { offset: 0 };"
         ],
@@ -4068,7 +4068,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "PitchforkState",
         "kind": "type",
         "title": "PitchforkState",
-        "summary": "`pitchfork` — Andrews pitchfork. The `variant` discriminator collapses\nthe four invinite tools (`standard` / `schiff` / `modifiedSchiff` /\n`inside`) into one kind per PLAN.md §3.1.",
+        "summary": "`pitchfork` — Andrews pitchfork. The `variant` discriminator collapses\nthe four invinite tools (`standard` / `schiff` / `modifiedSchiff` /\n`inside`) into one kind.",
         "examples": [
             "const s: PitchforkState = {\nkind: \"pitchfork\",\nvariant: \"modifiedSchiff\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 1 },\n{ time: 2, price: 0.5 },\n],\nstyle: {},\n};\nvoid s;"
         ],
@@ -4079,7 +4079,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "PivotsHighLowOpts",
         "kind": "type",
         "title": "PivotsHighLowOpts",
-        "summary": "Options bag for `ta.pivotsHighLow`. `leftLength` / `rightLength`\ndefault to `4` (a 9-bar centred window); they may differ to surface\nasymmetric `ta.pivothigh` / `ta.pivotlow` behaviour. `offset` shifts\nthe read window backwards (PLAN.md §9.1 — accepted on the surface).",
+        "summary": "Options bag for `ta.pivotsHighLow`. `leftLength` / `rightLength`\ndefault to `4` (a 9-bar centred window); they may differ to surface\nasymmetric `ta.pivothigh` / `ta.pivotlow` behaviour. `offset` shifts\nthe read window backwards (accepted on the surface).",
         "examples": [
             "const opts: PivotsHighLowOpts = { leftLength: 4, rightLength: 4 };"
         ],
@@ -4101,7 +4101,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "PivotsStandardOpts",
         "kind": "type",
         "title": "PivotsStandardOpts",
-        "summary": "Options bag for `ta.pivotsStandard`. `system` picks the formula\nfamily (default `\"classic\"`). `offset` shifts the read window\nbackwards (PLAN.md §9.1 — accepted on the surface).",
+        "summary": "Options bag for `ta.pivotsStandard`. `system` picks the formula\nfamily (default `\"classic\"`). `offset` shifts the read window\nbackwards (accepted on the surface).",
         "examples": [
             "const opts: PivotsStandardOpts = { system: \"fibonacci\" };"
         ],
@@ -4134,7 +4134,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "plot",
         "kind": "function",
         "title": "plot(_value, _opts?)",
-        "summary": "Compile-time callable hole for `plot(value, opts?)`. The compiler rewrites\nevery callsite (Task 2) to dispatch to the runtime's `plot` implementation;\ncalling this outside a compiled runtime throws the sentinel.",
+        "summary": "Compile-time callable hole for `plot(value, opts?)`. The compiler rewrites\nevery callsite to dispatch to the runtime's `plot` implementation;\ncalling this outside a compiled runtime throws the sentinel.",
         "paramTable": [
             {
                 "name": "_value",
@@ -4289,7 +4289,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "PpoOpts",
         "kind": "type",
         "title": "PpoOpts",
-        "summary": "Options bag for `ta.ppo`. `fastLength` / `slowLength` / `signalLength`\ndefault to the Appel-era `12` / `26` / `9` (mirrors `ta.macd`).\n`offset` shifts all three outputs (`ppo`, `signal`, `hist`) in\nlockstep per the universal `opts.offset` convention (PLAN.md §9.1).",
+        "summary": "Options bag for `ta.ppo`. `fastLength` / `slowLength` / `signalLength`\ndefault to the Appel-era `12` / `26` / `9` (mirrors `ta.macd`).\n`offset` shifts all three outputs (`ppo`, `signal`, `hist`) in\nlockstep per the universal `opts.offset` convention.",
         "examples": [
             "const opts: PpoOpts = { fastLength: 12, slowLength: 26, signalLength: 9 };"
         ],
@@ -4333,7 +4333,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "PsarOpts",
         "kind": "type",
         "title": "PsarOpts",
-        "summary": "Options bag for `ta.psar` (Parabolic SAR). `accelerationStart` /\n`accelerationStep` / `accelerationMax` default to the canonical\nWilder values `0.02` / `0.02` / `0.2`. `offset` shifts the read\nwindow backwards (PLAN.md §9.1 — accepted on the surface).",
+        "summary": "Options bag for `ta.psar` (Parabolic SAR). `accelerationStart` /\n`accelerationStep` / `accelerationMax` default to the canonical\nWilder values `0.02` / `0.02` / `0.2`. `offset` shifts the read\nwindow backwards (accepted on the surface).",
         "examples": [
             "const opts: PsarOpts = { accelerationStart: 0.02, accelerationStep: 0.02, accelerationMax: 0.2 };"
         ],
@@ -4366,7 +4366,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "PvoOpts",
         "kind": "type",
         "title": "PvoOpts",
-        "summary": "Options bag for `ta.pvo` (Percentage Volume Oscillator). MACD-shape\napplied to `bar.volume`. Defaults match Appel-era `12 / 26 / 9`\n(mirrors `ta.ppo` / `ta.macd`). `offset` shifts all three outputs\n(`pvo`, `signal`, `hist`) in lockstep per the universal `opts.offset`\nconvention (PLAN.md §9.1).",
+        "summary": "Options bag for `ta.pvo` (Percentage Volume Oscillator). MACD-shape\napplied to `bar.volume`. Defaults match Appel-era `12 / 26 / 9`\n(mirrors `ta.ppo` / `ta.macd`). `offset` shifts all three outputs\n(`pvo`, `signal`, `hist`) in lockstep per the universal `opts.offset`\nconvention.",
         "examples": [
             "const opts: PvoOpts = { fastLength: 12, slowLength: 26, signalLength: 9 };"
         ],
@@ -4388,7 +4388,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "PvtOpts",
         "kind": "type",
         "title": "PvtOpts",
-        "summary": "Options bag for `ta.pvt` (Price Volume Trend). Cumulative\n`volume · (close − prevClose) / prevClose`. `offset` shifts the\nread window backwards (PLAN.md §9.1 universal offset). `lineStyle`\nis a forward-compat plot-styling hint surfaced for §9.1 ergonomics —\nnot consumed by the primitive itself.",
+        "summary": "Options bag for `ta.pvt` (Price Volume Trend). Cumulative\n`volume · (close − prevClose) / prevClose`. `offset` shifts the\nread window backwards (universal offset). `lineStyle`\nis a forward-compat plot-styling hint surfaced for §9.1 ergonomics —\nnot consumed by the primitive itself.",
         "examples": [
             "const opts: PvtOpts = { offset: 0 };"
         ],
@@ -4601,7 +4601,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "RunnerSnapshot",
         "kind": "type",
         "title": "RunnerSnapshot",
-        "summary": "/**\nPer-runner persistence section. Carries one runner's `state.*`\n(and primary-only TA) slot map keyed by `${slotIdPrefix}${slotId}:state`\n(PLAN.md §5.5 + Task 5). `slots` is `JsonValue` so the snapshot\nround-trips through `JSON.stringify` and structured-clone.",
+        "summary": "/**\nPer-runner persistence section. Carries one runner's `state.*`\n(and primary-only TA) slot map keyed by `${slotIdPrefix}${slotId}:state`\n(Task 5). `slots` is `JsonValue` so the snapshot\nround-trips through `JSON.stringify` and structured-clone.",
         "examples": [
             "const r: RunnerSnapshot = {\nslots: { \"x:state\": { committed: 1, tentative: 1 } },\n};\nvoid r;"
         ],
@@ -4634,7 +4634,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "RvgiOpts",
         "kind": "type",
         "title": "RvgiOpts",
-        "summary": "Options bag for `ta.rvgi` (Relative Vigor Index). `length` is the SMA\nsmoothing of the 4-bar weighted numerator / denominator (default\n`10`). `offset` shifts the read window backwards (PLAN.md §9.1 —\naccepted on the surface).",
+        "summary": "Options bag for `ta.rvgi` (Relative Vigor Index). `length` is the SMA\nsmoothing of the 4-bar weighted numerator / denominator (default\n`10`). `offset` shifts the read window backwards (—\naccepted on the surface).",
         "examples": [
             "const opts: RvgiOpts = { length: 10 };"
         ],
@@ -4656,7 +4656,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "RviOpts",
         "kind": "type",
         "title": "RviOpts",
-        "summary": "Options bag for `ta.rvi`. `offset` shifts the read window\nbackwards (PLAN.md §9.1); `lineStyle` is a forward-compat\nplot-styling hint surfaced for §9.1 ergonomics.",
+        "summary": "Options bag for `ta.rvi`. `offset` shifts the read window\nbackwards; `lineStyle` is a forward-compat\nplot-styling hint surfaced for §9.1 ergonomics.",
         "examples": [
             "const opts: RviOpts = { offset: 0 };"
         ],
@@ -4810,7 +4810,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "SmaOpts",
         "kind": "type",
         "title": "SmaOpts",
-        "summary": "Options bag for `ta.sma`. `offset` shifts the output forward by `n`\nbars per the universal `opts.offset` convention (PLAN.md §9.1):\npositive `n` makes `series.current` return the value `n` bars ago,\nnegative `n` reads into the future (NaN at the head).",
+        "summary": "Options bag for `ta.sma`. `offset` shifts the output forward by `n`\nbars per the universal `opts.offset` convention:\npositive `n` makes `series.current` return the value `n` bars ago,\nnegative `n` reads into the future (NaN at the head).",
         "examples": [
             "const opts: SmaOpts = { offset: 0 };"
         ],
@@ -4970,7 +4970,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "STATEFUL_PRIMITIVES",
         "kind": "property",
         "title": "STATEFUL_PRIMITIVES",
-        "summary": "Frozen set of every fully-qualified call name the compiler tracks for\nstatic-analysis (`stateful-call-inside-loop`) and slot-id injection\n(PLAN.md §5.5). Each entry carries a `slot` flag: `slot: true`\nprimitives allocate per-callsite hidden state and get a string-literal\nslot id injected as their first argument; `slot: false` primitives are\npure helpers that ride along in the set because Pine still forbids\nthem inside loops (e.g. `ta.nz`).",
+        "summary": "Frozen set of every fully-qualified call name the compiler tracks for\nstatic-analysis (`stateful-call-inside-loop`) and slot-id injection\n. Each entry carries a `slot` flag: `slot: true`\nprimitives allocate per-callsite hidden state and get a string-literal\nslot id injected as their first argument; `slot: false` primitives are\npure helpers that ride along in the set because Pine still forbids\nthem inside loops (e.g. `ta.nz`).",
         "examples": [
             "import { STATEFUL_PRIMITIVES } from \"@invinite-org/chartlang-core\";\nfor (const entry of STATEFUL_PRIMITIVES) {\nif (entry.name === \"ta.ema\" && entry.slot) {\n// compiler injects an id here\n}\n}"
         ],
@@ -5069,7 +5069,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "StochRsiOpts",
         "kind": "type",
         "title": "StochRsiOpts",
-        "summary": "Options bag for `ta.stochRsi`. `rsiLength` / `stochLength` /\n`kSmoothing` / `dSmoothing` default to the Pine-canonical\n`14` / `14` / `3` / `3` Stochastic-RSI settings. `offset`\nshifts the read window backwards (PLAN.md §9.1).",
+        "summary": "Options bag for `ta.stochRsi`. `rsiLength` / `stochLength` /\n`kSmoothing` / `dSmoothing` default to the Pine-canonical\n`14` / `14` / `3` / `3` Stochastic-RSI settings. `offset`\nshifts the read window backwards.",
         "examples": [
             "const opts: StochRsiOpts = { rsiLength: 14, stochLength: 14, kSmoothing: 3, dSmoothing: 3 };"
         ],
@@ -5113,7 +5113,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "SupertrendOpts",
         "kind": "type",
         "title": "SupertrendOpts",
-        "summary": "Options bag for `ta.supertrend`. `length` is the ATR period\n(default `10`); `multiplier` scales the band offset from `hl2`\n(default `3`). `offset` shifts the read window backwards\n(PLAN.md §9.1 — accepted on the surface). The source is hard-coded\nto `hl2` (Pine-canonical Supertrend); a `source` opt could land in\na follow-up.",
+        "summary": "Options bag for `ta.supertrend`. `length` is the ATR period\n(default `10`); `multiplier` scales the band offset from `hl2`\n(default `3`). `offset` shifts the read window backwards\n(accepted on the surface). The source is hard-coded\nto `hl2` (Pine-canonical Supertrend); a `source` opt could land in\na follow-up.",
         "examples": [
             "const opts: SupertrendOpts = { length: 10, multiplier: 3 };"
         ],
@@ -7105,7 +7105,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "TablePosition",
         "kind": "type",
         "title": "TablePosition",
-        "summary": "CSS-pixel viewport anchor used by `draw.table`. Tables are status\npanels, not world-space drawings, so the position resolves against\nthe adapter viewport per PLAN.md §10.2.",
+        "summary": "CSS-pixel viewport anchor used by `draw.table`. Tables are status\npanels, not world-space drawings, so the position resolves against\nthe adapter viewport.",
         "examples": [
             "const position: TablePosition = \"top-right\";\nvoid position;"
         ],
@@ -7116,7 +7116,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "TableState",
         "kind": "type",
         "title": "TableState",
-        "summary": "`table` — CSS-pixel viewport-anchored dashboard/status panel. It\ndeliberately carries no world-space anchors; adapters resolve\n`position` against the current viewport per PLAN.md §10.2.",
+        "summary": "`table` — CSS-pixel viewport-anchored dashboard/status panel. It\ndeliberately carries no world-space anchors; adapters resolve\n`position` against the current viewport.",
         "examples": [
             "const s: TableState = {\nkind: \"table\",\nposition: \"top-right\",\ncells: [[{ text: \"P&L\" }, { text: \"+12.5%\", textColor: \"#16a34a\" }]],\n};\nvoid s;"
         ],
@@ -7292,7 +7292,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "TrixOpts",
         "kind": "type",
         "title": "TrixOpts",
-        "summary": "Options bag for `ta.trix` (Triple-smoothed EMA Rate-of-Change).\n`signalLength` is the EMA-smoothing length of the TRIX signal\nline (default `9`). `offset` shifts both output series in\nlockstep (PLAN.md §9.1).",
+        "summary": "Options bag for `ta.trix` (Triple-smoothed EMA Rate-of-Change).\n`signalLength` is the EMA-smoothing length of the TRIX signal\nline (default `9`). `offset` shifts both output series in\nlockstep.",
         "examples": [
             "const opts: TrixOpts = { signalLength: 9 };"
         ],
@@ -7413,7 +7413,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "VolatilityStopOpts",
         "kind": "type",
         "title": "VolatilityStopOpts",
-        "summary": "Options bag for `ta.volatilityStop`. `length` is the ATR period\n(default `20`); `multiplier` scales the ATR offset (default `2`).\n`offset` shifts the read window backwards (PLAN.md §9.1 — accepted\non the surface). Source is hard-coded to `bar.close` (Pine\n`ta.vstop` convention); an explicit `source` opt could land in a\nfollow-up.",
+        "summary": "Options bag for `ta.volatilityStop`. `length` is the ATR period\n(default `20`); `multiplier` scales the ATR offset (default `2`).\n`offset` shifts the read window backwards (accepted\non the surface). Source is hard-coded to `bar.close` (Pine\n`ta.vstop` convention); an explicit `source` opt could land in a\nfollow-up.",
         "examples": [
             "const opts: VolatilityStopOpts = { length: 20, multiplier: 2 };"
         ],
@@ -7435,7 +7435,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "VolOpts",
         "kind": "type",
         "title": "VolOpts",
-        "summary": "Options bag for `ta.vol`. `offset` shifts the read window backwards\n(PLAN.md §9.1 universal offset). `ta.vol` is a pass-through of\n`bar.volume`; the opts bag exists so authors can attach the\nuniversal `offset` without an extra wrapper.",
+        "summary": "Options bag for `ta.vol`. `offset` shifts the read window backwards\n(universal offset). `ta.vol` is a pass-through of\n`bar.volume`; the opts bag exists so authors can attach the\nuniversal `offset` without an extra wrapper.",
         "examples": [
             "const opts: VolOpts = { offset: 0 };"
         ],
@@ -7457,7 +7457,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "VortexOpts",
         "kind": "type",
         "title": "VortexOpts",
-        "summary": "Options bag for `ta.vortex` (Botes & Siepman Vortex Indicator).\n`length` is positional on the call (`ta.vortex(length, opts?)`), so\nthe opts bag carries only the universal `offset` (PLAN.md §9.1) +\nper-output styling hints. The runtime emits `NaN` on zero-TR\nwindows (chartlang surfaces the degenerate window — invinite emits\n0 in the same case).",
+        "summary": "Options bag for `ta.vortex` (Botes & Siepman Vortex Indicator).\n`length` is positional on the call (`ta.vortex(length, opts?)`), so\nthe opts bag carries only the universal `offset` +\nper-output styling hints. The runtime emits `NaN` on zero-TR\nwindows (chartlang surfaces the degenerate window — invinite emits\n0 in the same case).",
         "examples": [
             "const opts: VortexOpts = { offset: 0 };"
         ],
@@ -7479,7 +7479,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "VwapOpts",
         "kind": "type",
         "title": "VwapOpts",
-        "summary": "Options bag for `ta.vwap`. `source` selects the per-bar price\n(default `\"hlc3\"` per Pine). `offset` shifts the read window\nbackwards (PLAN.md §9.1).",
+        "summary": "Options bag for `ta.vwap`. `source` selects the per-bar price\n(default `\"hlc3\"` per Pine). `offset` shifts the read window\nbackwards.",
         "examples": [
             "const opts: VwapOpts = { source: \"hlc3\" };"
         ],
@@ -7558,7 +7558,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "WilliamsFractalOpts",
         "kind": "type",
         "title": "WilliamsFractalOpts",
-        "summary": "Options bag for `ta.williamsFractal`. `length` is the symmetric\nleft / right window size (default `2` — total 5-bar window: 2\nleft + centre + 2 right). `offset` shifts the read window\nbackwards (PLAN.md §9.1 — accepted on the surface).",
+        "summary": "Options bag for `ta.williamsFractal`. `length` is the symmetric\nleft / right window size (default `2` — total 5-bar window: 2\nleft + centre + 2 right). `offset` shifts the read window\nbackwards (accepted on the surface).",
         "examples": [
             "const opts: WilliamsFractalOpts = { length: 2 };"
         ],
@@ -7647,7 +7647,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "ZigZagOpts",
         "kind": "type",
         "title": "ZigZagOpts",
-        "summary": "Options bag for `ta.zigZag`. `deviation` is the percentage move\n(default `5`) required to confirm a reversal pivot from the running\ncandidate; `depth` is the minimum number of bars (default `10`) that\nmust elapse before a pivot can be confirmed. `offset` shifts the\nread window backwards (PLAN.md §9.1 — accepted on the surface).",
+        "summary": "Options bag for `ta.zigZag`. `deviation` is the percentage move\n(default `5`) required to confirm a reversal pivot from the running\ncandidate; `depth` is the minimum number of bars (default `10`) that\nmust elapse before a pivot can be confirmed. `offset` shifts the\nread window backwards (accepted on the surface).",
         "examples": [
             "const opts: ZigZagOpts = { deviation: 5, depth: 10 };"
         ],

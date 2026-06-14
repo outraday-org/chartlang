@@ -274,7 +274,7 @@ export type HLineOpts = Readonly<{
 
 /**
  * Compile-time callable hole for `plot(value, opts?)`. The compiler rewrites
- * every callsite (Task 2) to dispatch to the runtime's `plot` implementation;
+ * every callsite to dispatch to the runtime's `plot` implementation;
  * calling this outside a compiled runtime throws the sentinel.
  *
  * Accepts `number | Series<number>` — scalars emit a single bar value;

@@ -23,8 +23,8 @@
   identity is the contract.
 - **`ta` is `TA_REGISTRY` cast through `TaNamespace`.** Core's
   `TaNamespace` is the script-facing surface (no `slotId`); the
-  runtime's `RuntimeTaNamespace` adds a leading `slotId: string` per
-  PLAN.md §5.5. The compiler inlines the slot id at every callsite,
+  runtime's `RuntimeTaNamespace` adds a leading `slotId: string`.
+  The compiler inlines the slot id at every callsite,
   so the runtime function's first arg matches what the bundled script
   emits at runtime — but the type system needs the widening cast to
   satisfy `ComputeContext.ta: TaNamespace`. That cast lives in

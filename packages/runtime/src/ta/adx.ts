@@ -4,8 +4,8 @@
 // Ported from invinite/src/components/trading-chart/indicators/adx.ts
 //   plus lib/wilder-directional.ts + lib/adx-from-di.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. ADX reads `bar.high` / `bar.low` /
@@ -172,7 +172,7 @@ function tickValue(slot: AdxSlot, high: number, low: number, close: number): num
  * @since 0.2
  * @stable
  *
- * `opts.offset` shifts the returned series (PLAN.md §9.1) —
+ * `opts.offset` shifts the returned series —
  * `series.current` returns the value `offset` bars ago.
  *
  * @example

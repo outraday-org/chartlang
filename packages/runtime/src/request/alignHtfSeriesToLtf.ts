@@ -7,7 +7,7 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 
 /**
- * Align an HTF series to the LTF time grid (PLAN.md §6.8).
+ * Align an HTF series to the LTF time grid.
  *
  * `htf` and `ltf` must be sorted ascending by `time`; callers own that
  * precondition. The output has one entry per LTF bar where each value is the
@@ -16,7 +16,7 @@ import type { Bar } from "@invinite-org/chartlang-core";
  * `t`. `bar.time` is treated as the bar's open, so an HTF bar becomes the
  * active value as soon as the LTF cursor reaches its open time and stays
  * active until the next HTF open. This deliberately exposes the in-progress
- * secondary bar to script land per PLAN.md §6.8; do not "fix" it to bar-close
+ * secondary bar to script land; do not "fix" it to bar-close
  * lookahead-off semantics.
  *
  * @formula Two-pointer walk over ascending HTF and LTF bar times; no

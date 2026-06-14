@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // Behaviour from
 //   invinite/src/components/trading-chart/tools/fib-spiral-tool.ts.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     DrawingHandle,
@@ -39,8 +39,7 @@ function fibSpiralImpl(slotId: string, a: WorldPoint, b: WorldPoint, opts: FibOp
  * Beziers, one per quarter-turn. The spiral starts at `a` (centre) with
  * initial radius `|b - a|` and scales by φ ≈ 1.618 per quarter-turn.
  * Mirrors invinite's `fib-spiral-tool.ts` shape. The `counterClockwise`
- * flag from the invinite tool is deferred to a Task-1 reshape (see
- * `tasks/phase-3-drawing-parity/12-fibonacci-b.plan.md` §2); the
+ * flag from the invinite tool is deferred; the
  * landed renderer is clockwise-only.
  *
  * @anchors `a`, `b` — two `WorldPoint`s (centre, initial-radius edge)

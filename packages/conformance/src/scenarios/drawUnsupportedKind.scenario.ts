@@ -53,7 +53,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * against a narrow synthetic adapter (`capabilities.drawings = new
  * Set(["line"])`) — the script emits both `draw.line` and
  * `draw.rectangle`, the line survives, the rectangle drops with the
- * `unsupported-drawing-kind` diagnostic per PLAN.md §7.4 silent no-op
+ * `unsupported-drawing-kind` diagnostic silent no-op
  * semantics. Pinned `drawing-hash` covers the lone surviving line
  * emission.
  *

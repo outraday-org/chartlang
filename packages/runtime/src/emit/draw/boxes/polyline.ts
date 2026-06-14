@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // Behaviour from
 //   invinite/src/components/trading-chart/tools/polyline-tool.ts.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     DrawingHandle,
@@ -39,7 +39,7 @@ function polylineImpl(
  * auto-connects the last anchor back to the first to close the
  * polygon; supply between 3 and 20 anchors (validator pins this
  * range, mirroring the invinite tool's 20-point cap). The open
- * polyline equivalent will ship as `draw.path` (Task 7).
+ * polyline equivalent will ship as `draw.path`.
  *
  * @anchors `anchors` — `ReadonlyArray<WorldPoint>` of length 3..20
  * @anchorCount 3..20

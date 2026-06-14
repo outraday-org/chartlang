@@ -11,8 +11,7 @@ Draw fib-spaced vertical time zones between two world anchors. Each
 level in `opts.levels ?? FIB_LEVELS` paints a vertical line at
 `t = a.time + level * (b.time - a.time)`. Mirrors invinite's
 `fib-time-zone-tool.ts` shape (using the ratio array per the landed
-core state — see `tasks/phase-3-drawing-parity/11-fibonacci-a.plan.md`
-§1 for the spec ↔ core delta on integer-sequence semantics).
+core state).
 
 ## Anchors
 
@@ -49,4 +48,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/fibA/fibTimeZone.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

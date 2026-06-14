@@ -28,8 +28,7 @@ const COMPARISON_OPS = new Set<ts.SyntaxKind>([
 ]);
 
 /**
- * Walk the source file and emit a diagnostic for every forbidden construct
- * defined by PLAN.md §4.2 / §5.2:
+ * Walk the source file and emit a diagnostic for every forbidden construct:
  *
  * - `while` / `do-while` / `for-of` / `for-in` / unbounded `for` →
  *   `unbounded-loop`.

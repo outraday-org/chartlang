@@ -10,7 +10,7 @@
 Draw a triangle pattern (ascending / descending / symmetrical)
 through 3 world anchors `[apex, baseHigh, baseLow]`. The renderer
 strokes the 3-vertex closed polygon and labels each pivot.
-**Distinct from `draw.triangle`** (Task 6, a solid-shape primitive
+**Distinct from `draw.triangle`** (a solid-shape primitive
 with ShapeStyle); this is the harmonic-pattern outline with
 LineDrawStyle. Mirrors invinite's `triangle-pattern-tool.ts` shape.
 
@@ -49,4 +49,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/patterns/trianglePattern.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

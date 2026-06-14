@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // Behaviour from
 //   invinite/src/components/trading-chart/tools/regression-trend-tool.ts.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     DrawingHandle,
@@ -41,13 +41,12 @@ function regressionTrendImpl(
 
 /**
  * Draw an OLS regression-trend line between two world anchors with
- * optional ±σ bands. The Phase-3 runtime emits the anchor pair + opts;
+ * optional ±σ bands. The runtime emits the anchor pair + opts;
  * the actual OLS fit is computed by the adapter — consumer adapters
  * can use {@link import("@invinite-org/chartlang-runtime").linearRegression}
- * (re-exported by Task 10) without duplicating math. The reference
+ * without duplicating math. The reference
  * canvas2d adapter renders a placeholder anchor-to-anchor line because
- * `Viewport` does not expose a bar accessor — see
- * `tasks/phase-3-drawing-parity/10-channels.plan.md` §3. Mirrors
+ * `Viewport` does not expose a bar accessor. Mirrors
  * invinite's `regression-trend-tool.ts` shape.
  *
  * @anchors `a`, `b` — start and end `WorldPoint`s (a.time < b.time)

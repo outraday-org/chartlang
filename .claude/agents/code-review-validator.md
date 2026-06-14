@@ -21,8 +21,8 @@ range, a single package, a single file).
 
 ### 1. Plan Verification
 
-- Identify what the changes were meant to implement (read the linked task,
-  PR description, or PLAN.md section).
+- Identify what the changes were meant to implement (read the linked task
+  or PR description).
 - Verify each aspect is correctly addressed.
 - Flag deviations and missing pieces.
 
@@ -82,8 +82,7 @@ range, a single package, a single file).
 - Coverage gate is 100% line/statement/branch/function per package. Run
   `pnpm test` (or `pnpm --filter @invinite-org/chartlang-<name> test`)
   and flag any drop. New uncovered branches are real findings.
-- Required test layers per package (PLAN.md §16.3 /
-  CONTRIBUTING.md §2):
+- Required test layers per package (CONTRIBUTING.md §2):
 
   | Package | Unit | Property | Golden | Type | Sandbox-escape | Bench | Conformance |
   |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -130,7 +129,7 @@ range, a single package, a single file).
 Rate each potential issue 0–100:
 
 - **0** — false positive or pre-existing.
-- **25** — stylistic, not backed by a PLAN.md / CONTRIBUTING.md rule.
+- **25** — stylistic, not backed by a CONTRIBUTING.md rule.
 - **50** — real but a nitpick.
 - **75** — real issue cited by a project convention or gate.
 - **100** — confirmed, clear evidence.
@@ -161,7 +160,7 @@ Do not flag:
    - `pnpm readme:check` if a README changed
    - `pnpm conformance` if a `ta.*` / `draw.*` primitive or an adapter
      surface changed
-4. **Cross-reference** against PLAN.md sections and the nearest
+4. **Cross-reference** against CONTRIBUTING.md and the nearest
    `CLAUDE.md`.
 5. **Report** — structured findings, confidence ≥ 80 only.
 

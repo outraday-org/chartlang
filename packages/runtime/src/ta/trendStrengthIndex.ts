@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/trend-strength-index.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. Named `trendStrengthIndex` to disambiguate
@@ -159,7 +159,7 @@ function tickStep(slot: TrendStrengthIndexSlot, src: number): number {
  * bar index over each trailing `length`-bar window. Bounded `[-1, +1]`:
  * `+1` = clean uptrend (price rises monotonically with bar index), `−1`
  * = clean downtrend, `0` = no linear trend. Distinct from
- * `ta.tsi` (Task 14's True Strength Index — a momentum oscillator).
+ * `ta.tsi` (the True Strength Index — a momentum oscillator).
  * The math is TradingView's documented Trend Strength Index
  * (https://www.tradingview.com/support/solutions/43000730926-trend-strength-index/).
  *
@@ -178,7 +178,7 @@ function tickStep(slot: TrendStrengthIndexSlot, src: number): number {
  * @stable
  *
  * `opts.offset` shifts the returned series so `series.current` reads
- * the value `offset` bars ago (PLAN.md §9.1).
+ * the value `offset` bars ago.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

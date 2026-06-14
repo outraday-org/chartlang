@@ -30,7 +30,7 @@ import type {
  * calls — the compiler injects a callsite slot id so the runtime can
  * track the per-handle `DrawingState` across bars — and returns a
  * {@link DrawingHandle}. Adapters that omit a kind degrade silently
- * with `unsupported-drawing-kind` (PLAN.md §7.4); excess emissions
+ * with `unsupported-drawing-kind`; excess emissions
  * drop with `drawing-budget-exceeded` once the per-script bucket is
  * full.
  *
@@ -151,8 +151,7 @@ export type DrawNamespace = {
  * convention as the `plot` / `hline` / `alert` stubs in
  * `plot/plot.ts:plot` / `alert/alert.ts:alert`. The runtime swaps this
  * stub for the real namespace at boot per the
- * `@invinite-org/chartlang-runtime` `primitives.ts` seam (PLAN.md
- * §5.5).
+ * `@invinite-org/chartlang-runtime` `primitives.ts` seam.
  *
  * @formula  N/A — namespace surface; per-method runtime impl in Tasks 5–18
  * @anchors  per-method — see the per-kind state shapes in `drawingState.ts`

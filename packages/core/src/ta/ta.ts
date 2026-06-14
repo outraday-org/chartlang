@@ -5,7 +5,7 @@ import type { PlotLineStyle, Series, Time } from "../types.js";
 
 /**
  * Options bag for `ta.sma`. `offset` shifts the output forward by `n`
- * bars per the universal `opts.offset` convention (PLAN.md §9.1):
+ * bars per the universal `opts.offset` convention:
  * positive `n` makes `series.current` return the value `n` bars ago,
  * negative `n` reads into the future (NaN at the head).
  *
@@ -119,7 +119,7 @@ export type CrossunderOpts = Readonly<{ offset?: number }>;
 
 /**
  * Options bag for `ta.highest`. `offset` shifts the read window backwards
- * by `n` bars (Phase-2 backfill — see PLAN.md §9.1).
+ * by `n` bars (Phase-2 backfill).
  *
  * @formula  N/A — see `ta.highest` JSDoc
  * @since 0.2
@@ -332,7 +332,7 @@ export type MaTypeNoVolume = "sma" | "ema" | "wma" | "smma";
 /**
  * Options bag for `ta.maRibbon` (a fan of K MAs at different lengths).
  * Defaults: `lengths = [10, 20, 30, 40, 50]`, `maType = "sma"`.
- * `offset` is the universal bar-shift (per PLAN.md §9.1) applied to
+ * `offset` is the universal bar-shift applied to
  * every output series. `outputs` is forward-compat per-key plot styling
  * (typed but not consumed by the runtime impl).
  *
@@ -544,7 +544,7 @@ export type TsiResult = Readonly<{
 
 /**
  * Options bag for `ta.cci`. `offset` shifts the read window backwards
- * (Phase-2 backfill — see PLAN.md §9.1). `lineStyle` is a pass-through
+ * (Phase-2 backfill). `lineStyle` is a pass-through
  * for the script-author's downstream `plot(cci, { lineStyle })` call
  * and is not consumed by the primitive itself.
  *
@@ -607,7 +607,7 @@ export type StochResult = Readonly<{
  * Options bag for `ta.stochRsi`. `rsiLength` / `stochLength` /
  * `kSmoothing` / `dSmoothing` default to the Pine-canonical
  * `14` / `14` / `3` / `3` Stochastic-RSI settings. `offset`
- * shifts the read window backwards (PLAN.md §9.1).
+ * shifts the read window backwards.
  *
  * @formula  N/A — see `ta.stochRsi` JSDoc
  * @since 0.2
@@ -667,7 +667,7 @@ export type CoppockOpts = Readonly<{
  * Options bag for `ta.ppo`. `fastLength` / `slowLength` / `signalLength`
  * default to the Appel-era `12` / `26` / `9` (mirrors `ta.macd`).
  * `offset` shifts all three outputs (`ppo`, `signal`, `hist`) in
- * lockstep per the universal `opts.offset` convention (PLAN.md §9.1).
+ * lockstep per the universal `opts.offset` convention.
  *
  * @formula  N/A — see `ta.ppo` JSDoc
  * @since 0.2
@@ -684,7 +684,7 @@ export type PpoOpts = Readonly<{
 
 /**
  * Options bag for `ta.dpo`. `offset` shifts the read window backwards
- * (PLAN.md §9.1). `lineStyle` is a forward-compat plot-styling hint
+ *. `lineStyle` is a forward-compat plot-styling hint
  * surfaced for §9.1 ergonomics — not consumed by the primitive
  * itself.
  *
@@ -699,7 +699,7 @@ export type DpoOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
 /**
  * Options bag for `ta.connorsRsi`. `rsiLength` / `streakLength` /
  * `rocLength` default to Larry Connors' canonical `3` / `2` / `100`.
- * `offset` shifts the read window backwards (PLAN.md §9.1).
+ * `offset` shifts the read window backwards.
  *
  * @formula  N/A — see `ta.connorsRsi` JSDoc
  * @since 0.2
@@ -765,7 +765,7 @@ export type StochRsiResult = Readonly<{
  * Options bag for `ta.kst` (Know Sure Thing). Defaults match Pring's
  * canonical settings `(10, 15, 20, 30, 10, 10, 10, 15, 9)`. Source is
  * positional (`ta.kst(source, opts?)`). `offset` shifts the read window
- * backwards (PLAN.md §9.1 — accepted on the surface).
+ * backwards (accepted on the surface).
  *
  * @formula  N/A — see `ta.kst` JSDoc
  * @since 0.2
@@ -809,7 +809,7 @@ export type KstResult = Readonly<{
 /**
  * Options bag for `ta.fisher`. `length` is positional on the call
  * (`ta.fisher(length, opts?)`); the bag carries only the universal
- * `offset` (PLAN.md §9.1 — accepted on the surface).
+ * `offset` (accepted on the surface).
  *
  * @formula  N/A — see `ta.fisher` JSDoc
  * @since 0.2
@@ -847,7 +847,7 @@ export type FisherResult = Readonly<{
 /**
  * Options bag for `ta.klinger` (Klinger Volume Oscillator). Defaults
  * `(fastLength=34, slowLength=55, signalLength=13)` match invinite.
- * `offset` shifts the read window backwards (PLAN.md §9.1 — accepted
+ * `offset` shifts the read window backwards (accepted
  * on the surface).
  *
  * @formula  N/A — see `ta.klinger` JSDoc
@@ -889,7 +889,7 @@ export type KlingerResult = Readonly<{
 /**
  * Options bag for `ta.rvgi` (Relative Vigor Index). `length` is the SMA
  * smoothing of the 4-bar weighted numerator / denominator (default
- * `10`). `offset` shifts the read window backwards (PLAN.md §9.1 —
+ * `10`). `offset` shifts the read window backwards (—
  * accepted on the surface).
  *
  * @formula  N/A — see `ta.rvgi` JSDoc
@@ -927,7 +927,7 @@ export type RvgiResult = Readonly<{
 
 /**
  * Options bag for `ta.aroon`. `offset` shifts the read window backwards
- * (PLAN.md §9.1). `outputs` carries per-output styling hints that
+ *. `outputs` carries per-output styling hints that
  * downstream `plot()` callsites can lift defaults from; the runtime
  * itself ignores it in Phase 2 — script-author `plot(a.up,
  * { lineStyle })` is the styling seam.
@@ -996,7 +996,7 @@ export type UlcerIndexOpts = Readonly<{ offset?: number; lineStyle?: PlotLineSty
 
 /**
  * Options bag for `ta.vol`. `offset` shifts the read window backwards
- * (PLAN.md §9.1 universal offset). `ta.vol` is a pass-through of
+ * (universal offset). `ta.vol` is a pass-through of
  * `bar.volume`; the opts bag exists so authors can attach the
  * universal `offset` without an extra wrapper.
  *
@@ -1011,7 +1011,7 @@ export type VolOpts = Readonly<{ offset?: number }>;
 /**
  * Options bag for `ta.vwap`. `source` selects the per-bar price
  * (default `"hlc3"` per Pine). `offset` shifts the read window
- * backwards (PLAN.md §9.1).
+ * backwards.
  *
  * @formula  vwap = Σ(source · volume) / Σ(volume) per session window
  * @since 0.2
@@ -1216,7 +1216,7 @@ export type FixedRangeVolumeProfileResult = Readonly<{
 
 /**
  * Options bag for `ta.obv` (On-Balance Volume). `offset` shifts the
- * read window backwards (PLAN.md §9.1 universal offset). `lineStyle`
+ * read window backwards (universal offset). `lineStyle`
  * is a forward-compat plot-styling hint surfaced for §9.1 ergonomics —
  * not consumed by the primitive itself.
  *
@@ -1267,7 +1267,7 @@ export type CmfOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
 /**
  * Options bag for `ta.chaikinOsc` (Chaikin Oscillator). Defaults
  * match Pine / invinite: `fastLength = 3`, `slowLength = 10`. `offset`
- * shifts the read window backwards (PLAN.md §9.1 universal offset).
+ * shifts the read window backwards (universal offset).
  *
  * @formula  N/A — see `ta.chaikinOsc` JSDoc
  * @since 0.2
@@ -1312,7 +1312,7 @@ export type NetVolumeOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyl
  * applied to `bar.volume`. Defaults match Appel-era `12 / 26 / 9`
  * (mirrors `ta.ppo` / `ta.macd`). `offset` shifts all three outputs
  * (`pvo`, `signal`, `hist`) in lockstep per the universal `opts.offset`
- * convention (PLAN.md §9.1).
+ * convention.
  *
  * @formula  N/A — see `ta.pvo` JSDoc
  * @since 0.2
@@ -1351,7 +1351,7 @@ export type PvoResult = Readonly<{
 /**
  * Options bag for `ta.pvt` (Price Volume Trend). Cumulative
  * `volume · (close − prevClose) / prevClose`. `offset` shifts the
- * read window backwards (PLAN.md §9.1 universal offset). `lineStyle`
+ * read window backwards (universal offset). `lineStyle`
  * is a forward-compat plot-styling hint surfaced for §9.1 ergonomics —
  * not consumed by the primitive itself.
  *
@@ -1426,7 +1426,7 @@ export type AroonResult = Readonly<{
 /**
  * Options bag for `ta.bbPercentB`. `multiplier` scales the BB envelope
  * (defaults to `2`, mirroring Pine / TradingView). `offset` shifts the
- * read window backwards (PLAN.md §9.1); `lineStyle` is a forward-compat
+ * read window backwards; `lineStyle` is a forward-compat
  * plot-styling hint surfaced for §9.1 ergonomics.
  *
  * @formula  N/A — see `ta.bbPercentB` JSDoc
@@ -1462,7 +1462,7 @@ export type BbwOpts = Readonly<{
  * Options bag for `ta.historicalVolatility`. `annualisationFactor`
  * defaults to `365` (TradingView's "Crypto" / 24-7 convention; use
  * `252` for trading-day equity series). `offset` shifts the read
- * window backwards (PLAN.md §9.1).
+ * window backwards.
  *
  * @formula  N/A — see `ta.historicalVolatility` JSDoc
  * @anchors  annualisationFactor
@@ -1479,7 +1479,7 @@ export type HvOpts = Readonly<{
 
 /**
  * Options bag for `ta.rvi`. `offset` shifts the read window
- * backwards (PLAN.md §9.1); `lineStyle` is a forward-compat
+ * backwards; `lineStyle` is a forward-compat
  * plot-styling hint surfaced for §9.1 ergonomics.
  *
  * @formula  N/A — see `ta.rvi` JSDoc
@@ -1497,7 +1497,7 @@ export type RviOpts = Readonly<{
  * Options bag for `ta.massIndex`. `emaLength` defaults to `9` (the
  * inner EMA-of-range and outer EMA-of-EMA window); `sumLength`
  * defaults to `25` (the rolling-sum-of-ratio window). `offset`
- * shifts the read window backwards (PLAN.md §9.1).
+ * shifts the read window backwards.
  *
  * @formula  N/A — see `ta.massIndex` JSDoc
  * @since 0.2
@@ -1514,7 +1514,7 @@ export type MassIndexOpts = Readonly<{
 
 /**
  * Options bag for `ta.donchian`. `offset` shifts the read window
- * backwards (PLAN.md §9.1). `outputs` carries per-output styling
+ * backwards. `outputs` carries per-output styling
  * hints downstream `plot()` callsites can lift defaults from; the
  * runtime itself ignores it in Phase 2.
  *
@@ -1561,7 +1561,7 @@ export type DonchianResult = Readonly<{
  * canonical form — Chester Keltner's original used SMA over a hand-
  * rolled "typical range", but every modern reference defaults to EMA
  * over close + Wilder ATR). `offset` is the universal bar-shift
- * (PLAN.md §9.1 — accepted on the surface). `outputs` carries
+ * (accepted on the surface). `outputs` carries
  * per-output styling hints downstream `plot()` callsites can lift
  * defaults from; the runtime itself ignores it in Phase 2.
  *
@@ -1609,7 +1609,7 @@ export type KeltnerResult = Readonly<{
  * is the MA period (default `20`); `percent` is the band offset as a
  * percentage of the middle MA (default `10`); `maType` picks the MA
  * kind (default `"sma"`). `offset` is the universal bar-shift
- * (PLAN.md §9.1 — accepted on the surface).
+ * (accepted on the surface).
  *
  * @formula  N/A — see `ta.envelope` JSDoc
  * @anchors  maType
@@ -1650,7 +1650,7 @@ export type EnvelopeResult = Readonly<{
 
 /**
  * Options bag for `ta.chop` (Choppiness Index). `offset` is the
- * universal bar-shift (PLAN.md §9.1 — accepted on the surface).
+ * universal bar-shift (accepted on the surface).
  * `lineStyle` is a forward-compat plot-styling hint surfaced for
  * §9.1 ergonomics — not consumed by the primitive itself.
  *
@@ -1666,7 +1666,7 @@ export type ChopOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
  * Options bag for `ta.psar` (Parabolic SAR). `accelerationStart` /
  * `accelerationStep` / `accelerationMax` default to the canonical
  * Wilder values `0.02` / `0.02` / `0.2`. `offset` shifts the read
- * window backwards (PLAN.md §9.1 — accepted on the surface).
+ * window backwards (accepted on the surface).
  *
  * @formula  N/A — see `ta.psar` JSDoc
  * @anchors  accelerationStart, accelerationStep, accelerationMax
@@ -1707,7 +1707,7 @@ export type PsarResult = Readonly<{
  * Options bag for `ta.supertrend`. `length` is the ATR period
  * (default `10`); `multiplier` scales the band offset from `hl2`
  * (default `3`). `offset` shifts the read window backwards
- * (PLAN.md §9.1 — accepted on the surface). The source is hard-coded
+ * (accepted on the surface). The source is hard-coded
  * to `hl2` (Pine-canonical Supertrend); a `source` opt could land in
  * a follow-up.
  *
@@ -1747,7 +1747,7 @@ export type SupertrendResult = Readonly<{
  * Options bag for `ta.chandelier` (Chandelier Exit). `length` is the
  * ATR period AND the rolling extreme window (default `22`);
  * `multiplier` scales the ATR offset (default `3`). `offset` shifts
- * the read window backwards (PLAN.md §9.1 — accepted on the surface).
+ * the read window backwards (accepted on the surface).
  *
  * @formula  N/A — see `ta.chandelier` JSDoc
  * @anchors  length, multiplier
@@ -1789,7 +1789,7 @@ export type ChandelierResult = Readonly<{
  * `10`); `multiplier` scales the ATR offset (default `1`);
  * `smoothingLength` is the second-pass extreme window (default `9`)
  * — matches Chande Kroll's 1995 paper. `offset` shifts the read
- * window backwards (PLAN.md §9.1 — accepted on the surface).
+ * window backwards (accepted on the surface).
  *
  * @formula  N/A — see `ta.chandeKrollStop` JSDoc
  * @anchors  length, multiplier
@@ -1833,7 +1833,7 @@ export type ChandeKrollStopResult = Readonly<{
  * Options bag for `ta.williamsFractal`. `length` is the symmetric
  * left / right window size (default `2` — total 5-bar window: 2
  * left + centre + 2 right). `offset` shifts the read window
- * backwards (PLAN.md §9.1 — accepted on the surface).
+ * backwards (accepted on the surface).
  *
  * @formula  N/A — see `ta.williamsFractal` JSDoc
  * @anchors  length
@@ -1885,7 +1885,7 @@ export type WilliamsFractalResult = Readonly<{
  * (default `5`) required to confirm a reversal pivot from the running
  * candidate; `depth` is the minimum number of bars (default `10`) that
  * must elapse before a pivot can be confirmed. `offset` shifts the
- * read window backwards (PLAN.md §9.1 — accepted on the surface).
+ * read window backwards (accepted on the surface).
  *
  * @formula  N/A — see `ta.zigZag` JSDoc
  * @anchors  deviation, depth
@@ -1930,7 +1930,7 @@ export type ZigZagResult = Readonly<{
  * Options bag for `ta.pivotsHighLow`. `leftLength` / `rightLength`
  * default to `4` (a 9-bar centred window); they may differ to surface
  * asymmetric `ta.pivothigh` / `ta.pivotlow` behaviour. `offset` shifts
- * the read window backwards (PLAN.md §9.1 — accepted on the surface).
+ * the read window backwards (accepted on the surface).
  *
  * @formula  N/A — see `ta.pivotsHighLow` JSDoc
  * @anchors  leftLength, rightLength
@@ -1989,7 +1989,7 @@ export type PivotsStandardSystem = "classic" | "fibonacci" | "camarilla" | "wood
 /**
  * Options bag for `ta.pivotsStandard`. `system` picks the formula
  * family (default `"classic"`). `offset` shifts the read window
- * backwards (PLAN.md §9.1 — accepted on the surface).
+ * backwards (accepted on the surface).
  *
  * @formula  N/A — see `ta.pivotsStandard` JSDoc
  * @anchors  system
@@ -2037,7 +2037,7 @@ export type PivotsStandardResult = Readonly<{
 /**
  * Options bag for `ta.volatilityStop`. `length` is the ATR period
  * (default `20`); `multiplier` scales the ATR offset (default `2`).
- * `offset` shifts the read window backwards (PLAN.md §9.1 — accepted
+ * `offset` shifts the read window backwards (accepted
  * on the surface). Source is hard-coded to `bar.close` (Pine
  * `ta.vstop` convention); an explicit `source` opt could land in a
  * follow-up.
@@ -2079,7 +2079,7 @@ export type VolatilityStopResult = Readonly<{
  * Options bag for `ta.adx` (Wilder's Average Directional Index).
  * `smoothing` is the second-stage Wilder window applied to DX
  * (default `14` — matches the DI window). `offset` shifts the
- * output (PLAN.md §9.1). `lineStyle` is a forward-compat plot-
+ * output. `lineStyle` is a forward-compat plot-
  * styling hint surfaced for §9.1 ergonomics — not consumed by the
  * primitive itself.
  *
@@ -2098,7 +2098,7 @@ export type AdxOpts = Readonly<{
 
 /**
  * Options bag for `ta.dmi` (Directional Movement Index). `offset`
- * shifts both output series in lockstep (PLAN.md §9.1). `outputs`
+ * shifts both output series in lockstep. `outputs`
  * carries per-output styling hints downstream `plot()` callsites
  * can lift defaults from; the runtime itself ignores it in Phase 2
  * — script-author `plot(d.plusDi, { lineStyle })` is the styling
@@ -2139,7 +2139,7 @@ export type DmiResult = Readonly<{
  * Options bag for `ta.trix` (Triple-smoothed EMA Rate-of-Change).
  * `signalLength` is the EMA-smoothing length of the TRIX signal
  * line (default `9`). `offset` shifts both output series in
- * lockstep (PLAN.md §9.1).
+ * lockstep.
  *
  * @formula  N/A — see `ta.trix` JSDoc
  * @anchors  signalLength
@@ -2175,7 +2175,7 @@ export type TrixResult = Readonly<{
 /**
  * Options bag for `ta.vortex` (Botes & Siepman Vortex Indicator).
  * `length` is positional on the call (`ta.vortex(length, opts?)`), so
- * the opts bag carries only the universal `offset` (PLAN.md §9.1) +
+ * the opts bag carries only the universal `offset` +
  * per-output styling hints. The runtime emits `NaN` on zero-TR
  * windows (chartlang surfaces the degenerate window — invinite emits
  * 0 in the same case).
@@ -2232,7 +2232,7 @@ export type TrendStrengthIndexOpts = Readonly<{
  * Options bag for `ta.ichimoku`. Defaults follow Pine / TradingView
  * canonical Ichimoku — `conversionLength = 9, baseLength = 26,
  * leadingSpanBLength = 52, displacement = 26`. `offset` shifts all
- * five outputs in lockstep (PLAN.md §9.1). `outputs` carries
+ * five outputs in lockstep. `outputs` carries
  * per-output styling hints downstream `plot()` callsites can lift
  * defaults from; the runtime itself ignores it in Phase 2.
  *

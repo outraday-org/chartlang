@@ -10,13 +10,13 @@ Average Daily Range — SMA of `high − low` across the trailing
 TradingView. Reads `bar.high` / `bar.low` / `bar.time` directly
 (no `source` argument per the absolute-range formula).
 
-**Calendar-day boundary.** Phase 2 keys "daily" on the UTC midnight
+**Calendar-day boundary.** "daily" keys on the UTC midnight
 boundary (`Math.floor(time / 86_400_000)`). Bars sharing a day key
 are aggregated into a single `(dailyHigh, dailyLow)` pair; the day
 range commits to the rolling SMA when the next bar's day key differs.
 The in-progress (currently-aggregating) day is NEVER included in the
-average. Phase 4 lifts this onto `syminfo.session` so symbols with
-non-UTC sessions can override the convention.
+average. A future release lifts this onto `syminfo.session` so symbols
+with non-UTC sessions can override the convention.
 
 **Tick mode.** Ticks within the in-progress bar do NOT shift the day
 boundary (per the runtime invariant that ticks happen inside the
@@ -67,4 +67,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/adr.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

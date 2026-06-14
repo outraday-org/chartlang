@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // No standalone tool source exists in invinite — groups are
 // metadata-only containers.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 

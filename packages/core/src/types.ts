@@ -221,7 +221,7 @@ export type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditio
  * `drawing-budget-exceeded` once a bucket is full. Mirrors Pine's
  * `max_*_count` family. The runtime enforces
  * `min(scriptManifest.maxDrawings, adapter.capabilities.maxDrawingsPerScript)`
- * per bucket per PLAN.md §10 / §4.1.
+ * per bucket.
  *
  * Canonical declaration lives here in core so both
  * `ScriptManifest.maxDrawings?` and the adapter-kit re-export pin the

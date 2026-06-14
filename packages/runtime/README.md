@@ -58,8 +58,7 @@ const emissions = runner.drain();
 
 ## Docs
 
-See [`docs/spec/semantics.md`](../../docs/spec/semantics.md) and
-[`PLAN.md` §6.6](../../PLAN.md).
+See [`docs/spec/semantics.md`](../../docs/spec/semantics.md).
 
 ## License
 

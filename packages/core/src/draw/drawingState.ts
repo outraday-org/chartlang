@@ -28,7 +28,7 @@ import type {
 /**
  * Script-mutable metadata fields every {@link DrawingState} variant
  * carries. `name` surfaces in the editor layer; `visible: false` hides
- * the drawing without removing it. See PLAN.md §10.0 for the contract.
+ * the drawing without removing it.
  *
  * @formula  N/A — metadata only, no geometry
  * @anchors  N/A — script-author metadata
@@ -46,7 +46,7 @@ export type DrawingMeta = {
 /**
  * `line` — two-anchor straight line. Carries `extendLeft` /
  * `extendRight` flags so the invinite `ray` / `extended-line` tools
- * collapse into this single kind per PLAN.md §3.1.
+ * collapse into this single kind.
  *
  * @formula  identity — segment between `anchors[0]` and `anchors[1]`
  * @anchors  anchors: [from, to]
@@ -1003,7 +1003,7 @@ export type GannFanState = DrawingMeta & {
 /**
  * `pitchfork` — Andrews pitchfork. The `variant` discriminator collapses
  * the four invinite tools (`standard` / `schiff` / `modifiedSchiff` /
- * `inside`) into one kind per PLAN.md §3.1.
+ * `inside`) into one kind.
  *
  * @formula  median + two parallels through `anchors[1]` / `anchors[2]`
  * @anchors  anchors: [pivot, high, low]; variant: "standard"|"schiff"|"modifiedSchiff"|"inside"
@@ -1453,7 +1453,7 @@ export type FrameState = DrawingMeta & {
 /**
  * `table` — CSS-pixel viewport-anchored dashboard/status panel. It
  * deliberately carries no world-space anchors; adapters resolve
- * `position` against the current viewport per PLAN.md §10.2.
+ * `position` against the current viewport.
  *
  * @formula  N/A — table layout resolved in CSS pixels by adapter
  * @anchors  position: CSS viewport anchor
@@ -1480,7 +1480,7 @@ export type TableState = DrawingMeta & {
  * Per-kind state union — every {@link DrawingKind} maps to exactly one
  * variant. Collab-only fields (Yjs `id`, `layerId`, `createdAt`,
  * `authorId`, `parentGroupId`, `parentFrameId`, `visibleIntervals`)
- * from the invinite source are stripped per PLAN.md §10.4.
+ * from the invinite source are stripped.
  *
  * The 62 variants here are intentionally minimal shells. Tasks 5–18
  * (per-category ports) refine each variant's geometry + style payload

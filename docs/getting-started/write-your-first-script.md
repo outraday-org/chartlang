@@ -86,11 +86,12 @@ Useful flags:
 
 ## See it render
 
-Two demos in the repo will load the compiled triple immediately:
+Two demos will load a compiled script immediately:
 
-- **React editor + live chart** —
-  `cd examples/react-demo && pnpm dev`, open `http://localhost:5173`,
-  paste the script in. Re-renders on every keystroke.
+- **Editor + live chart** — open
+  [chartlang.invinite.com](https://chartlang.invinite.com) and paste
+  the script in; it re-renders on every keystroke. To run that same
+  site locally, see [Run the site locally](./run-the-site-locally).
 - **Canvas2d playground** — from the repo root,
   `pnpm dlx vite --port 5273`, open
   `http://localhost:5273/examples/canvas2d-adapter/playground/`. The
@@ -151,8 +152,16 @@ The full auto-generated reference lives in the docs site:
 Every page is regenerated from JSDoc by `pnpm docs:generate`; the
 `pnpm docs:gate` CI check fails on drift.
 
+## Let an AI assistant help
+
+If you write scripts with Claude Code, Claude.ai, or Cursor, install the
+**chartlang-coding** skill so your assistant already knows the contract, the
+`ta.*`/`draw.*` surface, and the forbidden constructs before it writes a line.
+See [Skills](../skills/) for the one-line install.
+
 ## Next steps
 
+- [Skills](../skills/) to wire an AI assistant into your editor.
 - [Embed in your chart](./embed-in-our-chart.md) to run user-supplied
   scripts inside a product UI.
 - [Write your first adapter](./write-your-first-adapter.md) to teach

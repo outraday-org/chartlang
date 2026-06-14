@@ -9,7 +9,7 @@ Trend Strength Index — Pearson correlation between `source` and the
 bar index over each trailing `length`-bar window. Bounded `[-1, +1]`:
 `+1` = clean uptrend (price rises monotonically with bar index), `−1`
 = clean downtrend, `0` = no linear trend. Distinct from
-`ta.tsi` (Task 14's True Strength Index — a momentum oscillator).
+`ta.tsi` (the True Strength Index — a momentum oscillator).
 The math is TradingView's documented Trend Strength Index
 (https://www.tradingview.com/support/solutions/43000730926-trend-strength-index/).
 
@@ -62,4 +62,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/trendStrengthIndex.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

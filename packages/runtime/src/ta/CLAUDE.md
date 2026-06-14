@@ -7,7 +7,7 @@ via `ta.<id>(slotId, ...)`.
 ## Port convention
 
 Every file in this folder that traces back to upstream math (the
-`../invinite/` sibling repo per PLAN.md §3.1) carries the 4-line
+`../invinite/` sibling repo) carries the 4-line
 provenance + relicense header below — under the standard
 two-line MIT block — followed by a one-line translate-not-
 transcribe note when the chartlang structure diverges from the
@@ -19,8 +19,8 @@ invinite plugin shape:
 //
 // Ported from invinite/src/components/trading-chart/indicators/<path>
 //   (commit d2d1043c1b039f66d2f3674526d303d31cf2f1e0, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 ```
 
 Files with no upstream source (the `crossover` / `crossunder`
@@ -28,7 +28,7 @@ primitives) instead carry:
 
 ```ts
 // No invinite source — Phase-1 new code, semantics per Pine
-// `ta.crossover` / `ta.crossunder`. See PLAN.md §3.1.
+// `ta.crossover` / `ta.crossunder`.
 ```
 
 Phase-2 cross-functional primitives (Task 5: `nz`, `highest`,
@@ -36,7 +36,7 @@ Phase-2 cross-functional primitives (Task 5: `nz`, `highest`,
 helpers without an invinite source and carry the equivalent header:
 
 ```ts
-// No invinite source — semantics per Pine `ta.<name>`. See PLAN.md §3.1.
+// No invinite source — semantics per Pine `ta.<name>`.
 ```
 
 Phase-2 helpers under `lib/` (Task 3's `wmaFloat64`, `smmaFloat64`,

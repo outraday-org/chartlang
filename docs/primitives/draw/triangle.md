@@ -9,7 +9,7 @@
 
 Draw a triangle as a closed three-vertex polygon. Vertices may be
 supplied CW or CCW; the renderer walks them as a closed path. Not to
-be confused with `draw.trianglePattern` (Task 15) — that variant is
+be confused with `draw.trianglePattern` — that variant is
 the harmonic five-anchor triangle pattern.
 
 ## Anchors
@@ -50,4 +50,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/boxes/triangle.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

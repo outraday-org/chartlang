@@ -144,7 +144,7 @@ function textBaseline(cell: TableCell): RenderCtx["textBaseline"] {
  * Render a `draw.table` emission as a CSS-pixel viewport overlay.
  * This renderer intentionally ignores world-coordinate transforms:
  * `state.position` resolves directly against `Viewport.pxWidth` /
- * `Viewport.pxHeight` per PLAN.md §10.2.
+ * `Viewport.pxHeight`.
  *
  * @since 0.5
  * @stable

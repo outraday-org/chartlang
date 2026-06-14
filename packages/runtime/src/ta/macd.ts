@@ -2,10 +2,10 @@
 // See the LICENSE file in the repo root for full license text.
 //
 // Ported from invinite/src/components/trading-chart/indicators/macd.ts
-//   (folded onto lib/ema-of-float64.ts per PLAN.md §9.4)
+//   (folded onto lib/ema-of-float64.ts)
 //   (commit d2d1043c1b039f66d2f3674526d303d31cf2f1e0, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. The MACD primitive composes three EMA
@@ -102,7 +102,7 @@ function resultForOffset(slot: MacdSlot, offset: number): MacdResult {
  * @since 0.1
  * @stable
  *
- * `opts.offset` shifts all three outputs in lockstep (PLAN.md §9.1) —
+ * `opts.offset` shifts all three outputs in lockstep —
  * `series.current` on each output returns the value `offset` bars ago.
  *
  * @example

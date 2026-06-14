@@ -11,8 +11,7 @@ Draw a flat-top / flat-bottom channel — two parallel horizontal
 rails. Anchors `[leftEdge, rightEdge, oppositeHook]`: leftEdge and
 rightEdge fix the time range; the opposite-edge price comes from
 `oppositeHook.price`. Mirrors invinite's `flat-top-bottom-tool.ts`
-shape — note the landed core shape persists 3 anchors (see
-`tasks/phase-3-drawing-parity/10-channels.plan.md` §1).
+shape — note the landed core shape persists 3 anchors.
 
 ## Anchors
 
@@ -52,4 +51,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/channels/flatTopBottom.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

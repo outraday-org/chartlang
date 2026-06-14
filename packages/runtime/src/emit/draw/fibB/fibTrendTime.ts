@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // Behaviour from
 //   invinite/src/components/trading-chart/tools/fib-trend-time-tool.ts.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     AnchorTriple,
@@ -39,8 +39,7 @@ function fibTrendTimeImpl(slotId: string, anchors: AnchorTriple, opts: FibOpts):
  * `level` in `opts.levels ?? FIB_LEVELS`, paints a vertical line at
  * `t = anchors[2].time + level * (anchors[1].time - anchors[0].time)`.
  * Mirrors invinite's `fib-trend-time-tool.ts` shape using the ratio
- * array (see Task-1 reshape follow-up in
- * `tasks/phase-3-drawing-parity/12-fibonacci-b.plan.md` §8).
+ * array.
  *
  * @anchors `anchors` — `[A, B, C]` triple (A→B leg defines the time
  *   delta; C is the projection origin)

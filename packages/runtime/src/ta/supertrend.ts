@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/supertrend.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. Supertrend composes Phase-1 `ta.atr` at
@@ -209,7 +209,7 @@ function tickStep(
  * the band), and emits a single `line` Series equal to the active
  * final band for the current direction. `direction` flips when
  * `close` crosses the prior `finalUpper` (→ `+1`) or `finalLower`
- * (→ `-1`). Composes Phase-1 `ta.atr` at sub-slot `${slotId}/atr`.
+ * (→ `-1`). Composes `ta.atr` at sub-slot `${slotId}/atr`.
  *
  * NaN ATR (warmup or NaN-propagation) → NaN outputs; local state
  * freezes so the next finite bar resumes from the prior closed

@@ -183,7 +183,7 @@ these steps:
 2. Read folder-level CLAUDE.md files for every folder you'll touch
    (`packages/CLAUDE.md`, `scripts/CLAUDE.md`, `docs/CLAUDE.md`,
    `.github/CLAUDE.md`, and any package-local CLAUDE.md).
-3. Read PLAN.md / CONTRIBUTING.md sections referenced by the task.
+3. Read the CONTRIBUTING.md sections referenced by the task.
 4. Read any sibling tasks prefixed with X- (already completed) for context.
 5. Validate every reference in the task against the workspace:
    - Verify files, types, capability keys, and helpers exist at stated paths
@@ -215,7 +215,7 @@ these steps:
    `scripts/scaffold.ts` and run `pnpm scaffold` BEFORE populating src.
    Never hand-write the six §22.4 template files.
 10. If you ported from `../invinite/`, add the 4-line provenance + relicense
-    header (PLAN.md §3.1).
+    header (CONTRIBUTING.md §4).
 11. If you touched any export's JSDoc, primitive math, or the gen-docs
     surface: run `pnpm tsx packages/cli/src/gen-docs.ts` (or the project's
     documented gen-docs command) so `docs/primitives/*` regenerates. Never

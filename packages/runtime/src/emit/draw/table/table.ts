@@ -27,7 +27,7 @@ function tableImpl(slotId: string, opts: TableOpts): DrawingHandle {
 /**
  * Draw a CSS-pixel viewport-anchored table. Unlike world-space
  * drawings, `draw.table` carries no `WorldPoint` anchor; adapters
- * resolve `position` against the visible viewport per PLAN.md §10.2.
+ * resolve `position` against the visible viewport.
  *
  * @anchors `position` — CSS viewport anchor; `cells` — 2D grid payload
  * @anchorCount 0 (viewport anchored)

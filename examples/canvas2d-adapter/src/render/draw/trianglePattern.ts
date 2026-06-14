@@ -7,7 +7,7 @@
 // Note: distinct from `draw.triangle` (Task 6) — this renders a
 // 3-anchor harmonic-pattern outline with `LineDrawStyle`, not a
 // solid-shape primitive with `ShapeStyle`.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { TrianglePatternState } from "@invinite-org/chartlang-core";

@@ -22,7 +22,7 @@ day (no `prevDay` available) and finite from the SECOND UTC day
 onward.
 
 **Deferred:** R4 / R5 / S4 / S5 levels (Camarilla's full table
-defines them; Phase 2 ships R1..R3 / S1..S3 only). DeMark /
+defines them; this primitive ships R1..R3 / S1..S3 only). DeMark /
 Traditional formula systems also defer.
 
 NaN bar leaves the day aggregate unchanged (NaN-aware max / min).
@@ -78,4 +78,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/pivotsStandard.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

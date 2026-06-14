@@ -6,7 +6,7 @@
 //   invinite/shared/trading-chart-collab-yjs/y-doc-bridge.ts
 //     (ArcDrawing), commit
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { ArcState } from "@invinite-org/chartlang-core";

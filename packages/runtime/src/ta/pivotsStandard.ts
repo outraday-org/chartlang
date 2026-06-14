@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/pivots-standard.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. Pivots Standard is self-contained — no
@@ -360,7 +360,7 @@ function tickStep(
  * onward.
  *
  * **Deferred:** R4 / R5 / S4 / S5 levels (Camarilla's full table
- * defines them; Phase 2 ships R1..R3 / S1..S3 only). DeMark /
+ * defines them; this primitive ships R1..R3 / S1..S3 only). DeMark /
  * Traditional formula systems also defer.
  *
  * NaN bar leaves the day aggregate unchanged (NaN-aware max / min).

@@ -38,13 +38,13 @@ export type DefineDrawingOpts = Readonly<{
  * and drawing scripts identically at the per-bar level — the
  * discriminator is a host-side hint the editor uses to distinguish
  * drawing scripts from indicator scripts in the script-picker UI
- * (PLAN.md §4.1).
+ *.
  *
  * `compute({ bar, draw, inputs, ... })` runs per bar; emit drawings via
  * the `draw.*` namespace. Each `draw.<kind>(...)` returns a
  * {@link DrawingHandle} the script can `update(...)` or `remove()`
  * across bars. Phase 4 layers an interactive-anchor-picker UI on top of
- * this constructor (PLAN.md §10.1.1); Phase 3 ships the constructor
+ * this constructor; Phase 3 ships the constructor
  * with fixed anchors so the runtime path can be exercised.
  *
  * @since 0.3

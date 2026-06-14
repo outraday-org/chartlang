@@ -11,8 +11,7 @@ Draw a Fibonacci (golden) spiral approximated by chained cubic
 Beziers, one per quarter-turn. The spiral starts at `a` (centre) with
 initial radius `|b - a|` and scales by φ ≈ 1.618 per quarter-turn.
 Mirrors invinite's `fib-spiral-tool.ts` shape. The `counterClockwise`
-flag from the invinite tool is deferred to a Task-1 reshape (see
-`tasks/phase-3-drawing-parity/12-fibonacci-b.plan.md` §2); the
+flag from the invinite tool is deferred; the
 landed renderer is clockwise-only.
 
 ## Anchors
@@ -49,4 +48,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/fibB/fibSpiral.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

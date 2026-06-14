@@ -8,7 +8,7 @@
 > **Wire kind:** `horizontal-line`
 
 Draw a horizontal line at the supplied `price` that spans the full
-viewport width. The handle is stable across bars per PLAN.md §10.3.
+viewport width. The handle is stable across bars.
 
 ## Anchors
 
@@ -41,4 +41,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/lines/horizontalLine.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

@@ -5,7 +5,7 @@
 // in invinite/src/components/trading-chart/tools/rectangle-tool.ts,
 // triangle-tool.ts, rotated-rectangle-tool.ts (commit
 // 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite). Re-licensed
-// MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// MIT for chartlang.
 
 import type { ShapeStyle } from "@invinite-org/chartlang-core";
 

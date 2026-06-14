@@ -9,7 +9,7 @@ Connors RSI — three-component blend of `RSI(source, rsiLength)`,
 `RSI(streak, streakLength)`, and `PercentRank(ROC(source, 1),
 rocLength)` averaged into a single line bounded `[0, 100]`. The
 registry records `yDomain: { kind: "fixed", min: 0, max: 100 }` in
-`TA_REGISTRY_METADATA`. Composes Phase-1 `ta.rsi` for both RSI
+`TA_REGISTRY_METADATA`. Composes `ta.rsi` for both RSI
 components (no private RSI math). Defaults `(3, 2, 100)` matches
 Larry Connors' original spec.
 
@@ -60,4 +60,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/connorsRsi.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

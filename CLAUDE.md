@@ -19,12 +19,31 @@ the rules that span folders.
   The generated `skills/chartlang-coding/references/primitives.md` is
   re-emitted by `pnpm skills:generate`; the `skills:gate` will fail CI
   if you forget.
+- **`brand/` is the single source of truth for the brand palette AND
+  the logo.** `brand/brand.css` holds the tokens; the logo ships as
+  `brand/chartlang_logo.{svg,ico}` plus `chartlang_logo_{48,256,1024}.png`.
+  Both `apps/site/` (`src/styles.css`) and the VitePress docs theme
+  (`docs/.vitepress/theme/style.css`) `@import` the CSS by the relative
+  path `../../../brand/brand.css`. The logo is consumed without
+  duplicate files: `apps/site/` imports the brand icons through Vite
+  (`?url`) in `src/routes/__root.tsx` (favicons + `og:image`) and
+  `src/components/brand/Logo.tsx` (nav mark), and `pnpm brand:sync`
+  (`scripts/sync-brand-assets.ts`, run by `docs:dev`/`docs:build`)
+  copies the svg + ico into the git-ignored `docs/public/logo.{svg,ico}`
+  that VitePress's `themeConfig.logo` + favicon need. Edit the palette
+  or swap the logo **here**, never by forking into a consumer — the two
+  sites must stay visually one product. `brand/` is a plain shared-assets
+  folder, not a workspace package (no `package.json`). See
+  `brand/README.md`.
 
 ## Index
 
 - `packages/*/CLAUDE.md` — per-package invariants (compiler, runtime,
   hosts, cli, conformance, core).
 - `docs/CLAUDE.md`, `examples/CLAUDE.md`, `scripts/CLAUDE.md`,
-  `.github/CLAUDE.md` — folder-scoped conventions.
+  `.github/CLAUDE.md`, `apps/CLAUDE.md` — folder-scoped conventions.
 - `skills/chartlang-coding/` — end-user "write chartlang scripts" skill.
 - `skills/chartlang-setup/` — developer "integrate chartlang" skill.
+- `brand/` — shared brand assets (`brand.css` tokens + `logo.svg` /
+  `logo.png`) consumed by `apps/site/` and the docs theme. See
+  `brand/README.md`.

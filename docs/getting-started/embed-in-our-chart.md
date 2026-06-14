@@ -17,6 +17,24 @@ host runs wherever you want isolation — a Web Worker in the browser, a
 QuickJS-WASM sandbox on a server. The adapter is the bridge to your
 existing chart library.
 
+## Start by installing the integration skill
+
+Before you wire any of this up, install the **chartlang-setup** skill
+into the AI assistant you build with (Claude Code, Claude.ai, Cursor).
+It teaches the assistant the compiler → host → adapter flow, capability
+gating, and the host parity guarantee — so it scaffolds the embed
+correctly instead of guessing at the boundaries below. Wiring chartlang
+into a product is the step the skill helps with most:
+
+```bash
+npx skills add outraday-org/chartlang/tree/main/skills/chartlang-setup
+```
+
+See [Skills](../skills/) for the full overview and manual-install
+targets. The companion [chartlang-coding](../skills/chartlang-coding)
+skill helps once you (or your users) are writing the `.chart.ts`
+scripts that run through this embed.
+
 ## Compile server-side
 
 The compiler imports node builtins (`fs`, `crypto`, `path`) and a
@@ -42,9 +60,11 @@ export async function compileScript(
 }
 ```
 
-`examples/react-demo/server/compilePlugin.ts` shows the same pattern as
-a Vite dev-server middleware — call it from a `POST /api/compile`
-endpoint, ship the response to the browser editor.
+`apps/site/src/routes/api/compile.ts` (with its server-only helper
+`apps/site/src/lib/server/compile.ts`) shows the same pattern as a
+TanStack Start server route deployed as a Netlify Function — it runs
+`compile()` behind `POST /api/compile` and ships the response to the
+browser editor.
 
 ## Host the bundle
 
@@ -112,7 +132,7 @@ await runRendererLoop(adapter, { signal: controller.signal });
 // later: controller.abort(); adapter.dispose();
 ```
 
-`examples/react-demo/src/ChartPane.tsx` shows the React-flavoured
+`apps/site/src/components/demo/ChartPane.tsx` shows the React-flavoured
 version of the same pattern — every new compile disposes the previous
 adapter and spins up a fresh one against the same canvas.
 
@@ -146,33 +166,56 @@ asserts identical output.
 The compiler and the language service both transitively import node
 builtins (`fs/promises`, `path`, `url`, `crypto`, `os`) and a native
 esbuild launcher. The
-[`examples/react-demo/vite.config.ts`](https://github.com/outraday-org/chartlang/blob/main/examples/react-demo/vite.config.ts)
-file shows the alias pattern that lets the language service load in
-the browser for hover / completion while the real `compile()` runs
-server-side over `/api/compile`:
+[`apps/site/vite.config.ts`](https://github.com/outraday-org/chartlang/blob/main/apps/site/vite.config.ts)
+file shows the pattern that lets the language service load in the
+browser for hover / completion while the real `compile()` runs
+server-side over `/api/compile`. The stubs are redirected with a
+**client-only** plugin — a plain `resolve.alias` would rewrite the
+server graph too and neuter the real compiler the server route needs:
 
 ```ts no-gate
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import { type Plugin, defineConfig } from "vite";
+
+const ESBUILD_STUB = fileURLToPath(
+    new URL("./src/lib/browser-stubs/esbuildStub.ts", import.meta.url),
+);
+const NODE_BUILTIN_STUB = fileURLToPath(
+    new URL("./src/lib/browser-stubs/nodeBuiltinStub.ts", import.meta.url),
+);
+const NODE_BUILTIN_RE = /^node:(crypto|fs\/promises|path|url|os)$/;
+
+function clientBrowserStubs(): Plugin {
+    return {
+        name: "chartlang-client-browser-stubs",
+        applyToEnvironment: (env) => env.name === "client",
+        enforce: "pre",
+        resolveId(id) {
+            if (id === "esbuild") return ESBUILD_STUB;
+            if (NODE_BUILTIN_RE.test(id)) return NODE_BUILTIN_STUB;
+            return null;
+        },
+    };
+}
 
 export default defineConfig({
-    resolve: {
-        alias: [
-            { find: "esbuild", replacement: "./src/esbuildStub.ts" },
-            { find: /^node:(crypto|fs\/promises|path|url|os)$/, replacement: "./src/nodeBuiltinStub.ts" },
-        ],
-    },
     optimizeDeps: { exclude: ["esbuild"] },
+    // esbuild's JS API cannot be bundled into the server build — keep it
+    // external so the function runtime loads it from node_modules.
+    environments: { ssr: { build: { rollupOptions: { external: ["esbuild"] } } } },
+    plugins: [clientBrowserStubs() /* …framework plugins… */],
 });
 ```
 
 The stubs return enough surface for module-load to succeed; any
 attempt to actually call into them fails fast. The server-side
-`compile()` runs in node and reaches the real implementations through
-Vite's plugin layer, which does not pass through these aliases.
+`compile()` runs in node and reaches the real implementations because
+the stub plugin is scoped to the `client` environment only.
 
 ## Next steps
 
+- [Skills](../skills/) — install the chartlang-setup skill so your AI
+  assistant scaffolds this embed against the real contract.
 - [Hosts/Worker](../hosts/worker.md) — the Worker host's limits API,
   the postMessage protocol, the `step-overshoot` contract.
 - [Hosts/QuickJS](../hosts/quickjs.md) — the QuickJS host's heap

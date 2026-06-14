@@ -189,7 +189,7 @@ function recomputeDerivedBuffers(ohlcv: OhlcvBuffers, snapshot: StreamSnapshot):
 
 /**
  * Construct a fresh `StreamState`. The ring-buffer capacity is the
- * compiler-emitted `manifest.maxLookback + 1` per PLAN.md §6.6
+ * compiler-emitted `manifest.maxLookback + 1`
  * (caller must enforce `capacity >= 1`). All buffers start empty;
  * the `BarView` starts with `NaN` prices, `0` time and volume, and the
  * supplied `symbol` / `interval` constants. `taSlots` is an empty map.

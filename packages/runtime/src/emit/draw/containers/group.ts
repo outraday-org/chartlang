@@ -7,8 +7,8 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // No standalone tool source exists in invinite — groups are
 // metadata-only containers; their parent / child linkage is collab
-// state stripped per PLAN.md §10.4.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// state stripped.
+// Re-licensed MIT for chartlang.
 
 import type { DrawingHandle, GroupState } from "@invinite-org/chartlang-core";
 
@@ -34,8 +34,7 @@ function groupImpl(slotId: string, childHandleIds: ReadonlyArray<string>): Drawi
  * logical container. The script-author passes the handle ids
  * collected from earlier `draw.<kind>(...).id` calls; the runtime
  * carries the list on the wire as a `GroupState`, and the adapter
- * renders nothing of its own — children render themselves per
- * PLAN.md §10.4.
+ * renders nothing of its own — children render themselves.
  *
  * @anchors `childHandleIds` — a `ReadonlyArray<string>` of handle ids
  * @anchorCount 0 (metadata-only container)

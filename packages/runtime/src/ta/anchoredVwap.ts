@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/anchored-vwap.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape.
@@ -120,7 +120,7 @@ function valueFromCum(started: boolean, cumPV: number, cumV: number): number {
  * **Sticky anchor.** The anchor is captured on the first call (slot
  * init) and ignored on subsequent calls — the slot's anchor is
  * sticky. Re-anchoring requires a new compiler-generated callsite id
- * (i.e. editing the script). Phase 4's `input.time()` will lift the
+ * (i.e. editing the script). A future `input.time()` will lift the
  * anchor to a user input that can change at runtime.
  *
  * **NaN handling.** NaN source or non-positive / NaN volume

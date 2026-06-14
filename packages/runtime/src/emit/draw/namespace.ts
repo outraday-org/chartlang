@@ -164,7 +164,7 @@ const IMPL_KIND_NAMES: ReadonlySet<string> = new Set(Object.keys(KIND_IMPLS));
  * slot-id-prefixed compiler form from the bare script-facing form
  * which always throws. This is the Phase-3 swap seam for the
  * `primitives.ts:draw` re-export, mirroring how `TA_REGISTRY` swaps
- * in Phase 2 (PLAN.md §5.5).
+ * in Phase 2.
  *
  * @since 0.3
  * @stable

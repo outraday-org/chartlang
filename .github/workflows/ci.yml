@@ -77,6 +77,8 @@ jobs:
             - run: pnpm coverage:report   # merges per-package coverage to ./coverage/lcov.info for Codecov
             - run: pnpm conformance
             - run: pnpm tsx scripts/run-conformance.ts --report --check
+            - run: pnpm --filter chartlang-site typecheck
+            - run: pnpm --filter chartlang-site build
             - run: pnpm bench:ci
             - run: pnpm docs:check
             - run: pnpm docs:gate
@@ -89,6 +91,39 @@ jobs:
               with:
                   files: ./coverage/lcov.info
                   fail_ci_if_error: false
+
+    # ──────────────────────────────────────────────────────────────────
+    # apps/site Playwright e2e.
+    # Gates the built marketing site's edit→compile→render→recompile
+    # loop. Kept behind `needs: test` so the cheaper static gates fail
+    # first — no Chromium spin-up when typecheck/build already broke.
+    # Own concurrency group so a rebase cancels in-flight e2e runs
+    # independently of the matrix.
+    # ──────────────────────────────────────────────────────────────────
+    e2e-site:
+        name: E2E (apps/site/)
+        needs: test
+        runs-on: ubuntu-latest
+        concurrency:
+            group: e2e-site-${{ github.ref }}
+            cancel-in-progress: true
+        steps:
+            - uses: actions/checkout@v4
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+            - run: pnpm --filter chartlang-site e2e:install
+            - run: pnpm --filter chartlang-site build
+            - run: pnpm --filter chartlang-site e2e
+            - if: failure()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playwright-report
+                  path: apps/site/playwright-report/
+                  retention-days: 7
 
     # ──────────────────────────────────────────────────────────────────
     # Required-check gate.

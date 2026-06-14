@@ -11,8 +11,7 @@ Group a set of previously emitted drawing handles under a single
 logical container. The script-author passes the handle ids
 collected from earlier `draw.<kind>(...).id` calls; the runtime
 carries the list on the wire as a `GroupState`, and the adapter
-renders nothing of its own — children render themselves per
-PLAN.md §10.4.
+renders nothing of its own — children render themselves.
 
 ## Anchors
 
@@ -53,4 +52,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/containers/group.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

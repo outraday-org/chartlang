@@ -14,7 +14,7 @@ origin at `(a.time, mid(a.price, mid(b, c).price))`);
 `"modifiedSchiff"` (median origin at `mid(a, b)`); `"inside"`
 (median origin at `mid(b, c)` with the `(a → mid(a, b))` direction).
 Default variant: `"standard"`. Mirrors invinite's four pitchfork
-tools collapsed into one kind per PLAN.md §3.1.
+tools collapsed into one kind.
 
 ## Anchors
 
@@ -54,4 +54,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/pitchforks/pitchfork.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/chandelier.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. Chandelier composes Phase-1 `ta.atr` plus
@@ -78,7 +78,7 @@ function compute(
  * long trades (highest of `bar.high` over the window minus
  * `multiplier · ATR`); `short` is the symmetric stop for short
  * trades (lowest of `bar.low` plus `multiplier · ATR`). Composes
- * Phase-1 `ta.atr` plus Task-5 `ta.highest` / `ta.lowest` at sub-slots
+ * `ta.atr` plus `ta.highest` / `ta.lowest` at sub-slots
  * `${slotId}/atr` / `${slotId}/highHigh` / `${slotId}/lowLow`. Returns
  * a cached `{ long, short }` record (same identity every bar).
  *

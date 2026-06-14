@@ -5,7 +5,7 @@
 //   invinite/src/components/trading-chart/tools/arrow-mark-up-tool.ts,
 //   invinite/src/components/trading-chart/tools/arrow-mark-down-tool.ts,
 //   commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type { RenderCtx } from "../clear.js";
 import type { Point2 } from "./bezier.js";

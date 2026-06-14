@@ -15,7 +15,7 @@ accumulation, which never resets.
 **Sticky anchor.** The anchor is captured on the first call (slot
 init) and ignored on subsequent calls — the slot's anchor is
 sticky. Re-anchoring requires a new compiler-generated callsite id
-(i.e. editing the script). Phase 4's `input.time()` will lift the
+(i.e. editing the script). A future `input.time()` will lift the
 anchor to a user input that can change at runtime.
 
 **NaN handling.** NaN source or non-positive / NaN volume
@@ -66,4 +66,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/anchoredVwap.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

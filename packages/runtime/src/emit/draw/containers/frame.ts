@@ -8,8 +8,8 @@
 // No standalone tool source exists in invinite — frames are
 // metadata-only collab containers; the chartlang port adds the
 // `anchors: AnchorPair` payload so frames render as a visible
-// rectangle at the wire level per PLAN.md §10.4.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// rectangle at the wire level.
+// Re-licensed MIT for chartlang.
 
 import type {
     DrawingHandle,
@@ -41,7 +41,7 @@ function frameImpl(slotId: string, a: WorldPoint, b: WorldPoint, opts: FrameOpts
  * Draw a labelled rectangular frame between two world anchors
  * `[topLeft, bottomRight]`. The frame renders an outlined rectangle
  * plus an optional background fill (`opts.bgColor`) and label
- * (`opts.label`) per PLAN.md §10.4. Children of the frame render
+ * (`opts.label`). Children of the frame render
  * themselves — the frame is a visual envelope, not a re-render layer.
  *
  * @anchors `a`, `b` — two `WorldPoint`s `(topLeft, bottomRight)`

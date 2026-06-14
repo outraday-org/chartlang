@@ -86,7 +86,7 @@ export type StructuralBindingInfo = Readonly<{
  * reason. The driver only consumes these fields when there are zero
  * error-severity diagnostics.
  *
- * The `"drawing"` kind (Phase 3 / `defineDrawing` / PLAN.md §4.1) maps to
+ * The `"drawing"` kind (Phase 3 / `defineDrawing`) maps to
  * the same code path the other two kinds use — only the manifest's
  * discriminator differs so the editor can route the script to the
  * drawing-tool picker vs the indicator-picker UI.

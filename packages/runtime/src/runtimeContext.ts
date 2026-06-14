@@ -34,7 +34,7 @@ import type { RuntimeViews } from "./views/index.js";
  * `slotId#subId` (compiler-injected callsite id + per-bar sub-id from
  * {@link nextSubId}). `state` holds the last full {@link DrawingState}
  * emitted for the handle; subsequent `update(patch)` calls merge into
- * it and re-emit the full payload per PLAN.md §10.3. `removed: true`
+ * it and re-emit the full payload. `removed: true`
  * is sticky — further `update` / `remove` on the handle no-op.
  *
  * @since 0.3
@@ -125,8 +125,8 @@ export type RuntimeContext = {
      * Per-handle drawing slot store keyed by `slotId#subId`. Allocated
      * on first `op: "create"`; mutated by `update(patch)` to merge the
      * patch into the slot's `state`; flagged `removed: true` on
-     * `remove()`. Cleared on `dispose`. Persists across bars per
-     * PLAN.md §10.3. @since 0.3
+     * `remove()`. Cleared on `dispose`. Persists across bars.
+     * @since 0.3
      */
     readonly drawingSlots: Map<string, DrawingSlot>;
     /**

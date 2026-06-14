@@ -1,0 +1,58 @@
+/* chartlang brand tokens.
+ *
+ * Self-contained — no Tailwind or framework directives — so the same
+ * file can be imported by the VitePress theme (Task 5 hoists it to
+ * repo-root brand/brand.css) and any future surface. Do not @apply,
+ * @layer, or @import a non-CSS-spec rule here: pure custom properties
+ * only.
+ */
+
+:root {
+    /* Brand — indigo (primary), slate (neutral), emerald (accent) */
+    --brand-indigo-50: oklch(0.96 0.02 270);
+    --brand-indigo-100: oklch(0.92 0.05 270);
+    --brand-indigo-300: oklch(0.74 0.14 270);
+    --brand-indigo-500: oklch(0.58 0.22 270);
+    --brand-indigo-700: oklch(0.42 0.2 270);
+    --brand-indigo-900: oklch(0.26 0.12 270);
+
+    --brand-slate-50: oklch(0.98 0.005 240);
+    --brand-slate-100: oklch(0.94 0.01 240);
+    --brand-slate-300: oklch(0.78 0.02 240);
+    --brand-slate-500: oklch(0.58 0.03 240);
+    --brand-slate-700: oklch(0.34 0.03 240);
+    --brand-slate-900: oklch(0.18 0.02 240);
+    --brand-slate-950: oklch(0.12 0.02 240);
+
+    --brand-emerald-300: oklch(0.82 0.16 160);
+    --brand-emerald-500: oklch(0.68 0.2 160);
+    --brand-emerald-700: oklch(0.48 0.16 160);
+
+    /* Semantic tokens — light mode (dark mode overrides below) */
+    --background: var(--brand-slate-50);
+    --foreground: var(--brand-slate-900);
+    --muted: var(--brand-slate-100);
+    --muted-foreground: var(--brand-slate-500);
+    --border: var(--brand-slate-100);
+    --input: var(--brand-slate-100);
+    --primary: var(--brand-indigo-500);
+    --primary-foreground: var(--brand-slate-50);
+    --accent: var(--brand-emerald-500);
+    --accent-foreground: var(--brand-slate-900);
+    --ring: var(--brand-indigo-500);
+    --radius: 0.625rem;
+}
+
+.dark {
+    --background: var(--brand-slate-950);
+    --foreground: var(--brand-slate-50);
+    --muted: var(--brand-slate-900);
+    --muted-foreground: var(--brand-slate-300);
+    --border: var(--brand-slate-700);
+    --input: var(--brand-slate-700);
+    --primary: var(--brand-indigo-300);
+    --primary-foreground: var(--brand-slate-950);
+    --accent: var(--brand-emerald-300);
+    --accent-foreground: var(--brand-slate-950);
+    --ring: var(--brand-indigo-300);
+}

@@ -4,7 +4,7 @@
 /**
  * Shared contract for the two ring-buffer flavours the runtime ships
  * (`RingBuffer<T>` for object payloads, `Float64RingBuffer` for numeric
- * payloads). Mirrors PLAN.md §6.6 — `at(n)` returns `undefined` on
+ * payloads). Both share one read contract — `at(n)` returns `undefined` on
  * out-of-range reads in the generic shape; `Float64RingBuffer` narrows
  * the return to `number` with `NaN` as the OOR sentinel.
  *
@@ -85,7 +85,7 @@ export class RingBuffer<T> implements RingBufferLike<T> {
 /**
  * Numeric ring buffer backed by a `Float64Array`. Reads are direct
  * memory hits — no boxing, no map lookup. Out-of-range reads return
- * `NaN` (the language-wide warmup sentinel per PLAN.md §6.3), which
+ * `NaN` (the language-wide warmup sentinel), which
  * is the correct value for unwarmed indicator slots.
  *
  * `at(n)` narrows the shared `RingBufferLike<T>`'s `T | undefined`

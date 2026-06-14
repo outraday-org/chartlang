@@ -13,7 +13,7 @@ import type { RuntimeContext } from "../../runtimeContext.js";
  * {@link resetSubIdCounters} clears every counter at the top of every
  * `onBarClose` / `onBarTick`, so iteration `i` across bars at the same
  * callsite yields the same sub-id — that's the cross-bar handle
- * stability contract from PLAN.md §10.3.
+ * stability contract.
  *
  * @since 0.3
  * @stable

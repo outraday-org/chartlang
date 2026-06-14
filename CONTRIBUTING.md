@@ -3,8 +3,8 @@
 Thanks for considering a contribution. This document covers what every
 PR needs to land — setup, the test and coverage gate, documentation
 requirements, the provenance rule for math ports from `../invinite/`,
-the changeset workflow, and the PR checklist. PLAN.md §22 is the
-canonical reference; this file is the operational summary.
+the changeset workflow, and the PR checklist. This file is the
+operational summary.
 
 By participating, you agree to abide by the
 [Code of Conduct](./CODE_OF_CONDUCT.md).
@@ -34,7 +34,7 @@ Every package enforces **100% line / statement / branch / function**
 coverage via `vitest.config.ts`. The gate is wired from PR 1 — there is
 no "add tests in a follow-up" allowance.
 
-Per-package test layers (PLAN.md §16.3):
+Per-package test layers:
 
 | Package | Unit | Property | Golden | Type | Sandbox-escape | Bench | Conformance |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -111,15 +111,15 @@ new file in `packages/runtime/src/ta/`:
 
     // Ported from invinite/src/components/trading-chart/indicators/<id>.ts
     //   (commit <sha at port time>, © Invinite).
-    // Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-    // provenance contract; the math is the reference, the code style is not.
+    // Re-licensed MIT for chartlang. The math is the reference, the code
+    // style is not.
 
 **Translate, do not transcribe.** The behavioural contract — same
 numbers in, same numbers out for the §16.6 golden bars — is what the
 port owes. Copying the plugin shape, the helper names, or the
 register-with-the-chart-engine boilerplate is **not** what the port
-owes. See PLAN.md §3.1: "Provenance is 'look here for behavior,' not
-'look here for code style.'"
+owes. Provenance is "look here for behavior," not
+"look here for code style."
 
 Every port also lands the full §16.6 / §22.10 set in the same PR (unit
 test, property test, golden test, bench test, JSDoc with `@formula`

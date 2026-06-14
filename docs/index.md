@@ -47,8 +47,7 @@ flowchart LR
 
 Each arrow is a typed, JSON-friendly boundary that survives
 `structuredClone` so the same payload moves through a Worker
-`postMessage` or a QuickJS-WASM membrane unchanged. See PLAN.md §2 for
-the full diagram including the sandbox-host layer.
+`postMessage` or a QuickJS-WASM membrane unchanged.
 
 ## Explore
 

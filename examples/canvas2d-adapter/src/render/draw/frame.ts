@@ -8,7 +8,7 @@
 // No standalone tool source exists in invinite — the visible
 // rectangle + label envelope is a chartlang addition layered on the
 // metadata-only collab schema.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { FrameState } from "@invinite-org/chartlang-core";
@@ -30,7 +30,7 @@ const LABEL_INSET_Y = 14;
  * `style.bgColor` paints a background `fillRect` before the stroke;
  * optional `style.label` paints a `fillText` at the top-left corner.
  * Degenerate anchors (zero width or zero height in canvas space) are
- * silently no-op per PLAN.md §7.4.
+ * silently no-op.
  *
  * @since 0.3
  * @stable

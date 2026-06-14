@@ -10,9 +10,9 @@ calendar day. Accumulates `Σ(source · volume) / Σ(volume)` over
 the bars since the most recent UTC midnight; resets to NaN at the
 top of every UTC day. `source` defaults to `"hlc3"` per Pine.
 
-**Phase-2 session boundary.** Phase 2 keys the session reset off
-`floor(bar.time / 86_400_000)` (the UTC calendar day). Phase 4
-lifts session detection to `syminfo.session.regularStart` per
+**Session boundary.** The session reset keys off
+`floor(bar.time / 86_400_000)` (the UTC calendar day). A future
+release lifts session detection to `syminfo.session.regularStart` per
 invinite — until then VWAP behaves as a UTC-day-anchored VWAP.
 
 **NaN handling.** Bars with NaN source or non-positive / NaN volume
@@ -62,4 +62,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/vwap.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

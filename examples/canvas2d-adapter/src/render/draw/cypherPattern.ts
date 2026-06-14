@@ -6,8 +6,8 @@
 //     (CypherPatternDrawing), commit
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // `cypher-pattern` has no standalone invinite tool (UI surface lives
-// in `defineDrawing`); only the y-doc-bridge type is cited per
-// PLAN.md §3.1. Re-licensed MIT for chartlang.
+// in `defineDrawing`); only the y-doc-bridge type is cited.
+// Re-licensed MIT for chartlang.
 
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { CypherPatternState } from "@invinite-org/chartlang-core";

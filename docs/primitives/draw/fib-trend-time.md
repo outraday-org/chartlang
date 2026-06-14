@@ -11,8 +11,7 @@ Draw fib-spaced vertical time projections from a swing leg. For each
 `level` in `opts.levels ?? FIB_LEVELS`, paints a vertical line at
 `t = anchors[2].time + level * (anchors[1].time - anchors[0].time)`.
 Mirrors invinite's `fib-trend-time-tool.ts` shape using the ratio
-array (see Task-1 reshape follow-up in
-`tasks/phase-3-drawing-parity/12-fibonacci-b.plan.md` §8).
+array.
 
 ## Anchors
 
@@ -53,4 +52,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/fibB/fibTrendTime.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

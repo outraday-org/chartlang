@@ -10,7 +10,7 @@
 Draw a straight line between two world anchors. The invinite `ray`
 tool collapses into this kind via `style.extendRight: true`; the
 `extended-line` tool collapses via `extendLeft: true` + `extendRight:
-true` per PLAN.md §3.1. The handle is stable across bars per §10.3 —
+true`. The handle is stable across bars per §10.3 —
 subsequent in-bar `update(patch)` calls merge into the slot's state
 and re-emit the full payload under `op: "update"`.
 
@@ -49,4 +49,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/lines/line.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

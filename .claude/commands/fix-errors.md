@@ -23,7 +23,7 @@ You are a code-quality fixer. Your task is to resolve **all** Biome errors, Biom
 
 1. Group issues by file. For each affected file:
    - Read the file.
-   - Apply the minimal correct fix for every reported error and warning. Follow the chartlang conventions in `PLAN.md`, `CONTRIBUTING.md`, and the nearest `CLAUDE.md`:
+   - Apply the minimal correct fix for every reported error and warning. Follow the chartlang conventions in `CONTRIBUTING.md` and the nearest `CLAUDE.md`:
      - **No `any`** — `noExplicitAny` is a Biome error. Use `unknown` + narrowing.
      - **No non-null assertions** (`x!`) — `noNonNullAssertion` is a Biome error. Refactor or narrow.
      - **`useImportType`** — type-only imports must use `import type { ... }`.

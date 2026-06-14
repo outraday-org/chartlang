@@ -10,7 +10,7 @@ values. Warmup of `length − 1` bars returns `NaN`. Tick-mode replays
 the head as `(window_sum − window_head + tick_value) / length` so a
 partial-bar tick doesn't pollute the next close's running sum.
 `opts.offset` shifts the returned series so `series.current` reads
-the value `offset` bars ago (PLAN.md §9.1).
+the value `offset` bars ago.
 
 ## Formula
 
@@ -53,4 +53,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/sma.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

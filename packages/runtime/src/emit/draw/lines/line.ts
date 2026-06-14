@@ -8,9 +8,8 @@
 //   invinite/src/components/trading-chart/tools/line-tool.ts (base),
 //   invinite/src/components/trading-chart/tools/ray-tool.ts (extendRight),
 //   invinite/src/components/trading-chart/tools/extended-line-tool.ts
-//     (extendLeft + extendRight). Re-licensed MIT for chartlang. See
-// PLAN.md §3.1 + §22.10. Per PLAN.md §3.1 the three invinite tools
-// collapse into one `line` kind on the wire.
+//     (extendLeft + extendRight). Re-licensed MIT for chartlang.
+// The three invinite tools collapse into one `line` kind on the wire.
 
 import type {
     DrawingHandle,
@@ -42,7 +41,7 @@ function lineImpl(
  * Draw a straight line between two world anchors. The invinite `ray`
  * tool collapses into this kind via `style.extendRight: true`; the
  * `extended-line` tool collapses via `extendLeft: true` + `extendRight:
- * true` per PLAN.md §3.1. The handle is stable across bars per §10.3 —
+ * true`. The handle is stable across bars per §10.3 —
  * subsequent in-bar `update(patch)` calls merge into the slot's state
  * and re-emit the full payload under `op: "update"`.
  *

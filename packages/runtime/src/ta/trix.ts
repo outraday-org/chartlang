@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/trix.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. TRIX composes three EMA sub-slots derived
@@ -96,7 +96,7 @@ function resultForOffset(slot: TrixSlot, offset: number, signalBuf: Float64RingB
  * @since 0.2
  * @stable
  *
- * `opts.offset` shifts both outputs in lockstep (PLAN.md §9.1) —
+ * `opts.offset` shifts both outputs in lockstep —
  * `series.current` on each output returns the value `offset` bars
  * ago.
  *

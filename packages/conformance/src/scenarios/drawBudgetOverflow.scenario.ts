@@ -12,7 +12,7 @@ import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 // after the bucket counter reaches its effective cap.
 //
 // The 150 callsites are unrolled at module-init time so the compiler's
-// callsite-id-injection pass (PLAN.md §5.5) gives each emission a
+// callsite-id-injection pass gives each emission a
 // distinct handle id. A bounded `for`-loop would emit a single handle
 // across iterations and would not exercise the per-create budget path
 // at the same cardinality.

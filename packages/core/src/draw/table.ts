@@ -7,7 +7,7 @@ import type { DrawingHandle } from "./handle.js";
 /**
  * CSS-pixel viewport anchor used by `draw.table`. Tables are status
  * panels, not world-space drawings, so the position resolves against
- * the adapter viewport per PLAN.md §10.2.
+ * the adapter viewport.
  *
  * @formula  N/A — viewport anchor enum
  * @anchors  CSS viewport edge/corner/center

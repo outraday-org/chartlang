@@ -18,11 +18,11 @@ The bundled scenario set exercises three contracts:
 | Determinism | Equivalent runs produce byte-identical emissions, including identical diagnostics and batch grouping. |
 
 The scenarios cover indicator math against a deterministic 10 000-bar
-candle fixture (Phase 1), the full TA primitive roster (Phase 2),
-drawings (Phase 3), state slots, `barstate`, `syminfo`, `timeframe`,
-`input.*`, `request.security` NaN fallback, lower-timeframe buckets,
-and unsupported-interval behaviour (Phases 4-7). The scenario surface
-hits the runtime ↔ capability-bag contract, not the renderer.
+candle fixture, the full TA primitive roster, drawings, state slots,
+`barstate`, `syminfo`, `timeframe`, `input.*`, `request.security` NaN
+fallback, lower-timeframe buckets, and unsupported-interval behaviour.
+The scenario surface hits the runtime ↔ capability-bag contract, not
+the renderer.
 
 ## Running it locally
 

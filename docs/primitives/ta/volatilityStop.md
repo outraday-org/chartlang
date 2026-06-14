@@ -11,7 +11,7 @@ src − multiplier · atr)`; flip to down when `src < stop[i]`, reset
 to `src + multiplier · atr`. Trend down symmetric. Reads
 `bar.close` as source (Pine `ta.vstop` convention — invinite's
 `source` opt is omitted; a `source` opt could land in a follow-up).
-Composes Phase-1 `ta.atr` at sub-slot `${slotId}/atr`. Returns a
+Composes `ta.atr` at sub-slot `${slotId}/atr`. Returns a
 cached `{ value, direction }` record (same identity every bar).
 
 `direction` is `+1` (uptrend → stop is BELOW price), `-1`
@@ -68,4 +68,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/volatilityStop.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

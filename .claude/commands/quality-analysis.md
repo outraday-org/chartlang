@@ -250,8 +250,8 @@ Follow chartlang's cross-package boundary rules:
 
 Flag any **new** `TODO`, `FIXME`, or `HACK` comments introduced in the
 diff. Pre-existing ones are out of scope. If a `TODO` is the right call
-for the scope, it must reference a tracking artifact (task file, issue,
-PLAN.md section).
+for the scope, it must reference a tracking artifact (task file or
+issue).
 
 ---
 
@@ -272,7 +272,7 @@ PLAN.md section).
 
 ### Rule 6 — Project Conventions
 
-Flag violations of these chartlang conventions (from `PLAN.md`,
+Flag violations of these chartlang conventions (from
 `CONTRIBUTING.md`, the nearest `CLAUDE.md`):
 
 - **MIT header**: every `.ts` file in `packages/*/src/` (and gate
@@ -291,7 +291,7 @@ Flag violations of these chartlang conventions (from `PLAN.md`,
   Hand-edits are forbidden.
 - **Provenance header**: any new `ta.*` math ported from
   `../invinite/` carries the 4-line provenance + relicense header
-  (PLAN.md §3.1).
+  (CONTRIBUTING.md §4).
 - **No new lint/format tooling**: Biome is the single tool.
 - **Adapter capability gating**: unsupported features become silent
   no-ops, not throws. Emits that don't consult the capability surface
@@ -397,7 +397,7 @@ specific rule and do not double-count.
 - `docs/primitives/<area>/<id>.md` regenerated (do not hand-edit) for
   new `ta.*` / `draw.*`.
 
-#### 8h — Test layer completeness (per PLAN.md §16.3)
+#### 8h — Test layer completeness (per CONTRIBUTING.md §2)
 
 | Package | Required layers |
 |---|---|
@@ -417,7 +417,7 @@ conformance scenario, auto-generated docs page.
 #### 8i — Provenance & relicensing
 
 - `../invinite/` port carries the 4-line provenance + relicense header
-  (PLAN.md §3.1).
+  (CONTRIBUTING.md §4).
 - Golden bars match the source's behavior numerically; translation
   (not transcription) is the path.
 

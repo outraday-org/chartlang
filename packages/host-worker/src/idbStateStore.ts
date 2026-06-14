@@ -84,7 +84,7 @@ export function idbStateStore(
 }
 
 /**
- * Stable cache-key serialisation for PLAN.md §6.9 `StateStoreKey`.
+ * Stable cache-key serialisation for the `StateStoreKey`.
  *
  * @internal
  */

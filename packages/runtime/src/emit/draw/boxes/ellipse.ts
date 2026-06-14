@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // Behaviour from
 //   invinite/src/components/trading-chart/tools/ellipse-tool.ts.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     DrawingHandle,
@@ -40,7 +40,7 @@ function ellipseImpl(
  * world anchors. The renderer derives `(centerX, centerY, radiusX,
  * radiusY)` from the projected bbox and paints a polyline
  * approximation. Rotated ellipses (invinite's `widthOffset` form)
- * are out of scope for Phase 3.
+ * are out of scope for now.
  *
  * @anchors `a`, `b` — two `WorldPoint`s (opposite bbox corners)
  * @anchorCount 2
