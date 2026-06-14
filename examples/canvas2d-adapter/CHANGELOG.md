@@ -1,5 +1,95 @@
 # chartlang-example-canvas2d-adapter
 
+## 1.0.1
+
+### Patch Changes
+
+- 2123181: Hosts (`host-worker`, `host-quickjs`) detect the array-shape `__manifest`
+  sidecar plus the new `__dependencies` export, mount the compiled
+  `CompiledScriptBundle`, and round-trip the six `dep-*` diagnostic codes
+  across both the postMessage wire and the QuickJS JSON membrane.
+  `host-worker`'s `CompiledModuleExport` type widens to carry the optional
+  `__manifest` / `__dependencies` sidecars; `host-quickjs`'s
+  `moduleSourceToScript` rewrites every drawn named export onto a
+  host-visible `globalThis.__chartlang_compiled_named` map and lowers
+  `__dependencies` onto its own global slot. `adapter-kit`'s
+  `validateEmission` confirmed (with explicit coverage) to accept every
+  new code. canvas2d-adapter integration test renders sibling-prefixed
+  plots, drops private-dep plots, and surfaces `dep-error` diagnostics
+  through `Adapter.onEmissions`. The compiler now appends
+  `export const __dependencies = [...]` to multi-export bundle output so
+  the runtime can mount each private dep as a `DepRunner`; single-script
+  bundles stay byte-identical (no `__dependencies` line).
+- 2123181: Indicator composition (Phase 7 closeout): one chartlang indicator can
+  read another indicator's titled plot output as a typed `Series<number>`.
+
+  - Compose via local `const` binding plus `<binding>.output("title")` —
+    no new public API beyond the chainable `.output` / `.withInputs`
+    accessors on `CompiledScriptObject`.
+  - A single `.chart.ts` MAY declare a default export plus any number of
+    named exports plus any number of private `const` deps. Export form
+    determines render policy: drawn exports render with the
+    `export:<exportName>/` slot-id prefix; private `const` deps are data
+    feeds only and their visuals are dropped.
+  - Cross-file `import baseTrend from "./base-trend.chart"` resolves
+    recursively; shared producers inline exactly once per consumer.
+  - Additive within `apiVersion: 1.x`. The 172-entry
+    `STATEFUL_PRIMITIVES` set is unchanged. `DiagnosticCode` widens to 32
+    with the new `dep-*` codes (`dep-error`, `dep-cycle`,
+    `dep-unknown-output`, `dep-invalid-input-override`, `dep-dynamic`,
+    `dep-output-not-titled`).
+  - Five conformance scenarios in `@invinite-org/chartlang-conformance`
+    pin the runtime contract end-to-end (`dep-private-single-file`,
+    `dep-multi-export`, `dep-cross-file`, `dep-diamond`,
+    `dep-error-halts-parent`). `Scenario.additionalSources` lets
+    cross-file scenarios ship producer + consumer side-by-side.
+  - Two new example scripts in `examples/scripts/`:
+    `base-trend.chart.ts` (producer) + `trend-confirmation.chart.ts`
+    (multi-export consumer). React-demo gains a fifth catalogue entry
+    exercising the feature end-to-end in the browser.
+  - Docs: `docs/language/indicator-composition.md` narrative guide,
+    `docs/spec/manifest.md` + `docs/spec/semantics.md` +
+    `docs/spec/versioning.md` updates, five new glossary entries.
+
+- 0427459: Add three pure canvas2d render helpers for subpane rendering:
+  `computePaneLayout` (splits a canvas into a 70% price pane + N uniform
+  subpanes, last subpane absorbing the rounding remainder),
+  `clearPaneRect` (fills one pane rect with the background colour), and
+  `drawPaneSeparator` (1px divider at the top of a subpane, half-pixel
+  aligned). Each ships with its own call-sequence unit test and is
+  re-exported from `src/render/index.ts`. The helpers are not yet wired
+  into `createCanvas2dAdapter.ts` — that integration lands in the next
+  step of the `subpane-rendering` feature.
+- 0427459: Wire the pure pane-layout helpers into `createCanvas2dAdapter`. The
+  adapter state is now pane-aware: `plotSeries` / `plotSeriesStyle` are
+  keyed by `${paneKey}|${slotId}`, `hlines` carry their pane key, and a
+  mutable `paneOrder` (`["overlay", ...subpaneKeys]`) grows on first-seen
+  non-overlay pane and resets on `dispose`. `renderFrame` walks
+  `computePaneLayout` and draws each pane inside its rect via
+  `save / translate(0, rect.y) / restore`, with an independent y-scale per
+  pane (a 0-100 oscillator subpane no longer stretches the price scale),
+  bars in the overlay pane only, and a separator between panes. Adds
+  `translate` to the `RenderCtx` type and `MockCanvas2DContext`. The
+  per-frame whole-canvas `clear` is replaced by per-pane `clearPaneRect`,
+  which re-shapes the integration call log (the pinned hash is re-pinned;
+  behaviour is unchanged for overlay-only scripts).
+- 0427459: Canvas2d subpane polish: a per-pane price y-axis (faint gridlines + right-gutter
+  tick labels) so plotted values are readable, an 80/20 price/subpane split (was
+  70/30) to give the price pane more room, a visible `paneBorder` divider between
+  panes (new palette slot), and a differentiated `explicit-pane-routing` demo that
+  routes 70/30 RSI overbought/oversold bands into the subpane via
+  `hline(..., { pane })`.
+- Updated dependencies [f0c8eb8]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [4d77f4d]
+- Updated dependencies [4d77f4d]
+- Updated dependencies [3b4952d]
+  - @invinite-org/chartlang-adapter-kit@1.2.0
+  - @invinite-org/chartlang-host-worker@1.1.0
+
 ## 1.0.0
 
 Private reference-adapter version aligned with the chartlang `1.0.0`
