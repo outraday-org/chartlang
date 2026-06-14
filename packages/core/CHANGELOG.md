@@ -1,5 +1,97 @@
 # @invinite-org/chartlang-core
 
+## 1.1.0
+
+### Minor Changes
+
+- f0c8eb8: Add `CompiledScriptObject.output` / `.withInputs` sentinels, `DependencyDeclaration` + `OutputDeclaration` types, optional `dependencies` / `outputs` / `exportName` / `siblings` / `isDrawn` fields on `ScriptManifest`, `CompiledScriptBundle` + `isCompiledScriptBundle` narrowing helper, and six new `dep-*` `DiagnosticCode` entries (`dep-error`, `dep-cycle`, `dep-unknown-output`, `dep-invalid-input-override`, `dep-dynamic`, `dep-output-not-titled`). The compiler ambient shim is widened in lockstep so script source resolves the new surface. Additive within `apiVersion: 1`.
+- 2123181: Structured `StateSnapshot` carrying per-runner slot sections (primary +
+  siblings + dependencies) so a `CompiledScriptBundle`'s cold-replay
+  emissions match its warm-restart emissions byte-identically. Slot keys
+  now carry the active runner's `slotIdPrefix` everywhere they reach a
+  `StateStore` (`dep:<localId>/` for deps, `export:<exportName>/` for
+  siblings, empty for the primary). Flat-shape snapshots from before this
+  release continue to load back-compat as primary-only.
+- 2123181: Indicator composition (Phase 7 closeout): one chartlang indicator can
+  read another indicator's titled plot output as a typed `Series<number>`.
+
+  - Compose via local `const` binding plus `<binding>.output("title")` —
+    no new public API beyond the chainable `.output` / `.withInputs`
+    accessors on `CompiledScriptObject`.
+  - A single `.chart.ts` MAY declare a default export plus any number of
+    named exports plus any number of private `const` deps. Export form
+    determines render policy: drawn exports render with the
+    `export:<exportName>/` slot-id prefix; private `const` deps are data
+    feeds only and their visuals are dropped.
+  - Cross-file `import baseTrend from "./base-trend.chart"` resolves
+    recursively; shared producers inline exactly once per consumer.
+  - Additive within `apiVersion: 1.x`. The 172-entry
+    `STATEFUL_PRIMITIVES` set is unchanged. `DiagnosticCode` widens to 32
+    with the new `dep-*` codes (`dep-error`, `dep-cycle`,
+    `dep-unknown-output`, `dep-invalid-input-override`, `dep-dynamic`,
+    `dep-output-not-titled`).
+  - Five conformance scenarios in `@invinite-org/chartlang-conformance`
+    pin the runtime contract end-to-end (`dep-private-single-file`,
+    `dep-multi-export`, `dep-cross-file`, `dep-diamond`,
+    `dep-error-halts-parent`). `Scenario.additionalSources` lets
+    cross-file scenarios ship producer + consumer side-by-side.
+  - Two new example scripts in `examples/scripts/`:
+    `base-trend.chart.ts` (producer) + `trend-confirmation.chart.ts`
+    (multi-export consumer). React-demo gains a fifth catalogue entry
+    exercising the feature end-to-end in the browser.
+  - Docs: `docs/language/indicator-composition.md` narrative guide,
+    `docs/spec/manifest.md` + `docs/spec/semantics.md` +
+    `docs/spec/versioning.md` updates, five new glossary entries.
+
+- 2123181: Light up the end-to-end cross-file dep path for indicator composition. The
+  compiler's `rewriteDependencyAccessors` transformer now collapses
+  `const <alias> = <root>.withInputs({...})...` chains to the bare root
+  identifier so the runtime sentinel never fires at module load; the merged
+  effective inputs flow through the `__dependencies[i].inputOverrides` slot
+  into the runtime's `DepRunner`. Cross-file producers' `@invinite-org/chartlang-core`
+  imports are hoisted above the inlined IIFE so esbuild dedupes them against
+  the consumer's imports and pulls in every symbol the producer uses
+  (`input.int`, `ta.ema`, …). The `__dependencies` export is now prepended
+  pre-bundle so esbuild's tree-shaker keeps each alias binding alive. The
+  `dep-cross-file` conformance scenario joins `ALL_SCENARIOS` and the suite
+  runs 225 scenarios green.
+- 4d77f4d: Add the additive plot-override contract: `PlotSlotDescriptor`,
+  `PlotOverride`, `ScriptManifest.plots?`, `PlotEmission.visible?`, and
+  `Adapter.resolvePlotOverrides?`. `validateEmission` now accepts an
+  optional `visible: boolean` arm on plot emissions and rejects any
+  other type via the existing `malformed-emission` path.
+
+  No behavior changes ship in this contract step — every new field is
+  optional and absence keeps emissions byte-identical to today. The
+  compiler's ambient core shim gains `PlotSlotDescriptor` and the
+  `ScriptManifest.plots?` field so script-side `__manifest` consumers
+  stay in lockstep; `PlotOverride` is intentionally not shimmed (it is
+  runtime-/host-side only).
+
+- 0427459: Persist `defineIndicator({ overlay })` onto `ScriptManifest.overlay?:
+boolean` so the runtime has a script-level default-pane signal. Add
+  `HLineOpts.pane?: "overlay" | "new" | string` mirroring `PlotOpts.pane`
+  so hlines opt into the same pane router. The compiler's `buildManifest`
+  extracts the literal-boolean `overlay` from the `defineIndicator`
+  object literal via `extractOverrides` and emits it on the bundled
+  `__manifest`; the ambient core shim now carries `ScriptManifest.overlay?`
+  and `HLineOpts.pane?` to keep downstream packages type-aligned.
+
+  Step 1 of the `subpane-rendering` feature. Pure additive contract
+  change — every new field is optional and absence keeps existing
+  manifests / emissions byte-identical. The runtime, adapter, and demos
+  land in tasks 2-5.
+
+### Patch Changes
+
+- d6d1a1f: Fix Phase-7 indicator composition where a producer's titled `plot(...)` outputs were never wired to consumers. The compiler computed each binding's `outputs` statically but only wrote them into the manifest sidecar, never onto the producer object's own `manifest.outputs` — so the runtime allocated no dep-output ring buffer and every `<binding>.output("title")` read returned NaN past warmup.
+
+  `defineIndicator` now copies an optional `outputs` opts field into the manifest (omitted ⇒ manifest byte-identical to a script with no titled plots), and the compiler bakes each producer binding's titled `outputs` into its `defineIndicator({...})` opts literal so private deps, named-export siblings, and cross-file producer defaults are self-describing at runtime. Output-free scripts are untouched. Additive within `apiVersion: 1`.
+
+- 3b4952d: Remove the redundant `bars` plot kind. It was never reachable from the script-author API (`PlotOptsStyle` had no `bars` arm and the runtime `buildStyle` had no `case`), no `ta.*` primitive or example emitted it, and the canvas2d reference adapter declared it as a capability but never rendered it. It carried the same `{ baseline: number }` shape as `histogram`, so it was a dead arm of the `PlotKind` / wire-level `PlotStyle` unions.
+
+  `PlotKind`, the adapter-kit `PlotStyle` union, `validateEmission`, the `capabilities.bars()` / `PHASE_5_PLOT_KINDS` surfaces, and the canvas2d adapter's dead `bars.ts` renderer are all dropped. chartlang has no users yet, so this is a hard reset with no deprecation path. Authors who want columns use `histogram`.
+
 ## 1.0.1
 
 ### Patch Changes

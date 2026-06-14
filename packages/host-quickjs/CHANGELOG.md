@@ -1,5 +1,89 @@
 # @invinite-org/chartlang-host-quickjs
 
+## 1.1.0
+
+### Minor Changes
+
+- 2123181: Hosts (`host-worker`, `host-quickjs`) detect the array-shape `__manifest`
+  sidecar plus the new `__dependencies` export, mount the compiled
+  `CompiledScriptBundle`, and round-trip the six `dep-*` diagnostic codes
+  across both the postMessage wire and the QuickJS JSON membrane.
+  `host-worker`'s `CompiledModuleExport` type widens to carry the optional
+  `__manifest` / `__dependencies` sidecars; `host-quickjs`'s
+  `moduleSourceToScript` rewrites every drawn named export onto a
+  host-visible `globalThis.__chartlang_compiled_named` map and lowers
+  `__dependencies` onto its own global slot. `adapter-kit`'s
+  `validateEmission` confirmed (with explicit coverage) to accept every
+  new code. canvas2d-adapter integration test renders sibling-prefixed
+  plots, drops private-dep plots, and surfaces `dep-error` diagnostics
+  through `Adapter.onEmissions`. The compiler now appends
+  `export const __dependencies = [...]` to multi-export bundle output so
+  the runtime can mount each private dep as a `DepRunner`; single-script
+  bundles stay byte-identical (no `__dependencies` line).
+- 2123181: Indicator composition (Phase 7 closeout): one chartlang indicator can
+  read another indicator's titled plot output as a typed `Series<number>`.
+
+  - Compose via local `const` binding plus `<binding>.output("title")` —
+    no new public API beyond the chainable `.output` / `.withInputs`
+    accessors on `CompiledScriptObject`.
+  - A single `.chart.ts` MAY declare a default export plus any number of
+    named exports plus any number of private `const` deps. Export form
+    determines render policy: drawn exports render with the
+    `export:<exportName>/` slot-id prefix; private `const` deps are data
+    feeds only and their visuals are dropped.
+  - Cross-file `import baseTrend from "./base-trend.chart"` resolves
+    recursively; shared producers inline exactly once per consumer.
+  - Additive within `apiVersion: 1.x`. The 172-entry
+    `STATEFUL_PRIMITIVES` set is unchanged. `DiagnosticCode` widens to 32
+    with the new `dep-*` codes (`dep-error`, `dep-cycle`,
+    `dep-unknown-output`, `dep-invalid-input-override`, `dep-dynamic`,
+    `dep-output-not-titled`).
+  - Five conformance scenarios in `@invinite-org/chartlang-conformance`
+    pin the runtime contract end-to-end (`dep-private-single-file`,
+    `dep-multi-export`, `dep-cross-file`, `dep-diamond`,
+    `dep-error-halts-parent`). `Scenario.additionalSources` lets
+    cross-file scenarios ship producer + consumer side-by-side.
+  - Two new example scripts in `examples/scripts/`:
+    `base-trend.chart.ts` (producer) + `trend-confirmation.chart.ts`
+    (multi-export consumer). React-demo gains a fifth catalogue entry
+    exercising the feature end-to-end in the browser.
+  - Docs: `docs/language/indicator-composition.md` narrative guide,
+    `docs/spec/manifest.md` + `docs/spec/semantics.md` +
+    `docs/spec/versioning.md` updates, five new glossary entries.
+
+- 2123181: Light up the end-to-end cross-file dep path for indicator composition. The
+  compiler's `rewriteDependencyAccessors` transformer now collapses
+  `const <alias> = <root>.withInputs({...})...` chains to the bare root
+  identifier so the runtime sentinel never fires at module load; the merged
+  effective inputs flow through the `__dependencies[i].inputOverrides` slot
+  into the runtime's `DepRunner`. Cross-file producers' `@invinite-org/chartlang-core`
+  imports are hoisted above the inlined IIFE so esbuild dedupes them against
+  the consumer's imports and pulls in every symbol the producer uses
+  (`input.int`, `ta.ema`, …). The `__dependencies` export is now prepended
+  pre-bundle so esbuild's tree-shaker keeps each alias binding alive. The
+  `dep-cross-file` conformance scenario joins `ALL_SCENARIOS` and the suite
+  runs 225 scenarios green.
+- 4d77f4d: Apply host-supplied plot overrides at emit time and add a live `setPlotOverrides` channel. The runtime resolves an initial `plotOverrides` map at mount (`args.plotOverrides ?? args.resolvePlotOverrides?.(...)`), applies the matching `PlotOverride` to every `PlotEmission` by `slotId` via the new pure `applyPlotOverride` helper (visibility / color / line width / line style for line-family kinds; silent no-op otherwise), and exposes `ScriptRunner.setPlotOverrides(next)` for a recompute-free live swap. Both `host-worker` and `host-quickjs` forward an initial `plotOverrides` on the `load` frame (mirroring `inputOverrides`) and relay a new `setPlotOverrides` host→guest frame; `ScriptHost.setPlotOverrides(...)` is added for cross-host parity. Fully additive: with no overrides supplied, every emission is byte-identical to before (the `visible` field is omitted unless a slot is explicitly hidden).
+
+### Patch Changes
+
+- Updated dependencies [d6d1a1f]
+- Updated dependencies [f0c8eb8]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [4d77f4d]
+- Updated dependencies [4d77f4d]
+- Updated dependencies [3b4952d]
+- Updated dependencies [0427459]
+- Updated dependencies [0427459]
+  - @invinite-org/chartlang-core@1.1.0
+  - @invinite-org/chartlang-adapter-kit@1.2.0
+  - @invinite-org/chartlang-runtime@1.1.0
+  - @invinite-org/chartlang-host-worker@1.1.0
+
 ## 1.0.2
 
 ### Patch Changes

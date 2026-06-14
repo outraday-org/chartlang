@@ -1,5 +1,104 @@
 # @invinite-org/chartlang-conformance
 
+## 1.1.0
+
+### Minor Changes
+
+- 2123181: Indicator composition (Phase 7 closeout): one chartlang indicator can
+  read another indicator's titled plot output as a typed `Series<number>`.
+
+  - Compose via local `const` binding plus `<binding>.output("title")` —
+    no new public API beyond the chainable `.output` / `.withInputs`
+    accessors on `CompiledScriptObject`.
+  - A single `.chart.ts` MAY declare a default export plus any number of
+    named exports plus any number of private `const` deps. Export form
+    determines render policy: drawn exports render with the
+    `export:<exportName>/` slot-id prefix; private `const` deps are data
+    feeds only and their visuals are dropped.
+  - Cross-file `import baseTrend from "./base-trend.chart"` resolves
+    recursively; shared producers inline exactly once per consumer.
+  - Additive within `apiVersion: 1.x`. The 172-entry
+    `STATEFUL_PRIMITIVES` set is unchanged. `DiagnosticCode` widens to 32
+    with the new `dep-*` codes (`dep-error`, `dep-cycle`,
+    `dep-unknown-output`, `dep-invalid-input-override`, `dep-dynamic`,
+    `dep-output-not-titled`).
+  - Five conformance scenarios in `@invinite-org/chartlang-conformance`
+    pin the runtime contract end-to-end (`dep-private-single-file`,
+    `dep-multi-export`, `dep-cross-file`, `dep-diamond`,
+    `dep-error-halts-parent`). `Scenario.additionalSources` lets
+    cross-file scenarios ship producer + consumer side-by-side.
+  - Two new example scripts in `examples/scripts/`:
+    `base-trend.chart.ts` (producer) + `trend-confirmation.chart.ts`
+    (multi-export consumer). React-demo gains a fifth catalogue entry
+    exercising the feature end-to-end in the browser.
+  - Docs: `docs/language/indicator-composition.md` narrative guide,
+    `docs/spec/manifest.md` + `docs/spec/semantics.md` +
+    `docs/spec/versioning.md` updates, five new glossary entries.
+
+- 2123181: Light up the end-to-end cross-file dep path for indicator composition. The
+  compiler's `rewriteDependencyAccessors` transformer now collapses
+  `const <alias> = <root>.withInputs({...})...` chains to the bare root
+  identifier so the runtime sentinel never fires at module load; the merged
+  effective inputs flow through the `__dependencies[i].inputOverrides` slot
+  into the runtime's `DepRunner`. Cross-file producers' `@invinite-org/chartlang-core`
+  imports are hoisted above the inlined IIFE so esbuild dedupes them against
+  the consumer's imports and pulls in every symbol the producer uses
+  (`input.int`, `ta.ema`, …). The `__dependencies` export is now prepended
+  pre-bundle so esbuild's tree-shaker keeps each alias binding alive. The
+  `dep-cross-file` conformance scenario joins `ALL_SCENARIOS` and the suite
+  runs 225 scenarios green.
+- 4d77f4d: Pin the plot-override channel end to end and document it. The
+  `PLOT_STYLE_OVERRIDES_SCENARIO` conformance scenario exercises mount-time
+  `visible` / `color` / `lineWidth` overrides (keyed by `manifest.plots`
+  ordinal, not a hardcoded `slotId`), a live `setPlotOverrides` flip that
+  clears a hide mid-stream, and empty-override numeric-series parity against
+  the no-override baseline. A new opt-in `plot-field` `ScenarioAssertion`
+  inspects override-baked presentation fields, and `Scenario` gains optional
+  `plotOverrides` + `overrideEvents`. The canvas2d reference adapter now
+  honors `PlotEmission.visible === false` (skips render + viewport) and the
+  override-baked color; cross-host byte-identical parity for the override set
+  is pinned in `host-quickjs`'s integration parity test. Docs cover the
+  `visible?` emission field, the `plots?` manifest slot list,
+  `Adapter.resolvePlotOverrides`, the host `plotOverrides` load field +
+  `setPlotOverrides` frame, and a new plot-overrides walkthrough.
+- 0427459: Add the `rsi-subpane-routing` conformance scenario and a new
+  `all-plots-on-pane` `ScenarioAssertion` variant. The scenario pins the
+  `subpane-rendering` contract: a `defineIndicator({ overlay: false })`
+  script routes every `plot()` + `hline()` to its `script:<sanitised-name>`
+  pane and pushes no `unsupported-pane` diagnostic when the adapter
+  declares `subPanes >= 1`. `all-plots-on-pane` asserts every emitted
+  `PlotEmission.pane` equals one expected key and reports the first
+  divergent emission's `slotId` / `pane` on failure.
+
+  Step 5 (final) of the `subpane-rendering` feature. The
+  `examples/react-demo` catalogue also gains an `explicit-pane-routing`
+  demo (an `EMA(20)` on the price pane + an `RSI(14)` routed to a named
+  subpane via `plot(..., { pane: "rsi" })`); the two existing
+  `overlay: false` RSI demos now render in a real subpane with no source
+  edit.
+
+### Patch Changes
+
+- Updated dependencies [d6d1a1f]
+- Updated dependencies [f0c8eb8]
+- Updated dependencies [f0c8eb8]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [2123181]
+- Updated dependencies [4d77f4d]
+- Updated dependencies [4d77f4d]
+- Updated dependencies [4d77f4d]
+- Updated dependencies [3b4952d]
+- Updated dependencies [0427459]
+- Updated dependencies [0427459]
+  - @invinite-org/chartlang-core@1.1.0
+  - @invinite-org/chartlang-compiler@1.1.0
+  - @invinite-org/chartlang-adapter-kit@1.2.0
+  - @invinite-org/chartlang-runtime@1.1.0
+
 ## 1.0.1
 
 ### Patch Changes
