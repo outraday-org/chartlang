@@ -14,12 +14,39 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    # Detect whether the tree still has unconsumed changeset files
+    # (.changeset/*.md, excluding README.md). Feature merges carry one;
+    # the "Version Packages" merge consumes them, so the publish push to
+    # main has none. `test` uses this to skip the redundant matrix on the
+    # publish push.
+    changes:
+        name: Detect pending changesets
+        runs-on: ubuntu-latest
+        outputs:
+            has_changesets: ${{ steps.check.outputs.has_changesets }}
+        steps:
+            - uses: actions/checkout@v4
+            - id: check
+              run: |
+                  count=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' | wc -l | tr -d ' ')
+                  echo "pending changesets: $count"
+                  if [ "$count" -gt 0 ]; then
+                    echo "has_changesets=true" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "has_changesets=false" >> "$GITHUB_OUTPUT"
+                  fi
+
     test:
         name: Test (${{ matrix.os }} / Node ${{ matrix.node }})
-        # Skip the redundant matrix on the changesets "Version Packages" PR —
-        # it only bumps versions/changelogs, and the post-merge push run on
-        # main still gates the release job via `needs: test`.
-        if: github.head_ref != 'changeset-release/main'
+        needs: changes
+        # Skip on the changesets "Version Packages" PR, and skip the
+        # redundant matrix on the publish push (push to main once the
+        # changesets are consumed). Feature merges to main still run the
+        # matrix because their changeset files are present. The code in a
+        # publish push was already tested on the PR that produced it.
+        if: >-
+            github.head_ref != 'changeset-release/main' &&
+            (github.event_name != 'push' || needs.changes.outputs.has_changesets == 'true')
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: false
@@ -88,7 +115,15 @@ jobs:
     release:
         name: Release
         needs: test
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        # Publish on every push to main. `always()` lets this run even
+        # when `test` was skipped on the publish push; the result guard
+        # still blocks publish if the matrix actually ran and failed.
+        if: >-
+            always() &&
+            github.ref == 'refs/heads/main' &&
+            github.event_name == 'push' &&
+            needs.test.result != 'failure' &&
+            needs.test.result != 'cancelled'
         runs-on: ubuntu-latest
         permissions:
             contents: write
