@@ -17,8 +17,16 @@ GitHub-specific configuration: CI workflow and pull-request template.
   `pnpm hover:check` — regenerates
   `skills/chartlang-coding/references/primitives.md` from `ta.*`/`draw.*`
   JSDoc and byte-diffs against the committed file (repo tooling, not in
-  PLAN.md §22.6). Any other change to `ci.yml` must update PLAN.md §22.6
-  in the same PR.
+  PLAN.md §22.6).
+- The `ci-gate` job (`name: CI Gate`) is the **single required status
+  check** in the branch ruleset, replacing the four `Test (os / Node n)`
+  matrix contexts. The `test` job is skipped on the
+  `changeset-release/main` PR (`if: github.head_ref != …`), which leaves
+  per-matrix checks perpetually "Expected" and blocks merge. `ci-gate`
+  runs with `if: always()`, `needs: test`, and passes when
+  `needs.test.result` is `success` **or** `skipped`, failing on
+  `failure`/`cancelled`. If you rename the job or its matrix legs, update
+  the ruleset's required contexts to match.
 - The `release:` job at the bottom of `ci.yml` is live and runs only on
   `push` events to `main` after the test matrix passes. It uses
   `changesets/action@v1` to open/update the Version Packages PR and to
