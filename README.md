@@ -165,6 +165,18 @@ portable across charts. See PLAN.md §2 for the full diagram.
   its outputs from another's `compute`. See
   [Indicator composition](./docs/language/indicator-composition.md).
 
+## AI skills
+
+Two installable [Agent Skills](https://www.skills.sh) teach an LLM to
+work with chartlang — one for **writing** scripts, one for
+**integrating** the stack:
+
+```bash
+npx skills add outraday-org/chartlang
+```
+
+See [`skills/`](./skills/) for both skills and manual-install steps.
+
 ## Releases
 
 Versions are cut with Changesets. Pending changesets are collected into

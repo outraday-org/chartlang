@@ -1,4 +1,4 @@
-# Task 1 — Root `CLAUDE.md` + `skills/` scaffold + `chartlang-author` skill
+# Task 1 — Root `CLAUDE.md` + `skills/` scaffold + `chartlang-coding` skill
 
 > **Status: TODO**
 
@@ -6,7 +6,7 @@
 
 Create the repo-root `CLAUDE.md` (the maintenance contract), the
 top-level `skills/` directory with its `README.md`, and the
-**`chartlang-author`** Agent Skill — an Anthropic-format skill that
+**`chartlang-coding`** Agent Skill — an Anthropic-format skill that
 teaches an end-user LLM how to write chartlang `.chart.ts` scripts.
 The skill ships its narrative `SKILL.md` plus three hand-written
 reference pages; `references/primitives.md` lands as a committed
@@ -18,7 +18,7 @@ None. First task in the folder.
 
 ## Current Behavior
 
-- No repo-root `CLAUDE.md` exists (16 per-folder ones do).
+- No repo-root `CLAUDE.md` exists (17 per-folder ones do).
 - No `skills/` directory exists.
 - An external LLM helping a user write `.chart.ts` files has no
   portable knowledge pack — it must be hand-fed the docs.
@@ -31,9 +31,9 @@ After this task:
   a one-line index of where folder `CLAUDE.md` files and skills live.
 - `skills/README.md` explains what `skills/` is and how to install via
   `npx skills add outraday-org/chartlang` or manual copy.
-- `skills/chartlang-author/SKILL.md` is a complete, self-consistent
+- `skills/chartlang-coding/SKILL.md` is a complete, self-consistent
   authoring guide.
-- `skills/chartlang-author/references/{primitives.md,examples.md,forbidden.md}`
+- `skills/chartlang-coding/references/{primitives.md,examples.md,forbidden.md}`
   exist. `examples.md` + `forbidden.md` are final; `primitives.md` is
   a placeholder with the generator's auto-header so Task 2's gate has a
   target.
@@ -65,7 +65,7 @@ the rules that span folders.
   surface (`defineIndicator`, `compute`, `ta.*`/`draw.*`, forbidden
   constructs); the integrator skill mirrors the compile/host/adapter
   contract. If you change those, the skill is now wrong — fix it.
-  The generated `skills/chartlang-author/references/primitives.md` is
+  The generated `skills/chartlang-coding/references/primitives.md` is
   re-emitted by `pnpm skills:generate`; the `skills:gate` will fail CI
   if you forget.
 
@@ -75,8 +75,8 @@ the rules that span folders.
   hosts, cli, conformance, core).
 - `docs/CLAUDE.md`, `examples/CLAUDE.md`, `scripts/CLAUDE.md`,
   `.github/CLAUDE.md` — folder-scoped conventions.
-- `skills/chartlang-author/` — end-user "write chartlang scripts" skill.
-- `skills/chartlang-integrator/` — developer "integrate chartlang" skill.
+- `skills/chartlang-coding/` — end-user "write chartlang scripts" skill.
+- `skills/chartlang-setup/` — developer "integrate chartlang" skill.
 ```
 
 > Note: the `skills:generate` / `skills:gate` scripts referenced above
@@ -98,7 +98,7 @@ Create `skills/README.md` (≤ 60 lines). Cover:
   npx skills add outraday-org/chartlang
 
   # or a single skill
-  npx skills add outraday-org/chartlang/tree/main/skills/chartlang-author
+  npx skills add outraday-org/chartlang/tree/main/skills/chartlang-coding
   ```
 
 - Manual install: copy `skills/<name>/SKILL.md` (and its `references/`)
@@ -107,7 +107,7 @@ Create `skills/README.md` (≤ 60 lines). Cover:
 - A one-line maintenance note: "These skills mirror the language and
   integration contract — see the repo-root `CLAUDE.md` rule."
 
-### 3. `skills/chartlang-author/SKILL.md`
+### 3. `skills/chartlang-coding/SKILL.md`
 
 The bulk of this task. Hand-written. **Frontmatter** (skills.sh
 requires `name` + `description`; make the description "pushy" for
@@ -115,7 +115,7 @@ trigger accuracy per skill-authoring guidance):
 
 ```yaml
 ---
-name: chartlang-author
+name: chartlang-coding
 description: >-
   Write chartlang `.chart.ts` indicator, drawing, and alert scripts.
   Use this skill whenever the user is editing a `.chart.ts` file, asks
@@ -173,7 +173,7 @@ canonical docs. Required sections:
 Keep SKILL.md focused and skimmable — target ~150–220 lines. Detail
 that belongs in a reference goes in `references/`, not the main body.
 
-### 4. `skills/chartlang-author/references/forbidden.md`
+### 4. `skills/chartlang-coding/references/forbidden.md`
 
 Hand-written. Condense `docs/language/forbidden-constructs.md` into an
 LLM-facing rule list grouped by category (determinism, sandbox I/O,
@@ -184,7 +184,7 @@ the file with the same auto-header sentinel **only if** it is generated
 — it is **not**, so no header. Link back to
 `docs/spec/grammar.md#forbidden-constructs` as the normative source.
 
-### 5. `skills/chartlang-author/references/examples.md`
+### 5. `skills/chartlang-coding/references/examples.md`
 
 Hand-written. 3–4 complete, compileable worked examples drawn from
 `examples/scripts/`:
@@ -199,7 +199,7 @@ For each: the full source, then 2–3 sentences on what contract detail
 it demonstrates. These are real files — copy their current content; do
 not invent variants.
 
-### 6. `skills/chartlang-author/references/primitives.md` (PLACEHOLDER)
+### 6. `skills/chartlang-coding/references/primitives.md` (PLACEHOLDER)
 
 Create a committed placeholder so the skill is self-consistent before
 Task 2's generator runs. First line MUST be the auto-generated-header
@@ -246,10 +246,10 @@ new `##` section is allowed.
 |------|--------|---------|
 | `CLAUDE.md` | Create | Repo-root maintenance contract + index. |
 | `skills/README.md` | Create | What `skills/` is + install steps. |
-| `skills/chartlang-author/SKILL.md` | Create | End-user authoring guide. |
-| `skills/chartlang-author/references/forbidden.md` | Create | Forbidden-construct rule list. |
-| `skills/chartlang-author/references/examples.md` | Create | Worked compileable examples. |
-| `skills/chartlang-author/references/primitives.md` | Create | Placeholder (Task 2 generates). |
+| `skills/chartlang-coding/SKILL.md` | Create | End-user authoring guide. |
+| `skills/chartlang-coding/references/forbidden.md` | Create | Forbidden-construct rule list. |
+| `skills/chartlang-coding/references/examples.md` | Create | Worked compileable examples. |
+| `skills/chartlang-coding/references/primitives.md` | Create | Placeholder (Task 2 generates). |
 | `README.md` | Modify | Add "AI skills" subsection. |
 
 ## Gates
@@ -270,7 +270,7 @@ is package-scoped.
 
 - Root `CLAUDE.md` states both maintenance rules (folder `CLAUDE.md`
   on behavior change; skills on contract change) and the index.
-- `skills/chartlang-author/SKILL.md` has valid `name` + `description`
+- `skills/chartlang-coding/SKILL.md` has valid `name` + `description`
   frontmatter and covers all nine body sections; ~150–220 lines.
 - `references/forbidden.md` and `references/examples.md` are complete
   and accurate against current `docs/` + `examples/scripts/`.

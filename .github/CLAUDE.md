@@ -12,8 +12,13 @@ GitHub-specific configuration: CI workflow and pull-request template.
   step after `pnpm docs:check` — the gate that regenerates
   `docs/primitives/ta/<id>.md` and byte-compares against the committed
   tree; (3) Phase 4 Task 13 adds `pnpm hover:check` after `pnpm docs:gate`
-  to regenerate the language-service hover registry and fail on drift. Any
-  other change to `ci.yml` must update PLAN.md §22.6 in the same PR.
+  to regenerate the language-service hover registry and fail on drift;
+  (4) the skills-folder task set adds a `pnpm skills:gate` step after
+  `pnpm hover:check` — regenerates
+  `skills/chartlang-coding/references/primitives.md` from `ta.*`/`draw.*`
+  JSDoc and byte-diffs against the committed file (repo tooling, not in
+  PLAN.md §22.6). Any other change to `ci.yml` must update PLAN.md §22.6
+  in the same PR.
 - The `release:` job at the bottom of `ci.yml` is live and runs only on
   `push` events to `main` after the test matrix passes. It uses
   `changesets/action@v1` to open/update the Version Packages PR and to

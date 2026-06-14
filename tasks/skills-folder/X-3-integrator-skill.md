@@ -1,10 +1,10 @@
-# Task 3 — `chartlang-integrator` skill
+# Task 3 — `chartlang-setup` skill
 
 > **Status: TODO**
 
 ## Goal
 
-Add the **`chartlang-integrator`** Agent Skill — an Anthropic-format
+Add the **`chartlang-setup`** Agent Skill — an Anthropic-format
 skill that teaches a *developer* LLM how to integrate the chartlang
 stack into a product. It covers all three integration paths in one
 skill: **embed in your chart** (compile + host + adapter), **write a
@@ -19,7 +19,7 @@ Independent of Task 2.
 
 ## Current Behavior
 
-- `skills/` holds only `chartlang-author`.
+- `skills/` holds only `chartlang-coding`.
 - A developer LLM wiring chartlang into a product must be hand-fed
   `docs/getting-started/embed-in-our-chart.md` and
   `docs/getting-started/write-your-first-adapter.md`.
@@ -28,22 +28,22 @@ Independent of Task 2.
 
 After this task:
 
-- `skills/chartlang-integrator/SKILL.md` is a complete integration
+- `skills/chartlang-setup/SKILL.md` is a complete integration
   guide whose body routes to three references by use case.
-- `skills/chartlang-integrator/references/{embed.md,adapter.md,server-alerts.md}`
+- `skills/chartlang-setup/references/{embed.md,adapter.md,server-alerts.md}`
   carry the working snippets, each anchored to a real in-repo example.
 - `skills/README.md` (from Task 1) already names both skills — verify
   it does; if Task 1 named only the author skill, fix it here.
 
 ## Requirements
 
-### 1. `skills/chartlang-integrator/SKILL.md`
+### 1. `skills/chartlang-setup/SKILL.md`
 
 Hand-written. **Frontmatter** (pushy description for trigger accuracy):
 
 ```yaml
 ---
-name: chartlang-integrator
+name: chartlang-setup
 description: >-
   Integrate the chartlang stack into a product — compile `.chart.ts`
   scripts server-side, host the bundle in a Web Worker or QuickJS
@@ -51,7 +51,7 @@ description: >-
   whenever the user is wiring `@invinite-org/chartlang-compiler`,
   `-runtime`, `-host-worker`, `-host-quickjs`, or `-adapter-kit` into an
   app, building a new chart-vendor adapter, or running server-side
-  alerts. NOT for writing `.chart.ts` scripts (that's chartlang-author).
+  alerts. NOT for writing `.chart.ts` scripts (that's chartlang-coding).
 ---
 ```
 
@@ -135,10 +135,10 @@ Hand-written. Cover:
 
 - Why QuickJS: process-isolated, real CPU preemption + hard heap caps,
   fires alerts when no browser is open.
-- `createQuickjsHost` (or the host's actual factory — verify the export
-  name in `packages/host-quickjs/src/index.ts` before writing) with
-  `capabilities`, `host.load`, the bar-feed loop, draining **alerts**
-  specifically.
+- `createQuickJsHost` (capital `J`, capital `S` — verified at
+  `packages/host-quickjs/src/index.ts:4`; the matching options type is
+  `CreateQuickJsHostOpts`) with `capabilities`, `host.load`, the
+  bar-feed loop, draining **alerts** specifically.
 - The sandbox boundary: the bundle is process-isolated; transferable
   cloning preserves type info; no host I/O reaches the script. Link
   `docs/hosts/` and `packages/host-quickjs/CLAUDE.md` invariants.
@@ -148,17 +148,17 @@ Hand-written. Cover:
 ### 5. Verify `skills/README.md`
 
 Confirm Task 1's `skills/README.md` names **both** skills with their
-one-line purpose. If it only named `chartlang-author`, add the
-`chartlang-integrator` line here.
+one-line purpose. If it only named `chartlang-coding`, add the
+`chartlang-setup` line here.
 
 ## Files to Create / Modify
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `skills/chartlang-integrator/SKILL.md` | Create | Developer integration guide + routing. |
-| `skills/chartlang-integrator/references/embed.md` | Create | Compile + host + adapter snippets. |
-| `skills/chartlang-integrator/references/adapter.md` | Create | adapter-kit contract + conformance. |
-| `skills/chartlang-integrator/references/server-alerts.md` | Create | QuickJS host for headless alerts. |
+| `skills/chartlang-setup/SKILL.md` | Create | Developer integration guide + routing. |
+| `skills/chartlang-setup/references/embed.md` | Create | Compile + host + adapter snippets. |
+| `skills/chartlang-setup/references/adapter.md` | Create | adapter-kit contract + conformance. |
+| `skills/chartlang-setup/references/server-alerts.md` | Create | QuickJS host for headless alerts. |
 | `skills/README.md` | Modify (if needed) | Ensure both skills are listed. |
 
 ## Gates
@@ -169,7 +169,7 @@ one-line purpose. If it only named `chartlang-author`, add the
   (markdown only, no package `src/` touched). Confirm none regress.
 - **Snippet accuracy** — every export name / signature in the
   references (`compile`, `CompileError`, `createWorkerHost`,
-  `createCanvas2dAdapter`, `runRendererLoop`, the QuickJS host factory)
+  `createCanvas2dAdapter`, `runRendererLoop`, `createQuickJsHost`)
   must match the current package surface. Grep each against the
   package `src/index.ts` before committing — stale snippets are the
   primary failure mode for a hand-written integration skill.
@@ -181,14 +181,14 @@ change.
 
 ## Acceptance Criteria
 
-- `skills/chartlang-integrator/SKILL.md` has valid `name` +
+- `skills/chartlang-setup/SKILL.md` has valid `name` +
   `description` frontmatter and covers all five body sections;
   ~140–200 lines.
 - All three references exist and their snippets match the current
   package exports (verified by grep, not memory).
 - `references/adapter.md` points at the canvas2d reference + the
-  conformance harness; `references/server-alerts.md` uses the real
-  QuickJS host factory name.
+  conformance harness; `references/server-alerts.md` uses
+  `createQuickJsHost` (verified casing).
 - `skills/README.md` lists both skills.
 - No regression in `pnpm typecheck` / `pnpm test` / `pnpm readme:check`.
 - No changeset committed.

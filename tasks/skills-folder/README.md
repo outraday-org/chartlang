@@ -33,13 +33,13 @@ frontmatter). They install into any agent via
 dir and symlinks each skill into `.claude/skills/`, `.cursor/`, etc.)
 or by manual copy.
 
-- **`chartlang-author`** — for an end user wiring AI into their code
+- **`chartlang-coding`** — for an end user wiring AI into their code
   editor to help write chartlang scripts. Teaches the language model
   the `defineIndicator`/`compute` contract, the import + destructure
   rule, forbidden constructs, inputs, and the `ta.*` / `draw.*`
   surface. Its primitive reference is **generated** from the same
   JSDoc the docs site uses, so it never drifts.
-- **`chartlang-integrator`** — for a developer integrating chartlang
+- **`chartlang-setup`** — for a developer integrating chartlang
   into their project. Teaches the three integration paths — embed in
   your chart, write a chart adapter, run server-side alerts — with
   reference snippets pointing at the in-repo examples.
@@ -51,7 +51,7 @@ chartlang/
 ├── CLAUDE.md                       # ✗ DOES NOT EXIST at repo root
 ├── docs/CLAUDE.md                  # per-folder agent orientation (exists)
 ├── examples/CLAUDE.md              # …
-├── packages/CLAUDE.md              # …  (16 CLAUDE.md files total, no root one)
+├── packages/CLAUDE.md              # …  (17 per-folder CLAUDE.md files, no root one)
 ├── scripts/CLAUDE.md               # …
 ├── docs/
 │   ├── getting-started/
@@ -70,7 +70,9 @@ chartlang/
     └── …
 ```
 
-- 16 per-folder `CLAUDE.md` files exist; **no repo-root `CLAUDE.md`**.
+- 17 per-folder `CLAUDE.md` files exist (10 package-level + 7 nested
+  in `docs/`, `examples/`, `scripts/`, `.github/`, and inside three
+  `packages/*/src/<area>/` subtrees); **no repo-root `CLAUDE.md`**.
 - No `skills/` directory.
 - `scripts/gen-hover-registry.ts` already walks `packages/core/src`
   JSDoc via the TS compiler API and emits a checked-in artifact with a
@@ -87,13 +89,13 @@ chartlang/
 ├── CLAUDE.md                       # NEW: repo maintenance contract (terse)
 ├── skills/                         # NEW
 │   ├── README.md                   # what skills/ is, how to install
-│   ├── chartlang-author/
+│   ├── chartlang-coding/
 │   │   ├── SKILL.md                # hand-written authoring guide
 │   │   └── references/
 │   │       ├── primitives.md       # GENERATED (skills:generate); CI-gated
 │   │       ├── examples.md         # hand-written worked examples
 │   │       └── forbidden.md        # hand-written determinism/sandbox rules
-│   └── chartlang-integrator/
+│   └── chartlang-setup/
 │       ├── SKILL.md                # hand-written integration guide
 │       └── references/
 │           ├── embed.md            # compile + host + adapter wiring
@@ -122,7 +124,7 @@ New `pnpm` scripts: `skills:generate` (write) and `skills:gate`
 ## Dependency Graph
 
 ```
-Task 1 (root CLAUDE.md + skills/ scaffold + chartlang-author SKILL.md
+Task 1 (root CLAUDE.md + skills/ scaffold + chartlang-coding SKILL.md
         + hand-written references + skills/README.md + root README link)
   |
   |  (primitives.md exists as a committed STUB after Task 1)
@@ -132,7 +134,7 @@ Task 2 (generate-skills-reference.ts + skills:generate + skills:gate
         into `pnpm check`)
   |
   v
-Task 3 (chartlang-integrator SKILL.md + embed/adapter/server-alerts
+Task 3 (chartlang-setup SKILL.md + embed/adapter/server-alerts
         references)
 ```
 
