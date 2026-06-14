@@ -56,6 +56,30 @@ jobs:
                   fail_ci_if_error: false
 
     # ──────────────────────────────────────────────────────────────────
+    # Required-check gate.
+    # `test` is skipped on the changeset "Version Packages" PR, which
+    # leaves the matrix checks perpetually "Expected" and blocks merge.
+    # This job always runs and is the single required status check:
+    # it passes when `test` succeeded OR was intentionally skipped, and
+    # fails when `test` failed/was cancelled. Point the branch ruleset
+    # at "CI Gate" instead of the individual matrix contexts.
+    # ──────────────────────────────────────────────────────────────────
+    ci-gate:
+        name: CI Gate
+        needs: test
+        if: always()
+        runs-on: ubuntu-latest
+        steps:
+            - name: Verify test job did not fail
+              run: |
+                  result="${{ needs.test.result }}"
+                  echo "test job result: $result"
+                  if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
+                    exit 0
+                  fi
+                  exit 1
+
+    # ──────────────────────────────────────────────────────────────────
     # Release job.
     # Maintainers must add NPM_TOKEN to repo secrets before merging a
     # release PR. Manual fallback: `pnpm publish:release` from a
