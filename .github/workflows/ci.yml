@@ -16,6 +16,10 @@ concurrency:
 jobs:
     test:
         name: Test (${{ matrix.os }} / Node ${{ matrix.node }})
+        # Skip the redundant matrix on the changesets "Version Packages" PR —
+        # it only bumps versions/changelogs, and the post-merge push run on
+        # main still gates the release job via `needs: test`.
+        if: github.head_ref != 'changeset-release/main'
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: false

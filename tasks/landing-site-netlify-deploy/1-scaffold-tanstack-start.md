@@ -129,11 +129,16 @@ the dev workflow ergonomic.
 
 ### 5. Hello-world route
 
-The scaffold ships a default route. Replace its body with:
+The scaffold ships a default route. Replace its body with the shape
+below. **Treat the imports as illustrative** — the actual import path
+for `createFileRoute` is whatever the scaffold emits (current TanStack
+Start ships it from `@tanstack/react-router`; the snippet uses
+`@tanstack/start/router` as a placeholder). See README → "TanStack
+Start / shadcn snippet caveat".
 
 ```tsx
 // apps/site/app/routes/index.tsx
-import { createFileRoute } from "@tanstack/start/router";
+import { createFileRoute } from "@tanstack/start/router"; // see caveat
 
 export const Route = createFileRoute("/")({
     component: HomeRoute,
@@ -213,9 +218,13 @@ over local rule exceptions.
 `apps/site/` does **not** run vitest. The site has no published
 source — its functional tests are e2e tests under Playwright,
 written in Task 4. Do **not** create a `vitest.config.ts` in
-`apps/site/`. The root `vitest.config.ts`'s `include` glob already
-scopes to `packages/*`, `examples/*`, `scripts/`; verify the new
-`apps/*` does not accidentally get picked up. If it does, add
+`apps/site/`. The root `vitest.config.ts` uses an `exclude` block
+(no explicit `include`) and currently excludes
+`examples/react-demo/**`, build outputs, and scratch harnesses.
+Verify that `apps/site/` source files do not get discovered by
+vitest's default test-file globs (no `*.test.ts` / `*.test.tsx` /
+`*.spec.ts` files should live under `apps/site/`). If a Playwright
+spec under `apps/site/tests/` ever ends in `.test.ts`, add
 `"apps/**"` to the root vitest `exclude`.
 
 ### 10. Coverage gate non-participation

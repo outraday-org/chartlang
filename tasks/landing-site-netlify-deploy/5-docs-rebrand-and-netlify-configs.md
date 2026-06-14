@@ -18,6 +18,9 @@ page, ready to deploy from `netlify/docs.toml`.
 - Task 4 complete — Netlify preset confirmed working for the site
   (proves the function path before docs migration).
 
+(The README dependency graph and task-summary table reflect this:
+Task 5 depends on **{2, 4}**, not just 2.)
+
 ## Current Behavior
 
 - VitePress runs the default theme (gray neutrals, brand-neutral

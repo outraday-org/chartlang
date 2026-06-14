@@ -87,9 +87,10 @@ examples/
 
 ```
 .github/workflows/
-├── ci.yml                  # extended: typechecks apps/site/, builds both Netlify projects in PR preview
-└── netlify-preview.yml     # NEW: per-PR Netlify preview deploys (both projects)
-                            # docs.yml DELETED — Netlify handles deploys
+├── ci.yml                  # extended: typechecks apps/site/, builds it,
+                            # runs Playwright e2e; docs.yml DELETED
+                            # (the Netlify GitHub App posts PR-preview URLs,
+                            # so no separate netlify-preview workflow is needed)
 
 netlify/
 ├── site.toml               # NEW: build config for chartlang.invinite.com
@@ -151,9 +152,10 @@ examples/
 - `docs.chartlang.invinite.com` serves the VitePress docs, re-themed
   to match the marketing brand.
 - Every PR opens **two Netlify preview URLs** (one per site) via the
-  Netlify GitHub integration; CI gates them by also running
-  `pnpm --filter chartlang-site build` + `pnpm docs:build` in
-  `.github/workflows/ci.yml`.
+  Netlify GitHub App, which also comments the URLs back on the PR —
+  no separate GitHub Actions workflow is needed for previews. CI
+  gates them by also running `pnpm --filter chartlang-site build` +
+  `pnpm docs:build` in `.github/workflows/ci.yml`.
 - Root README's "Try it" section now points to
   `https://chartlang.invinite.com` first; the localhost dev path
   becomes a secondary "run the site locally" line.
@@ -205,29 +207,38 @@ Task 4 (embedded demo + /api/compile server route)
    |  - esbuild + node:* browser stubs replicated in Vite config
    |  - playwright smoke test: compile + render + edit + recompile
    v
-Task 5 (VitePress docs re-themed + Netlify config)
+Task 5 (VitePress docs re-themed + Netlify config; depends on 2 AND 4)
    |
+   |  - hoist apps/site/app/styles/brand.css → repo-root `brand/brand.css`
+   |    so docs + site share one source of truth
    |  - docs/.vitepress/theme/ created, palette + fonts shared with apps/site
    |  - BrandHeader.vue replaces default theme header
    |  - config.ts: base resets to "/", nav/sidebar unchanged
    |  - netlify/docs.toml + netlify/site.toml committed
+   |  (also depends on Task 4: confirms the Netlify Function path works
+   |   end-to-end before docs migrate to the same platform)
    v
 Task 6 (CI pipeline updates + Netlify deploy automation)
    |
    |  - .github/workflows/ci.yml: add `pnpm --filter chartlang-site build`,
    |    add `pnpm --filter chartlang-site typecheck`,
    |    keep `pnpm docs:build`
-   |  - .github/workflows/netlify-preview.yml: per-PR preview comment
+   |  - per-PR preview URLs delivered by the Netlify GitHub App
+   |    (no new GH Actions workflow needed)
    |  - .github/workflows/docs.yml DELETED
    |  - root readme:check still green; apps/site/README.md ≤ 100 lines
    v
-Task 7 (custom domains, DNS docs, retire examples/react-demo/)
+Task 7 (custom domains, DNS docs, retire examples/react-demo/, sweep refs)
    |
    |  - docs/getting-started/run-the-site-locally.md (NEW)
    |  - DEPLOYMENT.md (NEW, root): Cloudflare CNAME records,
    |    Netlify site setup, env-var checklist
    |  - delete examples/react-demo/, drop from pnpm-workspace.yaml
-   |  - root README.md "Try it" section repointed to chartlang.invinite.com
+   |  - root README.md "Try it" + "Links" sections repointed at
+   |    chartlang.invinite.com / docs.chartlang.invinite.com
+   |  - skills/chartlang-setup/{SKILL.md,references/embed.md} updated:
+   |    reference embed is now apps/site/, not examples/react-demo/
+   |  - docs/getting-started/embed-in-our-chart.md cross-ref updated
    |  - changesets/ unchanged (no published package touched)
 ```
 
@@ -244,9 +255,9 @@ playground, and updates the public README.
 | 2 | [Brand system + shared layout shell](./2-brand-system-and-layout.md) | apps/site/ | 1 | Medium |
 | 3 | [Landing-page sections (Hero, Features, Quickstart)](./3-landing-page-content.md) | apps/site/ | 2 | Medium |
 | 4 | [Embedded demo + /api/compile server route](./4-embedded-demo-and-compile-route.md) | apps/site/ | 3 | High |
-| 5 | [Re-theme VitePress docs + Netlify configs](./5-docs-rebrand-and-netlify-configs.md) | docs/ + netlify/ | 2 | Medium |
+| 5 | [Re-theme VitePress docs + Netlify configs](./5-docs-rebrand-and-netlify-configs.md) | docs/ + netlify/ + brand/ | 2, 4 | Medium |
 | 6 | [CI updates + Netlify deploy automation](./6-ci-and-netlify-deploy.md) | .github/workflows/ | 4, 5 | Medium |
-| 7 | [Custom domains, DNS docs, retire react-demo](./7-domains-and-react-demo-removal.md) | repo root + examples/ | 6 | Low |
+| 7 | [Custom domains, DNS docs, retire react-demo](./7-domains-and-react-demo-removal.md) | repo root + examples/ + skills/ + docs/ | 6 | Low |
 
 ## Code Reuse
 
@@ -266,9 +277,24 @@ playground, and updates the public README.
 Never duplicate `compile`, `createLanguageService`, or
 `createScriptRunner` logic — `apps/site/` consumes the workspace
 packages via `workspace:*` deps. The single new piece of cross-cutting
-code is `apps/site/app/styles/brand.css`, mirrored into
-`docs/.vitepress/theme/style.css` (Task 5) so the two sites share one
-set of design tokens.
+code is the brand CSS palette: Task 2 lands it at
+`apps/site/app/styles/brand.css`, then Task 5 **hoists it to repo-root
+`brand/brand.css`** (no `package.json` — a plain shared assets folder)
+so both `apps/site/` and `docs/.vitepress/theme/` import the same file
+and stay one product visually.
+
+### TanStack Start / shadcn snippet caveat
+
+The code snippets in Tasks 1, 2, and 4 use illustrative imports such as
+`@tanstack/start/router`, `@tanstack/start/server`, and
+`@tanstack/start/config`. The shadcn `init --template start --preset b0
+--base base` scaffold pins the exact import paths at scaffold time
+(historically `@tanstack/react-router` for routing primitives,
+`@tanstack/react-start/*` for server functions, and `vite.config.ts` for
+the build config). **Use whatever the freshly-generated scaffold emits**
+— do not blindly copy the paths from the task snippets if the scaffold
+disagrees. The shape of the components stays the same; only the import
+strings change.
 
 ## Provenance
 

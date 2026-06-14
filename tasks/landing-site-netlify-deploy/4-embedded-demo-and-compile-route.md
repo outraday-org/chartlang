@@ -118,12 +118,23 @@ resolution path.
 
 ### 3. Vite config: replicate the two browser-side aliases
 
-In `apps/site/app.config.ts` (TanStack Start's config file), pass
-through to Vite's `resolve.alias` exactly the two entries from
-`examples/react-demo/vite.config.ts`:
+In `apps/site/app.config.ts` (TanStack Start's config file — current
+versions use `vite.config.ts` with a Start plugin; use whatever the
+scaffold emits, see README → "TanStack Start / shadcn snippet caveat"),
+pass through to Vite's `resolve.alias` exactly the two **production-
+relevant** entries from `examples/react-demo/vite.config.ts`. The
+react-demo also has a third alias (`chartlang-example-canvas2d-adapter`
+→ its TypeScript source) that exists purely for adapter-edit HMR
+during local dev. **We intentionally drop that third alias**:
+`apps/site/` consumes the canvas2d adapter via its `workspace:*` dep,
+which resolves to the adapter's built `dist/`. That keeps the
+production Netlify bundle identical to what consumers get and
+sidesteps a Vite-source-graph cost we don't need. Contributors who
+want adapter HMR while iterating can still run
+`cd examples/react-demo && pnpm dev` until Task 7 removes it.
 
 ```ts
-// apps/site/app.config.ts (excerpt)
+// apps/site/app.config.ts (excerpt) — see caveat above
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "@tanstack/start/config";
 
@@ -164,11 +175,13 @@ across releases.
 
 ### 4. Server route — `/api/compile`
 
-Create `apps/site/app/routes/api/compile.ts`:
+Create `apps/site/app/routes/api/compile.ts`. The `createServerFileRoute`
+import below is illustrative; use the scaffold's actual server-route
+factory (current TanStack Start exports it from `@tanstack/react-start/server`).
 
 ```ts
 // apps/site/app/routes/api/compile.ts
-import { createServerFileRoute } from "@tanstack/start/server";
+import { createServerFileRoute } from "@tanstack/start/server"; // see caveat
 import { handleCompile } from "~/lib/server/compile";
 
 export const ServerRoute = createServerFileRoute("/api/compile").methods({

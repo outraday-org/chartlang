@@ -211,9 +211,9 @@ catch `apps/`.
 
 ### 8. Update the root README badges
 
-Replace the `build` badge (still useful) and **remove** the
-Codecov-Pages-related noise if any. Keep the npm and license
-badges. Add a line under the badges:
+Keep all four existing badges (npm, build, coverage, license) — none
+of them are Pages-coupled. Add a line under the badges advertising
+the two custom domains:
 
 ```markdown
 > Live at [chartlang.invinite.com](https://chartlang.invinite.com).
@@ -241,6 +241,7 @@ broke:
 | `pnpm docs:gate` | unchanged |
 | `pnpm docs:build` | unchanged |
 | `pnpm hover:check` | unchanged |
+| `pnpm skills:gate` | unchanged |
 | `pnpm readme:check` | unchanged |
 | `pnpm --filter chartlang-site typecheck` | **NEW**, runs |
 | `pnpm --filter chartlang-site build` | **NEW**, runs |

@@ -49,6 +49,20 @@ After this task:
   the existing
   `docs/getting-started/embed-in-our-chart.md` is updated) so docs
   readers find the local-dev story.
+- `docs/getting-started/embed-in-our-chart.md` no longer references
+  `examples/react-demo/server/compilePlugin.ts`; it points at the
+  TanStack server route + helper inside `apps/site/` instead.
+- `skills/chartlang-setup/SKILL.md` and
+  `skills/chartlang-setup/references/embed.md` are updated so the
+  integrator skill's reference embed is `apps/site/`, not the
+  deleted `examples/react-demo/`. (Required by CLAUDE.md: "When you
+  change anything a skill in `skills/` describes, update that skill
+  in the same PR.")
+- Root `README.md`'s "Links" section names
+  `docs.chartlang.invinite.com` (Netlify-deployed) and
+  `chartlang.invinite.com` (live marketing + demo); no
+  `outraday-org.github.io/chartlang` or `chartlang.dev` references
+  remain.
 - `chartlang.invinite.com` and `docs.chartlang.invinite.com` both
   resolve and serve the right site.
 
@@ -228,6 +242,57 @@ visual clutter; (b) if not. Either way `pnpm docs:check` and
 `pnpm docs:gate` must stay green — both gates require every linked
 page to exist, so verify the link target lands first.
 
+### 5a. Sweep orphan `examples/react-demo/` references
+
+Deleting the folder leaves orphaned, broken pointers across `docs/`
+and `skills/`. Update each:
+
+- **`docs/getting-started/embed-in-our-chart.md` (~ line 45)** —
+  rewrite the paragraph that begins
+  `examples/react-demo/server/compilePlugin.ts shows the same pattern…`
+  to point at `apps/site/app/routes/api/compile.ts` and
+  `apps/site/app/lib/server/compile.ts` instead. The pattern is
+  the same; only the file paths move.
+- **`skills/chartlang-setup/SKILL.md` (~ line 96)** — replace
+  `examples/react-demo/` with `apps/site/` in the "reference embed"
+  sentence. Also rewrite the surrounding context: the reference
+  embed runs `compile` behind a `POST /api/compile` **Netlify
+  Function** (TanStack server route), not a Vite dev middleware.
+- **`skills/chartlang-setup/references/embed.md` (~ lines 39, 120)**
+  — same substitutions: the "Full wiring" bullet must point at
+  `apps/site/` and call out `apps/site/app/components/demo/ChartPane.tsx`
+  + `app.config.ts` aliases as the equivalents of the old
+  `vite.config.ts` + `ChartPane.tsx`.
+
+Per the repo's CLAUDE.md ("When you change anything a skill in
+`skills/` describes, update that skill in the same PR"), these
+edits are **non-negotiable** for the same PR that deletes
+`examples/react-demo/`. The `skills:gate` does not regenerate
+`chartlang-setup/references/embed.md` (it is hand-authored — only
+`chartlang-coding/references/primitives.md` is generated), so the
+edits land directly.
+
+### 5b. Root README "Links" section
+
+The current `README.md`'s "Links" section ends with:
+
+```markdown
+- **Docs site:** [outraday-org.github.io/chartlang](https://outraday-org.github.io/chartlang/)
+  (deployed from `main` by the Docs workflow; `chartlang.dev` once DNS is wired).
+```
+
+Replace with:
+
+```markdown
+- **Docs site:** [docs.chartlang.invinite.com](https://docs.chartlang.invinite.com/)
+  (deployed from `main` by Netlify; see `DEPLOYMENT.md`).
+- **Marketing site & live demo:** [chartlang.invinite.com](https://chartlang.invinite.com/).
+```
+
+Keep the surrounding "Links" entries (language overview, spec,
+primitives, …) untouched. Verify the new "Links" markup keeps the
+root README under the 300-line cap (`pnpm readme:check`).
+
 ### 6. CI badge cleanup
 
 If Task 6 didn't already do it, remove the Codecov-paired-with-Pages
@@ -285,6 +350,9 @@ reference in a task file (acceptable inside `tasks/` only).
 | `examples/CLAUDE.md` | Modify | Layout list pruned. |
 | `docs/getting-started/run-the-site-locally.md` | Create (option a) | Docs walkthrough for local dev. |
 | `docs/.vitepress/config.ts` | Modify (option a) | Add sidebar entry. |
+| `docs/getting-started/embed-in-our-chart.md` | Modify | Re-point compilePlugin reference at `apps/site/app/routes/api/compile.ts`. |
+| `skills/chartlang-setup/SKILL.md` | Modify | "Reference embed" now `apps/site/`, not `examples/react-demo/`. |
+| `skills/chartlang-setup/references/embed.md` | Modify | Same substitution + new file paths in the Full wiring bullet. |
 
 ## Gates
 
@@ -315,10 +383,22 @@ None.
 - [ ] `examples/CLAUDE.md` layout no longer lists `react-demo/`.
 - [ ] Docs has a runnable-locally page (option a) or paragraph
       (option b); the docs sidebar gates remain green.
+- [ ] `docs/getting-started/embed-in-our-chart.md` no longer
+      references `examples/react-demo/`; it points at
+      `apps/site/app/routes/api/compile.ts` /
+      `apps/site/app/lib/server/compile.ts` instead.
+- [ ] `skills/chartlang-setup/SKILL.md` and
+      `skills/chartlang-setup/references/embed.md` describe
+      `apps/site/` as the reference embed (per CLAUDE.md's
+      "update the skill in the same PR" rule).
+- [ ] Root `README.md` "Links" section names
+      `docs.chartlang.invinite.com` and `chartlang.invinite.com`;
+      no `outraday-org.github.io/chartlang` or `chartlang.dev`
+      references remain.
 - [ ] Post-merge manual checklist completed and ticked off in
       the PR description before merge.
 - [ ] No references to `examples/react-demo/` remain anywhere
-      under `apps/`, `packages/`, `scripts/`, `docs/`, or the root
-      README.
+      under `apps/`, `packages/`, `scripts/`, `docs/`, `skills/`,
+      or the root README.
 - [ ] PR description includes screenshots of both production sites
       loading at their custom domains with valid TLS.

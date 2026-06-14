@@ -58,7 +58,14 @@ After this task:
 
 Encode the palette as CSS variables on `:root` and `.dark`. Use OKLCH
 (Tailwind v4's preferred format; also what shadcn's b0 preset emits)
-so colors stay perceptually uniform across the dark→light flip:
+so colors stay perceptually uniform across the dark→light flip.
+
+**Note on file location:** This file lands at
+`apps/site/app/styles/brand.css` in this task. Task 5 hoists it to
+repo-root `brand/brand.css` so the VitePress theme can import the
+same tokens. The schema and contents stay identical; only the path
+changes — keep that move in mind if you find yourself tempted to put
+brand-specific concerns elsewhere.
 
 ```css
 /* apps/site/app/styles/brand.css
@@ -246,11 +253,13 @@ be legible at 16 px (favicon) and crisp at 96 px (hero).
 
 ### 6. Root layout (`apps/site/app/routes/__root.tsx`)
 
-Define the shared shell. shape:
+Define the shared shell. Imports below are illustrative — use the paths
+the scaffold actually emits (see README → "TanStack Start / shadcn
+snippet caveat").
 
 ```tsx
 // apps/site/app/routes/__root.tsx
-import { Outlet, createRootRoute } from "@tanstack/start/router";
+import { Outlet, createRootRoute } from "@tanstack/start/router"; // see caveat
 import { Logo } from "~/components/brand/Logo";
 
 export const Route = createRootRoute({
@@ -336,11 +345,11 @@ in-page anchors don't fail any gate.
 ### 7. Update the hello-world index route
 
 Replace Task 1's placeholder with a minimal hero-shaped stub that
-verifies typography + tokens are wired:
+verifies typography + tokens are wired. Same import caveat applies.
 
 ```tsx
 // apps/site/app/routes/index.tsx
-import { createFileRoute } from "@tanstack/start/router";
+import { createFileRoute } from "@tanstack/start/router"; // see caveat
 
 export const Route = createFileRoute("/")({ component: HomeRoute });
 
