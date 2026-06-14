@@ -27,12 +27,14 @@ GitHub-specific configuration: CI workflow and pull-request template.
   `needs.test.result` is `success` **or** `skipped`, failing on
   `failure`/`cancelled`. If you rename the job or its matrix legs, update
   the ruleset's required contexts to match.
-- The `changes` job emits `has_changesets` by counting `.changeset/*.md`
-  (excluding `README.md`). `test` skips its matrix on a push to `main`
-  when `has_changesets == 'false'` — the **publish push** that follows a
-  "Version Packages" merge — since that code was already tested on the PR
-  that produced it. Feature merges (changesets present) still run the
-  matrix on push.
+- The `detect` job emits `is_release_merge` by querying the PR(s)
+  associated with the pushed commit
+  (`/commits/{sha}/pulls`, robust across merge/squash/rebase) and checking
+  for `head.ref == 'changeset-release/main'`. `test` skips its matrix on a
+  push to `main` **only** when that is true — the merge of the "Version
+  Packages" PR, whose code was already tested on the PR that produced it.
+  Every other push (feature merges) still runs the matrix. The job needs
+  `pull-requests: read` and uses `GH_TOKEN: ${{ github.token }}`.
 - The `release:` job at the bottom of `ci.yml` is live and runs only on
   `push` events to `main`. Its `if` uses `always()` plus
   `needs.test.result != 'failure'/'cancelled'` so it still publishes when

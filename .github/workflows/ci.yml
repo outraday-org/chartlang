@@ -14,39 +14,47 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
-    # Detect whether the tree still has unconsumed changeset files
-    # (.changeset/*.md, excluding README.md). Feature merges carry one;
-    # the "Version Packages" merge consumes them, so the publish push to
-    # main has none. `test` uses this to skip the redundant matrix on the
-    # publish push.
-    changes:
-        name: Detect pending changesets
+    # Decide whether this push to main is the merge of the
+    # `changeset-release/main` "Version Packages" PR. Look up the PR(s)
+    # associated with the pushed commit (robust across merge/squash/rebase)
+    # and check the head ref. `test` uses this to skip the redundant matrix
+    # only on that release merge — every other push still runs it.
+    detect:
+        name: Detect release merge
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: read
         outputs:
-            has_changesets: ${{ steps.check.outputs.has_changesets }}
+            is_release_merge: ${{ steps.check.outputs.is_release_merge }}
         steps:
-            - uses: actions/checkout@v4
             - id: check
+              env:
+                  GH_TOKEN: ${{ github.token }}
               run: |
-                  count=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' | wc -l | tr -d ' ')
-                  echo "pending changesets: $count"
-                  if [ "$count" -gt 0 ]; then
-                    echo "has_changesets=true" >> "$GITHUB_OUTPUT"
+                  if [ "${{ github.event_name }}" != "push" ]; then
+                    echo "is_release_merge=false" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
+                  n=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+                        --jq '[.[] | select(.head.ref == "changeset-release/main")] | length')
+                  echo "associated changeset-release PRs: $n"
+                  if [ "$n" -gt 0 ]; then
+                    echo "is_release_merge=true" >> "$GITHUB_OUTPUT"
                   else
-                    echo "has_changesets=false" >> "$GITHUB_OUTPUT"
+                    echo "is_release_merge=false" >> "$GITHUB_OUTPUT"
                   fi
 
     test:
         name: Test (${{ matrix.os }} / Node ${{ matrix.node }})
-        needs: changes
-        # Skip on the changesets "Version Packages" PR, and skip the
-        # redundant matrix on the publish push (push to main once the
-        # changesets are consumed). Feature merges to main still run the
-        # matrix because their changeset files are present. The code in a
-        # publish push was already tested on the PR that produced it.
+        needs: detect
+        # Skip on the changesets "Version Packages" PR itself, and skip the
+        # redundant matrix only on the push that merges that PR — the code
+        # being published was already tested on the PR that produced it.
+        # Every other push to main (feature merges) still runs the matrix.
         if: >-
             github.head_ref != 'changeset-release/main' &&
-            (github.event_name != 'push' || needs.changes.outputs.has_changesets == 'true')
+            needs.detect.outputs.is_release_merge != 'true'
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: false
