@@ -52,13 +52,13 @@ planning phase, proceeding directly to implementation.
 
 ## Best Practices
 
-- **Code Quality**: Follow PLAN.md, CONTRIBUTING.md, and the nearest
+- **Code Quality**: Follow CONTRIBUTING.md and the nearest
   `CLAUDE.md` for conventions (§22.4 package template, MIT header,
   no `any`, no `!`, JSDoc with stability marker, etc.)
 - **Type Safety**: Strict TS; honor `exactOptionalPropertyTypes`,
   `verbatimModuleSyntax`, and Biome's `noExplicitAny` / `noNonNullAssertion`
   / `useImportType` rules
-- **Testing**: Land the test layers each package owes (PLAN.md §16.3) in
+- **Testing**: Land the test layers each package owes (CONTRIBUTING.md §2) in
   the same PR. For new `ta.*` / `draw.*` primitives, land the full §22.10
   set (unit, property, golden, bench, JSDoc with `@formula`+`@warmup`,
   conformance scenario, auto-generated docs page) — no "tests follow" path.
@@ -66,7 +66,7 @@ planning phase, proceeding directly to implementation.
   `scripts/scaffold.ts` then `pnpm scaffold` — never hand-write the six
   template files
 - **Provenance**: Math ported from `../invinite/` requires the 4-line
-  provenance + relicense header (PLAN.md §3.1)
+  provenance + relicense header (CONTRIBUTING.md §4)
 - **Documentation**: JSDoc on every export; prefer self-documenting code
   for the "what"; only comment the "why" when non-obvious
 - **Validation**: Always validate changes with `code-review-validator`

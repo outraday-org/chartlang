@@ -6,7 +6,7 @@ import type { Color, LineStyle } from "../types.js";
 /**
  * Line / ray / horizontal-line / vertical-line / channel-edge stroke
  * style. `extendLeft` / `extendRight` collapse the invinite `ray` and
- * `extended-line` tools into a single `line` kind (PLAN.md §3.1).
+ * `extended-line` tools into a single `line` kind.
  *
  * @formula  N/A — style bag, no math
  * @anchors  N/A — style fields only

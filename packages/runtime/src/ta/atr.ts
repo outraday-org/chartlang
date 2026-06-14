@@ -4,8 +4,8 @@
 // Ported from invinite/src/components/trading-chart/indicators/atr.ts
 //   plus lib/tr-series.ts
 //   (commit d2d1043c1b039f66d2f3674526d303d31cf2f1e0, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. ATR derives from `bar.high`/`bar.low`/
@@ -130,7 +130,7 @@ function tickValue(slot: AtrSlot, high: number, low: number, close: number): num
  * @stable
  *
  * `opts.offset` shifts the returned series so `series.current` reads
- * the value `offset` bars ago (PLAN.md §9.1).
+ * the value `offset` bars ago.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

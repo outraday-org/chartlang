@@ -37,7 +37,6 @@ chartlang/
 ├── tasks/                    Phase-scoped task folders (e.g. phase-0-bootstrap/)
 ├── .changeset/               Pending changesets per PR
 ├── .github/                  CI workflows, PR/issue templates
-├── PLAN.md                   Canonical project plan
 ├── CONTRIBUTING.md           Operational contributor summary
 └── biome.json                Lint + format config (single tool)
 ```

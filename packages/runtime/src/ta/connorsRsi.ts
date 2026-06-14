@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/connors-rsi.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape. Composition: Phase-1
 // `ta.rsi` on the raw source (sub-slot `${slotId}/rsi`) + a second
@@ -174,7 +174,7 @@ function blendCrsi(rsiHead: number, streakRsiHead: number, pctRank: number): num
  * `RSI(streak, streakLength)`, and `PercentRank(ROC(source, 1),
  * rocLength)` averaged into a single line bounded `[0, 100]`. The
  * registry records `yDomain: { kind: "fixed", min: 0, max: 100 }` in
- * `TA_REGISTRY_METADATA`. Composes Phase-1 `ta.rsi` for both RSI
+ * `TA_REGISTRY_METADATA`. Composes `ta.rsi` for both RSI
  * components (no private RSI math). Defaults `(3, 2, 100)` matches
  * Larry Connors' original spec.
  *

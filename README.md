@@ -132,7 +132,7 @@ The compiler turns a `.chart.ts` script into a sandboxable bundle; the
 runtime executes it bar-by-bar, producing typed emissions; the adapter
 translates emissions into draw calls on a specific chart vendor's
 surface. The contract between runtime and adapter is what makes scripts
-portable across charts. See PLAN.md §2 for the full diagram.
+portable across charts.
 
 ## What's in the box
 

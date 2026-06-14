@@ -7,7 +7,7 @@ from the runtime's JSDoc by `chartlang docs` (see
 [`packages/cli/src/commands/extractDrawingPages.ts`](../../../packages/cli/src/commands/extractDrawingPages.ts)).
 This index page is hand-maintained.
 
-See PLAN.md §10 for the language-level spec; the per-kind
+The per-kind
 [`DrawingState`](../../../packages/core/src/draw/drawingState.ts)
 variants pin the wire shape and the
 [`KIND_BUCKET`](../../../packages/core/src/draw/buckets.ts) table

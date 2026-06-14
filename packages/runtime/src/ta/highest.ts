@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 //
-// No invinite source — semantics per Pine `ta.highest`. See PLAN.md §3.1.
+// No invinite source — semantics per Pine `ta.highest`.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape.
 

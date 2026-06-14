@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/bb.ts
 //   (commit d2d1043c1b039f66d2f3674526d303d31cf2f1e0, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. BB is composed from `sma` + `stdev` via
@@ -93,7 +93,7 @@ function resultForOffset(slot: BbSlot, offset: number): BbResult {
  * @since 0.1
  * @stable
  *
- * `opts.offset` shifts all three bands in lockstep (PLAN.md §9.1) —
+ * `opts.offset` shifts all three bands in lockstep —
  * `series.current` on each band returns the value `offset` bars ago.
  *
  * @example

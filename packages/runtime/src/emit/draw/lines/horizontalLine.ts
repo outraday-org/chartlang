@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // Behaviour from
 //   invinite/src/components/trading-chart/tools/horizontal-line-tool.ts.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     DrawingHandle,
@@ -32,7 +32,7 @@ function horizontalLineImpl(slotId: string, price: Price, opts: LineDrawStyle): 
 
 /**
  * Draw a horizontal line at the supplied `price` that spans the full
- * viewport width. The handle is stable across bars per PLAN.md §10.3.
+ * viewport width. The handle is stable across bars.
  *
  * @anchors `price` — a single `Price`
  * @anchorCount 1

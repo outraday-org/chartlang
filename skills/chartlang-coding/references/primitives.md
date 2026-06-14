@@ -45,13 +45,13 @@ Average Daily Range — SMA of `high − low` across the trailing
 TradingView. Reads `bar.high` / `bar.low` / `bar.time` directly
 (no `source` argument per the absolute-range formula).
 
-**Calendar-day boundary.** Phase 2 keys "daily" on the UTC midnight
+**Calendar-day boundary.** "daily" keys on the UTC midnight
 boundary (`Math.floor(time / 86_400_000)`). Bars sharing a day key
 are aggregated into a single `(dailyHigh, dailyLow)` pair; the day
 range commits to the rolling SMA when the next bar's day key differs.
 The in-progress (currently-aggregating) day is NEVER included in the
-average. Phase 4 lifts this onto `syminfo.session` so symbols with
-non-UTC sessions can override the convention.
+average. A future release lifts this onto `syminfo.session` so symbols
+with non-UTC sessions can override the convention.
 
 **Tick mode.** Ticks within the in-progress bar do NOT shift the day
 boundary (per the runtime invariant that ticks happen inside the
@@ -107,9 +107,9 @@ weighted-window convention).
 
 **`opts.offset` is the Gaussian-centre position in `[0, 1]`**, NOT
 the universal bar-shift. The universal shift on ALMA uses the
-distinct `opts.barShift` field — accepted on the surface (Task 29
-wires the runtime side along with every other Phase-2 primitive's
-`offset`).
+distinct `opts.barShift` field — accepted on the surface (its
+runtime side is wired alongside the universal `offset` support on
+every primitive).
 
 **Formula:** m = offset · (length − 1) ;
 s = length / sigma ;
@@ -152,7 +152,7 @@ accumulation, which never resets.
 **Sticky anchor.** The anchor is captured on the first call (slot
 init) and ignored on subsequent calls — the slot's anchor is
 sticky. Re-anchoring requires a new compiler-generated callsite id
-(i.e. editing the script). Phase 4's `input.time()` will lift the
+(i.e. editing the script). A future `input.time()` will lift the
 anchor to a user input that can change at runtime.
 
 **NaN handling.** NaN source or non-positive / NaN volume
@@ -384,7 +384,7 @@ plus `multiplier · ATR`; the second pass smooths the first-pass
 stops by taking the rolling max / min over a `smoothingLength`-bar
 window. `long` is the long-trade trailing stop ceiling (max of
 `firstHigh`), `short` is the short-trade trailing stop floor (min
-of `firstLow`). Composes Phase-1 `ta.atr` plus Task-5 `ta.highest`
+of `firstLow`). Composes `ta.atr` plus `ta.highest`
 and `ta.lowest` at sub-slots.
 
 Source field is hard-coded to `bar.high` / `bar.low` (matches Pine
@@ -413,7 +413,7 @@ trailing `length`-bar extremes. `long` is the trailing stop for
 long trades (highest of `bar.high` over the window minus
 `multiplier · ATR`); `short` is the symmetric stop for short
 trades (lowest of `bar.low` plus `multiplier · ATR`). Composes
-Phase-1 `ta.atr` plus Task-5 `ta.highest` / `ta.lowest` at sub-slots
+`ta.atr` plus `ta.highest` / `ta.lowest` at sub-slots
 `${slotId}/atr` / `${slotId}/highHigh` / `${slotId}/lowLow`. Returns
 a cached `{ long, short }` record (same identity every bar).
 
@@ -521,7 +521,7 @@ Connors RSI — three-component blend of `RSI(source, rsiLength)`,
 `RSI(streak, streakLength)`, and `PercentRank(ROC(source, 1),
 rocLength)` averaged into a single line bounded `[0, 100]`. The
 registry records `yDomain: { kind: "fixed", min: 0, max: 100 }` in
-`TA_REGISTRY_METADATA`. Composes Phase-1 `ta.rsi` for both RSI
+`TA_REGISTRY_METADATA`. Composes `ta.rsi` for both RSI
 components (no private RSI math). Defaults `(3, 2, 100)` matches
 Larry Connors' original spec.
 
@@ -1343,7 +1343,7 @@ day (no `prevDay` available) and finite from the SECOND UTC day
 onward.
 
 **Deferred:** R4 / R5 / S4 / S5 levels (Camarilla's full table
-defines them; Phase 2 ships R1..R3 / S1..S3 only). DeMark /
+defines them; this primitive ships R1..R3 / S1..S3 only). DeMark /
 Traditional formula systems also defer.
 
 NaN bar leaves the day aggregate unchanged (NaN-aware max / min).
@@ -1625,7 +1625,7 @@ values. Warmup of `length − 1` bars returns `NaN`. Tick-mode replays
 the head as `(window_sum − window_head + tick_value) / length` so a
 partial-bar tick doesn't pollute the next close's running sum.
 `opts.offset` shifts the returned series so `series.current` reads
-the value `offset` bars ago (PLAN.md §9.1).
+the value `offset` bars ago.
 
 **Formula:** out[t] = (source[t] + source[t − 1] + … + source[t − length + 1]) / length
 **Warmup:** length − 1
@@ -1776,7 +1776,7 @@ persistence rule (carry forward unless the prior close pierced
 the band), and emits a single `line` Series equal to the active
 final band for the current direction. `direction` flips when
 `close` crosses the prior `finalUpper` (→ `+1`) or `finalLower`
-(→ `-1`). Composes Phase-1 `ta.atr` at sub-slot `${slotId}/atr`.
+(→ `-1`). Composes `ta.atr` at sub-slot `${slotId}/atr`.
 
 NaN ATR (warmup or NaN-propagation) → NaN outputs; local state
 freezes so the next finite bar resumes from the prior closed
@@ -1825,7 +1825,7 @@ Trend Strength Index — Pearson correlation between `source` and the
 bar index over each trailing `length`-bar window. Bounded `[-1, +1]`:
 `+1` = clean uptrend (price rises monotonically with bar index), `−1`
 = clean downtrend, `0` = no linear trend. Distinct from
-`ta.tsi` (Task 14's True Strength Index — a momentum oscillator).
+`ta.tsi` (the True Strength Index — a momentum oscillator).
 The math is TradingView's documented Trend Strength Index
 (https://www.tradingview.com/support/solutions/43000730926-trend-strength-index/).
 
@@ -1979,10 +1979,10 @@ Visible-Range Volume Profile — buckets the current visible range's
 volume by price, emits a `horizontal-histogram`, and returns cached
 POC / VAH / VAL series.
 
-The Phase 5 OSS runtime supplies the visible range through
+The runtime supplies the visible range through
 `bar.viewport`, populated as the latest 100 bars ending at the
 current head. Real chart viewport injection is deferred to adapter
-integrations in Phase 6.
+integrations.
 
 **Formula:** Port of invinite visible-range-vp: slice visible candles,
 bucket volume by price, then derive POC / value-area high /
@@ -2022,7 +2022,7 @@ src − multiplier · atr)`; flip to down when `src < stop[i]`, reset
 to `src + multiplier · atr`. Trend down symmetric. Reads
 `bar.close` as source (Pine `ta.vstop` convention — invinite's
 `source` opt is omitted; a `source` opt could land in a follow-up).
-Composes Phase-1 `ta.atr` at sub-slot `${slotId}/atr`. Returns a
+Composes `ta.atr` at sub-slot `${slotId}/atr`. Returns a
 cached `{ value, direction }` record (same identity every bar).
 
 `direction` is `+1` (uptrend → stop is BELOW price), `-1`
@@ -2074,9 +2074,9 @@ calendar day. Accumulates `Σ(source · volume) / Σ(volume)` over
 the bars since the most recent UTC midnight; resets to NaN at the
 top of every UTC day. `source` defaults to `"hlc3"` per Pine.
 
-**Phase-2 session boundary.** Phase 2 keys the session reset off
-`floor(bar.time / 86_400_000)` (the UTC calendar day). Phase 4
-lifts session detection to `syminfo.session.regularStart` per
+**Session boundary.** The session reset keys off
+`floor(bar.time / 86_400_000)` (the UTC calendar day). A future
+release lifts session detection to `syminfo.session.regularStart` per
 invinite — until then VWAP behaves as a UTC-day-anchored VWAP.
 
 **NaN handling.** Bars with NaN source or non-positive / NaN volume
@@ -2400,8 +2400,7 @@ Draw a Cypher harmonic pattern through 5 world anchors `[X, A, B, C,
 D]`. The renderer strokes the connecting legs (X-A, A-B, B-C, C-D)
 and labels each pivot. Mirrors invinite's `CypherPatternDrawing`
 schema — `cypher-pattern` has no standalone tool in invinite, only
-the y-doc-bridge type; the UI surface lives in `defineDrawing`
-(Task 20).
+the y-doc-bridge type; the UI surface lives in `defineDrawing`.
 
 **Anchors:** `anchors` — `[X, A, B, C, D]` quint of world points
 **Since:** 0.3 · stable
@@ -2519,7 +2518,7 @@ Draw an axis-aligned ellipse inscribed in the bounding box of two
 world anchors. The renderer derives `(centerX, centerY, radiusX,
 radiusY)` from the projected bbox and paints a polyline
 approximation. Rotated ellipses (invinite's `widthOffset` form)
-are out of scope for Phase 3.
+are out of scope for now.
 
 **Anchors:** `a`, `b` — two `WorldPoint`s (opposite bbox corners)
 **Since:** 0.3 · stable
@@ -2547,8 +2546,7 @@ Draw concentric Fibonacci circles centred at `a` (the centre) passing
 through fib-ratio multiples of `|b - a|` (the radius-point distance).
 Mirrors invinite's `fib-circles-tool.ts` shape. Renderer uses
 `style.levels ?? FIB_LEVELS` (the ratio array, NOT the integer
-Fibonacci sequence — see Task-1 reshape follow-up in
-`tasks/phase-3-drawing-parity/12-fibonacci-b.plan.md` §4).
+Fibonacci sequence).
 
 **Anchors:** `a`, `b` — two `WorldPoint`s (centre, radius-point)
 **Since:** 0.3 · stable
@@ -2606,8 +2604,7 @@ Draw a Fibonacci (golden) spiral approximated by chained cubic
 Beziers, one per quarter-turn. The spiral starts at `a` (centre) with
 initial radius `|b - a|` and scales by φ ≈ 1.618 per quarter-turn.
 Mirrors invinite's `fib-spiral-tool.ts` shape. The `counterClockwise`
-flag from the invinite tool is deferred to a Task-1 reshape (see
-`tasks/phase-3-drawing-parity/12-fibonacci-b.plan.md` §2); the
+flag from the invinite tool is deferred; the
 landed renderer is clockwise-only.
 
 **Anchors:** `a`, `b` — two `WorldPoint`s (centre, initial-radius edge)
@@ -2623,8 +2620,7 @@ Draw fib-spaced vertical time zones between two world anchors. Each
 level in `opts.levels ?? FIB_LEVELS` paints a vertical line at
 `t = a.time + level * (b.time - a.time)`. Mirrors invinite's
 `fib-time-zone-tool.ts` shape (using the ratio array per the landed
-core state — see `tasks/phase-3-drawing-parity/11-fibonacci-a.plan.md`
-§1 for the spec ↔ core delta on integer-sequence semantics).
+core state).
 
 **Anchors:** `a`, `b` — two `WorldPoint`s defining the time span
 **Since:** 0.3 · stable
@@ -2653,8 +2649,7 @@ Draw fib-spaced vertical time projections from a swing leg. For each
 `level` in `opts.levels ?? FIB_LEVELS`, paints a vertical line at
 `t = anchors[2].time + level * (anchors[1].time - anchors[0].time)`.
 Mirrors invinite's `fib-trend-time-tool.ts` shape using the ratio
-array (see Task-1 reshape follow-up in
-`tasks/phase-3-drawing-parity/12-fibonacci-b.plan.md` §8).
+array.
 
 **Anchors:** `anchors` — `[A, B, C]` triple (A→B leg defines the time
 delta; C is the projection origin)
@@ -2684,8 +2679,7 @@ Draw a flat-top / flat-bottom channel — two parallel horizontal
 rails. Anchors `[leftEdge, rightEdge, oppositeHook]`: leftEdge and
 rightEdge fix the time range; the opposite-edge price comes from
 `oppositeHook.price`. Mirrors invinite's `flat-top-bottom-tool.ts`
-shape — note the landed core shape persists 3 anchors (see
-`tasks/phase-3-drawing-parity/10-channels.plan.md` §1).
+shape — note the landed core shape persists 3 anchors.
 
 **Anchors:** `anchors` — `[leftEdge, rightEdge, oppositeHook]` triple
 **Since:** 0.3 · stable
@@ -2699,7 +2693,7 @@ function frame(a: WorldPoint, b: WorldPoint, opts?: FrameOpts): DrawingHandle;
 Draw a labelled rectangular frame between two world anchors
 `[topLeft, bottomRight]`. The frame renders an outlined rectangle
 plus an optional background fill (`opts.bgColor`) and label
-(`opts.label`) per PLAN.md §10.4. Children of the frame render
+(`opts.label`). Children of the frame render
 themselves — the frame is a visual envelope, not a re-render layer.
 
 **Anchors:** `a`, `b` — two `WorldPoint`s `(topLeft, bottomRight)`
@@ -2773,8 +2767,7 @@ Group a set of previously emitted drawing handles under a single
 logical container. The script-author passes the handle ids
 collected from earlier `draw.<kind>(...).id` calls; the runtime
 carries the list on the wire as a `GroupState`, and the adapter
-renders nothing of its own — children render themselves per
-PLAN.md §10.4.
+renders nothing of its own — children render themselves.
 
 **Anchors:** `childHandleIds` — a `ReadonlyArray<string>` of handle ids
 **Since:** 0.3 · stable
@@ -2817,7 +2810,7 @@ function horizontalLine(price: Price, opts?: LineDrawStyle): DrawingHandle;
 ```
 
 Draw a horizontal line at the supplied `price` that spans the full
-viewport width. The handle is stable across bars per PLAN.md §10.3.
+viewport width. The handle is stable across bars.
 
 **Anchors:** `price` — a single `Price`
 **Since:** 0.3 · stable
@@ -2843,7 +2836,7 @@ function line(a: WorldPoint, b: WorldPoint, opts?: LineDrawStyle): DrawingHandle
 Draw a straight line between two world anchors. The invinite `ray`
 tool collapses into this kind via `style.extendRight: true`; the
 `extended-line` tool collapses via `extendLeft: true` + `extendRight:
-true` per PLAN.md §3.1. The handle is stable across bars per §10.3 —
+true`. The handle is stable across bars per §10.3 —
 subsequent in-bar `update(patch)` calls merge into the slot's state
 and re-emit the full payload under `op: "update"`.
 
@@ -2871,7 +2864,7 @@ function path(anchors: ReadonlyArray<WorldPoint>, opts?: PathOpts): DrawingHandl
 ```
 
 Draw an OPEN polyline through N world anchors. Distinct from
-`draw.polyline` (Task 6) which is CLOSED — `path` does NOT
+`draw.polyline` which is CLOSED — `path` does NOT
 auto-connect the last anchor back to the first. Use
 `opts.closed === true` to override and close the path explicitly.
 Supply 2..20 anchors (validator pins this range, mirroring
@@ -2921,7 +2914,7 @@ origin at `(a.time, mid(a.price, mid(b, c).price))`);
 `"modifiedSchiff"` (median origin at `mid(a, b)`); `"inside"`
 (median origin at `mid(b, c)` with the `(a → mid(a, b))` direction).
 Default variant: `"standard"`. Mirrors invinite's four pitchfork
-tools collapsed into one kind per PLAN.md §3.1.
+tools collapsed into one kind.
 
 **Anchors:** `anchors` — `[pivot, high, low]` triple
 **Since:** 0.3 · stable
@@ -2936,7 +2929,7 @@ Draw a closed polyline through N world anchors. The renderer
 auto-connects the last anchor back to the first to close the
 polygon; supply between 3 and 20 anchors (validator pins this
 range, mirroring the invinite tool's 20-point cap). The open
-polyline equivalent will ship as `draw.path` (Task 7).
+polyline equivalent will ship as `draw.path`.
 
 **Anchors:** `anchors` — `ReadonlyArray<WorldPoint>` of length 3..20
 **Since:** 0.3 · stable
@@ -2961,13 +2954,12 @@ function regressionTrend(a: WorldPoint, b: WorldPoint, opts?: RegressionTrendOpt
 ```
 
 Draw an OLS regression-trend line between two world anchors with
-optional ±σ bands. The Phase-3 runtime emits the anchor pair + opts;
+optional ±σ bands. The runtime emits the anchor pair + opts;
 the actual OLS fit is computed by the adapter — consumer adapters
 can use {@link import ("@invinite-org/chartlang-runtime").linearRegression}
-(re-exported by Task 10) without duplicating math. The reference
+without duplicating math. The reference
 canvas2d adapter renders a placeholder anchor-to-anchor line because
-`Viewport` does not expose a bar accessor — see
-`tasks/phase-3-drawing-parity/10-channels.plan.md` §3. Mirrors
+`Viewport` does not expose a bar accessor. Mirrors
 invinite's `regression-trend-tool.ts` shape.
 
 **Anchors:** `a`, `b` — start and end `WorldPoint`s (a.time < b.time)
@@ -3012,7 +3004,7 @@ function table(opts: TableOpts): DrawingHandle;
 
 Draw a CSS-pixel viewport-anchored table. Unlike world-space
 drawings, `draw.table` carries no `WorldPoint` anchor; adapters
-resolve `position` against the visible viewport per PLAN.md §10.2.
+resolve `position` against the visible viewport.
 
 **Anchors:** `position` — CSS viewport anchor; `cells` — 2D grid payload
 **Since:** 0.5 · stable
@@ -3098,7 +3090,7 @@ function triangle(anchors: AnchorTriple, opts?: ShapeStyle): DrawingHandle;
 
 Draw a triangle as a closed three-vertex polygon. Vertices may be
 supplied CW or CCW; the renderer walks them as a closed path. Not to
-be confused with `draw.trianglePattern` (Task 15) — that variant is
+be confused with `draw.trianglePattern` — that variant is
 the harmonic five-anchor triangle pattern.
 
 **Anchors:** `anchors` — 3 `WorldPoint`s
@@ -3113,7 +3105,7 @@ function trianglePattern(anchors: AnchorTriple, opts?: LineDrawStyle): DrawingHa
 Draw a triangle pattern (ascending / descending / symmetrical)
 through 3 world anchors `[apex, baseHigh, baseLow]`. The renderer
 strokes the 3-vertex closed polygon and labels each pivot.
-**Distinct from `draw.triangle`** (Task 6, a solid-shape primitive
+**Distinct from `draw.triangle`** (a solid-shape primitive
 with ShapeStyle); this is the harmonic-pattern outline with
 LineDrawStyle. Mirrors invinite's `triangle-pattern-tool.ts` shape.
 

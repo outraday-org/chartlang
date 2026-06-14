@@ -11,7 +11,7 @@ Draw a closed polyline through N world anchors. The renderer
 auto-connects the last anchor back to the first to close the
 polygon; supply between 3 and 20 anchors (validator pins this
 range, mirroring the invinite tool's 20-point cap). The open
-polyline equivalent will ship as `draw.path` (Task 7).
+polyline equivalent will ship as `draw.path`.
 
 ## Anchors
 
@@ -51,4 +51,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/boxes/polyline.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

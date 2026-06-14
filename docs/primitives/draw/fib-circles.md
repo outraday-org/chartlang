@@ -11,8 +11,7 @@ Draw concentric Fibonacci circles centred at `a` (the centre) passing
 through fib-ratio multiples of `|b - a|` (the radius-point distance).
 Mirrors invinite's `fib-circles-tool.ts` shape. Renderer uses
 `style.levels ?? FIB_LEVELS` (the ratio array, NOT the integer
-Fibonacci sequence — see Task-1 reshape follow-up in
-`tasks/phase-3-drawing-parity/12-fibonacci-b.plan.md` §4).
+Fibonacci sequence).
 
 ## Anchors
 
@@ -49,4 +48,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/fibB/fibCircles.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

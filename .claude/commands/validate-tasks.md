@@ -42,7 +42,7 @@ The argument should be either:
    (exclude `X-` prefixed).
 3. In **single mode**: read the target task file. Also read `X-`
    prefixed siblings for context on what's already done.
-4. Read `PLAN.md`, `CONTRIBUTING.md`, and any package-local `CLAUDE.md`
+4. Read `CONTRIBUTING.md` and any package-local `CLAUDE.md`
    relevant to the tasks.
 
 ## Step 2: Validate Against the Workspace
@@ -304,7 +304,7 @@ and if not, should it?"**
   the source code style) are the contract?
 - Source path + commit SHA recorded in the README's Provenance section?
 
-### 5h. Test layer completeness (per PLAN.md §16.3)
+### 5h. Test layer completeness (per CONTRIBUTING.md §2)
 
 Walk the affected package against this table:
 

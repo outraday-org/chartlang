@@ -16,9 +16,9 @@ weighted-window convention).
 
 **`opts.offset` is the Gaussian-centre position in `[0, 1]`**, NOT
 the universal bar-shift. The universal shift on ALMA uses the
-distinct `opts.barShift` field — accepted on the surface (Task 29
-wires the runtime side along with every other Phase-2 primitive's
-`offset`).
+distinct `opts.barShift` field — accepted on the surface (its
+runtime side is wired alongside the universal `offset` support on
+every primitive).
 
 ## Formula
 
@@ -68,4 +68,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/alma.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

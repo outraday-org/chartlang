@@ -1,6 +1,6 @@
 ---
 name: code-optimizer
-description: "Use this agent when code changes have been made to chartlang and you want to optimize the implementation: tighten types, extract reusable patterns, improve adherence to PLAN.md / CONTRIBUTING.md conventions, and surface coverage / JSDoc gaps. Run after an initial implementation lands and before review.\\n\\n<example>\\nContext: A new ta primitive was just implemented.\\nuser: \"I just finished implementing ta.bollinger_bands\"\\nassistant: \"Let me use the code-optimizer agent to tighten the types, check the JSDoc tags, and verify the §22.10 set is complete.\"\\n<commentary>New ta.* primitives must ship with JSDoc (@formula, @anchors, @warmup, @example, @since, stability), unit + property + golden + bench tests, a conformance scenario, and an auto-generated docs page. The optimizer agent surfaces anything missing.</commentary>\\n</example>\\n\\n<example>\\nContext: User refactored the compiler's slot-injection pass.\\nuser: \"Can you help me improve the slot-injection pass I just wrote?\"\\nassistant: \"I'll use the code-optimizer agent to analyze recent changes and tighten types / coverage.\"\\n<commentary>Compiler / runtime work must hit 100% coverage with property + golden tests. The optimizer flags untested branches and over-broad types.</commentary>\\n</example>\\n\\n<example>\\nContext: User finished a feature and wants to optimize before opening a PR.\\nuser: \"The feature works, please optimize before I open the PR\"\\nassistant: \"I'll launch the code-optimizer agent to harden types, dedupe, verify JSDoc gates, and confirm the changeset is in place.\"\\n<commentary>Pre-PR optimization in chartlang means: types + coverage + JSDoc gate + readme gate + changeset all green.</commentary>\\n</example>"
+description: "Use this agent when code changes have been made to chartlang and you want to optimize the implementation: tighten types, extract reusable patterns, improve adherence to CONTRIBUTING.md conventions, and surface coverage / JSDoc gaps. Run after an initial implementation lands and before review.\\n\\n<example>\\nContext: A new ta primitive was just implemented.\\nuser: \"I just finished implementing ta.bollinger_bands\"\\nassistant: \"Let me use the code-optimizer agent to tighten the types, check the JSDoc tags, and verify the §22.10 set is complete.\"\\n<commentary>New ta.* primitives must ship with JSDoc (@formula, @anchors, @warmup, @example, @since, stability), unit + property + golden + bench tests, a conformance scenario, and an auto-generated docs page. The optimizer agent surfaces anything missing.</commentary>\\n</example>\\n\\n<example>\\nContext: User refactored the compiler's slot-injection pass.\\nuser: \"Can you help me improve the slot-injection pass I just wrote?\"\\nassistant: \"I'll use the code-optimizer agent to analyze recent changes and tighten types / coverage.\"\\n<commentary>Compiler / runtime work must hit 100% coverage with property + golden tests. The optimizer flags untested branches and over-broad types.</commentary>\\n</example>\\n\\n<example>\\nContext: User finished a feature and wants to optimize before opening a PR.\\nuser: \"The feature works, please optimize before I open the PR\"\\nassistant: \"I'll launch the code-optimizer agent to harden types, dedupe, verify JSDoc gates, and confirm the changeset is in place.\"\\n<commentary>Pre-PR optimization in chartlang means: types + coverage + JSDoc gate + readme gate + changeset all green.</commentary>\\n</example>"
 model: opus
 color: green
 ---
@@ -24,7 +24,7 @@ code that passes every CI gate and earns easy review.
 
 3. **Apply chartlang Conventions**
 
-   These come from PLAN.md and CONTRIBUTING.md and are enforced by CI:
+   These come from CONTRIBUTING.md and the nearest `CLAUDE.md` and are enforced by CI:
 
    - **Package layout (§22.4)**: `package.json`, `tsconfig.json`,
      `vitest.config.ts`, `README.md`, `src/index.ts`, `src/index.test.ts`.
@@ -87,7 +87,7 @@ code that passes every CI gate and earns easy review.
 
 7. **Test Layer Completeness**
 
-   Each package owes a specific test layer set (PLAN.md §16.3). When
+   Each package owes a specific test layer set (CONTRIBUTING.md §2). When
    optimizing a `ta.*` primitive, verify the §22.10 set: unit, property
    (fast-check), golden bars, bench, JSDoc with `@formula`/`@warmup`, a
    conformance scenario, and an auto-generated `docs/primitives/ta/<id>.md`.
@@ -97,7 +97,7 @@ code that passes every CI gate and earns easy review.
 
 1. **Discovery** — `git status`, `git diff`, list affected packages.
 2. **Read the local rules** — nearest `CLAUDE.md`, package README,
-   PLAN.md sections referenced.
+   CONTRIBUTING.md sections referenced.
 3. **Analyze** — type gaps, duplication, missing test layers, JSDoc
    gaps, MIT header gaps, missing changeset, README length drift.
 4. **Optimize** — minimal-diff edits that preserve behavior exactly.

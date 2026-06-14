@@ -8,7 +8,7 @@
 > **Wire kind:** `path`
 
 Draw an OPEN polyline through N world anchors. Distinct from
-`draw.polyline` (Task 6) which is CLOSED — `path` does NOT
+`draw.polyline` which is CLOSED — `path` does NOT
 auto-connect the last anchor back to the first. Use
 `opts.closed === true` to override and close the path explicitly.
 Supply 2..20 anchors (validator pins this range, mirroring
@@ -51,4 +51,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/boxes/path.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

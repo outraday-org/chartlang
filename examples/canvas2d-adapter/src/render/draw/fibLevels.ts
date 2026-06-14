@@ -6,7 +6,7 @@
  * (`fibRetracement`, `fibTrendExtension`, `fibChannel`, `fibSpeedFan`,
  * `fibSpeedArcs`, …). Frozen so per-kind renderers cannot accidentally
  * mutate the shared array. Source: invinite's
- * `src/components/trading-chart/tools/fib-*` tools (PLAN.md §10.2).
+ * `src/components/trading-chart/tools/fib-*` tools.
  *
  * Order is monotonic. Both the 0 and 1 endpoints are included so a
  * retracement renderer that needs the bracket lines (the 0% and 100%

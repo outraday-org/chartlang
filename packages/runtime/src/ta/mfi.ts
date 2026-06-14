@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/mfi.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. The rolling-window pos / neg money-flow sums
@@ -118,7 +118,7 @@ function emitMfi(sumPos: number, sumNeg: number, ready: boolean): number {
  * @since 0.2
  * @stable
  *
- * `opts.offset` shifts the returned series (PLAN.md §9.1).
+ * `opts.offset` shifts the returned series.
  *
  * @example
  *     // import { ta, plot } from "@invinite-org/chartlang-core";

@@ -9,10 +9,10 @@ Visible-Range Volume Profile — buckets the current visible range's
 volume by price, emits a `horizontal-histogram`, and returns cached
 POC / VAH / VAL series.
 
-The Phase 5 OSS runtime supplies the visible range through
+The runtime supplies the visible range through
 `bar.viewport`, populated as the latest 100 bars ending at the
 current head. Real chart viewport injection is deferred to adapter
-integrations in Phase 6.
+integrations.
 
 ## Formula
 
@@ -59,4 +59,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/visibleRangeVolumeProfile.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

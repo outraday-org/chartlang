@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // Behaviour from
 //   invinite/src/components/trading-chart/tools/triangle-tool.ts.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     AnchorTriple,
@@ -33,7 +33,7 @@ function triangleImpl(slotId: string, anchors: AnchorTriple, opts: ShapeStyle): 
 /**
  * Draw a triangle as a closed three-vertex polygon. Vertices may be
  * supplied CW or CCW; the renderer walks them as a closed path. Not to
- * be confused with `draw.trianglePattern` (Task 15) — that variant is
+ * be confused with `draw.trianglePattern` — that variant is
  * the harmonic five-anchor triangle pattern.
  *
  * @anchors `anchors` — 3 `WorldPoint`s

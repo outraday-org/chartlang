@@ -3,9 +3,8 @@
 //
 // Bull / bear hex values ported from
 // invinite/src/components/trading-chart/lib/candle-default-colors.ts
-// (© Invinite). Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the values are the behavioural reference, the
-// surrounding `Palette` shape is chartlang-native.
+// (© Invinite). Re-licensed MIT for chartlang. The values are the
+// behavioural reference, the surrounding `Palette` shape is chartlang-native.
 
 /**
  * Colour palette consumed by the canvas2d renderer. Adapter authors who

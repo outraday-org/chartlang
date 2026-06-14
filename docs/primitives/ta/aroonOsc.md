@@ -49,4 +49,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/aroonOsc.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

@@ -99,10 +99,10 @@ function collectBars(ctx: RuntimeContext): ReadonlyArray<VolumeProfileBar> {
  * volume by price, emits a `horizontal-histogram`, and returns cached
  * POC / VAH / VAL series.
  *
- * The Phase 5 OSS runtime supplies the visible range through
+ * The runtime supplies the visible range through
  * `bar.viewport`, populated as the latest 100 bars ending at the
  * current head. Real chart viewport injection is deferred to adapter
- * integrations in Phase 6.
+ * integrations.
  *
  * @formula  Port of invinite visible-range-vp: slice visible candles,
  *           bucket volume by price, then derive POC / value-area high /

@@ -10,7 +10,7 @@ trailing `length`-bar extremes. `long` is the trailing stop for
 long trades (highest of `bar.high` over the window minus
 `multiplier · ATR`); `short` is the symmetric stop for short
 trades (lowest of `bar.low` plus `multiplier · ATR`). Composes
-Phase-1 `ta.atr` plus Task-5 `ta.highest` / `ta.lowest` at sub-slots
+`ta.atr` plus `ta.highest` / `ta.lowest` at sub-slots
 `${slotId}/atr` / `${slotId}/highHigh` / `${slotId}/lowLow`. Returns
 a cached `{ long, short }` record (same identity every bar).
 
@@ -68,4 +68,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/chandelier.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

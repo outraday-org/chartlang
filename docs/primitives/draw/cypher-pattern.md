@@ -11,8 +11,7 @@ Draw a Cypher harmonic pattern through 5 world anchors `[X, A, B, C,
 D]`. The renderer strokes the connecting legs (X-A, A-B, B-C, C-D)
 and labels each pivot. Mirrors invinite's `CypherPatternDrawing`
 schema — `cypher-pattern` has no standalone tool in invinite, only
-the y-doc-bridge type; the UI surface lives in `defineDrawing`
-(Task 20).
+the y-doc-bridge type; the UI surface lives in `defineDrawing`.
 
 ## Anchors
 
@@ -51,4 +50,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/patterns/cypherPattern.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

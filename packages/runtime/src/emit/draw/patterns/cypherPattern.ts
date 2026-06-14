@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // `cypher-pattern` has no standalone invinite tool — the UI surface
 // lives in `defineDrawing` (Task 20) only. Hence the provenance
-// header cites only y-doc-bridge.ts (see PLAN.md §3.1).
+// header cites only y-doc-bridge.ts.
 // Re-licensed MIT for chartlang.
 
 import type {
@@ -40,8 +40,7 @@ function cypherPatternImpl(
  * D]`. The renderer strokes the connecting legs (X-A, A-B, B-C, C-D)
  * and labels each pivot. Mirrors invinite's `CypherPatternDrawing`
  * schema — `cypher-pattern` has no standalone tool in invinite, only
- * the y-doc-bridge type; the UI surface lives in `defineDrawing`
- * (Task 20).
+ * the y-doc-bridge type; the UI surface lives in `defineDrawing`.
  *
  * @anchors `anchors` — `[X, A, B, C, D]` quint of world points
  * @anchorCount 5

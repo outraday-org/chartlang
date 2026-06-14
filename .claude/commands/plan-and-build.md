@@ -19,7 +19,7 @@ code that follows project conventions and best practices.
 1. Enter plan mode to gather detailed requirements
 2. Interview the user about all aspects of the feature using `AskUserQuestion`
 3. Explore the codebase to understand existing patterns and architecture
-   (read `PLAN.md`, `CONTRIBUTING.md`, the nearest `CLAUDE.md`, and the
+   (read `CONTRIBUTING.md`, the nearest `CLAUDE.md`, and the
    `README.md` of any touched packages)
 4. Create a comprehensive implementation plan addressing:
    - Technical implementation details (which package(s); cross-package
@@ -92,7 +92,7 @@ Ask detailed questions about:
 - **Security**: Sandbox-escape surface for `host-worker` / `host-quickjs`
   changes; new capability surface for adapters.
 - **Trade-offs**: Different approaches and their pros / cons; technical
-  debt; how this affects the next-phase plan in `PLAN.md`.
+  debt; how this affects future work.
 - **Dependencies**: Required libraries — new deps need explicit user
   sign-off; existing code that needs modification.
 - **Testing**: Which §16.3 layers apply (unit / property / golden / bench
@@ -124,7 +124,7 @@ Ask detailed questions about:
 - Create a plan that is detailed enough to guide implementation without
   being overly prescriptive
 - Include success criteria and acceptance tests in the plan
-- Reference exact PLAN.md sections by number when relevant
+- Reference exact CONTRIBUTING.md / `CLAUDE.md` sections when relevant
 - Consider both immediate requirements and future extensibility
 - Do not make assumptions — clarify everything upfront
 - Ask many questions for clarification and don't make assumptions

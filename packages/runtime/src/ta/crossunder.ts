@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 //
 // No invinite source — Phase-1 new code, semantics per Pine
-// `ta.crossover` / `ta.crossunder`. See PLAN.md §3.1.
+// `ta.crossover` / `ta.crossunder`.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape.
 
@@ -80,7 +80,7 @@ function detect(prevA: number, prevB: number, currA: number, currB: number): boo
  * @stable
  *
  * `opts.offset` shifts the boolean series so `series.current` returns
- * the crossunder detection `offset` bars ago (PLAN.md §9.1).
+ * the crossunder detection `offset` bars ago.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/historical-volatility.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. The rolling log-returns window is folded
@@ -191,7 +191,7 @@ function tickValue(slot: HvSlot, src: number): number {
  * @stable
  *
  * `opts.offset` shifts the returned series so `series.current` reads
- * the value `offset` bars ago (PLAN.md §9.1).
+ * the value `offset` bars ago.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

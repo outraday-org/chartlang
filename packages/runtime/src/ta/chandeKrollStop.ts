@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/chande-kroll-stop.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. ChandeKrollStop composes Phase-1 `ta.atr`
@@ -141,7 +141,7 @@ function minOver(
  * stops by taking the rolling max / min over a `smoothingLength`-bar
  * window. `long` is the long-trade trailing stop ceiling (max of
  * `firstHigh`), `short` is the short-trade trailing stop floor (min
- * of `firstLow`). Composes Phase-1 `ta.atr` plus Task-5 `ta.highest`
+ * of `firstLow`). Composes `ta.atr` plus `ta.highest`
  * and `ta.lowest` at sub-slots.
  *
  * Source field is hard-coded to `bar.high` / `bar.low` (matches Pine

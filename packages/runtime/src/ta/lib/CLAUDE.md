@@ -10,7 +10,7 @@ reference computation used by property + golden tests
 ## Port convention
 
 Helpers that trace back to upstream math (the `../invinite/` sibling
-repo per PLAN.md §3.1) carry the 4-line CONTRIBUTING §4 provenance +
+repo) carry the 4-line CONTRIBUTING §4 provenance +
 relicense header below the standard 2-line MIT block. Phase-1 helpers
 reference invinite commit `d2d1043c1b039f66d2f3674526d303d31cf2f1e0`;
 Phase-2 helpers reference `078f41fe2569d659d5aba726da8bcb5d3e2ced02`:
@@ -21,8 +21,8 @@ Phase-2 helpers reference `078f41fe2569d659d5aba726da8bcb5d3e2ced02`:
 //
 // Ported from invinite/src/components/trading-chart/indicators/lib/<file>.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 ```
 
 New chartlang helpers (no upstream source) ship with the standard

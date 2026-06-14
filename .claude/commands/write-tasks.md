@@ -225,7 +225,7 @@ these sections in order:
 
 ### 1. Title & Overview
 Feature / phase name as H1, then a concise description of what's being
-built and why. Reference relevant PLAN.md sections by number.
+built and why. Reference relevant CONTRIBUTING.md / `CLAUDE.md` sections.
 
 ### 2. Current State
 What exists today. Relevant packages, types, primitives, adapters,

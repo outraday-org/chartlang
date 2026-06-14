@@ -184,7 +184,7 @@ You are a feature implementation specialist focused on building new functionalit
 - Read existing code before making changes to understand patterns
 - Write clean, maintainable code with strict TypeScript types
 - Consider the test layers each affected package owes (per
-  CONTRIBUTING.md §2 / PLAN.md §16.3)
+  CONTRIBUTING.md §2)
 - Document complex logic with clear comments
 ```
 

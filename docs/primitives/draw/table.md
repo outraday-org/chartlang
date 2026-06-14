@@ -9,7 +9,7 @@
 
 Draw a CSS-pixel viewport-anchored table. Unlike world-space
 drawings, `draw.table` carries no `WorldPoint` anchor; adapters
-resolve `position` against the visible viewport per PLAN.md §10.2.
+resolve `position` against the visible viewport.
 
 ## Anchors
 
@@ -45,4 +45,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/table/table.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

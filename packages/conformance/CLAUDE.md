@@ -77,7 +77,7 @@ plot hashes, alert counts, and diagnostic codes.
 - **Inline-source `sourcePath` is the virtual
   `<inline:${scenario.id}>.chart.ts` literal.** This is the
   `sourcePath` the runner passes to the compiler so callsite-id
-  injection (PLAN.md §5.5) produces a stable, pinnable slot-id
+  injection produces a stable, pinnable slot-id
   prefix — assertions can pin
   `slotId: "<inline:ta-wma>.chart.ts:7:13#0"`. Do not change the
   literal format without updating every Phase-2 scenario's pinned

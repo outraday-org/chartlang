@@ -5,7 +5,7 @@
 //   invinite/src/components/trading-chart/tools/lib/geometry.ts
 //     (`extendSegmentPx`), commit
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type { Viewport } from "../coords.js";
 

@@ -91,7 +91,7 @@ You must follow these conventions. They are enforced by CI gates
 
 Every package enforces 100% line/statement/branch/function coverage via its
 own `vitest.config.ts`. There is **no "tests in a follow-up" allowance**.
-Per-package test layers (see PLAN.md §16.3 / CONTRIBUTING.md §2):
+Per-package test layers (see CONTRIBUTING.md §2):
 
 - All packages: **unit** tests next to source (`*.test.ts`).
 - `compiler`, `runtime`: **property** tests (fast-check) + **golden** bar
@@ -104,13 +104,13 @@ Per-package test layers (see PLAN.md §16.3 / CONTRIBUTING.md §2):
 ### `ta.*` ports from `../invinite/`
 
 When porting math from the sibling `../invinite/` repo, prepend the 4-line
-**provenance + relicense** header per PLAN.md §3.1 / CONTRIBUTING.md §4:
+**provenance + relicense** header per CONTRIBUTING.md §4:
 
 ```ts
 // Ported from invinite/src/components/trading-chart/indicators/<id>.ts
 //   (commit <sha at port time>, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 ```
 
 **Translate, do not transcribe.** The behavioural contract (same numbers in,
@@ -143,7 +143,7 @@ is welcome.
    `ta.*` work, ask which source indicator under `../invinite/` is the
    reference.
 2. **Check existing patterns** — read sibling files in the same package, the
-   nearest `CLAUDE.md`, and PLAN.md sections referenced by package READMEs.
+   nearest `CLAUDE.md`, and any sections referenced by package READMEs.
 3. **Decide placement** — single package? Cross-package? Shared logic that
    belongs in `core`? Belongs in a package-private `lib/` file?
 4. **Write the code** — strict types, MIT header, JSDoc on exports, no

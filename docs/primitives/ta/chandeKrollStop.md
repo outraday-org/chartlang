@@ -11,7 +11,7 @@ plus `multiplier · ATR`; the second pass smooths the first-pass
 stops by taking the rolling max / min over a `smoothingLength`-bar
 window. `long` is the long-trade trailing stop ceiling (max of
 `firstHigh`), `short` is the short-trade trailing stop floor (min
-of `firstLow`). Composes Phase-1 `ta.atr` plus Task-5 `ta.highest`
+of `firstLow`). Composes `ta.atr` plus `ta.highest`
 and `ta.lowest` at sub-slots.
 
 Source field is hard-coded to `bar.high` / `bar.low` (matches Pine
@@ -68,4 +68,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/chandeKrollStop.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

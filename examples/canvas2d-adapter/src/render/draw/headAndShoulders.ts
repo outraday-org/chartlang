@@ -7,7 +7,7 @@
 // Note: Phase-3 renders the 5-anchor landed shape (no start/end);
 // the neckline strokes only between the two trough anchors
 // (anchors[1] = leftLow, anchors[3] = rightLow).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { HeadAndShouldersState } from "@invinite-org/chartlang-core";

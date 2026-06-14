@@ -223,7 +223,7 @@ Renderable emissions are routed by source role:
   alerts and logs forward unchanged.
 - The primary script's emissions forward to the adapter under their
   existing slot-id format (`<sourcePath>:<line>:<col>#<callIndex>`,
-  unchanged from Phase 1).
+  unchanged from the single-script runtime).
 - Diagnostics from **every** source forward to the adapter. Diagnostics
   raised inside a dep or sibling carry a slot id prefixed by the
   source's role (`dep:<localId>/` or `export:<exportName>/`).

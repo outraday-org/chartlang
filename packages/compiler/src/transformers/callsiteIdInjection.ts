@@ -30,7 +30,7 @@ export type InjectCallsiteIdsResult = Readonly<{
 
 /**
  * Inject a `__slot` string-literal first argument into every stateful
- * primitive call. Slot id format per PLAN.md §5.5:
+ * primitive call. Slot id format:
  * `<sourcePath>:<line>:<col>#<callIndex>`. `callIndex` is hardcoded to `0`
  * for hand-written code (Phase 1 reserves non-zero for future macros).
  *

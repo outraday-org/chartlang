@@ -7,7 +7,7 @@ import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 // total) in a single script on the first bar. Anchors are hardcoded
 // deterministic literals (not derived from the goldenBars fixture) so
 // the pinned `drawing-hash` survives fixture re-seeding. Per the
-// PLAN.md §10 / README §22.10 contract:
+// README §22.10 contract:
 //
 // - All 61 kinds resolve through `pushDrawing`'s happy path (no kind
 //   drops with `unsupported-drawing-kind`).

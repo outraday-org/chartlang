@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/lib/ny-day-key.ts
 //   (commit fb882a97e018ea0cc9a451fb7d839dc8d894c08b, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 
 import type { Time } from "../types.js";
 import { getFormatter } from "./_lib/dateTimeFormatCache.js";

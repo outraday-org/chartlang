@@ -12,7 +12,7 @@ persistence rule (carry forward unless the prior close pierced
 the band), and emits a single `line` Series equal to the active
 final band for the current direction. `direction` flips when
 `close` crosses the prior `finalUpper` (→ `+1`) or `finalLower`
-(→ `-1`). Composes Phase-1 `ta.atr` at sub-slot `${slotId}/atr`.
+(→ `-1`). Composes `ta.atr` at sub-slot `${slotId}/atr`.
 
 NaN ATR (warmup or NaN-propagation) → NaN outputs; local state
 freezes so the next finite bar resumes from the prior closed
@@ -63,4 +63,3 @@ _The leading `slotId: string` parameter is injected by the chartlang compiler at
 ## See also
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/ta/supertrend.ts)
-- [Reference math](../../../PLAN.md#92-full-primitive-list)

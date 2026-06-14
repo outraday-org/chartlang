@@ -45,8 +45,8 @@ function emit(
  * full merged state.
  *
  * `update(patch)` merges the patch with the current slot state and
- * re-emits the FULL merged state under `op: "update"` per PLAN.md
- * §10.3. `remove()` emits one final `op: "remove"` with the
+ * re-emits the FULL merged state under `op: "update"`. `remove()`
+ * emits one final `op: "remove"` with the
  * last-known state and flags the slot `removed: true`; subsequent
  * `update` / `remove` calls on the returned handle are no-ops.
  *

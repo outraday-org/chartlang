@@ -29,7 +29,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * scenario against the canvas2d adapter's declared capabilities;
  * re-pin via the runner's "expected vs actual" failure message when
  * the math intentionally changes (gate behind a `BREAKING:` changeset
- * per PLAN.md §16.6).
+ *).
  *
  * @since 0.1
  * @stable

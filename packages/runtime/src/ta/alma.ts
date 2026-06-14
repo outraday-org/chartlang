@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/alma.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. The ALMA `offset` opt is the Gaussian centre
@@ -109,9 +109,9 @@ function tickValue(slot: AlmaSlot, src: number): number {
  *
  * **`opts.offset` is the Gaussian-centre position in `[0, 1]`**, NOT
  * the universal bar-shift. The universal shift on ALMA uses the
- * distinct `opts.barShift` field — accepted on the surface (Task 29
- * wires the runtime side along with every other Phase-2 primitive's
- * `offset`).
+ * distinct `opts.barShift` field — accepted on the surface (its
+ * runtime side is wired alongside the universal `offset` support on
+ * every primitive).
  *
  * @formula  m = offset · (length − 1) ;
  *           s = length / sigma ;

@@ -16,8 +16,8 @@ GitHub-specific configuration: CI workflow and pull-request template.
   (4) the skills-folder task set adds a `pnpm skills:gate` step after
   `pnpm hover:check` — regenerates
   `skills/chartlang-coding/references/primitives.md` from `ta.*`/`draw.*`
-  JSDoc and byte-diffs against the committed file (repo tooling, not in
-  PLAN.md §22.6); (5) the landing-site task set adds
+  JSDoc and byte-diffs against the committed file (repo tooling);
+  (5) the landing-site task set adds
   `pnpm --filter chartlang-site typecheck` + `… build` steps (after the
   conformance block, before `pnpm bench:ci`) so a broken marketing site
   fails the matrix, plus a separate `e2e-site` job (Ubuntu, Node 20,
@@ -59,7 +59,7 @@ GitHub-specific configuration: CI workflow and pull-request template.
   release PRs. Manual fallback is `pnpm publish:release` from a maintainer
   machine.
 - `pull_request_template.md` is **§22.7 verbatim** — six checklist items.
-  New checklist items go in PLAN.md §22.7 first, then mirror here.
+  New checklist items go in `pull_request_template.md` first, then mirror here.
 
 ## Gate matrix
 

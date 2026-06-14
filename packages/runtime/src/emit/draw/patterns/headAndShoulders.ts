@@ -12,7 +12,7 @@
 // `HeadAndShouldersState.anchors: AnchorQuint` is a 5-anchor shell
 // (leftShoulder, leftLow, head, rightLow, rightShoulder) — start/end
 // projection is flagged as a Task-1 reshape follow-up.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     AnchorQuint,

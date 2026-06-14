@@ -10,7 +10,7 @@
 Draw a labelled rectangular frame between two world anchors
 `[topLeft, bottomRight]`. The frame renders an outlined rectangle
 plus an optional background fill (`opts.bgColor`) and label
-(`opts.label`) per PLAN.md §10.4. Children of the frame render
+(`opts.label`). Children of the frame render
 themselves — the frame is a visual envelope, not a re-render layer.
 
 ## Anchors
@@ -48,4 +48,3 @@ import { defineIndicator } from "@invinite-org/chartlang-core";
 
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/runtime/src/emit/draw/containers/frame.ts)
 - [`draw.*` namespace index](./index.md)
-- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)

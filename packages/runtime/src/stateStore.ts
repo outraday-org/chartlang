@@ -5,11 +5,11 @@
  * Per-runner slot store the runtime hands stateful primitives. Phase 1
  * ships only the in-memory default — `inMemoryStateStore()` — keyed
  * by `${slotIdPrefix ?? ""}${slotId}:state` where the slot id is the
- * compiler-assigned id from PLAN.md §5.5 and the prefix is the active
+ * compiler-assigned id and the prefix is the active
  * `RuntimeContext.slotIdPrefix` (`""` for primary, `dep:<localId>/`
  * for deps, `export:<exportName>/` for siblings — see Task 5). Phase 5
  * layers a `PersistentStateStore` sub-interface on top with snapshot
- * `load` / `save` / `clear` methods (see PLAN.md §6.9). Implementations
+ * `load` / `save` / `clear` methods. Implementations
  * (IDB-backed for browsers, caller-supplied for servers) satisfy the
  * Phase-5 sub-interface; the Phase-1 surface stays stable and
  * additive.

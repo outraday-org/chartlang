@@ -51,7 +51,7 @@ Review the task's proposed approach and identify:
 - **Missing reuse.** Could existing helpers, scenarios, or types be extended
   instead of writing new ones?
 - **Convention violations.** Does the approach match chartlang's conventions
-  in `PLAN.md`, `CONTRIBUTING.md`, and the nearest `CLAUDE.md`?
+  in `CONTRIBUTING.md` and the nearest `CLAUDE.md`?
   - MIT header on every new `.ts` file under `packages/*/src/` and `scripts/`
   - JSDoc with `@example`, `@since`, stability marker on every export
   - `@formula` + `@anchors` + `@warmup` on new `ta.*` / `draw.*`
@@ -120,7 +120,7 @@ How to confirm the work is correct (diagnostics, manual checks, etc.)
   done, flag it and exclude those steps.
 - **No placeholders.** Every step must be concrete enough to implement without
   guessing. Include JSDoc tag content, capability key names, import paths.
-- **Follow conventions.** All code in the plan must follow PLAN.md,
+- **Follow conventions.** All code in the plan must follow
   CONTRIBUTING.md, the nearest `CLAUDE.md`, and the chartlang gates
   (`pnpm typecheck`, `pnpm lint`, `pnpm test` 100%, `pnpm docs:check`,
   `pnpm readme:check`, `pnpm conformance` where relevant).

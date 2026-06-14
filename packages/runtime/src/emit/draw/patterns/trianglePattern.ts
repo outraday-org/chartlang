@@ -13,7 +13,7 @@
 // flagged as a Task-1 reshape follow-up. The kind is distinct from
 // `draw.triangle` (Task 6), a 3-anchor solid-shape primitive — this
 // is the 3-anchor harmonic-pattern outline.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     AnchorTriple,
@@ -48,7 +48,7 @@ function trianglePatternImpl(
  * Draw a triangle pattern (ascending / descending / symmetrical)
  * through 3 world anchors `[apex, baseHigh, baseLow]`. The renderer
  * strokes the 3-vertex closed polygon and labels each pivot.
- * **Distinct from `draw.triangle`** (Task 6, a solid-shape primitive
+ * **Distinct from `draw.triangle`** (a solid-shape primitive
  * with ShapeStyle); this is the harmonic-pattern outline with
  * LineDrawStyle. Mirrors invinite's `triangle-pattern-tool.ts` shape.
  *

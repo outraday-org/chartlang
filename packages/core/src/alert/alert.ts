@@ -22,7 +22,7 @@ export type AlertOpts = Readonly<{
 
 /**
  * Compile-time callable hole for `alert(message, opts?)`. The compiler
- * rewrites every callsite (Task 2) to dispatch to the runtime; calling this
+ * rewrites every callsite to dispatch to the runtime; calling this
  * outside the runtime throws the sentinel.
  *
  * @since 0.1

@@ -196,7 +196,7 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
 /**
  * Frozen set of every fully-qualified call name the compiler tracks for
  * static-analysis (`stateful-call-inside-loop`) and slot-id injection
- * (PLAN.md §5.5). Each entry carries a `slot` flag: `slot: true`
+ *. Each entry carries a `slot` flag: `slot: true`
  * primitives allocate per-callsite hidden state and get a string-literal
  * slot id injected as their first argument; `slot: false` primitives are
  * pure helpers that ride along in the set because Pine still forbids

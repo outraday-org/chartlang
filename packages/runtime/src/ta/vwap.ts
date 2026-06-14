@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/vwap.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape.
@@ -120,9 +120,9 @@ function valueFromCum(cumPV: number, cumV: number): number {
  * the bars since the most recent UTC midnight; resets to NaN at the
  * top of every UTC day. `source` defaults to `"hlc3"` per Pine.
  *
- * **Phase-2 session boundary.** Phase 2 keys the session reset off
- * `floor(bar.time / 86_400_000)` (the UTC calendar day). Phase 4
- * lifts session detection to `syminfo.session.regularStart` per
+ * **Session boundary.** The session reset keys off
+ * `floor(bar.time / 86_400_000)` (the UTC calendar day). A future
+ * release lifts session detection to `syminfo.session.regularStart` per
  * invinite — until then VWAP behaves as a UTC-day-anchored VWAP.
  *
  * **NaN handling.** Bars with NaN source or non-positive / NaN volume

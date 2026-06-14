@@ -11,67 +11,14 @@
 
 import type { AlertEmission } from "@invinite-org/chartlang-adapter-kit"
 import type { Bar } from "@invinite-org/chartlang-core"
-import type { LspDiagnostic } from "@invinite-org/chartlang-language-service"
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react"
 
 import { ChartPane } from "./ChartPane"
 import { EditorPane } from "./EditorPane"
-import {
-  type CompileStatus,
-  type CompiledArtifact,
-  createHybridLanguageService,
-} from "./hybridLanguageService"
+import { type CompiledArtifact, createHybridLanguageService } from "./hybridLanguageService"
 import { DEMO_SCRIPTS } from "./scripts"
 
 const MAX_ALERTS_SHOWN = 6
-
-function StatusBadge(props: Readonly<{ status: CompileStatus }>): ReactElement {
-  const { status } = props
-  switch (status.kind) {
-    case "idle":
-      return <span className="status status-idle">idle</span>
-    case "compiling":
-      return <span className="status status-compiling">compiling…</span>
-    case "ok":
-      return (
-        <span className="status status-ok">
-          ok{status.warningCount > 0 ? ` · ${status.warningCount} warn` : ""}
-        </span>
-      )
-    case "error":
-      return (
-        <span className="status status-error">
-          {status.errorCount} error{status.errorCount === 1 ? "" : "s"}
-          {status.warningCount > 0 ? ` · ${status.warningCount} warn` : ""}
-        </span>
-      )
-    case "transport-error":
-      return <span className="status status-error">transport: {status.message}</span>
-  }
-}
-
-function DiagnosticsList(
-  props: Readonly<{ diagnostics: ReadonlyArray<LspDiagnostic> }>,
-): ReactElement | null {
-  if (props.diagnostics.length === 0) return null
-  return (
-    <ul className="diagnostics">
-      {props.diagnostics.slice(0, 5).map((d, i) => (
-        <li
-          className={`diag diag-${d.severity}`}
-          // biome-ignore lint/suspicious/noArrayIndexKey: stable order within one compile
-          key={i}
-        >
-          <span className="diag-loc">
-            {d.range.startLine}:{d.range.startColumn}
-          </span>{" "}
-          <span className="diag-code">{d.code}</span>{" "}
-          <span className="diag-msg">{d.message}</span>
-        </li>
-      ))}
-    </ul>
-  )
-}
 
 function AlertsList(props: Readonly<{ alerts: ReadonlyArray<AlertEmission> }>): ReactElement {
   if (props.alerts.length === 0) {
@@ -95,32 +42,21 @@ function AlertsList(props: Readonly<{ alerts: ReadonlyArray<AlertEmission> }>): 
 
 /**
  * The live demo. Wires the editor (left), chart (right), a script
- * switcher + status badge toolbar, and a diagnostics / alerts footer.
- * The hybrid service is created once and shared for the component's
- * lifetime. Type-aware compile diagnostics are intentionally NOT
- * surfaced — the server's `compileToDiagnostics` only maps runtime
- * compile errors, matching the original playground's known gap.
+ * switcher, and a recent-alerts card. The hybrid service is created
+ * once and shared for the component's lifetime.
  */
 export default function DemoBody(): ReactElement {
-  const [status, setStatus] = useState<CompileStatus>({ kind: "idle" })
-  const [diagnostics, setDiagnostics] = useState<ReadonlyArray<LspDiagnostic>>([])
   const [artifact, setArtifact] = useState<CompiledArtifact | null>(null)
   const [bars, setBars] = useState<ReadonlyArray<Bar>>([])
   const [alerts, setAlerts] = useState<ReadonlyArray<AlertEmission>>([])
   const [scriptId, setScriptId] = useState(DEMO_SCRIPTS[0]?.id ?? "")
   const script = DEMO_SCRIPTS.find((s) => s.id === scriptId) ?? DEMO_SCRIPTS[0]
-  const setStatusRef = useRef(setStatus)
-  const setDiagnosticsRef = useRef(setDiagnostics)
   const setArtifactRef = useRef(setArtifact)
-  setStatusRef.current = setStatus
-  setDiagnosticsRef.current = setDiagnostics
   setArtifactRef.current = setArtifact
 
   const service = useMemo(
     () =>
-      createHybridLanguageService((nextStatus, nextArtifact, nextDiagnostics) => {
-        setStatusRef.current(nextStatus)
-        setDiagnosticsRef.current(nextDiagnostics)
+      createHybridLanguageService((_nextStatus, nextArtifact) => {
         if (nextArtifact !== null) setArtifactRef.current(nextArtifact)
       }),
     [],
@@ -157,7 +93,6 @@ export default function DemoBody(): ReactElement {
               setScriptId(event.target.value)
               setAlerts([])
               setArtifact(null)
-              setDiagnostics([])
             }}
             value={script?.id ?? ""}
           >
@@ -168,7 +103,6 @@ export default function DemoBody(): ReactElement {
             ))}
           </select>
         </label>
-        <StatusBadge status={status} />
       </div>
 
       <div className="panes">
@@ -189,26 +123,13 @@ export default function DemoBody(): ReactElement {
             onAlert={handleAlert}
             onPlayStart={() => setAlerts([])}
           />
+          <div className="chart-alerts">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Recent alerts
+            </h3>
+            <AlertsList alerts={alerts} />
+          </div>
         </section>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-border bg-muted/40 p-4">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Diagnostics
-          </h3>
-          {diagnostics.length === 0 ? (
-            <p className="alerts-empty">No diagnostics.</p>
-          ) : (
-            <DiagnosticsList diagnostics={diagnostics} />
-          )}
-        </div>
-        <div className="rounded-lg border border-border bg-muted/40 p-4">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Recent alerts
-          </h3>
-          <AlertsList alerts={alerts} />
-        </div>
       </div>
     </div>
   )

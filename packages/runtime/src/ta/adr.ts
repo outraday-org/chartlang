@@ -3,8 +3,8 @@
 //
 // Ported from invinite/src/components/trading-chart/indicators/adr.ts
 //   (commit 078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 for the
-// provenance contract; the math is the reference, the code style is not.
+// Re-licensed MIT for chartlang. The math is the reference, the code
+// style is not.
 // Structural choices (callsite-id slot, Series<T> proxy, replaceHead
 // mode) follow chartlang's primitive shape — NOT invinite's
 // IndicatorPlugin shape. ADR derives from `bar.high`/`bar.low`/
@@ -119,13 +119,13 @@ function closeStep(slot: AdrSlot, high: number, low: number, time: number): numb
  * TradingView. Reads `bar.high` / `bar.low` / `bar.time` directly
  * (no `source` argument per the absolute-range formula).
  *
- * **Calendar-day boundary.** Phase 2 keys "daily" on the UTC midnight
+ * **Calendar-day boundary.** "daily" keys on the UTC midnight
  * boundary (`Math.floor(time / 86_400_000)`). Bars sharing a day key
  * are aggregated into a single `(dailyHigh, dailyLow)` pair; the day
  * range commits to the rolling SMA when the next bar's day key differs.
  * The in-progress (currently-aggregating) day is NEVER included in the
- * average. Phase 4 lifts this onto `syminfo.session` so symbols with
- * non-UTC sessions can override the convention.
+ * average. A future release lifts this onto `syminfo.session` so symbols
+ * with non-UTC sessions can override the convention.
  *
  * **Tick mode.** Ticks within the in-progress bar do NOT shift the day
  * boundary (per the runtime invariant that ticks happen inside the

@@ -10,8 +10,8 @@
 //   invinite/src/components/trading-chart/tools/schiff-pitchfork-tool.ts +
 //   invinite/src/components/trading-chart/tools/modified-schiff-pitchfork-tool.ts +
 //   invinite/src/components/trading-chart/tools/inside-pitchfork-tool.ts
-//   (4 tools collapsed into one kind per PLAN.md §3.1).
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+//   (4 tools collapsed into one kind).
+// Re-licensed MIT for chartlang.
 
 import type {
     AnchorTriple,
@@ -52,7 +52,7 @@ function pitchforkImpl(slotId: string, anchors: AnchorTriple, opts: PitchforkOpt
  * `"modifiedSchiff"` (median origin at `mid(a, b)`); `"inside"`
  * (median origin at `mid(b, c)` with the `(a → mid(a, b))` direction).
  * Default variant: `"standard"`. Mirrors invinite's four pitchfork
- * tools collapsed into one kind per PLAN.md §3.1.
+ * tools collapsed into one kind.
  *
  * @anchors `anchors` — `[pivot, high, low]` triple
  * @anchorCount 3

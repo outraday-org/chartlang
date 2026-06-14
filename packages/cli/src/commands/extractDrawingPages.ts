@@ -302,7 +302,6 @@ export function generateDrawingDocsPage(input: DrawingDocInput): string {
     lines.push("");
     lines.push(`- [Source on GitHub](${input.sourceUrl})`);
     lines.push("- [`draw.*` namespace index](./index.md)");
-    lines.push("- [PLAN §10 — Drawing primitives](../../../PLAN.md#10-drawing-primitives)");
     lines.push("");
     return lines.join("\n");
 }

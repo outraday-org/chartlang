@@ -14,7 +14,7 @@ import { inMemoryStateStore } from "../../stateStore.js";
 import { pushDrawing } from "./pushDrawing.js";
 
 // Re-pin by copying the `actual` hash from a failure message — same
-// workflow as `plot-hash` (PLAN.md §22.10 reproducibility contract).
+// workflow as `plot-hash` (reproducibility contract).
 const GOLDEN_SHA256 = "5745ecccc11f539ed5cb34cc562650d28f65378bbfd6be79350bea3ee103887a";
 const ITERATIONS = 50;
 

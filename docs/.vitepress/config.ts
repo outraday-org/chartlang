@@ -23,9 +23,11 @@ export default defineConfig({
     ignoreDeadLinks: false,
     markdown: {
         html: false,
-        // Match apps/site's CodeBlock Shiki theme so snippets render
-        // identically across the marketing site and the docs.
-        theme: "github-dark-dimmed",
+        // Dual Shiki theme: the dark theme matches apps/site's CodeBlock
+        // (which is dark-only) so snippets read identically across the two
+        // sites in dark mode; the light theme keeps code legible when the
+        // docs are toggled to light mode (apps/site has no light mode).
+        theme: { light: "github-light", dark: "github-dark-dimmed" },
         config(md) {
             const defaultRender =
                 md.renderer.rules.link_open ??

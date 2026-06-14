@@ -7,7 +7,7 @@ import type { RingBufferLike } from "./ringBuffer.js";
 
 /**
  * Wrap a `RingBufferLike<T>` in the user-facing `Series<T>` Proxy shape
- * from PLAN.md §6.6. The Proxy is created **once per backing buffer**
+ *. The Proxy is created **once per backing buffer**
  * at stream/slot construction time and re-used across every bar — its
  * identity is stable so script authors can keep `const ema = ta.ema(...)`
  * at the top of `compute` and reference `ema` the same way every bar.

@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // Behaviour from
 //   invinite/src/components/trading-chart/tools/fib-time-zone-tool.ts.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     DrawingHandle,
@@ -44,8 +44,7 @@ function fibTimeZoneImpl(
  * level in `opts.levels ?? FIB_LEVELS` paints a vertical line at
  * `t = a.time + level * (b.time - a.time)`. Mirrors invinite's
  * `fib-time-zone-tool.ts` shape (using the ratio array per the landed
- * core state — see `tasks/phase-3-drawing-parity/11-fibonacci-a.plan.md`
- * §1 for the spec ↔ core delta on integer-sequence semantics).
+ * core state).
  *
  * @anchors `a`, `b` — two `WorldPoint`s defining the time span
  * @anchorCount 2

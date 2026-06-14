@@ -8,7 +8,7 @@ import type { JsonValue } from "../types.js";
  *
  * Carries everything needed to rehydrate a ring buffer for one timeframe,
  * whether that stream is the main interval or a higher-timeframe secondary
- * stream (PLAN.md §6.1, §6.9).
+ * stream.
  *
  * `buffers` is keyed by the canonical OHLCV field names; each value is a
  * JSON-clean array of `number | null`, where `null` preserves NaN holes
@@ -43,7 +43,7 @@ export type StreamSnapshot = Readonly<{
 /**
  * Per-runner persistence section. Carries one runner's `state.*`
  * (and primary-only TA) slot map keyed by `${slotIdPrefix}${slotId}:state`
- * (PLAN.md §5.5 + Task 5). `slots` is `JsonValue` so the snapshot
+ * (Task 5). `slots` is `JsonValue` so the snapshot
  * round-trips through `JSON.stringify` and structured-clone.
  *
  * Used inside {@link StateSnapshot} for `primary`,
@@ -66,9 +66,9 @@ export type RunnerSnapshot = Readonly<{
  * Canonical persistent-store snapshot.
  *
  * Written on `dispose()` and on every `kind: "close"` event when stale for
- * at least 60 seconds (PLAN.md §6.9). Each runner's `state.*` payload is
+ * at least 60 seconds. Each runner's `state.*` payload is
  * keyed by the compiler-injected slot id with the runner's
- * `slotIdPrefix` prepended (PLAN.md §5.5 + Task 5). Primary-runner TA
+ * `slotIdPrefix` prepended (Task 5). Primary-runner TA
  * slots live in `primary.slots` alongside `state.*` slots (the bundle's
  * deps + siblings share the primary's mainStream, so TA slots have no
  * per-runner section).
@@ -105,7 +105,7 @@ export type StateSnapshot = Readonly<{
  * Canonical persistent-store identity tuple.
  *
  * Every field contributes to the cache key; any change invalidates the
- * snapshot (PLAN.md §6.9). Stores treat this tuple opaquely as a string key;
+ * snapshot. Stores treat this tuple opaquely as a string key;
  * the typical implementation is `JSON.stringify(key)` with sorted fields.
  *
  * - `scriptHash` is the SHA-256 digest of the compiled `moduleSource`.

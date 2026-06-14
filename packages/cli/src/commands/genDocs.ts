@@ -359,7 +359,6 @@ export function generateDocsPage(input: PrimitiveDocInput): string {
     lines.push("## See also");
     lines.push("");
     lines.push(`- [Source on GitHub](${input.sourceUrl})`);
-    lines.push("- [Reference math](../../../PLAN.md#92-full-primitive-list)");
     lines.push("");
     return lines.join("\n");
 }

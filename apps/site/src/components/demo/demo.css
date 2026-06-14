@@ -48,18 +48,25 @@
 
 .cl-demo .pane-chart {
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 16px;
+  gap: 16px;
 }
 
 .cl-demo .chart-pane {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
   width: 100%;
-  height: 100%;
+  height: auto;
+}
+
+.cl-demo .chart-alerts {
+  width: 100%;
+  max-width: 800px;
+  overflow-y: auto;
 }
 
 .cl-demo .chart-toolbar {
@@ -105,34 +112,6 @@
   height: auto;
 }
 
-.cl-demo .status {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-weight: 600;
-  border: 1px solid var(--border);
-}
-
-.cl-demo .status-idle {
-  color: var(--muted-foreground);
-}
-
-.cl-demo .status-compiling {
-  color: var(--primary);
-  border-color: var(--primary);
-}
-
-.cl-demo .status-ok {
-  color: var(--cl-ok);
-  border-color: var(--cl-ok);
-}
-
-.cl-demo .status-error {
-  color: var(--cl-error);
-  border-color: var(--cl-error);
-}
-
-.cl-demo .diagnostics,
 .cl-demo .alerts {
   list-style: none;
   margin: 0;
@@ -141,34 +120,27 @@
   font-size: 12px;
 }
 
-.cl-demo .diag,
 .cl-demo .alert {
   padding: 3px 0;
   border-bottom: 1px solid var(--border);
 }
 
-.cl-demo .diag:last-child,
 .cl-demo .alert:last-child {
   border-bottom: none;
 }
 
-.cl-demo .diag-error .diag-code,
 .cl-demo .alert-error .alert-sev {
   color: var(--cl-error);
 }
 
-.cl-demo .diag-warning .diag-code,
 .cl-demo .alert-warning .alert-sev {
   color: var(--cl-warn);
 }
 
-.cl-demo .diag-info .diag-code,
-.cl-demo .alert-info .alert-sev,
-.cl-demo .diag-hint .diag-code {
+.cl-demo .alert-info .alert-sev {
   color: var(--primary);
 }
 
-.cl-demo .diag-loc,
 .cl-demo .alert-sev {
   color: var(--muted-foreground);
   margin-right: 6px;

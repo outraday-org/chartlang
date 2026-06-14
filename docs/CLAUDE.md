@@ -1,7 +1,6 @@
 # docs/
 
-The chartlang documentation site. Structure mirrors PLAN.md §17.1 — that
-section is the source of truth for the page tree. VitePress builds this
+The chartlang documentation site. VitePress builds this
 directory and Netlify deploys it to `docs.chartlang.invinite.com` (see
 the repo-root `DEPLOYMENT.md`).
 
@@ -14,7 +13,6 @@ the repo-root `DEPLOYMENT.md`).
   # <Page title>
 
   > **Phase:** Lands in Phase <N>.
-  > **Cross-reference:** See PLAN.md §<n>.
 
   <One-paragraph description of what this page will document.>
 
@@ -24,7 +22,7 @@ the repo-root `DEPLOYMENT.md`).
 
 - `docs/index.md` is the landing page (≤ 100 lines). It carries the
   elevator pitch, three getting-started CTAs, a `mermaid` architecture
-  diagram mirroring PLAN.md §2, and footer links to each subsection.
+  diagram, and footer links to each subsection.
 
 - `.gitkeep` is **preserved** in auto-generated content areas:
   - `docs/primitives/{plot,draw,alert,input}/` — Phase 1's
@@ -66,9 +64,13 @@ the repo-root `DEPLOYMENT.md`).
   the single source `brand/chartlang_logo.{svg,ico}` into the
   git-ignored `docs/public/logo.{svg,ico}`. Never hand-edit or commit
   those copies; swap the logo in `brand/` (see `brand/README.md`). The
-  fonts (`@fontsource-variable/*`) and the Shiki theme
-  (`github-dark-dimmed`) match `apps/site/` so the two sites read as one
-  product.
+  fonts (`@fontsource-variable/*`) match `apps/site/` so the two sites
+  read as one product. The Shiki code-block theme is **dual**
+  (`{ light: "github-light", dark: "github-dark-dimmed" }`) because the
+  docs have a light/dark toggle: the `dark` value matches `apps/site/`'s
+  dark-only `CodeBlock`, and the `light` value keeps snippets legible in
+  light mode. A single dark theme washes out unreadably on the light-mode
+  code-block background — do not collapse it back to one theme.
 
 ## Gate interactions
 

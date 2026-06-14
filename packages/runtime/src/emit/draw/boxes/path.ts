@@ -7,7 +7,7 @@
 //     078f41fe2569d659d5aba726da8bcb5d3e2ced02, © Invinite.
 // Behaviour from
 //   invinite/src/components/trading-chart/tools/path-tool.ts.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type { DrawingHandle, PathOpts, PathState, WorldPoint } from "@invinite-org/chartlang-core";
 
@@ -31,7 +31,7 @@ function pathImpl(
 
 /**
  * Draw an OPEN polyline through N world anchors. Distinct from
- * `draw.polyline` (Task 6) which is CLOSED — `path` does NOT
+ * `draw.polyline` which is CLOSED — `path` does NOT
  * auto-connect the last anchor back to the first. Use
  * `opts.closed === true` to override and close the path explicitly.
  * Supply 2..20 anchors (validator pins this range, mirroring

@@ -11,7 +11,7 @@
 // `ElliottTripleComboState.anchors: AnchorHept` is a 7-anchor shell
 // — the additional 3 invinite pivots are flagged as a Task-1 reshape
 // follow-up.
-// Re-licensed MIT for chartlang. See PLAN.md §3.1 + §22.10.
+// Re-licensed MIT for chartlang.
 
 import type {
     AnchorHept,
