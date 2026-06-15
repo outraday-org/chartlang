@@ -1,5 +1,16 @@
 # @invinite-org/chartlang-language-service
 
+## 1.4.0
+
+### Minor Changes
+
+- 134a0bf: Add an `inMemoryModules` option to `createLanguageService`. When `compileToDiagnostics` is NOT injected, the service runs the Node compiler locally for diagnostics; this option is forwarded to that `compile` call so a host where the workspace `@invinite-org/chartlang-*` packages are not resolvable on disk (e.g. a bundled serverless function) can supply pre-bundled package sources and avoid an esbuild "Could not resolve" failure. Ignored when `compileToDiagnostics` is provided.
+
+### Patch Changes
+
+- Updated dependencies [6aeeb02]
+  - @invinite-org/chartlang-compiler@1.2.0
+
 ## 1.3.0
 
 ### Minor Changes
