@@ -11,6 +11,14 @@
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
         },
+        "./theme": {
+            "types": "./dist/theme.d.ts",
+            "import": "./dist/theme.js"
+        },
+        "./language-service": {
+            "types": "./dist/language-service.d.ts",
+            "import": "./dist/language-service.js"
+        },
         "./react": {
             "types": "./dist/react/index.d.ts",
             "import": "./dist/react/index.js"

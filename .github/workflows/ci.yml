@@ -116,6 +116,7 @@ jobs:
                   cache: pnpm
             - run: pnpm install --frozen-lockfile
             - run: pnpm --filter chartlang-site e2e:install
+            - run: pnpm --filter "chartlang-site^..." build   # build the site's workspace deps (dist/) — the `test` job gets these from `pnpm build`, this job doesn't
             - run: pnpm --filter chartlang-site build
             - run: pnpm --filter chartlang-site e2e
             - if: failure()

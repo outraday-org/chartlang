@@ -23,7 +23,12 @@ GitHub-specific configuration: CI workflow and pull-request template.
   fails the matrix, plus a separate `e2e-site` job (Ubuntu, Node 20,
   `needs: test`, own `e2e-site-${{ github.ref }}` concurrency group)
   that installs Chromium, builds `apps/site`, runs its Playwright suite,
-  and uploads `apps/site/playwright-report/` on failure.
+  and uploads `apps/site/playwright-report/` on failure. The `e2e-site`
+  job builds the site's workspace dependencies first via
+  `pnpm --filter "chartlang-site^..." build` — unlike the `test` job it
+  never runs the repo-wide `pnpm build`, so without this step the site's
+  vite/rolldown build can't resolve workspace deps (e.g.
+  `@invinite-org/chartlang-language-service`) whose `dist/` is missing.
 - **GitHub Pages is retired.** The old `workflows/docs.yml` (VitePress
   build → Pages deploy) is deleted; docs deploy from `main` via the
   Netlify GitHub App, and `pnpm docs:build` in the `test` job is the

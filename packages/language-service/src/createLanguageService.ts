@@ -1,7 +1,6 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { CompileError, compile } from "@invinite-org/chartlang-compiler";
 import type { IntervalDescriptor } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
@@ -41,6 +40,7 @@ export function createLanguageService(opts: LanguageServiceOptions = {}): Chartl
     return Object.freeze({
         async compileToDiagnostics(source: string): Promise<ReadonlyArray<LspDiagnostic>> {
             const diagnostics: LspDiagnostic[] = [];
+            const { CompileError, compile } = await import("@invinite-org/chartlang-compiler");
             try {
                 await compile(source, { apiVersion: 1, sourcePath: "script.chart.ts" });
             } catch (err) {

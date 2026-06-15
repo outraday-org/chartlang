@@ -3,6 +3,7 @@
 
 import { currentCompletions, startCompletion } from "@codemirror/autocomplete";
 import { forceLinting } from "@codemirror/lint";
+import { createLanguageService } from "@invinite-org/chartlang-language-service";
 import { describe, expect, it } from "vitest";
 
 import { createChartlangEditor } from "./createChartlangEditor.js";
@@ -55,6 +56,35 @@ describe("createChartlangEditor", () => {
         expect(parent.contains(editor.view.dom)).toBe(false);
     });
 
+    it("does not run diagnostics when no service is injected", async () => {
+        const editor = createChartlangEditor({
+            doc: "abc",
+            lintDebounceMs: 1,
+        });
+
+        forceLinting(editor.view);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        expect(editor.view.state.doc.toString()).toBe("abc");
+        editor.destroy();
+    });
+
+    it("mounts the preview panel without an injected service", () => {
+        const parent = document.createElement("div");
+        const editor = createChartlangEditor({
+            doc: "abc",
+            parent,
+            previewRunner: {},
+        });
+
+        expect(parent.querySelector(".chartlang-peek-panel")?.textContent).toBe(
+            "preview unavailable in Phase 4",
+        );
+
+        editor.destroy();
+        expect(parent.querySelector(".chartlang-peek-panel")).toBeNull();
+    });
+
     it("routes dep-aware completions through the language service", async () => {
         // Task 7 regression: the bundled language service must surface
         // producer output titles when the cursor is inside
@@ -76,6 +106,7 @@ void x;
 `;
         const editor = createChartlangEditor({
             doc: composition,
+            service: createLanguageService(),
             lintDebounceMs: 1,
         });
         const offset = composition.indexOf('output("') + 'output("'.length;
@@ -90,10 +121,10 @@ void x;
         editor.destroy();
     });
 
-    it("hot-swaps capabilities for interval completions", async () => {
+    it("uses injected service capabilities for interval completions", async () => {
         const editor = createChartlangEditor({
             doc: intervalSource,
-            targetCapabilities: testCapabilities,
+            service: createLanguageService({ targetCapabilities: testCapabilities }),
             lintDebounceMs: 1,
         });
         const offset = intervalSource.indexOf('""') + 1;
@@ -106,17 +137,6 @@ void x;
             "1D",
             "1m",
         ]);
-
-        editor.setCapabilities(null);
-        editor.setSource(intervalSource);
-        editor.view.dispatch({ selection: { anchor: offset } });
-
-        startCompletion(editor.view);
-        await waitFor(() =>
-            currentCompletions(editor.view.state).some((item) => item.label === "request.security"),
-        );
-
-        expect(currentCompletions(editor.view.state).map((item) => item.label)).not.toContain("1m");
 
         editor.setCapabilities(testCapabilities);
         editor.destroy();

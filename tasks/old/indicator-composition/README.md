@@ -1,7 +1,6 @@
 # Indicator Composition
 
-> **Status: DONE.** Implements
-> [`INDICATOR_COMPOSITION_REQUIREMENTS.md`](../../INDICATOR_COMPOSITION_REQUIREMENTS.md)
+> **Status: DONE.** Implements the indicator-composition requirements
 > as an additive `apiVersion: 1.x` extension. PLAN.md does not yet
 > reference this feature — the closest neighbour is the
 > "Library scripts that other scripts can import" line in
@@ -323,9 +322,8 @@ existing 10 000-bar `packages/conformance/fixtures/goldenBars.json`
 
 ## Deferred / Follow-Up Work
 
-Out of scope for this folder, even though
-[`INDICATOR_COMPOSITION_REQUIREMENTS.md`](../../INDICATOR_COMPOSITION_REQUIREMENTS.md)
-mentions adjacent ideas:
+Out of scope for this folder, even though the original requirements
+draft mentioned adjacent ideas:
 
 - **Dynamic dep loading** — host-supplied registry of compiled
   scripts resolved at mount time. The user explicitly picked the

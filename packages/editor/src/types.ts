@@ -11,11 +11,11 @@ import type { ChartlangLanguageService } from "@invinite-org/chartlang-language-
  * Options accepted by the framework-agnostic CodeMirror editor factory.
  *
  * `service` injects a consumer-provided {@link ChartlangLanguageService}.
- * When supplied, the factory does not construct an internal service and
- * `setCapabilities(...)` becomes a no-op — the injected service owns its
- * own capability surface. Browser consumers who compile server-side use
- * this seam to wire a hybrid service (local hover / completions, remote
- * `compileToDiagnostics`).
+ * The factory never constructs an internal service, so hover,
+ * completions, diagnostics, and capability-aware interval suggestions are
+ * available only when a service is supplied. Browser consumers who
+ * compile server-side use this seam to wire a hybrid service (local hover
+ * / completions, remote `compileToDiagnostics`).
  *
  * `extensions` is a passthrough seam for arbitrary CodeMirror extensions
  * (themes, keymaps, read-only flags, custom highlight styles). The list
@@ -32,6 +32,12 @@ import type { ChartlangLanguageService } from "@invinite-org/chartlang-language-
 export type ChartlangEditorOpts = Readonly<{
     doc?: string;
     parent?: HTMLElement;
+    /**
+     * @deprecated Browser-safe editor entries no longer construct a
+     * language service internally. Create a service with
+     * `createLanguageService({ targetCapabilities })` and pass it via
+     * `service`.
+     */
     targetCapabilities?: Capabilities;
     service?: ChartlangLanguageService;
     onSourceChange?: (next: string) => void;
@@ -54,5 +60,9 @@ export type ChartlangEditor = Readonly<{
     view: EditorView;
     destroy(): void;
     setSource(source: string): void;
+    /**
+     * @deprecated No-op. Capability updates belong to the injected
+     * language service.
+     */
     setCapabilities(caps: Capabilities | null): void;
 }>;

@@ -7,23 +7,8 @@ import { EditorView } from "@codemirror/view";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-    createTestLanguageService,
-    testCapabilities,
-    waitFor,
-} from "../__fixtures__/testHelpers.js";
+import { createTestLanguageService, waitFor } from "../__fixtures__/testHelpers.js";
 import { ChartlangEditor } from "./ChartlangEditor.js";
-
-const intervalSource = `
-import { defineIndicator, request } from "@invinite-org/chartlang-core";
-export default defineIndicator({
-    name: "Demo",
-    apiVersion: 1,
-    compute: () => {
-        request.security({ interval: "" });
-    },
-});
-`;
 
 afterEach(() => cleanup());
 
@@ -69,27 +54,51 @@ describe("ChartlangEditor", () => {
         expect(changes).toEqual(["const next = 2;"]);
     });
 
-    it("hot-swaps target capabilities without remounting", async () => {
+    it("keeps the injected service active across target capability updates", async () => {
+        let compileCalls = 0;
+        const service = createTestLanguageService({
+            compileToDiagnostics: async () => {
+                compileCalls += 1;
+                return [];
+            },
+        });
         const { container, rerender } = render(
-            <ChartlangEditor source={intervalSource} targetCapabilities={testCapabilities} />,
+            <ChartlangEditor
+                service={service}
+                source="const first = 1;"
+                targetCapabilities={{
+                    plots: new Set(["line"]),
+                    drawings: new Set(),
+                    alerts: new Set(),
+                    alertConditions: false,
+                    logs: false,
+                    inputs: new Set(),
+                    intervals: [],
+                    multiTimeframe: false,
+                    subPanes: 0,
+                    symInfoFields: new Set(),
+                    maxDrawingsPerScript: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+                    maxLookback: 5000,
+                    maxTickHz: 10,
+                }}
+            />,
         );
         const view = findMountedView(container);
-        const offset = intervalSource.indexOf('""') + 1;
 
-        view.dispatch({ selection: { anchor: offset } });
-        startCompletion(view);
-        await waitFor(() => currentCompletions(view.state).length > 0);
+        forceLinting(view);
+        await waitFor(() => compileCalls > 0);
+        const afterFirstLint = compileCalls;
 
-        expect(currentCompletions(view.state).map((item) => item.label)).toEqual(["1D", "1m"]);
-
-        rerender(<ChartlangEditor source={intervalSource} targetCapabilities={undefined} />);
-        view.dispatch({ selection: { anchor: offset } });
-        startCompletion(view);
-        await waitFor(() =>
-            currentCompletions(view.state).some((item) => item.label === "request.security"),
+        rerender(
+            <ChartlangEditor
+                service={service}
+                source="const second = 2;"
+                targetCapabilities={undefined}
+            />,
         );
+        forceLinting(view);
+        await waitFor(() => compileCalls > afterFirstLint);
 
-        expect(currentCompletions(view.state).map((item) => item.label)).not.toContain("1m");
         expect(container.querySelectorAll(".cm-editor")).toHaveLength(1);
     });
 

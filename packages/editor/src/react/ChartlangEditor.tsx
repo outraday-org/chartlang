@@ -11,9 +11,9 @@ import type { ChartlangEditorOpts, ChartlangEditor as MountedChartlangEditor } f
  *
  * Pass `service` to inject a custom language-service (typically the only
  * viable browser architecture — local hover / completions, remote
- * `compileToDiagnostics`). When supplied, `targetCapabilities` becomes
- * a no-op because the injected service owns its capability surface; the
- * component does not re-mount on `service` identity changes either.
+ * `compileToDiagnostics`). `targetCapabilities` is deprecated here; build
+ * them into the injected service instead. The component does not re-mount
+ * on `service` identity changes.
  *
  * `extensions` forwards arbitrary CodeMirror extensions (themes,
  * keymaps, etc.) to {@link createChartlangEditor}. The array is read
@@ -91,9 +91,8 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
     }, [props.source]);
 
     useEffect(() => {
-        // When a consumer service is injected, the editor's
-        // `setCapabilities` is a no-op (the injected service owns its
-        // own capability surface). Calling it is still safe.
+        // Deprecated no-op kept for compatibility. Capability updates
+        // belong to the injected service.
         editorRef.current?.setCapabilities(props.targetCapabilities ?? null);
     }, [props.targetCapabilities]);
 
