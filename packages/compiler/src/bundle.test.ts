@@ -41,6 +41,49 @@ export default defineIndicator({ name: "x", apiVersion: 1, compute: () => {} });
         expect(result.moduleSource).not.toContain("@invinite-org/chartlang-core");
     });
 
+    it("resolves bare specifiers from `inMemoryModules` instead of disk", async () => {
+        // Hosts that run the compiler where the workspace packages are not
+        // resolvable on disk (e.g. a bundled serverless function) pass the
+        // pre-bundled package source via `inMemoryModules`. The plugin's
+        // resolve + load hooks short-circuit esbuild's filesystem walk.
+        const src = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({ name: "x", apiVersion: 1, compute: () => {} });
+`;
+        const result = await bundleModule({
+            transformedSource: src,
+            sourcePath: "x.chart.ts",
+            sourcemap: false,
+            minify: false,
+            inMemoryModules: {
+                "@invinite-org/chartlang-core": `
+export function defineIndicator(o){ const __m = "IN_MEMORY_MARKER"; return { ...o, __m }; }
+`,
+            },
+        });
+        expect(result.moduleSource).not.toMatch(/^\s*import\b/m);
+        expect(result.moduleSource).toContain("IN_MEMORY_MARKER");
+    });
+
+    it("falls back to disk for specifiers absent from `inMemoryModules`", async () => {
+        // The map is non-empty (so the plugin is installed) but does not
+        // contain the imported specifier, so the resolve hook returns null
+        // and esbuild resolves `@invinite-org/chartlang-core` from disk.
+        const src = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({ name: "x", apiVersion: 1, compute: () => {} });
+`;
+        const result = await bundleModule({
+            transformedSource: src,
+            sourcePath: "x.chart.ts",
+            sourcemap: false,
+            minify: false,
+            inMemoryModules: { "some-unused-package": "export const a = 1;" },
+        });
+        expect(result.moduleSource).not.toMatch(/^\s*import\b/m);
+        expect(result.moduleSource).not.toContain("@invinite-org/chartlang-core");
+    });
+
     it("returns external sourcemap JSON when sourcemap === 'external'", async () => {
         const result = await bundleModule({
             transformedSource: TS_SOURCE,

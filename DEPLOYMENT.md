@@ -99,6 +99,33 @@ memory, so the compiler never depends on the Function filesystem:
 After each deploy, load `?script=ema-cross#demo` and confirm the gutter is
 clean — a regression here shows up as TS7031 on a known-good script.
 
+### The compiler's core import is resolved from a bundled copy, not disk
+
+`compile()`'s esbuild bundling step (`bundle: true`) inlines
+`@invinite-org/chartlang-core` into the compiled script by resolving the
+bare import against `node_modules`. The Netlify Function inlines the
+workspace package into the server bundle but does NOT install it as a
+resolvable `node_modules` package, so on the deployed site esbuild fails
+with `Could not resolve "@invinite-org/chartlang-core"` and `/api/compile`
+returns `{ ok: false }` / 500. The symptom is a **blank chart with no
+gutter error** (the editor keeps its last good state; the compile just
+never produces an artifact).
+
+Fix: the core package (and its `/time` subpath) is pre-bundled into
+self-contained ESM at build time and passed to the compiler's
+`inMemoryModules` seam, so esbuild resolves it from memory:
+
+- `apps/site/vite.config.ts`'s `chartlangCoreBundles()` plugin esbuild-
+  bundles `@invinite-org/chartlang-core` + `…/time` and exposes them as
+  `virtual:chartlang-core-bundles`.
+- `apps/site/src/lib/server/compile.ts` passes that map as
+  `compile(..., { inMemoryModules })`.
+
+Verify after deploy with:
+`curl -s -X POST https://chartlang.invinite.com/api/compile -H 'content-type: application/json' -H 'origin: https://chartlang.invinite.com' -d '{"source":"import { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";export default defineIndicator({name:\"x\",apiVersion:1,overlay:true,compute({bar,ta,plot}){plot(ta.ema(bar.close,12));}});"}'`
+— expect `{"ok":true,"moduleSource":"…"}`. An `ok:false` "Could not resolve"
+error means the core-bundles plugin regressed.
+
 ## DNS — Cloudflare
 
 Both records are CNAMEs, **DNS-only** (grey cloud, not proxied).

@@ -468,6 +468,18 @@ export type CompileOptions = Readonly<{
      * @since 0.7
      */
     rootDir?: string;
+    /**
+     * Bare specifier → self-contained ESM source map the bundler resolves
+     * in-memory instead of from disk. Lets a host run `compile` where the
+     * workspace `@invinite-org/chartlang-*` packages are not installed as
+     * resolvable node_modules — e.g. a bundled serverless function, where
+     * the packages were inlined into the host bundle rather than shipped
+     * to the function filesystem. Each value must have no remaining bare
+     * imports (pre-bundle the package before passing it).
+     *
+     * @since 1.1
+     */
+    inMemoryModules?: Readonly<Record<string, string>>;
 }>;
 
 /**
@@ -677,6 +689,7 @@ export async function compile(source: string, opts: CompileOptions): Promise<Com
         sourcemap,
         minify: opts.minify ?? false,
         ...(inlinedProducers.length === 0 ? {} : { inlinedProducers }),
+        ...(opts.inMemoryModules === undefined ? {} : { inMemoryModules: opts.inMemoryModules }),
     });
 
     const sidecar: ScriptManifest | ReadonlyArray<ScriptManifest> =

@@ -19,6 +19,20 @@ export default defineIndicator({
 `;
 
 describe("compile", () => {
+    it("resolves core from `inMemoryModules` when provided", async () => {
+        const result = await compile(VALID_DEFINE, {
+            apiVersion: 1,
+            sourcePath: "x.chart.ts",
+            inMemoryModules: {
+                "@invinite-org/chartlang-core": `
+export function defineIndicator(o){ const __m = "IN_MEMORY_CORE_MARKER"; return { ...o, __m }; }
+`,
+            },
+        });
+        expect(result.moduleSource).toContain("IN_MEMORY_CORE_MARKER");
+        expect(result.moduleSource).not.toMatch(/^\s*import\b/m);
+    });
+
     it("returns a frozen CompiledScript for the EMA-cross fixture", async () => {
         const result = await compile(EMA_CROSS, {
             apiVersion: 1,

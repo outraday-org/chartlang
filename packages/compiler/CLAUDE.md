@@ -4,6 +4,18 @@
 
 ## Invariants
 
+- **`compile`/`bundleModule` resolve `@invinite-org/chartlang-core` from
+  disk by default; `inMemoryModules` overrides that.** The esbuild
+  `bundle: true` step pins `resolveDir` to the compiler package dir and
+  walks `node_modules` to inline core — fine on a normal Node install,
+  but it throws "Could not resolve @invinite-org/chartlang-core" when the
+  compiler runs somewhere the workspace package is not installed as a
+  resolvable module (e.g. a bundled serverless function). Passing
+  `inMemoryModules` (`{ [specifier]: selfContainedEsmSource }`) installs an
+  esbuild plugin whose resolve/load hooks serve those specifiers from
+  memory before the filesystem walk. Values MUST be pre-bundled (no
+  remaining bare imports). Default behavior (no map / empty map) is
+  byte-identical — keep it that way so the determinism + golden tests hold.
 - **Callsite-id format is load-bearing.** Slot ids follow
   `<sourcePath>:<line>:<col>#<callIndex>` (§5.5). Lines and columns are
   1-based, read from the **input** source file before any rewrite. The

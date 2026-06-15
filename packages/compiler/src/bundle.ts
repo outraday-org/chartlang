@@ -36,6 +36,7 @@ export type BundleModuleOptions = Readonly<{
     sourcemap: boolean | "inline" | "external";
     minify: boolean;
     inlinedProducers?: ReadonlyArray<InlinedProducer>;
+    inMemoryModules?: Readonly<Record<string, string>>;
 }>;
 
 /**
@@ -88,6 +89,36 @@ const COMPILER_PACKAGE_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 // shim keeps the §5.2 "zero remaining `import` statements" contract intact.
 const DEP_OUTPUT_SHIM = `const __chartlang_depOutput = globalThis.__chartlang_depOutput ?? (() => { throw new Error("@invinite-org/chartlang-runtime >= 0.7 is required to evaluate this bundle"); });`;
 
+const IN_MEMORY_NAMESPACE = "chartlang-in-memory";
+
+/**
+ * Build an esbuild plugin that resolves the bare specifiers in `modules`
+ * to in-memory ESM contents instead of the filesystem. Used by hosts that
+ * run the compiler where the workspace `@invinite-org/chartlang-*`
+ * packages are not resolvable on disk (e.g. a bundled serverless function
+ * where the packages were inlined into the host bundle, not installed as
+ * node_modules). The contents must be self-contained ESM (no remaining
+ * bare imports), since they are loaded in their own namespace.
+ */
+function inMemoryModulesPlugin(modules: Readonly<Record<string, string>>): esbuild.Plugin {
+    return {
+        name: "chartlang-in-memory-modules",
+        setup(build) {
+            const filter = /.*/;
+            build.onResolve({ filter }, (args) =>
+                Object.hasOwn(modules, args.path)
+                    ? { path: args.path, namespace: IN_MEMORY_NAMESPACE }
+                    : null,
+            );
+            build.onLoad({ filter, namespace: IN_MEMORY_NAMESPACE }, (args) => ({
+                contents: modules[args.path],
+                loader: "js",
+                resolveDir: COMPILER_PACKAGE_DIR,
+            }));
+        },
+    };
+}
+
 /**
  * Drive esbuild's `build` API against an in-memory transformed TS source and
  * emit a self-contained ESM bundle. Pinned flags: `bundle: true`,
@@ -121,6 +152,9 @@ export async function bundleModule(opts: BundleModuleOptions): Promise<BundleMod
             ? opts.transformedSource
             : `${DEP_OUTPUT_SHIM}\n${producers.map((p) => p.rewrittenSource).join("\n")}\n${opts.transformedSource}`;
 
+    const inMemoryModules = opts.inMemoryModules ?? {};
+    const hasInMemoryModules = Object.keys(inMemoryModules).length > 0;
+
     const buildOpts: esbuild.BuildOptions = {
         stdin: {
             contents: combinedSource,
@@ -137,6 +171,7 @@ export async function bundleModule(opts: BundleModuleOptions): Promise<BundleMod
         minify: opts.minify,
         treeShaking: true,
         write: false,
+        ...(hasInMemoryModules ? { plugins: [inMemoryModulesPlugin(inMemoryModules)] } : {}),
         // `outfile` is required when `sourcemap: "external"`; the virtual path
         // never touches disk because `write: false`.
         ...(wantsExternalMap ? { outfile: `${opts.sourcePath}.js` } : {}),

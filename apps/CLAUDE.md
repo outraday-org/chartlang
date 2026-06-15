@@ -99,6 +99,17 @@ and the demo 500s, the client bundle fails to load, or the whole site
   serve them from memory (called by `handleCompile` before each compile).
   See `DEPLOYMENT.md` → "TypeScript default libs". Confirm `?script=
   ema-cross#demo` has a clean gutter after each deploy.
+- **The compiler's `@invinite-org/chartlang-core` import is bundled in, not
+  read from disk.** `compile()`'s esbuild `bundle: true` step inlines core
+  by resolving the bare import against `node_modules`. The Netlify function
+  inlines the workspace package into the server bundle but does NOT install
+  it as a resolvable module, so esbuild fails with "Could not resolve
+  @invinite-org/chartlang-core" and `/api/compile` 500s — a **blank chart
+  with no gutter error**. Fix: `vite.config.ts`'s `chartlangCoreBundles()`
+  plugin pre-bundles core (+ `/time`) into `virtual:chartlang-core-bundles`,
+  and `src/lib/server/compile.ts` passes them via the compiler's
+  `inMemoryModules` option. Verify `/api/compile` returns `ok:true` after
+  each deploy (see `DEPLOYMENT.md` → "core import").
 - The server compile helper lives at `src/lib/server/compile.ts`;
   importing it from any `src/components/*` file would drag the compiler
   into the client graph. The route file is its only importer.

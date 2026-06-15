@@ -1,11 +1,12 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { readFileSync, readdirSync } from "node:fs"
+import { readFileSync, readdirSync, realpathSync } from "node:fs"
 import { createRequire } from "node:module"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import netlify from "@netlify/vite-plugin-tanstack-start"
+import * as esbuild from "esbuild"
 import { devtools } from "@tanstack/devtools-vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import tailwindcss from "@tailwindcss/vite"
@@ -89,6 +90,61 @@ function tsDefaultLibs(): Plugin {
   }
 }
 
+const CORE_BUNDLES_ID = "virtual:chartlang-core-bundles"
+
+/**
+ * Pre-bundle `@invinite-org/chartlang-core` (+ its `/time` subpath) into
+ * self-contained ESM strings and expose them as a
+ * `{ [specifier]: source }` map for `virtual:chartlang-core-bundles`.
+ *
+ * The `/api/compile` route runs the real compiler, whose esbuild step
+ * (`bundle: true`) resolves the user script's
+ * `import … from "@invinite-org/chartlang-core"` against the filesystem.
+ * The Netlify function inlines the workspace package into the server
+ * bundle but does NOT install it as a resolvable `node_modules` package,
+ * so on the deployed site esbuild fails with "Could not resolve
+ * @invinite-org/chartlang-core" and the compile 500s (a blank chart with
+ * no gutter error). Passing these pre-bundled sources to `compile`'s
+ * `inMemoryModules` seam makes the bundler resolve core from memory
+ * instead of disk. Built here (at `vite build`, where the workspace dist
+ * IS present) and embedded in the server bundle.
+ */
+function chartlangCoreBundles(): Plugin {
+  return {
+    name: "chartlang-core-bundles",
+    resolveId(id) {
+      return id === CORE_BUNDLES_ID ? `\0${CORE_BUNDLES_ID}` : null
+    },
+    async load(id) {
+      if (id !== `\0${CORE_BUNDLES_ID}`) return null
+      // The core package exposes only the `import` condition, so CJS
+      // `require.resolve` of it (or its package.json) throws. Resolve the
+      // workspace symlink under this app's node_modules instead.
+      const appDir = dirname(fileURLToPath(import.meta.url))
+      const coreRoot = realpathSync(
+        join(appDir, "node_modules/@invinite-org/chartlang-core"),
+      )
+      const bundleEntry = async (relPath: string): Promise<string> => {
+        const result = await esbuild.build({
+          entryPoints: [join(coreRoot, relPath)],
+          bundle: true,
+          format: "esm",
+          platform: "neutral",
+          target: "es2022",
+          treeShaking: true,
+          write: false,
+        })
+        return result.outputFiles[0]?.text ?? ""
+      }
+      const modules: Record<string, string> = {
+        "@invinite-org/chartlang-core": await bundleEntry("dist/index.js"),
+        "@invinite-org/chartlang-core/time": await bundleEntry("dist/time/index.js"),
+      }
+      return `export default ${JSON.stringify(modules)}`
+    },
+  }
+}
+
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
   optimizeDeps: { exclude: ["esbuild"] },
@@ -116,6 +172,7 @@ const config = defineConfig({
   plugins: [
     clientBrowserStubs(),
     tsDefaultLibs(),
+    chartlangCoreBundles(),
     devtools(),
     tailwindcss(),
     tanstackStart(),

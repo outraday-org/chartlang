@@ -12,8 +12,12 @@
 
 import { CompileError, compile } from "@invinite-org/chartlang-compiler"
 import { createLanguageService } from "@invinite-org/chartlang-language-service"
+// @ts-expect-error virtual module provided by the chartlangCoreBundles Vite plugin
+import coreBundles from "virtual:chartlang-core-bundles"
 
 import { ensureTsDefaultLibsPatched } from "./tsDefaultLibs"
+
+const IN_MEMORY_MODULES: Readonly<Record<string, string>> = coreBundles
 
 /**
  * Successful compile response. `moduleSource` + `manifest` flow straight
@@ -60,7 +64,11 @@ export async function handleCompile(
   const languageService = createLanguageService()
   const diagnostics = await languageService.compileToDiagnostics(source)
   try {
-    const compiled = await compile(source, { apiVersion: 1, sourcePath: SOURCE_PATH })
+    const compiled = await compile(source, {
+      apiVersion: 1,
+      sourcePath: SOURCE_PATH,
+      inMemoryModules: IN_MEMORY_MODULES,
+    })
     return {
       ok: true,
       moduleSource: compiled.moduleSource,
