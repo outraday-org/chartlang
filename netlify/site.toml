@@ -1,10 +1,16 @@
-# netlify/site.toml — build config for chartlang.invinite.com.
-# Registered in Netlify as the base config for Site "chartlang-site".
+# netlify/site.toml — REFERENCE build config for chartlang.invinite.com.
 #
-# @tanstack/react-start emits dist/client (static assets) + dist/server
-# (the SSR + server-route bundle); there is no build-time Netlify preset.
-# Netlify's TanStack Start adapter turns dist/server into functions at
-# deploy time, so `publish` points at the static client output.
+# NOT currently auto-loaded by Netlify: it only reads a file literally
+# named `netlify.toml` from the project's package directory. The live
+# build settings are entered in the Netlify dashboard; this file is the
+# documented reference and the basis for a future migration to a
+# Netlify-read `netlify.toml`. See DEPLOYMENT.md → "Open: consolidate
+# config".
+#
+# SSR is served by @netlify/vite-plugin-tanstack-start, which emits a
+# catch-all function (.netlify/v1/functions/server.mjs, path "/*"), so
+# the `[[redirects]]` below is superseded while that adapter is in use.
+# `publish` points at the static client output.
 
 [build]
     base = "."

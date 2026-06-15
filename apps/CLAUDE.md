@@ -13,7 +13,8 @@ artefacts that ship alongside the published packages).
   `chartlang.invinite.com` by Netlify. Private (`"private": true`).
   Scaffolded by
   `pnpm dlx shadcn@latest init --preset b0 --base base --template start`
-  (see `tasks/landing-site-netlify-deploy/`).
+  (see `tasks/old/landing-site-netlify-deploy/`). Deploy mechanics live
+  in `DEPLOYMENT.md`.
 
 ## Conventions
 
@@ -57,9 +58,18 @@ artefacts that ship alongside the published packages).
 
 The embedded demo runs the real chartlang compiler in the
 `/api/compile` server route while keeping a browser-importable language
-service. Two build-config invariants make that coexist — break either
-and the demo 500s or the client bundle fails to load:
+service. These build-config invariants make that coexist — break one
+and the demo 500s, the client bundle fails to load, or the whole site
+404s:
 
+- **The SSR adapter is required.** `vite.config.ts` runs
+  `@netlify/vite-plugin-tanstack-start` **after** `tanstackStart()`. It
+  emits `.netlify/v1/functions/server.mjs` (config `path: "/*"`,
+  `preferStatic: true`) wrapping `dist/server/server.js`. Without it
+  `vite build` produces only a plain Node server Netlify cannot run, and
+  publishing `dist/client` alone 404s every route (an SSR app has no
+  `index.html`). The plugin requires **Node 22+**, so `engines.node` is
+  `>=22` and Netlify pins `NODE_VERSION=22`.
 - **Stub aliases are CLIENT-ONLY.** `esbuild` + the `node:*` builtins
   the language service touches are redirected to
   `src/lib/browser-stubs/` via a Vite plugin gated on
@@ -71,8 +81,10 @@ and the demo 500s or the client bundle fails to load:
   package, throwing "`__filename` is not defined" once bundled into an
   ESM server file). It is `environments.ssr.build.rollupOptions.external`
   and an explicit `apps/site` devDependency so the function runtime
-  resolves it from `node_modules`. This mirrors Netlify's
-  `external_node_modules = ["esbuild"]` (Task 5).
+  resolves it from `node_modules`. `netlify/site.toml` records the
+  matching `external_node_modules = ["esbuild"]`, but that file is not
+  currently read by Netlify (see `DEPLOYMENT.md` → "Open: consolidate
+  config"); verify `/api/compile` after each deploy.
 - The server compile helper lives at `src/lib/server/compile.ts`;
   importing it from any `src/components/*` file would drag the compiler
   into the client graph. The route file is its only importer.

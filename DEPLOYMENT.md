@@ -2,8 +2,16 @@
 
 Operational reference for the two chartlang public sites. Both are
 hosted on Netlify, deployed from `main`, with DNS pointed at Netlify
-from the Cloudflare-managed `invinite.com` zone. The in-repo build
-config is authoritative — `netlify/site.toml` and `netlify/docs.toml`.
+from the Cloudflare-managed `invinite.com` zone.
+
+> **Config note.** Netlify only auto-loads a file literally named
+> `netlify.toml` from the project's base/package directory. The
+> `netlify/site.toml` / `netlify/docs.toml` files in this repo are
+> **not** picked up by that mechanism — the live build settings are
+> entered in the Netlify dashboard (Site config → Build & deploy). The
+> `netlify/*.toml` files are kept as the documented reference for those
+> settings and as the basis for a future migration to a Netlify-read
+> `netlify.toml` (see "Open: consolidate config" below).
 
 ## Sites
 
@@ -18,31 +26,47 @@ them here once known (they back the deploy-status badges):
 - `chartlang-site` → `<chartlang-site-id>`
 - `chartlang-docs` → `<chartlang-docs-id>`
 
-## Build config (verified — matches the in-repo TOML)
+## Build config (set in the Netlify dashboard)
 
 | Site | Build command | Publish dir | Node |
 |---|---|---|---|
-| chartlang-site | `pnpm install --frozen-lockfile && pnpm --filter chartlang-site build` | `apps/site/dist/client` | 20 |
-| chartlang-docs | `pnpm install --frozen-lockfile && pnpm docs:build` | `docs/.vitepress/dist` | 20 |
+| chartlang-site | `pnpm install --frozen-lockfile && pnpm --filter chartlang-site build` | `apps/site/dist/client` | 22 |
+| chartlang-docs | `pnpm install --frozen-lockfile && pnpm docs:build` | `docs/.vitepress/dist` | 22 |
 
-Both pin `PNPM_VERSION = "9.12.0"` and `base = "."` (the monorepo root)
-so the workspace install resolves `@invinite-org/chartlang-*` from
-`workspace:*`.
+Set `base = "."` (the monorepo root) so the workspace install resolves
+`@invinite-org/chartlang-*` from `workspace:*`; for `chartlang-site` the
+Netlify "Project to deploy" / package directory is `apps/site`. Pin
+`NODE_VERSION = "22"` in the dashboard env vars — the SSR adapter
+(`@netlify/vite-plugin-tanstack-start`) requires Node 22+.
 
-`@tanstack/react-start` emits `dist/client` (static assets) +
-`dist/server` (the SSR + server-route bundle). Netlify's TanStack Start
-adapter turns `dist/server` into Functions at deploy time, so `publish`
-points at the static client output, and the `/api/*` redirect routes
-requests to the generated Functions.
+### SSR adapter — how `chartlang-site` serves pages
+
+`apps/site/vite.config.ts` runs `@netlify/vite-plugin-tanstack-start`
+(after `tanstackStart()`). `vite build` emits:
+
+- `dist/client` — static assets (published).
+- `dist/server/server.js` — the SSR + server-route bundle.
+- `.netlify/v1/functions/server.mjs` — the SSR Function the adapter
+  generates. It is configured `path: "/*"`, `preferStatic: true`, so
+  static assets serve first and every other route (including
+  `/api/compile`) is handled by SSR. This supersedes the manual
+  `/api/*` redirect that `netlify/site.toml` once declared.
+
+Without this plugin `vite build` produces only a plain Node server that
+Netlify cannot run, and publishing `dist/client` alone 404s every route
+(there is no `index.html` for an SSR app).
 
 ### esbuild must stay external
 
-`netlify/site.toml` sets `[functions] external_node_modules =
-["esbuild"]`. esbuild ships native binaries and locates them relative to
-its own package — bundling it into the ESM Function breaks it
-(`__filename is not defined`). Keep it external so the Lambda runtime
-loads it from `node_modules`. This mirrors the `ssr` external in
-`apps/site/vite.config.ts`.
+`apps/site/vite.config.ts` keeps `esbuild` external in the `ssr` build
+(`environments.ssr.build.rollupOptions.external`). esbuild ships native
+binaries and locates them relative to its own package — bundling it into
+the ESM Function breaks it (`__filename is not defined`), so the Function
+runtime must load it from `node_modules`. `netlify/site.toml` records the
+equivalent `[functions] external_node_modules = ["esbuild"]` directive;
+once config is consolidated into a Netlify-read `netlify.toml` (below),
+that directive becomes live again. Verify `/api/compile` after each
+deploy — a broken esbuild resolution shows up there first.
 
 ## DNS — Cloudflare
 
@@ -67,7 +91,11 @@ after the custom domain is added.
 3. Branch deploys: **disabled** (only `main` deploys to prod).
 4. Deploy Previews: **enabled** (per-PR preview URLs; the Netlify
    GitHub App comments the URL on each PR).
-5. Config file: `netlify/site.toml` or `netlify/docs.toml`.
+5. For `chartlang-site`, set "Project to deploy" / package directory to
+   `apps/site` with base = repo root. Enter the build command, publish
+   dir, and `NODE_VERSION = 22` from the "Build config" table above
+   (Netlify does not auto-load `netlify/site.toml` — see the config
+   note at the top).
 6. Domain → Add custom domain → the value from the table above.
 7. Wait for the Let's Encrypt cert (typically < 5 min).
 8. Copy the assigned Site ID into the table above.
@@ -81,8 +109,8 @@ left unset under the custom domain (see `docs/CLAUDE.md`).
 
 | Variable | Site | Default | Set in prod? |
 |---|---|---|---|
-| `NODE_VERSION` | both | `20` (in TOML) | no — pinned in TOML |
-| `PNPM_VERSION` | both | `9.12.0` (in TOML) | no — pinned in TOML |
+| `NODE_VERSION` | both | `22` | yes — set in dashboard env vars (adapter needs Node 22+) |
+| `PNPM_VERSION` | both | `9.12.0` | yes — set in dashboard env vars |
 | `DOCS_BASE` | docs | `/` | no — custom domain serves at root |
 
 ## Deploy lifecycle
@@ -115,12 +143,14 @@ last known-good deploy, click "Publish deploy". Takes < 30s.
 - Time: < 500 ms on the playground scripts. 10 s Function timeout on
   the free tier.
 - Cold start: ~600–900 ms (esbuild binary load).
+- Routing: served by the SSR Function's catch-all (`path: "/*"`), not a
+  standalone redirect.
 - Origin allowlist: enforced in
   `apps/site/src/routes/api/compile.ts`. The production origin,
   `*.netlify.app` previews, and same-origin requests are accepted;
-  anything else returns 403. `netlify/site.toml` pins the production
-  domain in static CORS headers (Netlify can't echo a dynamic preview
-  origin — the route's runtime check covers previews).
+  anything else returns 403. This runtime check is the active CORS
+  enforcement; the static CORS headers in `netlify/site.toml` are not
+  applied while that file is unread (see "Open: consolidate config").
 - Source size limit: 64 KB in
   `apps/site/src/lib/server/compile.ts`. Above-limit requests return
   `{ ok: false, diagnostics: [] }`.
@@ -135,3 +165,23 @@ GitHub Pages must also be disabled at the repo level:
 3. Save.
 
 This stops the orphan deploy from re-firing on rebased branches.
+
+## Open: consolidate config
+
+Today the live build settings live in the Netlify dashboard and the
+`netlify/*.toml` files are unread reference. To make the in-repo config
+authoritative again — and re-activate the security/CORS `[[headers]]`
+and the `external_node_modules = ["esbuild"]` directive — migrate each
+site to a Netlify-read `netlify.toml`:
+
+- Netlify auto-loads `netlify.toml` from the **package directory**. With
+  `chartlang-site` set to package directory `apps/site`, place the
+  config at `apps/site/netlify.toml` (paths inside stay relative to the
+  base directory, the repo root).
+- The docs site would get `docs/netlify.toml` the same way.
+- Note this conflicts with the `CLAUDE.md` rule that keeps Netlify
+  config under `netlify/`; updating that rule is part of the migration.
+
+Until then: header/CORS directives are enforced at runtime in the route
+(`apps/site/src/routes/api/compile.ts`), and `esbuild` stays external
+via `apps/site/vite.config.ts` only.

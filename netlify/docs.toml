@@ -1,5 +1,7 @@
-# netlify/docs.toml — build config for docs.chartlang.invinite.com.
-# Registered in Netlify as the base config for Site "chartlang-docs".
+# netlify/docs.toml — REFERENCE build config for docs.chartlang.invinite.com.
+# NOT auto-loaded by Netlify (it only reads a file named `netlify.toml`
+# from the package directory); the live settings are in the Netlify
+# dashboard. See DEPLOYMENT.md → "Open: consolidate config".
 
 [build]
     base = "."
