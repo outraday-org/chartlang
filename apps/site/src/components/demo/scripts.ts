@@ -11,6 +11,7 @@
 export type DemoScript = Readonly<{
     id: string;
     label: string;
+    description: string;
     source: string;
 }>;
 
@@ -184,10 +185,46 @@ export default defineIndicator({
 `;
 
 export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
-    { id: "ema-cross", label: "EMA Cross", source: EMA_CROSS },
-    { id: "bollinger-bands", label: "Bollinger Bands", source: BOLLINGER_BANDS },
-    { id: "rsi-divergence-alert", label: "RSI Divergence Alert", source: RSI_DIVERGENCE_ALERT },
-    { id: "smoothed-rsi-cross", label: "Smoothed RSI Cross", source: SMOOTHED_RSI_CROSS },
-    { id: "explicit-pane-routing", label: "Explicit Pane Routing", source: EXPLICIT_PANE_ROUTING },
-    { id: "trend-composition", label: "Trend Composition", source: TREND_COMPOSITION },
+    {
+        id: "ema-cross",
+        label: "EMA Cross",
+        description:
+            "A fast/slow EMA pair on the candles, firing alerts when the fast EMA crosses the slow one.",
+        source: EMA_CROSS,
+    },
+    {
+        id: "bollinger-bands",
+        label: "Bollinger Bands",
+        description:
+            "Bollinger Bands via ta.bb — upper, middle, and lower bands plotted over price.",
+        source: BOLLINGER_BANDS,
+    },
+    {
+        id: "rsi-divergence-alert",
+        label: "RSI Divergence Alert",
+        description:
+            "RSI(14) in its own pane with 70/30 overbought/oversold guides and alerts on each crossing.",
+        source: RSI_DIVERGENCE_ALERT,
+    },
+    {
+        id: "smoothed-rsi-cross",
+        label: "Smoothed RSI Cross",
+        description:
+            "Indicator composition: one indicator feeding another, with RSI(14) smoothed by an EMA(9) of its own output.",
+        source: SMOOTHED_RSI_CROSS,
+    },
+    {
+        id: "explicit-pane-routing",
+        label: "Explicit Pane Routing",
+        description:
+            "An EMA pair on the price pane plus an RSI oscillator routed to its own subpane via explicit pane ids.",
+        source: EXPLICIT_PANE_ROUTING,
+    },
+    {
+        id: "trend-composition",
+        label: "Trend Composition",
+        description:
+            "Phase-7 indicator composition: a private dependency, a named export, and a default consumer that marks crossovers.",
+        source: TREND_COMPOSITION,
+    },
 ];

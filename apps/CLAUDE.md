@@ -76,15 +76,34 @@ and the demo 500s, the client bundle fails to load, or the whole site
   `applyToEnvironment(env => env.name === "client")`. A plain
   top-level `resolve.alias` rewrites BOTH the client and the `ssr`
   graph, which would neuter the real compiler the server route needs.
-- **`esbuild` is external in the `ssr` build.** esbuild's JS API
-  cannot be bundled (it finds its native binary relative to its own
-  package, throwing "`__filename` is not defined" once bundled into an
-  ESM server file). It is `environments.ssr.build.rollupOptions.external`
-  and an explicit `apps/site` devDependency so the function runtime
-  resolves it from `node_modules`. `netlify/site.toml` records the
-  matching `external_node_modules = ["esbuild"]`, but that file is not
-  currently read by Netlify (see `DEPLOYMENT.md` → "Open: consolidate
+- **`esbuild` and `typescript` are external in the `ssr` build.**
+  esbuild's JS API cannot be bundled (it finds its native binary relative
+  to its own package, throwing "`__filename` is not defined" once bundled
+  into an ESM server file). `typescript` must stay external too: the
+  language service's `compileToDiagnostics` builds an in-memory
+  `ts.Program` whose default lib (`lib.es2022.d.ts`) is read from disk at
+  runtime via `ts.sys.getExecutingFilePath()` → `node_modules/typescript/
+  lib`. If the function bundler inlines `typescript`, that path misses the
+  lib dir; with `skipLibCheck` the failure is silent and the ambient core
+  shim's `Readonly`/`Record` collapse to `any`, so every valid
+  `compute({ bar, ta, … })` destructure trips noImplicitAny (TS7031) on
+  the deployed site (dev, with lib on disk, is fine). Both are listed in
+  `environments.ssr.build.rollupOptions.external` and are explicit
+  `apps/site` devDependencies so the function runtime resolves them from
+  `node_modules`. `netlify/site.toml` records the matching
+  `external_node_modules = ["esbuild", "typescript"]`, but that file is
+  not currently read by Netlify (see `DEPLOYMENT.md` → "Open: consolidate
   config"); verify `/api/compile` after each deploy.
 - The server compile helper lives at `src/lib/server/compile.ts`;
   importing it from any `src/components/*` file would drag the compiler
   into the client graph. The route file is its only importer.
+- **`src/components/demo/scripts.ts` (`DEMO_SCRIPTS`) is also the source
+  of truth for the docs Examples section.** `docs/.vitepress/config.ts`
+  imports it to build the Examples nav tab + sidebar live, and
+  `scripts/gen-examples-docs.ts` (`pnpm examples:generate`) renders one
+  `docs/examples/<id>.md` per entry — gated by `pnpm examples:gate`. After
+  editing `DEMO_SCRIPTS` (adding/renaming an example, changing a `label`,
+  `description`, or `source`), re-run `pnpm examples:generate` and commit
+  the regenerated pages, or the gate fails. `DemoBody.tsx` reads a
+  `?script=<id>` query param to preselect a catalogue entry, which is how
+  the docs' "Try it live" links deep-link into the demo (anchored `#demo`).

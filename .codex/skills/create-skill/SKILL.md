@@ -1,6 +1,8 @@
 ---
 name: create-skill
 description: Create a new skill.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

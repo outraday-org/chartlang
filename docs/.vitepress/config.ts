@@ -1,4 +1,11 @@
 import { defineConfig } from "vitepress";
+import llmstxt from "vitepress-plugin-llms";
+
+// The Examples section mirrors the live demo's catalogue. Importing
+// DEMO_SCRIPTS (a pure type + string-constant module, no React) keeps the
+// nav tab + sidebar in lockstep with the demo by construction; the
+// per-example pages are emitted by `pnpm examples:generate`.
+import { DEMO_SCRIPTS } from "../../apps/site/src/components/demo/scripts";
 
 const REPO_BLOB_URL = "https://github.com/outraday-org/chartlang/blob/main/";
 
@@ -21,6 +28,14 @@ export default defineConfig({
         ["link", { rel: "icon", type: "image/x-icon", href: "/logo.ico" }],
     ],
     ignoreDeadLinks: false,
+    // Emits llms.txt (link index) + llms-full.txt (full corpus) and a raw
+    // `.md` next to every built page, so LLMs and "copy as Markdown" tooling
+    // can consume the docs. CLAUDE.md files are already excluded via
+    // srcExclude; the generated primitives/ta + examples trees are real docs
+    // and are intentionally included.
+    vite: {
+        plugins: [llmstxt()],
+    },
     markdown: {
         html: false,
         // Dual Shiki theme: the dark theme matches apps/site's CodeBlock
@@ -55,6 +70,7 @@ export default defineConfig({
         siteTitle: "chartlang",
         nav: [
             { text: "Getting Started", link: "/getting-started/write-your-first-script" },
+            { text: "Examples", link: "/examples/" },
             { text: "Language", link: "/language/overview" },
             { text: "Spec", link: "/spec/grammar" },
             { text: "Primitives", link: "/primitives/ta/" },
@@ -64,6 +80,18 @@ export default defineConfig({
             { text: "Skills", link: "/skills/" },
         ],
         sidebar: {
+            "/examples/": [
+                {
+                    text: "Examples",
+                    items: [
+                        { text: "Overview", link: "/examples/" },
+                        ...DEMO_SCRIPTS.map((script) => ({
+                            text: script.label,
+                            link: `/examples/${script.id}`,
+                        })),
+                    ],
+                },
+            ],
             "/skills/": [
                 {
                     text: "Skills",

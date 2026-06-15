@@ -1,6 +1,8 @@
 ---
 name: fix-errors
 description: Fix Biome and TypeScript errors/warnings — from pasted output or by running pnpm lint + pnpm typecheck.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

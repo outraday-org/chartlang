@@ -1,6 +1,8 @@
 ---
 name: explain-pr
 description: Analyze a PR and explain changes in natural language with potential code and UI/UX issues. Read-only summary, not a deep code review.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

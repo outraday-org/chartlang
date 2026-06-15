@@ -45,6 +45,17 @@ the repo-root `DEPLOYMENT.md`).
   and `skills/` — none of which had a `.gitkeep` to begin with (Task 1
   only seeded `.gitkeep` in the auto-generated leaves).
 
+- **`docs/examples/` is auto-generated from the demo catalogue.** The
+  source of truth is `DEMO_SCRIPTS` in
+  `apps/site/src/components/demo/scripts.ts`. `pnpm examples:generate`
+  (`scripts/gen-examples-docs.ts`) emits `docs/examples/index.md` plus one
+  `docs/examples/<id>.md` per example (code + description + a "Try it live"
+  link to the demo). The companion gate `pnpm examples:gate` byte-diffs the
+  regenerated tree against the committed pages — drift, missing, or stale
+  pages fail CI. Do not hand-edit these pages; re-run the generator. The
+  Examples nav tab + sidebar in `config.ts` are built **live** from the same
+  `DEMO_SCRIPTS` import, so they never drift from the catalogue.
+
 - `docs/.vitepress/config.ts` is live. `base` defaults to `/`
   (`process.env.DOCS_BASE ?? "/"`) — the docs deploy to
   `docs.chartlang.invinite.com` at the root. No CI workflow sets
@@ -82,6 +93,10 @@ the repo-root `DEPLOYMENT.md`).
   against the committed tree. Hand-edits to an auto-generated page
   fail the gate. `docs/primitives/ta/index.md` is hand-written and
   is exempt from the byte-diff.
+- `pnpm examples:gate` regenerates `docs/examples/*.md` from
+  `apps/site` `DEMO_SCRIPTS` and byte-diffs against the committed tree.
+  Hand-edits, missing pages, or stale pages fail the gate. Part of the
+  root `check` chain.
 - `pnpm readme:check` validates the root `README.md` and per-package
   `README.md` files. It does **not** read `docs/**`.
 - `pnpm format:check` (Biome) ignores markdown.
@@ -96,6 +111,7 @@ already wired and enforces the `primitives/ta/` byte equality today.
 |---|---|---|
 | `index.md` | Landing page. | 1 (this file) |
 | `getting-started/` | Tutorials. | 3 |
+| `examples/` | Auto-generated from `apps/site` `DEMO_SCRIPTS` via `pnpm examples:generate`; gated by `examples:gate`. Do not hand-edit. | none (generated) |
 | `language/` | Narrative language docs. | 6 |
 | `primitives/<area>/` | Auto-generated from JSDoc. | `.gitkeep` only |
 | `adapters/` | Adapter contract + author guide. | 4 |

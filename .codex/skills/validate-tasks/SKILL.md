@@ -1,6 +1,8 @@
 ---
 name: validate-tasks
 description: Double-check and validate a chartlang task folder for gaps, issues, and improvements. Directly fixes all problems found in the task files.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

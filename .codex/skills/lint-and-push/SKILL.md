@@ -1,6 +1,8 @@
 ---
 name: lint-and-push
 description: Lint, typecheck, fix all issues, then commit and push.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

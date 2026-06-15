@@ -1,6 +1,8 @@
 ---
 name: fix-merge-conflicts
 description: Fix merge conflicts thoroughly by merging both sides, then push. Never loses work from either branch.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

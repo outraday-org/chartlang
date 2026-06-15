@@ -1,6 +1,8 @@
 ---
 name: write-tasks
 description: Write a new task folder with individual task files and a README inside tasks/.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

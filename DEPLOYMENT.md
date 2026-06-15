@@ -56,17 +56,34 @@ Without this plugin `vite build` produces only a plain Node server that
 Netlify cannot run, and publishing `dist/client` alone 404s every route
 (there is no `index.html` for an SSR app).
 
-### esbuild must stay external
+### esbuild and typescript must stay external
 
-`apps/site/vite.config.ts` keeps `esbuild` external in the `ssr` build
-(`environments.ssr.build.rollupOptions.external`). esbuild ships native
-binaries and locates them relative to its own package — bundling it into
-the ESM Function breaks it (`__filename is not defined`), so the Function
-runtime must load it from `node_modules`. `netlify/site.toml` records the
-equivalent `[functions] external_node_modules = ["esbuild"]` directive;
+`apps/site/vite.config.ts` keeps both `esbuild` and `typescript` external
+in the `ssr` build (`environments.ssr.build.rollupOptions.external`).
+
+- **esbuild** ships native binaries and locates them relative to its own
+  package — bundling it into the ESM Function breaks it (`__filename is
+  not defined`), so the Function runtime must load it from `node_modules`.
+- **typescript** is read by the compiler's semantic-typecheck path
+  (`languageService.compileToDiagnostics` → in-memory `ts.Program`). Its
+  default lib (`lib.es2022.d.ts`) is loaded from disk at runtime via
+  `ts.sys.getExecutingFilePath()` → `node_modules/typescript/lib`. If the
+  Function bundler inlines `typescript`, that path resolves to the bundle
+  and the lib `.d.ts` files are missing; with `skipLibCheck` the failure
+  is silent, the ambient core shim's `Readonly`/`Record` collapse to
+  `any`, and every valid `compute({ bar, ta, … })` destructure trips
+  `noImplicitAny` (TS7031) on the deployed site — while dev (lib on disk)
+  is fine. Vite already auto-externals it from the SSR bundle, but it must
+  be named in `rollupOptions.external` so the Netlify adapter keeps the
+  whole package (lib files included) installed in the Function.
+
+`netlify/site.toml` records the equivalent
+`[functions] external_node_modules = ["esbuild", "typescript"]` directive;
 once config is consolidated into a Netlify-read `netlify.toml` (below),
 that directive becomes live again. Verify `/api/compile` after each
-deploy — a broken esbuild resolution shows up there first.
+deploy — a broken esbuild or typescript resolution shows up there first
+(esbuild as a 500 / missing-binary error, typescript as spurious TS7031
+diagnostics on a known-good script).
 
 ## DNS — Cloudflare
 

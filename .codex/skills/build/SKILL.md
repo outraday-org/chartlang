@@ -1,6 +1,8 @@
 ---
 name: build
 description: Build features by implementing code changes directly without planning.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

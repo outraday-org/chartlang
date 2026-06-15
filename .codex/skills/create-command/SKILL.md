@@ -1,6 +1,8 @@
 ---
 name: create-command
 description: Create a new command.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

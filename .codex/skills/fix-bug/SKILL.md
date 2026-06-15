@@ -1,6 +1,8 @@
 ---
 name: fix-bug
 description: Paste an error, get a fix. Autonomous bug resolution.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

@@ -1,6 +1,8 @@
 ---
 name: explain-code
 description: Deep-dive explanation of code with diagrams.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

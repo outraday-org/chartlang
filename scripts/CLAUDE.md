@@ -54,6 +54,7 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
 | `docs-check.ts` | `pnpm docs:check` | §17.6 + §17.2 JSDoc gate (TS compiler API) + `@example` execution via the chartlang compiler. |
 | `docs-check.executor.ts` | — | Executor module imported by `docs-check.ts`; covered by `docs-check.executor.test.ts`. |
 | `docs-gate.ts` | `pnpm docs:gate` | Regenerates `docs/primitives/ta/<id>.md` into a tmp dir and byte-compares against the committed tree. Fails on drift. Imports `runGenDocs` from `packages/cli/src/commands/genDocs.ts` directly (source, not `dist/`). |
+| `gen-examples-docs.ts` | `pnpm examples:generate` / `pnpm examples:gate` | Renders `docs/examples/index.md` + one page per example from `apps/site` `DEMO_SCRIPTS` (the single source of truth); `--check` byte-diffs against the committed tree (drift / missing / stale). Never hand-edit `docs/examples/*.md` — re-run `pnpm examples:generate`. |
 | `generate-skills-reference.ts` | `pnpm skills:generate` / `pnpm skills:gate` | Walks `ta.*`/`draw.*` JSDoc → `skills/chartlang-coding/references/primitives.md`; `--check` byte-diffs against the committed file. Deep-imports `parsePrimitiveSource` / `parseDrawingSource` (source, not `dist/`) and mirrors their skip lists. Never hand-edit `primitives.md` — re-run `pnpm skills:generate`. |
 | `readme-check.ts` | `pnpm readme:check` | §17.6 + §17.1 README structure gate. |
 | `run-conformance.ts` | `pnpm conformance` | §16.5 / §15.3 conformance harness wrapper. |

@@ -24,9 +24,13 @@
 [functions]
     # esbuild ships native binaries and locates them relative to its own
     # package — bundling it into the ESM function breaks it ("__filename is
-    # not defined"). Keep it external so the Lambda runtime loads it from
+    # not defined"). typescript reads its `lib.*.d.ts` files from disk at
+    # runtime via getExecutingFilePath(); bundling it makes that path miss
+    # the lib dir, so the compiler's semantic typecheck degrades to
+    # spurious TS7031 errors on valid scripts. Keep both external so the
+    # Lambda runtime loads the whole package (with its on-disk assets) from
     # node_modules. Mirrors apps/site/vite.config.ts's ssr external.
-    external_node_modules = ["esbuild"]
+    external_node_modules = ["esbuild", "typescript"]
 
 [[redirects]]
     from = "/api/*"

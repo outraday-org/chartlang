@@ -1,6 +1,8 @@
 ---
 name: task-to-plan
 description: Create an implementation plan from a task file, then implement it. Validates against the codebase, flags issues, produces a step-by-step plan, and executes it.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

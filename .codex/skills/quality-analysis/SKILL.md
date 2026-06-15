@@ -1,6 +1,8 @@
 ---
 name: quality-analysis
 description: Analyze code quality, reusability, and conventions. Staff engineer review for diffs, branches, or task verification. Fixes all issues found and runs the chartlang gates.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

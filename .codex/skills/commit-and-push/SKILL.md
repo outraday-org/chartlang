@@ -1,6 +1,8 @@
 ---
 name: commit-and-push
 description: Stage all changes, commit with a brief fitting message, and push to remote.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

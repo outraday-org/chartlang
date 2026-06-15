@@ -1,6 +1,8 @@
 ---
 name: plan-and-build
 description: Plan and build features by editing code.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

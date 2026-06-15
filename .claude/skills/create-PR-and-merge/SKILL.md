@@ -4,6 +4,8 @@ description: |
   Creates a PR for the current branch into the default branch, resolves merge conflicts
   preserving changes from both branches, and merges. Use when you want to open a PR and
   merge it in one step, handling any conflicts safely with user clarification.
+metadata:
+  internal: true
 ---
 
 # Create PR and Merge

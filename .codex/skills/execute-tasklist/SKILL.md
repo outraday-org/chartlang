@@ -1,6 +1,8 @@
 ---
 name: execute-tasklist
 description: Execute all tasks in a task folder (or a single task file) — plan, implement, and quality-analyze each task using agent teams.
+metadata:
+  internal: true
 ---
 
 Read `references/command.md` and follow that workflow in Codex.

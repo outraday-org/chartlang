@@ -54,11 +54,24 @@ const config = defineConfig({
     // path relative to its own package and throws "__filename is not
     // defined" once bundled into an ESM server file. Keep it external so
     // the function runtime loads it from node_modules. Mirrors the
-    // Netlify `external_node_modules = ["esbuild"]` directive (Task 5).
+    // Netlify `external_node_modules` directive (Task 5).
+    //
+    // `typescript` must stay external for a related reason: the language
+    // service's `compileToDiagnostics` builds an in-memory `ts.Program`
+    // whose default lib (`lib.es2022.d.ts`) is read from disk at runtime
+    // via `ts.sys.getExecutingFilePath()` → `node_modules/typescript/lib`.
+    // If the function bundler inlines `typescript`, that path resolves to
+    // the bundle instead, the lib `.d.ts` files are missing, and the
+    // ambient core shim's `Readonly`/`Record` collapse to `any` — so
+    // every `compute({ bar, ta, … })` destructure trips noImplicitAny
+    // (TS7031) on the deployed site while dev (lib on disk) is fine.
+    // Vite already auto-externals it from the SSR bundle, but it must be
+    // named here so the Netlify adapter keeps the whole package (with its
+    // lib files) installed in the function. See DEPLOYMENT.md.
     ssr: {
       build: {
         rollupOptions: {
-          external: ["esbuild"],
+          external: ["esbuild", "typescript"],
         },
       },
     },

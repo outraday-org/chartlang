@@ -20,6 +20,19 @@ import { DEMO_SCRIPTS } from "./scripts"
 
 const MAX_ALERTS_SHOWN = 6
 
+/**
+ * Resolve the initial script id from a `?script=<id>` query param so the
+ * docs "Try it live" links land on a specific example. Falls back to the
+ * first catalogue entry when the param is absent or unknown. Reads
+ * `window` directly — DemoBody is lazy-loaded and client-only.
+ */
+function initialScriptId(): string {
+  const fallback = DEMO_SCRIPTS[0]?.id ?? ""
+  if (typeof window === "undefined") return fallback
+  const requested = new URLSearchParams(window.location.search).get("script")
+  return requested !== null && DEMO_SCRIPTS.some((s) => s.id === requested) ? requested : fallback
+}
+
 function AlertsList(props: Readonly<{ alerts: ReadonlyArray<AlertEmission> }>): ReactElement {
   if (props.alerts.length === 0) {
     return <p className="alerts-empty">No alerts fired yet.</p>
@@ -49,7 +62,7 @@ export default function DemoBody(): ReactElement {
   const [artifact, setArtifact] = useState<CompiledArtifact | null>(null)
   const [bars, setBars] = useState<ReadonlyArray<Bar>>([])
   const [alerts, setAlerts] = useState<ReadonlyArray<AlertEmission>>([])
-  const [scriptId, setScriptId] = useState(DEMO_SCRIPTS[0]?.id ?? "")
+  const [scriptId, setScriptId] = useState(initialScriptId)
   const script = DEMO_SCRIPTS.find((s) => s.id === scriptId) ?? DEMO_SCRIPTS[0]
   const setArtifactRef = useRef(setArtifact)
   setArtifactRef.current = setArtifact
