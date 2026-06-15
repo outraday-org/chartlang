@@ -56,34 +56,48 @@ Without this plugin `vite build` produces only a plain Node server that
 Netlify cannot run, and publishing `dist/client` alone 404s every route
 (there is no `index.html` for an SSR app).
 
-### esbuild and typescript must stay external
+### esbuild must stay external
 
-`apps/site/vite.config.ts` keeps both `esbuild` and `typescript` external
-in the `ssr` build (`environments.ssr.build.rollupOptions.external`).
-
-- **esbuild** ships native binaries and locates them relative to its own
-  package — bundling it into the ESM Function breaks it (`__filename is
-  not defined`), so the Function runtime must load it from `node_modules`.
-- **typescript** is read by the compiler's semantic-typecheck path
-  (`languageService.compileToDiagnostics` → in-memory `ts.Program`). Its
-  default lib (`lib.es2022.d.ts`) is loaded from disk at runtime via
-  `ts.sys.getExecutingFilePath()` → `node_modules/typescript/lib`. If the
-  Function bundler inlines `typescript`, that path resolves to the bundle
-  and the lib `.d.ts` files are missing; with `skipLibCheck` the failure
-  is silent, the ambient core shim's `Readonly`/`Record` collapse to
-  `any`, and every valid `compute({ bar, ta, … })` destructure trips
-  `noImplicitAny` (TS7031) on the deployed site — while dev (lib on disk)
-  is fine. Vite already auto-externals it from the SSR bundle, but it must
-  be named in `rollupOptions.external` so the Netlify adapter keeps the
-  whole package (lib files included) installed in the Function.
-
-`netlify/site.toml` records the equivalent
-`[functions] external_node_modules = ["esbuild", "typescript"]` directive;
+`apps/site/vite.config.ts` keeps `esbuild` external in the `ssr` build
+(`environments.ssr.build.rollupOptions.external`). esbuild ships native
+binaries and locates them relative to its own package — bundling it into
+the ESM Function breaks it (`__filename is not defined`), so the Function
+runtime must load it from `node_modules`. `netlify/site.toml` records the
+equivalent `[functions] external_node_modules = ["esbuild"]` directive;
 once config is consolidated into a Netlify-read `netlify.toml` (below),
 that directive becomes live again. Verify `/api/compile` after each
-deploy — a broken esbuild or typescript resolution shows up there first
-(esbuild as a 500 / missing-binary error, typescript as spurious TS7031
-diagnostics on a known-good script).
+deploy — a broken esbuild resolution shows up there first.
+
+### TypeScript default libs are bundled, not read from disk
+
+The compiler's semantic-typecheck path
+(`languageService.compileToDiagnostics` → in-memory `ts.Program`) needs
+TypeScript's default lib (`lib.es2022.d.ts` + its ES closure).
+`ts.createCompilerHost` loads those `.d.ts` files from disk at runtime via
+`ts.sys.getExecutingFilePath()` → `node_modules/typescript/lib`, but the
+Netlify Function bundler ships `typescript.js` **without** its sibling lib
+files (esbuild/nft only traces code, not those data files). On the
+deployed site the lib read returns `undefined`; because the compiler sets
+`skipLibCheck`, the failure is **silent** — the ambient core shim's
+`Readonly`/`Record` collapse to `any` and every valid
+`compute({ bar, ta, … })` destructure emits a spurious **TS7031**
+("implicitly has an 'any' type"). Local dev is unaffected (lib files are
+on disk).
+
+Fix: the lib text is bundled into the server build and served from
+memory, so the compiler never depends on the Function filesystem:
+
+- `apps/site/vite.config.ts`'s `tsDefaultLibs()` plugin reads
+  `node_modules/typescript/lib/lib.es*.d.ts` + `lib.decorators*.d.ts` at
+  build time and exposes them as the `virtual:ts-default-libs` module
+  (~630 KB; the compiler pins `lib: ["lib.es2022.d.ts"]`, so the 3 MB of
+  DOM/WebWorker libs are never needed).
+- `apps/site/src/lib/server/tsDefaultLibs.ts` patches the shared (external,
+  singleton) `ts.sys.readFile`/`fileExists` to fall back to that bundled
+  text, keyed by basename. `handleCompile` calls it before every compile.
+
+After each deploy, load `?script=ema-cross#demo` and confirm the gutter is
+clean — a regression here shows up as TS7031 on a known-good script.
 
 ## DNS — Cloudflare
 

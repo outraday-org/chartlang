@@ -76,24 +76,29 @@ and the demo 500s, the client bundle fails to load, or the whole site
   `applyToEnvironment(env => env.name === "client")`. A plain
   top-level `resolve.alias` rewrites BOTH the client and the `ssr`
   graph, which would neuter the real compiler the server route needs.
-- **`esbuild` and `typescript` are external in the `ssr` build.**
-  esbuild's JS API cannot be bundled (it finds its native binary relative
-  to its own package, throwing "`__filename` is not defined" once bundled
-  into an ESM server file). `typescript` must stay external too: the
-  language service's `compileToDiagnostics` builds an in-memory
-  `ts.Program` whose default lib (`lib.es2022.d.ts`) is read from disk at
-  runtime via `ts.sys.getExecutingFilePath()` → `node_modules/typescript/
-  lib`. If the function bundler inlines `typescript`, that path misses the
-  lib dir; with `skipLibCheck` the failure is silent and the ambient core
-  shim's `Readonly`/`Record` collapse to `any`, so every valid
-  `compute({ bar, ta, … })` destructure trips noImplicitAny (TS7031) on
-  the deployed site (dev, with lib on disk, is fine). Both are listed in
-  `environments.ssr.build.rollupOptions.external` and are explicit
-  `apps/site` devDependencies so the function runtime resolves them from
-  `node_modules`. `netlify/site.toml` records the matching
-  `external_node_modules = ["esbuild", "typescript"]`, but that file is
-  not currently read by Netlify (see `DEPLOYMENT.md` → "Open: consolidate
+- **`esbuild` is external in the `ssr` build.** esbuild's JS API
+  cannot be bundled (it finds its native binary relative to its own
+  package, throwing "`__filename` is not defined" once bundled into an
+  ESM server file). It is `environments.ssr.build.rollupOptions.external`
+  and an explicit `apps/site` devDependency so the function runtime
+  resolves it from `node_modules`. `netlify/site.toml` records the
+  matching `external_node_modules = ["esbuild"]`, but that file is not
+  currently read by Netlify (see `DEPLOYMENT.md` → "Open: consolidate
   config"); verify `/api/compile` after each deploy.
+- **TypeScript default libs are bundled, not read from disk.** The
+  compiler's in-memory `ts.Program` loads `lib.es2022.d.ts` (+ the ES
+  closure) from disk via `ts.sys.getExecutingFilePath()` →
+  `node_modules/typescript/lib`. The Netlify function bundler ships
+  `typescript.js` but NOT those `.d.ts` data files, so on the deployed
+  site the lib read fails; with `skipLibCheck` it fails silently and the
+  ambient core shim's `Readonly`/`Record` collapse to `any`, making every
+  valid `compute({ bar, ta, … })` destructure emit a spurious TS7031
+  (dev, with lib on disk, is fine). Fix: `vite.config.ts`'s
+  `tsDefaultLibs()` plugin embeds the ES libs as `virtual:ts-default-libs`
+  and `src/lib/server/tsDefaultLibs.ts` patches the shared `ts.sys` to
+  serve them from memory (called by `handleCompile` before each compile).
+  See `DEPLOYMENT.md` → "TypeScript default libs". Confirm `?script=
+  ema-cross#demo` has a clean gutter after each deploy.
 - The server compile helper lives at `src/lib/server/compile.ts`;
   importing it from any `src/components/*` file would drag the compiler
   into the client graph. The route file is its only importer.

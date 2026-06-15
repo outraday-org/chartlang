@@ -13,6 +13,8 @@
 import { CompileError, compile } from "@invinite-org/chartlang-compiler"
 import { createLanguageService } from "@invinite-org/chartlang-language-service"
 
+import { ensureTsDefaultLibsPatched } from "./tsDefaultLibs"
+
 /**
  * Successful compile response. `moduleSource` + `manifest` flow straight
  * into `adapter.host.load(...)`; `diagnostics` is the (possibly empty)
@@ -54,6 +56,7 @@ export async function handleCompile(
   if (source.length > MAX_SOURCE_LENGTH) {
     return { ok: false, diagnostics: [] }
   }
+  ensureTsDefaultLibsPatched()
   const languageService = createLanguageService()
   const diagnostics = await languageService.compileToDiagnostics(source)
   try {

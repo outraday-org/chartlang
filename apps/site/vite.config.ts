@@ -1,6 +1,9 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import { readFileSync, readdirSync } from "node:fs"
+import { createRequire } from "node:module"
+import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import netlify from "@netlify/vite-plugin-tanstack-start"
 import { devtools } from "@tanstack/devtools-vite"
@@ -45,6 +48,47 @@ function clientBrowserStubs(): Plugin {
   }
 }
 
+const TS_DEFAULT_LIBS_ID = "virtual:ts-default-libs"
+
+/**
+ * Embed TypeScript's ES-lib `.d.ts` files into the server bundle as a
+ * `{ [basename]: contents }` map.
+ *
+ * The `/api/compile` route runs the real compiler, whose in-memory
+ * `ts.Program` loads its default lib (`lib.es2022.d.ts` + the ES closure)
+ * from disk at runtime via `ts.sys.getExecutingFilePath()` →
+ * `node_modules/typescript/lib`. Netlify's function bundler does NOT ship
+ * those data files (esbuild/nft only traces `typescript.js`), so on the
+ * deployed site the lib read fails; with `skipLibCheck` the failure is
+ * silent and the ambient core shim's `Readonly`/`Record` collapse to
+ * `any`, making every valid `compute({ bar, ta, … })` destructure emit a
+ * spurious TS7031. Bundling the lib text in and serving it from `ts.sys`
+ * (see `src/lib/server/tsDefaultLibs.ts`) makes the compiler
+ * host-filesystem-independent. Only the ES + decorators libs are embedded
+ * (~630 KB) — the compiler pins `lib: ["lib.es2022.d.ts"]` (no DOM), so the
+ * 3 MB of DOM/WebWorker libs are never requested.
+ */
+function tsDefaultLibs(): Plugin {
+  return {
+    name: "chartlang-ts-default-libs",
+    resolveId(id) {
+      return id === TS_DEFAULT_LIBS_ID ? `\0${TS_DEFAULT_LIBS_ID}` : null
+    },
+    load(id) {
+      if (id !== `\0${TS_DEFAULT_LIBS_ID}`) return null
+      const require = createRequire(import.meta.url)
+      const libDir = dirname(require.resolve("typescript"))
+      const libs: Record<string, string> = {}
+      for (const file of readdirSync(libDir)) {
+        if (/^lib\.(es|decorators).*\.d\.ts$/.test(file)) {
+          libs[file] = readFileSync(join(libDir, file), "utf8")
+        }
+      }
+      return `export default ${JSON.stringify(libs)}`
+    },
+  }
+}
+
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
   optimizeDeps: { exclude: ["esbuild"] },
@@ -54,30 +98,24 @@ const config = defineConfig({
     // path relative to its own package and throws "__filename is not
     // defined" once bundled into an ESM server file. Keep it external so
     // the function runtime loads it from node_modules. Mirrors the
-    // Netlify `external_node_modules` directive (Task 5).
+    // Netlify `external_node_modules = ["esbuild"]` directive (Task 5).
     //
-    // `typescript` must stay external for a related reason: the language
-    // service's `compileToDiagnostics` builds an in-memory `ts.Program`
-    // whose default lib (`lib.es2022.d.ts`) is read from disk at runtime
-    // via `ts.sys.getExecutingFilePath()` → `node_modules/typescript/lib`.
-    // If the function bundler inlines `typescript`, that path resolves to
-    // the bundle instead, the lib `.d.ts` files are missing, and the
-    // ambient core shim's `Readonly`/`Record` collapse to `any` — so
-    // every `compute({ bar, ta, … })` destructure trips noImplicitAny
-    // (TS7031) on the deployed site while dev (lib on disk) is fine.
-    // Vite already auto-externals it from the SSR bundle, but it must be
-    // named here so the Netlify adapter keeps the whole package (with its
-    // lib files) installed in the function. See DEPLOYMENT.md.
+    // `typescript` is left to Vite's default SSR externalisation. Its
+    // default-lib `.d.ts` files are NOT shipped to the Netlify function,
+    // so the compiler's lib reads are served in-memory by the
+    // `tsDefaultLibs` plugin + `src/lib/server/tsDefaultLibs.ts` instead
+    // of the function filesystem. See DEPLOYMENT.md.
     ssr: {
       build: {
         rollupOptions: {
-          external: ["esbuild", "typescript"],
+          external: ["esbuild"],
         },
       },
     },
   },
   plugins: [
     clientBrowserStubs(),
+    tsDefaultLibs(),
     devtools(),
     tailwindcss(),
     tanstackStart(),
