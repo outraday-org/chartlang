@@ -46,7 +46,13 @@ export function createLanguageService(opts: LanguageServiceOptions = {}): Chartl
             } else if (canLoadNodeCompiler()) {
                 const { CompileError, compile } = await import("@invinite-org/chartlang-compiler");
                 try {
-                    await compile(source, { apiVersion: 1, sourcePath: "script.chart.ts" });
+                    await compile(source, {
+                        apiVersion: 1,
+                        sourcePath: "script.chart.ts",
+                        ...(opts.inMemoryModules === undefined
+                            ? {}
+                            : { inMemoryModules: opts.inMemoryModules }),
+                    });
                 } catch (err) {
                     /* v8 ignore next 3 -- non-CompileError failures must propagate. */
                     if (err instanceof CompileError)

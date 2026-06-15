@@ -61,7 +61,7 @@ export async function handleCompile(
     return { ok: false, diagnostics: [] }
   }
   ensureTsDefaultLibsPatched()
-  const languageService = createLanguageService()
+  const languageService = createLanguageService({ inMemoryModules: IN_MEMORY_MODULES })
   const diagnostics = await languageService.compileToDiagnostics(source)
   try {
     const compiled = await compile(source, {

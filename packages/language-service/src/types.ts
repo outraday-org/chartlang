@@ -145,6 +145,18 @@ export type LanguageServiceOptions = Readonly<{
      * boundary instead of loading the Node-only compiler graph locally.
      */
     compileToDiagnostics?: (source: string) => Promise<ReadonlyArray<LspDiagnostic>>;
+    /**
+     * Forwarded to the local Node compiler's `inMemoryModules` option when
+     * `compileToDiagnostics` is NOT injected. Lets a host that runs the
+     * compiler where the workspace `@invinite-org/chartlang-*` packages are
+     * not resolvable on disk (e.g. a bundled serverless function) supply
+     * pre-bundled package sources, so the local diagnostics compile resolves
+     * them from memory instead of failing on the filesystem. Ignored when
+     * `compileToDiagnostics` is provided.
+     *
+     * @since 1.2
+     */
+    inMemoryModules?: Readonly<Record<string, string>>;
 }>;
 
 /**

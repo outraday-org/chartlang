@@ -65,6 +65,27 @@ export default defineIndicator({
         await expect(service.compileToDiagnostics(script)).resolves.toEqual([]);
     });
 
+    it("forwards `inMemoryModules` to the local Node compiler", async () => {
+        // The forwarded stub is what esbuild resolves the bare import to;
+        // a marker inside `defineIndicator` proving it reached the bundler
+        // would be invisible here (compileToDiagnostics discards output), so
+        // we assert the happy path stays clean when core is served from the
+        // forwarded map instead of disk.
+        const minimal = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({ name: "x", apiVersion: 1, compute: () => {} });
+`;
+        const service = createLanguageService({
+            inMemoryModules: {
+                "@invinite-org/chartlang-core": `
+export function defineIndicator(o){ return o; }
+`,
+            },
+        });
+
+        await expect(service.compileToDiagnostics(minimal)).resolves.toEqual([]);
+    });
+
     it("maps TypeScript semantic errors to `type-error` diagnostics with correct range", async () => {
         // Regression test for the PLAN §5.2 step 1 gap: a script with a
         // semantic type error must surface a diagnostic the editor's
