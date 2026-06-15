@@ -43,6 +43,11 @@ export type ChartlangEditorOpts = Readonly<{
     onSourceChange?: (next: string) => void;
     onCompiled?: (compiled: CompiledScriptObject) => void;
     lintDebounceMs?: number;
+    /**
+     * Mount the preview-panel extension even when no preview runner is
+     * supplied. The default editor shell omits the placeholder panel.
+     */
+    previewPanel?: boolean;
     previewRunner?: unknown;
     extensions?: ReadonlyArray<Extension>;
 }>;

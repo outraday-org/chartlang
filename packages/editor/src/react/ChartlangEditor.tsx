@@ -32,6 +32,8 @@ export type ChartlangEditorProps = Readonly<{
     targetCapabilities?: ChartlangEditorOpts["targetCapabilities"];
     service?: ChartlangEditorOpts["service"];
     onCompiled?: ChartlangEditorOpts["onCompiled"];
+    previewPanel?: ChartlangEditorOpts["previewPanel"];
+    previewRunner?: ChartlangEditorOpts["previewRunner"];
     extensions?: ChartlangEditorOpts["extensions"];
     className?: string;
 }>;
@@ -51,11 +53,15 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
     const sourceRef = useRef(props.source);
     const targetCapabilitiesRef = useRef(props.targetCapabilities);
     const serviceRef = useRef(props.service);
+    const previewPanelRef = useRef(props.previewPanel);
+    const previewRunnerRef = useRef(props.previewRunner);
     const extensionsRef = useRef(props.extensions);
     const onSourceChangeRef = useRef(props.onSourceChange);
 
     targetCapabilitiesRef.current = props.targetCapabilities;
     serviceRef.current = props.service;
+    previewPanelRef.current = props.previewPanel;
+    previewRunnerRef.current = props.previewRunner;
     extensionsRef.current = props.extensions;
     onSourceChangeRef.current = props.onSourceChange;
 
@@ -73,6 +79,12 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
                 ? {}
                 : { targetCapabilities: targetCapabilitiesRef.current }),
             ...(serviceRef.current === undefined ? {} : { service: serviceRef.current }),
+            ...(previewPanelRef.current === undefined
+                ? {}
+                : { previewPanel: previewPanelRef.current }),
+            ...(previewRunnerRef.current === undefined
+                ? {}
+                : { previewRunner: previewRunnerRef.current }),
             ...(extensionsRef.current === undefined ? {} : { extensions: extensionsRef.current }),
             onSourceChange: (next) => {
                 sourceRef.current = next;

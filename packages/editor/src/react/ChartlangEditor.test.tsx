@@ -114,6 +114,22 @@ describe("ChartlangEditor", () => {
         expect(view.state.facet(EditorView.editable)).toBe(false);
     });
 
+    it("forwards previewPanel through to the underlying view", () => {
+        const { container } = render(<ChartlangEditor previewPanel={true} source="abc" />);
+
+        expect(container.querySelector(".chartlang-peek-panel")?.textContent).toBe(
+            "preview unavailable in Phase 4",
+        );
+    });
+
+    it("forwards previewRunner through to the underlying view", () => {
+        const { container } = render(<ChartlangEditor previewRunner={{}} source="abc" />);
+
+        expect(container.querySelector(".chartlang-peek-panel")?.textContent).toBe(
+            "preview unavailable in Phase 4",
+        );
+    });
+
     it("threads an injected service through to the linter and completions", async () => {
         let compileCalls = 0;
         const service = createTestLanguageService({

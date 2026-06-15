@@ -125,6 +125,29 @@ export default defineIndicator({
         ]);
     });
 
+    it("uses an injected diagnostics compiler before capability hints", async () => {
+        const service = createLanguageService({
+            targetCapabilities: capabilities,
+            compileToDiagnostics: async () => [
+                {
+                    range: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 },
+                    severity: "error",
+                    code: "remote-compile",
+                    message: "Remote compile failed.",
+                },
+            ],
+        });
+
+        const diagnostics = await service.compileToDiagnostics(script);
+
+        expect(diagnostics.map((d) => d.code)).toEqual([
+            "remote-compile",
+            "unsupported-interval",
+            "multi-timeframe-not-supported",
+            "unsupported-plot-kind",
+        ]);
+    });
+
     it("skips capability hints for supported or dynamic constructs", async () => {
         const service = createLanguageService({
             targetCapabilities: {

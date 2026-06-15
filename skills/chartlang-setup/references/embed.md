@@ -124,10 +124,10 @@ advertise is a silent no-op (see [`adapter.md`](./adapter.md)).
   — the marketing site with an embedded editor + live chart.
   `src/components/demo/ChartPane.tsx` shows the React pattern (every new
   compile disposes the previous adapter and spins up a fresh one against
-  the same canvas); `vite.config.ts` shows the client-only stub plugin
-  that lets the language service load in-browser for hover/completion
-  while the real `compile()` runs server-side over the `/api/compile`
-  server route (`src/routes/api/compile.ts`).
+  the same canvas); editor diagnostics use
+  `createLanguageService({ compileToDiagnostics })` to call the same
+  server-side `/api/compile` route (`src/routes/api/compile.ts`) that
+  runs the real `compile()`.
 - [`examples/canvas2d-adapter/playground/`](https://github.com/outraday-org/chartlang/tree/main/examples/canvas2d-adapter/playground)
   — the vanilla (no-framework) version of the same loop.
 

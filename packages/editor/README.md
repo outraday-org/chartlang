@@ -23,14 +23,14 @@ pnpm add @invinite-org/chartlang-editor
 | `hoverExtension(getService)` | Language-service hover integration. |
 | `completionExtension(getService)` | Completion source, including intervals. |
 | `linterExtension(getService, onCompiled?, debounceMs?)` | Async diagnostics with gutter. |
-| `peekPanelExtension(previewRunner?)` | Phase 4 preview-panel placeholder. |
+| `peekPanelExtension(previewRunner?)` | Preview-panel extension, mounted by `createChartlangEditor` only when `previewPanel` or `previewRunner` is supplied. |
 
 ### Subpath entries
 
 | Entry | Purpose |
 |---|---|
 | `@invinite-org/chartlang-editor/theme` | Browser-safe theme-only entry. Exports `chartlangDark` without pulling the editor factory or any language-service surface into the bundle. |
-| `@invinite-org/chartlang-editor/language-service` | Opt-in `createLanguageService(...)` and language-service types. Importing this entry does not load the compiler, but calling `compileToDiagnostics(...)` lazy-loads the compiler path for local diagnostics. |
+| `@invinite-org/chartlang-editor/language-service` | Opt-in `createLanguageService(...)` and language-service types. Browser hosts should pass `compileToDiagnostics` to keep compilation behind their server / worker boundary. |
 | `@invinite-org/chartlang-editor/react` | React bindings — `ChartlangEditor`, `InputsForm`, `renderInputsForm`. |
 
 Capability-aware editor intelligence is service-owned. To use

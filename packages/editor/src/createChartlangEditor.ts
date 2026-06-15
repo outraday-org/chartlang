@@ -35,7 +35,7 @@ export function createChartlangEditor(opts: ChartlangEditorOpts = {}): Chartlang
             basicSetup,
             javascript({ typescript: true }),
             ...languageServiceExtensions(opts),
-            peekPanelExtension(opts.previewRunner),
+            ...previewPanelExtensions(opts),
             EditorView.updateListener.of((update) => {
                 if (update.docChanged) opts.onSourceChange?.(update.state.doc.toString());
             }),
@@ -72,4 +72,11 @@ function languageServiceExtensions(opts: ChartlangEditorOpts): ReadonlyArray<Ext
         completionExtension(() => service),
         linterExtension(() => service, opts.onCompiled, opts.lintDebounceMs),
     ];
+}
+
+function previewPanelExtensions(opts: ChartlangEditorOpts): ReadonlyArray<Extension> {
+    if (opts.previewPanel === true || opts.previewRunner !== undefined) {
+        return [peekPanelExtension(opts.previewRunner)];
+    }
+    return [];
 }

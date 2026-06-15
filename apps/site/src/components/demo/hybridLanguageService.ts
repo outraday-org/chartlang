@@ -2,12 +2,11 @@
 // See the LICENSE file in the repo root for full license text.
 //
 // Hybrid language service for the demo. The shipped
-// `createChartlangEditor` hard-codes the local
-// `@invinite-org/chartlang-language-service`, whose
-// `compileToDiagnostics` would crash through the esbuild stub on valid
-// code. Instead we keep the local service for the pure-TS surface
-// (hover, completions, signature help, definition, intervals) and
-// override only `compileToDiagnostics` to POST `/api/compile`.
+// `createLanguageService` exposes a `compileToDiagnostics` injection
+// seam so browser hosts can route compilation through their own
+// boundary. The local service still drives the pure-TS surface (hover,
+// completions, signature help, definition, intervals); the injected
+// callback POSTs `/api/compile` and returns the server's diagnostics.
 //
 // The server returns `moduleSource` + `manifest` alongside the
 // diagnostics; we cache both and notify a subscriber so the chart side
@@ -108,8 +107,6 @@ function summarise(diagnostics: ReadonlyArray<LspDiagnostic>): {
  * Build the hybrid service plus its observable side-channel.
  */
 export function createHybridLanguageService(observer: CompileObserver): LocalService {
-    const local = createLanguageService();
-
     const compileToDiagnostics = async (
         source: string,
     ): Promise<ReadonlyArray<LspDiagnostic>> => {
@@ -158,11 +155,5 @@ export function createHybridLanguageService(observer: CompileObserver): LocalSer
         return parsed.diagnostics;
     };
 
-    // Spread the local service into a fresh object then override
-    // `compileToDiagnostics`. The result has the same surface
-    // CodeMirror extensions expect.
-    return Object.freeze({
-        ...local,
-        compileToDiagnostics,
-    });
+    return createLanguageService({ compileToDiagnostics });
 }

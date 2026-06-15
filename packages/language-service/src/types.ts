@@ -139,6 +139,12 @@ export type DefinitionLocation = Readonly<{
  */
 export type LanguageServiceOptions = Readonly<{
     targetCapabilities?: Capabilities;
+    /**
+     * Optional host-provided diagnostics compiler. Browser consumers
+     * should use this to route compilation through a server / worker
+     * boundary instead of loading the Node-only compiler graph locally.
+     */
+    compileToDiagnostics?: (source: string) => Promise<ReadonlyArray<LspDiagnostic>>;
 }>;
 
 /**

@@ -69,7 +69,35 @@ describe("createChartlangEditor", () => {
         editor.destroy();
     });
 
-    it("mounts the preview panel without an injected service", () => {
+    it("does not mount the preview panel by default", () => {
+        const parent = document.createElement("div");
+        const editor = createChartlangEditor({
+            doc: "abc",
+            parent,
+        });
+
+        expect(parent.querySelector(".chartlang-peek-panel")).toBeNull();
+
+        editor.destroy();
+    });
+
+    it("mounts the preview panel when explicitly requested", () => {
+        const parent = document.createElement("div");
+        const editor = createChartlangEditor({
+            doc: "abc",
+            parent,
+            previewPanel: true,
+        });
+
+        expect(parent.querySelector(".chartlang-peek-panel")?.textContent).toBe(
+            "preview unavailable in Phase 4",
+        );
+
+        editor.destroy();
+        expect(parent.querySelector(".chartlang-peek-panel")).toBeNull();
+    });
+
+    it("mounts the preview panel when a preview runner is supplied", () => {
         const parent = document.createElement("div");
         const editor = createChartlangEditor({
             doc: "abc",

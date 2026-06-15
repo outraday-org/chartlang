@@ -36,18 +36,23 @@ import type {
  */
 export function createLanguageService(opts: LanguageServiceOptions = {}): ChartlangLanguageService {
     const capabilities = opts.targetCapabilities;
+    const compileToDiagnostics = opts.compileToDiagnostics;
 
     return Object.freeze({
         async compileToDiagnostics(source: string): Promise<ReadonlyArray<LspDiagnostic>> {
             const diagnostics: LspDiagnostic[] = [];
-            const { CompileError, compile } = await import("@invinite-org/chartlang-compiler");
-            try {
-                await compile(source, { apiVersion: 1, sourcePath: "script.chart.ts" });
-            } catch (err) {
-                /* v8 ignore next 3 -- non-CompileError failures must propagate. */
-                if (err instanceof CompileError)
-                    diagnostics.push(...err.diagnostics.map(mapDiagnostic));
-                else throw err;
+            if (compileToDiagnostics !== undefined) {
+                diagnostics.push(...(await compileToDiagnostics(source)));
+            } else if (canLoadNodeCompiler()) {
+                const { CompileError, compile } = await import("@invinite-org/chartlang-compiler");
+                try {
+                    await compile(source, { apiVersion: 1, sourcePath: "script.chart.ts" });
+                } catch (err) {
+                    /* v8 ignore next 3 -- non-CompileError failures must propagate. */
+                    if (err instanceof CompileError)
+                        diagnostics.push(...err.diagnostics.map(mapDiagnostic));
+                    else throw err;
+                }
             }
             if (capabilities !== undefined) {
                 diagnostics.push(...collectCapabilityDiagnostics(source, capabilities));
@@ -116,6 +121,15 @@ export function createLanguageService(opts: LanguageServiceOptions = {}): Chartl
             return capabilities?.intervals ?? [];
         },
     });
+}
+
+type RuntimeGlobal = typeof globalThis & {
+    process?: { versions?: { node?: string } };
+};
+
+function canLoadNodeCompiler(): boolean {
+    const runtimeGlobal: RuntimeGlobal = globalThis;
+    return runtimeGlobal.process?.versions?.node !== undefined;
 }
 
 function findContainingCall(

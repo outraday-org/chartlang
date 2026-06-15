@@ -16,7 +16,7 @@ pnpm add @invinite-org/chartlang-language-service
 | Export | Purpose |
 |---|---|
 | `createLanguageService(opts?)` | Builds a capability-aware service instance. |
-| `compileToDiagnostics(source, opts)` | Converts compiler diagnostics to LSP-style ranges. |
+| `compileToDiagnostics(source)` | Converts compiler diagnostics to LSP-style ranges. In browsers, inject `opts.compileToDiagnostics` so compilation runs outside the bundle. |
 | `getCompletions(document, position)` | Returns core symbols and interval completions. |
 | `getHoverDoc(document, position)` | Looks up generated hover docs from core JSDoc. |
 | `getSignatureHelp(document, position)` | Returns call signatures for known symbols. |
@@ -37,10 +37,7 @@ to the producer's matching `plot(value, { title })` call.
 import { createLanguageService } from "@invinite-org/chartlang-language-service";
 
 const service = createLanguageService({ targetCapabilities: capabilities });
-const diagnostics = service.compileToDiagnostics(source, {
-    apiVersion: 1,
-    sourcePath: "demo.chart.ts",
-});
+const diagnostics = await service.compileToDiagnostics(source);
 ```
 
 ## Docs
