@@ -74,13 +74,20 @@ function RootDocument({ children }: { children: React.ReactNode }) {
               <Logo variant="full" />
             </a>
             <ul className="flex items-center gap-6 text-sm text-muted-foreground">
-              {NAV_LINKS.map((link) => (
-                <li key={link.href}>
-                  <a href={link.href} className="transition-colors hover:text-foreground">
-                    {link.label}
-                  </a>
-                </li>
-              ))}
+              {NAV_LINKS.map((link) => {
+                const external = link.href.startsWith("http")
+                return (
+                  <li key={link.href}>
+                    <a
+                      href={link.href}
+                      className="transition-colors hover:text-foreground"
+                      {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                )
+              })}
               <li>
                 <a
                   href={GITHUB_URL}
