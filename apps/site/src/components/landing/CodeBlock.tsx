@@ -26,7 +26,8 @@ export function CodeBlock(props: CodeBlockProps): ReactElement {
     let active = true
     void codeToHtml(code, {
       lang,
-      theme: "github-dark-dimmed",
+      themes: { light: "github-light", dark: "github-dark-dimmed" },
+      defaultColor: false,
       transformers: [
         {
           pre(node) {

@@ -27,7 +27,7 @@
 
 @layer base {
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
   html.dark {
     color-scheme: dark;
@@ -43,4 +43,16 @@
   kbd {
     font-family: var(--font-mono);
   }
+}
+
+/* Shiki dual-theme (defaultColor: false). Light tokens by default; the
+ * dark token set activates under the root `.dark` class. Backgrounds are
+ * forced transparent in CodeBlock so only the token color vars matter. */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+}
+html.dark .shiki,
+html.dark .shiki span {
+  color: var(--shiki-dark);
 }
