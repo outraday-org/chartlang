@@ -17,10 +17,14 @@ test("landing renders and the demo compiles, renders, and recompiles", async ({ 
   const editor = demo.locator(".cm-content")
   await expect(editor).toBeVisible({ timeout: 30_000 })
 
-  // First compile: the status badge must reach "ok" and the canvas must
-  // paint a non-empty bitmap.
-  const status = demo.locator(".status")
-  await expect(status).toHaveText(/ok/, { timeout: 30_000 })
+  // First compile + render: the editor's linter compiles the initial
+  // script through `/api/compile` on mount, which sets the chart
+  // artifact. The Play button is `disabled` until that artifact arrives
+  // and the bars load, so an enabled Play button is the end-user-visible
+  // proof the compile→render loop reached a renderable state. The canvas
+  // must also paint a non-empty bitmap.
+  const play = demo.locator("button.play-button")
+  await expect(play).toBeEnabled({ timeout: 30_000 })
 
   const canvas = demo.locator("canvas.chart-canvas")
   await expect(canvas).toBeVisible()
@@ -29,11 +33,18 @@ test("landing renders and the demo compiles, renders, and recompiles", async ({ 
   )
   expect(firstBitmap.length).toBeGreaterThan(1000)
 
-  // Edit the source: append a trivial line and confirm the loop recompiles
-  // back to "ok" (the linter extension drives the compile on change).
-  await editor.click()
-  await page.keyboard.press("ControlOrMeta+End")
-  await editor.pressSequentially("\n// noop", { delay: 10 })
-  await expect(status).toHaveText(/compiling/, { timeout: 15_000 })
-  await expect(status).toHaveText(/ok/, { timeout: 30_000 })
+  // Recompile: switch to a visually distinct script. Selecting a script
+  // clears the artifact (Play goes disabled) and re-mounts the editor,
+  // whose linter compiles the new source through the same `/api/compile`
+  // loop. Play re-enabling plus a changed bitmap proves the loop
+  // recompiled and re-rendered fresh source end to end.
+  await demo.locator("select").selectOption("rsi-divergence-alert")
+  await expect(play).toBeEnabled({ timeout: 30_000 })
+
+  await expect
+    .poll(
+      () => canvas.evaluate((node) => (node as HTMLCanvasElement).toDataURL()),
+      { timeout: 30_000 },
+    )
+    .not.toBe(firstBitmap)
 })

@@ -112,7 +112,7 @@ jobs:
             - uses: pnpm/action-setup@v4
             - uses: actions/setup-node@v4
               with:
-                  node-version: 20
+                  node-version: 22
                   cache: pnpm
             - run: pnpm install --frozen-lockfile
             - run: pnpm --filter chartlang-site e2e:install
@@ -137,18 +137,22 @@ jobs:
     # ──────────────────────────────────────────────────────────────────
     ci-gate:
         name: CI Gate
-        needs: test
+        needs: [test, e2e-site]
         if: always()
         runs-on: ubuntu-latest
         steps:
-            - name: Verify test job did not fail
+            - name: Verify test and e2e-site jobs did not fail
               run: |
-                  result="${{ needs.test.result }}"
-                  echo "test job result: $result"
-                  if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-                    exit 0
-                  fi
-                  exit 1
+                  test_result="${{ needs.test.result }}"
+                  e2e_result="${{ needs.e2e-site.result }}"
+                  echo "test job result: $test_result"
+                  echo "e2e-site job result: $e2e_result"
+                  for r in "$test_result" "$e2e_result"; do
+                    if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
+                      exit 1
+                    fi
+                  done
+                  exit 0
 
     # ──────────────────────────────────────────────────────────────────
     # Release job.
@@ -158,16 +162,19 @@ jobs:
     # ──────────────────────────────────────────────────────────────────
     release:
         name: Release
-        needs: test
+        needs: [test, e2e-site]
         # Publish on every push to main. `always()` lets this run even
-        # when `test` was skipped on the publish push; the result guard
-        # still blocks publish if the matrix actually ran and failed.
+        # when `test`/`e2e-site` were skipped on the publish push; the
+        # result guards still block publish if the matrix or the e2e
+        # suite actually ran and failed.
         if: >-
             always() &&
             github.ref == 'refs/heads/main' &&
             github.event_name == 'push' &&
             needs.test.result != 'failure' &&
-            needs.test.result != 'cancelled'
+            needs.test.result != 'cancelled' &&
+            needs.e2e-site.result != 'failure' &&
+            needs.e2e-site.result != 'cancelled'
         runs-on: ubuntu-latest
         permissions:
             contents: write

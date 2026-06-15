@@ -20,7 +20,8 @@ GitHub-specific configuration: CI workflow and pull-request template.
   (5) the landing-site task set adds
   `pnpm --filter chartlang-site typecheck` + `… build` steps (after the
   conformance block, before `pnpm bench:ci`) so a broken marketing site
-  fails the matrix, plus a separate `e2e-site` job (Ubuntu, Node 20,
+  fails the matrix, plus a separate `e2e-site` job (Ubuntu, Node 22 —
+  `apps/site` requires `engines.node` `>=22` for the SSR adapter,
   `needs: test`, own `e2e-site-${{ github.ref }}` concurrency group)
   that installs Chromium, builds `apps/site`, runs its Playwright suite,
   and uploads `apps/site/playwright-report/` on failure. The `e2e-site`
@@ -41,10 +42,13 @@ GitHub-specific configuration: CI workflow and pull-request template.
   matrix contexts. The `test` job is skipped on the
   `changeset-release/main` PR (`if: github.head_ref != …`), which leaves
   per-matrix checks perpetually "Expected" and blocks merge. `ci-gate`
-  runs with `if: always()`, `needs: test`, and passes when
-  `needs.test.result` is `success` **or** `skipped`, failing on
-  `failure`/`cancelled`. If you rename the job or its matrix legs, update
-  the ruleset's required contexts to match.
+  runs with `if: always()`, `needs: [test, e2e-site]`, and passes only
+  when **both** `needs.test.result` and `needs.e2e-site.result` are
+  `success` **or** `skipped`, failing if either is `failure`/`cancelled`.
+  E2E must gate here: `e2e-site` is `needs: test`, so on the release-merge
+  push (where `test` is skipped) `e2e-site` is skipped too and the gate
+  still passes. If you rename the job or its matrix legs, update the
+  ruleset's required contexts to match.
 - The `detect` job emits `is_release_merge` by querying the PR(s)
   associated with the pushed commit
   (`/commits/{sha}/pulls`, robust across merge/squash/rebase) and checking
@@ -54,10 +58,13 @@ GitHub-specific configuration: CI workflow and pull-request template.
   Every other push (feature merges) still runs the matrix. The job needs
   `pull-requests: read` and uses `GH_TOKEN: ${{ github.token }}`.
 - The `release:` job at the bottom of `ci.yml` is live and runs only on
-  `push` events to `main`. Its `if` uses `always()` plus
-  `needs.test.result != 'failure'/'cancelled'` so it still publishes when
-  `test` was **skipped** on the publish push, but never publishes when the
-  matrix actually ran and failed. It uses `changesets/action@v1` to
+  `push` events to `main`. It is `needs: [test, e2e-site]`, and its `if`
+  uses `always()` plus `needs.test.result` **and** `needs.e2e-site.result`
+  `!= 'failure'/'cancelled'` so it still publishes when those jobs were
+  **skipped** on the publish push, but never publishes when the matrix or
+  the e2e suite actually ran and failed. (Before this guard, `release`
+  was `needs: test` only and would publish even when `e2e-site` failed —
+  the matrix had passed.) It uses `changesets/action@v1` to
   open/update the Version Packages PR (changesets present) and to publish
   `changeset publish` when none remain. Keep write permissions job-local
   and ensure `NPM_TOKEN` is configured in repo secrets before merging
