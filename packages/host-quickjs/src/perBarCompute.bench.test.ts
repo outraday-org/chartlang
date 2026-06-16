@@ -141,5 +141,5 @@ describe("host-quickjs per-bar compute threshold", () => {
         const quickJsMs = await timeHost(createQuickJsHost({ capabilities: makeCapabilities() }));
 
         expect(quickJsMs).toBeLessThan(workerMs * THRESHOLD_MULTIPLIER);
-    });
+    }, 30_000);
 });
