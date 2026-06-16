@@ -1,5 +1,13 @@
 # @invinite-org/chartlang-compiler
 
+## 1.2.1
+
+### Patch Changes
+
+- 71ea0a5: Inline original TypeScript sources into emitted `.js.map` files (`inlineSources: true`). Published sourcemaps no longer reference missing `../src/*.ts` files, fixing "points to missing source files" warnings in downstream bundlers (e.g. Vite).
+- Updated dependencies [71ea0a5]
+  - @invinite-org/chartlang-core@1.1.1
+
 ## 1.2.0
 
 ### Minor Changes
