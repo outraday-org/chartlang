@@ -19,6 +19,7 @@
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
+        "inlineSources": true,
         "verbatimModuleSyntax": true,
         "resolveJsonModule": true,
         "noEmit": false
