@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-editor",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "type": "module",
     "license": "MIT",
     "description": "CodeMirror 6 reference editor over @invinite-org/chartlang-language-service",
