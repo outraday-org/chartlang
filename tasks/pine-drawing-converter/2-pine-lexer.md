@@ -1,6 +1,6 @@
 # Task 2 — Pine v6 lexer (with indentation tracking)
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

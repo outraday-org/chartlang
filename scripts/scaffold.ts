@@ -14,6 +14,7 @@ const OWNER = "outraday-org";
 const PACKAGE_DIRS = [
     "packages/core",
     "packages/compiler",
+    "packages/pine-converter",
     "packages/runtime",
     "packages/host-worker",
     "packages/host-quickjs",
@@ -28,6 +29,8 @@ const PACKAGE_DIRS = [
 const DESCRIPTIONS: Record<string, string> = {
     "packages/core": "Types and primitives for chartlang scripts",
     "packages/compiler": "TypeScript transformer + bundler for .chart.ts files",
+    "packages/pine-converter":
+        "Pine Script v6 → chartlang source-to-source converter (drawings v1)",
     "packages/runtime": "Execution engine, Series ring buffers, ta.* math primitives",
     "packages/host-worker": "Web Worker ScriptHost for the browser",
     "packages/host-quickjs": "QuickJS-WASM ScriptHost for untrusted / server-side execution",
@@ -46,6 +49,8 @@ const PUBLIC_SURFACE: Record<string, string> = {
         "`defineIndicator`, `defineDrawing`, `defineAlert`; primitives `ta.*`, `plot`, `draw.*`, `alert`, `input.*`, `color.*`, `style.*`; types `Series<T>`, `Bar`, `Time`, `Price`.",
     "packages/compiler":
         "`compile(source, opts) → CompiledScript`, `compileFile`, `compileProject`.",
+    "packages/pine-converter":
+        "`convert(source, opts)` → `ConvertResult` (output `.chart.ts` string + structured diagnostics); types `ConvertOpts`, `Diagnostic`, `SourceSpan`, `ConvertManifest`.",
     "packages/runtime":
         "`createScriptRunner(compiled, ctx) → ScriptRunner`; types for `ScriptHost`, `Adapter`, `Capabilities`.",
     "packages/host-worker": "`createWorkerHost() → ScriptHost`.",
@@ -65,6 +70,7 @@ const PUBLIC_SURFACE: Record<string, string> = {
 const DOCS_LINKS: Record<string, string> = {
     "packages/core": "docs/language/overview.md",
     "packages/compiler": "docs/spec/grammar.md",
+    "packages/pine-converter": "docs/converter/",
     "packages/runtime": "docs/spec/semantics.md",
     "packages/host-worker": "docs/hosts/worker.md",
     "packages/host-quickjs": "docs/hosts/quickjs.md",
@@ -86,6 +92,14 @@ const SUBPATH_EXPORTS: Record<string, Record<string, SubpathExport>> = {
         "./time": {
             types: "./dist/time/index.d.ts",
             import: "./dist/time/index.js",
+        },
+    },
+    // Forward reservation for Task 17/18 (`./diagnostics` formatter surface);
+    // the placeholder `src/diagnostics/index.ts` ships empty in Task 1.
+    "packages/pine-converter": {
+        "./diagnostics": {
+            types: "./dist/diagnostics/index.d.ts",
+            import: "./dist/diagnostics/index.js",
         },
     },
     "packages/conformance": {

@@ -15,6 +15,12 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
 - `scaffold.ts` is **idempotent**: re-running it must produce zero diff on
   an already-scaffolded tree. Adding a new package = append to
   `PACKAGE_DIRS` and re-run `pnpm scaffold`.
+- `SUBPATH_EXPORTS` entries can be **forward-reserved** before the matching
+  `src/<subpath>/` ships real exports — the map is the authoritative
+  `package.json#exports` shape, and an empty subpath module is fine until
+  the later task populates it (see `packages/pine-converter` `./diagnostics`).
+  Doing this in the scaffold avoids a hand-edit to the generated
+  `package.json` when the real exports land.
 - Do not hand-edit files inside `packages/<name>/` or
   `examples/canvas2d-adapter/` that the scaffold generates (six §22.4
   files per package). Edit `scripts/scaffold.ts` instead and re-run.

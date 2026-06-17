@@ -1,0 +1,43 @@
+{
+    "name": "@invinite-org/chartlang-pine-converter",
+    "version": "0.0.0",
+    "type": "module",
+    "license": "MIT",
+    "description": "Pine Script v6 → chartlang source-to-source converter (drawings v1)",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./diagnostics": {
+            "types": "./dist/diagnostics/index.d.ts",
+            "import": "./dist/diagnostics/index.js"
+        }
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "CHANGELOG.md"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "test": "vitest run --coverage"
+    },
+    "devDependencies": {
+        "@invinite-org/chartlang-core": "workspace:*"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "engines": {
+        "node": ">=20"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/outraday-org/chartlang.git",
+        "directory": "packages/pine-converter"
+    }
+}
