@@ -394,6 +394,12 @@ importers:
       '@invinite-org/chartlang-core':
         specifier: workspace:*
         version: link:../core
+      fast-check:
+        specifier: ^3.20.0
+        version: 3.23.2
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
 
   packages/runtime:
     dependencies:

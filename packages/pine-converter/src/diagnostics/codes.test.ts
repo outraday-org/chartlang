@@ -4,14 +4,26 @@
 import { describe, expect, it } from "vitest";
 
 import type { SourceSpan } from "../index.js";
-import { DIAGNOSTIC_CODES, makeDiagnostic, type ParserDiagnosticCode } from "./codes.js";
+import { DIAGNOSTIC_CODES, type ParserDiagnosticCode, makeDiagnostic } from "./codes.js";
 
 const SPAN: SourceSpan = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 5 };
 
 describe("DIAGNOSTIC_CODES", () => {
-    it("namespaces every code under pine-converter/parse/", () => {
+    it("namespaces every code under a pine-converter/<stage>/ prefix", () => {
         for (const entry of Object.values(DIAGNOSTIC_CODES)) {
-            expect(entry.code.startsWith("pine-converter/parse/")).toBe(true);
+            expect(/^pine-converter\/(parse|semantic|transform)\//.test(entry.code)).toBe(true);
+        }
+    });
+
+    it("registers the Task-8 declaration-transform codes", () => {
+        for (const key of [
+            "indicator-arg-not-mapped",
+            "drawing-only-script",
+            "strategy-as-indicator",
+            "computed-indicator-title",
+            "max-count-out-of-range",
+        ] as const) {
+            expect(DIAGNOSTIC_CODES[key].code).toBe(`pine-converter/transform/${key}`);
         }
     });
 });

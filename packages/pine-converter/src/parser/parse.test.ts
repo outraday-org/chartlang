@@ -253,7 +253,7 @@ describe("parseStatements — statements", () => {
     });
 
     it("rejects an unexpected leading keyword", () => {
-        const result = parse("//@version=6\nindicator()\nimport foo\n");
+        const result = parse("//@version=6\nindicator()\nexport foo\n");
         expect(codes(result)).toContain("pine-converter/parse/unexpected-token");
     });
 

@@ -18,7 +18,7 @@ import type {
 import { makeDiagnostic } from "../diagnostics/codes.js";
 import type { Token, TokenKind } from "../lexer/index.js";
 import type { ParserContext } from "./context.js";
-import { parseExpression } from "./expression-stub.js";
+import { parseExpression } from "./expressions.js";
 import { spanBetween } from "./spans.js";
 
 const STATEMENT_SYNC: ReadonlySet<TokenKind> = new Set<TokenKind>(["newline", "eof"]);
@@ -150,6 +150,7 @@ function parseAssignment(
     nameToken: Token,
     operatorText: "=" | ":=",
 ): Assignment {
+    ctx.cursor.next();
     ctx.cursor.next();
     const value = parseExpression(ctx);
     const end = ctx.cursor.peek().span;
@@ -324,6 +325,18 @@ function parseKeywordStatement(ctx: ParserContext, start: Token): Statement | nu
         case "while":
             ctx.addDiagnostic(makeDiagnostic("unsupported-while", start.span));
             recoverCompound(ctx);
+            return null;
+        case "type":
+            ctx.addDiagnostic(makeDiagnostic("unsupported-udt", start.span));
+            recoverCompound(ctx);
+            return null;
+        case "method":
+            ctx.addDiagnostic(makeDiagnostic("unsupported-method", start.span));
+            recoverCompound(ctx);
+            return null;
+        case "import":
+            ctx.addDiagnostic(makeDiagnostic("unsupported-library-import", start.span));
+            recoverLine(ctx);
             return null;
         default:
             ctx.addDiagnostic(

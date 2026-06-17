@@ -23,6 +23,10 @@ export default defineConfig({
                 "src/ast/expressions.ts",
                 "src/ast/statements.ts",
                 "src/ast/script.ts",
+                // Declaration-only transform IR (pure `export type`, no
+                // runtime). The scaffold mutators (`scaffoldMutators.ts`) hold
+                // every mutation; this file is the cross-task contract shape.
+                "src/transform/ir.ts",
             ],
         },
     },

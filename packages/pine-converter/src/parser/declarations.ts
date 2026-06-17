@@ -13,7 +13,7 @@ import { makeDiagnostic } from "../diagnostics/codes.js";
 import type { SourceSpan } from "../index.js";
 import type { Token, TokenKind } from "../lexer/index.js";
 import type { ParserContext } from "./context.js";
-import { parseExpression } from "./expression-stub.js";
+import { parseExpression } from "./expressions.js";
 import { spanBetween } from "./spans.js";
 
 type CallDeclarationKind =
