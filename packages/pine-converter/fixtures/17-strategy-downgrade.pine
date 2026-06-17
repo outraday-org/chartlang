@@ -1,0 +1,5 @@
+//@version=6
+strategy("S")
+longCond = ta.crossover(close, ta.sma(close, 20))
+if longCond
+    strategy.entry("Long", strategy.long)

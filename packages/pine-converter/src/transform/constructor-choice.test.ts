@@ -3,14 +3,14 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { Declaration, Script } from "../ast/script.js";
 import type { Statement } from "../ast/index.js";
-import type { SemanticResult } from "../semantic/index.js";
+import type { Declaration, Script } from "../ast/script.js";
 import { lex } from "../lexer/index.js";
 import { parseStatements } from "../parser/index.js";
+import type { SemanticResult } from "../semantic/index.js";
 import { analyze } from "../semantic/index.js";
-import { DiagnosticCollector } from "./diagnosticCollector.js";
 import { transformDeclaration } from "./declaration.js";
+import { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { ScriptScaffold } from "./ir.js";
 
 type ConvertibleDecl = Extract<

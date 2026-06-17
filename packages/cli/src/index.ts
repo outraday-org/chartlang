@@ -4,6 +4,7 @@
 import { runCompile } from "./commands/compile.js";
 import { runDocsCommand } from "./commands/docs.js";
 import { runHelp } from "./commands/help.js";
+import { runPineConvert } from "./commands/pineConvert.js";
 import { runScaffoldAdapter } from "./commands/scaffoldAdapter.js";
 
 export { runCompile } from "./commands/compile.js";
@@ -27,6 +28,7 @@ export {
 } from "./commands/genDocs.js";
 export type { PrimitiveDocInput, RunGenDocsOptions } from "./commands/genDocs.js";
 export { printHelp, runHelp } from "./commands/help.js";
+export { runPineConvert } from "./commands/pineConvert.js";
 export { runScaffoldAdapter } from "./commands/scaffoldAdapter.js";
 
 /**
@@ -38,7 +40,9 @@ export { runScaffoldAdapter } from "./commands/scaffoldAdapter.js";
  * sources via `@invinite-org/chartlang-compiler`) and
  * `scaffold-adapter` (generates a starter adapter package outside the
  * OSS repo). Phase 2 adds `docs` — the auto-generator that writes
- * `docs/primitives/ta/<id>.md` per primitive from the runtime JSDoc.
+ * `docs/primitives/ta/<id>.md` per primitive from the runtime JSDoc —
+ * and `pine-convert`, which converts a Pine Script v6 file to a
+ * chartlang `.chart.ts` via `@invinite-org/chartlang-pine-converter`.
  * Later phases add `lint` / `bench` via the same dispatcher seam.
  *
  * @since 0.1
@@ -59,6 +63,9 @@ export async function runCli(argv: ReadonlyArray<string>): Promise<void> {
             return;
         case "docs":
             await runDocsCommand(rest);
+            return;
+        case "pine-convert":
+            await runPineConvert(rest);
             return;
         case "--help":
         case "-h":

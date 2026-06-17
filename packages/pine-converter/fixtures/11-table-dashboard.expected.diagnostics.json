@@ -1,0 +1,26 @@
+[
+    {
+        "code": "pine-converter/transform/drawing-only-script",
+        "severity": "info",
+        "message": "Script emits only drawings; converted as a `defineDrawing` (plot capability dropped).",
+        "span": {
+            "startLine": 2,
+            "startColumn": 1,
+            "endLine": 2,
+            "endColumn": 37
+        },
+        "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
+    },
+    {
+        "code": "pine-converter/transform/table-bucket-cap-adjusted",
+        "severity": "info",
+        "message": "The `other` drawing-bucket cap was raised to fit the converted tables.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 13,
+            "endLine": 5,
+            "endColumn": 48
+        },
+        "suggestion": "No action needed; the cap was widened to match the table count."
+    }
+]

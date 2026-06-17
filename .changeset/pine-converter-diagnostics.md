@@ -1,0 +1,7 @@
+---
+"@invinite-org/chartlang-pine-converter": patch
+---
+
+Formalize the diagnostics framework. Consolidate every Task 3–16 diagnostic into a single registry: `DIAGNOSTIC_CODE_ENTRIES` keeps the by-short-key object (driving `ParserDiagnosticCode`, `makeDiagnostic`, and the once-per-script dedup in Camp A/B), and a new `DIAGNOSTIC_CODES` exposes the same entries as a `ReadonlyMap<string, DiagnosticCodeEntry>` keyed by the full, stable code STRING for reporting code that only sees a `Diagnostic.code`. No code string changed — the strings remain the converter's stable public contract.
+
+Add the read/format side under `src/diagnostics/`: `DiagnosticReport` (a read-only wrapper over `readonly Diagnostic[]` with `errors()`/`warnings()`/`infos()`/`all()`/`frozen()`/`upgradeWarningsToErrors()`, distinct from the transform-layer mutable `DiagnosticCollector`), plus `formatDiagnostic` (rustc/tsc-style line+caret excerpt with a docs link), `formatDiagnosticReport` (grouped, counted report), and `formatDiagnosticsJson` (stable property order). `convert(source, { strictMode: true })` now honors the documented option by upgrading every warning in `ConvertResult.diagnostics` to an error (severity-only; `output` is unchanged — strict callers detect failure by scanning for any error). Adds a TS-Compiler-API test asserting every pushed diagnostic key is registered and a span-propagation property test over 30+ fixtures.

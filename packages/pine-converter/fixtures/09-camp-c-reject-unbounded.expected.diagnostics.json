@@ -1,0 +1,50 @@
+[
+    {
+        "code": "pine-converter/semantic/unknown-identifier",
+        "severity": "error",
+        "message": "Reference to an undeclared identifier.",
+        "span": {
+            "startLine": 6,
+            "startColumn": 16,
+            "endLine": 6,
+            "endColumn": 20
+        },
+        "suggestion": "Declare the variable, or check for a typo in a built-in name."
+    },
+    {
+        "code": "pine-converter/semantic/unbounded-handle-collection",
+        "severity": "error",
+        "message": "drawing collection with no detectable cap",
+        "span": {
+            "startLine": 6,
+            "startColumn": 22,
+            "endLine": 6,
+            "endColumn": 64
+        },
+        "suggestion": "Cap the collection with a `max_*_count` argument or a ring-buffer eviction."
+    },
+    {
+        "code": "pine-converter/transform/drawing-only-script",
+        "severity": "info",
+        "message": "Script emits only drawings; converted as a `defineDrawing` (plot capability dropped).",
+        "span": {
+            "startLine": 2,
+            "startColumn": 1,
+            "endLine": 2,
+            "endColumn": 44
+        },
+        "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
+    },
+    {
+        "code": "pine-converter/semantic/unbounded-handle-collection",
+        "severity": "error",
+        "message": "Drawing collection has no detectable cap; no faithful chartlang analogue.",
+        "span": {
+            "startLine": 6,
+            "startColumn": 22,
+            "endLine": 6,
+            "endColumn": 64
+        },
+        "suggestion": "Add `max_lines_count=N` (or labels/boxes/polylines) to your indicator() declaration, **and** a size-gate eviction (`if array.size(your array) > N → line.delete(array.shift(your array))`)."
+    }
+]

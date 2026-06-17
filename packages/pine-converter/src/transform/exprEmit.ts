@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
 import type { ExpressionNode } from "../ast/index.js";
 import { remapIdentifier } from "../mapping/index.js";
+import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
 
 /**
  * Per-node semantic facts the emitter consults — currently just the

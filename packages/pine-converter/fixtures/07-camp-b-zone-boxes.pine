@@ -1,0 +1,7 @@
+//@version=6
+indicator("Camp B zones", overlay=true)
+var zones = array.new_box()
+if close < open
+    array.push(zones, box.new(bar_index, high, bar_index, low, bgcolor=color.new(color.blue, 85)))
+if array.size(zones) > 20
+    box.delete(array.shift(zones))

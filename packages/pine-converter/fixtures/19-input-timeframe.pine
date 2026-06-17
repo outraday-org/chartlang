@@ -1,0 +1,4 @@
+//@version=6
+indicator("Timeframe input", overlay=true)
+tf = input.timeframe("60", "Resolution")
+plot(close)

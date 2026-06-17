@@ -1,0 +1,74 @@
+[
+    {
+        "code": "pine-converter/transform/drawing-only-script",
+        "severity": "info",
+        "message": "Script emits only drawings; converted as a `defineDrawing` (plot capability dropped).",
+        "span": {
+            "startLine": 2,
+            "startColumn": 1,
+            "endLine": 2,
+            "endColumn": 68
+        },
+        "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
+    },
+    {
+        "code": "pine-converter/transform/ring-eviction-implicit",
+        "severity": "info",
+        "message": "The explicit `array.shift`/`*.delete` FIFO eviction was removed; the ring buffer evicts implicitly.",
+        "span": {
+            "startLine": 16,
+            "startColumn": 24,
+            "endLine": 16,
+            "endColumn": 88
+        },
+        "suggestion": "No action needed; the ring's modulo-K write reproduces the eviction."
+    },
+    {
+        "code": "pine-converter/transform/ring-eviction-implicit",
+        "severity": "info",
+        "message": "The explicit `array.shift`/`*.delete` FIFO eviction was removed; the ring buffer evicts implicitly.",
+        "span": {
+            "startLine": 18,
+            "startColumn": 24,
+            "endLine": 18,
+            "endColumn": 88
+        },
+        "suggestion": "No action needed; the ring's modulo-K write reproduces the eviction."
+    },
+    {
+        "code": "pine-converter/transform/table-bucket-cap-adjusted",
+        "severity": "info",
+        "message": "The `other` drawing-bucket cap was raised to fit the converted tables.",
+        "span": {
+            "startLine": 25,
+            "startColumn": 14,
+            "endLine": 25,
+            "endColumn": 49
+        },
+        "suggestion": "No action needed; the cap was widened to match the table count."
+    },
+    {
+        "code": "pine-converter/transform/ta-signature-divergence",
+        "severity": "warning",
+        "message": "ta.pivotsHighLow({leftLength, rightLength}).high — field is high, NOT pivotHigh",
+        "span": {
+            "startLine": 12,
+            "startColumn": 6,
+            "endLine": 12,
+            "endColumn": 38
+        },
+        "suggestion": "Check the chartlang `ta.*` signature and adjust the arguments by hand."
+    },
+    {
+        "code": "pine-converter/transform/ta-signature-divergence",
+        "severity": "warning",
+        "message": "ta.pivotsHighLow({leftLength, rightLength}).low — field is low, NOT pivotLow",
+        "span": {
+            "startLine": 13,
+            "startColumn": 6,
+            "endLine": 13,
+            "endColumn": 37
+        },
+        "suggestion": "Check the chartlang `ta.*` signature and adjust the arguments by hand."
+    }
+]

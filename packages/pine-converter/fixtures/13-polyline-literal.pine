@@ -1,0 +1,8 @@
+//@version=6
+indicator("Polyline curve", overlay=true)
+var pts = array.new<chart.point>()
+if barstate.islast
+    array.push(pts, chart.point.from_index(bar_index, low))
+    array.push(pts, chart.point.from_index(bar_index, high))
+    array.push(pts, chart.point.from_index(bar_index, close))
+    polyline.new(pts, curved=true, line_color=color.purple)

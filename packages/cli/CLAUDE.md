@@ -66,3 +66,22 @@
   `genDocs.ts` imports `typescript` at runtime to parse JSDoc via
   the compiler API. The published `dist/` ships against the
   consumer's `typescript` install.
+- **`pine-convert` is a thin in-process layer over
+  `@invinite-org/chartlang-pine-converter`'s `convertFile` + its
+  `/diagnostics` formatters — it owns NO conversion logic.**
+  `commands/pineConvert.ts` parses flags via `node:util.parseArgs`
+  (same precedent as `runCompile`), builds `ConvertFileOpts`, and
+  routes output: `--out` writes the file (nothing converted to
+  stdout), else the source streams to stdout; diagnostics go to
+  stderr as a human report when `--report` or `process.stderr.isTTY`,
+  or to stdout as JSON under `--diagnostics-json` (which suppresses the
+  source from stdout). `runPineConvert` sets `process.exitCode` per the
+  converter CLI's stable contract — `1` error-severity diagnostics,
+  `2` file I/O failure, `3` invalid args — and `InvalidArgsError`
+  distinguishes the arg-error (exit 3, prints help) from the I/O-error
+  (exit 2) catch. The `errorMessage(err)` helper is exported solely so a
+  unit test can cover its non-`Error` fallback (unreachable via real
+  `parseArgs`/`fs` errors, which always throw `Error`s). Drive
+  `runPineConvert` / `runCli` IN-PROCESS in tests (the Phase-1
+  convention); `@invinite-org/chartlang-pine-converter` is a runtime
+  `dependency`.

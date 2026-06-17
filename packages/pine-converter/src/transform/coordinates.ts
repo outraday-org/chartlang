@@ -7,10 +7,12 @@ import type {
     ExpressionNode,
     MemberAccessExpression,
 } from "../ast/index.js";
+import { makeDiagnostic } from "../diagnostics/codes.js";
 import type { Diagnostic, SourceSpan } from "../index.js";
 import type { ConvertOpts } from "../index.js";
 import type { DrawingCallSite, SemanticResult } from "../semantic/index.js";
-import { makeDiagnostic } from "../diagnostics/codes.js";
+import { namedArg, positionalArgs } from "./callArgs.js";
+import type { AnnotationLookup } from "./exprEmit.js";
 import { emitExpr } from "./exprEmit.js";
 
 /**
@@ -84,20 +86,61 @@ const COORD_LAYOUT: ReadonlyMap<string, readonly (readonly [number, number])[]> 
     ["label.new", [[0, 1] as const]],
 ]);
 
+// `bar.time` shifted by a bar offset: future anchors add `N` intervals,
+// historical anchors subtract them; an offset of `"0"` stays at `bar.time`.
+function barTime(offsetExpr: string, future: boolean): string {
+    if (offsetExpr === "0") {
+        return "bar.time";
+    }
+    const op = future ? "+" : "-";
+    return `bar.time ${op} ((${offsetExpr}) * __BAR_INTERVAL_MS)`;
+}
+
+/**
+ * Render a resolved {@link ResolvedAnchor} to a chartlang `WorldPoint`
+ * object-literal source string (`{ time: …, price: … }`). Future
+ * `bar_index + N` anchors synthesise the `bar.time + ((N) *
+ * __BAR_INTERVAL_MS)` arithmetic Task 16's preamble const backs;
+ * historical offsets subtract. Shared by the Camp A / Camp B draw-call
+ * synthesis and setter-fold so every anchor lowers identically.
+ *
+ * @since 0.1
+ * @experimental
+ * @example
+ *     import { anchorToWorldPoint } from "./coordinates.js";
+ *     anchorToWorldPoint({
+ *         kind: "bar-index-historical",
+ *         offsetExpr: "0",
+ *         priceExpr: "bar.close",
+ *     });
+ *     // "{ time: bar.time, price: bar.close }"
+ */
+export function anchorToWorldPoint(anchor: ResolvedAnchor): string {
+    switch (anchor.kind) {
+        case "literal-world-point":
+            return `{ time: ${anchor.time}, price: ${anchor.price} }`;
+        case "expr-world-point":
+        case "bar-time-direct":
+        case "chart-point-from-time":
+            return `{ time: ${anchor.timeExpr}, price: ${anchor.priceExpr} }`;
+        case "bar-index-historical":
+        case "chart-point-from-index":
+            return `{ time: ${barTime(anchor.offsetExpr, false)}, price: ${anchor.priceExpr} }`;
+        case "bar-index-future":
+            return `{ time: ${barTime(anchor.offsetExpr, true)}, price: ${anchor.priceExpr} }`;
+        case "chart-point-now":
+            return `{ time: bar.time, price: ${anchor.priceExpr} }`;
+        case "chart-point-new":
+            return `{ time: ${anchor.timeExpr}, price: ${anchor.priceExpr} }`;
+    }
+}
+
 function unwrapParens(node: ExpressionNode): ExpressionNode {
     let current = node;
     while (current.kind === "paren-expression") {
         current = current.expression;
     }
     return current;
-}
-
-function positionalArgs(args: readonly CallArgument[]): readonly CallArgument[] {
-    return args.filter((arg) => arg.name === null);
-}
-
-function namedArg(args: readonly CallArgument[], name: string): CallArgument | null {
-    return args.find((arg) => arg.name === name) ?? null;
 }
 
 // The dotted built-in name of a bare-rooted member chain (`xloc.bar_time`),
@@ -147,7 +190,11 @@ function resolveXloc(args: readonly CallArgument[]): XlocMode {
 }
 
 interface ResolveCtx {
-    readonly result: SemanticResult;
+    // Only `annotations` is read through the ctx (`emit` → `emitExpr`); the
+    // single-anchor `resolveAnchorExpr` path has nothing else to give, so the
+    // field is narrowed to exactly what is consumed (a full `SemanticResult`
+    // is assignable from the site-sweep path).
+    readonly result: Pick<SemanticResult, "annotations">;
     readonly opts: ConvertOpts;
     readonly anchors: Map<ExpressionNode, ResolvedAnchor>;
     readonly diagnostics: Diagnostic[];
@@ -325,6 +372,50 @@ function resolvePair(
     }
 
     ctx.anchors.set(keyNode, resolveBarIndexAnchor(ctx, xExpr, priceExpr));
+}
+
+/**
+ * Resolve a single `(x, y)` coordinate pair into a {@link ResolvedAnchor}
+ * outside the drawing-site sweep — used by the Camp A / Camp B setter-fold
+ * (Task 10/11), whose `set_xy1(handle, x, y)` arguments carry the same
+ * `bar_index` / `bar_time` / `chart.point` coordinate forms but are not
+ * part of the `.new()` constructor scan. Diagnostics are NOT raised here:
+ * the `.new()` site pass already reports coordinate issues for the script,
+ * so a setter re-anchoring the same handle does not double-report.
+ *
+ * @since 0.1
+ * @experimental
+ * @example
+ *     import { resolveAnchorExpr } from "./coordinates.js";
+ *     const x = {
+ *         kind: "identifier-expression",
+ *         name: "bar_index",
+ *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+ *     } as const;
+ *     const y = {
+ *         kind: "identifier-expression",
+ *         name: "close",
+ *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+ *     } as const;
+ *     resolveAnchorExpr(x, y, new Map()).kind; // "bar-index-historical"
+ */
+export function resolveAnchorExpr(
+    xExpr: ExpressionNode,
+    yExpr: ExpressionNode,
+    annotations: AnnotationLookup,
+    opts: ConvertOpts = {},
+): ResolvedAnchor {
+    const anchors = new Map<ExpressionNode, ResolvedAnchor>();
+    const ctx: ResolveCtx = {
+        result: { annotations },
+        opts,
+        anchors,
+        diagnostics: [],
+        futureWithoutInterval: null,
+    };
+    resolvePair(ctx, xExpr, xExpr, yExpr, "bar-index");
+    // `resolvePair` always sets the key node; the lookup is total.
+    return [...anchors.values()][0];
 }
 
 function resolveDrawingSite(ctx: ResolveCtx, site: DrawingCallSite): void {

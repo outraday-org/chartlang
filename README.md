@@ -163,6 +163,13 @@ portable across charts.
 - **Compose indicators.** Bind one indicator to a `const`, read
   its outputs from another's `compute`. See
   [Indicator composition](./docs/language/indicator-composition.md).
+- **Pine v6 converter** (`@invinite-org/chartlang-pine-converter`,
+  `@experimental`). A drawings-focused source-to-source converter from
+  Pine Script v6 to chartlang — `line`/`label`/`box`/`table`/`polyline`/
+  `linefill`, inputs, control flow, and a partial `ta.*` passthrough, with
+  structured diagnostics for anything it can't translate. Run
+  `pnpm chartlang pine-convert <input.pine>`. See
+  [`docs/converter/`](./docs/converter/).
 
 ## AI skills
 

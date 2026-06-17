@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Argument } from "../ast/script.js";
 import type { ExpressionNode } from "../ast/index.js";
+import type { Argument } from "../ast/script.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { MaxDrawingsIR, ScaffoldFormat, ScaffoldScale } from "./ir.js";
 

@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Diagnostic, SourceSpan } from "../index.js";
 import { type ParserDiagnosticCode, makeDiagnostic } from "../diagnostics/codes.js";
+import type { Diagnostic, SourceSpan } from "../index.js";
 
 /**
  * The single mutable diagnostic accumulator the transform layer (Tasks

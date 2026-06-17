@@ -118,6 +118,9 @@ import { PLOT_KIND_HORIZONTAL_HISTOGRAM_SCENARIO } from "./plotKindHorizontalHis
 import { PLOT_KIND_HORIZONTAL_HISTOGRAM_GATED_SCENARIO } from "./plotKindHorizontalHistogramGated.scenario.js";
 import { PLOT_KIND_SHAPE_SCENARIO } from "./plotKindShape.scenario.js";
 import { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js";
+import { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
+import { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "./pineConverterRoundTripCampB.scenario.js";
+import { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "./pineConverterRoundTripTable.scenario.js";
 import { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
 import { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario.js";
 import { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario.js";
@@ -349,6 +352,9 @@ export { PLOT_KIND_HORIZONTAL_HISTOGRAM_SCENARIO } from "./plotKindHorizontalHis
 export { PLOT_KIND_HORIZONTAL_HISTOGRAM_GATED_SCENARIO } from "./plotKindHorizontalHistogramGated.scenario.js";
 export { PLOT_KIND_SHAPE_SCENARIO } from "./plotKindShape.scenario.js";
 export { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js";
+export { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
+export { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "./pineConverterRoundTripCampB.scenario.js";
+export { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "./pineConverterRoundTripTable.scenario.js";
 export { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
 export { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario.js";
 export { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario.js";
@@ -751,4 +757,12 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     // hline to `script:<name>`; asserted via the `all-plots-on-pane`
     // variant against the canvas2d reference (subPanes >= 1).
     RSI_SUBPANE_ROUTING_SCENARIO,
+    // Phase — Pine v6 → chartlang converter (Task 19). Each scenario converts a
+    // committed `.pine` fixture at module load, then the harness compiles the
+    // emitted chartlang and runs it through the runtime, pinning the full
+    // drawing-emission stream as a `drawing-hash`. This is the end-to-end
+    // Pine → convert → compile → runtime → emit proof.
+    PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO,
+    PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO,
+    PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO,
 ]);

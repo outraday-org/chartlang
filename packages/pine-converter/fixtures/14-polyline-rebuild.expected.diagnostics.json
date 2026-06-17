@@ -1,0 +1,26 @@
+[
+    {
+        "code": "pine-converter/semantic/unsupported-tuple-destructuring",
+        "severity": "info",
+        "message": "Tuple destructuring is outside the v1 drawing scope.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 33,
+            "endLine": 3,
+            "endColumn": 35
+        },
+        "suggestion": "Assign each returned value to its own variable."
+    },
+    {
+        "code": "pine-converter/transform/scalar-state-type-defaulted",
+        "severity": "info",
+        "message": "A `var`/`varip` scalar's type could not be inferred from its initializer; it was defaulted to `state.float`.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 1,
+            "endLine": 3,
+            "endColumn": 36
+        },
+        "suggestion": "Give the variable a literal initial value so its type can be inferred."
+    }
+]

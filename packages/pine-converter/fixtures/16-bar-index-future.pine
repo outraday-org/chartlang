@@ -1,0 +1,5 @@
+//@version=6
+indicator("Future anchor", overlay=true)
+var line lvl = na
+if barstate.islast
+    lvl := line.new(bar_index, close, bar_index + 10, close, color=color.red)

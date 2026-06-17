@@ -1,0 +1,130 @@
+# Translating from Pine Script
+
+You are porting a Pine Script v6 indicator to chartlang, either by hand or
+by interpreting the output of the `@invinite-org/chartlang-pine-converter`
+tool. This reference is the **author's** view: "if your Pine script does
+X, write it like Y." Implementer detail lives in the
+[converter docs](https://chartlang.dev/converter/).
+
+The converter's v1 slice is **drawings-focused**: `line.new`, `label.new`,
+`box.new`, `table.new`, `polyline.new`, `linefill.new`, plus inputs,
+control flow, state, and a partial `ta.*` / `math.*` passthrough. It is a
+source-to-source translator — it emits chartlang `.chart.ts`, not a
+runtime bundle.
+
+## Why might my Pine script not convert?
+
+Run the converter and read the diagnostics. Each one carries a stable
+**code**, a **severity**, a **source span**, and usually a suggested fix:
+
+- **error** — the converter could not faithfully translate this site. The
+  output carries a `// HARD-REJECT` marker. Fix the Pine and re-run, or
+  hand-port that slice.
+- **warning** — translated, but a detail was dropped or approximated.
+  Review it.
+- **info** — an intentional approximation; usually no action needed.
+
+The CLI prints a `= docs:` link per diagnostic that goes straight to the
+[diagnostics reference](https://chartlang.dev/converter/diagnostics). Under
+`--strict`, every warning becomes an error.
+
+## The three drawing camps
+
+How you *manage* a Pine drawing handle decides how it converts. Match your
+script to one of these shapes to get a clean conversion.
+
+### Camp A — one handle, mutated each bar
+
+Pine:
+
+```text
+var line lvl = na
+lvl := line.new(bar_index, high, bar_index, high)
+line.set_xy2(lvl, bar_index, low)
+```
+
+This is the cleanest case: a single `var`/`varip` handle, created once and
+updated with `set_*` calls. It lowers to one chartlang drawing slot whose
+setters fold into a single `update({...})` patch. **Write your single
+persistent drawings this way.**
+
+### Camp B — a bounded ring of handles
+
+Pine — a `var array<line>` with FIFO eviction:
+
+```text
+var array<line> lines = array.new<line>()
+array.push(lines, line.new(bar_index, high, bar_index, high))
+if array.size(lines) > 50
+    line.delete(array.shift(lines))
+```
+
+The explicit eviction (`array.size > K` → `array.shift`) is the signal
+that caps the collection. It converts to a fixed-capacity chartlang ring;
+the eviction block is removed (the ring rotates internally) and an info
+notes the elision. **This is the idiom for "keep the last K drawings."**
+
+### Camp C — dynamic collections (often a reject)
+
+A collection that fits neither shape cleanly. The converter tries to infer
+a cap (from an `indicator(max_*_count=…)` arg, a literal loop bound, or a
+straight-line push count) and fold it into a Camp B ring. **If it cannot
+find a cap, it hard-rejects** with `unbounded-handle-collection` — chartlang
+has no analogue for an unbounded handle collection.
+
+To steer a Camp C script into a bounded camp:
+
+- Add `max_lines_count=K` (or `max_labels_count` / `max_boxes_count`) to the
+  `indicator(...)` call, **or**
+- Add an explicit ring-buffer eviction with `array.size` + `array.shift`,
+  **and**
+- Declare the collection at the **top level** — a collection declared only
+  inside an `if`/`for` block does not resolve and falls to a reject.
+
+## Common hard-reject patterns and their rewrites
+
+| Pine pattern | Why it rejects | Rewrite |
+|---|---|---|
+| `for l in line.all` | No bulk-handle iteration in v1. | Track handles in a `var array<line>` (Camp B). |
+| `line.copy(h)` | Handles are not first-class values. | Re-create the drawing at the new spot. |
+| A handle stored in a `type` field | No UDTs in v1. | Hoist it into a top-level `var line/label/box`. |
+| `polyline.new([p1, p2, ...])` | The `[...]` array literal **does not parse**. | Build the anchors with `array.new<chart.point>()` + a literal `for i = 0 to K` push loop. |
+| `array.get(coll, -1)` | Negative ring index. | Use `array.last(coll)`. |
+| `linefill.new(array.get(a,i), array.get(b,i))` | Cross-collection fill. | Use a single `draw.path(...)` over the anchor pair. |
+| `while` / `for ... in` | Unbounded loops. | Use a literal `for i = a to b`. |
+| `strategy(...)` | No backtester. | Convert as `indicator(...)`; emit orders as `alert(...)`. |
+
+## Gotchas
+
+- **`varip` is approximated.** A `varip` handle reuses the same slot and
+  raises a `varip-approximated` info — chartlang does not reproduce Pine's
+  intra-bar tick-rollback. Confirm your script does not rely on it.
+- **Future `bar_index + N` anchors need `barInterval`.** A drawing anchored
+  in the future (`bar_index + 10`) needs the ms-per-bar interval to place
+  it in time. Pass `barInterval` (CLI `--bar-interval <ms>`), or the
+  converter emits a `requires-bar-interval` error. Historical `bar_index[N]`
+  anchors use `barIndexOrigin` when set.
+- **`yloc.abovebar` / `yloc.belowbar` are padded approximations.** They
+  lower to the bar high/low plus a fixed fraction of the bar range
+  (`yloc-padding-approximated`). Tune `__YLOC_PAD_FRAC` in the generated
+  script if the offset is too tight.
+- **`linefill.new(lineA, lineB)` becomes a filled quad.** It maps to
+  `draw.rotatedRectangle` over the two lines' endpoints — chartlang has no
+  fill-between-series primitive, so it is best-effort
+  (`linefill-rotatedrect-approximated`).
+- **Some `ta.*` names differ.** Pine `ta.rma` → chartlang `ta.smma`, etc.
+  These emit a `ta-signature-divergence` warning — check the arguments. An
+  unmapped `ta.*` / `math.*` / `str.*` is passed through verbatim with a
+  "not mapped" warning so you can finish the port by hand.
+- **Inputs must be literal.** Defaults and option values must be
+  compile-time literals (a unary `+`/`-` on a number is fine). A computed
+  default rejects. `input.enum` is not supported — use `input.string`.
+
+## See also
+
+- [Converter overview](https://chartlang.dev/converter/) — intro + quick start.
+- [Usage](https://chartlang.dev/converter/usage) — CLI flags + programmatic API.
+- [Supported surface](https://chartlang.dev/converter/supported) — the full mapping tables.
+- [Rejects + manual rewrites](https://chartlang.dev/converter/rejects) — the hard-reject catalogue.
+- [Diagnostics reference](https://chartlang.dev/converter/diagnostics) — every code, anchored by slug.
+- [`references/forbidden.md`](./forbidden.md) — the chartlang constructs the compiler rejects (the porting target's hard rules).

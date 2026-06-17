@@ -1,0 +1,7 @@
+---
+"@invinite-org/chartlang-pine-converter": patch
+---
+
+Add the package-internal `input.*` transform that lowers every Pine `input.int`/`float`/`bool`/`string`/`color`/`source`/`symbol`/`timeframe`/`time`/`price`/`text_area` declaration into a chartlang `input.*(...)` source string appended to the `ScriptScaffold`'s `inputs` array. `transformInputs(analysis, scaffold, diagnostics)` (`src/transform/inputs.ts`) walks the analysed script body (including `if`/`for`/`switch`/block bodies and nested expression trees), keying a named declaration (`len = input.int(20)`) by its bound name and promoting an inline call (`ta.ema(close, input.int(20))`) to a synthesised `__input_<n>` name with an `inline-input-promoted` info. It consumes the Task 6 `INPUT_MAP` (`input.timeframe` → `input.interval`, `input.text_area` → `input.string` + `multiline: true`), maps `minval`/`maxval`/`step` → `min`/`max`/`step`, lowers `input.source` OHLCV built-ins to `SourceField` string literals, and accepts compile-time-literal defaults (including unary `+`/`-` on a numeric literal).
+
+Adds `src/transform/timeframeConvert.ts` with bidirectional `pineTimeframeToInterval` / `intervalToPineTimeframe` helpers (reused by Task 15's MTF support) and six `pine-converter/transform/...` diagnostic codes: `input-enum-rejected`, `unknown-input-primitive`, `non-literal-source-input`, `non-literal-input-default`, `input-arg-not-mapped`, and `inline-input-promoted`. `transformInputs` and the timeframe helpers are re-exported from `src/transform/index.ts` (package-internal).

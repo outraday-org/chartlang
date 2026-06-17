@@ -1,0 +1,7 @@
+//@version=6
+indicator("Camp A line", overlay=true)
+var line lvl = na
+if barstate.islast
+    lvl := line.new(bar_index, close, bar_index, close, color=color.red, width=2)
+    line.set_xy1(lvl, bar_index, close * 1.01)
+    line.set_xy2(lvl, bar_index, close * 0.99)

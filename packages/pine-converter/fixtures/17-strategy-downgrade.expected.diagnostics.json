@@ -1,0 +1,62 @@
+[
+    {
+        "code": "pine-converter/parse/unsupported-strategy",
+        "severity": "error",
+        "message": "`strategy(...)` declarations are not supported.",
+        "span": {
+            "startLine": 2,
+            "startColumn": 1,
+            "endLine": 2,
+            "endColumn": 9
+        },
+        "suggestion": "Strip the backtester and convert the signal logic as an `indicator(...)`."
+    },
+    {
+        "code": "pine-converter/semantic/unknown-identifier",
+        "severity": "error",
+        "message": "Reference to an undeclared identifier.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 5,
+            "endLine": 5,
+            "endColumn": 19
+        },
+        "suggestion": "Declare the variable, or check for a typo in a built-in name."
+    },
+    {
+        "code": "pine-converter/semantic/unknown-identifier",
+        "severity": "error",
+        "message": "Reference to an undeclared identifier.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 28,
+            "endLine": 5,
+            "endColumn": 41
+        },
+        "suggestion": "Declare the variable, or check for a typo in a built-in name."
+    },
+    {
+        "code": "pine-converter/transform/strategy-as-indicator",
+        "severity": "info",
+        "message": "`strategy(...)` was stripped to a `defineIndicator`; backtester args were dropped.",
+        "span": {
+            "startLine": 2,
+            "startColumn": 1,
+            "endLine": 2,
+            "endColumn": 14
+        },
+        "suggestion": "Re-create order logic as `alert(...)` emissions in the converted script."
+    },
+    {
+        "code": "pine-converter/transform/strategy-signal-only",
+        "severity": "info",
+        "message": "A `strategy.*` order call was lowered to an `alert(...)`; order sizing/fills are not reproduced.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 5,
+            "endLine": 5,
+            "endColumn": 42
+        },
+        "suggestion": "Wire the alert into your own execution layer if you need order semantics."
+    }
+]

@@ -37,6 +37,12 @@ Subcommands:
   their `ta.*` meaning as aliases for `--ta-source` / `--ta-out`.
   CI gate: `pnpm docs:gate` byte-diffs the regenerated pages against
   the committed tree.
+- `chartlang pine-convert <input.pine> [--out <path>] [--strict] [--diagnostics-json] [--report] [--bar-interval <ms>] [--bar-index-origin <ms>]`
+  — converts a Pine Script v6 file to a chartlang `.chart.ts` via
+  `@invinite-org/chartlang-pine-converter`. Without `--out` the source
+  streams to stdout; diagnostics go to stderr (human report) or stdout
+  (`--diagnostics-json`). Exit codes: `0` ok, `1` error diagnostics,
+  `2` I/O failure, `3` invalid args.
 - `chartlang --help` / `-h` — prints the usage block.
 
 Programmatic surface (re-exported from `./index`):

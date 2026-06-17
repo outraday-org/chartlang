@@ -4,8 +4,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { ExpressionNode } from "../ast/index.js";
-import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
 import type { SourceSpan } from "../index.js";
+import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
 import { emitExpr } from "./exprEmit.js";
 
 const SPAN: SourceSpan = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 };

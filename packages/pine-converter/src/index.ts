@@ -1,6 +1,25 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import { readFile, writeFile } from "node:fs/promises";
+
+import { emit, scaffoldToManifest } from "./codegen/index.js";
+import { upgradeWarningsToErrors } from "./diagnostics/index.js";
+import { lex } from "./lexer/index.js";
+import { parseStatements } from "./parser/index.js";
+import { analyze } from "./semantic/index.js";
+import {
+    DiagnosticCollector,
+    transformCampA,
+    transformCampB,
+    transformCampC,
+    transformDeclaration,
+    transformInputs,
+    transformOther,
+    transformPolylineLinefill,
+    transformTables,
+} from "./transform/index.js";
+
 /**
  * Package version. Mirrors `package.json`; the changeset workflow
  * drives both. Start at "0.0.0" matching every other scaffolded
@@ -184,19 +203,130 @@ export class ConverterNotReadyError extends Error {
     }
 }
 
+// Whether a diagnostic list carries any error-severity entry — a fatal stop
+// for the early lex/parse stages (no AST worth transforming).
+function anyError(diagnostics: readonly Diagnostic[]): boolean {
+    return diagnostics.some((diagnostic) => diagnostic.severity === "error");
+}
+
 /**
- * Convert a Pine v6 source string into a chartlang `.chart.ts` source
- * string with structured diagnostics. Throws `ConverterNotReadyError`
- * in this task; later tasks replace the throw with the real pipeline.
+ * Convert a Pine v6 source string into a chartlang `.chart.ts` source string
+ * with structured diagnostics. Runs the full pipeline — lex → parse →
+ * semantic analysis → the transform passes (declaration, inputs, the Camp
+ * A/B/C drawing lowerings, tables, polyline/linefill, control-flow) → codegen
+ * — and returns `{ output, manifest, diagnostics }`. `convert` is synchronous
+ * and does NOT round-trip the output through the chartlang compiler; callers
+ * who want compile-verification call `compile(result.output, …)` themselves
+ * (or the async `convertFile`). Lex/parse error-severity diagnostics short-
+ * circuit with a `null` output.
  *
  * @since 0.1
  * @experimental
  * @example
  *     const result = convert("//@version=6\nindicator('hello')");
- *     void result;
+ *     result.output?.startsWith("// Auto-generated"); // true
  */
 export function convert(source: string, opts?: ConvertOpts): ConvertResult {
-    void source;
-    void opts;
-    throw new ConverterNotReadyError("lexer");
+    // `strictMode` upgrades every warning to an error in the returned
+    // diagnostics (the code STRINGS and `output` are unchanged — callers
+    // detect failure by inspecting diagnostics for any error severity).
+    const applyStrict = (diagnostics: readonly Diagnostic[]): readonly Diagnostic[] =>
+        opts?.strictMode === true ? upgradeWarningsToErrors(diagnostics) : diagnostics;
+
+    const lexResult = lex(source);
+    if (anyError(lexResult.diagnostics)) {
+        return { output: null, manifest: null, diagnostics: applyStrict(lexResult.diagnostics) };
+    }
+    const parseResult = parseStatements(lexResult.tokens);
+    const parseDiagnostics = [...lexResult.diagnostics, ...parseResult.diagnostics];
+    const declaration = parseResult.script.declaration;
+    if (
+        declaration === null ||
+        (declaration.kind !== "indicator-declaration" &&
+            declaration.kind !== "strategy-declaration")
+    ) {
+        return { output: null, manifest: null, diagnostics: applyStrict(parseDiagnostics) };
+    }
+
+    const analysis = analyze(parseResult.script);
+    const diagnostics = new DiagnosticCollector();
+    const scaffold = transformDeclaration(declaration, analysis, diagnostics);
+    transformInputs(analysis, scaffold, diagnostics);
+    for (const site of analysis.drawingSites) {
+        if (site.constructor === "table.new") {
+            continue;
+        }
+        if (site.camp.kind === "camp-a") {
+            transformCampA(site, analysis, scaffold, diagnostics);
+        } else if (site.camp.kind === "camp-b") {
+            transformCampB(site, analysis, scaffold, diagnostics);
+        } else {
+            transformCampC(site, analysis, scaffold, diagnostics);
+        }
+    }
+    transformTables(analysis, scaffold, diagnostics);
+    transformPolylineLinefill(analysis, scaffold, diagnostics);
+    transformOther(analysis, scaffold, diagnostics);
+
+    const output = emit(scaffold);
+    const manifest = scaffoldToManifest(scaffold, analysis);
+    return {
+        output,
+        manifest,
+        diagnostics: applyStrict([
+            ...parseDiagnostics,
+            ...analysis.diagnostics,
+            ...diagnostics.toArray(),
+        ]),
+    };
+}
+
+/**
+ * Caller-supplied options for {@link convertFile}. Extends {@link ConvertOpts}
+ * with an optional `outPath`; when set and the conversion produces a non-null
+ * `output`, the converted `.chart.ts` source is written there.
+ *
+ * @since 0.1
+ * @experimental
+ * @example
+ *     const opts: ConvertFileOpts = { outPath: "out/hello.chart.ts", strictMode: true };
+ *     void opts;
+ */
+export type ConvertFileOpts = ConvertOpts & Readonly<{ outPath?: string }>;
+
+/**
+ * Async file-system wrapper around {@link convert}: reads `path` as UTF-8,
+ * converts it, and — when `opts.outPath` is set AND the conversion yields a
+ * non-null `output` — writes that output to `opts.outPath`. Returns the same
+ * `ConvertResult` as `convert`. File I/O failures (missing input, permission
+ * denied) REJECT the promise: they are host-environment errors, NOT converter
+ * diagnostics, and must be distinguishable from a clean conversion that merely
+ * emitted error-severity diagnostics.
+ *
+ * @since 0.1
+ * @experimental
+ * @example
+ *     const result = await convertFile("hello.pine", { outPath: "hello.chart.ts" });
+ *     result.output !== null; // true when the conversion succeeded
+ */
+export async function convertFile(path: string, opts?: ConvertFileOpts): Promise<ConvertResult> {
+    const source = await readFile(path, "utf-8");
+    const convertOpts = stripOutPath(opts);
+    const result = convertOpts === undefined ? convert(source) : convert(source, convertOpts);
+    if (opts?.outPath !== undefined && result.output !== null) {
+        await writeFile(opts.outPath, result.output, "utf-8");
+    }
+    return result;
+}
+
+// Project a `ConvertFileOpts` down to the `ConvertOpts` `convert` accepts by
+// dropping the `outPath` field. Returns `undefined` when no convert-relevant
+// option survives so the caller forwards nothing (preserving the
+// `exactOptionalPropertyTypes` contract — no explicit `undefined` fields).
+function stripOutPath(opts: ConvertFileOpts | undefined): ConvertOpts | undefined {
+    if (opts === undefined) {
+        return undefined;
+    }
+    const { outPath: _outPath, ...rest } = opts;
+    return rest;
 }

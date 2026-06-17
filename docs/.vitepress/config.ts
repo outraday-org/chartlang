@@ -78,6 +78,7 @@ export default defineConfig({
             { text: "Hosts", link: "/hosts/worker" },
             { text: "Reference", link: "/reference/glossary" },
             { text: "Skills", link: "/skills/" },
+            { text: "Converter", link: "/converter/" },
         ],
         sidebar: {
             "/examples/": [
@@ -99,6 +100,18 @@ export default defineConfig({
                         { text: "Overview", link: "/skills/" },
                         { text: "chartlang-coding", link: "/skills/chartlang-coding" },
                         { text: "chartlang-setup", link: "/skills/chartlang-setup" },
+                    ],
+                },
+            ],
+            "/converter/": [
+                {
+                    text: "Pine Converter",
+                    items: [
+                        { text: "Overview", link: "/converter/" },
+                        { text: "Usage", link: "/converter/usage" },
+                        { text: "Supported surface", link: "/converter/supported" },
+                        { text: "Rejects + manual rewrites", link: "/converter/rejects" },
+                        { text: "Diagnostics reference", link: "/converter/diagnostics" },
                     ],
                 },
             ],

@@ -1,0 +1,9 @@
+//@version=6
+indicator("Merged header", overlay=true)
+var table t = na
+if barstate.islast
+    t := table.new(position.bottom_left, 2, 2)
+    table.cell(t, 0, 0, "Header")
+    table.merge_cells(t, 0, 0, 1, 0)
+    table.cell(t, 0, 1, "A")
+    table.cell(t, 1, 1, "B")

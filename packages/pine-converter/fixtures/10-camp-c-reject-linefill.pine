@@ -1,0 +1,7 @@
+//@version=6
+indicator("Camp C linefill", overlay=true)
+var lines = array.new_line()
+if close > open
+    array.push(lines, line.new(bar_index, high, bar_index, high))
+if array.size(lines) > 2
+    fill = linefill.new(array.get(lines, 0), array.get(lines, 1), color.new(color.red, 80))

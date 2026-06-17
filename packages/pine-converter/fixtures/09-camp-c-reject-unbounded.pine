@@ -1,0 +1,6 @@
+//@version=6
+indicator("Camp C unbounded", overlay=true)
+if barstate.isfirst
+    var lvls = array.new_line()
+if close > open
+    array.push(lvls, line.new(bar_index, high, bar_index, high))

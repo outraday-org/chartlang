@@ -3,15 +3,30 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { SourceSpan } from "../index.js";
-import { DIAGNOSTIC_CODES, type ParserDiagnosticCode, makeDiagnostic } from "./codes.js";
+import type { DiagnosticSeverity, SourceSpan } from "../index.js";
+import {
+    DIAGNOSTIC_CODE_ENTRIES,
+    DIAGNOSTIC_CODES,
+    type ParserDiagnosticCode,
+    makeDiagnostic,
+} from "./codes.js";
 
 const SPAN: SourceSpan = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 5 };
 
-describe("DIAGNOSTIC_CODES", () => {
+describe("DIAGNOSTIC_CODE_ENTRIES", () => {
     it("namespaces every code under a pine-converter/<stage>/ prefix", () => {
-        for (const entry of Object.values(DIAGNOSTIC_CODES)) {
-            expect(/^pine-converter\/(parse|semantic|transform)\//.test(entry.code)).toBe(true);
+        for (const entry of Object.values(DIAGNOSTIC_CODE_ENTRIES)) {
+            expect(/^pine-converter\/(parse|semantic|transform|codegen)\//.test(entry.code)).toBe(
+                true,
+            );
+        }
+    });
+
+    it("gives every entry a non-empty default message and a valid severity", () => {
+        const severities: readonly DiagnosticSeverity[] = ["error", "warning", "info"];
+        for (const entry of Object.values(DIAGNOSTIC_CODE_ENTRIES)) {
+            expect(entry.defaultMessage.length).toBeGreaterThan(0);
+            expect(severities).toContain(entry.severity);
         }
     });
 
@@ -23,8 +38,35 @@ describe("DIAGNOSTIC_CODES", () => {
             "computed-indicator-title",
             "max-count-out-of-range",
         ] as const) {
-            expect(DIAGNOSTIC_CODES[key].code).toBe(`pine-converter/transform/${key}`);
+            expect(DIAGNOSTIC_CODE_ENTRIES[key].code).toBe(`pine-converter/transform/${key}`);
         }
+    });
+
+    it("pins the per-task severities that downstream tooling depends on", () => {
+        const expected: ReadonlyArray<readonly [ParserDiagnosticCode, DiagnosticSeverity]> = [
+            ["unsupported-strategy", "error"],
+            ["accidental-shadowing", "warning"],
+            ["dynamic-handle-collection", "info"],
+            ["cap-mismatch", "info"],
+            ["cross-collection-linefill", "error"],
+            ["ta-not-mapped", "warning"],
+            ["codegen-output-invalid", "error"],
+        ];
+        for (const [key, severity] of expected) {
+            expect(DIAGNOSTIC_CODE_ENTRIES[key].severity).toBe(severity);
+        }
+    });
+});
+
+describe("DIAGNOSTIC_CODES (by full code string)", () => {
+    it("indexes every entry by its full code string", () => {
+        for (const entry of Object.values(DIAGNOSTIC_CODE_ENTRIES)) {
+            expect(DIAGNOSTIC_CODES.get(entry.code)).toBe(entry);
+        }
+    });
+
+    it("has exactly one map entry per registry entry (codes are unique)", () => {
+        expect(DIAGNOSTIC_CODES.size).toBe(Object.keys(DIAGNOSTIC_CODE_ENTRIES).length);
     });
 });
 
@@ -33,15 +75,17 @@ describe("makeDiagnostic", () => {
         const diag = makeDiagnostic("unsupported-strategy", SPAN);
         expect(diag.code).toBe("pine-converter/parse/unsupported-strategy");
         expect(diag.severity).toBe("error");
-        expect(diag.message).toBe(DIAGNOSTIC_CODES["unsupported-strategy"].defaultMessage);
-        expect(diag.suggestion).toBe(DIAGNOSTIC_CODES["unsupported-strategy"].defaultSuggestion);
+        expect(diag.message).toBe(DIAGNOSTIC_CODE_ENTRIES["unsupported-strategy"].defaultMessage);
+        expect(diag.suggestion).toBe(
+            DIAGNOSTIC_CODE_ENTRIES["unsupported-strategy"].defaultSuggestion,
+        );
         expect(diag.span).toEqual(SPAN);
     });
 
     it("omits the suggestion for an entry without one", () => {
         const diag = makeDiagnostic("expected-token", SPAN);
         expect(diag.suggestion).toBeUndefined();
-        expect(diag.message).toBe(DIAGNOSTIC_CODES["expected-token"].defaultMessage);
+        expect(diag.message).toBe(DIAGNOSTIC_CODE_ENTRIES["expected-token"].defaultMessage);
     });
 
     it("applies a message override while keeping the stable code", () => {
@@ -52,7 +96,7 @@ describe("makeDiagnostic", () => {
 
     it("exposes every registry key as a ParserDiagnosticCode", () => {
         const keys: ParserDiagnosticCode[] = Object.keys(
-            DIAGNOSTIC_CODES,
+            DIAGNOSTIC_CODE_ENTRIES,
         ) as ParserDiagnosticCode[];
         expect(keys).toContain("missing-version-directive");
     });

@@ -19,4 +19,5 @@ export {
 } from "./genDocs.js";
 export type { PrimitiveDocInput, RunGenDocsOptions } from "./genDocs.js";
 export { printHelp, runHelp } from "./help.js";
+export { runPineConvert } from "./pineConvert.js";
 export { runScaffoldAdapter } from "./scaffoldAdapter.js";

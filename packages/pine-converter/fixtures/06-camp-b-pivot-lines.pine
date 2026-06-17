@@ -1,0 +1,7 @@
+//@version=6
+indicator("Camp B pivots", overlay=true)
+var lvls = array.new_line()
+if close > open
+    array.push(lvls, line.new(bar_index, high, bar_index, high, color=color.red, width=2))
+if array.size(lvls) > 50
+    line.delete(array.shift(lvls))

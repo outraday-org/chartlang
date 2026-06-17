@@ -39,9 +39,7 @@ describe("UDT / method / import hard-reject", () => {
     });
 
     it("discards a `type` block with nested indentation", () => {
-        const result = parse(
-            "//@version=6\nindicator()\ntype T\n    int a\n    line b\nx := 1\n",
-        );
+        const result = parse("//@version=6\nindicator()\ntype T\n    int a\n    line b\nx := 1\n");
         expect(codes(result)).toEqual(["pine-converter/parse/unsupported-udt"]);
         expect(result.script.body[0].kind).toBe("assignment");
     });

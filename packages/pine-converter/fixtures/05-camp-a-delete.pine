@@ -1,0 +1,8 @@
+//@version=6
+indicator("Camp A delete", overlay=true)
+var line lvl = na
+if barstate.islast
+    lvl := line.new(bar_index, close, bar_index, close)
+    line.set_xy1(lvl, bar_index, close)
+if barstate.isfirst
+    line.delete(lvl)

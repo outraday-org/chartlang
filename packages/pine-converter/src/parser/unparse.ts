@@ -33,7 +33,9 @@ export function unparse(node: ExpressionNode): string {
             return `(${unparse(node.condition)} ? ${unparse(node.consequent)} : ${unparse(node.alternate)})`;
         case "call-expression":
             return `${unparse(node.callee)}(${node.args
-                .map((arg) => (arg.name === null ? unparse(arg.value) : `${arg.name} = ${unparse(arg.value)}`))
+                .map((arg) =>
+                    arg.name === null ? unparse(arg.value) : `${arg.name} = ${unparse(arg.value)}`,
+                )
                 .join(", ")})`;
         case "member-access-expression": {
             const prefix = node.head === null ? "" : `${unparse(node.head)}.`;

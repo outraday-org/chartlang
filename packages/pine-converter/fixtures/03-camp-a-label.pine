@@ -1,0 +1,6 @@
+//@version=6
+indicator("Camp A label", overlay=true)
+var label lbl = na
+if barstate.islast
+    lbl := label.new(bar_index, high, "Top", style=label.style_label_down, color=color.blue)
+    label.set_text(lbl, "High here")

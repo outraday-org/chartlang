@@ -1,0 +1,15 @@
+//@version=6
+indicator("Dashboard", overlay=true)
+var table dash = na
+if barstate.islast
+    dash := table.new(position.top_right, 2, 5)
+    table.cell(dash, 0, 0, "Metric")
+    table.cell(dash, 1, 0, "Value")
+    table.cell(dash, 0, 1, "Trend")
+    table.cell(dash, 1, 1, "Up", bgcolor=color.green, text_color=color.white)
+    table.cell(dash, 0, 2, "Bias")
+    table.cell(dash, 1, 2, "Long")
+    table.cell(dash, 0, 3, "Risk")
+    table.cell(dash, 1, 3, "Low")
+    table.cell(dash, 0, 4, "Score")
+    table.cell(dash, 1, 4, "A")

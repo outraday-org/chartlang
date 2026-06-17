@@ -1,0 +1,50 @@
+[
+    {
+        "code": "pine-converter/semantic/dynamic-handle-collection",
+        "severity": "info",
+        "message": "bounded by indicator cap=30; relies on Pine FIFO GC",
+        "span": {
+            "startLine": 5,
+            "startColumn": 22,
+            "endLine": 5,
+            "endColumn": 64
+        },
+        "suggestion": "Add a `max_*_count` argument or an explicit ring-buffer eviction."
+    },
+    {
+        "code": "pine-converter/transform/drawing-only-script",
+        "severity": "info",
+        "message": "Script emits only drawings; converted as a `defineDrawing` (plot capability dropped).",
+        "span": {
+            "startLine": 2,
+            "startColumn": 1,
+            "endLine": 2,
+            "endColumn": 64
+        },
+        "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
+    },
+    {
+        "code": "pine-converter/transform/camp-c-heuristic-applied",
+        "severity": "info",
+        "message": "implicit FIFO at N=30 from indicator() declaration",
+        "span": {
+            "startLine": 5,
+            "startColumn": 22,
+            "endLine": 5,
+            "endColumn": 64
+        },
+        "suggestion": "Confirm the inferred cap matches Pine's runtime eviction; add an explicit `max_*_count` to be sure."
+    },
+    {
+        "code": "pine-converter/transform/ring-eviction-implicit",
+        "severity": "info",
+        "message": "The explicit `array.shift`/`*.delete` FIFO eviction was removed; the ring buffer evicts implicitly.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 22,
+            "endLine": 5,
+            "endColumn": 64
+        },
+        "suggestion": "No action needed; the ring's modulo-K write reproduces the eviction."
+    }
+]

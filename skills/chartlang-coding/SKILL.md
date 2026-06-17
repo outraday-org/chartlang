@@ -26,6 +26,10 @@ Use the references in this skill for surface detail:
   the compiler rejects and the chartlang-idiomatic replacements.
 - [`references/examples.md`](./references/examples.md) — complete worked
   scripts to scan for patterns.
+- [`references/translating-from-pine.md`](./references/translating-from-pine.md)
+  — port a Pine Script v6 indicator to chartlang (or interpret a
+  `pine-converter` diagnostic): the three drawing camps, the hard-reject
+  patterns, and their Pine rewrites.
 
 ## 1. The contract in one screen
 

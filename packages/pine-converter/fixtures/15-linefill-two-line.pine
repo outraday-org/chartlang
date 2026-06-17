@@ -1,0 +1,8 @@
+//@version=6
+indicator("Linefill two-line", overlay=true)
+var line a = na
+var line b = na
+if barstate.islast
+    a := line.new(bar_index, high, bar_index, high)
+    b := line.new(bar_index, low, bar_index, low)
+    linefill.new(a, b, color.new(color.teal, 80))

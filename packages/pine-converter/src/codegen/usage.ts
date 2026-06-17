@@ -1,0 +1,93 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import type { ScriptScaffold } from "../transform/ir.js";
+
+/**
+ * Which chartlang surfaces a converted scaffold references, derived once by
+ * {@link scanUsage}. Both the import-minimization pass ({@link
+ * import("./emitImports.js").emitImports}) and the `compute` destructure
+ * ({@link import("./emitCompute.js").emitCompute}) read this single flag set
+ * so the emitted import list and the destructured parameter list never drift.
+ *
+ * @since 0.1
+ * @experimental
+ * @example
+ *     const flags: UsageFlags = {
+ *         draw: true,
+ *         state: false,
+ *         ta: false,
+ *         plot: false,
+ *         hline: false,
+ *         alert: false,
+ *         input: false,
+ *         request: false,
+ *         barstate: true,
+ *         drawingHandle: true,
+ *         barIndex: false,
+ *         barInterval: false,
+ *     };
+ *     void flags;
+ */
+export type UsageFlags = Readonly<{
+    draw: boolean;
+    state: boolean;
+    ta: boolean;
+    plot: boolean;
+    hline: boolean;
+    alert: boolean;
+    input: boolean;
+    request: boolean;
+    barstate: boolean;
+    drawingHandle: boolean;
+    barIndex: boolean;
+    barInterval: boolean;
+}>;
+
+// The full corpus of generated source the usage scan walks: every input
+// descriptor, every state-slot initializer, and every compute statement.
+function corpusOf(scaffold: ScriptScaffold): string {
+    return [
+        ...scaffold.inputs.map((entry) => entry.code),
+        ...scaffold.stateSlots.map((slot) => slot.initExpr),
+        ...scaffold.computeBody.statements,
+    ].join("\n");
+}
+
+/**
+ * Scan a populated {@link ScriptScaffold} once to decide which chartlang
+ * surfaces it references. `draw`/`state` are forced on when the scaffold
+ * carries handle/ring/state allocations (the codegen-owned preamble uses
+ * them) even if no statement names them directly; `DrawingHandle` is needed
+ * whenever any handle slot or ring is emitted (the helper signatures
+ * reference it). Everything else is a substring scan over the generated
+ * source corpus — every compute statement and input descriptor is already a
+ * final chartlang source string, so a textual scan is exact.
+ *
+ * @since 0.1
+ * @experimental
+ * @example
+ *     import { scanUsage } from "./usage.js";
+ *     declare const scaffold: import("../transform/ir.js").ScriptScaffold;
+ *     scanUsage(scaffold).draw; // boolean
+ */
+export function scanUsage(scaffold: ScriptScaffold): UsageFlags {
+    const corpus = corpusOf(scaffold);
+    const hasHandles = scaffold.handleSlots.length > 0;
+    const hasRings = scaffold.handleRings.length > 0;
+    const hasState = scaffold.stateSlots.length > 0;
+    return {
+        draw: hasHandles || hasRings || corpus.includes("draw."),
+        state: hasState || corpus.includes("state."),
+        ta: corpus.includes("ta."),
+        plot: /\bplot\b/.test(corpus),
+        hline: /\bhline\b/.test(corpus),
+        alert: /\balert\b/.test(corpus),
+        input: corpus.includes("input."),
+        request: corpus.includes("request."),
+        barstate: corpus.includes("barstate."),
+        drawingHandle: hasHandles || hasRings,
+        barIndex: corpus.includes("__bar_index("),
+        barInterval: corpus.includes("__BAR_INTERVAL_MS"),
+    };
+}

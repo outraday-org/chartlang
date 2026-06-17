@@ -10,9 +10,10 @@ faithfully translated. The v1 slice covers the Pine drawing surface
 plus the minimum supporting infrastructure (indicator declaration,
 inputs, `var`/`varip`, `barstate`, literal-bounded control flow).
 
-This task ships the scaffold + public-type surface only — the conversion
-pipeline (lexer → parser → semantic → mapping → transform → codegen) is
-built out across Tasks 2–16 of the `pine-drawing-converter` tasklist.
+The pipeline runs lexer → parser → semantic analysis → mapping → the
+transform passes (declaration, inputs, the three drawing camps, tables,
+polyline/linefill, control flow) → codegen, returning structured
+diagnostics with versioned codes and 1-based source spans.
 
 ## Install
 
@@ -22,35 +23,46 @@ pnpm add @invinite-org/chartlang-pine-converter
 
 ## Public surface
 
-- `convert(source, opts?) → ConvertResult` — pure source-to-source
-  conversion. Throws `ConverterNotReadyError` until later tasks land.
-- Types: `ConvertOpts`, `ConvertResult`, `ConvertManifest`,
-  `Diagnostic`, `DiagnosticSeverity`, `SourceSpan`,
-  `ConverterCapabilities`.
+- `convert(source, opts?) → ConvertResult` — synchronous source-to-source
+  conversion. Returns `{ output, manifest, diagnostics }`; `output` is the
+  chartlang `.chart.ts` string (or `null` when lex/parse fails fatally).
+- `convertFile(path, opts?) → Promise<ConvertResult>` — async fs wrapper:
+  reads `path`, converts, and writes the output to `opts.outPath` when set.
+- Types: `ConvertOpts`, `ConvertFileOpts`, `ConvertResult`, `ConvertManifest`,
+  `Diagnostic`, `DiagnosticSeverity`, `SourceSpan`, `ConverterCapabilities`.
+- Sub-export `@invinite-org/chartlang-pine-converter/diagnostics` —
+  `formatDiagnostic`, `formatDiagnosticReport`, `formatDiagnosticsJson`,
+  `DiagnosticReport`, `upgradeWarningsToErrors`.
 - Error: `ConverterNotReadyError` with a `missingLayer` discriminator.
 
 ## Minimum-viable API call
 
 ```ts
-import {
-    convert,
-    ConverterNotReadyError,
-} from "@invinite-org/chartlang-pine-converter";
+import { convert } from "@invinite-org/chartlang-pine-converter";
 
-try {
-    const result = convert("//@version=6\nindicator('hello')");
-    void result;
-} catch (err) {
-    if (err instanceof ConverterNotReadyError) {
-        // Layer not yet implemented (e.g. "lexer") — see the tasklist.
-        void err.missingLayer;
-    }
+const result = convert("//@version=6\nindicator('hello')");
+if (result.output !== null) {
+    // result.output is a chartlang `.chart.ts` source string that
+    // compiles through @invinite-org/chartlang-compiler.
+    void result.output;
 }
+void result.manifest;
+void result.diagnostics;
 ```
 
 ## Docs
 
-See [`docs/converter/`](../../docs/converter/) (populated by Task 20).
+See [`docs/converter/`](../../docs/converter/) — overview, CLI +
+programmatic [usage](../../docs/converter/usage.md),
+[supported surface](../../docs/converter/supported.md),
+[rejects + manual rewrites](../../docs/converter/rejects.md), and the
+generated [diagnostics reference](../../docs/converter/diagnostics.md). The
+author-focused porting guide is the
+[`translating-from-pine`](../../skills/chartlang-coding/references/translating-from-pine.md)
+skill reference.
+
+**Deferred:** the side-by-side converter example doc pages are pending the
+Task 19 fixture corpus.
 
 ## License
 

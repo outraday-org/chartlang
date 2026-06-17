@@ -1,0 +1,38 @@
+[
+    {
+        "code": "pine-converter/transform/drawing-only-script",
+        "severity": "info",
+        "message": "Script emits only drawings; converted as a `defineDrawing` (plot capability dropped).",
+        "span": {
+            "startLine": 2,
+            "startColumn": 1,
+            "endLine": 2,
+            "endColumn": 41
+        },
+        "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
+    },
+    {
+        "code": "pine-converter/transform/table-bucket-cap-adjusted",
+        "severity": "info",
+        "message": "The `other` drawing-bucket cap was raised to fit the converted tables.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 10,
+            "endLine": 5,
+            "endColumn": 47
+        },
+        "suggestion": "No action needed; the cap was widened to match the table count."
+    },
+    {
+        "code": "pine-converter/transform/table-merge-fallback",
+        "severity": "warning",
+        "message": "`table.merge_cells(...)` has no chartlang analogue; the merged span keeps the top-left cell and blanks the rest.",
+        "span": {
+            "startLine": 7,
+            "startColumn": 5,
+            "endLine": 7,
+            "endColumn": 37
+        },
+        "suggestion": "Lay the data out in unmerged cells, or accept the top-left-only fallback."
+    }
+]

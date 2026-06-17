@@ -1,0 +1,29 @@
+//@version=6
+indicator("Support / Resistance", overlay=true, max_lines_count=20)
+
+lookback = input.int(5, "Pivot lookback")
+showTable = input.bool(true, "Show dashboard")
+lineColor = input.color(#FF9800, "Level color")
+
+var levels = array.new_line()
+var label lastLbl = na
+var table stats = na
+
+ph = ta.pivothigh(lookback, lookback)
+pl = ta.pivotlow(lookback, lookback)
+
+if not na(ph)
+    array.push(levels, line.new(bar_index, ph, bar_index, ph, color=lineColor, width=2))
+if not na(pl)
+    array.push(levels, line.new(bar_index, pl, bar_index, pl, color=lineColor, width=2))
+if array.size(levels) > 20
+    line.delete(array.shift(levels))
+
+if barstate.islast
+    lastLbl := label.new(bar_index, close, "Last close", style=label.style_label_left)
+    label.set_text(lastLbl, "Close " + str.tostring(close))
+    stats := table.new(position.top_right, 2, 2)
+    table.cell(stats, 0, 0, "Levels")
+    table.cell(stats, 1, 0, str.tostring(array.size(levels)))
+    table.cell(stats, 0, 1, "Last close")
+    table.cell(stats, 1, 1, str.tostring(close))

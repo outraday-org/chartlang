@@ -5,9 +5,9 @@ import { describe, expect, it } from "vitest";
 
 import type { CallExpression, ExpressionNode } from "../ast/index.js";
 import type { ConvertOpts, Diagnostic, SourceSpan } from "../index.js";
-import type { DrawingCallSite, SemanticResult } from "../semantic/index.js";
 import { lex } from "../lexer/index.js";
 import { parseStatements } from "../parser/index.js";
+import type { DrawingCallSite, SemanticResult } from "../semantic/index.js";
 import { analyze } from "../semantic/index.js";
 import type { ResolvedAnchor } from "./coordinates.js";
 import { resolveCoordinates } from "./coordinates.js";

@@ -1,0 +1,8 @@
+//@version=6
+indicator("Camp A box", overlay=true)
+var box bx = na
+if barstate.islast
+    bx := box.new(bar_index, high, bar_index, low, border_color=color.green)
+    box.set_top(bx, high * 1.01)
+    box.set_bottom(bx, low * 0.99)
+    box.set_bgcolor(bx, color.new(color.green, 80))

@@ -7,12 +7,14 @@ Usage:
   chartlang compile <file...> [--sourcemap[=mode]] [--minify] [--out <dir>]
   chartlang scaffold-adapter <name> [--target <dir>]
   chartlang docs [--source <dir>] [--out <dir>] [--draw-source <dir>] [--draw-out <dir>]
+  chartlang pine-convert <input.pine> [--out <path>] [--strict] [--diagnostics-json] [--report] [--bar-interval <ms>] [--bar-index-origin <ms>]
   chartlang --help
 
 Examples:
   chartlang compile examples/scripts/ema-cross.chart.ts
   chartlang scaffold-adapter my-trading-chart --target ./out
   chartlang docs --out docs/primitives/ta --draw-out docs/primitives/draw
+  chartlang pine-convert strategy.pine --out strategy.chart.ts
 `;
 
 /**

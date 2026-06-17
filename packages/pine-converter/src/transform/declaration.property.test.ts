@@ -4,11 +4,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import type { Argument } from "../ast/script.js";
 import type { ExpressionNode } from "../ast/index.js";
+import type { Argument } from "../ast/script.js";
 import type { SourceSpan } from "../index.js";
-import { DiagnosticCollector } from "./diagnosticCollector.js";
 import { mapDeclarationArgs } from "./declarationArgs.js";
+import { DiagnosticCollector } from "./diagnosticCollector.js";
 
 const SPAN: SourceSpan = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 };
 

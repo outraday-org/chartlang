@@ -1,0 +1,91 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { describe, expect, it } from "vitest";
+
+import type { ScriptScaffold } from "../transform/ir.js";
+import { emitImports } from "./emitImports.js";
+import { scanUsage } from "./usage.js";
+
+function scaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
+    return {
+        constructor: "defineIndicator",
+        apiVersion: 1,
+        name: "Imp",
+        shortName: null,
+        overlay: true,
+        format: null,
+        precision: null,
+        scale: null,
+        maxDrawings: {},
+        maxBarsBack: null,
+        inputs: [],
+        stateSlots: [],
+        handleSlots: [],
+        handleRings: [],
+        computeBody: { statements: [] },
+        diagnostics: [],
+        ...overrides,
+    };
+}
+
+describe("import minimization", () => {
+    it("imports only the constructor for an empty scaffold", () => {
+        expect(emitImports(scaffold())).toBe(
+            'import { defineIndicator } from "@invinite-org/chartlang-core";',
+        );
+    });
+
+    it("a draw-only scaffold omits plot, hline, and alert", () => {
+        const line = emitImports(
+            scaffold({
+                handleSlots: [{ name: "__h", kind: "line" }],
+                computeBody: { statements: ["__h.set(draw.line({}, {}));"] },
+            }),
+        );
+        expect(line).toContain("draw");
+        expect(line).toContain("type DrawingHandle");
+        expect(line).not.toContain("plot");
+        expect(line).not.toContain("hline");
+        expect(line).not.toContain("alert");
+    });
+
+    it("includes each surface exactly when the body references it", () => {
+        const line = emitImports(
+            scaffold({
+                inputs: [{ name: "len", code: "input.int(1)" }],
+                stateSlots: [{ name: "__s", initExpr: "state.int(0)" }],
+                computeBody: {
+                    statements: [
+                        "plot(ta.ema(bar.close, 5));",
+                        "hline(0);",
+                        'alert("x");',
+                        'const r = request.security({ interval: "1h" });',
+                        "void r;",
+                    ],
+                },
+            }),
+        );
+        for (const name of ["ta", "plot", "hline", "alert", "input", "state", "request"]) {
+            expect(line).toContain(name);
+        }
+    });
+
+    it("scanUsage flags barstate and bar-index/interval references", () => {
+        const flags = scanUsage(
+            scaffold({
+                computeBody: {
+                    statements: [
+                        "if (barstate.islast) {}",
+                        "const a = __bar_index();",
+                        "const b = bar.time + __BAR_INTERVAL_MS;",
+                        "void a; void b;",
+                    ],
+                },
+            }),
+        );
+        expect(flags.barstate).toBe(true);
+        expect(flags.barIndex).toBe(true);
+        expect(flags.barInterval).toBe(true);
+    });
+});

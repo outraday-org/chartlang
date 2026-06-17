@@ -136,3 +136,28 @@ plot hashes, alert counts, and diagnostic codes.
   and a non-line-family style carries no `lineWidth`. The empty-override
   parity guarantee is pinned by re-using `plot-hash` on the recolored
   slot (its numeric series is byte-identical to the no-override run).
+
+## Pine round-trip invariants
+
+- **The three `pine-converter-round-trip-*` scenarios convert a committed
+  `.pine` fixture at SCENARIO-MODULE-LOAD time.** Each scenario
+  `readFileSync`s a `packages/pine-converter/fixtures/<n>.pine` file (via an
+  `import.meta.url`-relative URL), calls `convert(source, { barInterval:
+  60_000, barIndexOrigin: 1_700_000_000_000 })`, throws if `output === null`,
+  and sets `inlineSource = output`. The harness then compiles + runs that
+  string exactly like any other inline scenario — the scenario module NEVER
+  imports `compile`/`createScriptRunner`, preserving the harness contract.
+  This makes `@invinite-org/chartlang-pine-converter` a `dependencies` entry of
+  this package (the scenarios are `src`, shipped in `dist`).
+- **The pinned `drawing-hash` is GENERATED from a real
+  convert→compile→runtime run, not hand-authored.** Re-pin via the harness's
+  "expected vs actual" failure message (run
+  `runConformanceSuite(canvas2dAdapter, { scenarios: [theScenario] })`), exactly
+  like every other `drawing-hash`. The fixture choice is constrained to
+  COMPILE-CLEAN Pine: the round-trip fixtures avoid `str.tostring(...)` /
+  `close[i]` cells (unmapped/ill-typed in chartlang) — those idioms still ride
+  the golden corpus (`golden.test.ts`), which only pins the emitted SOURCE, not
+  a compiled run. Converter-emitted diagnostics (e.g. `ring-eviction-implicit`)
+  are asserted in the per-fixture `*.expected.diagnostics.json`, NOT here — the
+  conformance harness only observes runtime diagnostics from the compiled
+  chartlang script.

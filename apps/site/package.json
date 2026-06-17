@@ -26,6 +26,7 @@
         "@invinite-org/chartlang-core": "workspace:*",
         "@invinite-org/chartlang-editor": "workspace:*",
         "@invinite-org/chartlang-language-service": "workspace:*",
+        "@invinite-org/chartlang-pine-converter": "workspace:*",
         "@tailwindcss/vite": "^4",
         "@tanstack/react-devtools": "latest",
         "@tanstack/react-router": "latest",

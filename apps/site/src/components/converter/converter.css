@@ -1,0 +1,206 @@
+/* Copyright (c) 2026 Invinite. Licensed under the MIT License. */
+/* See the LICENSE file in the repo root for full license text. */
+
+/* Converter-playground extras layered on top of the shared demo surface
+   (`demo.css` supplies `.cl-demo` tokens + `.panes`/`.pane`/`.alert*`).
+   The page wrapper carries both `cl-demo` and `cl-converter`, so these
+   rules only add the output toolbar, diagnostics/manifest grid, controls,
+   and compile-preview chrome the converter needs beyond the demo. */
+
+.cl-converter .converter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cl-converter .converter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.cl-converter .converter-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cl-converter .converter-controls input[type="number"] {
+  width: 120px;
+  background: var(--muted);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 3px 8px;
+  font-size: 13px;
+}
+
+/* Output pane: a toolbar (copy / download) above a flex-filling editor. */
+.cl-converter .output {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.cl-converter .output-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cl-converter .output-action {
+  background: var(--muted);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.cl-converter .output-action:disabled {
+  color: var(--muted-foreground);
+  cursor: default;
+}
+
+.cl-converter .output-empty {
+  padding: 16px;
+  color: var(--muted-foreground);
+  font-style: italic;
+  font-size: 13px;
+}
+
+.cl-converter .output-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.cl-converter .output-editor .cm-editor {
+  height: 100%;
+}
+
+/* Diagnostics + manifest sit side-by-side below the panes. */
+.cl-converter .converter-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .cl-converter .converter-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cl-converter .panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  background: var(--background);
+}
+
+.cl-converter .panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+  margin: 0 0 8px;
+}
+
+.cl-converter .diag-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--primary);
+  margin-right: 6px;
+}
+
+.cl-converter .diag-loc {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin-left: 6px;
+}
+
+.cl-converter .diag-suggestion {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.cl-converter .manifest {
+  margin: 0;
+  font-size: 13px;
+}
+
+.cl-converter .manifest div {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.cl-converter .manifest dt {
+  flex: 0 0 9rem;
+  color: var(--muted-foreground);
+}
+
+.cl-converter .manifest dd {
+  margin: 0;
+  color: var(--foreground);
+  word-break: break-word;
+}
+
+.cl-converter .manifest .hint {
+  color: var(--cl-warn);
+  font-style: italic;
+}
+
+/* Compile-&-preview block under the panes. */
+.cl-converter .compile-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cl-converter .compile-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cl-converter .compile-button {
+  background: var(--muted);
+  color: var(--cl-ok);
+  border: 1px solid var(--cl-ok);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+
+.cl-converter .compile-button:disabled {
+  color: var(--muted-foreground);
+  border-color: var(--border);
+  cursor: default;
+}
+
+.cl-converter .compile-status {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.cl-converter .compile-status.is-error {
+  color: var(--cl-error);
+}

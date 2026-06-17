@@ -1,0 +1,9 @@
+---
+"@invinite-org/chartlang-pine-converter": patch
+---
+
+Add the Camp C drawing transform (`src/transform/campC.ts`) — the converter's safety net for dynamic drawing collections that don't fit the Camp B ring model. `transformCampC(site, analysis, scaffold, diagnostics)` self-filters to the two camp-c kinds the semantic classifier emits and either folds a reducible site into a bounded ring (REUSING `transformCampB` via a synthetic camp-b view of the same `.new()` call — no duplicated ring synthesis) or emits exactly one structured hard-reject with a context-specific suggested rewrite plus a `// [pine-converter] HARD-REJECT (...)` comment compute statement so no site is ever silently dropped.
+
+Ships three reducibility heuristics (`src/transform/campCHeuristics.ts`, `tryHeuristics`): **H1 implicit-cap-from-indicator** reads the chosen `K` from the scaffold's clamped `maxDrawings` for a `camp-c-bounded` site (Pine FIFO-evicts at the indicator cap anyway); **H2 bounded-by-loop-bound** recovers a literal / `input.int` `for i = 0 to L` bound around the push; **H3 single-use-collection** counts straight-line pushes. A heuristic returns `null` rather than guessing whenever the cap or push collection cannot be proven from the AST, and a fold only lands when the collection resolves at the root scope.
+
+Ships the reject registry (`src/transform/campCRejects.ts`, `CAMP_C_REJECTS` / `rejectSuggestion`) mapping each obstacle to a `SuggestionFn` templated over the inferred `K` and collection identifier. Adds seven `pine-converter/transform/...` diagnostic codes (`camp-c-heuristic-applied`, `dynamic-handle-index`, `cross-collection-linefill`, `polyline-dynamic-points`, `handle-copy`, `handle-store-in-udt`, `for-in-line-all`); the `unbounded-handle-collection` reject reuses the existing semantic-stage code. Strict-mode `output: null` suppression is left to Task 16 codegen, which reads the `error`-severity rejects + reject comments.

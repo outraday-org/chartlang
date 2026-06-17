@@ -1,0 +1,8 @@
+---
+"@invinite-org/chartlang-pine-converter": patch
+---
+
+Add the Camp A drawing transform (`src/transform/campA.ts`) plus the reusable handle-slot + setter-fold infrastructure Task 11 (Camp B) shares. `transformCampA(site, analysis, scaffold, diagnostics)` lowers a single `var`/`varip` drawing handle created once and mutated each bar into chartlang's mutable `DrawingHandle` model: it registers a module-level handle slot (`appendHandleSlot({ name: "__<pine>_handle", kind })`, whose allocation + helper Task 16 codegen emits), synthesises a guarded `slot.set(draw.<kind>(...))` creation, folds every observed `*.set_*(handle, …)` mutation per straight-line block into one `slot.current()?.update({...})`, and emits `slot.current()?.remove(); slot.set(null);` at each `*.delete(handle)`.
+
+Ships the shared primitives `synthesizeDrawCall` / `handleSlotLocalName` (`src/transform/handleSlot.ts`), `foldSetters` / `renderEnumTarget` (`src/transform/setterFold.ts`), `resolveCampADrawKind` (`src/transform/drawKindResolve.ts`), `resolveYloc` (`src/transform/ylocResolve.ts`), and the new coordinate helpers `resolveAnchorExpr` / `anchorToWorldPoint` (`src/transform/coordinates.ts`). `label.new` maps to `draw.text` by default, or `draw.marker` / `draw.frame` / `draw.arrowMark{Up,Down}` per its `style=label.style_*` enum; `box.new` → `draw.rectangle`; `yloc.abovebar`/`belowbar` lower to bar-range padding arithmetic. Adds six `pine-converter/transform/...` diagnostic codes (`yloc-padding-approximated`, `varip-approximated`, `cross-mount-state-not-preserved`, `label-style-not-mapped`, `setter-fold-cross-branch`, `set-path-unsupported`).
+</content>

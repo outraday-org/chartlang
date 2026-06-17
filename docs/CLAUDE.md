@@ -97,6 +97,11 @@ the repo-root `DEPLOYMENT.md`).
   `apps/site` `DEMO_SCRIPTS` and byte-diffs against the committed tree.
   Hand-edits, missing pages, or stale pages fail the gate. Part of the
   root `check` chain.
+- `pnpm converter:docs:check` regenerates `docs/converter/diagnostics.md`
+  from the `pine-converter` diagnostic registry and byte-diffs against the
+  committed page — drift fails CI. Part of the root `check` chain and the
+  CI `test` job (after `skills:gate`). The other `docs/converter/*.md`
+  pages are hand-authored and ungated.
 - `pnpm readme:check` validates the root `README.md` and per-package
   `README.md` files. It does **not** read `docs/**`.
 - `pnpm format:check` (Biome) ignores markdown.
@@ -120,3 +125,4 @@ already wired and enforces the `primitives/ta/` byte equality today.
 | `spec/` | Canonical language spec. | 5 |
 | `reference/` | Glossary + FAQ. | 2 |
 | `skills/` | Hand-written overview of the `skills/` Agent Skills (index + one page per skill). Not auto-generated, not gated. | 3 |
+| `converter/` | Pine v6 → chartlang converter docs. `index.md`/`usage.md`/`supported.md`/`rejects.md` are **hand-authored**; `diagnostics.md` is **generated** by `pnpm converter:docs:generate` and gated by `pnpm converter:docs:check` (byte-diff vs `DIAGNOSTIC_CODE_ENTRIES`). Do not hand-edit `diagnostics.md`. | none |

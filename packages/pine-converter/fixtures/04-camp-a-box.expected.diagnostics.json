@@ -1,0 +1,38 @@
+[
+    {
+        "code": "pine-converter/transform/drawing-only-script",
+        "severity": "info",
+        "message": "Script emits only drawings; converted as a `defineDrawing` (plot capability dropped).",
+        "span": {
+            "startLine": 2,
+            "startColumn": 1,
+            "endLine": 2,
+            "endColumn": 38
+        },
+        "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
+    },
+    {
+        "code": "pine-converter/transform/set-path-unsupported",
+        "severity": "info",
+        "message": "A single-coordinate setter (`set_x1`/`set_y1`/…) cannot be folded into the tuple patch and was dropped.",
+        "span": {
+            "startLine": 6,
+            "startColumn": 5,
+            "endLine": 6,
+            "endColumn": 33
+        },
+        "suggestion": "Use the whole-anchor setter (`set_xy1`/`set_xy2`) so both coordinates fold together."
+    },
+    {
+        "code": "pine-converter/transform/set-path-unsupported",
+        "severity": "info",
+        "message": "A single-coordinate setter (`set_x1`/`set_y1`/…) cannot be folded into the tuple patch and was dropped.",
+        "span": {
+            "startLine": 7,
+            "startColumn": 5,
+            "endLine": 7,
+            "endColumn": 35
+        },
+        "suggestion": "Use the whole-anchor setter (`set_xy1`/`set_xy2`) so both coordinates fold together."
+    }
+]

@@ -24,6 +24,7 @@
     "dependencies": {
         "@invinite-org/chartlang-compiler": "workspace:^",
         "@invinite-org/chartlang-core": "workspace:^",
+        "@invinite-org/chartlang-pine-converter": "workspace:^",
         "typescript": "^5.6.0"
     },
     "devDependencies": {

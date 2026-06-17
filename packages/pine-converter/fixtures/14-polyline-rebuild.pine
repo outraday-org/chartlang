@@ -1,0 +1,7 @@
+//@version=6
+indicator("Polyline rebuild", overlay=true)
+var pts = array.new<chart.point>()
+if barstate.islast
+    for i = 0 to 2
+        array.push(pts, chart.point.from_index(bar_index, close[i]))
+    polyline.new(pts, line_color=color.orange)

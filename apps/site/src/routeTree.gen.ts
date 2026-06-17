@@ -9,9 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ConverterRouteImport } from './routes/converter'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiCompileRouteImport } from './routes/api/compile'
 
+const ConverterRoute = ConverterRouteImport.update({
+  id: '/converter',
+  path: '/converter',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -25,32 +31,43 @@ const ApiCompileRoute = ApiCompileRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/converter': typeof ConverterRoute
   '/api/compile': typeof ApiCompileRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/converter': typeof ConverterRoute
   '/api/compile': typeof ApiCompileRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/converter': typeof ConverterRoute
   '/api/compile': typeof ApiCompileRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/compile'
+  fullPaths: '/' | '/converter' | '/api/compile'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/compile'
-  id: '__root__' | '/' | '/api/compile'
+  to: '/' | '/converter' | '/api/compile'
+  id: '__root__' | '/' | '/converter' | '/api/compile'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConverterRoute: typeof ConverterRoute
   ApiCompileRoute: typeof ApiCompileRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/converter': {
+      id: '/converter'
+      path: '/converter'
+      fullPath: '/converter'
+      preLoaderRoute: typeof ConverterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConverterRoute: ConverterRoute,
   ApiCompileRoute: ApiCompileRoute,
 }
 export const routeTree = rootRouteImport

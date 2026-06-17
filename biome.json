@@ -9,6 +9,7 @@
             "coverage/**",
             "**/*.tsbuildinfo",
             "packages/conformance/fixtures/**",
+            "packages/pine-converter/fixtures/**",
             "examples/scripts/*.chart.js",
             "examples/scripts/*.chart.d.ts",
             "examples/scripts/*.chart.manifest.json",

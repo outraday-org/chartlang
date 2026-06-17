@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/drawing-only-script",
+        "severity": "info",
+        "message": "Script emits only drawings; converted as a `defineDrawing` (plot capability dropped).",
+        "span": {
+            "startLine": 2,
+            "startColumn": 1,
+            "endLine": 2,
+            "endColumn": 45
+        },
+        "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
+    }
+]

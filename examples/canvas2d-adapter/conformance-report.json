@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.1.1",
-    "passed": 228,
+    "passed": 231,
     "failed": 0,
     "scenarios": [
         {
@@ -589,6 +589,24 @@
         {
             "id": "mtf-unsupported-interval",
             "title": "MTF unsupported interval",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "pine-converter-round-trip-camp-a",
+            "title": "Pine converter round-trip Camp A",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "pine-converter-round-trip-camp-b",
+            "title": "Pine converter round-trip Camp B",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "pine-converter-round-trip-table",
+            "title": "Pine converter round-trip table",
             "status": "pass",
             "failures": []
         },

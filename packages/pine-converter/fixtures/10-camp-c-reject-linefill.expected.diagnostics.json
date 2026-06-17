@@ -1,0 +1,50 @@
+[
+    {
+        "code": "pine-converter/semantic/unbounded-handle-collection",
+        "severity": "error",
+        "message": "linefill has no single-handle chartlang analogue",
+        "span": {
+            "startLine": 7,
+            "startColumn": 12,
+            "endLine": 7,
+            "endColumn": 92
+        },
+        "suggestion": "Cap the collection with a `max_*_count` argument or a ring-buffer eviction."
+    },
+    {
+        "code": "pine-converter/transform/drawing-only-script",
+        "severity": "info",
+        "message": "Script emits only drawings; converted as a `defineDrawing` (plot capability dropped).",
+        "span": {
+            "startLine": 2,
+            "startColumn": 1,
+            "endLine": 2,
+            "endColumn": 43
+        },
+        "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
+    },
+    {
+        "code": "pine-converter/transform/linefill-over-ring",
+        "severity": "error",
+        "message": "`linefill.new` over ring-buffer elements has no chartlang analogue (Camp C territory).",
+        "span": {
+            "startLine": 7,
+            "startColumn": 12,
+            "endLine": 7,
+            "endColumn": 92
+        },
+        "suggestion": "Draw the fill as an explicit `draw.rectangle`/`draw.frame` instead."
+    },
+    {
+        "code": "pine-converter/transform/cross-collection-linefill",
+        "severity": "error",
+        "message": "`linefill.new` across two collections has no chartlang analogue.",
+        "span": {
+            "startLine": 7,
+            "startColumn": 12,
+            "endLine": 7,
+            "endColumn": 92
+        },
+        "suggestion": "linefill across two collections has no chartlang analogue. Consider a single `draw.path(...)` over the pair of anchor points instead."
+    }
+]

@@ -71,6 +71,12 @@ describe("runCli dispatcher", () => {
         expect(stdoutChunks.join("")).toMatch(/chartlang docs \[--source <dir>\] \[--out <dir>\]/);
     });
 
+    it("dispatches `pine-convert` to runPineConvert", async () => {
+        // --help short-circuits before any file read — proves dispatch.
+        await runCli(["pine-convert", "--help"]);
+        expect(stdoutChunks.join("")).toMatch(/chartlang pine-convert <input\.pine>/);
+    });
+
     it("reports unknown commands and prints help with exit code 1", async () => {
         await runCli(["bogus-command"]);
         expect(stderrChunks.join("")).toMatch(/Unknown command: bogus-command/);

@@ -4,8 +4,8 @@
 import type { ExpressionNode, Statement } from "../ast/index.js";
 import type { Declaration } from "../ast/script.js";
 import type { SemanticResult } from "../semantic/index.js";
-import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import { FALLBACK_INDICATOR_NAME, mapDeclarationArgs } from "./declarationArgs.js";
+import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { ScriptScaffold } from "./ir.js";
 
 // Pine plot-family call names that force a `defineIndicator` constructor.

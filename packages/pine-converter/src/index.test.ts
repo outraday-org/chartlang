@@ -21,29 +21,37 @@ describe("public surface", () => {
         expect(PACKAGE_VERSION).toBe("0.0.0");
     });
 
-    it("throws ConverterNotReadyError from convert() with missingLayer === 'lexer'", () => {
-        let thrown: unknown;
-        try {
-            convert("");
-        } catch (err) {
-            thrown = err;
-        }
-        expect(thrown).toBeInstanceOf(ConverterNotReadyError);
-        expect(thrown).toBeInstanceOf(Error);
-        const err = thrown as ConverterNotReadyError;
-        expect(err.missingLayer).toBe("lexer");
-        expect(err.name).toBe("ConverterNotReadyError");
-        expect(err.message).toContain("lexer");
+    it("convert() returns a non-null output whose first line is the header", () => {
+        const result = convert("//@version=6\nindicator('hello')");
+        expect(result.output).not.toBeNull();
+        expect(result.output?.startsWith("// Auto-generated")).toBe(true);
+        expect(result.manifest?.kind).toBe("indicator");
+        expect(result.manifest?.name).toBe("hello");
     });
 
-    it("accepts optional ConvertOpts (does not change the throw site)", () => {
+    it("convert() returns a null output (no manifest) when no declaration parses", () => {
+        const result = convert("");
+        expect(result.output).toBeNull();
+        expect(result.manifest).toBeNull();
+    });
+
+    it("convert() accepts optional ConvertOpts", () => {
         const opts: ConvertOpts = {
             barInterval: 60_000,
             barIndexOrigin: 0,
             strictMode: true,
             targetApiVersion: 1,
         };
-        expect(() => convert("//@version=6", opts)).toThrow(ConverterNotReadyError);
+        const result = convert("//@version=6\nindicator('opts')", opts);
+        expect(result.output).not.toBeNull();
+    });
+
+    it("ConverterNotReadyError stays on the public surface for the async path", () => {
+        const err = new ConverterNotReadyError("round-trip");
+        expect(err).toBeInstanceOf(Error);
+        expect(err.missingLayer).toBe("round-trip");
+        expect(err.name).toBe("ConverterNotReadyError");
+        expect(err.message).toContain("round-trip");
     });
 
     it("constructs every exported type literal", () => {

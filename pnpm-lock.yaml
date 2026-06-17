@@ -86,6 +86,9 @@ importers:
       '@invinite-org/chartlang-language-service':
         specifier: workspace:*
         version: link:../../packages/language-service
+      '@invinite-org/chartlang-pine-converter':
+        specifier: workspace:*
+        version: link:../../packages/pine-converter
       '@tailwindcss/vite':
         specifier: ^4
         version: 4.3.1(vite@8.0.16(@types/node@22.19.21)(esbuild@0.24.2)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
@@ -211,6 +214,9 @@ importers:
       '@invinite-org/chartlang-core':
         specifier: workspace:^
         version: link:../core
+      '@invinite-org/chartlang-pine-converter':
+        specifier: workspace:^
+        version: link:../pine-converter
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
@@ -249,6 +255,9 @@ importers:
       '@invinite-org/chartlang-core':
         specifier: workspace:^
         version: link:../core
+      '@invinite-org/chartlang-pine-converter':
+        specifier: workspace:^
+        version: link:../pine-converter
       '@invinite-org/chartlang-runtime':
         specifier: workspace:^
         version: link:../runtime
@@ -391,9 +400,15 @@ importers:
 
   packages/pine-converter:
     devDependencies:
+      '@invinite-org/chartlang-compiler':
+        specifier: workspace:*
+        version: link:../compiler
       '@invinite-org/chartlang-core':
         specifier: workspace:*
         version: link:../core
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.41
       fast-check:
         specifier: ^3.20.0
         version: 3.23.2
@@ -8517,7 +8532,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 20.19.41
+      '@types/node': 22.19.21
 
   '@types/yauzl@2.10.3':
     dependencies:
@@ -9067,7 +9082,7 @@ snapshots:
 
   buffer-image-size@0.6.4:
     dependencies:
-      '@types/node': 20.19.41
+      '@types/node': 22.19.21
 
   buffer@6.0.3:
     dependencies:

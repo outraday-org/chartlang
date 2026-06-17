@@ -18,6 +18,7 @@
         "@invinite-org/chartlang-adapter-kit": "workspace:^",
         "@invinite-org/chartlang-compiler": "workspace:^",
         "@invinite-org/chartlang-core": "workspace:^",
+        "@invinite-org/chartlang-pine-converter": "workspace:^",
         "@invinite-org/chartlang-runtime": "workspace:^"
     },
     "devDependencies": {
