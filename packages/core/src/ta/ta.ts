@@ -141,6 +141,29 @@ export type HighestOpts = Readonly<{ offset?: number }>;
 export type LowestOpts = Readonly<{ offset?: number }>;
 
 /**
+ * Options bag for `ta.highestbars`. `offset` shifts the read window
+ * backwards by `n` bars per the universal `opts.offset` convention.
+ *
+ * @formula  N/A — see `ta.highestbars` JSDoc
+ * @since 0.2
+ * @stable
+ * @example
+ *     const opts: HighestbarsOpts = { offset: 0 };
+ */
+export type HighestbarsOpts = Readonly<{ offset?: number }>;
+
+/**
+ * Options bag for `ta.lowestbars`. Mirrors {@link HighestbarsOpts}.
+ *
+ * @formula  N/A — see `ta.lowestbars` JSDoc
+ * @since 0.2
+ * @stable
+ * @example
+ *     const opts: LowestbarsOpts = { offset: 0 };
+ */
+export type LowestbarsOpts = Readonly<{ offset?: number }>;
+
+/**
  * Options bag for `ta.change`. `length` is the lookback distance (default
  * `1` — first-difference); `offset` shifts the read window backwards.
  *
@@ -2357,6 +2380,8 @@ export type TaNamespace = {
     nz(value: number, replacement?: number): number;
     highest(source: Series<number>, length: number, opts?: HighestOpts): Series<number>;
     lowest(source: Series<number>, length: number, opts?: LowestOpts): Series<number>;
+    highestbars(source: Series<number>, length: number, opts?: HighestbarsOpts): Series<number>;
+    lowestbars(source: Series<number>, length: number, opts?: LowestbarsOpts): Series<number>;
     change(source: Series<number>, opts?: ChangeOpts): Series<number>;
     valuewhen(
         condition: Series<boolean>,
@@ -2513,6 +2538,12 @@ export const ta: TaNamespace = /* @__PURE__ */ Object.freeze({
     },
     lowest: () => {
         throw new Error("ta.lowest called outside compiled runtime");
+    },
+    highestbars: () => {
+        throw new Error("ta.highestbars called outside compiled runtime");
+    },
+    lowestbars: () => {
+        throw new Error("ta.lowestbars called outside compiled runtime");
     },
     change: () => {
         throw new Error("ta.change called outside compiled runtime");

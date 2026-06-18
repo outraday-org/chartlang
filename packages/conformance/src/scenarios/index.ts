@@ -173,6 +173,7 @@ import { TA_FIXED_RANGE_VOLUME_PROFILE_SCENARIO } from "./taFixedRangeVolumeProf
 import { TA_FIXED_RANGE_VOLUME_PROFILE_GATED_SCENARIO } from "./taFixedRangeVolumeProfileGated.scenario.js";
 import { TA_FIXED_RANGE_VOLUME_PROFILE_INVERTED_SCENARIO } from "./taFixedRangeVolumeProfileInverted.scenario.js";
 import { TA_HIGHEST_SCENARIO } from "./taHighest.scenario.js";
+import { TA_HIGHEST_LOWEST_BARS_SCENARIO } from "./taHighestLowestBars.scenario.js";
 import { TA_HISTORICAL_VOLATILITY_SCENARIO } from "./taHistoricalVolatility.scenario.js";
 import { TA_HMA_SCENARIO } from "./taHma.scenario.js";
 import { TA_ICHIMOKU_SCENARIO } from "./taIchimoku.scenario.js";
@@ -408,6 +409,7 @@ export { TA_FIXED_RANGE_VOLUME_PROFILE_SCENARIO } from "./taFixedRangeVolumeProf
 export { TA_FIXED_RANGE_VOLUME_PROFILE_GATED_SCENARIO } from "./taFixedRangeVolumeProfileGated.scenario.js";
 export { TA_FIXED_RANGE_VOLUME_PROFILE_INVERTED_SCENARIO } from "./taFixedRangeVolumeProfileInverted.scenario.js";
 export { TA_HIGHEST_SCENARIO } from "./taHighest.scenario.js";
+export { TA_HIGHEST_LOWEST_BARS_SCENARIO } from "./taHighestLowestBars.scenario.js";
 export { TA_HISTORICAL_VOLATILITY_SCENARIO } from "./taHistoricalVolatility.scenario.js";
 export { TA_HMA_SCENARIO } from "./taHma.scenario.js";
 export { TA_ICHIMOKU_SCENARIO } from "./taIchimoku.scenario.js";
@@ -517,6 +519,7 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     TA_NZ_SCENARIO,
     TA_HIGHEST_SCENARIO,
     TA_LOWEST_SCENARIO,
+    TA_HIGHEST_LOWEST_BARS_SCENARIO,
     TA_CHANGE_SCENARIO,
     TA_VALUEWHEN_SCENARIO,
     TA_BARSSINCE_SCENARIO,

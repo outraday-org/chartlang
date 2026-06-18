@@ -817,6 +817,26 @@ not pollute the next close's deque.
 **Warmup:** length − 1
 **Since:** 0.2 · stable
 
+### ta.highestbars
+
+```ts
+function highestbars(slotId: string, source: ScalarOrSeries, length: number, _opts?: HighestbarsOpts): Series<number>;
+```
+
+Bar offset (≤ 0) to the highest `source` value over the trailing
+`length` bars (the window INCLUDES the current bar). `0` means the
+current bar is the highest; `-k` means the highest occurred `k` bars
+ago. Ties resolve to the MOST RECENT bar (smallest |offset|). NaN
+inputs are skipped as candidates; an all-NaN window emits NaN. The
+output is NaN until `length` closed bars have folded in. Tick-mode
+replays the in-progress head as the offset-0 candidate without
+advancing the buffer.
+
+**Formula:** out[t] = argmax_{k ∈ [0, length)} source[t − k] expressed as −k
+(NaN slots skipped; ties → smallest k)
+**Warmup:** length − 1
+**Since:** 0.2 · stable
+
 ### ta.historicalVolatility
 
 ```ts
@@ -1010,6 +1030,26 @@ bars have been folded in. Tick-mode replays the head as
 `min(closedMinExcludingHead, tickValue)`.
 
 **Formula:** out[t] = min(source[t − length + 1 .. t])  (NaN slots skipped)
+**Warmup:** length − 1
+**Since:** 0.2 · stable
+
+### ta.lowestbars
+
+```ts
+function lowestbars(slotId: string, source: ScalarOrSeries, length: number, _opts?: LowestbarsOpts): Series<number>;
+```
+
+Bar offset (≤ 0) to the lowest `source` value over the trailing
+`length` bars (the window INCLUDES the current bar). `0` means the
+current bar is the lowest; `-k` means the lowest occurred `k` bars
+ago. Ties resolve to the MOST RECENT bar (smallest |offset|). NaN
+inputs are skipped as candidates; an all-NaN window emits NaN. The
+output is NaN until `length` closed bars have folded in. Tick-mode
+replays the in-progress head as the offset-0 candidate without
+advancing the buffer.
+
+**Formula:** out[t] = argmin_{k ∈ [0, length)} source[t − k] expressed as −k
+(NaN slots skipped; ties → smallest k)
 **Warmup:** length − 1
 **Since:** 0.2 · stable
 

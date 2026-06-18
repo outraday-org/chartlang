@@ -103,6 +103,27 @@ describe("resolveCoordinates — bar_index anchors", () => {
         expect(hasCode(diagnostics, "dynamic-bar-index")).toBe(true);
     });
 
+    it("does NOT raise requires-bar-interval for a dynamic + offset with no barInterval", () => {
+        // A dynamic `bar_index + <non-literal>` offset (e.g. the lowering of
+        // `bar_index + ta.highestbars(...)`, whose runtime value is ≤ 0) is
+        // resolved sign-agnostically by `bar.point` at runtime — a negative
+        // offset resolves to the historical timestamp via the time buffer, so
+        // no `opts.barInterval` is required. Only the LITERAL `bar_index + N`
+        // future case still raises `requires-bar-interval`.
+        const { anchors, diagnostics } = resolveLine(
+            "line.new(bar_index + hbar, close, bar_index, close)",
+            { barInterval: null },
+        );
+        expect(anchors[0]).toEqual({
+            kind: "bar-index-future",
+            offsetExpr: "hbar",
+            priceExpr: "bar.close",
+            requiresBarInterval: true,
+        });
+        expect(hasCode(diagnostics, "dynamic-bar-index")).toBe(true);
+        expect(hasCode(diagnostics, "requires-bar-interval")).toBe(false);
+    });
+
     it("warns + treats bar_index - <non-literal> as a dynamic historical anchor", () => {
         const { anchors, diagnostics } = resolveLine(
             "line.new(bar_index - offset, close, bar_index, close)",

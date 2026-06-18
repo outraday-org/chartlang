@@ -74,6 +74,18 @@ describe("ta callable holes", () => {
         );
     });
 
+    it("ta.highestbars throws outside-runtime sentinel", () => {
+        expect(() => ta.highestbars({ current: 0, length: 0 }, 1)).toThrow(
+            "ta.highestbars called outside compiled runtime",
+        );
+    });
+
+    it("ta.lowestbars throws outside-runtime sentinel", () => {
+        expect(() => ta.lowestbars({ current: 0, length: 0 }, 1)).toThrow(
+            "ta.lowestbars called outside compiled runtime",
+        );
+    });
+
     it("ta.change throws outside-runtime sentinel", () => {
         expect(() => ta.change({ current: 0, length: 0 })).toThrow(
             "ta.change called outside compiled runtime",

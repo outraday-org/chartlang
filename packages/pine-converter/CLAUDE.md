@@ -329,7 +329,15 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   historical by sign + `dynamic-bar-index` warning; anything else →
   `unresolved-bar-index` warning + historical offset 0. `xloc.bar_time` x
   values pass through as `bar-time-direct` (or `literal-world-point` when
-  both coords are numeric literals).
+  both coords are numeric literals). **A DYNAMIC `bar_index + <non-literal>`
+  offset does NOT `noteFuture` (no `requires-bar-interval`):** the runtime
+  resolves the offset sign-agnostically via `bar.point` — a negative runtime
+  value (e.g. what `ta.highestbars`/`ta.lowestbars` return, ≤ 0) resolves to
+  the historical timestamp through the time buffer, a positive one
+  extrapolates from bar spacing. ONLY the LITERAL `bar_index + N` future case
+  still `noteFuture`s. (This is why `let hbar = ta.highestbars(bar.high, N)
+  .current; bar.point((hbar), …)` — lowered from `line.new(bar_index + hbar,
+  …)` — needs no `opts.barInterval`.)
 - **Bar-offset anchors lower to `bar.point(<signed offset>, <price>)`.**
   `anchorToWorldPoint` (`coordinates.ts`) emits `bar.point(0, price)` for the
   current bar, `bar.point(-(N), price)` for an `N`-back historical offset, and

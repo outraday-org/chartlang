@@ -41,6 +41,20 @@ const PHASE_5_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: b
 const PHASE_6_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
     Object.freeze([{ name: "request.lowerTf", slot: true }] as const);
 
+// `ta.highestbars` / `ta.lowestbars` — the offset-returning argmax/argmin
+// primitives added alongside the Pine-converter real passthrough.
+const HIGHEST_LOWEST_BARS_TA_ADDITIONS: ReadonlyArray<string> = Object.freeze([
+    "highestbars",
+    "lowestbars",
+] as const);
+
+const HIGHEST_LOWEST_BARS_STATEFUL_ADDITIONS: ReadonlyArray<
+    Readonly<{ name: string; slot: boolean }>
+> = Object.freeze([
+    { name: "ta.highestbars", slot: true },
+    { name: "ta.lowestbars", slot: true },
+] as const);
+
 const PHASE_2_TA_CARDINALITY = PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length;
 const PHASE_4_STATEFUL_CARDINALITY = 163;
 
@@ -57,23 +71,30 @@ describe("Phase 2 surface", () => {
         }
     });
 
-    it("TA_REGISTRY keeps the 90-entry Phase-2 baseline plus explicit Phase-5 VP additions", () => {
+    it("TA_REGISTRY keeps the 90-entry Phase-2 baseline plus explicit Phase-5 VP + highest/lowest-bars additions", () => {
         expect(PHASE_2_TA_CARDINALITY).toBe(90);
-        for (const id of PHASE_5_TA_ADDITIONS) {
+        for (const id of [...PHASE_5_TA_ADDITIONS, ...HIGHEST_LOWEST_BARS_TA_ADDITIONS]) {
             expect(TA_REGISTRY).toHaveProperty(id);
         }
         expect(Object.keys(TA_REGISTRY).length).toBe(
-            PHASE_2_TA_CARDINALITY + PHASE_5_TA_ADDITIONS.length,
+            PHASE_2_TA_CARDINALITY +
+                PHASE_5_TA_ADDITIONS.length +
+                HIGHEST_LOWEST_BARS_TA_ADDITIONS.length,
         );
     });
 
-    it("STATEFUL_PRIMITIVES keeps the Phase-4 baseline plus explicit Phase-5 and Phase-6 entries", () => {
+    it("STATEFUL_PRIMITIVES keeps the Phase-4 baseline plus explicit Phase-5/6 and highest/lowest-bars entries", () => {
         expect(STATEFUL_PRIMITIVES.size).toBe(
             PHASE_4_STATEFUL_CARDINALITY +
                 PHASE_5_STATEFUL_ADDITIONS.length +
-                PHASE_6_STATEFUL_ADDITIONS.length,
+                PHASE_6_STATEFUL_ADDITIONS.length +
+                HIGHEST_LOWEST_BARS_STATEFUL_ADDITIONS.length,
         );
-        for (const expected of [...PHASE_5_STATEFUL_ADDITIONS, ...PHASE_6_STATEFUL_ADDITIONS]) {
+        for (const expected of [
+            ...PHASE_5_STATEFUL_ADDITIONS,
+            ...PHASE_6_STATEFUL_ADDITIONS,
+            ...HIGHEST_LOWEST_BARS_STATEFUL_ADDITIONS,
+        ]) {
             expect(STATEFUL_PRIMITIVES).toContainEqual(expected);
         }
     });
@@ -100,6 +121,7 @@ describe("Phase 2 surface", () => {
             ...PHASE_1_INDICATORS,
             ...PHASE_2_INDICATORS,
             ...PHASE_5_TA_ADDITIONS,
+            ...HIGHEST_LOWEST_BARS_TA_ADDITIONS,
         ]);
         const extras = Object.keys(TA_REGISTRY).filter((k) => !known.has(k));
         expect(extras).toEqual([]);

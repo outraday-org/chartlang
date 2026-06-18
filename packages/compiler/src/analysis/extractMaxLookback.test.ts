@@ -300,4 +300,58 @@ void a.current; void b.current;
 `);
         expect(result.maxLookback).toBe(0);
     });
+
+    it("counts a literal-length ta.highestbars as `length - 1` lookback depth", () => {
+        const result = run(`
+import { ta } from "@invinite-org/chartlang-core";
+declare const high: import("@invinite-org/chartlang-core").Series<number>;
+const hbar = ta.highestbars(high, 100);
+void hbar.current;
+`);
+        // The deepest offset highestbars(.., 100) can return is -(100 - 1).
+        expect(result.maxLookback).toBe(99);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("counts a literal-length ta.lowestbars as `length - 1` lookback depth", () => {
+        const result = run(`
+import { ta } from "@invinite-org/chartlang-core";
+declare const low: import("@invinite-org/chartlang-core").Series<number>;
+const lbar = ta.lowestbars(low, 50);
+void lbar.current;
+`);
+        expect(result.maxLookback).toBe(49);
+    });
+
+    it("ignores a non-literal length on ta.highestbars (cannot be sized)", () => {
+        const result = run(`
+import { ta } from "@invinite-org/chartlang-core";
+declare const high: import("@invinite-org/chartlang-core").Series<number>;
+declare const len: number;
+const hbar = ta.highestbars(high, len);
+void hbar.current;
+`);
+        expect(result.maxLookback).toBe(0);
+    });
+
+    it("ignores a length <= 1 on ta.highestbars (offset is always 0)", () => {
+        const result = run(`
+import { ta } from "@invinite-org/chartlang-core";
+declare const high: import("@invinite-org/chartlang-core").Series<number>;
+const hbar = ta.highestbars(high, 1);
+void hbar.current;
+`);
+        expect(result.maxLookback).toBe(0);
+    });
+
+    it("takes the max of highestbars depth and a sibling series lookback", () => {
+        const result = run(`
+import { ta } from "@invinite-org/chartlang-core";
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const hbar = ta.highestbars(bar.high, 10);
+const back = bar.close[20];
+void hbar.current; void back;
+`);
+        expect(result.maxLookback).toBe(20);
+    });
 });

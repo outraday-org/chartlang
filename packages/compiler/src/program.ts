@@ -107,6 +107,8 @@ declare module "@invinite-org/chartlang-core" {
     export type CrossunderOpts = Readonly<{ offset?: number }>;
     export type HighestOpts = Readonly<{ offset?: number }>;
     export type LowestOpts = Readonly<{ offset?: number }>;
+    export type HighestbarsOpts = Readonly<{ offset?: number }>;
+    export type LowestbarsOpts = Readonly<{ offset?: number }>;
     export type ChangeOpts = Readonly<{ length?: number; offset?: number }>;
     export type PlotLineStyle = "line" | "step" | "dashed" | "circles" | "cross";
     export type WmaOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
@@ -602,6 +604,12 @@ declare module "@invinite-org/chartlang-core" {
         nz(value: number, replacement?: number): number;
         highest(source: ScalarOrSeries, length: number, opts?: HighestOpts): Series<number>;
         lowest(source: ScalarOrSeries, length: number, opts?: LowestOpts): Series<number>;
+        highestbars(
+            source: ScalarOrSeries,
+            length: number,
+            opts?: HighestbarsOpts,
+        ): Series<number>;
+        lowestbars(source: ScalarOrSeries, length: number, opts?: LowestbarsOpts): Series<number>;
         change(source: ScalarOrSeries, opts?: ChangeOpts): Series<number>;
         valuewhen(
             condition: Series<boolean>,

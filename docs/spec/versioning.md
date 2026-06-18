@@ -56,12 +56,19 @@ calls allocate state requires `apiVersion: 2`.
 
 ### `STATEFUL_PRIMITIVES`
 
-The v1 stateful primitive registry is frozen at 172 entries and is
-name-set-locked. A conforming compiler MUST use the same call-name set when
-deciding which primitive calls receive callsite ids and which primitive calls
-are forbidden inside loops.
+The v1 stateful primitive registry is name-set-locked for the entries that
+ship in a given `1.x` release: a conforming compiler MUST use that release's
+call-name set when deciding which primitive calls receive callsite ids and
+which primitive calls are forbidden inside loops.
 
-Adding, removing, or renaming a registry entry is a language change and
+Within `1.x`, implementations MAY **add** new stateful primitive entries. A new
+call name is purely additive — it introduces new callsites only and changes
+neither the behavior nor the runtime state identity of any script written for
+an earlier `1.x`. This mirrors the additive policy for `DiagnosticCode` and the
+emission `PlotKind` / drawing kinds below: a runtime that does not recognise a
+newer entry simply never sees it emitted by an older script.
+
+Removing or renaming an existing registry entry is a language change and
 requires `apiVersion: 2`. Changing an entry from slot-allocating to
 non-slot-allocating, or the reverse, also changes runtime state identity and
 requires `apiVersion: 2`.
@@ -104,8 +111,8 @@ feature extends the set with six new codes — `dep-error`, `dep-cycle`,
 `dep-unknown-output`, `dep-invalid-input-override`, `dep-dynamic`, and
 `dep-output-not-titled` — bringing the total to 32. Adapters that don't
 recognise an additive code MUST log + ignore it, never treat it as
-schema corruption. The 172-entry `STATEFUL_PRIMITIVES` set remains
-unchanged; the new `.output(...)` / `.withInputs(...)` accessors are
+schema corruption. The `STATEFUL_PRIMITIVES` set is unchanged by indicator
+composition; the new `.output(...)` / `.withInputs(...)` accessors are
 compiler-rewritten sentinels on `CompiledScriptObject`, not runtime
 primitives.
 
@@ -169,7 +176,7 @@ runtime behavior, manifest shape, or wire shape for existing v1 scripts.
   `apiVersion` value with `api-version-mismatch` and the frozen wording above.
 - The script-visible core API and `/time` subpath remain source-compatible for
   v1 scripts.
-- The 172-entry `STATEFUL_PRIMITIVES` name set and slot behavior stay locked
+- The 174-entry `STATEFUL_PRIMITIVES` name set and slot behavior stay locked
   for v1.
 - Manifest fields and emission wire schemas remain backward-compatible, with
   only additive optional changes allowed in `1.x`.

@@ -18,6 +18,8 @@ const EXPECTED_SLOT_TRUE = [
     "ta.crossunder",
     "ta.highest",
     "ta.lowest",
+    "ta.highestbars",
+    "ta.lowestbars",
     "ta.change",
     "ta.valuewhen",
     "ta.barssince",
@@ -199,9 +201,11 @@ const EXPECTED_SLOT_FALSE = [
 
 const EXPECTED_ALL_NAMES = [...EXPECTED_SLOT_TRUE, ...EXPECTED_SLOT_FALSE];
 
-// apiVersion: 1 freeze (Phase 7). Do NOT edit this list to make a
-// failing test pass — a diff here is a language change and requires
-// apiVersion: 2. See docs/spec/versioning.md.
+// apiVersion: 1 registry baseline (Phase 7). New stateful primitives are
+// ADDITIVE within 1.x — when you add one, append it here too. REMOVING or
+// RENAMING an entry is a language change and requires apiVersion: 2; do not
+// delete or rename a name here to make a failing test pass.
+// See docs/spec/versioning.md.
 const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
     "alert",
     "defineAlertCondition.signal",
@@ -318,6 +322,7 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
     "ta.fisher",
     "ta.fixedRangeVolumeProfile",
     "ta.highest",
+    "ta.highestbars",
     "ta.historicalVolatility",
     "ta.hma",
     "ta.ichimoku",
@@ -326,6 +331,7 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
     "ta.klinger",
     "ta.kst",
     "ta.lowest",
+    "ta.lowestbars",
     "ta.lsma",
     "ta.maRibbon",
     "ta.macd",
@@ -378,11 +384,11 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
 ];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 172 entries after Phase 6 lower timeframe support", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(172);
+    it("contains exactly 174 entries after the highestbars/lowestbars additions", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(174);
     });
 
-    it("locks the apiVersion-1 registry to the exact 172-entry name set", () => {
+    it("locks the apiVersion-1 registry to the exact 174-entry name set", () => {
         const names = [...STATEFUL_PRIMITIVES].map((e) => e.name).sort();
         expect(names).toEqual(FROZEN_API_V1_NAMES);
     });
@@ -401,14 +407,14 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 168 slot: true entries and exactly 4 slot: false entries", () => {
+    it("has exactly 170 slot: true entries and exactly 4 slot: false entries", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
             if (entry.slot) trueCount += 1;
             else falseCount += 1;
         }
-        expect(trueCount).toBe(168);
+        expect(trueCount).toBe(170);
         expect(falseCount).toBe(4);
     });
 

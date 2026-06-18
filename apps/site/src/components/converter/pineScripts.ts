@@ -17,18 +17,21 @@ export type PineScript = Readonly<{
 }>;
 
 const CAMP_A_LINE = `//@version=6
-indicator("Tracking Line", overlay = true)
+indicator("Highest High Line", overlay = true)
 
-// Camp A: one persistent line handle, re-anchored every bar. It trails the
-// last 20 bars — anchor 1 sits 20 bars back, anchor 2 at the current bar —
-// so the fixed bar offsets lower cleanly to chartlang's bar.point(-20, …)
-// and bar.point(0, …), and the line slides along with price.
+// Camp A: one persistent line handle, re-anchored every bar. It marks the
+// highest high of the last 100 bars, anchored AT the bar that made the high
+// (ta.highestbars returns its bar offset) and extended to the current bar —
+// the dynamic offset lowers to chartlang's bar.point(hbar, …), which the
+// runtime resolves to that historical bar's real timestamp.
+hh = ta.highest(high, 100)
+hbar = ta.highestbars(high, 100)
 var line trail = na
 if barstate.isfirst
-    trail := line.new(bar_index - 20, close, bar_index, close, color = color.aqua, width = 2)
+    trail := line.new(bar_index + hbar, hh, bar_index, hh, color = color.aqua, width = 2)
 else
-    line.set_xy1(trail, bar_index - 20, close)
-    line.set_xy2(trail, bar_index, close)
+    line.set_xy1(trail, bar_index + hbar, hh)
+    line.set_xy2(trail, bar_index, hh)
 `;
 
 const CAMP_B_PIVOTS = `//@version=6
@@ -118,9 +121,9 @@ for ln in store
 export const PINE_SCRIPTS: ReadonlyArray<PineScript> = [
     {
         id: "camp-a-line",
-        label: "Tracking line (Camp A)",
+        label: "Highest High Line",
         description:
-            "A single persistent line handle re-anchored each bar to trail the last 20 bars — fixed bar offsets that lower to chartlang's bar.point(-20, …) → bar.point(0, …).",
+            "A single persistent line handle anchored at the bar of the highest high over the last 100 bars (via ta.highestbars) and extended to the current bar — the dynamic offset lowers to chartlang's bar.point(hbar, …).",
         source: CAMP_A_LINE,
     },
     {

@@ -78,6 +78,8 @@ export function extractMaxLookback(
             if (calleeName?.startsWith("ta.")) {
                 const offset = readCallOffset(node);
                 if (offset > maxLookback) maxLookback = offset;
+                const barsDepth = readHighestLowestBarsDepth(calleeName, node);
+                if (barsDepth > maxLookback) maxLookback = barsDepth;
             }
             if (isBarPointCall(node)) {
                 const depth = readBarPointLookback(node);
@@ -212,6 +214,24 @@ function readCallOffset(call: ts.CallExpression): number {
         return 0;
     }
     return 0;
+}
+
+/**
+ * The historical-lookback depth a `ta.highestbars` / `ta.lowestbars` call
+ * contributes. Both primitives return the bar OFFSET (≤ 0) to the extreme
+ * over the trailing `length`-bar window, so the deepest offset they can
+ * return is `-(length − 1)`. A downstream `bar.point(<that offset>, …)`
+ * anchor reads `time.at(length − 1)`, so the runtime's time ring buffer
+ * must retain `length − 1` slots. Only a LITERAL second positional `length`
+ * arg can be sized at compile time; a non-literal length contributes `0`.
+ */
+function readHighestLowestBarsDepth(calleeName: string, call: ts.CallExpression): number {
+    if (calleeName !== "ta.highestbars" && calleeName !== "ta.lowestbars") return 0;
+    const lengthArg = call.arguments[1];
+    if (lengthArg === undefined || !ts.isNumericLiteral(lengthArg)) return 0;
+    const length = Number(lengthArg.text);
+    if (!Number.isFinite(length) || length <= 1) return 0;
+    return length - 1;
 }
 
 function collectSeriesVarOffsets(

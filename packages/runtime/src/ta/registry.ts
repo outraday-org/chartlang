@@ -49,6 +49,7 @@ import type {
     FixedRangeVolumeProfileOpts,
     FixedRangeVolumeProfileResult,
     HighestOpts,
+    HighestbarsOpts,
     HmaOpts,
     HvOpts,
     IchimokuOpts,
@@ -61,6 +62,7 @@ import type {
     KstOpts,
     KstResult,
     LowestOpts,
+    LowestbarsOpts,
     LsmaOpts,
     MaRibbonOpts,
     MaRibbonResult,
@@ -170,6 +172,7 @@ import { eom } from "./eom.js";
 import { fisher } from "./fisher.js";
 import { fixedRangeVolumeProfile } from "./fixedRangeVolumeProfile.js";
 import { highest } from "./highest.js";
+import { highestbars } from "./highestbars.js";
 import { historicalVolatility } from "./historicalVolatility.js";
 import { hma } from "./hma.js";
 import { ichimoku } from "./ichimoku.js";
@@ -179,6 +182,7 @@ import { klinger } from "./klinger.js";
 import { kst } from "./kst.js";
 import type { ScalarOrSeries } from "./lib/sourceValue.js";
 import { lowest } from "./lowest.js";
+import { lowestbars } from "./lowestbars.js";
 import { lsma } from "./lsma.js";
 import { maRibbon } from "./maRibbon.js";
 import { macd } from "./macd.js";
@@ -279,6 +283,18 @@ export type RuntimeTaNamespace = {
         source: ScalarOrSeries,
         length: number,
         opts?: LowestOpts,
+    ): Series<number>;
+    highestbars(
+        slotId: string,
+        source: ScalarOrSeries,
+        length: number,
+        opts?: HighestbarsOpts,
+    ): Series<number>;
+    lowestbars(
+        slotId: string,
+        source: ScalarOrSeries,
+        length: number,
+        opts?: LowestbarsOpts,
     ): Series<number>;
     change(slotId: string, source: ScalarOrSeries, opts?: ChangeOpts): Series<number>;
     valuewhen(
@@ -445,6 +461,8 @@ export const TA_REGISTRY = Object.freeze({
     nz,
     highest,
     lowest,
+    highestbars,
+    lowestbars,
     change,
     valuewhen,
     barssince,

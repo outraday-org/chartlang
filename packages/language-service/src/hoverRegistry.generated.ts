@@ -2993,6 +2993,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.3",
         "stability": "stable"
     },
+    "HighestbarsOpts": {
+        "fqn": "HighestbarsOpts",
+        "kind": "type",
+        "title": "HighestbarsOpts",
+        "summary": "Options bag for `ta.highestbars`. `offset` shifts the read window\nbackwards by `n` bars per the universal `opts.offset` convention.",
+        "examples": [
+            "const opts: HighestbarsOpts = { offset: 0 };"
+        ],
+        "since": "0.2",
+        "stability": "stable"
+    },
     "HighestOpts": {
         "fqn": "HighestOpts",
         "kind": "type",
@@ -3766,6 +3777,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const level: LogLevel = \"info\";\nvoid level;"
         ],
         "since": "0.5",
+        "stability": "stable"
+    },
+    "LowestbarsOpts": {
+        "fqn": "LowestbarsOpts",
+        "kind": "type",
+        "title": "LowestbarsOpts",
+        "summary": "/**\nOptions bag for `ta.lowestbars`. Mirrors  {@link HighestbarsOpts} .",
+        "examples": [
+            "const opts: LowestbarsOpts = { offset: 0 };"
+        ],
+        "since": "0.2",
         "stability": "stable"
     },
     "LowestOpts": {
@@ -4981,7 +5003,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "STATEFUL_PRIMITIVES_BY_NAME",
         "kind": "property",
         "title": "STATEFUL_PRIMITIVES_BY_NAME",
-        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 172-entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
+        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 174-entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
         "examples": [
             "import { STATEFUL_PRIMITIVES_BY_NAME } from \"@invinite-org/chartlang-core\";\nconst entry = STATEFUL_PRIMITIVES_BY_NAME.get(\"ta.ema\");\n// entry is { name: \"ta.ema\", slot: true } | undefined"
         ],
@@ -5941,6 +5963,31 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.1",
         "stability": "stable"
     },
+    "ta.highestbars": {
+        "fqn": "ta.highestbars",
+        "kind": "function",
+        "title": "ta.highestbars(source, length, opts?)",
+        "summary": "The typed surface of the `ta` namespace. The runtime registers concrete\nimplementations against this interface; scripts call it through the\n`ta` constant exported from `@invinite-org/chartlang-core`. Method: ta.highestbars.",
+        "paramTable": [
+            {
+                "name": "source",
+                "type": "Series<number>",
+                "doc": ""
+            },
+            {
+                "name": "length",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "opts",
+                "type": "HighestbarsOpts",
+                "doc": ""
+            }
+        ],
+        "since": "0.1",
+        "stability": "stable"
+    },
     "ta.historicalVolatility": {
         "fqn": "ta.historicalVolatility",
         "kind": "function",
@@ -6095,6 +6142,31 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             {
                 "name": "opts",
                 "type": "LowestOpts",
+                "doc": ""
+            }
+        ],
+        "since": "0.1",
+        "stability": "stable"
+    },
+    "ta.lowestbars": {
+        "fqn": "ta.lowestbars",
+        "kind": "function",
+        "title": "ta.lowestbars(source, length, opts?)",
+        "summary": "The typed surface of the `ta` namespace. The runtime registers concrete\nimplementations against this interface; scripts call it through the\n`ta` constant exported from `@invinite-org/chartlang-core`. Method: ta.lowestbars.",
+        "paramTable": [
+            {
+                "name": "source",
+                "type": "Series<number>",
+                "doc": ""
+            },
+            {
+                "name": "length",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "opts",
+                "type": "LowestbarsOpts",
                 "doc": ""
             }
         ],

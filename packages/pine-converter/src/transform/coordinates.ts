@@ -253,7 +253,16 @@ function resolveBarIndexAnchor(
             ctx.diagnostics.push(makeDiagnostic("dynamic-bar-index", x.span));
             const offsetExpr = emit(ctx, x.right);
             if (x.operator === "+") {
-                noteFuture(ctx, x.span);
+                // A DYNAMIC (non-literal) `+` offset is resolved by
+                // `bar.point` at runtime sign-agnostically: a negative
+                // runtime offset (e.g. what `ta.highestbars` returns)
+                // resolves to the historical timestamp via the time
+                // buffer, a positive one extrapolates from bar spacing.
+                // Neither path needs `opts.barInterval`, so this case
+                // does NOT `noteFuture` — only the literal `bar_index + N`
+                // future case does. We still emit the `bar-index-future`
+                // anchor so the runtime's offset-sign branch does the
+                // right thing.
                 return {
                     kind: "bar-index-future",
                     offsetExpr,

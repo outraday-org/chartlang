@@ -81,6 +81,8 @@ ta.crossover(close, 0);
 ta.crossunder(close, 0);
 ta.highest(close, 14);
 ta.lowest(close, 14);
+ta.highestbars(close, 14);
+ta.lowestbars(close, 14);
 ta.change(close);
 ta.valuewhen(flag, close);
 ta.barssince(flag);
@@ -196,8 +198,8 @@ draw.trendAngle({ time: 0, price: 0 }, { time: 1, price: 1 });
         // Phase-3 ports add draw.* entries to STATEFUL_PRIMITIVES per
         // category. Task 5 wires the 6 line-family kinds; the remaining
         // 55 draw.* kinds land in Tasks 6–18. The test exercises every
-        // shipped slot:true callsite (91 ta + plot + hline + alert + 8
-        // state + 6 line-family draw = 107) — entries without a call here are
+        // shipped slot:true callsite (93 ta + plot + hline + alert + 8
+        // state + 6 line-family draw = 109) — entries without a call here are
         // excluded from the expected count.
         const unwiredDrawEntries = new Set<string>();
         for (const entry of STATEFUL_PRIMITIVES) {

@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.1.1",
-    "passed": 232,
+    "passed": 233,
     "failed": 0,
     "scenarios": [
         {
@@ -1021,6 +1021,12 @@
         {
             "id": "ta-highest",
             "title": "ta.highest(high, 20)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-highestbars-lowestbars",
+            "title": "ta.highestbars / ta.lowestbars",
             "status": "pass",
             "failures": []
         },

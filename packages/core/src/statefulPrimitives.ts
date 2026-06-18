@@ -27,6 +27,8 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "ta.crossunder", slot: true },
     { name: "ta.highest", slot: true },
     { name: "ta.lowest", slot: true },
+    { name: "ta.highestbars", slot: true },
+    { name: "ta.lowestbars", slot: true },
     { name: "ta.change", slot: true },
     { name: "ta.valuewhen", slot: true },
     { name: "ta.barssince", slot: true },
@@ -212,8 +214,10 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
  * logging/error as stateless loop-diagnostic entries plus `draw.table`
  * as a slot-backed viewport drawing.
  *
- * Locked at `apiVersion: 1` (172 entries). Adding, removing, or renaming
- * an entry is a language change and requires `apiVersion: 2` — see
+ * Additive within `apiVersion: 1` (currently 174 entries): new entries MAY
+ * be appended in a `1.x` release (a new call name is additive — new callsites
+ * only, no change to any existing script). Removing or renaming an entry, or
+ * flipping its `slot`, is a language change and requires `apiVersion: 2` — see
  * `docs/spec/versioning.md`.
  *
  * @since 0.1
@@ -234,12 +238,14 @@ export const STATEFUL_PRIMITIVES: ReadonlySet<StatefulPrimitiveEntry> = Object.f
  * Name → entry index of {@link STATEFUL_PRIMITIVES}. The compiler's
  * `callsiteIdInjection` and `statefulCallInLoop` passes consult this map
  * by callee name once per call site — O(1) lookup instead of an O(n) scan
- * over the 172-entry set on every visited call. The map is derived from
+ * over the 174-entry set on every visited call. The map is derived from
  * the same canonical entry list as {@link STATEFUL_PRIMITIVES} so adding
  * a primitive to the set adds it here automatically.
  *
- * Locked at `apiVersion: 1` (172 entries). Adding, removing, or renaming
- * an entry is a language change and requires `apiVersion: 2` — see
+ * Additive within `apiVersion: 1` (currently 174 entries): new entries MAY
+ * be appended in a `1.x` release (a new call name is additive — new callsites
+ * only, no change to any existing script). Removing or renaming an entry, or
+ * flipping its `slot`, is a language change and requires `apiVersion: 2` — see
  * `docs/spec/versioning.md`.
  *
  * @since 0.2

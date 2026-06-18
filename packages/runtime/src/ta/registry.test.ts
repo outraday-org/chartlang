@@ -6,9 +6,9 @@ import { describe, expect, it } from "vitest";
 import { TA_REGISTRY, TA_REGISTRY_METADATA, ta } from "./registry.js";
 
 describe("TA_REGISTRY", () => {
-    it("ships exactly 94 entries after the Phase 5 fixed range volume profile port", () => {
+    it("ships exactly 96 entries after the highestbars/lowestbars additions", () => {
         const keys = Object.keys(TA_REGISTRY);
-        expect(keys.length).toBe(94);
+        expect(keys.length).toBe(96);
     });
 
     it("exposes the Phase-1+2+5 primitives by name", () => {
@@ -25,6 +25,8 @@ describe("TA_REGISTRY", () => {
             "nz",
             "highest",
             "lowest",
+            "highestbars",
+            "lowestbars",
             "change",
             "valuewhen",
             "barssince",

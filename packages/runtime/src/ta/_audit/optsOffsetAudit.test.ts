@@ -37,6 +37,7 @@ import type {
     EomOpts,
     FisherOpts,
     HighestOpts,
+    HighestbarsOpts,
     HmaOpts,
     HvOpts,
     IchimokuOpts,
@@ -45,6 +46,7 @@ import type {
     KlingerOpts,
     KstOpts,
     LowestOpts,
+    LowestbarsOpts,
     LsmaOpts,
     MaRibbonOpts,
     MacdOpts,
@@ -114,6 +116,8 @@ type AuditedOpts =
     | AssertOffset<CrossunderOpts>
     | AssertOffset<HighestOpts>
     | AssertOffset<LowestOpts>
+    | AssertOffset<HighestbarsOpts>
+    | AssertOffset<LowestbarsOpts>
     | AssertOffset<ChangeOpts>
     | AssertOffset<ValuewhenOpts>
     | AssertOffset<BarssinceOpts>
@@ -209,6 +213,6 @@ describe("ta opts.offset audit", () => {
 
     it("every options bag in the ta namespace exposes offset", () => {
         expectTypeOf<AuditedOpts>().toMatchTypeOf<OffsetOpts>();
-        expect(Object.keys(TA_REGISTRY)).toHaveLength(94);
+        expect(Object.keys(TA_REGISTRY)).toHaveLength(96);
     });
 });

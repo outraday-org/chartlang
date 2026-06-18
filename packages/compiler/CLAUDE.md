@@ -50,6 +50,17 @@
   extrapolated) offsets, and non-literal / dynamic offsets contribute
   `0`; the ambient `program.ts` shim declares `Bar.point` in lockstep
   with core. Drawing anchors stay ONLY `WorldPoint { time, price }`.
+- **`extractMaxLookback` counts a literal-length `ta.highestbars` /
+  `ta.lowestbars` as `length − 1` lookback depth.** Both primitives return
+  the bar OFFSET (≤ 0) to the trailing-window extreme, so the deepest offset
+  they can return is `−(length − 1)`. A downstream `bar.point(<that offset>,
+  …)` anchor reads `time.at(length − 1)`, so the time ring buffer must retain
+  `length − 1` slots. `readHighestLowestBarsDepth` reads the LITERAL second
+  positional `length` arg in the `ta.`-prefixed branch of `visit` and raises
+  `maxLookback` to `length − 1` (it returns `0` for `length <= 1`). A
+  non-literal length contributes `0` (cannot be sized at compile time). This
+  is independent of the `opts.offset` and `bar.point(-N, …)` rules and stacks
+  via the shared `maxLookback` max.
 - **No DOM lib.** `program.ts` pins `lib: ["lib.es2022.d.ts"]` on the
   in-memory program so scripts cannot rely on browser globals. Hostile
   globals (`Math.random`, `Date`, `fetch`, `setTimeout`, …) are

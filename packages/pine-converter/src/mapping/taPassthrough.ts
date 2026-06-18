@@ -79,8 +79,8 @@ export const TA_PASSTHROUGH_MAP: ReadonlyMap<string, TaMapping> = new Map<string
     // docs: https://www.tradingview.com/pine-script-reference/v6/#fun_ta.highest
     ta("ta.highest", "ta.highest"),
     ta("ta.lowest", "ta.lowest"),
-    ta("ta.highestbars", "ta.highest", "synthesised: argmax offset over window"),
-    ta("ta.lowestbars", "ta.lowest", "synthesised: argmin offset over window"),
+    ta("ta.highestbars", "ta.highestbars"),
+    ta("ta.lowestbars", "ta.lowestbars"),
     ta("ta.barssince", "ta.barssince"),
     ta("ta.valuewhen", "ta.valuewhen"),
     ta("ta.change", "ta.change"),
