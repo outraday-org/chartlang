@@ -1,18 +1,20 @@
-# Task 5 — Conformance + example + demo + docs + skills + changeset
+# Task 6 — Conformance + example + demo + docs + skills + changeset
 
 > **Status: TODO**
 
 ## Goal
 
 Prove bidirectional offset end-to-end and surface it everywhere: a
-conformance scenario (or `plot-field` assertion) for the `xShift`,
-re-pinned `sma-offset` goldens, an updated example + live-site demo
-(which regenerates the docs Examples page), the language/JSDoc docs, the
-skills mirror, the changeset, and the CLAUDE.md sweep.
+conformance scenario with `plot-field` support for the new `xShift`
+field, re-pinned `sma-offset` goldens, an updated example + live-site
+demo (which regenerates the docs Examples page), the language/JSDoc/API
+docs, the skills mirror, the changeset, and the CLAUDE.md sweep.
 
 ## Prerequisites
 
-Tasks 3 (runtime) + 4 (adapter) — behavior final.
+Tasks 3 (runtime) + 4 (adapter) — behavior final — and Task 5
+(pine-converter mapping landed, so its `minor` bump folds into the
+changeset here).
 
 ## Current Behavior
 
@@ -32,8 +34,10 @@ Tasks 3 (runtime) + 4 (adapter) — behavior final.
 
 - A conformance assertion proves a `−offset` plot emits the expected
   `xShift` and unshifted values, and a `+offset` does the same in the
-  other direction (use the `plot-field` assertion for `xShift`, plus
-  `plot-hash` on the now-unshifted values).
+  other direction. The existing conformance `plot-field` assertion only
+  supports `"visible" | "color" | "lineWidth"` today, so this task first
+  extends it to support `"xShift"` and then uses it, plus `plot-hash` on
+  the now-unshifted values.
 - The example + demo show **both directions** (e.g. extend `sma-offset`
   to a `+5` line and a `−5` line, or add a "SMA both ways" entry); the
   description states offset is a presentation shift (left/right).
@@ -42,55 +46,73 @@ Tasks 3 (runtime) + 4 (adapter) — behavior final.
 
 ## Requirements
 
-1. **Conformance**: add/extend a scenario under
+1. **Conformance harness**: update
+   `packages/conformance/src/runConformanceSuite.ts` so
+   `ScenarioAssertion`'s `plot-field.field` union includes `"xShift"` and
+   `evalAssertion` reads `emission.xShift` for that field. Extend
+   `packages/conformance/src/runConformanceSuite.test.ts` and
+   `packages/conformance/src/scenarios/scenarios.test.ts` for the new
+   allowed field. Keep the existing `visible` / `color` / `lineWidth`
+   assertions working unchanged.
+2. **Conformance scenario**: add/extend a scenario under
    `packages/conformance/src/scenarios/` asserting `xShift` (via
    `plot-field`) for `+` and `−` offsets and the unshifted `plot-hash`.
    Register it; mint goldens from the runner's expected-vs-actual output.
-2. **Re-pin** `integration.test.ts`'s `sma-offset` `hashCallLog` (values
+3. **Re-pin** `integration.test.ts`'s `sma-offset` `hashCallLog` (values
    are now unshifted + an `xShift` rides the emission) — regenerate, do
    not hand-edit.
-3. **Example**: update `examples/scripts/sma-offset.chart.ts` to show both
+4. **Example**: update `examples/scripts/sma-offset.chart.ts` to show both
    directions (keep the two-line MIT header; it stays in the CLI e2e
    list). Mirror it into the `SMA_OFFSET` demo source + update the
    catalogue `description`.
-4. **Demo/docs sync**: run `pnpm examples:generate`, commit the
+5. **Demo/docs sync**: run `pnpm examples:generate`, commit the
    regenerated `docs/examples/sma-offset.md` (+ any new id) — `pnpm
    examples:gate` must byte-match.
-5. **Docs**: update `docs/language/series-and-indexing.md` (its
+6. **Docs**: update `docs/language/series-and-indexing.md` (its
    "Shifting output with the `ta` `offset` option" section currently
    describes the positive value-read — rewrite to the bidirectional
-   display shift) and confirm the regenerated `docs/primitives/ta/*.md`
-   reflect the new JSDoc. Leave the `bar.point(offset, price)` anchoring
-   section unchanged (separate feature).
-6. **Skills**: regenerate `references/primitives.md`
+   display shift), update `docs/spec/emissions.md`'s `PlotEmission` field
+   table with `xShift`, and update adapter docs that describe plot
+   presentation fields (`docs/adapters/contract.md`,
+   `docs/adapters/writing-an-adapter.md`, and
+   `docs/adapters/reference/lightweight-charts.md` if their snippets need
+   the field). Confirm the regenerated `docs/primitives/ta/*.md` reflect
+   the new JSDoc. Leave the `bar.point(offset, price)` anchoring section
+   unchanged (separate feature).
+7. **Skills**: regenerate `references/primitives.md`
    (`pnpm skills:generate`); update `SKILL.md` if it describes offset as a
    value-shift. Note ALMA's `offset` stays the Gaussian-centre (its
    universal shift is `barShift`). `pnpm skills:gate` green.
-7. **Changeset** `.changeset/bidirectional-plot-offset.md`: confirm the
+8. **Changeset** `.changeset/bidirectional-plot-offset.md`: create it if
+   it does not already exist, then confirm the
    bumped set with `pnpm changeset status` — expect `minor` on core,
    **adapter-kit** (the `PlotEmission.xShift` field + `validateEmission`),
-   compiler, runtime; `patch`/`minor` on conformance (new scenario).
+   compiler, runtime, **pine-converter** (Task 5's `plot(..., offset=)`
+   mapping + new diagnostic); `patch`/`minor` on conformance (new
+   scenario).
    `examples/canvas2d-adapter` + `apps/site` are private (no bump). Verify
    the stale `.changeset/compiler-offset-maxlookback.md` was removed in
    Task 2 (it described the reverted value-read mechanism) so
    `changeset status` is coherent. Write the summary describing the model
    decision + the value→display migration.
-8. **CLAUDE.md sweep**: `examples/scripts/CLAUDE.md`, `examples/CLAUDE.md`,
+9. **CLAUDE.md sweep**: `examples/scripts/CLAUDE.md`, `examples/CLAUDE.md`,
    `apps/CLAUDE.md` (offset demo prose), plus any not covered by Tasks 1–4.
 
 ## Files to Create / Modify
 
 | File | Action | Purpose |
 |------|--------|---------|
+| `packages/conformance/src/runConformanceSuite.ts` | Modify | add `plot-field.field = "xShift"` support |
+| `packages/conformance/src/runConformanceSuite.test.ts`, `packages/conformance/src/scenarios/scenarios.test.ts` | Modify | conformance assertion coverage for `xShift` |
 | `packages/conformance/src/scenarios/*offset*.scenario.ts` | Create | `xShift` + unshifted-value assertions |
 | `packages/conformance/src/scenarios/index.ts`, `runConformanceSuite.ts` | Modify | register |
 | `examples/canvas2d-adapter/src/integration.test.ts` | Modify | re-pin `sma-offset` hash |
 | `examples/scripts/sma-offset.chart.ts` | Modify | both-direction example |
 | `apps/site/src/components/demo/scripts.ts` | Modify | demo source + description |
 | `docs/examples/sma-offset.md` (+ any new id) | Generate | `examples:generate` |
-| `docs/language/series-and-indexing.md` | Modify | bidirectional offset prose |
+| `docs/language/series-and-indexing.md`, `docs/spec/emissions.md`, `docs/adapters/contract.md`, `docs/adapters/writing-an-adapter.md`, `docs/adapters/reference/lightweight-charts.md` | Modify | bidirectional offset prose + `PlotEmission.xShift` contract |
 | `skills/chartlang-coding/SKILL.md`, `references/primitives.md` | Modify / Regenerate | offset semantics |
-| `.changeset/bidirectional-plot-offset.md` | Modify | final package set + summary |
+| `.changeset/bidirectional-plot-offset.md` | Create / Modify | final package set + summary |
 | `examples/scripts/CLAUDE.md`, `examples/CLAUDE.md`, `apps/CLAUDE.md` | Modify | offset prose |
 
 ## Gates
@@ -105,9 +127,10 @@ Tasks 3 (runtime) + 4 (adapter) — behavior final.
 
 ## Acceptance Criteria
 
-- Conformance proves `xShift` both directions + unshifted values; goldens
-  minted.
+- Conformance harness supports `plot-field: "xShift"`; conformance proves
+  `xShift` both directions + unshifted values; goldens minted.
 - Example + demo show both directions; `docs/examples/*` regenerated and
   gate-clean (demo ↔ docs in sync).
-- Language docs + `ta` pages + skills describe bidirectional offset.
+- Language docs + emission/adapter docs + `ta` pages + skills describe
+  bidirectional offset.
 - Changeset finalised; all touched CLAUDE.md updated; full gate set green.

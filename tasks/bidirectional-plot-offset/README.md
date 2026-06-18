@@ -55,7 +55,9 @@ note), `packages/conformance/CLAUDE.md` (`plot-hash` / `plot-field`),
   sentinel (`NaN` for `Float64RingBuffer`). Each `ta.*` slot caches one
   shifted Proxy per `(slot, offset)` pair (see `ta/pvo.ts`
   `resultForOffset` for the multi-output pattern). `lib/applyOffset`'s
-  `out[i] = values[i − offset]` is the array-side equivalent.
+  `out[i] = values[i − offset]` is a stale array-side equivalent with no
+  current production consumers; Task 3 removes or repurposes it so no
+  runtime helper preserves the old value-read semantics.
 - **Compiler** (`packages/compiler/src/analysis/extractMaxLookback.ts`):
   `readCallOffset` counts a **positive** literal `opts.offset` toward
   `maxLookback` (the output ring buffer is sized `maxLookback + 1`, so a
@@ -64,19 +66,29 @@ note), `packages/conformance/CLAUDE.md` (`plot-hash` / `plot-field`),
   extra buffer depth").
 - **Reference adapter**
   (`examples/canvas2d-adapter/src/createCanvas2dAdapter.ts`): plots are
-  stored per slot and rendered at their bar index — there is **no
-  x-axis display shift**; the runtime-supplied value series IS the
+  stored per slot with their emitted `time` and rendered via
+  `timeToX(time, viewport)` — there is **no x-axis display shift**; the
+  runtime-supplied value series IS the
   rendered position. A line "displaced right" today is purely a
   consequence of the value-read shift, not a render-time transform.
 - **Conformance** (`packages/conformance/`): `plot-hash` hashes
-  `{ bar, value }` tuples in emission order; the `sma-offset` path is
-  pinned through `examples/canvas2d-adapter/src/integration.test.ts`
-  ("renders the sma-offset example…", a pinned `hashCallLog`).
+  `{ bar, value }` tuples in emission order; `plot-field` currently
+  supports only `visible` / `color` / `lineWidth`, so Task 6 extends it
+  for `xShift`. The `sma-offset` path is pinned through
+  `examples/canvas2d-adapter/src/integration.test.ts` ("renders the
+  sma-offset example…", a pinned `hashCallLog`).
+- **Pine converter** (`packages/pine-converter/`): `emitPlot`
+  (`src/transform/plotFamily.ts`) maps a plot call's `title` / `color` /
+  `linewidth` only (`commonOptions`); Pine's `plot(series, offset=N)`
+  `offset=` argument is **silently dropped** — no mapping, no
+  diagnostic. `emitPlot` is not even passed the `DiagnosticCollector`.
 - **Docs / demo / example**: `examples/scripts/sma-offset.chart.ts`,
   the `SMA_OFFSET` entry in `apps/site/src/components/demo/scripts.ts`
   (→ `docs/examples/sma-offset.md` via `examples:generate`),
-  `docs/language/series-and-indexing.md`, and the auto-generated
-  `docs/primitives/ta/*.md` all describe the positive value-shift.
+  `docs/language/series-and-indexing.md`, `docs/spec/emissions.md`,
+  adapter docs that describe `PlotEmission`, and the auto-generated
+  `docs/primitives/ta/*.md` all describe the positive value-shift or omit
+  the new `xShift` contract.
 
 ## Mechanism (DECIDED: Option A, A-stay)
 
@@ -110,7 +122,7 @@ files below are written for Option A / A-stay.
 shifts it **left** (`n` bars into the past). This is fixed — not an open
 question for Task 1 — and is consistent with today's positive offset
 (the `sma-offset` example's `{ offset: 5 }` already renders to the
-right). Only the *mechanism* (Option A vs B, A-stay vs A-move) is open.
+right). The *mechanism* is also fixed for these tasks: Option A / A-stay.
 
 ## Target State (Option A)
 
@@ -131,6 +143,10 @@ right). Only the *mechanism* (Option A vs B, A-stay vs A-move) is open.
   display semantics. A new demo entry (or an extended `sma-offset`) shows
   a `−offset` line displaced left next to a `+offset` line displaced
   right.
+- The pine-converter threads Pine `plot(<ta.* call>, offset=N)` onto the
+  emitted `ta.*` call's opts (signed, both directions); a plot whose
+  value is not a direct `ta.*` call drops the offset and emits a
+  documented diagnostic (chartlang has no plot-level offset — deferred).
 
 ## Dependency Graph
 
@@ -147,8 +163,15 @@ Task 3 (runtime: tag offset via WeakMap, emit xShift on plots; stop value-read s
 Task 4 (canvas2d adapter: bar-offset → x projection both directions + tests)
   |
   v
-Task 5 (conformance re-pin + example + demo + docs + skills + changeset + CLAUDE sweep)
+Task 5 (pine-converter: plot(..., offset=) → ta offset + diagnostic + fixtures)
+  |
+  v
+Task 6 (conformance harness + re-pin + example + demo + docs + skills + changeset + CLAUDE sweep)
 ```
+
+Task 5 depends only on Task 1 (the offset language surface) + Task 3
+(the runtime makes it real); it is drawn after Task 4 because its
+pine-converter bump folds into Task 6's final changeset.
 
 ## Task Summary
 
@@ -158,20 +181,23 @@ Task 5 (conformance re-pin + example + demo + docs + skills + changeset + CLAUDE
 | 2 | [Compiler: lookback + changeset cleanup](./2-compiler-lookback.md) | compiler | 1 | Medium |
 | 3 | [Runtime: emit x-shift](./3-runtime-emit-xshift.md) | runtime | 1, 2 | High |
 | 4 | [Adapter: render x-shift](./4-adapter-render.md) | canvas2d-adapter | 1, 3 | Medium |
-| 5 | [Conformance + example + demo + docs](./5-conformance-example-demo-docs.md) | conformance, examples, apps/site, docs, skills | 3, 4 | Medium |
+| 5 | [Pine converter: `plot(..., offset=)` mapping](./5-pine-converter-plot-offset.md) | pine-converter | 1, 3 | Medium |
+| 6 | [Conformance + example + demo + docs](./6-conformance-example-demo-docs.md) | conformance, examples, apps/site, docs, skills | 3, 4, 5 | Medium |
 
 ## Code Reuse
 
 | Existing | Path | Reuse for |
 |----------|------|-----------|
-| `makeShiftedSeriesView` / `makeSeriesView` | `packages/runtime/src/seriesView.ts` | Option A reduces `makeShiftedSeriesView` to an unshifted view + a `WeakMap<Series,number>` offset tag (keeps ~90 call sites) |
+| `makeShiftedSeriesView` / `makeSeriesView` | `packages/runtime/src/seriesView.ts` | Option A reduces `makeShiftedSeriesView` to an unshifted view + a `WeakMap<Series,number>` offset tag (keeps ~90 call sites); exposes the helper `plot`/ALMA need to read or tag the offset |
 | `resultForOffset` multi-output offset cache + ~90 per-primitive `viewForOffset` | `packages/runtime/src/ta/*.ts` (e.g. `pvo.ts`, `sma.ts`) | Call sites keep working via the WeakMap-tagging helper; ALMA tags `opts.barShift` |
+| `applyOffset` | `packages/runtime/src/ta/lib/applyOffset.ts` | Remove or repurpose the stale array-side value-shift helper; no current production consumer should keep Option-B behavior alive |
 | `readCallOffset` / `collectSeriesVarOffsets` | `packages/compiler/src/analysis/extractMaxLookback.ts` | The offset-literal readers to retire (Option A) |
 | `PlotEmission` type + `validateEmission` | `packages/adapter-kit/src/types.ts`, `packages/adapter-kit/src/validation/validateEmission.ts` | Where the new `xShift` field + its integer validation live (Task 1) |
 | `PlotEmission` build + `pushPlot` | `packages/runtime/src/emit/plot.ts`, `emit/emissionsQueue.ts` | Where the runtime *sets* `xShift` (Task 3) |
-| plot render loop | `examples/canvas2d-adapter/src/createCanvas2dAdapter.ts` | Where the x-shift is applied at draw time |
-| `plot-field` assertion | `packages/conformance/src/scenarios/plotStyleOverrides.scenario.ts` | Template for asserting the `xShift` presentation field |
+| plot render loop | `examples/canvas2d-adapter/src/createCanvas2dAdapter.ts` | Where the x-shift is applied at draw time for line/histogram/glyph plot styles |
+| `plot-field` assertion | `packages/conformance/src/runConformanceSuite.ts`, `packages/conformance/src/scenarios/plotStyleOverrides.scenario.ts` | Extend the assertion union/evaluator for `xShift`, then use existing scenario shape as the template |
 | `sma-offset` example + demo + integration | `examples/scripts/sma-offset.chart.ts`, `apps/site/src/components/demo/scripts.ts`, `examples/canvas2d-adapter/src/integration.test.ts` | The surface to migrate + re-pin |
+| `emitPlot` / `commonOptions` + `DIAGNOSTIC_CODE_ENTRIES` | `packages/pine-converter/src/transform/plotFamily.ts`, `src/diagnostics/codes.ts` | Where Task 5 reads `offset=`, threads it onto a `ta.*` call, and registers the new diagnostic |
 
 ## Provenance
 
@@ -183,7 +209,10 @@ chartlang-native implementation.
 - **Per-`plot` offset independent of the series** — if Task 1 keeps
   `offset` on `ta.*` opts, plotting the same series at two different
   offsets needs two `ta.*` calls. A `plot(series, { offset })` form could
-  follow.
+  follow. This is also what blocks the converter (Task 5) from mapping
+  Pine `plot(<non-ta value>, offset=N)` — without a plot-level offset
+  there is no representable target, so that case emits a diagnostic and
+  drops the offset until this follow-up lands.
 - **Offset on `draw.*` anchors** — `bar.point` already covers offset
   anchoring for drawings; this feature is plot-only.
 - **Negative offset interaction with alerts** — alerts fire on the

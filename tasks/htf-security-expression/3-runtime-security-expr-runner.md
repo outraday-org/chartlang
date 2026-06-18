@@ -5,11 +5,11 @@
 ## Goal
 
 Implement the runtime side: drive each compiled HTF expression callback
-**on every secondary (HTF) bar close** against the secondary
-`StreamState`, capture one output value per HTF bar into a per-slot
-output buffer, and have `request.security(slotId, opts, expr)` return
-that output series aligned no-lookahead to the main timeline. Boot the
-hoisted unit in both hosts.
+**once per secondary (HTF) bar** through an isolated fold stream, capture
+one output value per HTF bar into a per-slot output buffer, and have
+`request.security(slotId, opts, expr)` return that output series aligned
+no-lookahead to the main timeline. Verify both hosts carry the normal
+compiled module/manifest path through unchanged.
 
 ## Prerequisites
 
@@ -37,21 +37,26 @@ Task 1 (core overload), Task 2 (manifest `securityExpressions`).
 
 ## Desired Behavior
 
-- At mount, for each `manifest.securityExpressions` entry, register a
-  `SecurityExprRunner` bound to the secondary `StreamState` for its
-  interval and an empty `Float64RingBuffer` output buffer (capacity =
-  secondary stream capacity).
+- At mount, for each `manifest.securityExpressions` entry, create a
+  `SecurityExprRunner` record for its `slotId`/`interval`, an empty
+  `Float64RingBuffer` output buffer (capacity = secondary stream
+  capacity), and a dedicated fold `StreamState` with the same interval.
 - The callback closure is captured the **first time** the main compute
   body executes `request.security(slotId, opts, expr)` — store `expr`
   against `slotId`. (The compiled module passes the live callback; the
   manifest only said "slotId X is an expression on interval I".)
-- On each secondary **close** for interval `I`: for every registered
-  expr-slot on `I`, run its callback with `ctx.stream` swapped to the
-  secondary stream and `ACTIVE_RUNTIME_CONTEXT.current` set to the
-  expr-runner context, read the returned value (`Series<number>` →
-  `.current`, or a raw `number`), and `append` it to that slot's output
-  buffer. `ta.*` inside the callback read/write the **secondary
-  stream's** `taSlots`, so they accumulate over HTF bars.
+- On first callback capture, replay every already-buffered secondary bar
+  for that interval oldest→newest through the runner's dedicated fold
+  stream, run the callback once per replayed bar, and append one sampled
+  output per HTF bar. This catches up history without mutating the real
+  secondary stream's current head.
+- On each later secondary **close** for interval `I`: append the same bar
+  to every registered runner's fold stream for `I`, run its callback with
+  `ACTIVE_RUNTIME_CONTEXT.current` set to the expr-runner context, read
+  the returned value (`Series<number>` → `.current`, or a raw `number`),
+  and `append` it to that slot's output buffer. `ta.*` inside the
+  callback read/write the fold stream's `taSlots`, so they accumulate
+  over HTF bars exactly once.
 - On a secondary **tick**: `replaceHead` the output buffer (mirror the
   `replaceTickHead` semantics — do not advance length).
 - `request.security(slotId, opts, expr)` (main compute) returns a
@@ -62,120 +67,85 @@ Task 1 (core overload), Task 2 (manifest `securityExpressions`).
 
 ## Requirements
 
-### 1. Capture-and-drive ordering (the key subtlety)
+### 1. Capture-and-drive ordering
 
-The callback is only known once the main compute runs. But secondary
-closes arrive (and must drive the callback) **before** the main bar they
-precede (the pump interleaves them). Resolve with a **deferred-replay**
-that stays O(total HTF bars):
+The callback is only known once the main compute runs. Secondary closes
+can arrive before that first main compute because the pump interleaves
+secondary streams ahead of the main bar. Resolve this with lazy capture
+plus deterministic replay:
 
 - Maintain per-slot `processedHtfCount` (count of HTF bars already folded
   into the output buffer for this slot).
 - When a secondary close for interval `I` is pushed: append the bar to
-  the secondary stream (as today). **Do not** run callbacks yet if no
-  callback is registered for `I` (none are until first main compute).
+  the real secondary stream as today. For every runner on `I` whose
+  callback is already registered, append the bar to that runner's
+  dedicated fold stream, evaluate the callback once, append the sampled
+  output, and increment `processedHtfCount`.
 - At the **start** of `request.security(slotId, opts, expr)` in main
-  compute: store `expr` for `slotId` (first call), then **catch up** —
-  while `secondaryStream.length > processedHtfCount`, evaluate the
-  callback against the secondary stream *as it stood at that HTF bar*.
-
-  Because `ta.*` are incremental and read the stream **head**, the only
-  correct replay is to fold each HTF bar at the moment its head is
-  current. Two viable implementations — pick the one matching the
-  existing secondary-feed timing and document the choice:
-
-  - **(Preferred) Drive at append time once registered.** Register expr
-    callbacks at **mount** by having the runtime call the compute body
-    once in a "registration" pass is *not* possible (compute needs a
-    bar). Instead: on the **first** main compute, replay the callback
-    over all buffered HTF bars by temporarily presenting each historical
-    HTF bar as the secondary stream head. Since `ta.*` slots are
-    incremental, this requires feeding bars in order through a
-    fresh secondary `taSlots` namespace — which is exactly what driving
-    on each secondary append would do. **Therefore: register the
-    callback lazily, but drive the per-HTF-bar fold inside the secondary
-    append/tick path** by checking whether a callback is registered for
-    that interval; on the first main compute, immediately fold any
-    backlog (bars appended before registration) in order, then every
-    later secondary close folds incrementally.
-
-> Implementation guidance: keep a per-interval list of registered
-> expr-slots on the `RuntimeContext`. `appendSecondaryBar` (and the
-> history loop) calls a new `driveSecurityExpressions(ctx, interval)`
-> after the buffer grows; that fn folds exactly the new bar for each
-> registered slot whose `processedHtfCount` is now behind. The first
-> main compute registers the slot and folds the backlog via the same fn
-> (loop until `processedHtfCount === secondaryStream.length`). This makes
-> append-time and first-compute paths share one fold routine.
+  compute: if the callback has not been stored yet, store it and replay
+  the current real secondary stream oldest→newest into the runner's fold
+  stream until `processedHtfCount === secondaryStream.length`. This is
+  O(total HTF bars) per slot because each historical bar is folded once.
 
 The fold routine for one HTF bar:
-1. Set `ACTIVE_RUNTIME_CONTEXT.current = exprRunner.ctx` (ctx whose
-   `stream` is the secondary stream), inside try/finally that restores
-   the previous active context (honour the runtime CLAUDE.md invariant).
-2. Present the target HTF bar as the secondary stream head. When folding
-   live (the just-appended bar), the head is already correct. When
-   folding a backlog, the buffer already holds all bars — but `ta.*`
-   read the head only. **Decision:** drive folding *synchronously inside
-   the append path* so there is never a backlog to replay out of order
-   (the first registered slot folds its backlog by re-reading buffered
-   bars oldest→newest, presenting each as head via a transient cursor).
-   If presenting historical bars as head is infeasible without mutating
-   the ring buffer, instead **defer secondary-close compute until a
-   callback exists** is wrong (misses history). The robust path:
-   **register expr slots from the manifest at mount** (the manifest
-   lists every expr slotId+interval — Task 2), and have the *module*
-   expose its callbacks to the runtime at load (see step 2). Then no
-   backlog exists: every secondary close from the very first history bar
-   drives the callback.
+1. Append the target HTF bar to the runner's dedicated fold stream
+   (or replace its head for tick mode).
+2. Set `ACTIVE_RUNTIME_CONTEXT.current = exprRunner.ctx` inside
+   try/finally that restores the previous active context (honour the
+   runtime CLAUDE.md invariant).
+3. Run the stored callback with a `SecurityBar`/bar view backed by the
+   fold stream head, sample `Series<number>.current` or the raw number,
+   and append/replace the output buffer.
 
-> **Resolve the chicken-and-egg by exposing callbacks at load (step 2),
-> driven by the manifest registry.** This removes the replay problem
-> entirely. The deferred-replay text above is the fallback if load-time
-> callback exposure proves impossible for a host.
+Do not mutate the real secondary stream to "present" historical bars as
+the head during replay. The real stream remains the source for alignment
+timestamps; the fold stream owns expression-local `taSlots` and callback
+state.
 
-### 2. Expose callbacks at module load (preferred mechanism)
-
-The compiler keeps the callback inline. To register it before the first
-secondary close, the emitted module must hand its expr callbacks to the
-runtime at load. Mirror the existing `__chartlang_depOutput` global /
-bundle-shim mechanism (`packages/runtime` dep wiring): the compiler
-emits a registration shim that, at module evaluation, registers
-`(slotId) => callback` into a runtime-provided collector keyed by
-slotId. The runner reads the manifest's `securityExpressions` to know
-which slotIds to expect and pairs each with the registered callback.
+### 2. Runner state
 
 - Add `RuntimeContext.securityExprRunners: Map<string, SecurityExprRunner>`
-  keyed by `slotId`, and `securityExprOutputs: Map<string, Float64RingBuffer>`
-  keyed by `slotId`. Cleared on `dispose`.
+  keyed by `slotId`, plus any per-interval index needed to find runners
+  quickly from `appendSecondaryBar`. Cleared on `dispose`.
 - `SecurityExprRunner` (new `packages/runtime/src/request/securityExprRunner.ts`):
-  `{ slotId, interval, stream: StreamState (secondary), ctx: RuntimeContext,
-  callback: SecurityExpr, output: Float64RingBuffer }`. Build its `ctx`
-  with `buildSubRunnerState`-style helper but with `stream =` the
-  **secondary** stream (not the main stream) and a distinct
-  `slotIdPrefix` (e.g. `security:<slotId>/`) so its `state.*` slots never
-  collide; `ta.*` slots live on the secondary stream's `taSlots` and are
-  unique by file position regardless.
+  `{ slotId, interval, foldStream: StreamState, ctx: RuntimeContext,
+  callback?: SecurityExpr, output: Float64RingBuffer, processedHtfCount }`.
+  Build its `ctx` with a `buildSubRunnerState`-style helper but with
+  `stream = foldStream` and a distinct `slotIdPrefix` (e.g.
+  `security:<slotId>/`) so `state.*` slots never collide. `ta.*` slots
+  live on `foldStream.taSlots`, making replay and live folding use the
+  same incremental state path.
 
 ### 3. Drive on secondary close/tick
 
 In `execution/secondaryStream.ts`:
-- `appendSecondaryBar` / `appendSecondaryHistory` per-bar: after the
-  buffer grows, call `driveSecurityExpressions(ctx, interval, "close")`,
-  which, for each registered `SecurityExprRunner` on `interval`, runs the
-  callback in the runner ctx and `append`s the sampled value to
-  `runner.output`.
+- `appendSecondaryBar` / `appendSecondaryHistory` per-bar still append to
+  the real secondary stream. Because those helpers currently accept only a
+  `StreamState`, wire `driveSecurityExpressions(ctx, interval, "close",
+  bar)` from `createScriptRunner.ts::pushSecondaryEvent` immediately after
+  the append, where the `RunnerState.runtimeContext` is available. If you
+  choose to widen the helper signatures instead, update their direct unit
+  tests and all call sites.
 - `replaceSecondaryHead` (tick): call with `"tick"` →
-  `runner.output.replaceHead(value)` (no length advance).
+  `runner.output.replaceHead(value)` (no length advance), again from the
+  caller path that has the runtime context.
 - Suppress all emissions from the callback (no plot/alert/draw inside an
   HTF expression in v1; if the body somehow emits, drop it — the
-  capture-check in Task 2 already forbids non-`ta`/`math` references, so
+  capture-check in Task 2 already forbids non-`ta` references, so
   `plot`/`alert` are unreachable, but guard anyway).
 
 ### 4. `request.security` overload dispatch
 
 `requestNamespace.ts` `security(slotId, opts, expr?)`:
-- `expr === undefined` → existing `makeSecurityBar` path (unchanged).
-- `expr` present → return `makeSecurityExprSeries(ctx, slotId, opts.interval)`:
+- If `slotId` is **not** declared in `manifest.securityExpressions` and
+  `expr === undefined` → existing `makeSecurityBar` path (unchanged).
+- If `slotId` is declared as a security expression, store `expr` when it
+  is first provided, catch up the runner backlog, then return
+  `makeSecurityExprSeries(ctx, slotId, opts.interval)`. This dispatch
+  should key off the manifest runner registry rather than only
+  `expr !== undefined`, so compiled output remains robust if the emitted
+  call shape changes later.
+- `makeSecurityExprSeries(...)` returns
   a Proxy `Series<number>` (reuse the `makeAlignedNumberSeries` shape)
   whose backing array is `getOrAlign(htfBarsForInterval, outputAscending,
   ltfBars)` where `outputAscending` is the slot's `output` buffer in
@@ -197,13 +167,15 @@ from that). Add a test that a callback with a deep lookback
 
 ### 6. Host boots
 
-- `host-worker` (`buildBundleFromModule`) and `host-quickjs`
-  (`dispatcherCore`): verify the load-time callback registration shim
-  (step 2) survives the bundle boot for **both** hosts — the
-  registration global must be installed before the module evaluates,
-  same as `__chartlang_depOutput`. Add/extend a host test that loads a
-  module using the expression form and confirms the weekly output series
-  is finite and differs from the same-length main EMA.
+- `host-worker` (`packages/host-worker/src/createWorkerBoot.ts`
+  `buildBundleFromModule`) and `host-quickjs`
+  (`packages/host-quickjs/src/moduleSourceToScript.ts` +
+  `packages/host-quickjs/src/dispatcherCore.ts`): verify the existing
+  compiled module + `__manifest` sidecar path preserves
+  `manifest.securityExpressions` for both hosts. Add/extend a host test
+  that loads a compiled module using the expression form and confirms the
+  weekly output series is finite and differs from the same-length main
+  EMA. No new load-time callback-registration global should be needed.
 
 ### 7. Tests (co-located)
 
@@ -229,14 +201,16 @@ from that). Add a test that a callback with a deep lookback
 | `packages/runtime/src/request/securityExprRunner.test.ts` | Create | Value, tick, fallback, no-lookahead tests |
 | `packages/runtime/src/request/security.ts` | Modify | `makeSecurityExprSeries` |
 | `packages/runtime/src/request/requestNamespace.ts` | Modify | Overload dispatch on `expr` |
-| `packages/runtime/src/runtimeContext.ts` | Modify | `securityExprRunners` + `securityExprOutputs` maps; clear on dispose |
-| `packages/runtime/src/execution/secondaryStream.ts` | Modify | Drive callbacks on close/tick/history |
-| `packages/runtime/src/createScriptRunner.ts` | Modify | Build runners from manifest + register callbacks at load |
-| `packages/host-worker/src/*` (boot) | Modify/verify | Callback-registration global before module eval |
-| `packages/host-quickjs/src/dispatcherCore.ts` | Modify/verify | Same for QuickJS |
+| `packages/runtime/src/runtimeContext.ts` | Modify | `securityExprRunners` registry; clear on dispose |
+| `packages/runtime/src/execution/secondaryStream.ts` | Modify as needed | Preserve append/replace helpers or widen signatures deliberately |
+| `packages/runtime/src/createScriptRunner.ts` | Modify | Build runners from manifest and drive them from `pushSecondaryEvent` |
+| `packages/runtime/src/execution/dispose.ts` | Modify | Clear security-expression runner state on dispose |
+| `packages/host-worker/src/createWorkerBoot.ts` | Modify/verify | Preserve `securityExpressions` from `__manifest` sidecar |
+| `packages/host-quickjs/src/moduleSourceToScript.ts` | Modify/verify | Preserve any new sidecar exports if added; otherwise confirm no change |
+| `packages/host-quickjs/src/dispatcherCore.ts` | Modify/verify | Preserve `securityExpressions` from `__manifest` sidecar |
 | `packages/runtime/CLAUDE.md` | Modify | Document SecurityExprRunner + drive-on-HTF-close invariant |
 | `packages/runtime/src/request/CLAUDE.md` | Modify | Output-buffer alignment + fold semantics |
-| `packages/host-worker/CLAUDE.md`, `packages/host-quickjs/CLAUDE.md` | Modify | Registration-shim boot note (if changed) |
+| `packages/host-worker/CLAUDE.md`, `packages/host-quickjs/CLAUDE.md` | Modify | Manifest sidecar note if host invariants change |
 
 ## Gates
 

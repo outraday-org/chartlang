@@ -99,13 +99,15 @@ encodes it in the core + adapter-kit types.
 
 ## Changeset
 
+Rides the feature changeset created/finalised in Task 6:
 `.changeset/bidirectional-plot-offset.md` — `minor` on **core** (offset
 semantics) and **adapter-kit** (`PlotEmission.xShift` + validation),
-finalised in Task 5 with the full package set.
+with the full package set added there.
 
 ## Acceptance Criteria
 
-- The changeset summary states the decided model (Option A, A-stay).
+- The changeset package set and summary are captured in Task 6's final
+  feature changeset.
 - `PlotEmission.xShift?` exists in adapter-kit with JSDoc; a no-shift
   emission is byte-identical to today; `validateEmission` rejects a
   non-integer `xShift` (with a unit test).

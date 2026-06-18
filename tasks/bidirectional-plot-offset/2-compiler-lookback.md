@@ -1,4 +1,4 @@
-# Task 2 — Compiler: lookback adjustment + shim sync
+# Task 2 — Compiler: lookback adjustment + changeset cleanup
 
 > **Status: TODO**
 
@@ -6,8 +6,10 @@
 
 Align the compiler with the Option-A display-shift model: a presentation
 x-shift does not read a deeper buffer slot, so `offset` no longer
-contributes to `maxLookback`. Keep the ambient core shim in lockstep with
-Task 1's new `PlotEmission.xShift` field.
+contributes to `maxLookback`. Delete the stale changeset for the old
+value-read mechanism and document that the ambient core shim is unchanged:
+Task 1's `PlotEmission.xShift` field lives in adapter-kit and is not
+script-facing.
 
 ## Prerequisites
 
@@ -44,7 +46,7 @@ Task 1 (model + core types final).
   removed; the `bar.point` negative-literal lookback note **stays**
   (unrelated — that is a real historical buffer read).
 - The stale `.changeset/compiler-offset-maxlookback.md` is **deleted**
-  (`git rm`); the bidirectional changeset (Task 5) covers the compiler's
+  (`git rm`); the bidirectional changeset (Task 6) covers the compiler's
   net role.
 - `program.ts` is **unchanged**: A-stay adds no script-facing type, and
   `PlotEmission.xShift` is not declared in the shim.

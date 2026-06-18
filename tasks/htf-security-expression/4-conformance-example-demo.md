@@ -39,8 +39,9 @@ Task 3 (runtime expression form working end-to-end).
 - A new conformance scenario `mtfSecurityExpressionEma` proves the
   expression form computes a weekly EMA over weekly bars (golden
   plot-hash), plus a scenario or assertion proving it **differs** from a
-  same-length main EMA, plus a compile-diagnostic scenario for
-  `request-security-expr-captures-local`.
+  same-length main EMA. The capture diagnostic remains covered by the
+  compiler tests unless this task deliberately extends the conformance
+  harness to represent compile-fail scenarios.
 - The example, CLI e2e, runtime integration test, and live-site demo all
   use the new callback form and assert finite, distinct HTF output.
 
@@ -63,14 +64,22 @@ Add under `packages/conformance/src/scenarios/`:
      `request-security-expr-captures-local`.
 2. `mtfSecurityExpressionNanFallback.scenario.ts` — same source,
    `multiTimeframe: false` → all-NaN + `multi-timeframe-not-supported`.
-3. `securityExpressionCapturesLocal.scenario.ts` — a **compile-fail**
-   scenario (if the harness supports diagnostic-only scenarios; else add
-   this as a compiler unit test in Task 2 and note it here). Source:
+3. Do **not** add `securityExpressionCapturesLocal.scenario.ts` under
+   the current harness. `request-security-expr-captures-local` is an
+   error-severity **compile** diagnostic, while
+   `ScenarioAssertion.kind = "diagnostic-code-present"` currently
+   inspects runtime diagnostics collected after a successful compile.
+   The authoritative coverage is Task 2's
+   `validateSecurityExpr.test.ts` reject case. Only add this scenario if
+   you first extend `packages/conformance/src/runConformanceSuite.ts` and
+   the `Scenario` type with an explicit compile-fail assertion mode.
+
+   If the harness is extended, use this source:
    ```ts
    const k = 10;
    plot(request.security({ interval: "1D" }, (bar) => ta.ema(bar.close, k)));
    ```
-   asserts `diagnostic-code-present: request-security-expr-captures-local`.
+   and assert the compile diagnostic code, not a runtime diagnostic.
 
 Register each in the conformance index / `runConformanceSuite.ts`
 exactly as the sibling MTF scenarios are registered. Run `pnpm conformance`
@@ -144,7 +153,8 @@ the PR description.
 |------|--------|---------|
 | `packages/conformance/src/scenarios/mtfSecurityExpressionEma.scenario.ts` | Create | Happy-path golden |
 | `packages/conformance/src/scenarios/mtfSecurityExpressionNanFallback.scenario.ts` | Create | NaN fallback |
-| `packages/conformance/src/scenarios/securityExpressionCapturesLocal.scenario.ts` | Create (if harness supports) | Capture diagnostic |
+| `packages/conformance/src/scenarios/securityExpressionCapturesLocal.scenario.ts` | Create only if the harness gains compile-fail scenario support | Capture diagnostic |
+| `packages/conformance/src/runConformanceSuite.ts` | Modify only if adding compile-fail scenario support | Compile-diagnostic assertion mode |
 | `packages/conformance/src/scenarios/index.ts`, `runConformanceSuite.ts` | Modify | Register scenarios |
 | `examples/scripts/htf-trend-filter.chart.ts` | Modify | Callback form |
 | `packages/cli/src/e2e.test.ts` | Modify | Manifest/compile assertions for the expr form |
@@ -167,8 +177,11 @@ changeset). Conformance/examples changes ride the existing changeset.
 
 ## Acceptance Criteria
 
-- [ ] New MTF expression scenarios registered with minted goldens.
+- [ ] New MTF expression runtime scenarios registered with minted goldens.
 - [ ] Distinctness guard asserts the weekly series ≠ same-length daily EMA.
+- [ ] Capture-diagnostic coverage remains in compiler tests, or the
+      conformance harness is explicitly extended for compile-fail
+      scenarios before adding a conformance scenario for it.
 - [ ] Example script, CLI e2e, and runtime integration test on the
       callback form; integration hash re-pinned.
 - [ ] Live-site demo updated; weekly line visibly smoother (manual check).

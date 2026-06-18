@@ -114,6 +114,7 @@ References: root `CLAUDE.md` (skills mirror rule), `CONTRIBUTING.md`
 
 ```
 Task 1 (core kind + state + style + DrawNamespace
+        + STATEFUL_PRIMITIVES slot registry
         + canvas2d renderer — forced by exhaustive switch)
   |
   v
@@ -152,6 +153,7 @@ adapter has a real, tested renderer arm.
 |----------|------|-------|
 | `WorldPoint`, `ReadonlyArray<WorldPoint>` anchor shape | `packages/core/src/draw/worldPoint.ts` | Edge type — do **not** add a new point type |
 | `ShapeStyle.fill` / `.fillAlpha` fields | `packages/core/src/draw/drawingStyle.ts:46` | `FillBetweenStyle` reuses these field names + adds stroke fields like `LineDrawStyle` |
+| `STATEFUL_PRIMITIVES` draw registry | `packages/core/src/statefulPrimitives.ts` | Add `draw.fillBetween` with `slot: true` so the compiler injects a callsite slot id |
 | `createDrawingHandle`, `nextSubId` | `packages/runtime/src/emit/draw/handle.ts`, `subIdAllocator.ts` | Handle + cross-bar id allocation |
 | `draw.path` 3-overload file | `packages/runtime/src/emit/draw/boxes/path.ts` | Template for the runtime impl (array anchors) |
 | `renderPath` polygon walk + `worldPointToCanvas`, `dashPattern` | `examples/canvas2d-adapter/src/render/draw/path.ts`, `worldToCanvas.ts`, `lineDash.ts` | Renderer template; add `ctx.fill()` for the closed polygon |

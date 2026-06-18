@@ -17,6 +17,11 @@ Tasks 1 (core field) + 2 (compiler no longer sizes offset depth).
 - `packages/runtime/src/seriesView.ts` — `makeShiftedSeriesView(buf,
   offset)` returns a Proxy whose `current = buf.at(offset)` /
   `[n] = buf.at(n + offset)`. Negative offset → out-of-range → NaN.
+- `packages/runtime/src/ta/lib/applyOffset.ts` is a legacy array-side
+  helper with the same value-shift semantics (`out[i] = values[i -
+  offset]`). `rg "applyOffset\\(" packages/runtime/src` shows no
+  production consumers today, so leaving it unchanged would preserve
+  stale Option-B behavior only in tests/docs.
 - The value-read shift is **replicated across ~90 `ta.*` primitives**,
   not just one helper: each primitive that supports the universal offset
   has its own per-slot, per-offset cache and `viewForOffset` that calls
@@ -50,7 +55,12 @@ Tasks 1 (core field) + 2 (compiler no longer sizes offset depth).
   — reading `opts.offset` straight off `plot`/`hline` — is the deferred
   follow-up, not v1.)
 - For ALMA the recorded offset is `opts.barShift` (its `offset` opt stays
-  the Gaussian-centre and is never tagged).
+  the Gaussian-centre and is never tagged). Because ALMA currently returns
+  a single unshifted `slot.series` and does not call
+  `makeShiftedSeriesView`, this task must either add the same per
+  `barShift` view-cache pattern used by `sma.ts` (preferred) or expose a
+  small `tagSeriesOffset(series, offset)` helper from `seriesView.ts`; do
+  not leave ALMA as a special case that cannot emit `xShift`.
 - The value emitted at bar `T` is the value computed at `T` (no look-back
   read). `xShift` is presentation-only: alerts, `state.*`, and any
   `series.current` read see the unshifted value. Emission ORDER and the
@@ -69,14 +79,19 @@ Tasks 1 (core field) + 2 (compiler no longer sizes offset depth).
    (see Desired Behavior); wire `plot()` to read the side-table. Do **not**
    delete `makeShiftedSeriesView` — ~90 call sites depend on its
    signature. Confirm ALMA tags `opts.barShift` (not `opts.offset`).
-3. Update runtime tests: `seriesView.test.ts` (the "positive offset
+3. Remove or repurpose `packages/runtime/src/ta/lib/applyOffset.ts` and
+   its tests so no runtime helper still documents or tests the old
+   value-read offset semantics. If any hidden consumer is found during
+   implementation, migrate that consumer to the WeakMap / `xShift` model
+   instead of preserving array value-shift behavior.
+4. Update runtime tests: `seriesView.test.ts` (the "positive offset
    shifts the read window" / "negative offset returns NaN" / property
    cases now assert the unshifted view + a WeakMap tag), `ta/*.test.ts` /
    `*.golden.test.ts` and `pvo.test.ts` that pinned the old "value N bars
    ago" outputs now pin the unshifted series + an `xShift` on the
    emission. Keep 100% coverage; re-pin goldens from the runner's
    expected-vs-actual output, not by hand.
-4. Update `packages/runtime/CLAUDE.md` (offset is presentation `xShift`
+5. Update `packages/runtime/CLAUDE.md` (offset is presentation `xShift`
    via the WeakMap side-table, no value-read; ALMA tags `barShift`; the
    emission-order + no-offset-byte-identity invariants).
 
@@ -85,8 +100,9 @@ Tasks 1 (core field) + 2 (compiler no longer sizes offset depth).
 | File | Action | Purpose |
 |------|--------|---------|
 | `packages/runtime/src/emit/plot.ts` | Modify | read WeakMap, set `xShift` |
-| `packages/runtime/src/seriesView.ts` | Modify | `makeShiftedSeriesView` → unshifted view + WeakMap tag |
-| `packages/runtime/src/ta/alma.ts` | Modify | tag `opts.barShift` as the offset source |
+| `packages/runtime/src/seriesView.ts` | Modify | `makeShiftedSeriesView` → unshifted view + WeakMap tag; expose the read/tag helper needed by `plot`/ALMA |
+| `packages/runtime/src/ta/alma.ts` | Modify | tag `opts.barShift` as the offset source via a per-`barShift` view cache or explicit tagging helper |
+| `packages/runtime/src/ta/lib/applyOffset.ts`, `packages/runtime/src/ta/lib/applyOffset.test.ts` | Delete / Modify | remove stale value-shift helper semantics |
 | `packages/runtime/src/ta/*.ts` (offset-caching slots) | Verify / minor | call sites keep working via the WeakMap-tagging helper; collapse per-offset caches only if it simplifies coverage |
 | `packages/runtime/src/**/*.{test,golden.test,property.test}.ts` | Modify | re-pin to unshifted values + `xShift` |
 | `packages/runtime/CLAUDE.md` | Modify | offset = presentation x-shift |

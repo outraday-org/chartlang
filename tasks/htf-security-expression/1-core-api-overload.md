@@ -72,13 +72,16 @@ In `packages/core/src/request/request.ts`:
     * A higher-timeframe expression callback for {@link RequestNamespace.security}.
     * Receives the HTF {@link SecurityBar} (OHLCV series on the secondary
     * stream's own clock) and returns the value to evaluate per HTF bar.
-    * The body may reference only the `bar` parameter, the ambient `ta` /
-    * `math` namespaces, `inputs`, and literal constants — capturing any
-    * other outer binding is a compile error
+    * The body may reference only the `bar` parameter, the ambient `ta`
+    * namespace, `inputs`, safe `Math.*` globals, and literal constants —
+    * capturing any other outer binding is a compile error
     * (`request-security-expr-captures-local`).
     */
    export type SecurityExpr = (bar: SecurityBar) => Series<number> | number;
    ```
+   Re-export it from `packages/core/src/request/index.ts` and the root
+   package barrel `packages/core/src/index.ts`, alongside
+   `RequestSecurityOpts` and `SecurityBar`.
 2. Convert `security` to an overloaded function. Because the namespace is
    a frozen object literal, declare the overloads on the **type** and
    keep one implementation:
@@ -143,11 +146,17 @@ sibling `request.*` entries:
 - **Sentinel**: both arities throw the `sentinel("request.security")`
   message when called outside a script step (the data form already does;
   add the expression arity).
-- **Type-level**: a `tsd`-style or in-file compile assertion that
+- **Type-level**: a compile assertion that
   `request.security({ interval: "1W" })` is `SecurityBar` and
   `request.security({ interval: "1W" }, (b) => ta.ema(b.close, 20))` is
-  `Series<number>`. Use the existing core type-assertion pattern (look
-  for `expectType` / `satisfies` usage already in the package).
+  `Series<number>`. Put these in the dedicated
+  `packages/core/src/request/request.types.test.ts` (the package's
+  existing type-assertion file), using `expectTypeOf` from `expect-type`
+  (e.g. `expectTypeOf(...).toEqualTypeOf<SecurityBar>()` /
+  `.toEqualTypeOf<Series<number>>()`) — match the patterns already there.
+  Also update `packages/core/src/types.types.test.ts`, which currently
+  pins the root-exported `RequestNamespace["security"]` return and
+  parameter shapes.
 - **`SecurityExpr` accepts both** a `Series<number>`-returning and a
   `number`-returning callback (compile assertion).
 
@@ -159,10 +168,13 @@ sibling `request.*` entries:
 | File | Action | Purpose |
 |------|--------|---------|
 | `packages/core/src/request/request.ts` | Modify | `SecurityExpr` type, overloaded `security`, JSDoc |
-| `packages/core/src/request/request.test.ts` | Modify | Sentinel + type assertions for the new overload |
+| `packages/core/src/request/index.ts` | Modify | Re-export `SecurityExpr` from the request barrel |
+| `packages/core/src/request/request.test.ts` | Modify | Sentinel test for the new (2-arg) arity |
+| `packages/core/src/request/request.types.test.ts` | Modify | `expectTypeOf` assertions for the overload + `SecurityExpr` |
+| `packages/core/src/types.types.test.ts` | Modify | Root-exported `RequestNamespace["security"]` overload assertions |
 | `packages/core/src/statefulPrimitives.ts` | Modify (likely comment-only) | Confirm/annotate expression arity routes through the slot entry |
-| `packages/core/src/index.ts` | Modify | Re-export `SecurityExpr` if the package re-exports request types |
-| `packages/core/CLAUDE.md` | Modify | Document the two-form `request.security` surface |
+| `packages/core/src/index.ts` | Modify | Re-export `SecurityExpr` (request types are re-exported here today) |
+| `packages/core/CLAUDE.md` | **Create** | Document the two-form `request.security` surface (core currently has no `CLAUDE.md`, though the root index lists it) |
 
 ## Gates
 
@@ -183,10 +195,11 @@ the other affected packages to its frontmatter.
 
 - [ ] `request.security` overloaded: data form → `SecurityBar`,
       expression form → `Series<number>`.
-- [ ] `SecurityExpr` exported and re-exported from the package barrel.
+- [ ] `SecurityExpr` exported from `request.ts`, `request/index.ts`, and
+      the package root barrel.
 - [ ] `statefulPrimitives` confirmed to cover the 2-arg arity.
 - [ ] JSDoc primitive block present with both `@example`s, `@since`,
       stability marker.
 - [ ] Sentinel + type-level tests pass; core coverage 100%.
-- [ ] `packages/core/CLAUDE.md` documents the two-form surface.
+- [ ] `packages/core/CLAUDE.md` created, documenting the two-form surface.
 - [ ] Changeset created (minor, core).

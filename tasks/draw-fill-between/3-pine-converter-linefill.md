@@ -111,6 +111,13 @@ path double-emits. Verify with the fixture suite either way.
     `linefill-rotatedrect-approximated` explicitly.
 - Adjust `linefill-series-fill` message per §1 (keep severity `info`).
 - Leave `linefill-over-ring`, `cross-collection-linefill` untouched.
+- Update tests and stale text that pin the mapping/reasoning:
+  `src/mapping/drawingKinds.test.ts` should still assert the generic
+  mapping is a REJECT if `chartlang` remains `null`, but its test name /
+  expected `notes` must reflect that the static two-line form is
+  special-cased to `draw.fillBetween`. Any semantic comments or test
+  names that say static `linefill.new` has no chartlang analogue should
+  be refreshed to say only dynamic / collection-backed forms reject.
 - **`diagnostics.md` is generated, not hand-authored** (`docs/converter/diagnostics.md`
   is byte-gated by `pnpm converter:docs:check` against `DIAGNOSTIC_CODE_ENTRIES`).
   After editing `codes.ts`, run **`pnpm converter:docs:generate`** and
@@ -167,6 +174,7 @@ retained `linefill-series-fill` info note. Keep the camp taxonomy intact.
 |------|--------|---------|
 | `packages/pine-converter/src/transform/polylineLinefill.ts` | Modify | `emitLinefill` → `draw.fillBetween` |
 | `packages/pine-converter/src/mapping/drawingKinds.ts` | Modify | linefill note / kind |
+| `packages/pine-converter/src/mapping/drawingKinds.test.ts` | Modify | mapping note / REJECT expectation text |
 | `packages/pine-converter/src/diagnostics/codes.ts` | Modify | drop rotatedrect code, soften series-fill |
 | `packages/pine-converter/src/diagnostics/codes.test.ts` | Modify (if it pins the dropped code) | severities/counts |
 | `docs/converter/diagnostics.md` | Regenerate (`pnpm converter:docs:generate`) | generated — reflects code removal |

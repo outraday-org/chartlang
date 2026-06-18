@@ -10,8 +10,9 @@ feature changeset, and finish the cross-folder CLAUDE.md sweep.
 
 ## Prerequisites
 
-Task 2 (the primitive must be callable so the example compiles and the
-demo renders). Tasks 3–4 ideally done so all surfaces are consistent.
+Tasks 1–4. Task 2 makes the primitive callable so the example compiles
+and the demo renders; Task 3 determines the converter package changeset;
+Task 4 keeps all user-facing docs consistent before the final sweep.
 
 ## Current Behavior
 

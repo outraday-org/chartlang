@@ -20,6 +20,8 @@ the docs describe real behaviour).
 - `docs/converter/supported.md:19` — table row: `linefill.new →
   draw.rotatedRectangle … (best-effort; chartlang has no
   fill-between-series primitive)`.
+- `docs/converter/index.md:63` — overview prose still says
+  `linefill` is approximated as a filled `draw.rotatedRectangle`.
 - `docs/converter/rejects.md:58-61` — prose: static two-line linefill is
   "approximated as a filled `draw.rotatedRectangle` quad … best-effort".
 - `docs/converter/rejects.md:86` + `supported.md:133-134` —
@@ -51,7 +53,13 @@ documented reject (deferred), but its suggestion points at
   the drawing-level band and note plot-level series fill is a planned
   follow-up.
 
-### 2. `docs/converter/rejects.md`
+### 2. `docs/converter/index.md`
+
+- Update the overview bullet that describes `linefill` so it says static
+  two-line `linefill.new` lowers to `draw.fillBetween`; remove the
+  rotatedRectangle approximation wording.
+
+### 3. `docs/converter/rejects.md`
 
 - Update the static-linefill paragraph (lines 58-61): it is now lowered
   to `draw.fillBetween`, not approximated; remove the "best-effort"
@@ -61,7 +69,7 @@ documented reject (deferred), but its suggestion points at
 - Update the `fill-not-mapped` row (line 86) suggestion to point at
   `draw.fillBetween`.
 
-### 3. `docs/converter/diagnostics.md` — **generated, do not hand-edit**
+### 4. `docs/converter/diagnostics.md` — **generated, do not hand-edit**
 
 `diagnostics.md` is regenerated from `DIAGNOSTIC_CODE_ENTRIES` by
 `pnpm converter:docs:generate` and byte-gated by
@@ -78,7 +86,7 @@ removal and the `linefill-series-fill` rewording are produced by **Task
   `#linefill-series-fill` / `#linefill-over-ring` /
   `#cross-collection-linefill` / `#fill-not-mapped` anchors.
 
-### 4. `docs/language/` mention
+### 5. `docs/language/` mention
 
 `draw.*` is introduced in **`docs/language/overview.md`** (the module
 surface table, ~line 72: `| `draw.*` | imperative drawing primitives …`).
@@ -92,7 +100,7 @@ page — link to **`/primitives/draw/fill-between`** (kebab-case path, the
 generated page from Task 2; the camelCase `fillBetween.md` does not
 exist).
 
-### 5. Sidebar / nav
+### 6. Sidebar / nav
 
 `docs/.vitepress/config.ts` exposes the Draw primitives as a **single
 directory link** (`{ text: "Draw", link: "/primitives/draw/" }`, ~line
@@ -101,7 +109,7 @@ sidebar row to add**. The new `fill-between.md` is reached via the
 `/primitives/draw/` index page. Just confirm `pnpm docs:build` succeeds
 and the generated index lists it.
 
-### 6. CLAUDE.md
+### 7. CLAUDE.md
 
 `docs/CLAUDE.md` — if it enumerates converter doc invariants or a
 "linefill is approximated" note, update it.
@@ -110,6 +118,7 @@ and the generated index lists it.
 
 | File | Action | Purpose |
 |------|--------|---------|
+| `docs/converter/index.md` | Modify | overview linefill wording |
 | `docs/converter/supported.md` | Modify | linefill + fill rows |
 | `docs/converter/rejects.md` | Modify | static-linefill prose + suggestions |
 | `docs/converter/diagnostics.md` | Verify only (generated in Task 3 — never hand-edit) | reflects code removal |

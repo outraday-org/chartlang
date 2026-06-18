@@ -5,14 +5,18 @@
 ## Goal
 
 Implement the runtime `draw.fillBetween` emit primitive and land the
-complete §22.10 new-primitive set: JSDoc with the required draw tags,
-unit + property + bench tests, a conformance scenario with a pinned
-drawing hash, and the regenerated auto-docs page + skills reference.
+draw primitive landing set that this repo's sibling `draw.*` primitives
+actually carry: JSDoc with the required draw tags, a co-located unit
+test at 100% coverage, a conformance scenario with a pinned drawing
+hash, and the regenerated auto-docs page + skills reference. Property
+tests are optional; per-primitive draw benches are not used in this
+folder today.
 
 ## Prerequisites
 
 Task 1 (the `"fill-between"` kind, `FillBetweenState`,
-`FillBetweenStyle`, and `DrawNamespace.fillBetween` must exist).
+`FillBetweenStyle`, `DrawNamespace.fillBetween`, and
+`STATEFUL_PRIMITIVES` `draw.fillBetween` slot entry must exist).
 
 ## Current Behavior
 
@@ -138,7 +142,7 @@ Model on `drawLine.scenario.ts`:
 - Register: import + re-export in
   `packages/conformance/src/scenarios/index.ts`, re-export in
   `packages/conformance/src/index.ts`, and add to `ALL_SCENARIOS` in
-  `runConformanceSuite.ts`.
+  `packages/conformance/src/runConformanceSuite.ts`.
 - **Pin the hash:** run the suite once, copy the actual `sha256` into
   the assertion, re-run to confirm green. Never invent the hash.
 

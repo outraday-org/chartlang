@@ -10,7 +10,9 @@ Introduce the `"fill-between"` drawing kind across the `core` contract
 canvas2d renderer. The renderer is bundled here because
 `drawingDispatch.ts` is an exhaustive `assertNever` switch — adding the
 union member is a compile error (and a 100%-coverage gap) until a real,
-tested renderer arm exists.
+tested renderer arm exists. This task also adds `draw.fillBetween` to
+the core `STATEFUL_PRIMITIVES` registry so the compiler injects a slot id
+when Task 2's runtime implementation lands.
 
 ## Prerequisites
 
@@ -74,26 +76,33 @@ from `ShapeStyle`:
  * edges. Stroke fields are optional (the band may be fill-only);
  * `fill` + `fillAlpha` reuse the {@link ShapeStyle} fill model.
  *
+ * @formula N/A — style bag, no math
+ * @anchors N/A — style fields only
  * @since 0.4
  * @stable
+ * @example
+ *     const s: FillBetweenStyle = { fill: "#3b82f6", fillAlpha: 0.2 };
+ *     void s;
  */
-export type FillBetweenStyle = Readonly<{
+export type FillBetweenStyle = {
     /** Optional outline colour drawn around the ribbon. */
-    color?: Color;
+    readonly color?: Color;
     /** Outline width in px (default 0 / no stroke when `color` unset). */
-    lineWidth?: number;
+    readonly lineWidth?: number;
     /** Outline dash style. */
-    lineStyle?: LineStyle;
+    readonly lineStyle?: LineStyle;
     /** Fill colour of the band. */
-    fill?: Color;
-    /** Fill opacity 0..1 (default an opaque-ish band; pick the same
-     *  default `ShapeStyle` uses). */
-    fillAlpha?: number;
-}>;
+    readonly fill?: Color;
+    /** Fill opacity 0..1 (`applyShapeStyle` currently defaults to 1). */
+    readonly fillAlpha?: number;
+};
 ```
 
-Match the exact `Color` / `LineStyle` imports and the `Readonly<{}>` vs
-`interface` convention already used in this file.
+Match the exact `Color` / `LineStyle` imports and the type-literal
+convention already used in this file. The JSDoc tags are mandatory:
+`scripts/docs-check.ts` requires every exported `src/draw/` symbol to
+carry `@formula`, `@anchors`, `@since`, `@example`, and a stability
+marker.
 
 ### 4. State (`packages/core/src/draw/drawingState.ts`)
 
@@ -106,9 +115,21 @@ Add `FillBetweenState` immediately after `PathState`, then add it to the
  * Each edge is an ordered list of world anchors; the rendered region is
  * the closed polygon `edgeA` forward then `edgeB` reversed.
  *
+ * @formula N/A — drawing state payload
  * @anchors `edgeA`, `edgeB` — two `ReadonlyArray<WorldPoint>`
  * @since 0.4
  * @stable
+ * @example
+ *     const state: FillBetweenState = {
+ *         id: "demo",
+ *         slotId: "slot",
+ *         subId: 0,
+ *         kind: "fill-between",
+ *         edgeA: [{ time: 0, price: 1 }],
+ *         edgeB: [{ time: 0, price: 0 }],
+ *         style: { fill: "#3b82f6" },
+ *     };
+ *     void state;
  */
 export type FillBetweenState = DrawingMeta &
     Readonly<{
@@ -142,24 +163,58 @@ fillBetween(
 ): DrawingHandle;
 ```
 
+Also import `FillBetweenStyle` from `drawingStyle.ts` in `draw.ts`.
 Export `FillBetweenState` and `FillBetweenStyle` from the core barrel
 (`packages/core/src/index.ts` and/or `draw/index.ts`) following the
 existing `PathState` / `PathOpts` export pattern.
 
-### 6. Canvas2d renderer (`examples/canvas2d-adapter/src/render/draw/fillBetween.ts`)
+### 6. Stateful primitive registry (`packages/core/src/statefulPrimitives.ts`)
+
+- Add `{ name: "draw.fillBetween", slot: true }` in the draw section in
+  the same order as `DRAWING_KINDS` / `KIND_CAMELCASE` (next to
+  `draw.path`).
+- Update `statefulPrimitives.test.ts`: add `"draw.fillBetween"` to
+  `EXPECTED_SLOT_TRUE`, update the exact size assertions `174` → `175`,
+  and update any prose/JSDoc counts in `statefulPrimitives.ts` that pin
+  the entry count or "61 draw entries".
+- This is required before Task 2 works in compiled scripts: without the
+  registry entry, the compiler will not inject the leading slot id and
+  the runtime overload will take the script-facing path and throw.
+
+### 7. Canvas2d renderer (`examples/canvas2d-adapter/src/render/draw/fillBetween.ts`)
 
 New file modelled on `render/draw/path.ts`. MIT header (original work —
 no provenance port line). Map both edges via `worldPointToCanvas`, build
 the closed polygon, `fill()` with `fill` + `fillAlpha` (reuse the
-`shapeStyle.ts` apply helper), and stroke the outline when `color` is
-set:
+`shapeStyle.ts` apply helper semantics; adapt the stroke field from
+`color` to the helper's `stroke` input or use a tiny local resolver), and
+stroke the outline only when `color` is set:
+
+Because `scripts/docs-check.ts` scans exported symbols in
+`examples/canvas2d-adapter/src`, the exported `renderFillBetween`
+function must carry a JSDoc block with `@since`, a stability marker, and
+an executable / type-checkable `@example`, following `renderPath`.
 
 ```ts
+/**
+ * Render a `fill-between` drawing emission as a closed filled polygon.
+ *
+ * @since 0.4
+ * @stable
+ * @example
+ *     declare const ctx: RenderCtx;
+ *     declare const e: DrawingEmission;
+ *     declare const view: Viewport;
+ *     renderFillBetween(ctx, e, view);
+ *     void renderFillBetween;
+ */
 export function renderFillBetween(ctx: RenderCtx, e: DrawingEmission, view: Viewport): void {
     const state = e.state as FillBetweenState;
     const a = state.edgeA.map((p) => worldPointToCanvas(p, view));
     const b = state.edgeB.map((p) => worldPointToCanvas(p, view));
     if (a.length < 1 || b.length < 1) return; // degenerate → no-op
+    if (a.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) return;
+    if (b.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) return;
     ctx.beginPath();
     ctx.moveTo(a[0].x, a[0].y);
     for (let i = 1; i < a.length; i++) ctx.lineTo(a[i].x, a[i].y);
@@ -177,18 +232,21 @@ arms" (~lines 78-79) while the switch already has 62 live arms. Refresh
 that prose to reflect 63 arms after the new one lands (or drop the exact
 count from the historical narrative).
 
-### 7. Tests (co-located)
+### 8. Tests (co-located)
 
 - `examples/canvas2d-adapter/src/render/draw/fillBetween.test.ts` —
   mirror `path.test.ts`: feed a synthetic `DrawingEmission` with two
   edges, assert `fill` is issued, the polygon is closed, the degenerate
-  (`edgeA`/`edgeB` empty) path is a no-op, and the stroke arm fires when
+  (`edgeA`/`edgeB` empty) path is a no-op, a non-finite mapped anchor
+  (`NaN` time or price) is a no-op, and the stroke arm fires when
   `color` is set. Cover the `fillAlpha` default branch. **100% coverage
   on the new file.**
 - `drawingDispatch.test.ts` — add a `fill-between` case so the new arm is
   covered.
+- `packages/core/src/statefulPrimitives.test.ts` — add the new slot entry
+  and bump exact counts.
 
-### 8. CLAUDE.md
+### 9. CLAUDE.md
 
 - **`packages/core/` has no package-root `CLAUDE.md`** (only
   `packages/core/src/time/CLAUDE.md` exists). Do **not** create a new
@@ -213,6 +271,8 @@ count from the historical narrative).
 | `packages/core/src/draw/drawingState.types.test.ts` | Modify | exhaustive switch arm |
 | `packages/core/src/draw/draw.ts` | Modify | `fillBetween` signature |
 | `packages/core/src/{index.ts,draw/index.ts}` | Modify | barrel exports |
+| `packages/core/src/statefulPrimitives.ts` | Modify | `draw.fillBetween` slot-id injection registry |
+| `packages/core/src/statefulPrimitives.test.ts` | Modify | exact registry set + counts |
 | `examples/canvas2d-adapter/src/render/draw/fillBetween.ts` | Create | renderer |
 | `examples/canvas2d-adapter/src/render/draw/fillBetween.test.ts` | Create | renderer tests |
 | `examples/canvas2d-adapter/src/render/draw/drawingDispatch.ts` | Modify | switch arm + import + count |
@@ -225,8 +285,9 @@ count from the historical narrative).
 - `pnpm lint`
 - `pnpm test` (coverage 100% on core + canvas2d-adapter)
 - `pnpm docs:check` (JSDoc on new exported `FillBetweenState` /
-  `FillBetweenStyle` — `@since`, stability marker, `@example` where the
-  gate requires it)
+  `FillBetweenStyle` and exported `renderFillBetween` — `@since`,
+  stability marker, `@example`, plus draw-specific tags where the gate
+  requires them)
 
 ## Changeset
 
@@ -241,8 +302,11 @@ adds no changeset of its own.
 - `FillBetweenState` / `FillBetweenStyle` exported from the core barrel
   with passing JSDoc gate.
 - `draw.fillBetween` declared on `DrawNamespace`.
+- `draw.fillBetween` listed in `STATEFUL_PRIMITIVES` with `slot: true`,
+  and exact registry tests updated to 175 entries.
 - `renderFillBetween` renders a closed filled polygon, handles the
-  degenerate no-op, strokes when `color` set; dispatch routes it.
+  degenerate and non-finite-anchor no-ops, strokes when `color` set;
+  dispatch routes it.
 - `pnpm typecheck` + `pnpm test` green at 100% coverage on both packages
   (incl. the bumped `drawingKind.test.ts` count `63`, the `buckets.test.ts`
   size `63` + `polylines` tally `26`).
