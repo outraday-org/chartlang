@@ -11,4 +11,9 @@ back to run it in your browser.
 - [RSI Divergence Alert](/examples/rsi-divergence-alert) — RSI(14) in its own pane with 70/30 overbought/oversold guides and alerts on each crossing.
 - [Smoothed RSI Cross](/examples/smoothed-rsi-cross) — Indicator composition: one indicator feeding another, with RSI(14) smoothed by an EMA(9) of its own output.
 - [Explicit Pane Routing](/examples/explicit-pane-routing) — An EMA pair on the price pane plus an RSI oscillator routed to its own subpane via explicit pane ids.
+- [Manual SMA](/examples/manual-sma) — Define an SMA by hand from the price series: expose bar.close as an indexable Series via a length-1 MA, average the last 5 literal lookbacks, and watch it overlay ta.sma(5) exactly.
 - [Trend Composition](/examples/trend-composition) — Phase-7 indicator composition: a private dependency, a named export, and a default consumer that marks crossovers.
+- [HTF Trend Filter](/examples/htf-trend-filter) — Multi-timeframe: a current-timeframe EMA(20) overlaid with a weekly EMA(10) pulled from request.security({ interval: "1W" }) over daily candles.
+- [SMA Offset](/examples/sma-offset) — Two SMA(20) lines, one shifted back 5 bars via the universal ta offset option, showing series displacement.
+- [Pivot High Ray](/examples/pivot-high-ray) — Track the latest swing high's price and time in persistent state.* slots, then draw one horizontal ray from it that follows each new pivot via a reused draw.horizontalRay handle.
+- [Forecast Line](/examples/forecast-line) — Project the recent EMA(20) slope 20 bars into the future with bar.point(+N, …), drawing a dotted line to the right of the last candle — the positive (future) offset path.

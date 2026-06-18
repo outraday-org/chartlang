@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { Diagnostic } from "../index.js";
+import type { NameAllocator } from "./nameAllocator.js";
 
 /**
  * The value-format hint a converted script binds to, narrowed to the subset
@@ -10,7 +11,7 @@ import type { Diagnostic } from "../index.js";
  * (`"compact"`) has no Pine source.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const f: ScaffoldFormat = "percent";
  *     void f;
@@ -24,7 +25,7 @@ export type ScaffoldFormat = "price" | "percent" | "volume";
  * source.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: ScaffoldScale = "right";
  *     void s;
@@ -38,7 +39,7 @@ export type ScaffoldScale = "left" | "right";
  * and Task 16 codegen emits the partial object verbatim.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const m: MaxDrawingsIR = { lines: 20, labels: 50 };
  *     void m;
@@ -58,7 +59,7 @@ export type MaxDrawingsIR = {
  * variable `name`. Populated by Task 9.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const i: InputDeclarationIR = { name: "length", code: 'input.int(14, { title: "Length" })' };
  *     void i;
@@ -75,7 +76,7 @@ export type InputDeclarationIR = Readonly<{
  * `var`/`varip` scalars folded out of the Pine body.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: StateSlotIR = { name: "count", initExpr: "0" };
  *     void s;
@@ -90,15 +91,26 @@ export type StateSlotIR = Readonly<{
  * the compute body mutates each bar. `name` is the chartlang local; `kind`
  * is the chartlang `draw.*` family. Populated by Task 10.
  *
+ * `compact` marks a slot the Camp A lowerer reduced to the bare
+ * persistent-handle form — `const <name> = draw.<kind>(…); <name>.update(…)` —
+ * exploiting the runtime's callsite-persistence (each `draw.*` callsite keys
+ * its drawing state by slot id and re-emits `update` on cross-bar re-entry).
+ * A compact slot needs NO `useDrawingHandleSlot` helper and NO module-level
+ * allocation: codegen omits the helper iff EVERY handle slot is compact.
+ * Slots that do not cleanly match the single-create idiom (a `*.delete`, a
+ * `varip` handle, or a `null` draw kind such as `table`) stay non-compact and
+ * keep the general `current()`/`set()` slot machinery.
+ *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
- *     const h: HandleSlotIR = { name: "lvlLine", kind: "line" };
+ *     const h: HandleSlotIR = { name: "lvlLine", kind: "line", compact: true };
  *     void h;
  */
 export type HandleSlotIR = Readonly<{
     name: string;
     kind: string;
+    compact: boolean;
 }>;
 
 /**
@@ -108,7 +120,7 @@ export type HandleSlotIR = Readonly<{
  * extracted ring capacity. Populated by Task 11.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: HandleRingIR = { name: "pivots", kind: "label", cap: 20 };
  *     void r;
@@ -127,7 +139,7 @@ export type HandleRingIR = Readonly<{
  * The array is mutable so the transform pipeline can accumulate.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const body: ComputeBodyIR = { statements: ["draw.line(a, b);"] };
  *     void body;
@@ -145,7 +157,7 @@ export type ComputeBodyIR = {
  * codegen reads this and emits the final `.chart.ts` source string.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: ScriptScaffold = {
  *         constructor: "defineIndicator",
@@ -184,4 +196,14 @@ export type ScriptScaffold = Readonly<{
     handleRings: HandleRingIR[];
     computeBody: ComputeBodyIR;
     diagnostics: readonly Diagnostic[];
+    /**
+     * Scope-aware identifier allocator for every SYNTHESIZED name in the
+     * generated output (drawing handles, state/ring locals, the bar-index
+     * bridge, the drawing-handle helper). Seeded in `transformDeclaration` with
+     * the source's reserved identifiers; every name-generation site routes
+     * through it so synthesized names are readable and never collide. The
+     * reference is `readonly`; the allocator's internal sets mutate as the
+     * transforms claim names.
+     */
+    names: NameAllocator;
 }>;

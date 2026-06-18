@@ -27,7 +27,11 @@ const INLINE_SOURCE = CONVERTED.output;
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
     {
         kind: "drawing-hash",
-        sha256: "3c27354272203f03c6ba25a533d66ce450a066267a8cad2655b0a850ceb97e1f",
+        // Re-pinned for the readable-identifier rename (`__dash_handle` → `dash`,
+        // `__dash_handle_cells` → `dashCells`). op/state/bar are byte-identical
+        // (verified by a normalised-handleId rename diff); only the `handleId`
+        // callsite column shifted.
+        sha256: "420d8be3d7f4e45bd0214b0292244195407dbe848affa8e098ec2936510384c8",
     },
     { kind: "diagnostic-code-absent", code: "unsupported-drawing-kind" },
     { kind: "diagnostic-code-absent", code: "drawing-budget-exceeded" },
@@ -39,7 +43,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * the `drawing-hash` over the rebuilt-per-bar table emission stream.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO;

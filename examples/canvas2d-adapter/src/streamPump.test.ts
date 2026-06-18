@@ -62,4 +62,32 @@ describe("createMultiStreamCandlePump", () => {
 
         expect(events.map((event) => event.streamKey ?? "main")).toEqual(["1D", "main"]);
     });
+
+    it("interleaves secondary candles within a multi-bar history batch", async () => {
+        // One monolithic history batch (bars 0..3) plus two secondary bars
+        // due at bar 1 and bar 3. The batch must be split so each secondary
+        // candle is emitted before the history bar that reaches its time —
+        // not all flushed up front against the batch's final timestamp.
+        const main = mockCandleSource([bar(0), bar(1), bar(2), bar(3)], {
+            interval: "1m",
+            mode: "history",
+        });
+        const secondary = { "1D": [bar(1, "1D"), bar(3, "1D")] };
+
+        const events = await collect(createMultiStreamCandlePump({ main, secondary }));
+
+        // history[bar0] · 1D@bar1 · history[bar1,bar2] · 1D@bar3 · history[bar3]
+        expect(events.map((event) => event.streamKey ?? "main")).toEqual([
+            "main",
+            "1D",
+            "main",
+            "1D",
+            "main",
+        ]);
+        // The split is loss-free: every main bar survives, in source order.
+        const mainBars = events
+            .filter((event) => event.streamKey === undefined && event.kind === "history")
+            .flatMap((event) => (event.kind === "history" ? event.bars : []));
+        expect(mainBars.map((b) => b.time)).toEqual([0, 1, 2, 3].map((i) => bar(i).time));
+    });
 });

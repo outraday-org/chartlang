@@ -12,7 +12,7 @@ import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
  * carries.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ann: AnnotationLookup = new Map();
  *     void ann;
@@ -75,7 +75,7 @@ function emitMemberChain(chain: readonly string[], headExpr: string | null): str
  * verbatim source the emitter splices into the generated `.chart.ts`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitExpr } from "./exprEmit.js";
  *     const node = {
@@ -108,6 +108,20 @@ export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): s
                 `${operand(node.alternate, annotations)}`
             );
         case "call-expression": {
+            // `na(x)` is the Pine "is missing" test, NOT a call of the `na`
+            // sentinel. Lower it to a real predicate: a handle context tests
+            // `=== null`, a numeric context tests `!Number.isFinite(...)`
+            // (true for NaN / null / undefined). Without this the callee `na`
+            // lowers to the `Number.NaN` value and emits `Number.NaN(x)`.
+            if (node.callee.kind === "na-expression") {
+                const first = node.args[0];
+                if (first !== undefined) {
+                    const arg = emitExpr(first.value, annotations);
+                    return annotations.get(node.callee)?.naKind === "handle"
+                        ? `(${arg} === null)`
+                        : `!Number.isFinite(${arg})`;
+                }
+            }
             const callee = emitExpr(node.callee, annotations);
             const args = node.args.map((arg) => emitExpr(arg.value, annotations)).join(", ");
             return `${callee}(${args})`;

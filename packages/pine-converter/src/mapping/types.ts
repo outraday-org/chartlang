@@ -9,7 +9,7 @@
  * which the diagnostics layer surfaces at the use site.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: MappingEntry = { pine: "math.random", chartlang: null };
  *     void e;
@@ -26,7 +26,7 @@ export type MappingEntry = Readonly<{
  * `handle.update({...})`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: ChartlangSetter = { statePath: ["anchors", 0], arity: 2 };
  *     void s;
@@ -52,7 +52,7 @@ export type ChartlangSetter = Readonly<{
  * is `null` for constructors with no chartlang analogue (`linefill.new`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const d: DrawingMapping = {
  *         pine: "line.new",
@@ -75,7 +75,7 @@ export type DrawingMapping = Readonly<{
  * literal or partial-state object it lowers to.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: EnumMapping = { pine: "line.style_solid", chartlang: "solid" };
  *     void e;
@@ -87,7 +87,7 @@ export type EnumMapping = MappingEntry;
  * to, with an optional argument-name remap.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const i: InputMapping = { pine: "input.timeframe", chartlang: "input.interval" };
  *     void i;
@@ -105,7 +105,7 @@ export type InputMapping = Readonly<{
  * members with no chartlang analogue.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const t: TaMapping = { pine: "ta.rma", chartlang: "ta.smma" };
  *     void t;
@@ -121,7 +121,7 @@ export type TaMapping = Readonly<{
  * it maps to. `chartlang` is `null` for REJECTs (`math.random`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const m: MathMapping = { pine: "math.abs", chartlang: "Math.abs" };
  *     void m;
@@ -139,7 +139,7 @@ export type MathMapping = Readonly<{
  * non-null `chartlang` are returned verbatim.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { DRAWING_KIND_MAP } from "./drawingKinds.js";
  *     const m = lookup(DRAWING_KIND_MAP, "line.new");

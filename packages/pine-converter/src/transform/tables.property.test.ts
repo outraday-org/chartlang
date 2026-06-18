@@ -25,9 +25,7 @@ function cellsSourceFor(body: string): string {
     const diagnostics = new DiagnosticCollector();
     const scaffold = transformDeclaration(decl, analysis, diagnostics);
     transformTables(analysis, scaffold, diagnostics);
-    const stmt = scaffold.computeBody.statements.find((s) =>
-        s.startsWith("const __t_handle_cells"),
-    );
+    const stmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
     if (stmt === undefined) {
         throw new Error("no cells statement");
     }

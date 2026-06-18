@@ -13,7 +13,7 @@ import { createCursor, type TokenCursor } from "./cursor.js";
  * `for ... in` head from `for i = ...`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ctx = createContext(lex("//@version=6\n").tokens);
  *     ctx.cursor.peekKind(); // "version-directive"
@@ -31,7 +31,7 @@ export type ParserContext = Readonly<{
  * must end with the lexer's trailing `eof` token.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ctx = createContext(lex("indicator()\n").tokens);
  *     ctx.peekAhead(0).text; // "indicator"

@@ -14,7 +14,7 @@ import type { ScriptScaffold } from "../transform/ir.js";
  * coordinate (which needs the host's bar spacing to resolve).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { scaffoldToManifest } from "./manifest.js";
  *     declare const scaffold: import("../transform/ir.js").ScriptScaffold;

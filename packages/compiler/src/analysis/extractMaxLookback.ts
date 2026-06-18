@@ -58,13 +58,37 @@ export function extractMaxLookback(
     const diagnostics: CompileDiagnostic[] = [];
 
     const seriesVarNames = collectSeriesVarNames(scope, checker);
+    const seriesVarOffsets = collectSeriesVarOffsets(scope, checker);
+
+    // The universal `opts.offset` (§9.1) shifts a primitive's output so
+    // `series.current` reads the value `offset` bars ago — i.e. the runtime
+    // reads `buf.at(offset)`. A positive offset therefore needs the output
+    // ring buffer sized to hold `offset` extra slots, exactly like an
+    // `offset`-deep literal lookback. The offset stacks with any literal
+    // index on the same series (`shifted[N]` reads `buf.at(N + offset)`).
+    const offsetFor = (expression: ts.Expression): number => {
+        if (ts.isCallExpression(expression)) return readCallOffset(expression);
+        if (ts.isIdentifier(expression)) return seriesVarOffsets.get(expression.text) ?? 0;
+        return 0;
+    };
 
     const visit = (node: ts.Node): void => {
+        if (ts.isCallExpression(node)) {
+            const calleeName = resolveCalleeName(node, checker);
+            if (calleeName?.startsWith("ta.")) {
+                const offset = readCallOffset(node);
+                if (offset > maxLookback) maxLookback = offset;
+            }
+            if (isBarPointCall(node)) {
+                const depth = readBarPointLookback(node);
+                if (depth > maxLookback) maxLookback = depth;
+            }
+        }
         if (ts.isElementAccessExpression(node)) {
             if (isSeriesShapedAccess(node, checker, seriesVarNames)) {
                 const argument = node.argumentExpression;
                 if (ts.isNumericLiteral(argument)) {
-                    const n = Number(argument.text);
+                    const n = Number(argument.text) + offsetFor(node.expression);
                     if (Number.isFinite(n) && n > maxLookback) maxLookback = n;
                 } else {
                     diagnostics.push(
@@ -93,6 +117,60 @@ export function extractMaxLookback(
     });
 }
 
+/**
+ * Whether a call is a `bar.point(…)` invocation. Matched textually on the
+ * `bar.point` property-access shape — the same OHLCV-style textual recognition
+ * `isSeriesShapedAccess` uses — so it fires for both the destructured
+ * `compute({ bar })` binding and a `declare const bar: Bar` test fixture.
+ */
+function isBarPointCall(call: ts.CallExpression): boolean {
+    const expression = call.expression;
+    return (
+        ts.isPropertyAccessExpression(expression) &&
+        expression.name.text === "point" &&
+        ts.isIdentifier(expression.expression) &&
+        expression.expression.text === "bar"
+    );
+}
+
+/**
+ * Unwrap any number of nested parentheses around an expression. The Pine
+ * converter emits a historical bar offset as the parenthesised form
+ * `bar.point(-(N), …)` (see the converter's `anchorToWorldPoint`), so the
+ * lookback recogniser must peel the parens before matching the literal.
+ */
+function unwrapParens(node: ts.Expression): ts.Expression {
+    let current = node;
+    while (ts.isParenthesizedExpression(current)) current = current.expression;
+    return current;
+}
+
+/**
+ * The historical-lookback depth a `bar.point(offset, …)` call contributes,
+ * or `0` when it reads the current / a future bar. A negative integer-literal
+ * first argument (`bar.point(-N, …)` — or the converter's parenthesised
+ * `bar.point(-(N), …)`) anchors `N` bars back, so the runtime's time ring
+ * buffer must retain `N` extra slots — exactly like a `series[N]` lookback.
+ * `bar.point(0, …)` (current) and positive offsets (future, extrapolated, no
+ * buffer depth) contribute `0`; a non-literal / dynamic offset (e.g. a bound
+ * `-k` or a computed `-(2 + 3)`) cannot be sized at compile time and also
+ * contributes `0` (reads past retention degrade to a NaN time at runtime, per
+ * `bar.point`'s contract).
+ */
+function readBarPointLookback(call: ts.CallExpression): number {
+    const first = call.arguments[0];
+    if (first === undefined) return 0;
+    const expr = unwrapParens(first);
+    if (ts.isPrefixUnaryExpression(expr) && expr.operator === ts.SyntaxKind.MinusToken) {
+        const operand = unwrapParens(expr.operand);
+        if (ts.isNumericLiteral(operand)) {
+            const n = Number(operand.text);
+            if (Number.isFinite(n) && n > 0) return n;
+        }
+    }
+    return 0;
+}
+
 function collectSeriesVarNames(scope: ts.Node, checker: ts.TypeChecker): ReadonlySet<string> {
     const names = new Set<string>();
     const visit = (node: ts.Node): void => {
@@ -109,6 +187,56 @@ function collectSeriesVarNames(scope: ts.Node, checker: ts.TypeChecker): Readonl
     };
     visit(scope);
     return names;
+}
+
+/**
+ * Read the positive literal `opts.offset` from a `ta.*` call's trailing
+ * options object, or `0` when there is none. Negative or non-literal
+ * offsets contribute `0`: a negative offset reads into the future (NaN at
+ * the head, no extra buffer depth) and a non-literal offset cannot be
+ * sized at compile time.
+ */
+function readCallOffset(call: ts.CallExpression): number {
+    const last = call.arguments[call.arguments.length - 1];
+    if (last === undefined || !ts.isObjectLiteralExpression(last)) return 0;
+    for (const property of last.properties) {
+        if (!ts.isPropertyAssignment(property)) continue;
+        const name = property.name;
+        const key = ts.isIdentifier(name) || ts.isStringLiteral(name) ? name.text : undefined;
+        if (key !== "offset") continue;
+        const initializer = property.initializer;
+        if (ts.isNumericLiteral(initializer)) {
+            const n = Number(initializer.text);
+            if (Number.isFinite(n) && n > 0) return n;
+        }
+        return 0;
+    }
+    return 0;
+}
+
+function collectSeriesVarOffsets(
+    scope: ts.Node,
+    checker: ts.TypeChecker,
+): ReadonlyMap<string, number> {
+    const offsets = new Map<string, number>();
+    const visit = (node: ts.Node): void => {
+        if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+            const initializer = node.initializer;
+            if (initializer && ts.isCallExpression(initializer)) {
+                const calleeName = resolveCalleeName(initializer, checker);
+                if (calleeName?.startsWith("ta.")) {
+                    // Sparse: only offset-bearing bindings land in the map, so
+                    // a plain `const e = ta.ema(...)` falls through `?? 0` at
+                    // the read site rather than carrying a redundant 0 entry.
+                    const offset = readCallOffset(initializer);
+                    if (offset > 0) offsets.set(node.name.text, offset);
+                }
+            }
+        }
+        ts.forEachChild(node, visit);
+    };
+    visit(scope);
+    return offsets;
 }
 
 function isSeriesShapedAccess(

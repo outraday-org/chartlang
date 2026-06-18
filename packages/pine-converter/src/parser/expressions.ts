@@ -65,6 +65,68 @@ function binaryPrecedenceOf(token: Token): number | null {
     return null;
 }
 
+function isOperatorToken(token: Token, text: string): boolean {
+    return token.kind === "operator" && token.text === text;
+}
+
+function isPunctuationToken(token: Token, text: string): boolean {
+    return token.kind === "punctuation" && token.text === text;
+}
+
+/**
+ * Scan a Pine v6 generic type-argument list `< Type (, Type)* >` (each
+ * `Type` an `ident` with an optional dotted `.member` chain), starting at
+ * `peekAhead(startOffset)` which must be the opening `<`. Returns the number
+ * of tokens spanned (the `<` through the closing `>`, inclusive) and the last
+ * element type name (the value type for `map<K, V>`), or `null` when the
+ * lookahead is not a well-formed type-argument list. Lookahead only — it
+ * never consumes. Used both for the `array.new<line>()` constructor (the type
+ * arg is discarded) and the `array<line> x` / `map<…> x` variable-type
+ * annotation (the element type becomes the declared type).
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     // declare const ctx: import("./context.js").ParserContext; // at `array.new<line>(`
+ *     // scanTypeArgs(ctx, 2); // { count: 3, lastType: "line" } for `<line>`
+ */
+export function scanTypeArgs(
+    ctx: ParserContext,
+    startOffset: number,
+): { readonly count: number; readonly lastType: string | null } | null {
+    if (!isOperatorToken(ctx.peekAhead(startOffset), "<")) {
+        return null;
+    }
+    let offset = startOffset + 1;
+    let lastType: string | null = null;
+    for (;;) {
+        const typeToken = ctx.peekAhead(offset);
+        if (typeToken.kind !== "identifier") {
+            return null;
+        }
+        lastType = typeToken.text;
+        offset += 1;
+        while (isPunctuationToken(ctx.peekAhead(offset), ".")) {
+            offset += 1;
+            const member = ctx.peekAhead(offset);
+            if (member.kind !== "identifier") {
+                return null;
+            }
+            lastType = member.text;
+            offset += 1;
+        }
+        const separator = ctx.peekAhead(offset);
+        if (isOperatorToken(separator, ">")) {
+            return { count: offset - startOffset + 1, lastType };
+        }
+        if (isPunctuationToken(separator, ",")) {
+            offset += 1;
+            continue;
+        }
+        return null;
+    }
+}
+
 function literalFrom(token: Token, literalKind: LiteralKind): LiteralExpression {
     return { kind: "literal-expression", literalKind, value: token.text, span: token.span };
 }
@@ -205,8 +267,39 @@ function parsePostfix(ctx: ParserContext, receiver: ExpressionNode): ExpressionN
             node = parseHistoryAccess(ctx, node);
             continue;
         }
+        // Generic constructor type args: `array.new<line>()` /
+        // `map.new<string, float>()`. The `<…>` is consumed and discarded
+        // (the call's element type is recovered elsewhere from the push site);
+        // restricting to a `.new` member chain keeps a real `a.b < c`
+        // comparison from being mis-read as a type-argument list.
+        if (isGenericConstructorArgs(ctx, node)) {
+            const args = scanTypeArgs(ctx, 0);
+            if (args !== null) {
+                for (let i = 0; i < args.count; i += 1) {
+                    ctx.cursor.next();
+                }
+                continue;
+            }
+        }
         return node;
     }
+}
+
+// Whether the current `<` opens a generic-constructor type-argument list on a
+// `.new` member receiver (`array.new<line>(`) — a type-arg list followed by a
+// call `(`. Pure lookahead.
+function isGenericConstructorArgs(ctx: ParserContext, node: ExpressionNode): boolean {
+    if (!isOperatorToken(ctx.cursor.peek(), "<")) {
+        return false;
+    }
+    if (node.kind !== "member-access-expression") {
+        return false;
+    }
+    if (node.chain[node.chain.length - 1] !== "new") {
+        return false;
+    }
+    const args = scanTypeArgs(ctx, 0);
+    return args !== null && isPunctuationToken(ctx.peekAhead(args.count), "(");
 }
 
 // Consume a single `.member` and extend `receiver`. When the receiver is a
@@ -341,7 +434,7 @@ function parseTernary(ctx: ParserContext): ExpressionNode {
  * `Expression` slot routes through it.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ctx = createContext(lex("ta.ema(close, 9)[3]\n").tokens);
  *     const expr = parseExpression(ctx);

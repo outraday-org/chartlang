@@ -3,6 +3,8 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
+import { inputBarPoint } from "../inputBarPoint.js";
+
 function bar(time: number): Bar {
     return {
         time,
@@ -17,6 +19,7 @@ function bar(time: number): Bar {
         hlc3: 10.166666666666666,
         ohlc4: 10.125,
         hlcc4: 10.25,
+        point: inputBarPoint(time),
     };
 }
 

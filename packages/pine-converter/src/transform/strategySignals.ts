@@ -39,7 +39,7 @@ function stringLiteralValue(node: ExpressionNode): string | null {
  * `strategy(...)` script's signal calls to {@link emitStrategySignal}.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { isStrategySignalCall } from "./strategySignals.js";
  *     const call = {
@@ -69,7 +69,7 @@ export function isStrategySignalCall(call: CallExpression): boolean {
  * not reproduced. Returns `null` for a non-strategy-signal call.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitStrategySignal } from "./strategySignals.js";
  *     import { DiagnosticCollector } from "./diagnosticCollector.js";

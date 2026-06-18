@@ -7,6 +7,8 @@ import { dirname, resolve as resolvePath } from "node:path";
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
+import { inputBarPoint } from "../inputBarPoint.js";
+
 /**
  * Frozen sequence of synthetic OHLCV bars used by the conformance suite.
  * 10 000 bars across four 2 500-bar regimes (trend / range / high-vol /
@@ -111,6 +113,7 @@ function buildBar(index: number, time: number, prevClose: number, rng: () => num
         hlc3: (high + low + close) / 3,
         ohlc4: (open + high + low + close) / 4,
         hlcc4: (high + low + close + close) / 4,
+        point: inputBarPoint(time),
     });
 }
 

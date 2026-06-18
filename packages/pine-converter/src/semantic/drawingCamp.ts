@@ -25,7 +25,7 @@ const BUCKET_DEFAULT_CAP = 50;
  * (`max_lines_count`, …). Absent families map to `null`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const caps: IndicatorCaps = { line: 10 };
  *     void caps;
@@ -37,7 +37,7 @@ export type IndicatorCaps = Readonly<Partial<Record<HandleType, number>>>;
  * order, the per-call lookup map, and any camp diagnostics.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: DrawingClassification = {
  *         sites: [],
@@ -292,7 +292,7 @@ function diagnosticForCamp(camp: DrawingCamp, span: SourceSpan): Diagnostic | nu
  * collection-driven `linefill.new`) is Camp C-unbounded and hard-rejects.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { classifyDrawingSites } from "./drawingCamp.js";
  *     import { resolveSymbol, createScopeBuilder } from "./scope.js";
@@ -366,10 +366,49 @@ export function classifyDrawingSites(
                       } as const)
                     : classifyHandleSite(symbol, HANDLE_TYPE_OF[handleSite.constructor]);
             record(handleSite.call, handleSite.constructor, camp);
+            continue;
+        }
+        const bare = asBareStandalonePolyline(stmt);
+        if (bare !== null) {
+            record(bare.call, "polyline.new", standalonePolylineCamp());
         }
     }
 
     return { sites, classifications, diagnostics };
+}
+
+// A standalone `polyline.new(pts, …)` expression statement — the build-and-
+// draw idiom that binds no Pine handle. Only `polyline.new` is surfaced this
+// way (a bare `line.new`/`box.new`/`label.new` each-bar is a different,
+// unsupported idiom; a standalone `linefill.new` keeps the Camp C path for its
+// cross-collection reject), so `transformPolylineLinefill` can rebuild it
+// instead of the site being silently dropped.
+function asBareStandalonePolyline(stmt: Statement): { call: CallExpression } | null {
+    if (stmt.kind !== "expression-statement") {
+        return null;
+    }
+    const drawing = asDrawingConstructorCall(stmt.expression);
+    return drawing !== null && drawing.constructor === "polyline.new"
+        ? { call: drawing.call }
+        : null;
+}
+
+// The camp for a standalone `polyline.new`: `camp-a` (so it raises no
+// reject diagnostic) with a synthetic, never-read handle symbol. The convert
+// pipeline skips `polyline.new` in the Camp A/B/C dispatch — only
+// `transformPolylineLinefill` consumes it — so this symbol is a placeholder.
+function standalonePolylineCamp(): DrawingCamp {
+    return {
+        kind: "camp-a",
+        handleSymbol: {
+            name: "",
+            kind: "var-variable",
+            declarationSpan: null,
+            typeAnnotation: null,
+            qualifier: "series",
+            handleType: "polyline",
+        },
+    };
 }
 
 // A `var line lvl = line.new(...)` / `lvl := line.new(...)` single-handle

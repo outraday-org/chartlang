@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ScriptScaffold } from "./ir.js";
+import { NameAllocator } from "./nameAllocator.js";
 import {
     appendComputeStatement,
     appendHandleRing,
@@ -30,6 +31,7 @@ function emptyScaffold(): ScriptScaffold {
         handleRings: [],
         computeBody: { statements: [] },
         diagnostics: [],
+        names: new NameAllocator(),
     };
 }
 
@@ -48,8 +50,8 @@ describe("scaffold mutators", () => {
 
     it("appendHandleSlot pushes a handle slot", () => {
         const scaffold = emptyScaffold();
-        appendHandleSlot(scaffold, { name: "lvl", kind: "line" });
-        expect(scaffold.handleSlots).toEqual([{ name: "lvl", kind: "line" }]);
+        appendHandleSlot(scaffold, { name: "lvl", kind: "line", compact: false });
+        expect(scaffold.handleSlots).toEqual([{ name: "lvl", kind: "line", compact: false }]);
     });
 
     it("appendHandleRing pushes a ring buffer", () => {

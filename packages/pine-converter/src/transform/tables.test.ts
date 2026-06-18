@@ -42,18 +42,18 @@ describe("transformTables — canonical dashboard", () => {
 
     it("registers a table handle slot", () => {
         const { scaffold } = runTables(dashboard);
-        expect(scaffold.handleSlots).toEqual([{ name: "__dash_handle", kind: "table" }]);
+        expect(scaffold.handleSlots).toEqual([{ name: "dash", kind: "table", compact: false }]);
     });
 
     it("emits a 5-row × 2-column cells array", () => {
         const { scaffold } = runTables(dashboard);
         const cellsStmt = scaffold.computeBody.statements.find((s) =>
-            s.startsWith("const __dash_handle_cells"),
+            s.startsWith("const dashCells"),
         );
         expect(cellsStmt).toBeDefined();
         // 5 rows, each a 2-element array.
-        expect(cellsStmt).toContain('text: "Row " + str.tostring(0)');
-        expect(cellsStmt).toContain("text: str.tostring(bar.close[4])");
+        expect(cellsStmt).toContain('text: "Row " + String(0)');
+        expect(cellsStmt).toContain("text: String(bar.close[4])");
     });
 
     it("gates the draw.table rebuild behind barstate.islast", () => {
@@ -61,9 +61,9 @@ describe("transformTables — canonical dashboard", () => {
         const drawStmt = scaffold.computeBody.statements.find((s) => s.includes("draw.table"));
         expect(drawStmt).toContain("if (barstate.islast)");
         expect(drawStmt).toContain('position: "top-right"');
-        expect(drawStmt).toContain("__dash_handle.current()?.remove();");
-        expect(drawStmt).toContain("__dash_handle.set(draw.table(");
-        expect(drawStmt).toContain("cells: __dash_handle_cells");
+        expect(drawStmt).toContain("dash.current()?.remove();");
+        expect(drawStmt).toContain("dash.set(draw.table(");
+        expect(drawStmt).toContain("cells: dashCells");
     });
 
     it("raises the other bucket cap to the table count + 1", () => {
@@ -83,9 +83,7 @@ describe("transformTables — cell styling + last-write-wins", () => {
                 '    table.cell(t, 0, 0, "P&L", bgcolor=color.green, text_color=color.white, text_halign=text.align_right, text_size=size.large)',
             ].join("\n"),
         );
-        const cellsStmt = scaffold.computeBody.statements.find((s) =>
-            s.startsWith("const __t_handle_cells"),
-        );
+        const cellsStmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
         expect(cellsStmt).toContain('text: "P&L"');
         expect(cellsStmt).toContain('bgColor: "#4CAF50"');
         expect(cellsStmt).toContain('textColor: "#FFFFFF"');
@@ -105,9 +103,7 @@ describe("transformTables — cell styling + last-write-wins", () => {
                 '    table.cell(t, 0, 0, "second")',
             ].join("\n"),
         );
-        const cellsStmt = scaffold.computeBody.statements.find((s) =>
-            s.startsWith("const __t_handle_cells"),
-        );
+        const cellsStmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
         expect(cellsStmt).toContain('text: "second"');
         expect(cellsStmt).not.toContain('text: "first"');
     });
@@ -124,9 +120,7 @@ describe("transformTables — cell styling + last-write-wins", () => {
                 "    table.cell_set_text_valign(t, 0, 0, text.align_top)",
             ].join("\n"),
         );
-        const cellsStmt = scaffold.computeBody.statements.find((s) =>
-            s.startsWith("const __t_handle_cells"),
-        );
+        const cellsStmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
         expect(cellsStmt).toContain('text: "y"');
         expect(cellsStmt).toContain('bgColor: "#FF5252"');
         expect(cellsStmt).toContain('textValign: "top"');
@@ -156,9 +150,7 @@ describe("transformTables — clear + empty cells", () => {
                 '    table.cell(t, 0, 0, "only")',
             ].join("\n"),
         );
-        const cellsStmt = scaffold.computeBody.statements.find((s) =>
-            s.startsWith("const __t_handle_cells"),
-        );
+        const cellsStmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
         expect(cellsStmt).toContain('text: "only"');
         expect(cellsStmt).toContain('{ text: "" }');
     });

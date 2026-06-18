@@ -42,7 +42,7 @@ function labelStyleKind(args: readonly CallArgument[]): string | null {
  * `linefill.new` never classifies Camp A).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { resolveCampADrawKind } from "./drawKindResolve.js";
  *     import { DiagnosticCollector } from "./diagnosticCollector.js";

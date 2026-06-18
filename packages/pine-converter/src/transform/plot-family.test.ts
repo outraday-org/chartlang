@@ -68,21 +68,60 @@ describe("emitPlotFamily", () => {
         expect(emit("plot()").source).toBeNull();
     });
 
-    it("lowers plotshape to a conditional shape style", () => {
+    it("lowers plotshape to a valid shape style with the glyph + size", () => {
+        // `color` moves to plot level (the `shape` style carries no color);
+        // a missing `style=` glyph defaults to `circle`.
         expect(emit("plotshape(close > open, color=color.green)").source).toBe(
-            'plot(bar.close > bar.open ? bar.close : Number.NaN, { style: { kind: "shape", color: "#4CAF50" } });',
+            'plot(bar.close > bar.open ? bar.close : Number.NaN, { color: "#4CAF50", style: { kind: "shape", shape: "circle", size: 8 } });',
+        );
+        // An explicit `style=shape.*` glyph maps through `enumLookup`.
+        expect(emit("plotshape(close > open, style=shape.triangleup)").source).toBe(
+            'plot(bar.close > bar.open ? bar.close : Number.NaN, { style: { kind: "shape", shape: "triangle-up", size: 8 } });',
         );
     });
 
     it("lowers plotchar with a char option", () => {
         expect(emit('plotchar(close > open, char="X")').source).toBe(
-            'plot(bar.close > bar.open ? bar.close : Number.NaN, { style: { kind: "character", char: "X" } });',
+            'plot(bar.close > bar.open ? bar.close : Number.NaN, { style: { kind: "character", char: "X", size: 12 } });',
         );
     });
 
     it("lowers plotarrow", () => {
         expect(emit("plotarrow(close)").source).toBe(
-            'plot(bar.close ? bar.close : Number.NaN, { style: { kind: "arrow" } });',
+            'plot(bar.close ? bar.close : Number.NaN, { style: { kind: "arrow", direction: "up", size: 10 } });',
+        );
+    });
+
+    it("defaults the glyph to circle for an unmapped `style=` enum", () => {
+        expect(emit("plotshape(close > open, style=shape.bogus)").source).toBe(
+            'plot(bar.close > bar.open ? bar.close : Number.NaN, { style: { kind: "shape", shape: "circle", size: 8 } });',
+        );
+    });
+
+    it("threads a mapped `location=` into the style", () => {
+        expect(emit("plotshape(close > open, location=location.abovebar)").source).toBe(
+            'plot(bar.close > bar.open ? bar.close : Number.NaN, { style: { kind: "shape", shape: "circle", size: 8, location: "above" } });',
+        );
+    });
+
+    it("defaults plotchar to a bullet when no char is given", () => {
+        expect(emit("plotchar(close > open)").source).toBe(
+            'plot(bar.close > bar.open ? bar.close : Number.NaN, { style: { kind: "character", char: "•", size: 12 } });',
+        );
+    });
+
+    it("projects `.current` on a `ta.*` boolean condition", () => {
+        // A `ta.*` call returns a `Series<boolean>`; without `.current` the
+        // object is always truthy and the shape would plot on every bar.
+        expect(emit("plotshape(ta.crossover(close, open))").source).toBe(
+            'plot(ta.crossover(bar.close, bar.open).current ? bar.close : Number.NaN, { style: { kind: "shape", shape: "circle", size: 8 } });',
+        );
+    });
+
+    it("leaves a non-`ta` call condition unprojected", () => {
+        // A user-defined call has no scalar-projecting `.current`; emit it as-is.
+        expect(emit("plotshape(myCond())").source).toBe(
+            'plot(myCond() ? bar.close : Number.NaN, { style: { kind: "shape", shape: "circle", size: 8 } });',
         );
     });
 

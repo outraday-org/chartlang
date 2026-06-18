@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ScriptScaffold } from "../transform/ir.js";
+import { NameAllocator } from "../transform/nameAllocator.js";
 import { emit } from "./emit.js";
 
 function baseScaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
@@ -24,6 +25,7 @@ function baseScaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
         handleRings: [],
         computeBody: { statements: [] },
         diagnostics: [],
+        names: new NameAllocator(),
         ...overrides,
     };
 }
@@ -116,7 +118,7 @@ describe("emit", () => {
     it("emits a Camp A handle slot helper + allocation inside compute", () => {
         const out = emit(
             baseScaffold({
-                handleSlots: [{ name: "__lvl_handle", kind: "line" }],
+                handleSlots: [{ name: "__lvl_handle", kind: "line", compact: false }],
                 computeBody: {
                     statements: [
                         "if (__lvl_handle.current() === null) { __lvl_handle.set(draw.line({ time: bar.time, price: bar.high }, { time: bar.time, price: bar.low })); }",
@@ -129,6 +131,48 @@ describe("emit", () => {
         expect(out).toContain('const __lvl_handle = useDrawingHandleSlot<"line">();');
         expect(out).toContain("compute({ bar, draw }) {");
         expect(out).not.toContain("useDrawingHandleRing");
+    });
+
+    it("omits the slot helper + allocation for a compact handle slot", () => {
+        const out = emit(
+            baseScaffold({
+                handleSlots: [{ name: "__lvl_handle", kind: "line", compact: true }],
+                computeBody: {
+                    statements: [
+                        "const __lvl_handle = draw.line(bar.point(0, bar.close), bar.point(0, bar.close));",
+                        "__lvl_handle.update({ anchors: [bar.point(0, bar.close), bar.point(0, bar.close)] });",
+                    ],
+                },
+            }),
+        );
+        // No helper definition, no `useDrawingHandleSlot<…>()` allocation, and no
+        // `DrawingHandle` type import — the bare `const` create IS the allocation.
+        expect(out).not.toContain("useDrawingHandleSlot");
+        expect(out).not.toContain("DrawingHandle");
+        expect(out).toContain("const __lvl_handle = draw.line(");
+        expect(out).toContain("compute({ bar, draw }) {");
+    });
+
+    it("keeps the slot helper when compact and non-compact handle slots mix", () => {
+        const out = emit(
+            baseScaffold({
+                handleSlots: [
+                    { name: "__a_handle", kind: "line", compact: true },
+                    { name: "__b_handle", kind: "rectangle", compact: false },
+                ],
+                computeBody: {
+                    statements: [
+                        "const __a_handle = draw.line(bar.point(0, bar.close), bar.point(0, bar.close));",
+                        "if (__b_handle.current() === null) { __b_handle.set(draw.rectangle(bar.point(0, bar.high), bar.point(0, bar.low))); }",
+                    ],
+                },
+            }),
+        );
+        expect(out).toContain("function useDrawingHandleSlot<K extends string>()");
+        // The compact slot still skips its allocation; only the non-compact one allocates.
+        expect(out).not.toContain('useDrawingHandleSlot<"line">()');
+        expect(out).toContain('const __b_handle = useDrawingHandleSlot<"rectangle">();');
+        expect(out).toContain("type DrawingHandle");
     });
 
     it("emits a Camp B ring helper + allocation with its cap", () => {
@@ -158,27 +202,33 @@ describe("emit", () => {
         expect(out).toContain("compute({ bar, state }) {");
     });
 
-    it("emits the bar-index bridge only when the body uses __bar_index()", () => {
+    it("emits the readable bar-index bridge only when the body uses the sentinel", () => {
         const withBarIndex = emit(
-            baseScaffold({ computeBody: { statements: ["const x = __bar_index();"] } }),
+            baseScaffold({ computeBody: { statements: ["const x = __barIndexBridge();"] } }),
         );
-        expect(withBarIndex).toContain("let __barCount = 0;");
-        expect(withBarIndex).toContain("if (barstate.isnew) __barCount += 1;");
+        // The sentinel is renamed to the readable `barIndex`/`barCount` bridge,
+        // and no `__`-prefixed identifier survives to the output.
+        expect(withBarIndex).toContain("let barCount = 0;");
+        expect(withBarIndex).toContain("if (barstate.isnew) barCount += 1;");
+        expect(withBarIndex).toContain("const barIndex = (): number => barCount;");
+        expect(withBarIndex).toContain("const x = barIndex();");
         expect(withBarIndex).toContain("compute({ bar, barstate }) {");
+        expect(withBarIndex).not.toContain("__");
 
         const without = emit(baseScaffold({ computeBody: { statements: ["plot(bar.close);"] } }));
-        expect(without).not.toContain("__barCount");
+        expect(without).not.toContain("barCount");
     });
 
-    it("emits the __BAR_INTERVAL_MS const only when the body references it", () => {
+    it("never emits a bar-interval const — offset anchors lower to bar.point", () => {
         const out = emit(
             baseScaffold({
                 computeBody: {
-                    statements: ["const t = bar.time + 2 * __BAR_INTERVAL_MS;"],
+                    statements: ["const wp = bar.point((2), bar.close);"],
                 },
             }),
         );
-        expect(out).toContain("const __BAR_INTERVAL_MS = 0;");
+        expect(out).not.toContain("__BAR_INTERVAL_MS");
+        expect(out).toContain("bar.point((2), bar.close)");
     });
 
     it("emits a defineDrawing constructor when the scaffold chose it", () => {

@@ -17,7 +17,7 @@ import { expressionHasStatefulPrimitive } from "./statefulNames.js";
  * scaffolding around the rendered children.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const emit: BodyEmitter = (stmts, ctx) => {
  *         void stmts;
@@ -52,7 +52,7 @@ function literalInt(node: ExpressionNode): number | null {
  * `input.int` default (so the unroll path can warn that the count is frozen).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const b: ResolvedBound = { value: 9, fromInputDefault: true };
  *     void b;
@@ -66,7 +66,7 @@ export type ResolvedBound = Readonly<{ value: number; fromInputDefault: boolean 
  * Returns `null` when the bound is a runtime expression.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { resolveBound } from "./controlFlow.js";
  *     const node = {
@@ -101,7 +101,7 @@ export function resolveBound(
  * loop unrolls.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { substituteIterator } from "./controlFlow.js";
  *     const node = {
@@ -220,27 +220,36 @@ function substituteBlock(
 /**
  * Render a Pine `if`/`else if`/`else` statement as a chartlang
  * `if (...) { ... } else if (...) { ... } else { ... }` string. Each body is
- * rendered through `emitBody`; an empty branch still emits its braces so the
- * structure round-trips.
+ * rendered through `emitBody`. Returns `null` when every branch lowers to an
+ * empty body (e.g. the `if` only mutated owned drawings, emitted elsewhere) so
+ * the caller can drop the dead `if` rather than emit `if (…) {  }`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitIf } from "./controlFlow.js";
  *     // emitIf(stmt, ctx, () => ["plot(bar.close);"])
  *     void emitIf;
  */
-export function emitIf(stmt: IfStatement, ctx: EmitContext, emitBody: BodyEmitter): string {
-    const parts: string[] = [
-        `if (${emitWithContext(stmt.condition, ctx)}) { ${emitBody(stmt.thenBody.body, ctx).join(" ")} }`,
-    ];
-    for (const clause of stmt.elseIfClauses) {
-        parts.push(
-            `else if (${emitWithContext(clause.condition, ctx)}) { ${emitBody(clause.body.body, ctx).join(" ")} }`,
-        );
+export function emitIf(stmt: IfStatement, ctx: EmitContext, emitBody: BodyEmitter): string | null {
+    const thenBody = emitBody(stmt.thenBody.body, ctx).join(" ");
+    const clauses = stmt.elseIfClauses.map((clause) => ({
+        condition: emitWithContext(clause.condition, ctx),
+        body: emitBody(clause.body.body, ctx).join(" "),
+    }));
+    const elseBody = stmt.elseBody === null ? null : emitBody(stmt.elseBody.body, ctx).join(" ");
+    // The whole `if` is dead when every branch lowered to nothing (e.g. it
+    // only mutated owned drawings, emitted elsewhere) — drop it rather than
+    // emit `if (…) {  }`.
+    if (thenBody === "" && clauses.every((c) => c.body === "") && (elseBody ?? "") === "") {
+        return null;
     }
-    if (stmt.elseBody !== null) {
-        parts.push(`else { ${emitBody(stmt.elseBody.body, ctx).join(" ")} }`);
+    const parts: string[] = [`if (${emitWithContext(stmt.condition, ctx)}) { ${thenBody} }`];
+    for (const clause of clauses) {
+        parts.push(`else if (${clause.condition}) { ${clause.body} }`);
+    }
+    if (elseBody !== null) {
+        parts.push(`else { ${elseBody} }`);
     }
     return parts.join(" ");
 }
@@ -291,7 +300,7 @@ function statementHasStatefulPrimitive(stmt: Statement): boolean {
  * non-literal runtime bound).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitFor } from "./controlFlow.js";
  *     // emitFor(stmt, ctx, diagnostics, () => null, () => [...])
@@ -316,7 +325,10 @@ export function emitFor(
     if (!stateful) {
         const literalLoop = emitLiteralLoop(stmt, ctx, emitBody);
         if (literalLoop !== null) {
-            return [literalLoop];
+            // A loop whose body lowered to nothing (e.g. it only built an
+            // owned drawing collection, emitted elsewhere) is dead — drop it
+            // rather than emit `for (…) {  }`.
+            return literalLoop.body === "" ? [] : [`${literalLoop.header} { ${literalLoop.body} }`];
         }
     }
     if (!resolvable) {
@@ -326,14 +338,15 @@ export function emitFor(
     return unroll(stmt, from, to, step, ctx, diagnostics, stateful, emitBody);
 }
 
-// A runtime `for (let i = a; i <= b; i += s)` when BOTH bounds (and the step)
-// are TRUE integer literals (not input defaults), else `null` so the caller
-// falls back to unrolling.
+// The runtime `for (let i = a; i <= b; i += s)` header + rendered body for a
+// loop whose bounds (and step) are TRUE integer literals (not input defaults),
+// or `null` so the caller falls back to unrolling. The body is split out so
+// the caller can drop a loop that lowered to an empty body.
 function emitLiteralLoop(
     stmt: ForStatement,
     ctx: EmitContext,
     emitBody: BodyEmitter,
-): string | null {
+): { readonly header: string; readonly body: string } | null {
     const from = literalInt(stmt.from);
     const to = literalInt(stmt.to);
     const step = stmt.step === null ? 1 : literalInt(stmt.step);
@@ -352,7 +365,10 @@ function emitLiteralLoop(
             ? `${variable}${ascending ? "++" : "--"}`
             : `${variable} += ${ascending ? magnitude : -magnitude}`;
     const childCtx = withLocal(ctx, variable);
-    return `for (let ${variable} = ${from}; ${variable} ${comparison} ${to}; ${update}) { ${emitBody(stmt.body.body, childCtx).join(" ")} }`;
+    return {
+        header: `for (let ${variable} = ${from}; ${variable} ${comparison} ${to}; ${update})`,
+        body: emitBody(stmt.body.body, childCtx).join(" "),
+    };
 }
 
 // Unroll a resolvable-bounds loop into one rendered body per iteration with
@@ -401,7 +417,7 @@ function withLocal(ctx: EmitContext, name: string): EmitContext {
  * condition. The cases' bodies are rendered through `emitBody`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitSwitch } from "./controlFlow.js";
  *     // emitSwitch(stmt, ctx, () => ["plot(bar.close);"])

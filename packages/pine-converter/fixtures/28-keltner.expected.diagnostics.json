@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/multi-return-arg-dropped",
+        "severity": "info",
+        "message": "A Pine argument has no chartlang equivalent on the multi-output primitive and was dropped (e.g. `ta.kc`'s explicit source / `useTrueRange`).",
+        "span": {
+            "startLine": 3,
+            "startColumn": 29,
+            "endLine": 3,
+            "endColumn": 48
+        },
+        "suggestion": "No action needed if the default matches your script; otherwise adjust the chartlang call by hand."
+    }
+]

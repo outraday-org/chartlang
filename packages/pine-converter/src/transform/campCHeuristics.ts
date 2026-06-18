@@ -15,7 +15,7 @@ import type { MaxDrawingsIR, ScriptScaffold } from "./ir.js";
  * it cannot prove a cap — Camp C then hard-rejects rather than guessing.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: HeuristicResult = {
  *         kind: "fold",
@@ -254,7 +254,7 @@ function trySingleUse(site: DrawingCallSite, analysis: SemanticResult): Heuristi
  * push collection cannot be proven from the AST — "no silent wrong output".
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { tryHeuristics } from "./campCHeuristics.js";
  *     declare const site: import("../semantic/index.js").DrawingCallSite;

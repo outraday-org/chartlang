@@ -67,9 +67,9 @@ describe("transformCampB — loop-driven ring update", () => {
         );
         const loop = loopStatement(scaffold);
         expect(loop).toContain("for (let i = 0; i < 30; i++)");
-        expect(loop).toContain("const __h = __lvls_ring.at(i);");
-        expect(loop).toContain("if (__h === null) continue;");
-        expect(loop).toContain("__h.update(");
+        expect(loop).toContain("const element = lvls.at(i);");
+        expect(loop).toContain("if (element === null) continue;");
+        expect(loop).toContain("element.update(");
     });
 
     it("folds the loop setter into the update patch", () => {
@@ -103,7 +103,7 @@ describe("transformCampB — loop-driven ring update", () => {
                 "        line.set_xy2(array.get(lvls, i), bar_index, close)",
             ].join("\n"),
         );
-        expect(loopStatement(scaffold)).toContain("__h.update(");
+        expect(loopStatement(scaffold)).toContain("element.update(");
     });
 
     it("emits a TODO + anchor-mirror-required when no setter folds", () => {
@@ -112,7 +112,7 @@ describe("transformCampB — loop-driven ring update", () => {
         );
         const loop = loopStatement(scaffold);
         expect(loop).toContain("/* TODO");
-        expect(loop).not.toContain("__h.update(");
+        expect(loop).not.toContain("element.update(");
         expect(diagnostics.has("pine-converter/transform/anchor-mirror-required")).toBe(true);
     });
 

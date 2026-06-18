@@ -23,7 +23,7 @@ const BUCKET_ORDER: ReadonlyArray<keyof MaxDrawingsIR> = [
  * deterministic.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitMaxDrawings } from "./emitMaxDrawings.js";
  *     declare const scaffold: import("../transform/ir.js").ScriptScaffold;

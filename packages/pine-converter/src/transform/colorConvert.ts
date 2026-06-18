@@ -47,7 +47,7 @@ function literalTransp(node: ExpressionNode): number | null {
  * `transp=100` → `"00"`, `transp=80` → `"33"`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { transpToAlphaHex } from "./colorConvert.js";
  *     transpToAlphaHex(80); // "33"
@@ -69,7 +69,7 @@ export function transpToAlphaHex(transp: number): string {
  * transforms.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { convertColor } from "./colorConvert.js";
  *     const node = {

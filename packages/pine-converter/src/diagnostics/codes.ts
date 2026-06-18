@@ -9,7 +9,7 @@ import type { Diagnostic, DiagnosticSeverity, SourceSpan } from "../index.js";
  * optional `defaultSuggestion` describing the manual rewrite.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const entry: DiagnosticCodeEntry = {
  *         code: "pine-converter/parse/unexpected-token",
@@ -37,7 +37,7 @@ export type DiagnosticCodeEntry = Readonly<{
  * public contract and never change.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     DIAGNOSTIC_CODE_ENTRIES["unsupported-strategy"].severity; // "error"
  */
@@ -266,7 +266,7 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultMessage:
             "`yloc.abovebar`/`yloc.belowbar` was approximated as a fixed fraction of the bar range.",
         defaultSuggestion:
-            "Tune `__YLOC_PAD_FRAC` in the generated script if the default offset is too tight.",
+            "Tune the `0.001` bar-range padding fraction in the generated anchor if the default offset is too tight.",
     },
     "varip-approximated": {
         code: "pine-converter/transform/varip-approximated",
@@ -607,6 +607,38 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
             "A `var`/`varip` scalar's type could not be inferred from its initializer; it was defaulted to `state.float`.",
         defaultSuggestion: "Give the variable a literal initial value so its type can be inferred.",
     },
+    "partial-anchor-filled": {
+        code: "pine-converter/transform/partial-anchor-filled",
+        severity: "info",
+        defaultMessage:
+            "A whole-anchor setter moved only one endpoint; the unset anchor was filled from the creation expression so the patch is a complete tuple. The filled endpoint re-evaluates each bar instead of staying frozen.",
+        defaultSuggestion:
+            "Set both `set_xy1` and `set_xy2`, or mirror the fixed endpoint in a state slot if it must stay put.",
+    },
+    "multi-return-not-mapped": {
+        code: "pine-converter/transform/multi-return-not-mapped",
+        severity: "warning",
+        defaultMessage:
+            "A tuple destructuring `[a, b] = …` reads from a call that is not a recognised multi-output `ta.*`; the elements were left unresolved.",
+        defaultSuggestion:
+            "Destructure a supported multi-output (`ta.macd`/`ta.bb`/`ta.kc`/`ta.dmi`/`ta.supertrend`), or assign each output to its own variable.",
+    },
+    "multi-return-arity-mismatch": {
+        code: "pine-converter/transform/multi-return-arity-mismatch",
+        severity: "warning",
+        defaultMessage:
+            "A tuple destructuring binds more outputs than the chartlang result exposes (e.g. `ta.dmi`'s ADX); the extra names were left unresolved.",
+        defaultSuggestion:
+            "Drop the unsupported output, or read it from its dedicated primitive (e.g. ADX via `ta.adx`).",
+    },
+    "multi-return-arg-dropped": {
+        code: "pine-converter/transform/multi-return-arg-dropped",
+        severity: "info",
+        defaultMessage:
+            "A Pine argument has no chartlang equivalent on the multi-output primitive and was dropped (e.g. `ta.kc`'s explicit source / `useTrueRange`).",
+        defaultSuggestion:
+            "No action needed if the default matches your script; otherwise adjust the chartlang call by hand.",
+    },
     "codegen-output-invalid": {
         code: "pine-converter/codegen/codegen-output-invalid",
         severity: "error",
@@ -625,7 +657,7 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
  * short registry key) looks an entry up here.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     DIAGNOSTIC_CODES.get("pine-converter/parse/unsupported-strategy")?.severity; // "error"
  */
@@ -639,7 +671,7 @@ export const DIAGNOSTIC_CODES: ReadonlyMap<string, DiagnosticCodeEntry> = new Ma
  * not just the parser.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const key: ParserDiagnosticCode = "unsupported-strategy";
  *     void key;
@@ -653,7 +685,7 @@ export type ParserDiagnosticCode = keyof typeof DIAGNOSTIC_CODE_ENTRIES;
  * stable code string, and default suggestion come from the registry.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const diag = makeDiagnostic("unsupported-strategy", {
  *         startLine: 2,

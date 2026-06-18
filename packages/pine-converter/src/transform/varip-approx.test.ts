@@ -41,7 +41,7 @@ describe("varip handle", () => {
                 "    lvl := line.new(bar_index, close, bar_index, close)",
             ].join("\n"),
         );
-        expect(scaffold.handleSlots).toEqual([{ name: "__lvl_handle", kind: "line" }]);
+        expect(scaffold.handleSlots).toEqual([{ name: "lvl", kind: "line", compact: false }]);
         const codes = diagnostics.toArray().map((d) => d.code);
         expect(codes.some((c) => c.endsWith("varip-approximated"))).toBe(true);
     });

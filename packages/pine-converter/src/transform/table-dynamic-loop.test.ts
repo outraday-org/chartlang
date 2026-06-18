@@ -71,11 +71,9 @@ describe("transformTables — dynamic loop bounds", () => {
             ].join("\n"),
         );
         expect(codes(diagnostics)).not.toContain("pine-converter/transform/table-dynamic-loop");
-        const cellsStmt = scaffold.computeBody.statements.find((s) =>
-            s.startsWith("const __t_handle_cells"),
-        );
-        expect(cellsStmt).toContain('text: "r" + str.tostring(0)');
-        expect(cellsStmt).toContain('text: "r" + str.tostring(2)');
+        const cellsStmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
+        expect(cellsStmt).toContain('text: "r" + String(0)');
+        expect(cellsStmt).toContain('text: "r" + String(2)');
     });
 
     it("errors when a cell-writing loop has a zero `by` step", () => {
@@ -115,13 +113,11 @@ describe("transformTables — dynamic loop bounds", () => {
                 '        table.cell(t, 0, i, "r" + str.tostring(i))',
             ].join("\n"),
         );
-        const cellsStmt = scaffold.computeBody.statements.find((s) =>
-            s.startsWith("const __t_handle_cells"),
-        );
-        expect(cellsStmt).toContain('text: "r" + str.tostring(0)');
-        expect(cellsStmt).toContain('text: "r" + str.tostring(2)');
-        expect(cellsStmt).toContain('text: "r" + str.tostring(4)');
-        expect(cellsStmt).not.toContain('text: "r" + str.tostring(1)');
+        const cellsStmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
+        expect(cellsStmt).toContain('text: "r" + String(0)');
+        expect(cellsStmt).toContain('text: "r" + String(2)');
+        expect(cellsStmt).toContain('text: "r" + String(4)');
+        expect(cellsStmt).not.toContain('text: "r" + String(1)');
     });
 
     it("unrolls a descending loop in descending order", () => {
@@ -134,10 +130,8 @@ describe("transformTables — dynamic loop bounds", () => {
                 '        table.cell(t, 0, i, "r" + str.tostring(i))',
             ].join("\n"),
         );
-        const cellsStmt = scaffold.computeBody.statements.find((s) =>
-            s.startsWith("const __t_handle_cells"),
-        );
-        expect(cellsStmt).toContain('text: "r" + str.tostring(0)');
-        expect(cellsStmt).toContain('text: "r" + str.tostring(2)');
+        const cellsStmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
+        expect(cellsStmt).toContain('text: "r" + String(0)');
+        expect(cellsStmt).toContain('text: "r" + String(2)');
     });
 });

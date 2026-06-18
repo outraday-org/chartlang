@@ -31,6 +31,7 @@ function makeBar(time: number, open: number, close: number): Bar {
         volume: 1_000,
         symbol: "TEST",
         interval: "1D",
+        point: (offset, price) => ({ time: offset === 0 ? time : Number.NaN, price }),
     };
 }
 

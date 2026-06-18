@@ -41,8 +41,8 @@ describe("transformTables — table.delete", () => {
             ].join("\n"),
         );
         const statements = scaffold.computeBody.statements;
-        expect(statements).toContain("__t_handle.current()?.remove();");
-        expect(statements).toContain("__t_handle.set(null);");
+        expect(statements).toContain("t.current()?.remove();");
+        expect(statements).toContain("t.set(null);");
     });
 
     it("does not emit slot-clear when there is no delete", () => {
@@ -54,6 +54,6 @@ describe("transformTables — table.delete", () => {
                 '    table.cell(t, 0, 0, "x")',
             ].join("\n"),
         );
-        expect(scaffold.computeBody.statements).not.toContain("__t_handle.set(null);");
+        expect(scaffold.computeBody.statements).not.toContain("t.set(null);");
     });
 });

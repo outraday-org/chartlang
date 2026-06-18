@@ -4,8 +4,8 @@
 /* Converter-playground extras layered on top of the shared demo surface
    (`demo.css` supplies `.cl-demo` tokens + `.panes`/`.pane`/`.alert*`).
    The page wrapper carries both `cl-demo` and `cl-converter`, so these
-   rules only add the output toolbar, diagnostics/manifest grid, controls,
-   and compile-preview chrome the converter needs beyond the demo. */
+   rules only add the output toolbar, controls, and compile-preview chrome
+   the converter needs beyond the demo. */
 
 .cl-converter .converter-toolbar {
   display: flex;
@@ -30,7 +30,8 @@
   gap: 6px;
 }
 
-.cl-converter .converter-controls input[type="number"] {
+.cl-converter .converter-controls input[type="number"],
+.cl-converter .converter-controls select {
   width: 120px;
   background: var(--muted);
   color: var(--foreground);
@@ -87,83 +88,6 @@
 
 .cl-converter .output-editor .cm-editor {
   height: 100%;
-}
-
-/* Diagnostics + manifest sit side-by-side below the panes. */
-.cl-converter .converter-meta {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 768px) {
-  .cl-converter .converter-meta {
-    grid-template-columns: 1fr;
-  }
-}
-
-.cl-converter .panel {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
-  background: var(--background);
-}
-
-.cl-converter .panel-title {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted-foreground);
-  margin: 0 0 8px;
-}
-
-.cl-converter .diag-code {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--primary);
-  margin-right: 6px;
-}
-
-.cl-converter .diag-loc {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--muted-foreground);
-  margin-left: 6px;
-}
-
-.cl-converter .diag-suggestion {
-  display: block;
-  margin-top: 2px;
-  color: var(--muted-foreground);
-  font-style: italic;
-}
-
-.cl-converter .manifest {
-  margin: 0;
-  font-size: 13px;
-}
-
-.cl-converter .manifest div {
-  display: flex;
-  gap: 8px;
-  padding: 2px 0;
-}
-
-.cl-converter .manifest dt {
-  flex: 0 0 9rem;
-  color: var(--muted-foreground);
-}
-
-.cl-converter .manifest dd {
-  margin: 0;
-  color: var(--foreground);
-  word-break: break-word;
-}
-
-.cl-converter .manifest .hint {
-  color: var(--cl-warn);
-  font-style: italic;
 }
 
 /* Compile-&-preview block under the panes. */

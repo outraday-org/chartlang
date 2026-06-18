@@ -225,7 +225,10 @@ export default {
             code: "malformed-emission",
             slotId: "sandbox.clone:1:1#0",
         });
-        expect(result.emissions.diagnostics[0]?.message).toContain("alert.meta.fn");
+        // `bar` carries the `bar.point(...)` method, so the membrane rejects
+        // the first function it reaches (`bar.point`) before the bare `fn`.
+        // Either way a host-object capture through a function is blocked.
+        expect(result.emissions.diagnostics[0]?.message).toContain("alert.meta.bar.point");
     });
 
     it("blocks infinite-loop DoS", async () => {

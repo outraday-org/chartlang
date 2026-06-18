@@ -40,6 +40,23 @@
   `onBarTick` reset it to `null` in `finally` so a throwing
   compute body cannot leak the slot. `onBarTick` additionally
   resets `state.runtimeContext.isTick = false` in `finally`.
+- **`bar.point(offset, price)` is offset-anchoring sugar that resolves
+  to a time-based `WorldPoint` — it adds NO new anchor shape.** The
+  method is attached to the mutable `BarView` at `createStreamState`
+  construction (`streamState.ts`) and closes over `ohlcv.time` + the live
+  `bar.time` / `bar.interval`, so a `const { bar } = ctx` keeps resolving
+  against fresh scalars. The resolution lives in `barPoint.ts`
+  (`resolveBarPoint`): `offset === 0` → `{ time: bar.time, price }`;
+  `offset < 0` → `time.at(-offset)` (the real historical timestamp, `NaN`
+  past retained history — NEVER throws); `offset > 0` → `lastTime +
+  offset * spacing`, where `spacing` is the median of the most recent
+  retained time deltas (cap 100) and falls back to
+  `intervalToSeconds(bar.interval) * 1000` (wrapped in try/catch so an
+  unparseable interval degrades to `NaN`, not a throw) when fewer than two
+  bars are retained. `price` passes through unchanged. `barFromStream`
+  (`request/streamBars.ts`) gives each materialised secondary bar a
+  `point` anchored at its own `age` (`resolveBarPoint(..., offset - age,
+  …)`). Drawing anchors are still ONLY `WorldPoint { time, price }`.
 - **`onBarTick` does NOT touch `time` / `open` on the OHLCV buffers
   or the `BarView`.** Ticks happen within the in-progress bar
   whose `time` / `open` were set by the preceding `onBarClose`.

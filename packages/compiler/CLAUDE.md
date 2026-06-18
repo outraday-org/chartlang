@@ -28,6 +28,28 @@
   mutates input nodes. Extractors (capabilities / max-lookback / inputs)
   also run on the original AST — the rewrite is only for the bundler in
   Task 3.
+- **`extractMaxLookback` counts the universal `opts.offset` as lookback
+  depth.** A positive `offset` literal on a `ta.*` call shifts the output
+  series so `series.current` reads `buf.at(offset)`; since the runtime
+  sizes every output ring buffer to `maxLookback + 1`, the offset must
+  raise `maxLookback` or the shifted read is permanently out-of-range
+  NaN. It stacks with a literal element-access index on the same series
+  (`shifted[N]` ⇒ `N + offset`). Negative offsets (future reads, NaN at
+  the head) and non-literal offsets contribute `0` — they need no extra
+  buffer depth / cannot be sized at compile time.
+- **`extractMaxLookback` counts a negative-literal `bar.point(-N, …)` as
+  lookback depth.** `bar.point(offset, price)` resolves an integer bar
+  offset to a `WorldPoint` at runtime against the time ring buffer; a
+  negative integer-literal offset reads `time.at(N)`, so the buffer must
+  retain `N` slots — `isBarPointCall` + `readBarPointLookback` raise
+  `maxLookback` by `abs(N)`, exactly like a `series[N]` lookback. The
+  call is matched TEXTUALLY (`bar.point` property-access shape, mirroring
+  the OHLCV `isSeriesShapedAccess` recognition) so it fires for both the
+  destructured `compute({ bar })` binding and a `declare const bar: Bar`
+  test fixture. `bar.point(0, …)` (current), positive (future,
+  extrapolated) offsets, and non-literal / dynamic offsets contribute
+  `0`; the ambient `program.ts` shim declares `Bar.point` in lockstep
+  with core. Drawing anchors stay ONLY `WorldPoint { time, price }`.
 - **No DOM lib.** `program.ts` pins `lib: ["lib.es2022.d.ts"]` on the
   in-memory program so scripts cannot rely on browser globals. Hostile
   globals (`Math.random`, `Date`, `fetch`, `setTimeout`, …) are

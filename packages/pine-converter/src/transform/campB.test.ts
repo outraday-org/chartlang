@@ -52,7 +52,7 @@ const PIVOT_FIXTURE = [
 describe("transformCampB — canonical pivot ring", () => {
     it("registers exactly one line ring at the eviction cap", () => {
         const { scaffold } = runCampB(PIVOT_FIXTURE);
-        expect(scaffold.handleRings).toEqual([{ name: "__lvls_ring", kind: "line", cap: 50 }]);
+        expect(scaffold.handleRings).toEqual([{ name: "lvls", kind: "line", cap: 50 }]);
     });
 
     it("emits one guarded ring.push with the mapped draw call", () => {
@@ -60,7 +60,7 @@ describe("transformCampB — canonical pivot ring", () => {
         const pushes = scaffold.computeBody.statements.filter((s) => s.includes(".push("));
         expect(pushes).toHaveLength(1);
         expect(pushes[0]).toContain("if (bar.close > bar.open)");
-        expect(pushes[0]).toContain("__lvls_ring.push(draw.line(");
+        expect(pushes[0]).toContain("lvls.push(draw.line(");
         expect(pushes[0]).toContain('color: "#FF5252"');
     });
 
@@ -87,7 +87,7 @@ describe("transformCampB — canonical pivot ring", () => {
         const pushes = scaffold.computeBody.statements.filter((s) => s.includes(".push("));
         expect(pushes).toHaveLength(1);
         expect(pushes[0]).not.toContain("if (");
-        expect(pushes[0].startsWith("__lvls_ring.push(")).toBe(true);
+        expect(pushes[0].startsWith("lvls.push(")).toBe(true);
     });
 });
 
@@ -99,7 +99,7 @@ describe("transformCampB — bucket default cap", () => {
                 "array.push(lvls, line.new(bar_index, close, bar_index, close))",
             ].join("\n"),
         );
-        expect(scaffold.handleRings).toEqual([{ name: "__lvls_ring", kind: "line", cap: 50 }]);
+        expect(scaffold.handleRings).toEqual([{ name: "lvls", kind: "line", cap: 50 }]);
     });
 });
 
@@ -136,9 +136,7 @@ describe("transformCampB — box ring maps to rectangle", () => {
                 "    box.delete(array.shift(zones))",
             ].join("\n"),
         );
-        expect(scaffold.handleRings).toEqual([
-            { name: "__zones_ring", kind: "rectangle", cap: 10 },
-        ]);
+        expect(scaffold.handleRings).toEqual([{ name: "zones", kind: "rectangle", cap: 10 }]);
     });
 });
 
@@ -152,7 +150,7 @@ describe("transformCampB — label ring honours yloc", () => {
                 "    label.delete(array.shift(tags))",
             ].join("\n"),
         );
-        expect(scaffold.handleRings).toEqual([{ name: "__tags_ring", kind: "text", cap: 10 }]);
+        expect(scaffold.handleRings).toEqual([{ name: "tags", kind: "text", cap: 10 }]);
         expect(diagnostics.has("pine-converter/transform/yloc-padding-approximated")).toBe(true);
     });
 

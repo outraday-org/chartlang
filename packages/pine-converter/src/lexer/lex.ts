@@ -59,7 +59,7 @@ function isHexDigit(ch: string): boolean {
  * {@link LexerDiagnostic}s rather than throwing.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const { tokens } = lex("//@version=6\nindicator('hi')");
  *     tokens[0]?.kind; // "version-directive"

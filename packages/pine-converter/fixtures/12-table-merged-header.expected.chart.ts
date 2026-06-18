@@ -14,18 +14,17 @@ export default defineDrawing({
             other: 2,
         },
         compute({ bar, draw, state, barstate }) {
-            type __HandleSlot<K extends string> = {
+            type HandleSlot<K extends string> = {
                 kind?: K;
                 current(): DrawingHandle | null;
                 set(h: DrawingHandle | null): void;
             };
-            function useDrawingHandleSlot<K extends string>(): __HandleSlot<K> {
-                let __h: DrawingHandle | null = null;
-                return { current: () => __h, set: (next) => { __h = next; } };
+            function useDrawingHandleSlot<K extends string>(): HandleSlot<K> {
+                let handle: DrawingHandle | null = null;
+                return { current: () => handle, set: (next) => { handle = next; } };
             }
-            const __t_handle = useDrawingHandleSlot<"table">();
-            const __t_handle_cells = [[{ text: "Header" }, { text: "" }], [{ text: "A" }, { text: "B" }]];
-            if (barstate.islast) { __t_handle.current()?.remove(); __t_handle.set(draw.table({ position: "bottom-left", cells: __t_handle_cells })); }
-            if (barstate.islast) {  }
+            const t = useDrawingHandleSlot<"table">();
+            const tCells = [[{ text: "Header" }, { text: "" }], [{ text: "A" }, { text: "B" }]];
+            if (barstate.islast) { t.current()?.remove(); t.set(draw.table({ position: "bottom-left", cells: tCells })); }
         },
 });

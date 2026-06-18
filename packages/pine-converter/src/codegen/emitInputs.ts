@@ -13,7 +13,7 @@ import type { ScriptScaffold } from "../transform/ir.js";
  * order for determinism.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitInputs } from "./emitInputs.js";
  *     declare const scaffold: import("../transform/ir.js").ScriptScaffold;

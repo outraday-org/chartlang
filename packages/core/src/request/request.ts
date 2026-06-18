@@ -83,25 +83,48 @@ const sentinel = (name: string): never => {
  */
 export const request = Object.freeze({
     /**
-     * Read a secondary candle stream at a script-author-fixed interval.
+     * Read a secondary candle stream at a script-author-fixed **higher**
+     * interval. The returned `SecurityBar` exposes every OHLCV field —
+     * plus the derived `hl2` / `hlc3` / `ohlc4` / `hlcc4` and `symbol` /
+     * `interval` — as a `Series<...>`, aligned no-lookahead to the chart's
+     * bars so a script can read prior secondary values such as
+     * `weekly.close[5]`. The `interval` must be a compile-time literal (a
+     * string literal or an `input.enum` value); the compiler walks every call
+     * to populate `manifest.requestedIntervals`. When the adapter does not
+     * advertise `Capabilities.multiTimeframe`, the series degrades to all-NaN
+     * rather than erroring. See the multi-timeframe guide for alignment and
+     * interval-format details.
      *
      * @since 0.4
      * @stable
      * @example
-     *     const fn: typeof request.security = request.security;
-     *     void fn;
+     *     // Pull weekly candles aligned to the chart and read the close.
+     *     const weekly = request.security({ interval: "1W" });
+     *     const weeklyClose = weekly.close.current;
+     *     void weeklyClose;
      */
     security(_opts: RequestSecurityOpts): SecurityBar {
         return sentinel("request.security");
     },
     /**
-     * Read lower-timeframe bars contained by each main-stream bar.
+     * Read **lower**-timeframe bars contained by each main-stream bar. The
+     * result is a `Series<ReadonlyArray<Bar>>` — for every main bar, the array
+     * of finer-grained bars that fall inside it (an empty frozen array for
+     * out-of-range or unsupported reads). The requested `interval` must be a
+     * compile-time literal and **strictly lower** than the chart interval; an
+     * equal-or-higher ordering is rejected at compile time with
+     * `lower-tf-not-lower` when statically known. Like `request.security`, it
+     * degrades to empty arrays when the adapter lacks
+     * `Capabilities.multiTimeframe`. See the multi-timeframe guide for the
+     * contained-bar model and interval format.
      *
      * @since 0.6
      * @stable
      * @example
-     *     const fn: typeof request.lowerTf = request.lowerTf;
-     *     void fn;
+     *     // Each main bar carries the array of intrabar 30-second candles.
+     *     const intrabar = request.lowerTf({ interval: "30s" });
+     *     const count = intrabar.current.length;
+     *     void count;
      */
     lowerTf(_opts: RequestLowerTfOpts): Series<ReadonlyArray<Bar>> {
         return sentinel("request.lowerTf");

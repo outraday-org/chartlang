@@ -55,7 +55,7 @@ describe("transformCampC — H1 implicit-cap-from-indicator", () => {
 
     it("folds a max_lines_count collection into a Camp B ring at that cap", () => {
         const { scaffold } = runCampC('indicator("X", overlay=true, max_lines_count=30)', H1);
-        expect(scaffold.handleRings).toEqual([{ name: "__lvls_ring", kind: "line", cap: 30 }]);
+        expect(scaffold.handleRings).toEqual([{ name: "lvls", kind: "line", cap: 30 }]);
     });
 
     it("emits exactly one camp-c-heuristic-applied info with the reasoning", () => {
@@ -69,9 +69,7 @@ describe("transformCampC — H1 implicit-cap-from-indicator", () => {
 
     it("emits the folded ring.push so the site is not silently dropped", () => {
         const { scaffold } = runCampC('indicator("X", overlay=true, max_lines_count=30)', H1);
-        const pushes = scaffold.computeBody.statements.filter((s) =>
-            s.includes("__lvls_ring.push("),
-        );
+        const pushes = scaffold.computeBody.statements.filter((s) => s.includes("lvls.push("));
         expect(pushes).toHaveLength(1);
     });
 });

@@ -3,11 +3,14 @@
 
 import type { ScriptScaffold } from "../transform/ir.js";
 import {
+    type HelperNames,
+    allocateHelperNames,
     emitBarIndexPreamble,
-    emitBarIntervalConst,
     emitHandleRingHelper,
     emitHandleSlotHelper,
     emitSlotAllocations,
+    hasNonCompactHandleSlot,
+    renameBarIndexSentinel,
 } from "./emitHelpers.js";
 import { scanUsage } from "./usage.js";
 
@@ -30,16 +33,18 @@ function destructureFields(scaffold: ScriptScaffold): string[] {
 }
 
 // The body lines preceding the converted statements: the bar-index bridge,
-// the bar-interval const, the handle/ring helper definitions, and the
-// state/handle/ring allocations — each gated on whether the scaffold needs it.
-function preambleLines(scaffold: ScriptScaffold): string[] {
+// the handle/ring helper definitions, and the state/handle/ring allocations —
+// each gated on whether the scaffold needs it. The helper identifiers come
+// from `names` (allocated once per scaffold so they never collide with a Pine
+// identifier). Bar-offset anchors lower to `bar.point(...)` (runtime-resolved),
+// so no bar-interval const is emitted.
+function preambleLines(scaffold: ScriptScaffold, names: HelperNames): string[] {
     const usage = scanUsage(scaffold);
     const lines: string[] = [];
-    if (usage.barIndex) lines.push(...emitBarIndexPreamble());
-    if (usage.barInterval) lines.push(emitBarIntervalConst());
-    if (scaffold.handleSlots.length > 0) lines.push(...emitHandleSlotHelper());
-    if (scaffold.handleRings.length > 0) lines.push(...emitHandleRingHelper());
-    lines.push(...emitSlotAllocations(scaffold));
+    if (usage.barIndex) lines.push(...emitBarIndexPreamble(names));
+    if (hasNonCompactHandleSlot(scaffold)) lines.push(...emitHandleSlotHelper(names));
+    if (scaffold.handleRings.length > 0) lines.push(...emitHandleRingHelper(names));
+    lines.push(...emitSlotAllocations(scaffold, names));
     return lines;
 }
 
@@ -48,12 +53,16 @@ function preambleLines(scaffold: ScriptScaffold): string[] {
  * minimal destructured `ComputeContext` parameter, the codegen-owned preamble
  * (bar-index bridge, handle/ring helper definitions, and the state/handle/ring
  * allocations — all emitted INSIDE `compute` where `draw`/`state` are in
- * scope), then the converted compute statements verbatim. Returned as a flat,
- * un-indented line array; {@link import("./format.js").formatSource} owns the
- * final brace-depth indentation.
+ * scope), then the converted compute statements. The synthesized helper
+ * identifiers are allocated ONCE here (after every per-Pine-symbol name was
+ * claimed by the transforms) so they read as `barIndex`/`HandleSlot`/… and
+ * never collide; the `bar_index` bridge sentinel the static identifier map left
+ * in the converted statements is renamed to the allocated `barIndex` in the
+ * same pass. Returned as a flat, un-indented line array;
+ * {@link import("./format.js").formatSource} owns the final indentation.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitCompute } from "./emitCompute.js";
  *     declare const scaffold: import("../transform/ir.js").ScriptScaffold;
@@ -61,6 +70,9 @@ function preambleLines(scaffold: ScriptScaffold): string[] {
  */
 export function emitCompute(scaffold: ScriptScaffold): string[] {
     const fields = destructureFields(scaffold).join(", ");
-    const body = [...preambleLines(scaffold), ...scaffold.computeBody.statements];
+    const names = allocateHelperNames(scaffold);
+    const body = [...preambleLines(scaffold, names), ...scaffold.computeBody.statements].map(
+        (line) => renameBarIndexSentinel(line, names),
+    );
     return [`compute({ ${fields} }) {`, ...body, "},"];
 }

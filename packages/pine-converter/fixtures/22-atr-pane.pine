@@ -1,0 +1,5 @@
+//@version=6
+indicator("ATR", overlay=false)
+length = input.int(14, "ATR Length")
+a = ta.atr(length)
+plot(a, "ATR", color=color.red)

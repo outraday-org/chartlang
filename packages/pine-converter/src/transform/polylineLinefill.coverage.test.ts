@@ -120,7 +120,7 @@ describe("transformPolylineLinefill — reassigned polyline handle", () => {
             "p := polyline.new(pts)",
         ].join("\n");
         const { scaffold } = run(body);
-        expect(scaffold.handleSlots).toEqual([{ name: "__p_handle", kind: "polyline" }]);
+        expect(scaffold.handleSlots).toEqual([{ name: "p", kind: "polyline", compact: false }]);
     });
 });
 
@@ -163,5 +163,89 @@ describe("transformPolylineLinefill — linefill anchor + arg guards", () => {
         const body = "var linefill fill = linefill.new(color=color.gray)";
         const { scaffold } = run(body);
         expect(scaffold.handleSlots).toEqual([]);
+    });
+});
+
+describe("transformPolylineLinefill — standalone + accumulation arms", () => {
+    it("rejects a non-`islast` guard that builds via a loop (dynamic length)", () => {
+        const body = [
+            "var array<chart.point> pts = array.new<chart.point>()",
+            "if close > open",
+            "    for i = 0 to 2",
+            "        array.push(pts, chart.point.from_index(i, close))",
+            "polyline.new(pts)",
+        ].join("\n");
+        const { scaffold, diagnostics } = run(body);
+        expect(codes(diagnostics)).toContain("pine-converter/transform/polyline-dynamic-points");
+        expect(scaffold.handleSlots).toEqual([]);
+    });
+
+    it("rejects a guarded build whose body has non-push statements before the push", () => {
+        const body = [
+            "var array<chart.point> pts = array.new<chart.point>()",
+            "if close > open",
+            "    x = 1",
+            "    array.push(pts, chart.point.from_index(0, close))",
+            "polyline.new(pts)",
+        ].join("\n");
+        const { diagnostics } = run(body);
+        expect(codes(diagnostics)).toContain("pine-converter/transform/polyline-dynamic-points");
+    });
+
+    it("synthesises an index-based handle for a standalone non-identifier points arg", () => {
+        const body = "polyline.new(array.new<chart.point>())";
+        const { diagnostics } = run(body);
+        // Non-identifier points arg → no build points → dynamic reject, but the
+        // synthesised handle name path (`polyline_<index>`) is exercised.
+        expect(codes(diagnostics)).toContain("pine-converter/transform/polyline-dynamic-points");
+    });
+});
+
+describe("transformPolylineLinefill — accumulation via else-if / else", () => {
+    it("rejects when an else-if branch accumulates points", () => {
+        const body = [
+            "var array<chart.point> pts = array.new<chart.point>()",
+            "if close > open",
+            "    x = 1",
+            "else if close < open",
+            "    array.push(pts, chart.point.from_index(0, close))",
+            "polyline.new(pts)",
+        ].join("\n");
+        const { diagnostics } = run(body);
+        expect(codes(diagnostics)).toContain("pine-converter/transform/polyline-dynamic-points");
+    });
+
+    it("rejects when an else branch accumulates points", () => {
+        const body = [
+            "var array<chart.point> pts = array.new<chart.point>()",
+            "if close > open",
+            "    x = 1",
+            "else",
+            "    array.push(pts, chart.point.from_index(0, close))",
+            "polyline.new(pts)",
+        ].join("\n");
+        const { diagnostics } = run(body);
+        expect(codes(diagnostics)).toContain("pine-converter/transform/polyline-dynamic-points");
+    });
+});
+
+describe("transformPolylineLinefill — standalone identifier handle name", () => {
+    it("names the synthesised slot after the points collection", () => {
+        const body = [
+            "var array<chart.point> pts = array.new<chart.point>()",
+            "if barstate.islast",
+            "    array.push(pts, chart.point.from_index(bar_index, low))",
+            "    array.push(pts, chart.point.from_index(bar_index, high))",
+            "    polyline.new(pts)",
+        ].join("\n");
+        const { scaffold } = run(body);
+        expect(scaffold.handleSlots).toEqual([{ name: "pts", kind: "polyline", compact: false }]);
+    });
+});
+
+describe("transformPolylineLinefill — standalone with no points arg", () => {
+    it("synthesises an index handle and rejects when no points arg is given", () => {
+        const { diagnostics } = run("polyline.new()");
+        expect(codes(diagnostics)).toContain("pine-converter/transform/polyline-dynamic-points");
     });
 });

@@ -20,6 +20,10 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/mintick-snapped-entry.chart.ts",
     "examples/scripts/base-trend.chart.ts",
     "examples/scripts/trend-confirmation.chart.ts",
+    "examples/scripts/htf-trend-filter.chart.ts",
+    "examples/scripts/sma-offset.chart.ts",
+    "examples/scripts/pivot-high-ray.chart.ts",
+    "examples/scripts/forecast-line.chart.ts",
 ] as const;
 
 const COMPILE_TIMEOUT_MS = 15_000;

@@ -31,7 +31,7 @@ function calleeName(call: CallExpression): string | null {
  * be unrolled at convert time rather than emitted as a runtime loop.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { callIsStatefulPrimitive } from "./statefulNames.js";
  *     const call = {
@@ -65,7 +65,7 @@ export function callIsStatefulPrimitive(call: CallExpression): boolean {
  * unroll.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { expressionHasStatefulPrimitive } from "./statefulNames.js";
  *     const node = {

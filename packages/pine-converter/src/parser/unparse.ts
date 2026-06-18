@@ -11,7 +11,7 @@ import type { ExpressionNode } from "../ast/index.js";
  * never has to be re-inferred on the second pass.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ctx = createContext(lex("a + b * c\n").tokens);
  *     unparse(parseExpression(ctx)); // "(a + (b * c))"

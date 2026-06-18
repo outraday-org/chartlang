@@ -5,6 +5,7 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import type { ScriptScaffold } from "../transform/ir.js";
+import { NameAllocator } from "../transform/nameAllocator.js";
 import { emit } from "./emit.js";
 
 function scaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
@@ -25,6 +26,7 @@ function scaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
         handleRings: [],
         computeBody: { statements: [] },
         diagnostics: [],
+        names: new NameAllocator(),
         ...overrides,
     };
 }
@@ -41,7 +43,7 @@ function parsesCleanly(source: string): boolean {
 const RICH = scaffold({
     inputs: [{ name: "len", code: "input.int(14)" }],
     stateSlots: [{ name: "__count_state", initExpr: "state.int(0)" }],
-    handleSlots: [{ name: "__lvl_handle", kind: "line" }],
+    handleSlots: [{ name: "__lvl_handle", kind: "line", compact: false }],
     handleRings: [{ name: "__lvls_ring", kind: "label", cap: 20 }],
     maxDrawings: { lines: 5, labels: 20 },
     computeBody: {
@@ -51,7 +53,7 @@ const RICH = scaffold({
             "for (let i = 0; i < 20; i++) { const __h = __lvls_ring.at(i); if (__h === null) continue; __h.update({}); }",
             "plot(inputs.len);",
             "__count_state.value += 1;",
-            "const idx = __bar_index();",
+            "const idx = __barIndexBridge();",
             "void idx;",
         ],
     },

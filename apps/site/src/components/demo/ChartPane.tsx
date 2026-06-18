@@ -5,11 +5,13 @@ import type { AlertEmission, CandleEvent } from "@invinite-org/chartlang-adapter
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import {
     createCanvas2dAdapter,
+    createMultiStreamCandlePump,
     runRendererLoop,
 } from "chartlang-example-canvas2d-adapter";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 
 import type { CompiledArtifact } from "./hybridLanguageService";
+import { buildSecondaryStreams } from "./secondaryStreams";
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 480;
@@ -98,6 +100,9 @@ function nextRandomBar(prev: Bar, intervalMs: number): Bar {
         hlc3: (high + low + close) / 3,
         ohlc4: (open + high + low + close) / 4,
         hlcc4: (high + low + close + close) / 4,
+        // Demo input bars carry no time history, so only the current bar
+        // resolves; the runtime injects the real `point` on its BarView.
+        point: (offset, price) => ({ time: offset === 0 ? time : Number.NaN, price }),
     };
 }
 
@@ -176,9 +181,25 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
             last !== undefined && beforeLast !== undefined
                 ? last.time - beforeLast.time
                 : FALLBACK_BAR_INTERVAL_MS;
+
+        // Multi-timeframe scripts request higher-timeframe streams in
+        // their manifest. The demo has no real HTF feed, so it resamples
+        // the main bars into each requested interval and routes them
+        // through the multi-stream pump. Non-MTF scripts keep the plain
+        // single-source path byte-for-byte.
+        const requestedIntervals = (artifact.manifest as ScriptManifest).requestedIntervals;
+        const candleSource =
+            requestedIntervals.length > 0
+                ? createMultiStreamCandlePump({
+                      main: pushSource.source,
+                      secondary: buildSecondaryStreams(bars, requestedIntervals),
+                  })
+                : pushSource.source;
+        const mainInterval = bars[0]?.interval;
         const adapter = createCanvas2dAdapter({
             canvas,
-            candleSource: pushSource.source,
+            candleSource,
+            ...(mainInterval !== undefined ? { interval: mainInterval } : {}),
             onAlert: (alert) => {
                 // Chart bubbles mark every alert at its bar (history
                 // included); the React feed only carries live alerts

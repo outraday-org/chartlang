@@ -3,6 +3,8 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
+import { inputBarPoint } from "../inputBarPoint.js";
+
 const START_TIME = 1_700_000_000_000;
 const MS_PER_DAY = 86_400_000;
 
@@ -27,8 +29,9 @@ function makeBar(i: number, close: number): Bar {
     const low = close - 2;
     const hl2 = (high + low) / 2;
     const hlc3 = (high + low + close) / 3;
+    const time = START_TIME + i * MS_PER_DAY;
     return {
-        time: START_TIME + i * MS_PER_DAY,
+        time,
         open,
         high,
         low,
@@ -40,5 +43,6 @@ function makeBar(i: number, close: number): Bar {
         hlc3,
         ohlc4: (open + high + low + close) / 4,
         hlcc4: (high + low + close + close) / 4,
+        point: inputBarPoint(time),
     };
 }

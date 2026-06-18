@@ -12,6 +12,30 @@
         "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
     },
     {
+        "code": "pine-converter/transform/ta-signature-divergence",
+        "severity": "warning",
+        "message": "ta.pivotsHighLow({leftLength, rightLength}).high — field is high, NOT pivotHigh",
+        "span": {
+            "startLine": 12,
+            "startColumn": 6,
+            "endLine": 12,
+            "endColumn": 38
+        },
+        "suggestion": "Check the chartlang `ta.*` signature and adjust the arguments by hand."
+    },
+    {
+        "code": "pine-converter/transform/ta-signature-divergence",
+        "severity": "warning",
+        "message": "ta.pivotsHighLow({leftLength, rightLength}).low — field is low, NOT pivotLow",
+        "span": {
+            "startLine": 13,
+            "startColumn": 6,
+            "endLine": 13,
+            "endColumn": 37
+        },
+        "suggestion": "Check the chartlang `ta.*` signature and adjust the arguments by hand."
+    },
+    {
         "code": "pine-converter/transform/ring-eviction-implicit",
         "severity": "info",
         "message": "The explicit `array.shift`/`*.delete` FIFO eviction was removed; the ring buffer evicts implicitly.",
@@ -46,29 +70,5 @@
             "endColumn": 49
         },
         "suggestion": "No action needed; the cap was widened to match the table count."
-    },
-    {
-        "code": "pine-converter/transform/ta-signature-divergence",
-        "severity": "warning",
-        "message": "ta.pivotsHighLow({leftLength, rightLength}).high — field is high, NOT pivotHigh",
-        "span": {
-            "startLine": 12,
-            "startColumn": 6,
-            "endLine": 12,
-            "endColumn": 38
-        },
-        "suggestion": "Check the chartlang `ta.*` signature and adjust the arguments by hand."
-    },
-    {
-        "code": "pine-converter/transform/ta-signature-divergence",
-        "severity": "warning",
-        "message": "ta.pivotsHighLow({leftLength, rightLength}).low — field is low, NOT pivotLow",
-        "span": {
-            "startLine": 13,
-            "startColumn": 6,
-            "endLine": 13,
-            "endColumn": 37
-        },
-        "suggestion": "Check the chartlang `ta.*` signature and adjust the arguments by hand."
     }
 ]

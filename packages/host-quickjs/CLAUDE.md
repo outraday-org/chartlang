@@ -34,6 +34,17 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   diverge from host-worker emission semantics. If QuickJS needs a host-specific
   sandbox rule, surface it as an error path rather than a different emission
   shape.
+- **Single-script load adopts the `__manifest` sidecar.**
+  `dispatcherCore`'s bundle builder returns `{ ...compiledDefault,
+  manifest }` for a single-script module when the object-form
+  `__manifest` global is present, mirroring host-worker's
+  `buildBundleFromModule`. The compiler's `__manifest` carries fields the
+  runtime `defineIndicator` stub zeroes (`requestedIntervals`, `outputs`,
+  `plots`, `maxLookback`), so without this an MTF (`request.security`)
+  script never registers its secondary streams. The single-object guard
+  is `isSingleManifest` (TS #17002 — `Array.isArray` does not subtract a
+  `ReadonlyArray` union member). Cross-host parity with host-worker is the
+  conformance contract.
 - **Compiled source is evaluated directly, not via `data:` URLs.** The
   host-worker `data:` URL invariant is browser-specific; QuickJS receives the
   module source through the JSON membrane and the dispatcher turns supported

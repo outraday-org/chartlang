@@ -3,6 +3,7 @@
 
 import type { CallArgument, CallExpression, ExpressionNode } from "../ast/index.js";
 import { enumLookup } from "../mapping/index.js";
+import { dottedCallee } from "./callArgs.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
 import { emitWithContext } from "./emitContext.js";
@@ -47,7 +48,7 @@ function bareCallee(call: CallExpression): string | null {
  * {@link emitPlotFamily} and skip the generic expression-statement path.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { isPlotFamilyCall } from "./plotFamily.js";
  *     const call = {
@@ -118,7 +119,7 @@ function commonOptions(
  * a non-plot-family call.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitPlotFamily } from "./plotFamily.js";
  *     import { DiagnosticCollector } from "./diagnosticCollector.js";
@@ -197,6 +198,17 @@ function emitPlot(
     return opts === "" ? `plot(${valueSource});` : `plot(${valueSource}, ${opts});`;
 }
 
+// The chartlang enum string a named member-enum arg maps to (`location=
+// location.abovebar` → `"above"`), or `null` when absent / unmapped.
+function enumArg(args: readonly CallArgument[], key: string): string | null {
+    const node = named(args, key);
+    if (node === null || node.kind !== "member-access-expression" || node.head !== null) {
+        return null;
+    }
+    const mapping = enumLookup(node.chain.join("."));
+    return mapping !== null && typeof mapping.chartlang === "string" ? mapping.chartlang : null;
+}
+
 function emitConditional(
     name: "plotshape" | "plotchar" | "plotarrow",
     args: readonly CallArgument[],
@@ -207,20 +219,37 @@ function emitConditional(
     if (condition === undefined) {
         return null;
     }
-    const cond = emitWithContext(condition, ctx);
-    const styleKind = name === "plotshape" ? "shape" : name === "plotchar" ? "character" : "arrow";
-    const styleParts: string[] = [`kind: "${styleKind}"`];
-    const colorNode = named(args, "color");
-    if (colorNode !== null) {
-        styleParts.push(`color: ${styleValue(colorNode, ctx)}`);
-    }
-    if (name === "plotchar") {
+    // A `ta.*` boolean (e.g. `ta.crossover`) is a `Series<boolean>` in
+    // chartlang, not a scalar — the same shape `emitTa` projects to a per-bar
+    // value with `.current`. As a bare ternary condition the Series object is
+    // always truthy, so the shape would plot on every bar; project the
+    // current-bar scalar boolean so the gate fires only on the event.
+    const cond =
+        condition.kind === "call-expression" &&
+        (dottedCallee(condition)?.startsWith("ta.") ?? false)
+            ? `${emitWithContext(condition, ctx)}.current`
+            : emitWithContext(condition, ctx);
+    const location = enumArg(args, "location");
+    const locPart = location === null ? "" : `, location: "${location}"`;
+    let style: string;
+    if (name === "plotshape") {
+        // chartlang's `shape` style requires a `PlotShapeGlyph` + `size`; the
+        // Pine `style=shape.*` glyph maps through `enumLookup` (default circle).
+        const glyph = enumArg(args, "style") ?? "circle";
+        style = `{ kind: "shape", shape: "${glyph}", size: 8${locPart} }`;
+    } else if (name === "plotchar") {
         const charNode = named(args, "char");
-        if (charNode !== null) {
-            styleParts.push(`char: ${emitWithContext(charNode, ctx)}`);
-        }
+        const char = charNode === null ? '"•"' : emitWithContext(charNode, ctx);
+        style = `{ kind: "character", char: ${char}, size: 12${locPart} }`;
+    } else {
+        // Pine `plotarrow` direction follows the series sign at runtime, which
+        // is not statically known; default to "up".
+        style = `{ kind: "arrow", direction: "up", size: 10 }`;
     }
-    return `plot(${cond} ? bar.close : Number.NaN, { style: { ${styleParts.join(", ")} } });`;
+    // The glyph styles carry no `color`; preserve a `color=` arg at plot level.
+    const colorNode = named(args, "color");
+    const colorPart = colorNode === null ? "" : `color: ${styleValue(colorNode, ctx)}, `;
+    return `plot(${cond} ? bar.close : Number.NaN, { ${colorPart}style: ${style} });`;
 }
 
 function emitCandle(pos: readonly ExpressionNode[], ctx: EmitContext): string | null {

@@ -145,6 +145,7 @@ export default defineConfig({
                         { text: "Overview", link: "/language/overview" },
                         { text: "Series and indexing", link: "/language/series-and-indexing" },
                         { text: "Inputs", link: "/language/inputs" },
+                        { text: "Multi-timeframe", link: "/language/multi-timeframe" },
                         { text: "Alerts", link: "/language/alerts" },
                         { text: "Version pinning", link: "/language/version-pinning" },
                         { text: "Forbidden constructs", link: "/language/forbidden-constructs" },

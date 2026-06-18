@@ -140,6 +140,18 @@ const NAMESPACE_NAMES: readonly string[] = [
     "text",
     "font",
     "position",
+    "shape",
+    "location",
+    "display",
+    "format",
+    "scale",
+    "barmerge",
+    "alert",
+    "timeframe",
+    "dayofweek",
+    "session",
+    "currency",
+    "syminfo",
 ];
 
 // Plot family + na: na is `const` (the no-value literal); plot builtins are
@@ -166,7 +178,7 @@ const PLOT_NAMES: readonly string[] = [
  * family. Data-driven — add a Pine name by adding a row.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { BUILTIN_SYMBOLS } from "./builtins.js";
  *     BUILTIN_SYMBOLS.get("close")?.qualifier; // "series"

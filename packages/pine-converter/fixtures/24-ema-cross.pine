@@ -1,0 +1,7 @@
+//@version=6
+indicator("EMA cross", overlay=true)
+fast = ta.ema(close, 12)
+slow = ta.ema(close, 26)
+plot(fast, "Fast", color=color.green)
+plot(slow, "Slow", color=color.red)
+plotshape(ta.crossover(fast, slow), style=shape.triangleup, color=color.green)

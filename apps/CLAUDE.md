@@ -110,6 +110,22 @@ and the demo 500s, the client bundle fails to load, or the whole site
   and `src/lib/server/compile.ts` passes them via the compiler's
   `inMemoryModules` option. Verify `/api/compile` returns `ok:true` after
   each deploy (see `DEPLOYMENT.md` → "core import").
+- **`ChartPane.tsx` feeds synthetic higher-timeframe streams for MTF
+  scripts.** It reads `(artifact.manifest as ScriptManifest)
+  .requestedIntervals`; when non-empty it resamples the main `bars` into
+  each requested interval via `buildSecondaryStreams`
+  (`src/components/demo/secondaryStreams.ts`) and routes both through
+  `createMultiStreamCandlePump`, so `request.security` scripts (e.g.
+  `htf-trend-filter`) render real values instead of all-NaN. When
+  `requestedIntervals` is empty the pane keeps the plain single-source
+  path byte-for-byte. The adapter is created with `interval:
+  bars[0].interval` (`"1D"` for the demo data, the same as the adapter's
+  `DEFAULT_INTERVAL`, so the non-MTF path is unchanged). NOTE: this only
+  works because the host boot (`host-worker` `buildBundleFromModule` /
+  `host-quickjs` `dispatcherCore`) adopts the compiler's `__manifest`
+  sidecar for single-script modules — the runtime `defineIndicator` stub
+  zeroes `requestedIntervals`, so without that fix the secondary streams
+  would never register.
 - The server compile helper lives at `src/lib/server/compile.ts`;
   importing it from any `src/components/*` file would drag the compiler
   into the client graph. The route file is its only importer.

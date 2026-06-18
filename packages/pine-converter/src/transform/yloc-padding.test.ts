@@ -47,13 +47,13 @@ function ylocArg(chain: readonly string[]): CallArgument {
 describe("resolveYloc", () => {
     it("returns abovebar padding arithmetic", () => {
         const r = resolveYloc([ylocArg(["yloc", "abovebar"])]);
-        expect(r?.priceExpr).toBe("bar.high + ((bar.high - bar.low) * __YLOC_PAD_FRAC)");
+        expect(r?.priceExpr).toBe("bar.high + ((bar.high - bar.low) * 0.001)");
         expect(r?.approximated).toBe(true);
     });
 
     it("returns belowbar padding arithmetic", () => {
         const r = resolveYloc([ylocArg(["yloc", "belowbar"])]);
-        expect(r?.priceExpr).toBe("bar.low - ((bar.high - bar.low) * __YLOC_PAD_FRAC)");
+        expect(r?.priceExpr).toBe("bar.low - ((bar.high - bar.low) * 0.001)");
     });
 
     it("returns null for yloc.price", () => {
@@ -85,7 +85,7 @@ describe("yloc via campA", () => {
             ].join("\n"),
         );
         expect(scaffold.computeBody.statements[0]).toContain(
-            "bar.high + ((bar.high - bar.low) * __YLOC_PAD_FRAC)",
+            "bar.high + ((bar.high - bar.low) * 0.001)",
         );
         const codes = diagnostics.toArray().map((d) => d.code);
         expect(codes.filter((c) => c.endsWith("yloc-padding-approximated"))).toHaveLength(1);

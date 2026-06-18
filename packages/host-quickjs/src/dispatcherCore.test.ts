@@ -408,6 +408,37 @@ describe("createDispatcher", () => {
             expect(bundle.dependencies).toEqual([]);
         });
 
+        it("adopts the single-object __manifest sidecar for a single script", async () => {
+            // The runtime `defineIndicator` stub zeroes `requestedIntervals`,
+            // so the dispatcher must mount the compiler's `__manifest` sidecar
+            // for a single-script module — otherwise an MTF script's secondary
+            // streams never register. Mirrors host-worker's
+            // `buildBundleFromModule`.
+            const primary: CompiledScriptObject = {
+                manifest: makeManifest(),
+                compute: () => {},
+            };
+            const sidecar: ScriptManifest = {
+                ...makeManifest(),
+                requestedIntervals: ["1W"],
+            };
+            const { deps, runnerFactory } = makeDeps({
+                bundleSeed: (defaultSlot, _named, _depsSlot, manifestSlot) => {
+                    defaultSlot.value = primary;
+                    manifestSlot.value = sidecar;
+                },
+            });
+            const handlers = createDispatcher(deps);
+            const reply = JSON.parse(await handlers.load(loadFrame()));
+            expect(reply).toEqual({ kind: "loaded" });
+            const args = runnerFactory.mock.calls[0][0] as Parameters<
+                DispatcherDeps["runnerFactory"]
+            >[0];
+            const compiled = args.compiled as CompiledScriptObject;
+            expect(compiled.manifest.requestedIntervals).toEqual(["1W"]);
+            expect(compiled.compute).toBe(primary.compute);
+        });
+
         it("mounts a bundle when the guest emits __dependencies even without an array manifest", async () => {
             const primary: CompiledScriptObject = {
                 manifest: makeManifest(),

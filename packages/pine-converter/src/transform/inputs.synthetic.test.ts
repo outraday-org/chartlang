@@ -11,6 +11,7 @@ import type { SemanticResult } from "../semantic/index.js";
 import { DiagnosticCollector } from "./diagnosticCollector.js";
 import { transformInputs } from "./inputs.js";
 import type { ScriptScaffold } from "./ir.js";
+import { NameAllocator } from "./nameAllocator.js";
 
 // The `tuple-expression` and `switch`-as-value arms of the input walk are not
 // emitted by the real parser (Pine has no array-tuple literal and no
@@ -66,6 +67,7 @@ function emptyScaffold(): ScriptScaffold {
         handleRings: [],
         computeBody: { statements: [] },
         diagnostics: [],
+        names: new NameAllocator(),
     };
 }
 

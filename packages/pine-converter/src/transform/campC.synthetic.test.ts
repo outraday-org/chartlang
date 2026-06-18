@@ -105,7 +105,7 @@ describe("transformCampC — H2 loop-bound fold (synthetic camp)", () => {
         const { scaffold, diagnostics, analysis } = setup(SRC);
         const site = forceUnbounded(realDrawSite(analysis, "line.new"), "forced");
         transformCampC(site, analysis, scaffold, diagnostics);
-        expect(scaffold.handleRings).toEqual([{ name: "__lvls_ring", kind: "line", cap: 5 }]);
+        expect(scaffold.handleRings).toEqual([{ name: "lvls", kind: "line", cap: 5 }]);
         const applied = diagnostics
             .toArray()
             .find((d) => d.code.endsWith("camp-c-heuristic-applied"));

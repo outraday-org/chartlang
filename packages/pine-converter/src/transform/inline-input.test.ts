@@ -41,13 +41,13 @@ describe("transformInputs — inline promotion", () => {
     it("promotes an inline input inside a call argument", () => {
         const { inputs, codes } = runInputs("v = ta.ema(close, input.int(20))");
         expect(inputs).toHaveLength(1);
-        expect(inputs[0]).toEqual({ name: "__input_0", code: "input.int(20)" });
+        expect(inputs[0]).toEqual({ name: "inlineInput", code: "input.int(20)" });
         expect(codes).toContain("pine-converter/transform/inline-input-promoted");
     });
 
     it("promotes multiple inline inputs with sequential synthesised names", () => {
         const { inputs } = runInputs("v = ta.ema(input.source(close), input.int(20))");
-        expect(inputs.map((i) => i.name)).toEqual(["__input_0", "__input_1"]);
+        expect(inputs.map((i) => i.name)).toEqual(["inlineInput", "inlineInput2"]);
     });
 
     it("promotes an inline input inside a binary / ternary / paren expression", () => {

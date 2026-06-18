@@ -10,7 +10,7 @@ import type { Statement } from "./statements.js";
  * argument and the parameter name for a named argument (`title = "x"`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const arg: Argument = {
  *         name: "title",
@@ -34,7 +34,7 @@ export type Argument = WithSpan &
  * The `//@version=N` directive at the head of a script.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const v: VersionDirective = {
  *         kind: "version-directive",
@@ -55,7 +55,7 @@ export type VersionDirective = WithSpan &
  * until Task 4.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const d: IndicatorDeclaration = {
  *         kind: "indicator-declaration",
@@ -75,7 +75,7 @@ export type IndicatorDeclaration = WithSpan &
  * diagnostic, but still parsed so the body can be walked.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const d: StrategyDeclaration = {
  *         kind: "strategy-declaration",
@@ -95,7 +95,7 @@ export type StrategyDeclaration = WithSpan &
  * diagnostic, but still parsed so the body can be walked.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const d: LibraryDeclaration = {
  *         kind: "library-declaration",
@@ -115,7 +115,7 @@ export type LibraryDeclaration = WithSpan &
  * full resolution is out of scope for v1 and flagged downstream.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const d: ImportDeclaration = {
  *         kind: "import-declaration",
@@ -134,7 +134,7 @@ export type ImportDeclaration = WithSpan &
  * The top-level declaration of a script.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const d: Declaration = {
  *         kind: "indicator-declaration",
@@ -156,7 +156,7 @@ export type Declaration =
  * `Script` and reports the omission as a diagnostic).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: Script = {
  *         kind: "script",

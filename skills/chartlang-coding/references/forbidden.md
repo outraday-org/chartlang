@@ -80,6 +80,25 @@ for (let i = 0; i < 10; i++) {
 The allowed shape is `for (let i = <literal>; i </<= <literal>; i++)`
 (or `>` / `>=`). Both bound and step must be literal-derivable.
 
+## Literal-index rule extends to `bar.point`
+
+A literal negative offset in `bar.point(<offset>, price)` sizes the
+lookback buffer exactly like `series[n]`: `bar.point(-10, price)` retains
+10 bars of history, just as `series[10]` does. A **dynamic / non-literal**
+offset (`bar.point(-i, price)`) does *not* grow the buffer, so it reads a
+`NaN` time once it reaches past the retained window — it never throws.
+Keep the offset literal whenever you depend on a real historical time.
+
+**Index anchoring vs. an absolute-time `WorldPoint`.** Both feed the same
+`draw.*` anchor argument; pick by what you actually know:
+
+- Reach for `bar.point(offset, price)` when the anchor is **relative to the
+  current bar** — "10 bars ago", "5 bars ahead". The offset is the natural
+  unit and the time is resolved (or extrapolated) for you.
+- Pass a literal `WorldPoint { time, price }` when you have an **absolute
+  timestamp** (a session boundary, an event time from an input). Do not
+  reverse-engineer a bar offset from a known timestamp — anchor it directly.
+
 ## Stateful slot identity — no stateful calls inside loops
 
 Every `ta.*`, `state.*`, `plot`, `alert`, `draw.*`, and `hline` callsite

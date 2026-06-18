@@ -19,7 +19,7 @@ const RANK_QUALIFIER: readonly TypeQualifier[] = ["const", "input", "simple", "s
  * `const < input < simple < series`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { joinQualifier } from "./qualifiers.js";
  *     joinQualifier("const", "series"); // "series"
@@ -33,7 +33,7 @@ export function joinQualifier(a: TypeQualifier, b: TypeQualifier): TypeQualifier
  * {@link SymbolInfo}, or `null` when undeclared.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: SymbolResolver = () => null;
  *     void r;
@@ -58,7 +58,7 @@ function memberCallQualifier(name: string): TypeQualifier | null {
  * binary/ternary/history forms take the lattice join of their parts.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { inferQualifier } from "./qualifiers.js";
  *     inferQualifier(

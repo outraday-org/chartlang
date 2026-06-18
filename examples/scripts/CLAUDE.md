@@ -16,6 +16,37 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   dep `fastTrend`, one drawn named export `slowTrend`, one default
   consumer reading both). The CLI's e2e test asserts the single-script
   vs multi-export sidecar shapes both round-trip.
+- `htf-trend-filter.chart.ts` demonstrates multi-timeframe
+  `request.security`: a current-timeframe `ta.ema(bar.close, 20)` plus a
+  weekly trend `ta.ema(request.security({ interval: "1W" }).close, 10)`.
+  Its `manifest.requestedIntervals` is `["1W"]`. The runtime path is
+  exercised by `examples/canvas2d-adapter/src/integration.test.ts`
+  ("renders the htf-trend-filter example…"), which drives it through
+  `createMultiStreamCandlePump` with a synthetic 1W secondary stream.
+- `sma-offset.chart.ts` demonstrates the universal `ta` `offset` option:
+  two `ta.sma(bar.close, 20)` lines on the candles, the second built with
+  `{ offset: 5 }` so its `.current` reads the SMA value from 5 bars ago
+  (the shift lives on the `ta` call — `plot` has no offset). Its runtime
+  path is exercised by `examples/canvas2d-adapter/src/integration.test.ts`
+  ("renders the sma-offset example…").
+- `pivot-high-ray.chart.ts` demonstrates persistent `state.*` slots +
+  `bar.point`: it tracks the most recent `ta.pivotsHighLow` swing high's
+  price and time (the time recovered via `bar.point(-5, …)`, the offset-
+  anchored historical timestamp — the literal `-5` matches `rightLength`
+  and sizes the lookback buffer), then draws one `draw.horizontalRay`
+  reused across bars so the single ray follows each new pivot. Compile-
+  only in the CLI e2e gate (like `fib-retracement.chart.ts`); it is not
+  in the integration render test.
+- `forecast-line.chart.ts` demonstrates the POSITIVE (future)
+  `bar.point(+N, …)` offset: it reads the EMA(20) slope from the last
+  20 bars (`trend[0] - trend[LOOKBACK]`) and draws one reused
+  `draw.line` from `bar.point(0, …)` to `bar.point(+20, …)`, where the
+  forward offset resolves to an extrapolated future timestamp
+  (`lastTime + 20 * spacing`) so the dotted line projects to the RIGHT
+  of the last candle. Negative + current offsets are covered by
+  `pivot-high-ray.chart.ts`; this is the future path. Compile-only in
+  the CLI e2e gate (like `pivot-high-ray.chart.ts`); it is not in the
+  integration render test.
 
 ## Conventions
 

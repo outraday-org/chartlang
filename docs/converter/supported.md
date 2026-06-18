@@ -46,14 +46,26 @@ To steer a borderline script into a bounded camp, cap the collection: add
 
 ### Anchors and `bar_index`
 
-Drawing coordinates resolve from Pine's `(x, y)` pairs:
+Drawing coordinates resolve from Pine's `(x, y)` pairs. Each `bar_index`
+anchor lowers to a `bar.point(<signed offset>, <price>)` call — the
+chartlang authoring sugar that resolves an integer bar offset to a
+`WorldPoint { time, price }` at compute time (see
+[Series and indexing § Anchoring drawings by bar offset](../language/series-and-indexing.md#anchoring-drawings-by-bar-offset-bar-point)).
+The drawing anchor frame stays `WorldPoint` only; `bar.point` adds no new
+anchor shape.
 
-- Bare `bar_index` → the current bar (historical offset 0).
-- `bar_index[N]` or `bar_index - N` (literal `N`) → `N` bars ago. Historical
-  anchors use `barIndexOrigin` when set.
-- `bar_index + N` (literal `N`) → `N` bars in the **future**. A future
-  anchor **requires** `barInterval` (ms per bar); without it the converter
-  emits a single `requires-bar-interval` error.
+- Bare `bar_index` → the current bar, `bar.point(0, price)`.
+- `bar_index[N]` or `bar_index - N` (literal `N`) → `N` bars ago,
+  `bar.point(-(N), price)`. Historical anchors use `barIndexOrigin` when set.
+- `bar_index + N` (literal `N`) → `N` bars in the **future**,
+  `bar.point((N), price)`. The future time is resolved **at runtime** by
+  extrapolating from the median of recent bar spacings (falling back to the
+  parsed bar interval), so the converter no longer synthesises any
+  `bar.time + N * __BAR_INTERVAL_MS` arithmetic — the old host-supplied
+  `__BAR_INTERVAL_MS` sentinel is gone. A future anchor still carries
+  `requiresBarInterval` as a manifest-intent signal, and when `barInterval`
+  is unset the converter emits a single advisory `requires-bar-interval`
+  error.
 - `bar_index ± <non-literal>` → best-effort direction + a `dynamic-bar-index`
   warning.
 - `yloc.abovebar` / `yloc.belowbar` → the bar high/low padded by a fixed

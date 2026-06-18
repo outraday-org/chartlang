@@ -154,6 +154,49 @@ describe("createWorkerBoot", () => {
         await waitFor("loaded");
     });
 
+    it("registers secondary streams from a single-object __manifest sidecar", async () => {
+        // The runtime `defineIndicator` stub zeroes `requestedIntervals`,
+        // so the boot must adopt the compiler's `__manifest` sidecar for a
+        // single-script module — otherwise an MTF script's secondary stream
+        // is never registered and every secondary candle is dropped with an
+        // `unknown-secondary-stream` warning.
+        const mtfManifest: ScriptManifest = {
+            ...manifest(),
+            name: "mtf",
+            requestedIntervals: ["1W"],
+        };
+        const moduleSource = `
+            const d = {
+                manifest: ${JSON.stringify(manifest())},
+                compute: () => {},
+            };
+            export default d;
+            export const __manifest = ${JSON.stringify(mtfManifest)};
+        `;
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: mtfManifest },
+            capabilities: makeCapabilities(),
+            limits: LIMITS,
+        });
+        await waitFor("loaded");
+        // A secondary "1W" candle is accepted only if the stream was
+        // registered from the `__manifest` sidecar.
+        await deliver({
+            kind: "candleEvent",
+            event: { kind: "close", bar: bar(1, 1), streamKey: "1W" },
+        });
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(2, 2) } });
+        await deliver({ kind: "drain", nonce: 7 });
+        const reply = await waitFor("emissions");
+        if (reply.kind !== "emissions") throw new Error("expected emissions");
+        expect(reply.emissions.diagnostics.some((d) => d.code === "unknown-secondary-stream")).toBe(
+            false,
+        );
+    });
+
     it("passes structured input overrides into the runner at load", async () => {
         const { scope, deliver, captured, waitFor } = makeScope();
         createWorkerBoot(scope);

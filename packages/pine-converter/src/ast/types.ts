@@ -10,7 +10,7 @@ import type { WithSpan } from "./spans.js";
  * (https://www.tradingview.com/pine-script-docs/language/type-system/).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const name: NamedTypeName = "float";
  *     void name;
@@ -32,7 +32,7 @@ export type NamedTypeName =
  * A non-generic type annotation (`int`, `float`, `line`, …).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const t: NamedType = {
  *         kind: "named-type",
@@ -52,7 +52,7 @@ export type NamedType = WithSpan &
  * `series<T>`, `simple<T>`, `const<T>`, `input<T>`, `matrix<T>`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ctor: GenericTypeName = "array";
  *     void ctor;
@@ -64,7 +64,7 @@ export type GenericTypeName = "array" | "matrix" | "series" | "simple" | "const"
  * `series<line>`, …).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const t: GenericType = {
  *         kind: "generic-type",
@@ -89,7 +89,7 @@ export type GenericType = WithSpan &
  * A `map<K, V>` annotation with two type parameters.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const t: MapType = {
  *         kind: "map-type",
@@ -119,7 +119,7 @@ export type MapType = WithSpan &
  * or a `map<K, V>`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const t: TypeAnnotation = {
  *         kind: "named-type",

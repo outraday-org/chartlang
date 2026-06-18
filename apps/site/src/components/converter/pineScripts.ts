@@ -5,7 +5,8 @@
 // strings (the converter's own `fixtures/` are package-internal and not an
 // export) and chosen to exercise the documented reachable surface: Camp A
 // single-handle, Camp B bounded ring, a table dashboard, inputs + control
-// flow, a future-bar anchor (the bar-interval flow), and a hard reject.
+// flow, a future-bar anchor (the bar-interval flow), the plot-family +
+// pivot lowering (plotshape over ta.pivothigh/pivotlow), and a hard reject.
 
 /** A selectable Pine sample. */
 export type PineScript = Readonly<{
@@ -18,12 +19,15 @@ export type PineScript = Readonly<{
 const CAMP_A_LINE = `//@version=6
 indicator("Tracking Line", overlay = true)
 
-// Camp A: one persistent line handle, created on the first bar and
-// extended on every bar after it.
+// Camp A: one persistent line handle, re-anchored every bar. It trails the
+// last 20 bars — anchor 1 sits 20 bars back, anchor 2 at the current bar —
+// so the fixed bar offsets lower cleanly to chartlang's bar.point(-20, …)
+// and bar.point(0, …), and the line slides along with price.
 var line trail = na
 if barstate.isfirst
-    trail := line.new(bar_index, close, bar_index, close, color = color.aqua, width = 2)
+    trail := line.new(bar_index - 20, close, bar_index, close, color = color.aqua, width = 2)
 else
+    line.set_xy1(trail, bar_index - 20, close)
     line.set_xy2(trail, bar_index, close)
 `;
 
@@ -80,6 +84,23 @@ else
     line.set_xy2(ray, bar_index + 20, close)
 `;
 
+const PLOTSHAPE_PIVOTS = `//@version=6
+indicator("Pivot Markers", overlay = true)
+
+// The plot family + pivot lowering: \`plotshape\` becomes a chartlang shape-
+// style \`plot\`, and \`ta.pivothigh\` / \`ta.pivotlow\` fold into
+// \`ta.pivotsHighLow({ leftLength, rightLength }).high\` / \`.low\` (an
+// informative ta-signature-divergence warning flags the field rename).
+len = input.int(5, "Pivot lookback", minval = 1)
+
+ph = ta.pivothigh(len, len)
+pl = ta.pivotlow(len, len)
+
+plot(ta.sma(close, 20), "SMA(20)", color = color.aqua)
+plotshape(not na(ph), "Swing high", style = shape.triangledown, color = color.red, location = location.abovebar)
+plotshape(not na(pl), "Swing low", style = shape.triangleup, color = color.green, location = location.belowbar)
+`;
+
 const REJECT_FOR_IN = `//@version=6
 indicator("Recolour Lines", overlay = true)
 
@@ -99,7 +120,7 @@ export const PINE_SCRIPTS: ReadonlyArray<PineScript> = [
         id: "camp-a-line",
         label: "Tracking line (Camp A)",
         description:
-            "A single persistent line handle created once and extended each bar — the simplest drawing idiom.",
+            "A single persistent line handle re-anchored each bar to trail the last 20 bars — fixed bar offsets that lower to chartlang's bar.point(-20, …) → bar.point(0, …).",
         source: CAMP_A_LINE,
     },
     {
@@ -128,6 +149,13 @@ export const PINE_SCRIPTS: ReadonlyArray<PineScript> = [
         description:
             "A bar_index + N future anchor — needs a bar interval (ms) to resolve. Try the control.",
         source: FUTURE_BAR,
+    },
+    {
+        id: "plotshape-pivots",
+        label: "Plot shapes + pivots",
+        description:
+            "plotshape over ta.pivothigh / ta.pivotlow — the plot-family + pivot lowering, with an SMA(20) line and triangle markers at each swing.",
+        source: PLOTSHAPE_PIVOTS,
     },
     {
         id: "reject-for-in",

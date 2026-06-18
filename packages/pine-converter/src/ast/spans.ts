@@ -10,7 +10,7 @@ import type { SourceSpan } from "../index.js";
  * the parser's `parse.property.test.ts`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const node: WithSpan = {
  *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 10 },

@@ -1,13 +1,47 @@
 # Contributing to chartlang
 
-Thanks for considering a contribution. This document covers what every
-PR needs to land — setup, the test and coverage gate, documentation
-requirements, the provenance rule for math ports from `../invinite/`,
-the changeset workflow, and the PR checklist. This file is the
-operational summary.
+Thanks for considering a contribution. **The way to contribute here is
+to open a GitHub issue, not a pull request.** This document explains how
+to write a good issue, then — as a reference for the maintainers and
+LLM agents who implement those issues — covers what every change needs
+to land: setup, the test and coverage gate, documentation requirements,
+the provenance rule for math ports from `../invinite/`, the changeset
+workflow, and the merge checklist.
 
 By participating, you agree to abide by the
 [Code of Conduct](./CODE_OF_CONDUCT.md).
+
+## 0. How to contribute: open an issue, not a PR
+
+Please **do not open pull requests** and please **do not push your own
+fixes**. Unsolicited PRs will be closed in favour of an issue.
+
+Instead, **open a [GitHub issue](https://github.com/outraday-org/chartlang/issues)**
+that describes the feature or bug fix you want as a **detailed prompt
+for an LLM**. Work in this repo is implemented by AI agents, and a
+precise, self-contained prompt is what lets an agent do the job well.
+
+Write the issue as if you were briefing an agent that has the codebase
+but none of your context. A good issue includes:
+
+- **Goal in one sentence** — the feature or fix you want, in plain
+  terms ("add `ta.rsi`", "fix `ta.ema` warmup producing `NaN` at bar 0").
+- **Motivation / context** — why it matters and how it should behave
+  from a user's perspective.
+- **For a bug:** exact reproduction steps, the script or input that
+  triggers it, the observed output, and the expected output. Paste the
+  error text and stack trace verbatim if you have them.
+- **For a feature:** the desired API surface or behaviour, worked
+  examples of inputs and expected outputs, and any references (a
+  formula, a spec, a prior implementation).
+- **Pointers** — files, packages, or primitives you believe are
+  involved, if you know them. Not required, but it speeds things up.
+- **Acceptance criteria** — how we'll know it's done.
+
+The more the issue reads like a complete, unambiguous task, the faster
+and more accurately an agent can land it. Everything below this section
+is the contract that implementation must satisfy — read it to calibrate
+your issue, but you are not expected to do the implementation yourself.
 
 ## 1. Setup
 

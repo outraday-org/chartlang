@@ -5,6 +5,7 @@ import type { DrawingCallSite } from "../semantic/index.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { ChartlangDrawKind } from "./handleSlot.js";
 import type { ScriptScaffold } from "./ir.js";
+import type { NameAllocator } from "./nameAllocator.js";
 import { appendHandleRing } from "./scaffoldMutators.js";
 
 /**
@@ -13,7 +14,7 @@ import { appendHandleRing } from "./scaffoldMutators.js";
  * no collection idiom), so the ring buckets are exactly these four.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const b: RingBucket = "line";
  *     void b;
@@ -26,7 +27,7 @@ export type RingBucket = "line" | "box" | "label" | "polyline";
  * to it (the runtime GCs anyway); `polyline` is the tighter `100` bucket.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { CHARTLANG_BUCKET_CAP } from "./ringHelper.js";
  *     CHARTLANG_BUCKET_CAP.line; // 500
@@ -39,20 +40,24 @@ export const CHARTLANG_BUCKET_CAP: Readonly<Record<RingBucket, number>> = {
 };
 
 /**
- * The module-level ring local a Pine drawing collection binds to. A Pine
- * `var array<line> lvls` becomes `__lvls_ring`; Task 16 codegen emits the
- * matching `const __lvls_ring = useDrawingHandleRing<"line">(<cap>);`
- * allocation and Camp B / Camp C reference this exact name. The naming is
- * the cross-task contract — derive it here, never inline the affixes.
+ * Allocate the module-level ring local a Pine drawing collection binds to,
+ * REUSING the Pine collection identifier so a `var array<line> lvls` becomes
+ * `lvls` (collision-disambiguated only when already emitted). Codegen emits the
+ * matching `const lvls = useDrawingHandleRing<"line">(<cap>);` allocation and
+ * Camp B / Camp C reference this name. Allocate ONCE per collection (a second
+ * `array.push` site into the same collection is deduped by `registerRing`
+ * before this is reached). Route through the scaffold's {@link NameAllocator},
+ * never inline a prefix/suffix.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { ringLocalName } from "./ringHelper.js";
- *     ringLocalName("lvls"); // "__lvls_ring"
+ *     import { NameAllocator } from "./nameAllocator.js";
+ *     ringLocalName("lvls", new NameAllocator(["lvls"])); // "lvls"
  */
-export function ringLocalName(collectionName: string): string {
-    return `__${collectionName}_ring`;
+export function ringLocalName(collectionName: string, names: NameAllocator): string {
+    return names.allocateForSymbol(collectionName);
 }
 
 /**
@@ -63,7 +68,7 @@ export function ringLocalName(collectionName: string): string {
  * the ring within the chartlang per-bucket draw budget.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { resolveRingCap } from "./ringHelper.js";
  *     import { DiagnosticCollector } from "./diagnosticCollector.js";
@@ -97,12 +102,12 @@ export function resolveRingCap(
  * Camp B and Camp C share this so the ring local + IR shape stay in lockstep.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { registerRing } from "./ringHelper.js";
  *     import type { ScriptScaffold } from "./ir.js";
  *     declare const scaffold: ScriptScaffold;
- *     registerRing(scaffold, "lvls", "line", 50); // "__lvls_ring"
+ *     registerRing(scaffold, "lvls", "line", 50); // "lvls"
  */
 export function registerRing(
     scaffold: ScriptScaffold,
@@ -110,7 +115,10 @@ export function registerRing(
     kind: ChartlangDrawKind,
     cap: number,
 ): string {
-    const name = ringLocalName(collectionName);
+    // `ringLocalName` is idempotent per collection (memoized in the allocator),
+    // so two `array.push` sites into one collection resolve the same name;
+    // `appendHandleRing` then dedups the IR entry by that name.
+    const name = ringLocalName(collectionName, scaffold.names);
     appendHandleRing(scaffold, { name, kind, cap });
     return name;
 }

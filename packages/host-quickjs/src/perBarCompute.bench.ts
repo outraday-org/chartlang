@@ -47,8 +47,9 @@ function bar(index: number): Bar {
     const open = close - 0.25;
     const high = close + 0.5;
     const low = close - 0.5;
+    const time = 1_700_000_000_000 + index * 60_000;
     return {
-        time: 1_700_000_000_000 + index * 60_000,
+        time,
         open,
         high,
         low,
@@ -60,6 +61,7 @@ function bar(index: number): Bar {
         volume: 1_000 + index,
         symbol: "X",
         interval: "1m",
+        point: (offset, price) => ({ time: offset === 0 ? time : Number.NaN, price }),
     };
 }
 

@@ -7,6 +7,7 @@ import type { SemanticResult } from "../semantic/index.js";
 import { FALLBACK_INDICATOR_NAME, mapDeclarationArgs } from "./declarationArgs.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { ScriptScaffold } from "./ir.js";
+import { NameAllocator, collectReservedNames } from "./nameAllocator.js";
 
 // Pine plot-family call names that force a `defineIndicator` constructor.
 const PLOT_CALLEES: ReadonlySet<string> = new Set([
@@ -96,7 +97,7 @@ function chooseConstructor(
  * hard-rejected upstream and never reaches this function.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { DiagnosticCollector } from "./diagnosticCollector.js";
  *     declare const analysis: SemanticResult;
@@ -141,5 +142,6 @@ export function transformDeclaration(
         handleRings: [],
         computeBody: { statements: [] },
         diagnostics: diagnostics.toArray(),
+        names: new NameAllocator(collectReservedNames(analysis)),
     };
 }

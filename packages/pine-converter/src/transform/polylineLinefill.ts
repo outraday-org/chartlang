@@ -1,7 +1,13 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CallArgument, CallExpression, ExpressionNode, Statement } from "../ast/index.js";
+import type {
+    CallArgument,
+    CallExpression,
+    ExpressionNode,
+    ForStatement,
+    Statement,
+} from "../ast/index.js";
 import type { DrawingCallSite, SemanticResult } from "../semantic/index.js";
 import { dottedCallee, namedArg, positionalArgs } from "./callArgs.js";
 import { convertColor } from "./colorConvert.js";
@@ -104,8 +110,8 @@ function emitPolylineLiteral(
     scaffold: ScriptScaffold,
     diagnostics: DiagnosticCollector,
 ): void {
-    const local = handleSlotLocalName(handleName);
-    appendHandleSlot(scaffold, { name: local, kind: "polyline" });
+    const local = handleSlotLocalName(handleName, scaffold.names);
+    appendHandleSlot(scaffold, { name: local, kind: "polyline", compact: false });
     const { source, count } = renderAnchorList(elements, analysis.annotations);
     const drawCall = polylineDrawCall(
         source,
@@ -173,43 +179,111 @@ function pushedChartPoint(stmt: Statement, collection: string): ExpressionNode |
     return value.value;
 }
 
-// The literal-bounded anchor expressions a `for i = 0 to <literal>` loop
-// pushing `chart.point`s into `collection` unrolls to, or `null` when the
-// loop bound is not literal (the dynamic-length reject).
-function unrollBuildLoop(
+// The literal-bounded anchor expressions a `for i = from to to` loop pushing
+// `chart.point`s into `collection` unrolls to, or `null` when the loop bound
+// is not literal (the dynamic-length reject). Only called for a loop already
+// known to push into `collection`.
+function unrollForPushes(stmt: ForStatement, collection: string): readonly ExpressionNode[] | null {
+    const from = literalInt(stmt.from);
+    const to = literalInt(stmt.to);
+    const step = stmt.step === null ? 1 : literalInt(stmt.step);
+    if (from === null || to === null || step === null || step === 0) {
+        return null;
+    }
+    // Pine auto-counts down when `from > to`; `by` contributes only magnitude.
+    const ascending = from <= to;
+    const stepDelta = ascending ? Math.abs(step) : -Math.abs(step);
+    const anchors: ExpressionNode[] = [];
+    for (let i = from; ascending ? i <= to : i >= to; i += stepDelta) {
+        for (const inner of stmt.body.body) {
+            const point = pushedChartPoint(inner, collection);
+            if (point !== null) {
+                anchors.push(substituteIterator(point, stmt.variable, i));
+            }
+        }
+    }
+    return anchors;
+}
+
+// Whether a condition is the `barstate.islast` rebuild guard.
+function isIslastGuard(condition: ExpressionNode): boolean {
+    return (
+        condition.kind === "member-access-expression" &&
+        condition.head === null &&
+        condition.chain.join(".") === "barstate.islast"
+    );
+}
+
+// Whether any statement (recursing one level into `if`/`for` bodies) pushes a
+// `chart.point` into `collection` — a per-bar conditional push is dynamic
+// accumulation, not a fixed rebuild.
+function bodyPushesPoint(stmts: readonly Statement[], collection: string): boolean {
+    return stmts.some((stmt) => {
+        if (pushedChartPoint(stmt, collection) !== null) {
+            return true;
+        }
+        if (stmt.kind === "for-statement") {
+            return bodyPushesPoint(stmt.body.body, collection);
+        }
+        if (stmt.kind === "if-statement") {
+            return (
+                bodyPushesPoint(stmt.thenBody.body, collection) ||
+                stmt.elseIfClauses.some((c) => bodyPushesPoint(c.body.body, collection)) ||
+                (stmt.elseBody !== null && bodyPushesPoint(stmt.elseBody.body, collection))
+            );
+        }
+        return false;
+    });
+}
+
+// The ordered anchor expressions built into `collection` by `array.push`,
+// recognising the `if barstate.islast` rebuild idiom: straight
+// `array.push(coll, chart.point)` statements contribute one anchor each and a
+// literal-bounded build `for` unrolls in place, whether at the top level or
+// inside the `islast` guard. A push under any OTHER guard is per-bar
+// accumulation (dynamic length) → `null`; a non-literal build `for` bound and
+// an empty result are also `null` (the dynamic / no-points reject).
+function collectBuildPoints(
     analysis: SemanticResult,
     collection: string,
 ): readonly ExpressionNode[] | null {
-    for (const stmt of analysis.script.body) {
-        if (stmt.kind !== "for-statement") {
-            continue;
-        }
-        const pushes = stmt.body.body.some((inner) => pushedChartPoint(inner, collection) !== null);
-        if (!pushes) {
-            continue;
-        }
-        const from = literalInt(stmt.from);
-        const to = literalInt(stmt.to);
-        const step = stmt.step === null ? 1 : literalInt(stmt.step);
-        if (from === null || to === null || step === null || step === 0) {
-            return null;
-        }
-        // Pine auto-counts down when `from > to`; `by` contributes only magnitude.
-        const ascending = from <= to;
-        const magnitude = Math.abs(step);
-        const stepDelta = ascending ? magnitude : -magnitude;
-        const anchors: ExpressionNode[] = [];
-        for (let i = from; ascending ? i <= to : i >= to; i += stepDelta) {
-            for (const inner of stmt.body.body) {
-                const point = pushedChartPoint(inner, collection);
-                if (point !== null) {
-                    anchors.push(substituteIterator(point, stmt.variable, i));
+    const anchors: ExpressionNode[] = [];
+    let dynamic = false;
+    const visit = (stmts: readonly Statement[]): void => {
+        for (const stmt of stmts) {
+            const point = pushedChartPoint(stmt, collection);
+            if (point !== null) {
+                anchors.push(point);
+                continue;
+            }
+            if (
+                stmt.kind === "for-statement" &&
+                stmt.body.body.some((inner) => pushedChartPoint(inner, collection) !== null)
+            ) {
+                const unrolled = unrollForPushes(stmt, collection);
+                if (unrolled === null) {
+                    dynamic = true;
+                    return;
+                }
+                anchors.push(...unrolled);
+                continue;
+            }
+            if (stmt.kind === "if-statement") {
+                if (isIslastGuard(stmt.condition)) {
+                    visit(stmt.thenBody.body);
+                } else if (bodyPushesPoint([stmt], collection)) {
+                    // A push under a non-`islast` guard accumulates each bar.
+                    dynamic = true;
+                    return;
                 }
             }
         }
-        return anchors;
+    };
+    visit(analysis.script.body);
+    if (dynamic || anchors.length === 0) {
+        return null;
     }
-    return null;
+    return anchors;
 }
 
 // The `var array<chart.point>` rebuild idiom: the polyline's first arg is an
@@ -224,13 +298,13 @@ function emitPolylineRebuild(
     scaffold: ScriptScaffold,
     diagnostics: DiagnosticCollector,
 ): void {
-    const anchors = unrollBuildLoop(analysis, collection);
+    const anchors = collectBuildPoints(analysis, collection);
     if (anchors === null) {
         diagnostics.pushCode("polyline-dynamic-points", site.span);
         return;
     }
-    const local = handleSlotLocalName(handleName);
-    appendHandleSlot(scaffold, { name: local, kind: "polyline" });
+    const local = handleSlotLocalName(handleName, scaffold.names);
+    appendHandleSlot(scaffold, { name: local, kind: "polyline", compact: false });
     const { source, count } = renderAnchorList(anchors, analysis.annotations);
     const drawCall = polylineDrawCall(
         source,
@@ -441,8 +515,8 @@ function emitLinefill(
         return;
     }
 
-    const local = handleSlotLocalName(fillName);
-    appendHandleSlot(scaffold, { name: local, kind: "rectangle" });
+    const local = handleSlotLocalName(fillName, scaffold.names);
+    appendHandleSlot(scaffold, { name: local, kind: "rectangle", compact: false });
 
     const [aA, aB] = lineAnchors(lineA.call, analysis.annotations);
     const [bA, bB] = lineAnchors(lineB.call, analysis.annotations);
@@ -496,7 +570,7 @@ function emitLinefill(
  * `scaffold.handleSlots` + `scaffold.computeBody`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { lex } from "../lexer/index.js";
  *     import { parseStatements } from "../parser/index.js";
@@ -522,13 +596,15 @@ export function transformPolylineLinefill(
     scaffold: ScriptScaffold,
     diagnostics: DiagnosticCollector,
 ): void {
-    for (const site of analysis.drawingSites) {
+    analysis.drawingSites.forEach((site, index) => {
         if (site.constructor === "polyline.new") {
-            const handleName = handleNameOf(analysis, site.call);
-            if (handleName !== null) {
-                emitPolyline(site, handleName, analysis, scaffold, diagnostics);
-            }
-            continue;
+            // A `var p = polyline.new(...)` binds a handle; a standalone
+            // `polyline.new(pts, …)` (the build-and-draw idiom) has no Pine
+            // name, so synthesise one from the points collection (or the site
+            // index) instead of silently skipping the draw.
+            const handleName = handleNameOf(analysis, site.call) ?? synthPolylineName(site, index);
+            emitPolyline(site, handleName, analysis, scaffold, diagnostics);
+            return;
         }
         if (site.constructor === "linefill.new" && !isCrossCollectionLinefill(site.call)) {
             const fillName = handleNameOf(analysis, site.call);
@@ -536,5 +612,15 @@ export function transformPolylineLinefill(
                 emitLinefill(site, fillName, analysis, scaffold, diagnostics);
             }
         }
-    }
+    });
+}
+
+// The handle-slot base name for a standalone `polyline.new(...)` with no Pine
+// handle binding: the points collection name when the first arg is an
+// identifier (`pts`, reused via the name allocator), else a site-index fallback that stays
+// stable across runs.
+function synthPolylineName(site: DrawingCallSite, index: number): string {
+    const first = positionalArgs(site.call.args)[0];
+    const collection = first === undefined ? null : identifierName(first.value);
+    return collection ?? `polyline_${index}`;
 }

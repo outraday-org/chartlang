@@ -44,7 +44,7 @@ const INTERVAL_TO_PINE: ReadonlyMap<string, string> = new Map([
  * `request.security` partial support.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { pineTimeframeToInterval } from "./timeframeConvert.js";
  *     pineTimeframeToInterval("60"); // "1h"
@@ -62,7 +62,7 @@ export function pineTimeframeToInterval(pine: string): string | null {
  * forms.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { intervalToPineTimeframe } from "./timeframeConvert.js";
  *     intervalToPineTimeframe("1h"); // "60"

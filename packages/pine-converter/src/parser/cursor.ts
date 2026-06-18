@@ -9,7 +9,7 @@ import type { Token, TokenKind } from "../lexer/index.js";
  * {@link TokenCursor.peek} never runs off the end — it parks on `eof`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const span = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 };
  *     const cursor = createCursor([
@@ -57,7 +57,7 @@ export type TokenCursor = Readonly<{
  * lexer's trailing `eof` token (it always does).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const cursor = createCursor(lex("//@version=6").tokens);
  *     cursor.peekKind(); // "version-directive"

@@ -19,6 +19,6 @@ export default defineIndicator({
             src: input.source("close"),
         },
         compute({ bar, ta, plot, inputs }) {
-            plot(ta.sma(inputs.src, inputs.len));
+            plot(ta.sma((inputs.src as number), (inputs.len as number)));
         },
 });

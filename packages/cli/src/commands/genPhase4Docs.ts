@@ -137,14 +137,14 @@ export const PHASE4_DOC_ENTRIES: ReadonlyArray<Phase4DocEntry> = Object.freeze([
         sourceRelPath: `${CORE}/request/request.ts`,
         symbolPath: ["request", "security"],
         outRelPath: "docs/primitives/request/security.md",
-        seeAlso: "`request.*` namespace",
+        seeAlso: "`request.*` namespace — [Multi-timeframe guide](/language/multi-timeframe)",
     }),
     Object.freeze({
         title: "request.lowerTf",
         sourceRelPath: `${CORE}/request/request.ts`,
         symbolPath: ["request", "lowerTf"],
         outRelPath: "docs/primitives/request/lowerTf.md",
-        seeAlso: "`request.*` namespace",
+        seeAlso: "`request.*` namespace — [Multi-timeframe guide](/language/multi-timeframe)",
     }),
     Object.freeze({
         title: "plot",

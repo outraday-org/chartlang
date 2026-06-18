@@ -1,0 +1,6 @@
+//@version=6
+indicator("Supertrend", overlay=true)
+factor = input.float(3.0, "Factor")
+atrPeriod = input.int(10, "ATR Period")
+[stLine, stDir] = ta.supertrend(factor, atrPeriod)
+plot(stLine, "Supertrend", color=color.green)

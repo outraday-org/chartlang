@@ -1,0 +1,6 @@
+//@version=6
+indicator("Keltner Channels", overlay=true)
+[kcMid, kcUpper, kcLower] = ta.kc(close, 20, 2)
+plot(kcMid, "Middle", color=color.gray)
+plot(kcUpper, "Upper", color=color.teal)
+plot(kcLower, "Lower", color=color.teal)

@@ -1,26 +1,14 @@
 [
     {
-        "code": "pine-converter/semantic/unsupported-tuple-destructuring",
+        "code": "pine-converter/transform/drawing-only-script",
         "severity": "info",
-        "message": "Tuple destructuring is outside the v1 drawing scope.",
+        "message": "Script emits only drawings; converted as a `defineDrawing` (plot capability dropped).",
         "span": {
-            "startLine": 3,
-            "startColumn": 33,
-            "endLine": 3,
-            "endColumn": 35
-        },
-        "suggestion": "Assign each returned value to its own variable."
-    },
-    {
-        "code": "pine-converter/transform/scalar-state-type-defaulted",
-        "severity": "info",
-        "message": "A `var`/`varip` scalar's type could not be inferred from its initializer; it was defaulted to `state.float`.",
-        "span": {
-            "startLine": 3,
+            "startLine": 2,
             "startColumn": 1,
-            "endLine": 3,
-            "endColumn": 36
+            "endLine": 2,
+            "endColumn": 44
         },
-        "suggestion": "Give the variable a literal initial value so its type can be inferred."
+        "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
     }
 ]

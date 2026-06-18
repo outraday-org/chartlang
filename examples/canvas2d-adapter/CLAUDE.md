@@ -90,3 +90,23 @@ Reference adapter package — **not published to npm**.
   emit path and the adapter dispatch when they introduce the
   matching primitive. Task 1 ships the renderers in pure-helper form
   so wiring lands one-line later.
+
+## Phase-5 invariants
+
+- **`createMultiStreamCandlePump` interleaves secondary closes WITHIN a
+  `history` batch.** A `close` / `tick` main event keeps the original
+  "flush secondary bars with `time <= mainTime`, then yield the event"
+  order. A `history` event is different: it carries many bars, so the
+  pump splits it and weaves the due secondary closes between the history
+  bars (emitting the buffered chunk, then `drainSecondary(bar.time)`,
+  before each history bar a secondary candle has reached). Without the
+  split, a monolithic batch gates the secondary flush on the batch's
+  *last* timestamp — every secondary bar is dumped up front, the cap-1
+  secondary ring buffer (`maxLookback + 1` for a no-lookback MTF script)
+  retains only the final future-dated bar, and `request.security`
+  alignment is all-NaN across the replayed history (e.g. the demo's
+  `htf-trend-filter` weekly EMA never drew). The split is loss-free
+  (every main bar survives in source order) and reproduces the per-bar
+  streaming path's finite higher-timeframe series. `streamPump.test.ts`
+  pins both the streaming order and the multi-bar history interleaving;
+  `integration.test.ts` pins a finite weekly EMA under `mode: "history"`.

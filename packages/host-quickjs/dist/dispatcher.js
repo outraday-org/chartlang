@@ -154,913 +154,6 @@ function makeShiftedSeriesView(buf, offset) {
   });
 }
 
-// ../runtime/dist/streamState.js
-function deriveBarSources(rawBar) {
-  return {
-    hl2: (rawBar.high + rawBar.low) / 2,
-    hlc3: (rawBar.high + rawBar.low + rawBar.close) / 3,
-    ohlc4: (rawBar.open + rawBar.high + rawBar.low + rawBar.close) / 4,
-    hlcc4: (rawBar.high + rawBar.low + rawBar.close + rawBar.close) / 4
-  };
-}
-var rawBufferKeys = ["time", "open", "high", "low", "close", "volume"];
-function rawBuffers(ohlcv) {
-  return {
-    time: ohlcv.time,
-    open: ohlcv.open,
-    high: ohlcv.high,
-    low: ohlcv.low,
-    close: ohlcv.close,
-    volume: ohlcv.volume
-  };
-}
-function valueAt(values, index) {
-  const value = values[index];
-  return value === null || value === void 0 ? Number.NaN : value;
-}
-function recomputeDerivedBuffers(ohlcv, snapshot6) {
-  const { headIndex, filled, buffers } = snapshot6;
-  const capacity = ohlcv.hl2.capacity;
-  const derived = {
-    hl2: new Array(capacity),
-    hlc3: new Array(capacity),
-    ohlc4: new Array(capacity),
-    hlcc4: new Array(capacity)
-  };
-  for (let i = 0; i < capacity; i += 1) {
-    const high = valueAt(buffers.high, i);
-    const low = valueAt(buffers.low, i);
-    const open = valueAt(buffers.open, i);
-    const close = valueAt(buffers.close, i);
-    derived.hl2[i] = Number.isNaN(high) || Number.isNaN(low) ? null : (high + low) / 2;
-    derived.hlc3[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (high + low + close) / 3;
-    derived.ohlc4[i] = Number.isNaN(open) || Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (open + high + low + close) / 4;
-    derived.hlcc4[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (high + low + close + close) / 4;
-  }
-  ohlcv.hl2.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.hl2 });
-  ohlcv.hlc3.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.hlc3 });
-  ohlcv.ohlc4.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.ohlc4 });
-  ohlcv.hlcc4.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.hlcc4 });
-}
-function createStreamState(args) {
-  const { interval, capacity, symbol } = args;
-  const ohlcv = {
-    time: new Float64RingBuffer(capacity),
-    open: new Float64RingBuffer(capacity),
-    high: new Float64RingBuffer(capacity),
-    low: new Float64RingBuffer(capacity),
-    close: new Float64RingBuffer(capacity),
-    volume: new Float64RingBuffer(capacity),
-    hl2: new Float64RingBuffer(capacity),
-    hlc3: new Float64RingBuffer(capacity),
-    ohlc4: new Float64RingBuffer(capacity),
-    hlcc4: new Float64RingBuffer(capacity)
-  };
-  const bar = {
-    time: 0,
-    open: Number.NaN,
-    high: Number.NaN,
-    low: Number.NaN,
-    close: Number.NaN,
-    volume: 0,
-    hl2: Number.NaN,
-    hlc3: Number.NaN,
-    ohlc4: Number.NaN,
-    hlcc4: Number.NaN,
-    symbol,
-    interval,
-    viewport: Object.freeze({ fromTime: 0, toTime: 0 })
-  };
-  const seriesViews = {
-    time: makeSeriesView(ohlcv.time),
-    open: makeSeriesView(ohlcv.open),
-    high: makeSeriesView(ohlcv.high),
-    low: makeSeriesView(ohlcv.low),
-    close: makeSeriesView(ohlcv.close),
-    volume: makeSeriesView(ohlcv.volume),
-    hl2: makeSeriesView(ohlcv.hl2),
-    hlc3: makeSeriesView(ohlcv.hlc3),
-    ohlc4: makeSeriesView(ohlcv.ohlc4),
-    hlcc4: makeSeriesView(ohlcv.hlcc4)
-  };
-  const stream = {
-    interval,
-    ohlcv,
-    bar,
-    seriesViews,
-    taSlots: /* @__PURE__ */ new Map(),
-    serialiseSnapshot() {
-      const close = ohlcv.close.serialiseSnapshotBuffer();
-      const buffers = rawBuffers(ohlcv);
-      return Object.freeze({
-        interval: bar.interval,
-        headIndex: close.headIndex,
-        filled: close.filled,
-        buffers: Object.freeze({
-          time: buffers.time.serialiseSnapshotBuffer().values,
-          open: buffers.open.serialiseSnapshotBuffer().values,
-          high: buffers.high.serialiseSnapshotBuffer().values,
-          low: buffers.low.serialiseSnapshotBuffer().values,
-          close: close.values,
-          volume: buffers.volume.serialiseSnapshotBuffer().values
-        })
-      });
-    },
-    restoreFromSnapshot(snapshot6) {
-      const buffers = rawBuffers(ohlcv);
-      for (const key of rawBufferKeys) {
-        buffers[key].restoreFromSnapshotBuffer({
-          headIndex: snapshot6.headIndex,
-          filled: snapshot6.filled,
-          values: snapshot6.buffers[key]
-        });
-      }
-      recomputeDerivedBuffers(ohlcv, snapshot6);
-      const current = snapshot6.headIndex;
-      if (snapshot6.filled === 0 || current < 0) {
-        bar.time = 0;
-        bar.open = Number.NaN;
-        bar.high = Number.NaN;
-        bar.low = Number.NaN;
-        bar.close = Number.NaN;
-        bar.volume = 0;
-        bar.hl2 = Number.NaN;
-        bar.hlc3 = Number.NaN;
-        bar.ohlc4 = Number.NaN;
-        bar.hlcc4 = Number.NaN;
-      } else {
-        bar.time = valueAt(snapshot6.buffers.time, current);
-        bar.open = valueAt(snapshot6.buffers.open, current);
-        bar.high = valueAt(snapshot6.buffers.high, current);
-        bar.low = valueAt(snapshot6.buffers.low, current);
-        bar.close = valueAt(snapshot6.buffers.close, current);
-        bar.volume = valueAt(snapshot6.buffers.volume, current);
-        bar.hl2 = (bar.high + bar.low) / 2;
-        bar.hlc3 = (bar.high + bar.low + bar.close) / 3;
-        bar.ohlc4 = (bar.open + bar.high + bar.low + bar.close) / 4;
-        bar.hlcc4 = (bar.high + bar.low + bar.close + bar.close) / 4;
-      }
-      bar.interval = snapshot6.interval;
-    }
-  };
-  return stream;
-}
-function appendBarToStream(stream, rawBar) {
-  const values = deriveBarSources(rawBar);
-  const { ohlcv, bar } = stream;
-  ohlcv.time.append(rawBar.time);
-  ohlcv.open.append(rawBar.open);
-  ohlcv.high.append(rawBar.high);
-  ohlcv.low.append(rawBar.low);
-  ohlcv.close.append(rawBar.close);
-  ohlcv.volume.append(rawBar.volume);
-  ohlcv.hl2.append(values.hl2);
-  ohlcv.hlc3.append(values.hlc3);
-  ohlcv.ohlc4.append(values.ohlc4);
-  ohlcv.hlcc4.append(values.hlcc4);
-  bar.time = rawBar.time;
-  bar.open = rawBar.open;
-  bar.high = rawBar.high;
-  bar.low = rawBar.low;
-  bar.close = rawBar.close;
-  bar.volume = rawBar.volume;
-  bar.hl2 = values.hl2;
-  bar.hlc3 = values.hlc3;
-  bar.ohlc4 = values.ohlc4;
-  bar.hlcc4 = values.hlcc4;
-  bar.symbol = rawBar.symbol;
-  bar.interval = rawBar.interval;
-}
-function replaceStreamHead(stream, rawBar) {
-  if (stream.ohlcv.close.length === 0) {
-    appendBarToStream(stream, rawBar);
-    return;
-  }
-  const values = deriveBarSources(rawBar);
-  const { ohlcv, bar } = stream;
-  ohlcv.time.replaceHead(rawBar.time);
-  ohlcv.open.replaceHead(rawBar.open);
-  ohlcv.high.replaceHead(rawBar.high);
-  ohlcv.low.replaceHead(rawBar.low);
-  ohlcv.close.replaceHead(rawBar.close);
-  ohlcv.volume.replaceHead(rawBar.volume);
-  ohlcv.hl2.replaceHead(values.hl2);
-  ohlcv.hlc3.replaceHead(values.hlc3);
-  ohlcv.ohlc4.replaceHead(values.ohlc4);
-  ohlcv.hlcc4.replaceHead(values.hlcc4);
-  bar.time = rawBar.time;
-  bar.open = rawBar.open;
-  bar.high = rawBar.high;
-  bar.low = rawBar.low;
-  bar.close = rawBar.close;
-  bar.volume = rawBar.volume;
-  bar.hl2 = values.hl2;
-  bar.hlc3 = values.hlc3;
-  bar.ohlc4 = values.ohlc4;
-  bar.hlcc4 = values.hlcc4;
-  bar.symbol = rawBar.symbol;
-  bar.interval = rawBar.interval;
-}
-function replaceTickHead(stream, rawBar) {
-  const values = deriveBarSources(rawBar);
-  const { ohlcv, bar } = stream;
-  ohlcv.close.replaceHead(rawBar.close);
-  ohlcv.high.replaceHead(rawBar.high);
-  ohlcv.low.replaceHead(rawBar.low);
-  ohlcv.volume.replaceHead(rawBar.volume);
-  ohlcv.hl2.replaceHead(values.hl2);
-  ohlcv.hlc3.replaceHead(values.hlc3);
-  ohlcv.ohlc4.replaceHead(values.ohlc4);
-  ohlcv.hlcc4.replaceHead(values.hlcc4);
-  bar.close = rawBar.close;
-  bar.high = rawBar.high;
-  bar.low = rawBar.low;
-  bar.volume = rawBar.volume;
-  bar.hl2 = values.hl2;
-  bar.hlc3 = values.hlc3;
-  bar.ohlc4 = values.ohlc4;
-  bar.hlcc4 = values.hlcc4;
-}
-function updateFallbackViewport(stream, limit = 100) {
-  const length = stream.ohlcv.time.length;
-  if (length === 0) {
-    stream.bar.viewport = Object.freeze({ fromTime: 0, toTime: 0 });
-    return;
-  }
-  const lookback = Math.min(length - 1, Math.max(0, limit - 1));
-  const fromTime = stream.ohlcv.time.at(lookback);
-  const toTime = stream.ohlcv.time.at(0);
-  stream.bar.viewport = Object.freeze({
-    fromTime: Number.isFinite(fromTime) ? fromTime : toTime,
-    toTime
-  });
-}
-
-// ../runtime/dist/stateStore.js
-function inMemoryStateStore() {
-  const store = /* @__PURE__ */ new Map();
-  return {
-    get(id) {
-      return store.get(id);
-    },
-    set(id, value) {
-      store.set(id, value);
-    },
-    has(id) {
-      return store.has(id);
-    },
-    clear() {
-      store.clear();
-    }
-  };
-}
-
-// ../runtime/dist/state/lifecycle.js
-function resetTentativeStateSlots(ctx) {
-  for (const slot of ctx.stateSlots.values()) {
-    slot.onBarTick();
-  }
-}
-function commitStateSlots(ctx) {
-  for (const slot of ctx.stateSlots.values()) {
-    slot.onBarClose();
-  }
-}
-function flushStateSlots(ctx) {
-  for (const [key, slot] of ctx.stateSlots.entries()) {
-    ctx.stateStore.set(key, {
-      committed: slot.committed,
-      tentative: slot.tentative
-    });
-  }
-}
-function serialiseStateSlots(ctx) {
-  const out = {};
-  for (const [key, slot] of ctx.stateSlots.entries()) {
-    out[key] = {
-      committed: slot.serialise(slot.committed),
-      tentative: slot.serialise(slot.tentative)
-    };
-  }
-  return Object.freeze(out);
-}
-function restoreStateSlots(ctx, slots) {
-  ctx.stateSlots.clear();
-  for (const [key, value] of Object.entries(slots)) {
-    ctx.stateStore.set(key, value);
-  }
-}
-
-// ../runtime/dist/runtimeContext.js
-var ACTIVE_RUNTIME_CONTEXT = {
-  current: null
-};
-
-// ../runtime/dist/state/stateSlot.js
-var StateSlot = class {
-  constructor(init, tickPersistent, serialisers = {}) {
-    __publicField(this, "tickPersistent");
-    __publicField(this, "serialisers");
-    __publicField(this, "committed");
-    __publicField(this, "tentative");
-    this.tickPersistent = tickPersistent;
-    this.serialisers = serialisers;
-    this.committed = init;
-    this.tentative = init;
-  }
-  get() {
-    return this.tickPersistent ? this.committed : this.tentative;
-  }
-  set(value) {
-    if (this.tickPersistent) {
-      this.committed = value;
-    } else {
-      this.tentative = value;
-    }
-  }
-  onBarClose() {
-    if (!this.tickPersistent) {
-      this.committed = this.tentative;
-    }
-  }
-  onBarTick() {
-    if (!this.tickPersistent) {
-      this.tentative = this.committed;
-    }
-  }
-  serialise(value) {
-    return this.serialisers.serialiseState?.(value) ?? value;
-  }
-};
-function asMutableSlot(slot) {
-  return {
-    get value() {
-      return slot.get();
-    },
-    set value(value) {
-      slot.set(value);
-    }
-  };
-}
-
-// ../runtime/dist/state/stateNamespace.js
-var stateKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:state`;
-function getCtx(name) {
-  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
-  if (ctx === null) {
-    throw new Error(`${name} called outside an active script step`);
-  }
-  return ctx;
-}
-function getOrAllocate(name, slotId, init, tickPersistent) {
-  const ctx = getCtx(name);
-  const key = stateKey(ctx, slotId);
-  const existing = ctx.stateSlots.get(key);
-  if (existing !== void 0) {
-    return asMutableSlot(existing);
-  }
-  const stored = ctx.stateStore.get(key);
-  const slot = new StateSlot(stored?.committed ?? init, tickPersistent);
-  if (stored !== void 0) {
-    slot.tentative = stored.tentative;
-  }
-  ctx.stateSlots.set(key, slot);
-  return asMutableSlot(slot);
-}
-function buildStateNamespace() {
-  const ns = {
-    float: (slotId, init) => getOrAllocate("state.float", slotId, init, false),
-    int: (slotId, init) => getOrAllocate("state.int", slotId, init, false),
-    bool: (slotId, init) => getOrAllocate("state.bool", slotId, init, false),
-    string: (slotId, init) => getOrAllocate("state.string", slotId, init, false),
-    tick: {
-      float: (slotId, init) => getOrAllocate("state.tick.float", slotId, init, true),
-      int: (slotId, init) => getOrAllocate("state.tick.int", slotId, init, true),
-      bool: (slotId, init) => getOrAllocate("state.tick.bool", slotId, init, true),
-      string: (slotId, init) => getOrAllocate("state.tick.string", slotId, init, true)
-    }
-  };
-  Object.freeze(ns.tick);
-  Object.freeze(ns);
-  return ns;
-}
-
-// ../runtime/dist/inputs/resolveInputs.js
-var SOURCE_FIELDS = /* @__PURE__ */ new Set([
-  "open",
-  "high",
-  "low",
-  "close",
-  "hl2",
-  "hlc3",
-  "ohlc4",
-  "hlcc4"
-]);
-function resolveInputs(manifest, overrides, ctx) {
-  const out = {};
-  for (const [key, descriptor] of Object.entries(manifest.inputs)) {
-    const fallback2 = defaultValueFor(descriptor);
-    if (!Object.hasOwn(overrides, key) || overrides[key] === void 0) {
-      out[key] = fallback2;
-      continue;
-    }
-    const override = overrides[key];
-    if (matchesDescriptor(descriptor, override)) {
-      out[key] = override;
-      continue;
-    }
-    pushInputDiagnostic(ctx, key, descriptor.kind, override);
-    out[key] = fallback2;
-  }
-  return Object.freeze(out);
-}
-function defaultValueFor(descriptor) {
-  if ("defaultValue" in descriptor)
-    return descriptor.defaultValue;
-  return void 0;
-}
-function matchesDescriptor(descriptor, value) {
-  switch (descriptor.kind) {
-    case "int":
-      return typeof value === "number" && Number.isInteger(value);
-    case "float":
-    case "time":
-    case "price":
-      return typeof value === "number" && Number.isFinite(value);
-    case "bool":
-      return typeof value === "boolean";
-    case "string":
-    case "color":
-    case "symbol":
-    case "interval":
-      return typeof value === "string";
-    case "enum":
-      return typeof value === "string" && descriptor.options.includes(value);
-    case "source":
-      return typeof value === "string" && SOURCE_FIELDS.has(value);
-    case "external-series":
-      return value !== null && typeof value === "object";
-  }
-}
-function pushInputDiagnostic(ctx, key, expected, value) {
-  if (ctx.diagnosedInputKeys.has(key))
-    return;
-  ctx.diagnosedInputKeys.add(key);
-  ctx.emissions.diagnostics.push({
-    kind: "diagnostic",
-    severity: "warning",
-    code: "input-coercion-failed",
-    message: `input "${key}" expected ${expected}, got ${describeValue(value)}`,
-    slotId: key,
-    bar: null
-  });
-}
-function describeValue(value) {
-  if (value === null)
-    return "null";
-  if (typeof value === "number" && Number.isNaN(value))
-    return "NaN";
-  return typeof value;
-}
-
-// ../runtime/dist/request/bucketLtfBarsByMainContainment.js
-function bucketLtfBarsByMainContainment(mainBars, ltfBars) {
-  if (mainBars.length === 0)
-    return [];
-  const buckets = Array.from({ length: mainBars.length }, () => []);
-  let mainIndex = 0;
-  let ltfIndex = 0;
-  while (ltfIndex < ltfBars.length && ltfBars[ltfIndex].time < mainBars[0].time) {
-    ltfIndex += 1;
-  }
-  while (ltfIndex < ltfBars.length) {
-    const ltf = ltfBars[ltfIndex];
-    while (mainIndex + 1 < mainBars.length && mainBars[mainIndex + 1].time <= ltf.time) {
-      mainIndex += 1;
-    }
-    buckets[mainIndex].push(ltf);
-    ltfIndex += 1;
-  }
-  return buckets;
-}
-
-// ../runtime/dist/request/bucketLtfBarsCache.js
-var CACHE = /* @__PURE__ */ new WeakMap();
-function getOrBucket(mainBars, ltfBars) {
-  let byLtf = CACHE.get(mainBars);
-  if (byLtf === void 0) {
-    byLtf = /* @__PURE__ */ new WeakMap();
-    CACHE.set(mainBars, byLtf);
-  }
-  const cached = byLtf.get(ltfBars);
-  if (cached !== void 0 && cached.mainLength === mainBars.length && cached.ltfLength === ltfBars.length) {
-    return cached.buckets;
-  }
-  const buckets = bucketLtfBarsByMainContainment(mainBars, ltfBars);
-  byLtf.set(ltfBars, { mainLength: mainBars.length, ltfLength: ltfBars.length, buckets });
-  return buckets;
-}
-
-// ../runtime/dist/request/pushOnce.js
-function pushOnce(ctx, code, slotId, interval, kind, message2) {
-  const key = `${code}|${slotId}|${interval}|${kind}`;
-  if (ctx.diagnosedRequestKeys.has(key))
-    return;
-  ctx.diagnosedRequestKeys.add(key);
-  ctx.emissions.diagnostics.push({
-    kind: "diagnostic",
-    severity: "warning",
-    code,
-    message: message2,
-    slotId,
-    bar: ctx.barIndex()
-  });
-}
-
-// ../runtime/dist/request/streamBars.js
-function barFromStream(stream, age) {
-  const open = stream.ohlcv.open.at(age);
-  const high = stream.ohlcv.high.at(age);
-  const low = stream.ohlcv.low.at(age);
-  const close = stream.ohlcv.close.at(age);
-  return {
-    time: stream.ohlcv.time.at(age),
-    open,
-    high,
-    low,
-    close,
-    volume: stream.ohlcv.volume.at(age),
-    symbol: stream.bar.symbol,
-    interval: stream.bar.interval,
-    hl2: (high + low) / 2,
-    hlc3: (high + low + close) / 3,
-    ohlc4: (open + high + low + close) / 4,
-    hlcc4: (high + low + close + close) / 4
-  };
-}
-function ascendingBarsFor(ctx, stream) {
-  const cached = ctx.requestSecurityAscendingBars.get(stream);
-  if (cached !== void 0)
-    return cached;
-  const bars = [];
-  for (let age = stream.ohlcv.close.length - 1; age >= 0; age -= 1) {
-    bars.push(barFromStream(stream, age));
-  }
-  ctx.requestSecurityAscendingBars.set(stream, bars);
-  return bars;
-}
-
-// ../runtime/dist/request/lowerTf.js
-var EMPTY_BUCKET = Object.freeze([]);
-function fallback(ctx, slotId, interval, code, message2) {
-  pushOnce(ctx, code, slotId, interval, "lowerTf", message2);
-  return EMPTY_BUCKET;
-}
-function bucketAt(ctx, slotId, interval, age) {
-  if (!ctx.capabilities.multiTimeframe) {
-    return fallback(ctx, slotId, interval, "multi-timeframe-not-supported", "Adapter declares multiTimeframe: false; request.lowerTf returns empty buckets");
-  }
-  const known = ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
-  if (!known) {
-    return fallback(ctx, slotId, interval, "unsupported-interval", `Requested interval "${interval}" is not in Capabilities.intervals`);
-  }
-  const secondary = ctx.secondaryStreams.get(interval);
-  if (secondary === void 0) {
-    return fallback(ctx, slotId, interval, "unknown-secondary-stream", `Requested interval "${interval}" has no registered secondary stream`);
-  }
-  const mainBars = ascendingBarsFor(ctx, ctx.stream);
-  const ltfBars = ascendingBarsFor(ctx, secondary);
-  const buckets = getOrBucket(mainBars, ltfBars);
-  const index = buckets.length - 1 - age;
-  return buckets[index] ?? EMPTY_BUCKET;
-}
-function makeLowerTfSeries(ctx, slotId, interval) {
-  const cacheKey = `${slotId}|${interval}`;
-  const existing = ctx.requestLowerTfViews.get(cacheKey);
-  if (existing !== void 0)
-    return existing;
-  const target = {
-    get current() {
-      return bucketAt(ctx, slotId, interval, 0);
-    },
-    get length() {
-      return ctx.stream.ohlcv.close.length;
-    }
-  };
-  const view = new Proxy(Object.freeze(target), {
-    get(obj, prop, receiver) {
-      if (typeof prop === "string") {
-        const n = Number(prop);
-        if (Number.isInteger(n) && n >= 0)
-          return bucketAt(ctx, slotId, interval, n);
-      }
-      return Reflect.get(obj, prop, receiver);
-    }
-  });
-  ctx.requestLowerTfViews.set(cacheKey, view);
-  return view;
-}
-
-// ../runtime/dist/request/alignHtfSeriesToLtf.js
-function alignHtfSeriesToLtf(htf, htfSeries, ltf) {
-  const out = new Array(ltf.length);
-  if (htf.length === 0 || ltf.length === 0) {
-    out.fill(Number.NaN);
-    return out;
-  }
-  let htfCursor = 0;
-  let lastIdx = -1;
-  for (let i = 0; i < ltf.length; i += 1) {
-    const t = ltf[i].time;
-    while (htfCursor < htf.length && htf[htfCursor].time <= t) {
-      lastIdx = htfCursor;
-      htfCursor += 1;
-    }
-    out[i] = lastIdx >= 0 ? htfSeries[lastIdx] : Number.NaN;
-  }
-  return out;
-}
-
-// ../runtime/dist/request/alignHtfSeriesCache.js
-var CACHE2 = /* @__PURE__ */ new WeakMap();
-function getOrAlign(htfBars, htfSeries, ltfBars) {
-  let byLtf = CACHE2.get(htfBars);
-  if (byLtf === void 0) {
-    byLtf = /* @__PURE__ */ new WeakMap();
-    CACHE2.set(htfBars, byLtf);
-  }
-  let bySeries = byLtf.get(ltfBars);
-  if (bySeries === void 0) {
-    bySeries = /* @__PURE__ */ new WeakMap();
-    byLtf.set(ltfBars, bySeries);
-  }
-  const cached = bySeries.get(htfSeries);
-  if (cached !== void 0 && cached.htfLength === htfBars.length && cached.ltfLength === ltfBars.length) {
-    return cached.aligned;
-  }
-  const aligned = alignHtfSeriesToLtf(htfBars, htfSeries, ltfBars);
-  bySeries.set(htfSeries, {
-    htfLength: htfBars.length,
-    ltfLength: ltfBars.length,
-    aligned
-  });
-  return aligned;
-}
-
-// ../runtime/dist/request/security.js
-var NUMERIC_SOURCE_KEYS = Object.freeze([
-  "time",
-  "open",
-  "high",
-  "low",
-  "close",
-  "volume",
-  "hl2",
-  "hlc3",
-  "ohlc4",
-  "hlcc4"
-]);
-function makeSeries(current) {
-  return Object.freeze({ current, length: 0 });
-}
-function makeNanSecurityBar() {
-  const nanNumberSeries = makeSeries(Number.NaN);
-  const nanStringSeries = makeSeries("");
-  return Object.freeze({
-    time: nanNumberSeries,
-    open: nanNumberSeries,
-    high: nanNumberSeries,
-    low: nanNumberSeries,
-    close: nanNumberSeries,
-    volume: nanNumberSeries,
-    hl2: nanNumberSeries,
-    hlc3: nanNumberSeries,
-    ohlc4: nanNumberSeries,
-    hlcc4: nanNumberSeries,
-    symbol: nanStringSeries,
-    interval: nanStringSeries
-  });
-}
-function seriesAscending(stream, sourceKey) {
-  const values = [];
-  const source = stream.ohlcv[sourceKey];
-  for (let age = source.length - 1; age >= 0; age -= 1) {
-    values.push(source.at(age));
-  }
-  return values;
-}
-function alignmentKey(slotId, interval, sourceKey) {
-  return `${slotId}|${interval}|${sourceKey}`;
-}
-function alignedSeries(ctx, slotId, interval, sourceKey, secondary) {
-  const key = alignmentKey(slotId, interval, sourceKey);
-  const existing = ctx.requestSecurityAlignments.get(key);
-  if (existing !== void 0)
-    return existing;
-  const htfBars = ascendingBarsFor(ctx, secondary);
-  const ltfBars = ascendingBarsFor(ctx, ctx.stream);
-  const aligned = getOrAlign(htfBars, seriesAscending(secondary, sourceKey), ltfBars);
-  ctx.requestSecurityAlignments.set(key, aligned);
-  return aligned;
-}
-function makeAlignedNumberSeries(ctx, slotId, interval, sourceKey, secondary) {
-  const target = {
-    get current() {
-      const aligned = alignedSeries(ctx, slotId, interval, sourceKey, secondary);
-      const value = aligned[aligned.length - 1];
-      return value === void 0 ? Number.NaN : value;
-    },
-    get length() {
-      return ctx.stream.ohlcv.close.length;
-    }
-  };
-  return new Proxy(Object.freeze(target), {
-    get(obj, prop, receiver) {
-      if (typeof prop === "string") {
-        const n = Number(prop);
-        if (Number.isInteger(n) && n >= 0) {
-          const aligned = alignedSeries(ctx, slotId, interval, sourceKey, secondary);
-          const value = aligned[aligned.length - 1 - n];
-          return value === void 0 ? Number.NaN : value;
-        }
-      }
-      return Reflect.get(obj, prop, receiver);
-    }
-  });
-}
-function makeConstantStringSeries(value) {
-  const target = {
-    get current() {
-      return value;
-    },
-    get length() {
-      return 0;
-    }
-  };
-  return new Proxy(Object.freeze(target), {
-    get(obj, prop, receiver) {
-      if (typeof prop === "string") {
-        const n = Number(prop);
-        if (Number.isInteger(n) && n >= 0)
-          return value;
-      }
-      return Reflect.get(obj, prop, receiver);
-    }
-  });
-}
-function makeLiveSecurityBar(ctx, slotId, interval, secondary) {
-  const numeric = /* @__PURE__ */ new Map();
-  for (const key of NUMERIC_SOURCE_KEYS) {
-    numeric.set(key, makeAlignedNumberSeries(ctx, slotId, interval, key, secondary));
-  }
-  return Object.freeze({
-    time: numeric.get("time") ?? makeSeries(Number.NaN),
-    open: numeric.get("open") ?? makeSeries(Number.NaN),
-    high: numeric.get("high") ?? makeSeries(Number.NaN),
-    low: numeric.get("low") ?? makeSeries(Number.NaN),
-    close: numeric.get("close") ?? makeSeries(Number.NaN),
-    volume: numeric.get("volume") ?? makeSeries(Number.NaN),
-    hl2: numeric.get("hl2") ?? makeSeries(Number.NaN),
-    hlc3: numeric.get("hlc3") ?? makeSeries(Number.NaN),
-    ohlc4: numeric.get("ohlc4") ?? makeSeries(Number.NaN),
-    hlcc4: numeric.get("hlcc4") ?? makeSeries(Number.NaN),
-    symbol: makeConstantStringSeries(secondary.bar.symbol),
-    interval: makeConstantStringSeries(interval)
-  });
-}
-function fallbackNaN(ctx, cacheKey, slotId, interval, code, message2) {
-  pushOnce(ctx, code, slotId, interval, "security", message2);
-  const bar = makeNanSecurityBar();
-  ctx.requestSecurityBars.set(cacheKey, bar);
-  return bar;
-}
-function makeSecurityBar(ctx, slotId, interval) {
-  const cacheKey = `${slotId}|${interval}`;
-  const existing = ctx.requestSecurityBars.get(cacheKey);
-  if (existing !== void 0)
-    return existing;
-  if (!ctx.capabilities.multiTimeframe) {
-    return fallbackNaN(ctx, cacheKey, slotId, interval, "multi-timeframe-not-supported", "Adapter declares multiTimeframe: false; request.security returns NaN");
-  }
-  const known = ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
-  if (!known) {
-    return fallbackNaN(ctx, cacheKey, slotId, interval, "unsupported-interval", `Requested interval "${interval}" is not in Capabilities.intervals`);
-  }
-  const secondary = ctx.secondaryStreams.get(interval);
-  if (secondary === void 0) {
-    return fallbackNaN(ctx, cacheKey, slotId, interval, "unknown-secondary-stream", `Requested interval "${interval}" has no registered secondary stream`);
-  }
-  const bar = makeLiveSecurityBar(ctx, slotId, interval, secondary);
-  ctx.requestSecurityBars.set(cacheKey, bar);
-  return bar;
-}
-
-// ../runtime/dist/request/requestNamespace.js
-function getCtx2(name) {
-  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
-  if (ctx === null) {
-    throw new Error(`${name} called outside an active script step`);
-  }
-  return ctx;
-}
-function security(slotId, opts) {
-  const ctx = getCtx2("request.security");
-  return makeSecurityBar(ctx, slotId, opts.interval);
-}
-function lowerTf(slotId, opts) {
-  const ctx = getCtx2("request.lowerTf");
-  return makeLowerTfSeries(ctx, slotId, opts.interval);
-}
-function buildRequestNamespace() {
-  const ns = Object.freeze({ security, lowerTf });
-  return ns;
-}
-
-// ../runtime/dist/views/barstateView.js
-function makeBarStateView(inputs) {
-  const { eventKind, barIndex, isLastBar } = inputs;
-  return Object.freeze({
-    isfirst: barIndex === 0,
-    islast: isLastBar,
-    isnew: eventKind === "history" || eventKind === "close",
-    ishistory: eventKind === "history",
-    isrealtime: eventKind === "tick",
-    isconfirmed: eventKind === "close"
-  });
-}
-
-// ../runtime/dist/views/timeframeView.js
-function parsePrefix(value) {
-  const match = /^(\d+)/.exec(value);
-  return match === null ? null : Number(match[1]);
-}
-var GROUP_SECONDS = Object.freeze({
-  second: 1,
-  minute: 60,
-  hour: 3600,
-  daily: 86400,
-  weekly: 604800,
-  monthly: 2629800,
-  quarterly: 7889400,
-  yearly: 31557600
-});
-var INTRADAY_GROUPS = /* @__PURE__ */ new Set(["second", "minute", "hour"]);
-var MONTHLY_LONGER = /* @__PURE__ */ new Set(["monthly", "quarterly", "yearly"]);
-function makeTimeframeView(interval, descriptor) {
-  const group2 = descriptor?.group ?? "";
-  const prefix = parsePrefix(interval) ?? Number.NaN;
-  const unitSeconds = GROUP_SECONDS[group2] ?? Number.NaN;
-  const inSeconds = Number.isFinite(prefix) && Number.isFinite(unitSeconds) ? prefix * unitSeconds : Number.NaN;
-  return Object.freeze({
-    period: interval,
-    isintraday: INTRADAY_GROUPS.has(group2),
-    isdaily: group2 === "daily",
-    isweekly: group2 === "weekly",
-    ismonthly: MONTHLY_LONGER.has(group2),
-    inSeconds
-  });
-}
-
-// ../runtime/dist/views/refreshRuntimeViews.js
-function findDescriptor(intervals, interval) {
-  return intervals.find((candidate) => candidate.value === interval);
-}
-function refreshRuntimeViews(state2, eventKind) {
-  const { runtimeContext } = state2;
-  const interval = runtimeContext.stream.bar.interval;
-  runtimeContext.views.barstate = makeBarStateView({
-    eventKind,
-    barIndex: runtimeContext.barIndex(),
-    isLastBar: eventKind !== "history"
-  });
-  runtimeContext.views.timeframe = makeTimeframeView(interval, findDescriptor(runtimeContext.capabilities.intervals, interval));
-}
-
-// ../runtime/dist/views/symInfoView.js
-var EMPTY_META = Object.freeze({});
-function makeSymInfoView(payload, enabled) {
-  return Object.freeze({
-    ticker: enabled.has("ticker") ? payload.ticker ?? "" : "",
-    type: enabled.has("type") ? payload.type ?? "custom" : "custom",
-    mintick: enabled.has("mintick") ? payload.mintick ?? Number.NaN : Number.NaN,
-    currency: enabled.has("currency") ? payload.currency ?? "" : "",
-    basecurrency: enabled.has("basecurrency") ? payload.basecurrency ?? "" : "",
-    exchange: enabled.has("exchange") ? payload.exchange ?? "" : "",
-    timezone: enabled.has("timezone") ? payload.timezone ?? "" : "",
-    session: enabled.has("session") ? payload.session ?? "" : "",
-    meta: enabled.has("meta") ? Object.freeze({ ...payload.meta ?? {} }) : EMPTY_META
-  });
-}
-
-// ../runtime/dist/views/index.js
-function createRuntimeViews(opts = {}) {
-  return {
-    barstate: makeBarStateView({ eventKind: "history", barIndex: 0, isLastBar: false }),
-    syminfo: opts.syminfo ?? makeSymInfoView({}, /* @__PURE__ */ new Set()),
-    timeframe: makeTimeframeView("", void 0)
-  };
-}
-
 // ../core/dist/types.js
 var isCompiledScriptBundle = (v) => Object.prototype.hasOwnProperty.call(v, "primary");
 
@@ -1076,6 +169,25 @@ var MULTIPLIERS = Object.freeze({
   M: 2592e3,
   Y: 31536e3
 });
+function intervalToSeconds(d) {
+  if (d.intervalSeconds !== void 0) {
+    if (!Number.isFinite(d.intervalSeconds) || d.intervalSeconds <= 0) {
+      throw new Error(`intervalToSeconds: intervalSeconds must be a positive finite number; received ${d.intervalSeconds}`);
+    }
+    return Math.round(d.intervalSeconds);
+  }
+  const match = /^(\d+)([smHhDWMY]?)$/.exec(d.value);
+  if (match === null) {
+    throw new Error(`intervalToSeconds: cannot parse interval value ${JSON.stringify(d.value)}`);
+  }
+  const n = Number.parseInt(match[1], 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new Error(`intervalToSeconds: numeric prefix must be a positive integer; received ${JSON.stringify(d.value)}`);
+  }
+  const suffix = match[2];
+  const multiplier = MULTIPLIERS[suffix];
+  return n * multiplier;
+}
 
 // ../core/dist/input/input.js
 var input = Object.freeze({
@@ -1356,25 +468,48 @@ var sentinel2 = (name) => {
 };
 var request = Object.freeze({
   /**
-   * Read a secondary candle stream at a script-author-fixed interval.
+   * Read a secondary candle stream at a script-author-fixed **higher**
+   * interval. The returned `SecurityBar` exposes every OHLCV field —
+   * plus the derived `hl2` / `hlc3` / `ohlc4` / `hlcc4` and `symbol` /
+   * `interval` — as a `Series<...>`, aligned no-lookahead to the chart's
+   * bars so a script can read prior secondary values such as
+   * `weekly.close[5]`. The `interval` must be a compile-time literal (a
+   * string literal or an `input.enum` value); the compiler walks every call
+   * to populate `manifest.requestedIntervals`. When the adapter does not
+   * advertise `Capabilities.multiTimeframe`, the series degrades to all-NaN
+   * rather than erroring. See the multi-timeframe guide for alignment and
+   * interval-format details.
    *
    * @since 0.4
    * @stable
    * @example
-   *     const fn: typeof request.security = request.security;
-   *     void fn;
+   *     // Pull weekly candles aligned to the chart and read the close.
+   *     const weekly = request.security({ interval: "1W" });
+   *     const weeklyClose = weekly.close.current;
+   *     void weeklyClose;
    */
   security(_opts) {
     return sentinel2("request.security");
   },
   /**
-   * Read lower-timeframe bars contained by each main-stream bar.
+   * Read **lower**-timeframe bars contained by each main-stream bar. The
+   * result is a `Series<ReadonlyArray<Bar>>` — for every main bar, the array
+   * of finer-grained bars that fall inside it (an empty frozen array for
+   * out-of-range or unsupported reads). The requested `interval` must be a
+   * compile-time literal and **strictly lower** than the chart interval; an
+   * equal-or-higher ordering is rejected at compile time with
+   * `lower-tf-not-lower` when statically known. Like `request.security`, it
+   * degrades to empty arrays when the adapter lacks
+   * `Capabilities.multiTimeframe`. See the multi-timeframe guide for the
+   * contained-bar model and interval format.
    *
    * @since 0.6
    * @stable
    * @example
-   *     const fn: typeof request.lowerTf = request.lowerTf;
-   *     void fn;
+   *     // Each main bar carries the array of intrabar 30-second candles.
+   *     const intrabar = request.lowerTf({ interval: "30s" });
+   *     const count = intrabar.current.length;
+   *     void count;
    */
   lowerTf(_opts) {
     return sentinel2("request.lowerTf");
@@ -2019,6 +1154,959 @@ function createDrawStub() {
 function throwingMethod(qualified) {
   return () => {
     throw new Error(`${qualified} called outside compiled runtime`);
+  };
+}
+
+// ../runtime/dist/barPoint.js
+function intervalSpacingMs(interval) {
+  try {
+    return intervalToSeconds({ value: interval, label: interval, group: "" }) * 1e3;
+  } catch {
+    return Number.NaN;
+  }
+}
+function medianSpacingMs(time) {
+  const pairs = Math.min(time.length - 1, 100);
+  if (pairs < 1)
+    return Number.NaN;
+  const deltas = [];
+  for (let i = 0; i < pairs; i += 1) {
+    const delta = time.at(i) - time.at(i + 1);
+    if (Number.isFinite(delta))
+      deltas.push(delta);
+  }
+  if (deltas.length === 0)
+    return Number.NaN;
+  deltas.sort((a, b) => a - b);
+  const mid = deltas.length >> 1;
+  return deltas.length % 2 === 1 ? deltas[mid] : (deltas[mid - 1] + deltas[mid]) / 2;
+}
+function resolveBarPoint(time, interval, currentTime, offset, price) {
+  if (offset === 0)
+    return { time: currentTime, price };
+  if (offset < 0)
+    return { time: time.at(-offset), price };
+  const spacing = (() => {
+    const median2 = medianSpacingMs(time);
+    return Number.isFinite(median2) ? median2 : intervalSpacingMs(interval);
+  })();
+  return { time: currentTime + offset * spacing, price };
+}
+
+// ../runtime/dist/streamState.js
+function deriveBarSources(rawBar) {
+  return {
+    hl2: (rawBar.high + rawBar.low) / 2,
+    hlc3: (rawBar.high + rawBar.low + rawBar.close) / 3,
+    ohlc4: (rawBar.open + rawBar.high + rawBar.low + rawBar.close) / 4,
+    hlcc4: (rawBar.high + rawBar.low + rawBar.close + rawBar.close) / 4
+  };
+}
+var rawBufferKeys = ["time", "open", "high", "low", "close", "volume"];
+function rawBuffers(ohlcv) {
+  return {
+    time: ohlcv.time,
+    open: ohlcv.open,
+    high: ohlcv.high,
+    low: ohlcv.low,
+    close: ohlcv.close,
+    volume: ohlcv.volume
+  };
+}
+function valueAt(values, index) {
+  const value = values[index];
+  return value === null || value === void 0 ? Number.NaN : value;
+}
+function recomputeDerivedBuffers(ohlcv, snapshot6) {
+  const { headIndex, filled, buffers } = snapshot6;
+  const capacity = ohlcv.hl2.capacity;
+  const derived = {
+    hl2: new Array(capacity),
+    hlc3: new Array(capacity),
+    ohlc4: new Array(capacity),
+    hlcc4: new Array(capacity)
+  };
+  for (let i = 0; i < capacity; i += 1) {
+    const high = valueAt(buffers.high, i);
+    const low = valueAt(buffers.low, i);
+    const open = valueAt(buffers.open, i);
+    const close = valueAt(buffers.close, i);
+    derived.hl2[i] = Number.isNaN(high) || Number.isNaN(low) ? null : (high + low) / 2;
+    derived.hlc3[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (high + low + close) / 3;
+    derived.ohlc4[i] = Number.isNaN(open) || Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (open + high + low + close) / 4;
+    derived.hlcc4[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (high + low + close + close) / 4;
+  }
+  ohlcv.hl2.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.hl2 });
+  ohlcv.hlc3.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.hlc3 });
+  ohlcv.ohlc4.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.ohlc4 });
+  ohlcv.hlcc4.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.hlcc4 });
+}
+function createStreamState(args) {
+  const { interval, capacity, symbol } = args;
+  const ohlcv = {
+    time: new Float64RingBuffer(capacity),
+    open: new Float64RingBuffer(capacity),
+    high: new Float64RingBuffer(capacity),
+    low: new Float64RingBuffer(capacity),
+    close: new Float64RingBuffer(capacity),
+    volume: new Float64RingBuffer(capacity),
+    hl2: new Float64RingBuffer(capacity),
+    hlc3: new Float64RingBuffer(capacity),
+    ohlc4: new Float64RingBuffer(capacity),
+    hlcc4: new Float64RingBuffer(capacity)
+  };
+  const bar = {
+    time: 0,
+    open: Number.NaN,
+    high: Number.NaN,
+    low: Number.NaN,
+    close: Number.NaN,
+    volume: 0,
+    hl2: Number.NaN,
+    hlc3: Number.NaN,
+    ohlc4: Number.NaN,
+    hlcc4: Number.NaN,
+    symbol,
+    interval,
+    viewport: Object.freeze({ fromTime: 0, toTime: 0 }),
+    // Closes over the stream's time history + the live `BarView` scalars so
+    // offset-anchored drawings resolve against the real / extrapolated time
+    // at compute time. The `WorldPoint` it returns is the only persisted
+    // anchor frame — `bar.point` adds no new wire shape.
+    point: (offset, price) => resolveBarPoint(ohlcv.time, bar.interval, bar.time, offset, price)
+  };
+  const seriesViews = {
+    time: makeSeriesView(ohlcv.time),
+    open: makeSeriesView(ohlcv.open),
+    high: makeSeriesView(ohlcv.high),
+    low: makeSeriesView(ohlcv.low),
+    close: makeSeriesView(ohlcv.close),
+    volume: makeSeriesView(ohlcv.volume),
+    hl2: makeSeriesView(ohlcv.hl2),
+    hlc3: makeSeriesView(ohlcv.hlc3),
+    ohlc4: makeSeriesView(ohlcv.ohlc4),
+    hlcc4: makeSeriesView(ohlcv.hlcc4)
+  };
+  const stream = {
+    interval,
+    ohlcv,
+    bar,
+    seriesViews,
+    taSlots: /* @__PURE__ */ new Map(),
+    serialiseSnapshot() {
+      const close = ohlcv.close.serialiseSnapshotBuffer();
+      const buffers = rawBuffers(ohlcv);
+      return Object.freeze({
+        interval: bar.interval,
+        headIndex: close.headIndex,
+        filled: close.filled,
+        buffers: Object.freeze({
+          time: buffers.time.serialiseSnapshotBuffer().values,
+          open: buffers.open.serialiseSnapshotBuffer().values,
+          high: buffers.high.serialiseSnapshotBuffer().values,
+          low: buffers.low.serialiseSnapshotBuffer().values,
+          close: close.values,
+          volume: buffers.volume.serialiseSnapshotBuffer().values
+        })
+      });
+    },
+    restoreFromSnapshot(snapshot6) {
+      const buffers = rawBuffers(ohlcv);
+      for (const key of rawBufferKeys) {
+        buffers[key].restoreFromSnapshotBuffer({
+          headIndex: snapshot6.headIndex,
+          filled: snapshot6.filled,
+          values: snapshot6.buffers[key]
+        });
+      }
+      recomputeDerivedBuffers(ohlcv, snapshot6);
+      const current = snapshot6.headIndex;
+      if (snapshot6.filled === 0 || current < 0) {
+        bar.time = 0;
+        bar.open = Number.NaN;
+        bar.high = Number.NaN;
+        bar.low = Number.NaN;
+        bar.close = Number.NaN;
+        bar.volume = 0;
+        bar.hl2 = Number.NaN;
+        bar.hlc3 = Number.NaN;
+        bar.ohlc4 = Number.NaN;
+        bar.hlcc4 = Number.NaN;
+      } else {
+        bar.time = valueAt(snapshot6.buffers.time, current);
+        bar.open = valueAt(snapshot6.buffers.open, current);
+        bar.high = valueAt(snapshot6.buffers.high, current);
+        bar.low = valueAt(snapshot6.buffers.low, current);
+        bar.close = valueAt(snapshot6.buffers.close, current);
+        bar.volume = valueAt(snapshot6.buffers.volume, current);
+        bar.hl2 = (bar.high + bar.low) / 2;
+        bar.hlc3 = (bar.high + bar.low + bar.close) / 3;
+        bar.ohlc4 = (bar.open + bar.high + bar.low + bar.close) / 4;
+        bar.hlcc4 = (bar.high + bar.low + bar.close + bar.close) / 4;
+      }
+      bar.interval = snapshot6.interval;
+    }
+  };
+  return stream;
+}
+function appendBarToStream(stream, rawBar) {
+  const values = deriveBarSources(rawBar);
+  const { ohlcv, bar } = stream;
+  ohlcv.time.append(rawBar.time);
+  ohlcv.open.append(rawBar.open);
+  ohlcv.high.append(rawBar.high);
+  ohlcv.low.append(rawBar.low);
+  ohlcv.close.append(rawBar.close);
+  ohlcv.volume.append(rawBar.volume);
+  ohlcv.hl2.append(values.hl2);
+  ohlcv.hlc3.append(values.hlc3);
+  ohlcv.ohlc4.append(values.ohlc4);
+  ohlcv.hlcc4.append(values.hlcc4);
+  bar.time = rawBar.time;
+  bar.open = rawBar.open;
+  bar.high = rawBar.high;
+  bar.low = rawBar.low;
+  bar.close = rawBar.close;
+  bar.volume = rawBar.volume;
+  bar.hl2 = values.hl2;
+  bar.hlc3 = values.hlc3;
+  bar.ohlc4 = values.ohlc4;
+  bar.hlcc4 = values.hlcc4;
+  bar.symbol = rawBar.symbol;
+  bar.interval = rawBar.interval;
+}
+function replaceStreamHead(stream, rawBar) {
+  if (stream.ohlcv.close.length === 0) {
+    appendBarToStream(stream, rawBar);
+    return;
+  }
+  const values = deriveBarSources(rawBar);
+  const { ohlcv, bar } = stream;
+  ohlcv.time.replaceHead(rawBar.time);
+  ohlcv.open.replaceHead(rawBar.open);
+  ohlcv.high.replaceHead(rawBar.high);
+  ohlcv.low.replaceHead(rawBar.low);
+  ohlcv.close.replaceHead(rawBar.close);
+  ohlcv.volume.replaceHead(rawBar.volume);
+  ohlcv.hl2.replaceHead(values.hl2);
+  ohlcv.hlc3.replaceHead(values.hlc3);
+  ohlcv.ohlc4.replaceHead(values.ohlc4);
+  ohlcv.hlcc4.replaceHead(values.hlcc4);
+  bar.time = rawBar.time;
+  bar.open = rawBar.open;
+  bar.high = rawBar.high;
+  bar.low = rawBar.low;
+  bar.close = rawBar.close;
+  bar.volume = rawBar.volume;
+  bar.hl2 = values.hl2;
+  bar.hlc3 = values.hlc3;
+  bar.ohlc4 = values.ohlc4;
+  bar.hlcc4 = values.hlcc4;
+  bar.symbol = rawBar.symbol;
+  bar.interval = rawBar.interval;
+}
+function replaceTickHead(stream, rawBar) {
+  const values = deriveBarSources(rawBar);
+  const { ohlcv, bar } = stream;
+  ohlcv.close.replaceHead(rawBar.close);
+  ohlcv.high.replaceHead(rawBar.high);
+  ohlcv.low.replaceHead(rawBar.low);
+  ohlcv.volume.replaceHead(rawBar.volume);
+  ohlcv.hl2.replaceHead(values.hl2);
+  ohlcv.hlc3.replaceHead(values.hlc3);
+  ohlcv.ohlc4.replaceHead(values.ohlc4);
+  ohlcv.hlcc4.replaceHead(values.hlcc4);
+  bar.close = rawBar.close;
+  bar.high = rawBar.high;
+  bar.low = rawBar.low;
+  bar.volume = rawBar.volume;
+  bar.hl2 = values.hl2;
+  bar.hlc3 = values.hlc3;
+  bar.ohlc4 = values.ohlc4;
+  bar.hlcc4 = values.hlcc4;
+}
+function updateFallbackViewport(stream, limit = 100) {
+  const length = stream.ohlcv.time.length;
+  if (length === 0) {
+    stream.bar.viewport = Object.freeze({ fromTime: 0, toTime: 0 });
+    return;
+  }
+  const lookback = Math.min(length - 1, Math.max(0, limit - 1));
+  const fromTime = stream.ohlcv.time.at(lookback);
+  const toTime = stream.ohlcv.time.at(0);
+  stream.bar.viewport = Object.freeze({
+    fromTime: Number.isFinite(fromTime) ? fromTime : toTime,
+    toTime
+  });
+}
+
+// ../runtime/dist/stateStore.js
+function inMemoryStateStore() {
+  const store = /* @__PURE__ */ new Map();
+  return {
+    get(id) {
+      return store.get(id);
+    },
+    set(id, value) {
+      store.set(id, value);
+    },
+    has(id) {
+      return store.has(id);
+    },
+    clear() {
+      store.clear();
+    }
+  };
+}
+
+// ../runtime/dist/state/lifecycle.js
+function resetTentativeStateSlots(ctx) {
+  for (const slot of ctx.stateSlots.values()) {
+    slot.onBarTick();
+  }
+}
+function commitStateSlots(ctx) {
+  for (const slot of ctx.stateSlots.values()) {
+    slot.onBarClose();
+  }
+}
+function flushStateSlots(ctx) {
+  for (const [key, slot] of ctx.stateSlots.entries()) {
+    ctx.stateStore.set(key, {
+      committed: slot.committed,
+      tentative: slot.tentative
+    });
+  }
+}
+function serialiseStateSlots(ctx) {
+  const out = {};
+  for (const [key, slot] of ctx.stateSlots.entries()) {
+    out[key] = {
+      committed: slot.serialise(slot.committed),
+      tentative: slot.serialise(slot.tentative)
+    };
+  }
+  return Object.freeze(out);
+}
+function restoreStateSlots(ctx, slots) {
+  ctx.stateSlots.clear();
+  for (const [key, value] of Object.entries(slots)) {
+    ctx.stateStore.set(key, value);
+  }
+}
+
+// ../runtime/dist/runtimeContext.js
+var ACTIVE_RUNTIME_CONTEXT = {
+  current: null
+};
+
+// ../runtime/dist/state/stateSlot.js
+var StateSlot = class {
+  constructor(init, tickPersistent, serialisers = {}) {
+    __publicField(this, "tickPersistent");
+    __publicField(this, "serialisers");
+    __publicField(this, "committed");
+    __publicField(this, "tentative");
+    this.tickPersistent = tickPersistent;
+    this.serialisers = serialisers;
+    this.committed = init;
+    this.tentative = init;
+  }
+  get() {
+    return this.tickPersistent ? this.committed : this.tentative;
+  }
+  set(value) {
+    if (this.tickPersistent) {
+      this.committed = value;
+    } else {
+      this.tentative = value;
+    }
+  }
+  onBarClose() {
+    if (!this.tickPersistent) {
+      this.committed = this.tentative;
+    }
+  }
+  onBarTick() {
+    if (!this.tickPersistent) {
+      this.tentative = this.committed;
+    }
+  }
+  serialise(value) {
+    return this.serialisers.serialiseState?.(value) ?? value;
+  }
+};
+function asMutableSlot(slot) {
+  return {
+    get value() {
+      return slot.get();
+    },
+    set value(value) {
+      slot.set(value);
+    }
+  };
+}
+
+// ../runtime/dist/state/stateNamespace.js
+var stateKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:state`;
+function getCtx(name) {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null) {
+    throw new Error(`${name} called outside an active script step`);
+  }
+  return ctx;
+}
+function getOrAllocate(name, slotId, init, tickPersistent) {
+  const ctx = getCtx(name);
+  const key = stateKey(ctx, slotId);
+  const existing = ctx.stateSlots.get(key);
+  if (existing !== void 0) {
+    return asMutableSlot(existing);
+  }
+  const stored = ctx.stateStore.get(key);
+  const slot = new StateSlot(stored?.committed ?? init, tickPersistent);
+  if (stored !== void 0) {
+    slot.tentative = stored.tentative;
+  }
+  ctx.stateSlots.set(key, slot);
+  return asMutableSlot(slot);
+}
+function buildStateNamespace() {
+  const ns = {
+    float: (slotId, init) => getOrAllocate("state.float", slotId, init, false),
+    int: (slotId, init) => getOrAllocate("state.int", slotId, init, false),
+    bool: (slotId, init) => getOrAllocate("state.bool", slotId, init, false),
+    string: (slotId, init) => getOrAllocate("state.string", slotId, init, false),
+    tick: {
+      float: (slotId, init) => getOrAllocate("state.tick.float", slotId, init, true),
+      int: (slotId, init) => getOrAllocate("state.tick.int", slotId, init, true),
+      bool: (slotId, init) => getOrAllocate("state.tick.bool", slotId, init, true),
+      string: (slotId, init) => getOrAllocate("state.tick.string", slotId, init, true)
+    }
+  };
+  Object.freeze(ns.tick);
+  Object.freeze(ns);
+  return ns;
+}
+
+// ../runtime/dist/inputs/resolveInputs.js
+var SOURCE_FIELDS = /* @__PURE__ */ new Set([
+  "open",
+  "high",
+  "low",
+  "close",
+  "hl2",
+  "hlc3",
+  "ohlc4",
+  "hlcc4"
+]);
+function resolveInputs(manifest, overrides, ctx) {
+  const out = {};
+  for (const [key, descriptor] of Object.entries(manifest.inputs)) {
+    const fallback2 = defaultValueFor(descriptor);
+    if (!Object.hasOwn(overrides, key) || overrides[key] === void 0) {
+      out[key] = fallback2;
+      continue;
+    }
+    const override = overrides[key];
+    if (matchesDescriptor(descriptor, override)) {
+      out[key] = override;
+      continue;
+    }
+    pushInputDiagnostic(ctx, key, descriptor.kind, override);
+    out[key] = fallback2;
+  }
+  return Object.freeze(out);
+}
+function defaultValueFor(descriptor) {
+  if ("defaultValue" in descriptor)
+    return descriptor.defaultValue;
+  return void 0;
+}
+function matchesDescriptor(descriptor, value) {
+  switch (descriptor.kind) {
+    case "int":
+      return typeof value === "number" && Number.isInteger(value);
+    case "float":
+    case "time":
+    case "price":
+      return typeof value === "number" && Number.isFinite(value);
+    case "bool":
+      return typeof value === "boolean";
+    case "string":
+    case "color":
+    case "symbol":
+    case "interval":
+      return typeof value === "string";
+    case "enum":
+      return typeof value === "string" && descriptor.options.includes(value);
+    case "source":
+      return typeof value === "string" && SOURCE_FIELDS.has(value);
+    case "external-series":
+      return value !== null && typeof value === "object";
+  }
+}
+function pushInputDiagnostic(ctx, key, expected, value) {
+  if (ctx.diagnosedInputKeys.has(key))
+    return;
+  ctx.diagnosedInputKeys.add(key);
+  ctx.emissions.diagnostics.push({
+    kind: "diagnostic",
+    severity: "warning",
+    code: "input-coercion-failed",
+    message: `input "${key}" expected ${expected}, got ${describeValue(value)}`,
+    slotId: key,
+    bar: null
+  });
+}
+function describeValue(value) {
+  if (value === null)
+    return "null";
+  if (typeof value === "number" && Number.isNaN(value))
+    return "NaN";
+  return typeof value;
+}
+
+// ../runtime/dist/request/bucketLtfBarsByMainContainment.js
+function bucketLtfBarsByMainContainment(mainBars, ltfBars) {
+  if (mainBars.length === 0)
+    return [];
+  const buckets = Array.from({ length: mainBars.length }, () => []);
+  let mainIndex = 0;
+  let ltfIndex = 0;
+  while (ltfIndex < ltfBars.length && ltfBars[ltfIndex].time < mainBars[0].time) {
+    ltfIndex += 1;
+  }
+  while (ltfIndex < ltfBars.length) {
+    const ltf = ltfBars[ltfIndex];
+    while (mainIndex + 1 < mainBars.length && mainBars[mainIndex + 1].time <= ltf.time) {
+      mainIndex += 1;
+    }
+    buckets[mainIndex].push(ltf);
+    ltfIndex += 1;
+  }
+  return buckets;
+}
+
+// ../runtime/dist/request/bucketLtfBarsCache.js
+var CACHE = /* @__PURE__ */ new WeakMap();
+function getOrBucket(mainBars, ltfBars) {
+  let byLtf = CACHE.get(mainBars);
+  if (byLtf === void 0) {
+    byLtf = /* @__PURE__ */ new WeakMap();
+    CACHE.set(mainBars, byLtf);
+  }
+  const cached = byLtf.get(ltfBars);
+  if (cached !== void 0 && cached.mainLength === mainBars.length && cached.ltfLength === ltfBars.length) {
+    return cached.buckets;
+  }
+  const buckets = bucketLtfBarsByMainContainment(mainBars, ltfBars);
+  byLtf.set(ltfBars, { mainLength: mainBars.length, ltfLength: ltfBars.length, buckets });
+  return buckets;
+}
+
+// ../runtime/dist/request/pushOnce.js
+function pushOnce(ctx, code, slotId, interval, kind, message2) {
+  const key = `${code}|${slotId}|${interval}|${kind}`;
+  if (ctx.diagnosedRequestKeys.has(key))
+    return;
+  ctx.diagnosedRequestKeys.add(key);
+  ctx.emissions.diagnostics.push({
+    kind: "diagnostic",
+    severity: "warning",
+    code,
+    message: message2,
+    slotId,
+    bar: ctx.barIndex()
+  });
+}
+
+// ../runtime/dist/request/streamBars.js
+function barFromStream(stream, age) {
+  const open = stream.ohlcv.open.at(age);
+  const high = stream.ohlcv.high.at(age);
+  const low = stream.ohlcv.low.at(age);
+  const close = stream.ohlcv.close.at(age);
+  const barTime = stream.ohlcv.time.at(age);
+  return {
+    time: barTime,
+    open,
+    high,
+    low,
+    close,
+    volume: stream.ohlcv.volume.at(age),
+    symbol: stream.bar.symbol,
+    interval: stream.bar.interval,
+    hl2: (high + low) / 2,
+    hlc3: (high + low + close) / 3,
+    ohlc4: (open + high + low + close) / 4,
+    hlcc4: (high + low + close + close) / 4,
+    // Anchored at this materialised bar's own `age`: a negative offset
+    // reads `time.at(age - offset)` (further back in this stream's
+    // history) so a snapshot bar's offsets stay relative to itself.
+    point: (offset, price) => resolveBarPoint(stream.ohlcv.time, stream.bar.interval, barTime, offset - age, price)
+  };
+}
+function ascendingBarsFor(ctx, stream) {
+  const cached = ctx.requestSecurityAscendingBars.get(stream);
+  if (cached !== void 0)
+    return cached;
+  const bars = [];
+  for (let age = stream.ohlcv.close.length - 1; age >= 0; age -= 1) {
+    bars.push(barFromStream(stream, age));
+  }
+  ctx.requestSecurityAscendingBars.set(stream, bars);
+  return bars;
+}
+
+// ../runtime/dist/request/lowerTf.js
+var EMPTY_BUCKET = Object.freeze([]);
+function fallback(ctx, slotId, interval, code, message2) {
+  pushOnce(ctx, code, slotId, interval, "lowerTf", message2);
+  return EMPTY_BUCKET;
+}
+function bucketAt(ctx, slotId, interval, age) {
+  if (!ctx.capabilities.multiTimeframe) {
+    return fallback(ctx, slotId, interval, "multi-timeframe-not-supported", "Adapter declares multiTimeframe: false; request.lowerTf returns empty buckets");
+  }
+  const known = ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
+  if (!known) {
+    return fallback(ctx, slotId, interval, "unsupported-interval", `Requested interval "${interval}" is not in Capabilities.intervals`);
+  }
+  const secondary = ctx.secondaryStreams.get(interval);
+  if (secondary === void 0) {
+    return fallback(ctx, slotId, interval, "unknown-secondary-stream", `Requested interval "${interval}" has no registered secondary stream`);
+  }
+  const mainBars = ascendingBarsFor(ctx, ctx.stream);
+  const ltfBars = ascendingBarsFor(ctx, secondary);
+  const buckets = getOrBucket(mainBars, ltfBars);
+  const index = buckets.length - 1 - age;
+  return buckets[index] ?? EMPTY_BUCKET;
+}
+function makeLowerTfSeries(ctx, slotId, interval) {
+  const cacheKey = `${slotId}|${interval}`;
+  const existing = ctx.requestLowerTfViews.get(cacheKey);
+  if (existing !== void 0)
+    return existing;
+  const target = {
+    get current() {
+      return bucketAt(ctx, slotId, interval, 0);
+    },
+    get length() {
+      return ctx.stream.ohlcv.close.length;
+    }
+  };
+  const view = new Proxy(Object.freeze(target), {
+    get(obj, prop, receiver) {
+      if (typeof prop === "string") {
+        const n = Number(prop);
+        if (Number.isInteger(n) && n >= 0)
+          return bucketAt(ctx, slotId, interval, n);
+      }
+      return Reflect.get(obj, prop, receiver);
+    }
+  });
+  ctx.requestLowerTfViews.set(cacheKey, view);
+  return view;
+}
+
+// ../runtime/dist/request/alignHtfSeriesToLtf.js
+function alignHtfSeriesToLtf(htf, htfSeries, ltf) {
+  const out = new Array(ltf.length);
+  if (htf.length === 0 || ltf.length === 0) {
+    out.fill(Number.NaN);
+    return out;
+  }
+  let htfCursor = 0;
+  let lastIdx = -1;
+  for (let i = 0; i < ltf.length; i += 1) {
+    const t = ltf[i].time;
+    while (htfCursor < htf.length && htf[htfCursor].time <= t) {
+      lastIdx = htfCursor;
+      htfCursor += 1;
+    }
+    out[i] = lastIdx >= 0 ? htfSeries[lastIdx] : Number.NaN;
+  }
+  return out;
+}
+
+// ../runtime/dist/request/alignHtfSeriesCache.js
+var CACHE2 = /* @__PURE__ */ new WeakMap();
+function getOrAlign(htfBars, htfSeries, ltfBars) {
+  let byLtf = CACHE2.get(htfBars);
+  if (byLtf === void 0) {
+    byLtf = /* @__PURE__ */ new WeakMap();
+    CACHE2.set(htfBars, byLtf);
+  }
+  let bySeries = byLtf.get(ltfBars);
+  if (bySeries === void 0) {
+    bySeries = /* @__PURE__ */ new WeakMap();
+    byLtf.set(ltfBars, bySeries);
+  }
+  const cached = bySeries.get(htfSeries);
+  if (cached !== void 0 && cached.htfLength === htfBars.length && cached.ltfLength === ltfBars.length) {
+    return cached.aligned;
+  }
+  const aligned = alignHtfSeriesToLtf(htfBars, htfSeries, ltfBars);
+  bySeries.set(htfSeries, {
+    htfLength: htfBars.length,
+    ltfLength: ltfBars.length,
+    aligned
+  });
+  return aligned;
+}
+
+// ../runtime/dist/request/security.js
+var NUMERIC_SOURCE_KEYS = Object.freeze([
+  "time",
+  "open",
+  "high",
+  "low",
+  "close",
+  "volume",
+  "hl2",
+  "hlc3",
+  "ohlc4",
+  "hlcc4"
+]);
+function makeSeries(current) {
+  return Object.freeze({ current, length: 0 });
+}
+function makeNanSecurityBar() {
+  const nanNumberSeries = makeSeries(Number.NaN);
+  const nanStringSeries = makeSeries("");
+  return Object.freeze({
+    time: nanNumberSeries,
+    open: nanNumberSeries,
+    high: nanNumberSeries,
+    low: nanNumberSeries,
+    close: nanNumberSeries,
+    volume: nanNumberSeries,
+    hl2: nanNumberSeries,
+    hlc3: nanNumberSeries,
+    ohlc4: nanNumberSeries,
+    hlcc4: nanNumberSeries,
+    symbol: nanStringSeries,
+    interval: nanStringSeries
+  });
+}
+function seriesAscending(stream, sourceKey) {
+  const values = [];
+  const source = stream.ohlcv[sourceKey];
+  for (let age = source.length - 1; age >= 0; age -= 1) {
+    values.push(source.at(age));
+  }
+  return values;
+}
+function alignmentKey(slotId, interval, sourceKey) {
+  return `${slotId}|${interval}|${sourceKey}`;
+}
+function alignedSeries(ctx, slotId, interval, sourceKey, secondary) {
+  const key = alignmentKey(slotId, interval, sourceKey);
+  const existing = ctx.requestSecurityAlignments.get(key);
+  if (existing !== void 0)
+    return existing;
+  const htfBars = ascendingBarsFor(ctx, secondary);
+  const ltfBars = ascendingBarsFor(ctx, ctx.stream);
+  const aligned = getOrAlign(htfBars, seriesAscending(secondary, sourceKey), ltfBars);
+  ctx.requestSecurityAlignments.set(key, aligned);
+  return aligned;
+}
+function makeAlignedNumberSeries(ctx, slotId, interval, sourceKey, secondary) {
+  const target = {
+    get current() {
+      const aligned = alignedSeries(ctx, slotId, interval, sourceKey, secondary);
+      const value = aligned[aligned.length - 1];
+      return value === void 0 ? Number.NaN : value;
+    },
+    get length() {
+      return ctx.stream.ohlcv.close.length;
+    }
+  };
+  return new Proxy(Object.freeze(target), {
+    get(obj, prop, receiver) {
+      if (typeof prop === "string") {
+        const n = Number(prop);
+        if (Number.isInteger(n) && n >= 0) {
+          const aligned = alignedSeries(ctx, slotId, interval, sourceKey, secondary);
+          const value = aligned[aligned.length - 1 - n];
+          return value === void 0 ? Number.NaN : value;
+        }
+      }
+      return Reflect.get(obj, prop, receiver);
+    }
+  });
+}
+function makeConstantStringSeries(value) {
+  const target = {
+    get current() {
+      return value;
+    },
+    get length() {
+      return 0;
+    }
+  };
+  return new Proxy(Object.freeze(target), {
+    get(obj, prop, receiver) {
+      if (typeof prop === "string") {
+        const n = Number(prop);
+        if (Number.isInteger(n) && n >= 0)
+          return value;
+      }
+      return Reflect.get(obj, prop, receiver);
+    }
+  });
+}
+function makeLiveSecurityBar(ctx, slotId, interval, secondary) {
+  const numeric = /* @__PURE__ */ new Map();
+  for (const key of NUMERIC_SOURCE_KEYS) {
+    numeric.set(key, makeAlignedNumberSeries(ctx, slotId, interval, key, secondary));
+  }
+  return Object.freeze({
+    time: numeric.get("time") ?? makeSeries(Number.NaN),
+    open: numeric.get("open") ?? makeSeries(Number.NaN),
+    high: numeric.get("high") ?? makeSeries(Number.NaN),
+    low: numeric.get("low") ?? makeSeries(Number.NaN),
+    close: numeric.get("close") ?? makeSeries(Number.NaN),
+    volume: numeric.get("volume") ?? makeSeries(Number.NaN),
+    hl2: numeric.get("hl2") ?? makeSeries(Number.NaN),
+    hlc3: numeric.get("hlc3") ?? makeSeries(Number.NaN),
+    ohlc4: numeric.get("ohlc4") ?? makeSeries(Number.NaN),
+    hlcc4: numeric.get("hlcc4") ?? makeSeries(Number.NaN),
+    symbol: makeConstantStringSeries(secondary.bar.symbol),
+    interval: makeConstantStringSeries(interval)
+  });
+}
+function fallbackNaN(ctx, cacheKey, slotId, interval, code, message2) {
+  pushOnce(ctx, code, slotId, interval, "security", message2);
+  const bar = makeNanSecurityBar();
+  ctx.requestSecurityBars.set(cacheKey, bar);
+  return bar;
+}
+function makeSecurityBar(ctx, slotId, interval) {
+  const cacheKey = `${slotId}|${interval}`;
+  const existing = ctx.requestSecurityBars.get(cacheKey);
+  if (existing !== void 0)
+    return existing;
+  if (!ctx.capabilities.multiTimeframe) {
+    return fallbackNaN(ctx, cacheKey, slotId, interval, "multi-timeframe-not-supported", "Adapter declares multiTimeframe: false; request.security returns NaN");
+  }
+  const known = ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
+  if (!known) {
+    return fallbackNaN(ctx, cacheKey, slotId, interval, "unsupported-interval", `Requested interval "${interval}" is not in Capabilities.intervals`);
+  }
+  const secondary = ctx.secondaryStreams.get(interval);
+  if (secondary === void 0) {
+    return fallbackNaN(ctx, cacheKey, slotId, interval, "unknown-secondary-stream", `Requested interval "${interval}" has no registered secondary stream`);
+  }
+  const bar = makeLiveSecurityBar(ctx, slotId, interval, secondary);
+  ctx.requestSecurityBars.set(cacheKey, bar);
+  return bar;
+}
+
+// ../runtime/dist/request/requestNamespace.js
+function getCtx2(name) {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null) {
+    throw new Error(`${name} called outside an active script step`);
+  }
+  return ctx;
+}
+function security(slotId, opts) {
+  const ctx = getCtx2("request.security");
+  return makeSecurityBar(ctx, slotId, opts.interval);
+}
+function lowerTf(slotId, opts) {
+  const ctx = getCtx2("request.lowerTf");
+  return makeLowerTfSeries(ctx, slotId, opts.interval);
+}
+function buildRequestNamespace() {
+  const ns = Object.freeze({ security, lowerTf });
+  return ns;
+}
+
+// ../runtime/dist/views/barstateView.js
+function makeBarStateView(inputs) {
+  const { eventKind, barIndex, isLastBar } = inputs;
+  return Object.freeze({
+    isfirst: barIndex === 0,
+    islast: isLastBar,
+    isnew: eventKind === "history" || eventKind === "close",
+    ishistory: eventKind === "history",
+    isrealtime: eventKind === "tick",
+    isconfirmed: eventKind === "close"
+  });
+}
+
+// ../runtime/dist/views/timeframeView.js
+function parsePrefix(value) {
+  const match = /^(\d+)/.exec(value);
+  return match === null ? null : Number(match[1]);
+}
+var GROUP_SECONDS = Object.freeze({
+  second: 1,
+  minute: 60,
+  hour: 3600,
+  daily: 86400,
+  weekly: 604800,
+  monthly: 2629800,
+  quarterly: 7889400,
+  yearly: 31557600
+});
+var INTRADAY_GROUPS = /* @__PURE__ */ new Set(["second", "minute", "hour"]);
+var MONTHLY_LONGER = /* @__PURE__ */ new Set(["monthly", "quarterly", "yearly"]);
+function makeTimeframeView(interval, descriptor) {
+  const group2 = descriptor?.group ?? "";
+  const prefix = parsePrefix(interval) ?? Number.NaN;
+  const unitSeconds = GROUP_SECONDS[group2] ?? Number.NaN;
+  const inSeconds = Number.isFinite(prefix) && Number.isFinite(unitSeconds) ? prefix * unitSeconds : Number.NaN;
+  return Object.freeze({
+    period: interval,
+    isintraday: INTRADAY_GROUPS.has(group2),
+    isdaily: group2 === "daily",
+    isweekly: group2 === "weekly",
+    ismonthly: MONTHLY_LONGER.has(group2),
+    inSeconds
+  });
+}
+
+// ../runtime/dist/views/refreshRuntimeViews.js
+function findDescriptor(intervals, interval) {
+  return intervals.find((candidate) => candidate.value === interval);
+}
+function refreshRuntimeViews(state2, eventKind) {
+  const { runtimeContext } = state2;
+  const interval = runtimeContext.stream.bar.interval;
+  runtimeContext.views.barstate = makeBarStateView({
+    eventKind,
+    barIndex: runtimeContext.barIndex(),
+    isLastBar: eventKind !== "history"
+  });
+  runtimeContext.views.timeframe = makeTimeframeView(interval, findDescriptor(runtimeContext.capabilities.intervals, interval));
+}
+
+// ../runtime/dist/views/symInfoView.js
+var EMPTY_META = Object.freeze({});
+function makeSymInfoView(payload, enabled) {
+  return Object.freeze({
+    ticker: enabled.has("ticker") ? payload.ticker ?? "" : "",
+    type: enabled.has("type") ? payload.type ?? "custom" : "custom",
+    mintick: enabled.has("mintick") ? payload.mintick ?? Number.NaN : Number.NaN,
+    currency: enabled.has("currency") ? payload.currency ?? "" : "",
+    basecurrency: enabled.has("basecurrency") ? payload.basecurrency ?? "" : "",
+    exchange: enabled.has("exchange") ? payload.exchange ?? "" : "",
+    timezone: enabled.has("timezone") ? payload.timezone ?? "" : "",
+    session: enabled.has("session") ? payload.session ?? "" : "",
+    meta: enabled.has("meta") ? Object.freeze({ ...payload.meta ?? {} }) : EMPTY_META
+  });
+}
+
+// ../runtime/dist/views/index.js
+function createRuntimeViews(opts = {}) {
+  return {
+    barstate: makeBarStateView({ eventKind: "history", barIndex: 0, isLastBar: false }),
+    syminfo: opts.syminfo ?? makeSymInfoView({}, /* @__PURE__ */ new Set()),
+    timeframe: makeTimeframeView("", void 0)
   };
 }
 
@@ -15405,6 +15493,9 @@ function reply(frame2) {
 function message(err) {
   return err instanceof Error ? err.message : String(err);
 }
+function isSingleManifest(manifest) {
+  return manifest !== void 0 && !Array.isArray(manifest);
+}
 function reviveSet(value) {
   if (Array.isArray(value)) {
     return new Set(value);
@@ -15441,6 +15532,9 @@ ${moduleSourceToScript(source)}
     const dependencies = deps.getCompiledDependencies?.() ?? [];
     const isBundle = Array.isArray(manifest) || dependencies.length > 0;
     if (!isBundle) {
+      if (isSingleManifest(manifest)) {
+        return Object.freeze({ ...compiledDefault, manifest });
+      }
       return compiledDefault;
     }
     const named = deps.getCompiledNamed?.() ?? {};

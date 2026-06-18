@@ -154,7 +154,7 @@ function foldIntoRing(
  * `ConvertOpts.strictMode`, suppresses `output` when any error is present.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { lex } from "../lexer/index.js";
  *     import { parseStatements } from "../parser/index.js";

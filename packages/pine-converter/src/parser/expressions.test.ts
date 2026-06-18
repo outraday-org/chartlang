@@ -206,3 +206,45 @@ describe("parseExpression — paren / tuple / lambda", () => {
         expect(codes).toContain("pine-converter/parse/expected-token");
     });
 });
+
+describe("parseExpression — generic constructor type args", () => {
+    it("consumes a single `<Type>` arg on a `.new` constructor", () => {
+        const e = exprFrom("array.new<line>()\n");
+        expect(e.kind).toBe("call-expression");
+        if (e.kind === "call-expression") {
+            expect(e.args).toEqual([]);
+            expect(e.callee).toMatchObject({ chain: ["array", "new"] });
+        }
+    });
+
+    it("consumes a multi-arg `<K, V>` list (the comma branch)", () => {
+        const e = exprFrom("map.new<string, float>()\n");
+        expect(e.kind).toBe("call-expression");
+    });
+
+    it("treats `array.new < x` as a comparison, not a type-arg list", () => {
+        const e = exprFrom("array.new < close\n");
+        expect(e.kind).toBe("binary-expression");
+        if (e.kind === "binary-expression") {
+            expect(e.operator).toBe("<");
+        }
+    });
+
+    it("does not scan type args after a non-`new` member access", () => {
+        const e = exprFrom("syminfo.mintick < close\n");
+        expect(e.kind).toBe("binary-expression");
+    });
+});
+
+describe("parseExpression — malformed generic type args", () => {
+    it("bails when the first type arg is not an identifier", () => {
+        // `<>` has no type token → not a type-arg list → parsed as comparison.
+        const e = exprFrom("array.new <> ()\n");
+        expect(e.kind).not.toBe("call-expression");
+    });
+
+    it("bails when a dotted type member is not an identifier", () => {
+        const e = exprFrom("array.new<chart.>()\n");
+        expect(e.kind).not.toBe("call-expression");
+    });
+});

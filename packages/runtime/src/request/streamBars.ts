@@ -1,8 +1,9 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Bar } from "@invinite-org/chartlang-core";
+import type { Bar, Price, WorldPoint } from "@invinite-org/chartlang-core";
 
+import { resolveBarPoint } from "../barPoint.js";
 import type { RuntimeContext } from "../runtimeContext.js";
 import type { StreamState } from "../streamState.js";
 
@@ -21,8 +22,9 @@ export function barFromStream(stream: StreamState, age: number): Bar {
     const high = stream.ohlcv.high.at(age);
     const low = stream.ohlcv.low.at(age);
     const close = stream.ohlcv.close.at(age);
+    const barTime = stream.ohlcv.time.at(age);
     return {
-        time: stream.ohlcv.time.at(age),
+        time: barTime,
         open,
         high,
         low,
@@ -34,6 +36,11 @@ export function barFromStream(stream: StreamState, age: number): Bar {
         hlc3: (high + low + close) / 3,
         ohlc4: (open + high + low + close) / 4,
         hlcc4: (high + low + close + close) / 4,
+        // Anchored at this materialised bar's own `age`: a negative offset
+        // reads `time.at(age - offset)` (further back in this stream's
+        // history) so a snapshot bar's offsets stay relative to itself.
+        point: (offset: number, price: Price): WorldPoint =>
+            resolveBarPoint(stream.ohlcv.time, stream.bar.interval, barTime, offset - age, price),
     };
 }
 

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import type { SemanticResult } from "../semantic/index.js";
 import type { ScriptScaffold } from "../transform/ir.js";
+import { NameAllocator } from "../transform/nameAllocator.js";
 import { scaffoldToManifest } from "./manifest.js";
 
 function scaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
@@ -25,6 +26,7 @@ function scaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
         handleRings: [],
         computeBody: { statements: [] },
         diagnostics: [],
+        names: new NameAllocator(),
         ...overrides,
     };
 }
@@ -85,8 +87,8 @@ describe("scaffoldToManifest", () => {
         const manifest = scaffoldToManifest(
             scaffold({
                 handleSlots: [
-                    { name: "__a", kind: "line" },
-                    { name: "__b", kind: "rectangle" },
+                    { name: "__a", kind: "line", compact: false },
+                    { name: "__b", kind: "rectangle", compact: false },
                 ],
                 handleRings: [
                     { name: "__c_ring", kind: "label", cap: 5 },

@@ -4,6 +4,7 @@
 import type { ExpressionNode } from "../ast/index.js";
 import type { AnnotationLookup } from "./exprEmit.js";
 import { emitExpr } from "./exprEmit.js";
+import { emitStr } from "./strFormat.js";
 
 /**
  * The shared lowering context threaded through the control-flow / passthrough
@@ -15,7 +16,7 @@ import { emitExpr } from "./exprEmit.js";
  * its chartlang `state.*` slot local (a read of one becomes `<slot>.value`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ctx: EmitContext = {
  *         annotations: new Map(),
@@ -30,6 +31,21 @@ export type EmitContext = Readonly<{
     inputNames: ReadonlySet<string>;
     localNames: ReadonlySet<string>;
     stateSlots: ReadonlyMap<string, string>;
+    /**
+     * Per-input-name TypeScript cast (`"number"`, `"boolean"`, …) applied to
+     * an `inputs.<name>` read. chartlang types the `compute({ inputs })`
+     * param loosely, so an `inputs.len` used as a number needs
+     * `inputs.len as number` to type-check (the same cast chartlang's own
+     * examples use). Absent (or no entry) → no cast.
+     */
+    inputCasts?: ReadonlyMap<string, string>;
+    /**
+     * Per-name replacement for a tuple-destructuring target — `macdLine` →
+     * `macdLineResult.macd.current` — bound by a `[a, b, c] = ta.macd(...)`
+     * statement (the result record is emitted once; each element reads a
+     * `.current` scalar field). Absent (or no entry) → no rewrite.
+     */
+    tupleFieldAliases?: ReadonlyMap<string, string>;
 }>;
 
 // Rewrite a bare identifier per the context: a shadowing local stays verbatim;
@@ -43,8 +59,13 @@ function rewriteIdentifier(name: string, ctx: EmitContext): string | null {
     if (slot !== undefined) {
         return `${slot}.value`;
     }
+    const tupleField = ctx.tupleFieldAliases?.get(name);
+    if (tupleField !== undefined) {
+        return tupleField;
+    }
     if (ctx.inputNames.has(name)) {
-        return `inputs.${name}`;
+        const cast = ctx.inputCasts?.get(name);
+        return cast === undefined ? `inputs.${name}` : `(inputs.${name} as ${cast})`;
     }
     return null;
 }
@@ -75,12 +96,22 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext): ExpressionNode {
                 consequent: rewriteTree(node.consequent, ctx),
                 alternate: rewriteTree(node.alternate, ctx),
             };
-        case "call-expression":
+        case "call-expression": {
+            // Lower a `str.*` call wherever it appears (a cell text, a plot
+            // title, a binary operand) — `emitExpr` alone would leak the
+            // undefined `str` identifier. The lowered source is spliced as a
+            // verbatim identifier so `emitExpr` re-emits it as-is; an unmapped
+            // `str.*` form falls through to the structural rewrite.
+            const lowered = emitStr(node, ctx);
+            if (lowered !== null && lowered.kind === "code") {
+                return { kind: "identifier-expression", name: lowered.source, span: node.span };
+            }
             return {
                 ...node,
                 callee: rewriteTree(node.callee, ctx),
                 args: node.args.map((arg) => ({ ...arg, value: rewriteTree(arg.value, ctx) })),
             };
+        }
         case "member-access-expression":
             return node.head === null ? node : { ...node, head: rewriteTree(node.head, ctx) };
         case "history-access-expression":
@@ -108,7 +139,7 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext): ExpressionNode {
  * `<slot>.value`, unless a same-named local shadows it.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitWithContext } from "./emitContext.js";
  *     const ctx = {

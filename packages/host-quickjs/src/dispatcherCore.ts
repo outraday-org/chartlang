@@ -121,6 +121,15 @@ function message(err: unknown): string {
     return err instanceof Error ? err.message : String(err);
 }
 
+// `Array.isArray` narrows to `any[]`, which does not subtract a
+// `ReadonlyArray<T>` member from a union (TS #17002), so the single-object
+// `__manifest` form needs this dedicated guard.
+function isSingleManifest(
+    manifest: ScriptManifest | ReadonlyArray<ScriptManifest> | undefined,
+): manifest is ScriptManifest {
+    return manifest !== undefined && !Array.isArray(manifest);
+}
+
 function reviveSet<T>(value: unknown): ReadonlySet<T> {
     if (Array.isArray(value)) {
         return new Set<T>(value as Array<T>);
@@ -183,6 +192,15 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
         const dependencies = deps.getCompiledDependencies?.() ?? [];
         const isBundle = Array.isArray(manifest) || dependencies.length > 0;
         if (!isBundle) {
+            // Single-script form: the compiler's `__manifest` sidecar is the
+            // authoritative manifest (it carries compiler-derived fields the
+            // runtime `defineIndicator` stub zeroes — `requestedIntervals`,
+            // `outputs`, `plots`, `maxLookback`). Without this an MTF script
+            // would never register its secondary streams. Mirrors
+            // host-worker's `buildBundleFromModule`.
+            if (isSingleManifest(manifest)) {
+                return Object.freeze({ ...compiledDefault, manifest });
+            }
             return compiledDefault;
         }
         const named = deps.getCompiledNamed?.() ?? {};

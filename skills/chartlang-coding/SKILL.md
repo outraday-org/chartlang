@@ -105,6 +105,27 @@ as gaps, not zeroes. Each primitive's `@warmup` is in
 `dynamic-series-index` warning and forces the runtime to allocate a
 5000-slot fallback buffer. Keep lookback literal.
 
+**Anchoring drawings by bar offset — `bar.point(offset, price)`.**
+Drawing anchors are always a `WorldPoint` (`{ time, price }`); writing
+absolute timestamps for offset-relative anchors is awkward, so
+`bar.point` resolves an integer bar offset to the real (or extrapolated)
+time and returns that `WorldPoint`. It composes directly with every
+`draw.*` anchor argument:
+
+- `bar.point(0, bar.close)` — the current bar.
+- `bar.point(-n, price)` — `n` bars back; resolves the real historical
+  timestamp (or `NaN` time when `n` exceeds retained history — it never
+  throws). A **negative literal** offset extends the script's lookback
+  exactly like `series[n]`, so the buffer retains enough depth.
+- `bar.point(n, price)` — `n` bars into the future; the time is
+  extrapolated from the recent bar spacing. Future offsets need no
+  lookback.
+
+```ts
+// Tracking line from 10 bars ago to the current close.
+draw.line(bar.point(-10, bar.close), bar.point(0, bar.close));
+```
+
 ## 4. Inputs
 
 Declare user-tunable parameters in the `inputs:` field. The compiler
@@ -212,8 +233,9 @@ Highlights of the surface:
 - `plot(value, opts?)` and `hline(level, opts?)` for per-bar value plots
   and horizontal lines.
 - `alert(message, opts?)` with `severity: "info" | "warning" | "critical"`.
-- `request.security(symbol, interval, source)` and `request.lowerTf(interval, source)`
-  for higher- and lower-timeframe data.
+- `request.security({ interval })` and `request.lowerTf({ interval })`
+  for higher- and lower-timeframe data. The interval must be a
+  compile-time string literal.
 - `state.float(key, initial)`, `state.bool(...)`, `state.int(...)` for
   cross-bar scalar state.
 

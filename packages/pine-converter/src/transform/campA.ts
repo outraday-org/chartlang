@@ -12,7 +12,7 @@ import { resolveCoordinates } from "./coordinates.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import { resolveCampADrawKind } from "./drawKindResolve.js";
 import type { DrawCallContext } from "./handleSlot.js";
-import { handleSlotLocalName, synthesizeDrawCall } from "./handleSlot.js";
+import { drawCallAnchors, handleSlotLocalName, synthesizeDrawCall } from "./handleSlot.js";
 import type { ScriptScaffold } from "./ir.js";
 import { appendComputeStatement, appendHandleSlot } from "./scaffoldMutators.js";
 import type { SetterCall } from "./setterFold.js";
@@ -149,7 +149,7 @@ function drawContext(
  * {@link foldSetters}.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { lex } from "../lexer/index.js";
  *     import { parseStatements } from "../parser/index.js";
@@ -184,20 +184,42 @@ export function transformCampA(
         return;
     }
     const handle = site.camp.handleSymbol;
-    const local = handleSlotLocalName(handle.name);
     const kind = resolveCampADrawKind(site, diagnostics);
     if (kind === null) {
         return;
     }
-    appendHandleSlot(scaffold, { name: local, kind });
+    // Allocate the readable handle local (reuses the Pine identifier) only
+    // AFTER the draw-kind resolves — an unmapped kind early-returns without
+    // emitting anything, so it must not consume a name.
+    const local = handleSlotLocalName(handle.name, scaffold.names);
+
+    const branches = collectBranches(analysis, handle.name);
+
+    // Compact lowering eligibility: the single-create persistent-handle idiom
+    // with NO `*.delete` and a plain (non-`varip`) handle. The runtime keys a
+    // `draw.*` callsite by slot id and re-emits `update` on cross-bar re-entry,
+    // so a `const <local> = draw.<kind>(…)` evaluated each bar IS the persistent
+    // handle — exactly what the `useDrawingHandleSlot` create-guard reproduces
+    // (its closure resets every bar, so its `current() === null` guard fires the
+    // same `draw.*` callsite every bar). A `*.delete` re-creates next bar through
+    // the same callsite (the runtime resurrects the slot), which the bare-const
+    // form cannot express, so a delete forces the general machinery.
+    const hasDelete = branches.some((branch) =>
+        branch.mutations.some((mutation) => mutation.kind === "delete"),
+    );
+    const compact = handle.kind !== "varip-variable" && !hasDelete;
+    appendHandleSlot(scaffold, { name: local, kind, compact });
 
     const { anchors } = resolveCoordinates(analysis, {});
     const ctx = drawContext(analysis, anchors, diagnostics);
     const drawCall = synthesizeDrawCall(kind, site.call, ctx);
+    const anchorDefaults = drawCallAnchors(kind, site.call, ctx);
 
     appendComputeStatement(
         scaffold,
-        `if (${local}.current() === null) { ${local}.set(${drawCall}); }`,
+        compact
+            ? `const ${local} = ${drawCall};`
+            : `if (${local}.current() === null) { ${local}.set(${drawCall}); }`,
     );
 
     if (handle.kind === "varip-variable") {
@@ -208,7 +230,6 @@ export function transformCampA(
         diagnostics.pushCode("cross-mount-state-not-preserved", nonNaSpan);
     }
 
-    const branches = collectBranches(analysis, handle.name);
     const branchesWithSetters = branches.filter((branch) =>
         branch.mutations.some((mutation) => mutation.kind === "set"),
     );
@@ -217,18 +238,24 @@ export function transformCampA(
     }
 
     for (const branch of branches) {
-        emitBranch(branch, site, local, ctx, diagnostics, scaffold);
+        emitBranch(branch, site, local, compact, ctx, diagnostics, scaffold, anchorDefaults);
     }
 }
 
-// Emit the folded update + any delete statements for one branch.
+// Emit the folded update + any delete statements for one branch. A `compact`
+// slot is a bare `const` handle, so it patches via `<local>.update(…)`; the
+// general slot machinery patches the held handle via `<local>.current()?.…`.
+// A `delete` only reaches here on a non-compact slot (the compact path is
+// gated off `hasDelete`), so its statements always use the slot form.
 function emitBranch(
     branch: Branch,
     site: DrawingCallSite,
     local: string,
+    compact: boolean,
     ctx: DrawCallContext,
     diagnostics: DiagnosticCollector,
     scaffold: ScriptScaffold,
+    anchorDefaults: readonly string[],
 ): void {
     const setters: SetterCall[] = [];
     for (const mutation of branch.mutations) {
@@ -237,11 +264,18 @@ function emitBranch(
         }
     }
     if (setters.length > 0) {
-        const patch = foldSetters(setters, site.handleType, ctx.annotations, (code, node) =>
-            diagnostics.pushCode(code, node.span),
+        const patch = foldSetters(
+            setters,
+            site.handleType,
+            ctx.annotations,
+            (code, node) => diagnostics.pushCode(code, node.span),
+            anchorDefaults,
         );
         if (patch !== null) {
-            appendComputeStatement(scaffold, `${local}.current()?.update(${patch});`);
+            appendComputeStatement(
+                scaffold,
+                compact ? `${local}.update(${patch});` : `${local}.current()?.update(${patch});`,
+            );
         }
     }
     for (const mutation of branch.mutations) {

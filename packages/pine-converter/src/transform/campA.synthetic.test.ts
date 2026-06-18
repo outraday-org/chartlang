@@ -195,7 +195,7 @@ describe("synthesizeDrawCall variants", () => {
                 [call.args[0].value, { kind: "chart-point-now", priceExpr: "bar.high" }],
             ]),
         });
-        expect(out).toContain('draw.text({ time: bar.time, price: bar.high }, "")');
+        expect(out).toContain('draw.text(bar.point(0, bar.high), "")');
     });
 });
 
@@ -278,7 +278,7 @@ describe("anchorToWorldPoint variants", () => {
         ).toBe("{ time: bar.time, price: bar.open }");
     });
 
-    it("renders a bar-index-future with interval arithmetic", () => {
+    it("renders a bar-index-future as a positive bar.point offset", () => {
         expect(
             anchorToWorldPoint({
                 kind: "bar-index-future",
@@ -286,12 +286,12 @@ describe("anchorToWorldPoint variants", () => {
                 priceExpr: "bar.close",
                 requiresBarInterval: true,
             }),
-        ).toBe("{ time: bar.time + ((2) * __BAR_INTERVAL_MS), price: bar.close }");
+        ).toBe("bar.point((2), bar.close)");
     });
 
-    it("renders a chart-point-now", () => {
+    it("renders a chart-point-now as the current-bar bar.point", () => {
         expect(anchorToWorldPoint({ kind: "chart-point-now", priceExpr: "bar.close" })).toBe(
-            "{ time: bar.time, price: bar.close }",
+            "bar.point(0, bar.close)",
         );
     });
 
@@ -306,14 +306,24 @@ describe("anchorToWorldPoint variants", () => {
         ).toBe("{ time: t, price: p }");
     });
 
-    it("renders a historical anchor with a non-zero offset", () => {
+    it("renders a historical anchor with a non-zero offset as a negated bar.point", () => {
         expect(
             anchorToWorldPoint({
                 kind: "bar-index-historical",
                 offsetExpr: "4",
                 priceExpr: "bar.close",
             }),
-        ).toBe("{ time: bar.time - ((4) * __BAR_INTERVAL_MS), price: bar.close }");
+        ).toBe("bar.point(-(4), bar.close)");
+    });
+
+    it("renders a zero-offset historical anchor as the current-bar bar.point", () => {
+        expect(
+            anchorToWorldPoint({
+                kind: "bar-index-historical",
+                offsetExpr: "0",
+                priceExpr: "bar.close",
+            }),
+        ).toBe("bar.point(0, bar.close)");
     });
 });
 
@@ -397,7 +407,7 @@ describe("text body fallback", () => {
             ].join("\n"),
         );
         expect(scaffold.computeBody.statements[0]).toContain(
-            'draw.text({ time: bar.time, price: bar.high }, "")',
+            'draw.text(bar.point(0, bar.high), "")',
         );
     });
 });
@@ -412,7 +422,8 @@ describe("marker yloc", () => {
             ].join("\n"),
         );
         expect(scaffold.computeBody.statements[0]).toContain("draw.marker(");
-        expect(scaffold.computeBody.statements[0]).toContain("__YLOC_PAD_FRAC");
+        // yloc padding lowers to an inline `0.001` bar-range fraction (no synthesized const).
+        expect(scaffold.computeBody.statements[0]).toContain("(bar.high - bar.low) * 0.001");
         expect(diagnostics.toArray().map((d) => d.code)).toContain(
             "pine-converter/transform/yloc-padding-approximated",
         );

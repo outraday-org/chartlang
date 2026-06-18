@@ -11,7 +11,7 @@ import type { SourceSpan } from "../index.js";
  * construction.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const a = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 3 };
  *     const b = { startLine: 1, startColumn: 5, endLine: 1, endColumn: 9 };

@@ -11,7 +11,7 @@ import type { Diagnostic } from "../index.js";
  * `ConvertResult.diagnostics`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const upgraded = upgradeWarningsToErrors([
  *         {
@@ -38,7 +38,7 @@ export function upgradeWarningsToErrors(diagnostics: readonly Diagnostic[]): rea
  * from `ConvertResult.diagnostics`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const report = new DiagnosticReport(result.diagnostics);
  *     report.errors().length; // count of error-severity diagnostics
@@ -51,7 +51,7 @@ export class DiagnosticReport {
      * of the caller's array cannot leak into the report.
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     const report = new DiagnosticReport([]);
      *     report.all().length; // 0
@@ -64,7 +64,7 @@ export class DiagnosticReport {
      * The `error`-severity diagnostics, in original order.
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     new DiagnosticReport([]).errors(); // []
      */
@@ -76,7 +76,7 @@ export class DiagnosticReport {
      * The `warning`-severity diagnostics, in original order.
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     new DiagnosticReport([]).warnings(); // []
      */
@@ -88,7 +88,7 @@ export class DiagnosticReport {
      * The `info`-severity diagnostics, in original order.
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     new DiagnosticReport([]).infos(); // []
      */
@@ -100,7 +100,7 @@ export class DiagnosticReport {
      * Every diagnostic in original order, regardless of severity.
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     new DiagnosticReport([]).all(); // []
      */
@@ -114,7 +114,7 @@ export class DiagnosticReport {
      * downstream consumers cannot mutate it.
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     Object.isFrozen(new DiagnosticReport([]).frozen()); // true
      */
@@ -127,7 +127,7 @@ export class DiagnosticReport {
      * the strict-mode view. The current report is left unchanged.
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     const strict = new DiagnosticReport([
      *         {

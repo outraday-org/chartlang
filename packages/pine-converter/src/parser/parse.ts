@@ -15,7 +15,7 @@ import { parseStatement } from "./statements.js";
  * parser codes are namespaced under `pine-converter/parse/...`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const diag: ParserDiagnostic = {
  *         code: "pine-converter/parse/unexpected-token",
@@ -33,7 +33,7 @@ export type ParserDiagnostic = Diagnostic;
  * parsing.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const result: ParseResult = {
  *         script: {
@@ -61,7 +61,7 @@ export type ParseResult = Readonly<{
  * continues past it.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const { script } = parseStatements(lex('//@version=6\nindicator("hi")\n').tokens);
  *     script.declaration?.kind; // "indicator-declaration"

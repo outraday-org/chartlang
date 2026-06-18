@@ -19,53 +19,48 @@ export default defineDrawing({
             lineColor: input.color("#FF9800"),
         },
         compute({ bar, ta, draw, inputs, state, barstate }) {
-            type __HandleSlot<K extends string> = {
+            type HandleSlot<K extends string> = {
                 kind?: K;
                 current(): DrawingHandle | null;
                 set(h: DrawingHandle | null): void;
             };
-            function useDrawingHandleSlot<K extends string>(): __HandleSlot<K> {
-                let __h: DrawingHandle | null = null;
-                return { current: () => __h, set: (next) => { __h = next; } };
+            function useDrawingHandleSlot<K extends string>(): HandleSlot<K> {
+                let handle: DrawingHandle | null = null;
+                return { current: () => handle, set: (next) => { handle = next; } };
             }
-            type __HandleRing<K extends string> = {
+            type HandleRing<K extends string> = {
                 kind?: K;
                 push(h: DrawingHandle | null): void;
                 at(i: number): DrawingHandle | null;
                 size(): number;
             };
-            function useDrawingHandleRing<K extends string>(cap: number): __HandleRing<K> {
-                const __buf: (DrawingHandle | null)[] = [];
-                let __head = 0;
+            function useDrawingHandleRing<K extends string>(cap: number): HandleRing<K> {
+                const buffer: (DrawingHandle | null)[] = [];
+                let head = 0;
                 return {
                     push: (h) => {
-                        if (__buf.length < cap) {
-                            __buf.push(h);
+                        if (buffer.length < cap) {
+                            buffer.push(h);
                         } else {
-                            const __evicted = __buf[__head];
-                            if (__evicted !== null && __evicted !== undefined) __evicted.remove();
-                            __buf[__head] = h;
-                            __head = (__head + 1) % cap;
+                            const evicted = buffer[head];
+                            if (evicted !== null && evicted !== undefined) evicted.remove();
+                            buffer[head] = h;
+                            head = (head + 1) % cap;
                         }
                     },
-                    at: (i) => (__buf.length < cap ? __buf[i] : __buf[(__head + i) % cap]) ?? null,
-                    size: () => __buf.length,
+                    at: (i) => (buffer.length < cap ? buffer[i] : buffer[(head + i) % cap]) ?? null,
+                    size: () => buffer.length,
                 };
             }
-            const __lastLbl_handle = useDrawingHandleSlot<"frame">();
-            const __stats_handle = useDrawingHandleSlot<"table">();
-            const __levels_ring = useDrawingHandleRing<"line">(20);
-            const __levels_ring = useDrawingHandleRing<"line">(20);
-            if (!Number.NaN(ph)) { __levels_ring.push(draw.line({ time: bar.time, price: ph }, { time: bar.time, price: ph }, { color: lineColor, lineWidth: 2 })); }
-            if (!Number.NaN(pl)) { __levels_ring.push(draw.line({ time: bar.time, price: pl }, { time: bar.time, price: pl }, { color: lineColor, lineWidth: 2 })); }
-            if (__lastLbl_handle.current() === null) { __lastLbl_handle.set(draw.frame({ time: bar.time, price: bar.close }, { time: bar.time, price: bar.close }, { label: "Last close" })); }
-            __lastLbl_handle.current()?.update({ body: "Close " + str.tostring(bar.close) });
-            const __stats_handle_cells = [[{ text: "Levels" }, { text: str.tostring(array.size(levels)) }], [{ text: "Last close" }, { text: str.tostring(bar.close) }]];
-            if (barstate.islast) { __stats_handle.current()?.remove(); __stats_handle.set(draw.table({ position: "top-right", cells: __stats_handle_cells })); }
-            let ph = ta.pivotsHighLow.high(inputs.lookback, inputs.lookback);
-            let pl = ta.pivotsHighLow.low(inputs.lookback, inputs.lookback);
-            if (!Number.NaN(ph)) {  }
-            if (!Number.NaN(pl)) {  }
-            if (barstate.islast) {  }
+            const stats = useDrawingHandleSlot<"table">();
+            const levels = useDrawingHandleRing<"line">(20);
+            let ph = ta.pivotsHighLow({ leftLength: (inputs.lookback as number), rightLength: (inputs.lookback as number) }).high.current;
+            let pl = ta.pivotsHighLow({ leftLength: (inputs.lookback as number), rightLength: (inputs.lookback as number) }).low.current;
+            if (!!Number.isFinite(ph)) { levels.push(draw.line(bar.point(0, ph), bar.point(0, ph), { color: lineColor, lineWidth: 2 })); }
+            if (!!Number.isFinite(pl)) { levels.push(draw.line(bar.point(0, pl), bar.point(0, pl), { color: lineColor, lineWidth: 2 })); }
+            const lastLbl = draw.frame(bar.point(0, bar.close), bar.point(0, bar.close), { label: "Last close" });
+            lastLbl.update({ body: "Close " + str.tostring(bar.close) });
+            const statsCells = [[{ text: "Levels" }, { text: String(array.size(levels)) }], [{ text: "Last close" }, { text: String(bar.close) }]];
+            if (barstate.islast) { stats.current()?.remove(); stats.set(draw.table({ position: "top-right", cells: statsCells })); }
         },
 });

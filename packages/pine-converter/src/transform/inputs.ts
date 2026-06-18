@@ -299,13 +299,12 @@ function collectInlineInputs(node: ExpressionNode, out: InlineInput[]): void {
     }
 }
 
-// State threaded through the statement walk: the scaffold being populated,
-// the diagnostic sink, and the running inline-input counter for synthesised
-// names.
+// State threaded through the statement walk: the scaffold being populated and
+// the diagnostic sink. Synthesised inline-input names come from the scaffold's
+// shared allocator (readable + collision-free), so no per-walk counter.
 type WalkState = {
     scaffold: ScriptScaffold;
     diagnostics: DiagnosticCollector;
-    inlineCounter: number;
 };
 
 // Register a named input declaration (`len = input.int(...)`) — its bound
@@ -326,8 +325,7 @@ function registerInline(inline: InlineInput, state: WalkState): void {
     if (code === null) {
         return;
     }
-    const name = `__input_${state.inlineCounter}`;
-    state.inlineCounter += 1;
+    const name = state.scaffold.names.allocate("inlineInput");
     state.diagnostics.pushCode("inline-input-promoted", inline.call.span);
     const input: InputDeclarationIR = { name, code };
     appendInput(state.scaffold, input);
@@ -420,7 +418,7 @@ function walkStatements(statements: readonly Statement[], state: WalkState): voi
  * {@link ScriptScaffold}'s `inputs` array (via {@link appendInput}). A named
  * declaration (`len = input.int(20)`) keys its descriptor by the bound name;
  * an inline call (`ta.ema(close, input.int(20))`) is promoted to a
- * synthesised `__input_<n>` name with an `inline-input-promoted` info
+ * synthesised `inlineInput` name (e.g. `inlineInput`/`inlineInput2`) with an `inline-input-promoted` info
  * diagnostic. Unconvertible inputs (`input.enum`, a computed `input.source`
  * default, a non-literal default) push an error and are skipped. The
  * function mutates the scaffold and is `void` — Task 16 codegen reads
@@ -428,7 +426,7 @@ function walkStatements(statements: readonly Statement[], state: WalkState): voi
  * `inputs.<name>` references.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { lex } from "../lexer/index.js";
  *     import { parseStatements } from "../parser/index.js";
@@ -450,6 +448,6 @@ export function transformInputs(
     scaffold: ScriptScaffold,
     diagnostics: DiagnosticCollector,
 ): void {
-    const state: WalkState = { scaffold, diagnostics, inlineCounter: 0 };
+    const state: WalkState = { scaffold, diagnostics };
     walkStatements(analysis.script.body, state);
 }

@@ -48,7 +48,7 @@ function decodeEscape(source: string, i: number): { value: string; next: number 
  * `unterminated-string` diagnostic with the bytes captured so far.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     scanString("'hi'", 0, 1, 1).token.stringValue; // "hi"
  */

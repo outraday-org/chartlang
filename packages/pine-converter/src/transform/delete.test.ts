@@ -44,11 +44,11 @@ describe("delete translation", () => {
             ].join("\n"),
         );
         const stmts = scaffold.computeBody.statements;
-        expect(stmts).toContain("__lvl_handle.current()?.remove();");
-        expect(stmts).toContain("__lvl_handle.set(null);");
+        expect(stmts).toContain("lvl.current()?.remove();");
+        expect(stmts).toContain("lvl.set(null);");
         // remove precedes the slot reset.
-        expect(stmts.indexOf("__lvl_handle.current()?.remove();")).toBeLessThan(
-            stmts.indexOf("__lvl_handle.set(null);"),
+        expect(stmts.indexOf("lvl.current()?.remove();")).toBeLessThan(
+            stmts.indexOf("lvl.set(null);"),
         );
     });
 });

@@ -25,7 +25,7 @@ const ta = (
  * `ta.pivotsHighLow`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { TA_PASSTHROUGH_MAP } from "@invinite-org/chartlang-pine-converter";
  *     const m = TA_PASSTHROUGH_MAP.get("ta.rma");
@@ -107,7 +107,7 @@ export const TA_PASSTHROUGH_MAP: ReadonlyMap<string, TaMapping> = new Map<string
  * `ta.dev`, `ta.cum`, `ta.correlation`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { taLookup } from "@invinite-org/chartlang-pine-converter";
  *     const m = taLookup("ta.ema");

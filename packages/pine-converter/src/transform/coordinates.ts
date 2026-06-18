@@ -19,11 +19,13 @@ import { emitExpr } from "./exprEmit.js";
  * The resolved coordinate IR for one coordinate-bearing expression. `*Expr`
  * fields are chartlang TypeScript source strings the Task 16 codegen emits
  * verbatim; `offsetExpr` is the bar offset for the historical / future /
- * index forms. `requiresBarInterval` flags the future-bar arm, which the
- * codegen synthesises as `bar.time + ((offset) * __BAR_INTERVAL_MS)`.
+ * index forms, lowered to `bar.point(<signed offset>, <price>)` (the runtime
+ * resolves it to a real / extrapolated time). `requiresBarInterval` remains on
+ * the future-bar arm as a manifest signal that the script anchors ahead of the
+ * last bar.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const a: ResolvedAnchor = { kind: "bar-index-historical", offsetExpr: "0", priceExpr: "bar.close" };
  *     void a;
@@ -67,7 +69,7 @@ export type ResolvedAnchor =
  * look up how to emit each `WorldPoint`. The AST is never mutated.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: CoordinateResolution = { anchors: new Map(), diagnostics: [] };
  *     void r;
@@ -86,26 +88,31 @@ const COORD_LAYOUT: ReadonlyMap<string, readonly (readonly [number, number])[]> 
     ["label.new", [[0, 1] as const]],
 ]);
 
-// `bar.time` shifted by a bar offset: future anchors add `N` intervals,
-// historical anchors subtract them; an offset of `"0"` stays at `bar.time`.
-function barTime(offsetExpr: string, future: boolean): string {
+// A bar-offset anchor as a `bar.point(<signed offset>, <price>)` call. The
+// runtime resolves the offset to a real (historical) or extrapolated (future)
+// timestamp at compute time, so the converter no longer synthesises bar-time
+// arithmetic or carries a `__BAR_INTERVAL_MS` sentinel. Historical offsets are
+// negated (`bar.point(-(N), …)`), future offsets stay positive
+// (`bar.point((N), …)`), and offset `"0"` is the current bar (`bar.point(0,
+// …)`).
+function barPoint(offsetExpr: string, priceExpr: string, future: boolean): string {
     if (offsetExpr === "0") {
-        return "bar.time";
+        return `bar.point(0, ${priceExpr})`;
     }
-    const op = future ? "+" : "-";
-    return `bar.time ${op} ((${offsetExpr}) * __BAR_INTERVAL_MS)`;
+    const signed = future ? `(${offsetExpr})` : `-(${offsetExpr})`;
+    return `bar.point(${signed}, ${priceExpr})`;
 }
 
 /**
  * Render a resolved {@link ResolvedAnchor} to a chartlang `WorldPoint`
- * object-literal source string (`{ time: …, price: … }`). Future
- * `bar_index + N` anchors synthesise the `bar.time + ((N) *
- * __BAR_INTERVAL_MS)` arithmetic Task 16's preamble const backs;
- * historical offsets subtract. Shared by the Camp A / Camp B draw-call
+ * source string. Bar-offset anchors lower to a `bar.point(<signed offset>,
+ * <price>)` call — index authoring sugar that the runtime resolves to a real
+ * (historical) or extrapolated (future) timestamp; explicit-time anchors stay
+ * `{ time, price }` object literals. Shared by the Camp A / Camp B draw-call
  * synthesis and setter-fold so every anchor lowers identically.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { anchorToWorldPoint } from "./coordinates.js";
  *     anchorToWorldPoint({
@@ -113,7 +120,7 @@ function barTime(offsetExpr: string, future: boolean): string {
  *         offsetExpr: "0",
  *         priceExpr: "bar.close",
  *     });
- *     // "{ time: bar.time, price: bar.close }"
+ *     // "bar.point(0, bar.close)"
  */
 export function anchorToWorldPoint(anchor: ResolvedAnchor): string {
     switch (anchor.kind) {
@@ -125,11 +132,11 @@ export function anchorToWorldPoint(anchor: ResolvedAnchor): string {
             return `{ time: ${anchor.timeExpr}, price: ${anchor.priceExpr} }`;
         case "bar-index-historical":
         case "chart-point-from-index":
-            return `{ time: ${barTime(anchor.offsetExpr, false)}, price: ${anchor.priceExpr} }`;
+            return barPoint(anchor.offsetExpr, anchor.priceExpr, false);
         case "bar-index-future":
-            return `{ time: ${barTime(anchor.offsetExpr, true)}, price: ${anchor.priceExpr} }`;
+            return barPoint(anchor.offsetExpr, anchor.priceExpr, true);
         case "chart-point-now":
-            return `{ time: bar.time, price: ${anchor.priceExpr} }`;
+            return `bar.point(0, ${anchor.priceExpr})`;
         case "chart-point-new":
             return `{ time: ${anchor.timeExpr}, price: ${anchor.priceExpr} }`;
     }
@@ -384,7 +391,7 @@ function resolvePair(
  * so a setter re-anchoring the same handle does not double-report.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { resolveAnchorExpr } from "./coordinates.js";
  *     const x = {
@@ -446,7 +453,7 @@ function resolveDrawingSite(ctx: ResolveCtx, site: DrawingCallSite): void {
  * `requires-bar-interval` error is raised at the first offending anchor.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { resolveCoordinates } from "./coordinates.js";
  *     declare const semantic: import("../semantic/index.js").SemanticResult;

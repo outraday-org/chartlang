@@ -14,18 +14,17 @@ export default defineDrawing({
             other: 2,
         },
         compute({ bar, draw, state, barstate }) {
-            type __HandleSlot<K extends string> = {
+            type HandleSlot<K extends string> = {
                 kind?: K;
                 current(): DrawingHandle | null;
                 set(h: DrawingHandle | null): void;
             };
-            function useDrawingHandleSlot<K extends string>(): __HandleSlot<K> {
-                let __h: DrawingHandle | null = null;
-                return { current: () => __h, set: (next) => { __h = next; } };
+            function useDrawingHandleSlot<K extends string>(): HandleSlot<K> {
+                let handle: DrawingHandle | null = null;
+                return { current: () => handle, set: (next) => { handle = next; } };
             }
-            const __dash_handle = useDrawingHandleSlot<"table">();
-            const __dash_handle_cells = [[{ text: "Metric" }, { text: "Value" }], [{ text: "Trend" }, { text: "Up", bgColor: "#4CAF50", textColor: "#FFFFFF" }], [{ text: "Bias" }, { text: "Long" }], [{ text: "Risk" }, { text: "Low" }], [{ text: "Score" }, { text: "A" }]];
-            if (barstate.islast) { __dash_handle.current()?.remove(); __dash_handle.set(draw.table({ position: "top-right", cells: __dash_handle_cells })); }
-            if (barstate.islast) {  }
+            const dash = useDrawingHandleSlot<"table">();
+            const dashCells = [[{ text: "Metric" }, { text: "Value" }], [{ text: "Trend" }, { text: "Up", bgColor: "#4CAF50", textColor: "#FFFFFF" }], [{ text: "Bias" }, { text: "Long" }], [{ text: "Risk" }, { text: "Low" }], [{ text: "Score" }, { text: "A" }]];
+            if (barstate.islast) { dash.current()?.remove(); dash.set(draw.table({ position: "top-right", cells: dashCells })); }
         },
 });

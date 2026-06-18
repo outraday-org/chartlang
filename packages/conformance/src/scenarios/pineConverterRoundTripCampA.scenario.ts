@@ -8,8 +8,9 @@ import { convert } from "@invinite-org/chartlang-pine-converter";
 import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 
 // Pine → chartlang Camp A round-trip. The fixture is a `var line lvl = na`
-// single-handle script gated on `barstate.islast`; the converter lowers it to
-// a `useDrawingHandleSlot<"line">()` create + setter-fold update, which the
+// single-handle script gated on `barstate.islast`; the converter applies the
+// COMPACT single-persistent-handle lowering (`const __lvl_handle =
+// draw.line(…)` create + setter-fold `__lvl_handle.update(…)`), which the
 // harness compiles via `@invinite-org/chartlang-compiler` and runs through the
 // runtime. Conversion runs once at module load so `INLINE_SOURCE` is a static
 // string the harness can compile — the scenario never drives the runtime itself.
@@ -27,7 +28,13 @@ const INLINE_SOURCE = CONVERTED.output;
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
     {
         kind: "drawing-hash",
-        sha256: "90e6f81251917c9ce756d28113ea0ae85dc20f6f780834b76b9961969cabb9d5",
+        // Re-pinned for the readable-identifier rename (`__lvl_handle` → `lvl`).
+        // The op/state/bar emission stream is byte-identical (verified by a
+        // normalised-handleId diff over a rename of the generated source); only
+        // the `handleId` slot-id string moved because the shorter variable name
+        // shifted the `draw.line(…)` callsite column — so the hash, which
+        // includes `handleId`, legitimately changes.
+        sha256: "b7a6705a6e7b29fa7eca67dd66528440bec2a166e897c434057846df5330e7b4",
     },
     { kind: "diagnostic-code-absent", code: "unsupported-drawing-kind" },
     { kind: "diagnostic-code-absent", code: "drawing-budget-exceeded" },
@@ -39,7 +46,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * runtime, and pins the `drawing-hash` over the full drawing-emission stream.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO;

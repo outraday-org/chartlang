@@ -54,6 +54,7 @@ function bar(time: number): Bar {
         volume: 0,
         symbol: "X",
         interval: "1m",
+        point: (offset, price) => ({ time: offset === 0 ? time : Number.NaN, price }),
     };
 }
 

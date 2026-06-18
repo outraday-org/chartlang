@@ -11,7 +11,7 @@
  * https://www.tradingview.com/pine-script-docs/language/ (keywords).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     PINE_V6_KEYWORDS.has("if"); // true
  *     PINE_V6_KEYWORDS.has("close"); // false

@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ScriptScaffold } from "../transform/ir.js";
+import { NameAllocator } from "../transform/nameAllocator.js";
 import { emitCompute } from "./emitCompute.js";
 
 function scaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
@@ -24,6 +25,7 @@ function scaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
         handleRings: [],
         computeBody: { statements: [] },
         diagnostics: [],
+        names: new NameAllocator(),
         ...overrides,
     };
 }
@@ -58,7 +60,7 @@ describe("emitCompute destructure minimization", () => {
 
     it("adds barstate when only the bar-index bridge needs it", () => {
         const head = emitCompute(
-            scaffold({ computeBody: { statements: ["const x = __bar_index(); void x;"] } }),
+            scaffold({ computeBody: { statements: ["const x = __barIndexBridge(); void x;"] } }),
         )[0];
         expect(head).toBe("compute({ bar, barstate }) {");
     });

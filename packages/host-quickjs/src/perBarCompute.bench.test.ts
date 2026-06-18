@@ -141,5 +141,11 @@ describe("host-quickjs per-bar compute threshold", () => {
         const quickJsMs = await timeHost(createQuickJsHost({ capabilities: makeCapabilities() }));
 
         expect(quickJsMs).toBeLessThan(workerMs * THRESHOLD_MULTIPLIER);
-    }, 30_000);
+        // Generous wall-clock guard: the assertion above is a *relative* ratio
+        // (QuickJS vs the worker baseline timed in the same process), so it is
+        // load-independent. The absolute timeout only needs to survive heavy
+        // CPU contention when the full suite runs this in parallel with ~960
+        // other test files; 30s starves under that load even though the test
+        // completes in ~200ms in isolation.
+    }, 90_000);
 });

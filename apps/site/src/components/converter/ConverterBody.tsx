@@ -3,9 +3,9 @@
 //
 // Client-only body of the converter playground. Lazy-loaded as the default
 // export so CodeMirror splits out of the route entry chunk. Pine input
-// (left) converts live in the browser to chartlang output (right); the
-// diagnostics + manifest sit below, and an on-demand "Compile & preview"
-// runs the output through the real compiler and renders the chart.
+// (left) converts live in the browser to chartlang output (right), and an
+// on-demand "Compile & preview" runs the output through the real compiler
+// and renders the chart.
 
 import { type ReactElement, useState } from "react";
 
@@ -14,8 +14,6 @@ import "./converter.css";
 
 import { CompilePreview } from "./CompilePreview";
 import { ConverterControls } from "./ConverterControls";
-import { DiagnosticsPanel } from "./DiagnosticsPanel";
-import { ManifestSummary } from "./ManifestSummary";
 import { OutputPane } from "./OutputPane";
 import { PineInputPane } from "./PineInputPane";
 import { PINE_SCRIPTS } from "./pineScripts";
@@ -34,8 +32,7 @@ function initialScriptId(): string {
 
 /**
  * The converter playground. Wires the Pine input, the live conversion
- * hook, the chartlang output, the diagnostics/manifest panels, and the
- * compile-&-preview block.
+ * hook, the chartlang output, and the compile-&-preview block.
  */
 export default function ConverterBody(): ReactElement {
     const [scriptId, setScriptId] = useState(initialScriptId);
@@ -84,7 +81,6 @@ export default function ConverterBody(): ReactElement {
             <div className="panes">
                 <section className="pane pane-editor">
                     <PineInputPane
-                        diagnostics={result.diagnostics}
                         initialSource={script?.source ?? ""}
                         key={script?.id ?? "none"}
                         onSourceChange={setSource}
@@ -93,11 +89,6 @@ export default function ConverterBody(): ReactElement {
                 <section className="pane">
                     <OutputPane fileBase={result.manifest?.name ?? null} output={result.output} />
                 </section>
-            </div>
-
-            <div className="converter-meta">
-                <DiagnosticsPanel diagnostics={result.diagnostics} />
-                <ManifestSummary barIntervalSet={barInterval !== null} manifest={result.manifest} />
             </div>
 
             <CompilePreview output={result.output} />

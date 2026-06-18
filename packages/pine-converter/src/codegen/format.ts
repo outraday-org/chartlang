@@ -55,7 +55,7 @@ function depthDelta(line: string): { delta: number; leadingClose: number } {
  * print so block tails align with their opener.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { formatSource } from "./format.js";
  *     formatSource("a {\nb;\n}\n"); // "a {\n    b;\n}\n"

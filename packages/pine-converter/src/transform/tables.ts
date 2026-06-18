@@ -9,8 +9,11 @@ import type { SemanticResult } from "../semantic/index.js";
 import { dottedCallee, positionalArgs } from "./callArgs.js";
 import { substituteIterator } from "./controlFlow.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
+import type { EmitContext } from "./emitContext.js";
+import { emitWithContext } from "./emitContext.js";
 import type { AnnotationLookup } from "./exprEmit.js";
 import { emitExpr } from "./exprEmit.js";
+import { emitStr } from "./strFormat.js";
 import { handleSlotLocalName } from "./handleSlot.js";
 import type { ScriptScaffold } from "./ir.js";
 import { appendComputeStatement, appendHandleSlot } from "./scaffoldMutators.js";
@@ -22,7 +25,7 @@ import { appendComputeStatement, appendHandleSlot } from "./scaffoldMutators.js"
  * render nothing; an absent cell renders as an empty-string cell.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const c: CellSpec = {
  *         text: '"P&L"',
@@ -100,6 +103,34 @@ function styleValueSource(node: ExpressionNode, annotations: AnnotationLookup): 
     return emitExpr(node, annotations);
 }
 
+// Lower a table-cell text expression. A `str.*` call routes through the
+// shared {@link emitStr} formatter so `str.tostring(close, "#.##")` becomes
+// `(bar.close).toFixed(2)` instead of leaking the undefined `str` identifier;
+// an unmapped `str.*` form warns and falls back. Every other node lowers via
+// `emitExpr`. Cell text has no input/state context (state slots are
+// registered after the table pass), so a minimal {@link EmitContext} is used.
+function cellTextSource(
+    node: ExpressionNode,
+    annotations: AnnotationLookup,
+    diagnostics: DiagnosticCollector,
+): string {
+    const ctx: EmitContext = {
+        annotations,
+        inputNames: new Set(),
+        localNames: new Set(),
+        stateSlots: new Map(),
+    };
+    if (node.kind === "call-expression") {
+        const lowered = emitStr(node, ctx);
+        if (lowered !== null && lowered.kind === "warn") {
+            diagnostics.pushCode(lowered.code, node.span);
+        }
+    }
+    // `emitWithContext` lowers `str.*` calls (whole-cell AND nested in an
+    // expression) via the shared rewrite, so cell text never leaks `str`.
+    return emitWithContext(node, ctx);
+}
+
 // The mutable per-table cell store, keyed `"<col>:<row>"`, last-write-wins.
 type CellMap = Map<string, CellSpec>;
 
@@ -133,11 +164,11 @@ function applyWrite(
     if (member === "cell") {
         const textArg = positional[3];
         if (textArg !== undefined) {
-            spec.text = emitExpr(textArg.value, annotations);
+            spec.text = cellTextSource(textArg.value, annotations, diagnostics);
         }
         applyCellNamedArgs(spec, call.args, annotations, diagnostics);
     } else {
-        applyCellSetter(spec, member, positional[3], annotations);
+        applyCellSetter(spec, member, positional[3], annotations, diagnostics);
     }
     cells.set(key, spec);
 }
@@ -148,6 +179,7 @@ function applyCellSetter(
     member: string,
     valueArg: CallArgument | undefined,
     annotations: AnnotationLookup,
+    diagnostics: DiagnosticCollector,
 ): void {
     if (valueArg === undefined) {
         return;
@@ -155,7 +187,7 @@ function applyCellSetter(
     const value = styleValueSource(valueArg.value, annotations);
     switch (member) {
         case "cell_set_text":
-            spec.text = emitExpr(valueArg.value, annotations);
+            spec.text = cellTextSource(valueArg.value, annotations, diagnostics);
             return;
         case "cell_set_bgcolor":
             spec.bgColor = value;
@@ -500,7 +532,7 @@ function tableSites(analysis: SemanticResult, diagnostics: DiagnosticCollector):
  * codegen reads `scaffold.handleSlots` + `scaffold.computeBody`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { lex } from "../lexer/index.js";
  *     import { parseStatements } from "../parser/index.js";
@@ -549,8 +581,10 @@ function emitTable(
     diagnostics: DiagnosticCollector,
 ): void {
     const handle = entry.handle;
-    const local = handleSlotLocalName(handle);
-    appendHandleSlot(scaffold, { name: local, kind: "table" });
+    const local = handleSlotLocalName(handle, scaffold.names);
+    // Tables rebuild the whole grid each bar and keep the general slot
+    // machinery (`current()`/`set()`), so they are never compact.
+    appendHandleSlot(scaffold, { name: local, kind: "table", compact: false });
 
     const shape = readShape(entry.call);
     const collected: Collected = { cells: new Map(), deleted: false };
@@ -564,12 +598,13 @@ function emitTable(
     );
 
     const cellsSource = renderCells(collected.cells, shape);
-    appendComputeStatement(scaffold, `const ${local}_cells = ${cellsSource};`);
+    const cellsLocal = scaffold.names.allocate(`${local}Cells`);
+    appendComputeStatement(scaffold, `const ${cellsLocal} = ${cellsSource};`);
     appendComputeStatement(
         scaffold,
         `if (barstate.islast) { ${local}.current()?.remove(); ` +
             `${local}.set(draw.table({ position: ${JSON.stringify(shape.position)}, ` +
-            `cells: ${local}_cells })); }`,
+            `cells: ${cellsLocal} })); }`,
     );
 
     if (collected.deleted) {

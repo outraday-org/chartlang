@@ -11,7 +11,7 @@ import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import { resolveCampADrawKind } from "./drawKindResolve.js";
 import { emitExpr } from "./exprEmit.js";
 import type { DrawCallContext } from "./handleSlot.js";
-import { synthesizeDrawCall } from "./handleSlot.js";
+import { drawCallAnchors, synthesizeDrawCall } from "./handleSlot.js";
 import type { ScriptScaffold } from "./ir.js";
 import { registerRing, resolveRingCap } from "./ringHelper.js";
 import { appendComputeStatement } from "./scaffoldMutators.js";
@@ -245,16 +245,24 @@ function emitRingUpdateLoop(
     annotations: DrawCallContext["annotations"],
     diagnostics: DiagnosticCollector,
     scaffold: ScriptScaffold,
+    anchorDefaults: readonly string[],
 ): void {
     const setters = collectLoopSetters(loop.body.body, collection, loop.variable);
     const patch =
         setters.length > 0
-            ? foldSetters(setters, site.handleType, annotations, (code, node) =>
-                  diagnostics.pushCode(code, node.span),
+            ? foldSetters(
+                  setters,
+                  site.handleType,
+                  annotations,
+                  (code, node) => diagnostics.pushCode(code, node.span),
+                  anchorDefaults,
               )
             : null;
     const i = loop.variable;
-    const header = `for (let ${i} = 0; ${i} < ${cap}; ${i}++) { const __h = ${ringLocal}.at(${i}); if (__h === null) continue; `;
+    // The per-iteration ring-element temp — a readable `element` (allocator-
+    // disambiguated), block-scoped to the loop alongside the Pine iterator `i`.
+    const element = scaffold.names.allocate("element");
+    const header = `for (let ${i} = 0; ${i} < ${cap}; ${i}++) { const ${element} = ${ringLocal}.at(${i}); if (${element} === null) continue; `;
     if (patch === null) {
         diagnostics.pushCode("anchor-mirror-required", loop.span);
         appendComputeStatement(
@@ -263,7 +271,7 @@ function emitRingUpdateLoop(
         );
         return;
     }
-    appendComputeStatement(scaffold, `${header}__h.update(${patch}); }`);
+    appendComputeStatement(scaffold, `${header}${element}.update(${patch}); }`);
 }
 
 /**
@@ -287,7 +295,7 @@ function emitRingUpdateLoop(
  * transform (Task 13).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { lex } from "../lexer/index.js";
  *     import { parseStatements } from "../parser/index.js";
@@ -348,6 +356,7 @@ export function transformCampB(
     const { anchors } = resolveCoordinates(analysis, {});
     const ctx = drawContext(analysis, anchors, diagnostics);
     const drawCall = synthesizeDrawCall(kind, site.call, ctx);
+    const anchorDefaults = drawCallAnchors(kind, site.call, ctx);
 
     const guard = findPushGuard(analysis, site.call);
     const push = `${ringLocal}.push(${drawCall});`;
@@ -367,6 +376,7 @@ export function transformCampB(
             analysis.annotations,
             diagnostics,
             scaffold,
+            anchorDefaults,
         );
     }
 }

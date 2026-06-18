@@ -66,10 +66,17 @@ describe("transformCampA properties", () => {
                 (handle, setterCount) => {
                     const { scaffold, campASites } = fixture(handle, setterCount);
                     expect(scaffold.handleSlots).toHaveLength(campASites);
+                    // The fixture is the plain-`var`, no-delete idiom, so every
+                    // slot lowers to the compact bare-`const` create form.
+                    expect(scaffold.handleSlots.every((slot) => slot.compact)).toBe(true);
                     const creates = scaffold.computeBody.statements.filter((s) =>
-                        s.includes(".current() === null"),
+                        /^const \w+ = draw\./.test(s),
                     );
                     expect(creates).toHaveLength(campASites);
+                    // Readable allocation: no synthesized name keeps the `__` prefix.
+                    expect(scaffold.handleSlots.every((slot) => !slot.name.startsWith("__"))).toBe(
+                        true,
+                    );
                 },
             ),
         );

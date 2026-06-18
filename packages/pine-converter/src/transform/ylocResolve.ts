@@ -10,10 +10,10 @@ import type { CallArgument } from "../ast/index.js";
  * so the caller keeps the drawing's resolved anchor price unchanged.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: YlocResolution = {
- *         priceExpr: "bar.high + ((bar.high - bar.low) * __YLOC_PAD_FRAC)",
+ *         priceExpr: "bar.high + ((bar.high - bar.low) * 0.001)",
  *         approximated: true,
  *     };
  *     void r;
@@ -37,17 +37,17 @@ function ylocMemberName(arg: CallArgument): string | null {
  * Resolve a Pine `label.new(..., yloc=…)` vertical-location enum into the
  * chartlang price expression the converted `draw.text(...)` anchor uses.
  *
- * - `yloc.abovebar` → `bar.high + ((bar.high - bar.low) * __YLOC_PAD_FRAC)`
- * - `yloc.belowbar` → `bar.low - ((bar.high - bar.low) * __YLOC_PAD_FRAC)`
+ * - `yloc.abovebar` → `bar.high + ((bar.high - bar.low) * 0.001)`
+ * - `yloc.belowbar` → `bar.low - ((bar.high - bar.low) * 0.001)`
  * - `yloc.price` / absent / unrecognised → `null` (keep the anchor price).
  *
- * The `__YLOC_PAD_FRAC` and `bar.*` references are emitted verbatim;
- * Task 16 codegen ships the `__YLOC_PAD_FRAC` preamble constant. The
- * `approximated` flag lets the caller raise `yloc-padding-approximated`
- * exactly once per script.
+ * The padding fraction is an inline literal (no synthesized const, so the
+ * emitted anchor is self-contained and `__`-prefix-free). The `approximated`
+ * flag lets the caller raise `yloc-padding-approximated` exactly once per
+ * script.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { resolveYloc } from "./ylocResolve.js";
  *     const arg = {
@@ -70,10 +70,10 @@ export function resolveYloc(args: readonly CallArgument[]): YlocResolution | nul
     const name = ylocMemberName(arg);
     const range = "(bar.high - bar.low)";
     if (name === "yloc.abovebar") {
-        return { priceExpr: `bar.high + (${range} * __YLOC_PAD_FRAC)`, approximated: true };
+        return { priceExpr: `bar.high + (${range} * 0.001)`, approximated: true };
     }
     if (name === "yloc.belowbar") {
-        return { priceExpr: `bar.low - (${range} * __YLOC_PAD_FRAC)`, approximated: true };
+        return { priceExpr: `bar.low - (${range} * 0.001)`, approximated: true };
     }
     return null;
 }

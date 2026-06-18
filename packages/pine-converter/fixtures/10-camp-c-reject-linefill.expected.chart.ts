@@ -15,7 +15,5 @@ export default defineDrawing({
         },
         compute({ bar }) {
             // [pine-converter] HARD-REJECT (cross-collection-linefill) at 7:12 — linefill.new(...) — see diagnostics for the suggested rewrite.
-            if (bar.close > bar.open) {  }
-            if (array.size(lines) > 2) {  }
         },
 });

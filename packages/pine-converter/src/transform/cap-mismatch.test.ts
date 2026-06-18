@@ -145,8 +145,8 @@ describe("registerRing", () => {
             ].join("\n"),
         );
         const name = registerRing(scaffold, "extra", "line", 7);
-        expect(name).toBe("__extra_ring");
-        expect(scaffold.handleRings).toContainEqual({ name: "__extra_ring", kind: "line", cap: 7 });
+        expect(name).toBe("extra");
+        expect(scaffold.handleRings).toContainEqual({ name: "extra", kind: "line", cap: 7 });
     });
 });
 
@@ -160,7 +160,7 @@ describe("transformCampB — cap mismatch end-to-end", () => {
                 "    line.delete(array.shift(lvls))",
             ].join("\n"),
         );
-        expect(scaffold.handleRings).toEqual([{ name: "__lvls_ring", kind: "line", cap: 500 }]);
+        expect(scaffold.handleRings).toEqual([{ name: "lvls", kind: "line", cap: 500 }]);
         expect(diagnostics.has("pine-converter/transform/cap-mismatch")).toBe(true);
     });
 

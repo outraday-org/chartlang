@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { convert } from "../index.js";
 import type { ScriptScaffold } from "../transform/ir.js";
+import { NameAllocator } from "../transform/nameAllocator.js";
 import { emit } from "./emit.js";
 
 function scaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
@@ -26,6 +27,7 @@ function scaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
         handleRings: [],
         computeBody: { statements: [] },
         diagnostics: [],
+        names: new NameAllocator(),
         ...overrides,
     };
 }
@@ -34,7 +36,7 @@ function scaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
 // updated each bar — the §16 acceptance fixture, hand-built so the round-trip
 // does not depend on the full front-end parsing a specific Pine source.
 const CAMP_A = scaffold({
-    handleSlots: [{ name: "__lvl_handle", kind: "line" }],
+    handleSlots: [{ name: "__lvl_handle", kind: "line", compact: false }],
     computeBody: {
         statements: [
             "if (__lvl_handle.current() === null) { __lvl_handle.set(draw.line({ time: bar.time, price: bar.high }, { time: bar.time, price: bar.low })); }",

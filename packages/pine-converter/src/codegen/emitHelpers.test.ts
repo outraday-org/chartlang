@@ -4,7 +4,43 @@
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { emitHandleRingHelper } from "./emitHelpers.js";
+import type { ScriptScaffold } from "../transform/ir.js";
+import { NameAllocator } from "../transform/nameAllocator.js";
+import {
+    type HelperNames,
+    allocateHelperNames,
+    emitHandleRingHelper,
+    emitSlotAllocations,
+    hasNonCompactHandleSlot,
+    renameBarIndexSentinel,
+} from "./emitHelpers.js";
+
+// A scaffold stub carrying only the fields the slot-allocation helpers read.
+function slotScaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
+    return {
+        constructor: "defineDrawing",
+        apiVersion: 1,
+        name: "Slots",
+        shortName: null,
+        overlay: true,
+        format: null,
+        precision: null,
+        scale: null,
+        maxDrawings: {},
+        maxBarsBack: null,
+        inputs: [],
+        stateSlots: [],
+        handleSlots: [],
+        handleRings: [],
+        computeBody: { statements: [] },
+        diagnostics: [],
+        names: new NameAllocator(),
+        ...overrides,
+    };
+}
+
+// The readable helper names a default (collision-free) allocation produces.
+const DEFAULT_NAMES: HelperNames = allocateHelperNames(slotScaffold());
 
 // A minimal stand-in for a core `DrawingHandle`: only `remove()` is exercised
 // by the ring's eviction path. Each handle carries an id so the test can
@@ -25,8 +61,8 @@ function loadRingFactory(): (cap: number) => {
     at(i: number): FakeHandle | null;
     size(): number;
 } {
-    const helperSource = emitHandleRingHelper().join("\n");
-    const wrapped = `${helperSource}\nreturn useDrawingHandleRing;`;
+    const helperSource = emitHandleRingHelper(DEFAULT_NAMES).join("\n");
+    const wrapped = `${helperSource}\nreturn ${DEFAULT_NAMES.useHandleRing};`;
     const js = ts.transpileModule(wrapped, {
         compilerOptions: { target: ts.ScriptTarget.ES2022 },
     }).outputText;
@@ -34,7 +70,53 @@ function loadRingFactory(): (cap: number) => {
     return new Function(js)();
 }
 
-describe("emitHandleRingHelper — at() honours __head after wrap", () => {
+describe("allocateHelperNames", () => {
+    it("yields readable, __-free names with no collision", () => {
+        const names = allocateHelperNames(slotScaffold());
+        expect(names).toEqual({
+            barCount: "barCount",
+            barIndex: "barIndex",
+            handleSlotType: "HandleSlot",
+            useHandleSlot: "useDrawingHandleSlot",
+            handleRingType: "HandleRing",
+            useHandleRing: "useDrawingHandleRing",
+        });
+        for (const value of Object.values(names)) {
+            expect(value.startsWith("__")).toBe(false);
+        }
+    });
+
+    it("disambiguates a helper name that clashes with a Pine identifier", () => {
+        // A Pine script with a `barIndex` var AND a `HandleSlot` identifier
+        // forces the bridge + helper type to suffixed readable variants.
+        const names = allocateHelperNames(
+            slotScaffold({ names: new NameAllocator(["barIndex", "HandleSlot"]) }),
+        );
+        expect(names.barIndex).toBe("barIndex2");
+        expect(names.handleSlotType).toBe("HandleSlot2");
+        expect(names.barIndex.startsWith("__")).toBe(false);
+    });
+});
+
+describe("renameBarIndexSentinel", () => {
+    it("rewrites the bar-index sentinel + counter to the allocated names", () => {
+        const line = "draw.line(bar.point((__barIndexBridge() - last), bar.close));";
+        expect(renameBarIndexSentinel(line, DEFAULT_NAMES)).toBe(
+            "draw.line(bar.point((barIndex() - last), bar.close));",
+        );
+    });
+
+    it("rewrites the counter sentinel and is word-boundary anchored", () => {
+        const names = allocateHelperNames(slotScaffold({ names: new NameAllocator(["barIndex"]) }));
+        const line = "let __barIndexBridgeCount = 0; const x = __barIndexBridge();";
+        const out = renameBarIndexSentinel(line, names);
+        expect(out).toContain(`let ${names.barCount} = 0;`);
+        expect(out).toContain(`const x = ${names.barIndex}();`);
+        expect(out).not.toContain("__barIndexBridge");
+    });
+});
+
+describe("emitHandleRingHelper — at() honours head after wrap", () => {
     it("returns physical-order elements before the buffer fills", () => {
         const ring = loadRingFactory()(3);
         ring.push(fakeHandle(0));
@@ -84,5 +166,53 @@ describe("emitHandleRingHelper — at() honours __head after wrap", () => {
         ring.push(null); // evicts handle 0, stores null
         expect(ring.at(0)).toBeNull();
         expect(ring.size()).toBe(1);
+    });
+});
+
+describe("emitSlotAllocations — compact handle slots", () => {
+    it("skips a compact handle slot's allocation but emits non-compact + state + ring", () => {
+        const lines = emitSlotAllocations(
+            slotScaffold({
+                stateSlots: [{ name: "count", initExpr: "state.int(0)" }],
+                handleSlots: [
+                    { name: "a", kind: "line", compact: true },
+                    { name: "b", kind: "rectangle", compact: false },
+                ],
+                handleRings: [{ name: "ring", kind: "label", cap: 7 }],
+            }),
+            DEFAULT_NAMES,
+        );
+        expect(lines).toEqual([
+            "const count = state.int(0);",
+            'const b = useDrawingHandleSlot<"rectangle">();',
+            'const ring = useDrawingHandleRing<"label">(7);',
+        ]);
+    });
+});
+
+describe("hasNonCompactHandleSlot", () => {
+    it("is false when there are no handle slots", () => {
+        expect(hasNonCompactHandleSlot(slotScaffold())).toBe(false);
+    });
+
+    it("is false when every handle slot is compact", () => {
+        expect(
+            hasNonCompactHandleSlot(
+                slotScaffold({ handleSlots: [{ name: "a", kind: "line", compact: true }] }),
+            ),
+        ).toBe(false);
+    });
+
+    it("is true when any handle slot is non-compact", () => {
+        expect(
+            hasNonCompactHandleSlot(
+                slotScaffold({
+                    handleSlots: [
+                        { name: "a", kind: "line", compact: true },
+                        { name: "b", kind: "table", compact: false },
+                    ],
+                }),
+            ),
+        ).toBe(true);
     });
 });

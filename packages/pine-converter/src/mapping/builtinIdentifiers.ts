@@ -7,9 +7,12 @@
  * chartlang `bar.*` / helper-call forms, plus the two `xloc.*` string
  * sentinels the coordinate resolver keys on.
  *
- * `bar_index` lowers to `__bar_index()` — a converter-emitted helper (Task
- * 16) that reads a per-mount monotonic bar counter, because the chartlang
- * runtime exposes `bar.time` but no native bar index.
+ * `bar_index` lowers to the internal `__barIndexBridge()` sentinel — a
+ * converter-emitted helper (codegen) that reads a per-mount monotonic bar
+ * counter, because the chartlang runtime exposes `bar.time` but no native bar
+ * index. The sentinel is RENAMED to a readable, collision-safe `barIndex()`
+ * (`codegen/emitHelpers.ts` `renameBarIndexSentinel`) before output, so it
+ * never reaches the generated `.chart.ts`.
  *
  * `na` is intentionally ABSENT: its emission is context-sensitive (the
  * numeric `Number.NaN` sentinel vs the drawing-handle `null` sentinel) and
@@ -17,11 +20,11 @@
  * `naKind` annotation, not by a fixed table row.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { BUILTIN_IDENTIFIER_MAP } from "./builtinIdentifiers.js";
  *     BUILTIN_IDENTIFIER_MAP.get("close"); // "bar.close"
- *     BUILTIN_IDENTIFIER_MAP.get("bar_index"); // "__bar_index()"
+ *     BUILTIN_IDENTIFIER_MAP.get("bar_index"); // "__barIndexBridge()"
  */
 export const BUILTIN_IDENTIFIER_MAP: ReadonlyMap<string, string> = new Map<string, string>([
     ["open", "bar.open"],
@@ -33,7 +36,7 @@ export const BUILTIN_IDENTIFIER_MAP: ReadonlyMap<string, string> = new Map<strin
     ["hlc3", "bar.hlc3"],
     ["ohlc4", "bar.ohlc4"],
     ["time", "bar.time"],
-    ["bar_index", "__bar_index()"],
+    ["bar_index", "__barIndexBridge()"],
     // String sentinels the coordinate resolver reads when an `xloc` argument
     // resolves to one of these built-ins; they never reach output verbatim.
     ["xloc.bar_index", "bar-index"],
@@ -47,7 +50,7 @@ export const BUILTIN_IDENTIFIER_MAP: ReadonlyMap<string, string> = new Map<strin
  * verbatim).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { remapIdentifier } from "./builtinIdentifiers.js";
  *     remapIdentifier("close"); // "bar.close"

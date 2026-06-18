@@ -8,6 +8,7 @@ import type { ResolvedAnchor } from "./coordinates.js";
 import { anchorToWorldPoint } from "./coordinates.js";
 import type { AnnotationLookup } from "./exprEmit.js";
 import { emitExpr } from "./exprEmit.js";
+import type { NameAllocator } from "./nameAllocator.js";
 import { renderEnumTarget } from "./setterFold.js";
 import { resolveYloc } from "./ylocResolve.js";
 
@@ -35,7 +36,7 @@ function styleValueSource(node: ExpressionNode, annotations: AnnotationLookup): 
  * `draw.<method>` call name.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const k: ChartlangDrawKind = "line";
  *     void k;
@@ -74,21 +75,26 @@ const ANCHOR_ARITY: Readonly<Record<ChartlangDrawKind, 1 | 2>> = {
 };
 
 /**
- * The module-level slot local a Pine drawing handle binds to. A Pine
- * `var line lvl = na` handle becomes `__lvl_handle`; Task 16 codegen emits
- * the matching `const __lvl_handle = useDrawingHandleSlot<"line">();`
- * allocation and Camp A / Camp B reference this exact name in the compute
- * body. The naming is the cross-task contract — derive it here, never
- * inline the `__`/`_handle` affixes at a call site.
+ * Allocate the module-level slot local a Pine drawing handle binds to,
+ * REUSING the Pine source identifier so a `var line lvl = na` handle becomes
+ * `lvl` (collision-disambiguated to `lvl2`/… only when the readable name is
+ * already emitted). Codegen emits the matching `const lvl = …` allocation and
+ * Camp A / tables / polyline reference this exact name in the compute body.
+ * Allocate ONCE per handle (the owning transform stores the result) — calling
+ * twice for one handle would mint two distinct names. The naming is the
+ * cross-task contract: route through the scaffold's {@link NameAllocator},
+ * never inline a prefix/suffix at a call site.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { handleSlotLocalName } from "./handleSlot.js";
- *     handleSlotLocalName("lvl"); // "__lvl_handle"
+ *     import { NameAllocator } from "./nameAllocator.js";
+ *     const names = new NameAllocator(["lvl"]);
+ *     handleSlotLocalName("lvl", names); // "lvl"
  */
-export function handleSlotLocalName(pineName: string): string {
-    return `__${pineName}_handle`;
+export function handleSlotLocalName(pineName: string, names: NameAllocator): string {
+    return names.allocateForSymbol(pineName);
 }
 
 /**
@@ -99,7 +105,7 @@ export function handleSlotLocalName(pineName: string): string {
  * concrete class so Camp A and Camp B share one signature.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const sink: DrawCallContext = {
  *         annotations: new Map(),
@@ -185,6 +191,34 @@ function buildStyleOpts(
 }
 
 /**
+ * The resolved `WorldPoint` anchor source strings a `.new(...)` create call
+ * lowers to, in index order — `["{ time: …, price: … }", …]`. Reuses the
+ * same {@link buildAnchorArgs} resolution as {@link synthesizeDrawCall} so a
+ * setter fold can fill an un-moved anchor index from the creation expression
+ * (a partial `set_xy1`-only move would otherwise emit a length-1 `anchors`
+ * tuple the runtime rejects). Returns `[]` for single-anchor kinds, which
+ * carry no whole-anchor setters.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     import { drawCallAnchors } from "./handleSlot.js";
+ *     declare const call: import("../ast/index.js").CallExpression;
+ *     declare const ctx: import("./handleSlot.js").DrawCallContext;
+ *     drawCallAnchors("line", call, ctx); // ["{ time: …, price: … }", "{ … }"]
+ */
+export function drawCallAnchors(
+    kind: ChartlangDrawKind,
+    call: CallExpression,
+    ctx: DrawCallContext,
+): string[] {
+    if (ANCHOR_ARITY[kind] !== 2) {
+        return [];
+    }
+    return buildAnchorArgs(kind, positionalArgs(call.args), ctx, null);
+}
+
+/**
  * Lower one Pine drawing `.new(...)` call into the chartlang
  * `draw.<method>(anchorA, [anchorB,] [body,] [opts])` expression source
  * (no trailing `;`). Camp A wraps the result in `slot.set(<call>)`; Camp B
@@ -194,7 +228,7 @@ function buildStyleOpts(
  * `yloc.abovebar/belowbar`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { synthesizeDrawCall } from "./handleSlot.js";
  *     declare const call: import("../ast/index.js").CallExpression;

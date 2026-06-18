@@ -10,7 +10,7 @@ import type { CallArgument, CallExpression } from "../ast/index.js";
  * that dispatches on a Pine builtin's dotted name.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { dottedCallee } from "./callArgs.js";
  *     // dottedCallee of `line.new(...)` → "line.new"
@@ -29,7 +29,7 @@ export function dottedCallee(call: CallExpression): string | null {
  * `CallArgument` whose `name` is `null`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { positionalArgs } from "./callArgs.js";
  *     // positionalArgs of `f(1, x = 2, 3)` → [1, 3]
@@ -43,7 +43,7 @@ export function positionalArgs(args: readonly CallArgument[]): readonly CallArgu
  * The first named argument whose key matches `name`, or `null` when absent.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { namedArg } from "./callArgs.js";
  *     // namedArg of `f(x = 2)`, "x" → the `x = 2` argument

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { SourceSpan } from "../index.js";
 import type { ExpressionNode } from "./expressions.js";
 import type { WithSpan } from "./spans.js";
 import type { TypeAnnotation } from "./types.js";
@@ -10,7 +11,7 @@ import type { TypeAnnotation } from "./types.js";
  * never stand alone — they only appear inside `if`/`for`/`switch` bodies.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const b: BlockStatement = {
  *         kind: "block-statement",
@@ -31,7 +32,7 @@ export type BlockStatement = WithSpan &
  * plain per-bar declaration).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const q: DeclarationQualifier = "var";
  *     void q;
@@ -43,7 +44,7 @@ export type DeclarationQualifier = "var" | "varip" | "none";
  * {@link TypeAnnotation}, an identifier, and an initializer expression.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: VariableDeclaration = {
  *         kind: "variable-declaration",
@@ -74,7 +75,7 @@ export type VariableDeclaration = WithSpan &
  * by Task 5's semantic analyzer) or `:=` (explicit reassignment).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const op: AssignmentOperator = ":=";
  *     void op;
@@ -85,7 +86,7 @@ export type AssignmentOperator = "=" | ":=";
  * An assignment / reassignment to an existing identifier.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: Assignment = {
  *         kind: "assignment",
@@ -112,7 +113,7 @@ export type Assignment = WithSpan &
  * One `else if` arm of an {@link IfStatement}: a condition plus its block.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const arm: ElseIfClause = {
  *         condition: {
@@ -141,7 +142,7 @@ export type ElseIfClause = WithSpan &
  * trailing `else`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: IfStatement = {
  *         kind: "if-statement",
@@ -175,7 +176,7 @@ export type IfStatement = WithSpan &
  * the `by` clause is absent.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const lit = (v: string, col: number) =>
  *         ({
@@ -214,7 +215,7 @@ export type ForStatement = WithSpan &
  * `=> …` arm.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const arm: SwitchCase = {
  *         test: null,
@@ -234,7 +235,7 @@ export type SwitchCase = WithSpan &
  * (`switch` with boolean `case =>` arms).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: SwitchStatement = {
  *         kind: "switch-statement",
@@ -255,7 +256,7 @@ export type SwitchStatement = WithSpan &
  * A `break` statement.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: BreakStatement = {
  *         kind: "break-statement",
@@ -269,7 +270,7 @@ export type BreakStatement = WithSpan & Readonly<{ kind: "break-statement" }>;
  * A `continue` statement.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: ContinueStatement = {
  *         kind: "continue-statement",
@@ -283,7 +284,7 @@ export type ContinueStatement = WithSpan & Readonly<{ kind: "continue-statement"
  * A `return` statement. `value` is `null` for a bare `return`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: ReturnStatement = {
  *         kind: "return-statement",
@@ -299,10 +300,60 @@ export type ReturnStatement = WithSpan &
     }>;
 
 /**
+ * One destructuring target in a {@link TupleDeclaration}: the bound name and
+ * the span of its identifier token. Each name carries its own span so the
+ * semantic pass can register a distinct symbol per element (the `symbols` map
+ * is keyed by span).
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const t: TupleTarget = {
+ *         name: "macdLine",
+ *         span: { startLine: 1, startColumn: 2, endLine: 1, endColumn: 10 },
+ *     };
+ *     void t;
+ */
+export type TupleTarget = Readonly<{
+    name: string;
+    span: SourceSpan;
+}>;
+
+/**
+ * A Pine tuple-destructuring declaration — `[a, b, c] = expr` — binding the
+ * positional outputs of a multi-return call (e.g. `ta.macd`). Always a fresh
+ * declaration (`=`, never `:=`); the names are ordered to match the call's
+ * positional return.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const s: TupleDeclaration = {
+ *         kind: "tuple-declaration",
+ *         names: [
+ *             { name: "a", span: { startLine: 1, startColumn: 2, endLine: 1, endColumn: 3 } },
+ *         ],
+ *         initializer: {
+ *             kind: "identifier-expression",
+ *             name: "f",
+ *             span: { startLine: 1, startColumn: 7, endLine: 1, endColumn: 8 },
+ *         },
+ *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 8 },
+ *     };
+ *     void s;
+ */
+export type TupleDeclaration = WithSpan &
+    Readonly<{
+        kind: "tuple-declaration";
+        names: readonly TupleTarget[];
+        initializer: ExpressionNode;
+    }>;
+
+/**
  * A bare expression used in statement position (e.g. a `plot(...)` call).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: ExpressionStatement = {
  *         kind: "expression-statement",
@@ -325,7 +376,7 @@ export type ExpressionStatement = WithSpan &
  * Any Pine v6 statement node.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: Statement = {
  *         kind: "break-statement",
@@ -336,6 +387,7 @@ export type ExpressionStatement = WithSpan &
 export type Statement =
     | VariableDeclaration
     | Assignment
+    | TupleDeclaration
     | IfStatement
     | ForStatement
     | SwitchStatement

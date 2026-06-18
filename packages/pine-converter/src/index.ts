@@ -27,7 +27,7 @@ import {
  * lands the package at 0.1.0 in lockstep.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { PACKAGE_VERSION } from "@invinite-org/chartlang-pine-converter";
  *     console.log(PACKAGE_VERSION); // "0.0.0"
@@ -39,7 +39,7 @@ export const PACKAGE_VERSION = "0.0.0";
  * one-to-one to UX treatment (error blocks, warning soft-warns, info hints).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const sev: DiagnosticSeverity = "warning";
  *     void sev;
@@ -50,7 +50,7 @@ export type DiagnosticSeverity = "error" | "warning" | "info";
  * One-based source location inside the Pine input.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const span: SourceSpan = {
  *         startLine: 1,
@@ -72,7 +72,7 @@ export type SourceSpan = Readonly<{
  * advisory.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const diag: Diagnostic = {
  *         code: "pine-converter/not-ready",
@@ -94,7 +94,7 @@ export type Diagnostic = Readonly<{
  * Manifest of what the converter produced. Tasks 8/9/16 populate.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const manifest: ConvertManifest = {
  *         kind: "drawing",
@@ -117,7 +117,7 @@ export type ConvertManifest = Readonly<{
  * Caller-supplied conversion options.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: ConvertOpts = {
  *         barInterval: 60_000,
@@ -143,7 +143,7 @@ export type ConvertOpts = Readonly<{
  * tasks land the real pipeline; `diagnostics` is always defined.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const result: ConvertResult = {
  *         output: null,
@@ -164,7 +164,7 @@ export type ConvertResult = Readonly<{
  * a script in.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const caps: ConverterCapabilities = {
  *         pineVersion: 6,
@@ -186,7 +186,7 @@ export type ConverterCapabilities = Readonly<{
  * Tasks 2–16 progressively remove the throw sites.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     try {
  *         throw new ConverterNotReadyError("lexer");
@@ -221,7 +221,7 @@ function anyError(diagnostics: readonly Diagnostic[]): boolean {
  * circuit with a `null` output.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const result = convert("//@version=6\nindicator('hello')");
  *     result.output?.startsWith("// Auto-generated"); // true
@@ -252,8 +252,22 @@ export function convert(source: string, opts?: ConvertOpts): ConvertResult {
     const diagnostics = new DiagnosticCollector();
     const scaffold = transformDeclaration(declaration, analysis, diagnostics);
     transformInputs(analysis, scaffold, diagnostics);
+    // `transformOther` runs BEFORE the drawing transforms so the non-drawing
+    // scalar declarations it emits (`let ph = ta.pivotsHighLow.high(...)`)
+    // precede the drawing pushes/updates that reference them. Pine declares a
+    // pivot/level scalar at the top, then pushes it into a collection inside a
+    // guard; emitting the push first would reference `ph` before its `let`
+    // (a `used-before-declaration` compile error). `transformOther` reads only
+    // `analysis` + `scaffold.inputs`, never the drawing transforms' output, so
+    // running it first is order-safe.
+    transformOther(analysis, scaffold, diagnostics);
     for (const site of analysis.drawingSites) {
-        if (site.constructor === "table.new") {
+        // `table.new` and `polyline.new` are owned by their dedicated
+        // transforms (`transformTables` / `transformPolylineLinefill`), not the
+        // Camp A/B/C dispatch — a `polyline` is not a `ChartlangDrawKind` the
+        // camp synthesiser can render, so routing it through Camp A would emit
+        // a broken `draw.undefined(...)`.
+        if (site.constructor === "table.new" || site.constructor === "polyline.new") {
             continue;
         }
         if (site.camp.kind === "camp-a") {
@@ -266,7 +280,6 @@ export function convert(source: string, opts?: ConvertOpts): ConvertResult {
     }
     transformTables(analysis, scaffold, diagnostics);
     transformPolylineLinefill(analysis, scaffold, diagnostics);
-    transformOther(analysis, scaffold, diagnostics);
 
     const output = emit(scaffold);
     const manifest = scaffoldToManifest(scaffold, analysis);
@@ -287,7 +300,7 @@ export function convert(source: string, opts?: ConvertOpts): ConvertResult {
  * `output`, the converted `.chart.ts` source is written there.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const opts: ConvertFileOpts = { outPath: "out/hello.chart.ts", strictMode: true };
  *     void opts;
@@ -304,7 +317,7 @@ export type ConvertFileOpts = ConvertOpts & Readonly<{ outPath?: string }>;
  * emitted error-severity diagnostics.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const result = await convertFile("hello.pine", { outPath: "hello.chart.ts" });
  *     result.output !== null; // true when the conversion succeeded

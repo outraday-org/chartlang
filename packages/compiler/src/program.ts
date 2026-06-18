@@ -76,6 +76,7 @@ declare module "@invinite-org/chartlang-core" {
         readonly ohlc4: Price;
         readonly hlcc4: Price;
         readonly viewport?: BarViewport;
+        point(offset: number, price: Price): WorldPoint;
     };
     export type Series<T> = {
         readonly current: T;

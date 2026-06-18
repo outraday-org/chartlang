@@ -8,9 +8,10 @@ X, write it like Y." Implementer detail lives in the
 
 The converter's v1 slice is **drawings-focused**: `line.new`, `label.new`,
 `box.new`, `table.new`, `polyline.new`, `linefill.new`, plus inputs,
-control flow, state, and a partial `ta.*` / `math.*` passthrough. It is a
-source-to-source translator — it emits chartlang `.chart.ts`, not a
-runtime bundle.
+control flow, state, and a partial `ta.*` / `math.*` passthrough. The
+`plot` family (`plotshape`, `plotchar`, `plotarrow`) and the multi-output
+`ta.*` indicators map too (see below). It is a source-to-source
+translator — it emits chartlang `.chart.ts`, not a runtime bundle.
 
 ## Why might my Pine script not convert?
 
@@ -99,11 +100,15 @@ To steer a Camp C script into a bounded camp:
 - **`varip` is approximated.** A `varip` handle reuses the same slot and
   raises a `varip-approximated` info — chartlang does not reproduce Pine's
   intra-bar tick-rollback. Confirm your script does not rely on it.
-- **Future `bar_index + N` anchors need `barInterval`.** A drawing anchored
-  in the future (`bar_index + 10`) needs the ms-per-bar interval to place
-  it in time. Pass `barInterval` (CLI `--bar-interval <ms>`), or the
-  converter emits a `requires-bar-interval` error. Historical `bar_index[N]`
-  anchors use `barIndexOrigin` when set.
+- **`bar_index` anchors lower to `bar.point`.** A drawing anchored by
+  `bar_index` (current, `bar_index[N]` historical, or `bar_index + N`
+  future) now lowers to `bar.point(<signed offset>, price)` — the integer
+  offset is read straight from the Pine expression (`bar_index` → `0`,
+  `bar_index[3]` → `-3`, `bar_index + 10` → `+10`). The old
+  `__BAR_INTERVAL_MS` sentinel and the `--bar-interval` flag are gone:
+  `bar.point` resolves historical times from retained bars and extrapolates
+  future times from recent bar spacing, so no ms-per-bar interval is needed.
+  A literal negative offset sizes the lookback buffer like `series[n]`.
 - **`yloc.abovebar` / `yloc.belowbar` are padded approximations.** They
   lower to the bar high/low plus a fixed fraction of the bar range
   (`yloc-padding-approximated`). Tune `__YLOC_PAD_FRAC` in the generated
@@ -116,6 +121,20 @@ To steer a Camp C script into a bounded camp:
   These emit a `ta-signature-divergence` warning — check the arguments. An
   unmapped `ta.*` / `math.*` / `str.*` is passed through verbatim with a
   "not mapped" warning so you can finish the port by hand.
+- **`ta.pivothigh` / `ta.pivotlow` project a combined result.** Both Pine
+  calls lower onto `ta.pivotsHighLow(...)` and read the matching field of
+  its result (`ta.pivothigh` → the high field, `ta.pivotlow` → the low
+  field) — chartlang computes both pivots in one primitive.
+- **Multi-output `ta.*` destructures the tuple.** `ta.bb`, `ta.macd`,
+  `ta.supertrend`, and `ta.kc` return multiple series, so the converter
+  emits a destructuring binding (e.g. `const [macd, signal, hist] =
+  ta.macd(...)`) rather than separate calls. Confirm the field order
+  matches what your downstream code expects.
+- **The `plot` family maps location / style / char enums.** `plotshape`,
+  `plotchar`, and `plotarrow` translate, mapping Pine's `location.*`,
+  `shape.*` / `size.*`, and the literal `char` argument onto the chartlang
+  equivalents. An unrecognised enum member falls back to a warning so you
+  can pick the closest fit by hand.
 - **Inputs must be literal.** Defaults and option values must be
   compile-time literals (a unary `+`/`-` on a number is fine). A computed
   default rejects. `input.enum` is not supported — use `input.string`.

@@ -17,6 +17,7 @@ export type {
 } from "./runConformanceSuite.js";
 export {
     ALL_SCENARIOS,
+    BAR_POINT_TRACKING_LINE_SCENARIO,
     BARSTATE_CONFIRMED_SCENARIO,
     BOLLINGER_BANDS_SCENARIO,
     DEFINE_DRAWING_BASIC_SCENARIO,
@@ -222,3 +223,4 @@ export {
     writeGoldenBars,
 } from "./fixtures/generateGoldenBars.js";
 export type { GoldenBars } from "./fixtures/generateGoldenBars.js";
+export { inputBarPoint } from "./inputBarPoint.js";

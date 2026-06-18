@@ -6,5 +6,6 @@ export * from "./drawingKinds.js";
 export * from "./enums.js";
 export * from "./inputs.js";
 export * from "./taPassthrough.js";
+export * from "./multiReturnTa.js";
 export * from "./mathPassthrough.js";
 export * from "./builtinIdentifiers.js";

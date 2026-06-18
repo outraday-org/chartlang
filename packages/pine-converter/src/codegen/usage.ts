@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { ScriptScaffold } from "../transform/ir.js";
+import { BAR_INDEX_SENTINEL } from "./emitHelpers.js";
 
 /**
  * Which chartlang surfaces a converted scaffold references, derived once by
@@ -11,7 +12,7 @@ import type { ScriptScaffold } from "../transform/ir.js";
  * so the emitted import list and the destructured parameter list never drift.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const flags: UsageFlags = {
  *         draw: true,
@@ -25,7 +26,6 @@ import type { ScriptScaffold } from "../transform/ir.js";
  *         barstate: true,
  *         drawingHandle: true,
  *         barIndex: false,
- *         barInterval: false,
  *     };
  *     void flags;
  */
@@ -41,7 +41,6 @@ export type UsageFlags = Readonly<{
     barstate: boolean;
     drawingHandle: boolean;
     barIndex: boolean;
-    barInterval: boolean;
 }>;
 
 // The full corpus of generated source the usage scan walks: every input
@@ -65,7 +64,7 @@ function corpusOf(scaffold: ScriptScaffold): string {
  * final chartlang source string, so a textual scan is exact.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { scanUsage } from "./usage.js";
  *     declare const scaffold: import("../transform/ir.js").ScriptScaffold;
@@ -76,6 +75,11 @@ export function scanUsage(scaffold: ScriptScaffold): UsageFlags {
     const hasHandles = scaffold.handleSlots.length > 0;
     const hasRings = scaffold.handleRings.length > 0;
     const hasState = scaffold.stateSlots.length > 0;
+    // The `DrawingHandle` type import is needed only by the helper signatures —
+    // the non-compact slot helper and the ring helper. A compact handle slot
+    // lowers to a bare `const <name> = draw.<kind>(…)` with no type annotation,
+    // so a script whose every handle slot is compact never names `DrawingHandle`.
+    const hasNonCompactHandle = scaffold.handleSlots.some((slot) => !slot.compact);
     return {
         draw: hasHandles || hasRings || corpus.includes("draw."),
         state: hasState || corpus.includes("state."),
@@ -86,8 +90,7 @@ export function scanUsage(scaffold: ScriptScaffold): UsageFlags {
         input: corpus.includes("input."),
         request: corpus.includes("request."),
         barstate: corpus.includes("barstate."),
-        drawingHandle: hasHandles || hasRings,
-        barIndex: corpus.includes("__bar_index("),
-        barInterval: corpus.includes("__BAR_INTERVAL_MS"),
+        drawingHandle: hasNonCompactHandle || hasRings,
+        barIndex: corpus.includes(`${BAR_INDEX_SENTINEL}(`),
     };
 }

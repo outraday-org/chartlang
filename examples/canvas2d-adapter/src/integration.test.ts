@@ -248,6 +248,41 @@ export default {
 };
 `;
     }
+    if (relPath.endsWith("htf-trend-filter.chart.ts")) {
+        return `
+const manifest = ${manifestJson};
+export default {
+    manifest,
+    compute: (ctx) => {
+        const fast = ctx.ta.ema("htf-trend-filter.chart.ts:12:22#0", ctx.bar.close, 20);
+        ctx.plot("htf-trend-filter.chart.ts:13:9#0", fast, { color: "#26a69a", title: "EMA(20)" });
+        const weekly = ctx.request.security("htf-trend-filter.chart.ts:19:31#0", { interval: "1W" });
+        const weeklyTrend = ctx.ta.ema("htf-trend-filter.chart.ts:20:28#0", weekly.close, 10);
+        ctx.plot("htf-trend-filter.chart.ts:21:9#0", weeklyTrend, {
+            color: "#ef5350",
+            title: "Weekly EMA(10)",
+        });
+    },
+};
+`;
+    }
+    if (relPath.endsWith("sma-offset.chart.ts")) {
+        return `
+const manifest = ${manifestJson};
+export default {
+    manifest,
+    compute: (ctx) => {
+        const sma = ctx.ta.sma("sma-offset.chart.ts:10:21#0", ctx.bar.close, 20);
+        ctx.plot("sma-offset.chart.ts:11:9#0", sma, { color: "#26a69a", title: "SMA(20)" });
+        const smaShifted = ctx.ta.sma("sma-offset.chart.ts:19:28#0", ctx.bar.close, 20, { offset: 5 });
+        ctx.plot("sma-offset.chart.ts:20:9#0", smaShifted, {
+            color: "#ef5350",
+            title: "SMA(20) offset 5",
+        });
+    },
+};
+`;
+    }
     throw new Error(`no Phase-4 module fixture for ${relPath}`);
 }
 
@@ -275,6 +310,8 @@ async function runExampleScript(
     opts: {
         readonly interval?: string;
         readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+        readonly secondary?: Readonly<Record<string, ReadonlyArray<Bar>>>;
+        readonly mode?: "stream" | "history";
     } = {},
 ): Promise<CapturedRun> {
     const { worker, scope } = pair();
@@ -293,13 +330,21 @@ async function runExampleScript(
         emissions,
     );
     const ctx = new MockCanvas2DContext();
+    const mainSource = mockCandleSource(bars, {
+        interval: opts.interval ?? "1D",
+        mode: opts.mode ?? "stream",
+    });
+    // When the example requests higher-timeframe data, wrap the main
+    // stream in the multi-stream pump so the secondary bars flush into
+    // the runtime's secondary streams ahead of the main events.
+    const candleSource =
+        opts.secondary !== undefined
+            ? createMultiStreamCandlePump({ main: mainSource, secondary: opts.secondary })
+            : mainSource;
     const adapter = createCanvas2dAdapter({
         canvas: { width: 640, height: 320 },
         ctx,
-        candleSource: mockCandleSource(bars, {
-            interval: opts.interval ?? "1D",
-            mode: "stream",
-        }),
+        candleSource,
         capabilities: CANVAS2D_CAPABILITIES,
         host,
         ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
@@ -404,6 +449,24 @@ const MTF_MAIN_BARS: ReadonlyArray<Bar> = [
 
 const MTF_DAILY_BARS: ReadonlyArray<Bar> = [mtfBar(0, 201, "1D"), mtfBar(2, 222, "1D")];
 
+const MS_PER_WEEK = 7 * MS_PER_DAY;
+
+// 100 daily bars (≈14 weeks) for the HTF-trend-filter example: enough
+// history that the weekly EMA(10) (built off the secondary stream below)
+// warms up and emits finite values.
+const HTF_DAILY_BARS: ReadonlyArray<Bar> = Array.from({ length: 100 }, (_, i) =>
+    phase4Bar(i, 100 + i, "1D"),
+);
+
+// 14 synthetic weekly bars keyed by the "1W" secondary stream. Each
+// closes at a weekly boundary (`time` = the LAST constituent day) so the
+// no-lookahead alignment can hold its value across the daily bars that
+// follow.
+const HTF_WEEKLY_BARS: ReadonlyArray<Bar> = Array.from({ length: 14 }, (_, w) => ({
+    ...phase4Bar(0, 200 + w * 5, "1W"),
+    time: START_TIME + (w + 1) * MS_PER_WEEK - MS_PER_DAY,
+}));
+
 describe("canvas2d adapter integration", () => {
     it("drives an EMA-cross-equivalent compiled bundle through the worker shim and renders to the mock canvas", async () => {
         const { worker, scope } = pair();
@@ -471,6 +534,26 @@ describe("canvas2d adapter integration", () => {
             expect(hasErrorDiagnostics(run.emissions)).toBe(false);
             expect(plotCount).toBeGreaterThan(0);
         }
+    });
+
+    it("renders the sma-offset example with a shifted SMA series", async () => {
+        const run = await runExampleScript("examples/scripts/sma-offset.chart.ts", HISTORY_BARS);
+        const plotCount = run.emissions.reduce((sum, frame) => sum + frame.plots.length, 0);
+        expect(run.workerErrors).toEqual([]);
+        expect(hasErrorDiagnostics(run.emissions)).toBe(false);
+        expect(plotCount).toBeGreaterThan(0);
+
+        // The shifted line must actually emit FINITE values. Regression
+        // guard for the compiler maxLookback bug: an `opts.offset` of 5 left
+        // maxLookback at 0, sizing the output ring buffer to 1 slot, so the
+        // shifted view's `buf.at(5)` was always out-of-range NaN and the
+        // line never drew. Without the offset counting toward maxLookback,
+        // this stays all-NaN.
+        const shifted = run.emissions.flatMap((frame) =>
+            frame.plots.filter((p) => p.title === "SMA(20) offset 5").map((p) => p.value),
+        );
+        expect(shifted.length).toBe(HISTORY_BARS.length);
+        expect(shifted.some((v) => typeof v === "number" && Number.isFinite(v))).toBe(true);
     });
 
     it("emits a session-high alert on crossover", async () => {
@@ -541,6 +624,60 @@ describe("canvas2d adapter integration", () => {
         );
 
         adapter.dispose();
+    });
+
+    it("renders the htf-trend-filter example with a finite weekly EMA over daily candles", async () => {
+        const run = await runExampleScript(
+            "examples/scripts/htf-trend-filter.chart.ts",
+            HTF_DAILY_BARS,
+            {
+                interval: "1D",
+                secondary: { "1W": HTF_WEEKLY_BARS },
+            },
+        );
+
+        expect(run.workerErrors).toEqual([]);
+        expect(hasErrorDiagnostics(run.emissions)).toBe(false);
+
+        // Plot 0 is the current-timeframe EMA(20); plot 1 is the weekly
+        // EMA(10) fed by the "1W" secondary stream. The weekly EMA must
+        // warm up and emit finite values once enough weekly closes have
+        // aligned into the secondary stream.
+        const weeklyValues = run.emissions.flatMap((frame) =>
+            frame.plots.filter((p) => p.title === "Weekly EMA(10)").map((p) => p.value),
+        );
+        expect(weeklyValues.length).toBe(HTF_DAILY_BARS.length);
+        expect(weeklyValues.some((v) => typeof v === "number" && Number.isFinite(v))).toBe(true);
+    });
+
+    it("renders a finite weekly EMA when history arrives as one batch (the demo path)", async () => {
+        // The demo (`apps/site` ChartPane) feeds its static history as a
+        // single `{ kind: "history", bars }` event, not per-bar `close`
+        // events. Regression guard for the pump bug: a monolithic batch
+        // made `createMultiStreamCandlePump` flush every weekly bar up
+        // front (gated on the batch's last timestamp), so the cap-1
+        // secondary buffer only retained the final, future-dated weekly
+        // bar and `request.security` alignment was all-NaN across the
+        // replay. The pump now interleaves secondary closes within the
+        // batch, so this mirrors the per-bar path's finite weekly EMA.
+        const run = await runExampleScript(
+            "examples/scripts/htf-trend-filter.chart.ts",
+            HTF_DAILY_BARS,
+            {
+                interval: "1D",
+                mode: "history",
+                secondary: { "1W": HTF_WEEKLY_BARS },
+            },
+        );
+
+        expect(run.workerErrors).toEqual([]);
+        expect(hasErrorDiagnostics(run.emissions)).toBe(false);
+
+        const weeklyValues = run.emissions.flatMap((frame) =>
+            frame.plots.filter((p) => p.title === "Weekly EMA(10)").map((p) => p.value),
+        );
+        expect(weeklyValues.length).toBe(HTF_DAILY_BARS.length);
+        expect(weeklyValues.some((v) => typeof v === "number" && Number.isFinite(v))).toBe(true);
     });
 });
 

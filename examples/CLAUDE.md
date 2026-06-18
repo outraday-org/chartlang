@@ -12,11 +12,23 @@ published to npm**.
   for a consumer-repo adapter. Exposes a default export that the
   Task-12 conformance suite consumes (capabilities-only;
   `candles`/`onEmissions`/`dispose` are no-ops).
-- `examples/scripts/` — three Phase-1 example `.chart.ts` files
-  (`ema-cross.chart.ts`, `bollinger-bands.chart.ts`,
-  `rsi-divergence-alert.chart.ts`). Author-style sources, compiled
-  end-to-end by `packages/cli/src/e2e.test.ts` and driven through
-  the runtime by `packages/conformance/src/scenarios/`.
+- `examples/scripts/` — author-style example `.chart.ts` files,
+  compiled end-to-end by `packages/cli/src/e2e.test.ts` and driven
+  through the runtime by `packages/conformance/src/scenarios/` and
+  `examples/canvas2d-adapter/src/integration.test.ts`. The Phase-1
+  seed is `ema-cross.chart.ts`, `bollinger-bands.chart.ts`, and
+  `rsi-divergence-alert.chart.ts`; later phases add the `draw.*`,
+  Pine-port, composition, and multi-timeframe samples. The MTF sample
+  `htf-trend-filter.chart.ts` overlays a current-timeframe EMA plus a
+  weekly `request.security({ interval: "1W" })` trend — its runtime
+  test feeds a synthetic 1W secondary stream via
+  `createMultiStreamCandlePump`. The single-timeframe `sma-offset
+  .chart.ts` sample overlays two `ta.sma(bar.close, 20)` lines, the
+  second shifted via the universal `ta` `{ offset: 5 }` option to show
+  series displacement. The `pivot-high-ray.chart.ts` sample tracks the
+  latest `ta.pivotsHighLow` swing high in `state.*` slots and draws one
+  reused `draw.horizontalRay` from it, anchoring the pivot's timestamp
+  with `bar.point(-5, …)`.
 
 ## Phase-1 scope
 

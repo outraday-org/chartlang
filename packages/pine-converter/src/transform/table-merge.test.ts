@@ -42,9 +42,7 @@ describe("transformTables — merge_cells fallback", () => {
                 "    table.merge_cells(t, 0, 0, 1, 0)",
             ].join("\n"),
         );
-        const cellsStmt = scaffold.computeBody.statements.find((s) =>
-            s.startsWith("const __t_handle_cells"),
-        );
+        const cellsStmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
         expect(cellsStmt).toContain('text: "kept"');
         expect(cellsStmt).not.toContain('text: "gone"');
         expect(cellsStmt).toContain('{ text: "" }');

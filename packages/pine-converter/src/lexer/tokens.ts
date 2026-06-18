@@ -9,7 +9,7 @@ import type { Diagnostic, SourceSpan } from "../index.js";
  * significant-indentation block scoping (similar to Python).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const k: TokenKind = "identifier";
  *     void k;
@@ -35,7 +35,7 @@ export type TokenKind =
  * Optional fields are populated only for the kinds that define them.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const token: Token = {
  *         kind: "identifier",
@@ -64,7 +64,7 @@ export type Token = Readonly<{
  * stage; lexer codes are namespaced under `pine-converter/lex/...`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const diag: LexerDiagnostic = {
  *         code: "pine-converter/lex/illegal-character",
@@ -81,7 +81,7 @@ export type LexerDiagnostic = Diagnostic;
  * single `eof` token) plus any diagnostics gathered while scanning.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const result: LexResult = { tokens: [], diagnostics: [] };
  *     void result;

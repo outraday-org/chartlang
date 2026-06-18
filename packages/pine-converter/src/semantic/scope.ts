@@ -11,7 +11,7 @@ import type { Scope, SymbolInfo } from "./types.js";
  * immutable {@link Scope} the public result exposes.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const b = createScopeBuilder(null, {
  *         startLine: 1,
@@ -32,7 +32,7 @@ export type ScopeBuilder = {
  * is `null`), covering `span`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const root = createScopeBuilder(null, {
  *         startLine: 1,
@@ -52,7 +52,7 @@ export function createScopeBuilder(parent: ScopeBuilder | null, span: SourceSpan
  * analyzer reports it separately).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const root = createScopeBuilder(null, {
  *         startLine: 1,
@@ -79,7 +79,7 @@ export function defineSymbol(scope: ScopeBuilder, info: SymbolInfo): void {
  * to the {@link BUILTIN_SYMBOLS} table. Returns `null` when unresolved.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const root = createScopeBuilder(null, {
  *         startLine: 1,
@@ -104,7 +104,7 @@ export function resolveSymbol(scope: ScopeBuilder, name: string): SymbolInfo | n
  * built-ins). Used to tell a fresh declaration from an accidental shadow.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const root = createScopeBuilder(null, {
  *         startLine: 1,
@@ -128,7 +128,7 @@ export function isBoundInUserScopes(scope: ScopeBuilder, name: string): boolean 
  * {@link Scope} tree the public {@link SemanticResult} exposes.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const root = createScopeBuilder(null, {
  *         startLine: 1,

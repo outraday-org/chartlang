@@ -14,7 +14,7 @@ import type { MaxDrawingsIR, ScaffoldFormat, ScaffoldScale } from "./ir.js";
  * fallback).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const o: ScaffoldOptions = {
  *         name: "Hello",
@@ -44,7 +44,7 @@ export type ScaffoldOptions = Readonly<{
  * the transform and its tests agree on the sentinel.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     FALLBACK_INDICATOR_NAME; // "<unknown>"
  */
@@ -245,7 +245,7 @@ function applyNamedArg(arg: Argument, out: MutableOptions, diagnostics: Diagnost
  * the `default` arm and are silently dropped.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { DiagnosticCollector } from "./diagnosticCollector.js";
  *     const diagnostics = new DiagnosticCollector();

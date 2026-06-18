@@ -12,13 +12,15 @@ import type {
     Statement,
     SwitchCase,
     SwitchStatement,
+    TupleDeclaration,
+    TupleTarget,
     TypeAnnotation,
     VariableDeclaration,
 } from "../ast/index.js";
 import { makeDiagnostic } from "../diagnostics/codes.js";
 import type { Token, TokenKind } from "../lexer/index.js";
 import type { ParserContext } from "./context.js";
-import { parseExpression } from "./expressions.js";
+import { parseExpression, scanTypeArgs } from "./expressions.js";
 import { spanBetween } from "./spans.js";
 
 const STATEMENT_SYNC: ReadonlySet<TokenKind> = new Set<TokenKind>(["newline", "eof"]);
@@ -39,6 +41,41 @@ const NAMED_TYPES: ReadonlySet<NamedTypeName> = new Set<NamedTypeName>([
 
 function asNamedType(text: string): NamedTypeName | null {
     return (NAMED_TYPES as ReadonlySet<string>).has(text) ? (text as NamedTypeName) : null;
+}
+
+// Pine v6 generic container type roots. `array<line>` / `matrix<float>` /
+// `map<string, float>` annotate a variable with an element type; the last
+// type argument carries the element kind a drawing collection is keyed on.
+const CONTAINER_TYPE_NAMES: ReadonlySet<string> = new Set(["array", "matrix", "map"]);
+
+// Whether `peekAhead(1..3)` is the `[] <name>` array-type suffix of a scalar
+// named type (`line[] pivots`).
+function hasArrayTypeSuffix(ctx: ParserContext): boolean {
+    return (
+        ctx.peekAhead(1).kind === "punctuation" &&
+        ctx.peekAhead(1).text === "[" &&
+        ctx.peekAhead(2).kind === "punctuation" &&
+        ctx.peekAhead(2).text === "]" &&
+        ctx.peekAhead(3).kind === "identifier"
+    );
+}
+
+// The element {@link NamedTypeName} of a `array<…>` / `map<…>` container type
+// at the cursor (`<` at `peekAhead(1)`) plus the token span to consume before
+// the variable name, or `null` when it is not a well-formed container-typed
+// declaration (`container <args> <name>`).
+function containerTypeAnnotation(
+    ctx: ParserContext,
+): { readonly name: NamedTypeName; readonly consume: number } | null {
+    const args = scanTypeArgs(ctx, 1);
+    if (args === null || args.lastType === null) {
+        return null;
+    }
+    const name = asNamedType(args.lastType);
+    if (name === null || ctx.peekAhead(1 + args.count).kind !== "identifier") {
+        return null;
+    }
+    return { name, consume: 1 + args.count };
 }
 
 function recoverLine(ctx: ParserContext): void {
@@ -74,7 +111,7 @@ function recoverCompound(ctx: ParserContext): void {
  * returned, so callers always receive a well-formed {@link BlockStatement}.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ctx = createContext(lex("if c\n    x := 1\n").tokens);
  *     // after consuming `if c NEWLINE`, parseBlock reads the indented body
@@ -104,10 +141,34 @@ function parseTypeAnnotation(ctx: ParserContext): TypeAnnotation | null {
     if (token.kind !== "identifier") {
         return null;
     }
+
+    // Container generic: `array<line> name`, `map<string, float> name`. The
+    // element type becomes the annotation; consume the container + `<…>` so
+    // the caller reads the variable name next.
+    if (CONTAINER_TYPE_NAMES.has(token.text)) {
+        const container = containerTypeAnnotation(ctx);
+        if (container === null) {
+            return null;
+        }
+        for (let i = 0; i < container.consume; i += 1) {
+            ctx.cursor.next();
+        }
+        return { kind: "named-type", name: container.name, span: token.span };
+    }
+
     const name = asNamedType(token.text);
     if (name === null) {
         return null;
     }
+
+    // Array-typed declaration: `line[] name`. Consume the type + `[]`.
+    if (hasArrayTypeSuffix(ctx)) {
+        ctx.cursor.next();
+        ctx.cursor.next();
+        ctx.cursor.next();
+        return { kind: "named-type", name, span: token.span };
+    }
+
     // Only treat a leading type keyword as a type annotation when an
     // identifier follows it (`float x = ...`); otherwise it is the start of
     // an expression statement (`line.new(...)`).
@@ -161,6 +222,61 @@ function parseAssignment(
         name: nameToken.text,
         value,
         span: spanBetween(nameToken.span, end),
+    };
+}
+
+// Whether the cursor (parked on `[`) opens a well-formed tuple-destructuring
+// head `[ ident (, ident)* ] =`. Pure lookahead — a statement-leading `[ident`
+// is unambiguously a destructuring attempt (a history access `x[1]` starts
+// with the identifier, not `[`), but the full shape is validated so a
+// malformed `[` line still routes to the `unexpected-token` recovery.
+function looksLikeTupleDeclaration(ctx: ParserContext): boolean {
+    let offset = 1;
+    if (ctx.peekAhead(offset).kind !== "identifier") {
+        return false;
+    }
+    offset += 1;
+    for (;;) {
+        const token = ctx.peekAhead(offset);
+        if (token.kind === "punctuation" && token.text === ",") {
+            offset += 1;
+            if (ctx.peekAhead(offset).kind !== "identifier") {
+                return false;
+            }
+            offset += 1;
+            continue;
+        }
+        if (token.kind === "punctuation" && token.text === "]") {
+            const after = ctx.peekAhead(offset + 1);
+            return after.kind === "operator" && after.text === "=";
+        }
+        return false;
+    }
+}
+
+// Parse a `[ ident (, ident)* ] = expr` tuple declaration. The head shape is
+// pre-validated by {@link looksLikeTupleDeclaration}, so every `[`, name, `]`,
+// and `=` token is known present and consumed directly.
+function parseTupleDeclaration(ctx: ParserContext, start: Token): TupleDeclaration {
+    ctx.cursor.next(); // `[`
+    const names: TupleTarget[] = [];
+    for (;;) {
+        const nameToken = ctx.cursor.next(); // an identifier (guaranteed by the head guard)
+        names.push({ name: nameToken.text, span: nameToken.span });
+        if (ctx.cursor.match("punctuation", ",") === null) {
+            break;
+        }
+    }
+    ctx.cursor.match("punctuation", "]");
+    ctx.cursor.match("operator", "=");
+    const initializer = parseExpression(ctx);
+    const end = ctx.cursor.peek().span;
+    ctx.cursor.match("newline");
+    return {
+        kind: "tuple-declaration",
+        names,
+        initializer,
+        span: spanBetween(start.span, end),
     };
 }
 
@@ -351,11 +467,24 @@ function parseKeywordStatement(ctx: ParserContext, start: Token): Statement | nu
     }
 }
 
+// Whether `start` begins a no-`var` typed declaration: a scalar (`float x`),
+// an array type (`line[] xs`), or a generic container (`array<line> xs`).
+function startsTypedDeclaration(ctx: ParserContext, start: Token): boolean {
+    if (CONTAINER_TYPE_NAMES.has(start.text)) {
+        return containerTypeAnnotation(ctx) !== null;
+    }
+    if (asNamedType(start.text) === null) {
+        return false;
+    }
+    return ctx.peekAhead(1).kind === "identifier" || hasArrayTypeSuffix(ctx);
+}
+
 function parseIdentifierStatement(ctx: ParserContext, start: Token): Statement {
     // A bare type keyword followed by an identifier is a typed declaration
-    // (`float x = ...`); otherwise the leading identifier may be an
-    // assignment target or the head of an expression statement.
-    if (asNamedType(start.text) !== null && ctx.peekAhead(1).kind === "identifier") {
+    // (`float x = ...`, `line[] xs = ...`, `array<line> xs = ...`); otherwise
+    // the leading identifier may be an assignment target or the head of an
+    // expression statement.
+    if (startsTypedDeclaration(ctx, start)) {
         return parseVariableDeclaration(ctx, "none", start);
     }
     const after = ctx.peekAhead(1);
@@ -374,7 +503,7 @@ function parseIdentifierStatement(ctx: ParserContext, start: Token): Statement {
  * body entry; the parser never throws.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ctx = createContext(lex("x := 1\n").tokens);
  *     parseStatement(ctx)?.kind; // "assignment"
@@ -390,6 +519,12 @@ export function parseStatement(ctx: ParserContext): Statement | null {
     }
     if (start.kind === "identifier") {
         return parseIdentifierStatement(ctx, start);
+    }
+    // `[a, b, c] = expr` tuple destructuring (a multi-return `ta.*` like
+    // `ta.macd`). Only a well-formed `[ ident (, ident)* ] =` head is taken;
+    // anything else falls through to the `unexpected-token` recovery below.
+    if (start.kind === "punctuation" && start.text === "[" && looksLikeTupleDeclaration(ctx)) {
+        return parseTupleDeclaration(ctx, start);
     }
     const expression = parseExpression(ctx);
     if (expression.kind === "unknown-expression" && expression.tokens.length === 0) {

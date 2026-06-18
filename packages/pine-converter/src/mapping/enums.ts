@@ -31,7 +31,7 @@ const entry = (
  *   has no bold/italic/font-family).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { ENUM_VALUE_MAP } from "@invinite-org/chartlang-pine-converter";
  *     const m = ENUM_VALUE_MAP.get("extend.both");
@@ -123,6 +123,30 @@ export const ENUM_VALUE_MAP: ReadonlyMap<string, EnumMapping> = new Map<string, 
     ),
     entry("label.style_text_outline", "text", "outline not modeled; plain text"),
 
+    // docs: https://www.tradingview.com/pine-script-reference/v6/#var_shape.xcross
+    // Pine `plotshape` glyphs → chartlang `PlotShapeGlyph`. The arrow/label
+    // glyphs have no exact analogue and approximate to the nearest triangle/
+    // flag.
+    entry("shape.circle", "circle"),
+    entry("shape.triangleup", "triangle-up"),
+    entry("shape.triangledown", "triangle-down"),
+    entry("shape.square", "square"),
+    entry("shape.diamond", "diamond"),
+    entry("shape.cross", "cross"),
+    entry("shape.xcross", "xcross"),
+    entry("shape.flag", "flag"),
+    entry("shape.arrowup", "triangle-up", "no arrow glyph in PlotShapeGlyph; approximated"),
+    entry("shape.arrowdown", "triangle-down", "no arrow glyph in PlotShapeGlyph; approximated"),
+    entry("shape.labelup", "flag", "no label glyph in PlotShapeGlyph; approximated"),
+    entry("shape.labeldown", "flag", "no label glyph in PlotShapeGlyph; approximated"),
+
+    // docs: https://www.tradingview.com/pine-script-reference/v6/#var_location.abovebar
+    entry("location.abovebar", "above"),
+    entry("location.belowbar", "below"),
+    entry("location.top", "above"),
+    entry("location.bottom", "below"),
+    entry("location.absolute", "absolute"),
+
     // docs: https://www.tradingview.com/pine-script-reference/v6/#var_size.tiny
     entry("size.tiny", "tiny"),
     entry("size.small", "small"),
@@ -197,7 +221,7 @@ export const ENUM_VALUE_MAP: ReadonlyMap<string, EnumMapping> = new Map<string, 
  * (`text.format_bold`, `xloc.*`, …).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { enumLookup } from "@invinite-org/chartlang-pine-converter";
  *     const m = enumLookup("line.style_dashed");

@@ -33,6 +33,19 @@ same `ScriptHost` shape with real preemption + hard heap caps.
   dispatch which is fire-and-forget by design. Adding a nonce
   to overshoot would require a synchronous reply contract per
   push, which Phase 1 explicitly avoids.
+- **Single-script load adopts the `__manifest` sidecar.**
+  `buildBundleFromModule` returns `{ ...mod.default, manifest: __manifest }`
+  for a single-script module when the object-form `__manifest` export is
+  present. The compiler's `__manifest` is authoritative — it carries
+  fields the runtime `defineIndicator` stub zeroes (`requestedIntervals`,
+  `outputs`, `plots`, `maxLookback`). Using `mod.default.manifest`
+  directly leaves `requestedIntervals` empty, so an MTF
+  (`request.security`) script never registers its secondary streams and
+  every secondary candle drops with an `unknown-secondary-stream`
+  warning. `Array.isArray` does not subtract a `ReadonlyArray` union
+  member (TS #17002), so the single-object detection goes through the
+  dedicated `isSingleManifest` guard. host-quickjs's `dispatcherCore`
+  carries the byte-identical fix for cross-host parity.
 - **`HostToWorker.load` carries `limits` alongside `capabilities`.**
   The worker boot is stateless about both — no in-worker default
   capabilities bag, no in-worker default limits. The host is the

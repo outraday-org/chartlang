@@ -14,7 +14,7 @@ import type {
  * mutation surface Task 9 uses to register a converted Pine `input.*` call.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import type { ScriptScaffold } from "./ir.js";
  *     declare const scaffold: ScriptScaffold;
@@ -29,7 +29,7 @@ export function appendInput(scaffold: ScriptScaffold, input: InputDeclarationIR)
  * call this when folding a Pine `var`/`varip` scalar out of the body.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import type { ScriptScaffold } from "./ir.js";
  *     declare const scaffold: ScriptScaffold;
@@ -44,7 +44,7 @@ export function appendStateSlot(scaffold: ScriptScaffold, slot: StateSlotIR): vo
  * Task 10 calls this for a persistent `var`/`varip` handle.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import type { ScriptScaffold } from "./ir.js";
  *     declare const scaffold: ScriptScaffold;
@@ -59,13 +59,19 @@ export function appendHandleSlot(scaffold: ScriptScaffold, slot: HandleSlotIR): 
  * {@link ScriptScaffold}. Task 11 calls this for a capped collection.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import type { ScriptScaffold } from "./ir.js";
  *     declare const scaffold: ScriptScaffold;
  *     appendHandleRing(scaffold, { name: "pivots", kind: "label", cap: 20 });
  */
 export function appendHandleRing(scaffold: ScriptScaffold, ring: HandleRingIR): void {
+    // Two `array.push(coll, …)` sites into one collection (e.g. pivot highs +
+    // lows into `levels`) each register the ring; emit one allocation only, or
+    // codegen would `const levels = …` twice (a redeclare type error).
+    if (scaffold.handleRings.some((existing) => existing.name === ring.name)) {
+        return;
+    }
     scaffold.handleRings.push(ring);
 }
 
@@ -75,7 +81,7 @@ export function appendHandleRing(scaffold: ScriptScaffold, ring: HandleRingIR): 
  * the accumulated statements inside the emitted `compute({...}) { ... }`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import type { ScriptScaffold } from "./ir.js";
  *     declare const scaffold: ScriptScaffold;

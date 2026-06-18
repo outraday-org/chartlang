@@ -130,7 +130,7 @@ describe("transformPolylineLinefill — literal tuple-array path (parser-unreach
         );
         const { analysis, scaffold, diagnostics } = withSyntheticPolyline(call);
         transformPolylineLinefill(analysis, scaffold, diagnostics);
-        expect(scaffold.handleSlots).toEqual([{ name: "__p_handle", kind: "polyline" }]);
+        expect(scaffold.handleSlots).toEqual([{ name: "p", kind: "polyline", compact: false }]);
         expect(scaffold.computeBody.statements[0]).toContain("draw.curve(");
         expect(scaffold.computeBody.statements[0]).toContain("=== null");
     });
@@ -186,7 +186,7 @@ describe("transformPolylineLinefill — literal tuple-array path (parser-unreach
         });
         transformPolylineLinefill(analysis, scaffold, diagnostics);
         const joined = scaffold.computeBody.statements.join("\n");
-        expect(joined).toContain("__p_handle.current()?.remove();");
-        expect(joined).toContain("__p_handle.set(null);");
+        expect(joined).toContain("p.current()?.remove();");
+        expect(joined).toContain("p.set(null);");
     });
 });

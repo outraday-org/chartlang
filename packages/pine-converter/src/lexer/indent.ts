@@ -7,7 +7,7 @@
  * several indent levels at once.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const delta: IndentDelta = { kind: "dedent", dedentCount: 2 };
  *     void delta;
@@ -24,7 +24,7 @@ export type IndentDelta =
  * snaps to the nearest lower level).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: IndentResolution = { delta: { kind: "none" }, inconsistentDedent: false };
  *     void r;
@@ -42,7 +42,7 @@ export type IndentResolution = Readonly<{
  * stack at EOF so `indent`/`dedent` tokens stay balanced.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const tracker = createIndentTracker();
  *     tracker.resolve(4).delta; // { kind: "indent" }
@@ -57,7 +57,7 @@ export type IndentTracker = Readonly<{
  * Construct a fresh {@link IndentTracker} with a single base level (`0`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const tracker = createIndentTracker();
  *     tracker.resolve(2); // pushes level 2, emits one indent

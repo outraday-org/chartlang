@@ -90,13 +90,13 @@ describe("transformPolylineLinefill — polyline draw-kind selection", () => {
 
     it("emits one polyline handle slot of kind polyline", () => {
         const { scaffold } = run(build(2, ", curved=true"));
-        expect(scaffold.handleSlots).toEqual([{ name: "__p_handle", kind: "polyline" }]);
+        expect(scaffold.handleSlots).toEqual([{ name: "p", kind: "polyline", compact: false }]);
     });
 
     it("rebuilds the polyline each barstate.islast tick", () => {
         const { scaffold } = run(build(2, ""));
         expect(scaffold.computeBody.statements[0]).toContain("if (barstate.islast)");
-        expect(scaffold.computeBody.statements[0]).toContain("__p_handle.current()?.remove()");
+        expect(scaffold.computeBody.statements[0]).toContain("p.current()?.remove()");
     });
 });
 
@@ -111,7 +111,7 @@ describe("transformPolylineLinefill — polyline.delete on a literal handle", ()
         ].join("\n");
         const { scaffold } = run(body);
         const joined = scaffold.computeBody.statements.join("\n");
-        expect(joined).toContain("__p_handle.current()?.remove();");
-        expect(joined).toContain("__p_handle.set(null);");
+        expect(joined).toContain("p.current()?.remove();");
+        expect(joined).toContain("p.set(null);");
     });
 });

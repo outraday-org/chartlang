@@ -62,7 +62,7 @@ function securityField(node: ExpressionNode): string | null {
  * expression to {@link emitRequestSecurity}.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { isRequestSecurityCall } from "./requestSecurity.js";
  *     const call = {
@@ -92,7 +92,7 @@ export function isRequestSecurityCall(call: CallExpression): boolean {
  * args) pushes `request-security-not-mapped` and returns `null`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitRequestSecurity } from "./requestSecurity.js";
  *     import { DiagnosticCollector } from "./diagnosticCollector.js";

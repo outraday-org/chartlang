@@ -26,7 +26,7 @@ const noAnnotations: ReadonlyMap<AstNode, SemanticAnnotation> = new Map();
 describe("emitExpr", () => {
     it("remaps OHLCV identifiers and passes user names through", () => {
         expect(emitExpr(ident("close"), noAnnotations)).toBe("bar.close");
-        expect(emitExpr(ident("bar_index"), noAnnotations)).toBe("__bar_index()");
+        expect(emitExpr(ident("bar_index"), noAnnotations)).toBe("__barIndexBridge()");
         expect(emitExpr(ident("myVar"), noAnnotations)).toBe("myVar");
     });
 
@@ -57,6 +57,31 @@ describe("emitExpr", () => {
             [na, { naKind: "handle" }],
         ]);
         expect(emitExpr(na, handleAnn)).toBe("null");
+    });
+
+    it("lowers `na(x)` to a real predicate by the callee's na flavour", () => {
+        const naCallee: ExpressionNode = { kind: "na-expression", span: SPAN };
+        const numericCall: ExpressionNode = {
+            kind: "call-expression",
+            callee: naCallee,
+            args: [{ name: null, value: ident("ph"), span: SPAN }],
+            span: SPAN,
+        };
+        // Numeric flavour (default): finite-number test.
+        expect(emitExpr(numericCall, noAnnotations)).toBe("!Number.isFinite(ph)");
+        // Handle flavour: null test.
+        const handleAnn: ReadonlyMap<AstNode, SemanticAnnotation> = new Map([
+            [naCallee, { naKind: "handle" }],
+        ]);
+        expect(emitExpr(numericCall, handleAnn)).toBe("(ph === null)");
+        // No argument → falls back to the structural call emit (`Number.NaN()`).
+        const noArgCall: ExpressionNode = {
+            kind: "call-expression",
+            callee: naCallee,
+            args: [],
+            span: SPAN,
+        };
+        expect(emitExpr(noArgCall, noAnnotations)).toBe("Number.NaN()");
     });
 
     it("emits unary `not` as `!` and arithmetic unary verbatim", () => {

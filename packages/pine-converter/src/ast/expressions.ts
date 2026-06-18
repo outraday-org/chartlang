@@ -9,7 +9,7 @@ import type { WithSpan } from "./spans.js";
  * resolution (built-in vs local) happens later in semantic analysis.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: IdentifierExpression = {
  *         kind: "identifier-expression",
@@ -30,7 +30,7 @@ export type IdentifierExpression = WithSpan &
  * views that read a literal token's kind.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const t: LiteralKind = "int";
  *     void t;
@@ -44,7 +44,7 @@ export type LiteralKind = "int" | "float" | "string" | "color" | "bool" | "na";
  * own {@link NaExpression} node, not a literal.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: LiteralExpression = {
  *         kind: "literal-expression",
@@ -67,7 +67,7 @@ export type LiteralExpression = WithSpan &
  * a literal's text.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: NaExpression = {
  *         kind: "na-expression",
@@ -81,7 +81,7 @@ export type NaExpression = WithSpan & Readonly<{ kind: "na-expression" }>;
  * A prefix unary expression: `-x`, `+x`, or `not flag`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: UnaryExpression = {
  *         kind: "unary-expression",
@@ -108,7 +108,7 @@ export type UnaryExpression = WithSpan &
  * `or`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: BinaryExpression = {
  *         kind: "binary-expression",
@@ -139,7 +139,7 @@ export type BinaryExpression = WithSpan &
  * A ternary `condition ? consequent : alternate` expression.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const lit = (v: string, col: number) =>
  *         ({
@@ -174,7 +174,7 @@ export type TernaryExpression = WithSpan &
  * the parameter name for a named argument (`length = 9`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const arg: CallArgument = {
  *         name: "length",
@@ -199,7 +199,7 @@ export type CallArgument = WithSpan &
  * `callee` is the identifier or member-access being invoked.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: CallExpression = {
  *         kind: "call-expression",
@@ -227,7 +227,7 @@ export type CallExpression = WithSpan &
  * only when the receiver is itself a computed expression.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: MemberAccessExpression = {
  *         kind: "member-access-expression",
@@ -249,7 +249,7 @@ export type MemberAccessExpression = WithSpan &
  * `receiver` `offset` bars ago. Chains left-associatively (`x[1][2]`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: HistoryAccessExpression = {
  *         kind: "history-access-expression",
@@ -280,7 +280,7 @@ export type HistoryAccessExpression = WithSpan &
  * round-trip emitter can reproduce explicit grouping.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: ParenExpression = {
  *         kind: "paren-expression",
@@ -305,7 +305,7 @@ export type ParenExpression = WithSpan &
  * {@link ParenExpression}; two or more elements make a tuple.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ident = (n: string, col: number) =>
  *         ({
@@ -332,7 +332,7 @@ export type TupleExpression = WithSpan &
  * passes can report a single contextual diagnostic (e.g. for `array.map`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: LambdaExpression = {
  *         kind: "lambda-expression",
@@ -360,7 +360,7 @@ export type LambdaExpression = WithSpan &
  * well-formed span and the parser never throws.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: UnknownExpression = {
  *         kind: "unknown-expression",
@@ -380,7 +380,7 @@ export type UnknownExpression = WithSpan &
  * / ternary / tuple / lambda grammar produced by the Task 4 Pratt parser.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const e: ExpressionNode = {
  *         kind: "identifier-expression",

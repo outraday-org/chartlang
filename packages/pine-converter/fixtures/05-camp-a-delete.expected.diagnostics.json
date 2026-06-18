@@ -10,5 +10,17 @@
             "endColumn": 41
         },
         "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
+    },
+    {
+        "code": "pine-converter/transform/partial-anchor-filled",
+        "severity": "info",
+        "message": "A whole-anchor setter moved only one endpoint; the unset anchor was filled from the creation expression so the patch is a complete tuple. The filled endpoint re-evaluates each bar instead of staying frozen.",
+        "span": {
+            "startLine": 6,
+            "startColumn": 5,
+            "endLine": 6,
+            "endColumn": 40
+        },
+        "suggestion": "Set both `set_xy1` and `set_xy2`, or mirror the fixed endpoint in a state slot if it must stay put."
     }
 ]

@@ -13,6 +13,41 @@ variants pin the wire shape and the
 [`KIND_BUCKET`](../../../packages/core/src/draw/buckets.ts) table
 pins the `DrawingCounts` budget bucket every kind maps to.
 
+## Anchoring drawings: `WorldPoint` and `bar.point`
+
+Every `draw.*` anchor argument is a `WorldPoint` — a `{ time, price }`
+pair in the chart's world coordinates. Drawings persist **only** that
+shape; there is no bar-index anchor on the wire.
+
+You can build a `WorldPoint` two ways:
+
+- **Literally**, when you already have an absolute time — typically the
+  current bar:
+
+  ```ts
+  draw.line({ time: bar.time, price: bar.close }, { time: bar.time, price: bar.open });
+  ```
+
+- **With `bar.point(offset, price)` sugar**, when you want to anchor by
+  integer bar offset instead of a literal timestamp. `offset === 0` is the
+  current bar, `offset < 0` is `N` bars back (real historical time), and
+  `offset > 0` is a future bar (time extrapolated from recent bar spacing):
+
+  ```ts
+  // From the close 10 bars ago to the current close.
+  draw.line(bar.point(-10, bar.close), bar.point(0, bar.close));
+  ```
+
+`bar.point` is authoring sugar only — it resolves to the same
+`WorldPoint` shape and introduces no new anchor kind. Reach for it when
+your anchor is naturally relative ("10 bars ago", "5 bars ahead"); use a
+literal `{ time, price }` when you already hold an absolute timestamp.
+
+For the full offset semantics — historical resolution, future
+extrapolation, and how negative literal offsets size the runtime's time
+buffer — see
+[Series and indexing § Anchoring drawings by bar offset](../../language/series-and-indexing.md#anchoring-drawings-by-bar-offset-bar-point).
+
 ## Lines / Rays (6)
 
 - [`draw.line`](./line.md)

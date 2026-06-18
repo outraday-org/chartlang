@@ -4,6 +4,7 @@
 import type { DependencyDeclaration, OutputDeclaration } from "./define/dependency.js";
 import type { ScaleAxis, ValueFormat } from "./define/overrides.js";
 import type { DrawNamespace } from "./draw/draw.js";
+import type { WorldPoint } from "./draw/worldPoint.js";
 import type { InputDescriptor } from "./input/inputDescriptor.js";
 import type { PlotKind } from "./plot/plot.js";
 import type { RequestNamespace } from "./request/index.js";
@@ -101,6 +102,45 @@ export type Bar = {
     readonly hlcc4: Price;
     /** Visible-range fallback used by viewport-aware primitives. @since 0.5 */
     readonly viewport?: BarViewport;
+    /**
+     * Anchor a {@link WorldPoint} by integer bar `offset` instead of an
+     * absolute timestamp. The returned `{ time, price }` is the only frame
+     * drawings persist (see {@link WorldPoint}), so it composes directly
+     * with every `draw.*` anchor argument — `bar.point` is authoring sugar
+     * that resolves the offset to a real / extrapolated time at compute
+     * time; it introduces no new anchor shape.
+     *
+     * Offset semantics (relative to the current bar):
+     * - `offset === 0` → the current bar: `{ time: bar.time, price }`.
+     * - `offset < 0` → `|offset|` bars back; the time is the real
+     *   historical timestamp from the runtime's time ring buffer. When the
+     *   offset reaches past retained history the time is `NaN` (graceful
+     *   degradation, matching how a `Series` lookback past history reads
+     *   `NaN`) — it never throws.
+     * - `offset > 0` → a future bar that does not exist yet; the time is
+     *   extrapolated as `lastTime + offset * spacing`, where `spacing` is
+     *   the median delta of the most recent retained bar times, falling
+     *   back to the parsed bar interval when fewer than two bars are
+     *   retained.
+     *
+     * `price` passes through unchanged (it may be `NaN`).
+     *
+     * @since 0.9
+     * @stable
+     * @formula  time = offset === 0 ? bar.time
+     *           : offset < 0 ? history.time.at(-offset)
+     *           : lastTime + offset * spacing
+     * @anchors  offset (bar index), price, and the runtime time history
+     * @example
+     *     function tick(bar: Bar): WorldPoint {
+     *         // Tracking line from 10 bars ago to the current close.
+     *         const from = bar.point(-10, bar.close);
+     *         const to = bar.point(0, bar.close);
+     *         void from;
+     *         return to;
+     *     }
+     */
+    point(offset: number, price: Price): WorldPoint;
 };
 
 /**

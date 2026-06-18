@@ -17,7 +17,7 @@ const DOCS_BASE = "https://chartlang.dev/converter/diagnostics";
  * anchor never drifts from the CLI's rendered label.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { shortCode } from "./format.js";
  *     shortCode("pine-converter/transform/cap-mismatch"); // "cap-mismatch"
@@ -47,7 +47,7 @@ function caret(length: number): string {
  * Pine input; lines are addressed 1-based to match {@link Diagnostic.span}.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const text = formatDiagnostic(
  *         {

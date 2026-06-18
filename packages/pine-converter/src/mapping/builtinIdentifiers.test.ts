@@ -22,7 +22,7 @@ describe("BUILTIN_IDENTIFIER_MAP", () => {
     });
 
     it("maps bar_index to the converter-emitted helper call", () => {
-        expect(BUILTIN_IDENTIFIER_MAP.get("bar_index")).toBe("__bar_index()");
+        expect(BUILTIN_IDENTIFIER_MAP.get("bar_index")).toBe("__barIndexBridge()");
     });
 
     it("carries the xloc string sentinels", () => {
@@ -38,7 +38,7 @@ describe("BUILTIN_IDENTIFIER_MAP", () => {
 describe("remapIdentifier", () => {
     it("returns the mapped chartlang form for a built-in", () => {
         expect(remapIdentifier("close")).toBe("bar.close");
-        expect(remapIdentifier("bar_index")).toBe("__bar_index()");
+        expect(remapIdentifier("bar_index")).toBe("__barIndexBridge()");
     });
 
     it("returns null for an unmapped name", () => {

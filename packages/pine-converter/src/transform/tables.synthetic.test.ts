@@ -34,9 +34,7 @@ function run(body: string): { scaffold: ScriptScaffold; diagnostics: DiagnosticC
 }
 
 function cellsOf(scaffold: ScriptScaffold): string {
-    const stmt = scaffold.computeBody.statements.find((s) =>
-        s.startsWith("const __t_handle_cells"),
-    );
+    const stmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
     if (stmt === undefined) {
         throw new Error("no cells statement");
     }
@@ -216,6 +214,22 @@ describe("transformTables — loop iterator substitution arms", () => {
         expect(cells).toContain("(-1) + ((1 > 0) ? 1 : 1)");
     });
 
+    it("warns when a cell's `str.tostring` format mask cannot be mapped", () => {
+        const { scaffold, diagnostics } = run(
+            [
+                "var table t = na",
+                "if barstate.islast",
+                "    t := table.new(position.top_left, 1, 1)",
+                '    table.cell(t, 0, 0, str.tostring(close, "#,###"))',
+            ].join("\n"),
+        );
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/str-format-not-mapped",
+        );
+        // The unmapped form is left as the verbatim `str.*` call source.
+        expect(cellsOf(scaffold)).toContain("str.tostring");
+    });
+
     it("leaves a non-iterator identifier untouched in an unrolled body", () => {
         const { scaffold } = run(
             [
@@ -226,7 +240,7 @@ describe("transformTables — loop iterator substitution arms", () => {
                 "        table.cell(t, 0, i, str.tostring(close))",
             ].join("\n"),
         );
-        expect(cellsOf(scaffold)).toContain("str.tostring(bar.close)");
+        expect(cellsOf(scaffold)).toContain("String(bar.close)");
     });
 
     it("skips non-call statements inside an unrolled loop body", () => {
@@ -539,7 +553,7 @@ describe("transformTables — multi-init + defensive arms", () => {
             ].join("\n"),
         );
         expect(codes(diagnostics)).toContain("pine-converter/transform/table-multi-init");
-        expect(scaffold.handleSlots).toEqual([{ name: "__t_handle", kind: "table" }]);
+        expect(scaffold.handleSlots).toEqual([{ name: "t", kind: "table", compact: false }]);
         const drawStmt = scaffold.computeBody.statements.find((s) => s.includes("draw.table"));
         expect(drawStmt).toContain('position: "top-right"');
     });

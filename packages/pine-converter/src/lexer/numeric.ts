@@ -9,7 +9,7 @@ import type { LexerDiagnostic, Token } from "./tokens.js";
  * consumed characters (the scanner's resume point).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: ScanResult = {
  *         token: {
@@ -45,7 +45,7 @@ function isHexDigit(ch: string): boolean {
  * token flagged `malformed` with `numericValue: NaN`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     scanNumeric("1_000", 0, 1, 1).token.numericValue; // 1000
  */

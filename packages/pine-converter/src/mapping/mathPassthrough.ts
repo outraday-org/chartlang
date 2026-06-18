@@ -21,7 +21,7 @@ const math = (
  * `math.round_to_mintick` (needs `syminfo.mintick`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { MATH_PASSTHROUGH_MAP } from "@invinite-org/chartlang-pine-converter";
  *     const m = MATH_PASSTHROUGH_MAP.get("math.abs");
@@ -71,7 +71,7 @@ export const MATH_PASSTHROUGH_MAP: ReadonlyMap<string, MathMapping> = new Map<st
  * `math.round_to_mintick`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { mathLookup } from "@invinite-org/chartlang-pine-converter";
  *     const m = mathLookup("math.max");

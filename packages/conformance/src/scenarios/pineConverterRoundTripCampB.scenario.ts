@@ -28,7 +28,11 @@ const INLINE_SOURCE = CONVERTED.output;
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
     {
         kind: "drawing-hash",
-        sha256: "9b835038dd9d9472025060ba7f5364be3838b5c671cb62672d5cd72b67f3ec2a",
+        // Re-pinned for the readable-identifier rename (`__lvls_ring` → `lvls`,
+        // `__h` → `element`, ring helper `__HandleRing`/`__buf`/… → readable).
+        // op/state/bar are byte-identical (verified by a normalised-handleId
+        // rename diff); only the `handleId` callsite column shifted.
+        sha256: "f357b9e5586f3813e2f50c3b2e34e78ec572a0129b5b2389dff1ed04cbca67c5",
     },
     { kind: "diagnostic-code-absent", code: "unsupported-drawing-kind" },
     { kind: "diagnostic-code-absent", code: "drawing-budget-exceeded" },
@@ -42,7 +46,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * per-fixture golden JSON, not here — the harness only sees runtime diagnostics.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "@invinite-org/chartlang-conformance";
  *     void PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO;

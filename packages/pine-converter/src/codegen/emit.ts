@@ -47,7 +47,7 @@ function optionLines(scaffold: ScriptScaffold): string[] {
  * `convertFile`, not this sync emit).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emit } from "./emit.js";
  *     declare const scaffold: import("../transform/ir.js").ScriptScaffold;

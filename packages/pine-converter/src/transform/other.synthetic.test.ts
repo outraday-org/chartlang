@@ -10,6 +10,7 @@ import type { SourceSpan } from "../index.js";
 import type { DrawingCallSite, SemanticResult, SymbolInfo } from "../semantic/index.js";
 import { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { ScriptScaffold } from "./ir.js";
+import { NameAllocator } from "./nameAllocator.js";
 import { transformOther } from "./other.js";
 
 // The top-level `block-statement` arm of `emitStatement` is not produced by the
@@ -77,6 +78,7 @@ function emptyScaffold(): ScriptScaffold {
         handleRings: [],
         computeBody: { statements: [] },
         diagnostics: [],
+        names: new NameAllocator(),
     };
 }
 
@@ -315,8 +317,9 @@ describe("transformOther — synthetic defensive arms", () => {
             elseBody: null,
             span: SPAN,
         };
-        // No collection arg → not an eviction guard → the (empty) if is emitted.
-        expect(run([guard], [], symbols).join(" ")).toContain("if (array.size() > 3)");
+        // No collection arg → not an eviction guard → it falls to `emitIf`,
+        // which drops the empty body rather than emitting `if (…) {  }`.
+        expect(run([guard], [], symbols)).toEqual([]);
     });
 
     it("ignores a push with a missing pushed value", () => {

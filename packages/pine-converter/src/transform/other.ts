@@ -2,15 +2,21 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { CallExpression, ExpressionNode } from "../ast/index.js";
-import type { Assignment, Statement, VariableDeclaration } from "../ast/statements.js";
-import { DRAWING_KIND_MAP, mathLookup, taLookup } from "../mapping/index.js";
-import type { PineDrawingConstructor } from "../mapping/index.js";
+import type {
+    Assignment,
+    Statement,
+    TupleDeclaration,
+    VariableDeclaration,
+} from "../ast/statements.js";
+import { DRAWING_KIND_MAP, mathLookup, multiReturnTaLookup, taLookup } from "../mapping/index.js";
+import type { MultiReturnTaMapping, PineDrawingConstructor } from "../mapping/index.js";
 import type { SemanticResult } from "../semantic/index.js";
 import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
 import { emitWithContext } from "./emitContext.js";
 import type { ScriptScaffold } from "./ir.js";
+import type { NameAllocator } from "./nameAllocator.js";
 import { emitPlotFamily, isPlotFamilyCall } from "./plotFamily.js";
 import { emitRequestSecurity, isRequestSecurityCall } from "./requestSecurity.js";
 import { appendComputeStatement, appendStateSlot } from "./scaffoldMutators.js";
@@ -37,6 +43,29 @@ function firstArgName(call: CallExpression): string | null {
     return first !== undefined && first.value.kind === "identifier-expression"
         ? first.value.name
         : null;
+}
+
+// The TypeScript cast an `inputs.<name>` read needs, derived from the input
+// factory in its emitted code. `input.int`/`input.float`/`input.source` lower
+// to a numeric (`source` is series-or-scalar, assignable from `number`);
+// `input.bool` → `boolean`; the string-valued factories → `string`. `null`
+// leaves the read uncast (`enum`/unknown factories the converter does not
+// emit). chartlang types `compute({ inputs })` loosely, so the cast is what
+// makes `ta.atr(inputs.length)` type-check.
+function inputCastType(code: string): string | null {
+    if (code.startsWith("input.int(") || code.startsWith("input.float(")) {
+        return "number";
+    }
+    if (code.startsWith("input.source(")) {
+        return "number";
+    }
+    if (code.startsWith("input.bool(")) {
+        return "boolean";
+    }
+    if (code.startsWith("input.string(") || code.startsWith("input.interval(")) {
+        return "string";
+    }
+    return null;
 }
 
 // The collection name an `array.push(coll, <drawing>.new(...))` targets, or
@@ -98,7 +127,25 @@ function drawingOwnedSymbols(analysis: SemanticResult): ReadonlySet<string> {
         }
     }
     collectPushCollections(analysis.script.body, owned);
+    collectPolylinePointCollections(analysis, owned);
     return owned;
+}
+
+// The `chart.point` collections a `polyline.new(coll, …)` consumes — owned by
+// the polyline transform, which rebuilds them as a fixed anchor list. Adding
+// them here stops `transformOther` from leaking the `var coll = array.new<…>()`
+// declaration and its `array.push(coll, chart.point.*)` build statements as
+// raw (uncompilable) source.
+function collectPolylinePointCollections(analysis: SemanticResult, out: Set<string>): void {
+    for (const site of analysis.drawingSites) {
+        if (site.constructor !== "polyline.new") {
+            continue;
+        }
+        const first = site.call.args.find((arg) => arg.name === null)?.value;
+        if (first !== undefined && first.kind === "identifier-expression") {
+            out.add(first.name);
+        }
+    }
 }
 
 // Whether an `if` statement is a ring-eviction guard over an owned collection
@@ -217,15 +264,13 @@ function stateFactory(value: ExpressionNode): string | null {
     return null;
 }
 
-// The state-slot local name for a Pine scalar variable.
-function stateSlotName(pineName: string): string {
-    return `__${pineName}_state`;
-}
-
 // The `var`/`varip` scalar declarations this transform owns (a drawing-handle
-// or `na`-initialised decl is skipped). Returns a name → slot-local map.
+// or `na`-initialised decl is skipped). Returns a name → slot-local map. The
+// slot local REUSES the Pine scalar identifier (allocator-disambiguated) so a
+// `var int count = 0` reads as `count`, not `__count_state`.
 function registerStateSlots(
     analysis: SemanticResult,
+    scaffold: ScriptScaffold,
     owned: ReadonlySet<string>,
 ): Map<string, string> {
     const slots = new Map<string, string>();
@@ -243,7 +288,7 @@ function registerStateSlots(
         ) {
             continue;
         }
-        const slot = stateSlotName(stmt.name);
+        const slot = scaffold.names.allocateForSymbol(stmt.name);
         slots.set(stmt.name, slot);
     }
     return slots;
@@ -316,6 +361,136 @@ type Walk = {
     readonly defaults: ReadonlyMap<string, number>;
 };
 
+// ── Tuple destructuring of multi-return `ta.*` (e.g. `ta.macd`) ──────────────
+
+// The multi-return mapping + narrowed call for a tuple-declaration's RHS, or
+// `null` when the RHS is not a recognised multi-return `ta.*` constructor.
+function multiReturnRhs(
+    initializer: ExpressionNode,
+): { mapping: MultiReturnTaMapping; call: CallExpression } | null {
+    if (initializer.kind !== "call-expression") {
+        return null;
+    }
+    const name = calleeName(initializer);
+    if (name === null) {
+        return null;
+    }
+    const mapping = multiReturnTaLookup(name);
+    return mapping === null ? null : { mapping, call: initializer };
+}
+
+// The result-record local a multi-return tuple-decl binds — `<firstName>Result`
+// (e.g. `macdLineResult`), using the first non-`_` target so `[_, x] = …` still
+// reads sensibly. Distinct from the element names (which alias INTO this record)
+// and idempotent per decl (the allocator memoizes the `…Result` key), so the
+// two call sites (`tupleAliases` + `emitTupleDeclaration`) agree.
+function tupleResultName(decl: TupleDeclaration, names: NameAllocator): string {
+    const named = decl.names.find((target) => target.name !== "_");
+    return names.allocateForSymbol(`${named === undefined ? "anon" : named.name}Result`);
+}
+
+// The `name → <result>.<field>.current` aliases for a mapped tuple-decl: one
+// per non-`_` target whose Pine tuple position maps to a chartlang field.
+function tupleAliases(
+    decl: TupleDeclaration,
+    mapping: MultiReturnTaMapping,
+    names: NameAllocator,
+): Map<string, string> {
+    const result = tupleResultName(decl, names);
+    const aliases = new Map<string, string>();
+    decl.names.forEach((target, index) => {
+        const field = mapping.fields[index];
+        if (target.name === "_" || field === null || field === undefined) {
+            return;
+        }
+        aliases.set(target.name, `${result}.${field}.current`);
+    });
+    return aliases;
+}
+
+// Whether any non-`_` target has no chartlang field (a dropped Pine output like
+// `ta.dmi`'s ADX, or more names than the function returns).
+function tupleHasUnaliasable(decl: TupleDeclaration, mapping: MultiReturnTaMapping): boolean {
+    return decl.names.some((target, index) => {
+        const field = mapping.fields[index];
+        return target.name !== "_" && (field === null || field === undefined);
+    });
+}
+
+// Pre-scan top-level tuple-declarations into one alias map (mirrors
+// `registerStateSlots`), built into the `EmitContext` so later references
+// rewrite even though the result const is emitted at the decl's position.
+function registerTupleFields(analysis: SemanticResult, names: NameAllocator): Map<string, string> {
+    const aliases = new Map<string, string>();
+    for (const stmt of analysis.script.body) {
+        if (stmt.kind !== "tuple-declaration") {
+            continue;
+        }
+        const resolved = multiReturnRhs(stmt.initializer);
+        if (resolved === null) {
+            continue;
+        }
+        for (const [name, replacement] of tupleAliases(stmt, resolved.mapping, names)) {
+            aliases.set(name, replacement);
+        }
+    }
+    return aliases;
+}
+
+// Build the chartlang `<fn>(<positionals>, { <opts> })` call from the Pine
+// positional args per the mapping's arg layout. Trailing `opt` args fold into
+// one object literal; a `drop` arg that was actually supplied raises
+// `multi-return-arg-dropped`; a Pine arg omitted (chartlang default) is skipped.
+function emitMultiReturnCall(
+    mapping: MultiReturnTaMapping,
+    call: CallExpression,
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+): string {
+    const positionalArgs = call.args.filter((arg) => arg.name === null).map((arg) => arg.value);
+    const positionals: string[] = [];
+    const opts: string[] = [];
+    let dropped = false;
+    mapping.args.forEach((spec, index) => {
+        const arg = positionalArgs[index];
+        if (arg === undefined) {
+            return;
+        }
+        if (spec.kind === "positional") {
+            positionals.push(emitWithContext(arg, ctx));
+        } else if (spec.kind === "opt") {
+            opts.push(`${spec.key}: ${emitWithContext(arg, ctx)}`);
+        } else {
+            dropped = true;
+        }
+    });
+    if (dropped) {
+        diagnostics.pushCode("multi-return-arg-dropped", call.span);
+    }
+    const args = opts.length > 0 ? [...positionals, `{ ${opts.join(", ")} }`] : positionals;
+    return `${mapping.chartlang}(${args.join(", ")})`;
+}
+
+// Lower `[a, b, c] = ta.macd(...)` into one result const; element reads rewrite
+// to `<result>.<field>.current` via the pre-registered aliases. An
+// unrecognised multi-return RHS warns and emits nothing.
+function emitTupleDeclaration(
+    decl: TupleDeclaration,
+    ctx: EmitContext,
+    walk: Walk,
+): readonly string[] {
+    const resolved = multiReturnRhs(decl.initializer);
+    if (resolved === null) {
+        walk.diagnostics.pushCode("multi-return-not-mapped", decl.span);
+        return [];
+    }
+    if (tupleHasUnaliasable(decl, resolved.mapping)) {
+        walk.diagnostics.pushCode("multi-return-arity-mismatch", decl.span);
+    }
+    const call = emitMultiReturnCall(resolved.mapping, resolved.call, ctx, walk.diagnostics);
+    return [`const ${tupleResultName(decl, walk.scaffold.names)} = ${call};`];
+}
+
 /**
  * Lower every **non-drawing** top-level statement of the analysed Pine script
  * into chartlang TypeScript source strings appended to the
@@ -335,7 +510,7 @@ type Walk = {
  * reads `scaffold.stateSlots` + `scaffold.computeBody`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { lex } from "../lexer/index.js";
  *     import { parseStatements } from "../parser/index.js";
@@ -361,13 +536,22 @@ export function transformOther(
 ): void {
     const owned = drawingOwnedSymbols(analysis);
     const defaults = inputDefaults(analysis);
-    const slots = registerStateSlots(analysis, owned);
+    const slots = registerStateSlots(analysis, scaffold, owned);
     const inputNames = new Set(scaffold.inputs.map((input) => input.name));
+    const inputCasts = new Map<string, string>();
+    for (const input of scaffold.inputs) {
+        const cast = inputCastType(input.code);
+        if (cast !== null) {
+            inputCasts.set(input.name, cast);
+        }
+    }
     const ctx: EmitContext = {
         annotations: analysis.annotations,
         inputNames,
         localNames: new Set(),
         stateSlots: slots,
+        inputCasts,
+        tupleFieldAliases: registerTupleFields(analysis, scaffold.names),
     };
     emitStateSlots(analysis, scaffold, diagnostics, slots, ctx);
     const walk: Walk = { analysis, scaffold, diagnostics, owned, defaults };
@@ -390,10 +574,17 @@ function emitStatement(stmt: Statement, ctx: EmitContext, walk: Walk): readonly 
             return emitDeclaration(stmt, ctx, walk);
         case "assignment":
             return emitAssignment(stmt, ctx, walk);
+        case "tuple-declaration":
+            return emitTupleDeclaration(stmt, ctx, walk);
         case "expression-statement":
             return emitExpressionStatement(stmt.expression, ctx, walk);
-        case "if-statement":
-            return isEvictionGuard(stmt, walk.owned) ? [] : [emitIf(stmt, ctx, emitBody)];
+        case "if-statement": {
+            if (isEvictionGuard(stmt, walk.owned)) {
+                return [];
+            }
+            const rendered = emitIf(stmt, ctx, emitBody);
+            return rendered === null ? [] : [rendered];
+        }
         case "for-statement":
             return emitFor(
                 stmt,
@@ -529,6 +720,24 @@ function emitSpecialCall(call: CallExpression, ctx: EmitContext, walk: Walk): st
     return null;
 }
 
+// `ta.pivothigh`/`ta.pivotlow` project a field of `ta.pivotsHighLow`'s result,
+// which is a FUNCTION taking `{ leftLength, rightLength }` opts — not a
+// `ta.pivotsHighLow.high(...)` method. Restructure the positional
+// `(left, right)` (or trailing two of `(source, left, right)`) into the opts
+// call and project the field.
+function emitPivot(name: string, call: CallExpression, ctx: EmitContext): string {
+    const field = name === "ta.pivothigh" ? "high" : "low";
+    const positional = call.args.filter((arg) => arg.name === null).map((arg) => arg.value);
+    const right = positional[positional.length - 1];
+    const left = positional.length >= 2 ? positional[positional.length - 2] : right;
+    if (right === undefined || left === undefined) {
+        return `ta.pivotsHighLow().${field}`;
+    }
+    const leftSrc = emitWithContext(left, ctx);
+    const rightSrc = emitWithContext(right, ctx);
+    return `ta.pivotsHighLow({ leftLength: ${leftSrc}, rightLength: ${rightSrc} }).${field}`;
+}
+
 function emitTa(name: string, call: CallExpression, ctx: EmitContext, walk: Walk): string {
     const mapping = taLookup(name);
     if (mapping === null) {
@@ -538,8 +747,16 @@ function emitTa(name: string, call: CallExpression, ctx: EmitContext, walk: Walk
     if (mapping.signatureNote !== undefined) {
         walk.diagnostics.pushCode("ta-signature-divergence", call.span, mapping.signatureNote);
     }
-    const args = call.args.map((arg) => emitWithContext(arg.value, ctx)).join(", ");
-    return `${mapping.chartlang}(${args})`;
+    // chartlang `ta.*` returns a `Series<number>` (a history view); Pine uses
+    // the current-bar scalar. `.current` projects that scalar so the result is
+    // usable as a number (anchor price, `na`/arithmetic operand, plot value)
+    // — `ta.*` maintains its own per-call-site history, so feeding scalars in
+    // and reading `.current` out reproduces Pine's per-bar semantics.
+    const body =
+        name === "ta.pivothigh" || name === "ta.pivotlow"
+            ? emitPivot(name, call, ctx)
+            : `${mapping.chartlang}(${call.args.map((arg) => emitWithContext(arg.value, ctx)).join(", ")})`;
+    return `${body}.current`;
 }
 
 function emitMath(name: string, call: CallExpression, ctx: EmitContext, walk: Walk): string {

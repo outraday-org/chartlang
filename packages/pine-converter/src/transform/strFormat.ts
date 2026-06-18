@@ -14,7 +14,7 @@ import { emitWithContext } from "./emitContext.js";
  * caller can warn and pass the call through unchanged.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { parsePineFormat } from "./strFormat.js";
  *     parsePineFormat("#.##"); // 2
@@ -47,7 +47,7 @@ function stringLiteralValue(node: ExpressionNode): string | null {
  * verbatim passthrough.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: StrResult = { kind: "code", source: "String(x)" };
  *     void r;
@@ -65,7 +65,7 @@ export type StrResult =
  * is not a `str.*` member at all; otherwise a {@link StrResult}.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitStr } from "./strFormat.js";
  *     const ctx = {

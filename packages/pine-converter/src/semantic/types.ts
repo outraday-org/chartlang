@@ -18,7 +18,7 @@ import type { PineDrawingConstructor } from "../mapping/index.js";
  * and annotation maps the analyzer produces. Every member carries a `span`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const n: AstNode = {
  *         kind: "identifier-expression",
@@ -41,7 +41,7 @@ export type AstNode =
  * The analyzer joins operand qualifiers by taking the lattice maximum.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const q: TypeQualifier = "series";
  *     void q;
@@ -53,7 +53,7 @@ export type TypeQualifier = "const" | "input" | "simple" | "series";
  * (on {@link SymbolInfo}) marks a non-handle symbol.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const h: HandleType = "line";
  *     void h;
@@ -64,7 +64,7 @@ export type HandleType = "line" | "label" | "box" | "table" | "polyline" | "line
  * What introduced a symbol into a scope.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const k: SymbolKind = "var-variable";
  *     void k;
@@ -83,7 +83,7 @@ export type SymbolKind =
  * `declarationSpan` is `null` for built-ins.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const s: SymbolInfo = {
  *         name: "lvl",
@@ -111,7 +111,7 @@ export type SymbolInfo = Readonly<{
  * resolution, not in `symbols`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const root: Scope = {
  *         parent: null,
@@ -133,7 +133,7 @@ export type Scope = Readonly<{
  * binding.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const a: AssignmentAnnotation = { kind: "reassignment", shadows: null };
  *     void a;
@@ -149,7 +149,7 @@ export type AssignmentAnnotation = Readonly<{
  * and the declaration/reassignment verdict for assignment statements.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ann: SemanticAnnotation = { qualifier: "series" };
  *     void ann;
@@ -166,7 +166,7 @@ export type SemanticAnnotation = Readonly<{
  * callsite fold (Task 10).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const li: LifetimeInfo = {
  *         declarationSpan: { startLine: 3, startColumn: 1, endLine: 3, endColumn: 20 },
@@ -188,7 +188,7 @@ export type LifetimeInfo = Readonly<{
  * {@link SymbolInfo} identity the scope builder produced.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const m: LifetimeMap = new Map();
  *     void m;
@@ -205,7 +205,7 @@ export type LifetimeMap = ReadonlyMap<SymbolInfo, LifetimeInfo>;
  * - `camp-c-unbounded` — irreducibly dynamic (hard-reject).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const c: DrawingCamp = { kind: "camp-c-unbounded", reasoning: "linefill from collection" };
  *     void c;
@@ -227,7 +227,7 @@ export type DrawingCamp =
  * The flat list the transform tasks (10–14) iterate over.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const site: DrawingCallSite = {
  *         call: {
@@ -265,7 +265,7 @@ export type DrawingCallSite = Readonly<{
  * consumes this.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: SemanticResult = {
  *         script: {

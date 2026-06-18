@@ -69,8 +69,8 @@ describe("foldSetters", () => {
             noWarn,
         );
         expect(patch).toContain("anchors: [");
-        expect(patch).toContain("price: bar.close");
-        expect(patch).toContain("price: bar.open");
+        expect(patch).toContain("bar.point(0, bar.close)");
+        expect(patch).toContain("bar.point(0, bar.open)");
     });
 
     it("returns null when no setter folds", () => {

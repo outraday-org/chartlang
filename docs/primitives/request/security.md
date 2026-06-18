@@ -5,7 +5,17 @@
 > **Stability:** stable
 > **Since:** 0.4
 
-Read a secondary candle stream at a script-author-fixed interval.
+Read a secondary candle stream at a script-author-fixed **higher**
+interval. The returned `SecurityBar` exposes every OHLCV field —
+plus the derived `hl2` / `hlc3` / `ohlc4` / `hlcc4` and `symbol` /
+`interval` — as a `Series<...>`, aligned no-lookahead to the chart's
+bars so a script can read prior secondary values such as
+`weekly.close[5]`. The `interval` must be a compile-time literal (a
+string literal or an `input.enum` value); the compiler walks every call
+to populate `manifest.requestedIntervals`. When the adapter does not
+advertise `Capabilities.multiTimeframe`, the series degrades to all-NaN
+rather than erroring. See the multi-timeframe guide for alignment and
+interval-format details.
 
 ## Signature
 
@@ -18,11 +28,13 @@ security(_opts: RequestSecurityOpts): SecurityBar {
 ## Example
 
 ```ts
-const fn: typeof request.security = request.security;
-    void fn;
+// Pull weekly candles aligned to the chart and read the close.
+    const weekly = request.security({ interval: "1W" });
+    const weeklyClose = weekly.close.current;
+    void weeklyClose;
 ```
 
 ## See also
 
-- `request.*` namespace
+- `request.*` namespace — [Multi-timeframe guide](/language/multi-timeframe)
 - [Source on GitHub](https://github.com/outraday-org/chartlang/blob/main/packages/core/src/request/request.ts)

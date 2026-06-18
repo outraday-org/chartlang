@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ScriptScaffold } from "../transform/ir.js";
+import { NameAllocator } from "../transform/nameAllocator.js";
 import { emitImports } from "./emitImports.js";
 import { scanUsage } from "./usage.js";
 
@@ -25,6 +26,7 @@ function scaffold(overrides: Partial<ScriptScaffold> = {}): ScriptScaffold {
         handleRings: [],
         computeBody: { statements: [] },
         diagnostics: [],
+        names: new NameAllocator(),
         ...overrides,
     };
 }
@@ -39,7 +41,7 @@ describe("import minimization", () => {
     it("a draw-only scaffold omits plot, hline, and alert", () => {
         const line = emitImports(
             scaffold({
-                handleSlots: [{ name: "__h", kind: "line" }],
+                handleSlots: [{ name: "__h", kind: "line", compact: false }],
                 computeBody: { statements: ["__h.set(draw.line({}, {}));"] },
             }),
         );
@@ -71,21 +73,19 @@ describe("import minimization", () => {
         }
     });
 
-    it("scanUsage flags barstate and bar-index/interval references", () => {
+    it("scanUsage flags barstate and bar-index references", () => {
         const flags = scanUsage(
             scaffold({
                 computeBody: {
                     statements: [
                         "if (barstate.islast) {}",
-                        "const a = __bar_index();",
-                        "const b = bar.time + __BAR_INTERVAL_MS;",
-                        "void a; void b;",
+                        "const a = __barIndexBridge();",
+                        "void a;",
                     ],
                 },
             }),
         );
         expect(flags.barstate).toBe(true);
         expect(flags.barIndex).toBe(true);
-        expect(flags.barInterval).toBe(true);
     });
 });

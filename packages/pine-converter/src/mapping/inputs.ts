@@ -19,7 +19,7 @@ import { lookup } from "./types.js";
  *   needs full type-system support).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { INPUT_MAP } from "@invinite-org/chartlang-pine-converter";
  *     const m = INPUT_MAP.get("input.timeframe");
@@ -85,7 +85,7 @@ export const INPUT_MAP: ReadonlyMap<string, InputMapping> = new Map<string, Inpu
  * `null` for unknown primitives and for REJECTs (`input.enum`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { inputLookup } from "@invinite-org/chartlang-pine-converter";
  *     const m = inputLookup("input.int");

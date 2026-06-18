@@ -7,6 +7,7 @@ import type {
     ExpressionNode,
     Script,
     Statement,
+    TupleDeclaration,
     VariableDeclaration,
 } from "../ast/index.js";
 import type { Argument } from "../ast/script.js";
@@ -274,6 +275,30 @@ function walkAssignment(state: WalkState, scope: ScopeBuilder, assignment: Assig
     state.lifetimes.recordReassignment(shadows, assignment.span);
 }
 
+// `[a, b, c] = ta.macd(...)` — walk the multi-return RHS, then declare each
+// target name as a fresh variable so later references resolve. A `_` target is
+// a throwaway and is not bound. Each name carries its own span, so the
+// `symbols` map gets one distinct entry per element (no span-key collision).
+function walkTupleDeclaration(state: WalkState, scope: ScopeBuilder, decl: TupleDeclaration): void {
+    const resolve = (name: string): SymbolInfo | null => resolveSymbol(scope, name);
+    walkExpression(state, scope, decl.initializer, null);
+    for (const target of decl.names) {
+        if (target.name === "_") {
+            continue;
+        }
+        const symbol: SymbolInfo = {
+            name: target.name,
+            kind: "variable",
+            declarationSpan: target.span,
+            typeAnnotation: null,
+            qualifier: inferQualifier(decl.initializer, resolve),
+            handleType: null,
+        };
+        defineSymbol(scope, symbol);
+        state.symbols.set(target.span, symbol);
+    }
+}
+
 function walkStatement(state: WalkState, scope: ScopeBuilder, stmt: Statement): void {
     state.scopes.set(stmt, freezeScope(scope));
     switch (stmt.kind) {
@@ -282,6 +307,9 @@ function walkStatement(state: WalkState, scope: ScopeBuilder, stmt: Statement): 
             return;
         case "assignment":
             walkAssignment(state, scope, stmt);
+            return;
+        case "tuple-declaration":
+            walkTupleDeclaration(state, scope, stmt);
             return;
         case "expression-statement": {
             recordHandleMutation(state, scope, stmt.expression);
@@ -422,7 +450,7 @@ function extractIndicatorCaps(args: readonly Argument[]): IndicatorCaps {
  * never re-exported from `src/index.ts`.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { analyze } from "./analyze.js";
  *     const result = analyze({

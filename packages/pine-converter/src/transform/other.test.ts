@@ -178,10 +178,10 @@ describe("transformOther — control flow", () => {
 describe("transformOther — scalars", () => {
     it("lowers a var int scalar to a state.int slot and reassignment to .value", () => {
         const { scaffold } = run("var n = 0\nn := n + 1\nplot(n)");
-        expect(scaffold.stateSlots).toEqual([{ name: "__n_state", initExpr: "state.int(0)" }]);
+        expect(scaffold.stateSlots).toEqual([{ name: "n", initExpr: "state.int(0)" }]);
         expect(scaffold.computeBody.statements).toEqual([
-            "__n_state.value = __n_state.value + 1;",
-            "plot(__n_state.value);",
+            "n.value = n.value + 1;",
+            "plot(n.value);",
         ]);
     });
 
@@ -226,7 +226,7 @@ describe("transformOther — scalars", () => {
 describe("transformOther — passthrough and skips", () => {
     it("rewrites input references to inputs.<name>", () => {
         expect(stmts("len = input.int(20)\nplot(ta.sma(close, len))")).toEqual([
-            "plot(ta.sma(bar.close, inputs.len));",
+            "plot(ta.sma(bar.close, (inputs.len as number)));",
         ]);
     });
 
@@ -276,7 +276,9 @@ describe("transformOther — passthrough and skips", () => {
     });
 
     it("lowers a ta.* / math.* call as a declaration value", () => {
-        expect(stmts("e = ta.ema(close, 9)\nplot(e)")).toContain("let e = ta.ema(bar.close, 9);");
+        expect(stmts("e = ta.ema(close, 9)\nplot(e)")).toContain(
+            "let e = ta.ema(bar.close, 9).current;",
+        );
         expect(stmts("m = math.abs(close)\nplot(m)")).toContain("let m = Math.abs(bar.close);");
     });
 

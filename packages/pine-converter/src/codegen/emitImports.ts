@@ -10,12 +10,13 @@ import { scanUsage } from "./usage.js";
  * always present; every other named import (`draw`, `state`, `ta`, `plot`,
  * `hline`, `alert`, `input`, `request`) is included only when the scaffold's
  * generated source references it, and `type DrawingHandle` is added only when
- * a handle slot or ring is emitted (the codegen helper signatures need it).
+ * a NON-compact handle slot or a ring is emitted (the codegen helper signatures
+ * name it; a compact handle slot's bare `const` carries no type annotation).
  * Determinism: the import list is emitted in a fixed order, never sorted by a
  * runtime set, so the same scaffold yields a byte-identical line.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { emitImports } from "./emitImports.js";
  *     declare const scaffold: import("../transform/ir.js").ScriptScaffold;

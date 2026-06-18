@@ -11,7 +11,7 @@ import type { ExpressionNode } from "../ast/index.js";
  * yields `null` because it has no stable dotted name.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { dottedName } from "./nodes.js";
  *     dottedName({
@@ -38,7 +38,7 @@ export function dottedName(expr: ExpressionNode): string | null {
  * computed-head chain or a non-reference node.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { rootIdentifier } from "./nodes.js";
  *     rootIdentifier({

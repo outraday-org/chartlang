@@ -40,22 +40,22 @@ describe("transformPolylineLinefill — literal-bounded rebuild unroll", () => {
     it("unrolls a `0 to 2` loop into three substituted anchors", () => {
         const { scaffold, diagnostics } = run(body("2"));
         const stmt = scaffold.computeBody.statements[0];
-        // i=0 → offset 0 (bare bar.time); i=1 and i=2 → historical offsets.
-        expect(stmt).toContain("{ time: bar.time, price: bar.close }");
-        expect(stmt).toContain("(1) * __BAR_INTERVAL_MS");
-        expect(stmt).toContain("(2) * __BAR_INTERVAL_MS");
+        // i=0 → offset 0 (current bar); i=1 and i=2 → historical bar.point offsets.
+        expect(stmt).toContain("bar.point(0, bar.close)");
+        expect(stmt).toContain("bar.point(-(1), bar.close)");
+        expect(stmt).toContain("bar.point(-(2), bar.close)");
         expect(diagnostics.toArray()).toHaveLength(0);
     });
 
     it("unrolls a unary-literal upper bound (`+2`)", () => {
         const { scaffold } = run(body("+2"));
         const stmt = scaffold.computeBody.statements[0];
-        expect(stmt).toContain("(2) * __BAR_INTERVAL_MS");
+        expect(stmt).toContain("bar.point(-(2), bar.close)");
     });
 
     it("registers exactly one polyline handle slot", () => {
         const { scaffold } = run(body("2"));
-        expect(scaffold.handleSlots).toEqual([{ name: "__p_handle", kind: "polyline" }]);
+        expect(scaffold.handleSlots).toEqual([{ name: "p", kind: "polyline", compact: false }]);
     });
 
     it("unrolls a stepped ascending build loop using the `by` magnitude", () => {
@@ -68,11 +68,11 @@ describe("transformPolylineLinefill — literal-bounded rebuild unroll", () => {
         const { scaffold } = run(stepped);
         const stmt = scaffold.computeBody.statements[0];
         // i = 0, 2, 4 → offsets 0, 2, 4; never the odd offsets.
-        expect(stmt).toContain("{ time: bar.time, price: bar.close }");
-        expect(stmt).toContain("(2) * __BAR_INTERVAL_MS");
-        expect(stmt).toContain("(4) * __BAR_INTERVAL_MS");
-        expect(stmt).not.toContain("(1) * __BAR_INTERVAL_MS");
-        expect(stmt).not.toContain("(3) * __BAR_INTERVAL_MS");
+        expect(stmt).toContain("bar.point(0, bar.close)");
+        expect(stmt).toContain("bar.point(-(2), bar.close)");
+        expect(stmt).toContain("bar.point(-(4), bar.close)");
+        expect(stmt).not.toContain("bar.point(-(1), bar.close)");
+        expect(stmt).not.toContain("bar.point(-(3), bar.close)");
     });
 
     it("unrolls a descending build loop in descending order", () => {
@@ -85,9 +85,9 @@ describe("transformPolylineLinefill — literal-bounded rebuild unroll", () => {
         const { scaffold } = run(descending);
         const stmt = scaffold.computeBody.statements[0];
         // i = 2, 1, 0 → all three offsets present.
-        expect(stmt).toContain("(2) * __BAR_INTERVAL_MS");
-        expect(stmt).toContain("(1) * __BAR_INTERVAL_MS");
-        expect(stmt).toContain("{ time: bar.time, price: bar.close }");
+        expect(stmt).toContain("bar.point(-(2), bar.close)");
+        expect(stmt).toContain("bar.point(-(1), bar.close)");
+        expect(stmt).toContain("bar.point(0, bar.close)");
     });
 
     it("only unrolls the loop that pushes the polyline's collection", () => {

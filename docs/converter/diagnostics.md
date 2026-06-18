@@ -376,6 +376,27 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** `request.security(...)` returns a series; `.current` was inserted where a scalar value is expected.
 - **Suggested fix:** No action needed; `.current` reads the latest secondary-stream value.
 
+### multi-return-arg-dropped
+
+- **Code:** `pine-converter/transform/multi-return-arg-dropped`
+- **Severity:** info
+- **Message:** A Pine argument has no chartlang equivalent on the multi-output primitive and was dropped (e.g. `ta.kc`'s explicit source / `useTrueRange`).
+- **Suggested fix:** No action needed if the default matches your script; otherwise adjust the chartlang call by hand.
+
+### multi-return-arity-mismatch
+
+- **Code:** `pine-converter/transform/multi-return-arity-mismatch`
+- **Severity:** warning
+- **Message:** A tuple destructuring binds more outputs than the chartlang result exposes (e.g. `ta.dmi`'s ADX); the extra names were left unresolved.
+- **Suggested fix:** Drop the unsupported output, or read it from its dedicated primitive (e.g. ADX via `ta.adx`).
+
+### multi-return-not-mapped
+
+- **Code:** `pine-converter/transform/multi-return-not-mapped`
+- **Severity:** warning
+- **Message:** A tuple destructuring `[a, b] = …` reads from a call that is not a recognised multi-output `ta.*`; the elements were left unresolved.
+- **Suggested fix:** Destructure a supported multi-output (`ta.macd`/`ta.bb`/`ta.kc`/`ta.dmi`/`ta.supertrend`), or assign each output to its own variable.
+
 ### negative-array-index
 
 - **Code:** `pine-converter/transform/negative-array-index`
@@ -396,6 +417,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** error
 - **Message:** `input.source(...)` default must be an OHLCV built-in; a computed source is not supported.
 - **Suggested fix:** Pass `close`, `open`, `high`, `low`, `volume`, `hl2`, `hlc3`, etc.
+
+### partial-anchor-filled
+
+- **Code:** `pine-converter/transform/partial-anchor-filled`
+- **Severity:** info
+- **Message:** A whole-anchor setter moved only one endpoint; the unset anchor was filled from the creation expression so the patch is a complete tuple. The filled endpoint re-evaluates each bar instead of staying frozen.
+- **Suggested fix:** Set both `set_xy1` and `set_xy2`, or mirror the fixed endpoint in a state slot if it must stay put.
 
 ### polyline-closed-info
 
@@ -598,4 +626,4 @@ hard-rejects and the recommended Pine rewrites.
 - **Code:** `pine-converter/transform/yloc-padding-approximated`
 - **Severity:** info
 - **Message:** `yloc.abovebar`/`yloc.belowbar` was approximated as a fixed fraction of the bar range.
-- **Suggested fix:** Tune `__YLOC_PAD_FRAC` in the generated script if the default offset is too tight.
+- **Suggested fix:** Tune the `0.001` bar-range padding fraction in the generated anchor if the default offset is too tight.

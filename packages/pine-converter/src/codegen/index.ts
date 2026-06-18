@@ -8,7 +8,6 @@ export { emitMaxDrawings } from "./emitMaxDrawings.js";
 export { emitCompute } from "./emitCompute.js";
 export {
     emitBarIndexPreamble,
-    emitBarIntervalConst,
     emitHandleSlotHelper,
     emitHandleRingHelper,
     emitSlotAllocations,

@@ -55,7 +55,7 @@ const STATEMENT_SYNC: ReadonlySet<TokenKind> = new Set<TokenKind>(["newline", "e
  * stream does not start with a directive.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ctx = createContext(lex("//@version=6\n").tokens);
  *     parseVersionDirective(ctx)?.version; // 6
@@ -111,7 +111,7 @@ function parseArgumentName(ctx: ParserContext): Token | null {
  * statement instead).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const ctx = createContext(lex('indicator("hi")\n').tokens);
  *     parseDeclaration(ctx)?.kind; // "indicator-declaration"

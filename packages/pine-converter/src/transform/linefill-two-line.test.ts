@@ -44,8 +44,8 @@ describe("transformPolylineLinefill — static two-line linefill", () => {
         expect(stmt).toContain("draw.rotatedRectangle(");
         // Corners: lineA endpoints (high, high) then lineB endpoints (low, low),
         // ordered [aA, aB, bB, bA] for a closed loop.
-        expect(stmt).toContain("price: bar.high");
-        expect(stmt).toContain("price: bar.low");
+        expect(stmt).toContain("bar.point(0, bar.high)");
+        expect(stmt).toContain("bar.point(0, bar.low)");
     });
 
     it("converts the alpha colour from color.new(color.gray, 80) to #787B8633", () => {
@@ -55,7 +55,7 @@ describe("transformPolylineLinefill — static two-line linefill", () => {
 
     it("registers one rectangle-kind handle slot for the fill", () => {
         const { scaffold } = run(TWO_LINE);
-        expect(scaffold.handleSlots).toEqual([{ name: "__fill_handle", kind: "rectangle" }]);
+        expect(scaffold.handleSlots).toEqual([{ name: "fill", kind: "rectangle", compact: false }]);
     });
 
     it("emits create-once then per-bar update of the quad anchors", () => {
@@ -109,8 +109,8 @@ describe("transformPolylineLinefill — static two-line linefill", () => {
         const body = `${TWO_LINE}\nlinefill.delete(fill)`;
         const { scaffold } = run(body);
         const joined = scaffold.computeBody.statements.join("\n");
-        expect(joined).toContain("__fill_handle.current()?.remove();");
-        expect(joined).toContain("__fill_handle.set(null);");
+        expect(joined).toContain("fill.current()?.remove();");
+        expect(joined).toContain("fill.set(null);");
     });
 
     it("does not register a fill slot when a referenced line is missing", () => {

@@ -38,8 +38,8 @@ export function ConverterPanel(): ReactElement {
             <p className="mt-4 max-w-2xl text-muted-foreground">
                 Paste a Pine Script v6 drawing indicator on the left and watch it become an
                 equivalent chartlang <code>.chart.ts</code> on the right — converted live in your
-                browser. Diagnostics flag anything that can&apos;t be translated faithfully. Hit
-                “Compile &amp; preview” to run the output through the real compiler and render it.
+                browser. Hit “Compile &amp; preview” to run the output through the real compiler and
+                render it.
             </p>
 
             {mounted ? (

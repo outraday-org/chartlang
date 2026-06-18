@@ -1,7 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CompiledScriptBundle, CompiledScriptObject } from "@invinite-org/chartlang-core";
+import type {
+    CompiledScriptBundle,
+    CompiledScriptObject,
+    ScriptManifest,
+} from "@invinite-org/chartlang-core";
 import { createScriptRunner } from "@invinite-org/chartlang-runtime";
 
 import { filterEmissions } from "./filterEmissions.js";
@@ -43,6 +47,15 @@ function isFrame(value: unknown): value is HostToWorker {
     return typeof k === "string";
 }
 
+// `Array.isArray` narrows to `any[]`, which does not subtract a
+// `ReadonlyArray<T>` member from a union (TS #17002), so the single-object
+// `__manifest` form needs this dedicated guard.
+function isSingleManifest(
+    manifest: ScriptManifest | ReadonlyArray<ScriptManifest> | undefined,
+): manifest is ScriptManifest {
+    return manifest !== undefined && !Array.isArray(manifest);
+}
+
 function isCompiledScriptObject(v: unknown): v is CompiledScriptObject {
     if (v === null || typeof v !== "object") return false;
     const o = v as { readonly compute?: unknown; readonly manifest?: unknown };
@@ -71,6 +84,17 @@ function buildBundleFromModule(
     const dependencies = mod.__dependencies ?? [];
     const isBundle = Array.isArray(manifest) || dependencies.length > 0;
     if (!isBundle) {
+        // Single-script form: the compiler's `__manifest` sidecar is the
+        // authoritative manifest (it carries compiler-derived fields the
+        // runtime `defineIndicator` cannot know — `requestedIntervals`,
+        // `outputs`, `plots`, `maxLookback`). `mod.default.manifest` is the
+        // runtime stub with those fields zeroed, so an MTF script would
+        // never register its secondary streams if we used it directly.
+        // `isBundle` is false here, so `manifest` (when present) is the
+        // single-object form.
+        if (isSingleManifest(manifest)) {
+            return Object.freeze({ ...mod.default, manifest });
+        }
         return mod.default;
     }
     const siblings: Array<{

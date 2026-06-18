@@ -12,7 +12,7 @@ import type { DrawingCallSite } from "../semantic/index.js";
  * `K` instead of a generic placeholder.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     declare const site: import("../semantic/index.js").DrawingCallSite;
  *     const ctx: CampCContext = { site, collectionName: "lvls", inferredCap: 30 };
@@ -31,7 +31,7 @@ export type CampCContext = Readonly<{
  * collection with no detectable cap); the rest are transform-stage codes.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const code: RejectCode = "cross-collection-linefill";
  *     void code;
@@ -52,7 +52,7 @@ export type RejectCode =
  * collection identifier so the advice is actionable, not generic.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const fn: SuggestionFn = (ctx) => `cap ${ctx.collectionName ?? "the collection"}`;
  *     void fn;
@@ -65,7 +65,7 @@ export type SuggestionFn = (ctx: CampCContext) => string;
  * manual-rewrite advice for a given context.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const entry: RejectEntry = {
  *         code: "handle-copy",
@@ -99,7 +99,7 @@ function collectionText(ctx: CampCContext): string {
  * the semantic code) has a matching `pine-converter/transform/...` entry.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { CAMP_C_REJECTS } from "./campCRejects.js";
  *     CAMP_C_REJECTS.get("handle-copy")?.severity; // "error"
@@ -183,7 +183,7 @@ export const CAMP_C_REJECTS: ReadonlyMap<RejectCode, RejectEntry> = new Map<
  * `suggestion` so the user sees a concrete, collection-specific rewrite.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { rejectSuggestion } from "./campCRejects.js";
  *     declare const site: import("../semantic/index.js").DrawingCallSite;

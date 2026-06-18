@@ -50,18 +50,27 @@ describe("transformCampA — var line", () => {
         "    line.set_xy2(lvl, bar_index + 5, close * 1.01)",
     ].join("\n");
 
-    it("registers exactly one line handle slot", () => {
+    it("registers exactly one compact line handle slot", () => {
         const { scaffold } = runCampA(body);
-        expect(scaffold.handleSlots).toEqual([{ name: "__lvl_handle", kind: "line" }]);
+        expect(scaffold.handleSlots).toEqual([{ name: "lvl", kind: "line", compact: true }]);
     });
 
-    it("emits one guarded create with mapped color + width", () => {
+    it("emits one compact const create with mapped color + width", () => {
         const { scaffold } = runCampA(body);
         const create = scaffold.computeBody.statements[0];
-        expect(create).toContain("__lvl_handle.current() === null");
-        expect(create).toContain("draw.line(");
+        // Compact lowering: the bare `const` create exploits callsite-persistence
+        // — no `current() === null` guard, no `set(...)` slot indirection.
+        expect(create).toContain("const lvl = draw.line(");
+        expect(create).not.toContain("current()");
         expect(create).toContain('color: "#FF5252"');
         expect(create).toContain("lineWidth: 2");
+    });
+
+    it("folds the setters via a compact update (no slot indirection)", () => {
+        const { scaffold } = runCampA(body);
+        const update = scaffold.computeBody.statements.find((s) => s.includes(".update("));
+        expect(update).toContain("lvl.update(");
+        expect(update).not.toContain("current()");
     });
 
     it("folds the two setters into one anchors update", () => {
@@ -69,7 +78,7 @@ describe("transformCampA — var line", () => {
         const updates = scaffold.computeBody.statements.filter((s) => s.includes(".update("));
         expect(updates).toHaveLength(1);
         expect(updates[0]).toContain("anchors: [");
-        expect(updates[0]).toContain("bar.time + ((5) * __BAR_INTERVAL_MS)");
+        expect(updates[0]).toContain("bar.point((5), bar.close * 1.01)");
         expect(updates[0]).toContain("bar.close * 1.01");
     });
 });
@@ -83,8 +92,8 @@ describe("transformCampA — var label", () => {
                 "    lbl := label.new(bar_index, high, style=label.style_label_down)",
             ].join("\n"),
         );
-        expect(scaffold.handleSlots).toEqual([{ name: "__lbl_handle", kind: "frame" }]);
-        expect(scaffold.computeBody.statements[0]).toContain("draw.frame(");
+        expect(scaffold.handleSlots).toEqual([{ name: "lbl", kind: "frame", compact: true }]);
+        expect(scaffold.computeBody.statements[0]).toContain("const lbl = draw.frame(");
     });
 
     it("maps a plain label.new to draw.text with the literal body", () => {
@@ -95,9 +104,9 @@ describe("transformCampA — var label", () => {
                 '    lbl := label.new(bar_index, high, "Hi")',
             ].join("\n"),
         );
-        expect(scaffold.handleSlots).toEqual([{ name: "__lbl_handle", kind: "text" }]);
+        expect(scaffold.handleSlots).toEqual([{ name: "lbl", kind: "text", compact: true }]);
         expect(scaffold.computeBody.statements[0]).toContain(
-            'draw.text({ time: bar.time, price: bar.high }, "Hi")',
+            'const lbl = draw.text(bar.point(0, bar.high), "Hi")',
         );
     });
 
@@ -109,8 +118,8 @@ describe("transformCampA — var label", () => {
                 "    lbl := label.new(bar_index, high, style=label.style_circle)",
             ].join("\n"),
         );
-        expect(scaffold.handleSlots).toEqual([{ name: "__lbl_handle", kind: "marker" }]);
-        expect(scaffold.computeBody.statements[0]).toContain("draw.marker(");
+        expect(scaffold.handleSlots).toEqual([{ name: "lbl", kind: "marker", compact: true }]);
+        expect(scaffold.computeBody.statements[0]).toContain("const lbl = draw.marker(");
     });
 });
 
@@ -124,9 +133,9 @@ describe("transformCampA — var box", () => {
                 "    box.set_bgcolor(bx, color.green)",
             ].join("\n"),
         );
-        expect(scaffold.handleSlots).toEqual([{ name: "__bx_handle", kind: "rectangle" }]);
+        expect(scaffold.handleSlots).toEqual([{ name: "bx", kind: "rectangle", compact: true }]);
         const create = scaffold.computeBody.statements[0];
-        expect(create).toContain("draw.rectangle(");
+        expect(create).toContain("const bx = draw.rectangle(");
         expect(create).toContain('stroke: "#2196F3"');
         const update = scaffold.computeBody.statements.find((s) => s.includes(".update("));
         expect(update).toContain('fill: "#4CAF50"');
@@ -146,6 +155,50 @@ describe("transformCampA — line extend setter", () => {
         const update = scaffold.computeBody.statements.find((s) => s.includes(".update("));
         expect(update).toContain("extendLeft: true");
         expect(update).toContain("extendRight: true");
+    });
+});
+
+describe("transformCampA — delete forces the general slot machinery", () => {
+    const body = [
+        "var line lvl = na",
+        "if barstate.islast",
+        "    lvl := line.new(bar_index, close, bar_index, close)",
+        "    line.set_xy1(lvl, bar_index, close)",
+        "if barstate.isfirst",
+        "    line.delete(lvl)",
+    ].join("\n");
+
+    it("marks the slot non-compact when the handle is deleted", () => {
+        const { scaffold } = runCampA(body);
+        expect(scaffold.handleSlots).toEqual([{ name: "lvl", kind: "line", compact: false }]);
+    });
+
+    it("emits the guarded create + set/remove slot form, not a bare const", () => {
+        const { scaffold } = runCampA(body);
+        const create = scaffold.computeBody.statements[0];
+        expect(create).toContain("lvl.current() === null");
+        expect(create).toContain("lvl.set(draw.line(");
+        const stmts = scaffold.computeBody.statements;
+        expect(stmts.some((s) => s.includes("lvl.current()?.update("))).toBe(true);
+        expect(stmts.some((s) => s.includes("lvl.current()?.remove()"))).toBe(true);
+        expect(stmts.some((s) => s.includes("lvl.set(null)"))).toBe(true);
+    });
+});
+
+describe("transformCampA — varip forces the general slot machinery", () => {
+    it("marks a varip handle non-compact and keeps the slot form", () => {
+        const { scaffold, diagnostics } = runCampA(
+            [
+                "varip line lvl = na",
+                "if barstate.islast",
+                "    lvl := line.new(bar_index, close, bar_index, close)",
+                "    line.set_xy2(lvl, bar_index, close)",
+            ].join("\n"),
+        );
+        expect(scaffold.handleSlots).toEqual([{ name: "lvl", kind: "line", compact: false }]);
+        expect(scaffold.computeBody.statements[0]).toContain("lvl.current() === null");
+        const codes = diagnostics.toArray().map((d) => d.code);
+        expect(codes.some((c) => c.endsWith("varip-approximated"))).toBe(true);
     });
 });
 

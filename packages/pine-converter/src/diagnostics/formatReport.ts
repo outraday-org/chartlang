@@ -13,7 +13,7 @@ import { DiagnosticReport } from "./report.js";
  * output. `source` is the original Pine input the spans address.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const text = formatDiagnosticReport(result.diagnostics, source);
  *     text.startsWith("==== converter diagnostics ===="); // true

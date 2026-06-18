@@ -13,7 +13,7 @@ import type { Diagnostic, SourceSpan } from "../index.js";
  * then drain it with {@link DiagnosticCollector.toArray} when codegen runs.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const diagnostics = new DiagnosticCollector();
  *     diagnostics.pushCode("strategy-as-indicator", {
@@ -33,7 +33,7 @@ export class DiagnosticCollector {
      * by an upstream pass that this transform wants to merge in).
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     const diagnostics = new DiagnosticCollector();
      *     diagnostics.push({
@@ -56,7 +56,7 @@ export class DiagnosticCollector {
      * suggestion come from the diagnostic registry.
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     const diagnostics = new DiagnosticCollector();
      *     diagnostics.pushCode("computed-indicator-title", {
@@ -76,7 +76,7 @@ export class DiagnosticCollector {
      * pushed. Lets a transform de-dupe a once-per-script diagnostic.
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     const diagnostics = new DiagnosticCollector();
      *     diagnostics.has("pine-converter/transform/x"); // false
@@ -89,7 +89,7 @@ export class DiagnosticCollector {
      * The number of diagnostics accumulated so far.
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     const diagnostics = new DiagnosticCollector();
      *     diagnostics.size; // 0
@@ -103,7 +103,7 @@ export class DiagnosticCollector {
      * (Task 16) drains this into the public `ConvertResult.diagnostics`.
      *
      * @since 0.1
-     * @experimental
+     * @stable
      * @example
      *     const diagnostics = new DiagnosticCollector();
      *     diagnostics.toArray(); // []

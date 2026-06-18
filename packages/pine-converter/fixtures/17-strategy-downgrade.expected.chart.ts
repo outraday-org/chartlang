@@ -14,7 +14,7 @@ export default defineIndicator({
             other: 0,
         },
         compute({ bar, ta, alert }) {
-            let longCond = ta.crossover(bar.close, ta.sma(bar.close, 20));
+            let longCond = ta.crossover(bar.close, ta.sma(bar.close, 20)).current;
             if (longCond) { alert("Long entry", { severity: "info" }); }
         },
 });

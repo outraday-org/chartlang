@@ -33,9 +33,11 @@ function run(body: string): { statements: readonly string[]; codes: string[] } {
 }
 
 describe("ta.* passthrough", () => {
-    it("maps a clean ta.* member through with arg passthrough", () => {
+    it("maps a clean ta.* member through with arg passthrough + `.current`", () => {
+        // `ta.*` returns a `Series<number>`; `.current` projects the scalar so
+        // the value is usable as a number in Pine's per-bar model.
         expect(run("x = ta.ema(close, 9)\nplot(x)").statements[0]).toBe(
-            "let x = ta.ema(bar.close, 9);",
+            "let x = ta.ema(bar.close, 9).current;",
         );
     });
 
@@ -44,14 +46,36 @@ describe("ta.* passthrough", () => {
             if (mapping.chartlang === null) {
                 continue;
             }
+            // `pivothigh`/`pivotlow` restructure into a `pivotsHighLow({...})`
+            // field projection rather than a plain rename — covered separately.
+            if (pine === "ta.pivothigh" || pine === "ta.pivotlow") {
+                continue;
+            }
             const { statements } = run(`x = ${pine}(close, 9)\nplot(x)`);
-            expect(statements[0]).toBe(`let x = ${mapping.chartlang}(bar.close, 9);`);
+            expect(statements[0]).toBe(`let x = ${mapping.chartlang}(bar.close, 9).current;`);
         }
+    });
+
+    it("restructures ta.pivothigh / ta.pivotlow into a pivotsHighLow field projection", () => {
+        expect(run("x = ta.pivothigh(5, 3)\nplot(x)").statements[0]).toBe(
+            "let x = ta.pivotsHighLow({ leftLength: 5, rightLength: 3 }).high.current;",
+        );
+        expect(run("y = ta.pivotlow(5, 3)\nplot(y)").statements[0]).toBe(
+            "let y = ta.pivotsHighLow({ leftLength: 5, rightLength: 3 }).low.current;",
+        );
+        // A single-arg form reuses the bound for both lengths.
+        expect(run("z = ta.pivothigh(4)\nplot(z)").statements[0]).toBe(
+            "let z = ta.pivotsHighLow({ leftLength: 4, rightLength: 4 }).high.current;",
+        );
+        // Defensive: no args → an empty-opts pivot call (still type-valid).
+        expect(run("w = ta.pivothigh()\nplot(w)").statements[0]).toBe(
+            "let w = ta.pivotsHighLow().high.current;",
+        );
     });
 
     it("warns ta-signature-divergence for an entry with a signatureNote", () => {
         const { statements, codes } = run("x = ta.rma(close, 9)\nplot(x)");
-        expect(statements[0]).toBe("let x = ta.smma(bar.close, 9);");
+        expect(statements[0]).toBe("let x = ta.smma(bar.close, 9).current;");
         expect(codes).toContain("pine-converter/transform/ta-signature-divergence");
     });
 

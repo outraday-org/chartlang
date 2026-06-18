@@ -51,6 +51,33 @@ The compiler walks every literal lookback and records the maximum into
 at least `maxLookback + 1` slots. A script that never looks back still
 has room for the current bar.
 
+## Shifting output with the `ta` `offset` option
+
+Indexing reads a prior value at one callsite. To shift an entire series
+forward — so its `.current` reads the value from N bars ago on every
+bar — pass the universal `opts.offset` to any `ta.*` primitive:
+
+```ts
+import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "SMA Offset",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, ta, plot }) {
+        const sma = ta.sma(bar.close, 20);
+        const shifted = ta.sma(bar.close, 20, { offset: 5 });
+        // shifted.current === sma[5] on every bar.
+        plot(sma, { title: "SMA(20)" });
+        plot(shifted, { title: "SMA(20) offset 5" });
+    },
+});
+```
+
+`offset` lives on the `ta` call, not on `plot` — `plot` has no offset
+option. A positive offset displaces the line to the right; the same
+prior values stay reachable by indexing the unshifted series (`sma[5]`).
+
 ## Warmup and NaN
 
 Every `ta.*` primitive declares a warmup window. `ta.ema(_, n)` returns
@@ -88,6 +115,48 @@ have special NaN handling documented on their own pages.
 Object-valued series (such as `request.lowerTf`, which is a
 `Series<ReadonlyArray<Bar>>`) use empty frozen arrays for out-of-range
 or unsupported reads.
+
+## Anchoring drawings by bar offset — `bar.point`
+
+Drawings persist a single coordinate frame: a `WorldPoint` of
+`{ time, price }`. Authoring an offset-relative anchor (e.g. "10 bars
+ago") as an absolute timestamp is awkward, so `bar.point(offset, price)`
+resolves an integer bar offset to the matching `WorldPoint` at compute
+time. It is authoring sugar — it introduces no new anchor shape, and it
+composes directly with every `draw.*` anchor argument.
+
+```ts
+import { defineDrawing } from "@invinite-org/chartlang-core";
+
+export default defineDrawing({
+    name: "tracking line",
+    apiVersion: 1,
+    compute({ bar, draw }) {
+        // From the close 10 bars ago to the current close.
+        draw.line(bar.point(-10, bar.close), bar.point(0, bar.close));
+    },
+});
+```
+
+Offset semantics, relative to the current bar:
+
+- `bar.point(0, price)` — the current bar (`{ time: bar.time, price }`).
+- `bar.point(-n, price)` — `n` bars back, using the **real** historical
+  timestamp from the runtime's time history. If `n` exceeds retained
+  history the time is `NaN` (graceful degradation, the same as a series
+  lookback past history) — it never throws.
+- `bar.point(n, price)` — `n` bars into the future. The bar does not
+  exist yet, so the time is extrapolated as
+  `lastTime + n * spacing`, where `spacing` is the median delta of the
+  most recent retained bar times (falling back to the parsed bar interval
+  when fewer than two bars are retained).
+
+A **negative integer-literal** offset contributes to the script's
+lookback exactly like `series[n]`, so the runtime sizes the time buffer
+to retain enough depth — `bar.point(-10, …)` keeps ten bars of history.
+Positive (future) offsets need no buffer depth, and a non-literal /
+dynamic offset cannot be sized at compile time (reads past retention
+return a `NaN` time, just like a dynamic series index).
 
 ## Lookback is bounded — dynamic indices are flagged
 

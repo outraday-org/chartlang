@@ -8,7 +8,7 @@ import { lookup } from "./types.js";
  * The six Pine v6 drawing-object constructors the converter recognises.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const c: PineDrawingConstructor = "line.new";
  *     void c;
@@ -82,7 +82,7 @@ const LABEL_SETTERS = setters([
  * synthesises (`table.new` — Task 13).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { DRAWING_KIND_MAP } from "@invinite-org/chartlang-pine-converter";
  *     const m = DRAWING_KIND_MAP.get("line.new");
@@ -145,7 +145,7 @@ export const DRAWING_KIND_MAP: ReadonlyMap<PineDrawingConstructor, DrawingMappin
  * (`linefill.new`).
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { drawingLookup } from "@invinite-org/chartlang-pine-converter";
  *     const m = drawingLookup("line.new");

@@ -1,6 +1,6 @@
 # Pine → chartlang converter
 
-> **Stability:** `@experimental` · Drawings v1.
+> **Stability:** `@stable` · Drawings v1.
 
 Convert **Pine Script v6** indicators to chartlang `.chart.ts` scripts.
 The v1 slice is **drawings-focused** — it covers `line.new`, `label.new`,

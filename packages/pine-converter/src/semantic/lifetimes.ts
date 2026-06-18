@@ -18,7 +18,7 @@ type MutableLifetime = {
  * declaration; later events attach to the same {@link SymbolInfo} identity.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { createLifetimeCollector } from "./lifetimes.js";
  *     const c = createLifetimeCollector();
@@ -45,7 +45,7 @@ export type LifetimeCollector = Readonly<{
  * Create a fresh {@link LifetimeCollector}.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { createLifetimeCollector } from "./lifetimes.js";
  *     createLifetimeCollector().build().size; // 0

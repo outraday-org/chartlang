@@ -11,7 +11,7 @@ import type { Diagnostic } from "../index.js";
  * mode (Task 18). Indented two spaces.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const json = formatDiagnosticsJson([
  *         {

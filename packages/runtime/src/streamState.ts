@@ -1,8 +1,16 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Bar, BarViewport, Series, StreamSnapshot } from "@invinite-org/chartlang-core";
+import type {
+    Bar,
+    BarViewport,
+    Price,
+    Series,
+    StreamSnapshot,
+    WorldPoint,
+} from "@invinite-org/chartlang-core";
 
+import { resolveBarPoint } from "./barPoint.js";
 import { Float64RingBuffer } from "./ringBuffer.js";
 import { makeSeriesView } from "./seriesView.js";
 
@@ -88,6 +96,7 @@ export type BarView = {
     symbol: string;
     interval: string;
     viewport: BarViewport;
+    point(offset: number, price: Price): WorldPoint;
 };
 
 /**
@@ -237,6 +246,12 @@ export function createStreamState(args: {
         symbol,
         interval,
         viewport: Object.freeze({ fromTime: 0, toTime: 0 }),
+        // Closes over the stream's time history + the live `BarView` scalars so
+        // offset-anchored drawings resolve against the real / extrapolated time
+        // at compute time. The `WorldPoint` it returns is the only persisted
+        // anchor frame — `bar.point` adds no new wire shape.
+        point: (offset: number, price: Price): WorldPoint =>
+            resolveBarPoint(ohlcv.time, bar.interval, bar.time, offset, price),
     };
     const seriesViews: StreamState["seriesViews"] = {
         time: makeSeriesView<number>(ohlcv.time),

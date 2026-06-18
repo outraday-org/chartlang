@@ -9,6 +9,57 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
 
 ## Invariants
 
+### Synthesized identifier naming (`src/transform/nameAllocator.ts`)
+
+- **Every synthesized identifier in the generated output is READABLE and
+  collision-safe — there is NO blanket `__` prefix.** The old convention
+  prefixed every synthesized name with `__` to disambiguate it from a
+  translated Pine identifier; that is GONE. A drawing handle from `var line
+  trail = na` is emitted as `const trail = …` (the Pine identifier reused), a
+  ring from `var array<line> lvls` as `lvls`, a scalar state slot as its Pine
+  name, the bar-index bridge as `barCount`/`barIndex`, the drawing-handle
+  helper as `HandleSlot`/`useDrawingHandleSlot`/`HandleRing`/
+  `useDrawingHandleRing`. If you add a new synthesized-name SITE, route it
+  through the allocator — never re-introduce a `__` prefix and never inline an
+  affixed name at a call site.
+- **`ScriptScaffold.names: NameAllocator` is the single, scope-aware allocator
+  threaded through every name site.** It is seeded ONCE in
+  `transformDeclaration` via `collectReservedNames(analysis)` (the `compute`
+  context params `bar`/`draw`/…, the JS/TS reserved words, and every declared
+  Pine symbol name). It exposes three claim methods, all of which sanitize the
+  base (strip a leading `__`, drop invalid chars, prefix a digit-leading base
+  with `n`, fall back to `value`) and NEVER return a `__`-prefixed name:
+  - `allocateForSymbol(pineName)` — for a Pine SYMBOL (handle / ring / state
+    slot / tuple-result). Prefers the symbol's own identifier (so `trail`
+    stays `trail`); the seeded Pine name is reclaimable here because the
+    symbol's source references are rewritten to this synthesized name. MEMOIZED
+    per `pineName`, so two sites touching one symbol (e.g. two `array.push`
+    into one ring, or `tupleResultName` called from both `tupleAliases` and
+    `emitTupleDeclaration`) get the SAME name — the dedup the old pure
+    `ringLocalName`/`handleSlotLocalName` got for free.
+  - `allocate(preferred)` — for a GENERIC synthesized name (the ring element
+    temp `element`, an inline-input `inlineInput`, a table `<handle>Cells`).
+    Avoids BOTH the seeded user names and previously-emitted names.
+  - `allocateMemoized(key, preferred)` — for the codegen helper names, MEMOIZED
+    by `key` so `emit(scaffold)` is deterministic across repeated calls (a
+    second invocation replays the first allocation instead of suffixing).
+- **Collision rule.** When a preferred base is already taken, the allocator
+  appends the smallest integer ≥ 2 that is free (`trail` → `trail2` →
+  `trail3`), NEVER a `__` fallback. A Pine script that already has a var named
+  `barIndex` forces the bar-index bridge to `barIndex2`; a Pine handle and a
+  helper both wanting `HandleSlot` resolve to `HandleSlot` / `HandleSlot2`.
+- **The `bar_index` VALUE read flows through an internal sentinel, renamed at
+  codegen.** `mapping/builtinIdentifiers.ts` lowers `bar_index` to the fixed
+  `__barIndexBridge()` sentinel at transform time (before the bridge name is
+  allocated — `emitExpr` is a pure function not threaded the allocator).
+  `codegen/emitCompute.ts` allocates the readable `HelperNames` (last, after
+  every per-symbol name) and `renameBarIndexSentinel` rewrites the
+  `__barIndexBridge` / `__barIndexBridgeCount` sentinels to the allocated
+  `barIndex` / `barCount` across EVERY emitted line. The sentinel is the ONE
+  internal `__` token, and it NEVER reaches the generated `.chart.ts`
+  (`usage.ts` keys its bridge-needed flag on `BAR_INDEX_SENTINEL`). yloc
+  padding lowers to an inline `0.001` literal — no synthesized const.
+
 ### Lexer (`src/lexer/`)
 
 - **`lex` is package-internal — never re-exported from `src/index.ts`.**
@@ -48,9 +99,10 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
 - **Every Pine → chartlang name/enum decision routes through one table
   here — no transform re-derives a mapping.** `DRAWING_KIND_MAP`,
   `ENUM_VALUE_MAP`, `INPUT_MAP`, `TA_PASSTHROUGH_MAP`,
-  `MATH_PASSTHROUGH_MAP` are immutable `ReadonlyMap`s; Tasks 7–15 consume
-  them. Add a Pine-version symbol = add one row, never branch in a
-  transform.
+  `MATH_PASSTHROUGH_MAP`, `MULTI_RETURN_TA_MAP` (multi-output `ta.*` tuple
+  destructuring — `ta.macd`/`bb`/`kc`/`dmi`/`supertrend`) are immutable
+  `ReadonlyMap`s; Tasks 7–15 consume them. Add a Pine-version symbol = add one
+  row, never branch in a transform.
 - **`chartlang: null` is the REJECT marker, and `lookup(map, key)`
   collapses both "absent key" and "REJECT entry" to `null`.** Callers get
   a single "no usable target" signal; the diagnostics layer reads the
@@ -232,14 +284,19 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   context is a handle var, else `numeric`; an `na(receiver)` call takes its
   flavour from the receiver's resolved `handleType`. Transforms read
   `SemanticAnnotation.naKind` rather than re-inferring.
-- **Tuple-LHS multi-return (`[a, b] = f()`) is NOT parsed and NOT wired
-  here.** The parser already discards a leading-`[` statement as
-  `unexpected-token` (it can't start an expression), and the v1 drawing
-  scope defers the multi-return surfaces (`request.security`/MTF). The
-  semantic pass therefore only guards a `TupleExpression` reaching a value
-  position with `unsupported-tuple-destructuring` (info). Revisit when a
-  later slice adds the multi-return surfaces — that work owns wiring a real
-  tuple-LHS statement form in the parser.
+- **Tuple-LHS multi-return (`[a, b, c] = ta.macd(...)`) IS parsed + wired.**
+  A statement-leading `[` whose head matches `[ ident (, ident)* ] =`
+  (`looksLikeTupleDeclaration`, `parser/statements.ts`) parses to a
+  `TupleDeclaration` AST node (`names: { name; span }[]` — per-name spans so
+  the semantic `symbols` map gets one entry per element, no span collision);
+  any other `[` line still routes to `unexpected-token`. `walkTupleDeclaration`
+  walks the RHS and `defineSymbol`s each non-`_` target (a `_` is a discarded
+  placeholder, not bound). The transform layer lowers it (see the codegen
+  `emitTa`/tuple section). The legacy `unsupported-tuple-destructuring` (info)
+  now fires ONLY for a `TupleExpression` reaching a VALUE position (RHS), which
+  the statement form never produces. `request.security`/MTF multi-return is
+  still out of scope (its RHS isn't a recognised multi-output `ta.*`, so it
+  warns `multi-return-not-mapped`).
 - **`builtins.ts` / `types.ts` carry no branchy logic** and `types.ts` is
   coverage-excluded; every other `semantic/` module holds 100%
   line/branch/function. Defensive switch arms unreachable from real parser
@@ -273,14 +330,31 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `unresolved-bar-index` warning + historical offset 0. `xloc.bar_time` x
   values pass through as `bar-time-direct` (or `literal-world-point` when
   both coords are numeric literals).
-- **Future-bar synthesis is fail-loud.** A `bar-index-future` anchor needs a
-  bar interval; Task 16 emits `bar.time + ((N) * __BAR_INTERVAL_MS)`. When
-  `opts.barInterval` is null AND any future anchor is produced, the resolver
-  emits exactly ONE `requires-bar-interval` error (deduped via a single
-  span flag), at the first offending anchor's span — not one per anchor.
+- **Bar-offset anchors lower to `bar.point(<signed offset>, <price>)`.**
+  `anchorToWorldPoint` (`coordinates.ts`) emits `bar.point(0, price)` for the
+  current bar, `bar.point(-(N), price)` for an `N`-back historical offset, and
+  `bar.point((N), price)` for an `N`-ahead future offset; `chart-point-now`
+  also collapses to `bar.point(0, price)`. The runtime resolves the offset to a
+  real (historical) or extrapolated (future) `WorldPoint` at compute time, so
+  the converter NO LONGER synthesises `bar.time ± (N * __BAR_INTERVAL_MS)`
+  arithmetic or emits the `__BAR_INTERVAL_MS = 0` sentinel const
+  (`emitBarIntervalConst` and the `UsageFlags.barInterval` flag were removed).
+  The drawing anchor frame is still ONLY `WorldPoint { time, price }`;
+  `bar.point` is authoring sugar, not a new anchor shape. The `barIndex` /
+  `barCount` running-count bridge (for `bar_index` VALUE reads; readable + collision-safe, internal `__barIndexBridge` sentinel renamed at codegen) is unrelated
+  and stays.
+- **`requires-bar-interval` stays as a manifest-intent signal, not a hard
+  arithmetic dependency.** A `bar-index-future` anchor still carries
+  `requiresBarInterval: true` and, when `opts.barInterval` is null AND any
+  future anchor is produced, the resolver emits exactly ONE
+  `requires-bar-interval` error (deduped via a single span flag) at the first
+  offending anchor's span. Future anchors now resolve at runtime via
+  `bar.point`, so the interval is advisory (it drives
+  `manifest.requiresBarInterval`) rather than feeding a `__BAR_INTERVAL_MS`
+  computation.
 - **`na` emission is context-sensitive and lives in `exprEmit`, not the
   identifier map.** `BUILTIN_IDENTIFIER_MAP` (`src/mapping/builtinIdentifiers
-  .ts`) maps OHLCV/`time` → `bar.*` and `bar_index` → `__bar_index()` but
+  .ts`) maps OHLCV/`time` → `bar.*` and `bar_index` → the internal `__barIndexBridge()` sentinel (renamed to `barIndex()` at codegen) but
   deliberately OMITS `na`: the emitter reads `SemanticAnnotation.naKind` per
   node and emits `null` (handle) or `Number.NaN` (numeric/absent).
 - **`table.new`/`linefill.new`/`polyline.new` carry no `(time, price)`
@@ -375,7 +449,7 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `*Expr`, `ComputeBodyIR`).
 - **A named input (`len = input.int(20)`) keys its descriptor by the bound
   name; an inline input (`ta.ema(close, input.int(20))`) is promoted to a
-  synthesised `__input_<n>` name with an `inline-input-promoted` info.** The
+  synthesised `inlineInput` name (allocator-issued, e.g. `inlineInput`/`inlineInput2`) with an `inline-input-promoted` info.** The
   walk descends `if`/`for`/`switch`/block bodies + full expression trees; a
   declaration whose value is DIRECTLY an `input.*` call is named, anything
   else is scanned for nested (inline) inputs. The actual call-node → 
@@ -407,17 +481,47 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `DiagnosticCollector`; Task 16 codegen reads `scaffold.handleSlots` +
   `scaffold.computeBody`.
 - **The handle slot name is THE cross-task contract Task 11 reuses.**
-  `handleSlotLocalName(pineName)` (`handleSlot.ts`) → `"__<pineName>_handle"`;
+  `handleSlotLocalName(pineName, scaffold.names)` (`handleSlot.ts`) reuses the Pine identifier (`var line trail` → `trail`);
   Camp A stores that FINAL local in `HandleSlotIR.name` and references it
   verbatim in compute statements. Task 16 codegen emits both the
   `useDrawingHandleSlot` helper DEFINITION and the
-  `const __<name>_handle = useDrawingHandleSlot<"<kind>">();` allocation from
+  `const <name> = useDrawingHandleSlot<"<kind>">();` allocation (readable handle local) from
   `scaffold.handleSlots` — Camp A does NOT emit the helper or the allocation
   (the §8 prose in the task file is overridden by Task 16 §1/§4; follow the
-  IR/codegen split). The emitted compute statements are:
+  IR/codegen split). The GENERAL (non-compact) compute statements are:
   `if (<local>.current() === null) { <local>.set(<drawCall>); }`, one
   `<local>.current()?.update(<patch>);` per branch, and
   `<local>.current()?.remove(); <local>.set(null);` per `*.delete`.
+- **The single-persistent-handle COMPACT lowering drops the slot machinery for
+  the common case.** `HandleSlotIR` carries a `compact: boolean`. A slot is
+  compact when the handle is a plain `var` (NOT `varip`) AND has NO `*.delete`
+  anywhere in the script. The compact form exploits the runtime's
+  callsite-persistence (each `draw.*` callsite keys its drawing state by slot id
+  and re-emits `op: "update"` with merged state on cross-bar re-entry —
+  `createDrawingHandle` in runtime `emit/draw/handle.ts`): a `const <local> =
+  draw.<kind>(…)` evaluated every bar IS the persistent handle, and the followup
+  `<local>.update(<patch>)` patches it. This is byte-identical at the EMISSION
+  level to the general form — the `useDrawingHandleSlot` closure resets every
+  bar, so its `current() === null` guard fires the SAME `draw.*` callsite every
+  bar (create → runtime-merged update), and its `current()?.update(…)` patches
+  the just-created handle. Camp A therefore emits, for a compact slot:
+  `const <local> = <drawCall>;` and one `<local>.update(<patch>);` per branch.
+  The PINNING contract is unchanged: a partial whole-anchor move (`set_xy2`
+  only) still fills the un-moved index from the creation expression via
+  `drawCallAnchors`/`foldSetters` (with `partial-anchor-filled`), so the anchor
+  expression strings — and thus the per-bar emissions — match the general form
+  exactly. The golden corpus + `fixtures-compile.test.ts` round-trip guard this.
+- **The compact lowering FALLS BACK to the general slot machinery whenever the
+  shape is not the clean single-create idiom.** A `*.delete` (the bare `const`
+  cannot express the slot's `set(null)` + next-bar resurrection cleanly), a
+  `varip` handle, a `table.new` site (`transformTables`, always non-compact), a
+  static `linefill`/`polyline` site (`transformPolylineLinefill`, always
+  non-compact), and any Camp B/C ring all stay non-compact. Codegen emits the
+  `useDrawingHandleSlot` helper + `DrawingHandle` import iff ANY handle slot is
+  non-compact (`hasNonCompactHandleSlot`, `emitHelpers.ts`); a compact slot
+  emits NO allocation in `emitSlotAllocations` (its `const` create IS the
+  allocation). `scanUsage.drawingHandle` (the `type DrawingHandle` import gate)
+  is likewise `hasNonCompactHandle || hasRings`.
 - **`synthesizeDrawCall(kind, call, ctx)` (`handleSlot.ts`) is the reusable
   draw-call synthesis** (Camp A wraps it in `slot.set(...)`, Camp B will wrap
   it in `ring.push(...)`). `ctx: DrawCallContext = { annotations, anchors,
@@ -452,7 +556,7 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `cross-mount-state-not-preserved` (info, deduped once per site by code via
   the `DIAGNOSTIC_CODES[code].code` full-string `has(...)` check — `pushCode`
   stores the FULL stable code, not the short key). `yloc.abovebar/belowbar`
-  → `bar.high|low ± ((bar.high - bar.low) * __YLOC_PAD_FRAC)` (`ylocResolve.ts`)
+  → `bar.high|low ± ((bar.high - bar.low) * 0.001)` inline literal (`ylocResolve.ts`)
   + a once-per-script `yloc-padding-approximated`.
 - **`anchorToWorldPoint` / `resolveAnchorExpr` live in `coordinates.ts`** (not
   `handleSlot.ts`) to avoid a `handleSlot`↔`setterFold` import cycle.
@@ -493,8 +597,8 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
 - **The ring API is THE cross-task contract Task 12 (Camp C) + Task 13
   (tables) reuse** (`ringHelper.ts`, all re-exported from
   `src/transform/index.ts`):
-  - `ringLocalName(collectionName)` → `"__<coll>_ring"` (codegen emits the
-    matching `const __<coll>_ring = useDrawingHandleRing<"<kind>">(<cap>);`
+  - `ringLocalName(collectionName, scaffold.names)` allocates the readable ring local REUSING the Pine collection identifier (`var array<line> lvls` → `lvls`) (codegen emits the
+    matching `const <coll> = useDrawingHandleRing<"<kind>">(<cap>);`
     allocation from `scaffold.handleRings` — Camp B does NOT emit the helper
     or allocation, same IR/codegen split as Camp A's handle slot).
   - `resolveRingCap(site, diagnostics): number | null` →
@@ -517,8 +621,8 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   for its read-site rewrites.
 - **Loop-driven updates lower to a literal-bounded `for`.** A `for i = 0 to
   array.size(coll) - 1` whose body `set_*`s `array.get(coll, i)` becomes
-  `for (let i = 0; i < <K>; i++) { const __h = <ring>.at(i); if (__h === null)
-  continue; __h.update(<patch>); }` — the bound is the LITERAL cap (always),
+  `for (let i = 0; i < <K>; i++) { const element = <ring>.at(i); if (element === null)
+  continue; element.update(<patch>); }` — the bound is the LITERAL cap (always),
   `at(i)` internally gates the filled count, and `.update()` is a method (not
   a stateful primitive) so it is loop-legal. The patch folds via the shared
   `foldSetters` (deep single-coordinate setters drop with
@@ -636,7 +740,7 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `"table"` for which `synthesizeDrawCall` has no `draw.*` method. Task 16
   codegen's Camp A loop MUST skip `site.constructor === "table.new"` and
   hand those sites to `transformTables`. The handle-slot naming is still
-  shared (`handleSlotLocalName` → `__<name>_handle`, `kind: "table"`); only
+  shared (`handleSlotLocalName` reuses the Pine identifier, `kind: "table"`); only
   the body synthesis diverges.
 - **The chartlang `draw.table` cell model matches Pine's `(col, row)` grid
   cleanly.** core `TableCell` is `{ text; bgColor?; textColor?;
@@ -755,17 +859,64 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
 
 ### Transform: control flow + passthrough (`src/transform/other.ts`)
 
-- **`transformOther(analysis, scaffold, diagnostics): void` (`other.ts`) is
-  the LAST transform — it populates the `computeBody` for every NON-drawing
-  top-level statement.** Task 16 codegen calls it after `transformDeclaration`/
-  `transformInputs`/`transformCampA`/`transformCampB`/`transformCampC`/
-  `transformTables`/`transformPolylineLinefill`. The Task-15 file named the
-  entry `transformOther` in `src/transform/other.ts`, NOT `transformControlFlow`
-  in `controlFlow.ts` — `controlFlow.ts` is a package-private lowerer module.
-  The §5 `sourceIndex`-interleaving + `RawTsStatement`/`IfStatement` IR the
-  task file describes were never built; the real IR is verbatim STRING
-  statements appended via `appendComputeStatement` (the established precedent),
-  emitted in pipeline order.
+- **`transformOther(analysis, scaffold, diagnostics): void` (`other.ts`)
+  populates the `computeBody` for every NON-drawing top-level statement, and
+  it runs FIRST — before the Camp A/B/C + tables + polyline drawing transforms
+  (`convert` in `src/index.ts`).** The non-drawing scalar declarations it emits
+  (`let ph = ta.pivotsHighLow({…}).high.current`) MUST precede the drawing
+  pushes/updates that reference them — Pine declares a pivot/level scalar at the
+  top, then pushes it into a collection inside a guard, so emitting the push
+  first would reference `ph` before its `let` (a `used-before-declaration`
+  compile error). `transformOther` reads only `analysis` + `scaffold.inputs`
+  (never the drawing transforms' output), so running it first is order-safe.
+  (Earlier this was the LAST transform — that ordering shipped the
+  used-before-declaration bug.) The entry is `transformOther` in
+  `src/transform/other.ts`, NOT `transformControlFlow` in `controlFlow.ts`
+  (a package-private lowerer module). The §5 `sourceIndex`-interleaving +
+  `RawTsStatement`/`IfStatement` IR the task file describes were never built;
+  the real IR is verbatim STRING statements appended via
+  `appendComputeStatement`.
+- **`emitTa` appends `.current` to every top-level `ta.*` result, and an input
+  read lowers as `inputs.<name> as <type>`.** chartlang `ta.*` returns a
+  `Series<number>` (a history view object) and types `compute({ inputs })`
+  loosely, so the literal Pine `ph = ta.X(...)` / `len` references do not
+  type-check as scalars without these. `.current` projects the per-bar scalar
+  (`ta.*` keeps its own per-call-site history, so feeding scalars in and reading
+  `.current` out reproduces Pine semantics); `inputCastType` (`other.ts`) →
+  `number`/`boolean`/`string` from the `input.*` factory drives the
+  `inputs.len as number` cast (`EmitContext.inputCasts`). `ta.pivothigh`/
+  `ta.pivotlow` restructure to `ta.pivotsHighLow({ leftLength, rightLength })
+  .high|.low` (a function-result field projection, NOT a
+  `ta.pivotsHighLow.high(...)` method).
+- **Multi-output `ta.*` tuple destructuring lowers via `MULTI_RETURN_TA_MAP`
+  (`mapping/multiReturnTa.ts`).** `[macdLine, signalLine, hist] = ta.macd(...)`
+  emits ONE result const `const <firstName>Result = ta.macd(bar.close, {
+  fastLength, slowLength, signalLength });` (the `emitTupleDeclaration` arm in
+  `other.ts`), and each element rewrites to `<firstName>Result.<field>.current`
+  via `EmitContext.tupleFieldAliases` (pre-scanned by `registerTupleFields`,
+  checked in `rewriteIdentifier` after `stateSlots`, before `inputNames`). The
+  table is keyed by Pine name → `{ chartlang, args, fields }`: `args` is the Pine
+  positional layout (`positional` | `opt:<key>` | `drop`) folded into the
+  trailing opts object; `fields` is the chartlang field per Pine TUPLE POSITION
+  (Pine order, so Bollinger's `[middle, upper, lower]` is encoded even though
+  chartlang's own field order is `{upper, middle, lower}`), `null` for a Pine
+  output with no chartlang field. Seeded: `ta.macd`, `ta.bb`, `ta.kc`
+  (→`ta.keltner`, source/`useTrueRange` dropped), `ta.dmi` (ADX → `null` field),
+  `ta.supertrend`. A `multiReturnTa.test.ts` cross-checks every non-null field
+  against the core `*Result` type. Diagnostics: `multi-return-not-mapped`
+  (warning, unrecognised RHS — emits nothing), `multi-return-arity-mismatch`
+  (warning, a name binds a `null`/absent field, e.g. dmi's ADX),
+  `multi-return-arg-dropped` (info, a Pine arg dropped). Add a function = add one
+  table row + verify Pine return order.
+- **KNOWN GAPS** (covered by the `KNOWN_NON_COMPILING` skip list in
+  `fixtures-compile.test.ts`): a `ta.*` nested inside an expression
+  (`mult * ta.stdev(...)`) is not `.current`-lowered (only top-level), so series
+  arithmetic does not yet compile; draw-call style opts (`line.new(…,
+  color=lineColor)`) are not input-aware, so an input-styled drawing leaks the
+  bare name; Pine OHLCV / tuple-element history `close[i]` / `macdLine[1]` has no
+  scalar chartlang analogue (the `.current` alias makes `macdLine[1]` →
+  `…macd.current[1]`, invalid); a tuple-decl element reassigned with `:=` is not
+  supported.
 - **Drawing-ownership dedup is the load-bearing skip.** `transformOther` walks
   ALL statements but emits ONLY non-drawing ones: it skips (a) any call that is
   a `DRAWING_KIND_MAP.has` constructor, (b) a `*.set_*`/`*.delete`/`array.*`/
@@ -797,7 +948,7 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `state.string`); a `varip` uses the `state.tick.*` form; an un-inferable type
   (e.g. a `#RRGGBB` color literal, an identifier init) defaults to `state.float`
   + a `scalar-state-type-defaulted` info — the converter NEVER silently guesses.
-  Slot local is `__<name>_state`; reads → `<slot>.value`, `:=` → `<slot>.value
+  Slot local REUSES the Pine scalar identifier; reads → `<slot>.value`, `:=` → `<slot>.value
   = …`. The `MutableSlot<T>` API is `.value` get/set (NOT the drawing-handle
   slot's `.current()`/`.set()`). A plain `=` declaration → `let x = …`; a `=`
   the semantic pass flags `declaration` → `let`, a reassignment → bare `x = …`.
@@ -870,34 +1021,43 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `emitCompute.ts`), then runs a brace-depth reindent (`format.ts`). All
   compute statements + input/state refs reach codegen as FINAL chartlang
   source strings (the transforms did every `len → inputs.len` / scalar
-  `var → __x_state.value` rewrite) — codegen NEVER rewrites identifiers.
+  `var → <slot>.value` rewrite) — codegen NEVER rewrites identifiers.
 - **Codegen OWNS the drawing-handle helper DEFINITIONS + every module-state /
   handle / ring allocation, and emits them INSIDE `compute`, not at module
   level.** `draw`/`state` are only bound via the destructured `compute(ctx)`
   param — there is no module-scope `draw`/`state` — so `useDrawingHandleSlot`
   (`type` + `function`), `useDrawingHandleRing` (`type` + fixed-cap FIFO
   `function` that `remove()`s the evicted handle), the `state.*` slot
-  allocations (`const __x_state = state.int(0);`), the handle-slot allocations
-  (`const __lvl_handle = useDrawingHandleSlot<"line">();`), and the ring
-  allocations (`const __lvls_ring = useDrawingHandleRing<"line">(50);`) are ALL
+  allocations (`const count = state.int(0);`), the handle-slot allocations
+  (`const lvl = useDrawingHandleSlot<"line">();`), and the ring
+  allocations (`const lvls = useDrawingHandleRing<"line">(50);`) are ALL
   emitted at the top of the compute body (`emitHelpers.ts` +
   `emitCompute.ts`). The task file's §Desired-Behaviour template showed these
   at module top — that CANNOT compile; the compute-body placement is verified
   by the `emit-compile.test.ts` round-trip through
   `@invinite-org/chartlang-compiler`. `@invinite-org/chartlang-core` ships NO
   such helpers — the converter defines them itself; `DrawingHandle` IS a real
-  core type, imported type-only.
+  core type, imported type-only. **A COMPACT handle slot
+  (`HandleSlotIR.compact === true`, the single-persistent-handle Camp A
+  lowering) emits NO allocation and needs NO helper:** its `const <local> =
+  draw.<kind>(…)` create statement (emitted by Camp A) is the allocation, so
+  `emitSlotAllocations` skips it and `emitHandleSlotHelper` is gated on
+  `hasNonCompactHandleSlot(scaffold)` (not `handleSlots.length > 0`). The helper
+  + `DrawingHandle` import appear iff at least one handle slot is non-compact OR
+  a ring exists.
 - **`scanUsage(scaffold)` (`usage.ts`) is the SINGLE source of truth for both
   the import list AND the `compute` destructure** so they never drift. `draw`/
   `state` force-on when the scaffold carries handle/ring/state allocations;
-  `DrawingHandle` rides in whenever any handle slot or ring is emitted;
-  everything else is a substring scan over the generated source corpus (every
-  statement is already a final string). The emission ORDER for the pipeline is
+  `DrawingHandle` rides in whenever a NON-compact handle slot or any ring is
+  emitted (a compact slot's bare `const` carries no type annotation, so it never
+  names `DrawingHandle`); everything else is a substring scan over the generated
+  source corpus (every statement is already a final string). The emission ORDER for the pipeline is
   fixed (`transformDeclaration` builds + RETURNS the scaffold → `transformInputs`
-  → per-site Camp A/B/C dispatch, **skipping `table.new`** → `transformTables`
-  → `transformPolylineLinefill` → `transformOther` LAST → `emit`), wired in
-  `convert()` (`src/index.ts`, sync, no compile round-trip — that is the async
-  `convertFile`'s job, Task 18).
+  → **`transformOther` FIRST** (so scalar `let`s precede the drawing pushes that
+  read them) → per-site Camp A/B/C dispatch, **skipping `table.new` AND
+  `polyline.new`** (their dedicated transforms own them) → `transformTables`
+  → `transformPolylineLinefill` → `emit`), wired in `convert()` (`src/index.ts`,
+  sync, no compile round-trip — that is the async `convertFile`'s job, Task 18).
 - **`emitMaxDrawings.ts` emits ALL FIVE buckets when any is set** (unset → `0`)
   — core's `DrawingCounts` is a total 5-bag budget, so a partial literal is a
   compile-time type error; omit the whole property only when no bucket is set.

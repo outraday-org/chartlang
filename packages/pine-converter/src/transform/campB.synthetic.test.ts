@@ -104,7 +104,7 @@ describe("transformCampB — defensive arms", () => {
             span: SPAN,
         };
         transformCampB(site, analysis, scaffold, diagnostics);
-        expect(scaffold.handleRings).toEqual([{ name: "__coll_ring", kind: "line", cap: 10 }]);
+        expect(scaffold.handleRings).toEqual([{ name: "coll", kind: "line", cap: 10 }]);
         const push = scaffold.computeBody.statements.find((s) => s.includes(".push("));
         expect(push).toBeDefined();
         expect(push).not.toContain("if (");

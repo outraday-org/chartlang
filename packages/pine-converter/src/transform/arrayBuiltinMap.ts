@@ -13,7 +13,7 @@ import { emitExpr } from "./exprEmit.js";
  * return) marks a call that is not a ring-mappable `array.*` read.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     const r: ArrayBuiltinResult = { kind: "source", source: "__lvls_ring.at(0)" };
  *     void r;
@@ -57,7 +57,7 @@ function literalIntIndex(expr: ExpressionNode): number | null {
  * through verbatim.
  *
  * @since 0.1
- * @experimental
+ * @stable
  * @example
  *     import { mapArrayBuiltin } from "./arrayBuiltinMap.js";
  *     declare const call: import("../ast/index.js").CallExpression;
