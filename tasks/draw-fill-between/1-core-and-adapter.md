@@ -8,9 +8,11 @@ Introduce the `"fill-between"` drawing kind across the `core` contract
 (union, lists, bucket, camel/kebab maps, state type, style type,
 `DrawNamespace` signature) and ship the matching `renderFillBetween`
 canvas2d renderer. The renderer is bundled here because
-`drawingDispatch.ts` is an exhaustive `assertNever` switch — adding the
-union member is a compile error (and a 100%-coverage gap) until a real,
-tested renderer arm exists. This task also adds `draw.fillBetween` to
+`drawingDispatch.ts` is an exhaustive switch with a `satisfies never`
+default arm (no `assertNever()` helper call — the unhandled-kind branch is
+narrowed to `never` so an un-cased `DrawingKind` member is a compile
+error) — adding the union member is a compile error (and a 100%-coverage
+gap) until a real, tested renderer arm exists. This task also adds `draw.fillBetween` to
 the core `STATEFUL_PRIMITIVES` registry so the compiler injects a slot id
 when Task 2's runtime implementation lands.
 
@@ -121,9 +123,6 @@ Add `FillBetweenState` immediately after `PathState`, then add it to the
  * @stable
  * @example
  *     const state: FillBetweenState = {
- *         id: "demo",
- *         slotId: "slot",
- *         subId: 0,
  *         kind: "fill-between",
  *         edgeA: [{ time: 0, price: 1 }],
  *         edgeB: [{ time: 0, price: 0 }],
@@ -131,14 +130,23 @@ Add `FillBetweenState` immediately after `PathState`, then add it to the
  *     };
  *     void state;
  */
-export type FillBetweenState = DrawingMeta &
-    Readonly<{
-        kind: "fill-between";
-        edgeA: ReadonlyArray<WorldPoint>;
-        edgeB: ReadonlyArray<WorldPoint>;
-        style: FillBetweenStyle;
-    }>;
+export type FillBetweenState = DrawingMeta & {
+    readonly kind: "fill-between";
+    readonly edgeA: ReadonlyArray<WorldPoint>;
+    readonly edgeB: ReadonlyArray<WorldPoint>;
+    readonly style: FillBetweenStyle;
+};
 ```
+
+**Important:** `DrawingMeta` is `{ name?, visible? }` only — it carries
+**no** `id` / `slotId` / `subId` fields (those live on the wire
+`DrawingEmission`, not on `DrawingState`). A `FillBetweenState` literal is
+`{ kind, edgeA, edgeB, style }` (+ optional `name` / `visible`), exactly
+like the `PathState` / `LineState` / `MarkerState` `@example`s. Do **not**
+add `id` / `slotId` / `subId` to the example — `pnpm docs:check`
+type-checks every `@example`, so an excess-property literal fails the gate.
+Match the `DrawingMeta & { readonly … }` intersection shape the sibling
+states use (not a `Readonly<{ … }>` wrapper).
 
 - Update `drawingState.types.test.ts` `exhaustiveSwitch` to add a
   `case "fill-between":` arm so the exhaustiveness test compiles.
@@ -225,12 +233,14 @@ export function renderFillBetween(ctx: RenderCtx, e: DrawingEmission, view: View
 }
 ```
 
-Wire it: add the import + the `case "fill-between": renderFillBetween(ctx, drawing, view); break;` arm in
-`render/draw/drawingDispatch.ts`, export from `render/draw/index.ts`. The
-dispatch JSDoc count comment is already stale — it says "61 kinds / 61
-arms" (~lines 78-79) while the switch already has 62 live arms. Refresh
-that prose to reflect 63 arms after the new one lands (or drop the exact
-count from the historical narrative).
+Wire it: add the import + the `case "fill-between": renderFillBetween(ctx, emission, view); return;` arm in
+`render/draw/drawingDispatch.ts` (each arm calls
+`renderXxx(ctx, emission, view); return;` — match that shape, the param is
+named `emission`, not `drawing`), export from `render/draw/index.ts`. The
+dispatch JSDoc count comment is already stale — it says "all 61 kinds" /
+"all 61 arms" (~lines 78-80) while the switch already has 62 live arms.
+Refresh that prose to reflect 63 arms after the new one lands (or drop the
+exact count from the historical narrative).
 
 ### 8. Tests (co-located)
 

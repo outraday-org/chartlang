@@ -59,8 +59,12 @@ longer an approximation). The dynamic rejects are unchanged.
 
 ### 1. `emitLinefill` rewrite (`src/transform/polylineLinefill.ts`)
 
-- Reuse the existing two-line anchor extraction that currently builds
-  `quad`. Instead of one `AnchorQuad`, produce two edges:
+- Reuse the existing two-line anchor extraction that currently builds the
+  quad. Note the quad is emitted as a chartlang **source string**
+  (`[aA, aB, bB, bA] as const`, the verbatim-string IR), not an actual
+  `AnchorQuad` value — `AnchorQuad` is a core type but the converter never
+  constructs one; it splices the corner expression strings. Instead of one
+  4-corner string, produce two edge source strings:
   - `edgeA = [lineA.anchor1, lineA.anchor2]`
   - `edgeB = [lineB.anchor1, lineB.anchor2]`
   preserving the exact ordering so the closed polygon matches the old
@@ -68,9 +72,9 @@ longer an approximation). The dynamic rejects are unchanged.
   `edgeB`, so pass `edgeB` as `[B1, B2]`).
 - Emit `draw.fillBetween(edgeA, edgeB, opts)` into the handle slot in
   place of `draw.rotatedRectangle(...)`. Change the `appendHandleSlot`
-  kind tag from `"rectangle"` to `"fill-between"` (confirm
-  `appendHandleSlot`'s `kind` parameter accepts the new tag — widen its
-  type/union if it is constrained to a closed set).
+  kind tag from `"rectangle"` to `"fill-between"`. (No type widening
+  needed: `HandleSlotIR.kind` in `src/transform/ir.ts` is already plain
+  `string`, not a closed union, so it accepts the new tag as-is.)
 - The `opts` object keeps the fill colour mapping; map Pine
   `color.new(c, transp)` transparency to `fillAlpha` (the converter
   already computes this for the rotatedRectangle path — reuse it).

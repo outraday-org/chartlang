@@ -41,9 +41,11 @@ References: root `CLAUDE.md` (skills mirror rule), `CONTRIBUTING.md`
   `namespace.ts` `KIND_IMPLS`.
 - **Reference adapter** (`examples/canvas2d-adapter/src/render/draw/`):
   one `renderXxx` per kind; `drawingDispatch.ts` is an **exhaustive
-  `switch` with an `assertNever` default** — adding a union member is a
-  compile error until a matching arm + renderer land. Coverage gate is
-  100%, so the renderer must be real and tested in the same step.
+  `switch` with a `satisfies never` default arm** (no `assertNever()`
+  helper — the default branch narrows the kind to `never`) — adding a
+  union member is a compile error until a matching arm + renderer land.
+  Coverage gate is 100%, so the renderer must be real and tested in the
+  same step.
 - **Conformance** (`packages/conformance/src/scenarios/`): per-primitive
   scenarios with a pinned `drawing-hash` assertion + registry in
   `index.ts` / `runConformanceSuite.ts`.

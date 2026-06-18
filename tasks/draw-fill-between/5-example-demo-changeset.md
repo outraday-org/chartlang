@@ -34,16 +34,22 @@ No example, demo, or changeset references `draw.fillBetween`.
 - MIT header (repo-wide rule for committed `.ts`).
 - A `defineIndicator` (overlay) that draws a filled band between two
   computed series — e.g. a fast and slow EMA. Accumulate `{ time, price }`
-  into two persistent edge arrays each bar, then either re-emit
-  `draw.fillBetween(edgeA, edgeB, opts)` or `handle.update(...)` a single
-  persistent handle per Task 2's emitted handle contract (`.update`
-  re-anchors, `.remove` deletes). For the per-bar accumulation idiom, see
-  the existing multi-bar drawing examples (`fib-retracement.chart.ts`
-  accumulates world-points across bars). **Note:** verify the persistent
-  `handle.update` idiom against the API Task 2 actually ships — the cited
-  examples demonstrate per-bar accumulation but do not all use
-  `handle.update`, so don't copy a pattern blindly. Keep it minimal and
-  it **must compile + run** through the CLI.
+  into two persistent edge arrays each bar (`state.*` slots or
+  module-level arrays), then **re-emit `draw.fillBetween(edgeA, edgeB,
+  opts)` at a fixed callsite every bar.** This per-bar-re-emit-at-a-stable-
+  callsite idiom is the proven one: the runtime keys each `draw.*` callsite
+  by its injected slot id and merges the re-emission into the same
+  persistent drawing (`createDrawingHandle`, runtime
+  `emit/draw/handle.ts`). It is exactly how the shipped multi-bar examples
+  work — `pivot-high-ray.chart.ts` re-emits one reused
+  `draw.horizontalRay` each bar, `forecast-line.chart.ts` re-emits one
+  `draw.line` with an updated slope each bar. **Do not reach for
+  `handle.update(...)`:** although Task 2's handle exposes `.update` /
+  `.remove`, **no example script uses it** (grep `handle.update` in
+  `examples/scripts/` — zero hits), and `fib-retracement.chart.ts` is a
+  single-bar trigger (`if (bar.time === …)`), **not** a per-bar
+  accumulator — don't cite it as the accumulation pattern. Keep the script
+  minimal; it **must compile + run** through the CLI e2e gate.
 - Both **top-level import** of `draw` (and any `ta`) **and** the
   destructured `compute({ bar, ta, draw })` params, per
   `examples/scripts/CLAUDE.md`.

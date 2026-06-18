@@ -111,9 +111,12 @@ For a Pine `plot(<value>, offset=N, …)`:
    offset=5)` (threads onto the ta call) and `plot(close, offset=5)`
    (diagnostic + dropped), plus a focused unit case for the existing
    ta-offset collision rule. Regenerate via `UPDATE_FIXTURES=1` (the
-   `src/tests/golden.test.ts` mechanism). Add/extend the
-   `plot-family.test.ts` unit test asserting the threaded opts and the
-   diagnostics. 100% coverage on pine-converter.
+   `src/tests/golden.test.ts` mechanism). **`src/tests/golden.test.ts`
+   hard-codes the fixture count** (`expect(pineFixtures.length).toBe(28)`,
+   ≈ line 55) — bump it to `29` (or `+1` of whatever it reads if more
+   fixtures landed first), since that assertion does not auto-derive.
+   Add/extend the `plot-family.test.ts` unit test asserting the threaded
+   opts and the diagnostics. 100% coverage on pine-converter.
 6. **Hand-authored converter docs**: update `docs/converter/supported.md`
    (the plot section — `offset=` now maps when the value is a `ta.*`
    call) and `docs/converter/rejects.md` (the non-`ta.*` case drops the
@@ -131,6 +134,7 @@ For a Pine `plot(<value>, offset=N, …)`:
 | `packages/pine-converter/src/diagnostics/codes.test.ts` | Modify (only if it pins the new code) | severity/count |
 | `docs/converter/diagnostics.md` | Regenerate (`pnpm converter:docs:generate`) | generated — reflects the new code |
 | `packages/pine-converter/src/transform/plot-family.test.ts` | Modify | assert threaded opts + diagnostic |
+| `packages/pine-converter/src/tests/golden.test.ts` | Modify | bump hard-coded fixture count (`toBe(28)` → `29`) |
 | `packages/pine-converter/fixtures/29-plot-offset.{pine,expected.chart.ts,expected.diagnostics.json}` | Create + Regenerate | both branches (`ta.*` thread + non-ta drop); use next number if fixture list changed |
 | `docs/converter/supported.md`, `docs/converter/rejects.md` | Modify | plot `offset=` mapping + the dropped case |
 | `packages/pine-converter/CLAUDE.md` | Modify | plot offset rule + diagnostic |

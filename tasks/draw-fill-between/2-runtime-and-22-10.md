@@ -56,8 +56,14 @@ validation/skip lives in the renderer, matching the other primitives.)
 
 ### 2. JSDoc (draw tag set — feeds docs + skills generators)
 
-On the script-facing overload, include every tag the draw generators
-require (see `boxes/path.ts` / `lines/line.ts`):
+On the script-facing overload, include the draw tag set. The tags the
+draw docs gate actually enforces are the ones `boxes/path.ts` /
+`lines/line.ts` carry: `@anchors`, `@anchorCount`, `@bucket`, `@since`, a
+stability marker (`@stable`), and a type-checkable `@example`. `@warmup`
+is **not** one of them — the sibling draw primitives omit it — but it is a
+known tag and including `@warmup none` here is harmless and documents the
+no-op-degenerate contract, so keep it. (`@formula` is likewise not
+required for draw primitives.)
 
 ```ts
 /**

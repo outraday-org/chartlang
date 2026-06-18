@@ -24,7 +24,10 @@ Tasks 1 (field) + 3 (runtime emits `xShift`).
   helper** — `xShift` (which is in *bars*) cannot be applied by simple
   pixel math.
 - The mock canvas + `hashCallLog` (`src/testing.ts`) pin the exact draw
-  call sequence; `integration.test.ts` pins the `sma-offset` render.
+  call sequence for the hashed integration tests. The `sma-offset`
+  integration test is **not** a `hashCallLog` pin — it asserts finite
+  values + a title filter (Task 6 owns updating it); this task re-pins
+  only the renderer-level hashes it changes.
 
 ## Desired Behavior
 

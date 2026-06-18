@@ -93,6 +93,10 @@ In `packages/core/src/request/request.ts`:
    }
    export const request = Object.freeze({ security, lowerTf });
    ```
+   `lowerTf` is currently a method-shorthand inside the frozen literal;
+   lift it to a sibling `function lowerTf(...)` declaration too so both
+   can be referenced by name in `Object.freeze({ security, lowerTf })`
+   (behavior unchanged — still returns `sentinel("request.lowerTf")`).
    Keep `RequestNamespace = typeof request` so `ComputeContext.request`
    continues to surface both overloads automatically. Verify the
    resulting `RequestNamespace["security"]` is callable in both arities

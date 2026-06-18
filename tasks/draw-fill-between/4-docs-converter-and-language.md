@@ -24,9 +24,11 @@ the docs describe real behaviour).
   `linefill` is approximated as a filled `draw.rotatedRectangle`.
 - `docs/converter/rejects.md:58-61` — prose: static two-line linefill is
   "approximated as a filled `draw.rotatedRectangle` quad … best-effort".
-- `docs/converter/rejects.md:86` + `supported.md:133-134` —
+- `docs/converter/rejects.md:86` + `supported.md:~145-146` —
   `fill(plot1, plot2)` errors `fill-not-mapped`, "chartlang has no
-  plot-fill primitive".
+  plot-fill primitive in v1". (The supported.md note is a prose paragraph
+  near line 145, not a table row — line numbers drift; grep
+  `fill-not-mapped` / `plot-fill` to locate it.)
 - `docs/converter/diagnostics.md` — documents the linefill diagnostics
   including `linefill-rotatedrect-approximated` (removed in Task 3).
 - `docs/language/` — `series-and-indexing.md`, `overview.md`, etc.
@@ -48,10 +50,10 @@ documented reject (deferred), but its suggestion points at
   `draw.fillBetween` — a true filled ribbon between the two referenced
   lines' anchors (static two-line form). Drop the "best-effort / no
   fill-between primitive" wording.
-- At the `fill(plot1, plot2)` note (lines 133-134): keep it as currently
-  unmapped, but update the suggestion to mention `draw.fillBetween` for
-  the drawing-level band and note plot-level series fill is a planned
-  follow-up.
+- At the `fill(plot1, plot2)` note (~lines 145-146; grep
+  `fill-not-mapped`): keep it as currently unmapped, but update the
+  suggestion to mention `draw.fillBetween` for the drawing-level band and
+  note plot-level series fill is a planned follow-up.
 
 ### 2. `docs/converter/index.md`
 
@@ -90,9 +92,12 @@ removal and the `linefill-series-fill` rewording are produced by **Task
 
 `draw.*` is introduced in **`docs/language/overview.md`** (the module
 surface table, ~line 72: `| `draw.*` | imperative drawing primitives …`).
-`series-and-indexing.md` does **not** currently mention `draw.*`. Add the
-short fills/bands note to `overview.md` (the place drawings are
-introduced): a sentence + small example showing
+(`series-and-indexing.md` already references `draw.*` in passing — ~line
+126 "composes directly with every `draw.*` anchor argument" and a
+`draw.line(...)` example ~line 136 — so it is **not** the place to
+introduce the band primitive; leave it untouched.) Add the short
+fills/bands note to `overview.md` (the place drawings are introduced): a
+sentence + small example showing
 `draw.fillBetween([...], [...], { fill, fillAlpha })` for a band between
 two computed series, noting the closed-polygon (`edgeA` then reversed
 `edgeB`) semantics. Do **not** duplicate the auto-generated primitive

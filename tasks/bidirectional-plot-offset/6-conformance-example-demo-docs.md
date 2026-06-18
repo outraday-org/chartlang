@@ -58,9 +58,19 @@ changeset here).
    `packages/conformance/src/scenarios/` asserting `xShift` (via
    `plot-field`) for `+` and `−` offsets and the unshifted `plot-hash`.
    Register it; mint goldens from the runner's expected-vs-actual output.
-3. **Re-pin** `integration.test.ts`'s `sma-offset` `hashCallLog` (values
-   are now unshifted + an `xShift` rides the emission) — regenerate, do
-   not hand-edit.
+3. **Update** `integration.test.ts`'s `sma-offset` test
+   (`it("renders the sma-offset example with a shifted SMA series")`,
+   ≈ lines 539–557). It is **not** a `hashCallLog` pin — it asserts
+   finite plot values and filters by the plot title (`p.title ===
+   "SMA(20) offset 5"`). Two changes: (a) if req 4 renames/adds the
+   demo's plot titles (both-directions example), update the title filter
+   to match; (b) **delete the now-inverted "compiler maxLookback bug"
+   regression-guard comment** (≈ lines 546–551) — under Option A the
+   value is the unshifted `buf.at(0)`, so it is finite regardless of
+   `maxLookback`, and the offset rides the emission as `xShift`. Assert
+   the emission carries the expected signed `xShift` instead of relying
+   on the old value-read finiteness. If any *other* test in the file
+   does pin a `hashCallLog`, regenerate that hash (do not hand-edit).
 4. **Example**: update `examples/scripts/sma-offset.chart.ts` to show both
    directions (keep the two-line MIT header; it stays in the CLI e2e
    list). Mirror it into the `SMA_OFFSET` demo source + update the
@@ -106,7 +116,7 @@ changeset here).
 | `packages/conformance/src/runConformanceSuite.test.ts`, `packages/conformance/src/scenarios/scenarios.test.ts` | Modify | conformance assertion coverage for `xShift` |
 | `packages/conformance/src/scenarios/*offset*.scenario.ts` | Create | `xShift` + unshifted-value assertions |
 | `packages/conformance/src/scenarios/index.ts`, `runConformanceSuite.ts` | Modify | register |
-| `examples/canvas2d-adapter/src/integration.test.ts` | Modify | re-pin `sma-offset` hash |
+| `examples/canvas2d-adapter/src/integration.test.ts` | Modify | update `sma-offset` test: title filter + assert `xShift`; drop stale maxLookback-bug comment |
 | `examples/scripts/sma-offset.chart.ts` | Modify | both-direction example |
 | `apps/site/src/components/demo/scripts.ts` | Modify | demo source + description |
 | `docs/examples/sma-offset.md` (+ any new id) | Generate | `examples:generate` |

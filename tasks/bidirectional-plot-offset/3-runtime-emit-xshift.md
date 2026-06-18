@@ -91,9 +91,24 @@ Tasks 1 (core field) + 2 (compiler no longer sizes offset depth).
    ago" outputs now pin the unshifted series + an `xShift` on the
    emission. Keep 100% coverage; re-pin goldens from the runner's
    expected-vs-actual output, not by hand.
-5. Update `packages/runtime/CLAUDE.md` (offset is presentation `xShift`
-   via the WeakMap side-table, no value-read; ALMA tags `barShift`; the
-   emission-order + no-offset-byte-identity invariants).
+5. Update the CLAUDE.md files whose offset invariants this task
+   invalidates (root-`CLAUDE.md` rule: an invalidated invariant is fixed
+   in the same PR):
+   - `packages/runtime/src/ta/CLAUDE.md` — the **"Universal `opts.offset`"**
+     invariant (≈ lines 83–91) currently documents the value-read model
+     ("positive `offset` makes `series.current` return the value `offset`
+     bars ago … paired with the `lib/applyOffset.ts` Float64Array
+     helper"). Rewrite it to the Option-A model: offset is presentation
+     `xShift` recorded via the `WeakMap<Series, number>` side-table, the
+     series value is unshifted, `makeShiftedSeriesView` is an
+     unshifted/tagging view, ALMA tags `opts.barShift`, and drop the
+     `lib/applyOffset.ts` pairing.
+   - `packages/runtime/src/ta/lib/CLAUDE.md` — the Phase-1 helper list
+     (≈ line 70) names `applyOffset`; remove it from that list since the
+     helper is deleted (req 3).
+   - `packages/runtime/CLAUDE.md` — add the offset-as-presentation-`xShift`
+     emission invariant (WeakMap side-table, no value-read; ALMA tags
+     `barShift`; emission-order + no-offset-byte-identity).
 
 ## Files to Create / Modify
 
@@ -105,7 +120,9 @@ Tasks 1 (core field) + 2 (compiler no longer sizes offset depth).
 | `packages/runtime/src/ta/lib/applyOffset.ts`, `packages/runtime/src/ta/lib/applyOffset.test.ts` | Delete / Modify | remove stale value-shift helper semantics |
 | `packages/runtime/src/ta/*.ts` (offset-caching slots) | Verify / minor | call sites keep working via the WeakMap-tagging helper; collapse per-offset caches only if it simplifies coverage |
 | `packages/runtime/src/**/*.{test,golden.test,property.test}.ts` | Modify | re-pin to unshifted values + `xShift` |
-| `packages/runtime/CLAUDE.md` | Modify | offset = presentation x-shift |
+| `packages/runtime/src/ta/CLAUDE.md` | Modify | rewrite "Universal `opts.offset`" invariant → presentation `xShift`; drop `applyOffset` pairing |
+| `packages/runtime/src/ta/lib/CLAUDE.md` | Modify | drop `applyOffset` from the Phase-1 helper list |
+| `packages/runtime/CLAUDE.md` | Modify | offset = presentation x-shift emission invariant |
 
 ## Gates
 

@@ -26,9 +26,29 @@ Task 3 (runtime expression form working end-to-end).
 - `examples/scripts/htf-trend-filter.chart.ts` uses the **data-only**
   form `ta.ema(request.security({ interval: "1W" }).close, 10)`. It is
   compiled by `packages/cli/src/e2e.test.ts` and driven through the
-  runtime by `examples/canvas2d-adapter/src/integration.test.ts`
-  ("renders the htf-trend-filter example…") via
-  `createMultiStreamCandlePump` with a synthetic 1W stream.
+  runtime by `examples/canvas2d-adapter/src/integration.test.ts` via
+  `createMultiStreamCandlePump` with a synthetic 1W stream. **Two** tests
+  exercise it: "renders the htf-trend-filter example with a finite weekly
+  EMA over daily candles" (per-bar stream path) and "renders a finite
+  weekly EMA when history arrives as one batch (the demo path)"
+  (monolithic-history pump path).
+- **Important:** `integration.test.ts` does **not** run the compiled
+  module. `runExampleScript` calls the real compiler only to obtain the
+  **manifest** (`compiled.manifest`), then loads a **hand-written**
+  `compute` body produced by `phase4ModuleSource(relPath, manifest)`. The
+  `htf-trend-filter.chart.ts` branch of that switch currently hand-codes
+  the data-only form:
+  ```ts
+  const weekly = ctx.request.security("htf-trend-filter.chart.ts:19:31#0", { interval: "1W" });
+  const weeklyTrend = ctx.ta.ema("htf-trend-filter.chart.ts:20:28#0", weekly.close, 10);
+  ```
+  So the manifest auto-picks up `securityExpressions` (real compile), but
+  the hand-written body must be rewritten by hand to the callback form or
+  the test will keep exercising the old data path.
+- `PINNED_HASH` (~line 700) is the call-log hash for the **unrelated**
+  Phase-1/EMA-cross rendering test (~line 517). The htf-trend-filter
+  tests assert finiteness/distinctness only — they pin **no** call-log
+  hash.
 - `apps/site/src/components/demo/scripts.ts` holds the inlined demo copy
   `HTF_TREND_FILTER`. `apps/site/src/components/demo/secondaryStreams.ts`
   + `ChartPane.tsx` already resample the daily `bars.json` into the
@@ -116,14 +136,38 @@ the manifest shape).
 
 ### 4. Runtime integration test
 
-`examples/canvas2d-adapter/src/integration.test.ts` ("renders the
-htf-trend-filter example…"): update to the callback form. Assert:
+`examples/canvas2d-adapter/src/integration.test.ts`. Two things to do:
+
+**(a) Rewrite the hand-written module fixture.** In
+`phase4ModuleSource(relPath, manifest)`, rewrite the
+`relPath.endsWith("htf-trend-filter.chart.ts")` branch to the callback
+form so the test actually drives the new `SecurityExprRunner`:
+```ts
+const fast = ctx.ta.ema("<emaSlot>", ctx.bar.close, 20);
+ctx.plot("<plotSlot>", fast, { color: "#26a69a", title: "EMA(20)" });
+const weeklyTrend = ctx.request.security("<securitySlot>", { interval: "1W" }, (bar) =>
+    ctx.ta.ema("<innerEmaSlot>", bar.close, 20),
+);
+ctx.plot("<plotSlot2>", weeklyTrend, { color: "#ef5350", title: "Weekly EMA(20)" });
+```
+The hard-coded slot-id strings (`<securitySlot>`, `<innerEmaSlot>`, …)
+**must match** the ids the real compiler now injects for the new
+callsites — read them off `compiled.manifest` / a real compile of the
+updated example (the runtime dispatch keys `securityExpressions[].slotId`
+against the `ctx.request.security("<slotId>", …)` call, so a mismatch
+silently falls back to the data path). The title must match what the
+tests filter on (`"Weekly EMA(20)"` — update the filter in both htf tests
+accordingly, or keep `"Weekly EMA(10)"` consistent end-to-end).
+
+**(b) Strengthen assertions** in **both** htf tests (the per-bar stream
+test and the "demo path" history-batch test):
 - the weekly plot series is finite (no all-NaN),
 - it is stair-stepped within each week (holds across the ~7 daily bars),
 - it **differs** from a same-length (`ta.ema(close, 20)`) daily EMA over
   the warm region (the distinctness guard).
-Update the pinned `hashCallLog` constant (the visual change re-shapes the
-call log) — regenerate, don't hand-edit.
+
+Do **not** touch `PINNED_HASH` — it belongs to the unrelated EMA-cross
+rendering test and these htf tests pin no call-log hash.
 
 ### 5. Live-site demo
 
@@ -158,7 +202,7 @@ the PR description.
 | `packages/conformance/src/scenarios/index.ts`, `runConformanceSuite.ts` | Modify | Register scenarios |
 | `examples/scripts/htf-trend-filter.chart.ts` | Modify | Callback form |
 | `packages/cli/src/e2e.test.ts` | Modify | Manifest/compile assertions for the expr form |
-| `examples/canvas2d-adapter/src/integration.test.ts` | Modify | Distinctness + finite + stair-step asserts; re-pin hash |
+| `examples/canvas2d-adapter/src/integration.test.ts` | Modify | Rewrite the hand-written `phase4ModuleSource` htf branch to the callback form (slot ids matching the fresh compile); distinctness + finite + stair-step asserts in **both** htf tests; do **not** touch `PINNED_HASH` |
 | `apps/site/src/components/demo/scripts.ts` | Modify | Demo source + description |
 | `examples/scripts/CLAUDE.md`, `examples/CLAUDE.md`, `apps/CLAUDE.md` | Modify | Note the expr-form example/demo |
 
@@ -182,8 +226,10 @@ changeset). Conformance/examples changes ride the existing changeset.
 - [ ] Capture-diagnostic coverage remains in compiler tests, or the
       conformance harness is explicitly extended for compile-fail
       scenarios before adding a conformance scenario for it.
-- [ ] Example script, CLI e2e, and runtime integration test on the
-      callback form; integration hash re-pinned.
+- [ ] Example script, CLI e2e, and **both** runtime integration tests on
+      the callback form; the hand-written `phase4ModuleSource` htf fixture
+      rewritten to the callback form with slot ids matching the fresh
+      compile (`PINNED_HASH` untouched).
 - [ ] Live-site demo updated; weekly line visibly smoother (manual check).
 - [ ] `examples:gate` + `conformance` green; coverage 100%.
 - [ ] Relevant CLAUDE.md files updated.
