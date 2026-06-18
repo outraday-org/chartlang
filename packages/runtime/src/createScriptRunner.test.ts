@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { createScriptRunner } from "./createScriptRunner.js";
 import { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext.js";
 import { inMemoryStateStore } from "./stateStore.js";
+import { ema } from "./ta/ema.js";
 
 function makeCapabilities(maxLookback = 5000): Capabilities {
     return {
@@ -507,6 +508,75 @@ describe("createScriptRunner", () => {
         await runner.push({ kind: "close", bar: makeBar(0) });
 
         expect(seen).toEqual([213]);
+        expect(runner.drain().diagnostics).toEqual([]);
+        await runner.dispose();
+    });
+
+    it("drives an HTF expression once per secondary close and aligns it no-lookahead", async () => {
+        const seen: number[] = [];
+        // The callback uses the runtime `ema` with an explicit slot id (the
+        // shape the compiler injects); `request.security(slotId, opts, expr)`
+        // mirrors the compiler-injected first arg.
+        const compute = ({
+            request,
+        }: {
+            readonly request: unknown;
+        }): void => {
+            const security = (
+                request as {
+                    readonly security: (
+                        slotId: string,
+                        opts: { readonly interval: string },
+                        expr: (bar: { readonly close: { readonly current: number } }) => {
+                            readonly current: number;
+                        },
+                    ) => { readonly current: number };
+                }
+            ).security;
+            const weekly = security("expr.chart.ts:1:1#0", { interval: "1D" }, (bar) =>
+                ema("expr.chart.ts:1:1#0/ema", bar.close as never, 3),
+            );
+            seen.push(weekly.current);
+        };
+        const base = defineIndicator({
+            name: "htf-expr",
+            apiVersion: 1,
+            compute: () => {},
+        });
+        const compiled = {
+            manifest: {
+                ...base.manifest,
+                requestedIntervals: ["1D"],
+                seriesCapacities: { ohlcv: 64 },
+                securityExpressions: [
+                    { slotId: "expr.chart.ts:1:1#0", interval: "1D", paramName: "bar" },
+                ],
+            },
+            compute: compute as never,
+        };
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: { ...makeCapabilities(), multiTimeframe: true },
+        });
+
+        // Four daily closes ahead of the main bar so history is buffered, then
+        // a single main close captures the callback and replays the backlog.
+        await runner.push({
+            kind: "history",
+            bars: [10, 20, 30, 40].map((c, i) => ({
+                ...makeBar(0),
+                time: makeBar(0).time - (4 - i) * 60_000,
+                close: c,
+                interval: "1D",
+            })),
+            streamKey: "1D",
+        });
+        await runner.push({ kind: "close", bar: makeBar(0) });
+
+        // EMA(3) over [10,20,30,40]: seed = (10+20+30)/3 = 20, then
+        // 40·0.5 + 20·0.5 = 30; aligned to the one main bar at/after the last
+        // daily close.
+        expect(seen).toEqual([30]);
         expect(runner.drain().diagnostics).toEqual([]);
         await runner.dispose();
     });

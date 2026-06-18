@@ -42,6 +42,17 @@
   delegate to `printHelp` on `--help`; the dispatcher routes
   no-args / `-h` / `--help` to `runHelp`. Editing the help string in
   multiple places is a regression.
+- **`genPhase4Docs` resolves `Object.freeze({ name })` shorthands to the
+  top-level overloaded function declaration.** When a namespace member is a
+  shorthand (e.g. `request.security` lives as `function security(...)`
+  declarations referenced by `Object.freeze({ security, lowerTf })` rather
+  than an inline method), `resolveShorthand` walks to the declaration that
+  carries the JSDoc — the **first** overload signature (TS splits the doc
+  onto the first signature, the body onto the implementation). That signature
+  is what the page prints, so the doc page shows the public overload, not the
+  widened implementation. Adding a member to a freeze-namespace as a
+  shorthand-of-a-function (vs an inline method) is the supported pattern;
+  both resolve identically.
 - **`chartlang docs` owns `docs/primitives/ta/<id>.md`.** Pages open
   with the `AUTO_GENERATED_HEADER` sentinel; never hand-edit them.
   `index.md` in the same folder IS hand-written. The signature

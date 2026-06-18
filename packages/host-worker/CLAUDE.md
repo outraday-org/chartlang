@@ -45,7 +45,11 @@ same `ScriptHost` shape with real preemption + hard heap caps.
   warning. `Array.isArray` does not subtract a `ReadonlyArray` union
   member (TS #17002), so the single-object detection goes through the
   dedicated `isSingleManifest` guard. host-quickjs's `dispatcherCore`
-  carries the byte-identical fix for cross-host parity.
+  carries the byte-identical fix for cross-host parity. The whole
+  `__manifest` is spread through, so the HTF-expression
+  `request.security(opts, expr)` form needs no host change — its
+  `manifest.securityExpressions` rides the same sidecar (covered by
+  `integration.test.ts`'s expression-form boot test).
 - **`HostToWorker.load` carries `limits` alongside `capabilities`.**
   The worker boot is stateless about both — no in-worker default
   capabilities bag, no in-worker default limits. The host is the

@@ -307,6 +307,30 @@ export type PlotSlotDescriptor = {
 };
 
 /**
+ * One higher-timeframe expression unit in `ScriptManifest.securityExpressions`.
+ * The compiler emits one entry per `request.security({ interval }, (bar) => …)`
+ * callsite so the runtime knows which `slotId` is an HTF expression, on which
+ * `interval` to clock it, and the callback's single parameter name. The
+ * callback body stays inline in the compiled module — this descriptor is only
+ * the registry pointing at it.
+ *
+ * @since 0.7
+ * @stable
+ * @example
+ *     const unit: SecurityExpressionDescriptor = {
+ *         slotId: "trend.ts:8:21#0",
+ *         interval: "1W",
+ *         paramName: "bar",
+ *     };
+ *     void unit;
+ */
+export type SecurityExpressionDescriptor = {
+    readonly slotId: string;
+    readonly interval: string;
+    readonly paramName: string;
+};
+
+/**
  * Host-supplied presentation override for a single plot slot, keyed by
  * `PlotEmission.slotId`. Applied by the runtime at emit time; never
  * affects `compute`. `lineWidth` / `lineStyle` apply only to the
@@ -500,6 +524,23 @@ export type ScriptManifest = {
      *     void v;
      */
     readonly plots?: ReadonlyArray<PlotSlotDescriptor>;
+    /**
+     * Higher-timeframe expression units — one per
+     * `request.security({ interval }, (bar) => …)` callsite, sorted by
+     * `slotId`. Tells the runtime which slot ids run on an HTF clock and on
+     * which interval. Absent on scripts that use only the data form (or no
+     * `request.security` at all) so existing manifest snapshots stay
+     * byte-identical.
+     *
+     * @since 0.7
+     * @stable
+     * @example
+     *     const v: ScriptManifest["securityExpressions"] = [
+     *         { slotId: "trend.ts:8:21#0", interval: "1W", paramName: "bar" },
+     *     ];
+     *     void v;
+     */
+    readonly securityExpressions?: ReadonlyArray<SecurityExpressionDescriptor>;
     /**
      * The ES-module binding name this manifest was reached through.
      * `"default"` for `export default defineIndicator(...)`; the

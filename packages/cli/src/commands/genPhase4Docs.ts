@@ -204,6 +204,7 @@ function descriptionOf(node: ts.Node): string {
 }
 
 function nodeName(node: ts.Node): string | null {
+    if (ts.isShorthandPropertyAssignment(node)) return node.name.text;
     if (
         (ts.isVariableDeclaration(node) ||
             ts.isTypeAliasDeclaration(node) ||
@@ -217,6 +218,29 @@ function nodeName(node: ts.Node): string | null {
         if (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) return node.name.text;
     }
     return null;
+}
+
+/**
+ * Resolve a `{ security }` shorthand property to the top-level `function
+ * security(...)` declaration it references, so the JSDoc + overload-carrying
+ * implementation signature (not the bare shorthand) become the doc source.
+ * Overloaded functions split JSDoc (on the first signature) from the body (on
+ * the implementation): prefer the declaration that carries a JSDoc block, so
+ * the primitive description / `@example` / `@since` resolve, falling back to
+ * the implementation declaration for the printed signature.
+ */
+function resolveShorthand(source: ts.SourceFile, node: ts.Node): ts.Node {
+    if (!ts.isShorthandPropertyAssignment(node)) return node;
+    const target = node.name.text;
+    const decls = source.statements.filter(
+        (stmt): stmt is ts.FunctionDeclaration =>
+            ts.isFunctionDeclaration(stmt) && stmt.name?.text === target,
+    );
+    const documented = decls.find(
+        (decl) => (decl as ts.Node & { jsDoc?: ts.JSDoc[] }).jsDoc !== undefined,
+    );
+    const impl = decls.find((decl) => decl.body !== undefined);
+    return documented ?? impl ?? decls[decls.length - 1] ?? node;
 }
 
 function childrenFor(node: ts.Node): ReadonlyArray<ts.Node> {
@@ -275,8 +299,9 @@ function findSymbolTrace(
     let current: ts.Node = source;
     const trace: ts.Node[] = [];
     for (const part of path) {
-        const next = childrenFor(current).find((child) => nodeName(child) === part);
-        if (next === undefined) return null;
+        const match = childrenFor(current).find((child) => nodeName(child) === part);
+        if (match === undefined) return null;
+        const next = resolveShorthand(source, match);
         trace.push(next);
         current = next;
     }

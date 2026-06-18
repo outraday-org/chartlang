@@ -147,9 +147,19 @@ hand. `fill(plot1, plot2, ...)` is the exception — it **errors**
 
 ## Multi-timeframe
 
-`request.security(syminfo.tickerid, "<timeframe>", <ohlcv>)` with a
-**same-symbol** string-literal timeframe converts to a chartlang MTF read.
-A cross-symbol request, a non-literal timeframe, or a `lookahead` argument
-is outside the v1 subset and warns/rejects
-(`request-security-different-symbol`, `request-security-not-mapped`,
-`request-security-lookahead-not-supported`).
+`request.security(syminfo.tickerid, "<timeframe>", <source>)` with a
+**same-symbol** string-literal timeframe converts to a chartlang MTF read. The
+third argument decides the chartlang form:
+
+- A bare OHLCV source (`close`, `high`, `hl2`, …) lowers to the **data** form
+  `request.security({ interval }).<field>`.
+- A `ta.*` / expression source lowers to the **callback** form
+  `request.security({ interval }, (bar) => …)`, which runs the expression on
+  the higher-timeframe clock the way Pine does — the source's OHLCV reads are
+  rewritten to `bar.close` / `bar.hl2` / … inside the callback. For example
+  `request.security(syminfo.tickerid, "D", ta.ema(close, 9))` becomes
+  `request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9))`.
+
+A cross-symbol request, a non-literal timeframe, or a `lookahead` argument is
+outside the v1 subset and warns/rejects (`request-security-different-symbol`,
+`request-security-not-mapped`, `request-security-lookahead-not-supported`).

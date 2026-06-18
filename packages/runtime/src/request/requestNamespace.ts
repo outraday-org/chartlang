@@ -7,12 +7,14 @@ import type {
     RequestNamespace,
     RequestSecurityOpts,
     SecurityBar,
+    SecurityExpr,
     Series,
 } from "@invinite-org/chartlang-core";
 
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
 import { makeLowerTfSeries } from "./lowerTf.js";
-import { makeSecurityBar } from "./security.js";
+import { makeSecurityBar, makeSecurityExprSeries } from "./security.js";
+import { captureAndCatchUp } from "./securityExprRunner.js";
 
 function getCtx(name: string): RuntimeContext {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
@@ -22,9 +24,24 @@ function getCtx(name: string): RuntimeContext {
     return ctx;
 }
 
-function security(slotId: string, opts: RequestSecurityOpts): SecurityBar {
+// Dispatch off the runner registry (not `expr !== undefined`) so compiled
+// output stays robust if the emitted call shape changes: a slotId the compiler
+// recorded in `manifest.securityExpressions` is always an expression unit.
+function security(
+    slotId: string,
+    opts: RequestSecurityOpts,
+    expr?: SecurityExpr,
+): SecurityBar | Series<number> {
     const ctx = getCtx("request.security");
-    return makeSecurityBar(ctx, slotId, opts.interval);
+    const runner = ctx.securityExprRunners?.get(slotId);
+    if (runner === undefined) {
+        return makeSecurityBar(ctx, slotId, opts.interval);
+    }
+    if (expr !== undefined) {
+        const secondary = ctx.secondaryStreams.get(opts.interval);
+        if (secondary !== undefined) captureAndCatchUp(runner, expr, secondary);
+    }
+    return makeSecurityExprSeries(ctx, runner, opts.interval);
 }
 
 function lowerTf(slotId: string, opts: RequestLowerTfOpts): Series<ReadonlyArray<Bar>> {

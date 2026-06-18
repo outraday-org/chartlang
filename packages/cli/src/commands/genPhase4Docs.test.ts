@@ -309,6 +309,80 @@ describe("parsePhase4DocEntry", () => {
         ).rejects.toMatchObject({ code: "missing-symbol" });
     });
 
+    it("resolves a freeze shorthand to its documented overload signature", async () => {
+        const rel = "packages/core/src/request/request.ts";
+        await writeCoreSource(
+            rel,
+            `/**
+              * Read a secondary stream.
+              * @since 0.7
+              * @stable
+              * @example
+              *     const w = request.security({ interval: "1W" });
+              */
+             function security(opts: unknown): unknown;
+             function security(opts: unknown, expr: unknown): unknown;
+             function security(_opts: unknown, _expr?: unknown): unknown { return _opts; }
+             export const request = Object.freeze({ security });`,
+        );
+        const parsed = await parsePhase4DocEntry(workspace, {
+            title: "request.security",
+            sourceRelPath: rel,
+            symbolPath: ["request", "security"],
+            outRelPath: "docs/primitives/request/security.md",
+            seeAlso: "`request.*` namespace",
+        });
+        expect(parsed.description).toBe("Read a secondary stream.");
+        expect(parsed.since).toBe("0.7");
+        // The documented (first) overload signature is what gets printed.
+        expect(parsed.signature).toContain("function security(opts: unknown): unknown;");
+        expect(parsed.signature).not.toContain("return _opts");
+    });
+
+    it("falls back to the implementation when a freeze shorthand has no separate overloads", async () => {
+        const rel = "packages/core/src/request/request.ts";
+        await writeCoreSource(
+            rel,
+            `/**
+              * Read lower-timeframe bars.
+              * @since 0.6
+              * @stable
+              * @example
+              *     const lt = request.lowerTf({ interval: "30s" });
+              */
+             function lowerTf(_opts: unknown): unknown { return _opts; }
+             export const request = Object.freeze({ lowerTf });`,
+        );
+        const parsed = await parsePhase4DocEntry(workspace, {
+            title: "request.lowerTf",
+            sourceRelPath: rel,
+            symbolPath: ["request", "lowerTf"],
+            outRelPath: "docs/primitives/request/lowerTf.md",
+            seeAlso: "`request.*` namespace",
+        });
+        expect(parsed.description).toBe("Read lower-timeframe bars.");
+        expect(parsed.signature).toContain("function lowerTf(_opts: unknown): unknown");
+        expect(parsed.signature).toContain("return _opts");
+    });
+
+    it("throws missing-symbol when a freeze shorthand references no declaration", async () => {
+        const rel = "packages/core/src/request/request.ts";
+        await writeCoreSource(
+            rel,
+            `const security = (() => undefined) as never;
+             export const request = Object.freeze({ security });`,
+        );
+        await expect(
+            parsePhase4DocEntry(workspace, {
+                title: "request.security",
+                sourceRelPath: rel,
+                symbolPath: ["request", "security"],
+                outRelPath: "docs/primitives/request/security.md",
+                seeAlso: "`request.*` namespace",
+            }),
+        ).rejects.toMatchObject({ code: "missing-since" });
+    });
+
     it("parses frozen stability and plain type-literal aliases", async () => {
         const rel = "packages/core/src/define/overrides.ts";
         await writeCoreSource(

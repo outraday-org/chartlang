@@ -466,55 +466,13 @@ var timeframe = Object.freeze({
 var sentinel2 = (name) => {
   throw new Error(`${name} called outside an active script step`);
 };
-var request = Object.freeze({
-  /**
-   * Read a secondary candle stream at a script-author-fixed **higher**
-   * interval. The returned `SecurityBar` exposes every OHLCV field —
-   * plus the derived `hl2` / `hlc3` / `ohlc4` / `hlcc4` and `symbol` /
-   * `interval` — as a `Series<...>`, aligned no-lookahead to the chart's
-   * bars so a script can read prior secondary values such as
-   * `weekly.close[5]`. The `interval` must be a compile-time literal (a
-   * string literal or an `input.enum` value); the compiler walks every call
-   * to populate `manifest.requestedIntervals`. When the adapter does not
-   * advertise `Capabilities.multiTimeframe`, the series degrades to all-NaN
-   * rather than erroring. See the multi-timeframe guide for alignment and
-   * interval-format details.
-   *
-   * @since 0.4
-   * @stable
-   * @example
-   *     // Pull weekly candles aligned to the chart and read the close.
-   *     const weekly = request.security({ interval: "1W" });
-   *     const weeklyClose = weekly.close.current;
-   *     void weeklyClose;
-   */
-  security(_opts) {
-    return sentinel2("request.security");
-  },
-  /**
-   * Read **lower**-timeframe bars contained by each main-stream bar. The
-   * result is a `Series<ReadonlyArray<Bar>>` — for every main bar, the array
-   * of finer-grained bars that fall inside it (an empty frozen array for
-   * out-of-range or unsupported reads). The requested `interval` must be a
-   * compile-time literal and **strictly lower** than the chart interval; an
-   * equal-or-higher ordering is rejected at compile time with
-   * `lower-tf-not-lower` when statically known. Like `request.security`, it
-   * degrades to empty arrays when the adapter lacks
-   * `Capabilities.multiTimeframe`. See the multi-timeframe guide for the
-   * contained-bar model and interval format.
-   *
-   * @since 0.6
-   * @stable
-   * @example
-   *     // Each main bar carries the array of intrabar 30-second candles.
-   *     const intrabar = request.lowerTf({ interval: "30s" });
-   *     const count = intrabar.current.length;
-   *     void count;
-   */
-  lowerTf(_opts) {
-    return sentinel2("request.lowerTf");
-  }
-});
+function security(_opts, _expr) {
+  return sentinel2("request.security");
+}
+function lowerTf(_opts) {
+  return sentinel2("request.lowerTf");
+}
+var request = Object.freeze({ security, lowerTf });
 
 // ../core/dist/runtime/runtime.js
 function _logInfo(_message, _meta) {
@@ -929,6 +887,10 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "state.tick.int", slot: true },
   { name: "state.tick.bool", slot: true },
   { name: "state.tick.string", slot: true },
+  // Both the data form `request.security({ interval })` and the expression
+  // form `request.security({ interval }, (bar) => …)` route through this one
+  // entry: `slot: true` injects the slot id as the first argument regardless
+  // of the optional second (callback) argument.
   { name: "request.security", slot: true },
   { name: "request.lowerTf", slot: true },
   { name: "defineAlertCondition.signal", slot: false },
@@ -1724,6 +1686,26 @@ function pushOnce(ctx, code, slotId, interval, kind, message2) {
 }
 
 // ../runtime/dist/request/streamBars.js
+function makeConstantStringSeries(value) {
+  const target = {
+    get current() {
+      return value;
+    },
+    get length() {
+      return 0;
+    }
+  };
+  return new Proxy(Object.freeze(target), {
+    get(obj, prop, receiver) {
+      if (typeof prop === "string") {
+        const n = Number(prop);
+        if (Number.isInteger(n) && n >= 0)
+          return value;
+      }
+      return Reflect.get(obj, prop, receiver);
+    }
+  });
+}
 function barFromStream(stream, age) {
   const open = stream.ohlcv.open.at(age);
   const high = stream.ohlcv.high.at(age);
@@ -1858,175 +1840,6 @@ function getOrAlign(htfBars, htfSeries, ltfBars) {
   return aligned;
 }
 
-// ../runtime/dist/request/security.js
-var NUMERIC_SOURCE_KEYS = Object.freeze([
-  "time",
-  "open",
-  "high",
-  "low",
-  "close",
-  "volume",
-  "hl2",
-  "hlc3",
-  "ohlc4",
-  "hlcc4"
-]);
-function makeSeries(current) {
-  return Object.freeze({ current, length: 0 });
-}
-function makeNanSecurityBar() {
-  const nanNumberSeries = makeSeries(Number.NaN);
-  const nanStringSeries = makeSeries("");
-  return Object.freeze({
-    time: nanNumberSeries,
-    open: nanNumberSeries,
-    high: nanNumberSeries,
-    low: nanNumberSeries,
-    close: nanNumberSeries,
-    volume: nanNumberSeries,
-    hl2: nanNumberSeries,
-    hlc3: nanNumberSeries,
-    ohlc4: nanNumberSeries,
-    hlcc4: nanNumberSeries,
-    symbol: nanStringSeries,
-    interval: nanStringSeries
-  });
-}
-function seriesAscending(stream, sourceKey) {
-  const values = [];
-  const source = stream.ohlcv[sourceKey];
-  for (let age = source.length - 1; age >= 0; age -= 1) {
-    values.push(source.at(age));
-  }
-  return values;
-}
-function alignmentKey(slotId, interval, sourceKey) {
-  return `${slotId}|${interval}|${sourceKey}`;
-}
-function alignedSeries(ctx, slotId, interval, sourceKey, secondary) {
-  const key = alignmentKey(slotId, interval, sourceKey);
-  const existing = ctx.requestSecurityAlignments.get(key);
-  if (existing !== void 0)
-    return existing;
-  const htfBars = ascendingBarsFor(ctx, secondary);
-  const ltfBars = ascendingBarsFor(ctx, ctx.stream);
-  const aligned = getOrAlign(htfBars, seriesAscending(secondary, sourceKey), ltfBars);
-  ctx.requestSecurityAlignments.set(key, aligned);
-  return aligned;
-}
-function makeAlignedNumberSeries(ctx, slotId, interval, sourceKey, secondary) {
-  const target = {
-    get current() {
-      const aligned = alignedSeries(ctx, slotId, interval, sourceKey, secondary);
-      const value = aligned[aligned.length - 1];
-      return value === void 0 ? Number.NaN : value;
-    },
-    get length() {
-      return ctx.stream.ohlcv.close.length;
-    }
-  };
-  return new Proxy(Object.freeze(target), {
-    get(obj, prop, receiver) {
-      if (typeof prop === "string") {
-        const n = Number(prop);
-        if (Number.isInteger(n) && n >= 0) {
-          const aligned = alignedSeries(ctx, slotId, interval, sourceKey, secondary);
-          const value = aligned[aligned.length - 1 - n];
-          return value === void 0 ? Number.NaN : value;
-        }
-      }
-      return Reflect.get(obj, prop, receiver);
-    }
-  });
-}
-function makeConstantStringSeries(value) {
-  const target = {
-    get current() {
-      return value;
-    },
-    get length() {
-      return 0;
-    }
-  };
-  return new Proxy(Object.freeze(target), {
-    get(obj, prop, receiver) {
-      if (typeof prop === "string") {
-        const n = Number(prop);
-        if (Number.isInteger(n) && n >= 0)
-          return value;
-      }
-      return Reflect.get(obj, prop, receiver);
-    }
-  });
-}
-function makeLiveSecurityBar(ctx, slotId, interval, secondary) {
-  const numeric = /* @__PURE__ */ new Map();
-  for (const key of NUMERIC_SOURCE_KEYS) {
-    numeric.set(key, makeAlignedNumberSeries(ctx, slotId, interval, key, secondary));
-  }
-  return Object.freeze({
-    time: numeric.get("time") ?? makeSeries(Number.NaN),
-    open: numeric.get("open") ?? makeSeries(Number.NaN),
-    high: numeric.get("high") ?? makeSeries(Number.NaN),
-    low: numeric.get("low") ?? makeSeries(Number.NaN),
-    close: numeric.get("close") ?? makeSeries(Number.NaN),
-    volume: numeric.get("volume") ?? makeSeries(Number.NaN),
-    hl2: numeric.get("hl2") ?? makeSeries(Number.NaN),
-    hlc3: numeric.get("hlc3") ?? makeSeries(Number.NaN),
-    ohlc4: numeric.get("ohlc4") ?? makeSeries(Number.NaN),
-    hlcc4: numeric.get("hlcc4") ?? makeSeries(Number.NaN),
-    symbol: makeConstantStringSeries(secondary.bar.symbol),
-    interval: makeConstantStringSeries(interval)
-  });
-}
-function fallbackNaN(ctx, cacheKey, slotId, interval, code, message2) {
-  pushOnce(ctx, code, slotId, interval, "security", message2);
-  const bar = makeNanSecurityBar();
-  ctx.requestSecurityBars.set(cacheKey, bar);
-  return bar;
-}
-function makeSecurityBar(ctx, slotId, interval) {
-  const cacheKey = `${slotId}|${interval}`;
-  const existing = ctx.requestSecurityBars.get(cacheKey);
-  if (existing !== void 0)
-    return existing;
-  if (!ctx.capabilities.multiTimeframe) {
-    return fallbackNaN(ctx, cacheKey, slotId, interval, "multi-timeframe-not-supported", "Adapter declares multiTimeframe: false; request.security returns NaN");
-  }
-  const known = ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
-  if (!known) {
-    return fallbackNaN(ctx, cacheKey, slotId, interval, "unsupported-interval", `Requested interval "${interval}" is not in Capabilities.intervals`);
-  }
-  const secondary = ctx.secondaryStreams.get(interval);
-  if (secondary === void 0) {
-    return fallbackNaN(ctx, cacheKey, slotId, interval, "unknown-secondary-stream", `Requested interval "${interval}" has no registered secondary stream`);
-  }
-  const bar = makeLiveSecurityBar(ctx, slotId, interval, secondary);
-  ctx.requestSecurityBars.set(cacheKey, bar);
-  return bar;
-}
-
-// ../runtime/dist/request/requestNamespace.js
-function getCtx2(name) {
-  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
-  if (ctx === null) {
-    throw new Error(`${name} called outside an active script step`);
-  }
-  return ctx;
-}
-function security(slotId, opts) {
-  const ctx = getCtx2("request.security");
-  return makeSecurityBar(ctx, slotId, opts.interval);
-}
-function lowerTf(slotId, opts) {
-  const ctx = getCtx2("request.lowerTf");
-  return makeLowerTfSeries(ctx, slotId, opts.interval);
-}
-function buildRequestNamespace() {
-  const ns = Object.freeze({ security, lowerTf });
-  return ns;
-}
-
 // ../runtime/dist/views/barstateView.js
 function makeBarStateView(inputs) {
   const { eventKind, barIndex, isLastBar } = inputs;
@@ -2110,6 +1923,345 @@ function createRuntimeViews(opts = {}) {
     syminfo: opts.syminfo ?? makeSymInfoView({}, /* @__PURE__ */ new Set()),
     timeframe: makeTimeframeView("", void 0)
   };
+}
+
+// ../runtime/dist/request/securityExprRunner.js
+function makeFoldBar(foldStream, interval) {
+  const { seriesViews } = foldStream;
+  return Object.freeze({
+    time: seriesViews.time,
+    open: seriesViews.open,
+    high: seriesViews.high,
+    low: seriesViews.low,
+    close: seriesViews.close,
+    volume: seriesViews.volume,
+    hl2: seriesViews.hl2,
+    hlc3: seriesViews.hlc3,
+    ohlc4: seriesViews.ohlc4,
+    hlcc4: seriesViews.hlcc4,
+    symbol: makeConstantStringSeries(""),
+    interval: makeConstantStringSeries(interval)
+  });
+}
+function buildExprContext(parent, slotId, foldStream) {
+  return {
+    stream: foldStream,
+    stateStore: inMemoryStateStore(),
+    lastPersistTime: 0,
+    capabilities: parent.capabilities,
+    // A throwaway bag — the callback may not emit (Task 2 forbids
+    // non-`ta` refs), but an isolated queue guards if it somehow does.
+    emissions: {
+      plots: [],
+      drawings: [],
+      alerts: [],
+      alertConditions: [],
+      logs: [],
+      diagnostics: [],
+      fromBar: 0,
+      toBar: 0
+    },
+    barIndex: () => foldStream.ohlcv.close.length - 1,
+    isTick: false,
+    drawingSlots: /* @__PURE__ */ new Map(),
+    drawingSubIdCounters: /* @__PURE__ */ new Map(),
+    drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+    scriptMaxDrawings: null,
+    stateSlots: /* @__PURE__ */ new Map(),
+    secondaryStreams: parent.secondaryStreams,
+    requestSecurityBars: /* @__PURE__ */ new Map(),
+    requestSecurityAlignments: /* @__PURE__ */ new Map(),
+    requestSecurityAscendingBars: /* @__PURE__ */ new Map(),
+    requestLowerTfViews: /* @__PURE__ */ new Map(),
+    diagnosedRequestKeys: /* @__PURE__ */ new Set(),
+    logBudget: 0,
+    logBudgetExceededDiagnosed: false,
+    resolvedInputs: parent.resolvedInputs,
+    defaultPane: parent.defaultPane,
+    scriptPane: parent.scriptPane,
+    plotOverrides: Object.freeze({}),
+    diagnosedInputKeys: /* @__PURE__ */ new Set(),
+    views: createRuntimeViews(),
+    slotIdPrefix: `security:${slotId}/`
+  };
+}
+function createSecurityExprRunner(args) {
+  const { slotId, interval, capacity, parent } = args;
+  const foldStream = createStreamState({ interval, capacity, symbol: "" });
+  return {
+    slotId,
+    interval,
+    foldStream,
+    foldBar: makeFoldBar(foldStream, interval),
+    ctx: buildExprContext(parent, slotId, foldStream),
+    output: new Float64RingBuffer(capacity),
+    processedHtfCount: 0
+  };
+}
+function buildSecurityExprRunners(manifest, parent, capacity) {
+  const bySlot = /* @__PURE__ */ new Map();
+  const byInterval = /* @__PURE__ */ new Map();
+  for (const descriptor of manifest.securityExpressions ?? []) {
+    const runner = createSecurityExprRunner({
+      slotId: descriptor.slotId,
+      interval: descriptor.interval,
+      capacity,
+      parent
+    });
+    bySlot.set(descriptor.slotId, runner);
+    const list = byInterval.get(descriptor.interval);
+    if (list === void 0) {
+      byInterval.set(descriptor.interval, [runner]);
+    } else {
+      list.push(runner);
+    }
+  }
+  return { bySlot, byInterval };
+}
+function sampleOutput(result) {
+  return typeof result === "number" ? result : result.current;
+}
+function evaluate(runner, callback, isTick) {
+  const previous = ACTIVE_RUNTIME_CONTEXT.current;
+  ACTIVE_RUNTIME_CONTEXT.current = runner.ctx;
+  runner.ctx.isTick = isTick;
+  try {
+    return sampleOutput(callback(runner.foldBar));
+  } finally {
+    runner.ctx.isTick = false;
+    ACTIVE_RUNTIME_CONTEXT.current = previous;
+  }
+}
+function foldClose(runner, bar) {
+  if (runner.callback === void 0)
+    return;
+  appendBarToStream(runner.foldStream, bar);
+  runner.output.append(evaluate(runner, runner.callback, false));
+  runner.processedHtfCount += 1;
+}
+function foldTick(runner, bar) {
+  if (runner.callback === void 0)
+    return;
+  replaceStreamHead(runner.foldStream, bar);
+  runner.output.replaceHead(evaluate(runner, runner.callback, true));
+}
+function driveSecurityExpressions(parent, interval, mode, bar) {
+  const runners = parent.securityExprRunnersByInterval?.get(interval);
+  if (runners === void 0)
+    return;
+  for (const runner of runners) {
+    if (mode === "close") {
+      foldClose(runner, bar);
+    } else {
+      foldTick(runner, bar);
+    }
+  }
+}
+function captureAndCatchUp(runner, expr, secondary) {
+  if (runner.callback === void 0)
+    runner.callback = expr;
+  const length = secondary.ohlcv.close.length;
+  while (runner.processedHtfCount < length) {
+    const age = length - 1 - runner.processedHtfCount;
+    foldClose(runner, barFromStream(secondary, age));
+  }
+}
+function ascendingValues(buffer) {
+  const values = [];
+  for (let age = buffer.length - 1; age >= 0; age -= 1) {
+    values.push(buffer.at(age));
+  }
+  return values;
+}
+
+// ../runtime/dist/request/security.js
+var NUMERIC_SOURCE_KEYS = Object.freeze([
+  "time",
+  "open",
+  "high",
+  "low",
+  "close",
+  "volume",
+  "hl2",
+  "hlc3",
+  "ohlc4",
+  "hlcc4"
+]);
+function makeSeries(current) {
+  return Object.freeze({ current, length: 0 });
+}
+function makeNanSecurityBar() {
+  const nanNumberSeries = makeSeries(Number.NaN);
+  const nanStringSeries = makeSeries("");
+  return Object.freeze({
+    time: nanNumberSeries,
+    open: nanNumberSeries,
+    high: nanNumberSeries,
+    low: nanNumberSeries,
+    close: nanNumberSeries,
+    volume: nanNumberSeries,
+    hl2: nanNumberSeries,
+    hlc3: nanNumberSeries,
+    ohlc4: nanNumberSeries,
+    hlcc4: nanNumberSeries,
+    symbol: nanStringSeries,
+    interval: nanStringSeries
+  });
+}
+function seriesAscending(stream, sourceKey) {
+  const values = [];
+  const source = stream.ohlcv[sourceKey];
+  for (let age = source.length - 1; age >= 0; age -= 1) {
+    values.push(source.at(age));
+  }
+  return values;
+}
+function alignmentKey(slotId, interval, sourceKey) {
+  return `${slotId}|${interval}|${sourceKey}`;
+}
+function alignedSeries(ctx, slotId, interval, sourceKey, secondary) {
+  const key = alignmentKey(slotId, interval, sourceKey);
+  const existing = ctx.requestSecurityAlignments.get(key);
+  if (existing !== void 0)
+    return existing;
+  const htfBars = ascendingBarsFor(ctx, secondary);
+  const ltfBars = ascendingBarsFor(ctx, ctx.stream);
+  const aligned = getOrAlign(htfBars, seriesAscending(secondary, sourceKey), ltfBars);
+  ctx.requestSecurityAlignments.set(key, aligned);
+  return aligned;
+}
+function makeAlignedSeriesProxy(ctx, produce) {
+  const target = {
+    get current() {
+      const aligned = produce();
+      const value = aligned[aligned.length - 1];
+      return value === void 0 ? Number.NaN : value;
+    },
+    get length() {
+      return ctx.stream.ohlcv.close.length;
+    }
+  };
+  return new Proxy(Object.freeze(target), {
+    get(obj, prop, receiver) {
+      if (typeof prop === "string") {
+        const n = Number(prop);
+        if (Number.isInteger(n) && n >= 0) {
+          const aligned = produce();
+          const value = aligned[aligned.length - 1 - n];
+          return value === void 0 ? Number.NaN : value;
+        }
+      }
+      return Reflect.get(obj, prop, receiver);
+    }
+  });
+}
+function makeAlignedNumberSeries(ctx, slotId, interval, sourceKey, secondary) {
+  return makeAlignedSeriesProxy(ctx, () => alignedSeries(ctx, slotId, interval, sourceKey, secondary));
+}
+function makeLiveSecurityBar(ctx, slotId, interval, secondary) {
+  const numeric = /* @__PURE__ */ new Map();
+  for (const key of NUMERIC_SOURCE_KEYS) {
+    numeric.set(key, makeAlignedNumberSeries(ctx, slotId, interval, key, secondary));
+  }
+  return Object.freeze({
+    time: numeric.get("time") ?? makeSeries(Number.NaN),
+    open: numeric.get("open") ?? makeSeries(Number.NaN),
+    high: numeric.get("high") ?? makeSeries(Number.NaN),
+    low: numeric.get("low") ?? makeSeries(Number.NaN),
+    close: numeric.get("close") ?? makeSeries(Number.NaN),
+    volume: numeric.get("volume") ?? makeSeries(Number.NaN),
+    hl2: numeric.get("hl2") ?? makeSeries(Number.NaN),
+    hlc3: numeric.get("hlc3") ?? makeSeries(Number.NaN),
+    ohlc4: numeric.get("ohlc4") ?? makeSeries(Number.NaN),
+    hlcc4: numeric.get("hlcc4") ?? makeSeries(Number.NaN),
+    symbol: makeConstantStringSeries(secondary.bar.symbol),
+    interval: makeConstantStringSeries(interval)
+  });
+}
+function fallbackNaN(ctx, cacheKey, slotId, interval, code, message2) {
+  pushOnce(ctx, code, slotId, interval, "security", message2);
+  const bar = makeNanSecurityBar();
+  ctx.requestSecurityBars.set(cacheKey, bar);
+  return bar;
+}
+function makeSecurityBar(ctx, slotId, interval) {
+  const cacheKey = `${slotId}|${interval}`;
+  const existing = ctx.requestSecurityBars.get(cacheKey);
+  if (existing !== void 0)
+    return existing;
+  if (!ctx.capabilities.multiTimeframe) {
+    return fallbackNaN(ctx, cacheKey, slotId, interval, "multi-timeframe-not-supported", "Adapter declares multiTimeframe: false; request.security returns NaN");
+  }
+  const known = ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
+  if (!known) {
+    return fallbackNaN(ctx, cacheKey, slotId, interval, "unsupported-interval", `Requested interval "${interval}" is not in Capabilities.intervals`);
+  }
+  const secondary = ctx.secondaryStreams.get(interval);
+  if (secondary === void 0) {
+    return fallbackNaN(ctx, cacheKey, slotId, interval, "unknown-secondary-stream", `Requested interval "${interval}" has no registered secondary stream`);
+  }
+  const bar = makeLiveSecurityBar(ctx, slotId, interval, secondary);
+  ctx.requestSecurityBars.set(cacheKey, bar);
+  return bar;
+}
+function makeNanNumberSeries() {
+  return makeSeries(Number.NaN);
+}
+function resolveSecondaryOrDiagnose(ctx, slotId, interval) {
+  if (!ctx.capabilities.multiTimeframe) {
+    pushOnce(ctx, "multi-timeframe-not-supported", slotId, interval, "security", "Adapter declares multiTimeframe: false; request.security returns NaN");
+    return void 0;
+  }
+  if (!ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval)) {
+    pushOnce(ctx, "unsupported-interval", slotId, interval, "security", `Requested interval "${interval}" is not in Capabilities.intervals`);
+    return void 0;
+  }
+  const secondary = ctx.secondaryStreams.get(interval);
+  if (secondary === void 0) {
+    pushOnce(ctx, "unknown-secondary-stream", slotId, interval, "security", `Requested interval "${interval}" has no registered secondary stream`);
+  }
+  return secondary;
+}
+function makeSecurityExprSeries(ctx, runner, interval) {
+  const cacheKey = `${runner.slotId}|${interval}`;
+  const cache = ctx.requestSecurityExprSeries;
+  const existing = cache?.get(cacheKey);
+  if (existing !== void 0)
+    return existing;
+  const secondary = resolveSecondaryOrDiagnose(ctx, runner.slotId, interval);
+  const series = secondary === void 0 ? makeNanNumberSeries() : makeAlignedSeriesProxy(ctx, () => getOrAlign(ascendingBarsFor(ctx, secondary), ascendingValues(runner.output), ascendingBarsFor(ctx, ctx.stream)));
+  cache?.set(cacheKey, series);
+  return series;
+}
+
+// ../runtime/dist/request/requestNamespace.js
+function getCtx2(name) {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null) {
+    throw new Error(`${name} called outside an active script step`);
+  }
+  return ctx;
+}
+function security2(slotId, opts, expr) {
+  const ctx = getCtx2("request.security");
+  const runner = ctx.securityExprRunners?.get(slotId);
+  if (runner === void 0) {
+    return makeSecurityBar(ctx, slotId, opts.interval);
+  }
+  if (expr !== void 0) {
+    const secondary = ctx.secondaryStreams.get(opts.interval);
+    if (secondary !== void 0)
+      captureAndCatchUp(runner, expr, secondary);
+  }
+  return makeSecurityExprSeries(ctx, runner, opts.interval);
+}
+function lowerTf2(slotId, opts) {
+  const ctx = getCtx2("request.lowerTf");
+  return makeLowerTfSeries(ctx, slotId, opts.interval);
+}
+function buildRequestNamespace() {
+  const ns = Object.freeze({ security: security2, lowerTf: lowerTf2 });
+  return ns;
 }
 
 // ../runtime/dist/dep/DepOutputStore.js
@@ -14337,6 +14489,7 @@ function resetBarEmissions(state2) {
   state2.emissions.toBar = state2.barIndex;
   state2.runtimeContext.requestSecurityAlignments.clear();
   state2.runtimeContext.requestSecurityAscendingBars.clear();
+  state2.runtimeContext.requestSecurityExprSeries?.clear();
   state2.runtimeContext.logBudget = 0;
   state2.runtimeContext.logBudgetExceededDiagnosed = false;
 }
@@ -14720,6 +14873,18 @@ function dispose(state2) {
   state2.runtimeContext.requestSecurityBars.clear();
   state2.runtimeContext.requestSecurityAlignments.clear();
   state2.runtimeContext.requestSecurityAscendingBars.clear();
+  state2.runtimeContext.requestSecurityExprSeries?.clear();
+  const exprRunners = state2.runtimeContext.securityExprRunners;
+  if (exprRunners !== void 0) {
+    for (const runner of exprRunners.values()) {
+      for (const buf of Object.values(runner.foldStream.ohlcv)) {
+        buf.reset();
+      }
+      runner.foldStream.taSlots.clear();
+      runner.output.reset();
+    }
+    exprRunners.clear();
+  }
   state2.runtimeContext.requestLowerTfViews.clear();
   state2.runtimeContext.diagnosedRequestKeys.clear();
   state2.runtimeContext.diagnosedInputKeys.clear();
@@ -15353,15 +15518,21 @@ function pushSecondaryEvent(state2, streamKey, event) {
     pushUnknownSecondaryDiagnostic(state2, streamKey);
     return;
   }
+  const ctx = state2.runtimeContext;
   switch (event.kind) {
     case "history":
       appendSecondaryHistory(stream, event.bars);
+      for (const bar of event.bars) {
+        driveSecurityExpressions(ctx, streamKey, "close", bar);
+      }
       return;
     case "close":
       appendSecondaryBar(stream, event.bar);
+      driveSecurityExpressions(ctx, streamKey, "close", event.bar);
       return;
     case "tick":
       replaceSecondaryHead(stream, event.bar);
+      driveSecurityExpressions(ctx, streamKey, "tick", event.bar);
       return;
   }
 }
@@ -15443,6 +15614,10 @@ function buildPrimaryState(args, primary) {
   const overrides = args.inputOverrides ?? args.resolveInputs?.(primary.manifest.name) ?? Object.freeze({});
   state2.runtimeContext.resolvedInputs = resolveInputs(primary.manifest, overrides, state2.runtimeContext);
   state2.runtimeContext.plotOverrides = args.plotOverrides ?? args.resolvePlotOverrides?.(primary.manifest.name) ?? Object.freeze({});
+  const exprRunners = buildSecurityExprRunners(primary.manifest, state2.runtimeContext, capacity);
+  state2.runtimeContext.securityExprRunners = exprRunners.bySlot;
+  state2.runtimeContext.securityExprRunnersByInterval = exprRunners.byInterval;
+  state2.runtimeContext.requestSecurityExprSeries = /* @__PURE__ */ new Map();
   return state2;
 }
 function attachBundle(primary, bundle, capabilities2, now) {

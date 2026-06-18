@@ -23,6 +23,7 @@ export type {
     PlotSlotDescriptor,
     Price,
     ScriptManifest,
+    SecurityExpressionDescriptor,
     Series,
     Time,
     Volume,
@@ -218,6 +219,7 @@ export type {
     RequestNamespace,
     RequestSecurityOpts,
     SecurityBar,
+    SecurityExpr,
 } from "./request/index.js";
 export { runtime } from "./runtime/index.js";
 export type { LogLevel, RuntimeNamespace } from "./runtime/index.js";

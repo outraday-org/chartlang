@@ -12,6 +12,12 @@ describe("request callable holes", () => {
         );
     });
 
+    it("request.security expression form throws outside-runtime sentinel", () => {
+        expect(() => request.security({ interval: "1W" }, (bar) => bar.close)).toThrow(
+            "request.security called outside an active script step",
+        );
+    });
+
     it("request.lowerTf throws outside-runtime sentinel", () => {
         expect(() => request.lowerTf({ interval: "30s" })).toThrow(
             "request.lowerTf called outside an active script step",

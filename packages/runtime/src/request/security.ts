@@ -7,7 +7,8 @@ import type { RuntimeContext } from "../runtimeContext.js";
 import type { StreamState } from "../streamState.js";
 import { getOrAlign } from "./alignHtfSeriesCache.js";
 import { pushOnce } from "./pushOnce.js";
-import { ascendingBarsFor } from "./streamBars.js";
+import { type SecurityExprRunner, ascendingValues } from "./securityExprRunner.js";
+import { ascendingBarsFor, makeConstantStringSeries } from "./streamBars.js";
 
 type NumericSourceKey =
     | "time"
@@ -97,16 +98,20 @@ function alignedSeries(
     return aligned;
 }
 
-function makeAlignedNumberSeries(
+/**
+ * Wrap a producer of the latest main-aligned array in the head-relative
+ * `Series<number>` Proxy shape. `current` / `[n]` re-run `produce` (cheap —
+ * `getOrAlign` memoises per bar) and read from the tail; `length` is the main
+ * stream's bar count. Shared by the OHLCV `SecurityBar` fields and the
+ * expression-output series so both walk the identical no-lookahead alignment.
+ */
+function makeAlignedSeriesProxy(
     ctx: RuntimeContext,
-    slotId: string,
-    interval: string,
-    sourceKey: NumericSourceKey,
-    secondary: StreamState,
+    produce: () => ReadonlyArray<number>,
 ): Series<number> {
     const target = {
         get current() {
-            const aligned = alignedSeries(ctx, slotId, interval, sourceKey, secondary);
+            const aligned = produce();
             const value = aligned[aligned.length - 1];
             return value === undefined ? Number.NaN : value;
         },
@@ -119,7 +124,7 @@ function makeAlignedNumberSeries(
             if (typeof prop === "string") {
                 const n = Number(prop);
                 if (Number.isInteger(n) && n >= 0) {
-                    const aligned = alignedSeries(ctx, slotId, interval, sourceKey, secondary);
+                    const aligned = produce();
                     const value = aligned[aligned.length - 1 - n];
                     return value === undefined ? Number.NaN : value;
                 }
@@ -129,24 +134,16 @@ function makeAlignedNumberSeries(
     }) as Series<number>;
 }
 
-function makeConstantStringSeries(value: string): Series<string> {
-    const target = {
-        get current() {
-            return value;
-        },
-        get length() {
-            return 0;
-        },
-    };
-    return new Proxy(Object.freeze(target), {
-        get(obj, prop, receiver) {
-            if (typeof prop === "string") {
-                const n = Number(prop);
-                if (Number.isInteger(n) && n >= 0) return value;
-            }
-            return Reflect.get(obj, prop, receiver);
-        },
-    }) as Series<string>;
+function makeAlignedNumberSeries(
+    ctx: RuntimeContext,
+    slotId: string,
+    interval: string,
+    sourceKey: NumericSourceKey,
+    secondary: StreamState,
+): Series<number> {
+    return makeAlignedSeriesProxy(ctx, () =>
+        alignedSeries(ctx, slotId, interval, sourceKey, secondary),
+    );
 }
 
 function makeLiveSecurityBar(
@@ -246,4 +243,91 @@ export function makeSecurityBar(
     const bar = makeLiveSecurityBar(ctx, slotId, interval, secondary);
     ctx.requestSecurityBars.set(cacheKey, bar);
     return bar;
+}
+
+function makeNanNumberSeries(): Series<number> {
+    return makeSeries(Number.NaN);
+}
+
+function resolveSecondaryOrDiagnose(
+    ctx: RuntimeContext,
+    slotId: string,
+    interval: string,
+): StreamState | undefined {
+    if (!ctx.capabilities.multiTimeframe) {
+        pushOnce(
+            ctx,
+            "multi-timeframe-not-supported",
+            slotId,
+            interval,
+            "security",
+            "Adapter declares multiTimeframe: false; request.security returns NaN",
+        );
+        return undefined;
+    }
+    if (!ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval)) {
+        pushOnce(
+            ctx,
+            "unsupported-interval",
+            slotId,
+            interval,
+            "security",
+            `Requested interval "${interval}" is not in Capabilities.intervals`,
+        );
+        return undefined;
+    }
+    const secondary = ctx.secondaryStreams.get(interval);
+    if (secondary === undefined) {
+        pushOnce(
+            ctx,
+            "unknown-secondary-stream",
+            slotId,
+            interval,
+            "security",
+            `Requested interval "${interval}" has no registered secondary stream`,
+        );
+    }
+    return secondary;
+}
+
+/**
+ * Return the main-aligned output series for an HTF expression callsite. The
+ * runner's `output` buffer holds one sampled value per HTF bar; this aligns it
+ * no-lookahead to the main timeline against the real secondary stream's
+ * timestamps (so `output[i]` pairs with secondary ascending bar `i`). Reuses
+ * the OHLCV alignment kernel via {@link getOrAlign}. Capability / interval /
+ * stream fallbacks return an all-NaN series and push a deduped diagnostic,
+ * matching {@link makeSecurityBar}. The returned Proxy identity is cached per
+ * `slotId|interval` for the bar.
+ *
+ * @since 0.7
+ * @stable
+ * @example
+ *     // const trend = makeSecurityExprSeries(ctx, runner, "1W");
+ *     const requested = "1W";
+ *     void requested;
+ */
+export function makeSecurityExprSeries(
+    ctx: RuntimeContext,
+    runner: SecurityExprRunner,
+    interval: string,
+): Series<number> {
+    const cacheKey = `${runner.slotId}|${interval}`;
+    const cache = ctx.requestSecurityExprSeries;
+    const existing = cache?.get(cacheKey);
+    if (existing !== undefined) return existing;
+
+    const secondary = resolveSecondaryOrDiagnose(ctx, runner.slotId, interval);
+    const series =
+        secondary === undefined
+            ? makeNanNumberSeries()
+            : makeAlignedSeriesProxy(ctx, () =>
+                  getOrAlign(
+                      ascendingBarsFor(ctx, secondary),
+                      ascendingValues(runner.output),
+                      ascendingBarsFor(ctx, ctx.stream),
+                  ),
+              );
+    cache?.set(cacheKey, series);
+    return series;
 }

@@ -75,6 +75,15 @@ changeset here).
    directions (keep the two-line MIT header; it stays in the CLI e2e
    list). Mirror it into the `SMA_OFFSET` demo source + update the
    catalogue `description`.
+   > **Cross-feature note (`tasks/examples-full-coverage/`).** If that
+   > feature's Task 1 has already landed, `scripts.ts` is **generated**
+   > from `examples/catalogue.ts` + the `.chart.ts` sources — the
+   > `SMA_OFFSET` constant mirror here would be **overwritten** by
+   > `pnpm examples:generate`. In that world, edit only the `.chart.ts`
+   > + its catalogue fragment `description` and regenerate; the constant
+   > mirror applies only to the current inlined-`scripts.ts` setup.
+   > `ta.sma` is already covered there, so this adds no new gate
+   > requirement (unlike `draw-fill-between`).
 5. **Demo/docs sync**: run `pnpm examples:generate`, commit the
    regenerated `docs/examples/sma-offset.md` (+ any new id) — `pnpm
    examples:gate` must byte-match.

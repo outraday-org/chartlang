@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.1.1",
-    "passed": 233,
+    "passed": 235,
     "failed": 0,
     "scenarios": [
         {
@@ -589,6 +589,18 @@
         {
             "id": "mtf-request-security-close",
             "title": "MTF request.security close",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "mtf-security-expression-ema",
+            "title": "MTF request.security expression EMA",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "mtf-security-expression-nan-fallback",
+            "title": "MTF request.security expression NaN fallback",
             "status": "pass",
             "failures": []
         },

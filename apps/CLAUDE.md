@@ -125,7 +125,16 @@ and the demo 500s, the client bundle fails to load, or the whole site
   `host-quickjs` `dispatcherCore`) adopts the compiler's `__manifest`
   sidecar for single-script modules — the runtime `defineIndicator` stub
   zeroes `requestedIntervals`, so without that fix the secondary streams
-  would never register.
+  would never register. The `htf-trend-filter` demo uses the
+  `request.security` **expression form**
+  (`request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20))`); the
+  demo wiring needs no change because `ChartPane.tsx` keys off
+  `requestedIntervals` (still `["1W"]`), and the new
+  `manifest.securityExpressions` rides the SAME `__manifest` sidecar the host
+  boot already spreads through — the SecurityExprRunner mounts off it
+  automatically. The weekly line is now visibly smoother/laggier than the
+  daily EMA (the EMA runs on the weekly clock), which is the user-reported
+  symptom fixed.
 - The server compile helper lives at `src/lib/server/compile.ts`;
   importing it from any `src/components/*` file would drag the compiler
   into the client graph. The route file is its only importer.

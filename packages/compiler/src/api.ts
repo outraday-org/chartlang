@@ -21,7 +21,7 @@ import {
     extractDependencyGraph,
     extractInputs,
     extractMaxLookback,
-    extractRequestedIntervals,
+    extractRequestAnalysis,
     extractRequiresIntervals,
     runForbiddenConstructs,
     runStatefulCallInLoop,
@@ -246,13 +246,15 @@ export function transformAndAnalyse(
     const fileCapabilities = extractCapabilities(sourceFile, checker, structural.kind);
     const fileLookback = extractMaxLookback(sourceFile, checker, sourcePath);
     const fileInputs = extractInputs(sourceFile, checker, sourcePath);
-    const fileRequestedIntervalsFromCalls = extractRequestedIntervals(
+    const fileRequestAnalysis = extractRequestAnalysis(
         sourceFile,
         checker,
         fileInputs.inputs,
         intervalDiagnostics,
         sourcePath,
+        true,
     );
+    const fileRequestedIntervalsFromCalls = fileRequestAnalysis.intervals;
     const fileRequiresIntervals = extractRequiresIntervals(
         sourceFile,
         checker,
@@ -319,6 +321,9 @@ export function transformAndAnalyse(
                   : { dependencies: defaultDependencies }),
               ...(defaultOutputs === undefined ? {} : { outputs: defaultOutputs }),
               ...(plotSlots.length === 0 ? {} : { plots: plotSlots }),
+              ...(fileRequestAnalysis.securityExpressions.length === 0
+                  ? {}
+                  : { securityExpressions: fileRequestAnalysis.securityExpressions }),
           });
 
     const allDiagnostics: CompileDiagnostic[] = [
@@ -360,13 +365,14 @@ function buildDrawnManifest(
     const capabilities = extractCapabilities(sourceFile, checker, kind, scope);
     const lookback = extractMaxLookback(sourceFile, checker, sourcePath, scope);
     const inputs = extractInputs(sourceFile, checker, sourcePath, scope);
-    const requestedFromCalls = extractRequestedIntervals(
+    const requestAnalysis = extractRequestAnalysis(
         sourceFile,
         checker,
         inputs.inputs,
         intervalDiagnostics,
         sourcePath,
     );
+    const requestedFromCalls = requestAnalysis.intervals;
     const requiresIntervalsScoped = extractRequiresIntervals(
         sourceFile,
         checker,
@@ -400,6 +406,11 @@ function buildDrawnManifest(
         ...(dependencies === undefined || dependencies.length === 0 ? {} : { dependencies }),
         ...(outputs === undefined ? {} : { outputs }),
         ...(plotSlots === undefined || plotSlots.length === 0 ? {} : { plots: plotSlots }),
+        // Mirror `plots` scoping: the flat security-expression list attaches to
+        // the default manifest only (the call that also receives `plotSlots`).
+        ...(plotSlots === undefined || requestAnalysis.securityExpressions.length === 0
+            ? {}
+            : { securityExpressions: requestAnalysis.securityExpressions }),
         exportName: drawn.exportName,
         isDrawn: true,
         ...(siblings !== undefined && siblings.length > 0 ? { siblings } : {}),

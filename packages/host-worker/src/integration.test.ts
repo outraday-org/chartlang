@@ -112,7 +112,110 @@ function bar(time: number, close: number): Bar {
     };
 }
 
+function mtfCapabilities(): Capabilities {
+    return {
+        ...makeCapabilities(),
+        intervals: [
+            { value: "1m", label: "1 minute", group: "minute" },
+            { value: "1D", label: "1 day", group: "daily" },
+        ],
+        multiTimeframe: true,
+    };
+}
+
+function exprManifest(): ScriptManifest {
+    return {
+        ...manifest(),
+        name: "htf-expr",
+        requestedIntervals: ["1D"],
+        seriesCapacities: { ohlcv: 64 },
+        maxLookback: 63,
+        securityExpressions: [{ slotId: "expr.chart.ts:1:1#0", interval: "1D", paramName: "bar" }],
+    };
+}
+
+// The compiled module the compiler would emit for the expression form: the
+// callsite carries an injected slotId, and the callback's `ta.ema` carries its
+// own injected slotId. It also plots a same-length MAIN-clock EMA so the test
+// can prove the weekly value differs from the main-clock value.
+const HTF_EXPR_SOURCE = `
+export default {
+    manifest: ${JSON.stringify(exprManifest())},
+    compute: (ctx) => {
+        const weekly = ctx.request.security(
+            "expr.chart.ts:1:1#0",
+            { interval: "1D" },
+            (bar) => ctx.ta.ema("expr.chart.ts:1:1#0/ema", bar.close, 3),
+        );
+        const mainEma = ctx.ta.ema("expr.chart.ts:2:1#0", ctx.bar.close, 3);
+        ctx.plot("expr.chart.ts:3:1#0", weekly.current, {});
+        ctx.plot("expr.chart.ts:4:1#0", mainEma.current, {});
+    },
+};
+`;
+
+function dailyBar(time: number, close: number): Bar {
+    return {
+        time,
+        open: close,
+        high: close + 1,
+        low: close - 1,
+        close,
+        volume: 10,
+        symbol: "X",
+        interval: "1D",
+    };
+}
+
 describe("host-worker integration", () => {
+    it("boots the request.security expression form and aligns a weekly EMA", async () => {
+        const { worker, scope } = pair();
+        createWorkerBoot(scope);
+        const host = createWorkerHost({
+            capabilities: mtfCapabilities(),
+            workerLike: worker,
+        });
+
+        const compiled: HostCompiledScript = {
+            moduleSource: HTF_EXPR_SOURCE,
+            manifest: exprManifest(),
+        };
+        await host.load(compiled);
+
+        // Four daily closes precede the main bars, then a few main closes.
+        await host.push({
+            kind: "history",
+            bars: [10, 20, 30, 40].map((c, i) => dailyBar(i * 86_400_000, c)),
+            streamKey: "1D",
+        });
+        await host.push({
+            kind: "history",
+            bars: [
+                bar(4 * 86_400_000, 40),
+                bar(4 * 86_400_000 + 60_000, 41),
+                bar(4 * 86_400_000 + 120_000, 42),
+                bar(4 * 86_400_000 + 180_000, 43),
+            ],
+        });
+        await new Promise((r) => setTimeout(r, 20));
+
+        const drained = await host.drain();
+        const weeklyPlots = drained.plots.filter((p) => p.slotId === "expr.chart.ts:3:1#0");
+        const mainPlots = drained.plots.filter((p) => p.slotId === "expr.chart.ts:4:1#0");
+        const weeklyHead = weeklyPlots[weeklyPlots.length - 1].value;
+        const mainHead = mainPlots[mainPlots.length - 1].value;
+
+        // EMA(3) over weekly [10,20,30,40] head = 30; finite and distinct from
+        // the same-length main-clock EMA(3) (which warms to 42 over [40..43]).
+        expect(Number.isFinite(weeklyHead)).toBe(true);
+        expect(weeklyHead).toBeCloseTo(30, 6);
+        expect(Number.isFinite(mainHead)).toBe(true);
+        expect(weeklyHead).not.toBeCloseTo(mainHead, 3);
+        expect(drained.diagnostics).toEqual([]);
+
+        host.dispose();
+    });
+
     it("round-trips a constant-plot script through load + push + drain", async () => {
         const { worker, scope } = pair();
         createWorkerBoot(scope);

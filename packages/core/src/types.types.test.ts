@@ -27,6 +27,8 @@ import type {
     ScriptManifest,
     ScriptOverrides,
     SecurityBar,
+    SecurityExpr,
+    SecurityExpressionDescriptor,
     Series,
     StateSnapshot,
     StateStoreKey,
@@ -97,6 +99,13 @@ describe("public type surface", () => {
         expectTypeOf<RequestNamespace["security"]>()
             .parameter(0)
             .toEqualTypeOf<RequestSecurityOpts>();
+    });
+
+    it("public request.security expression overload resolves through the root export", () => {
+        const sec: RequestNamespace["security"] = (() => undefined) as never;
+        const expr: SecurityExpr = (bar) => bar.close;
+        expectTypeOf(sec({ interval: "1W" })).toEqualTypeOf<SecurityBar>();
+        expectTypeOf(sec({ interval: "1W" }, expr)).toEqualTypeOf<Series<number>>();
     });
 
     it("public snapshot types resolve through the root export", () => {
@@ -190,6 +199,18 @@ describe("public type surface", () => {
         expectTypeOf<PlotSlotDescriptor["slotId"]>().toEqualTypeOf<string>();
         expectTypeOf<PlotSlotDescriptor["kind"]>().toEqualTypeOf<PlotKind>();
         expectTypeOf<PlotSlotDescriptor["title"]>().toEqualTypeOf<string | undefined>();
+    });
+
+    it("ScriptManifest exposes the optional HTF security-expression list", () => {
+        expectTypeOf<ScriptManifest["securityExpressions"]>().toEqualTypeOf<
+            ReadonlyArray<SecurityExpressionDescriptor> | undefined
+        >();
+    });
+
+    it("SecurityExpressionDescriptor pins slotId / interval / paramName", () => {
+        expectTypeOf<SecurityExpressionDescriptor["slotId"]>().toEqualTypeOf<string>();
+        expectTypeOf<SecurityExpressionDescriptor["interval"]>().toEqualTypeOf<string>();
+        expectTypeOf<SecurityExpressionDescriptor["paramName"]>().toEqualTypeOf<string>();
     });
 
     it("PlotOverride fields are all optional and JSON-clean", () => {

@@ -13,7 +13,9 @@ import type ts from "typescript";
  * `multiple-default-exports`, `non-const-define-binding`, and the six
  * `dep-*` codes for indicator-composition analysis (plus
  * `duplicate-output-title` for clashing `plot(value, { title })`
- * declarations in the same script).
+ * declarations in the same script). The HTF-expression feature adds
+ * `request-security-expr-captures-local` for an out-of-subset reference
+ * inside a `request.security({ interval }, (bar) => …)` callback.
  *
  * @since 0.1
  * @example
@@ -46,7 +48,8 @@ export type CompileDiagnosticCode =
     | "dep-invalid-input-override"
     | "dep-dynamic"
     | "dep-output-not-titled"
-    | "duplicate-output-title";
+    | "duplicate-output-title"
+    | "request-security-expr-captures-local";
 
 /**
  * Single diagnostic the compiler emits while transforming or analysing a

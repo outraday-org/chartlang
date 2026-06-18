@@ -29,6 +29,36 @@ export type InjectCallsiteIdsResult = Readonly<{
 }>;
 
 /**
+ * Mint the callsite slot id for a single call expression. The format is
+ * load-bearing — `<sourcePath>:<line>:<col>#<callIndex>` (§5.5), with 1-based
+ * line/column read from the call's start position in the **input** source
+ * file. `callIndex` is hardcoded to `0` for hand-written code (Phase 1
+ * reserves non-zero for future macros).
+ *
+ * Shared by `injectCallsiteIds` (which injects the literal as the leading
+ * argument) and the `request.security` expression analyser (which records
+ * the same id in `manifest.securityExpressions[*].slotId`) so the two never
+ * drift.
+ *
+ * @since 0.7
+ * @stable
+ * @example
+ *     // const slotId = callsiteIdFor(sourceFile, callNode, "demo.chart.ts");
+ *     // slotId === "demo.chart.ts:5:13#0"
+ *     const fn: typeof callsiteIdFor = callsiteIdFor;
+ *     void fn;
+ */
+export function callsiteIdFor(
+    sourceFile: ts.SourceFile,
+    call: ts.CallExpression,
+    sourcePath: string,
+): string {
+    const start = call.getStart(sourceFile);
+    const { line, character } = sourceFile.getLineAndCharacterOfPosition(start);
+    return `${sourcePath}:${line + 1}:${character + 1}#0`;
+}
+
+/**
  * Inject a `__slot` string-literal first argument into every stateful
  * primitive call. Slot id format:
  * `<sourcePath>:<line>:<col>#<callIndex>`. `callIndex` is hardcoded to `0`
@@ -89,9 +119,7 @@ export function injectCallsiteIds(
                 const calleeName = resolveCalleeName(node, checker);
                 const entry = calleeName === null ? undefined : statefulByName.get(calleeName);
                 if (entry?.slot) {
-                    const start = node.getStart(sourceFile);
-                    const { line, character } = sourceFile.getLineAndCharacterOfPosition(start);
-                    const slotId = `${sourcePath}:${line + 1}:${character + 1}#0`;
+                    const slotId = callsiteIdFor(sourceFile, node, sourcePath);
                     const existing = slotsSeen.get(slotId);
                     if (existing !== undefined) {
                         diagnostics.push(

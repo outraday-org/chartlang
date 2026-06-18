@@ -64,6 +64,7 @@ export function resetBarEmissions(state: RunnerState): void {
     state.emissions.toBar = state.barIndex;
     state.runtimeContext.requestSecurityAlignments.clear();
     state.runtimeContext.requestSecurityAscendingBars.clear();
+    state.runtimeContext.requestSecurityExprSeries?.clear();
     state.runtimeContext.logBudget = 0;
     state.runtimeContext.logBudgetExceededDiagnosed = false;
 }

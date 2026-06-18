@@ -8,6 +8,7 @@ import type {
     OutputDeclaration,
     PlotSlotDescriptor,
     ScriptManifest,
+    SecurityExpressionDescriptor,
 } from "@invinite-org/chartlang-core";
 
 type ValueFormat = "price" | "volume" | "percent" | "compact";
@@ -51,6 +52,7 @@ export function buildManifest(args: {
     readonly dependencies?: ReadonlyArray<DependencyDeclaration>;
     readonly outputs?: ReadonlyArray<OutputDeclaration>;
     readonly plots?: ReadonlyArray<PlotSlotDescriptor>;
+    readonly securityExpressions?: ReadonlyArray<SecurityExpressionDescriptor>;
     readonly exportName?: string;
     readonly isDrawn?: boolean;
     readonly siblings?: ReadonlyArray<ScriptManifest>;
@@ -110,6 +112,15 @@ export function buildManifest(args: {
         args.plots === undefined || args.plots.length === 0
             ? undefined
             : Object.freeze(args.plots.map((s) => Object.freeze({ ...s })));
+    const securityExpressions =
+        args.securityExpressions === undefined || args.securityExpressions.length === 0
+            ? undefined
+            : Object.freeze(
+                  args.securityExpressions
+                      .slice()
+                      .sort((a, b) => a.slotId.localeCompare(b.slotId))
+                      .map((s) => Object.freeze({ ...s })),
+              );
     const siblings =
         args.siblings === undefined || args.siblings.length === 0
             ? undefined
@@ -135,6 +146,7 @@ export function buildManifest(args: {
         ...(dependencies === undefined ? {} : { dependencies }),
         ...(outputs === undefined ? {} : { outputs }),
         ...(plots === undefined ? {} : { plots }),
+        ...(securityExpressions === undefined ? {} : { securityExpressions }),
         ...(args.exportName === undefined ? {} : { exportName: args.exportName }),
         ...(args.isDrawn === undefined ? {} : { isDrawn: args.isDrawn }),
         ...(siblings === undefined ? {} : { siblings }),

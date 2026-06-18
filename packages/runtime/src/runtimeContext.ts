@@ -24,6 +24,7 @@ import type {
 
 import type { DepOutputStore } from "./dep/DepOutputStore.js";
 import type { PersistentStateStore } from "./persistentStateStore.js";
+import type { SecurityExprRunner } from "./request/securityExprRunner.js";
 import type { StateSlot } from "./state/stateSlot.js";
 import type { StateStore } from "./stateStore.js";
 import type { StreamState } from "./streamState.js";
@@ -192,6 +193,32 @@ export type RuntimeContext = {
      * {@link requestSecurityAlignments}. @since 0.5
      */
     readonly requestSecurityAscendingBars: Map<StreamState, ReadonlyArray<Bar>>;
+    /**
+     * Mounted HTF expression runners keyed by `slotId`. One entry per
+     * `manifest.securityExpressions` callsite. `request.security(slotId,
+     * opts, expr)` dispatches the expression overload off this registry
+     * (rather than `expr !== undefined`) and captures the callback here.
+     * Absent on dep / sibling contexts and single-timeframe scripts.
+     * Cleared on `dispose`. @since 0.7
+     */
+    securityExprRunners?: Map<string, SecurityExprRunner>;
+    /**
+     * Per-interval index into {@link securityExprRunners}, keyed by
+     * `IntervalDescriptor.value`. `driveSecurityExpressions` fans a
+     * secondary close / tick out to every runner on that interval.
+     * Absent when no expression callsites are declared. Cleared on
+     * `dispose`. @since 0.7
+     */
+    securityExprRunnersByInterval?: ReadonlyMap<string, ReadonlyArray<SecurityExprRunner>>;
+    /**
+     * Per-compute aligned expression-output series cache keyed by
+     * `slotId|interval`. Holds the stable `Series<number>` Proxy each
+     * expression-form `request.security` returns; cleared each bar
+     * (alongside {@link requestSecurityAlignments}) so the proxy re-aligns
+     * the runner's output buffer against the latest secondary buffers.
+     * @since 0.7
+     */
+    requestSecurityExprSeries?: Map<string, Series<number>>;
     /**
      * Per-`request.lowerTf` slot cache keyed by `slotId|interval`. Values are
      * stable `Series<ReadonlyArray<Bar>>` proxies over the latest LTF bucket

@@ -249,18 +249,32 @@ export default {
 `;
     }
     if (relPath.endsWith("htf-trend-filter.chart.ts")) {
+        // The runtime's SecurityExprRunner registry keys the
+        // `request.security(slotId, …, expr)` dispatch against
+        // `manifest.securityExpressions[*].slotId`; a drift silently falls
+        // back to the (wrong) data path. The integration test compiles via
+        // `compileFile(resolvePath(REPO_ROOT, relPath))`, so the compiler
+        // mints slot ids relative to its own package dir
+        // (`../scripts/htf-trend-filter.chart.ts:…`) — read the security-expr
+        // slot id straight off this run's manifest so the hand-written body
+        // can never drift from the fresh compile.
+        const securitySlotId = manifest.securityExpressions?.[0]?.slotId ?? "";
+        const plotSlotIds = (manifest.plots ?? []).map((slot) => slot.slotId);
+        const fastPlotId = plotSlotIds[0] ?? "";
+        const weeklyPlotId = plotSlotIds[1] ?? "";
         return `
 const manifest = ${manifestJson};
 export default {
     manifest,
     compute: (ctx) => {
-        const fast = ctx.ta.ema("htf-trend-filter.chart.ts:12:22#0", ctx.bar.close, 20);
-        ctx.plot("htf-trend-filter.chart.ts:13:9#0", fast, { color: "#26a69a", title: "EMA(20)" });
-        const weekly = ctx.request.security("htf-trend-filter.chart.ts:19:31#0", { interval: "1W" });
-        const weeklyTrend = ctx.ta.ema("htf-trend-filter.chart.ts:20:28#0", weekly.close, 10);
-        ctx.plot("htf-trend-filter.chart.ts:21:9#0", weeklyTrend, {
+        const fast = ctx.ta.ema(${JSON.stringify(`${securitySlotId}:fast`)}, ctx.bar.close, 20);
+        ctx.plot(${JSON.stringify(fastPlotId)}, fast, { color: "#26a69a", title: "EMA(20)" });
+        const weeklyTrend = ctx.request.security(${JSON.stringify(securitySlotId)}, { interval: "1W" }, (bar) =>
+            ctx.ta.ema(${JSON.stringify(`${securitySlotId}:inner`)}, bar.close, 20),
+        );
+        ctx.plot(${JSON.stringify(weeklyPlotId)}, weeklyTrend, {
             color: "#ef5350",
-            title: "Weekly EMA(10)",
+            title: "Weekly EMA(20)",
         });
     },
 };
@@ -451,21 +465,93 @@ const MTF_DAILY_BARS: ReadonlyArray<Bar> = [mtfBar(0, 201, "1D"), mtfBar(2, 222,
 
 const MS_PER_WEEK = 7 * MS_PER_DAY;
 
-// 100 daily bars (≈14 weeks) for the HTF-trend-filter example: enough
-// history that the weekly EMA(10) (built off the secondary stream below)
-// warms up and emits finite values.
-const HTF_DAILY_BARS: ReadonlyArray<Bar> = Array.from({ length: 100 }, (_, i) =>
+// 175 daily bars (≈25 weeks) for the HTF-trend-filter example: enough
+// history that the weekly EMA(20) — computed ON the weekly bars via the
+// request.security expression form — warms up (it needs ~20 weekly closes)
+// and emits finite, stair-stepped values once enough weekly closes have
+// aligned into the secondary stream.
+const HTF_DAILY_BARS: ReadonlyArray<Bar> = Array.from({ length: 175 }, (_, i) =>
     phase4Bar(i, 100 + i, "1D"),
 );
 
-// 14 synthetic weekly bars keyed by the "1W" secondary stream. Each
-// closes at a weekly boundary (`time` = the LAST constituent day) so the
+// 25 synthetic weekly bars keyed by the "1W" secondary stream. Each closes
+// at a weekly boundary (`time` = the LAST constituent day) so the
 // no-lookahead alignment can hold its value across the daily bars that
-// follow.
-const HTF_WEEKLY_BARS: ReadonlyArray<Bar> = Array.from({ length: 14 }, (_, w) => ({
+// follow. The expression-form EMA(20) runs on THESE closes (the weekly
+// clock), so 25 of them warm the 20-period EMA with margin to spare.
+const HTF_WEEKLY_BARS: ReadonlyArray<Bar> = Array.from({ length: 25 }, (_, w) => ({
     ...phase4Bar(0, 200 + w * 5, "1W"),
     time: START_TIME + (w + 1) * MS_PER_WEEK - MS_PER_DAY,
 }));
+
+/** Single-pass EMA over an ascending close series (warmup-seeded at bar 0). */
+function emaSeries(closes: ReadonlyArray<number>, length: number): ReadonlyArray<number> {
+    const k = 2 / (length + 1);
+    const out: number[] = [];
+    let ema = Number.NaN;
+    closes.forEach((close, i) => {
+        ema = i === 0 ? close : close * k + ema * (1 - k);
+        out.push(ema);
+    });
+    return out;
+}
+
+/**
+ * Assert the weekly `request.security` expression series in `run` is finite,
+ * stair-stepped within each week, and meaningfully different from a
+ * same-length EMA(20) over the MAIN daily closes — the regression guard that
+ * the EMA actually runs on the weekly clock (≈140 days), not the main clock.
+ */
+function assertWeeklyExpressionSeries(run: CapturedRun, mainBars: ReadonlyArray<Bar>): void {
+    const weeklyValues = run.emissions.flatMap((frame) =>
+        frame.plots.filter((p) => p.title === "Weekly EMA(20)").map((p) => p.value),
+    );
+    expect(weeklyValues.length).toBe(mainBars.length);
+
+    const finite = weeklyValues.filter(
+        (v): v is number => typeof v === "number" && Number.isFinite(v),
+    );
+    // The weekly EMA(20) warms over weekly bars (≈140 days), so the head is
+    // NaN, but the tail must carry finite values once enough weekly closes
+    // have aligned in.
+    expect(finite.length).toBeGreaterThan(0);
+
+    // Stair-stepped: the no-lookahead alignment holds each weekly value across
+    // the ~7 daily bars of its week, so consecutive finite samples repeat far
+    // more often than they change (a per-bar-recomputed main series would
+    // change almost every bar).
+    let repeats = 0;
+    let changes = 0;
+    for (let i = 1; i < weeklyValues.length; i += 1) {
+        const prev = weeklyValues[i - 1];
+        const cur = weeklyValues[i];
+        if (typeof prev !== "number" || !Number.isFinite(prev)) continue;
+        if (typeof cur !== "number" || !Number.isFinite(cur)) continue;
+        if (cur === prev) repeats += 1;
+        else changes += 1;
+    }
+    expect(repeats).toBeGreaterThan(changes);
+
+    // Distinctness: a same-length EMA(20) over the MAIN daily closes (the old,
+    // buggy "weekly EMA" that averaged 20 main bars of a weekly-stepped
+    // series) sits far below the true weekly EMA. The mean absolute difference
+    // over the finite region must clear a wide margin.
+    const mainEma = emaSeries(
+        mainBars.map((b) => b.close),
+        20,
+    );
+    let sum = 0;
+    let count = 0;
+    for (let i = 0; i < weeklyValues.length; i += 1) {
+        const w = weeklyValues[i];
+        if (typeof w === "number" && Number.isFinite(w) && Number.isFinite(mainEma[i])) {
+            sum += Math.abs(w - mainEma[i]);
+            count += 1;
+        }
+    }
+    expect(count).toBeGreaterThan(0);
+    expect(sum / count).toBeGreaterThan(1);
+}
 
 describe("canvas2d adapter integration", () => {
     it("drives an EMA-cross-equivalent compiled bundle through the worker shim and renders to the mock canvas", async () => {
@@ -640,14 +726,11 @@ describe("canvas2d adapter integration", () => {
         expect(hasErrorDiagnostics(run.emissions)).toBe(false);
 
         // Plot 0 is the current-timeframe EMA(20); plot 1 is the weekly
-        // EMA(10) fed by the "1W" secondary stream. The weekly EMA must
-        // warm up and emit finite values once enough weekly closes have
-        // aligned into the secondary stream.
-        const weeklyValues = run.emissions.flatMap((frame) =>
-            frame.plots.filter((p) => p.title === "Weekly EMA(10)").map((p) => p.value),
-        );
-        expect(weeklyValues.length).toBe(HTF_DAILY_BARS.length);
-        expect(weeklyValues.some((v) => typeof v === "number" && Number.isFinite(v))).toBe(true);
+        // EMA(20) computed ON the weekly bars via the request.security
+        // expression form, then aligned no-lookahead to the daily chart. It
+        // must warm up, stair-step within each week, and differ from a
+        // same-length EMA(20) over the main daily closes.
+        assertWeeklyExpressionSeries(run, HTF_DAILY_BARS);
     });
 
     it("renders a finite weekly EMA when history arrives as one batch (the demo path)", async () => {
@@ -673,11 +756,7 @@ describe("canvas2d adapter integration", () => {
         expect(run.workerErrors).toEqual([]);
         expect(hasErrorDiagnostics(run.emissions)).toBe(false);
 
-        const weeklyValues = run.emissions.flatMap((frame) =>
-            frame.plots.filter((p) => p.title === "Weekly EMA(10)").map((p) => p.value),
-        );
-        expect(weeklyValues.length).toBe(HTF_DAILY_BARS.length);
-        expect(weeklyValues.some((v) => typeof v === "number" && Number.isFinite(v))).toBe(true);
+        assertWeeklyExpressionSeries(run, HTF_DAILY_BARS);
     });
 });
 

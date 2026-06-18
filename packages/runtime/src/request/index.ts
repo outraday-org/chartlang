@@ -3,4 +3,13 @@
 
 export { buildRequestNamespace } from "./requestNamespace.js";
 export { makeLowerTfSeries } from "./lowerTf.js";
-export { makeNanSecurityBar, makeSecurityBar } from "./security.js";
+export { makeNanSecurityBar, makeSecurityBar, makeSecurityExprSeries } from "./security.js";
+export {
+    type SecurityExprRegistry,
+    type SecurityExprRunner,
+    ascendingValues,
+    buildSecurityExprRunners,
+    captureAndCatchUp,
+    createSecurityExprRunner,
+    driveSecurityExpressions,
+} from "./securityExprRunner.js";

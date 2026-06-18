@@ -140,11 +140,34 @@ function entriesFromVariable(
     return entries;
 }
 
+function functionDeclarationsNamed(
+    sourceFile: ts.SourceFile,
+    name: string,
+): ReadonlyArray<ts.FunctionDeclaration> {
+    return sourceFile.statements.filter(
+        (statement): statement is ts.FunctionDeclaration =>
+            ts.isFunctionDeclaration(statement) && statement.name?.text === name,
+    );
+}
+
 function entriesFromObjectProperty(
     namespace: string,
     property: ts.ObjectLiteralElementLike,
     sourceFile: ts.SourceFile,
 ): ReadonlyArray<HoverRegistryEntry> {
+    // `Object.freeze({ security, lowerTf })` shorthands reference a top-level
+    // `function security(...)` whose overload signatures carry the JSDoc on the
+    // first declaration and the parameters on the implementation. Prefer the
+    // documented declaration so the hover summary / `@since` resolve, but read
+    // the printed signature from the same node (the first overload).
+    if (ts.isShorthandPropertyAssignment(property)) {
+        const fqn = `${namespace}.${property.name.text}`;
+        const decls = functionDeclarationsNamed(sourceFile, property.name.text);
+        const documented = decls.find((decl) => readJsDoc(decl).summary.length > 0);
+        const target = documented ?? decls[0];
+        if (target === undefined) return [];
+        return [entryForFunction(fqn, target, target, sourceFile)];
+    }
     if (
         (ts.isMethodDeclaration(property) || ts.isPropertyAssignment(property)) &&
         property.name !== undefined

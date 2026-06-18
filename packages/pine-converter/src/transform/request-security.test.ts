@@ -78,9 +78,15 @@ describe("emitRequestSecurity", () => {
         );
     });
 
-    it("passes a non-OHLCV source expression through with the emitter", () => {
+    it("lowers a ta.* source to the higher-timeframe callback form", () => {
         expect(emit('request.security(syminfo.tickerid, "D", ta.ema(close, 9))').source).toBe(
-            'request.security({ interval: "1d" }).ta.ema(bar.close, 9)',
+            'request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9))',
+        );
+    });
+
+    it("rewrites OHLCV source fields inside the callback body", () => {
+        expect(emit('request.security(syminfo.tickerid, "1W", ta.sma(hl2, 20))').source).toBe(
+            'request.security({ interval: "1w" }, (bar) => ta.sma(bar.hl2, 20))',
         );
     });
 

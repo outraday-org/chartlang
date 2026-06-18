@@ -16,13 +16,23 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   dep `fastTrend`, one drawn named export `slowTrend`, one default
   consumer reading both). The CLI's e2e test asserts the single-script
   vs multi-export sidecar shapes both round-trip.
-- `htf-trend-filter.chart.ts` demonstrates multi-timeframe
-  `request.security`: a current-timeframe `ta.ema(bar.close, 20)` plus a
-  weekly trend `ta.ema(request.security({ interval: "1W" }).close, 10)`.
-  Its `manifest.requestedIntervals` is `["1W"]`. The runtime path is
-  exercised by `examples/canvas2d-adapter/src/integration.test.ts`
-  ("renders the htf-trend-filter example…"), which drives it through
-  `createMultiStreamCandlePump` with a synthetic 1W secondary stream.
+- `htf-trend-filter.chart.ts` demonstrates the multi-timeframe
+  `request.security` **expression form**: a current-timeframe
+  `ta.ema(bar.close, 20)` plus a true weekly trend
+  `request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20))` —
+  the EMA runs on the weekly clock (~140 days), NOT 20 main bars of a
+  weekly-stepped series (the data-form bug). Its
+  `manifest.requestedIntervals` is `["1W"]` and
+  `manifest.securityExpressions` carries one unit (asserted by the CLI e2e
+  test). The runtime path is exercised by
+  `examples/canvas2d-adapter/src/integration.test.ts` ("renders the
+  htf-trend-filter example…" + the history-batch demo path), which drives it
+  through `createMultiStreamCandlePump` with a synthetic 1W secondary stream
+  (25 weekly bars so the EMA(20) warms). The hand-written
+  `phase4ModuleSource` htf branch reads the security-expr + plot slot ids off
+  the LIVE `compiled.manifest` so they can never drift from the fresh compile
+  (the runner registry dispatch keys on `securityExpressions[*].slotId`). The
+  plot title is `Weekly EMA(20)`.
 - `sma-offset.chart.ts` demonstrates the universal `ta` `offset` option:
   two `ta.sma(bar.close, 20)` lines on the candles, the second built with
   `{ offset: 5 }` so its `.current` reads the SMA value from 5 bars ago

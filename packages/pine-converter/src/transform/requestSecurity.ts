@@ -84,12 +84,17 @@ export function isRequestSecurityCall(call: CallExpression): boolean {
 
 /**
  * Lower a v1 single-symbol intraday MTF `request.security(syminfo.tickerid,
- * "<timeframe>", <ohlcv>)` call to chartlang `request.security({ interval:
- * "<interval>" }).<field>` (a `Series`). A different symbol pushes
+ * "<timeframe>", <source>)` call. A bare OHLCV source lowers to the chartlang
+ * **data** form `request.security({ interval: "<interval>" }).<field>` (a
+ * `Series`); a `ta.*` / expression source lowers to the chartlang **callback**
+ * form `request.security({ interval: "<interval>" }, (bar) => <source>)`, which
+ * runs the expression on the higher-timeframe clock the way Pine does (the
+ * source's `close`/`hl2`/… already rewrite to `bar.close`/`bar.hl2`/… through
+ * the shared field mapper). A different symbol pushes
  * `request-security-different-symbol`; a `lookahead` named arg pushes
- * `request-security-lookahead-not-supported`; a non-OHLCV source field passes
- * through with a note. An out-of-subset shape (non-literal timeframe, missing
- * args) pushes `request-security-not-mapped` and returns `null`.
+ * `request-security-lookahead-not-supported`. An out-of-subset shape
+ * (non-literal timeframe, missing args) pushes `request-security-not-mapped`
+ * and returns `null`.
  *
  * @since 0.1
  * @stable
@@ -157,7 +162,13 @@ export function emitRequestSecurity(
         diagnostics.pushCode("request-security-not-mapped", call.span);
         return null;
     }
-    const base = `request.security({ interval: ${JSON.stringify(interval)} })`;
+    const opts = `{ interval: ${JSON.stringify(interval)} }`;
     const field = securityField(source);
-    return field === null ? `${base}.${emitWithContext(source, ctx)}` : `${base}.${field}`;
+    // A bare OHLCV field reads the aligned data form; any other source (a
+    // `ta.*`/expression) runs on the HTF clock via the callback form. The
+    // mapper already lowered its OHLCV reads to `bar.<field>`, so the emitted
+    // source is the callback body verbatim.
+    return field === null
+        ? `request.security(${opts}, (bar) => ${emitWithContext(source, ctx)})`
+        : `request.security(${opts}).${field}`;
 }

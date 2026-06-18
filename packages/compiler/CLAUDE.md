@@ -21,7 +21,37 @@
   1-based, read from the **input** source file before any rewrite. The
   runtime keys per-script state on this exact string — change the format
   and every cached state goes stale. Hand-written code always uses
-  `callIndex = 0`; non-zero is reserved for future macros.
+  `callIndex = 0`; non-zero is reserved for future macros. The minting is
+  centralised in the exported `callsiteIdFor(sourceFile, call, sourcePath)`
+  helper in `callsiteIdInjection.ts`; both the injector AND the
+  `request.security` expression analyser (`extractRequestAnalysis`) call it so
+  the injected leading-argument literal and the
+  `manifest.securityExpressions[*].slotId` are byte-identical. Never re-derive
+  the format inline.
+- **`request.security` has two arities; the expression form is analysed, not
+  rewritten.** `extractRequestAnalysis` (in `extractRequestedIntervals.ts`)
+  detects a second arrow/function-expression argument and records one
+  `SecurityExpressionDescriptor { slotId, interval, paramName }` per callsite
+  in `manifest.securityExpressions` (sorted by `slotId`, omitted when empty so
+  data-only snapshots stay byte-identical). The compiled callback stays
+  **inline** in the emitted module — the descriptor is only the registry the
+  runtime uses to know which slot id runs on an HTF clock. Only a
+  string-literal `interval` anchors an expression unit; an `input.enum`
+  interval (multi-valued) does not. The capture check `validateSecurityExpr`
+  runs **once at file scope** (the `validateExpressions: true` flag is passed
+  only by `transformAndAnalyse`'s file-level call, never the per-drawn
+  `buildDrawnManifest` call) so multi-export files don't double-report. Its
+  subset: the `bar` param + body locals, ambient `ta` / `inputs` (resolved via
+  the now-exported `resolveCoreSymbolName`), `Math.*` (individual hostile
+  members like `Math.random` stay the hostile-global pass's job), the pure
+  value globals `NaN` / `undefined` / `Infinity` (`SAFE_VALUE_GLOBALS`), and
+  literals; anything else — a nested function/arrow, a `this` reference, or an
+  outer binding reached via a shorthand opts property (`{ outerLen }`) or a
+  parameter default (`(bar = outer) => …`) — is
+  `request-security-expr-captures-local`. Parameter initialisers are walked
+  alongside the body precisely to catch that last form. The
+  `securityExpressions` list attaches to the **default manifest only** (mirrors
+  `plots` scoping).
 - **Static-analysis runs on the original AST.** `structuralChecks`,
   `forbiddenConstructs`, and `statefulCallInLoop` operate on the source
   file as parsed; the transformer is a pure rewrite step that never
@@ -70,6 +100,19 @@
   is host-machine independent and deterministic. The shim must stay in
   lockstep with `packages/core/src/` — every new core export needs a
   matching declaration here.
+  - **Overloaded shim namespaces are `interface`s, never `Readonly<{ … }>`
+    object types.** `RequestNamespace` carries the two `security` overloads
+    (data + expression form). `Readonly<T>` is a homomorphic mapped type, and
+    mapping over a member with multiple call signatures **collapses the
+    overloads to one** — so a `Readonly<{ security(opts): SecurityBar;
+    security(opts, expr): Series<number> }>` shim makes the full `compile()`
+    type-check reject `request.security({ interval }, (bar) => …)` with TS2554
+    ("Expected 1 arguments, but got 2"). Declaring `RequestNamespace` as an
+    `interface` preserves both arities. `transformAndAnalyse` (analysis-only)
+    does NOT type-check, so the only guard against this is a `compile()`-based
+    test (`compile.test.ts` → "type-checks the request.security expression
+    overload through the ambient shim"). Any future overloaded namespace
+    member must follow the interface pattern.
 - **Callee resolution handles nested core namespaces.** `resolveCalleeName`
   must preserve full names such as `state.tick.float` in addition to
   one-hop names like `ta.ema`; callsite-id injection and loop diagnostics

@@ -1,11 +1,43 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { Bar, Price, WorldPoint } from "@invinite-org/chartlang-core";
+import type { Bar, Price, Series, WorldPoint } from "@invinite-org/chartlang-core";
 
 import { resolveBarPoint } from "../barPoint.js";
 import type { RuntimeContext } from "../runtimeContext.js";
 import type { StreamState } from "../streamState.js";
+
+/**
+ * A `Series<string>` whose every head-relative read returns a fixed `value`.
+ * Backs the `symbol` / `interval` fields of a materialised {@link SecurityBar}
+ * (both the data form's live bar and the expression form's fold bar), where the
+ * scalar is constant across history.
+ *
+ * @since 0.7
+ * @stable
+ * @example
+ *     const s = makeConstantStringSeries("1W");
+ *     void s.current; // "1W"
+ */
+export function makeConstantStringSeries(value: string): Series<string> {
+    const target = {
+        get current() {
+            return value;
+        },
+        get length() {
+            return 0;
+        },
+    };
+    return new Proxy(Object.freeze(target), {
+        get(obj, prop, receiver) {
+            if (typeof prop === "string") {
+                const n = Number(prop);
+                if (Number.isInteger(n) && n >= 0) return value;
+            }
+            return Reflect.get(obj, prop, receiver);
+        },
+    }) as Series<string>;
+}
 
 /**
  * Materialise the bar at ring-buffer `age` from a stream state.

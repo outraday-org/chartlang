@@ -84,8 +84,24 @@ export function resolveCoreSymbolForElementAccess(
  * symbol. Renamed imports (`import { ta as TA } from "core"; TA.ema(...)`)
  * map back to their export name (`"ta"`) so the resulting slot-id
  * matches what `STATEFUL_PRIMITIVES` expects.
+ *
+ * Reused by the `request.security` expression capture check
+ * (`validateSecurityExpr`) to decide whether a free identifier inside the
+ * HTF callback resolves to the ambient `ta` / `inputs` namespaces (allowed)
+ * versus an outer-scope binding (rejected).
+ *
+ * @since 0.7
+ * @stable
+ * @example
+ *     // const name = resolveCoreSymbolName(checker, identifier);
+ *     // name === "ta" | "inputs" | null
+ *     const fn: typeof resolveCoreSymbolName = resolveCoreSymbolName;
+ *     void fn;
  */
-function resolveCoreSymbolName(checker: ts.TypeChecker, identifier: ts.Identifier): string | null {
+export function resolveCoreSymbolName(
+    checker: ts.TypeChecker,
+    identifier: ts.Identifier,
+): string | null {
     const localSymbol = checker.getSymbolAtLocation(identifier);
     if (!localSymbol) return null;
     const target =

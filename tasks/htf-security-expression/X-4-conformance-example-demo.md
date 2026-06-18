@@ -171,6 +171,15 @@ rendering test and these htf tests pin no call-log hash.
 
 ### 5. Live-site demo
 
+> **Cross-feature note (`tasks/examples-full-coverage/`).** If that
+> feature's Task 1 has already landed, `scripts.ts` is **generated** from
+> `examples/catalogue.ts` + the `.chart.ts` sources — a hand-edit to the
+> `HTF_TREND_FILTER` constant below would be **overwritten** by
+> `pnpm examples:generate`. In that case, edit only
+> `examples/scripts/htf-trend-filter.chart.ts` (step 3) + its `complex`
+> catalogue fragment `description`, then regenerate. The constant edit
+> below applies only to the current inlined-`scripts.ts` world.
+
 `apps/site/src/components/demo/scripts.ts`: update `HTF_TREND_FILTER` to
 the callback form (mirror the example byte-for-byte where possible) and
 update its catalogue `description` to say the weekly EMA is computed over

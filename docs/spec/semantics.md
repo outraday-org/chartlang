@@ -267,6 +267,28 @@ secondary tick replaces the secondary head, and the next main compute sees the
 latest head value when that secondary bar is the most recent bar at or before
 the main time.
 
+#### Data form vs expression form
+
+The two `request.security` overloads differ in **which clock the expression
+runs on**:
+
+- **Data form** — `request.security({ interval })` returns the `SecurityBar`
+  aligned onto the main timeline (the rule above). A `ta.*` applied to one of
+  its fields runs on the **main** clock, counting its window in main bars.
+- **Expression form** — `request.security({ interval }, (bar) => …)` evaluates
+  the callback on the **higher-timeframe** clock. The runtime mounts one
+  expression runner per `manifest.securityExpressions` entry, drives the
+  callback once per HTF bar close (replace-head per HTF tick) against a
+  dedicated higher-timeframe fold state so the callback's `ta.*` accumulate on
+  the HTF clock, and samples one value per HTF bar into a per-slot output
+  buffer. The returned `Series<number>` is that buffer aligned **no-lookahead**
+  onto the main timeline — identical alignment to the data form, applied to the
+  expression's output rather than to raw OHLCV.
+
+Both forms read the **same symbol** as the chart and share the fallback table
+below; the expression form returns an all-`NaN` series under the same
+conditions.
+
 Fallback behavior is:
 
 | Condition | Result |

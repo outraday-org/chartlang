@@ -20,9 +20,10 @@ published to npm**.
   `rsi-divergence-alert.chart.ts`; later phases add the `draw.*`,
   Pine-port, composition, and multi-timeframe samples. The MTF sample
   `htf-trend-filter.chart.ts` overlays a current-timeframe EMA plus a
-  weekly `request.security({ interval: "1W" })` trend — its runtime
-  test feeds a synthetic 1W secondary stream via
-  `createMultiStreamCandlePump`. The single-timeframe `sma-offset
+  true weekly trend via the `request.security` **expression form**
+  (`request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20))`,
+  so the EMA runs on the weekly clock) — its runtime test feeds a synthetic
+  1W secondary stream via `createMultiStreamCandlePump`. The single-timeframe `sma-offset
   .chart.ts` sample overlays two `ta.sma(bar.close, 20)` lines, the
   second shifted via the universal `ta` `{ offset: 5 }` option to show
   series displacement. The `pivot-high-ray.chart.ts` sample tracks the

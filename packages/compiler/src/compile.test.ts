@@ -58,6 +58,54 @@ export function defineIndicator(o){ const __m = "IN_MEMORY_CORE_MARKER"; return 
         expect(new Set(matches).size).toBe(4);
     });
 
+    it("type-checks the request.security expression overload through the ambient shim", async () => {
+        // Regression for the ambient-shim overload-collapse bug: the shim's
+        // `RequestNamespace` was a `Readonly<{ security(opts): SecurityBar;
+        // security(opts, expr): Series<number> }>` object type, and `Readonly`
+        // (a homomorphic mapped type) collapsed the two `security` overloads
+        // to one — so the full `compile()` type-check rejected the expression
+        // form with TS2554 ("Expected 1 arguments, but got 2"). The shim now
+        // declares `RequestNamespace` as an `interface`, which preserves both
+        // overloads. `transformAndAnalyse` (analysis-only) never exercised the
+        // type-check, so this guard must go through `compile`.
+        const EXPR_FORM = `
+import { defineIndicator, plot, request, ta } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "htf",
+    apiVersion: 1,
+    compute({ ta, plot, request }) {
+        const weekly = request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20));
+        plot(weekly, { color: "#ef5350", title: "Weekly EMA(20)" });
+    },
+});
+`;
+        const result = await compile(EXPR_FORM, {
+            apiVersion: 1,
+            sourcePath: "htf.chart.ts",
+        });
+        expect(result.manifest.requestedIntervals).toEqual(["1W"]);
+        expect(result.manifest.securityExpressions).toEqual([
+            { slotId: "htf.chart.ts:7:24#0", interval: "1W", paramName: "bar" },
+        ]);
+        // The data-only overload still type-checks (one argument).
+        const DATA_FORM = `
+import { defineIndicator, plot, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "data",
+    apiVersion: 1,
+    compute({ plot, request }) {
+        const weekly = request.security({ interval: "1W" });
+        plot(weekly.close);
+    },
+});
+`;
+        const dataResult = await compile(DATA_FORM, {
+            apiVersion: 1,
+            sourcePath: "data.chart.ts",
+        });
+        expect(dataResult.manifest.securityExpressions).toBeUndefined();
+    });
+
     it("throws CompileError with a `type-error` diagnostic when a TS semantic error fires", async () => {
         // Regression for the gap reported in PLAN §5.2 step 1: semantic
         // type errors (`const x: number = "oops"`) previously slipped

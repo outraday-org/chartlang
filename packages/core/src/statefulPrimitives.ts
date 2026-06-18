@@ -188,6 +188,10 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "state.tick.int", slot: true },
     { name: "state.tick.bool", slot: true },
     { name: "state.tick.string", slot: true },
+    // Both the data form `request.security({ interval })` and the expression
+    // form `request.security({ interval }, (bar) => …)` route through this one
+    // entry: `slot: true` injects the slot id as the first argument regardless
+    // of the optional second (callback) argument.
     { name: "request.security", slot: true },
     { name: "request.lowerTf", slot: true },
     { name: "defineAlertCondition.signal", slot: false },

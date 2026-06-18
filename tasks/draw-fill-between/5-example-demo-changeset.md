@@ -18,6 +18,24 @@ Task 4 keeps all user-facing docs consistent before the final sweep.
 
 No example, demo, or changeset references `draw.fillBetween`.
 
+> **Cross-feature note (`tasks/examples-full-coverage/`).** `draw.fillBetween`
+> is a **new primitive**, so it generates a new `docs/primitives/draw/fill-between.md`
+> page. The `examples-full-coverage` coverage gate enumerates the required
+> example set directly from that `docs/primitives/**` tree, so once this
+> primitive lands the gate **auto-requires** a `fill-between` example —
+> but no draw-family task there owns it (those lists predate the
+> primitive). Two consequences:
+> - If `examples-full-coverage` Task 1 has **already** landed, its
+>   `scripts.ts` is **generated** from `examples/catalogue.ts` — do **not**
+>   hand-add a `FILL_BETWEEN_BAND` constant to `scripts.ts` (req 2 below);
+>   instead add the `.chart.ts` + a `examples/catalogue/<draw-fills>.ts`
+>   fragment entry (category in the draw `polylines`/fills bucket), then
+>   run `pnpm examples:generate`. The hand-edited constant would be
+>   overwritten by the generator.
+> - Either way, the `fill-between-band` script authored here is the one
+>   `examples-full-coverage` should catalogue for `fill-between` coverage —
+>   it should fold this script in, not author a second example.
+
 ## Desired Behavior
 
 - An `examples/scripts/*.chart.ts` band example listed in the CLI e2e

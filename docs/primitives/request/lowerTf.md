@@ -19,7 +19,7 @@ contained-bar model and interval format.
 ## Signature
 
 ```ts
-lowerTf(_opts: RequestLowerTfOpts): Series<ReadonlyArray<Bar>> {
+function lowerTf(_opts: RequestLowerTfOpts): Series<ReadonlyArray<Bar>> {
     return sentinel("request.lowerTf");
 }
 ```

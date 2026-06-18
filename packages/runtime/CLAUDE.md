@@ -87,6 +87,38 @@
   preserves per-callsite `SecurityBar` identity; diagnostics are deduped
   per mount and both maps are cleared on `dispose`. Do not wire real HTF
   alignment here — Phase 5 replaces only the value producer.
+- **`request.security(opts, expr)` is driven on HTF bar close, not main
+  close.** `createScriptRunner` mounts one
+  `request/securityExprRunner.ts:SecurityExprRunner` per
+  `manifest.securityExpressions` entry, keyed on
+  `RuntimeContext.securityExprRunners` (by `slotId`) +
+  `securityExprRunnersByInterval` (for the secondary-close fan-out). Each
+  runner owns a dedicated **fold `StreamState`** clocked on its HTF
+  interval, a private `RuntimeContext` (`stream = foldStream`,
+  `slotIdPrefix = "security:<slotId>/"`), a fold `SecurityBar` view backed
+  by the fold stream's head, and a `Float64RingBuffer` output buffer (one
+  sampled value per HTF bar). `ta.*` inside the callback read/write
+  `foldStream.taSlots`, so they accumulate on the HTF clock — the whole
+  point of the feature. `pushSecondaryEvent` calls
+  `driveSecurityExpressions(ctx, interval, "close" | "tick", bar)` right
+  after appending/replacing the real secondary stream: a **close** folds
+  the bar + appends one output and increments `processedHtfCount`; a
+  **tick** replace-heads the fold stream + output (no length advance,
+  matching `replaceTickHead`). The callback is captured **lazily** on the
+  first `request.security(slotId, opts, expr)` in the main compute (the
+  manifest only says "slotId X is an expression on interval I"); on capture,
+  `captureAndCatchUp` replays the already-buffered real secondary stream
+  oldest→newest until `processedHtfCount === secondary.length`. The real
+  secondary stream is never mutated to "present" history — it stays the
+  alignment-timestamp source; the fold stream owns expression-local state.
+  `evaluate` swaps `ACTIVE_RUNTIME_CONTEXT.current` to the runner's ctx
+  inside try/finally that restores the previous value (the
+  set-inside-try/finally invariant). Overload dispatch keys off the runner
+  registry (not `expr !== undefined`) so compiled output is robust to a
+  changed emit shape. `dispose` resets every runner's fold buffers + output
+  + taSlots and clears the registry. The aligned return series is cached on
+  `requestSecurityExprSeries` (cleared each bar alongside the other
+  per-bar request caches).
 - **§6.7 invariants are property-tested.** `onBarClose.test.ts`
   pins `bar.X === series.X[0]` and "all series equal length";
   `onBarTick.test.ts` pins "consecutive ticks don't advance

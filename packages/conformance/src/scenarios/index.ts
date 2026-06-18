@@ -101,6 +101,8 @@ import { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario.js";
 import { LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO } from "./lowerTfUnsupportedInterval.scenario.js";
 import { MTF_CAPABILITY_FALSE_SCENARIO } from "./mtfCapabilityFalse.scenario.js";
 import { MTF_REQUEST_SECURITY_CLOSE_SCENARIO } from "./mtfRequestSecurityClose.scenario.js";
+import { MTF_SECURITY_EXPRESSION_EMA_SCENARIO } from "./mtfSecurityExpressionEma.scenario.js";
+import { MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO } from "./mtfSecurityExpressionNanFallback.scenario.js";
 import { MTF_UNSUPPORTED_INTERVAL_SCENARIO } from "./mtfUnsupportedInterval.scenario.js";
 import { PLOT_KIND_ARROW_SCENARIO } from "./plotKindArrow.scenario.js";
 import { PLOT_KIND_ARROW_GATED_SCENARIO } from "./plotKindArrowGated.scenario.js";
@@ -337,6 +339,8 @@ export { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario.js";
 export { LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO } from "./lowerTfUnsupportedInterval.scenario.js";
 export { MTF_CAPABILITY_FALSE_SCENARIO } from "./mtfCapabilityFalse.scenario.js";
 export { MTF_REQUEST_SECURITY_CLOSE_SCENARIO } from "./mtfRequestSecurityClose.scenario.js";
+export { MTF_SECURITY_EXPRESSION_EMA_SCENARIO } from "./mtfSecurityExpressionEma.scenario.js";
+export { MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO } from "./mtfSecurityExpressionNanFallback.scenario.js";
 export { MTF_UNSUPPORTED_INTERVAL_SCENARIO } from "./mtfUnsupportedInterval.scenario.js";
 export { PLOT_KIND_ARROW_SCENARIO } from "./plotKindArrow.scenario.js";
 export { PLOT_KIND_ARROW_GATED_SCENARIO } from "./plotKindArrowGated.scenario.js";
@@ -741,6 +745,12 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     INPUT_INTERVAL_SCENARIO,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
     MTF_REQUEST_SECURITY_CLOSE_SCENARIO,
+    // request.security expression form — the EMA runs on the HTF (secondary
+    // 1D) clock, not the main-aligned daily close. The happy-path golden +
+    // its companion distinctness test prove the weekly/HTF value differs from
+    // a same-length main EMA; the NaN-fallback mirrors the data form's gate.
+    MTF_SECURITY_EXPRESSION_EMA_SCENARIO,
+    MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO,
     MTF_UNSUPPORTED_INTERVAL_SCENARIO,
     MTF_CAPABILITY_FALSE_SCENARIO,
     LOWER_TF_HAPPY_PATH_SCENARIO,

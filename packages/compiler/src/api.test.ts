@@ -93,6 +93,96 @@ export default defineIndicator({
         expect(result.manifest.requestedIntervals).toEqual(["1D", "5m"]);
     });
 
+    it("records a request.security expression unit in the manifest", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "htf",
+    apiVersion: 1,
+    compute: ({ ta, plot }) => {
+        const trend = request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20));
+        plot(trend);
+    },
+});
+`,
+            { sourcePath: "htf.chart.ts" },
+        );
+        expect(result.diagnostics).toEqual([]);
+        expect(result.manifest.requestedIntervals).toEqual(["1W"]);
+        expect(result.manifest.securityExpressions).toEqual([
+            { slotId: "htf.chart.ts:7:23#0", interval: "1W", paramName: "bar" },
+        ]);
+    });
+
+    it("omits securityExpressions for the data-only request.security form", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "data-only",
+    apiVersion: 1,
+    compute: ({ plot }) => {
+        const weekly = request.security({ interval: "1W" });
+        plot(weekly.close);
+    },
+});
+`,
+            { sourcePath: "data-only.chart.ts" },
+        );
+        expect(result.diagnostics).toEqual([]);
+        expect(result.manifest.securityExpressions).toBeUndefined();
+    });
+
+    it("attaches securityExpressions to the default manifest of a multi-export file", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export const sibling = defineIndicator({
+    name: "Sibling",
+    apiVersion: 1,
+    compute: ({ plot, bar }) => { plot(bar.close, { title: "echo" }); },
+});
+export default defineIndicator({
+    name: "Composition",
+    apiVersion: 1,
+    compute: ({ ta, plot }) => {
+        const trend = request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20));
+        plot(trend);
+    },
+});
+`,
+            { sourcePath: "multi.chart.ts" },
+        );
+        expect(result.diagnostics).toEqual([]);
+        expect(result.manifest.securityExpressions).toEqual([
+            { slotId: "multi.chart.ts:12:23#0", interval: "1W", paramName: "bar" },
+        ]);
+        // Named-export sibling manifests omit the flat list (mirrors `plots`).
+        expect(result.siblings?.[0]?.securityExpressions).toBeUndefined();
+    });
+
+    it("rejects an outer-local capture in a request.security callback", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "bad",
+    apiVersion: 1,
+    compute: ({ ta, plot }) => {
+        const k = 20;
+        const trend = request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, k));
+        plot(trend);
+    },
+});
+`,
+            { sourcePath: "bad.chart.ts" },
+        );
+        expect(result.diagnostics.map((d) => d.code)).toContain(
+            "request-security-expr-captures-local",
+        );
+    });
+
     it("extracts define inputs into the manifest", () => {
         const result = transformAndAnalyse(
             `

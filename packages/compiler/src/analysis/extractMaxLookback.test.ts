@@ -354,4 +354,22 @@ void hbar.current; void back;
 `);
         expect(result.maxLookback).toBe(20);
     });
+
+    it("counts a ta.* offset inside a request.security expression callback", () => {
+        const result = run(`
+import { request, ta } from "@invinite-org/chartlang-core";
+const trend = request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 200, { offset: 12 }));
+void trend;
+`);
+        expect(result.maxLookback).toBe(12);
+    });
+
+    it("counts a series element-access lookback inside the callback", () => {
+        const result = run(`
+import { request } from "@invinite-org/chartlang-core";
+const trend = request.security({ interval: "1W" }, (bar) => bar.close[50]);
+void trend;
+`);
+        expect(result.maxLookback).toBe(50);
+    });
 });

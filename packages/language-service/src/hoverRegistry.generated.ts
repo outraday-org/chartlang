@@ -4505,17 +4505,18 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
     "request.security": {
         "fqn": "request.security",
         "kind": "function",
-        "title": "request.security(_opts)",
-        "summary": "Read a secondary candle stream at a script-author-fixed **higher**\ninterval. The returned `SecurityBar` exposes every OHLCV field —\nplus the derived `hl2` / `hlc3` / `ohlc4` / `hlcc4` and `symbol` /\n`interval` — as a `Series<...>`, aligned no-lookahead to the chart's\nbars so a script can read prior secondary values such as\n`weekly.close[5]`. The `interval` must be a compile-time literal (a\nstring literal or an `input.enum` value); the compiler walks every call\nto populate `manifest.requestedIntervals`. When the adapter does not\nadvertise `Capabilities.multiTimeframe`, the series degrades to all-NaN\nrather than erroring. See the multi-timeframe guide for alignment and\ninterval-format details.",
+        "title": "request.security(opts)",
+        "summary": "Read a secondary candle stream at a script-author-fixed **higher**\ninterval. Two forms:",
         "paramTable": [
             {
-                "name": "_opts",
+                "name": "opts",
                 "type": "RequestSecurityOpts",
                 "doc": ""
             }
         ],
         "examples": [
-            "// Pull weekly candles aligned to the chart and read the close.\nconst weekly = request.security({ interval: \"1W\" });\nconst weeklyClose = weekly.close.current;\nvoid weeklyClose;"
+            "// weekly EMA(20) — computed over weekly bars, drawn on the chart\nconst trend = request.security({ interval: \"1W\" }, (bar) => ta.ema(bar.close, 20));\nplot(trend, { title: \"Weekly EMA(20)\" });",
+            "// data form — aligned weekly close\nconst weekly = request.security({ interval: \"1W\" });\nplot(weekly.close, { title: \"Weekly close\" });"
         ],
         "since": "0.4",
         "stability": "stable"
@@ -4738,6 +4739,28 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const close: SecurityBar[\"close\"] = { current: 1, length: 1 };\nvoid close;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "SecurityExpr": {
+        "fqn": "SecurityExpr",
+        "kind": "type",
+        "title": "SecurityExpr",
+        "summary": "/**\nA higher-timeframe expression callback for  {@link RequestNamespace.security} .\nReceives the HTF  {@link SecurityBar} (OHLCV series on the secondary\nstream's own clock) and returns the value to evaluate per HTF bar.\nThe body may reference only the `bar` parameter, the ambient `ta`\nnamespace, `inputs`, safe `Math.*` globals, and literal constants —\ncapturing any other outer binding is a compile error\n(`request-security-expr-captures-local`).",
+        "examples": [
+            "const trend: SecurityExpr = (bar) => bar.close;\nvoid trend;"
+        ],
+        "since": "0.7",
+        "stability": "stable"
+    },
+    "SecurityExpressionDescriptor": {
+        "fqn": "SecurityExpressionDescriptor",
+        "kind": "type",
+        "title": "SecurityExpressionDescriptor",
+        "summary": "One higher-timeframe expression unit in `ScriptManifest.securityExpressions`.\nThe compiler emits one entry per `request.security({ interval }, (bar) => …)`\ncallsite so the runtime knows which `slotId` is an HTF expression, on which\n`interval` to clock it, and the callback's single parameter name. The\ncallback body stays inline in the compiled module — this descriptor is only\nthe registry pointing at it.",
+        "examples": [
+            "const unit: SecurityExpressionDescriptor = {\nslotId: \"trend.ts:8:21#0\",\ninterval: \"1W\",\nparamName: \"bar\",\n};\nvoid unit;"
+        ],
+        "since": "0.7",
         "stability": "stable"
     },
     "Series": {

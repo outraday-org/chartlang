@@ -39,6 +39,10 @@ import {
     replaceSecondaryHead,
 } from "./execution/secondaryStream.js";
 import { resolveInputs } from "./inputs/index.js";
+import {
+    buildSecurityExprRunners,
+    driveSecurityExpressions,
+} from "./request/securityExprRunner.js";
 import type { PersistentStateStore } from "./persistentStateStore.js";
 import {
     PERSISTENCE_INTERVAL_MS,
@@ -237,15 +241,24 @@ function pushSecondaryEvent(state: RunnerState, streamKey: string, event: Candle
         pushUnknownSecondaryDiagnostic(state, streamKey);
         return;
     }
+    const ctx = state.runtimeContext;
     switch (event.kind) {
         case "history":
+            // History bars are finalised HTF closes: fill the buffer, then
+            // drive every registered runner once per bar in source order (a
+            // no-op until the main compute captures the callback).
             appendSecondaryHistory(stream, event.bars);
+            for (const bar of event.bars) {
+                driveSecurityExpressions(ctx, streamKey, "close", bar);
+            }
             return;
         case "close":
             appendSecondaryBar(stream, event.bar);
+            driveSecurityExpressions(ctx, streamKey, "close", event.bar);
             return;
         case "tick":
             replaceSecondaryHead(stream, event.bar);
+            driveSecurityExpressions(ctx, streamKey, "tick", event.bar);
             return;
     }
 }
@@ -345,6 +358,10 @@ function buildPrimaryState(
         args.plotOverrides ??
         args.resolvePlotOverrides?.(primary.manifest.name) ??
         Object.freeze({});
+    const exprRunners = buildSecurityExprRunners(primary.manifest, state.runtimeContext, capacity);
+    state.runtimeContext.securityExprRunners = exprRunners.bySlot;
+    state.runtimeContext.securityExprRunnersByInterval = exprRunners.byInterval;
+    state.runtimeContext.requestSecurityExprSeries = new Map();
     return state;
 }
 

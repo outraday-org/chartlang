@@ -19,7 +19,8 @@ pnpm add @invinite-org/chartlang-core
 - Stateful slots: `state.float`, `int`, `bool`, `string`, plus
   `state.tick.*` for tick-persistent `varip` semantics.
 - Views: `barstate`, `syminfo`, `timeframe`.
-- Secondary stream: `request.security({ interval })` typed surface.
+- Secondary stream: `request.security({ interval })` (data) and
+  `request.security({ interval }, (bar) => …)` (HTF expression) typed surface.
 - Emissions: `plot`, `hline`, `alert`, and the 61-kind `draw.*` namespace.
 - Registry: `STATEFUL_PRIMITIVES` for compiler slot-id injection.
 - Indicator composition (Phase 7): `CompiledScriptObject.output(title)` /

@@ -998,6 +998,19 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   scalar context inserts `.current` + `mtf-series-to-scalar-conversion`. `fill`
   → `fill-not-mapped` (error); `math.random`/`math.round_to_mintick`/`ta.kcw` →
   `math-not-mapped`/`ta-not-mapped` warn + `/* TODO unmapped */`.
+- **`request.security`'s THIRD arg decides the chartlang form
+  (`requestSecurity.ts`).** A bare OHLCV source field lowers to the **data**
+  form `request.security({ interval }).<field>`; ANY other source (a
+  `ta.*`/expression) lowers to the **callback** form
+  `request.security({ interval }, (bar) => <source>)` — the HTF expression form
+  that runs on the higher-timeframe clock the way Pine does. The callback body
+  is `emitWithContext(source, ctx)` verbatim (the shared field mapper already
+  rewrites the source's `close`/`hl2`/… reads to `bar.close`/`bar.hl2`/…). Do
+  NOT re-introduce the old `request.security({ interval }).<emitted-source>`
+  main-timeframe shape — it counted the `ta.*` window in main bars, the root
+  bug. `request-security-not-mapped` is now reserved for the genuinely-
+  unsupported shapes (non-literal / out-of-table timeframe, missing args); an
+  in-subset `ta.*` source is supported.
 - **New codes (APPENDED to `diagnostics/codes.ts`, no reorder):**
   `ta-signature-divergence`, `ta-not-mapped`, `math-not-mapped`,
   `str-format-not-mapped`, `str-not-mapped` (warnings), `fill-not-mapped`,

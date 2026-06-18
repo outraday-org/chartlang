@@ -51,6 +51,16 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
   `scripts/**`. Gate scripts are CLI tools whose entire job is to print
   status / failure lists to stdout; suppressing here keeps the lint
   output noise-free without weakening the rule package-wide.
+- `gen-hover-registry.ts` walks `packages/core/src` exports into
+  `packages/language-service/src/hoverRegistry.generated.ts`; `--check`
+  byte-diffs it (the `hover:check` gate). It resolves
+  `Object.freeze({ name })` **shorthand** namespace members to the matching
+  top-level `function name(...)` declaration (preferring the documented
+  overload) — the same model `genPhase4Docs` uses — so a freeze-namespace
+  member written as a shorthand-of-an-overloaded-function (e.g.
+  `request.security`) still produces a `function` hover entry. Re-run
+  `pnpm gen-hover-registry` after touching any core export's JSDoc/signature
+  and commit the regenerated file.
 
 ## Map
 

@@ -44,7 +44,9 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   script never registers its secondary streams. The single-object guard
   is `isSingleManifest` (TS #17002 — `Array.isArray` does not subtract a
   `ReadonlyArray` union member). Cross-host parity with host-worker is the
-  conformance contract.
+  conformance contract. The whole `__manifest` is spread through, so the
+  HTF-expression `request.security(opts, expr)` form (carried by
+  `manifest.securityExpressions`) needs no dispatcher change.
 - **Compiled source is evaluated directly, not via `data:` URLs.** The
   host-worker `data:` URL invariant is browser-specific; QuickJS receives the
   module source through the JSON membrane and the dispatcher turns supported

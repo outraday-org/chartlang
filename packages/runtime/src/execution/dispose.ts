@@ -54,6 +54,21 @@ export function dispose(state: RunnerState): void {
     state.runtimeContext.requestSecurityBars.clear();
     state.runtimeContext.requestSecurityAlignments.clear();
     state.runtimeContext.requestSecurityAscendingBars.clear();
+    state.runtimeContext.requestSecurityExprSeries?.clear();
+    const exprRunners = state.runtimeContext.securityExprRunners;
+    if (exprRunners !== undefined) {
+        for (const runner of exprRunners.values()) {
+            for (const buf of Object.values(runner.foldStream.ohlcv)) {
+                buf.reset();
+            }
+            runner.foldStream.taSlots.clear();
+            runner.output.reset();
+        }
+        // Drops every runner reference; the per-interval index holds the same
+        // (now-reset) objects, so clearing `bySlot` is the authoritative
+        // teardown. The whole `RuntimeContext` is discarded after dispose.
+        exprRunners.clear();
+    }
     state.runtimeContext.requestLowerTfViews.clear();
     state.runtimeContext.diagnosedRequestKeys.clear();
     state.runtimeContext.diagnosedInputKeys.clear();

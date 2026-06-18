@@ -250,13 +250,12 @@ export default defineIndicator({
         const fast = ta.ema(bar.close, 20);
         plot(fast, { color: "#26a69a", title: "EMA(20)" });
 
-        // Higher-timeframe trend pulled from weekly candles via
-        // request.security. The interval must be a compile-time literal;
-        // alignment is no-lookahead (weekly value holds until the next
-        // weekly close).
-        const weekly = request.security({ interval: "1W" });
-        const weeklyTrend = ta.ema(weekly.close, 10);
-        plot(weeklyTrend, { color: "#ef5350", title: "Weekly EMA(10)" });
+        // Weekly trend computed ON the weekly bars (20 weekly EMA), aligned
+        // no-lookahead to the chart. The callback runs on the higher-timeframe
+        // clock, so this is a true weekly EMA(20) (~140 days), not 20 main
+        // bars of a weekly-stepped series.
+        const weeklyTrend = request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20));
+        plot(weeklyTrend, { color: "#ef5350", title: "Weekly EMA(20)" });
     },
 });
 `;
@@ -427,7 +426,7 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         id: "htf-trend-filter",
         label: "HTF Trend Filter",
         description:
-            "Multi-timeframe: a current-timeframe EMA(20) overlaid with a weekly EMA(10) pulled from request.security({ interval: \"1W\" }) over daily candles.",
+            "Multi-timeframe: a current-timeframe EMA(20) overlaid with a true weekly EMA(20) computed ON the weekly bars via the request.security({ interval: \"1W\" }, (bar) => ta.ema(bar.close, 20)) expression form — a smooth, lagged trend, not 20 daily bars of a weekly-stepped series.",
         source: HTF_TREND_FILTER,
     },
     {

@@ -236,6 +236,16 @@ Highlights of the surface:
 - `request.security({ interval })` and `request.lowerTf({ interval })`
   for higher- and lower-timeframe data. The interval must be a
   compile-time string literal.
+- `request.security({ interval }, (bar) => …)` — the **expression form**,
+  which runs the callback on the higher-timeframe clock (a true HTF
+  indicator), unlike the data form whose `ta.*` count main bars. The
+  callback may reference only the HTF `bar`, the ambient `ta` / `inputs`,
+  safe `Math.*` globals (`Math.random` stays forbidden), and literals:
+  `(bar) => ta.ema(bar.close, 20)` ✅. Capturing an outer local —
+  `(bar) => ta.ema(bar.close, k)` where `k` is a `compute` local — fails
+  compile with `request-security-expr-captures-local`; read the input
+  inside the callback instead (`(bar) => ta.ema(bar.close, inputs.k as
+  number)`). `request.lowerTf` stays **data-only** (no callback form).
 - `state.float(key, initial)`, `state.bool(...)`, `state.int(...)` for
   cross-bar scalar state.
 

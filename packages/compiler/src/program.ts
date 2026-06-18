@@ -1033,10 +1033,17 @@ declare module "@invinite-org/chartlang-core" {
         readonly symbol: Series<string>;
         readonly interval: Series<string>;
     }>;
-    export type RequestNamespace = Readonly<{
+    export type SecurityExpr = (bar: SecurityBar) => Series<number> | number;
+    // Declared as an interface (not a Readonly object type) so the two
+    // security overloads survive. Readonly is a homomorphic mapped type, and
+    // mapping over a member with multiple call signatures collapses it to a
+    // single signature — which made the expression form fail type-check with
+    // TS2554 ("Expected 1 arguments, but got 2").
+    export interface RequestNamespace {
         security(opts: RequestSecurityOpts): SecurityBar;
+        security(opts: RequestSecurityOpts, expr: SecurityExpr): Series<number>;
         lowerTf(opts: RequestLowerTfOpts): Series<ReadonlyArray<Bar>>;
-    }>;
+    }
     export const request: RequestNamespace;
     export function intervalToSeconds(d: IntervalDescriptor): number;
     export type OutputDeclaration = Readonly<{
@@ -1047,6 +1054,11 @@ declare module "@invinite-org/chartlang-core" {
         readonly slotId: string;
         readonly kind: PlotKind;
         readonly title?: string;
+    }>;
+    export type SecurityExpressionDescriptor = Readonly<{
+        readonly slotId: string;
+        readonly interval: string;
+        readonly paramName: string;
     }>;
     export type DependencyDeclaration = Readonly<{
         readonly localId: string;
@@ -1079,6 +1091,7 @@ declare module "@invinite-org/chartlang-core" {
         readonly dependencies?: ReadonlyArray<DependencyDeclaration>;
         readonly outputs?: ReadonlyArray<OutputDeclaration>;
         readonly plots?: ReadonlyArray<PlotSlotDescriptor>;
+        readonly securityExpressions?: ReadonlyArray<SecurityExpressionDescriptor>;
         readonly exportName?: string;
         readonly siblings?: ReadonlyArray<ScriptManifest>;
         readonly isDrawn?: boolean;

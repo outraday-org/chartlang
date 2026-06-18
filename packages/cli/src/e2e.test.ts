@@ -68,6 +68,25 @@ describe("example scripts compile end-to-end", () => {
     );
 
     it(
+        "records the request.security expression unit for htf-trend-filter.chart.ts",
+        async () => {
+            const htf = await compileFile(
+                resolvePath(REPO_ROOT, "examples/scripts/htf-trend-filter.chart.ts"),
+                { apiVersion: 1, write: false },
+            );
+            // The callback form records one security-expression unit (the EMA
+            // runs on the weekly clock) plus the requested interval.
+            expect(htf.manifest.requestedIntervals).toEqual(["1W"]);
+            expect(htf.manifest.securityExpressions).toHaveLength(1);
+            const [expr] = htf.manifest.securityExpressions ?? [];
+            expect(expr?.interval).toBe("1W");
+            expect(expr?.paramName).toBe("bar");
+            expect(expr?.slotId).toMatch(/htf-trend-filter\.chart\.ts:\d+:\d+#0$/);
+        },
+        COMPILE_TIMEOUT_MS,
+    );
+
+    it(
         "emits a single-object sidecar for base-trend.chart.ts (single drawn indicator)",
         async () => {
             const baseTrend = await compileFile(

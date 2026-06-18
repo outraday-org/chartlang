@@ -161,3 +161,33 @@ plot hashes, alert counts, and diagnostic codes.
   are asserted in the per-fixture `*.expected.diagnostics.json`, NOT here — the
   conformance harness only observes runtime diagnostics from the compiled
   chartlang script.
+
+## `request.security` expression-form invariants
+
+- **`mtfSecurityExpressionEma` / `mtfSecurityExpressionNanFallback` prove the
+  callback overload.** Both inline
+  `plot(request.security({ interval: "1D" }, (bar) => ta.ema(bar.close, 2)))`
+  and reuse `MTF_DAILY_FIXTURE_BARS` (the 3-bar daily fixture the data-form
+  `mtfRequestSecurityClose` uses). The EMA length is **2, not 10**: a length-10
+  EMA over only three HTF bars is all-NaN (Pine warmup), a degenerate golden
+  byte-identical to the NaN fallback that proves nothing. Length 2 warms in two
+  HTF closes, so the happy-path `plot-hash` (`e105d8e0…`) carries FINITE values
+  (565/675 — the HTF-clock EMA over the 510/620/730 secondary closes), which is
+  also the conformance-side distinctness proof: those values live in a price
+  band the main golden stream (~100) never reaches. Re-mint the hash via the
+  harness's "expected vs actual" message exactly like every other scenario.
+- **The distinctness contract has a dedicated guard test.** The harness's
+  assertion vocabulary cannot express "mean-absolute-difference vs a
+  same-length main EMA", so `mtfSecurityExpressionEma.test.ts` compiles the
+  scenario source, drives it through `createScriptRunner` with a
+  `multiTimeframe: true` bag + the daily fixture, and asserts finite output +
+  MAD > 50 against a same-length main EMA(2). This is the regression guard that
+  the EMA actually runs on the HTF clock (the original "weekly EMA looks like
+  the daily EMA" bug). Both scenarios are also in `PHASE_4_SCENARIOS` for the
+  end-to-end pass in `runConformanceSuite.test.ts`.
+- **No compile-fail scenario for `request-security-expr-captures-local`.** The
+  harness only observes RUNTIME diagnostics after a successful compile; the
+  capture check is an error-severity COMPILE diagnostic, so its authoritative
+  coverage stays in the compiler's `validateSecurityExpr.test.ts`. Adding a
+  conformance scenario for it would require extending the `Scenario` type +
+  `runConformanceSuite` with a compile-fail assertion mode first.

@@ -7,4 +7,5 @@ export {
     type RequestLowerTfOpts,
     type RequestSecurityOpts,
     type SecurityBar,
+    type SecurityExpr,
 } from "./request.js";
