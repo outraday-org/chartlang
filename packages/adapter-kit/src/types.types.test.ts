@@ -50,6 +50,10 @@ describe("type assertions", () => {
         expectTypeOf<PlotEmission["color"]>().toEqualTypeOf<string | null>();
     });
 
+    it("PlotEmission.xShift is an optional number", () => {
+        expectTypeOf<PlotEmission["xShift"]>().toEqualTypeOf<number | undefined>();
+    });
+
     it("PlotStyle is keyed by adapter PlotKind", () => {
         expectTypeOf<PlotStyle["kind"]>().toEqualTypeOf<PlotKind>();
     });

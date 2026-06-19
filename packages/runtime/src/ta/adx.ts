@@ -172,8 +172,9 @@ function tickValue(slot: AdxSlot, high: number, low: number, close: number): num
  * @since 0.2
  * @stable
  *
- * `opts.offset` shifts the returned series —
- * `series.current` returns the value `offset` bars ago.
+ * `opts.offset` is a presentation display shift carried to the plot
+ * emission as `xShift` (`+n` right / future, `−n` left / past); the
+ * series value is unshifted.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

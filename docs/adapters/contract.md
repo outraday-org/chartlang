@@ -194,6 +194,14 @@ TradingView "Style tab" model. Overrides are:
 The full walkthrough — slot list → override → live `setPlotOverrides` — is
 in [Plot overrides](./plot-overrides.md).
 
+Separately from host overrides, a `PlotEmission` may carry an optional
+`xShift` — a signed integer presentation display shift in bars (`+n`
+right/future, `−n` left/past) the runtime threads from a plotted offset
+`ta.*` series (see [`PlotEmission`](../spec/emissions.md#plotemission)).
+It is display-only and never changes `value`; an adapter MAY render the
+series displaced by that many bars or ignore it and render at the bar's
+own time.
+
 ## Silent no-ops, not errors
 
 If a script emits a primitive the adapter does not declare in

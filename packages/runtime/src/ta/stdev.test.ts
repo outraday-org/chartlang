@@ -158,7 +158,7 @@ describe("ta.stdev — opts.offset", () => {
         expect(identities.size).toBe(1);
     });
 
-    it("offset === k > 0 shifts the series so .current returns the value k bars ago", () => {
+    it("offset === k > 0 leaves .current unshifted (offset is presentation-only)", () => {
         const bars = syntheticBars(30, 11);
         const unshifted = harness(
             bars,
@@ -170,22 +170,24 @@ describe("ta.stdev — opts.offset", () => {
             bars.length + 1,
             (bar) => stdev("slot", bar.close, 5, { biased: true, offset: 3 }).current,
         );
-        for (let i = 3; i < bars.length; i += 1) {
-            const u = unshifted[i - 3];
+        for (let i = 0; i < bars.length; i += 1) {
+            const u = unshifted[i];
             const s = shifted[i];
             if (Number.isNaN(u)) expect(Number.isNaN(s)).toBe(true);
             else expect(s).toBeCloseTo(u, 12);
         }
     });
 
-    it("offset === -k returns NaN at the head", () => {
+    it("offset === -k leaves .current unshifted (no future read; presentation-only)", () => {
         const bars = syntheticBars(20, 1);
+        const unshifted = harness(bars, bars.length + 1, (bar) => stdev("slot", bar.close, 5).current);
         const head = harness(
             bars,
             bars.length + 1,
             (bar) => stdev("slot", bar.close, 5, { offset: -2 }).current,
         );
-        expect(Number.isNaN(head[head.length - 1])).toBe(true);
+        expect(head[head.length - 1]).toBeCloseTo(unshifted[unshifted.length - 1], 12);
+        expect(Number.isNaN(head[head.length - 1])).toBe(false);
     });
 
     it("two calls with the same non-zero offset return the same Series identity", () => {

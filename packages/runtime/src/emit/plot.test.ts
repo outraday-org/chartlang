@@ -11,6 +11,8 @@ import {
     type MutableRunnerEmissions,
     type RuntimeContext,
 } from "../runtimeContext.js";
+import { Float64RingBuffer } from "../ringBuffer.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
 import { inMemoryStateStore } from "../stateStore.js";
 import { createStreamState } from "../streamState.js";
 import { plot } from "./plot.js";
@@ -142,6 +144,54 @@ describe("plot — happy path", () => {
         expect(e.title).toBe("EMA");
         expect(e.style.lineWidth).toBe(2);
         expect(e.style.lineStyle).toBe("dashed");
+    });
+});
+
+describe("plot — xShift (presentation offset, Option A)", () => {
+    function tagged(offset: number): Series<number> {
+        const buf = new Float64RingBuffer(8);
+        buf.append(11);
+        buf.append(22);
+        return makeShiftedSeriesView<number>(buf, offset);
+    }
+
+    it("carries a positive recorded offset onto xShift, value unshifted", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", tagged(5));
+        const e = emissions.plots[0];
+        expect(e.xShift).toBe(5);
+        expect(e.value).toBe(22);
+    });
+
+    it("carries a negative recorded offset onto xShift", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", tagged(-3));
+        expect(emissions.plots[0].xShift).toBe(-3);
+    });
+
+    it("omits xShift for a plain numeric value", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42);
+        expect(emissions.plots[0].xShift).toBeUndefined();
+    });
+
+    it("omits xShift for an untagged series view", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const buf = new Float64RingBuffer(4);
+        buf.append(9);
+        plot("a:1:1#0", makeSeriesView<number>(buf));
+        expect(emissions.plots[0].xShift).toBeUndefined();
+    });
+
+    it("omits xShift for an offset === 0 view (byte-identical to no-offset)", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", tagged(0));
+        expect(emissions.plots[0].xShift).toBeUndefined();
     });
 });
 

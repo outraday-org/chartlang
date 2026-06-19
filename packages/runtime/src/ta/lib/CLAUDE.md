@@ -67,7 +67,7 @@ New chartlang helpers (no upstream source) ship with the standard
 | Compute core (single math primitive) | required | required | required |
 | Dispatcher (switch over kind → delegate to cores) | required | — (cores own the math; dispatcher just routes) | — (benches the core, not the switch) |
 
-The Phase-1 helpers (`applyOffset`, `smaFloat64`, `emaFloat64`,
+The Phase-1 helpers (`smaFloat64`, `emaFloat64`,
 `rollingStddev`, `trSeries`, `wilderSmoothing`, `readSourceField`,
 `pickCandleSource`) shipped with `.test.ts` only because Phase 1
 hadn't standardised on the property + bench layers for helpers.

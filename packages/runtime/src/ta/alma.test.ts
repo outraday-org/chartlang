@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
+import { seriesOffsetOf } from "../seriesView.js";
 import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
 import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 import { alma } from "./alma.js";
@@ -123,6 +124,55 @@ describe("ta.alma", () => {
         for (let i = 4; i < bars.length; i += 1) {
             expect(out[i]).toBeCloseTo(4, 12);
         }
+    });
+});
+
+describe("ta.alma — opts.barShift (universal display shift)", () => {
+    it("barShift === 0 returns the same Series identity as no opts (Gaussian centre untouched)", () => {
+        const bars = syntheticBars(20, 7);
+        const identities = new Set<unknown>();
+        let toggle = false;
+        harness(bars, bars.length + 1, (bar) => {
+            toggle = !toggle;
+            identities.add(
+                toggle
+                    ? alma("slot", bar.close, 5)
+                    : alma("slot", bar.close, 5, { barShift: 0 }),
+            );
+            return null;
+        });
+        expect(identities.size).toBe(1);
+    });
+
+    it("non-zero barShift leaves .current unshifted and records the offset (presentation-only)", () => {
+        const bars = syntheticBars(30, 11);
+        const unshifted = harness(bars, bars.length + 1, (bar) => alma("slot", bar.close, 5).current);
+        const identities = new Set<unknown>();
+        const shifted = harness(bars, bars.length + 1, (bar) => {
+            const s = alma("slot", bar.close, 5, { barShift: 3 });
+            identities.add(s);
+            expect(seriesOffsetOf(s)).toBe(3);
+            return s.current;
+        });
+        for (let i = 0; i < bars.length; i += 1) {
+            const u = unshifted[i];
+            const s = shifted[i];
+            if (Number.isNaN(u)) expect(Number.isNaN(s)).toBe(true);
+            else expect(s).toBeCloseTo(u, 12);
+        }
+        // The barShift view identity is cached per barShift across bars.
+        expect(identities.size).toBe(1);
+    });
+
+    it("a negative barShift is recorded as a left display shift (value unshifted)", () => {
+        const bars = syntheticBars(20, 1);
+        const unshifted = harness(bars, bars.length + 1, (bar) => alma("slot", bar.close, 5).current);
+        const head = harness(
+            bars,
+            bars.length + 1,
+            (bar) => alma("slot", bar.close, 5, { barShift: -2 }).current,
+        );
+        expect(head[head.length - 1]).toBeCloseTo(unshifted[unshifted.length - 1], 12);
     });
 });
 

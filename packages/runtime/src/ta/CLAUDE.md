@@ -80,16 +80,25 @@ exclusion).
   first call and returned by reference thereafter, so script
   authors can write `const ema = ta.ema(...)` once and re-read it
   every bar.
-- **Universal `opts.offset`.** Honoured on every Phase-1 primitive
-  (Task 29 backfill) via the offset-aware Series view
-  `makeShiftedSeriesView` in `../seriesView.ts` (paired with the
-  `lib/applyOffset.ts` Float64Array helper). Positive `offset` makes
-  `series.current` return the value `offset` bars ago; negative
-  reads into the future (NaN / undefined at the head). `offset === 0`
-  is the strict identity fast path — returns the slot's cached
-  un-shifted Series. Per-offset views are cached on the slot's
-  `shiftedViews` (single-output) / `shiftedResults` (composite) map,
-  identity-stable per `(slot, offset)`.
+- **Universal `opts.offset` is a presentation x-shift (Option A).**
+  Honoured on every Phase-1 primitive (Task 29 backfill) via
+  `makeShiftedSeriesView` in `../seriesView.ts`, which now returns the
+  **unshifted** view (delegating to `makeSeriesView`) and records
+  `view → offset` in a module-level `WeakMap<Series, number>` side-table
+  read by `plot()` (via `seriesOffsetOf`) to set the emission's signed
+  `PlotEmission.xShift` (`+n` renders right / future, `−n` left / past).
+  The offset does **not** transform the value — `series.current` is the
+  unshifted `buf.at(0)`, so alerts / `state.*` / any read see the value
+  computed at the current bar, and both shift directions are
+  expressible. `offset === 0` is the strict identity fast path — returns
+  the slot's cached un-shifted Series and records nothing. Per-offset
+  views are still cached on the slot's `shiftedViews` (single-output) /
+  `shiftedResults` (composite) map, identity-stable per `(slot, offset)`,
+  so the recorded offset stays attached to a stable view across bars.
+  **ALMA tags `opts.barShift`** (its `opts.offset` is the Gaussian
+  centre, never tagged) via the same per-`barShift` `viewForOffset`
+  cache. The stale `lib/applyOffset.ts` value-shift helper was deleted —
+  no runtime helper preserves the old value-read semantics.
 - **NaN warmup.** Every primitive emits `NaN` for the bars where
   state isn't yet warm (per primitive's documented `@warmup`
   count). `Float64RingBuffer.at()` already returns `NaN` for OOR

@@ -84,6 +84,7 @@ no analogue for resolving a fill across an unbounded handle collection.
 | [`table-cell-out-of-bounds`](./diagnostics.md#table-cell-out-of-bounds) | A `table.cell(...)` addresses a cell outside the declared grid. | Raise the `table.new(position, columns, rows)` counts or fix the index. |
 | [`table-dynamic-loop`](./diagnostics.md#table-dynamic-loop) | A table-cell loop has a non-literal bound. | Use a literal `for i = 0 to N` bound so the writes unroll. |
 | [`fill-not-mapped`](./diagnostics.md#fill-not-mapped) | `fill(plot1, plot2, ...)`. | Draw the band with `draw.fillBetween(edgeA, edgeB, ...)` over the two series' anchors. A `plot`-level series fill is a planned follow-up. |
+| [`plot-offset-needs-ta-call`](./diagnostics.md#plot-offset-needs-ta-call) | `plot(<value>, offset=N)` where `<value>` is **not** a direct `ta.*` call (a bare series, a variable, an arithmetic expression). The offset is dropped — chartlang's offset lives on the `ta.*` opts and there is no plot-level offset yet. | Wrap the value in a `ta.*` primitive, or set the offset on the indicator's `ta.*` call. A `plot`-level offset is a planned follow-up. |
 | [`request-security-not-mapped`](./diagnostics.md#request-security-not-mapped) | A `request.security(...)` shape outside the v1 single-symbol MTF subset — a non-literal timeframe, an out-of-table timeframe, or missing positional args. (A `ta.*`/expression third arg is **supported** — it lowers to the callback form.) | Use a literal `"<timeframe>"`; the third arg may be a bare OHLCV field or a `ta.*` expression. |
 
 ## Internal

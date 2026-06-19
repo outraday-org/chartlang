@@ -69,7 +69,7 @@ describe("ta.barssince", () => {
         expect(identities.size).toBe(1);
     });
 
-    it("returns a stable shifted Series when opts.offset is supplied", () => {
+    it("returns a stable, unshifted Series when opts.offset is supplied (presentation-only)", () => {
         const pattern = [true, false, false];
         const bars = syntheticBars(pattern.length, 1);
         const identities = new Set<unknown>();
@@ -78,9 +78,11 @@ describe("ta.barssince", () => {
             identities.add(s);
             return s.current;
         });
-        expect(Number.isNaN(out[0])).toBe(true);
-        expect(out[1]).toBe(0);
-        expect(out[2]).toBe(1);
+        // offset is presentation-only: the value series is unshifted —
+        // fires at bar 0 (0), then 1, then 2 bars since.
+        expect(out[0]).toBe(0);
+        expect(out[1]).toBe(1);
+        expect(out[2]).toBe(2);
         expect(identities.size).toBe(1);
     });
 

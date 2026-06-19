@@ -4,10 +4,12 @@
 import type { PlotLineStyle, Series, Time } from "../types.js";
 
 /**
- * Options bag for `ta.sma`. `offset` shifts the output forward by `n`
- * bars per the universal `opts.offset` convention:
- * positive `n` makes `series.current` return the value `n` bars ago,
- * negative `n` reads into the future (NaN at the head).
+ * Options bag for `ta.sma`. `offset` is the universal **display shift**
+ * (in bars) applied to where the series renders, not to its value:
+ * `+n` shifts the plotted series `n` bars right (into the future), `−n`
+ * shifts it `n` bars left (into the past), and `0`/omitted is no shift.
+ * The shift is presentation-only — `series.current` is the unshifted
+ * value — and rides the plot emission as `xShift`; both signs are valid.
  *
  * @formula  N/A — placeholder
  * @since 0.1
@@ -199,8 +201,8 @@ export type ValuewhenOpts = Readonly<{ offset?: number }>;
 export type BarssinceOpts = Readonly<{ offset?: number }>;
 
 /**
- * Options bag for `ta.wma`. `offset` shifts the output forward by `n`
- * bars (Task-29 universal-offset backfill). `lineStyle` is a
+ * Options bag for `ta.wma`. `offset` matches {@link SmaOpts} (the
+ * universal bidirectional display shift). `lineStyle` is a
  * pass-through for the script-author's downstream `plot(wma, { lineStyle })`
  * call — not consumed by the primitive itself.
  *
@@ -292,8 +294,10 @@ export type KamaOpts = Readonly<{
 /**
  * Options bag for `ta.alma` (Arnaud Legoux MA). `offset` is the
  * Gaussian-centre position in `[0, 1]` (default `0.85`) — NOT the
- * universal bar-shift; the universal shift on ALMA uses the distinct
- * `barShift` field. `sigma` (default `6`) sets the Gaussian spread
+ * universal bar-shift. ALMA's universal display shift is the distinct
+ * `barShift` field, which matches {@link SmaOpts} (`+n` renders the
+ * series `n` bars right, `−n` `n` bars left; presentation-only).
+ * `sigma` (default `6`) sets the Gaussian spread
  * (spread = `length / sigma`). `lineStyle` is a forward-compat
  * plot-styling hint.
  *

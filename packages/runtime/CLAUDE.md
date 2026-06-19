@@ -180,6 +180,21 @@
   a no-override or visible-override run is byte-identical to the
   pre-feature baseline. Dep / sibling runners default `plotOverrides` to
   `{}` — overrides target the primary script's slots only in v1.
+- **A `ta.*` `opts.offset` is a presentation x-shift carried to
+  `PlotEmission.xShift`, not a value-read.** `seriesView.ts`'s
+  `makeShiftedSeriesView(buf, offset)` returns the **unshifted** view and
+  records `view → offset` in a module-level `WeakMap<Series, number>`
+  side-table; `emit/plot.ts` reads it (`seriesOffsetOf`) and sets the
+  signed `PlotEmission.xShift` (`+n` right / future, `−n` left / past).
+  The series value is unshifted, so alerts / `state.*` / `series.current`
+  see the value computed at the current bar and both shift directions are
+  expressible. A plain numeric `plot(x)`, an untagged series, or an
+  `offset === 0` series omits `xShift` — the no-offset wire and emission
+  ORDER are byte-identical to the pre-feature baseline. **ALMA tags
+  `opts.barShift`** (its `opts.offset` is the Gaussian centre, never
+  tagged). The compiler contributes zero buffer depth for offset (Task 2)
+  and the stale `ta/lib/applyOffset.ts` value-shift helper was deleted —
+  nothing preserves the old value-read offset semantics.
 - **`pushPlot` / `pushAlert` validate via Task 4's
   `validateEmission`; `pushDiagnostic` does not.** Diagnostics are
   the failure sink — recursively validating them would loop. A

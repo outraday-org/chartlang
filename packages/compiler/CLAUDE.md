@@ -58,15 +58,13 @@
   mutates input nodes. Extractors (capabilities / max-lookback / inputs)
   also run on the original AST — the rewrite is only for the bundler in
   Task 3.
-- **`extractMaxLookback` counts the universal `opts.offset` as lookback
-  depth.** A positive `offset` literal on a `ta.*` call shifts the output
-  series so `series.current` reads `buf.at(offset)`; since the runtime
-  sizes every output ring buffer to `maxLookback + 1`, the offset must
-  raise `maxLookback` or the shifted read is permanently out-of-range
-  NaN. It stacks with a literal element-access index on the same series
-  (`shifted[N]` ⇒ `N + offset`). Negative offsets (future reads, NaN at
-  the head) and non-literal offsets contribute `0` — they need no extra
-  buffer depth / cannot be sized at compile time.
+- **`extractMaxLookback` ignores the universal `opts.offset`.** `offset`
+  is a presentation-only display x-shift (Option A): it rides the plot
+  emission as `PlotEmission.xShift` and the adapter renders it; the
+  numeric series value is unshifted, so the runtime never reads a deeper
+  buffer slot. `offset` (any sign, literal or not) contributes `0` to
+  `maxLookback`. This is distinct from the `bar.point(-N, …)` rule below,
+  which is a real historical buffer read.
 - **`extractMaxLookback` counts a negative-literal `bar.point(-N, …)` as
   lookback depth.** `bar.point(offset, price)` resolves an integer bar
   offset to a `WorldPoint` at runtime against the time ring buffer; a

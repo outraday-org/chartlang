@@ -74,7 +74,7 @@ describe("ta.valuewhen", () => {
         expect(identities.size).toBe(1);
     });
 
-    it("returns a stable shifted Series when opts.offset is supplied", () => {
+    it("returns a stable, unshifted Series when opts.offset is supplied (presentation-only)", () => {
         const pattern = [true, false, false];
         const bars = syntheticBars(pattern.length, 1);
         const identities = new Set<unknown>();
@@ -85,7 +85,9 @@ describe("ta.valuewhen", () => {
             identities.add(s);
             return s.current;
         });
-        expect(Number.isNaN(out[0])).toBe(true);
+        // offset is presentation-only: the value series is unshifted — the
+        // condition fires at bar 0 and holds bars[0].close thereafter.
+        expect(out[0]).toBe(bars[0].close);
         expect(out[1]).toBe(bars[0].close);
         expect(out[2]).toBe(bars[0].close);
         expect(identities.size).toBe(1);

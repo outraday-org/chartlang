@@ -103,6 +103,38 @@ Reference adapter package — **not published to npm**.
   matching primitive. Task 1 ships the renderers in pure-helper form
   so wiring lands one-line later.
 
+## Plot x-shift invariants
+
+- **Shifted-series plot styles render through `projectShiftedX`
+  (`render/coords.ts`).** A `PlotEmission.xShift` (signed integer bars;
+  `+n` right / future, `−n` left / past) displaces where a series draws,
+  not its value. Line / step-line / histogram store `bar` + `xShift` on
+  each `PlotPoint`; shape / character / arrow glyphs read `bar` + `xShift`
+  off the stored `PlotEmission` in `plotOverlays`. Every shifted-series
+  render path funnels through `projectShiftedX`, which resolves the
+  displaced world time via `shiftedBarTime(bars, bar, xShift, spacing)`
+  then `timeToX`. There is exactly one bar-offset → x funnel; do not map a
+  shifted glyph through `timeToX(plot.time)` directly.
+- **`+k` past the data edge extrapolates and extends `xMax`.** A target
+  bar `bar + xShift` beyond the last bar has no real time, so
+  `shiftedBarTime` extrapolates from the last bar's time and the run's
+  **median bar spacing** (`medianBarSpacing(state.bars)`, computed once per
+  frame in `renderFrame`). `computePaneViewport` then widens `xMax` (via
+  `extendXMaxForShifts`) so the projected point stays inside the plot area
+  instead of being clipped off the right edge. A far-past `−k` (before bar
+  0) extrapolates left and is drawn at a negative x (canvas-clipped, like
+  any pre-shift off-screen point) — `xMin` is not extended.
+- **`xShift` omitted / `0` is byte-identical to the no-shift render.**
+  `shiftedBarTime` returns the bar's own time for an in-range, zero-shift
+  point, so `projectShiftedX === timeToX(point.time)`; the stored
+  `PlotPoint` omits `xShift` when it is absent or `0`; `extendXMaxForShifts`
+  only fires on `xShift > 0`. No-shift frames keep today's hashes.
+- **Candle-state overrides ignore `xShift`.** `bg-color` / `bar-color` /
+  `candle-override` / `bar-override` / `horizontal-histogram` are candle /
+  background state at a bar, not shifted series visuals: their render
+  anchors on the bar's own time and `extendXMaxForShifts` skips them. This
+  is explicit (unit-tested), not accidental.
+
 ## Phase-5 invariants
 
 - **`createMultiStreamCandlePump` interleaves secondary closes WITHIN a

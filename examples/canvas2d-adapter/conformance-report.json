@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.1.1",
-    "passed": 235,
+    "passed": 237,
     "failed": 0,
     "scenarios": [
         {
@@ -313,6 +313,12 @@
         {
             "id": "draw-fib-wedge",
             "title": "draw.fibWedge(...) on a single bar",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "draw-fill-between",
+            "title": "draw.fillBetween(...) on a single bar",
             "status": "pass",
             "failures": []
         },
@@ -727,6 +733,12 @@
         {
             "id": "plot-kind-shape-gated",
             "title": "PlotKind shape gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-offset-xshift",
+            "title": "Plot offset → xShift (both directions, unshifted value)",
             "status": "pass",
             "failures": []
         },

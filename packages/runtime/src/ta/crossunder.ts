@@ -79,8 +79,9 @@ function detect(prevA: number, prevB: number, currA: number, currB: number): boo
  * @since 0.1
  * @stable
  *
- * `opts.offset` shifts the boolean series so `series.current` returns
- * the crossunder detection `offset` bars ago.
+ * `opts.offset` is a presentation display shift carried to the plot
+ * emission as `xShift` (`+n` right / future, `−n` left / past); the
+ * boolean crossunder series value is unshifted.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

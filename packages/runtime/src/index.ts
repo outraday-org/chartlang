@@ -3,7 +3,7 @@
 
 export { Float64RingBuffer, RingBuffer } from "./ringBuffer.js";
 export type { RingBufferLike } from "./ringBuffer.js";
-export { makeSeriesView, makeShiftedSeriesView } from "./seriesView.js";
+export { makeSeriesView, makeShiftedSeriesView, seriesOffsetOf } from "./seriesView.js";
 export type { BarView, OhlcvBuffers, StreamState } from "./streamState.js";
 export { createStreamState } from "./streamState.js";
 export type { StateStore } from "./stateStore.js";

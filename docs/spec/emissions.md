@@ -68,6 +68,7 @@ current bar.
 | `meta` | record of `JsonValue` | Reserved metadata record. Runtime plot emitters currently use `{}`. |
 | `pane` | string | `"overlay"`, `"new"`, or a named pane id. Current runtime folds non-overlay requests to `"overlay"` with `unsupported-pane`. |
 | `visible` | optional boolean | Omitted ⇒ visible. Only ever present as `false`, set by the runtime when a host [plot override](../adapters/contract.md#plot-overrides) hides the slot. An adapter MUST skip rendering and scale inclusion for a `visible: false` plot while keeping the slot listed. |
+| `xShift` | optional signed integer | Omitted/`0` ⇒ no shift. Presentation-only display shift in bars: the series renders displaced by `xShift` bars (`+n` right/future, `−n` left/past), set by the runtime from a plotted offset `ta.*` series. It does NOT change `value` or the bar an alert fires on. An adapter MAY honour it (render at the displaced bar) or ignore it (render at the bar's own time). |
 
 Hiding a plot via an override is presentation state, not a diagnostic: a
 `visible: false` emission is a deliberate host instruction, so no

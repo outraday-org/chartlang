@@ -468,6 +468,9 @@ function validatePlotEmission(e: Record<string, unknown>): ValidationResult {
     if (e.visible !== undefined && typeof e.visible !== "boolean") {
         return bad("plot.visible: must be a boolean");
     }
+    if (e.xShift !== undefined && !Number.isInteger(e.xShift)) {
+        return bad("plot.xShift: must be an integer");
+    }
     return { ok: true };
 }
 

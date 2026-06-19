@@ -108,7 +108,9 @@ function pvoValue(fast: number, slow: number): number {
  * @since 0.2
  * @stable
  *
- * `opts.offset` shifts all three outputs in lockstep.
+ * `opts.offset` is a presentation display shift carried to the plot
+ * emission as `xShift` for all three outputs in lockstep; it does NOT
+ * transform the values (`series.current` is unshifted).
  *
  * @example
  *     // import { ta, plot } from "@invinite-org/chartlang-runtime";

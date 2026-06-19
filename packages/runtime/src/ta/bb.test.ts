@@ -119,7 +119,7 @@ describe("ta.bb — opts.offset", () => {
         expect(identities.size).toBe(1);
     });
 
-    it("offset === k > 0 shifts upper / middle / lower in lockstep", () => {
+    it("offset === k > 0 leaves upper / middle / lower unshifted (presentation-only)", () => {
         const bars = syntheticBars(30, 11);
         const unshifted = harness(bars, bars.length + 1, (bar) => {
             const r = bb("slot", bar.close, 5);
@@ -129,8 +129,8 @@ describe("ta.bb — opts.offset", () => {
             const r = bb("slot", bar.close, 5, { offset: 3 });
             return { u: r.upper.current, m: r.middle.current, l: r.lower.current };
         });
-        for (let i = 3; i < bars.length; i += 1) {
-            const u = unshifted[i - 3];
+        for (let i = 0; i < bars.length; i += 1) {
+            const u = unshifted[i];
             const s = shifted[i];
             for (const k of ["u", "m", "l"] as const) {
                 if (Number.isNaN(u[k])) expect(Number.isNaN(s[k])).toBe(true);
@@ -139,16 +139,22 @@ describe("ta.bb — opts.offset", () => {
         }
     });
 
-    it("offset === -k returns NaN at the head for all three bands", () => {
+    it("offset === -k leaves all three bands unshifted (no future read; presentation-only)", () => {
         const bars = syntheticBars(20, 1);
+        const unshifted = harness(bars, bars.length + 1, (bar) => {
+            const r = bb("slot", bar.close, 5);
+            return { u: r.upper.current, m: r.middle.current, l: r.lower.current };
+        });
         const head = harness(bars, bars.length + 1, (bar) => {
             const r = bb("slot", bar.close, 5, { offset: -2 });
             return { u: r.upper.current, m: r.middle.current, l: r.lower.current };
         });
         const last = head[head.length - 1];
-        expect(Number.isNaN(last.u)).toBe(true);
-        expect(Number.isNaN(last.m)).toBe(true);
-        expect(Number.isNaN(last.l)).toBe(true);
+        const ref = unshifted[unshifted.length - 1];
+        for (const k of ["u", "m", "l"] as const) {
+            expect(last[k]).toBeCloseTo(ref[k], 12);
+            expect(Number.isNaN(last[k])).toBe(false);
+        }
     });
 
     it("two calls with the same non-zero offset return the same BbResult identity", () => {

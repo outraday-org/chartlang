@@ -130,29 +130,36 @@ describe("ta.crossunder — opts.offset", () => {
         expect(identities.size).toBe(1);
     });
 
-    it("offset === k > 0 shifts the boolean series by k bars", () => {
-        // [5, 4, 2, 1] crosses under 3 at bar 2. With offset 1, .current
-        // at bar 3 reads bar 2's value (true).
+    it("offset === k > 0 leaves the boolean series unshifted (presentation-only)", () => {
+        // [5, 4, 2, 1] crosses under 3 at bar 2. The offset is
+        // presentation-only, so the value series matches the no-offset run.
         const bars = makeBars([5, 4, 2, 1]);
+        const unshifted = harness(
+            bars,
+            bars.length + 1,
+            (bar) => crossunder("slot", bar.close, 3).current,
+        );
         const out = harness(
             bars,
             bars.length + 1,
             (bar) => crossunder("slot", bar.close, 3, { offset: 1 }).current,
         );
-        expect(out[0]).toBe(undefined);
-        expect(out[1]).toBe(false);
-        expect(out[2]).toBe(false);
-        expect(out[3]).toBe(true);
+        for (let i = 0; i < bars.length; i += 1) expect(out[i]).toBe(unshifted[i]);
     });
 
-    it("offset === -k returns undefined at the head (future read)", () => {
+    it("offset === -k leaves the boolean series unshifted (no future read; presentation-only)", () => {
         const bars = makeBars([5, 4, 2]);
+        const unshifted = harness(
+            bars,
+            bars.length + 1,
+            (bar) => crossunder("slot", bar.close, 3).current,
+        );
         const head = harness(
             bars,
             bars.length + 1,
             (bar) => crossunder("slot", bar.close, 3, { offset: -1 }).current,
         );
-        expect(head[head.length - 1]).toBe(undefined);
+        expect(head[head.length - 1]).toBe(unshifted[unshifted.length - 1]);
     });
 
     it("two calls with the same non-zero offset return the same Series identity", () => {

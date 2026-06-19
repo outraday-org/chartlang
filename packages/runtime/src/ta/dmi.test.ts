@@ -91,7 +91,7 @@ describe("ta.dmi", () => {
         expect(out[20].minusDi).toBe(out[19].minusDi);
     });
 
-    it("opts.offset returns the value `offset` bars ago", () => {
+    it("opts.offset leaves the series unshifted (presentation-only)", () => {
         const bars = syntheticBars(30, 9);
         const unshifted = harness(bars, bars.length + 1, () => dmi("slot", 5).plusDi.current);
         const shifted = harness(
@@ -99,8 +99,8 @@ describe("ta.dmi", () => {
             bars.length + 1,
             () => dmi("slot", 5, { offset: 2 }).plusDi.current,
         );
-        for (let k = 2; k < bars.length; k += 1) {
-            const u = unshifted[k - 2];
+        for (let k = 0; k < bars.length; k += 1) {
+            const u = unshifted[k];
             const s = shifted[k];
             if (Number.isNaN(u)) expect(Number.isNaN(s)).toBe(true);
             else expect(s).toBeCloseTo(u, 12);

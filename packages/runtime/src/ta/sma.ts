@@ -105,8 +105,11 @@ function closeValue(slot: SmaSlot, src: number): number {
  * values. Warmup of `length − 1` bars returns `NaN`. Tick-mode replays
  * the head as `(window_sum − window_head + tick_value) / length` so a
  * partial-bar tick doesn't pollute the next close's running sum.
- * `opts.offset` shifts the returned series so `series.current` reads
- * the value `offset` bars ago.
+ * `opts.offset` is a presentation display shift carried to the plot
+ * emission as `xShift` (`+n` renders the series `n` bars right / future,
+ * `−n` `n` bars left / past); it does NOT transform the value —
+ * `series.current` is unshifted, so alerts and `state.*` see the value
+ * computed at the current bar.
  *
  * @formula  out[t] = (source[t] + source[t − 1] + … + source[t − length + 1]) / length
  * @warmup   length − 1
@@ -117,7 +120,7 @@ function closeValue(slot: SmaSlot, src: number): number {
  *     // import { ta } from "@invinite-org/chartlang-runtime";
  *     // const s = ta.sma("slot", bar.close, 20);
  *     // const head = s.current; // NaN until bar length-1
- *     // const lagged = ta.sma("slot2", bar.close, 20, { offset: 5 });
+ *     // const shifted = ta.sma("slot2", bar.close, 20, { offset: 5 }); // renders 5 bars right
  */
 export function sma(
     slotId: string,

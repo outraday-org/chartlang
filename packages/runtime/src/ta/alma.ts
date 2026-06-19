@@ -15,7 +15,7 @@ import type { AlmaOpts, Series } from "@invinite-org/chartlang-core";
 
 import { Float64RingBuffer } from "../ringBuffer.js";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
-import { makeSeriesView } from "../seriesView.js";
+import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
 import { type ScalarOrSeries, readSourceValue } from "./lib/sourceValue.js";
 
 const DEFAULT_OFFSET = 0.85;
@@ -38,6 +38,14 @@ type AlmaSlot = {
      */
     readonly weights: Float64Array;
     readonly normaliser: number;
+    /**
+     * Lazy cache of `barShift`-tagged Series views keyed by
+     * `opts.barShift`. `barShift === 0` callers bypass this map and
+     * return `series` directly — identity-preserving. ALMA's `opts.offset`
+     * is the Gaussian centre, NOT the universal shift, so it is never
+     * tagged here; the bidirectional display shift lives on `barShift`.
+     */
+    readonly shiftedViews: Map<number, Series<number>>;
 };
 
 function getCtx(): RuntimeContext {
@@ -67,7 +75,18 @@ function initSlot(length: number, offsetCentre: number, sigma: number, capacity:
         sourceWindow: new Float64RingBuffer(length),
         weights,
         normaliser,
+        shiftedViews: new Map(),
     };
+}
+
+function viewForOffset(slot: AlmaSlot, barShift: number): Series<number> {
+    if (barShift === 0) return slot.series;
+    let view = slot.shiftedViews.get(barShift);
+    if (view === undefined) {
+        view = makeShiftedSeriesView<number>(slot.outBuffer, barShift);
+        slot.shiftedViews.set(barShift, view);
+    }
+    return view;
 }
 
 function weightedFromWindow(slot: AlmaSlot, headOverride?: number): number {
@@ -108,10 +127,12 @@ function tickValue(slot: AlmaSlot, src: number): number {
  * weighted-window convention).
  *
  * **`opts.offset` is the Gaussian-centre position in `[0, 1]`**, NOT
- * the universal bar-shift. The universal shift on ALMA uses the
- * distinct `opts.barShift` field — accepted on the surface (its
- * runtime side is wired alongside the universal `offset` support on
- * every primitive).
+ * the universal bar-shift. ALMA's universal shift lives on the distinct
+ * `opts.barShift` field: a presentation display shift (`+n` renders the
+ * series `n` bars right / future, `−n` `n` bars left / past) carried to
+ * the plot emission as `xShift`. It does not transform the series value —
+ * `series.current` is unshifted, matching every other primitive's
+ * `opts.offset`.
  *
  * @formula  m = offset · (length − 1) ;
  *           s = length / sigma ;
@@ -151,5 +172,5 @@ export function alma(
     } else {
         slot.outBuffer.append(closeValue(slot, src));
     }
-    return slot.series;
+    return viewForOffset(slot, opts?.barShift ?? 0);
 }

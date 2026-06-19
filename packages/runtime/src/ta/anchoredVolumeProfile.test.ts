@@ -199,7 +199,7 @@ describe("ta.anchoredVolumeProfile", () => {
         expect(out[out.length - 1]).toBe(1);
     });
 
-    it("returns the same result identity and honors offset views", () => {
+    it("returns the same result identity; offset is presentation-only (value unshifted)", () => {
         const input = bars(6);
         const anchor = input[0].time;
         const refs = new Set<unknown>();
@@ -214,7 +214,7 @@ describe("ta.anchoredVolumeProfile", () => {
             () => anchoredVolumeProfile("slot", { anchor, offset: 1 }).poc.current,
         );
         expect(refs.size).toBe(1);
-        expect(shifted[5]).toBe(unshifted[4]);
+        expect(shifted[5]).toBe(unshifted[5]);
     });
 
     it("throws outside an active script step", () => {

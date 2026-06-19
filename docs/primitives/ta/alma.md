@@ -15,10 +15,12 @@ short-circuits the output to NaN (matches the WMA full-recompute
 weighted-window convention).
 
 **`opts.offset` is the Gaussian-centre position in `[0, 1]`**, NOT
-the universal bar-shift. The universal shift on ALMA uses the
-distinct `opts.barShift` field — accepted on the surface (its
-runtime side is wired alongside the universal `offset` support on
-every primitive).
+the universal bar-shift. ALMA's universal shift lives on the distinct
+`opts.barShift` field: a presentation display shift (`+n` renders the
+series `n` bars right / future, `−n` `n` bars left / past) carried to
+the plot emission as `xShift`. It does not transform the series value —
+`series.current` is unshifted, matching every other primitive's
+`opts.offset`.
 
 ## Formula
 

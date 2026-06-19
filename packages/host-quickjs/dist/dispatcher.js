@@ -126,32 +126,15 @@ function makeSeriesView(buf) {
     }
   });
 }
+var seriesOffsets = /* @__PURE__ */ new WeakMap();
 function makeShiftedSeriesView(buf, offset) {
-  if (offset === 0)
-    return makeSeriesView(buf);
-  return new Proxy({}, {
-    get(_target, prop) {
-      if (prop === "current")
-        return buf.at(offset);
-      if (prop === "length")
-        return buf.length;
-      if (typeof prop === "string") {
-        const n = Number(prop);
-        if (Number.isInteger(n) && n >= 0)
-          return buf.at(n + offset);
-      }
-      return void 0;
-    },
-    has(_target, prop) {
-      if (prop === "current" || prop === "length")
-        return true;
-      if (typeof prop === "string") {
-        const n = Number(prop);
-        return Number.isInteger(n) && n >= 0;
-      }
-      return false;
-    }
-  });
+  const view = makeSeriesView(buf);
+  if (offset !== 0)
+    seriesOffsets.set(view, offset);
+  return view;
+}
+function seriesOffsetOf(series) {
+  return seriesOffsets.get(series) ?? 0;
 }
 
 // ../core/dist/types.js
@@ -2719,6 +2702,9 @@ function validatePlotEmission(e) {
   if (e.visible !== void 0 && typeof e.visible !== "boolean") {
     return bad("plot.visible: must be a boolean");
   }
+  if (e.xShift !== void 0 && !Number.isInteger(e.xShift)) {
+    return bad("plot.xShift: must be an integer");
+  }
   return { ok: true };
 }
 function validateAlertEmission(e) {
@@ -4302,8 +4288,19 @@ function initSlot4(length, offsetCentre, sigma, capacity) {
     length,
     sourceWindow: new Float64RingBuffer(length),
     weights,
-    normaliser
+    normaliser,
+    shiftedViews: /* @__PURE__ */ new Map()
   };
+}
+function viewForOffset2(slot, barShift) {
+  if (barShift === 0)
+    return slot.series;
+  let view = slot.shiftedViews.get(barShift);
+  if (view === void 0) {
+    view = makeShiftedSeriesView(slot.outBuffer, barShift);
+    slot.shiftedViews.set(barShift, view);
+  }
+  return view;
 }
 function weightedFromWindow(slot, headOverride) {
   let sum = 0;
@@ -4342,7 +4339,7 @@ function alma(slotId, source, length, opts) {
   } else {
     slot.outBuffer.append(closeValue2(slot, src));
   }
-  return slot.series;
+  return viewForOffset2(slot, opts?.barShift ?? 0);
 }
 
 // ../runtime/dist/ta/lib/volume-profile/bucketEdges.js
@@ -6527,6 +6524,7 @@ function plotImpl(ctx, slotId, value, opts) {
     return;
   }
   const pane = resolvePane(opts.pane, ctx, slotId);
+  const xShift = typeof value === "number" ? 0 : seriesOffsetOf(value);
   const emission = {
     kind: "plot",
     slotId,
@@ -6537,7 +6535,8 @@ function plotImpl(ctx, slotId, value, opts) {
     value: resolveValue(value),
     color: opts.color ?? null,
     meta: {},
-    pane
+    pane,
+    ...xShift === 0 ? {} : { xShift }
   };
   pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));
 }
@@ -6842,7 +6841,7 @@ function initSlot7(length, capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset2(slot, offset) {
+function viewForOffset3(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -6891,7 +6890,7 @@ function sma(slotId, source, length, opts) {
   } else {
     slot.outBuffer.append(closeValue3(slot, src));
   }
-  return viewForOffset2(slot, opts?.offset ?? 0);
+  return viewForOffset3(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/ao.js
@@ -7105,7 +7104,7 @@ function initSlot11(length, capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset3(slot, offset) {
+function viewForOffset4(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -7169,7 +7168,7 @@ function atr(slotId, length, opts) {
   } else {
     slot.outBuffer.append(closeValue4(slot, bar.high, bar.low, bar.close));
   }
-  return viewForOffset3(slot, opts?.offset ?? 0);
+  return viewForOffset4(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/barssince.js
@@ -7259,7 +7258,7 @@ function initSlot13(length, capacity, biased) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset4(slot, offset) {
+function viewForOffset5(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -7324,7 +7323,7 @@ function stdev(slotId, source, length, opts) {
   } else {
     slot.outBuffer.append(closeValue6(slot, src));
   }
-  return viewForOffset4(slot, opts?.offset ?? 0);
+  return viewForOffset5(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/bb.js
@@ -7655,7 +7654,7 @@ function initSlot19(length, capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset5(slot, offset) {
+function viewForOffset6(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -7708,7 +7707,7 @@ function ema(slotId, source, length, opts) {
     slot.outBuffer.replaceHead(value);
   else
     slot.outBuffer.append(value);
-  return viewForOffset5(slot, opts?.offset ?? 0);
+  return viewForOffset6(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/chaikinOsc.js
@@ -7729,7 +7728,7 @@ function initSlot20(capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset6(slot, offset) {
+function viewForOffset7(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -7762,7 +7761,7 @@ function chaikinOsc(slotId, opts) {
     slot.outBuffer.replaceHead(value);
   else
     slot.outBuffer.append(value);
-  return viewForOffset6(slot, offset);
+  return viewForOffset7(slot, offset);
 }
 
 // ../runtime/dist/ta/highest.js
@@ -8443,7 +8442,7 @@ function initSlot29(length, capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset7(slot, offset) {
+function viewForOffset8(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -8535,7 +8534,7 @@ function rsi(slotId, source, length, opts) {
   } else {
     slot.outBuffer.append(closeValue13(slot, src));
   }
-  return viewForOffset7(slot, opts?.offset ?? 0);
+  return viewForOffset8(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/connorsRsi.js
@@ -8570,7 +8569,7 @@ function initSlot30(rsiLength, streakLength, rocLength, capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset8(slot, offset) {
+function viewForOffset9(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -8677,7 +8676,7 @@ function connorsRsi(slotId, source, opts) {
     slot.prevClosedSrc = src;
     slot.barCount += 1;
   }
-  return viewForOffset8(slot, opts?.offset ?? 0);
+  return viewForOffset9(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/coppock.js
@@ -8792,7 +8791,7 @@ function initSlot32(capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset9(slot, offset) {
+function viewForOffset10(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -8821,7 +8820,7 @@ function crossover(slotId, a, b, opts) {
   if (ctx.isTick) {
     const out = detect(slot.prevA, slot.prevB, aValue, bValue);
     slot.outBuffer.replaceHead(out);
-    return viewForOffset9(slot, offset);
+    return viewForOffset10(slot, offset);
   }
   if (!slot.initialised) {
     slot.initialised = true;
@@ -8830,14 +8829,14 @@ function crossover(slotId, a, b, opts) {
     slot.currA = aValue;
     slot.currB = bValue;
     slot.outBuffer.append(false);
-    return viewForOffset9(slot, offset);
+    return viewForOffset10(slot, offset);
   }
   slot.prevA = slot.currA;
   slot.prevB = slot.currB;
   slot.currA = aValue;
   slot.currB = bValue;
   slot.outBuffer.append(detect(slot.prevA, slot.prevB, slot.currA, slot.currB));
-  return viewForOffset9(slot, offset);
+  return viewForOffset10(slot, offset);
 }
 
 // ../runtime/dist/ta/crossunder.js
@@ -8861,7 +8860,7 @@ function initSlot33(capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset10(slot, offset) {
+function viewForOffset11(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -8890,7 +8889,7 @@ function crossunder(slotId, a, b, opts) {
   if (ctx.isTick) {
     const out = detect2(slot.prevA, slot.prevB, aValue, bValue);
     slot.outBuffer.replaceHead(out);
-    return viewForOffset10(slot, offset);
+    return viewForOffset11(slot, offset);
   }
   if (!slot.initialised) {
     slot.initialised = true;
@@ -8899,14 +8898,14 @@ function crossunder(slotId, a, b, opts) {
     slot.currA = aValue;
     slot.currB = bValue;
     slot.outBuffer.append(false);
-    return viewForOffset10(slot, offset);
+    return viewForOffset11(slot, offset);
   }
   slot.prevA = slot.currA;
   slot.prevB = slot.currB;
   slot.currA = aValue;
   slot.currB = bValue;
   slot.outBuffer.append(detect2(slot.prevA, slot.prevB, slot.currA, slot.currB));
-  return viewForOffset10(slot, offset);
+  return viewForOffset11(slot, offset);
 }
 
 // ../runtime/dist/ta/dema.js
@@ -9066,7 +9065,7 @@ function initSlot37(length, capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset11(slot, offset) {
+function viewForOffset12(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -9104,7 +9103,7 @@ function dpo(slotId, source, length, opts) {
     const smaSeries = sma(`${slotId}/sma`, src, length);
     slot.outBuffer.append(computeDpo(slot, smaSeries.current));
   }
-  return viewForOffset11(slot, opts?.offset ?? 0);
+  return viewForOffset12(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/smma.js
@@ -9334,7 +9333,7 @@ function initSlot41(length, capacity) {
     prevPrevMid: Number.NaN
   };
 }
-function viewForOffset12(slot, offset) {
+function viewForOffset13(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -9377,7 +9376,7 @@ function eom(slotId, length, opts) {
   if (ctx.isTick) {
     if (slot.rawEomWindow.length < slot.length) {
       slot.outBuffer.replaceHead(Number.NaN);
-      return viewForOffset12(slot, offset);
+      return viewForOffset13(slot, offset);
     }
     const tickRaw = rawEomAt(high, low, volume, slot.prevPrevMid);
     const headRaw = slot.rawEomWindow.at(0);
@@ -9386,11 +9385,11 @@ function eom(slotId, length, opts) {
     const hypNan = slot.nanCount - (headWasNaN ? 1 : 0) + (tickIsNaN ? 1 : 0);
     if (hypNan > 0) {
       slot.outBuffer.replaceHead(Number.NaN);
-      return viewForOffset12(slot, offset);
+      return viewForOffset13(slot, offset);
     }
     const hypSum = slot.sumRawEom - (headWasNaN ? 0 : headRaw) + tickRaw;
     slot.outBuffer.replaceHead(hypSum / slot.length);
-    return viewForOffset12(slot, offset);
+    return viewForOffset13(slot, offset);
   }
   slot.prevPrevMid = slot.prevMid;
   const raw = rawEomAt(high, low, volume, slot.prevMid);
@@ -9410,7 +9409,7 @@ function eom(slotId, length, opts) {
   slot.prevMid = midpoint2;
   const ready = slot.rawEomWindow.length === slot.length;
   slot.outBuffer.append(emit4(slot, ready));
-  return viewForOffset12(slot, offset);
+  return viewForOffset13(slot, offset);
 }
 
 // ../runtime/dist/ta/fisher.js
@@ -9694,7 +9693,7 @@ function initSlot45(length, annualisationFactor, capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset13(slot, offset) {
+function viewForOffset14(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -9801,7 +9800,7 @@ function historicalVolatility(slotId, source, length, opts) {
   } else {
     slot.outBuffer.append(closeValue17(slot, src));
   }
-  return viewForOffset13(slot, opts?.offset ?? 0);
+  return viewForOffset14(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/hma.js
@@ -10569,7 +10568,7 @@ function initSlot53(emaLength, sumLength, capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset14(slot, offset) {
+function viewForOffset15(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -10644,7 +10643,7 @@ function massIndex(slotId, opts) {
   } else {
     slot.outBuffer.append(closeValue20(slot, ratio));
   }
-  return viewForOffset14(slot, opts?.offset ?? 0);
+  return viewForOffset15(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/mcginley.js
@@ -10802,7 +10801,7 @@ function initSlot56(length, capacity) {
     prevTp: Number.NaN
   };
 }
-function viewForOffset15(slot, offset) {
+function viewForOffset16(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -10848,14 +10847,14 @@ function mfi(slotId, length, opts) {
     const ready = slot.posMfWindow.length === slot.length;
     if (!ready || !hasComparison) {
       slot.outBuffer.replaceHead(Number.NaN);
-      return viewForOffset15(slot, offset);
+      return viewForOffset16(slot, offset);
     }
     const headPos = slot.posMfWindow.at(0);
     const headNeg = slot.negMfWindow.at(0);
     const hypPos = slot.sumPosMf - headPos + posMf;
     const hypNeg = slot.sumNegMf - headNeg + negMf;
     slot.outBuffer.replaceHead(emitMfi(hypPos, hypNeg, true));
-    return viewForOffset15(slot, offset);
+    return viewForOffset16(slot, offset);
   }
   if (hasComparison) {
     if (slot.posMfWindow.length === slot.length) {
@@ -10870,7 +10869,7 @@ function mfi(slotId, length, opts) {
   if (Number.isFinite(tp))
     slot.prevTp = tp;
   slot.outBuffer.append(emitMfi(slot.sumPosMf, slot.sumNegMf, slot.posMfWindow.length === slot.length));
-  return viewForOffset15(slot, offset);
+  return viewForOffset16(slot, offset);
 }
 
 // ../runtime/dist/ta/momentum.js
@@ -10914,7 +10913,7 @@ function initSlot57(capacity) {
     prevClosedPrevClose: Number.NaN
   };
 }
-function viewForOffset16(slot, offset) {
+function viewForOffset17(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -10956,7 +10955,7 @@ function netVolume(slotId, opts) {
   if (ctx.isTick) {
     const next2 = fold2(slot.prevClosedCumNetVol, slot.prevClosedPrevClose, close, volume);
     slot.outBuffer.replaceHead(next2.cum);
-    return viewForOffset16(slot, offset);
+    return viewForOffset17(slot, offset);
   }
   slot.prevClosedCumNetVol = slot.cumNetVol;
   slot.prevClosedPrevClose = slot.prevClose;
@@ -10964,7 +10963,7 @@ function netVolume(slotId, opts) {
   slot.cumNetVol = next.cum;
   slot.prevClose = next.prevClose;
   slot.outBuffer.append(slot.cumNetVol);
-  return viewForOffset16(slot, offset);
+  return viewForOffset17(slot, offset);
 }
 
 // ../runtime/dist/ta/nvi.js
@@ -10990,7 +10989,7 @@ function initSlot58(capacity) {
     prevClosedPrevVolume: Number.NaN
   };
 }
-function viewForOffset17(slot, offset) {
+function viewForOffset18(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -11031,7 +11030,7 @@ function nvi(slotId, opts) {
   if (ctx.isTick) {
     const next2 = fold3(slot.prevClosedValue, slot.prevClosedPrevClose, slot.prevClosedPrevVolume, close, volume);
     slot.outBuffer.replaceHead(next2.value);
-    return viewForOffset17(slot, offset);
+    return viewForOffset18(slot, offset);
   }
   slot.prevClosedValue = slot.value;
   slot.prevClosedPrevClose = slot.prevClose;
@@ -11041,7 +11040,7 @@ function nvi(slotId, opts) {
   slot.prevClose = next.prevClose;
   slot.prevVolume = next.prevVolume;
   slot.outBuffer.append(slot.value);
-  return viewForOffset17(slot, offset);
+  return viewForOffset18(slot, offset);
 }
 
 // ../runtime/dist/ta/nz.js
@@ -11864,7 +11863,7 @@ function initSlot64(capacity) {
     prevClosedPrevVolume: Number.NaN
   };
 }
-function viewForOffset18(slot, offset) {
+function viewForOffset19(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -11905,7 +11904,7 @@ function pvi(slotId, opts) {
   if (ctx.isTick) {
     const next2 = fold5(slot.prevClosedValue, slot.prevClosedPrevClose, slot.prevClosedPrevVolume, close, volume);
     slot.outBuffer.replaceHead(next2.value);
-    return viewForOffset18(slot, offset);
+    return viewForOffset19(slot, offset);
   }
   slot.prevClosedValue = slot.value;
   slot.prevClosedPrevClose = slot.prevClose;
@@ -11915,7 +11914,7 @@ function pvi(slotId, opts) {
   slot.prevClose = next.prevClose;
   slot.prevVolume = next.prevVolume;
   slot.outBuffer.append(slot.value);
-  return viewForOffset18(slot, offset);
+  return viewForOffset19(slot, offset);
 }
 
 // ../runtime/dist/ta/pvo.js
@@ -12013,7 +12012,7 @@ function initSlot66(capacity) {
     prevClosedPrevClose: Number.NaN
   };
 }
-function viewForOffset19(slot, offset) {
+function viewForOffset20(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -12055,7 +12054,7 @@ function pvt(slotId, opts) {
   if (ctx.isTick) {
     const next2 = fold6(slot.prevClosedCumPvt, slot.prevClosedPrevClose, close, volume);
     slot.outBuffer.replaceHead(next2.emit);
-    return viewForOffset19(slot, offset);
+    return viewForOffset20(slot, offset);
   }
   slot.prevClosedCumPvt = slot.cumPvt;
   slot.prevClosedPrevClose = slot.prevClose;
@@ -12063,7 +12062,7 @@ function pvt(slotId, opts) {
   slot.cumPvt = next.cum;
   slot.prevClose = next.prevClose;
   slot.outBuffer.append(next.emit);
-  return viewForOffset19(slot, offset);
+  return viewForOffset20(slot, offset);
 }
 
 // ../runtime/dist/ta/roc.js
@@ -12226,7 +12225,7 @@ function initSlot69(length, capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset20(slot, offset) {
+function viewForOffset21(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -12338,7 +12337,7 @@ function rvi(slotId, source, length, opts) {
     slot.outBuffer.append(value);
     slot.prevSrc = src;
   }
-  return viewForOffset20(slot, opts?.offset ?? 0);
+  return viewForOffset21(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/sessionVolumeProfile.js
@@ -12817,7 +12816,7 @@ function initSlot73(length, capacity) {
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
-function viewForOffset21(slot, offset) {
+function viewForOffset22(slot, offset) {
   if (offset === 0)
     return slot.series;
   let view = slot.shiftedViews.get(offset);
@@ -12903,7 +12902,7 @@ function trendStrengthIndex(slotId, source, length, opts) {
   } else {
     slot.outBuffer.append(closeStep6(slot, src));
   }
-  return viewForOffset21(slot, opts?.offset ?? 0);
+  return viewForOffset22(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/trix.js

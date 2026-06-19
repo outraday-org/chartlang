@@ -37,6 +37,7 @@ function plotEmission(overrides: Partial<PlotEmission> & { slotId: string }): Pl
         meta: overrides.meta ?? {},
         pane: overrides.pane ?? "overlay",
         ...(overrides.visible === undefined ? {} : { visible: overrides.visible }),
+        ...(overrides.xShift === undefined ? {} : { xShift: overrides.xShift }),
     };
 }
 
@@ -588,6 +589,226 @@ describe("onEmissions dispatch", () => {
         );
         const histogramRects = ctx.calls.filter((c) => c.kind === "fillRect" && c.w === 4);
         expect(histogramRects.length).toBe(1);
+    });
+
+    // Render a single line point at `bar` (time = that bar's time) with an
+    // optional `xShift`, over a 5-bar history, and return the first `moveTo`
+    // x. The line's only point lands at `bar`, so the polyline's `moveTo`
+    // is the projected x of the (possibly shifted) point.
+    // The plot line uses a distinctive strokeStyle (`#abcdef`) so its
+    // `moveTo` can be isolated from candle wicks / gridlines: take the
+    // first `moveTo` recorded after that strokeStyle is set.
+    const PLOT_STROKE = "#abcdef";
+    function moveAfterStroke(ctx: MockCanvas2DContext, stroke: string): number {
+        const idx = ctx.calls.findIndex(
+            (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === stroke,
+        );
+        if (idx < 0) throw new Error("plot strokeStyle never set");
+        const move = ctx.calls.slice(idx).find((c) => c.kind === "moveTo");
+        if (move === undefined || move.kind !== "moveTo") throw new Error("no moveTo after stroke");
+        return move.x;
+    }
+
+    async function lineMoveX(bar: number, xShift?: number): Promise<number> {
+        const host = stubHost([
+            emissions(), // history drain
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "shift",
+                        value: 105,
+                        color: PLOT_STROKE,
+                        bar,
+                        time: SAMPLE_BARS[bar].time,
+                        ...(xShift === undefined ? {} : { xShift }),
+                    }),
+                ],
+            }),
+        ]);
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            host,
+            candles: candleStream([
+                { kind: "history", bars: SAMPLE_BARS.slice(0, 4) },
+                { kind: "close", bar: SAMPLE_BARS[4] },
+            ]),
+        });
+        await runRendererLoop(adapter);
+        return moveAfterStroke(ctx, PLOT_STROKE);
+    }
+
+    it("renders a no-shift / omitted-xShift line at the bar's own x", async () => {
+        // The shifted-by-0 point and a point at the same bar without the
+        // field must land on the exact same x (byte-identical baseline).
+        const omitted = await lineMoveX(2);
+        const zero = await lineMoveX(2, 0);
+        expect(zero).toBe(omitted);
+    });
+
+    it("a negative xShift renders the line k bars left", async () => {
+        // bar 4 shifted two left must land at the unshifted x of bar 2.
+        const shifted = await lineMoveX(4, -2);
+        const target = await lineMoveX(2);
+        expect(shifted).toBe(target);
+        expect(shifted).toBeLessThan(await lineMoveX(4));
+    });
+
+    it("a positive xShift renders the line k bars right", async () => {
+        // bar 1 shifted two right must land at the unshifted x of bar 3.
+        const shifted = await lineMoveX(1, 2);
+        const target = await lineMoveX(3);
+        expect(shifted).toBe(target);
+        expect(shifted).toBeGreaterThan(await lineMoveX(1));
+    });
+
+    it("a positive xShift past the last bar extends xMax (future projection, not clipped)", async () => {
+        // bar 4 (the last bar) shifted three right projects three bars into
+        // the future. The viewport widens so the projected x stays inside
+        // the plot area (≤ pxWidth) rather than overflowing past the edge.
+        const host = stubHost([
+            emissions(),
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "future",
+                        value: 105,
+                        color: PLOT_STROKE,
+                        bar: 4,
+                        time: SAMPLE_BARS[4].time,
+                        xShift: 3,
+                    }),
+                ],
+            }),
+        ]);
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            host,
+            candles: candleStream([
+                { kind: "history", bars: SAMPLE_BARS.slice(0, 4) },
+                { kind: "close", bar: SAMPLE_BARS[4] },
+            ]),
+        });
+        await runRendererLoop(adapter);
+        const x = moveAfterStroke(ctx, PLOT_STROKE);
+        // The plot area is 320 width − 52 gutter = 268 px. The projected
+        // point sits at the (now-extended) xMax, i.e. the right edge of the
+        // plot area — finite and within the drawable range.
+        expect(x).toBeGreaterThan(0);
+        expect(x).toBeLessThanOrEqual(268);
+    });
+
+    it("a negative xShift histogram column renders k bars left", async () => {
+        async function histX(bar: number, xShift?: number): Promise<number> {
+            const host = stubHost([
+                emissions(),
+                emissions({
+                    plots: [
+                        plotEmission({
+                            slotId: "h",
+                            style: { kind: "histogram", baseline: 0 },
+                            value: 105,
+                            bar,
+                            time: SAMPLE_BARS[bar].time,
+                            ...(xShift === undefined ? {} : { xShift }),
+                        }),
+                    ],
+                }),
+            ]);
+            const ctx = new MockCanvas2DContext();
+            const { adapter } = buildAdapter({
+                ctx,
+                host,
+                candles: candleStream([
+                    { kind: "history", bars: SAMPLE_BARS.slice(0, 4) },
+                    { kind: "close", bar: SAMPLE_BARS[4] },
+                ]),
+            });
+            await runRendererLoop(adapter);
+            const rect = ctx.calls.find((c) => c.kind === "fillRect" && c.w === 4);
+            if (rect === undefined || rect.kind !== "fillRect") throw new Error("no histogram rect");
+            return rect.x;
+        }
+        // Column x is centred on the projected x (offset by −width/2), so a
+        // shifted-left column's x is strictly less than the unshifted one.
+        const shifted = await histX(4, -2);
+        const target = await histX(2);
+        expect(shifted).toBe(target);
+        expect(shifted).toBeLessThan(await histX(4));
+    });
+
+    it("a glyph overlay (shape) honours xShift via the shared projection", async () => {
+        async function shapeArcX(bar: number, xShift?: number): Promise<number> {
+            const host = stubHost([
+                emissions(),
+                emissions({
+                    plots: [
+                        plotEmission({
+                            slotId: "g",
+                            style: { kind: "shape", shape: "circle", size: 8 },
+                            value: 105,
+                            bar,
+                            time: SAMPLE_BARS[bar].time,
+                            ...(xShift === undefined ? {} : { xShift }),
+                        }),
+                    ],
+                }),
+            ]);
+            const ctx = new MockCanvas2DContext();
+            const { adapter } = buildAdapter({
+                ctx,
+                host,
+                candles: candleStream([
+                    { kind: "history", bars: SAMPLE_BARS.slice(0, 4) },
+                    { kind: "close", bar: SAMPLE_BARS[4] },
+                ]),
+            });
+            await runRendererLoop(adapter);
+            const arc = ctx.calls.find((c) => c.kind === "arc");
+            if (arc === undefined || arc.kind !== "arc") throw new Error("no shape arc recorded");
+            return arc.x;
+        }
+        const shifted = await shapeArcX(4, -2);
+        const target = await shapeArcX(2);
+        expect(shifted).toBe(target);
+    });
+
+    it("candle / bar / bg overrides ignore xShift (candle-state, not shifted series)", async () => {
+        // A bar-color override carries the same anchor regardless of any
+        // xShift: it tints the candle at its own bar. Render two frames —
+        // one with a large xShift, one without — and assert the bar-tint
+        // fillRect lands at the same x both times.
+        async function barTintX(xShift?: number): Promise<number> {
+            const host = stubHost([
+                emissions({
+                    plots: [
+                        plotEmission({
+                            slotId: "tint",
+                            style: { kind: "bar-color", color: "#a855f7" },
+                            value: 105,
+                            bar: 2,
+                            time: SAMPLE_BARS[2].time,
+                            ...(xShift === undefined ? {} : { xShift }),
+                        }),
+                    ],
+                }),
+            ]);
+            const ctx = new MockCanvas2DContext();
+            const { adapter } = buildAdapter({
+                ctx,
+                host,
+                candles: candleStream([{ kind: "history", bars: SAMPLE_BARS.slice(0, 5) }]),
+            });
+            await runRendererLoop(adapter);
+            // The bar tint is a translucent fillRect; take the last one (the
+            // candle overrides draw after the base candles).
+            const tints = ctx.calls.filter((c) => c.kind === "fillRect");
+            const last = tints[tints.length - 1];
+            if (last === undefined || last.kind !== "fillRect") throw new Error("no tint rect");
+            return last.x;
+        }
+        expect(await barTintX(5)).toBe(await barTintX());
     });
 
     it("stores horizontal-line emissions keyed by slotId (last-write-wins)", () => {

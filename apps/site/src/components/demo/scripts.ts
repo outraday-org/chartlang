@@ -277,13 +277,14 @@ export default defineIndicator({
         const sma = ta.sma(bar.close, 20);
         plot(sma, { color: "#26a69a", title: "SMA(20)" });
 
-        // The universal \`opts.offset\` shifts the output forward: with
-        // \`{ offset: 5 }\`, the returned series' \`.current\` reads the SMA value
-        // from 5 bars ago, displacing the line to the right. The shift lives on
-        // the \`ta\` call, since \`plot\` has no offset option. Past values of the
-        // unshifted series remain readable by indexing, e.g. \`sma[5]\`.
-        const smaShifted = ta.sma(bar.close, 20, { offset: 5 });
-        plot(smaShifted, { color: "#ef5350", title: "SMA(20) offset 5" });
+        // The universal \`opts.offset\` is a presentation display shift, not a
+        // value-read: a positive offset renders the line to the right
+        // (future) and a negative offset to the left (past), while the
+        // numeric series value stays unshifted (alerts and indexing see the
+        // value computed at the current bar). The shift lives on the \`ta\`
+        // call, since \`plot\` has no offset option.
+        plot(ta.sma(bar.close, 20, { offset: 5 }), { color: "#ef5350", title: "SMA(20) +5" });
+        plot(ta.sma(bar.close, 20, { offset: -5 }), { color: "#42a5f5", title: "SMA(20) −5" });
     },
 });
 `;
@@ -485,7 +486,7 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         id: "sma-offset",
         label: "SMA Offset",
         description:
-            "Two SMA(20) lines, one shifted back 5 bars via the universal ta offset option, showing series displacement.",
+            "Three SMA(20) lines: one unshifted plus a +5 copy displaced right and a −5 copy displaced left via the universal ta offset option — a presentation-only display shift (the values stay unshifted).",
         source: SMA_OFFSET,
     },
     {

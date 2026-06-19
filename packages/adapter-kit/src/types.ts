@@ -511,6 +511,22 @@ export type PlotEmission = {
      *     void hidden;
      */
     readonly visible?: boolean;
+    /**
+     * Presentation-only horizontal display shift in **bars**. Omitted (or
+     * `0`) ⇒ no shift, so a no-shift emission is byte-identical to a plot
+     * that never carried the field. `+n` shifts the plotted series `n`
+     * bars **right** (into the future); `−n` shifts it `n` bars **left**
+     * (into the past). It moves only where the series renders — `value`
+     * is the unshifted number and alert bars are unaffected. Must be a
+     * signed integer; `validateEmission` rejects a non-integer.
+     *
+     * @since 1.3
+     * @stable
+     * @example
+     *     const shifted: PlotEmission["xShift"] = -5;
+     *     void shifted;
+     */
+    readonly xShift?: number;
 };
 
 /**

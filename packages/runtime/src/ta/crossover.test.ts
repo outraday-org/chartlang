@@ -128,31 +128,36 @@ describe("ta.crossover — opts.offset", () => {
         expect(identities.size).toBe(1);
     });
 
-    it("offset === k > 0 shifts the boolean series by k bars", () => {
-        // [1, 2, 4] crosses 3 at bar 2 (out[2] === true). With offset 1
-        // applied, .current at bar 2 reads out[2-? wait] reads at(1) which
-        // is bar 1's value (false); .current at bar 3 (if we had it) would
-        // read bar 2's value (true). Use a 4-bar fixture.
+    it("offset === k > 0 leaves the boolean series unshifted (presentation-only)", () => {
+        // [1, 2, 4, 5] crosses 3 at bar 2 (out[2] === true). The offset is
+        // presentation-only, so the value series matches the no-offset run.
         const bars = makeBars([1, 2, 4, 5]);
+        const unshifted = harness(
+            bars,
+            bars.length + 1,
+            (bar) => crossover("slot", bar.close, 3).current,
+        );
         const out = harness(
             bars,
             bars.length + 1,
             (bar) => crossover("slot", bar.close, 3, { offset: 1 }).current,
         );
-        expect(out[0]).toBe(undefined); // OOR (no prior bar to read)
-        expect(out[1]).toBe(false); // bar 0
-        expect(out[2]).toBe(false); // bar 1
-        expect(out[3]).toBe(true); // bar 2 (the crossover)
+        for (let i = 0; i < bars.length; i += 1) expect(out[i]).toBe(unshifted[i]);
     });
 
-    it("offset === -k returns undefined at the head (future read)", () => {
+    it("offset === -k leaves the boolean series unshifted (no future read; presentation-only)", () => {
         const bars = makeBars([1, 2, 4]);
+        const unshifted = harness(
+            bars,
+            bars.length + 1,
+            (bar) => crossover("slot", bar.close, 3).current,
+        );
         const head = harness(
             bars,
             bars.length + 1,
             (bar) => crossover("slot", bar.close, 3, { offset: -1 }).current,
         );
-        expect(head[head.length - 1]).toBe(undefined);
+        expect(head[head.length - 1]).toBe(unshifted[unshifted.length - 1]);
     });
 
     it("two calls with the same non-zero offset return the same Series identity", () => {

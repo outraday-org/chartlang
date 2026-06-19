@@ -85,7 +85,7 @@ describe("ta.adx", () => {
         expect(out[25]).toBe(out[24]);
     });
 
-    it("opts.offset returns the value `offset` bars ago", () => {
+    it("opts.offset leaves the series unshifted (presentation-only)", () => {
         const bars = syntheticBars(40, 13);
         const unshifted = harness(
             bars,
@@ -97,8 +97,8 @@ describe("ta.adx", () => {
             bars.length + 1,
             () => adx("slot", 5, { smoothing: 5, offset: 3 }).current,
         );
-        for (let k = 3; k < bars.length; k += 1) {
-            const u = unshifted[k - 3];
+        for (let k = 0; k < bars.length; k += 1) {
+            const u = unshifted[k];
             const s = shifted[k];
             if (Number.isNaN(u)) expect(Number.isNaN(s)).toBe(true);
             else expect(s).toBeCloseTo(u, 12);

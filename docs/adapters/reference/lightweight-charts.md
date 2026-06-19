@@ -136,7 +136,10 @@ declare function updatePriceLine(handles: Map<string, unknown>, slotId: string, 
 
 The production implementation should convert chartlang millisecond times
 to the Lightweight Charts horizontal scale item it uses, usually seconds
-for business-time series or a typed `BusinessDay`.
+for business-time series or a typed `BusinessDay`. An optional
+`plot.xShift` (signed integer bars) is a presentation-only display shift —
+to honour it, offset the converted time by `xShift` bars before plotting;
+omitting it renders the series at its own bar and stays correct.
 
 ## Drawing Emissions
 

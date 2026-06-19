@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/plot-offset-needs-ta-call",
+        "severity": "warning",
+        "message": "Pine plot `offset=` only maps when the plotted value is a direct `ta.*` call; chartlang's offset lives on the `ta.*` opts. Offset dropped.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 6,
+            "endLine": 5,
+            "endColumn": 11
+        },
+        "suggestion": "Wrap the value in a `ta.*` primitive (e.g. `ta.sma(value, 1)`), or set the offset on the indicator's `ta.*` call."
+    }
+]

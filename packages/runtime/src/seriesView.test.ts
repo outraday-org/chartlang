@@ -5,7 +5,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import { Float64RingBuffer, RingBuffer } from "./ringBuffer.js";
-import { makeSeriesView, makeShiftedSeriesView } from "./seriesView.js";
+import { makeSeriesView, makeShiftedSeriesView, seriesOffsetOf } from "./seriesView.js";
 
 describe("makeSeriesView (Float64 backing)", () => {
     it("series.current === buf.at(0)", () => {
@@ -111,8 +111,8 @@ describe("makeSeriesView property invariants", () => {
     });
 });
 
-describe("makeShiftedSeriesView", () => {
-    it("offset === 0 delegates to makeSeriesView", () => {
+describe("makeShiftedSeriesView (presentation tag, Option A)", () => {
+    it("offset === 0 returns an unshifted, untagged view", () => {
         const buf = new Float64RingBuffer(4);
         const view = makeShiftedSeriesView<number>(buf, 0);
         buf.append(1);
@@ -121,41 +121,40 @@ describe("makeShiftedSeriesView", () => {
         expect(view[0]).toBe(2);
         expect(view[1]).toBe(1);
         expect(view.length).toBe(2);
+        expect(seriesOffsetOf(view)).toBe(0);
     });
 
-    it("positive offset shifts the read window into the past", () => {
+    it("positive offset leaves the value unshifted and records the offset", () => {
         const buf = new Float64RingBuffer(8);
         buf.append(10);
         buf.append(20);
         buf.append(30);
-        const view = makeShiftedSeriesView<number>(buf, 1);
-        expect(view.current).toBe(20);
-        expect(view[0]).toBe(20);
-        expect(view[1]).toBe(10);
-        expect(view[2]).toBeNaN();
+        const view = makeShiftedSeriesView<number>(buf, 3);
+        // The offset is presentation-only — the read window is NOT shifted.
+        expect(view.current).toBe(30);
+        expect(view[0]).toBe(30);
+        expect(view[1]).toBe(20);
+        expect(view[2]).toBe(10);
         expect(view.length).toBe(3);
+        expect(seriesOffsetOf(view)).toBe(3);
     });
 
-    it("negative offset returns NaN at the head (future read)", () => {
+    it("negative offset leaves the value unshifted and records the offset", () => {
         const buf = new Float64RingBuffer(8);
         buf.append(10);
         buf.append(20);
         buf.append(30);
-        const view = makeShiftedSeriesView<number>(buf, -1);
-        expect(view.current).toBeNaN();
-        expect(view[0]).toBeNaN();
-        expect(view[1]).toBe(30);
-        expect(view[2]).toBe(20);
+        const view = makeShiftedSeriesView<number>(buf, -2);
+        // No future read: the head is the real current value.
+        expect(view.current).toBe(30);
+        expect(view[0]).toBe(30);
+        expect(view[1]).toBe(20);
+        expect(seriesOffsetOf(view)).toBe(-2);
     });
 
-    it("offset exceeding buffer length returns all NaN", () => {
+    it("seriesOffsetOf returns 0 for a plain makeSeriesView view", () => {
         const buf = new Float64RingBuffer(4);
-        buf.append(1);
-        buf.append(2);
-        const view = makeShiftedSeriesView<number>(buf, 10);
-        expect(view.current).toBeNaN();
-        expect(view[0]).toBeNaN();
-        expect(view[1]).toBeNaN();
+        expect(seriesOffsetOf(makeSeriesView<number>(buf))).toBe(0);
     });
 
     it("unknown keys return undefined", () => {
@@ -182,15 +181,14 @@ describe("makeShiftedSeriesView", () => {
         expect(Symbol.iterator in probe).toBe(false);
     });
 
-    it("object-backed buffer returns undefined on OOR shifted reads", () => {
+    it("object-backed buffer reads are unshifted and the offset is recorded", () => {
         const buf = new RingBuffer<{ x: number }>(3);
         buf.append({ x: 1 });
         buf.append({ x: 2 });
         const view = makeShiftedSeriesView<{ x: number }>(buf, 1);
-        expect(view.current).toEqual({ x: 1 });
-        expect(view[1]).toBeUndefined();
-        const futureView = makeShiftedSeriesView<{ x: number }>(buf, -1);
-        expect(futureView.current).toBeUndefined();
+        expect(view.current).toEqual({ x: 2 });
+        expect(view[1]).toEqual({ x: 1 });
+        expect(seriesOffsetOf(view)).toBe(1);
     });
 
     it("identity is stable across appends", () => {
@@ -199,13 +197,14 @@ describe("makeShiftedSeriesView", () => {
         const ref = view;
         for (let i = 0; i < 16; i += 1) buf.append(i);
         expect(view).toBe(ref);
+        expect(seriesOffsetOf(view)).toBe(2);
     });
 
-    it("shifted_k.at(n) === unshifted.at(n + k) for every defined index", () => {
+    it("the tagged view equals the unshifted view at every index; the tag round-trips", () => {
         fc.assert(
             fc.property(
                 fc.integer({ min: 2, max: 16 }),
-                fc.integer({ min: 1, max: 5 }),
+                fc.integer({ min: -5, max: 5 }).filter((o) => o !== 0),
                 fc.array(fc.double({ noNaN: true, noDefaultInfinity: true }), {
                     minLength: 1,
                     maxLength: 64,
@@ -216,11 +215,11 @@ describe("makeShiftedSeriesView", () => {
                     const unshifted = makeSeriesView<number>(buf);
                     const shifted = makeShiftedSeriesView<number>(buf, offset);
                     for (let n = 0; n < buf.length; n += 1) {
-                        const u = unshifted[n + offset];
-                        const s = shifted[n];
-                        if (Number.isNaN(u)) expect(Number.isNaN(s)).toBe(true);
-                        else expect(s).toBe(u);
+                        expect(shifted[n]).toBe(unshifted[n]);
                     }
+                    expect(shifted.current).toBe(unshifted.current);
+                    expect(shifted.length).toBe(unshifted.length);
+                    expect(seriesOffsetOf(shifted)).toBe(offset);
                 },
             ),
         );

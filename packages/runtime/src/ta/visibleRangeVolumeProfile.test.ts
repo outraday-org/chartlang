@@ -132,7 +132,7 @@ describe("ta.visibleRangeVolumeProfile", () => {
         expect(out[out.length - 1]).toBe(1);
     });
 
-    it("returns the same result identity and honors offset views", () => {
+    it("returns the same result identity; offset is presentation-only (value unshifted)", () => {
         const input = rangedBars([100, 101, 102, 103], [10, 20, 30, 40]);
         const refs = new Set<unknown>();
         let unshiftedBuckets = 0;
@@ -149,7 +149,7 @@ describe("ta.visibleRangeVolumeProfile", () => {
             return result.poc.current;
         });
         expect(refs.size).toBe(1);
-        expect(shifted[3]).toBe(unshifted[2]);
+        expect(shifted[3]).toBe(unshifted[3]);
         expect(unshiftedBuckets).toBeGreaterThan(0);
         // Shifted result exposes the same live bucket set as the unshifted view.
         expect(shiftedBuckets).toBe(unshiftedBuckets);

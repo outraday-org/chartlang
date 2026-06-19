@@ -3,7 +3,7 @@
 
 import type { Palette } from "../palette.js";
 import type { RenderCtx } from "./clear.js";
-import { priceToY, timeToX, type PlotPoint, type Viewport } from "./coords.js";
+import { priceToY, projectShiftedX, type PlotPoint, type Viewport } from "./coords.js";
 
 function isFiniteValue(p: PlotPoint): boolean {
     return p.value !== null && Number.isFinite(p.value);
@@ -16,19 +16,28 @@ function isFiniteValue(p: PlotPoint): boolean {
  * already-drawn point. The stroke colour is the first finite point's
  * `color` (falling back to `palette.plotDefault` when null).
  *
+ * Each point's x is resolved from its `bar` + `xShift` via
+ * {@link projectShiftedX} against `bars` / `spacing` (the run's bar
+ * window and median spacing), so a presentation offset displaces the
+ * line; a point with no `xShift` draws at the pre-shift `timeToX(time)`
+ * x. `bars` / `spacing` are world inputs — the renderer stays pure on
+ * `ctx`.
+ *
  * @since 0.1
  * @stable
  * @example
  *     declare const ctx: RenderCtx;
  *     declare const series: ReadonlyArray<PlotPoint>;
+ *     declare const bars: ReadonlyArray<{ time: number }>;
  *     declare const vp: Viewport;
  *     declare const p: Palette;
- *     drawLine(ctx, series, vp, p);
+ *     drawLine(ctx, series, { bars, spacing: 0 }, vp, p);
  *     void drawLine;
  */
 export function drawLine(
     ctx: RenderCtx,
     series: ReadonlyArray<PlotPoint>,
+    world: { readonly bars: ReadonlyArray<{ readonly time: number }>; readonly spacing: number },
     viewport: Viewport,
     palette: Palette,
 ): void {
@@ -46,7 +55,10 @@ export function drawLine(
             }
             continue;
         }
-        const x = timeToX(point.time, viewport);
+        const x = projectShiftedX(
+            { bars: world.bars, bar: point.bar, xShift: point.xShift, spacing: world.spacing },
+            viewport,
+        );
         const y = priceToY(point.value, viewport);
         if (!inPath) {
             ctx.beginPath();

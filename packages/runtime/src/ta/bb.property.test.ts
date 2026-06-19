@@ -41,11 +41,11 @@ describe("ta.bb — property invariants", () => {
         );
     });
 
-    it("opts.offset: every band shifts by k slots in lockstep", () => {
+    it("opts.offset: leaves every band unshifted (presentation-only)", () => {
         fc.assert(
             fc.property(
                 fc.array(arbBar, { minLength: 10, maxLength: 50 }),
-                fc.integer({ min: 1, max: 5 }),
+                fc.integer({ min: -5, max: 5 }).filter((o) => o !== 0),
                 (bars, offset) => {
                     const unshifted = harness(bars, bars.length + 1, (bar) => {
                         const r = bb("slot", bar.close, 4);
@@ -55,8 +55,8 @@ describe("ta.bb — property invariants", () => {
                         const r = bb("slot", bar.close, 4, { offset });
                         return { u: r.upper.current, m: r.middle.current, l: r.lower.current };
                     });
-                    for (let i = offset; i < bars.length; i += 1) {
-                        const u = unshifted[i - offset];
+                    for (let i = 0; i < bars.length; i += 1) {
+                        const u = unshifted[i];
                         const s = shifted[i];
                         for (const k of ["u", "m", "l"] as const) {
                             if (Number.isNaN(u[k])) expect(Number.isNaN(s[k])).toBe(true);

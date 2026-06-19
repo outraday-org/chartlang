@@ -51,11 +51,13 @@ The compiler walks every literal lookback and records the maximum into
 at least `maxLookback + 1` slots. A script that never looks back still
 has room for the current bar.
 
-## Shifting output with the `ta` `offset` option
+## Shifting where a series renders — the `ta` `offset` option
 
-Indexing reads a prior value at one callsite. To shift an entire series
-forward — so its `.current` reads the value from N bars ago on every
-bar — pass the universal `opts.offset` to any `ta.*` primitive:
+Indexing reads a prior value at one callsite. The universal `opts.offset`
+on any `ta.*` primitive does something different: it shifts **where the
+series renders** without changing its values. `offset` is a
+presentation-only display shift in bars — a positive offset draws the
+line to the **right** (future), a negative offset to the **left** (past):
 
 ```ts
 import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
@@ -65,18 +67,24 @@ export default defineIndicator({
     apiVersion: 1,
     overlay: true,
     compute({ bar, ta, plot }) {
-        const sma = ta.sma(bar.close, 20);
-        const shifted = ta.sma(bar.close, 20, { offset: 5 });
-        // shifted.current === sma[5] on every bar.
-        plot(sma, { title: "SMA(20)" });
-        plot(shifted, { title: "SMA(20) offset 5" });
+        plot(ta.sma(bar.close, 20), { title: "SMA(20)" });
+        plot(ta.sma(bar.close, 20, { offset: 5 }), { title: "SMA(20) +5" });
+        plot(ta.sma(bar.close, 20, { offset: -5 }), { title: "SMA(20) −5" });
     },
 });
 ```
 
+The shift rides the plot emission as a signed `xShift` (see
+[`PlotEmission`](../spec/emissions.md#plotemission)); an adapter renders
+the series displaced by that many bars. The numeric series value is
+**unshifted** — indexing, alerts, and `state.*` all see the value
+computed at the current bar, both for positive and negative offsets.
 `offset` lives on the `ta` call, not on `plot` — `plot` has no offset
-option. A positive offset displaces the line to the right; the same
-prior values stay reachable by indexing the unshifted series (`sma[5]`).
+option. `offset: 0` and the no-offset path are byte-identical.
+
+> ALMA is the one exception: its `opts.offset` is the Gaussian-centre
+> position, so ALMA's universal display shift lives on the distinct
+> `opts.barShift` option instead.
 
 ## Warmup and NaN
 

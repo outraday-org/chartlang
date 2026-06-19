@@ -103,7 +103,7 @@ describe("ta.macd — opts.offset", () => {
         expect(identities.size).toBe(1);
     });
 
-    it("offset === k > 0 shifts macd / signal / hist in lockstep", () => {
+    it("offset === k > 0 leaves macd / signal / hist unshifted (presentation-only)", () => {
         const bars = syntheticBars(80, 11);
         const unshifted = harness(bars, bars.length + 1, (bar) => {
             const r = macd("slot", bar.close);
@@ -113,8 +113,8 @@ describe("ta.macd — opts.offset", () => {
             const r = macd("slot", bar.close, { offset: 3 });
             return { m: r.macd.current, s: r.signal.current, h: r.hist.current };
         });
-        for (let i = 3; i < bars.length; i += 1) {
-            const u = unshifted[i - 3];
+        for (let i = 0; i < bars.length; i += 1) {
+            const u = unshifted[i];
             const s = shifted[i];
             for (const k of ["m", "s", "h"] as const) {
                 if (Number.isNaN(u[k])) expect(Number.isNaN(s[k])).toBe(true);
@@ -123,16 +123,22 @@ describe("ta.macd — opts.offset", () => {
         }
     });
 
-    it("offset === -k returns NaN at the head for all three outputs", () => {
+    it("offset === -k leaves all three outputs unshifted (no future read; presentation-only)", () => {
         const bars = syntheticBars(80, 1);
+        const unshifted = harness(bars, bars.length + 1, (bar) => {
+            const r = macd("slot", bar.close);
+            return { m: r.macd.current, s: r.signal.current, h: r.hist.current };
+        });
         const head = harness(bars, bars.length + 1, (bar) => {
             const r = macd("slot", bar.close, { offset: -2 });
             return { m: r.macd.current, s: r.signal.current, h: r.hist.current };
         });
         const last = head[head.length - 1];
-        expect(Number.isNaN(last.m)).toBe(true);
-        expect(Number.isNaN(last.s)).toBe(true);
-        expect(Number.isNaN(last.h)).toBe(true);
+        const ref = unshifted[unshifted.length - 1];
+        for (const k of ["m", "s", "h"] as const) {
+            expect(last[k]).toBeCloseTo(ref[k], 12);
+            expect(Number.isNaN(last[k])).toBe(false);
+        }
     });
 
     it("two calls with the same non-zero offset return the same MacdResult identity", () => {

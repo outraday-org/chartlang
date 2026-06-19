@@ -96,9 +96,10 @@ function resultForOffset(slot: TrixSlot, offset: number, signalBuf: Float64RingB
  * @since 0.2
  * @stable
  *
- * `opts.offset` shifts both outputs in lockstep —
- * `series.current` on each output returns the value `offset` bars
- * ago.
+ * `opts.offset` is a presentation display shift carried to the plot
+ * emission as `xShift` for both outputs in lockstep (`+n` right / future,
+ * `−n` left / past); the series values are unshifted, so
+ * `series.current` on each output returns the value at the current bar.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

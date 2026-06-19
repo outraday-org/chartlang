@@ -142,19 +142,20 @@ export default defineIndicator({
         expect(file.maxLookback).toBe(11);
     });
 
-    it("counts a positive opts.offset on a ta.* call as lookback depth", () => {
+    it("ignores opts.offset on a ta.* call (display shift, not a buffer read)", () => {
         const result = run(`
 import { ta } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;
 const shifted = ta.sma(close, 20, { offset: 5 });
 void shifted.current;
 `);
-        // offset 5 ⇒ series.current reads buf.at(5) ⇒ buffer must hold 5 back.
-        expect(result.maxLookback).toBe(5);
+        // offset is a presentation x-shift carried to the emission, not a
+        // value-read — the numeric series is unshifted, so no extra depth.
+        expect(result.maxLookback).toBe(0);
         expect(result.diagnostics).toHaveLength(0);
     });
 
-    it("stacks opts.offset with a literal index on the same series", () => {
+    it("does not stack opts.offset with a literal index on the same series", () => {
         const result = run(`
 import { ta } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;
@@ -162,21 +163,21 @@ const shifted = ta.sma(close, 20, { offset: 5 });
 const v = shifted[3];
 void v;
 `);
-        // shifted[3] reads buf.at(3 + 5).
-        expect(result.maxLookback).toBe(8);
+        // shifted[3] reads buf.at(3); offset is a render shift, not a read.
+        expect(result.maxLookback).toBe(3);
     });
 
-    it("stacks opts.offset on an inline ta.* call element access", () => {
+    it("does not stack opts.offset on an inline ta.* call element access", () => {
         const result = run(`
 import { ta } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;
 const v = ta.sma(close, 20, { offset: 4 })[2];
 void v;
 `);
-        expect(result.maxLookback).toBe(6);
+        expect(result.maxLookback).toBe(2);
     });
 
-    it("ignores a negative opts.offset (future read needs no buffer depth)", () => {
+    it("ignores a negative opts.offset (display shift left needs no buffer depth)", () => {
         const result = run(`
 import { ta } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;
@@ -355,13 +356,14 @@ void hbar.current; void back;
         expect(result.maxLookback).toBe(20);
     });
 
-    it("counts a ta.* offset inside a request.security expression callback", () => {
+    it("ignores a ta.* offset inside a request.security expression callback", () => {
         const result = run(`
 import { request, ta } from "@invinite-org/chartlang-core";
 const trend = request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 200, { offset: 12 }));
 void trend;
 `);
-        expect(result.maxLookback).toBe(12);
+        // offset is a render shift, not a value-read — no extra buffer depth.
+        expect(result.maxLookback).toBe(0);
     });
 
     it("counts a series element-access lookback inside the callback", () => {

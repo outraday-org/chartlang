@@ -32,6 +32,7 @@ import {
     INPUT_INTERVAL_SCENARIO,
     MTF_SECURITY_EXPRESSION_EMA_SCENARIO,
     MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO,
+    PLOT_OFFSET_XSHIFT_SCENARIO,
     PLOT_STYLE_OVERRIDES_SCENARIO,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
     RSI_SUBPANE_ROUTING_SCENARIO,
@@ -266,6 +267,18 @@ describe("runConformanceSuite", () => {
         // happy path (visible / color / lineWidth + the live-cleared visible).
         const report = await runConformanceSuite(makeAdapter(), {
             scenarios: [PLOT_STYLE_OVERRIDES_SCENARIO],
+            candles: SMALL_BARS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.failures).toEqual([]);
+    }, 30_000);
+
+    it("runs the plot-offset-xshift scenario end-to-end (signed xShift + unshifted value)", async () => {
+        // Exercises the `plot-field: "xShift"` evaluator arm in both
+        // directions (slot 1 → +3, slot 2 → −3), the omitted-field branch
+        // (slot 0 carries no `xShift`), and the unshifted-value `plot-hash`.
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [PLOT_OFFSET_XSHIFT_SCENARIO],
             candles: SMALL_BARS,
         });
         expect(report.failed).toBe(0);

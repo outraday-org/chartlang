@@ -127,15 +127,26 @@ plot hashes, alert counts, and diagnostic codes.
   entry (keeps the suite robust under a stubbed compiler that emits no
   `manifest.plots`); a genuinely mis-authored override then surfaces as
   a failing `plot-field` assertion rather than a throw.
-- **The `plot-field` assertion inspects override-baked presentation
-  fields.** `plot-hash` deliberately hashes only `{ bar, value }`
-  (color/width are excluded so existing hashes stay stable), so
-  `plot-field` exists to assert `visible` / `color` / `style.lineWidth`
-  on the emission for a `(slotIndex, bar)` pair. `expected: undefined`
-  asserts an omitted field — a visible plot carries no `visible` flag,
-  and a non-line-family style carries no `lineWidth`. The empty-override
-  parity guarantee is pinned by re-using `plot-hash` on the recolored
-  slot (its numeric series is byte-identical to the no-override run).
+- **The `plot-field` assertion inspects override-baked AND runtime-set
+  presentation fields.** `plot-hash` deliberately hashes only
+  `{ bar, value }` (color/width are excluded so existing hashes stay
+  stable), so `plot-field` exists to assert `visible` / `color` /
+  `style.lineWidth` / `xShift` on the emission for a `(slotIndex, bar)`
+  pair. `expected: undefined` asserts an omitted field — a visible plot
+  carries no `visible` flag, a non-line-family style carries no
+  `lineWidth`, and a no-offset plot carries no `xShift`. The
+  empty-override parity guarantee is pinned by re-using `plot-hash` on the
+  recolored slot (its numeric series is byte-identical to the no-override
+  run).
+- **`xShift` is the bidirectional plot-offset presentation field.**
+  `PLOT_OFFSET_XSHIFT_SCENARIO` plots an unshifted `bar.close` plus a `+3`
+  and a `−3` `ta.sma(..., { offset })` line, then asserts (via
+  `plot-field: "xShift"`) `xShift = 3` / `−3` on the shifted slots and an
+  omitted field on the unshifted slot, plus a `plot-hash` on the unshifted
+  slot proving the value series is never transformed by `offset` (it is a
+  presentation display shift, `+n` right / `−n` left, carried on the
+  emission and rendered by the adapter). Re-pin the hash via the
+  "expected vs actual" message like every other scenario.
 
 ## Pine round-trip invariants
 

@@ -288,11 +288,16 @@ export default {
     compute: (ctx) => {
         const sma = ctx.ta.sma("sma-offset.chart.ts:10:21#0", ctx.bar.close, 20);
         ctx.plot("sma-offset.chart.ts:11:9#0", sma, { color: "#26a69a", title: "SMA(20)" });
-        const smaShifted = ctx.ta.sma("sma-offset.chart.ts:19:28#0", ctx.bar.close, 20, { offset: 5 });
-        ctx.plot("sma-offset.chart.ts:20:9#0", smaShifted, {
-            color: "#ef5350",
-            title: "SMA(20) offset 5",
-        });
+        ctx.plot(
+            "sma-offset.chart.ts:18:14#0",
+            ctx.ta.sma("sma-offset.chart.ts:18:19#0", ctx.bar.close, 20, { offset: 5 }),
+            { color: "#ef5350", title: "SMA(20) +5" },
+        );
+        ctx.plot(
+            "sma-offset.chart.ts:19:14#0",
+            ctx.ta.sma("sma-offset.chart.ts:19:19#0", ctx.bar.close, 20, { offset: -5 }),
+            { color: "#42a5f5", title: "SMA(20) −5" },
+        );
     },
 };
 `;
@@ -622,24 +627,30 @@ describe("canvas2d adapter integration", () => {
         }
     });
 
-    it("renders the sma-offset example with a shifted SMA series", async () => {
+    it("renders the sma-offset example with bidirectionally shifted SMA series", async () => {
         const run = await runExampleScript("examples/scripts/sma-offset.chart.ts", HISTORY_BARS);
         const plotCount = run.emissions.reduce((sum, frame) => sum + frame.plots.length, 0);
         expect(run.workerErrors).toEqual([]);
         expect(hasErrorDiagnostics(run.emissions)).toBe(false);
         expect(plotCount).toBeGreaterThan(0);
 
-        // The shifted line must actually emit FINITE values. Regression
-        // guard for the compiler maxLookback bug: an `opts.offset` of 5 left
-        // maxLookback at 0, sizing the output ring buffer to 1 slot, so the
-        // shifted view's `buf.at(5)` was always out-of-range NaN and the
-        // line never drew. Without the offset counting toward maxLookback,
-        // this stays all-NaN.
-        const shifted = run.emissions.flatMap((frame) =>
-            frame.plots.filter((p) => p.title === "SMA(20) offset 5").map((p) => p.value),
+        // Under the display-shift model the offset rides each emission as a
+        // signed `xShift` (presentation-only) while the value stays the
+        // unshifted `buf.at(0)`, finite once warm regardless of maxLookback.
+        // The +5 line shifts right, the −5 line shifts left.
+        const rightPlots = run.emissions.flatMap((frame) =>
+            frame.plots.filter((p) => p.title === "SMA(20) +5"),
         );
-        expect(shifted.length).toBe(HISTORY_BARS.length);
-        expect(shifted.some((v) => typeof v === "number" && Number.isFinite(v))).toBe(true);
+        const leftPlots = run.emissions.flatMap((frame) =>
+            frame.plots.filter((p) => p.title === "SMA(20) −5"),
+        );
+        expect(rightPlots.length).toBe(HISTORY_BARS.length);
+        expect(leftPlots.length).toBe(HISTORY_BARS.length);
+        expect(rightPlots.every((p) => p.xShift === 5)).toBe(true);
+        expect(leftPlots.every((p) => p.xShift === -5)).toBe(true);
+        expect(
+            rightPlots.some((p) => typeof p.value === "number" && Number.isFinite(p.value)),
+        ).toBe(true);
     });
 
     it("emits a session-high alert on crossover", async () => {

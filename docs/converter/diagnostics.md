@@ -418,6 +418,20 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** A whole-anchor setter moved only one endpoint; the unset anchor was filled from the creation expression so the patch is a complete tuple. The filled endpoint re-evaluates each bar instead of staying frozen.
 - **Suggested fix:** Set both `set_xy1` and `set_xy2`, or mirror the fixed endpoint in a state slot if it must stay put.
 
+### plot-offset-needs-ta-call
+
+- **Code:** `pine-converter/transform/plot-offset-needs-ta-call`
+- **Severity:** warning
+- **Message:** Pine plot `offset=` only maps when the plotted value is a direct `ta.*` call; chartlang's offset lives on the `ta.*` opts. Offset dropped.
+- **Suggested fix:** Wrap the value in a `ta.*` primitive (e.g. `ta.sma(value, 1)`), or set the offset on the indicator's `ta.*` call.
+
+### plot-offset-overrides-ta-offset
+
+- **Code:** `pine-converter/transform/plot-offset-overrides-ta-offset`
+- **Severity:** warning
+- **Message:** The Pine plot-level `offset=` replaced the `offset` already set on the plotted `ta.*` call; the plot-level offset is the source of truth.
+- **Suggested fix:** Remove the `offset` argument on the `ta.*` call, or drop the plot-level `offset=` so the two no longer conflict.
+
 ### polyline-closed-info
 
 - **Code:** `pine-converter/transform/polyline-closed-info`

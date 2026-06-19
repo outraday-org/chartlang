@@ -56,50 +56,65 @@ export function makeSeriesView<T>(buf: RingBufferLike<T>): Series<T> {
 }
 
 /**
- * Offset-shifted variant of {@link makeSeriesView}. `offset === 0`
- * returns the same Proxy shape (and is the identity-preserving fast
- * path callers should special-case at the call site). For
- * `offset === k > 0`, `view.current === buf.at(k)` — i.e. the value
- * `k` bars ago, matching `lib/applyOffset`'s
- * `out[i] = values[i − offset]` semantics. For `offset === -k`,
- * `view.current === buf.at(-k)` — an OOR read returning the underlying
- * sentinel (NaN for `Float64RingBuffer`, `undefined` for object
- * `RingBuffer`).
+ * Module-level side-table recording the **presentation x-shift** declared
+ * for an offset-tagged Series view. `offset` is no longer a value-read
+ * transform (Option A, bidirectional-plot-offset): the series value is
+ * always the unshifted `buf.at(0)`; the recorded offset rides the plot
+ * emission as `PlotEmission.xShift` so the adapter renders the series
+ * shifted (`+n` right / future, `−n` left / past) without changing the
+ * numbers alerts and `state.*` see. Keyed weakly on the view object so a
+ * dropped slot's tag is collected with it.
+ */
+const seriesOffsets = new WeakMap<Series<unknown>, number>();
+
+/**
+ * Offset-tagging variant of {@link makeSeriesView}. It returns the
+ * **unshifted** view (delegating to {@link makeSeriesView}) and, for a
+ * non-zero `offset`, records `view → offset` in a module-level
+ * `WeakMap` side-table read by `plot()` via {@link seriesOffsetOf}. The
+ * offset is **presentation-only** — `view.current` is `buf.at(0)`, not a
+ * value `offset` bars ago — so both shift directions are expressible and
+ * alerts / `state.*` see the unshifted value. `offset === 0` records
+ * nothing (byte-identical to a plain {@link makeSeriesView}).
  *
- * The shift is applied on every read — no allocation, no per-bar
- * work. Callers cache the returned Proxy per `(slot, offset)` pair so
- * the view's identity stays stable across bars.
+ * Callers cache the returned view per `(slot, offset)` pair so the
+ * view's identity — and therefore its recorded offset — stays stable
+ * across bars.
  *
  * @since 0.2
+ * @stable
  * @example
- *     // import { Float64RingBuffer, makeShiftedSeriesView }
+ *     // import { Float64RingBuffer, makeShiftedSeriesView, seriesOffsetOf }
  *     //     from "@invinite-org/chartlang-runtime";
  *     // const buf = new Float64RingBuffer(8);
  *     // buf.append(10); buf.append(20); buf.append(30);
- *     // const view = makeShiftedSeriesView<number>(buf, 1);
- *     // view.current; // 20 (one bar ago)
- *     // view[0];      // 20
- *     // view[1];      // 10
+ *     // const view = makeShiftedSeriesView<number>(buf, 5);
+ *     // view.current;          // 30 (unshifted — the offset does NOT lag the read)
+ *     // seriesOffsetOf(view);  // 5 (presentation x-shift carried to the emission)
  */
 export function makeShiftedSeriesView<T>(buf: RingBufferLike<T>, offset: number): Series<T> {
-    if (offset === 0) return makeSeriesView<T>(buf);
-    return new Proxy({} as Series<T>, {
-        get(_target, prop) {
-            if (prop === "current") return buf.at(offset);
-            if (prop === "length") return buf.length;
-            if (typeof prop === "string") {
-                const n = Number(prop);
-                if (Number.isInteger(n) && n >= 0) return buf.at(n + offset);
-            }
-            return undefined;
-        },
-        has(_target, prop) {
-            if (prop === "current" || prop === "length") return true;
-            if (typeof prop === "string") {
-                const n = Number(prop);
-                return Number.isInteger(n) && n >= 0;
-            }
-            return false;
-        },
-    });
+    const view = makeSeriesView<T>(buf);
+    if (offset !== 0) seriesOffsets.set(view, offset);
+    return view;
+}
+
+/**
+ * Read the presentation x-shift recorded for `series` by
+ * {@link makeShiftedSeriesView}, or `0` when the series is untagged (a
+ * plain {@link makeSeriesView} view, an `offset === 0` view, or any
+ * non-runtime Series). `plot()` calls this to populate
+ * `PlotEmission.xShift`; a `0` result omits the field so a no-offset
+ * plot stays byte-identical to today.
+ *
+ * @since 0.2
+ * @stable
+ * @example
+ *     // import { Float64RingBuffer, makeShiftedSeriesView, seriesOffsetOf }
+ *     //     from "@invinite-org/chartlang-runtime";
+ *     // const buf = new Float64RingBuffer(8);
+ *     // const shifted = makeShiftedSeriesView<number>(buf, -3);
+ *     // seriesOffsetOf(shifted); // -3
+ */
+export function seriesOffsetOf(series: Series<unknown>): number {
+    return seriesOffsets.get(series) ?? 0;
 }

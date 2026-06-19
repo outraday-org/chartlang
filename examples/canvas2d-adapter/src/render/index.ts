@@ -8,7 +8,14 @@ export { drawHorizontalLine } from "./horizontalLine.js";
 export { drawAlertBadge } from "./alertBadge.js";
 export type { AlertAnchor } from "./alertBadge.js";
 export { drawAlertConditions } from "./alertConditions.js";
-export { priceToY, timeToX, yToPrice } from "./coords.js";
+export {
+    medianBarSpacing,
+    priceToY,
+    projectShiftedX,
+    shiftedBarTime,
+    timeToX,
+    yToPrice,
+} from "./coords.js";
 export type { HLine, PlotPoint, Viewport } from "./coords.js";
 export { drawHistogram } from "./histogram.js";
 export type { HistogramArgs } from "./histogram.js";

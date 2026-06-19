@@ -103,11 +103,11 @@ describe("ta.sma — property invariants", () => {
         );
     });
 
-    it("opts.offset: shifted_k[i] === unshifted[i − k] for every defined index", () => {
+    it("opts.offset: leaves the series unshifted — shifted[i] === unshifted[i] (presentation-only)", () => {
         fc.assert(
             fc.property(
                 fc.array(arbBar, { minLength: 10, maxLength: 50 }),
-                fc.integer({ min: 1, max: 5 }),
+                fc.integer({ min: -5, max: 5 }).filter((o) => o !== 0),
                 (bars, offset) => {
                     const unshifted = harness(
                         bars,
@@ -119,8 +119,8 @@ describe("ta.sma — property invariants", () => {
                         bars.length + 1,
                         (bar) => sma("slot", bar.close, 4, { offset }).current,
                     );
-                    for (let i = offset; i < bars.length; i += 1) {
-                        const u = unshifted[i - offset];
+                    for (let i = 0; i < bars.length; i += 1) {
+                        const u = unshifted[i];
                         const s = shifted[i];
                         if (Number.isNaN(u)) expect(Number.isNaN(s)).toBe(true);
                         else expect(s).toBeCloseTo(u, 12);

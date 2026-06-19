@@ -1,0 +1,5 @@
+//@version=6
+indicator("Plot offset", overlay=true)
+plot(ta.sma(close, 20), "SMA +5", color.blue, offset=5)
+plot(ta.sma(close, 20), "SMA -5", color.red, offset=-5)
+plot(close, "raw", offset=5)

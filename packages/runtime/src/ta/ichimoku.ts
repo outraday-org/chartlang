@@ -159,7 +159,9 @@ function resultForOffset(slot: IchimokuSlot, offset: number): IchimokuResult {
  * @since 0.2
  * @stable
  *
- * `opts.offset` shifts all five outputs in lockstep.
+ * `opts.offset` is a presentation display shift carried to the plot
+ * emission as `xShift` for all five outputs in lockstep (`+n` right / future,
+ * `−n` left / past); the series values are unshifted.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

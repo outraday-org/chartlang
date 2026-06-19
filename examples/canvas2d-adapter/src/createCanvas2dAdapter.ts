@@ -50,7 +50,10 @@ import {
     drawShape,
     drawYAxis,
     drawingDispatch,
+    medianBarSpacing,
     priceToY,
+    projectShiftedX,
+    shiftedBarTime,
     timeToX,
 } from "./render/index.js";
 
@@ -206,10 +209,61 @@ function computeYRange(state: AdapterState, paneKey: string): { yMin: number; yM
     return { yMin, yMax };
 }
 
+// Widen `xMax` so any future-projected (`+k`) point in this pane stays
+// inside the viewport instead of being clipped past the data edge.
+// Walks the pane's series points (and, for the overlay pane, the glyph
+// overlays) for a positive `xShift` whose target bar reaches past the
+// last bar, taking the largest projected target time. No-shift frames
+// leave `xMax` untouched, so the baseline render is byte-identical.
+function extendXMaxForShifts(
+    state: AdapterState,
+    paneKey: string,
+    spacing: number,
+    xMax: number,
+): number {
+    const { bars } = state;
+    let extended = xMax;
+    const consider = (bar: number, xShift: number | undefined): void => {
+        if (xShift === undefined || xShift <= 0) return;
+        const t = shiftedBarTime({ bars, bar, xShift, spacing });
+        if (t > extended) extended = t;
+    };
+    const prefix = paneKeyPrefix(paneKey);
+    for (const [key, series] of state.plotSeries) {
+        if (!key.startsWith(prefix)) continue;
+        for (const point of series) {
+            if (point.value === null || !Number.isFinite(point.value)) continue;
+            consider(point.bar, point.xShift);
+        }
+    }
+    if (paneKey === "overlay") {
+        for (const plot of state.plotOverlays.values()) {
+            if (plot.value === null) continue;
+            // Only the shifted-series glyphs (shape / character / arrow)
+            // honour `xShift`; candle-state overrides
+            // (bg / bar / candle-override, horizontal-histogram) keep their
+            // own anchor and must not widen the viewport.
+            if (
+                plot.style.kind !== "shape" &&
+                plot.style.kind !== "character" &&
+                plot.style.kind !== "arrow"
+            ) {
+                continue;
+            }
+            consider(plot.bar, plot.xShift);
+        }
+    }
+    return extended;
+}
+
 // Build the y-scale for a single pane. The `pxWidth`/`pxHeight` come from
 // the pane's rect, so the pure render helpers (which map against
 // `viewport.pxHeight`) emit pane-relative y.
-function computePaneViewport(state: AdapterState, entry: PaneLayoutEntry): Viewport {
+function computePaneViewport(
+    state: AdapterState,
+    entry: PaneLayoutEntry,
+    spacing: number,
+): Viewport {
     const { bars } = state;
     const { rect, paneKey } = entry;
     // Reserve the right gutter for the price axis; the plot area is the
@@ -231,6 +285,7 @@ function computePaneViewport(state: AdapterState, entry: PaneLayoutEntry): Viewp
         if (bar.time < xMin) xMin = bar.time;
         if (bar.time > xMax) xMax = bar.time;
     }
+    xMax = extendXMaxForShifts(state, paneKey, spacing, xMax);
     let { yMin, yMax } = computeYRange(state, paneKey);
     if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
         yMin = 0;
@@ -254,6 +309,7 @@ function renderHistogramSeries(
     ctx: RenderCtx,
     series: ReadonlyArray<PlotPoint>,
     baseline: number,
+    world: { readonly bars: ReadonlyArray<Bar>; readonly spacing: number },
     viewport: Viewport,
     palette: Palette,
 ): void {
@@ -263,7 +319,15 @@ function renderHistogramSeries(
         drawHistogram(
             ctx,
             {
-                x: timeToX(point.time, viewport),
+                x: projectShiftedX(
+                    {
+                        bars: world.bars,
+                        bar: point.bar,
+                        xShift: point.xShift,
+                        spacing: world.spacing,
+                    },
+                    viewport,
+                ),
                 y: priceToY(point.value, viewport),
                 baseline: baselineY,
                 color: point.color,
@@ -332,7 +396,7 @@ function withLocation<L>(location: L | undefined): { location?: L } {
     return location === undefined ? {} : { location };
 }
 
-function renderGlyphOverlays(state: AdapterState, viewport: Viewport): void {
+function renderGlyphOverlays(state: AdapterState, spacing: number, viewport: Viewport): void {
     for (const plot of state.plotOverlays.values()) {
         if (plot.style.kind === "horizontal-histogram") {
             drawHorizontalHistogram(
@@ -348,7 +412,13 @@ function renderGlyphOverlays(state: AdapterState, viewport: Viewport): void {
             continue;
         }
         if (plot.value === null) continue;
-        const x = timeToX(plot.time, viewport);
+        // Glyph plots (shape / character / arrow) are shifted series
+        // visuals, so they route through the same bar-offset projection as
+        // line / histogram instead of `timeToX(plot.time)`.
+        const x = projectShiftedX(
+            { bars: state.bars, bar: plot.bar, xShift: plot.xShift, spacing },
+            viewport,
+        );
         const y = priceToY(plot.value, viewport);
         switch (plot.style.kind) {
             case "shape":
@@ -424,8 +494,35 @@ function renderOverlayTail(state: AdapterState, viewport: Viewport): void {
     drawLogPane(state.ctx, state.recentLogs, viewport, state.palette);
 }
 
+// Draw every plot series belonging to one pane, dispatching histogram
+// styles to `renderHistogramSeries` and everything else to `drawLine`.
+// `spacing` is the run's median bar spacing, threaded into the shifted-
+// series x projection both render paths share.
+function renderPaneSeries(
+    state: AdapterState,
+    paneKey: string,
+    spacing: number,
+    viewport: Viewport,
+): void {
+    const prefix = paneKeyPrefix(paneKey);
+    const world = { bars: state.bars, spacing };
+    for (const [key, series] of state.plotSeries) {
+        if (!key.startsWith(prefix)) continue;
+        const style = state.plotSeriesStyle.get(key);
+        if (style !== undefined && style.kind === "histogram") {
+            renderHistogramSeries(state.ctx, series, style.baseline, world, viewport, state.palette);
+            continue;
+        }
+        drawLine(state.ctx, series, world, viewport, state.palette);
+    }
+}
+
 function renderFrame(state: AdapterState): void {
     const layout = computePaneLayout(state.paneOrder, state.canvas);
+    // Median adjacent-bar spacing of the run, computed once per frame and
+    // threaded into every shifted-series projection so a `+k` shift past
+    // the data edge extrapolates a target time from a stable cadence.
+    const spacing = medianBarSpacing(state.bars);
     // Captured during the pane walk so `renderOverlayTail` reuses the
     // overlay pane's viewport without a second O(bars+series) pass.
     // `computePaneLayout` is required to emit `"overlay"` at index 0, so
@@ -434,7 +531,7 @@ function renderFrame(state: AdapterState): void {
     let overlayRectY = 0;
 
     for (const entry of layout) {
-        const viewport = computePaneViewport(state, entry);
+        const viewport = computePaneViewport(state, entry, spacing);
         if (entry.paneKey === "overlay") {
             overlayViewport = viewport;
             overlayRectY = entry.rect.y;
@@ -454,17 +551,8 @@ function renderFrame(state: AdapterState): void {
             drawCandles(state.ctx, state.bars, viewport, state.palette);
             renderBarOverlays(state, viewport);
         }
-        const prefix = paneKeyPrefix(entry.paneKey);
-        for (const [key, series] of state.plotSeries) {
-            if (!key.startsWith(prefix)) continue;
-            const style = state.plotSeriesStyle.get(key);
-            if (style !== undefined && style.kind === "histogram") {
-                renderHistogramSeries(state.ctx, series, style.baseline, viewport, state.palette);
-                continue;
-            }
-            drawLine(state.ctx, series, viewport, state.palette);
-        }
-        if (entry.paneKey === "overlay") renderGlyphOverlays(state, viewport);
+        renderPaneSeries(state, entry.paneKey, spacing, viewport);
+        if (entry.paneKey === "overlay") renderGlyphOverlays(state, spacing, viewport);
         for (const hline of state.hlines.values()) {
             if (hline.paneKey !== entry.paneKey) continue;
             drawHorizontalLine(state.ctx, hline, viewport, state.palette);
@@ -503,7 +591,15 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
     ) {
         const key = paneSlotKey(paneKey, plot.slotId);
         const series = state.plotSeries.get(key) ?? [];
-        series.push({ time: plot.time, value: plot.value, color: plot.color });
+        series.push({
+            time: plot.time,
+            value: plot.value,
+            color: plot.color,
+            bar: plot.bar,
+            // Omit a no-shift `xShift` so the stored point (and therefore
+            // the rendered x) is byte-identical to a pre-feature emission.
+            ...(plot.xShift === undefined || plot.xShift === 0 ? {} : { xShift: plot.xShift }),
+        });
         state.plotSeries.set(key, series);
         state.plotSeriesStyle.set(key, plot.style);
         return;

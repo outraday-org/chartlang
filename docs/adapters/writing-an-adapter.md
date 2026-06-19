@@ -225,6 +225,14 @@ declare function updatePriceLine(
 Unsupported kinds should be absent from `capabilities.plots`; the runtime
 will gate them before they reach this function.
 
+An emission MAY carry an optional `plot.xShift` — a signed integer
+presentation display shift in bars (`+n` right/future, `−n` left/past)
+the runtime threads from a plotted offset `ta.*` series. It is
+display-only and never changes `plot.value`; an adapter may render the
+point displaced by that many bars or ignore the field and render at
+`plot.time`. The reference canvas2d adapter projects it onto the x-axis;
+ignoring it degrades only the visual offset, never correctness.
+
 ## Translating Drawing Emissions
 
 Drawing emissions are keyed by `handleId` and use `op` to describe

@@ -255,6 +255,20 @@ describe("validateEmission — plot", () => {
             message: expect.stringContaining("visible"),
         });
     });
+
+    it("accepts an integer xShift (right, left, and zero)", () => {
+        expect(validateEmission({ ...validPlot, xShift: 5 })).toEqual({ ok: true });
+        expect(validateEmission({ ...validPlot, xShift: -5 })).toEqual({ ok: true });
+        expect(validateEmission({ ...validPlot, xShift: 0 })).toEqual({ ok: true });
+    });
+
+    it("rejects a non-integer xShift", () => {
+        expect(validateEmission({ ...validPlot, xShift: 1.5 })).toMatchObject({
+            ok: false,
+            code: "malformed-emission",
+            message: expect.stringContaining("xShift"),
+        });
+    });
 });
 
 describe("validateEmission — alert condition", () => {

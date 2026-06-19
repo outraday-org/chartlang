@@ -14,7 +14,7 @@ back to run it in your browser.
 - [Manual SMA](/examples/manual-sma) — Define an SMA by hand from the price series: expose bar.close as an indexable Series via a length-1 MA, average the last 5 literal lookbacks, and watch it overlay ta.sma(5) exactly.
 - [Trend Composition](/examples/trend-composition) — Phase-7 indicator composition: a private dependency, a named export, and a default consumer that marks crossovers.
 - [HTF Trend Filter](/examples/htf-trend-filter) — Multi-timeframe: a current-timeframe EMA(20) overlaid with a true weekly EMA(20) computed ON the weekly bars via the request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20)) expression form — a smooth, lagged trend, not 20 daily bars of a weekly-stepped series.
-- [SMA Offset](/examples/sma-offset) — Two SMA(20) lines, one shifted back 5 bars via the universal ta offset option, showing series displacement.
+- [SMA Offset](/examples/sma-offset) — Three SMA(20) lines: one unshifted plus a +5 copy displaced right and a −5 copy displaced left via the universal ta offset option — a presentation-only display shift (the values stay unshifted).
 - [Pivot High Ray](/examples/pivot-high-ray) — Track the latest swing high's price and time in persistent state.* slots, then draw one horizontal ray from it that follows each new pivot via a reused draw.horizontalRay handle.
 - [Forecast Line](/examples/forecast-line) — Project the recent EMA(20) slope 20 bars into the future with bar.point(+N, …), drawing a dotted line to the right of the last candle — the positive (future) offset path.
 - [Fill between series (band)](/examples/fill-between-band) — A filled ribbon between two EMAs via draw.fillBetween — the native linefill / fill() equivalent.

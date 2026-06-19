@@ -1023,7 +1023,27 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   bug. `request-security-not-mapped` is now reserved for the genuinely-
   unsupported shapes (non-literal / out-of-table timeframe, missing args); an
   in-subset `ta.*` source is supported.
+- **Pine `plot(<value>, offset=N)` threads onto a direct `ta.*` plot value
+  (`plotFamily.ts` `emitPlot`).** `emitPlot` IS passed the
+  `DiagnosticCollector` (the `case "plot"` site threads it; `hline`/
+  conditional/background paths are NOT — `hline` has no Pine `offset`). When a
+  non-zero `offset=` named arg is present AND `pos[0]` is a direct `ta.*` call
+  (`dottedCallee(value)?.startsWith("ta.")` — the same ta-dispatch shape, never
+  re-detected), `renderTaWithOffset` rebuilds the call so the signed offset
+  threads onto its opts (`ta.sma(bar.close, 20, { offset: 5 })`, positive AND
+  negative; a non-literal offset threads verbatim). The ta call's own non-
+  `offset` named args fold into the SAME opts object; a same-named `offset` on
+  the ta call is OVERRIDDEN by the plot-level value (Pine plot offset is the
+  source of truth) + `plot-offset-overrides-ta-offset` (warning). `offset=0`
+  (`isLiteralZero`, int OR float) is treated as no offset — byte-identical to
+  the no-offset path. The Pine member chain is emitted verbatim (no `taLookup`,
+  the established plot-path behaviour). A plot whose value is NOT a direct
+  `ta.*` call (a bare series, a variable, an arithmetic/`call` with a non-`ta`
+  callee) has no representable chartlang offset target (chartlang has no plot-
+  level offset — deferred follow-up), so the offset is DROPPED with
+  `plot-offset-needs-ta-call` (warning).
 - **New codes (APPENDED to `diagnostics/codes.ts`, no reorder):**
+  `plot-offset-needs-ta-call`, `plot-offset-overrides-ta-offset` (warnings),
   `ta-signature-divergence`, `ta-not-mapped`, `math-not-mapped`,
   `str-format-not-mapped`, `str-not-mapped` (warnings), `fill-not-mapped`,
   `request-security-not-mapped`, `dynamic-series-index`,

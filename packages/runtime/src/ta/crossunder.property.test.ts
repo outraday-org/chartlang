@@ -37,11 +37,11 @@ describe("ta.crossunder — property invariants", () => {
         );
     });
 
-    it("opts.offset: shifted_k[i] === unshifted[i − k] for every defined index", () => {
+    it("opts.offset: leaves the series unshifted — shifted[i] === unshifted[i] (presentation-only)", () => {
         fc.assert(
             fc.property(
                 fc.array(arbBar, { minLength: 10, maxLength: 50 }),
-                fc.integer({ min: 1, max: 5 }),
+                fc.integer({ min: -5, max: 5 }).filter((o) => o !== 0),
                 (bars, offset) => {
                     const unshifted = harness(
                         bars,
@@ -53,8 +53,8 @@ describe("ta.crossunder — property invariants", () => {
                         bars.length + 1,
                         (bar) => crossunder("slot", bar.close, 500, { offset }).current,
                     );
-                    for (let i = offset; i < bars.length; i += 1) {
-                        expect(shifted[i]).toBe(unshifted[i - offset]);
+                    for (let i = 0; i < bars.length; i += 1) {
+                        expect(shifted[i]).toBe(unshifted[i]);
                     }
                 },
             ),

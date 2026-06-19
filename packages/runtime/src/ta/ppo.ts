@@ -111,8 +111,9 @@ function ppoValue(fast: number, slow: number): number {
  * @since 0.2
  * @stable
  *
- * `opts.offset` shifts all three outputs in lockstep —
- * `series.current` on each output returns the value `offset` bars ago.
+ * `opts.offset` is a presentation display shift carried to the plot
+ * emission as `xShift` for all three outputs in lockstep (`+n` right / future,
+ * `−n` left / past); the series values are unshifted.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

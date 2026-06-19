@@ -93,8 +93,9 @@ function resultForOffset(slot: BbSlot, offset: number): BbResult {
  * @since 0.1
  * @stable
  *
- * `opts.offset` shifts all three bands in lockstep —
- * `series.current` on each band returns the value `offset` bars ago.
+ * `opts.offset` is a presentation display shift carried to the plot
+ * emission as `xShift` for all three bands in lockstep (`+n` right / future,
+ * `−n` left / past); the series values are unshifted.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

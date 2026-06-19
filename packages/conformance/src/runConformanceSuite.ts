@@ -181,13 +181,16 @@ export type ScenarioEventStream =
  * mirrors `plot-hash`: copy the `actual` hash from the failure
  * message into the scenario's pinned value.
  *
- * The `plot-field` variant inspects a single override-baked field
- * (`visible` / `color` / `style.lineWidth`) on the emission for a
- * `(slotIndex, bar)` pair — `slotIndex` is the ordinal into the
- * compiled `manifest.plots`. It exists because `plot-hash`
- * deliberately hashes only `{ bar, value }` and cannot see
- * presentation fields. `expected: undefined` asserts an omitted
- * field (e.g. a visible plot carries no `visible` flag). `@since 0.8`.
+ * The `plot-field` variant inspects a single override-baked or
+ * presentation field (`visible` / `color` / `style.lineWidth` /
+ * `xShift`) on the emission for a `(slotIndex, bar)` pair — `slotIndex`
+ * is the ordinal into the compiled `manifest.plots`. It exists because
+ * `plot-hash` deliberately hashes only `{ bar, value }` and cannot see
+ * presentation fields. `expected: undefined` asserts an omitted field
+ * (e.g. a visible plot carries no `visible` flag; a no-offset plot carries
+ * no `xShift`). `xShift` is the bidirectional display shift in bars
+ * (`+n` right / future, `−n` left / past) the runtime threads from a
+ * plotted offset `ta.*` series. `@since 0.8`.
  *
  * The `all-plots-on-pane` variant asserts every emitted
  * `PlotEmission.pane` equals a single expected pane key — it pins the
@@ -216,7 +219,7 @@ export type ScenarioAssertion =
           readonly kind: "plot-field";
           readonly slotIndex: number;
           readonly bar: number;
-          readonly field: "visible" | "color" | "lineWidth";
+          readonly field: "visible" | "color" | "lineWidth" | "xShift";
           readonly expected: string | number | boolean | undefined;
       }
     | { readonly kind: "alert-count"; readonly count: number }
@@ -458,6 +461,9 @@ function evalAssertion(
                     break;
                 case "color":
                     actual = emission.color ?? undefined;
+                    break;
+                case "xShift":
+                    actual = emission.xShift;
                     break;
                 default:
                     actual = emission.visible;

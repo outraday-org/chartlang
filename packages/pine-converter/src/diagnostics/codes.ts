@@ -521,6 +521,22 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
             "`fill(plot1, plot2, ...)` has no chartlang analogue (no plot-fill primitive in v1).",
         defaultSuggestion: "Draw the band as an explicit `draw.rectangle`/`draw.path` instead.",
     },
+    "plot-offset-needs-ta-call": {
+        code: "pine-converter/transform/plot-offset-needs-ta-call",
+        severity: "warning",
+        defaultMessage:
+            "Pine plot `offset=` only maps when the plotted value is a direct `ta.*` call; chartlang's offset lives on the `ta.*` opts. Offset dropped.",
+        defaultSuggestion:
+            "Wrap the value in a `ta.*` primitive (e.g. `ta.sma(value, 1)`), or set the offset on the indicator's `ta.*` call.",
+    },
+    "plot-offset-overrides-ta-offset": {
+        code: "pine-converter/transform/plot-offset-overrides-ta-offset",
+        severity: "warning",
+        defaultMessage:
+            "The Pine plot-level `offset=` replaced the `offset` already set on the plotted `ta.*` call; the plot-level offset is the source of truth.",
+        defaultSuggestion:
+            "Remove the `offset` argument on the `ta.*` call, or drop the plot-level `offset=` so the two no longer conflict.",
+    },
     "request-security-different-symbol": {
         code: "pine-converter/transform/request-security-different-symbol",
         severity: "warning",

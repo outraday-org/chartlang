@@ -181,4 +181,72 @@ describe("emitPlotFamily", () => {
         expect(source).toBeNull();
         expect(codes).toContain("pine-converter/transform/fill-not-mapped");
     });
+
+    it("threads a positive plot offset onto a direct `ta.*` plot value", () => {
+        const { source, codes } = emit("plot(ta.sma(close, 20), offset=5)");
+        expect(source).toBe("plot(ta.sma(bar.close, 20, { offset: 5 }));");
+        expect(codes).toEqual([]);
+    });
+
+    it("threads a negative plot offset onto a direct `ta.*` plot value", () => {
+        const { source, codes } = emit("plot(ta.sma(close, 20), offset=-5)");
+        expect(source).toBe("plot(ta.sma(bar.close, 20, { offset: -5 }));");
+        expect(codes).toEqual([]);
+    });
+
+    it("threads a non-literal plot offset verbatim onto a `ta.*` value", () => {
+        // `offset` accepts a non-literal in chartlang; emit the expression as-is.
+        const { source, codes } = emit("plot(ta.ema(close, 9), offset=shift)");
+        expect(source).toBe("plot(ta.ema(bar.close, 9, { offset: shift }));");
+        expect(codes).toEqual([]);
+    });
+
+    it("merges the plot offset alongside the `ta.*` call's own named args", () => {
+        // The ta call's non-`offset` named args fold into the same opts object.
+        const { source } = emit("plot(ta.atr(length=14), offset=3)");
+        expect(source).toBe("plot(ta.atr({ length: 14, offset: 3 }));");
+    });
+
+    it("keeps the title/color plot options alongside the threaded offset", () => {
+        const { source } = emit("plot(ta.sma(close, 20), color=color.red, offset=2)");
+        expect(source).toBe('plot(ta.sma(bar.close, 20, { offset: 2 }), { color: "#FF5252" });');
+    });
+
+    it("treats `offset=0` as no offset (byte-identical to the no-offset path)", () => {
+        const { source, codes } = emit("plot(ta.sma(close, 20), offset=0)");
+        expect(source).toBe("plot(ta.sma(bar.close, 20));");
+        expect(codes).toEqual([]);
+    });
+
+    it("treats a float `offset=0.0` as no offset too", () => {
+        const { source, codes } = emit("plot(ta.sma(close, 20), offset=0.0)");
+        expect(source).toBe("plot(ta.sma(bar.close, 20));");
+        expect(codes).toEqual([]);
+    });
+
+    it("overrides a `ta.*` call's own `offset=` with the plot-level offset", () => {
+        const { source, codes } = emit("plot(ta.sma(close, 20, offset=3), offset=5)");
+        expect(source).toBe("plot(ta.sma(bar.close, 20, { offset: 5 }));");
+        expect(codes).toContain("pine-converter/transform/plot-offset-overrides-ta-offset");
+    });
+
+    it("drops a plot offset on a non-`ta.*` value with plot-offset-needs-ta-call", () => {
+        const { source, codes } = emit("plot(close, offset=5)");
+        expect(source).toBe("plot(bar.close);");
+        expect(codes).toContain("pine-converter/transform/plot-offset-needs-ta-call");
+    });
+
+    it("drops a plot offset on an arithmetic plot value", () => {
+        const { source, codes } = emit("plot(close + 1, offset=5)");
+        expect(source).toBe("plot(bar.close + 1);");
+        expect(codes).toContain("pine-converter/transform/plot-offset-needs-ta-call");
+    });
+
+    it("drops a plot offset on a non-`ta.*` call value (bare-identifier callee)", () => {
+        // `dottedCallee` is null for a plain `myFunc()` callee, so the offset
+        // cannot thread onto a chartlang `ta.*` opts and is dropped.
+        const { source, codes } = emit("plot(myFunc(), offset=5)");
+        expect(source).toBe("plot(myFunc());");
+        expect(codes).toContain("pine-converter/transform/plot-offset-needs-ta-call");
+    });
 });

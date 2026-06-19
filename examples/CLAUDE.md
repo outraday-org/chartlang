@@ -24,9 +24,10 @@ published to npm**.
   (`request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20))`,
   so the EMA runs on the weekly clock) — its runtime test feeds a synthetic
   1W secondary stream via `createMultiStreamCandlePump`. The single-timeframe `sma-offset
-  .chart.ts` sample overlays two `ta.sma(bar.close, 20)` lines, the
-  second shifted via the universal `ta` `{ offset: 5 }` option to show
-  series displacement. The `pivot-high-ray.chart.ts` sample tracks the
+  .chart.ts` sample overlays an unshifted `ta.sma(bar.close, 20)` line
+  plus a `+5` copy displaced right and a `−5` copy displaced left via the
+  universal `ta` `offset` option — a presentation-only display shift
+  (`xShift` on the emission; the values stay unshifted). The `pivot-high-ray.chart.ts` sample tracks the
   latest `ta.pivotsHighLow` swing high in `state.*` slots and draws one
   reused `draw.horizontalRay` from it, anchoring the pivot's timestamp
   with `bar.point(-5, …)`. The `fill-between-band.chart.ts` sample

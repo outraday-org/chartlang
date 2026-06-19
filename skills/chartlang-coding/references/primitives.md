@@ -106,10 +106,12 @@ short-circuits the output to NaN (matches the WMA full-recompute
 weighted-window convention).
 
 **`opts.offset` is the Gaussian-centre position in `[0, 1]`**, NOT
-the universal bar-shift. The universal shift on ALMA uses the
-distinct `opts.barShift` field — accepted on the surface (its
-runtime side is wired alongside the universal `offset` support on
-every primitive).
+the universal bar-shift. ALMA's universal shift lives on the distinct
+`opts.barShift` field: a presentation display shift (`+n` renders the
+series `n` bars right / future, `−n` `n` bars left / past) carried to
+the plot emission as `xShift`. It does not transform the series value —
+`series.current` is unshifted, matching every other primitive's
+`opts.offset`.
 
 **Formula:** m = offset · (length − 1) ;
 s = length / sigma ;
@@ -1664,8 +1666,11 @@ Simple moving average — rolling mean of the last `length` source
 values. Warmup of `length − 1` bars returns `NaN`. Tick-mode replays
 the head as `(window_sum − window_head + tick_value) / length` so a
 partial-bar tick doesn't pollute the next close's running sum.
-`opts.offset` shifts the returned series so `series.current` reads
-the value `offset` bars ago.
+`opts.offset` is a presentation display shift carried to the plot
+emission as `xShift` (`+n` renders the series `n` bars right / future,
+`−n` `n` bars left / past); it does NOT transform the value —
+`series.current` is unshifted, so alerts and `state.*` see the value
+computed at the current bar.
 
 **Formula:** out[t] = (source[t] + source[t − 1] + … + source[t − length + 1]) / length
 **Warmup:** length − 1

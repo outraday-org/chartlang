@@ -122,6 +122,32 @@ initializer picks the factory (`int`→`state.int`, `float`→`state.float`,
 an identifier initializer) defaults to `state.float` with a
 `scalar-state-type-defaulted` info — the converter never silently guesses.
 
+## Plots
+
+`plot` maps its `title`, `color`, and `linewidth` (named or positional) onto
+a chartlang `plot(value, { title, color, lineWidth })` options object.
+`plotshape` / `plotchar` / `plotarrow` gate the value behind their condition
+and select a `style.kind`; `plotcandle` / `plotbar` map to candle/bar
+overrides; `bgcolor` / `barcolor` emit a background `plot`. `hline(price, …)`
+maps to chartlang `hline`.
+
+Pine's bidirectional `plot(series, offset=N)` maps **when the plotted value
+is a direct `ta.*` call** — the signed offset threads onto that call's opts,
+where chartlang's offset lives:
+
+```pine
+plot(ta.sma(close, 20), offset=5)    // → plot(ta.sma(bar.close, 20, { offset: 5 }))
+plot(ta.sma(close, 20), offset=-5)   // → plot(ta.sma(bar.close, 20, { offset: -5 }))
+```
+
+A positive offset shifts the series right (into the future), a negative one
+left (into the past); a non-literal offset (`offset=shift`) threads verbatim,
+and `offset=0` is byte-identical to the no-offset path. If the `ta.*` call
+already carries its own `offset` argument, the plot-level offset wins and a
+[`plot-offset-overrides-ta-offset`](./diagnostics.md#plot-offset-overrides-ta-offset)
+warning is emitted. A plot whose value is **not** a direct `ta.*` call has no
+representable offset target — see [rejects](./rejects.md#tables--passthrough).
+
 ## `ta.*` / `math.*` / `str.*`
 
 A substantial `ta.*` subset passes through (moving averages, oscillators,

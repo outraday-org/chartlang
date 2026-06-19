@@ -132,8 +132,9 @@ function tickValue(slot: MassIndexSlot, ratio: number): number {
  * @since 0.2
  * @stable
  *
- * `opts.offset` shifts the returned series so `series.current` reads
- * the value `offset` bars ago.
+ * `opts.offset` is a presentation display shift carried to the plot
+ * emission as `xShift` (`+n` right / future, `−n` left / past); the
+ * series value is unshifted.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-core";

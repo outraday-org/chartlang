@@ -235,7 +235,8 @@ describe("ta.sessionVolumeProfile", () => {
         );
         expect(refs.size).toBe(1);
         expect(unshifted[5].plotBuckets).toBe(unshifted[5].buckets);
-        expect(shifted[5]).toBe(unshifted[4].poc);
+        // offset is presentation-only: the value series is unshifted.
+        expect(shifted[5]).toBe(unshifted[5].poc);
     });
 
     it("applies bucket color and accepts value-area percentage inputs above one", () => {

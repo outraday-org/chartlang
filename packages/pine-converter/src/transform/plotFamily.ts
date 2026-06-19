@@ -163,7 +163,7 @@ export function emitPlotFamily(
     const pos = positional(call.args);
     switch (name) {
         case "plot":
-            return emitPlot(call.args, pos, ctx);
+            return emitPlot(call.args, pos, ctx, diagnostics);
         case "plotshape":
         case "plotchar":
         case "plotarrow":
@@ -184,17 +184,80 @@ export function emitPlotFamily(
     }
 }
 
+// Whether a node is the literal `0` (any `0`/`0.0` numeric literal). A
+// `plot(..., offset=0)` is byte-identical to the no-offset path, so it is
+// treated as "no offset" — never threaded, never diagnosed.
+function isLiteralZero(node: ExpressionNode): boolean {
+    return (
+        node.kind === "literal-expression" &&
+        (node.literalKind === "int" || node.literalKind === "float") &&
+        Number(node.value) === 0
+    );
+}
+
+// Render a direct `ta.*(...)` plot value with a `{ offset: <expr> }` opts
+// object threaded onto the call. The ta call's positional args render
+// verbatim; any named args fold into the same trailing opts object, and the
+// plot-level `offset` overrides a same-named `offset` on the ta call (emitting
+// `plot-offset-overrides-ta-offset`). The Pine member chain is emitted verbatim
+// (the established plot-path behaviour — no `taLookup`).
+function renderTaWithOffset(
+    value: CallExpression,
+    offsetSource: string,
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+): string {
+    const callee = emitWithContext(value.callee, ctx);
+    const positionals = value.args
+        .filter((arg) => arg.name === null)
+        .map((arg) => emitWithContext(arg.value, ctx));
+    const optsParts: string[] = [];
+    for (const arg of value.args) {
+        if (arg.name === null || arg.name === "offset") {
+            continue;
+        }
+        optsParts.push(`${arg.name}: ${emitWithContext(arg.value, ctx)}`);
+    }
+    if (named(value.args, "offset") !== null) {
+        diagnostics.pushCode("plot-offset-overrides-ta-offset", value.span);
+    }
+    optsParts.push(`offset: ${offsetSource}`);
+    return `${callee}(${[...positionals, `{ ${optsParts.join(", ")} }`].join(", ")})`;
+}
+
+// Render the plotted value, threading a non-zero `offset=` onto a direct
+// `ta.*` call's opts. A non-`ta.*` value cannot carry a chartlang offset (there
+// is no plot-level offset), so the offset is dropped with
+// `plot-offset-needs-ta-call`.
+function emitPlotValue(
+    value: ExpressionNode,
+    args: readonly CallArgument[],
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+): string {
+    const offsetNode = named(args, "offset");
+    if (offsetNode === null || isLiteralZero(offsetNode)) {
+        return emitWithContext(value, ctx);
+    }
+    if (value.kind === "call-expression" && (dottedCallee(value)?.startsWith("ta.") ?? false)) {
+        return renderTaWithOffset(value, emitWithContext(offsetNode, ctx), ctx, diagnostics);
+    }
+    diagnostics.pushCode("plot-offset-needs-ta-call", value.span);
+    return emitWithContext(value, ctx);
+}
+
 function emitPlot(
     args: readonly CallArgument[],
     pos: readonly ExpressionNode[],
     ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
 ): string | null {
     const value = pos[0];
     if (value === undefined) {
         return null;
     }
     const opts = commonOptions(args, pos, ctx);
-    const valueSource = emitWithContext(value, ctx);
+    const valueSource = emitPlotValue(value, args, ctx, diagnostics);
     return opts === "" ? `plot(${valueSource});` : `plot(${valueSource}, ${opts});`;
 }
 

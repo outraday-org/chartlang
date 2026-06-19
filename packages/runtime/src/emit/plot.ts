@@ -5,6 +5,7 @@ import type { PlotEmission, PlotStyle } from "@invinite-org/chartlang-adapter-ki
 import type { PlotOpts, Series } from "@invinite-org/chartlang-core";
 
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { seriesOffsetOf } from "../seriesView.js";
 import { applyPlotOverride } from "./applyPlotOverride.js";
 import { pushDiagnostic, pushPlot } from "./emissionsQueue.js";
 import { resolvePane } from "./paneResolver.js";
@@ -106,6 +107,12 @@ function plotImpl(
 
     const pane = resolvePane(opts.pane, ctx, slotId);
 
+    // A `ta.*` series carries its declared `offset` (ALMA: `barShift`) as a
+    // presentation x-shift recorded on the series view; thread it onto the
+    // emission. A plain numeric value or an untagged series omits `xShift`,
+    // keeping the no-offset wire byte-identical to the pre-feature baseline.
+    const xShift = typeof value === "number" ? 0 : seriesOffsetOf(value);
+
     const emission: PlotEmission = {
         kind: "plot",
         slotId,
@@ -117,6 +124,7 @@ function plotImpl(
         color: opts.color ?? null,
         meta: {},
         pane,
+        ...(xShift === 0 ? {} : { xShift }),
     };
 
     pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));
@@ -136,6 +144,13 @@ function plotImpl(
  * Plot kind is always `"line"` in Phase 1; `"horizontal-line"` ships
  * via the sibling {@link hline} primitive. Phase 2+ extends the `kind`
  * variants additively.
+ *
+ * When the plotted value is a `ta.*` series declared with an `offset`
+ * (or ALMA's `barShift`), that signed bar count rides the emission as
+ * `PlotEmission.xShift` (presentation-only — `+n` renders the series `n`
+ * bars right, `−n` `n` bars left); the emitted `value` itself is
+ * unshifted, so alerts and `state.*` see the value computed at the
+ * current bar.
  *
  * @since 0.1
  * @example

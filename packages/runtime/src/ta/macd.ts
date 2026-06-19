@@ -102,8 +102,9 @@ function resultForOffset(slot: MacdSlot, offset: number): MacdResult {
  * @since 0.1
  * @stable
  *
- * `opts.offset` shifts all three outputs in lockstep —
- * `series.current` on each output returns the value `offset` bars ago.
+ * `opts.offset` is a presentation display shift carried to the plot
+ * emission as `xShift` for all three outputs in lockstep (`+n` right / future,
+ * `−n` left / past); the series values are unshifted.
  *
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";

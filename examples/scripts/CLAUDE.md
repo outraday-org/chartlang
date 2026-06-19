@@ -33,12 +33,16 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   the LIVE `compiled.manifest` so they can never drift from the fresh compile
   (the runner registry dispatch keys on `securityExpressions[*].slotId`). The
   plot title is `Weekly EMA(20)`.
-- `sma-offset.chart.ts` demonstrates the universal `ta` `offset` option:
-  two `ta.sma(bar.close, 20)` lines on the candles, the second built with
-  `{ offset: 5 }` so its `.current` reads the SMA value from 5 bars ago
-  (the shift lives on the `ta` call — `plot` has no offset). Its runtime
-  path is exercised by `examples/canvas2d-adapter/src/integration.test.ts`
-  ("renders the sma-offset example…").
+- `sma-offset.chart.ts` demonstrates the universal `ta` `offset` option as
+  a bidirectional presentation display shift: an unshifted
+  `ta.sma(bar.close, 20)` line plus a `+5` copy displaced RIGHT (future)
+  and a `−5` copy displaced LEFT (past). `offset` rides the plot emission
+  as a signed `xShift`; the numeric value stays unshifted (the shift lives
+  on the `ta` call — `plot` has no offset). Plot titles are `SMA(20)`,
+  `SMA(20) +5`, `SMA(20) −5`. Its runtime path is exercised by
+  `examples/canvas2d-adapter/src/integration.test.ts` ("renders the
+  sma-offset example…"), which asserts the `+5`/`−5` emissions carry
+  `xShift: 5` / `xShift: -5`.
 - `pivot-high-ray.chart.ts` demonstrates persistent `state.*` slots +
   `bar.point`: it tracks the most recent `ta.pivotsHighLow` swing high's
   price and time (the time recovered via `bar.point(-5, …)`, the offset-
