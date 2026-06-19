@@ -57,6 +57,17 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   `pivot-high-ray.chart.ts`; this is the future path. Compile-only in
   the CLI e2e gate (like `pivot-high-ray.chart.ts`); it is not in the
   integration render test.
+- `fill-between-band.chart.ts` demonstrates `draw.fillBetween` — the
+  native filled ribbon between two edges (Pine's `linefill` / `fill()`
+  equivalent). It accumulates one `{ time, price }` vertex per bar into
+  two module-level edge arrays (a fast EMA(12) top and a slow EMA(26)
+  bottom), then re-emits one `draw.fillBetween(fastEdge, slowEdge, …)`
+  from a fixed callsite every bar so the runtime merges each re-emission
+  into one persistent ribbon (the same per-bar-re-emit idiom as
+  `pivot-high-ray`/`forecast-line` — NOT `handle.update`). The band sits
+  in the `polylines` budget bucket (`maxDrawings.polylines: 1`).
+  Compile-only in the CLI e2e gate; it is not in the integration render
+  test.
 
 ## Conventions
 

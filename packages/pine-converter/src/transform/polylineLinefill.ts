@@ -494,7 +494,8 @@ function hasDelete(analysis: SemanticResult, fillName: string): boolean {
 }
 
 // Lower one static two-line `linefill.new(lineA, lineB, color)` site into a
-// `draw.rotatedRectangle` quad fill handle.
+// `draw.fillBetween` handle whose two edges are the referenced lines'
+// endpoints — a true filled band, not an approximation.
 function emitLinefill(
     site: DrawingCallSite,
     fillName: string,
@@ -516,16 +517,19 @@ function emitLinefill(
     }
 
     const local = handleSlotLocalName(fillName, scaffold.names);
-    appendHandleSlot(scaffold, { name: local, kind: "rectangle", compact: false });
+    appendHandleSlot(scaffold, { name: local, kind: "fill-between", compact: false });
 
     const [aA, aB] = lineAnchors(lineA.call, analysis.annotations);
     const [bA, bB] = lineAnchors(lineB.call, analysis.annotations);
-    const quad = `[${aA}, ${aB}, ${bB}, ${bA}]`;
+    // Two band edges: edgeA = lineA's endpoints, edgeB = lineB's endpoints.
+    // `draw.fillBetween` reverses edgeB internally, so passing `[bA, bB]`
+    // closes the same `A1 → A2 → B2 → B1` polygon the old quad described.
+    const edgeA = `[${aA}, ${aB}]`;
+    const edgeB = `[${bA}, ${bB}]`;
     const colorNode = fillColorArg(site.call);
     const color =
         colorNode === null ? '"#00000033"' : convertColor(colorNode, analysis.annotations);
 
-    diagnostics.pushCode("linefill-rotatedrect-approximated", site.span);
     if (colorNode !== null && isColorNew(colorNode)) {
         diagnostics.pushCode("linefill-color-transp-approximated", site.span);
     }
@@ -533,12 +537,12 @@ function emitLinefill(
         diagnostics.pushCode("linefill-series-fill", site.span);
     }
 
-    const opts = `{ fill: ${color}, fillAlpha: 1 }`;
+    const opts = `{ fill: ${color} }`;
     appendComputeStatement(
         scaffold,
         `if (${local}.current() === null) { ` +
-            `${local}.set(draw.rotatedRectangle(${quad} as const, ${opts})); ` +
-            `} else { ${local}.current()?.update({ anchors: ${quad} }); }`,
+            `${local}.set(draw.fillBetween(${edgeA}, ${edgeB}, ${opts})); ` +
+            `} else { ${local}.current()?.update({ edgeA: ${edgeA}, edgeB: ${edgeB} }); }`,
     );
 
     const recolor = findSetColor(analysis, fillName);
@@ -560,11 +564,10 @@ function emitLinefill(
  * `draw.curve` for a 3-anchor `curved=true`, or `draw.path` with `closed:
  * true`); a `var array<chart.point>` dynamic-length rebuild is the finalised
  * `polyline-dynamic-points` reject. A static `linefill.new(lineA, lineB,
- * color)` is approximated as a `draw.rotatedRectangle` quad whose corners are
- * the two referenced lines' endpoints, filled with the alpha-converted colour
- * ({@link convertColor}) — best-effort since chartlang ships no dedicated
- * fill-between-series primitive (`linefill-rotatedrect-approximated`; a
- * bar-by-bar two-series fill additionally raises `linefill-series-fill`).
+ * color)` lowers to a true `draw.fillBetween` band whose two edges are the
+ * referenced lines' endpoints, filled with the alpha-converted colour
+ * ({@link convertColor}); a bar-by-bar two-series fill additionally raises
+ * `linefill-series-fill`.
  * A cross-collection `linefill.new(array.get(...))` is left to Camp C (Task
  * 12). Mutates the scaffold + diagnostics; Task 16 codegen reads
  * `scaffold.handleSlots` + `scaffold.computeBody`.

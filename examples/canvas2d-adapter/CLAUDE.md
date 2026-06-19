@@ -82,6 +82,18 @@ Reference adapter package — **not published to npm**.
   `MockCanvas2DContext.calls`. Adding a new renderer = add the file
   + the test + the re-export through `render/index.ts`; the
   conformance pipeline picks up the wider cap surface automatically.
+- **`render/draw/fillBetween.ts` renders the `fill-between` drawing
+  kind** as a closed filled polygon (`edgeA` forward then `edgeB`
+  reversed, exactly how `renderPath` closes). `FillBetweenStyle` uses
+  `color` for the optional stroke (not `ShapeStyle.stroke`), so the
+  renderer resolves fill + dash inline (it does NOT call
+  `applyShapeStyle`, whose `ShapeStyle` arg cannot take the
+  `color`-named field under `exactOptionalPropertyTypes`): it fills with
+  `fill` + `fillAlpha` (alpha bracketed) only when `fill` is set, and
+  strokes the outline only when `style.color` is set. A degenerate edge
+  (`< 1` point) or a non-finite mapped anchor is a silent per-frame
+  no-op. The `fill-between` arm is wired in `drawingDispatch.ts` and the
+  renderer is re-exported from `render/draw/index.ts`.
 - **`createCanvas2dAdapter.ts` does NOT dispatch to the Phase-2
   renderers in this task.** The runtime's `plot` impl
   (`packages/runtime/src/emit/plot.ts`) still hardcodes `kind:

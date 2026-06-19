@@ -2709,6 +2709,20 @@ and (pivot→`anchors[2]`) directions. Mirrors invinite's
 **Anchors:** `anchors` — `[pivot, range1, range2]` triple
 **Since:** 0.3 · stable
 
+### draw.fillBetween
+
+```ts
+function fillBetween(edgeA: ReadonlyArray<WorldPoint>, edgeB: ReadonlyArray<WorldPoint>, opts?: FillBetweenStyle): DrawingHandle;
+```
+
+Fill the ribbon between two edges. The native equivalent of Pine
+`linefill.new(line1, line2, color)` and `fill(plot1, plot2, color)`.
+The filled region is the closed polygon `edgeA` forward then `edgeB`
+reversed; the two edges need not share x-coordinates or length.
+
+**Anchors:** `edgeA`, `edgeB` — two `WorldPoint` lists (the band edges)
+**Since:** 0.4 · stable
+
 ### draw.flatTopBottom
 
 ```ts

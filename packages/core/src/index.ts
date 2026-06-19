@@ -284,6 +284,8 @@ export type {
     FibTrendExtensionState,
     FibTrendTimeState,
     FibWedgeState,
+    FillBetweenState,
+    FillBetweenStyle,
     FlatTopBottomState,
     FrameOpts,
     FrameState,

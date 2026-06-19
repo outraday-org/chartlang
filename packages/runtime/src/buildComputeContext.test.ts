@@ -203,13 +203,13 @@ describe("buildComputeContext", () => {
 
     it("draw exposes a runtime impl for every DrawingKind (no core stubs after Task 18)", () => {
         // Phase-3 cardinality gate: after Task 18 the runtime
-        // `DRAW_NAMESPACE` carries a real impl for every one of the 61
-        // `DrawingKind`s, so every flat method on `ctx.draw` throws the
+        // `DRAW_NAMESPACE` carries a real impl for every wired
+        // `DrawingKind`, so every flat method on `ctx.draw` throws the
         // runtime sentinel (`"called outside an active script step"`)
         // when called bare — none falls through to the core stub.
         const state = freshState();
         const ctx = buildComputeContext(state);
-        expect(DRAWING_KINDS.length).toBe(62);
+        expect(DRAWING_KINDS.length).toBe(63);
         for (const kind of DRAWING_KINDS) {
             const camel = KIND_CAMELCASE.get(kind);
             if (camel === undefined) throw new Error(`missing camel mapping for ${kind}`);

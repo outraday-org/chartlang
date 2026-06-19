@@ -17,8 +17,8 @@ const VALID_BUCKETS: ReadonlySet<DrawingBucket> = new Set([
 ]);
 
 describe("KIND_BUCKET", () => {
-    it("has 62 entries (one per drawing kind)", () => {
-        expect(KIND_BUCKET.size).toBe(62);
+    it("has 63 entries (one per drawing kind)", () => {
+        expect(KIND_BUCKET.size).toBe(63);
     });
 
     it("covers every kind in DRAWING_KINDS exhaustively", () => {
@@ -86,6 +86,7 @@ describe("KIND_BUCKET", () => {
             "elliott-triple-combo",
             "polyline",
             "path",
+            "fill-between",
         ] satisfies ReadonlyArray<DrawingKind>) {
             expect(KIND_BUCKET.get(kind)).toBe("polylines");
         }
@@ -118,7 +119,7 @@ describe("KIND_BUCKET", () => {
         }
     });
 
-    it("distributes 62 kinds across the 5 buckets per spec", () => {
+    it("distributes 63 kinds across the 5 buckets per spec", () => {
         const counts: Record<DrawingBucket, number> = {
             lines: 0,
             labels: 0,
@@ -130,18 +131,18 @@ describe("KIND_BUCKET", () => {
             counts[bucket] += 1;
         }
         // 6 line kinds + 5 (rectangle, rotated, triangle, circle, ellipse) box
-        // kinds + 6 label kinds (text, arrow×4, marker) + 25 polyline kinds +
-        // 20 other kinds = 62. Polylines spans curves (3), freehand (3),
+        // kinds + 6 label kinds (text, arrow×4, marker) + 26 polyline kinds +
+        // 20 other kinds = 63. Polylines spans curves (3), freehand (3),
         // channels (4), patterns (6), elliott (5), pitchforks (2), polyline +
-        // path (2) = 25. Other spans fib (10), gann (4), cycles (3),
-        // containers (2), and table (1) = 20.
+        // path + fill-between (3) = 26. Other spans fib (10), gann (4),
+        // cycles (3), containers (2), and table (1) = 20.
         expect(counts.lines).toBe(6);
         expect(counts.boxes).toBe(5);
         expect(counts.labels).toBe(6);
-        expect(counts.polylines).toBe(25);
+        expect(counts.polylines).toBe(26);
         expect(counts.other).toBe(20);
         expect(counts.lines + counts.boxes + counts.labels + counts.polylines + counts.other).toBe(
-            62,
+            63,
         );
     });
 });

@@ -1,5 +1,17 @@
 [
     {
+        "code": "pine-converter/semantic/unbounded-handle-collection",
+        "severity": "error",
+        "message": "linefill has no single-handle chartlang analogue",
+        "span": {
+            "startLine": 5,
+            "startColumn": 21,
+            "endLine": 5,
+            "endColumn": 66
+        },
+        "suggestion": "Cap the collection with a `max_*_count` argument or a ring-buffer eviction."
+    },
+    {
         "code": "pine-converter/transform/drawing-only-script",
         "severity": "info",
         "message": "Script emits only drawings; converted as a `defineDrawing` (plot capability dropped).",
@@ -10,5 +22,41 @@
             "endColumn": 45
         },
         "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
+    },
+    {
+        "code": "pine-converter/transform/cross-mount-state-not-preserved",
+        "severity": "info",
+        "message": "A `var` handle with a non-`na` initial value is reset to its creation branch on a cold mount.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 1,
+            "endLine": 3,
+            "endColumn": 57
+        },
+        "suggestion": "Re-create the handle inside a `barstate.isfirst` guard if cold-restart parity matters."
+    },
+    {
+        "code": "pine-converter/transform/cross-mount-state-not-preserved",
+        "severity": "info",
+        "message": "A `var` handle with a non-`na` initial value is reset to its creation branch on a cold mount.",
+        "span": {
+            "startLine": 4,
+            "startColumn": 1,
+            "endLine": 4,
+            "endColumn": 55
+        },
+        "suggestion": "Re-create the handle inside a `barstate.isfirst` guard if cold-restart parity matters."
+    },
+    {
+        "code": "pine-converter/transform/linefill-color-transp-approximated",
+        "severity": "info",
+        "message": "`color.new(color, transp)` was folded to a `#RRGGBBAA` hex with the transparency converted to an alpha channel.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 21,
+            "endLine": 5,
+            "endColumn": 66
+        },
+        "suggestion": "No action needed; the alpha hex preserves the Pine transparency."
     }
 ]

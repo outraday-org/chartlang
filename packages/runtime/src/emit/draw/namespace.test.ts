@@ -476,14 +476,14 @@ describe("DRAW_NAMESPACE", () => {
 
     it("registers a real runtime impl for every DrawingKind (stub-free after Task 18)", () => {
         // Phase-3 cardinality gate: after Task 18 the runtime
-        // `DRAW_NAMESPACE` carries a real impl for every one of the 61
-        // `DrawingKind`s. Calling each method through the Proxy with no
+        // `DRAW_NAMESPACE` carries a real impl for every wired
+        // `DrawingKind`. Calling each method through the Proxy with no
         // active runtime context must throw the runtime sentinel
         // (`"called outside an active script step"`) — NOT the core
         // stub sentinel (`"called outside compiled runtime"`) — which
         // would signal a fall-through to the core throwing-stub Proxy
         // and a missing impl.
-        expect(DRAWING_KINDS.length).toBe(62);
+        expect(DRAWING_KINDS.length).toBe(63);
         for (const kind of DRAWING_KINDS) {
             const camel = KIND_CAMELCASE.get(kind);
             if (camel === undefined) throw new Error(`missing camel mapping for ${kind}`);

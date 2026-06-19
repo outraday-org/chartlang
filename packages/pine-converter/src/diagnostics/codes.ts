@@ -467,8 +467,8 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         code: "pine-converter/transform/linefill-series-fill",
         severity: "info",
         defaultMessage:
-            "A `linefill` between two bar-by-bar updated lines is a series fill; chartlang has no plot-fill primitive yet, so it is approximated as a single updated quad.",
-        defaultSuggestion: "Revisit when chartlang ships a `plot(...)` series-fill primitive.",
+            "A `linefill` between two bar-by-bar updated lines lowers to a single `draw.fillBetween` band that tracks the two lines' latest anchors each bar.",
+        defaultSuggestion: "No action needed; the band re-anchors to both lines every bar.",
     },
     "linefill-color-transp-approximated": {
         code: "pine-converter/transform/linefill-color-transp-approximated",
@@ -476,14 +476,6 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultMessage:
             "`color.new(color, transp)` was folded to a `#RRGGBBAA` hex with the transparency converted to an alpha channel.",
         defaultSuggestion: "No action needed; the alpha hex preserves the Pine transparency.",
-    },
-    "linefill-rotatedrect-approximated": {
-        code: "pine-converter/transform/linefill-rotatedrect-approximated",
-        severity: "info",
-        defaultMessage:
-            "`linefill.new(lineA, lineB)` is approximated as a filled `draw.rotatedRectangle` quad over the two lines' endpoints; chartlang has no dedicated fill-between-lines primitive.",
-        defaultSuggestion:
-            "Accept the quad approximation, or revisit when a fill-between-series primitive ships.",
     },
     "ta-signature-divergence": {
         code: "pine-converter/transform/ta-signature-divergence",

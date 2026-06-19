@@ -234,6 +234,7 @@ const CATEGORY_BUILDERS: ReadonlyArray<
             "circle",
             "ellipse",
             "path",
+            "fill-between",
             "marker",
         ],
     ],
@@ -330,7 +331,7 @@ describe("capabilities — Phase 3 category-group drawing builders", () => {
 describe("capabilities — allPhase3Drawings umbrella", () => {
     it("contains every Phase-3 kind and excludes Phase-5 table", () => {
         const set = capabilities.allPhase3Drawings();
-        expect(set.size).toBe(61);
+        expect(set.size).toBe(62);
         for (const kind of PHASE_3_DRAWING_KINDS) {
             expect(set.has(kind)).toBe(true);
         }

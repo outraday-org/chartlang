@@ -34,8 +34,8 @@ describe("CANVAS2D_CAPABILITIES", () => {
         expect([...CANVAS2D_CAPABILITIES.alerts].sort()).toEqual(["log", "toast"]);
     });
 
-    it("declares all 61 Phase-3 drawing kinds plus Phase-5 table", () => {
-        expect(CANVAS2D_CAPABILITIES.drawings.size).toBe(62);
+    it("declares all 62 Phase-3 drawing kinds plus Phase-5 table", () => {
+        expect(CANVAS2D_CAPABILITIES.drawings.size).toBe(63);
         // Sample a few from each category to confirm membership routes
         // through `capabilities.allPhase3Drawings()`.
         expect(CANVAS2D_CAPABILITIES.drawings.has("line")).toBe(true);

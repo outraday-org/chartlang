@@ -1159,6 +1159,13 @@ declare module "@invinite-org/chartlang-core" {
         text?: string;
     }>;
     export type PathOpts = LineDrawStyle & Readonly<{ closed?: boolean }>;
+    export type FillBetweenStyle = Readonly<{
+        color?: Color;
+        lineWidth?: number;
+        lineStyle?: LineStyle;
+        fill?: Color;
+        fillAlpha?: number;
+    }>;
     export type FibOpts = Readonly<{
         levels?: ReadonlyArray<number>;
         showLabels?: boolean;
@@ -1222,6 +1229,11 @@ declare module "@invinite-org/chartlang-core" {
         circle(centre: WorldPoint, radiusAnchor: WorldPoint, opts?: ShapeStyle): DrawingHandle;
         ellipse(a: WorldPoint, b: WorldPoint, opts?: ShapeStyle): DrawingHandle;
         path(anchors: ReadonlyArray<WorldPoint>, opts?: PathOpts): DrawingHandle;
+        fillBetween(
+            edgeA: ReadonlyArray<WorldPoint>,
+            edgeB: ReadonlyArray<WorldPoint>,
+            opts?: FillBetweenStyle,
+        ): DrawingHandle;
         marker(
             anchor: WorldPoint,
             opts?: TextOpts & Readonly<{ text?: string; value?: number }>,

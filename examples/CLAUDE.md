@@ -29,7 +29,10 @@ published to npm**.
   series displacement. The `pivot-high-ray.chart.ts` sample tracks the
   latest `ta.pivotsHighLow` swing high in `state.*` slots and draws one
   reused `draw.horizontalRay` from it, anchoring the pivot's timestamp
-  with `bar.point(-5, …)`.
+  with `bar.point(-5, …)`. The `fill-between-band.chart.ts` sample
+  accumulates a fast/slow EMA pair into two persistent edge arrays and
+  re-emits one `draw.fillBetween(edgeA, edgeB, …)` per bar — the native
+  filled ribbon (Pine `linefill`/`fill()` equivalent).
 
 ## Phase-1 scope
 

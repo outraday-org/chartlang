@@ -160,6 +160,32 @@ export type PathOpts = LineDrawStyle & {
 };
 
 /**
+ * Style for {@link draw.fillBetween} — a filled ribbon between two
+ * edges. Stroke fields are optional (the band may be fill-only);
+ * `fill` + `fillAlpha` reuse the {@link ShapeStyle} fill model.
+ *
+ * @formula N/A — style bag, no math
+ * @anchors N/A — style fields only
+ * @since 0.4
+ * @stable
+ * @example
+ *     const s: FillBetweenStyle = { fill: "#3b82f6", fillAlpha: 0.2 };
+ *     void s;
+ */
+export type FillBetweenStyle = {
+    /** Optional outline colour drawn around the ribbon. */
+    readonly color?: Color;
+    /** Outline width in px (default 0 / no stroke when `color` unset). */
+    readonly lineWidth?: number;
+    /** Outline dash style. */
+    readonly lineStyle?: LineStyle;
+    /** Fill colour of the band. */
+    readonly fill?: Color;
+    /** Fill opacity 0..1 (`applyShapeStyle` currently defaults to 1). */
+    readonly fillAlpha?: number;
+};
+
+/**
  * Fibonacci-family style. `levels` defaults to the canonical
  * 0.236 / 0.382 / 0.5 / 0.618 / 0.786 / 1.0 / 1.272 / 1.618 / 2.618 /
  * 4.236 array when omitted; `showLabels` toggles per-level text.

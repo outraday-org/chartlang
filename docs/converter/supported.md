@@ -16,7 +16,7 @@ The six Pine drawing constructors and how they lower:
 | `label.new` | `draw.text` (default) or `draw.marker` / `draw.frame` / `draw.arrowMarkUp` / `draw.arrowMarkDown` / `draw.rectangle` per the `style=label.style_*` enum |
 | `table.new` | `draw.table({ position, cells })` (rebuilt each `barstate.islast` tick) |
 | `polyline.new` | `draw.polyline`, or `draw.path` (`closed=true`), or `draw.curve` (`curved=true` with exactly 3 anchors) |
-| `linefill.new` | `draw.rotatedRectangle` — a filled quad over the two referenced lines' endpoints (best-effort; chartlang has no fill-between-series primitive) |
+| `linefill.new` | `draw.fillBetween` — a true filled ribbon between the two referenced lines' anchors (static two-line form) |
 
 ### The three drawing camps
 
@@ -143,7 +143,10 @@ as-is** and flagged:
 These are **warnings**, not errors: the converter emits the call verbatim
 (often with a `/* TODO unmapped */` marker) so you can finish the port by
 hand. `fill(plot1, plot2, ...)` is the exception — it **errors**
-(`fill-not-mapped`), since chartlang has no plot-fill primitive in v1.
+(`fill-not-mapped`), since chartlang has no *plot-level* series fill in
+v1. For a drawing-level band, `draw.fillBetween` fills the ribbon between
+two anchor lists (the same primitive `linefill.new` lowers to); a
+`plot`-level series fill is a planned follow-up.
 
 ## Multi-timeframe
 

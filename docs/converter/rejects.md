@@ -52,13 +52,13 @@ to convert.
 
 | Code | When | Rewrite |
 |---|---|---|
-| [`linefill-over-ring`](./diagnostics.md#linefill-over-ring) | `linefill.new` over ring-buffer elements. | Draw the fill as an explicit `draw.rectangle` / `draw.frame`. |
-| [`cross-collection-linefill`](./diagnostics.md#cross-collection-linefill) | `linefill.new` across two collections (`array.get(a, i)`, `array.get(b, i)`). | Use a single `draw.path(...)` over the pair of anchor points. |
+| [`linefill-over-ring`](./diagnostics.md#linefill-over-ring) | `linefill.new` over ring-buffer elements. | Pull the pair of anchors out of the ring and fill them with a single `draw.fillBetween(edgeA, edgeB, ...)`. |
+| [`cross-collection-linefill`](./diagnostics.md#cross-collection-linefill) | `linefill.new` across two collections (`array.get(a, i)`, `array.get(b, i)`). | Fill the band directly with `draw.fillBetween(edgeA, edgeB, ...)` over the two anchor lists. |
 
 A **static** two-line `linefill.new(lineA, lineB, color)` is *not* a reject
-— it is approximated as a filled `draw.rotatedRectangle` quad over the two
-lines' endpoints (an `info`, not an error). chartlang has no
-fill-between-series primitive, so the approximation is best-effort.
+— it lowers to a true filled `draw.fillBetween` ribbon between the two
+lines' anchors. The dynamic forms above reject only because chartlang has
+no analogue for resolving a fill across an unbounded handle collection.
 
 ## Inputs & declaration args
 
@@ -83,7 +83,7 @@ fill-between-series primitive, so the approximation is best-effort.
 |---|---|---|
 | [`table-cell-out-of-bounds`](./diagnostics.md#table-cell-out-of-bounds) | A `table.cell(...)` addresses a cell outside the declared grid. | Raise the `table.new(position, columns, rows)` counts or fix the index. |
 | [`table-dynamic-loop`](./diagnostics.md#table-dynamic-loop) | A table-cell loop has a non-literal bound. | Use a literal `for i = 0 to N` bound so the writes unroll. |
-| [`fill-not-mapped`](./diagnostics.md#fill-not-mapped) | `fill(plot1, plot2, ...)`. | Draw the band as an explicit `draw.rectangle` / `draw.path`. |
+| [`fill-not-mapped`](./diagnostics.md#fill-not-mapped) | `fill(plot1, plot2, ...)`. | Draw the band with `draw.fillBetween(edgeA, edgeB, ...)` over the two series' anchors. A `plot`-level series fill is a planned follow-up. |
 | [`request-security-not-mapped`](./diagnostics.md#request-security-not-mapped) | A `request.security(...)` shape outside the v1 single-symbol MTF subset — a non-literal timeframe, an out-of-table timeframe, or missing positional args. (A `ta.*`/expression third arg is **supported** — it lowers to the callback form.) | Use a literal `"<timeframe>"`; the third arg may be a bare OHLCV field or a `ta.*` expression. |
 
 ## Internal

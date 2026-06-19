@@ -118,6 +118,7 @@ const EXPECTED_SLOT_TRUE = [
     "draw.circle",
     "draw.ellipse",
     "draw.path",
+    "draw.fillBetween",
     "draw.marker",
     "draw.arc",
     "draw.curve",
@@ -239,6 +240,7 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
     "draw.fibTrendExtension",
     "draw.fibTrendTime",
     "draw.fibWedge",
+    "draw.fillBetween",
     "draw.flatTopBottom",
     "draw.frame",
     "draw.gannBox",
@@ -384,11 +386,11 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
 ];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 174 entries after the highestbars/lowestbars additions", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(174);
+    it("contains exactly 175 entries after the fillBetween addition", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(175);
     });
 
-    it("locks the apiVersion-1 registry to the exact 174-entry name set", () => {
+    it("locks the apiVersion-1 registry to the exact 175-entry name set", () => {
         const names = [...STATEFUL_PRIMITIVES].map((e) => e.name).sort();
         expect(names).toEqual(FROZEN_API_V1_NAMES);
     });
@@ -407,14 +409,14 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 170 slot: true entries and exactly 4 slot: false entries", () => {
+    it("has exactly 171 slot: true entries and exactly 4 slot: false entries", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
             if (entry.slot) trueCount += 1;
             else falseCount += 1;
         }
-        expect(trueCount).toBe(170);
+        expect(trueCount).toBe(171);
         expect(falseCount).toBe(4);
     });
 
@@ -422,7 +424,7 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(Object.isFrozen(STATEFUL_PRIMITIVES)).toBe(true);
     });
 
-    it("includes one draw.<camelKind> entry per DrawingKind (62 total)", () => {
+    it("includes one draw.<camelKind> entry per DrawingKind (63 total)", () => {
         const names = new Set<string>();
         for (const entry of STATEFUL_PRIMITIVES) names.add(entry.name);
         let drawCount = 0;
@@ -433,7 +435,7 @@ describe("STATEFUL_PRIMITIVES", () => {
             expect(names.has(expected)).toBe(true);
             drawCount += 1;
         }
-        expect(drawCount).toBe(62);
+        expect(drawCount).toBe(63);
     });
 });
 

@@ -55,6 +55,7 @@ import { DRAW_FIB_TIME_ZONE_SCENARIO } from "./drawFibTimeZone.scenario.js";
 import { DRAW_FIB_TREND_EXTENSION_SCENARIO } from "./drawFibTrendExtension.scenario.js";
 import { DRAW_FIB_TREND_TIME_SCENARIO } from "./drawFibTrendTime.scenario.js";
 import { DRAW_FIB_WEDGE_SCENARIO } from "./drawFibWedge.scenario.js";
+import { DRAW_FILL_BETWEEN_SCENARIO } from "./drawFillBetween.scenario.js";
 import { DRAW_FLAT_TOP_BOTTOM_SCENARIO } from "./drawFlatTopBottom.scenario.js";
 import { DRAW_FRAME_SCENARIO } from "./drawFrame.scenario.js";
 import { DRAW_GANN_ALL_SCENARIO } from "./drawGannAll.scenario.js";
@@ -279,6 +280,7 @@ export { DRAW_FIB_TIME_ZONE_SCENARIO } from "./drawFibTimeZone.scenario.js";
 export { DRAW_FIB_TREND_EXTENSION_SCENARIO } from "./drawFibTrendExtension.scenario.js";
 export { DRAW_FIB_TREND_TIME_SCENARIO } from "./drawFibTrendTime.scenario.js";
 export { DRAW_FIB_WEDGE_SCENARIO } from "./drawFibWedge.scenario.js";
+export { DRAW_FILL_BETWEEN_SCENARIO } from "./drawFillBetween.scenario.js";
 export { DRAW_GANN_ALL_SCENARIO } from "./drawGannAll.scenario.js";
 export { DRAW_GANN_BOX_SCENARIO } from "./drawGannBox.scenario.js";
 export { DRAW_GANN_FAN_SCENARIO } from "./drawGannFan.scenario.js";
@@ -646,6 +648,7 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     DRAW_CIRCLE_SCENARIO,
     DRAW_ELLIPSE_SCENARIO,
     DRAW_PATH_SCENARIO,
+    DRAW_FILL_BETWEEN_SCENARIO,
     DRAW_MARKER_SCENARIO,
     // Phase 3 Task 7 — combined box bundle (supersedes Task 6's
     // `DRAW_BOXES_A_SCENARIO`, covering all 8 box kinds).

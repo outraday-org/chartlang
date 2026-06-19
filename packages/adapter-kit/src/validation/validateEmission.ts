@@ -770,6 +770,54 @@ function validatePathState(state: Record<string, unknown>): ValidationResult {
     return validatePathOpts(state.style, "drawing.state.style");
 }
 
+function validateFillBetweenStyle(s: unknown, path: string): ValidationResult {
+    // `color` / `lineWidth` / `lineStyle` share the LineDrawStyle contract;
+    // delegate so the shared checks cannot drift (same pattern as
+    // `validatePathOpts`). FillBetweenStyle has no `extendLeft` / `extendRight`
+    // fields, so those LineDrawStyle checks pass vacuously.
+    const lineCheck = validateLineDrawStyle(s, path);
+    if (!lineCheck.ok) return lineCheck;
+    // validateLineDrawStyle proved `s` is a plain object.
+    const obj = s as Record<string, unknown>;
+    if (obj.fill !== undefined && typeof obj.fill !== "string") {
+        return bad(`${path}.fill: must be a string`);
+    }
+    if (
+        obj.fillAlpha !== undefined &&
+        (!isFiniteNumber(obj.fillAlpha) || obj.fillAlpha < 0 || obj.fillAlpha > 1)
+    ) {
+        return bad(`${path}.fillAlpha: must be a finite number in [0, 1]`);
+    }
+    return { ok: true };
+}
+
+// A fill-between band is a series-growth primitive: the canonical idiom
+// accumulates one `WorldPoint` per bar into each edge and re-emits the whole
+// ribbon every step (see `examples/scripts/fill-between-band.chart.ts`), unlike
+// the discrete `path` / `polyline` tools that cap at 20. The upper bound here
+// must therefore cover a full chart history — sized to the 10 000-bar bundled
+// golden fixture so a band spanning the entire dataset is not silently dropped.
+const FILL_BETWEEN_MIN_ANCHORS = 2;
+const FILL_BETWEEN_MAX_ANCHORS = 10_000;
+
+function validateFillBetweenState(state: Record<string, unknown>): ValidationResult {
+    const edgeACheck = validateAnchorVariable(
+        state.edgeA,
+        "drawing.state.edgeA",
+        FILL_BETWEEN_MIN_ANCHORS,
+        FILL_BETWEEN_MAX_ANCHORS,
+    );
+    if (!edgeACheck.ok) return edgeACheck;
+    const edgeBCheck = validateAnchorVariable(
+        state.edgeB,
+        "drawing.state.edgeB",
+        FILL_BETWEEN_MIN_ANCHORS,
+        FILL_BETWEEN_MAX_ANCHORS,
+    );
+    if (!edgeBCheck.ok) return edgeBCheck;
+    return validateFillBetweenStyle(state.style, "drawing.state.style");
+}
+
 const VALID_TEXT_SIZES: ReadonlySet<string> = new Set(["tiny", "small", "normal", "large", "huge"]);
 
 const VALID_TEXT_HALIGN: ReadonlySet<string> = new Set(["left", "center", "right"]);
@@ -1389,6 +1437,8 @@ function validateStateByKind(kind: DrawingKind, state: Record<string, unknown>):
             return validateEllipseState(state);
         case "path":
             return validatePathState(state);
+        case "fill-between":
+            return validateFillBetweenState(state);
         case "marker":
             return validateMarkerState(state);
         case "arc":

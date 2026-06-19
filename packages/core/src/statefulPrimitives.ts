@@ -131,6 +131,7 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "draw.circle", slot: true },
     { name: "draw.ellipse", slot: true },
     { name: "draw.path", slot: true },
+    { name: "draw.fillBetween", slot: true },
     { name: "draw.marker", slot: true },
     { name: "draw.arc", slot: true },
     { name: "draw.curve", slot: true },
@@ -218,7 +219,7 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
  * logging/error as stateless loop-diagnostic entries plus `draw.table`
  * as a slot-backed viewport drawing.
  *
- * Additive within `apiVersion: 1` (currently 174 entries): new entries MAY
+ * Additive within `apiVersion: 1` (currently 175 entries): new entries MAY
  * be appended in a `1.x` release (a new call name is additive — new callsites
  * only, no change to any existing script). Removing or renaming an entry, or
  * flipping its `slot`, is a language change and requires `apiVersion: 2` — see
@@ -242,11 +243,11 @@ export const STATEFUL_PRIMITIVES: ReadonlySet<StatefulPrimitiveEntry> = Object.f
  * Name → entry index of {@link STATEFUL_PRIMITIVES}. The compiler's
  * `callsiteIdInjection` and `statefulCallInLoop` passes consult this map
  * by callee name once per call site — O(1) lookup instead of an O(n) scan
- * over the 174-entry set on every visited call. The map is derived from
+ * over the 175-entry set on every visited call. The map is derived from
  * the same canonical entry list as {@link STATEFUL_PRIMITIVES} so adding
  * a primitive to the set adds it here automatically.
  *
- * Additive within `apiVersion: 1` (currently 174 entries): new entries MAY
+ * Additive within `apiVersion: 1` (currently 175 entries): new entries MAY
  * be appended in a `1.x` release (a new call name is additive — new callsites
  * only, no change to any existing script). Removing or renaming an entry, or
  * flipping its `slot`, is a language change and requires `apiVersion: 2` — see

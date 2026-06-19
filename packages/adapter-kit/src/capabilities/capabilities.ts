@@ -233,7 +233,8 @@ export const capabilities = {
     },
 
     // ------------------------------------------------------------
-    // Phase 3 — per-kind drawing builders (61). Each returns a
+    // Phase 3 — per-kind drawing builders (62, incl. the Phase-2
+    // `fill-between` ribbon). Each returns a
     // single-element `Set<DrawingKind>` so adapters can compose via
     // `capabilities.union(...)`. The 13 category-group builders +
     // `allPhase3Drawings()` below are the canonical user-facing
@@ -292,6 +293,10 @@ export const capabilities = {
     /** Phase-3 `path` drawing kind. @since 0.3 @stable */
     drawPath(): ReadonlySet<DrawingKind> {
         return new Set<DrawingKind>(["path"]);
+    },
+    /** `fill-between` filled-ribbon drawing kind. @since 0.4 @stable */
+    drawFillBetween(): ReadonlySet<DrawingKind> {
+        return new Set<DrawingKind>(["fill-between"]);
     },
     /** Phase-3 `marker` drawing kind. @since 0.3 @stable */
     drawMarker(): ReadonlySet<DrawingKind> {
@@ -509,14 +514,14 @@ export const capabilities = {
         ]);
     },
     /**
-     * All 8 box / shape drawing kinds. @since 0.3 @stable
+     * All 9 box / shape drawing kinds. @since 0.3 @stable
      *
      * @remarks Capability categories are orthogonal to budget buckets:
-     * `polyline` and `path` are budgeted under the `polylines` bucket
-     * and `marker` under `labels` — not the `boxes` bucket (see
-     * `bucketFor` in `@invinite-org/chartlang-core`). An adapter that
-     * declares this set must size those buckets accordingly or those
-     * three kinds drop with `drawing-budget-exceeded`.
+     * `polyline`, `path`, and `fill-between` are budgeted under the
+     * `polylines` bucket and `marker` under `labels` — not the `boxes`
+     * bucket (see `bucketFor` in `@invinite-org/chartlang-core`). An
+     * adapter that declares this set must size those buckets accordingly
+     * or those four kinds drop with `drawing-budget-exceeded`.
      */
     allBoxDrawings(): ReadonlySet<DrawingKind> {
         return new Set<DrawingKind>([
@@ -527,6 +532,7 @@ export const capabilities = {
             "circle",
             "ellipse",
             "path",
+            "fill-between",
             "marker",
         ]);
     },
@@ -614,7 +620,7 @@ export const capabilities = {
      * Every drawing kind that ships in Phase 3 — the union of every
      * category group above. Canvas2d declares this set as its
      * `Capabilities.drawings` (Task 4) so the conformance suite
-     * covers all 61 kinds end-to-end.
+     * covers all 62 non-table kinds end-to-end.
      *
      * @since 0.3
      * @stable

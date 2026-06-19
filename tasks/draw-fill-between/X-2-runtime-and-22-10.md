@@ -1,6 +1,6 @@
 # Task 2 — Runtime `draw.fillBetween` emit + full §22.10 set
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

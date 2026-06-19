@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 /**
- * The full set of 62 drawing kinds chartlang supports through `draw.*`.
+ * The full set of 63 drawing kinds chartlang supports through `draw.*`.
  * The wire format is kebab-case; the TypeScript script surface is
  * camelCase (`draw.horizontalLine(...)`). See {@link KIND_CAMELCASE} for
  * the canonical bijection.
@@ -17,14 +17,14 @@
  * - `cypher-pattern` has no standalone tool — emittable only through
  *   `defineDrawing` (Task 20).
  *
- * Order pinned: lines (6) → boxes (8) → curves (3) → freehand (3) →
+ * Order pinned: lines (6) → boxes (9) → curves (3) → freehand (3) →
  * annotations (5) → channels (4) → fib (10) → gann (4) → pitchforks (2)
  * → patterns (6) → elliott (5) → cycles (3) → containers (2) → viewport
- * overlays (1) = 62. The order is wire-stable — downstream consumers iterate
+ * overlays (1) = 63. The order is wire-stable — downstream consumers iterate
  * {@link DRAWING_KINDS} in this order for diagnostic readability.
  *
  * @formula  N/A — discriminator constant set
- * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
+ * @anchors  63 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
  * @stable
  * @example
@@ -39,7 +39,7 @@ export type DrawingKind =
     | "vertical-line"
     | "cross-line"
     | "trend-angle"
-    // Boxes / Shapes (8)
+    // Boxes / Shapes (9)
     | "rectangle"
     | "rotated-rectangle"
     | "triangle"
@@ -47,6 +47,7 @@ export type DrawingKind =
     | "circle"
     | "ellipse"
     | "path"
+    | "fill-between"
     | "marker"
     // Curves (3)
     | "arc"
@@ -115,7 +116,7 @@ export type DrawingKind =
  * single canonical order. Frozen.
  *
  * @formula  N/A — discriminator constant set
- * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
+ * @anchors  63 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
  * @stable
  * @example
@@ -138,6 +139,7 @@ export const DRAWING_KINDS: ReadonlyArray<DrawingKind> = Object.freeze([
     "circle",
     "ellipse",
     "path",
+    "fill-between",
     "marker",
     "arc",
     "curve",
@@ -197,7 +199,7 @@ export const DRAWING_KINDS: ReadonlyArray<DrawingKind> = Object.freeze([
  * {@link KIND_KEBABCASE}.
  *
  * @formula  N/A — discriminator constant set
- * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
+ * @anchors  63 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
  * @stable
  * @example
@@ -219,6 +221,7 @@ export const KIND_CAMELCASE: ReadonlyMap<DrawingKind, string> = new Map<DrawingK
     ["circle", "circle"],
     ["ellipse", "ellipse"],
     ["path", "path"],
+    ["fill-between", "fillBetween"],
     ["marker", "marker"],
     ["arc", "arc"],
     ["curve", "curve"],
@@ -276,7 +279,7 @@ export const KIND_CAMELCASE: ReadonlyMap<DrawingKind, string> = new Map<DrawingK
  * two maps cannot drift.
  *
  * @formula  N/A — discriminator constant set
- * @anchors  62 kebab-case kind names; see {@link DRAWING_KINDS}
+ * @anchors  63 kebab-case kind names; see {@link DRAWING_KINDS}
  * @since 0.3
  * @stable
  * @example

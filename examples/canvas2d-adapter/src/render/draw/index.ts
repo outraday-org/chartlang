@@ -27,6 +27,7 @@ export { renderTriangle } from "./triangle.js";
 export { renderCircle } from "./circle.js";
 export { renderEllipse } from "./ellipse.js";
 export { renderPath } from "./path.js";
+export { renderFillBetween } from "./fillBetween.js";
 export { renderMarker } from "./marker.js";
 export { renderArc } from "./arc.js";
 export { renderCurve } from "./curve.js";

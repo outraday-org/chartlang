@@ -134,7 +134,7 @@ export const DRAWING_KIND_MAP: ReadonlyMap<PineDrawingConstructor, DrawingMappin
             pine: "linefill.new",
             chartlang: null,
             setterMap: setters([]),
-            notes: "no direct chartlang analogue; Task 14 emits diagnostic",
+            notes: "lowered to draw.fillBetween by the polyline/linefill transform (static two-line); dynamic forms reject",
         },
     ],
 ]);

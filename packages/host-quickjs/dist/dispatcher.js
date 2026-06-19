@@ -830,6 +830,7 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "draw.circle", slot: true },
   { name: "draw.ellipse", slot: true },
   { name: "draw.path", slot: true },
+  { name: "draw.fillBetween", slot: true },
   { name: "draw.marker", slot: true },
   { name: "draw.arc", slot: true },
   { name: "draw.curve", slot: true },
@@ -915,6 +916,7 @@ var DRAWING_KINDS = Object.freeze([
   "circle",
   "ellipse",
   "path",
+  "fill-between",
   "marker",
   "arc",
   "curve",
@@ -979,6 +981,7 @@ var KIND_CAMELCASE = /* @__PURE__ */ new Map([
   ["circle", "circle"],
   ["ellipse", "ellipse"],
   ["path", "path"],
+  ["fill-between", "fillBetween"],
   ["marker", "marker"],
   ["arc", "arc"],
   ["curve", "curve"],
@@ -1046,6 +1049,7 @@ var KIND_BUCKET = /* @__PURE__ */ new Map([
   ["circle", "boxes"],
   ["ellipse", "boxes"],
   ["path", "polylines"],
+  ["fill-between", "polylines"],
   ["marker", "labels"],
   ["arc", "polylines"],
   ["curve", "polylines"],
@@ -2991,6 +2995,30 @@ function validatePathState(state2) {
     return anchorsCheck;
   return validatePathOpts(state2.style, "drawing.state.style");
 }
+function validateFillBetweenStyle(s, path2) {
+  const lineCheck = validateLineDrawStyle(s, path2);
+  if (!lineCheck.ok)
+    return lineCheck;
+  const obj = s;
+  if (obj.fill !== void 0 && typeof obj.fill !== "string") {
+    return bad(`${path2}.fill: must be a string`);
+  }
+  if (obj.fillAlpha !== void 0 && (!isFiniteNumber(obj.fillAlpha) || obj.fillAlpha < 0 || obj.fillAlpha > 1)) {
+    return bad(`${path2}.fillAlpha: must be a finite number in [0, 1]`);
+  }
+  return { ok: true };
+}
+var FILL_BETWEEN_MIN_ANCHORS = 2;
+var FILL_BETWEEN_MAX_ANCHORS = 1e4;
+function validateFillBetweenState(state2) {
+  const edgeACheck = validateAnchorVariable(state2.edgeA, "drawing.state.edgeA", FILL_BETWEEN_MIN_ANCHORS, FILL_BETWEEN_MAX_ANCHORS);
+  if (!edgeACheck.ok)
+    return edgeACheck;
+  const edgeBCheck = validateAnchorVariable(state2.edgeB, "drawing.state.edgeB", FILL_BETWEEN_MIN_ANCHORS, FILL_BETWEEN_MAX_ANCHORS);
+  if (!edgeBCheck.ok)
+    return edgeBCheck;
+  return validateFillBetweenStyle(state2.style, "drawing.state.style");
+}
 var VALID_TEXT_SIZES = /* @__PURE__ */ new Set(["tiny", "small", "normal", "large", "huge"]);
 var VALID_TEXT_HALIGN = /* @__PURE__ */ new Set(["left", "center", "right"]);
 var VALID_TEXT_VALIGN = /* @__PURE__ */ new Set(["top", "middle", "bottom"]);
@@ -3579,6 +3607,8 @@ function validateStateByKind(kind, state2) {
       return validateEllipseState(state2);
     case "path":
       return validatePathState(state2);
+    case "fill-between":
+      return validateFillBetweenState(state2);
     case "marker":
       return validateMarkerState(state2);
     case "arc":
@@ -5099,12 +5129,29 @@ function ellipse(arg1, arg2, arg3, arg4) {
   return ellipseImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
-// ../runtime/dist/emit/draw/boxes/marker.js
-var OUTSIDE_CTX_MESSAGE10 = "draw.marker called outside an active script step";
-function markerImpl(slotId, anchor, opts) {
+// ../runtime/dist/emit/draw/boxes/fillBetween.js
+var OUTSIDE_CTX_MESSAGE10 = "draw.fillBetween called outside an active script step";
+function fillBetweenImpl(slotId, edgeA, edgeB, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
     throw new Error(OUTSIDE_CTX_MESSAGE10);
+  const subId = nextSubId(ctx, slotId);
+  const state2 = { kind: "fill-between", edgeA, edgeB, style: opts };
+  return createDrawingHandle(slotId, subId, "fill-between", state2);
+}
+function fillBetween(arg1, arg2, arg3, arg4) {
+  if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2) || arg3 === void 0 || !Array.isArray(arg3)) {
+    throw new Error(OUTSIDE_CTX_MESSAGE10);
+  }
+  return fillBetweenImpl(arg1, arg2, arg3, arg4 ?? {});
+}
+
+// ../runtime/dist/emit/draw/boxes/marker.js
+var OUTSIDE_CTX_MESSAGE11 = "draw.marker called outside an active script step";
+function markerImpl(slotId, anchor, opts) {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null)
+    throw new Error(OUTSIDE_CTX_MESSAGE11);
   const subId = nextSubId(ctx, slotId);
   const { text: text2, value, ...style } = opts;
   const state2 = {
@@ -5118,136 +5165,136 @@ function markerImpl(slotId, anchor, opts) {
 }
 function marker(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE10);
+    throw new Error(OUTSIDE_CTX_MESSAGE11);
   }
   return markerImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/boxes/path.js
-var OUTSIDE_CTX_MESSAGE11 = "draw.path called outside an active script step";
+var OUTSIDE_CTX_MESSAGE12 = "draw.path called outside an active script step";
 function pathImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE11);
+    throw new Error(OUTSIDE_CTX_MESSAGE12);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "path", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "path", state2);
 }
 function path(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE11);
+    throw new Error(OUTSIDE_CTX_MESSAGE12);
   }
   return pathImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/boxes/polyline.js
-var OUTSIDE_CTX_MESSAGE12 = "draw.polyline called outside an active script step";
+var OUTSIDE_CTX_MESSAGE13 = "draw.polyline called outside an active script step";
 function polylineImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE12);
+    throw new Error(OUTSIDE_CTX_MESSAGE13);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "polyline", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "polyline", state2);
 }
 function polyline(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE12);
+    throw new Error(OUTSIDE_CTX_MESSAGE13);
   }
   return polylineImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/boxes/rectangle.js
-var OUTSIDE_CTX_MESSAGE13 = "draw.rectangle called outside an active script step";
+var OUTSIDE_CTX_MESSAGE14 = "draw.rectangle called outside an active script step";
 function rectangleImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE13);
+    throw new Error(OUTSIDE_CTX_MESSAGE14);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "rectangle", anchors: [a, b], style: opts };
   return createDrawingHandle(slotId, subId, "rectangle", state2);
 }
 function rectangle(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE13);
+    throw new Error(OUTSIDE_CTX_MESSAGE14);
   }
   return rectangleImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/boxes/rotatedRectangle.js
-var OUTSIDE_CTX_MESSAGE14 = "draw.rotatedRectangle called outside an active script step";
+var OUTSIDE_CTX_MESSAGE15 = "draw.rotatedRectangle called outside an active script step";
 function rotatedRectangleImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE14);
+    throw new Error(OUTSIDE_CTX_MESSAGE15);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "rotated-rectangle", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "rotated-rectangle", state2);
 }
 function rotatedRectangle(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE14);
+    throw new Error(OUTSIDE_CTX_MESSAGE15);
   }
   return rotatedRectangleImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/boxes/triangle.js
-var OUTSIDE_CTX_MESSAGE15 = "draw.triangle called outside an active script step";
+var OUTSIDE_CTX_MESSAGE16 = "draw.triangle called outside an active script step";
 function triangleImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE15);
+    throw new Error(OUTSIDE_CTX_MESSAGE16);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "triangle", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "triangle", state2);
 }
 function triangle(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE15);
+    throw new Error(OUTSIDE_CTX_MESSAGE16);
   }
   return triangleImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/channels/disjointChannel.js
-var OUTSIDE_CTX_MESSAGE16 = "draw.disjointChannel called outside an active script step";
+var OUTSIDE_CTX_MESSAGE17 = "draw.disjointChannel called outside an active script step";
 function disjointChannelImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE16);
+    throw new Error(OUTSIDE_CTX_MESSAGE17);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "disjoint-channel", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "disjoint-channel", state2);
 }
 function disjointChannel(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE16);
+    throw new Error(OUTSIDE_CTX_MESSAGE17);
   }
   return disjointChannelImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/channels/flatTopBottom.js
-var OUTSIDE_CTX_MESSAGE17 = "draw.flatTopBottom called outside an active script step";
+var OUTSIDE_CTX_MESSAGE18 = "draw.flatTopBottom called outside an active script step";
 function flatTopBottomImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE17);
+    throw new Error(OUTSIDE_CTX_MESSAGE18);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "flat-top-bottom", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "flat-top-bottom", state2);
 }
 function flatTopBottom(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE17);
+    throw new Error(OUTSIDE_CTX_MESSAGE18);
   }
   return flatTopBottomImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/channels/regressionTrend.js
-var OUTSIDE_CTX_MESSAGE18 = "draw.regressionTrend called outside an active script step";
+var OUTSIDE_CTX_MESSAGE19 = "draw.regressionTrend called outside an active script step";
 function regressionTrendImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE18);
+    throw new Error(OUTSIDE_CTX_MESSAGE19);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "regression-trend",
@@ -5258,34 +5305,34 @@ function regressionTrendImpl(slotId, a, b, opts) {
 }
 function regressionTrend(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE18);
+    throw new Error(OUTSIDE_CTX_MESSAGE19);
   }
   return regressionTrendImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/channels/trendChannel.js
-var OUTSIDE_CTX_MESSAGE19 = "draw.trendChannel called outside an active script step";
+var OUTSIDE_CTX_MESSAGE20 = "draw.trendChannel called outside an active script step";
 function trendChannelImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE19);
+    throw new Error(OUTSIDE_CTX_MESSAGE20);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "trend-channel", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "trend-channel", state2);
 }
 function trendChannel(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE19);
+    throw new Error(OUTSIDE_CTX_MESSAGE20);
   }
   return trendChannelImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/containers/frame.js
-var OUTSIDE_CTX_MESSAGE20 = "draw.frame called outside an active script step";
+var OUTSIDE_CTX_MESSAGE21 = "draw.frame called outside an active script step";
 function frameImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE20);
+    throw new Error(OUTSIDE_CTX_MESSAGE21);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "frame",
@@ -5297,17 +5344,17 @@ function frameImpl(slotId, a, b, opts) {
 }
 function frame(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE20);
+    throw new Error(OUTSIDE_CTX_MESSAGE21);
   }
   return frameImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/containers/group.js
-var OUTSIDE_CTX_MESSAGE21 = "draw.group called outside an active script step";
+var OUTSIDE_CTX_MESSAGE22 = "draw.group called outside an active script step";
 function groupImpl(slotId, childHandleIds) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE21);
+    throw new Error(OUTSIDE_CTX_MESSAGE22);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "group",
@@ -5317,119 +5364,119 @@ function groupImpl(slotId, childHandleIds) {
 }
 function group(arg1, arg2) {
   if (typeof arg1 !== "string" || arg2 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE21);
+    throw new Error(OUTSIDE_CTX_MESSAGE22);
   }
   return groupImpl(arg1, arg2);
 }
 
 // ../runtime/dist/emit/draw/curves/arc.js
-var OUTSIDE_CTX_MESSAGE22 = "draw.arc called outside an active script step";
+var OUTSIDE_CTX_MESSAGE23 = "draw.arc called outside an active script step";
 function arcImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE22);
+    throw new Error(OUTSIDE_CTX_MESSAGE23);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "arc", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "arc", state2);
 }
 function arc(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE22);
+    throw new Error(OUTSIDE_CTX_MESSAGE23);
   }
   return arcImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/curves/brush.js
-var OUTSIDE_CTX_MESSAGE23 = "draw.brush called outside an active script step";
+var OUTSIDE_CTX_MESSAGE24 = "draw.brush called outside an active script step";
 function brushImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE23);
+    throw new Error(OUTSIDE_CTX_MESSAGE24);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "brush", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "brush", state2);
 }
 function brush(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2) || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE23);
+    throw new Error(OUTSIDE_CTX_MESSAGE24);
   }
   return brushImpl(arg1, arg2, arg3);
 }
 
 // ../runtime/dist/emit/draw/curves/curve.js
-var OUTSIDE_CTX_MESSAGE24 = "draw.curve called outside an active script step";
+var OUTSIDE_CTX_MESSAGE25 = "draw.curve called outside an active script step";
 function curveImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE24);
+    throw new Error(OUTSIDE_CTX_MESSAGE25);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "curve", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "curve", state2);
 }
 function curve(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE24);
+    throw new Error(OUTSIDE_CTX_MESSAGE25);
   }
   return curveImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/curves/doubleCurve.js
-var OUTSIDE_CTX_MESSAGE25 = "draw.doubleCurve called outside an active script step";
+var OUTSIDE_CTX_MESSAGE26 = "draw.doubleCurve called outside an active script step";
 function doubleCurveImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE25);
+    throw new Error(OUTSIDE_CTX_MESSAGE26);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "double-curve", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "double-curve", state2);
 }
 function doubleCurve(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE25);
+    throw new Error(OUTSIDE_CTX_MESSAGE26);
   }
   return doubleCurveImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/curves/highlighter.js
-var OUTSIDE_CTX_MESSAGE26 = "draw.highlighter called outside an active script step";
+var OUTSIDE_CTX_MESSAGE27 = "draw.highlighter called outside an active script step";
 function highlighterImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE26);
+    throw new Error(OUTSIDE_CTX_MESSAGE27);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "highlighter", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "highlighter", state2);
 }
 function highlighter(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2) || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE26);
+    throw new Error(OUTSIDE_CTX_MESSAGE27);
   }
   return highlighterImpl(arg1, arg2, arg3);
 }
 
 // ../runtime/dist/emit/draw/curves/pen.js
-var OUTSIDE_CTX_MESSAGE27 = "draw.pen called outside an active script step";
+var OUTSIDE_CTX_MESSAGE28 = "draw.pen called outside an active script step";
 function penImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE27);
+    throw new Error(OUTSIDE_CTX_MESSAGE28);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "pen", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "pen", state2);
 }
 function pen(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE27);
+    throw new Error(OUTSIDE_CTX_MESSAGE28);
   }
   return penImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/cycles/cyclicLines.js
-var OUTSIDE_CTX_MESSAGE28 = "draw.cyclicLines called outside an active script step";
+var OUTSIDE_CTX_MESSAGE29 = "draw.cyclicLines called outside an active script step";
 function cyclicLinesImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE28);
+    throw new Error(OUTSIDE_CTX_MESSAGE29);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "cyclic-lines",
@@ -5440,17 +5487,17 @@ function cyclicLinesImpl(slotId, a, b, opts) {
 }
 function cyclicLines(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE28);
+    throw new Error(OUTSIDE_CTX_MESSAGE29);
   }
   return cyclicLinesImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/cycles/sineLine.js
-var OUTSIDE_CTX_MESSAGE29 = "draw.sineLine called outside an active script step";
+var OUTSIDE_CTX_MESSAGE30 = "draw.sineLine called outside an active script step";
 function sineLineImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE29);
+    throw new Error(OUTSIDE_CTX_MESSAGE30);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "sine-line",
@@ -5461,17 +5508,17 @@ function sineLineImpl(slotId, a, b, opts) {
 }
 function sineLine(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE29);
+    throw new Error(OUTSIDE_CTX_MESSAGE30);
   }
   return sineLineImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/cycles/timeCycles.js
-var OUTSIDE_CTX_MESSAGE30 = "draw.timeCycles called outside an active script step";
+var OUTSIDE_CTX_MESSAGE31 = "draw.timeCycles called outside an active script step";
 function timeCyclesImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE30);
+    throw new Error(OUTSIDE_CTX_MESSAGE31);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "time-cycles",
@@ -5482,17 +5529,17 @@ function timeCyclesImpl(slotId, a, b, opts) {
 }
 function timeCycles(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE30);
+    throw new Error(OUTSIDE_CTX_MESSAGE31);
   }
   return timeCyclesImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/elliott/elliottCorrectionWave.js
-var OUTSIDE_CTX_MESSAGE31 = "draw.elliottCorrectionWave called outside an active script step";
+var OUTSIDE_CTX_MESSAGE32 = "draw.elliottCorrectionWave called outside an active script step";
 function elliottCorrectionWaveImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE31);
+    throw new Error(OUTSIDE_CTX_MESSAGE32);
   const subId = nextSubId(ctx, slotId);
   const { labels, ...style } = opts;
   const state2 = labels === void 0 ? { kind: "elliott-correction-wave", anchors, style } : { kind: "elliott-correction-wave", anchors, labels, style };
@@ -5500,17 +5547,17 @@ function elliottCorrectionWaveImpl(slotId, anchors, opts) {
 }
 function elliottCorrectionWave(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE31);
+    throw new Error(OUTSIDE_CTX_MESSAGE32);
   }
   return elliottCorrectionWaveImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/elliott/elliottDoubleCombo.js
-var OUTSIDE_CTX_MESSAGE32 = "draw.elliottDoubleCombo called outside an active script step";
+var OUTSIDE_CTX_MESSAGE33 = "draw.elliottDoubleCombo called outside an active script step";
 function elliottDoubleComboImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE32);
+    throw new Error(OUTSIDE_CTX_MESSAGE33);
   const subId = nextSubId(ctx, slotId);
   const { labels, ...style } = opts;
   const state2 = labels === void 0 ? { kind: "elliott-double-combo", anchors, style } : { kind: "elliott-double-combo", anchors, labels, style };
@@ -5518,17 +5565,17 @@ function elliottDoubleComboImpl(slotId, anchors, opts) {
 }
 function elliottDoubleCombo(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE32);
+    throw new Error(OUTSIDE_CTX_MESSAGE33);
   }
   return elliottDoubleComboImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/elliott/elliottImpulseWave.js
-var OUTSIDE_CTX_MESSAGE33 = "draw.elliottImpulseWave called outside an active script step";
+var OUTSIDE_CTX_MESSAGE34 = "draw.elliottImpulseWave called outside an active script step";
 function elliottImpulseWaveImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE33);
+    throw new Error(OUTSIDE_CTX_MESSAGE34);
   const subId = nextSubId(ctx, slotId);
   const { labels, ...style } = opts;
   const state2 = labels === void 0 ? { kind: "elliott-impulse-wave", anchors, style } : { kind: "elliott-impulse-wave", anchors, labels, style };
@@ -5536,17 +5583,17 @@ function elliottImpulseWaveImpl(slotId, anchors, opts) {
 }
 function elliottImpulseWave(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE33);
+    throw new Error(OUTSIDE_CTX_MESSAGE34);
   }
   return elliottImpulseWaveImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/elliott/elliottTriangleWave.js
-var OUTSIDE_CTX_MESSAGE34 = "draw.elliottTriangleWave called outside an active script step";
+var OUTSIDE_CTX_MESSAGE35 = "draw.elliottTriangleWave called outside an active script step";
 function elliottTriangleWaveImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE34);
+    throw new Error(OUTSIDE_CTX_MESSAGE35);
   const subId = nextSubId(ctx, slotId);
   const { labels, ...style } = opts;
   const state2 = labels === void 0 ? { kind: "elliott-triangle-wave", anchors, style } : { kind: "elliott-triangle-wave", anchors, labels, style };
@@ -5554,17 +5601,17 @@ function elliottTriangleWaveImpl(slotId, anchors, opts) {
 }
 function elliottTriangleWave(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE34);
+    throw new Error(OUTSIDE_CTX_MESSAGE35);
   }
   return elliottTriangleWaveImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/elliott/elliottTripleCombo.js
-var OUTSIDE_CTX_MESSAGE35 = "draw.elliottTripleCombo called outside an active script step";
+var OUTSIDE_CTX_MESSAGE36 = "draw.elliottTripleCombo called outside an active script step";
 function elliottTripleComboImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE35);
+    throw new Error(OUTSIDE_CTX_MESSAGE36);
   const subId = nextSubId(ctx, slotId);
   const { labels, ...style } = opts;
   const state2 = labels === void 0 ? { kind: "elliott-triple-combo", anchors, style } : { kind: "elliott-triple-combo", anchors, labels, style };
@@ -5572,34 +5619,34 @@ function elliottTripleComboImpl(slotId, anchors, opts) {
 }
 function elliottTripleCombo(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE35);
+    throw new Error(OUTSIDE_CTX_MESSAGE36);
   }
   return elliottTripleComboImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/fibA/fibChannel.js
-var OUTSIDE_CTX_MESSAGE36 = "draw.fibChannel called outside an active script step";
+var OUTSIDE_CTX_MESSAGE37 = "draw.fibChannel called outside an active script step";
 function fibChannelImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE36);
+    throw new Error(OUTSIDE_CTX_MESSAGE37);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "fib-channel", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "fib-channel", state2);
 }
 function fibChannel(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE36);
+    throw new Error(OUTSIDE_CTX_MESSAGE37);
   }
   return fibChannelImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/fibA/fibRetracement.js
-var OUTSIDE_CTX_MESSAGE37 = "draw.fibRetracement called outside an active script step";
+var OUTSIDE_CTX_MESSAGE38 = "draw.fibRetracement called outside an active script step";
 function fibRetracementImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE37);
+    throw new Error(OUTSIDE_CTX_MESSAGE38);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "fib-retracement",
@@ -5610,17 +5657,17 @@ function fibRetracementImpl(slotId, a, b, opts) {
 }
 function fibRetracement(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE37);
+    throw new Error(OUTSIDE_CTX_MESSAGE38);
   }
   return fibRetracementImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/fibA/fibTimeZone.js
-var OUTSIDE_CTX_MESSAGE38 = "draw.fibTimeZone called outside an active script step";
+var OUTSIDE_CTX_MESSAGE39 = "draw.fibTimeZone called outside an active script step";
 function fibTimeZoneImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE38);
+    throw new Error(OUTSIDE_CTX_MESSAGE39);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "fib-time-zone",
@@ -5631,17 +5678,17 @@ function fibTimeZoneImpl(slotId, a, b, opts) {
 }
 function fibTimeZone(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE38);
+    throw new Error(OUTSIDE_CTX_MESSAGE39);
   }
   return fibTimeZoneImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/fibA/fibTrendExtension.js
-var OUTSIDE_CTX_MESSAGE39 = "draw.fibTrendExtension called outside an active script step";
+var OUTSIDE_CTX_MESSAGE40 = "draw.fibTrendExtension called outside an active script step";
 function fibTrendExtensionImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE39);
+    throw new Error(OUTSIDE_CTX_MESSAGE40);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "fib-trend-extension",
@@ -5652,34 +5699,34 @@ function fibTrendExtensionImpl(slotId, anchors, opts) {
 }
 function fibTrendExtension(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE39);
+    throw new Error(OUTSIDE_CTX_MESSAGE40);
   }
   return fibTrendExtensionImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/fibA/fibWedge.js
-var OUTSIDE_CTX_MESSAGE40 = "draw.fibWedge called outside an active script step";
+var OUTSIDE_CTX_MESSAGE41 = "draw.fibWedge called outside an active script step";
 function fibWedgeImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE40);
+    throw new Error(OUTSIDE_CTX_MESSAGE41);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "fib-wedge", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "fib-wedge", state2);
 }
 function fibWedge(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE40);
+    throw new Error(OUTSIDE_CTX_MESSAGE41);
   }
   return fibWedgeImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/fibB/fibCircles.js
-var OUTSIDE_CTX_MESSAGE41 = "draw.fibCircles called outside an active script step";
+var OUTSIDE_CTX_MESSAGE42 = "draw.fibCircles called outside an active script step";
 function fibCirclesImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE41);
+    throw new Error(OUTSIDE_CTX_MESSAGE42);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "fib-circles",
@@ -5690,17 +5737,17 @@ function fibCirclesImpl(slotId, a, b, opts) {
 }
 function fibCircles(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE41);
+    throw new Error(OUTSIDE_CTX_MESSAGE42);
   }
   return fibCirclesImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/fibB/fibSpeedArcs.js
-var OUTSIDE_CTX_MESSAGE42 = "draw.fibSpeedArcs called outside an active script step";
+var OUTSIDE_CTX_MESSAGE43 = "draw.fibSpeedArcs called outside an active script step";
 function fibSpeedArcsImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE42);
+    throw new Error(OUTSIDE_CTX_MESSAGE43);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "fib-speed-arcs",
@@ -5711,17 +5758,17 @@ function fibSpeedArcsImpl(slotId, a, b, opts) {
 }
 function fibSpeedArcs(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE42);
+    throw new Error(OUTSIDE_CTX_MESSAGE43);
   }
   return fibSpeedArcsImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/fibB/fibSpeedFan.js
-var OUTSIDE_CTX_MESSAGE43 = "draw.fibSpeedFan called outside an active script step";
+var OUTSIDE_CTX_MESSAGE44 = "draw.fibSpeedFan called outside an active script step";
 function fibSpeedFanImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE43);
+    throw new Error(OUTSIDE_CTX_MESSAGE44);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "fib-speed-fan",
@@ -5732,17 +5779,17 @@ function fibSpeedFanImpl(slotId, a, b, opts) {
 }
 function fibSpeedFan(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE43);
+    throw new Error(OUTSIDE_CTX_MESSAGE44);
   }
   return fibSpeedFanImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/fibB/fibSpiral.js
-var OUTSIDE_CTX_MESSAGE44 = "draw.fibSpiral called outside an active script step";
+var OUTSIDE_CTX_MESSAGE45 = "draw.fibSpiral called outside an active script step";
 function fibSpiralImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE44);
+    throw new Error(OUTSIDE_CTX_MESSAGE45);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "fib-spiral",
@@ -5753,17 +5800,17 @@ function fibSpiralImpl(slotId, a, b, opts) {
 }
 function fibSpiral(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE44);
+    throw new Error(OUTSIDE_CTX_MESSAGE45);
   }
   return fibSpiralImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/fibB/fibTrendTime.js
-var OUTSIDE_CTX_MESSAGE45 = "draw.fibTrendTime called outside an active script step";
+var OUTSIDE_CTX_MESSAGE46 = "draw.fibTrendTime called outside an active script step";
 function fibTrendTimeImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE45);
+    throw new Error(OUTSIDE_CTX_MESSAGE46);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "fib-trend-time",
@@ -5774,17 +5821,17 @@ function fibTrendTimeImpl(slotId, anchors, opts) {
 }
 function fibTrendTime(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE45);
+    throw new Error(OUTSIDE_CTX_MESSAGE46);
   }
   return fibTrendTimeImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/gann/gannBox.js
-var OUTSIDE_CTX_MESSAGE46 = "draw.gannBox called outside an active script step";
+var OUTSIDE_CTX_MESSAGE47 = "draw.gannBox called outside an active script step";
 function gannBoxImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE46);
+    throw new Error(OUTSIDE_CTX_MESSAGE47);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "gann-box",
@@ -5795,17 +5842,17 @@ function gannBoxImpl(slotId, a, b, opts) {
 }
 function gannBox(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE46);
+    throw new Error(OUTSIDE_CTX_MESSAGE47);
   }
   return gannBoxImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/gann/gannFan.js
-var OUTSIDE_CTX_MESSAGE47 = "draw.gannFan called outside an active script step";
+var OUTSIDE_CTX_MESSAGE48 = "draw.gannFan called outside an active script step";
 function gannFanImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE47);
+    throw new Error(OUTSIDE_CTX_MESSAGE48);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "gann-fan",
@@ -5816,17 +5863,17 @@ function gannFanImpl(slotId, a, b, opts) {
 }
 function gannFan(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE47);
+    throw new Error(OUTSIDE_CTX_MESSAGE48);
   }
   return gannFanImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/gann/gannSquare.js
-var OUTSIDE_CTX_MESSAGE48 = "draw.gannSquare called outside an active script step";
+var OUTSIDE_CTX_MESSAGE49 = "draw.gannSquare called outside an active script step";
 function gannSquareImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE48);
+    throw new Error(OUTSIDE_CTX_MESSAGE49);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "gann-square",
@@ -5837,17 +5884,17 @@ function gannSquareImpl(slotId, a, b, opts) {
 }
 function gannSquare(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE48);
+    throw new Error(OUTSIDE_CTX_MESSAGE49);
   }
   return gannSquareImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/gann/gannSquareFixed.js
-var OUTSIDE_CTX_MESSAGE49 = "draw.gannSquareFixed called outside an active script step";
+var OUTSIDE_CTX_MESSAGE50 = "draw.gannSquareFixed called outside an active script step";
 function gannSquareFixedImpl(slotId, anchor, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE49);
+    throw new Error(OUTSIDE_CTX_MESSAGE50);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "gann-square-fixed",
@@ -5858,153 +5905,153 @@ function gannSquareFixedImpl(slotId, anchor, opts) {
 }
 function gannSquareFixed(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE49);
+    throw new Error(OUTSIDE_CTX_MESSAGE50);
   }
   return gannSquareFixedImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/lines/crossLine.js
-var OUTSIDE_CTX_MESSAGE50 = "draw.crossLine called outside an active script step";
+var OUTSIDE_CTX_MESSAGE51 = "draw.crossLine called outside an active script step";
 function crossLineImpl(slotId, anchor, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE50);
+    throw new Error(OUTSIDE_CTX_MESSAGE51);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "cross-line", anchor, style: opts };
   return createDrawingHandle(slotId, subId, "cross-line", state2);
 }
 function crossLine(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || typeof arg2 !== "object") {
-    throw new Error(OUTSIDE_CTX_MESSAGE50);
+    throw new Error(OUTSIDE_CTX_MESSAGE51);
   }
   return crossLineImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/lines/horizontalLine.js
-var OUTSIDE_CTX_MESSAGE51 = "draw.horizontalLine called outside an active script step";
+var OUTSIDE_CTX_MESSAGE52 = "draw.horizontalLine called outside an active script step";
 function horizontalLineImpl(slotId, price, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE51);
+    throw new Error(OUTSIDE_CTX_MESSAGE52);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "horizontal-line", price, style: opts };
   return createDrawingHandle(slotId, subId, "horizontal-line", state2);
 }
 function horizontalLine(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || typeof arg2 !== "number") {
-    throw new Error(OUTSIDE_CTX_MESSAGE51);
+    throw new Error(OUTSIDE_CTX_MESSAGE52);
   }
   return horizontalLineImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/lines/horizontalRay.js
-var OUTSIDE_CTX_MESSAGE52 = "draw.horizontalRay called outside an active script step";
+var OUTSIDE_CTX_MESSAGE53 = "draw.horizontalRay called outside an active script step";
 function horizontalRayImpl(slotId, anchor, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE52);
+    throw new Error(OUTSIDE_CTX_MESSAGE53);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "horizontal-ray", anchor, style: opts };
   return createDrawingHandle(slotId, subId, "horizontal-ray", state2);
 }
 function horizontalRay(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || typeof arg2 !== "object") {
-    throw new Error(OUTSIDE_CTX_MESSAGE52);
+    throw new Error(OUTSIDE_CTX_MESSAGE53);
   }
   return horizontalRayImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/lines/line.js
-var OUTSIDE_CTX_MESSAGE53 = "draw.line called outside an active script step";
+var OUTSIDE_CTX_MESSAGE54 = "draw.line called outside an active script step";
 function lineImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE53);
+    throw new Error(OUTSIDE_CTX_MESSAGE54);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "line", anchors: [a, b], style: opts };
   return createDrawingHandle(slotId, subId, "line", state2);
 }
 function line(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE53);
+    throw new Error(OUTSIDE_CTX_MESSAGE54);
   }
   return lineImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/lines/trendAngle.js
-var OUTSIDE_CTX_MESSAGE54 = "draw.trendAngle called outside an active script step";
+var OUTSIDE_CTX_MESSAGE55 = "draw.trendAngle called outside an active script step";
 function trendAngleImpl(slotId, a, b, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE54);
+    throw new Error(OUTSIDE_CTX_MESSAGE55);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "trend-angle", anchors: [a, b], style: opts };
   return createDrawingHandle(slotId, subId, "trend-angle", state2);
 }
 function trendAngle(arg1, arg2, arg3, arg4) {
   if (typeof arg1 !== "string" || arg2 === void 0 || arg3 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE54);
+    throw new Error(OUTSIDE_CTX_MESSAGE55);
   }
   return trendAngleImpl(arg1, arg2, arg3, arg4 ?? {});
 }
 
 // ../runtime/dist/emit/draw/lines/verticalLine.js
-var OUTSIDE_CTX_MESSAGE55 = "draw.verticalLine called outside an active script step";
+var OUTSIDE_CTX_MESSAGE56 = "draw.verticalLine called outside an active script step";
 function verticalLineImpl(slotId, time, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE55);
+    throw new Error(OUTSIDE_CTX_MESSAGE56);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "vertical-line", time, style: opts };
   return createDrawingHandle(slotId, subId, "vertical-line", state2);
 }
 function verticalLine(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || typeof arg2 !== "number") {
-    throw new Error(OUTSIDE_CTX_MESSAGE55);
+    throw new Error(OUTSIDE_CTX_MESSAGE56);
   }
   return verticalLineImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/patterns/abcdPattern.js
-var OUTSIDE_CTX_MESSAGE56 = "draw.abcdPattern called outside an active script step";
+var OUTSIDE_CTX_MESSAGE57 = "draw.abcdPattern called outside an active script step";
 function abcdPatternImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE56);
+    throw new Error(OUTSIDE_CTX_MESSAGE57);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "abcd-pattern", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "abcd-pattern", state2);
 }
 function abcdPattern(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE56);
+    throw new Error(OUTSIDE_CTX_MESSAGE57);
   }
   return abcdPatternImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/patterns/cypherPattern.js
-var OUTSIDE_CTX_MESSAGE57 = "draw.cypherPattern called outside an active script step";
+var OUTSIDE_CTX_MESSAGE58 = "draw.cypherPattern called outside an active script step";
 function cypherPatternImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE57);
+    throw new Error(OUTSIDE_CTX_MESSAGE58);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "cypher-pattern", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "cypher-pattern", state2);
 }
 function cypherPattern(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE57);
+    throw new Error(OUTSIDE_CTX_MESSAGE58);
   }
   return cypherPatternImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/patterns/headAndShoulders.js
-var OUTSIDE_CTX_MESSAGE58 = "draw.headAndShoulders called outside an active script step";
+var OUTSIDE_CTX_MESSAGE59 = "draw.headAndShoulders called outside an active script step";
 function headAndShouldersImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE58);
+    throw new Error(OUTSIDE_CTX_MESSAGE59);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "head-and-shoulders",
@@ -6015,17 +6062,17 @@ function headAndShouldersImpl(slotId, anchors, opts) {
 }
 function headAndShoulders(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE58);
+    throw new Error(OUTSIDE_CTX_MESSAGE59);
   }
   return headAndShouldersImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/patterns/threeDrivesPattern.js
-var OUTSIDE_CTX_MESSAGE59 = "draw.threeDrivesPattern called outside an active script step";
+var OUTSIDE_CTX_MESSAGE60 = "draw.threeDrivesPattern called outside an active script step";
 function threeDrivesPatternImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE59);
+    throw new Error(OUTSIDE_CTX_MESSAGE60);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "three-drives-pattern",
@@ -6036,17 +6083,17 @@ function threeDrivesPatternImpl(slotId, anchors, opts) {
 }
 function threeDrivesPattern(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE59);
+    throw new Error(OUTSIDE_CTX_MESSAGE60);
   }
   return threeDrivesPatternImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/patterns/trianglePattern.js
-var OUTSIDE_CTX_MESSAGE60 = "draw.trianglePattern called outside an active script step";
+var OUTSIDE_CTX_MESSAGE61 = "draw.trianglePattern called outside an active script step";
 function trianglePatternImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE60);
+    throw new Error(OUTSIDE_CTX_MESSAGE61);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "triangle-pattern",
@@ -6057,51 +6104,51 @@ function trianglePatternImpl(slotId, anchors, opts) {
 }
 function trianglePattern(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE60);
+    throw new Error(OUTSIDE_CTX_MESSAGE61);
   }
   return trianglePatternImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/patterns/xabcdPattern.js
-var OUTSIDE_CTX_MESSAGE61 = "draw.xabcdPattern called outside an active script step";
+var OUTSIDE_CTX_MESSAGE62 = "draw.xabcdPattern called outside an active script step";
 function xabcdPatternImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE61);
+    throw new Error(OUTSIDE_CTX_MESSAGE62);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "xabcd-pattern", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "xabcd-pattern", state2);
 }
 function xabcdPattern(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE61);
+    throw new Error(OUTSIDE_CTX_MESSAGE62);
   }
   return xabcdPatternImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/pitchforks/pitchfan.js
-var OUTSIDE_CTX_MESSAGE62 = "draw.pitchfan called outside an active script step";
+var OUTSIDE_CTX_MESSAGE63 = "draw.pitchfan called outside an active script step";
 function pitchfanImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE62);
+    throw new Error(OUTSIDE_CTX_MESSAGE63);
   const subId = nextSubId(ctx, slotId);
   const state2 = { kind: "pitchfan", anchors, style: opts };
   return createDrawingHandle(slotId, subId, "pitchfan", state2);
 }
 function pitchfan(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE62);
+    throw new Error(OUTSIDE_CTX_MESSAGE63);
   }
   return pitchfanImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/pitchforks/pitchfork.js
-var OUTSIDE_CTX_MESSAGE63 = "draw.pitchfork called outside an active script step";
+var OUTSIDE_CTX_MESSAGE64 = "draw.pitchfork called outside an active script step";
 function pitchforkImpl(slotId, anchors, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE63);
+    throw new Error(OUTSIDE_CTX_MESSAGE64);
   const subId = nextSubId(ctx, slotId);
   const { variant: variantOpt, ...style } = opts;
   const state2 = {
@@ -6114,17 +6161,17 @@ function pitchforkImpl(slotId, anchors, opts) {
 }
 function pitchfork(arg1, arg2, arg3) {
   if (typeof arg1 !== "string" || arg2 === void 0 || !Array.isArray(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE63);
+    throw new Error(OUTSIDE_CTX_MESSAGE64);
   }
   return pitchforkImpl(arg1, arg2, arg3 ?? {});
 }
 
 // ../runtime/dist/emit/draw/table/table.js
-var OUTSIDE_CTX_MESSAGE64 = "draw.table called outside an active script step";
+var OUTSIDE_CTX_MESSAGE65 = "draw.table called outside an active script step";
 function tableImpl(slotId, opts) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null)
-    throw new Error(OUTSIDE_CTX_MESSAGE64);
+    throw new Error(OUTSIDE_CTX_MESSAGE65);
   const subId = nextSubId(ctx, slotId);
   const state2 = {
     kind: "table",
@@ -6138,7 +6185,7 @@ function tableImpl(slotId, opts) {
 }
 function table2(arg1, arg2) {
   if (typeof arg1 !== "string" || arg2 === void 0) {
-    throw new Error(OUTSIDE_CTX_MESSAGE64);
+    throw new Error(OUTSIDE_CTX_MESSAGE65);
   }
   return tableImpl(arg1, arg2);
 }
@@ -6161,6 +6208,7 @@ var KIND_IMPLS = {
   circle,
   ellipse,
   path,
+  fillBetween,
   marker,
   // Task 8 — Curves
   arc,
@@ -6236,7 +6284,7 @@ var DRAW_NAMESPACE = new Proxy(KIND_IMPLS, {
 });
 
 // ../runtime/dist/emit/hline.js
-var OUTSIDE_CTX_MESSAGE65 = "hline called outside an active script step";
+var OUTSIDE_CTX_MESSAGE66 = "hline called outside an active script step";
 function hlineImpl(ctx, slotId, price, opts) {
   const style = {
     kind: "horizontal-line",
@@ -6271,13 +6319,13 @@ function hlineImpl(ctx, slotId, price, opts) {
 }
 function hline2(arg1, arg2, arg3) {
   if (typeof arg1 !== "string") {
-    throw new Error(OUTSIDE_CTX_MESSAGE65);
+    throw new Error(OUTSIDE_CTX_MESSAGE66);
   }
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (!ctx)
-    throw new Error(OUTSIDE_CTX_MESSAGE65);
+    throw new Error(OUTSIDE_CTX_MESSAGE66);
   if (typeof arg2 !== "number") {
-    throw new Error(OUTSIDE_CTX_MESSAGE65);
+    throw new Error(OUTSIDE_CTX_MESSAGE66);
   }
   hlineImpl(ctx, arg1, arg2, arg3 ?? {});
 }
@@ -6395,7 +6443,7 @@ function buildRuntimeNamespace(ctx) {
 }
 
 // ../runtime/dist/emit/plot.js
-var OUTSIDE_CTX_MESSAGE66 = "plot called outside an active script step";
+var OUTSIDE_CTX_MESSAGE67 = "plot called outside an active script step";
 function isSeriesNumber(v) {
   return typeof v === "object" && v !== null && "current" in v;
 }
@@ -6495,13 +6543,13 @@ function plotImpl(ctx, slotId, value, opts) {
 }
 function plot2(arg1, arg2, arg3) {
   if (typeof arg1 !== "string") {
-    throw new Error(OUTSIDE_CTX_MESSAGE66);
+    throw new Error(OUTSIDE_CTX_MESSAGE67);
   }
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (!ctx)
-    throw new Error(OUTSIDE_CTX_MESSAGE66);
+    throw new Error(OUTSIDE_CTX_MESSAGE67);
   if (!isNumberOrSeries(arg2)) {
-    throw new Error(OUTSIDE_CTX_MESSAGE66);
+    throw new Error(OUTSIDE_CTX_MESSAGE67);
   }
   plotImpl(ctx, arg1, arg2, arg3 ?? {});
 }
@@ -14788,13 +14836,13 @@ async function runSiblingStep(sibling, parentState, rawBar, eventKind, isTick) {
 
 // ../runtime/dist/dep/depOutput.js
 var DEP_OUTPUT_GLOBAL_KEY = "__chartlang_depOutput";
-var OUTSIDE_CTX_MESSAGE67 = "__chartlang_depOutput called outside an active script step";
+var OUTSIDE_CTX_MESSAGE68 = "__chartlang_depOutput called outside an active script step";
 var NO_STORE_MESSAGE = "__chartlang_depOutput called on a runner with no dep output store";
 var NAN_SERIES = makeSeriesView(new Float64RingBuffer(1));
 function __chartlang_depOutput(slotId, localId, title) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
-    throw new Error(OUTSIDE_CTX_MESSAGE67);
+    throw new Error(OUTSIDE_CTX_MESSAGE68);
   }
   const store = ctx.depOutputStore;
   if (store === void 0 || store === null) {

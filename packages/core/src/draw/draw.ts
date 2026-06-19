@@ -7,6 +7,7 @@ import type {
     ArrowOpts,
     BrushStyle,
     FibOpts,
+    FillBetweenStyle,
     FrameOpts,
     HighlighterStyle,
     LineDrawStyle,
@@ -72,6 +73,17 @@ export type DrawNamespace = {
     circle(centre: WorldPoint, radiusAnchor: WorldPoint, opts?: ShapeStyle): DrawingHandle;
     ellipse(a: WorldPoint, b: WorldPoint, opts?: ShapeStyle): DrawingHandle;
     path(anchors: ReadonlyArray<WorldPoint>, opts?: PathOpts): DrawingHandle;
+    /**
+     * Fill the ribbon between two edges. Each edge is a list of world
+     * anchors; the filled region is the closed polygon `edgeA` forward
+     * then `edgeB` reversed. The native equivalent of Pine
+     * `linefill.new(line1, line2, color)` / `fill(plot1, plot2)`.
+     */
+    fillBetween(
+        edgeA: ReadonlyArray<WorldPoint>,
+        edgeB: ReadonlyArray<WorldPoint>,
+        opts?: FillBetweenStyle,
+    ): DrawingHandle;
     marker(
         anchor: WorldPoint,
         opts?: TextOpts & { readonly text?: string; readonly value?: number },

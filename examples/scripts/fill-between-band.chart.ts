@@ -1,0 +1,49 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { type WorldPoint, defineIndicator, draw, plot, ta } from "@invinite-org/chartlang-core";
+
+// Two persistent edge arrays, accumulated one `{ time, price }` vertex per
+// bar. They live at module scope (not `state.*`) because they are the
+// drawing's geometry, re-snapshotted into one `draw.fillBetween` callsite
+// every bar — the same per-bar-re-emit idiom the ray/line examples use.
+const fastEdge: WorldPoint[] = [];
+const slowEdge: WorldPoint[] = [];
+
+export default defineIndicator({
+    name: "Fill Between Band",
+    apiVersion: 1,
+    overlay: true,
+    // One ribbon, re-emitted every bar from the same source line, so a single
+    // "polylines" slot (fill-between's bucket) is the whole drawing budget.
+    maxDrawings: { lines: 0, labels: 0, boxes: 0, polylines: 1, other: 0 },
+    compute({ bar, ta, plot, draw }) {
+        const fast = ta.ema(bar.close, 12);
+        const slow = ta.ema(bar.close, 26);
+
+        // Plot the two EMAs so the band's edges are visible on the candles.
+        plot(fast, { color: "#3b82f6", title: "EMA(12)" });
+        plot(slow, { color: "#9ca3af", title: "EMA(26)" });
+
+        // Grow both edges by one vertex per bar. The fill is the closed
+        // polygon `fastEdge` forward then `slowEdge` reversed, so the two
+        // running EMAs become the top and bottom of a filled ribbon.
+        if (Number.isFinite(fast.current) && Number.isFinite(slow.current)) {
+            fastEdge.push({ time: bar.time, price: fast.current });
+            slowEdge.push({ time: bar.time, price: slow.current });
+        }
+
+        // Re-emit the band from this same source line every bar. The runtime
+        // keys the callsite by its injected slot id and merges each
+        // re-emission into one persistent drawing, so the ribbon simply
+        // extends to the new bar rather than stacking a fresh fill each step.
+        if (fastEdge.length >= 2) {
+            draw.fillBetween(fastEdge, slowEdge, {
+                fill: "#3b82f6",
+                fillAlpha: 0.2,
+                color: "#3b82f6",
+                lineWidth: 1,
+            });
+        }
+    },
+});

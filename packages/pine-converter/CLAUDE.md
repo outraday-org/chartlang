@@ -826,20 +826,30 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `draw.polyline(…)` + `polyline-curved-anchors-warning`; otherwise
   `draw.polyline(…)`. `line_color` lowers via `convertColor`. `polyline.delete`
   emits the `remove()` + `set(null)` slot-clear.
-- **Static linefill → `draw.rotatedRectangle`, NOT `draw.path`.** `PathOpts`
-  (`LineDrawStyle & { closed? }`) carries NO `fill`; only `ShapeStyle`
-  (rectangle / rotatedRectangle / triangle) has `fill`/`fillAlpha`.
-  `draw.rotatedRectangle(anchors: AnchorQuad, opts?: ShapeStyle)` is the only
-  fill-capable arbitrary-quad primitive, so a `linefill.new(lineA, lineB,
-  color)` lowers to a `draw.rotatedRectangle([aA, aB, bB, bA] as const, { fill,
-  fillAlpha: 1 })` quad whose corners are the two referenced lines' endpoints
-  (resolved via `resolveAnchorExpr` + `anchorToWorldPoint` off each line's
-  `line.new` camp-a site). Best-effort — chartlang ships no fill-between-series
-  primitive — so it raises `linefill-rotatedrect-approximated` (always) and,
-  when both lines are re-anchored every bar (`line.set_*`), `linefill-series-fill`.
-  `linefill.set_color` folds into a `style` update; `linefill.delete` clears the
-  slot. The handle slot kind is `rectangle` (the chartlang `DrawingState` family
-  for `draw.rotatedRectangle`).
+- **Static linefill → `draw.fillBetween`, a true filled band.** A
+  `linefill.new(lineA, lineB, color)` lowers to `draw.fillBetween([aA, aB],
+  [bA, bB], { fill })` whose two edges are the referenced lines' endpoints
+  (`edgeA` = lineA's, `edgeB` = lineB's; resolved via `resolveAnchorExpr` +
+  `anchorToWorldPoint` off each line's `line.new` camp-a site). The runtime
+  reverses `edgeB`, so passing `[bA, bB]` closes the same `A1 → A2 → B2 → B1`
+  polygon the old `draw.rotatedRectangle` quad described — but now it is a
+  first-class fill, not an approximation. The fill colour comes from
+  `convertColor` (a `color.new(base, transp)` folds losslessly into a
+  `#RRGGBBAA` hex, so the alpha lives in the colour and NO separate
+  `fillAlpha` is emitted). The handle slot kind is `fill-between` (the
+  `DrawingState` family for `draw.fillBetween`); the create/update body is
+  `if (slot.current() === null) { slot.set(draw.fillBetween(edgeA, edgeB,
+  opts)); } else { slot.current()?.update({ edgeA, edgeB }); }`.
+  `linefill.set_color` folds into a `style` update; `linefill.delete` clears
+  the slot. A `color.new(...)` fill still raises
+  `linefill-color-transp-approximated` (the transp → 8-bit alpha hex is a
+  rounding); when both lines are re-anchored every bar (`line.set_*`),
+  `linefill-series-fill` (info) marks the band as tracking both lines'
+  latest anchors. The dynamic forms still hard-reject: a cross-collection
+  `linefill.new(array.get(...))` → `cross-collection-linefill` (Camp C); a
+  linefill over a ring's elements → `linefill-over-ring` (Camp B). The
+  `linefill-rotatedrect-approximated` info was RETIRED (the lowering is no
+  longer an approximation).
 - **`convertColor(node, annotations)` + `transpToAlphaHex(transp)`
   (`colorConvert.ts`) are the shared colour helpers.** `color.new(base, transp)`
   with a compile-time `#RRGGBB` base (a `color.*` enum or `#RRGGBB` literal) and
@@ -852,8 +862,10 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   fill colour arg is a `color.new(...)`.
 - **New codes (APPENDED to `diagnostics/codes.ts`, no reorder):**
   `polyline-curved-anchors-warning` (warning), `polyline-closed-info` (info),
-  `linefill-series-fill` (info), `linefill-color-transp-approximated` (info),
-  `linefill-rotatedrect-approximated` (info). `polyline-dynamic-points` already
+  `linefill-series-fill` (info), `linefill-color-transp-approximated` (info).
+  (`linefill-rotatedrect-approximated` was added here then RETIRED when the
+  linefill lowering moved from `draw.rotatedRectangle` to `draw.fillBetween`.)
+  `polyline-dynamic-points` already
   existed (a Task-12 code) and is REUSED — `transformCampC`'s `classifyReject`
   no longer returns it (the dead polyline arm was removed when Camp C handed
   polyline to Task 14).

@@ -320,19 +320,12 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** `linefill.new` over ring-buffer elements has no chartlang analogue (Camp C territory).
 - **Suggested fix:** Draw the fill as an explicit `draw.rectangle`/`draw.frame` instead.
 
-### linefill-rotatedrect-approximated
-
-- **Code:** `pine-converter/transform/linefill-rotatedrect-approximated`
-- **Severity:** info
-- **Message:** `linefill.new(lineA, lineB)` is approximated as a filled `draw.rotatedRectangle` quad over the two lines' endpoints; chartlang has no dedicated fill-between-lines primitive.
-- **Suggested fix:** Accept the quad approximation, or revisit when a fill-between-series primitive ships.
-
 ### linefill-series-fill
 
 - **Code:** `pine-converter/transform/linefill-series-fill`
 - **Severity:** info
-- **Message:** A `linefill` between two bar-by-bar updated lines is a series fill; chartlang has no plot-fill primitive yet, so it is approximated as a single updated quad.
-- **Suggested fix:** Revisit when chartlang ships a `plot(...)` series-fill primitive.
+- **Message:** A `linefill` between two bar-by-bar updated lines lowers to a single `draw.fillBetween` band that tracks the two lines' latest anchors each bar.
+- **Suggested fix:** No action needed; the band re-anchors to both lines every bar.
 
 ### loop-body-unrolled
 

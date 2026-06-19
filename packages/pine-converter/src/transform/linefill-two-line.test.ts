@@ -38,14 +38,23 @@ const TWO_LINE = [
 ].join("\n");
 
 describe("transformPolylineLinefill — static two-line linefill", () => {
-    it("synthesizes a draw.rotatedRectangle quad over the two lines' endpoints", () => {
+    it("lowers to a draw.fillBetween band over the two lines' endpoints", () => {
         const { scaffold } = run(TWO_LINE);
         const stmt = scaffold.computeBody.statements[0];
-        expect(stmt).toContain("draw.rotatedRectangle(");
-        // Corners: lineA endpoints (high, high) then lineB endpoints (low, low),
-        // ordered [aA, aB, bB, bA] for a closed loop.
-        expect(stmt).toContain("bar.point(0, bar.high)");
-        expect(stmt).toContain("bar.point(0, bar.low)");
+        expect(stmt).toContain("draw.fillBetween(");
+        // edgeA = lineA endpoints (high, high), edgeB = lineB endpoints
+        // (low, low), passed in [A1, A2] / [B1, B2] order.
+        expect(stmt).toContain(
+            "draw.fillBetween([bar.point(0, bar.high), bar.point(0, bar.high)], " +
+                "[bar.point(0, bar.low), bar.point(0, bar.low)]",
+        );
+    });
+
+    it("does not raise the removed rotatedRectangle approximation info", () => {
+        const { diagnostics } = run(TWO_LINE);
+        expect(codes(diagnostics)).not.toContain(
+            "pine-converter/transform/linefill-rotatedrect-approximated",
+        );
     });
 
     it("converts the alpha colour from color.new(color.gray, 80) to #787B8633", () => {
@@ -53,23 +62,23 @@ describe("transformPolylineLinefill — static two-line linefill", () => {
         expect(scaffold.computeBody.statements[0]).toContain('fill: "#787B8633"');
     });
 
-    it("registers one rectangle-kind handle slot for the fill", () => {
+    it("registers one fill-between-kind handle slot for the fill", () => {
         const { scaffold } = run(TWO_LINE);
-        expect(scaffold.handleSlots).toEqual([{ name: "fill", kind: "rectangle", compact: false }]);
+        expect(scaffold.handleSlots).toEqual([
+            { name: "fill", kind: "fill-between", compact: false },
+        ]);
     });
 
-    it("emits create-once then per-bar update of the quad anchors", () => {
+    it("emits create-once then per-bar update of the band edges", () => {
         const { scaffold } = run(TWO_LINE);
         const stmt = scaffold.computeBody.statements[0];
         expect(stmt).toContain("=== null");
-        expect(stmt).toContain("update({ anchors:");
+        expect(stmt).toContain("update({ edgeA:");
+        expect(stmt).toContain("edgeB:");
     });
 
-    it("raises the rotatedRectangle + color-transp approximation infos", () => {
+    it("raises the color-transp approximation info for a color.new fill", () => {
         const { diagnostics } = run(TWO_LINE);
-        expect(codes(diagnostics)).toContain(
-            "pine-converter/transform/linefill-rotatedrect-approximated",
-        );
         expect(codes(diagnostics)).toContain(
             "pine-converter/transform/linefill-color-transp-approximated",
         );
@@ -124,7 +133,10 @@ describe("transformPolylineLinefill — static two-line linefill", () => {
 });
 
 describe("transformPolylineLinefill — Camp C ownership split", () => {
-    function pipeline(body: string): DiagnosticCollector {
+    function pipeline(body: string): {
+        scaffold: ScriptScaffold;
+        diagnostics: DiagnosticCollector;
+    } {
         const src = `//@version=6\nindicator("X", overlay=true)\n${body}\nplot(close)\n`;
         const analysis = analyze(parseStatements(lex(src).tokens).script);
         const decl = analysis.script.declaration;
@@ -142,17 +154,16 @@ describe("transformPolylineLinefill — Camp C ownership split", () => {
             transformCampC(site, analysis, scaffold, diagnostics);
         }
         transformPolylineLinefill(analysis, scaffold, diagnostics);
-        return diagnostics;
+        return { scaffold, diagnostics };
     }
 
     it("does NOT hard-reject a static two-line linefill via Camp C", () => {
-        const diagnostics = pipeline(TWO_LINE);
+        const { scaffold, diagnostics } = pipeline(TWO_LINE);
         expect(codes(diagnostics)).not.toContain(
             "pine-converter/semantic/unbounded-handle-collection",
         );
-        expect(codes(diagnostics)).toContain(
-            "pine-converter/transform/linefill-rotatedrect-approximated",
-        );
+        // Camp C defers it; the polyline/linefill transform lowers the fill.
+        expect(scaffold.computeBody.statements[0]).toContain("draw.fillBetween(");
     });
 
     it("leaves a cross-collection linefill (array.get) to Camp C's reject", () => {
@@ -161,7 +172,7 @@ describe("transformPolylineLinefill — Camp C ownership split", () => {
             "var b = array.new_line()",
             "lf = linefill.new(array.get(a, 0), array.get(b, 0), color.red)",
         ].join("\n");
-        const diagnostics = pipeline(body);
+        const { diagnostics } = pipeline(body);
         expect(codes(diagnostics)).toContain("pine-converter/transform/cross-collection-linefill");
     });
 });

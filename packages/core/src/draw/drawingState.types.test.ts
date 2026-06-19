@@ -28,6 +28,7 @@ function exhaustiveSwitch(kind: DrawingKind): string {
         case "circle":
         case "ellipse":
         case "path":
+        case "fill-between":
         case "marker":
         case "arc":
         case "curve":

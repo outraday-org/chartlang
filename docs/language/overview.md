@@ -78,6 +78,41 @@ The frozen primitive namespaces are:
 | `runtime.log.*`, `runtime.error` | debug logs and fatal halt | [Alerts § logs](./alerts.md#runtime-logs) |
 | `color`, `rgb`, `hsl`, `withAlpha`, `fromGradient` | color helpers | core export |
 
+### Bands and fills
+
+`draw.fillBetween(edgeA, edgeB, opts?)` fills the ribbon between two
+edges, each a list of `WorldPoint`s. The filled region is the closed
+polygon `edgeA` forward then `edgeB` reversed, so the two edges need not
+share x-coordinates or length — the same primitive the Pine converter
+lowers `linefill.new` to.
+
+```ts
+// Two edges accumulate one vertex per bar and the band is re-emitted
+// from the same callsite every step, so the ribbon simply extends.
+const upperEdge: WorldPoint[] = [];
+const lowerEdge: WorldPoint[] = [];
+
+compute({ bar, ta, draw }) {
+    const upper = ta.ema(bar.high, 20);
+    const lower = ta.ema(bar.low, 20);
+    if (Number.isFinite(upper) && Number.isFinite(lower)) {
+        upperEdge.push({ time: bar.time, price: upper });
+        lowerEdge.push({ time: bar.time, price: lower });
+    }
+    if (upperEdge.length >= 2) {
+        draw.fillBetween(upperEdge, lowerEdge, { fill: "#3b82f6", fillAlpha: 0.2 });
+    }
+}
+```
+
+`FillBetweenStyle` carries `fill` / `fillAlpha` plus an optional stroke.
+Each edge needs at least two finite anchors: guard warmup in-script (the
+`Number.isFinite` + `length >= 2` checks above) — an edge with fewer than
+two points or a `NaN` price is dropped with a `malformed-emission`
+diagnostic for that frame. See
+[`draw.fillBetween`](../primitives/draw/fill-between) for the full
+signature.
+
 ## The `compute` contract
 
 The runtime calls `compute(ctx)` once per main-stream `history` /

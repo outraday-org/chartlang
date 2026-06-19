@@ -24,6 +24,7 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/sma-offset.chart.ts",
     "examples/scripts/pivot-high-ray.chart.ts",
     "examples/scripts/forecast-line.chart.ts",
+    "examples/scripts/fill-between-band.chart.ts",
 ] as const;
 
 const COMPILE_TIMEOUT_MS = 15_000;

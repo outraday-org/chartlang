@@ -1,6 +1,6 @@
 # Task 1 — Core `fill-between` kind + state + style, and canvas2d renderer
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

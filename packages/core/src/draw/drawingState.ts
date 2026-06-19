@@ -7,6 +7,7 @@ import type {
     ArrowOpts,
     BrushStyle,
     FibOpts,
+    FillBetweenStyle,
     FrameOpts,
     HighlighterStyle,
     LineDrawStyle,
@@ -323,6 +324,31 @@ export type PathState = DrawingMeta & {
     readonly kind: "path";
     readonly anchors: ReadonlyArray<WorldPoint>;
     readonly style: PathOpts;
+};
+
+/**
+ * State for a `fill-between` drawing: a filled ribbon between two edges.
+ * Each edge is an ordered list of world anchors; the rendered region is
+ * the closed polygon `edgeA` forward then `edgeB` reversed.
+ *
+ * @formula N/A — drawing state payload
+ * @anchors `edgeA`, `edgeB` — two `ReadonlyArray<WorldPoint>`
+ * @since 0.4
+ * @stable
+ * @example
+ *     const state: FillBetweenState = {
+ *         kind: "fill-between",
+ *         edgeA: [{ time: 0, price: 1 }],
+ *         edgeB: [{ time: 0, price: 0 }],
+ *         style: { fill: "#3b82f6" },
+ *     };
+ *     void state;
+ */
+export type FillBetweenState = DrawingMeta & {
+    readonly kind: "fill-between";
+    readonly edgeA: ReadonlyArray<WorldPoint>;
+    readonly edgeB: ReadonlyArray<WorldPoint>;
+    readonly style: FillBetweenStyle;
 };
 
 /**
@@ -1482,7 +1508,7 @@ export type TableState = DrawingMeta & {
  * `authorId`, `parentGroupId`, `parentFrameId`, `visibleIntervals`)
  * from the invinite source are stripped.
  *
- * The 62 variants here are intentionally minimal shells. Tasks 5–18
+ * The 63 variants here are intentionally minimal shells. Tasks 5–18
  * (per-category ports) refine each variant's geometry + style payload
  * against the invinite source-of-truth. Exhaustiveness is asserted via
  * the `(k satisfies never)` switch in `drawingState.types.test.ts`.
@@ -1513,6 +1539,7 @@ export type DrawingState =
     | CircleState
     | EllipseState
     | PathState
+    | FillBetweenState
     | MarkerState
     | ArcState
     | CurveState

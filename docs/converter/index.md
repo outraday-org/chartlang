@@ -60,9 +60,10 @@ silent mistranslations:
 - **Unbounded dynamic drawing collections** — a collection with no
   detectable cap (no `max_*_count`, no ring-buffer eviction) hard-rejects;
   cap it to land in a bounded camp.
-- **`linefill` between two lines** is approximated as a filled
-  `draw.rotatedRectangle` quad — chartlang has no fill-between-series
-  primitive yet.
+- **Dynamic `linefill`** — a `linefill.new` over a ring buffer or across
+  two collections hard-rejects (`linefill-over-ring`,
+  `cross-collection-linefill`). The static two-line form lowers cleanly to
+  `draw.fillBetween`.
 
 See the [reject catalogue](./rejects.md) for the full list with the
 recommended Pine rewrites, and the

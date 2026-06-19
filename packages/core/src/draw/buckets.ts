@@ -59,6 +59,7 @@ export const KIND_BUCKET: ReadonlyMap<DrawingKind, DrawingBucket> = new Map<
     ["circle", "boxes"],
     ["ellipse", "boxes"],
     ["path", "polylines"],
+    ["fill-between", "polylines"],
     ["marker", "labels"],
     ["arc", "polylines"],
     ["curve", "polylines"],

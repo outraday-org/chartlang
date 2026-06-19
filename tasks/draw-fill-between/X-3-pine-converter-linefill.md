@@ -1,6 +1,6 @@
 # Task 3 — Pine converter: lower `linefill.new` to `draw.fillBetween`
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

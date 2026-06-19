@@ -80,12 +80,12 @@ describe("primitives — draw seam (Phase-3 Tasks 3 + 5 wired)", () => {
 
     it("ships a real runtime impl for every DrawingKind (no core stubs after Task 18)", () => {
         // Phase-3 cardinality gate: after Task 18 the runtime
-        // `DRAW_NAMESPACE` carries a real impl for every shipped
-        // `DrawingKind`s. Each method must throw the runtime sentinel
+        // `DRAW_NAMESPACE` carries a real impl for every wired
+        // `DrawingKind`. Each method must throw the runtime sentinel
         // (`"called outside an active script step"`) when called bare
         // — NOT the core stub sentinel
         // (`"called outside compiled runtime"`).
-        expect(DRAWING_KINDS.length).toBe(62);
+        expect(DRAWING_KINDS.length).toBe(63);
         for (const kind of DRAWING_KINDS) {
             const camel = KIND_CAMELCASE.get(kind);
             if (camel === undefined) throw new Error(`missing camel mapping for ${kind}`);

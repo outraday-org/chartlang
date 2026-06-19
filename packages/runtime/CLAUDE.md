@@ -149,6 +149,23 @@
   is null. The overload pattern is the seam that lets the runtime
   satisfy core's `ComputeContext.plot = typeof corePlot` typing
   while delivering a slotId-aware impl at runtime.
+- **`draw.fillBetween` is wired into `emit/draw/namespace.ts`
+  `KIND_IMPLS` (Boxes-B group, after `path`).** Its emit
+  (`emit/draw/boxes/fillBetween.ts`) snapshots both edges + style AS
+  GIVEN and never validates at emit time — but `pushDrawing` then runs
+  `validateEmission` like every other drawing, so a frame whose edge has
+  fewer than 2 finite anchors (empty, single-point, or a `NaN`
+  coordinate) is dropped with a `malformed-emission` diagnostic (NOT a
+  silent renderer no-op). Scripts guard warmup in-script — accumulate,
+  then gate on `length >= 2` + `Number.isFinite`, as
+  `examples/scripts/fill-between-band.chart.ts` does. `renderFillBetween`
+  additionally guards degenerate geometry as defence-in-depth. The two
+  `WorldPoint`
+  edges need not share x-coordinates or length; the rendered region is
+  the closed polygon `edgeA` forward then `edgeB` reversed. The
+  3-overload impl branches on `typeof arg1 === "string"` AND confirms
+  both edges are arrays before dispatching (the bare script-facing form
+  always throws the active-step sentinel).
 - **`RuntimeContext.plotOverrides` is the one mutable presentation
   field — frozen entries, swappable container.** Resolved once at mount
   (`args.plotOverrides ?? args.resolvePlotOverrides?.(name) ?? {}`) and

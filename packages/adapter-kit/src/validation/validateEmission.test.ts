@@ -1003,6 +1003,23 @@ const validPath = {
     },
 };
 
+const validFillBetween = {
+    ...validLineDrawing,
+    drawingKind: "fill-between" as const,
+    state: {
+        kind: "fill-between" as const,
+        edgeA: [
+            { time: 0, price: 1 },
+            { time: 1, price: 1 },
+        ],
+        edgeB: [
+            { time: 0, price: 0 },
+            { time: 1, price: 0 },
+        ],
+        style: { fill: "#3b82f6" },
+    },
+};
+
 const validMarker = {
     ...validLineDrawing,
     drawingKind: "marker" as const,
@@ -2486,6 +2503,115 @@ describe("validateEmission — drawing path kind", () => {
                 state: { ...validPath.state, style: { lineWidth: 0 } },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+});
+
+describe("validateEmission — drawing fill-between kind", () => {
+    it("accepts a well-formed fill-between band", () => {
+        expect(validateEmission(validFillBetween)).toEqual({ ok: true });
+    });
+
+    it("accepts a fill-between with full stroke + fill style", () => {
+        expect(
+            validateEmission({
+                ...validFillBetween,
+                state: {
+                    ...validFillBetween.state,
+                    style: {
+                        color: "#1e293b",
+                        lineWidth: 2,
+                        lineStyle: "dashed",
+                        fill: "#3b82f6",
+                        fillAlpha: 0.2,
+                    },
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("accepts a long series-grown band (well past the discrete 20-point tool cap)", () => {
+        // A fill-between band accumulates one vertex per bar, so its edges grow
+        // far beyond the `path` / `polyline` 20-point cap. 50 points per edge
+        // must validate (the cap is sized to a full chart history).
+        const longEdge = Array.from({ length: 50 }, (_v, i) => ({ time: i, price: i % 2 }));
+        expect(
+            validateEmission({
+                ...validFillBetween,
+                state: { ...validFillBetween.state, edgeA: longEdge, edgeB: longEdge },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects fewer than 2 anchors on edgeA", () => {
+        expect(
+            validateEmission({
+                ...validFillBetween,
+                state: { ...validFillBetween.state, edgeA: [{ time: 0, price: 1 }] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("edgeA") });
+    });
+
+    it("rejects fewer than 2 anchors on edgeB", () => {
+        expect(
+            validateEmission({
+                ...validFillBetween,
+                state: { ...validFillBetween.state, edgeB: [{ time: 0, price: 0 }] },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("edgeB") });
+    });
+
+    it("rejects a non-object style", () => {
+        expect(
+            validateEmission({
+                ...validFillBetween,
+                state: { ...validFillBetween.state, style: null },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style") });
+    });
+
+    it("rejects a non-string color", () => {
+        expect(
+            validateEmission({
+                ...validFillBetween,
+                state: { ...validFillBetween.state, style: { color: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("color") });
+    });
+
+    it("rejects an invalid lineWidth", () => {
+        expect(
+            validateEmission({
+                ...validFillBetween,
+                state: { ...validFillBetween.state, style: { lineWidth: 0 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+    });
+
+    it("rejects an invalid lineStyle", () => {
+        expect(
+            validateEmission({
+                ...validFillBetween,
+                state: { ...validFillBetween.state, style: { lineStyle: "wavy" } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineStyle") });
+    });
+
+    it("rejects a non-string fill", () => {
+        expect(
+            validateEmission({
+                ...validFillBetween,
+                state: { ...validFillBetween.state, style: { fill: 42 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("fill") });
+    });
+
+    it("rejects a fillAlpha outside [0, 1]", () => {
+        expect(
+            validateEmission({
+                ...validFillBetween,
+                state: { ...validFillBetween.state, style: { fillAlpha: 1.5 } },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("fillAlpha") });
     });
 });
 

@@ -36,6 +36,7 @@ import {
     type FibTrendExtensionState,
     type FibTrendTimeState,
     type FibWedgeState,
+    type FillBetweenState,
     type FlatTopBottomState,
     type FrameState,
     type GannBoxState,
@@ -110,6 +111,9 @@ const TASK_7_BOX_B_KINDS: ReadonlySet<DrawingKind> = new Set([
     "path",
     "marker",
 ]);
+
+// Fill-between ribbon shipped with the Phase-2 fill-between primitive.
+const FILL_BETWEEN_KINDS: ReadonlySet<DrawingKind> = new Set(["fill-between"]);
 
 // Curve + freehand kinds shipped in Task 8.
 const TASK_8_CURVE_FREEHAND_KINDS: ReadonlySet<DrawingKind> = new Set([
@@ -207,6 +211,7 @@ const RENDERING_KINDS: ReadonlySet<DrawingKind> = new Set([
     ...TASK_5_LINE_KINDS,
     ...TASK_6_BOX_A_KINDS,
     ...TASK_7_BOX_B_KINDS,
+    ...FILL_BETWEEN_KINDS,
     ...TASK_8_CURVE_FREEHAND_KINDS,
     ...TASK_9_ANNOTATION_KINDS,
     ...TASK_10_CHANNEL_KINDS,
@@ -350,6 +355,21 @@ function syntheticState(kind: DrawingKind): DrawingState {
                 { time: 100, price: 0 },
             ],
             style: {},
+        };
+        return s;
+    }
+    if (kind === "fill-between") {
+        const s: FillBetweenState = {
+            kind: "fill-between",
+            edgeA: [
+                { time: 0, price: 80 },
+                { time: 100, price: 80 },
+            ],
+            edgeB: [
+                { time: 0, price: 20 },
+                { time: 100, price: 20 },
+            ],
+            style: { fill: "#3b82f6", fillAlpha: 0.2 },
         };
         return s;
     }
@@ -988,6 +1008,14 @@ describe("drawingDispatch — Tasks 5–18 shipped kinds touch the context", () 
         drawingDispatch(ctx, syntheticEmission("path", "create"), VIEW);
         expect(ctx.calls.filter((c) => c.kind === "closePath")).toHaveLength(0);
         expect(ctx.calls.filter((c) => c.kind === "stroke")).toHaveLength(1);
+    });
+
+    it("'fill-between' fills a closed polygon (closePath + fill, no stroke when color unset)", () => {
+        const ctx = new MockCanvas2DContext();
+        drawingDispatch(ctx, syntheticEmission("fill-between", "create"), VIEW);
+        expect(ctx.calls.filter((c) => c.kind === "closePath")).toHaveLength(1);
+        expect(ctx.calls.filter((c) => c.kind === "fill")).toHaveLength(1);
+        expect(ctx.calls.filter((c) => c.kind === "stroke")).toHaveLength(0);
     });
 
     it("'marker' issues exactly one fillText call (no stroke / beginPath)", () => {

@@ -20,6 +20,7 @@ const EXPECTED_ORDER: ReadonlyArray<DrawingKind> = [
     "circle",
     "ellipse",
     "path",
+    "fill-between",
     "marker",
     "arc",
     "curve",
@@ -72,8 +73,8 @@ const EXPECTED_ORDER: ReadonlyArray<DrawingKind> = [
 ];
 
 describe("DRAWING_KINDS", () => {
-    it("contains exactly 62 entries", () => {
-        expect(DRAWING_KINDS.length).toBe(62);
+    it("contains exactly 63 entries", () => {
+        expect(DRAWING_KINDS.length).toBe(63);
     });
 
     it("matches the canonical wire-stable order", () => {
@@ -90,8 +91,8 @@ describe("DRAWING_KINDS", () => {
 });
 
 describe("KIND_CAMELCASE", () => {
-    it("has 62 entries (one per kind)", () => {
-        expect(KIND_CAMELCASE.size).toBe(62);
+    it("has 63 entries (one per kind)", () => {
+        expect(KIND_CAMELCASE.size).toBe(63);
     });
 
     it("covers every kind in DRAWING_KINDS", () => {
@@ -122,8 +123,8 @@ describe("KIND_CAMELCASE", () => {
 });
 
 describe("KIND_KEBABCASE", () => {
-    it("has 62 entries (round-trip of KIND_CAMELCASE)", () => {
-        expect(KIND_KEBABCASE.size).toBe(62);
+    it("has 63 entries (round-trip of KIND_CAMELCASE)", () => {
+        expect(KIND_KEBABCASE.size).toBe(63);
     });
 
     it("round-trips KIND_CAMELCASE for every kind", () => {

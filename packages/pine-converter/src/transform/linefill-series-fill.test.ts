@@ -40,9 +40,9 @@ const SERIES = [
 ].join("\n");
 
 describe("transformPolylineLinefill — series-fill detection", () => {
-    it("emits the quad + a linefill-series-fill info when both lines update each bar", () => {
+    it("emits the band + a linefill-series-fill info when both lines update each bar", () => {
         const { scaffold, diagnostics } = run(SERIES);
-        expect(scaffold.computeBody.statements[0]).toContain("draw.rotatedRectangle(");
+        expect(scaffold.computeBody.statements[0]).toContain("draw.fillBetween(");
         expect(codes(diagnostics)).toContain("pine-converter/transform/linefill-series-fill");
     });
 

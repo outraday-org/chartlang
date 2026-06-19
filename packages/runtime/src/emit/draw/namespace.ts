@@ -11,6 +11,7 @@ import { arrowMarker } from "./annotations/arrowMarker.js";
 import { text } from "./annotations/text.js";
 import { circle } from "./boxes/circle.js";
 import { ellipse } from "./boxes/ellipse.js";
+import { fillBetween } from "./boxes/fillBetween.js";
 import { marker } from "./boxes/marker.js";
 import { path } from "./boxes/path.js";
 import { polyline } from "./boxes/polyline.js";
@@ -84,6 +85,7 @@ const KIND_IMPLS = {
     circle,
     ellipse,
     path,
+    fillBetween,
     marker,
     // Task 8 — Curves
     arc,
@@ -151,9 +153,10 @@ const KIND_IMPLS = {
 const IMPL_KIND_NAMES: ReadonlySet<string> = new Set(Object.keys(KIND_IMPLS));
 
 /**
- * Runtime `draw` namespace. After Task 18 every one of the 61
- * `DrawingKind`s has a real per-kind impl wired into `KIND_IMPLS`;
- * Phase 5 adds the viewport-anchored `table` kind.
+ * Runtime `draw` namespace. Every one of the 63 `DrawingKind`s has a
+ * real per-kind impl wired into `KIND_IMPLS` (Task 18 brought the count
+ * to 61; Phase 5 added the viewport-anchored `table` kind; the
+ * fill-between feature added `fill-between`).
  * the Proxy's `else` branch (fall-through to the core throwing-stub
  * Proxy) is dead code at runtime — kept as defence-in-depth for
  * unknown property access (e.g. JS code accessing a property name

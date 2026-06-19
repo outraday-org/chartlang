@@ -228,8 +228,8 @@ Highlights of the surface:
 - `ta.*` — moving averages, oscillators, momentum, trend, volatility,
   volume, support/resistance, and statistical helpers (`ema`, `sma`,
   `rsi`, `macd`, `bb`, `atr`, `stoch`, `crossover`, `crossunder`, ...).
-- `draw.*` — lines, boxes, curves, Fibonacci, Gann, pitchforks,
-  harmonic patterns, Elliott waves, cycles.
+- `draw.*` — lines, boxes, curves, fills/bands, Fibonacci, Gann,
+  pitchforks, harmonic patterns, Elliott waves, cycles.
 - `plot(value, opts?)` and `hline(level, opts?)` for per-bar value plots
   and horizontal lines.
 - `alert(message, opts?)` with `severity: "info" | "warning" | "critical"`.

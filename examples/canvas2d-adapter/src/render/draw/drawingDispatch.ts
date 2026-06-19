@@ -35,6 +35,7 @@ import { renderFibTimeZone } from "./fibTimeZone.js";
 import { renderFibTrendExtension } from "./fibTrendExtension.js";
 import { renderFibTrendTime } from "./fibTrendTime.js";
 import { renderFibWedge } from "./fibWedge.js";
+import { renderFillBetween } from "./fillBetween.js";
 import { renderFlatTopBottom } from "./flatTopBottom.js";
 import { renderFrame } from "./frame.js";
 import { renderGannBox } from "./gannBox.js";
@@ -75,10 +76,11 @@ import { renderXabcdPattern } from "./xabcdPattern.js";
  * any new kind added to the union forces this file to grow a case
  * arm or the build fails.
  *
- * Task 4 shipped no-op stubs for all 61 kinds — Tasks 5–18 replaced
- * their kind arms with `renderXxx(ctx, emission, view)` calls to
- * their per-kind renderer. After Task 18 all 61 arms route to a real
- * renderer; the `group` arm routes to a pure no-op `renderGroup` per
+ * Task 4 shipped no-op stubs for the Phase-3 kinds — Tasks 5–18
+ * replaced their kind arms with `renderXxx(ctx, emission, view)` calls
+ * to their per-kind renderer. Every kind now routes to a real renderer
+ * (the `fill-between` arm was added with the Phase-2 ribbon primitive);
+ * the `group` arm routes to a pure no-op `renderGroup` per
  * the Phase-3 `Viewport` contract (no `drawingsById` field — the
  * bounding-box-of-children envelope is a Phase-4 follow-up).
  * `op: "remove"` is always a no-op render
@@ -140,6 +142,9 @@ export function drawingDispatch(ctx: RenderCtx, emission: DrawingEmission, view:
             return;
         case "path":
             renderPath(ctx, emission, view);
+            return;
+        case "fill-between":
+            renderFillBetween(ctx, emission, view);
             return;
         case "marker":
             renderMarker(ctx, emission, view);
