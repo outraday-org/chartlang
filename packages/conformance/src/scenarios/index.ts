@@ -98,6 +98,7 @@ import { DRAW_VERTICAL_LINE_SCENARIO } from "./drawVerticalLine.scenario.js";
 import { DRAW_XABCD_PATTERN_SCENARIO } from "./drawXabcdPattern.scenario.js";
 import { EMA_CROSS_SCENARIO } from "./emaCross.scenario.js";
 import { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario.js";
+import { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 import { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
 import { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario.js";
 import { LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO } from "./lowerTfUnsupportedInterval.scenario.js";
@@ -339,6 +340,7 @@ export { DRAW_TRIANGLE_SCENARIO } from "./drawTriangle.scenario.js";
 export { DRAW_VERTICAL_LINE_SCENARIO } from "./drawVerticalLine.scenario.js";
 export { EMA_CROSS_SCENARIO } from "./emaCross.scenario.js";
 export { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario.js";
+export { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 export { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
 export { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario.js";
 export { LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO } from "./lowerTfUnsupportedInterval.scenario.js";
@@ -503,6 +505,9 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     // Direct bar.close[N] indexing — the manual SMA(5) overlay is byte-
     // identical to ta.sma(close, 5) (both plots pin to the same hash).
     BAR_CLOSE_DIRECT_INDEX_SCENARIO,
+    // Bounded-loop bar.close[i] indexing — the loop SMA(5) tracks
+    // ta.sma(close, 5) bar-for-bar (each plot pins to its own hash).
+    LOOP_SMA_SCENARIO,
     BAR_POINT_TRACKING_LINE_SCENARIO,
     RSI_DIVERGENCE_SCENARIO,
     PLOT_KIND_COVERAGE_SCENARIO,

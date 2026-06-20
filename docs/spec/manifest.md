@@ -25,8 +25,8 @@ MUST round-trip through `JSON.stringify` and `structuredClone` unchanged.
 | `capabilities` | Yes | `CapabilityId[]` | Capability families the script may use: `"indicators"`, `"drawings"`, `"alerts"`, `"alertConditions"`. Values are deduplicated. |
 | `requestedIntervals` | Yes | string array | Secondary interval ids the runtime must register, sorted and deduplicated from request primitives plus `requiresIntervals`. Empty when no secondary stream is needed. |
 | `userPickableInterval` | Yes | boolean | `true` when the input schema contains one `input.interval(...)`; otherwise `false`. |
-| `seriesCapacities` | Yes | record of non-negative integers | Extra per-series history capacities inferred by the compiler. The v1 dynamic-index fallback key is `dynamicFallback: 5000`. |
-| `maxLookback` | Yes | non-negative integer | Largest literal numeric series lookback the compiler found. Runtime main-series capacity is at least `maxLookback + 1`. |
+| `seriesCapacities` | Yes | record of non-negative integers | Extra per-series history capacities inferred by the compiler. The v1 dynamic-index fallback key is `dynamicFallback: 5000`, present **only** for a series index the compiler cannot prove bounded (provably-bounded indices fold into `maxLookback` instead). |
+| `maxLookback` | Yes | non-negative integer | Largest **provably-bounded** numeric series lookback the compiler found — a literal, a bounded-loop induction variable, a `const` numeric literal, or an affine combination of those, not only literal lookbacks. Runtime main-series capacity is at least `maxLookback + 1`. |
 | `maxDrawings` | No | drawing-count object | Per-bucket drawing budget requested by `defineIndicator` or `defineDrawing`. Buckets are `lines`, `labels`, `boxes`, `polylines`, and `other`. |
 | `maxBarsBack` | No | non-negative integer | Author-declared historical lookback override. Alerts and indicators may declare it; drawing scripts do not use it. |
 | `format` | No | `"price"` \| `"volume"` \| `"percent"` \| `"compact"` | Value-formatting hint for axis labels, legends, and cursors. Alert scripts do not use it. |

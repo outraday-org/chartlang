@@ -16,26 +16,52 @@ existing `dynamic-series-index` warning + `dynamicFallback` sizing, unchanged.
 Task 1 (the `state.series` hole + `NumberSeriesSlot` type exist, so a fixture
 using `state.series` type-checks).
 
+> **Concurrent work — same file.** `tasks/bounded-loop-series-index/`
+> currently has **uncommitted** changes to
+> `packages/compiler/src/analysis/extractMaxLookback.ts` (and adds
+> `loopBounds.ts` / `resolveIndexBound.ts`). The two features are **additive
+> and touch different helpers** — that work owns the *index-resolution* path
+> (`resolveIndexUpperBound`), this task owns the *series-recognition* path
+> (`collectSeriesVarNames`). Land on top of whatever is in the tree; do not
+> revert its changes. The "Current Behavior" below reflects the post-bounded-loop
+> state of the file.
+
 ## Current Behavior
 
 - `extractMaxLookback` (`packages/compiler/src/analysis/extractMaxLookback.ts`)
-  walks `ElementAccessExpression` nodes and folds the literal index of a
-  *series-shaped* access into `maxLookback`. Series-shaped is decided by
+  walks `ElementAccessExpression` nodes and, for a *series-shaped* access,
+  runs the index through `resolveIndexUpperBound`
+  (`analysis/resolveIndexBound.ts`) and folds the resolved bound into
+  `maxLookback`. `resolveIndexUpperBound` resolves a numeric **literal**, a
+  bare **bounded-loop induction variable** (`s[i]` inside
+  `for (let i = 0; i < N; i++)` → `N − 1`; `<=` → `N`), and a lexically
+  visible **`const` numeric-literal binding** — only a genuinely
+  unresolvable index returns `null`. Series-shaped is decided by
   `isSeriesShapedAccess`: OHLCV fields (`bar.close[N]`), `ta.*` calls
   (`ta.ema(...)[N]`), and identifiers in `seriesVarNames`.
 - `collectSeriesVarNames` builds `seriesVarNames` by walking
-  `VariableDeclaration` nodes whose initializer is a `ta.*` call. It does
-  **not** recognise a `state.series(...)` initializer, so `const s =
-  state.series(0); … s[3]` contributes **0** to `maxLookback` — the runtime
-  ring would be sized to 1 slot and `s[3]` would always read `NaN`.
-- A non-literal index already produces the `dynamic-series-index` warning and
+  `VariableDeclaration` nodes whose initializer is a `ta.*` call (matched via
+  `resolveCalleeName(...).startsWith("ta.")`). It does **not** recognise a
+  `state.series(...)` initializer, so `const s = state.series(0); … s[3]`
+  contributes **0** to `maxLookback` — the runtime ring would be sized to 1
+  slot and `s[3]` would always read `NaN`.
+- An index that `resolveIndexUpperBound` returns `null` for (genuinely
+  dynamic — not a literal, bounded-loop induction var, or `const`
+  numeric-literal binding) produces the `dynamic-series-index` warning and
   sets `seriesCapacities.dynamicFallback = 5000`.
 
 ## Desired Behavior
 
 - `const s = state.series(0); … const p = s[3];` folds `3` into
   `manifest.maxLookback` (so the runtime sizes the series ring ≥ 4 slots).
-- `const s = state.series(0); … const p = s[i];` (non-literal `i`) trips the
+- A `state.series` index that `resolveIndexUpperBound` already resolves —
+  bounded-loop induction var (`s[i]` inside `for (let i = 0; i < N; i++)`) or
+  `const` numeric binding (`const k = 4; s[k]`) — folds its resolved bound
+  into `maxLookback` with **no** warning, automatically (same path as
+  `ta.*` / `bar.*`; this task adds nothing for it beyond feeding
+  `seriesVarNames`).
+- `const s = state.series(0); … const p = s[i];` where `i` is genuinely
+  unresolvable (e.g. a `let`/mutable or runtime-derived index) trips the
   existing `dynamic-series-index` warning + `dynamicFallback` path, identical
   to the `ta.*` / `bar.*` behavior.
 - `bar.*` and `ta.*` lookback behavior is byte-unchanged.
@@ -79,7 +105,16 @@ Add cases mirroring the existing `ta.*`-bound-variable cases:
   state.series(0); … a[2]; b[5];` → `maxLookback === 5`.
 - Mixed with a `ta.*` var and `bar.close[N]`: the global max is the deepest of
   all three.
-- Non-literal index `const s = state.series(0); const p = s[n];` → a
+- Resolver-backed index (proves the `state.series` arm composes with the
+  bounded-loop work, not just bare literals): a `const` numeric binding
+  `const k = 4; const s = state.series(0); const p = s[k];` →
+  `maxLookback === 4`, **no** diagnostic. (A bounded-`for` induction-var case
+  is already covered generically by the bounded-loop suite; one `const` case
+  here is enough to pin the composition.)
+- Genuinely-dynamic index `const s = state.series(0); … const p = s[i];`
+  where `i` is unresolvable (mirror exactly how the existing non-literal
+  `ta.*` / `bar.*` test constructs an unresolvable index post-bounded-loop —
+  do **not** use a `const`-bound literal, which now resolves) → a
   `dynamic-series-index` diagnostic is produced and
   `seriesCapacities.dynamicFallback === 5000`.
 - `state.series` allocated but never indexed → contributes 0 (no crash, no
@@ -105,6 +140,13 @@ boundary, before the runtime consumes it in Task 3.
   add a negative case; do not build alias analysis.
 - The `dynamic-series-index` warning text/threshold is unchanged — reuse the
   existing diagnostic, do not add a new code.
+- Index resolution (literal vs bounded-loop induction var vs `const` numeric
+  binding vs genuinely-dynamic) is **entirely** the job of the shared
+  `resolveIndexUpperBound` path that `extractMaxLookback` already calls for
+  every series-shaped access. This task only adds the *recognition* of
+  `state.series` bindings into `seriesVarNames`; once an `s[N]` access is
+  series-shaped, it inherits the identical resolution behavior as `bar.*` /
+  `ta.*` for free. Do **not** re-implement index resolution in this task.
 
 ## Files to Create / Modify
 

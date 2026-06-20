@@ -22,7 +22,7 @@ compute({ bar }) {
 ```
 
 This is the natural sibling of the just-shipped *directly-indexable bar
-series* work (`tasks/directly-indexable-bar-series/`): there we made the
+series* work (`tasks/old/directly-indexable-bar-series/`): there we made the
 bar's built-in fields indexable; here we let scripts mint their own. It
 reuses the exact same runtime machinery (`Float64RingBuffer` +
 number-coercible `makeSeriesView` proxy) and the same `PriceSeries`-style
@@ -115,8 +115,9 @@ ARE cached series views, `state.*` slot lifecycle, `slotIdPrefix`),
 - `state.series(init: number)` returns a `NumberSeriesSlot`
   (`MutableSlot<number> & Series<number>`): `s.value = x` writes the live
   head; `s.value` / `s.current` / `+s` / `s[0]` read it; `s[1..n]` read
-  committed history; `s.length` is the filled count. Out-of-range / pre-write
-  reads are `NaN`.
+  committed history; `s.length` is the filled count. The allocation bar's
+  pre-write head is seeded with `init`; unwritten later bars and out-of-range
+  history reads are `NaN`.
 - Tick/close are invisible to the script: the ring advances in lockstep with
   the bar lifecycle (append on close, `replaceHead` on tick), exactly like
   the OHLCV buffers — `s[1]` is always "the committed value one bar ago."

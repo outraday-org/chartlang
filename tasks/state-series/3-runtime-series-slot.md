@@ -41,7 +41,8 @@ sizes `manifest.maxLookback` from `s[N]`).
 - `const s = state.series(0)` returns a `NumberSeriesSlot`: `s.value = x`
   writes the live head (`replaceHead`); `s.value` / `s.current` / `+s` /
   `s[0]` read it; `s[1..n]` read committed history; `s.length` is the filled
-  count; out-of-range / pre-write reads are `NaN`.
+  count. The allocation bar's pre-write head is seeded with `init`; unwritten
+  later bars and out-of-range history reads are `NaN`.
 - The ring advances once per **close** bar regardless of whether the script
   writes (script-invisible lockstep): `s[1]` is always one committed bar back.
   A bar with no write leaves a `NaN` head (gap).
@@ -96,12 +97,11 @@ registry `slot: true` + `callsiteIdInjection`) does get-or-allocate keyed
 `RuntimeContext.seriesSlots: Map<string, SeriesSlot>`:
 
 - First allocation: `buffer = new Float64RingBuffer(ctx.stream.ohlcv.close
-  .capacity)`; `buffer.append(Number.NaN)` (seed the first head);
-  `committedHead = Number.NaN`; build the `view`. `init` is the pre-write head
-  value — append `init` instead of `NaN` for the very first head so a never-
-  written series reads `init`, not `NaN` (matches `state.float(init)`
-  returning `init` before any write). Decide and **document** which: prefer
-  seeding the first head with `init` so `+state.series(5)` is `5` pre-write.
+  .capacity)`; `buffer.append(init)` (seed the first live head);
+  `committedHead = init`; build the `view`. This matches `state.float(init)`:
+  a never-written series reads `init` on its allocation bar. Later bars that
+  are not written become `NaN` gaps because the close hook advances existing
+  slots with `append(Number.NaN)`.
 - Subsequent bars: return the existing slot's `view` (already advanced by the
   loop hook in §3).
 
@@ -172,6 +172,12 @@ close bar, not two on the allocation bar).
 - Tick test (`onBarTick.test.ts` sibling): a tick refines `s[0]` via a
   re-write but does NOT advance `s.length`; a tick that does not write sees the
   committed head (reset-on-tick); history `s[1]` stays committed.
+- Property test (`seriesSlot.property.test.ts`, fast-check — parity with the
+  runtime `unit + property + golden + bench` gate from CONTRIBUTING §2): for a
+  random sequence of per-bar writes across N closes, `s[k]` after each close
+  equals the value written `k` committed bars ago (within retained capacity),
+  and a skipped write reads `NaN` at that offset. This generalises the
+  fixed-sequence lifecycle test above.
 - Capacity test: with a script indexing `s[3]`, the ring retains ≥ 4 values
   (drives the Task-2 `maxLookback` sizing end-to-end).
 - Snapshot round-trip test: drive several bars, snapshot, warm-restart, assert
@@ -185,8 +191,9 @@ close bar, not two on the allocation bar).
 
 ## Edge cases
 
-- Pre-write / pre-allocation reads are `NaN` (empty buffer) except the seeded
-  first head (`init`). Document the `init`-seed choice.
+- Pre-write reads on the allocation bar return the seeded `init`; pre-history
+  and out-of-range reads return `NaN`. Document the `init`-seed choice in code
+  comments and tests.
 - `s[n]` past retained history is `NaN` (ring `at` contract).
 - A non-literal index relies on Task 2's `dynamicFallback` capacity (5000) —
   no special runtime handling needed beyond using `ohlcv.close.capacity`.

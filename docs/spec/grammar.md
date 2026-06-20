@@ -118,8 +118,10 @@ Portable chartlang v1 scripts MAY use these TypeScript constructs:
   operators, nullish coalescing, and optional chaining.
 - Bounded `for` loops of the form `for (let i = <number>; i < <number>; i++)`
   or the same shape with `<=`, `>`, or `>=`.
-- Series indexing with a numeric literal on values typed as `Series<T>`,
-  including `ta.*` series results.
+- Series indexing on values typed as `Series<T>` (including `ta.*` series
+  results) with a numeric literal **or** a provably-bounded expression — a
+  bounded-loop induction variable, a `const` numeric literal, or an affine
+  combination of those (`series[i + 1]`, `series[K - i]`, `series[2 * i]`).
 - Non-substitution template literals where a literal value is required, such
   as an input default.
 - Type annotations, type aliases, interfaces, and `as const` assertions that
@@ -144,7 +146,7 @@ set.
 | `stateful-call-inside-loop` | A stateful primitive call appears inside any loop body. |
 | `stateful-call-element-access` | A stateful namespace is called through element access, such as `ta["ema"](...)`, instead of property access. |
 | `request-security-interval-not-literal` | `request.security({ interval })` is neither a string literal nor a reference to an extracted string-valued `input.enum`. |
-| `dynamic-series-index` | A series is indexed with a non-literal expression; this is a warning and requires the dynamic fallback buffer. |
+| `dynamic-series-index` | A series is indexed with a non-provably-bounded expression (one the compiler cannot fold to a literal, bounded-loop range, `const` numeric literal, or affine combination of those); this is a warning and requires the dynamic fallback buffer. |
 | `callsite-id-conflict` | Two stateful calls resolve to the same deterministic slot id. |
 | `missing-default-export` | The module has no default export or the default export is not one of the four `define*` calls from core. |
 | `api-version-mismatch` | The `define*` object is missing `apiVersion: 1`, uses another value, or is not an object literal. |

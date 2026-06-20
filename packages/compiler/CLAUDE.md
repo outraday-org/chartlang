@@ -89,6 +89,42 @@
   non-literal length contributes `0` (cannot be sized at compile time). This
   is independent of the `opts.offset` and `bar.point(-N, …)` rules and stacks
   via the shared `maxLookback` max.
+- **`extractMaxLookback` resolves bounded-loop & const series indices to a
+  precise `maxLookback`.** Every series index runs through
+  `resolveIndexUpperBound` (`analysis/resolveIndexBound.ts`): a numeric
+  literal, a bare bounded-loop induction variable (`series[i]` inside
+  `for (let i = 0; i < N; i++)` → `N − 1`; `<=` → `N`), and a lexically
+  visible `const` numeric-literal binding (`series[k]`) each size the ring
+  buffer exactly, with **no** `dynamic-series-index` warning and **no**
+  `dynamicFallback`. The resolver **over-approximates and never under-sizes**:
+  it returns `null` (keeping today's warn + `dynamicFallback = 5000`) for a
+  non-terminating `>`/`>=` loop, a loop variable reassigned in the body
+  beyond its `++`, a shadowed loop name that does not resolve to the loop's
+  own declaration (checker symbol-identity guarded), a `let`/mutable
+  binding, a `const` not initialised from a numeric literal, an unknown
+  identifier, or any non-affine expression (see below). A resolved
+  negative bound contributes `0`. **Affine combinations** (`+`, `−`, `*`,
+  unary `±`, and parentheses) of literals / `const` numbers /
+  bounded-loop ranges are sized via integer interval arithmetic on the
+  interval's **upper endpoint**: `resolveIndexUpperBound` is
+  `evalInterval(argument, …).hi`, where `evalInterval` represents each
+  loop variable as its full `[start, max]` range (so `K − i` is largest
+  when `i` is smallest) and multiplication is sign-correct (min/max of the
+  four endpoint products). Division, modulo, exponent, bitwise operators,
+  other prefix unaries (`~`, `!`), calls, property accesses, and unknown
+  identifiers — or any sub-term the evaluator cannot bound — collapse the
+  whole interval to `null` and fall back to the `dynamic-series-index` +
+  `dynamicFallback = 5000` path; a non-finite endpoint (overflow /
+  pathological literal) is rejected the same way. The numeric `const`
+  environment is rebuilt at **each index use site** (`collectConstNumberEnv`)
+  so it obeys declaration order, sibling-block isolation, and shadowing;
+  a single scope-wide map would be unsound. `parseBoundedForLoop`
+  (`analysis/loopBounds.ts`) is the **single source of truth** for "what is
+  a bounded loop" — both `forbiddenConstructs` (reject every other shape)
+  and `resolveIndexUpperBound` (size the index range) call it so the two
+  passes can never disagree. `unwrapParens` also lives in `loopBounds.ts`
+  (a leaf module) so `extractMaxLookback` and `resolveIndexBound` share it
+  without a circular import.
 - **No DOM lib.** `program.ts` pins `lib: ["lib.es2022.d.ts"]` on the
   in-memory program so scripts cannot rely on browser globals. Hostile
   globals (`Math.random`, `Date`, `fetch`, `setTimeout`, …) are

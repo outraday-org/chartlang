@@ -5,8 +5,9 @@
 // `examples/scripts/`; "Smoothed RSI Cross" is demo-only and shows one
 // indicator's output feeding another (`ta.ema` of `ta.rsi`). "Manual SMA"
 // is demo-only and spells the SMA formula out by hand from the price
-// series (indexing `bar.close` directly at literal lookbacks, then
-// averaging). "Trend
+// series (a bounded `for` loop summing `bar.close[i]` over the window,
+// then averaging — the loop index is resolved precisely, so the buffer
+// is sized exactly). "Trend
 // Composition" demonstrates Phase-7 indicator composition — one file
 // with a private dep, a named export, and a default-export consumer.
 // "HTF Trend Filter" mirrors examples/scripts/htf-trend-filter.chart.ts
@@ -179,14 +180,24 @@ export default defineIndicator({
         // helper needed. (It still works as a plain number too, so
         // \`bar.close * 2\` and \`ta.sma(bar.close, 5)\` are fine.)
         //
-        // Mean of the last 5 closes. Indices must be literal integers, so the
-        // window is unrolled. Out-of-range reads are NaN, so this warms up
-        // over 4 bars — tracking ta.sma(close, 5).
-        const manual =
-            (bar.close[0] + bar.close[1] + bar.close[2] + bar.close[3] + bar.close[4]) / 5;
+        // Mean of the last 5 closes. \`bar.close\` is a price series, so a
+        // bounded \`for\` loop indexes the window directly: chartlang resolves
+        // \`bar.close[i]\` over the literal loop bounds, so the buffer is sized
+        // to exactly 5 slots (maxLookback 4) with no dynamic-index warning —
+        // identical to spelling out \`(bar.close[0] + ... + bar.close[4]) / 5\`.
+        // Out-of-range reads are NaN, so this warms up over 4 bars,
+        // bar-for-bar identical to ta.sma(close, 5).
+        let sum = 0;
+        for (let i = 0; i < 5; i++) {
+            sum += bar.close[i];
+        }
+        const manual = sum / 5;
 
-        plot(manual, { color: "#26a69a", title: "Manual SMA(5)" });
+        // Plot the built-in red ta.sma(5) first, then the green manual line
+        // last so it renders on top — they coincide bar-for-bar after warmup,
+        // so the green manual SMA sits over the red automatic one.
         plot(ta.sma(bar.close, 5), { color: "#ef5350", title: "ta.sma(5)" });
+        plot(manual, { color: "#26a69a", title: "Manual SMA(5)" });
     },
 });
 `;
@@ -513,7 +524,7 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         id: "manual-sma",
         label: "Manual SMA",
         description:
-            "Define an SMA by hand from the price series: index bar.close directly at literal lookbacks, average the last 5 closes, and watch it overlay ta.sma(5).",
+            "Define an SMA by hand from the price series: a bounded for loop sums bar.close[i] over the window (the loop index is sized precisely), averages the last 5 closes, and overlays ta.sma(5).",
         source: MANUAL_SMA,
     },
     {

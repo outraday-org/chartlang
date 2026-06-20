@@ -399,13 +399,15 @@ export default defineIndicator({
         // Series at a non-literal index. `bar.close` is now an indexable
         // `PriceSeries` on the compute bar, so we index it directly — no
         // need to route through `ta.ema` just to obtain a series shape.
+        // A `let` (mutable) index stays unresolvable by design: the
+        // compiler refuses to fold it, so the warning still flows through.
         const source = `
 import { defineIndicator } from "@invinite-org/chartlang-core";
 export default defineIndicator({
     name: "demo",
     apiVersion: 1,
     compute: ({ bar }) => {
-        const i = 1;
+        let i = 1;
         const v = bar.close[i];
         void v;
     },

@@ -58,16 +58,20 @@ out-of-range sentinel when the script-visible surface is not numeric. The
 `request.lowerTf` series is object-valued and uses an empty frozen array for
 unsupported or unfilled bucket reads.
 
-The compiler records the maximum literal series index in the manifest's
-`maxLookback`. The runtime MUST size main numeric ring buffers to at least
-`maxLookback + 1`, unless a larger manifest `seriesCapacities` entry is
+The compiler records the largest **provably-bounded** series index in the
+manifest's `maxLookback`. The runtime MUST size main numeric ring buffers to at
+least `maxLookback + 1`, unless a larger manifest `seriesCapacities` entry is
 present. A script that never looks back still has capacity for the current bar.
 
-Dynamic series indices are a compile-time diagnostic under the grammar spec.
-For `apiVersion: 1`, the shipped compiler emits `dynamic-series-index` as a
-warning and records a `dynamicFallback` capacity of 5000. A conforming runtime
-MUST treat manifest capacities as hard bounds: it MUST NOT grow a series
-unboundedly at runtime to satisfy a dynamic index.
+A series index the compiler **cannot prove bounded at compile time** is a
+diagnostic under the grammar spec. For `apiVersion: 1`, the shipped compiler
+emits `dynamic-series-index` as a warning and records a `dynamicFallback`
+capacity of 5000 only for such an index. An index the compiler **can** prove
+bounded — a numeric literal, a bounded-loop induction variable, a `const`
+numeric literal, or an affine combination of those — folds into `maxLookback`
+precisely, with no warning and no `dynamicFallback`. A conforming runtime MUST
+treat manifest capacities as hard bounds: it MUST NOT grow a series unboundedly
+at runtime to satisfy a dynamic index.
 
 ## Warmup and NaN
 

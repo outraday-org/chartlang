@@ -27,8 +27,11 @@ Tasks 1–3 (`state.series` exists end-to-end: type, compiler sizing, runtime).
   (`exprEmit.ts`, `case "history-access-expression"`). For a `var` scalar the
   receiver rewrites to `<slot>.value`, so `x[1]` → `<slot>.value[1]` — a
   **typecheck error** in chartlang (`.value` is scalar).
-- `history-on-non-series` (`semantic/analyze.ts`) only fires for a *const*-
-  qualified receiver, so a reassigned `var` sails through to the broken emit.
+- `history-on-non-series` (`semantic/analyze.ts`) fires only when the
+  receiver's inferred qualifier is **not** `series` (`inferQualifier(receiver)
+  !== "series"`). A numeric `var` reassigned each bar infers as `series`, so
+  its `x[n]` sails through with **no** diagnostic to the broken
+  `<slot>.value[n]` emit.
 - `dynamic-series-index` (`diagnostics/codes.ts`, error) is registered but
   **not wired**.
 - `packages/pine-converter/CLAUDE.md` KNOWN GAPS: numeric `var` history and
@@ -95,10 +98,11 @@ reads of the same identifier continue through `rewriteIdentifier` →
 
 - **Non-literal offset on a series slot:** when the history offset of a
   converter-lowered series slot is not a literal (nor a unary-literal), push
-  the existing registered `dynamic-series-index` (error) at the access span
-  and still emit `s[<offset>]` (chartlang tolerates it via the runtime
-  `dynamicFallback`; the error is a fidelity/perf heads-up). Do **not** change
-  the registered code's severity (codes are the stable public contract).
+  the existing registered `dynamic-series-index` (currently an **error**) at
+  the access span and still emit `s[<offset>]` so the generated source remains
+  inspectable. Do **not** change the registered code's severity or default
+  message (diagnostic codes are the stable public contract); the compile
+  round-trip gate skips fixtures with error diagnostics.
 - **`series-history-non-numeric`:** APPEND one new info code to
   `diagnostics/codes.ts` (no reorder), namespaced `pine-converter/transform/
   series-history-non-numeric`, message ~"History indexing on a non-numeric
@@ -133,9 +137,13 @@ golden corpus + `fixtures-compile.test.ts` round-trip guard it compiles.
 
 ### 6. Update KNOWN GAPS
 
-- Remove the numeric `var` history entry from `KNOWN_NON_COMPILING` in
-  `fixtures-compile.test.ts` (it now compiles). Leave tuple-element history
-  (`macdLine[1]`) and bool/string series history in the skip list.
+- `KNOWN_NON_COMPILING` lives in
+  `packages/pine-converter/src/tests/fixtures-compile.test.ts` (NOT
+  `src/transform/`). It currently lists only `14-polyline-rebuild.pine` and
+  `20-real-world-sr.pine` — there is **no** numeric-`var`-history entry to
+  remove. The new `30-var-series-history.pine` fixture must **round-trip and
+  compile**, so do **not** add it to the skip list. Leave tuple-element
+  history (`macdLine[1]`) and bool/string series history as documented gaps.
 - Update `packages/pine-converter/CLAUDE.md` KNOWN GAPS prose accordingly (per
   the repo rule: behavior change in a folder updates that folder's CLAUDE.md).
 
@@ -170,10 +178,10 @@ golden corpus + `fixtures-compile.test.ts` round-trip guard it compiles.
 | `packages/pine-converter/src/transform/other.ts` | Modify | Detect history-indexed numeric scalars; emit `state.series`. |
 | `packages/pine-converter/src/transform/emitContext.ts` | Modify | `seriesSlots` set; bare-name history. |
 | `packages/pine-converter/src/transform/exprEmit.ts` | Modify | History-access bare-slot emit. |
-| `packages/pine-converter/src/diagnostics/codes.ts` | Modify | Append `series-history-non-numeric` (+ varip code); wire `dynamic-series-index`. |
+| `packages/pine-converter/src/diagnostics/codes.ts` | Modify | Append `series-history-non-numeric` (+ varip code if no existing one fits); leave `dynamic-series-index` severity unchanged. |
 | `packages/pine-converter/fixtures/30-var-series-history.*` | Create | Fixture + expected output + diagnostics. |
 | `packages/pine-converter/src/transform/*.test.ts` | Modify | Coverage for the new lowering. |
-| `packages/pine-converter/src/transform/fixtures-compile.test.ts` | Modify | Drop the unblocked KNOWN_NON_COMPILING entry. |
+| `packages/pine-converter/src/tests/fixtures-compile.test.ts` | Modify | Keep `30-var-series-history.pine` OUT of `KNOWN_NON_COMPILING` (it must compile). |
 | `packages/pine-converter/CLAUDE.md` | Modify | KNOWN GAPS prose. |
 
 ## Gates

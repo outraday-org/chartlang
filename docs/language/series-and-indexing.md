@@ -188,10 +188,21 @@ return a `NaN` time, just like a dynamic series index).
 
 ## Lookback is bounded — dynamic indices are flagged
 
-Series indices must be literal integers. A dynamic index such as
-`series[i]` is a compiler warning (`dynamic-series-index`) and forces
-the runtime to allocate a 5000-slot dynamic fallback buffer. Idiomatic
-chartlang sticks to literal lookback so the runtime can size buffers
+A series index that the compiler can **prove bounded at compile time** is
+sized to the exact `maxLookback` — no warning, no fallback buffer. That
+covers a literal (`series[3]`), a bounded-loop induction variable
+(`for (let i = 0; i < N; i++) series[i]`), a `const` numeric literal
+(`const k = 4; series[k]`), and any **affine combination** of those
+(`series[i + 1]`, `series[K - i]`, `series[2 * i]`). A bounded `for` loop
+is therefore a first-class way to express a rolling window — the loop
+form of an unrolled `series[0] + … + series[N]` sizes its buffer
+identically.
+
+A **genuinely dynamic** index — one the compiler cannot bound, such as an
+unbounded variable, an unsupported operator, or a value derived at
+runtime — is a compiler warning (`dynamic-series-index`) and forces the
+runtime to allocate a 5000-slot dynamic fallback buffer. Idiomatic
+chartlang keeps indices provably bounded so the runtime can size buffers
 tightly.
 
 The runtime treats `manifest.seriesCapacities` as a hard bound: even

@@ -5,6 +5,8 @@ import ts from "typescript";
 
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
 import { resolveCalleeName } from "../transformers/resolveCallee.js";
+import { unwrapParens } from "./loopBounds.js";
+import { collectConstNumberEnv, resolveIndexUpperBound } from "./resolveIndexBound.js";
 
 const OHLCV_FIELDS = new Set(["close", "open", "high", "low", "volume", "time"]);
 
@@ -74,9 +76,10 @@ export function extractMaxLookback(
         if (ts.isElementAccessExpression(node)) {
             if (isSeriesShapedAccess(node, checker, seriesVarNames)) {
                 const argument = node.argumentExpression;
-                if (ts.isNumericLiteral(argument)) {
-                    const n = Number(argument.text);
-                    if (n > maxLookback) maxLookback = n;
+                const constEnv = collectConstNumberEnv(argument, scope);
+                const bound = resolveIndexUpperBound(argument, node, { constEnv, checker });
+                if (bound !== null) {
+                    if (bound > maxLookback) maxLookback = bound;
                 } else {
                     diagnostics.push(
                         createDiagnostic({
@@ -118,18 +121,6 @@ function isBarPointCall(call: ts.CallExpression): boolean {
         ts.isIdentifier(expression.expression) &&
         expression.expression.text === "bar"
     );
-}
-
-/**
- * Unwrap any number of nested parentheses around an expression. The Pine
- * converter emits a historical bar offset as the parenthesised form
- * `bar.point(-(N), …)` (see the converter's `anchorToWorldPoint`), so the
- * lookback recogniser must peel the parens before matching the literal.
- */
-function unwrapParens(node: ts.Expression): ts.Expression {
-    let current = node;
-    while (ts.isParenthesizedExpression(current)) current = current.expression;
-    return current;
 }
 
 /**

@@ -111,9 +111,15 @@ longer of its two EMAs. Plots whose value is `NaN`/`±Infinity` render
 as gaps, not zeroes. Each primitive's `@warmup` is in
 [`references/primitives.md`](./references/primitives.md).
 
-**Literal indices only.** `series[1]` is fine; `series[i]` emits the
-`dynamic-series-index` warning and forces the runtime to allocate a
-5000-slot fallback buffer. Keep lookback literal.
+**Provably-bounded indices size precisely.** A series index the compiler
+can prove bounded at compile time — a literal (`series[1]`), a
+bounded-loop induction variable (`for (let i = 0; i < N; i++) series[i]`),
+a `const` numeric literal (`const k = 4; series[k]`), or an affine
+combination of those (`series[i + 1]`, `series[K - i]`) — is sized to the
+exact `maxLookback` with **no** warning. Only a genuinely dynamic index
+(an unbounded variable, an unsupported operator, a value the compiler
+cannot bound) emits the `dynamic-series-index` warning and forces the
+runtime to allocate a 5000-slot fallback buffer.
 
 **Anchoring drawings by bar offset — `bar.point(offset, price)`.**
 Drawing anchors are always a `WorldPoint` (`{ time, price }`); writing
@@ -216,7 +222,10 @@ you will trip most often:
   `bar.time` (UTC ms); randomness is not supported.
 - **No unbounded loops.** `while`, `do…while`, `for…of`, `for…in` are
   rejected. The only allowed shape is `for (let i = <literal>; i </<=
-  <literal>; i++)`. Diagnostic: `unbounded-loop`.
+  <literal>; i++)`. Diagnostic: `unbounded-loop`. Reading a series at the
+  loop variable (or an affine expression of it) inside this shape —
+  `for (let i = 0; i < N; i++) sum += bar.close[i]` — is sized precisely,
+  so a bounded loop is a first-class way to express a rolling window.
 - **No stateful calls inside loops.** `ta.*`/`plot`/`alert`/`draw.*`/`state.*`
   callsites own a slot keyed by `<sourcePath>:<line>:<col>#0`. Calling
   them inside a loop body silently merges per-iteration state.

@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.1.1",
-    "passed": 238,
+    "passed": 239,
     "failed": 0,
     "scenarios": [
         {
@@ -571,6 +571,12 @@
         {
             "id": "input-interval",
             "title": "input.interval default resolution",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "loop-sma",
+            "title": "Bounded-loop SMA tracks ta.sma(close, 5)",
             "status": "pass",
             "failures": []
         },

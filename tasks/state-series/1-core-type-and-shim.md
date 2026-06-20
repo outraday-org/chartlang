@@ -60,7 +60,7 @@ Add next to `PriceSeries` / `VolumeSeries`:
  * `Number.isFinite(s)` / `s === x` see the **object**, not the number —
  * use `s.current` / `+s` / `s.value` for raw-number contexts.
  *
- * @since <next-minor>
+ * @since 1.2
  * @stable
  * @example
  *     function lag(s: NumberSeriesSlot): number {
@@ -84,11 +84,12 @@ Add to the frozen `state` object (after `string`, before `tick`):
  * Allocate or read a persistent **series** slot — a writable, indexable
  * number history. `s.value = expr` writes the current bar's value;
  * `s[0]` / `s.current` / `+s` read it back, `s[1]` reads one bar ago.
- * Out-of-range / pre-write reads are `NaN`. Unlike `state.float`, the
+ * The allocation bar's pre-write head is seeded with `init`; unwritten later
+ * bars and out-of-range history reads are `NaN`. Unlike `state.float`, the
  * slot retains a bounded window of prior committed values (sized to the
  * script's deepest literal `s[n]` lookback).
  *
- * @since <next-minor>
+ * @since 1.2
  * @stable
  * @example
  *     const fn: typeof state.series = state.series;
@@ -129,6 +130,17 @@ Mirror in the `declare module` block, byte-consistent with core:
   the runtime/core list is the source of truth, so nothing to add here beyond
   confirming the type still matches.
 
+> **Do not "fix" the shim's `MutableSlot`.** The `program.ts` shim already
+> declares `MutableSlot<T>` as the simplified `{ value: T }` (a mutable
+> property), **not** core's `{ get value(): T; set value(v: T) }` getter/setter
+> pair. That is a deliberate, pre-existing simplification — `s.value` read and
+> `s.value = x` write both type-check under it, so `NumberSeriesSlot =
+> MutableSlot<number> & Series<number>` behaves identically in the shim and in
+> core. "Lockstep" here means the **`StateNamespace.series` signature** and the
+> `NumberSeriesSlot` alias must match; it does **not** mean rewriting the
+> shim's `MutableSlot` to getter/setter form (that would be unrelated churn —
+> leave it alone).
+
 ### 5. Type-level tests
 
 - **Core** (`packages/core/src/types.types.test.ts` or
@@ -136,8 +148,13 @@ Mirror in the `declare module` block, byte-consistent with core:
   using `expect-type`, allocate `const s = state.series(0)` and assert:
   - `s` is assignable to `MutableSlot<number>` AND to `Series<number>`,
   - `s[1]` is `number`, `s.current` is `number`, `s.length` is `number`,
-  - `s.value` is `number` and `s.value = 1` is allowed (writable),
-  - `s` is assignable to a `ScalarOrSeries` / `ta.*` source param.
+  - `s.value` is `number` and `s.value = 1` is allowed (writable).
+  - Do **not** assert against `ScalarOrSeries` here — that is the `ta.*`
+    source-param type and lives in the **compiler shim** / runtime
+    (`ta/lib/sourceValue.ts`), not in core, so it is out of scope for a
+    core type-test. The "usable as a `ta.*` source" guarantee is proven by
+    the compiler `compile()` test below (`ta.ema(s, 5)`), where the shim's
+    `ScalarOrSeries` is in scope.
 - **Compiler** (`packages/compiler/src/compile.test.ts`): a positive
   `compile()` test (alongside the bar-series `bar.close[1]` test) whose
   fixture body is:
@@ -146,7 +163,8 @@ Mirror in the `declare module` block, byte-consistent with core:
   s.value = bar.close * 2;
   const a = s[1];
   const b = +s;
-  plot(a + b);
+  const e = ta.ema(s, 5); // proves the slot is accepted as a ta.* source
+  plot(a + b + e[0]);
   ```
   Assert it compiles with **no** type diagnostics. (`compile()` type-checks;
   analysis-only `transformAndAnalyse` does not — this is the guard the shim
@@ -163,6 +181,7 @@ Create `.changeset/<slug>.md` (feature changeset for the whole work):
 "@invinite-org/chartlang-compiler": minor
 "@invinite-org/chartlang-runtime": minor
 "@invinite-org/chartlang-pine-converter": minor
+"@invinite-org/chartlang-cli": patch
 ---
 
 Add `state.series(init)` — a writable, indexable user series. Store an
@@ -171,13 +190,20 @@ back (`s[1]`). Number-coercible (`+s`, `s.current`) and usable as a `ta.*`
 source. The Pine converter lowers a history-indexed `var` to it.
 ```
 
+The **`cli` patch** covers Task 6's additive `PHASE4_DOC_ENTRIES` entry in
+`packages/cli/src/commands/genPhase4Docs.ts` (a `packages/*/src/` change to a
+published package). It is folded into this one feature changeset rather than a
+second file — changesets accumulate until release, so listing `cli` here before
+Task 6 lands its src edit is correct.
+
 ## Edge cases
 
 - `NumberSeriesSlot` is an intersection — confirm both `s.value = x` (the
   `MutableSlot` setter) and `s[1]` (the `Series` index) type-check
   simultaneously, same as `PriceSeries` proved for read-only fields.
-- Resolve `<next-minor>` to the actual next minor of core/compiler/runtime at
-  implementation time (bar-series shipped at 1.x — match the convention).
+- Use `@since 1.2` for the new core `state.series` / `NumberSeriesSlot`
+  surface. `@invinite-org/chartlang-core` is currently `1.1.1`, and this
+  feature's changeset bumps core minor.
 - Do NOT add a `tick.series` hole or a `bool`/`string` series — deferred.
 
 ## Files to Create / Modify
@@ -203,7 +229,8 @@ source. The Pine converter lowers a history-indexed `var` to it.
 
 ## Changeset
 
-`.changeset/<slug>.md` — **minor** (core, compiler, runtime, pine-converter).
+`.changeset/<slug>.md` — **minor** (core, compiler, runtime, pine-converter)
++ **patch** (cli, for Task 6's `genPhase4Docs.ts` docs-entry addition).
 
 ## Acceptance Criteria
 

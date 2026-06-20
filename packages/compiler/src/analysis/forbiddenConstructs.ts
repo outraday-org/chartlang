@@ -4,6 +4,7 @@
 import ts from "typescript";
 
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
+import { parseBoundedForLoop } from "./loopBounds.js";
 
 const HOSTILE_GLOBAL_NAMES = new Set([
     "fetch",
@@ -18,13 +19,6 @@ const HOSTILE_GLOBAL_NAMES = new Set([
     // Phase 7 — the indicator-composition rewriter synthesises calls to
     // this helper; user scripts must not name-collide with the slot.
     "__chartlang_depOutput",
-]);
-
-const COMPARISON_OPS = new Set<ts.SyntaxKind>([
-    ts.SyntaxKind.LessThanToken,
-    ts.SyntaxKind.LessThanEqualsToken,
-    ts.SyntaxKind.GreaterThanToken,
-    ts.SyntaxKind.GreaterThanEqualsToken,
 ]);
 
 /**
@@ -65,28 +59,6 @@ export function runForbiddenConstructs(
                 sourceFile,
             }),
         );
-    }
-
-    function checkForStatement(node: ts.ForStatement): boolean {
-        const init = node.initializer;
-        const condition = node.condition;
-        const incrementor = node.incrementor;
-        if (!init || !condition || !incrementor) return false;
-        if (!ts.isVariableDeclarationList(init)) return false;
-        if (init.declarations.length !== 1) return false;
-        const declaration = init.declarations[0];
-        if (!declaration || !ts.isIdentifier(declaration.name)) return false;
-        const initializer = declaration.initializer;
-        if (!initializer || !ts.isNumericLiteral(initializer)) return false;
-        if (!ts.isBinaryExpression(condition)) return false;
-        if (!COMPARISON_OPS.has(condition.operatorToken.kind)) return false;
-        if (!ts.isNumericLiteral(condition.right)) return false;
-        if (!ts.isIdentifier(condition.left)) return false;
-        if (condition.left.text !== declaration.name.text) return false;
-        if (!ts.isPostfixUnaryExpression(incrementor)) return false;
-        if (!ts.isIdentifier(incrementor.operand)) return false;
-        if (incrementor.operand.text !== declaration.name.text) return false;
-        return true;
     }
 
     function isInsideAncestor(node: ts.Node, predicate: (parent: ts.Node) => boolean): boolean {
@@ -145,7 +117,7 @@ export function runForbiddenConstructs(
         } else if (ts.isForInStatement(node)) {
             emit(node, "unbounded-loop", "`for…in` loops are not allowed.");
         } else if (ts.isForStatement(node)) {
-            if (!checkForStatement(node)) {
+            if (parseBoundedForLoop(node) === null) {
                 emit(
                     node,
                     "unbounded-loop",

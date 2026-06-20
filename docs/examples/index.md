@@ -11,7 +11,7 @@ back to run it in your browser.
 - [RSI Divergence Alert](/examples/rsi-divergence-alert) — RSI(14) in its own pane with 70/30 overbought/oversold guides and alerts on each crossing.
 - [Smoothed RSI Cross](/examples/smoothed-rsi-cross) — Indicator composition: one indicator feeding another, with RSI(14) smoothed by an EMA(9) of its own output.
 - [Explicit Pane Routing](/examples/explicit-pane-routing) — An EMA pair on the price pane plus an RSI oscillator routed to its own subpane via explicit pane ids.
-- [Manual SMA](/examples/manual-sma) — Define an SMA by hand from the price series: index bar.close directly at literal lookbacks, average the last 5 closes, and watch it overlay ta.sma(5).
+- [Manual SMA](/examples/manual-sma) — Define an SMA by hand from the price series: a bounded for loop sums bar.close[i] over the window (the loop index is sized precisely), averages the last 5 closes, and overlays ta.sma(5).
 - [Trend Composition](/examples/trend-composition) — Phase-7 indicator composition: a private dependency, a named export, and a default consumer that marks crossovers.
 - [HTF Trend Filter](/examples/htf-trend-filter) — Multi-timeframe: a current-timeframe EMA(20) overlaid with a true weekly EMA(20) computed ON the weekly bars via the request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20)) expression form — a smooth, lagged trend, not 20 daily bars of a weekly-stepped series.
 - [SMA Offset](/examples/sma-offset) — Three SMA(20) lines: one unshifted plus a +5 copy displaced right and a −5 copy displaced left via the universal ta offset option — a presentation-only display shift (the values stay unshifted).

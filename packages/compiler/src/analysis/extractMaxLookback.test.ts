@@ -60,12 +60,241 @@ void v;
     it("emits dynamic-series-index for non-literal indices and sets dynamicFallback", () => {
         const result = run(`
 declare const bar: import("@invinite-org/chartlang-core").Bar;
-const i: number = 2;
+let i = 2;
 const v = bar.close[i];
 void v;
 `);
         expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
         expect(result.diagnostics[0]?.severity).toBe("warning");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("sizes a bare `<` loop induction variable precisely (no warning)", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+for (let i = 0; i < 5; i++) { const v = bar.close[i]; void v; }
+`);
+        expect(result.maxLookback).toBe(4);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("sizes a bare `<=` loop induction variable to the limit", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+for (let i = 0; i <= 4; i++) { const v = bar.close[i]; void v; }
+`);
+        expect(result.maxLookback).toBe(4);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("sizes a const numeric-literal index precisely (no warning)", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const k = 3;
+const v = bar.close[k];
+void v;
+`);
+        expect(result.maxLookback).toBe(3);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("treats a negative const index as no lookback (contributes 0, no fallback)", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const k = -2;
+const v = bar.close[k];
+void v;
+`);
+        expect(result.maxLookback).toBe(0);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("falls back for a const declared after the use", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const v = bar.close[k];
+void v;
+const k = 3;
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("falls back for a sibling-block const", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+declare const ok: boolean;
+if (ok) { const k = 3; void k; }
+const v = bar.close[k];
+void v;
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("falls back rather than leak an outer const through a non-numeric shadow", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const k = 3;
+{ const k = "x"; const v = bar.close[k]; void v; void k; }
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("falls back rather than leak an outer const through a `let` shadow", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const k = 3;
+{ let k = 1; const v = bar.close[k]; void v; void k; }
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("falls back for a non-terminating `>` loop induction variable", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+for (let i = 0; i > 5; i++) { const v = bar.close[i]; void v; }
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("falls back for a loop variable reassigned in the body", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+for (let i = 0; i < 5; i++) { i = 100; const v = bar.close[i]; void v; }
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("falls back rather than leak an outer const through a same-named reassigned loop var", () => {
+        // `bar.close[i]` reads the reassigned loop variable (runtime index 100),
+        // not the outer `const i = 2`; the buffer must size to the 5000-slot
+        // fallback, never to the unrelated outer const (which would under-size).
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const i = 2;
+for (let i = 0; i < 5; i++) { i = 100; const v = bar.close[i]; void v; }
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("sizes a shadowed loop variable from an inner numeric const, not the loop", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+for (let i = 0; i < 5; i++) { { const i = 2; const v = bar.close[i]; void v; } }
+`);
+        expect(result.maxLookback).toBe(2);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("falls back for a loop variable shadowed by an inner `let`", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+for (let i = 0; i < 5; i++) { { let i = 2; const v = bar.close[i]; void v; } }
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("falls back for an unknown identifier index (no const, no loop)", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+declare const j: number;
+const v = bar.close[j];
+void v;
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("picks the declaring loop for each variable in nested loops", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+for (let i = 0; i < 9; i++) {
+    for (let j = 0; j < 3; j++) {
+        const a = bar.close[i];
+        const b = bar.close[j];
+        void a; void b;
+    }
+}
+`);
+        expect(result.maxLookback).toBe(8);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("sizes an `i + 1` affine index precisely", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+for (let i = 0; i < 5; i++) { const v = bar.close[i + 1]; void v; }
+`);
+        expect(result.maxLookback).toBe(5);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("sizes an `i - 1` affine index precisely", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+for (let i = 0; i < 5; i++) { const v = bar.close[i - 1]; void v; }
+`);
+        expect(result.maxLookback).toBe(3);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("sizes a `K - i` affine index from a const and loop range", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const K = 4;
+for (let i = 0; i <= 4; i++) { const v = bar.close[K - i]; void v; }
+`);
+        expect(result.maxLookback).toBe(4);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("sizes a `2 * i` affine index precisely", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+for (let i = 0; i < 3; i++) { const v = bar.close[2 * i]; void v; }
+`);
+        expect(result.maxLookback).toBe(4);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("treats an all-negative affine interval as no lookback (no fallback)", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const K = 1;
+for (let i = 2; i < 5; i++) { const v = bar.close[K - i]; void v; }
+`);
+        expect(result.maxLookback).toBe(0);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("falls back for an unsupported division index", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+for (let i = 0; i < 5; i++) { const v = bar.close[i / 2]; void v; }
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("falls back for an affine index with an unknown sub-term", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+declare const j: number;
+for (let i = 0; i < 5; i++) { const v = bar.close[i + j]; void v; }
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
         expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
     });
 
@@ -358,6 +587,7 @@ void hbar.current; void back;
 
     it("ignores a ta.* offset inside a request.security expression callback", () => {
         const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
 import { request, ta } from "@invinite-org/chartlang-core";
 const trend = request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 200, { offset: 12 }));
 void trend;
@@ -368,6 +598,7 @@ void trend;
 
     it("counts a series element-access lookback inside the callback", () => {
         const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
 import { request } from "@invinite-org/chartlang-core";
 const trend = request.security({ interval: "1W" }, (bar) => bar.close[50]);
 void trend;
