@@ -1,0 +1,785 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import {
+    type Adapter,
+    type AlertConditionEmission,
+    type AlertEmission,
+    type CandleEvent,
+    type Capabilities,
+    type DrawingEmission,
+    type LogEmission,
+    type PlotEmission,
+    type PlotStyle,
+    type RunnerEmissions,
+    type Viewport,
+    decomposeDrawing,
+    defineAdapter,
+    priceToY,
+    timeToX,
+    validateEmission,
+} from "@invinite-org/chartlang-adapter-kit";
+import { type RenderCtx, paintPrimitive } from "@invinite-org/chartlang-adapter-kit/canvas";
+import type { Bar } from "@invinite-org/chartlang-core";
+import {
+    type ScriptHost,
+    type WorkerLike,
+    createWorkerHost,
+} from "@invinite-org/chartlang-host-worker";
+import uPlot from "uplot";
+
+import { type CandlePathStyle, type ProjectedCandle, drawCandlePaths } from "./candlePaths.js";
+import { UPLOT_CAPABILITIES, UPLOT_SYM_INFO } from "./capabilities.js";
+import { buildViewport, offsetForViewport } from "./viewport.js";
+
+const DEFAULT_INTERVAL = "1D";
+const MAX_RECENT_ALERTS = 256;
+const MAX_RECENT_LOGS = 5;
+// Reserved right gutter for uPlot's price axis, so series stop short of
+// the labels (mirrors canvas2d's `Y_AXIS_GUTTER_PX`).
+const Y_AXIS_GUTTER_PX = 52;
+const Y_AXIS_PADDING = 0.05;
+const CANDLE_BODY_WIDTH_PX = 6;
+const DEFAULT_BULL = "#26a69a";
+const DEFAULT_BEAR = "#ef5350";
+const HLINE_COLOR = "#787b86";
+
+// uPlot's `AlignedData` is `[xValues, ...yValues]`; chartlang feeds the
+// bar times as x and per-series values as y (`null` ⇒ gap).
+type AlignedData = ReadonlyArray<ReadonlyArray<number | null>>;
+
+/**
+ * The subset of a uPlot instance the factory calls. Declared
+ * structurally so the factory is testable without a DOM: tests inject a
+ * `MockUplot`; production injects a real `uPlot` (which satisfies this
+ * shape). `valToPos` + `ctx` are what the `hooks.draw` pass reads to
+ * paint horizontal lines (and, in Task 8, drawings).
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     declare const u: UplotLike;
+ *     u.setData([[0, 1], [10, 20]]);
+ *     void u;
+ */
+export type UplotLike = {
+    setData(data: AlignedData, resetScales?: boolean): void;
+    setScale(scaleKey: string, limits: { min: number; max: number }): void;
+    destroy(): void;
+    valToPos(val: number, scaleKey: string, canvasPixels?: boolean): number;
+    readonly ctx: RenderCtx;
+    // The scale ranges (`x` = time, `y` = price) drawings project off,
+    // and the plotting-area bbox (canvas px) the drawing-pass viewport is
+    // built from. A subset of uPlot's `scales` / `bbox`.
+    readonly scales: Readonly<Record<string, { readonly min?: number; readonly max?: number }>>;
+    readonly bbox: {
+        readonly left: number;
+        readonly top: number;
+        readonly width: number;
+        readonly height: number;
+    };
+};
+
+/**
+ * One uPlot series descriptor the factory builds per chartlang plot slot.
+ * A subset of uPlot's `Series` carrying only the fields the factory sets;
+ * `paths` selects line vs step vs bars vs band rendering.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const s: UplotSeriesSpec = { label: "EMA", scale: "y", stroke: "#3b82f6", paths: "line" };
+ *     void s;
+ */
+export type UplotSeriesSpec = {
+    readonly label: string;
+    readonly scale: string;
+    readonly stroke: string;
+    readonly fill?: string;
+    readonly paths: "line" | "step" | "bars" | "band" | "candle";
+};
+
+/**
+ * The options object the factory hands to {@link UplotFactory} per pane.
+ * A subset of uPlot's `Options`; `hooks.draw` is the ctx pass for
+ * horizontal lines (extended for drawings in Task 8).
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     declare const opts: UplotOptions;
+ *     void opts;
+ */
+export type UplotOptions = {
+    readonly width: number;
+    readonly height: number;
+    readonly paneKey: string;
+    readonly series: ReadonlyArray<UplotSeriesSpec>;
+    readonly hooks: { readonly draw: ReadonlyArray<(u: UplotLike) => void> };
+};
+
+/**
+ * Factory seam that constructs a {@link UplotLike} from built options +
+ * aligned data + a DOM target. Production uses the default (real uPlot);
+ * tests inject a `MockUplot` factory.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const f: UplotFactory = (_opts, _data, _target) => {
+ *         throw new Error("test injects this");
+ *     };
+ *     void f;
+ */
+export type UplotFactory = (
+    opts: UplotOptions,
+    data: AlignedData,
+    target: HTMLElement,
+) => UplotLike;
+
+/**
+ * Constructor options for {@link createUplotAdapter}. `uplotFactory` and
+ * `ctx` are test seams: production leaves them undefined (the adapter
+ * constructs a real uPlot per pane against `target`); tests inject a
+ * `MockUplot` factory plus a `MockCanvasContext` as the draw-hook ctx.
+ * `host` / `workerLike` mirror the canvas2d adapter's host seams.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
+ *     declare const target: HTMLElement;
+ *     const opts: CreateUplotAdapterOpts = {
+ *         target,
+ *         width: 800,
+ *         height: 400,
+ *         candleSource: mockCandleSource([]),
+ *     };
+ *     void opts;
+ */
+export type CreateUplotAdapterOpts = {
+    readonly target: HTMLElement;
+    readonly width: number;
+    readonly height: number;
+    readonly candleSource: AsyncIterable<CandleEvent>;
+    readonly capabilities?: Capabilities;
+    readonly interval?: string;
+    readonly uplotFactory?: UplotFactory;
+    readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    readonly onAlert?: (a: AlertEmission) => void;
+    readonly host?: ScriptHost;
+    readonly workerLike?: WorkerLike;
+};
+
+/**
+ * Public handle the consumer drives. `host` is exposed so callers can
+ * `await adapter.host.load(compiled)` before invoking {@link runUplotLoop}.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     declare const adapter: UplotAdapterHandle;
+ *     // await adapter.host.load(compiled);
+ *     void adapter;
+ */
+export type UplotAdapterHandle = Adapter & { readonly host: ScriptHost };
+
+type PlotPoint = {
+    readonly time: number;
+    readonly value: number | null;
+};
+
+type PanedHLine = {
+    readonly price: number;
+    readonly color: string;
+    readonly paneKey: string;
+};
+
+type AdapterState = {
+    readonly target: HTMLElement;
+    readonly width: number;
+    readonly height: number;
+    readonly uplotFactory: UplotFactory;
+    readonly bars: Bar[];
+    // Distinct pane keys in first-emit order; `"overlay"` is index 0.
+    paneOrder: string[];
+    // One built uPlot instance per pane, created lazily on first frame.
+    readonly instances: Map<string, UplotLike>;
+    // Keyed `${paneKey}|${slotId}` so the same slot can land in distinct
+    // panes and a pane's y-scale only sees its own series.
+    readonly plotSeries: Map<string, PlotPoint[]>;
+    readonly plotSeriesStyle: Map<string, PlotStyle>;
+    // Keyed by slotId (last-write-wins); carries its resolved pane key.
+    readonly hlines: Map<string, PanedHLine>;
+    // Per-bar candle-state overrides (bg / bar / candle-override,
+    // horizontal-histogram) keyed `${slotId}@${time}`. Buffered like
+    // canvas2d; painted in the overlay draw hook.
+    readonly overlays: Map<string, PlotEmission>;
+    // Drawings are buffered for Task 8 (not rendered here).
+    readonly drawings: Map<string, DrawingEmission>;
+    readonly recentAlerts: AlertEmission[];
+    readonly currentAlertConditions: AlertConditionEmission[];
+    readonly recentLogs: LogEmission[];
+};
+
+const HANDLE_STATE: WeakMap<UplotAdapterHandle, AdapterState> = new WeakMap();
+const HANDLE_INTERVAL: WeakMap<UplotAdapterHandle, string> = new WeakMap();
+
+// The default factory wraps the real uPlot constructor, which needs a
+// live DOM target + canvas — exercised only in a browser, never in
+// headless vitest. The whole function carries a v8 exemption (tests inject
+// a `MockUplot` factory instead), mirroring canvas2d's production-only
+// host path exemption.
+/* v8 ignore start -- real uPlot needs a live DOM canvas; tests inject MockUplot */
+function defaultUplotFactory(
+    opts: UplotOptions,
+    data: AlignedData,
+    target: HTMLElement,
+): UplotLike {
+    // uPlot's `AlignedData` is mutable; the adapter owns the array, so a
+    // shallow copy hands uPlot a fresh mutable table without mutating ours.
+    const mutableData = data.map((row) => row.slice()) as uPlot.AlignedData;
+    const instance = new uPlot(
+        {
+            width: opts.width,
+            height: opts.height,
+            series: [{}, ...opts.series.map((s) => ({ label: s.label, stroke: s.stroke }))],
+            hooks: {
+                draw: opts.hooks.draw.map((fn) => (u: uPlot) => fn(u as unknown as UplotLike)),
+            },
+        },
+        mutableData,
+        target,
+    );
+    return instance as unknown as UplotLike;
+}
+/* v8 ignore stop */
+
+function paneSlotKey(paneKey: string, slotId: string): string {
+    return `${paneKey}|${slotId}`;
+}
+
+function paneKeyPrefix(paneKey: string): string {
+    return `${paneKey}|`;
+}
+
+// Map a chartlang `PlotStyle` to the uPlot path family the series uses.
+// Override / candle-state kinds don't become series at all (they paint in
+// the draw hook), so they never reach here.
+function pathsFor(style: PlotStyle): UplotSeriesSpec["paths"] {
+    if (style.kind === "step-line") return "step";
+    if (style.kind === "histogram") return "bars";
+    if (style.kind === "filled-band") return "band";
+    return "line";
+}
+
+function fillFor(style: PlotStyle, color: string): string | undefined {
+    if (style.kind === "area" || style.kind === "filled-band") return color;
+    return undefined;
+}
+
+// A `PlotStyle` becomes a native uPlot series iff it is one of the
+// continuous-series kinds. Glyphs / labels / overrides are handled in the
+// draw hook (or buffered) so they are excluded here.
+function isSeriesStyle(style: PlotStyle): boolean {
+    return (
+        style.kind === "line" ||
+        style.kind === "step-line" ||
+        style.kind === "histogram" ||
+        style.kind === "area" ||
+        style.kind === "filled-band"
+    );
+}
+
+// Compute the y-range a pane should span: the overlay pane sees bars plus
+// its own series + hlines; a subpane sees only its own series + hlines.
+function computeYRange(state: AdapterState, paneKey: string): { yMin: number; yMax: number } {
+    let yMin = Number.POSITIVE_INFINITY;
+    let yMax = Number.NEGATIVE_INFINITY;
+    if (paneKey === "overlay") {
+        for (const bar of state.bars) {
+            if (bar.low < yMin) yMin = bar.low;
+            if (bar.high > yMax) yMax = bar.high;
+        }
+    }
+    const prefix = paneKeyPrefix(paneKey);
+    for (const [key, series] of state.plotSeries) {
+        if (!key.startsWith(prefix)) continue;
+        for (const point of series) {
+            if (point.value === null || !Number.isFinite(point.value)) continue;
+            if (point.value < yMin) yMin = point.value;
+            if (point.value > yMax) yMax = point.value;
+        }
+    }
+    for (const hline of state.hlines.values()) {
+        if (hline.paneKey !== paneKey) continue;
+        if (hline.price < yMin) yMin = hline.price;
+        if (hline.price > yMax) yMax = hline.price;
+    }
+    return { yMin, yMax };
+}
+
+// Build the pixel viewport for one pane. Only ever called with a non-empty
+// bar window (both call sites guard `bars.length > 0`), so the x-range is
+// always derivable; the y-range falls back to (0, 1) when the pane has no
+// finite candidate and expands a degenerate single-value range.
+function computePaneViewportFor(state: AdapterState, paneKey: string): Viewport {
+    const plotWidth = Math.max(1, state.width - Y_AXIS_GUTTER_PX);
+    let xMin = Number.POSITIVE_INFINITY;
+    let xMax = Number.NEGATIVE_INFINITY;
+    for (const bar of state.bars) {
+        if (bar.time < xMin) xMin = bar.time;
+        if (bar.time > xMax) xMax = bar.time;
+    }
+    let { yMin, yMax } = computeYRange(state, paneKey);
+    if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
+        yMin = 0;
+        yMax = 1;
+    } else if (yMin === yMax) {
+        yMin -= 1;
+        yMax += 1;
+    }
+    const yPad = (yMax - yMin) * Y_AXIS_PADDING;
+    return {
+        xMin,
+        xMax: xMax === xMin ? xMin + 1 : xMax,
+        yMin: yMin - yPad,
+        yMax: yMax + yPad,
+        pxWidth: plotWidth,
+        pxHeight: state.height,
+    };
+}
+
+// Median adjacent-bar spacing, used to size candle bodies. Mirrors the
+// shape canvas2d derives for shifted-series projection.
+function medianBarSpacing(bars: ReadonlyArray<Bar>): number {
+    if (bars.length < 2) return CANDLE_BODY_WIDTH_PX;
+    const gaps: number[] = [];
+    for (let i = 1; i < bars.length; i++) {
+        gaps.push(bars[i].time - bars[i - 1].time);
+    }
+    gaps.sort((a, b) => a - b);
+    const mid = Math.floor(gaps.length / 2);
+    return gaps.length % 2 === 0 ? (gaps[mid - 1] + gaps[mid]) / 2 : gaps[mid];
+}
+
+// Project the candles for the overlay pane into pixel space.
+function projectCandles(bars: ReadonlyArray<Bar>, viewport: Viewport): ProjectedCandle[] {
+    return bars.map((bar) => ({
+        x: timeToX(bar.time, viewport),
+        openY: priceToY(bar.open, viewport),
+        closeY: priceToY(bar.close, viewport),
+        highY: priceToY(bar.high, viewport),
+        lowY: priceToY(bar.low, viewport),
+    }));
+}
+
+// The draw-hook ctx pass for a pane: paint candles (overlay only) +
+// horizontal lines via the pane's viewport, to the instance's own canvas
+// ctx (`u.ctx` — a real `CanvasRenderingContext2D` in production, a
+// `MockCanvasContext` under test). This is the seam Task 8 extends to
+// paint drawings; Task 7 establishes it for hlines + candles.
+function paintPaneOverlay(state: AdapterState, paneKey: string, u: UplotLike): void {
+    if (state.bars.length === 0) return;
+    const viewport = computePaneViewportFor(state, paneKey);
+    const ctx = u.ctx;
+    if (paneKey === "overlay") {
+        const spacing = medianBarSpacing(state.bars);
+        const bodyWidth = Math.max(
+            1,
+            Math.min(CANDLE_BODY_WIDTH_PX, timeToX(state.bars[0].time + spacing, viewport) * 0.6),
+        );
+        const style: CandlePathStyle = {
+            bodyWidth,
+            bull: DEFAULT_BULL,
+            bear: DEFAULT_BEAR,
+        };
+        drawCandlePaths(ctx, projectCandles(state.bars, viewport), style);
+    }
+    for (const hline of state.hlines.values()) {
+        if (hline.paneKey !== paneKey) continue;
+        // uPlot owns the y scale, so the hline's pixel y comes from the
+        // instance's `valToPos` (canvas pixels) — the same coordinate
+        // bridge Task 8's drawings will use. The pane width caps the line.
+        const y = u.valToPos(hline.price, "y", true);
+        if (!Number.isFinite(y)) continue;
+        ctx.strokeStyle = hline.color;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(viewport.pxWidth, y);
+        ctx.stroke();
+    }
+    paintDrawings(state, u, ctx);
+}
+
+// Paint every buffered drawing into the pane's draw hook via the shared
+// adapter-kit geometry layer: `decomposeDrawing(state, view)` →
+// `paintPrimitive(ctx, prim)`. The viewport is built from uPlot's OWN
+// scales + bbox (`buildViewport`) so the projected pixels match the
+// instance's series; the plotting-area offset is applied once via a ctx
+// translate (see `offsetForViewport`). `op: "remove"` drawings are dropped
+// at ingest by `applyDrawing`, so `state.drawings` only ever holds live
+// drawings here (mirrors the canvas2d adapter, which likewise carries no
+// redundant remove guard in its paint loop). Drawings decompose against
+// THIS pane's scales, so a sub-pane drawing projects against the sub-pane's
+// price range (matching the canvas2d overlay-tail behaviour where drawings
+// ride the resolved pane).
+function paintDrawings(state: AdapterState, u: UplotLike, ctx: RenderCtx): void {
+    if (state.drawings.size === 0) return;
+    const view = buildViewport(u);
+    const { dx, dy } = offsetForViewport(u);
+    ctx.save();
+    ctx.translate(dx, dy);
+    for (const drawing of state.drawings.values()) {
+        for (const prim of decomposeDrawing(drawing, view)) {
+            paintPrimitive(ctx, prim);
+        }
+    }
+    ctx.restore();
+}
+
+// Build the aligned data table for a pane: row 0 is bar times; each
+// subsequent row is a series' values aligned to the bar window (missing
+// bars ⇒ `null` gap).
+function buildPaneData(state: AdapterState, paneKey: string): AlignedData {
+    const xs = state.bars.map((bar) => bar.time);
+    const rows: Array<ReadonlyArray<number | null>> = [xs];
+    const prefix = paneKeyPrefix(paneKey);
+    for (const [key, series] of state.plotSeries) {
+        if (!key.startsWith(prefix)) continue;
+        const byTime = new Map<number, number | null>();
+        for (const point of series) {
+            byTime.set(
+                point.time,
+                point.value !== null && Number.isFinite(point.value) ? point.value : null,
+            );
+        }
+        rows.push(state.bars.map((bar) => byTime.get(bar.time) ?? null));
+    }
+    return rows;
+}
+
+// Build the per-series specs for a pane, in stable key order.
+function buildPaneSeries(state: AdapterState, paneKey: string): UplotSeriesSpec[] {
+    const specs: UplotSeriesSpec[] = [];
+    const prefix = paneKeyPrefix(paneKey);
+    for (const [key] of state.plotSeries) {
+        if (!key.startsWith(prefix)) continue;
+        const style = state.plotSeriesStyle.get(key);
+        // A stored series always has a style (set in lockstep in
+        // `applyPlot`); the `??` is defensive only.
+        /* v8 ignore next */
+        const resolved: PlotStyle = style ?? { kind: "line", lineWidth: 1, lineStyle: "solid" };
+        const stroke = "#3b82f6";
+        const fill = fillFor(resolved, stroke);
+        specs.push({
+            label: key.slice(prefix.length),
+            scale: "y",
+            stroke,
+            ...(fill === undefined ? {} : { fill }),
+            paths: pathsFor(resolved),
+        });
+    }
+    return specs;
+}
+
+function buildPaneOptions(state: AdapterState, paneKey: string): UplotOptions {
+    return {
+        width: state.width,
+        height: state.height,
+        paneKey,
+        series: buildPaneSeries(state, paneKey),
+        hooks: { draw: [(u: UplotLike): void => paintPaneOverlay(state, paneKey, u)] },
+    };
+}
+
+// Lazily build, or update, the uPlot instance for each pane in pane
+// order. On first sight a pane's instance is constructed via the factory;
+// thereafter `setData` refreshes it. The draw hook re-derives candles +
+// hlines each redraw from `state`, so a `setData` is enough to refresh.
+function renderFrame(state: AdapterState): void {
+    for (const paneKey of state.paneOrder) {
+        const data = buildPaneData(state, paneKey);
+        let instance = state.instances.get(paneKey);
+        if (instance === undefined) {
+            instance = state.uplotFactory(buildPaneOptions(state, paneKey), data, state.target);
+            state.instances.set(paneKey, instance);
+        } else {
+            instance.setData(data);
+        }
+        // Pin the y scale to the pane's range so `valToPos` (used by the
+        // draw hook for hlines, and Task 8's drawings) is anchored to the
+        // chartlang-computed window rather than uPlot's auto-range — the
+        // overlay pane must share the candle scale, a subpane its own.
+        if (state.bars.length > 0) {
+            const viewport = computePaneViewportFor(state, paneKey);
+            instance.setScale("y", { min: viewport.yMin, max: viewport.yMax });
+        }
+    }
+}
+
+function applyPlot(state: AdapterState, plot: PlotEmission): void {
+    if (plot.visible === false) return;
+    const paneKey = plot.pane;
+    if (paneKey !== "overlay" && !state.paneOrder.includes(paneKey)) {
+        state.paneOrder.push(paneKey);
+    }
+    if (isSeriesStyle(plot.style)) {
+        const key = paneSlotKey(paneKey, plot.slotId);
+        const series = state.plotSeries.get(key) ?? [];
+        series.push({ time: plot.time, value: plot.value });
+        state.plotSeries.set(key, series);
+        state.plotSeriesStyle.set(key, plot.style);
+        return;
+    }
+    if (plot.style.kind === "horizontal-line") {
+        state.hlines.set(plot.slotId, {
+            price: plot.value ?? 0,
+            color: plot.color ?? HLINE_COLOR,
+            paneKey,
+        });
+        return;
+    }
+    // Glyph / label / candle-state overrides (shape, marker, character,
+    // arrow, label, bg-color, bar-color, candle/bar-override,
+    // horizontal-histogram) are buffered per slot+bar. Task 7 keeps them
+    // for the draw hook / Task 8; the "all plot kinds" claim stays honest
+    // (declared in Capabilities, retained here) rather than silently
+    // dropping the emission.
+    state.overlays.set(`${plot.slotId}@${plot.time}`, plot);
+}
+
+function applyAlert(
+    state: AdapterState,
+    alert: AlertEmission,
+    onAlert?: (a: AlertEmission) => void,
+): void {
+    state.recentAlerts.push(alert);
+    while (state.recentAlerts.length > MAX_RECENT_ALERTS) {
+        state.recentAlerts.shift();
+    }
+    onAlert?.(alert);
+}
+
+function applyLog(state: AdapterState, log: LogEmission): void {
+    state.recentLogs.push(log);
+    while (state.recentLogs.length > MAX_RECENT_LOGS) {
+        state.recentLogs.shift();
+    }
+}
+
+function applyDrawing(state: AdapterState, drawing: DrawingEmission): void {
+    if (drawing.op === "remove") {
+        state.drawings.delete(drawing.handleId);
+        return;
+    }
+    state.drawings.set(drawing.handleId, drawing);
+}
+
+function applyValidated<T>(items: ReadonlyArray<T>, apply: (item: T) => void): void {
+    for (const item of items) {
+        if (validateEmission(item).ok) apply(item);
+    }
+}
+
+function ingest(
+    state: AdapterState,
+    emissions: RunnerEmissions,
+    onAlert?: (a: AlertEmission) => void,
+): void {
+    applyValidated(emissions.plots, (plot) => applyPlot(state, plot));
+    applyValidated(emissions.drawings, (drawing) => applyDrawing(state, drawing));
+    applyValidated(emissions.alerts, (alert) => applyAlert(state, alert, onAlert));
+    state.currentAlertConditions.length = 0;
+    applyValidated(emissions.alertConditions, (condition) =>
+        state.currentAlertConditions.push(condition),
+    );
+    applyValidated(emissions.logs, (log) => applyLog(state, log));
+    for (const d of emissions.diagnostics) {
+        if (d.severity === "warning" || d.severity === "error") {
+            console.warn(`[chartlang ${d.code}]`, d.message);
+        }
+    }
+}
+
+function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
+    if (event.streamKey !== undefined) return;
+    if (event.kind === "history") {
+        state.bars.push(...event.bars);
+        return;
+    }
+    if (event.kind === "close") {
+        state.bars.push(event.bar);
+        return;
+    }
+    if (state.bars.length === 0) {
+        state.bars.push(event.bar);
+        return;
+    }
+    state.bars[state.bars.length - 1] = event.bar;
+}
+
+/**
+ * Build a frozen uPlot example adapter. Maps chartlang candles + plots +
+ * horizontal lines onto stacked uPlot instances (one per
+ * `PlotEmission.pane`, with `"overlay"` first), a custom candlestick path
+ * builder, and a `hooks.draw` ctx pass for horizontal lines. Drawings are
+ * buffered for Task 8. The returned `host` is exposed so the consumer can
+ * `await adapter.host.load(compiled)` before invoking {@link runUplotLoop}.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     import { createUplotAdapter } from "chartlang-example-uplot-adapter";
+ *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
+ *     declare const target: HTMLElement;
+ *     const adapter = createUplotAdapter({
+ *         target,
+ *         width: 800,
+ *         height: 400,
+ *         candleSource: mockCandleSource([]),
+ *     });
+ *     void adapter;
+ */
+export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHandle {
+    const capabilities = opts.capabilities ?? UPLOT_CAPABILITIES;
+    const state: AdapterState = {
+        // uPlot only touches the target inside the real constructor (the
+        // `v8 ignore`d default factory); a structural stub is fine when a
+        // `uplotFactory` is injected (tests).
+        target: opts.target,
+        width: opts.width,
+        height: opts.height,
+        uplotFactory: opts.uplotFactory ?? defaultUplotFactory,
+        bars: [],
+        paneOrder: ["overlay"],
+        instances: new Map(),
+        plotSeries: new Map(),
+        plotSeriesStyle: new Map(),
+        hlines: new Map(),
+        overlays: new Map(),
+        drawings: new Map(),
+        recentAlerts: [],
+        currentAlertConditions: [],
+        recentLogs: [],
+    };
+    const host =
+        opts.host ??
+        createWorkerHost(
+            opts.workerLike !== undefined
+                ? {
+                      capabilities,
+                      symInfo: UPLOT_SYM_INFO,
+                      ...(opts.resolveInputs !== undefined
+                          ? { resolveInputs: opts.resolveInputs }
+                          : {}),
+                      workerLike: opts.workerLike,
+                  }
+                : {
+                      capabilities,
+                      symInfo: UPLOT_SYM_INFO,
+                      ...(opts.resolveInputs !== undefined
+                          ? { resolveInputs: opts.resolveInputs }
+                          : {}),
+                  },
+        );
+
+    const adapter = defineAdapter({
+        id: "uplot-example",
+        name: "uPlot Example Adapter",
+        capabilities,
+        ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
+        symInfo: UPLOT_SYM_INFO,
+        candles: () => opts.candleSource,
+        onEmissions: (emissions) => {
+            ingest(state, emissions, opts.onAlert);
+            renderFrame(state);
+        },
+        dispose: () => {
+            for (const instance of state.instances.values()) {
+                instance.destroy();
+            }
+            state.instances.clear();
+            state.bars.length = 0;
+            state.paneOrder = ["overlay"];
+            state.plotSeries.clear();
+            state.plotSeriesStyle.clear();
+            state.hlines.clear();
+            state.overlays.clear();
+            state.drawings.clear();
+            state.recentAlerts.length = 0;
+            state.currentAlertConditions.length = 0;
+            state.recentLogs.length = 0;
+            host.dispose();
+        },
+    });
+
+    const handle: UplotAdapterHandle = Object.freeze({ ...adapter, host });
+    HANDLE_STATE.set(handle, state);
+    HANDLE_INTERVAL.set(handle, opts.interval ?? DEFAULT_INTERVAL);
+    return handle;
+}
+
+/**
+ * Optional second argument for {@link runUplotLoop}. Pass a `signal` from
+ * an `AbortController` to cancel the loop cleanly: once aborted, the loop
+ * drops the remaining work, breaks out of the iterator, and resolves (no
+ * throw) — the convention a React consumer needs on unmount.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const opts: RunUplotLoopOpts = { signal: new AbortController().signal };
+ *     void opts;
+ */
+export type RunUplotLoopOpts = Readonly<{ signal?: AbortSignal }>;
+
+/**
+ * Drive a built adapter through one full pass of its candle source:
+ * mirror each event into the renderer's bar window, `await host.push`,
+ * then `host.drain()` + `onEmissions(...)`. Returns when the source
+ * completes. Pass `opts.signal` to cancel cleanly (no throw on abort).
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     import { createUplotAdapter, runUplotLoop } from "chartlang-example-uplot-adapter";
+ *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
+ *     declare const target: HTMLElement;
+ *     const adapter = createUplotAdapter({
+ *         target,
+ *         width: 800,
+ *         height: 400,
+ *         candleSource: mockCandleSource([]),
+ *     });
+ *     // await adapter.host.load(compiled);
+ *     // await runUplotLoop(adapter);
+ *     const fn: typeof runUplotLoop = runUplotLoop;
+ *     void fn;
+ */
+export async function runUplotLoop(
+    handle: UplotAdapterHandle,
+    opts: RunUplotLoopOpts = {},
+): Promise<void> {
+    const state = HANDLE_STATE.get(handle);
+    const interval = HANDLE_INTERVAL.get(handle);
+    if (state === undefined || interval === undefined) {
+        throw new Error("runUplotLoop: handle was not produced by createUplotAdapter");
+    }
+    const signal = opts.signal;
+    const aborted = (): boolean => signal?.aborted ?? false;
+    if (aborted()) return;
+    for await (const event of handle.candles({ interval })) {
+        if (aborted()) return;
+        applyCandleEvent(state, event);
+        await handle.host.push(event);
+        if (aborted()) return;
+        // Yield once so an async worker host can complete its candle-event
+        // dispatch before the drain frame is processed.
+        await new Promise<void>((r) => setTimeout(r, 0));
+        if (aborted()) return;
+        const emissions = await handle.host.drain();
+        if (aborted()) return;
+        handle.onEmissions(emissions);
+    }
+}

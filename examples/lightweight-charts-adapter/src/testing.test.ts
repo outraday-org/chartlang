@@ -1,0 +1,126 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { hashCallLog } from "@invinite-org/chartlang-adapter-kit/canvas";
+import { describe, expect, it } from "vitest";
+
+import { MockLwcApi, createMockChart, hashLwcCallLog } from "./testing.js";
+
+describe("MockLwcApi", () => {
+    it("records addSeries with a deterministic series id and pane index", () => {
+        const chart = new MockLwcApi();
+        chart.addSeries("Line", { color: "#fff" }, 0);
+        chart.addSeries("Area", {}, 2);
+        expect(chart.calls).toEqual([
+            { kind: "addSeries", seriesId: "s0", seriesType: "Line", paneIndex: 0 },
+            { kind: "addSeries", seriesId: "s1", seriesType: "Area", paneIndex: 2 },
+        ]);
+    });
+
+    it("defaults the pane index to 0 when omitted", () => {
+        const chart = new MockLwcApi();
+        chart.addSeries("Histogram", {});
+        expect(chart.calls[0]).toMatchObject({ kind: "addSeries", paneIndex: 0 });
+    });
+
+    it("records every series method into the shared log", () => {
+        const chart = new MockLwcApi();
+        const series = chart.addSeries("Line", {}, 0);
+        series.setData([
+            { time: 1, value: 10 },
+            { time: 2, value: 20 },
+        ]);
+        series.update({ time: 3, value: 30 });
+        series.update({ time: 4 });
+        series.applyOptions({ visible: false });
+        const priceLine = series.createPriceLine({ price: 42 });
+        series.setMarkers([{ time: 5 }, { time: 6 }]);
+        series.attachPrimitive({ paneViews: () => [] });
+        expect(priceLine).toEqual({});
+        expect(chart.calls.slice(1)).toEqual([
+            { kind: "setData", seriesId: "s0", points: 2 },
+            { kind: "update", seriesId: "s0", time: 3, value: 30 },
+            { kind: "update", seriesId: "s0", time: 4, value: null },
+            { kind: "applyOptions", seriesId: "s0", options: { visible: false } },
+            { kind: "createPriceLine", seriesId: "s0", price: 42 },
+            { kind: "setMarkers", seriesId: "s0", markers: 2 },
+            { kind: "attachPrimitive", seriesId: "s0" },
+        ]);
+    });
+
+    it("records addPane with an incrementing pane index", () => {
+        const chart = new MockLwcApi();
+        expect(chart.addPane()).toEqual({ paneIndex: 1 });
+        expect(chart.addPane()).toEqual({ paneIndex: 2 });
+        expect(chart.calls).toEqual([
+            { kind: "addPane", paneIndex: 1 },
+            { kind: "addPane", paneIndex: 2 },
+        ]);
+    });
+
+    it("records remove", () => {
+        const chart = new MockLwcApi();
+        chart.remove();
+        expect(chart.calls).toEqual([{ kind: "remove" }]);
+    });
+});
+
+describe("createMockChart", () => {
+    it("hands back the chart and its shared call array", () => {
+        const { chart, calls } = createMockChart();
+        chart.addPane();
+        expect(calls).toBe(chart.calls);
+        expect(calls).toEqual([{ kind: "addPane", paneIndex: 1 }]);
+    });
+});
+
+describe("hashLwcCallLog", () => {
+    it("is stable across two identical logs", () => {
+        const a = new MockLwcApi();
+        const b = new MockLwcApi();
+        for (const chart of [a, b]) {
+            const s = chart.addSeries("Line", {}, 0);
+            s.setData([{ time: 1, value: 1 }]);
+            s.update({ time: 2, value: 2.123456789 });
+            s.update({ time: 3 });
+            s.applyOptions({ visible: true });
+            s.createPriceLine({ price: 9.87654321 });
+            s.setMarkers([{ time: 4 }]);
+            s.attachPrimitive({ paneViews: () => [] });
+            chart.addPane();
+            chart.remove();
+        }
+        expect(hashLwcCallLog(a.calls)).toBe(hashLwcCallLog(b.calls));
+        expect(hashLwcCallLog(a.calls)).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it("canonicalises non-finite update / price-line floats to strings", () => {
+        const chart = new MockLwcApi();
+        const s = chart.addSeries("Line", {}, 0);
+        s.update({ time: Number.NaN, value: Number.POSITIVE_INFINITY });
+        s.createPriceLine({ price: Number.NEGATIVE_INFINITY });
+        // No throw and a stable 64-char digest proves both non-finite arms
+        // round-trip through `String(...)` rather than `toFixed`.
+        expect(hashLwcCallLog(chart.calls)).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it("differs when a float changes beyond 4 dp and matches within it", () => {
+        const base = new MockLwcApi();
+        base.addSeries("Line", {}, 0).update({ time: 1, value: 1.0 });
+        const within = new MockLwcApi();
+        within.addSeries("Line", {}, 0).update({ time: 1, value: 1.000004 });
+        const beyond = new MockLwcApi();
+        beyond.addSeries("Line", {}, 0).update({ time: 1, value: 1.5 });
+        expect(hashLwcCallLog(within.calls)).toBe(hashLwcCallLog(base.calls));
+        expect(hashLwcCallLog(beyond.calls)).not.toBe(hashLwcCallLog(base.calls));
+    });
+});
+
+describe("adapter-kit canvas boundary", () => {
+    it("consumes the shared hashCallLog over the public sub-path", () => {
+        // The lightweight-charts adapter is part of the canvas family; this
+        // proves the shared canvas sink is reachable through the public
+        // package boundary (the LWC mock specialises the same approach).
+        expect(hashCallLog([])).toMatch(/^[0-9a-f]{64}$/);
+    });
+});

@@ -1,30 +1,19 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import { timeToX } from "@invinite-org/chartlang-adapter-kit";
+import type { Viewport } from "@invinite-org/chartlang-adapter-kit";
 import type { LineStyle } from "@invinite-org/chartlang-core";
 
-/**
- * Visible window into world coordinates. `xMin`/`xMax` are bar times in
- * UTC milliseconds; `yMin`/`yMax` are prices in the quote currency.
- * `pxWidth`/`pxHeight` are the canvas's drawable size in CSS pixels.
- *
- * @since 0.1
- * @stable
- * @example
- *     const vp: Viewport = {
- *         xMin: 0, xMax: 9, yMin: 100, yMax: 110,
- *         pxWidth: 800, pxHeight: 400,
- *     };
- *     void vp;
- */
-export type Viewport = {
-    readonly xMin: number;
-    readonly xMax: number;
-    readonly yMin: number;
-    readonly yMax: number;
-    readonly pxWidth: number;
-    readonly pxHeight: number;
-};
+// The projection primitives (`Viewport`, `timeToX`, `priceToY`) were
+// moved to the shared adapter-kit geometry layer (Tasks 1–3); re-export
+// them so existing `./render` importers keep their import sites while no
+// adapter owns a parallel copy. The layout-specific bar-shift helpers
+// below (`projectShiftedX` / `shiftedBarTime` / `medianBarSpacing` /
+// `yToPrice`) and the adapter-layer render types (`PlotPoint` / `HLine`)
+// stay canvas2d-local — they were not ported.
+export { priceToY, timeToX } from "@invinite-org/chartlang-adapter-kit";
+export type { Viewport } from "@invinite-org/chartlang-adapter-kit";
 
 /**
  * One accumulated point in a plot series, keyed by callsite slot id at
@@ -88,26 +77,6 @@ export type HLine = {
 };
 
 /**
- * Map a world price to a y pixel coordinate. The y axis is flipped
- * (canvas y grows downward, prices grow upward), so a price at
- * `viewport.yMax` lands at `y = 0` and `viewport.yMin` lands at
- * `y = pxHeight`. The viewport is assumed non-degenerate
- * (`yMax > yMin`); callers feed a non-empty bar window.
- *
- * @since 0.1
- * @stable
- * @example
- *     const y = priceToY(105, { xMin: 0, xMax: 1, yMin: 100, yMax: 110, pxWidth: 1, pxHeight: 100 });
- *     // y === 50
- *     void y;
- */
-export function priceToY(price: number, viewport: Viewport): number {
-    const span = viewport.yMax - viewport.yMin;
-    const normalised = (price - viewport.yMin) / span;
-    return viewport.pxHeight - normalised * viewport.pxHeight;
-}
-
-/**
  * Inverse of {@link priceToY}: map a y pixel coordinate back to a
  * world price. Useful for interactive overlays (Phase 4+); included
  * now so the renderer ships with the full coordinate pair.
@@ -122,25 +91,6 @@ export function priceToY(price: number, viewport: Viewport): number {
 export function yToPrice(y: number, viewport: Viewport): number {
     const normalised = (viewport.pxHeight - y) / viewport.pxHeight;
     return viewport.yMin + normalised * (viewport.yMax - viewport.yMin);
-}
-
-/**
- * Map a world time (UTC ms) to an x pixel coordinate. When `xMin ===
- * xMax` (single-bar viewport) the function pins the result to the
- * canvas centre — no NaN propagation.
- *
- * @since 0.1
- * @stable
- * @example
- *     const x = timeToX(5, { xMin: 0, xMax: 10, yMin: 0, yMax: 1, pxWidth: 100, pxHeight: 1 });
- *     // x === 50
- *     void x;
- */
-export function timeToX(time: number, viewport: Viewport): number {
-    const span = viewport.xMax - viewport.xMin;
-    if (span === 0) return viewport.pxWidth / 2;
-    const normalised = (time - viewport.xMin) / span;
-    return normalised * viewport.pxWidth;
 }
 
 /**

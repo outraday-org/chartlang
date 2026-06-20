@@ -48,24 +48,11 @@ export { drawHorizontalHistogram } from "./horizontalHistogram.js";
 export type { HorizontalHistogramArgs, HorizontalHistogramBucket } from "./horizontalHistogram.js";
 export { drawLogPane } from "./logPane.js";
 export { dashPattern } from "./lineDash.js";
-export {
-    FIB_LEVELS,
-    cubicBezier,
-    drawingDispatch,
-    extendLineSegment,
-    formatLevel,
-    quadraticBezier,
-    renderCrossLine,
-    renderHorizontalLine,
-    renderHorizontalRay,
-    renderLine,
-    renderTrendAngle,
-    renderVerticalLine,
-    sampleCubic,
-    sampleQuadratic,
-    worldPointToCanvas,
-} from "./draw/index.js";
-export type { Point2 } from "./draw/index.js";
+// Drawing geometry + per-kind renderers moved to the shared adapter-kit
+// geometry layer (Tasks 1–3); the canvas2d adapter now decomposes
+// drawings via `decomposeDrawing` + `paintPrimitive` from
+// `@invinite-org/chartlang-adapter-kit`, so `./draw/` no longer exists
+// and nothing is re-exported from it here.
 export { computePaneLayout, type PaneLayoutEntry, type PaneRect } from "./paneLayout.js";
 export { clearPaneRect } from "./clearPaneRect.js";
 export { drawPaneSeparator } from "./paneSeparator.js";

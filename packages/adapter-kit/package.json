@@ -10,6 +10,10 @@
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
+        },
+        "./canvas": {
+            "types": "./dist/canvas/index.d.ts",
+            "import": "./dist/canvas/index.js"
         }
     },
     "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
@@ -20,6 +24,9 @@
     },
     "dependencies": {
         "@invinite-org/chartlang-core": "workspace:^"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0"
     },
     "publishConfig": {
         "access": "public",

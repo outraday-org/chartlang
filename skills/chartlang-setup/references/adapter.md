@@ -119,6 +119,79 @@ The
 [`examples/canvas2d-adapter`](https://github.com/outraday-org/chartlang/tree/main/examples/canvas2d-adapter)
 package is the reference implementation worth copying from.
 
+## Render drawings via the shared geometry layer
+
+The 63 drawing kinds (lines, boxes, curves, Fibonacci, Gann, pitchforks,
+harmonic patterns, Elliott waves, cycles, containers, `table`) carry
+expensive per-kind geometry (fib levels, Gann fans, pitchfork forks, Bézier
+sampling). **Do not re-derive it per adapter.** `adapter-kit` ships a
+renderer-agnostic geometry layer so every adapter shares one implementation:
+
+```ts
+import { decomposeDrawing } from "@invinite-org/chartlang-adapter-kit";
+import type { DrawPrimitive, Viewport } from "@invinite-org/chartlang-adapter-kit";
+
+// view: build a linear Viewport from your chart's time→x / price→y mapping.
+declare const view: Viewport;
+declare const drawing: import("@invinite-org/chartlang-adapter-kit").DrawingEmission;
+
+const primitives: ReadonlyArray<DrawPrimitive> = decomposeDrawing(drawing, view);
+```
+
+`decomposeDrawing(emission, viewport)` is **pure and exhaustive over all 63
+`DrawingKind`s** — no `ctx`, no library types. Each drawing reduces to a flat
+list of four `DrawPrimitive` shapes: `polyline` | `arc` | `text` | `marker`,
+each with `StrokeStyle` / `FillStyle`. The recommended authoring pattern is
+**decompose once, then map each primitive to your library** — you only write
+the four-primitive mapping, never the drawing math.
+
+There are **two integration strategies** for the mapping step:
+
+1. **Canvas / ctx adapters reuse the shared painter.** If your library hands
+   you a `CanvasRenderingContext2D` (or you self-scale to a canvas), import
+   the canvas sink from the `/canvas` sub-path and paint each primitive
+   directly — no per-primitive mapping code at all:
+
+   ```ts
+   import { paintPrimitive } from "@invinite-org/chartlang-adapter-kit/canvas";
+   import type { RenderCtx } from "@invinite-org/chartlang-adapter-kit/canvas";
+
+   declare const ctx: RenderCtx; // your CanvasRenderingContext2D
+   for (const prim of primitives) paintPrimitive(ctx, prim);
+   ```
+
+   `RenderCtx` is the structural canvas type the painter needs;
+   `MockCanvasContext` (same sub-path) records calls for hashed, headless
+   tests. `canvas2d`, `lightweight-charts` (series-primitive overlay), and
+   `uplot` (draw hook) all paint through `paintPrimitive`.
+
+2. **Scene-graph / declarative adapters map the IR to nodes/options.** If
+   your library has no `ctx` — Konva (a retained scene graph) and ECharts (a
+   declarative option tree) — write a small `primitive → node/element`
+   mapper instead of calling `paintPrimitive`. Konva maps each
+   `DrawPrimitive` to a `Line` / `Arc` / `Path` / `Text` node; ECharts maps
+   it to a `graphic` element (`polyline` / `polygon` / `arc` / `text` /
+   `circle`). You still call `decomposeDrawing` for the geometry — only the
+   sink differs.
+
+The repo ships five worked example adapters that demonstrate both
+strategies — copy the one closest to your library:
+
+| Example | Library | License | Drawing sink |
+| --- | --- | --- | --- |
+| `examples/canvas2d-adapter/` | HTML Canvas 2D | MIT | `paintPrimitive` (reference) |
+| `examples/lightweight-charts-adapter/` | TradingView lightweight-charts | Apache-2.0 | `paintPrimitive` via a series primitive |
+| `examples/uplot-adapter/` | uPlot | MIT | `paintPrimitive` in a draw hook |
+| `examples/echarts-adapter/` | Apache ECharts | Apache-2.0 | `graphic` elements (declarative) |
+| `examples/konva-adapter/` | Konva | MIT | scene-graph nodes |
+
+All five declare the full surface (every plot kind + all 63 drawing kinds)
+and are conformance-green via the same suite. The ctx-family adapters reuse
+the shared painter + mock; the scene/option adapters map the primitive IR.
+No adapter owns a copy of the drawing geometry — to change a drawing's
+shape, edit the `decomposeDrawing` decomposers in `adapter-kit`, never a
+per-adapter renderer.
+
 ## Validate with the conformance harness
 
 `@invinite-org/chartlang-conformance` ships 220 scenarios covering every

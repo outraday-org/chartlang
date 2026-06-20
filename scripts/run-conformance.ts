@@ -28,6 +28,48 @@ type ConformanceModule = {
 };
 
 /**
+ * One example adapter the conformance runner drives.
+ *
+ * `dir` is the repo-relative example directory; the runner imports its
+ * `src/index.ts` (preferred) then falls back to its built `dist/index.js`.
+ *
+ * @since 1.0
+ * @stable
+ * @example
+ *     const entry: ConformanceAdapter = {
+ *         name: "canvas2d",
+ *         dir: "examples/canvas2d-adapter",
+ *     };
+ *     void entry;
+ */
+export type ConformanceAdapter = {
+    readonly name: string;
+    readonly dir: string;
+};
+
+/**
+ * The five example adapters driven by `pnpm conformance`.
+ *
+ * The canvas2d reference adapter plus the four full-surface library
+ * adapters. Each is imported from `<dir>/src/index.ts` then
+ * `<dir>/dist/index.js`; its `default` export (a capabilities-only headless
+ * `Adapter`) is the conformance subject.
+ *
+ * @since 1.0
+ * @stable
+ * @example
+ *     // CONFORMANCE_ADAPTERS[0].name === "canvas2d"
+ *     void CONFORMANCE_ADAPTERS;
+ */
+export const CONFORMANCE_ADAPTERS: ReadonlyArray<ConformanceAdapter> = Object.freeze([
+    { name: "canvas2d", dir: "examples/canvas2d-adapter" },
+    { name: "lightweight-charts", dir: "examples/lightweight-charts-adapter" },
+    { name: "uplot", dir: "examples/uplot-adapter" },
+    { name: "echarts", dir: "examples/echarts-adapter" },
+    { name: "konva", dir: "examples/konva-adapter" },
+]);
+
+/**
  * Parsed CLI options for `scripts/run-conformance.ts`.
  *
  * @since 1.0
@@ -261,6 +303,26 @@ function printDrift(drift: ReadonlyArray<ConformanceReportDrift>): void {
     }
 }
 
+/**
+ * Import one example adapter's `default` export.
+ *
+ * Tries `<dir>/src/index.ts` (run directly under `tsx`) then the built
+ * `<dir>/dist/index.js`. Returns `null` when neither resolves a `default`
+ * export, so the runner can log-and-continue for a not-yet-built adapter.
+ *
+ * @since 1.0
+ * @stable
+ * @example
+ *     const adapter = await loadAdapter("/repo", "examples/canvas2d-adapter");
+ *     void adapter;
+ */
+export async function loadAdapter(root: string, dir: string): Promise<unknown | null> {
+    const mod =
+        (await tryImport<AdapterModule>(join(root, dir, "src/index.ts"))) ??
+        (await tryImport<AdapterModule>(join(root, dir, "dist/index.js")));
+    return mod && mod.default !== undefined ? mod.default : null;
+}
+
 async function main(argv: ReadonlyArray<string> = process.argv.slice(2)): Promise<void> {
     const args = parseConformanceArgs(argv);
     const conformanceDist = join(ROOT, "packages/conformance/dist/index.js");
@@ -273,29 +335,49 @@ async function main(argv: ReadonlyArray<string> = process.argv.slice(2)): Promis
         noRunner();
         return;
     }
+    const runSuite = conformanceMod.runConformanceSuite;
 
-    const adapterDist = join(ROOT, "examples/canvas2d-adapter/dist/index.js");
-    const adapterSrc = join(ROOT, "examples/canvas2d-adapter/src/index.ts");
-    const adapterMod =
-        (await tryImport<AdapterModule>(adapterSrc)) ??
-        (await tryImport<AdapterModule>(adapterDist));
+    let anyFailed = false;
+    // The canvas2d reference adapter owns the committed CONFORMANCE.md /
+    // conformance-report.json pair, so --report / --check render against its
+    // report; the other four adapters are run for pass/fail only. The report
+    // reuses the loop's run — the suite is never run twice for one adapter.
+    let canvas2dAdapter: unknown = null;
+    let canvas2dReport: ConformanceReport | null = null;
 
-    if (!adapterMod || adapterMod.default === undefined) {
-        noRunner();
-        return;
+    for (const entry of CONFORMANCE_ADAPTERS) {
+        const adapter = await loadAdapter(ROOT, entry.dir);
+        if (adapter === null) {
+            console.error(`conformance: skip ${entry.name}: not built (${entry.dir})`);
+            continue;
+        }
+
+        const report = await runSuite(adapter);
+        if (entry.name === "canvas2d") {
+            canvas2dAdapter = adapter;
+            canvas2dReport = report;
+        }
+        for (const f of report.failures) {
+            console.error(`conformance: ${entry.name}: ${f.scenarioId} failed: ${f.message}`);
+        }
+        console.log(
+            `conformance: ${entry.name}: ${report.passed} scenarios passed, ` +
+                `${report.failures.length} failures.`,
+        );
+        if (report.failures.length > 0) {
+            anyFailed = true;
+        }
     }
-
-    const report = await conformanceMod.runConformanceSuite(adapterMod.default);
-    const failures = report.failures;
-    for (const f of failures) {
-        console.error(`conformance: ${f.scenarioId} failed: ${f.message}`);
-    }
-    console.log(`conformance: ${report.passed} scenarios passed, ${failures.length} failures.`);
 
     let driftCount = 0;
     if (args.report) {
-        const files = renderReportFiles(report, {
-            adapterName: adapterName(adapterMod.default),
+        if (canvas2dAdapter === null || canvas2dReport === null) {
+            console.error("conformance: canvas2d reference adapter not built; cannot --report.");
+            process.exitCode = 1;
+            return;
+        }
+        const files = renderReportFiles(canvas2dReport, {
+            adapterName: adapterName(canvas2dAdapter),
             generatedBy: await generatedBy(ROOT),
         });
         const paths = canvas2dReportPaths(ROOT);
@@ -311,7 +393,7 @@ async function main(argv: ReadonlyArray<string> = process.argv.slice(2)): Promis
         }
     }
 
-    process.exitCode = failures.length > 0 || driftCount > 0 ? 1 : 0;
+    process.exitCode = anyFailed || driftCount > 0 ? 1 : 0;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

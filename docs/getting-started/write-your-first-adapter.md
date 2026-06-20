@@ -109,9 +109,36 @@ export default adapter;
 The full contract — every `CandleEvent` kind, every
 `PlotEmission` / `DrawingEmission` / `AlertEmission` shape, the
 adapter-facing `symInfo`, and the `dispose` cleanup contract — lives in
-the [adapter author guide](../adapters/writing-an-adapter.md). The
-[`examples/canvas2d-adapter`](https://github.com/outraday-org/chartlang/tree/main/examples/canvas2d-adapter)
-package is the reference implementation worth copying from.
+the [adapter author guide](../adapters/writing-an-adapter.md).
+
+## Render drawings via the shared geometry layer
+
+The 63 drawing kinds carry expensive per-kind geometry (Fibonacci levels,
+Gann fans, pitchforks, Bézier curves, Elliott waves). Do not re-derive it:
+`@invinite-org/chartlang-adapter-kit` exports `decomposeDrawing(emission,
+viewport)`, which is pure and exhaustive over every `DrawingKind` and reduces
+each drawing to a flat list of four `DrawPrimitive` shapes (`polyline` |
+`arc` | `text` | `marker`). The pattern is **decompose once, map each
+primitive to your library**:
+
+- **Canvas / ctx adapters** import `paintPrimitive` from the `/canvas`
+  sub-path and paint each primitive directly — no per-primitive code.
+- **Scene-graph / declarative adapters** map each primitive to a node or
+  option element (Konva nodes, ECharts `graphic`).
+
+The repo ships **five** worked example adapters that demonstrate both
+strategies — pick the one closest to your library and copy it:
+
+| Example | Library | Drawing sink |
+| --- | --- | --- |
+| [`examples/canvas2d-adapter`](https://github.com/outraday-org/chartlang/tree/main/examples/canvas2d-adapter) | HTML Canvas 2D (reference) | `paintPrimitive` |
+| [`examples/lightweight-charts-adapter`](https://github.com/outraday-org/chartlang/tree/main/examples/lightweight-charts-adapter) | TradingView lightweight-charts | `paintPrimitive` via a series primitive |
+| [`examples/uplot-adapter`](https://github.com/outraday-org/chartlang/tree/main/examples/uplot-adapter) | uPlot | `paintPrimitive` in a draw hook |
+| [`examples/echarts-adapter`](https://github.com/outraday-org/chartlang/tree/main/examples/echarts-adapter) | Apache ECharts | `graphic` elements |
+| [`examples/konva-adapter`](https://github.com/outraday-org/chartlang/tree/main/examples/konva-adapter) | Konva | scene-graph nodes |
+
+All five declare the full surface and are conformance-green; see the
+[adapters overview](../adapters/index.md) and per-library reference pages.
 
 ## Validate with the conformance suite
 

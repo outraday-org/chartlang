@@ -2,6 +2,52 @@
 
 Reference adapter package — **not published to npm**.
 
+## Shared geometry layer (multi-library-adapters Task 4)
+
+- **Drawings render through the shared adapter-kit geometry layer, not a
+  local `render/draw/` tree.** `paintSortableMark`'s `case "drawing"`
+  (`createCanvas2dAdapter.ts`) calls
+  `for (const prim of decomposeDrawing(mark.drawing, viewport))
+  paintPrimitive(state.ctx, prim)` — `decomposeDrawing` from
+  `@invinite-org/chartlang-adapter-kit` (exhaustive over all 63
+  `DrawingKind`s) and `paintPrimitive` from
+  `@invinite-org/chartlang-adapter-kit/canvas`. The entire
+  `src/render/draw/` directory (63 per-kind renderers, `drawingDispatch.ts`,
+  and the moved geometry helpers `worldToCanvas`/`bezier`/`gannLevels`/
+  `pitchforkGeom`/`lineExtend`/`arrowhead`/`chevron`/`namedPolyline`/
+  `fibLevels`/`shapeStyle`/`textStyle`, plus the `draw/index.ts` barrel
+  and all co-located tests) was **deleted** — do not re-create it. To
+  change drawing geometry, edit the adapter-kit decomposers, never fork
+  them here. `op:"remove"` is dropped by `applyDrawing` before render, so
+  `decomposeDrawing` only ever sees live drawings.
+- **`src/render/lineDash.ts` stays.** `dashPattern` was *copied* into
+  adapter-kit `_lib/dash.ts`, not moved — the surviving plot renderers
+  (`render/area.ts`, `render/horizontalLine.ts`) still import it.
+- **Only DRAWINGS are shared. Plot/candle/marker/glyph/hline/pane/axis/
+  alert renderers under `src/render/` stay local** (they map to native
+  facilities per the architecture decision and are NOT part of
+  `decomposeDrawing`).
+- **`Viewport` / `timeToX` / `priceToY` are re-exported from adapter-kit**
+  by `src/render/coords.ts` (no parallel copy). The layout-specific
+  bar-shift helpers (`projectShiftedX` / `shiftedBarTime` /
+  `medianBarSpacing` / `yToPrice`) and the adapter-layer render types
+  (`PlotPoint` / `HLine`) stay defined locally in `coords.ts` — they were
+  not ported.
+- **`RenderCtx` is re-exported from `@invinite-org/chartlang-adapter-kit/canvas`**
+  by `src/render/clear.ts` (the structural type lives once in the shared
+  canvas sink). `clear()`/`clearFrame` helpers stay local.
+- **`src/testing.ts` re-exports the shared `MockCanvasContext` as
+  `MockCanvas2DContext`** (plus `hashCallLog` + the `RecordedCall` type)
+  from `@invinite-org/chartlang-adapter-kit/canvas`. The `./testing`
+  export-map entry and the public `MockCanvas2DContext` name are
+  unchanged — see the Phase-1 invariant below. The mock implementation +
+  its coverage now live in adapter-kit.
+- **The integration `PINNED_HASH` is unchanged by this refactor.** The
+  pinned EMA-cross bundle emits zero drawings, so the drawing code path is
+  not exercised by the hash; the geometry was moved, not changed, so the
+  structural forecast-line / anchored-line drawing assertions hold. Re-pin
+  only on a deliberate visual change, as before.
+
 ## Conventions
 
 - `package.json` carries `"private": true` and the unscoped name
@@ -65,15 +111,16 @@ Reference adapter package — **not published to npm**.
 
 ## Phase-2 invariants
 
-- **`RenderCtx` Phase-2 surface.** `src/render/clear.ts` declares the
-  shared structural type every renderer + `MockCanvas2DContext`
-  satisfies. Phase 1 covered the line + arc + setter surface; Phase 2
-  (Task 1) adds `fillText`, `globalAlpha`, `font`, `textAlign`,
-  `textBaseline`. Extensions must update both the type and the mock
-  in lockstep — the `RecordedCall` union grows a matching variant per
-  new method / setter, and `MockCanvas2DContext.canonicalise` carries
-  the canonicalisation rule for the new record so `hashCallLog`
-  stays stable.
+- **`RenderCtx` is the shared structural type, now owned by adapter-kit.**
+  `src/render/clear.ts` **re-exports** `RenderCtx` from
+  `@invinite-org/chartlang-adapter-kit/canvas` (Task 4); the structural
+  `CanvasRenderingContext2D` subset every renderer + `MockCanvas2DContext`
+  satisfies lives once in `packages/adapter-kit/src/canvas/renderCtx.ts`.
+  It covers the line + arc + setter surface plus `fillText`,
+  `globalAlpha`, `font`, `textAlign`, `textBaseline`. Extensions are made
+  in adapter-kit — the type, the mock (`MockCanvasContext`), and its
+  `canonicalise` rule grow in lockstep there so `hashCallLog` stays
+  stable; canvas2d picks the change up through the re-export.
 - **`src/render/` Phase-2 renderers stay pure-on-`RenderCtx`.**
   `histogram.ts` / `area.ts` / `filledBand.ts` / `label.ts`
   / `marker.ts` each take a `RenderCtx` + a typed args bag + a
@@ -82,18 +129,14 @@ Reference adapter package — **not published to npm**.
   `MockCanvas2DContext.calls`. Adding a new renderer = add the file
   + the test + the re-export through `render/index.ts`; the
   conformance pipeline picks up the wider cap surface automatically.
-- **`render/draw/fillBetween.ts` renders the `fill-between` drawing
-  kind** as a closed filled polygon (`edgeA` forward then `edgeB`
-  reversed, exactly how `renderPath` closes). `FillBetweenStyle` uses
-  `color` for the optional stroke (not `ShapeStyle.stroke`), so the
-  renderer resolves fill + dash inline (it does NOT call
-  `applyShapeStyle`, whose `ShapeStyle` arg cannot take the
-  `color`-named field under `exactOptionalPropertyTypes`): it fills with
-  `fill` + `fillAlpha` (alpha bracketed) only when `fill` is set, and
-  strokes the outline only when `style.color` is set. A degenerate edge
-  (`< 1` point) or a non-finite mapped anchor is a silent per-frame
-  no-op. The `fill-between` arm is wired in `drawingDispatch.ts` and the
-  renderer is re-exported from `render/draw/index.ts`.
+- **The `fill-between` drawing kind (and all other drawing geometry) now
+  lives in the shared adapter-kit geometry layer** (`decomposeFillBetween`
+  in `packages/adapter-kit/src/geometry/kinds/boxes.ts`), painted by
+  `paintPrimitive`. The former local `render/draw/fillBetween.ts` +
+  `drawingDispatch.ts` were deleted in Task 4 (see "Shared geometry
+  layer" above). The behavioural contract (closed filled polygon, edge
+  fill + optional outline, degenerate-edge no-op) is preserved in the
+  decomposer.
 - **`createCanvas2dAdapter.ts` does NOT dispatch to the Phase-2
   renderers in this task.** The runtime's `plot` impl
   (`packages/runtime/src/emit/plot.ts`) still hardcodes `kind:
@@ -184,8 +227,8 @@ Reference adapter package — **not published to npm**.
   (`render/renderOrder.ts`) **stable-sorts** ascending by `z`, then
   `band`, then `seq`. `paintSortableMark` then dispatches each mark to
   its existing per-kind renderer (`paintSeries` / `paintGlyph` /
-  `drawHorizontalLine` / `drawingDispatch`). The sort changed **order**,
-  not per-mark drawing.
+  `drawHorizontalLine` / the `decomposeDrawing` + `paintPrimitive`
+  drawing arm). The sort changed **order**, not per-mark drawing.
 - **`BAND = { series: 0, glyph: 1, hline: 2, drawing: 3 }` reproduces the
   pre-`z` phase order.** At the default `z = 0` the composite key reduces
   to `(band, declarationSeq)` = series → glyphs → hlines → drawings in

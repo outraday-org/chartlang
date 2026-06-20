@@ -2,3 +2,7 @@ packages:
     - "packages/*"
     - "apps/*"
     - "examples/canvas2d-adapter"
+    - "examples/echarts-adapter"
+    - "examples/konva-adapter"
+    - "examples/lightweight-charts-adapter"
+    - "examples/uplot-adapter"

@@ -35,6 +35,13 @@ pnpm add @invinite-org/chartlang-adapter-kit
   `dep-error`, `dep-cycle`, `dep-unknown-output`,
   `dep-invalid-input-override`, `dep-dynamic`, `dep-output-not-titled` for
   the new `.output(...)` / `.withInputs(...)` surface.
+- Geometry layer: `timeToX`, `priceToY`, `worldPointToPixel`,
+  `decomposeDrawing(emission, viewport) -> DrawPrimitive[]` (covers the basic
+  drawing kinds today; the rest land incrementally), plus the `Viewport`,
+  `Point2`, `DrawPrimitive`, `StrokeStyle`, and `FillStyle` types.
+- Canvas sink (`@invinite-org/chartlang-adapter-kit/canvas`): `RenderCtx`,
+  `paintPrimitive(ctx, prim)`, `MockCanvasContext`, `RecordedCall`, and
+  `hashCallLog(mock.calls)` for deterministic, headless call-log hashing.
 
 ## Minimum-viable API call
 

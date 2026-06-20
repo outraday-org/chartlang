@@ -11,6 +11,14 @@ export type { ValidationFail, ValidationOk, ValidationResult } from "./validatio
 export { mockCandleSource } from "./mocks/index.js";
 export type { MockCandleSourceMode, MockCandleSourceOpts } from "./mocks/index.js";
 export { BufferingAdapter, PassThroughAdapter } from "./base/index.js";
+export { decomposeDrawing, priceToY, timeToX, worldPointToPixel } from "./geometry/index.js";
+export type {
+    DrawPrimitive,
+    FillStyle,
+    Point2,
+    StrokeStyle,
+    Viewport,
+} from "./geometry/index.js";
 export type {
     Adapter,
     AdapterSymInfo,

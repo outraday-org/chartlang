@@ -79,7 +79,7 @@ export default defineConfig({
             { text: "Language", link: "/language/overview" },
             { text: "Spec", link: "/spec/grammar" },
             { text: "Primitives", link: "/primitives/ta/" },
-            { text: "Adapters", link: "/adapters/contract" },
+            { text: "Adapters", link: "/adapters/" },
             { text: "Hosts", link: "/hosts/worker" },
             { text: "Reference", link: "/reference/glossary" },
             { text: "Skills", link: "/skills/" },
@@ -248,6 +248,7 @@ export default defineConfig({
                 {
                     text: "Adapters",
                     items: [
+                        { text: "Overview", link: "/adapters/" },
                         { text: "Contract", link: "/adapters/contract" },
                         { text: "Capabilities", link: "/adapters/capabilities" },
                         { text: "Writing an adapter", link: "/adapters/writing-an-adapter" },
@@ -258,10 +259,14 @@ export default defineConfig({
                 {
                     text: "Reference",
                     items: [
+                        { text: "Canvas 2D", link: "/adapters/reference/canvas2d" },
                         {
                             text: "Lightweight Charts",
                             link: "/adapters/reference/lightweight-charts",
                         },
+                        { text: "uPlot", link: "/adapters/reference/uplot" },
+                        { text: "ECharts", link: "/adapters/reference/echarts" },
+                        { text: "Konva", link: "/adapters/reference/konva" },
                     ],
                 },
             ],

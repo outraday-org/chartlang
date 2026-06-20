@@ -160,6 +160,20 @@ portable across charts.
   budget-overflow scenarios. The
   [canvas2d reference adapter](./examples/canvas2d-adapter) ships a
   green `CONFORMANCE.md` you can diff against.
+- **Five rendering adapters.** Five full-surface example adapters — each
+  declares every plot kind + all 63 drawing kinds and runs
+  conformance-green. They share one renderer-agnostic geometry layer
+  (`decomposeDrawing` in `@invinite-org/chartlang-adapter-kit`), so no
+  adapter owns a copy of the drawing math. See the
+  [adapters overview](./docs/adapters/index.md):
+
+  | Adapter | Library | License | Drawing sink |
+  | --- | --- | --- | --- |
+  | [Canvas 2D](./examples/canvas2d-adapter) | HTML Canvas 2D | MIT | shared `paintPrimitive` (reference) |
+  | [Lightweight Charts](./examples/lightweight-charts-adapter) | TradingView lightweight-charts | Apache-2.0 | `paintPrimitive` via a series primitive |
+  | [uPlot](./examples/uplot-adapter) | uPlot | MIT | `paintPrimitive` in a draw hook |
+  | [ECharts](./examples/echarts-adapter) | Apache ECharts | Apache-2.0 | declarative `graphic` elements |
+  | [Konva](./examples/konva-adapter) | Konva | MIT | scene-graph nodes |
 - **Compose indicators.** Bind one indicator to a `const`, read
   its outputs from another's `compute`. See
   [Indicator composition](./docs/language/indicator-composition.md).

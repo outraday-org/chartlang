@@ -24,6 +24,10 @@ const PACKAGE_DIRS = [
     "packages/cli",
     "packages/conformance",
     "examples/canvas2d-adapter",
+    "examples/echarts-adapter",
+    "examples/konva-adapter",
+    "examples/lightweight-charts-adapter",
+    "examples/uplot-adapter",
 ];
 
 const DESCRIPTIONS: Record<string, string> = {
@@ -42,6 +46,11 @@ const DESCRIPTIONS: Record<string, string> = {
     "packages/cli": "chartlang CLI — compile, lint, bench, scaffold-adapter",
     "packages/conformance": "Adapter conformance test suite",
     "examples/canvas2d-adapter": "Reference adapter — renders to a <canvas> element",
+    "examples/echarts-adapter": "Example adapter — renders chartlang to Apache ECharts",
+    "examples/konva-adapter": "Example adapter — renders chartlang to a Konva scene-graph",
+    "examples/lightweight-charts-adapter":
+        "Example adapter — renders chartlang to TradingView lightweight-charts",
+    "examples/uplot-adapter": "Example adapter — renders chartlang to uPlot",
 };
 
 const PUBLIC_SURFACE: Record<string, string> = {
@@ -65,6 +74,14 @@ const PUBLIC_SURFACE: Record<string, string> = {
     "packages/conformance": "`runConformanceSuite(adapter) → Report`.",
     "examples/canvas2d-adapter":
         "Reference adapter rendering to `<canvas>`. Not exported as a package surface — copy from this folder when writing your own adapter.",
+    "examples/echarts-adapter":
+        "Example adapter rendering to Apache ECharts. Not exported as a package surface — copy from this folder when writing your own adapter.",
+    "examples/konva-adapter":
+        "Example adapter rendering to a Konva scene-graph. Not exported as a package surface — copy from this folder when writing your own adapter.",
+    "examples/lightweight-charts-adapter":
+        "Example adapter rendering to TradingView lightweight-charts. Not exported as a package surface — copy from this folder when writing your own adapter.",
+    "examples/uplot-adapter":
+        "Example adapter rendering to uPlot. Not exported as a package surface — copy from this folder when writing your own adapter.",
 };
 
 const DOCS_LINKS: Record<string, string> = {
@@ -80,6 +97,10 @@ const DOCS_LINKS: Record<string, string> = {
     "packages/cli": "docs/reference/",
     "packages/conformance": "docs/adapters/conformance.md",
     "examples/canvas2d-adapter": "docs/adapters/writing-an-adapter.md",
+    "examples/echarts-adapter": "docs/adapters/reference/echarts.md",
+    "examples/konva-adapter": "docs/adapters/reference/konva.md",
+    "examples/lightweight-charts-adapter": "docs/adapters/reference/lightweight-charts.md",
+    "examples/uplot-adapter": "docs/adapters/reference/uplot.md",
 };
 
 // Per-package subpath exports appended after the "." entry. The scaffold is

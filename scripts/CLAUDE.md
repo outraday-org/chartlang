@@ -51,6 +51,22 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
   `scripts/**`. Gate scripts are CLI tools whose entire job is to print
   status / failure lists to stdout; suppressing here keeps the lint
   output noise-free without weakening the rule package-wide.
+- `run-conformance.ts` iterates the `CONFORMANCE_ADAPTERS` registry —
+  the canvas2d reference adapter plus the four full-surface library
+  adapters (lightweight-charts / uplot / echarts / konva). Each is imported
+  from `examples/<dir>/src/index.ts` (preferred, run under `tsx`) then its
+  built `dist/index.js`; a not-yet-built adapter is logged
+  (`skip <name>: not built`) and SKIPPED, never a hard failure (CI builds
+  all five before the run; local runs may not). The exit code is non-zero
+  iff any adapter reports a scenario failure (or, under `--check`, the
+  committed report drifts). **`--report` / `--check` render only the
+  canvas2d report pair** (`examples/canvas2d-adapter/CONFORMANCE.md` +
+  `conformance-report.json`) — the reference adapter is the single adapter
+  with a committed, diff-friendly report; the other four are run for
+  pass/fail only and own no committed report. Adding a new example adapter =
+  append an entry to `CONFORMANCE_ADAPTERS` (and build its dist before CI's
+  conformance step). The report run reuses the loop's canvas2d run — the
+  suite is never executed twice for one adapter.
 - `gen-hover-registry.ts` walks `packages/core/src` exports into
   `packages/language-service/src/hoverRegistry.generated.ts`; `--check`
   byte-diffs it (the `hover:check` gate). It resolves
@@ -76,6 +92,6 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
 | `generate-skills-reference.ts` | `pnpm skills:generate` / `pnpm skills:gate` | Walks `ta.*`/`draw.*` JSDoc → `skills/chartlang-coding/references/primitives.md`; `--check` byte-diffs against the committed file. Deep-imports `parsePrimitiveSource` / `parseDrawingSource` (source, not `dist/`) and mirrors their skip lists. Never hand-edit `primitives.md` — re-run `pnpm skills:generate`. |
 | `gen-converter-docs.ts` | `pnpm converter:docs:generate` / `pnpm converter:docs:check` | Renders `docs/converter/diagnostics.md` from `DIAGNOSTIC_CODE_ENTRIES` (deep-imported from `packages/pine-converter/src/diagnostics/codes.ts`, source not `dist/`) — one anchored `### <slug>` section per code, sorted by full code string. `--check` byte-diffs against the committed page (drift fails CI). Never hand-edit `docs/converter/diagnostics.md` — re-run the generator; the intro preamble is the `INTRO` generator constant. The per-code anchor (`#<slug>`) MUST match `shortCode` in `pine-converter`'s `diagnostics/format.ts` so the CLI's `= docs:` links resolve. |
 | `readme-check.ts` | `pnpm readme:check` | §17.6 + §17.1 README structure gate. |
-| `run-conformance.ts` | `pnpm conformance` | §16.5 / §15.3 conformance harness wrapper. |
+| `run-conformance.ts` | `pnpm conformance` | §16.5 / §15.3 conformance harness wrapper. Iterates ALL FIVE example adapters (`CONFORMANCE_ADAPTERS`: canvas2d + lightweight-charts + uplot + echarts + konva). |
 | `coverage-merge.ts` | `pnpm coverage:report` | §16.5 per-package → root LCOV + summary. |
 | `vitest.config.ts` | `pnpm test:scripts` | Per-folder vitest config — discovers `scripts/**/*.test.ts`. |

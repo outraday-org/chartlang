@@ -12,9 +12,11 @@ import {
     type PlotEmission,
     type PlotStyle,
     type RunnerEmissions,
+    decomposeDrawing,
     defineAdapter,
     validateEmission,
 } from "@invinite-org/chartlang-adapter-kit";
+import { paintPrimitive } from "@invinite-org/chartlang-adapter-kit/canvas";
 import type { Bar } from "@invinite-org/chartlang-core";
 import {
     type ScriptHost,
@@ -51,7 +53,6 @@ import {
     drawPaneSeparator,
     drawShape,
     drawYAxis,
-    drawingDispatch,
     medianBarSpacing,
     priceToY,
     projectShiftedX,
@@ -649,7 +650,13 @@ function paintSortableMark(
             drawHorizontalLine(state.ctx, mark.hline, viewport, state.palette);
             return;
         case "drawing":
-            drawingDispatch(state.ctx, mark.drawing, viewport);
+            // Drawings reduce to a flat, renderer-agnostic primitive list
+            // via the shared adapter-kit geometry layer; the canvas sink
+            // paints each. `op:"remove"` drawings never reach here —
+            // `applyDrawing` drops them from `state.drawings` first.
+            for (const prim of decomposeDrawing(mark.drawing, viewport)) {
+                paintPrimitive(state.ctx, prim);
+            }
             return;
     }
 }

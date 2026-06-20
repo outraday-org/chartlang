@@ -1087,7 +1087,7 @@ describe("plot overrides", () => {
 });
 
 describe("drawing emission dispatch", () => {
-    it("accumulates create + update drawings keyed by handleId and walks them through drawingDispatch", () => {
+    it("accumulates create + update drawings keyed by handleId and walks them through decomposeDrawing + paintPrimitive", () => {
         const { adapter, ctx } = buildAdapter({});
         const baseline = ctx.calls.length;
         adapter.onEmissions(
@@ -1099,10 +1099,11 @@ describe("drawing emission dispatch", () => {
                 ],
             }),
         );
-        // Task 4's per-kind renderers are no-op stubs — every dispatch
-        // adds zero context calls. The frame's `clear` + `drawCandles`
-        // pre-amble is the only source of calls. The dispatch test pins
-        // that the drawings path neither throws nor leaks calls into
+        // Drawings route through the shared adapter-kit geometry layer
+        // (`decomposeDrawing` → `paintPrimitive`); the two live handles
+        // each decompose to real path primitives on top of the frame's
+        // `clearPaneRect` + `drawCandles` pre-amble. The dispatch test
+        // pins that the drawings path neither throws nor leaks calls into
         // the mock context.
         expect(ctx.calls.length).toBeGreaterThan(baseline);
     });
