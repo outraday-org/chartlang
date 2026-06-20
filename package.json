@@ -18,6 +18,7 @@
         "format": "biome format --write .",
         "format:check": "biome format .",
         "check": "pnpm build && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm coverage:report && pnpm conformance && pnpm conformance:check && pnpm site:typecheck && pnpm site:build && pnpm bench:ci && pnpm docs:check && pnpm docs:gate && pnpm docs:committed:check && pnpm examples:gate && pnpm examples:sync && pnpm docs:snippets && pnpm docs:build && pnpm hover:check && pnpm skills:gate && pnpm converter:docs:check && pnpm readme:check",
+        "check:all": "pnpm check && pnpm site:e2e",
         "conformance": "pnpm tsx scripts/run-conformance.ts",
         "conformance:report": "pnpm tsx scripts/run-conformance.ts --report",
         "conformance:check": "pnpm tsx scripts/run-conformance.ts --report --check",
@@ -48,6 +49,8 @@
         "site:build": "pnpm --filter chartlang-site build",
         "site:typecheck": "pnpm --filter chartlang-site typecheck",
         "site:lint": "pnpm --filter chartlang-site lint",
+        "site:e2e": "pnpm --filter chartlang-site e2e",
+        "site:e2e:install": "pnpm --filter chartlang-site e2e:install",
         "brand:sync": "pnpm tsx scripts/sync-brand-assets.ts",
         "docs:dev": "pnpm brand:sync && vitepress dev docs",
         "docs:build": "pnpm brand:sync && vitepress build docs"
