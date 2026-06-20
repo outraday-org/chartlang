@@ -16,6 +16,12 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-ring: var(--ring);
 
+  /* Floating surfaces (shadcn Select popup et al.): a slightly elevated
+   * muted surface with full-strength foreground text. brand.css has no
+   * dedicated popover token, so these alias the existing palette vars. */
+  --color-popover: var(--muted);
+  --color-popover-foreground: var(--foreground);
+
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 

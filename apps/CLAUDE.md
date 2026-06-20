@@ -161,3 +161,14 @@ and the demo 500s, the client bundle fails to load, or the whole site
   the regenerated pages, or the gate fails. `DemoBody.tsx` reads a
   `?script=<id>` query param to preselect a catalogue entry, which is how
   the docs' "Try it live" links deep-link into the demo (anchored `#demo`).
+- **Most `DEMO_SCRIPTS` entries are hand-mirrors of an `examples/scripts/
+  <id>.chart.ts` file** (same `id`): the demo strings are inlined (the
+  browser bundle can't read files) while the example files are the real
+  on-disk sources the CLI e2e + conformance suites drive. They can't share
+  one file, so `pnpm examples:sync` (`scripts/examples-sync-check.ts`, in CI
+  + `pnpm check`) guards them — it token-compares each pair (ignoring
+  comments / whitespace / wrapping / trailing commas, since `apps/**` is
+  Biome-exempt) and fails on real code drift. **Edit BOTH copies together**
+  (the example file AND the `DEMO_SCRIPTS` string), then re-run
+  `pnpm examples:generate`. Demo-only entries (e.g. `smoothed-rsi-cross`,
+  `manual-sma`) have no file and are skipped by the gate.

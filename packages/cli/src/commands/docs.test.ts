@@ -362,6 +362,7 @@ describe("runDocsCommand", () => {
         ]);
 
         const content = await readFile(join(outDir, "demo.md"), "utf8");
-        expect(content).toMatch(/AUTO-GENERATED/);
+        expect(content.startsWith("# `ta.demo`")).toBe(true);
+        expect(content).not.toContain("AUTO-GENERATED");
     });
 });

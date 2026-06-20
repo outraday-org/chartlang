@@ -8,6 +8,8 @@
 
 import type { ChangeEvent, ReactElement } from "react";
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
@@ -54,9 +56,8 @@ export function ConverterControls(props: ConverterControlsProps): ReactElement {
         props.onBarIntervalChange(Number.isFinite(parsed) ? parsed : null);
     };
 
-    const handlePreset = (event: ChangeEvent<HTMLSelectElement>): void => {
-        const raw = event.target.value;
-        props.onBarIntervalChange(raw === "" ? null : Number(raw));
+    const handlePreset = (value: string | null): void => {
+        props.onBarIntervalChange(value === null || value === "" ? null : Number(value));
     };
 
     // Reflect the current ms value back to the dropdown: a matching preset, or
@@ -70,15 +71,28 @@ export function ConverterControls(props: ConverterControlsProps): ReactElement {
         <div className="converter-controls">
             <label>
                 <span>Period</span>
-                <select onChange={handlePreset} value={presetValue}>
-                    <option value="">auto</option>
-                    {BAR_INTERVAL_PRESETS.map((preset) => (
-                        <option key={preset.ms} value={preset.ms}>
-                            {preset.label}
-                        </option>
-                    ))}
-                    {presetValue === "custom" ? <option value="custom">Custom</option> : null}
-                </select>
+                <Select
+                    items={[
+                        { label: "auto", value: "" },
+                        ...BAR_INTERVAL_PRESETS.map((preset) => ({ label: preset.label, value: preset.ms.toString() })),
+                        ...(presetValue === "custom" ? [{ label: "Custom", value: "custom" }] : []),
+                    ]}
+                    onValueChange={handlePreset}
+                    value={presetValue}
+                >
+                    <SelectTrigger className="w-[160px]" size="sm">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">auto</SelectItem>
+                        {BAR_INTERVAL_PRESETS.map((preset) => (
+                            <SelectItem key={preset.ms} value={preset.ms.toString()}>
+                                {preset.label}
+                            </SelectItem>
+                        ))}
+                        {presetValue === "custom" ? <SelectItem value="custom">Custom</SelectItem> : null}
+                    </SelectContent>
+                </Select>
             </label>
             <label>
                 <span>Bar interval (ms)</span>

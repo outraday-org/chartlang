@@ -34,7 +34,12 @@ export default defineConfig({
     // srcExclude; the generated primitives/ta + examples trees are real docs
     // and are intentionally included.
     vite: {
-        plugins: [llmstxt()],
+        // `injectLLMHint: false` — the plugin's per-page "Are you an LLM?"
+        // hint is a `display:none` div, but our `markdown.html: false`
+        // (below) escapes raw HTML, so the hint rendered as visible text on
+        // every page. Disable it; `llms.txt` + the per-page `.md` files
+        // (the parts LLMs actually consume) are still emitted.
+        plugins: [llmstxt({ injectLLMHint: false })],
     },
     markdown: {
         html: false,

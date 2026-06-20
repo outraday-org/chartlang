@@ -17,6 +17,7 @@ import { ConverterControls } from "./ConverterControls";
 import { OutputPane } from "./OutputPane";
 import { PineInputPane } from "./PineInputPane";
 import { PINE_SCRIPTS } from "./pineScripts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useConverter } from "./useConverter";
 
 /**
@@ -54,17 +55,22 @@ export default function ConverterBody(): ReactElement {
             <div className="converter-toolbar">
                 <label className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span>Sample</span>
-                    <select
-                        className="rounded-md border border-border bg-muted px-3 py-1.5 text-sm text-foreground"
-                        onChange={(event) => switchScript(event.target.value)}
+                    <Select
+                        items={PINE_SCRIPTS.map((s) => ({ label: s.label, value: s.id }))}
+                        onValueChange={(value) => switchScript(value ?? "")}
                         value={script?.id ?? ""}
                     >
-                        {PINE_SCRIPTS.map((s) => (
-                            <option key={s.id} value={s.id}>
-                                {s.label}
-                            </option>
-                        ))}
-                    </select>
+                        <SelectTrigger className="w-[220px]" size="sm">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {PINE_SCRIPTS.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>
+                                    {s.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </label>
                 <ConverterControls
                     barInterval={barInterval}

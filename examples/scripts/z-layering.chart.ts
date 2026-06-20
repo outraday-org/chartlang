@@ -43,11 +43,16 @@ export default defineIndicator({
             });
         }
 
-        // The price sits at the default z = 0, above the z: -1 band.
-        plot(bar.close, { color: "#1e293b", title: "Price" });
-
-        // `z: 1` lifts the SMA above the price plot — crossing the band the
-        // other way to prove `z` controls stacking in both directions.
+        // Declared FIRST, so the default "last plot wins" stack would render
+        // the SMA at the BOTTOM. `z: 1` overrides that order and lifts it back
+        // above the price — that inversion is the whole point: if the SMA were
+        // plotted last instead, it would sit on top by default and `z` would be
+        // doing nothing. Emission order is unchanged by `z` (presentation only).
         plot(ta.sma(bar.close, 20), { color: "#ef5350", title: "SMA on top", z: 1 });
+
+        // Declared LAST (default z = 0). The "last plot wins" rule would put it
+        // on top, but the SMA's `z: 1` keeps it below — while its own z = 0
+        // still holds it above the z: -1 band.
+        plot(bar.close, { color: "#1e293b", title: "Price" });
     },
 });

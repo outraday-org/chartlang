@@ -17,6 +17,7 @@ import { ChartPane } from "./ChartPane"
 import { EditorPane } from "./EditorPane"
 import { type CompiledArtifact, createHybridLanguageService } from "./hybridLanguageService"
 import { DEMO_SCRIPTS } from "./scripts"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const MAX_ALERTS_SHOWN = 6
 
@@ -100,21 +101,26 @@ export default function DemoBody(): ReactElement {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>Script</span>
-          <select
-            className="rounded-md border border-border bg-muted px-3 py-1.5 text-sm text-foreground"
-            onChange={(event) => {
-              setScriptId(event.target.value)
+          <Select
+            items={DEMO_SCRIPTS.map((s) => ({ label: s.label, value: s.id }))}
+            onValueChange={(value) => {
+              setScriptId(value ?? "")
               setAlerts([])
               setArtifact(null)
             }}
             value={script?.id ?? ""}
           >
-            {DEMO_SCRIPTS.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-[220px]" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DEMO_SCRIPTS.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
       </div>
 

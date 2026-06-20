@@ -38,7 +38,8 @@ test("landing renders and the demo compiles, renders, and recompiles", async ({ 
   // whose linter compiles the new source through the same `/api/compile`
   // loop. Play re-enabling plus a changed bitmap proves the loop
   // recompiled and re-rendered fresh source end to end.
-  await demo.locator("select").selectOption("rsi-divergence-alert")
+  await demo.getByRole("combobox").first().click()
+  await page.getByRole("option", { name: "RSI Divergence Alert" }).click()
   await expect(play).toBeEnabled({ timeout: 30_000 })
 
   await expect

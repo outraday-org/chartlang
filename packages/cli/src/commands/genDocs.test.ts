@@ -8,7 +8,6 @@ import { join, resolve as resolvePath } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
-    AUTO_GENERATED_HEADER,
     GenDocsError,
     findRepoRoot,
     generateDocsPage,
@@ -161,9 +160,10 @@ const SAMPLE_INPUT: PrimitiveDocInput = {
 };
 
 describe("generateDocsPage", () => {
-    it("emits the AUTO-GENERATED sentinel as the first line", () => {
+    it("opens directly with the title heading and carries no sentinel", () => {
         const md = generateDocsPage(SAMPLE_INPUT);
-        expect(md.split("\n")[0]).toBe(AUTO_GENERATED_HEADER);
+        expect(md.split("\n")[0]).toBe("# `ta.demo`");
+        expect(md).not.toContain("AUTO-GENERATED");
     });
 
     it("emits Formula / Warmup / Signature / Parameters / Returns / Example / See also", () => {
@@ -588,7 +588,7 @@ describe("runGenDocs", () => {
         expect(result.written).toHaveLength(1);
         const expectedPath = resolvePath(outDir, "demo.md");
         expect(result.written[0]).toBe(expectedPath);
-        expect(writes.get(expectedPath)?.startsWith(AUTO_GENERATED_HEADER)).toBe(true);
+        expect(writes.get(expectedPath)?.startsWith("# `ta.demo`")).toBe(true);
     });
 
     it("is idempotent — second run yields the same content per file", async () => {
@@ -663,7 +663,7 @@ describe("runGenDocs", () => {
 
         expect(result.written).toHaveLength(1);
         const content = await readFile(resolvePath(outDir, "demo.md"), "utf8");
-        expect(content.startsWith(AUTO_GENERATED_HEADER)).toBe(true);
+        expect(content.startsWith("# `ta.demo`")).toBe(true);
     });
 
     it("falls back to a default repository URL when package.json lacks one", async () => {

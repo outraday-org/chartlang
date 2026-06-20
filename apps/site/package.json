@@ -16,6 +16,7 @@
         "e2e:install": "playwright install --with-deps chromium"
     },
     "dependencies": {
+        "@base-ui/react": "^1.6.0",
         "@codemirror/lang-javascript": "^6",
         "@codemirror/lint": "^6",
         "@codemirror/state": "^6",
@@ -35,11 +36,13 @@
         "@tanstack/react-start": "latest",
         "@tanstack/router-plugin": "latest",
         "chartlang-example-canvas2d-adapter": "workspace:*",
+        "clsx": "^2.1.1",
         "codemirror": "^6",
         "lucide-react": "^1.18.0",
         "react": "^19.2.6",
         "react-dom": "^19.2.6",
         "shiki": "^1.20.0",
+        "tailwind-merge": "^3.6.0",
         "tailwindcss": "^4"
     },
     "devDependencies": {

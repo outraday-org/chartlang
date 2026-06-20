@@ -10,7 +10,6 @@ export {
 } from "./extractDrawingPages.js";
 export type { DrawingDocInput, RunGenDrawingDocsOptions } from "./extractDrawingPages.js";
 export {
-    AUTO_GENERATED_HEADER,
     GenDocsError,
     findRepoRoot,
     generateDocsPage,

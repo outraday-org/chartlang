@@ -13,7 +13,7 @@ import {
     runGenDrawingDocs,
 } from "./extractDrawingPages.js";
 import type { DrawingDocInput } from "./extractDrawingPages.js";
-import { AUTO_GENERATED_HEADER, GenDocsError } from "./genDocs.js";
+import { GenDocsError } from "./genDocs.js";
 
 const MINIMAL_LINE = `/**
  * Draw a straight line between two world anchors.
@@ -87,9 +87,10 @@ const PARSE_OPTS = {
 } as const;
 
 describe("generateDrawingDocsPage", () => {
-    it("emits the AUTO-GENERATED sentinel as the first line", () => {
+    it("opens directly with the title heading and carries no sentinel", () => {
         const md = generateDrawingDocsPage(SAMPLE_INPUT);
-        expect(md.split("\n")[0]).toBe(AUTO_GENERATED_HEADER);
+        expect(md.split("\n")[0]).toBe("# `draw.line`");
+        expect(md).not.toContain("AUTO-GENERATED");
     });
 
     it("renders the Stability / Since / Bucket / Wire-kind header block", () => {
@@ -342,7 +343,7 @@ describe("runGenDrawingDocs", () => {
         expect(result.written).toHaveLength(1);
         const expectedPath = resolvePath(outDir, "line.md");
         expect(result.written[0]).toBe(expectedPath);
-        expect(writes.get(expectedPath)?.startsWith(AUTO_GENERATED_HEADER)).toBe(true);
+        expect(writes.get(expectedPath)?.startsWith("# `draw.line`")).toBe(true);
         expect(writes.get(expectedPath)).toContain("# `draw.line`");
     });
 
@@ -442,7 +443,7 @@ describe("runGenDrawingDocs", () => {
 
         expect(result.written).toHaveLength(1);
         const content = await readFile(resolvePath(outDir, "line.md"), "utf8");
-        expect(content.startsWith(AUTO_GENERATED_HEADER)).toBe(true);
+        expect(content.startsWith("# `draw.line`")).toBe(true);
     });
 
     it("falls back to a default repository URL when package.json lacks one", async () => {

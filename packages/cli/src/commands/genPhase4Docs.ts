@@ -6,7 +6,7 @@ import { dirname, join, resolve as resolvePath } from "node:path";
 
 import ts from "typescript";
 
-import { AUTO_GENERATED_HEADER, GenDocsError } from "./genDocs.js";
+import { GenDocsError } from "./genDocs.js";
 
 type Stability = "stable" | "frozen";
 
@@ -414,8 +414,6 @@ export async function parsePhase4DocEntry(
  */
 export function generatePhase4DocsPage(input: Phase4DocInput): string {
     const lines: string[] = [];
-    lines.push(AUTO_GENERATED_HEADER);
-    lines.push("");
     lines.push(`# \`${input.entry.title}\``);
     lines.push("");
     lines.push(`> **Stability:** ${input.stability}`);

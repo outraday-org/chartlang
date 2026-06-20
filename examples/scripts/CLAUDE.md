@@ -97,7 +97,11 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   `{ z: -1 }` so the fill renders **behind** the `plot(bar.close)` price line
   (a drawing beneath a plot — which the default group stack, drawings-above-
   plots, forbids), plus an `SMA(20)` plot at `z: 1` on top to prove `z`
-  crosses bands both ways. `z: 0` (the default) is byte-identical to omitting
+  crosses bands both ways. The `SMA(20)` plot is declared **first** (before
+  `plot(bar.close)`) ON PURPOSE: the default "last plot wins" stack would put
+  it at the BOTTOM, so `z: 1` lifting it back on top is what actually proves
+  `z` does something — if it were plotted last it would sit on top by default
+  and `z` would be a no-op. `z: 0` (the default) is byte-identical to omitting
   it; the option never touches `value`/alerts/`state.*`. Compile-only in the
   CLI e2e gate (like `fill-between-band.chart.ts`); not in the integration
   render test. Mirrored by the `z-layering` `DEMO_SCRIPTS` entry.
@@ -124,3 +128,10 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
 - Adding, renaming, or removing a script requires updating the path
   list in `packages/cli/src/e2e.test.ts`. Runtime-rendered examples
   also belong in `examples/canvas2d-adapter/src/integration.test.ts`.
+- **Most scripts here are mirrored by a same-`id` `DEMO_SCRIPTS` entry**
+  in `apps/site/src/components/demo/scripts.ts` (the inlined demo / docs
+  copy). `pnpm examples:sync` token-compares the two and fails CI on code
+  drift (comments / whitespace / wrapping / trailing commas are ignored).
+  When you change a mirrored script's CODE, change BOTH copies in the same
+  PR, then re-run `pnpm examples:generate`. Scripts with no demo entry
+  (e.g. `base-trend`, `fib-retracement`) are skipped by the gate.

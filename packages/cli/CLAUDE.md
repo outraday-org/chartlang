@@ -54,8 +54,11 @@
   shorthand-of-a-function (vs an inline method) is the supported pattern;
   both resolve identically.
 - **`chartlang docs` owns `docs/primitives/ta/<id>.md`.** Pages open
-  with the `AUTO_GENERATED_HEADER` sentinel; never hand-edit them.
-  `index.md` in the same folder IS hand-written. The signature
+  directly with the `# ` title heading (no in-page sentinel — the
+  VitePress site renders with `markdown.html: false`, so an HTML
+  comment would render as visible text). Never hand-edit them; the
+  `docs:gate` byte-diff is the drift guard. `index.md` in the same
+  folder IS hand-written. The signature
   block in each generated page intentionally shows the runtime
   export (with the leading `slotId: string` parameter) — the page
   text annotates that the compiler injects `slotId` so script

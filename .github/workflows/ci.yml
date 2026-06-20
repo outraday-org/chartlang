@@ -82,6 +82,9 @@ jobs:
             - run: pnpm bench:ci
             - run: pnpm docs:check
             - run: pnpm docs:gate
+            - run: pnpm docs:committed:check   # git-aware: fails when committed primitive pages drift from the generator (catches a regenerated-but-uncommitted page that the working-tree docs:gate would miss locally)
+            - run: pnpm examples:gate
+            - run: pnpm examples:sync
             - run: pnpm docs:build
             - run: pnpm hover:check
             - run: pnpm skills:gate

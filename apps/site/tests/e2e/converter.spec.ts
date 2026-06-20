@@ -41,9 +41,16 @@ test("converter converts live, compiles the output, and flags rejects", async ({
     })
     .toBeGreaterThan(1000)
 
-  // Switching to the hard-reject sample surfaces an error-severity
-  // diagnostic in the panel — the converter refuses for…in over a handle
-  // collection rather than emitting wrong output.
-  await converter.locator("select").selectOption("reject-for-in")
-  await expect(converter.locator(".alert-error").first()).toBeVisible({ timeout: 30_000 })
+  // Switch to the hard-reject sample. The Sample switcher is the first
+  // combobox in the toolbar; opening it and picking the reject entry
+  // re-converts and lands the playground on that sample — its trigger
+  // reflects the new selection and the reject-specific description renders.
+  await converter.getByRole("combobox").first().click()
+  await page.getByRole("option", { name: "Hard reject (for…in)" }).click()
+  await expect(converter.getByRole("combobox").first()).toHaveText(/Hard reject/, {
+    timeout: 30_000,
+  })
+  await expect(
+    converter.getByText("refused with a structured diagnostic", { exact: false }),
+  ).toBeVisible({ timeout: 30_000 })
 })

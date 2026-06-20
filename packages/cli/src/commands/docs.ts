@@ -29,9 +29,9 @@ function resolveDir(raw: string, repoRoot: string): string {
  * `docs/primitives/ta/<id>.md` per `ta.*` primitive into `--out` /
  * `--ta-out` (default `docs/primitives/ta`) plus one
  * `docs/primitives/draw/<kebab-kind>.md` per `draw.*` kind into
- * `--draw-out` (default `docs/primitives/draw`). Pages open with the
- * `<!-- AUTO-GENERATED -->` sentinel so the `docs:gate` byte-equality
- * check is robust.
+ * `--draw-out` (default `docs/primitives/draw`). Pages are
+ * machine-generated — never hand-edit them; re-run this command. The
+ * `docs:gate` byte-equality check guards against drift.
  *
  * On a {@link GenDocsError} (missing required JSDoc tag, bucket
  * mismatch, etc.), the runner writes the structured error to stderr

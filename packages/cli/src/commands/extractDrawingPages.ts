@@ -8,7 +8,7 @@ import { KIND_BUCKET, KIND_KEBABCASE } from "@invinite-org/chartlang-core";
 import type { DrawingBucket, DrawingKind } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
-import { AUTO_GENERATED_HEADER, GenDocsError } from "./genDocs.js";
+import { GenDocsError } from "./genDocs.js";
 
 /**
  * Structured payload the renderer consumes — one per `draw.*` kind.
@@ -259,12 +259,10 @@ export async function parseDrawingSource(
  * @example
  *     // import { generateDrawingDocsPage } from "@invinite-org/chartlang-cli";
  *     // const md = generateDrawingDocsPage(input);
- *     // assert(md.startsWith("<!-- AUTO-GENERATED"));
+ *     // assert(md.startsWith("# `draw."));
  */
 export function generateDrawingDocsPage(input: DrawingDocInput): string {
     const lines: string[] = [];
-    lines.push(AUTO_GENERATED_HEADER);
-    lines.push("");
     lines.push(`# \`draw.${input.camelKind}\``);
     lines.push("");
     lines.push(`> **Stability:** ${input.stability}`);

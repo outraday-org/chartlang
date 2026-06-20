@@ -9,7 +9,6 @@ import { describe, expect, it } from "vitest";
 
 import { DIAGNOSTIC_CODE_ENTRIES } from "../packages/pine-converter/src/diagnostics/codes";
 import {
-    AUTO_HEADER,
     generateConverterDocs,
     renderDiagnosticsPage,
     renderEntry,
@@ -50,9 +49,10 @@ describe("gen-converter-docs", () => {
         expect(block).not.toContain("Suggested fix");
     });
 
-    it("emits the auto-header first and a section for every registry code", () => {
+    it("opens with the intro heading and a section for every registry code", () => {
         const page = renderDiagnosticsPage(ALL_ENTRIES);
-        expect(page.startsWith(AUTO_HEADER)).toBe(true);
+        expect(page.startsWith("# Converter diagnostics")).toBe(true);
+        expect(page).not.toContain("AUTO-GENERATED");
         for (const entry of ALL_ENTRIES) {
             expect(page).toContain(`### ${shortCode(entry.code)}`);
         }

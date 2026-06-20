@@ -19,7 +19,6 @@ export type {
     RunGenDrawingDocsOptions,
 } from "./commands/extractDrawingPages.js";
 export {
-    AUTO_GENERATED_HEADER,
     GenDocsError,
     findRepoRoot,
     generateDocsPage,

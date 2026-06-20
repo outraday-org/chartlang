@@ -14,7 +14,6 @@ import {
     runGenPhase4Docs,
 } from "./genPhase4Docs.js";
 import type { Phase4DocInput } from "./genPhase4Docs.js";
-import { AUTO_GENERATED_HEADER } from "./genDocs.js";
 
 const REPO_ROOT = resolvePath(__dirname, "../../..", "..");
 
@@ -35,9 +34,10 @@ const SAMPLE_DOC: Phase4DocInput = {
 };
 
 describe("generatePhase4DocsPage", () => {
-    it("renders the generated-doc sentinel, metadata, signature, example, and links", () => {
+    it("opens with the title heading, metadata, signature, example, and links", () => {
         const md = generatePhase4DocsPage(SAMPLE_DOC);
-        expect(md.split("\n")[0]).toBe(AUTO_GENERATED_HEADER);
+        expect(md.split("\n")[0]).toBe("# `input.int`");
+        expect(md).not.toContain("AUTO-GENERATED");
         expect(md).toContain("# `input.int`");
         expect(md).toContain("> **Stability:** stable");
         expect(md).toContain("> **Since:** 0.4");
