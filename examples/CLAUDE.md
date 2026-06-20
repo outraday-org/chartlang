@@ -33,7 +33,10 @@ published to npm**.
   with `bar.point(-5, …)`. The `fill-between-band.chart.ts` sample
   accumulates a fast/slow EMA pair into two persistent edge arrays and
   re-emits one `draw.fillBetween(edgeA, edgeB, …)` per bar — the native
-  filled ribbon (Pine `linefill`/`fill()` equivalent).
+  filled ribbon (Pine `linefill`/`fill()` equivalent). The
+  `anchored-line.chart.ts` sample composes both X-axis anchor styles in one
+  `draw.line` — an absolute-time start (first bar's `bar.time`/`bar.close`
+  pinned in `state.*`) to a bar-index end (`bar.point(0, …)`).
 
 ## Phase-1 scope
 

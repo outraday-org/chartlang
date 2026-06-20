@@ -18,3 +18,4 @@ back to run it in your browser.
 - [Pivot High Ray](/examples/pivot-high-ray) — Track the latest swing high's price and time in persistent state.* slots, then draw one horizontal ray from it that follows each new pivot via a reused draw.horizontalRay handle.
 - [Forecast Line](/examples/forecast-line) — Project the recent EMA(20) slope 20 bars into the future with bar.point(+N, …), drawing a dotted line to the right of the last candle — the positive (future) offset path.
 - [Fill between series (band)](/examples/fill-between-band) — A filled ribbon between two EMAs via draw.fillBetween — the native linefill / fill() equivalent.
+- [Anchored Line](/examples/anchored-line) — One draw.line composing both X-axis anchor styles: an absolute-time start (the first bar's time and close, pinned in state.* slots) drawn to a bar-index end via bar.point(0, …), so the head stays fixed in time while the tail tracks the current bar.

@@ -312,16 +312,39 @@ export default {
         const LOOKBACK = 20;
         const PROJECT = 20;
         const trend = ctx.ta.ema("forecast-line.chart.ts:18:23#0", ctx.bar.close, LOOKBACK);
+        ctx.plot("forecast-line.chart.ts:19:9#0", trend, { color: "#26a69a", title: "EMA(20)" });
         const slope = (trend[0] - trend[LOOKBACK]) / LOOKBACK;
         if (Number.isFinite(slope)) {
             const start = ctx.bar.point(0, trend[0]);
             const end = ctx.bar.point(PROJECT, trend[0] + slope * PROJECT);
-            ctx.draw.line("forecast-line.chart.ts:32:13#0", start, end, {
+            ctx.draw.line("forecast-line.chart.ts:33:13#0", start, end, {
                 color: "#ab47bc",
                 lineWidth: 2,
                 lineStyle: "dotted",
             });
         }
+    },
+};
+`;
+    }
+    if (relPath.endsWith("anchored-line.chart.ts")) {
+        return `
+const manifest = ${manifestJson};
+export default {
+    manifest,
+    compute: (ctx) => {
+        const startTime = ctx.state.float("anchored-line.chart.ts:19:27#0", Number.NaN);
+        const startPrice = ctx.state.float("anchored-line.chart.ts:20:28#0", Number.NaN);
+        if (Number.isNaN(startTime.value)) {
+            startTime.value = ctx.bar.time;
+            startPrice.value = ctx.bar.close[0];
+        }
+        ctx.draw.line(
+            "anchored-line.chart.ts:40:9#0",
+            { time: startTime.value, price: startPrice.value },
+            ctx.bar.point(0, ctx.bar.close),
+            { color: "#3b82f6", lineWidth: 2 },
+        );
     },
 };
 `;
@@ -727,6 +750,41 @@ describe("canvas2d adapter integration", () => {
         expect(from.x).toBeLessThan(to.x);
         expect(to.x).toBeGreaterThan(560);
         expect(to.x).toBeLessThanOrEqual(588);
+    });
+
+    it("renders anchored-line with an absolute-time start + bar-index end", async () => {
+        const anchoredBars = Array.from({ length: 30 }, (_, i) =>
+            phase4Bar(i, 100 + i * 0.5, "1D"),
+        );
+        const run = await runExampleScript(
+            "examples/scripts/anchored-line.chart.ts",
+            anchoredBars,
+        );
+        expect(run.workerErrors).toEqual([]);
+        // The start anchor is built from `state.*` + `bar.close[0]` (a finite
+        // scalar, NOT the Series view): the drawing must survive the runtime's
+        // finite-WorldPoint validation rather than being dropped as malformed.
+        expect(hasErrorDiagnostics(run.emissions)).toBe(false);
+
+        const lastLine = run.emissions
+            .flatMap((frame) => frame.drawings)
+            .filter((d) => d.drawingKind === "line" && d.op !== "remove")
+            .at(-1);
+        expect(lastLine).toBeDefined();
+        const anchors = (lastLine?.state as { anchors: ReadonlyArray<{ time: number; price: number }> })
+            .anchors;
+        // Head pinned to the FIRST bar (absolute time); tail at the LAST bar
+        // (bar.point(0, …)). Both finite — the bug shipped a non-finite price.
+        expect(anchors[0].time).toBe(anchoredBars[0].time);
+        expect(anchors[0].price).toBe(anchoredBars[0].close);
+        expect(Number.isFinite(anchors[0].price)).toBe(true);
+        expect(anchors[1].time).toBe(anchoredBars[anchoredBars.length - 1].time);
+
+        // The blue line strokes on-screen (the malformed drop produced none).
+        const strokes = run.ctx.calls.filter(
+            (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === "#3b82f6",
+        );
+        expect(strokes.length).toBeGreaterThan(0);
     });
 
     it("emits a session-high alert on crossover", async () => {

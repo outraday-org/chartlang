@@ -72,6 +72,25 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   in the `polylines` budget bucket (`maxDrawings.polylines: 1`).
   Compile-only in the CLI e2e gate; it is not in the integration render
   test.
+- `anchored-line.chart.ts` demonstrates the TWO X-axis anchor styles
+  composing in one `draw.line`: the START is an ABSOLUTE-time anchor — a
+  literal `{ time, price }` built from the first bar's `bar.time`/`bar.close`
+  captured once into `state.*` slots (`NaN` sentinel for "not captured yet")
+  — and the END is a BAR-INDEX anchor via `bar.point(0, bar.close)` (offset 0
+  == the live bar). Re-emitting from the same callsite every bar reuses one
+  line handle, so the head stays pinned to the first bar's time while the tail
+  tracks the current bar. The companion offset-only examples are
+  `pivot-high-ray.chart.ts` (negative/current `bar.point`) and
+  `forecast-line.chart.ts` (positive `bar.point`); this one pins the
+  absolute-time ↔ bar-index interaction. **Stores `bar.close[0]` (the indexed
+  scalar), NOT `bar.close`** into the `state.*` price slot — `bar.close` is a
+  Series VIEW object, so persisting it directly makes the drawing's price
+  anchor non-finite and the runtime drops the line as a `malformed-emission`
+  (the end anchor escapes this only because `bar.point` coerces via `Number`).
+  Exercised by `examples/canvas2d-adapter/src/integration.test.ts` ("renders
+  anchored-line…"), which asserts the line survives validation and the start
+  anchor is pinned to the first bar — a render regression test, since the CLI
+  e2e gate is compile-only and would not catch the malformed drop.
 
 ## Conventions
 
