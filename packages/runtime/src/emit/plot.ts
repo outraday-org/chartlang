@@ -113,6 +113,12 @@ function plotImpl(
     // keeping the no-offset wire byte-identical to the pre-feature baseline.
     const xShift = typeof value === "number" ? 0 : seriesOffsetOf(value);
 
+    // `z` is a direct plot-call option (a render-order key), unlike
+    // `xShift` (derived from the series view). Normalize undefined → `0`
+    // and append it with the same omit-when-`0` conditional spread so a
+    // no-`z` plot stays byte-identical to the pre-feature baseline.
+    const z = opts.z ?? 0;
+
     const emission: PlotEmission = {
         kind: "plot",
         slotId,
@@ -125,6 +131,7 @@ function plotImpl(
         meta: {},
         pane,
         ...(xShift === 0 ? {} : { xShift }),
+        ...(z === 0 ? {} : { z }),
     };
 
     pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));

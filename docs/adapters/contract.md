@@ -163,6 +163,31 @@ The complete schema and ordering rules:
 [Execution semantics § Emission ordering](../spec/semantics.md#emission-ordering)
 and [Emission payloads](../spec/emissions.md).
 
+## Render order
+
+The emission queue order only fixes how the batch *drains*. How an adapter
+*paints* a batch is itself part of the contract: a conformant adapter MUST
+paint marks in these group bands, from bottom to top:
+
+1. **background fills** — bottom.
+2. **plots** — `plot()` / `hline()` series.
+3. **drawings** — `draw.*()` marks.
+4. **alert badges** — top.
+
+Within a single band, marks MUST render in **declaration order** — the order
+their `plot()` / `draw.*()` primitive was first called in `compute` — so a
+later-declared mark in the same band paints on top of an earlier one. This is
+the same order the emissions arrive in their queues.
+
+Drawings paint above plots **by default**; this is overridable only via the
+`z` field, never by the adapter silently reordering bands. An adapter MUST NOT
+paint drawings under plots (or otherwise permute the bands) on its own — that
+ordering is a portability guarantee scripts rely on. The normative statement,
+including the global `(z, groupBand, declarationOrder)` sort key, lives in
+[Execution semantics § Render ordering](../spec/semantics.md#render-ordering-normative).
+[Writing an adapter § Render order](./writing-an-adapter.md#render-order) shows
+how to implement it as a single sorted pass.
+
 ## Plot overrides
 
 A **plot override** lets the embedder recolor or show/hide an individual

@@ -25,10 +25,12 @@ import {
 import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities.js";
 import { DEFAULT_PALETTE, type Palette } from "./palette.js";
 import {
+    BAND,
     type HLine,
     type PaneLayoutEntry,
     type PlotPoint,
     type RenderCtx,
+    type SortableMark,
     type Viewport,
     clearPaneRect,
     computePaneLayout,
@@ -54,6 +56,7 @@ import {
     priceToY,
     projectShiftedX,
     shiftedBarTime,
+    sortByRenderOrder,
     timeToX,
 } from "./render/index.js";
 
@@ -145,6 +148,19 @@ type AdapterState = {
     readonly currentAlertConditions: AlertConditionEmission[];
     readonly recentLogs: LogEmission[];
     readonly drawings: Map<string, DrawingEmission>;
+    // Global declaration-order counter, bumped once per ingested
+    // sortable mark (plot / drawing). `z`-ties in the render pass fall
+    // back to this so the paint order stays total and deterministic
+    // (never relying on Map iteration once `z` is in play).
+    seq: number;
+    // Declaration sequence for each glyph overlay / drawing, keyed
+    // parallel to `plotOverlays` (`${slotId}@${time}`) and `drawings`
+    // (`handleId`). `PlotPoint` / `HLine` carry `seq` inline; these two
+    // stores hold the raw emission (which carries `z` but not `seq`), so
+    // the sequence lives beside them. Last-write-wins, matching the
+    // emission's own dedup.
+    readonly overlaySeq: Map<string, number>;
+    readonly drawingSeq: Map<string, number>;
     readonly palette: Palette;
 };
 
@@ -424,86 +440,106 @@ function withLocation<L>(location: L | undefined): { location?: L } {
     return location === undefined ? {} : { location };
 }
 
-function renderGlyphOverlays(state: AdapterState, spacing: number, viewport: Viewport): void {
-    for (const plot of state.plotOverlays.values()) {
-        if (plot.style.kind === "horizontal-histogram") {
-            drawHorizontalHistogram(
+// A `plotOverlays` entry joins the z-sorted glyph band iff its style is a
+// shifted-series glyph (shape / character / arrow) or a horizontal
+// histogram — the subset `paintGlyph` renders. Substrate overlays
+// (bg-color / bar-color / candle-/bar-override) paint with the candles
+// and are excluded here.
+function isGlyphOverlay(plot: PlotEmission): boolean {
+    return (
+        plot.style.kind === "shape" ||
+        plot.style.kind === "character" ||
+        plot.style.kind === "arrow" ||
+        plot.style.kind === "horizontal-histogram"
+    );
+}
+
+// Paint exactly one glyph overlay — the per-mark renderer the sorted
+// pass dispatches to (formerly the body of `renderGlyphOverlays`'s loop).
+function paintGlyph(
+    state: AdapterState,
+    plot: PlotEmission,
+    spacing: number,
+    viewport: Viewport,
+): void {
+    if (plot.style.kind === "horizontal-histogram") {
+        drawHorizontalHistogram(
+            state.ctx,
+            {
+                buckets: plot.style.buckets,
+                maxWidth: HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX,
+                rowHeight: HORIZONTAL_HISTOGRAM_ROW_HEIGHT_PX,
+            },
+            viewport,
+            state.palette,
+        );
+        return;
+    }
+    if (plot.value === null) return;
+    // Glyph plots (shape / character / arrow) are shifted series
+    // visuals, so they route through the same bar-offset projection as
+    // line / histogram instead of `timeToX(plot.time)`.
+    const x = projectShiftedX(
+        { bars: state.bars, bar: plot.bar, xShift: plot.xShift, spacing },
+        viewport,
+    );
+    const y = priceToY(plot.value, viewport);
+    switch (plot.style.kind) {
+        case "shape":
+            drawShape(
                 state.ctx,
                 {
-                    buckets: plot.style.buckets,
-                    maxWidth: HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX,
-                    rowHeight: HORIZONTAL_HISTOGRAM_ROW_HEIGHT_PX,
+                    x,
+                    y,
+                    shape: plot.style.shape,
+                    size: plot.style.size,
+                    ...withLocation(plot.style.location),
+                    color: plot.color,
                 },
-                viewport,
                 state.palette,
             );
-            continue;
-        }
-        if (plot.value === null) continue;
-        // Glyph plots (shape / character / arrow) are shifted series
-        // visuals, so they route through the same bar-offset projection as
-        // line / histogram instead of `timeToX(plot.time)`.
-        const x = projectShiftedX(
-            { bars: state.bars, bar: plot.bar, xShift: plot.xShift, spacing },
-            viewport,
-        );
-        const y = priceToY(plot.value, viewport);
-        switch (plot.style.kind) {
-            case "shape":
-                drawShape(
-                    state.ctx,
-                    {
-                        x,
-                        y,
-                        shape: plot.style.shape,
-                        size: plot.style.size,
-                        ...withLocation(plot.style.location),
-                        color: plot.color,
-                    },
-                    state.palette,
-                );
-                break;
-            case "character":
-                drawCharacter(
-                    state.ctx,
-                    {
-                        x,
-                        y,
-                        char: plot.style.char,
-                        size: plot.style.size,
-                        ...withLocation(plot.style.location),
-                        color: plot.color,
-                    },
-                    state.palette,
-                );
-                break;
-            case "arrow":
-                drawArrow(
-                    state.ctx,
-                    {
-                        x,
-                        y,
-                        direction: plot.style.direction,
-                        size: plot.style.size,
-                        color: plot.color,
-                    },
-                    state.palette,
-                );
-                break;
-            default:
-                break;
-        }
+            break;
+        case "character":
+            drawCharacter(
+                state.ctx,
+                {
+                    x,
+                    y,
+                    char: plot.style.char,
+                    size: plot.style.size,
+                    ...withLocation(plot.style.location),
+                    color: plot.color,
+                },
+                state.palette,
+            );
+            break;
+        case "arrow":
+            drawArrow(
+                state.ctx,
+                {
+                    x,
+                    y,
+                    direction: plot.style.direction,
+                    size: plot.style.size,
+                    color: plot.color,
+                },
+                state.palette,
+            );
+            break;
+        // No default: `collectSortableMarks` only emits glyph marks for
+        // the shape / character / arrow / horizontal-histogram subset
+        // (`isGlyphOverlay`), so no other `plot.style.kind` reaches here.
     }
 }
 
-// Drawings, alert badges, alert conditions, and the log pane are all
-// overlay-bound (pane-routed drawings are deferred — see the README).
-// Drawn against the overlay viewport inside the overlay-pane translate
-// so they share the price pane's coordinate space.
+// Alert badges, alert conditions, and the log pane are overlay-bound and
+// pinned **on top** of the z-sorted marks — they are not sortable by `z`
+// in v1 (see the README's deferral). Drawings used to render here too;
+// they now join the per-pane z-sorted pass (`collectSortableMarks`), so
+// this tail paints only the always-on-top overlays, after that pass, in
+// the overlay-pane translate so they share the price pane's coordinate
+// space.
 function renderOverlayTail(state: AdapterState, viewport: Viewport): void {
-    for (const drawing of state.drawings.values()) {
-        drawingDispatch(state.ctx, drawing, viewport);
-    }
     if (state.bars.length === 0) {
         drawLogPane(state.ctx, state.recentLogs, viewport, state.palette);
         return;
@@ -522,33 +558,99 @@ function renderOverlayTail(state: AdapterState, viewport: Viewport): void {
     drawLogPane(state.ctx, state.recentLogs, viewport, state.palette);
 }
 
-// Draw every plot series belonging to one pane, dispatching histogram
-// styles to `renderHistogramSeries` and everything else to `drawLine`.
-// `spacing` is the run's median bar spacing, threaded into the shifted-
-// series x projection both render paths share.
-function renderPaneSeries(
+// Paint one plot series, dispatching histogram styles to
+// `renderHistogramSeries` and everything else to `drawLine`. `key` is the
+// series' `${paneKey}|${slotId}` so its style can be resolved. `spacing`
+// is the run's median bar spacing, threaded into the shifted-series x
+// projection both render paths share. The per-series painter the sorted
+// pass dispatches to.
+function paintSeries(
     state: AdapterState,
-    paneKey: string,
+    key: string,
+    series: ReadonlyArray<PlotPoint>,
     spacing: number,
     viewport: Viewport,
 ): void {
-    const prefix = paneKeyPrefix(paneKey);
     const world = { bars: state.bars, spacing };
+    const style = state.plotSeriesStyle.get(key);
+    if (style !== undefined && style.kind === "histogram") {
+        renderHistogramSeries(state.ctx, series, style.baseline, world, viewport, state.palette);
+        return;
+    }
+    drawLine(state.ctx, series, world, viewport, state.palette);
+}
+
+// Collect every sortable mark for one pane — plot series, glyph overlays
+// (overlay pane only), horizontal lines, and drawings (overlay pane
+// only) — tagged with `(z, band, seq)`. The render pass stable-sorts the
+// result so the default `z = 0` reproduces today's phase order
+// (series → glyphs → hlines → drawings) and `z` reorders globally within
+// the pane. The series mark's `z`/`seq` come from its most-recent point
+// (last-write-wins, like its style); empty series are skipped.
+function collectSortableMarks(state: AdapterState, paneKey: string): SortableMark[] {
+    const marks: SortableMark[] = [];
+    const prefix = paneKeyPrefix(paneKey);
     for (const [key, series] of state.plotSeries) {
         if (!key.startsWith(prefix)) continue;
-        const style = state.plotSeriesStyle.get(key);
-        if (style !== undefined && style.kind === "histogram") {
-            renderHistogramSeries(
-                state.ctx,
-                series,
-                style.baseline,
-                world,
-                viewport,
-                state.palette,
-            );
-            continue;
+        // A stored series always holds ≥ 1 point (`applyPlot` only ever
+        // `set`s after a `push`), so the last point — carrying the series'
+        // most-recent `z`/`seq` — is always present.
+        const last = series[series.length - 1];
+        marks.push({ kind: "series", z: last.z, band: BAND.series, seq: last.seq, key, series });
+    }
+    if (paneKey === "overlay") {
+        for (const [overlayKey, plot] of state.plotOverlays) {
+            if (!isGlyphOverlay(plot)) continue;
+            // `overlaySeq` is written in lockstep with `plotOverlays`
+            // (`applyPlot`), so the sequence is always present.
+            /* v8 ignore next -- lockstep with plotOverlays; ?? never taken */
+            const seq = state.overlaySeq.get(overlayKey) ?? 0;
+            marks.push({ kind: "glyph", z: plot.z ?? 0, band: BAND.glyph, seq, plot });
         }
-        drawLine(state.ctx, series, world, viewport, state.palette);
+    }
+    for (const hline of state.hlines.values()) {
+        if (hline.paneKey !== paneKey) continue;
+        marks.push({ kind: "hline", z: hline.z, band: BAND.hline, seq: hline.seq, hline });
+    }
+    if (paneKey === "overlay") {
+        for (const [handleId, drawing] of state.drawings) {
+            // `drawingSeq` is written in lockstep with `drawings`
+            // (`applyDrawing`), so the sequence is always present.
+            /* v8 ignore next -- lockstep with drawings; ?? never taken */
+            const seq = state.drawingSeq.get(handleId) ?? 0;
+            marks.push({
+                kind: "drawing",
+                z: drawing.z ?? 0,
+                band: BAND.drawing,
+                seq,
+                drawing,
+            });
+        }
+    }
+    return sortByRenderOrder(marks);
+}
+
+// Paint one sortable mark by routing it to its existing per-kind
+// renderer. Order — not per-mark drawing — is what the sort changed.
+function paintSortableMark(
+    state: AdapterState,
+    mark: SortableMark,
+    spacing: number,
+    viewport: Viewport,
+): void {
+    switch (mark.kind) {
+        case "series":
+            paintSeries(state, mark.key, mark.series, spacing, viewport);
+            return;
+        case "glyph":
+            paintGlyph(state, mark.plot, spacing, viewport);
+            return;
+        case "hline":
+            drawHorizontalLine(state.ctx, mark.hline, viewport, state.palette);
+            return;
+        case "drawing":
+            drawingDispatch(state.ctx, mark.drawing, viewport);
+            return;
     }
 }
 
@@ -586,11 +688,15 @@ function renderFrame(state: AdapterState): void {
             drawCandles(state.ctx, state.bars, viewport, state.palette);
             renderBarOverlays(state, viewport);
         }
-        renderPaneSeries(state, entry.paneKey, spacing, viewport);
-        if (entry.paneKey === "overlay") renderGlyphOverlays(state, spacing, viewport);
-        for (const hline of state.hlines.values()) {
-            if (hline.paneKey !== entry.paneKey) continue;
-            drawHorizontalLine(state.ctx, hline, viewport, state.palette);
+        // One global z-ordered paint pass for this pane: collect every
+        // sortable mark (series / glyphs / hlines / drawings), stable-sort
+        // by `(z, band, seq)`, then dispatch each to its per-kind
+        // renderer. At the default `z = 0` the key reduces to
+        // `(band, declarationSeq)` — byte-identical to the pre-`z` phase
+        // order (series → glyphs → hlines → drawings). Substrate above
+        // and the alert tail below stay `z`-independent.
+        for (const mark of collectSortableMarks(state, entry.paneKey)) {
+            paintSortableMark(state, mark, spacing, viewport);
         }
 
         state.ctx.restore();
@@ -616,6 +722,12 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
     // slot from the scale (a hidden oscillator never stretches the viewport).
     if (plot.visible === false) return;
     const paneKey = plot.pane;
+    // One declaration-sequence number per ingested mark (ingest order =
+    // script declaration order, since the runtime drains in script
+    // order). `z` defaults to `0`, omitted-on-the-wire ⇒ byte-identical
+    // band+declaration order.
+    const seq = state.seq++;
+    const z = plot.z ?? 0;
     if (paneKey !== "overlay" && !state.paneOrder.includes(paneKey)) {
         state.paneOrder.push(paneKey);
     }
@@ -634,6 +746,8 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             // Omit a no-shift `xShift` so the stored point (and therefore
             // the rendered x) is byte-identical to a pre-feature emission.
             ...(plot.xShift === undefined || plot.xShift === 0 ? {} : { xShift: plot.xShift }),
+            z,
+            seq,
         });
         state.plotSeries.set(key, series);
         state.plotSeriesStyle.set(key, plot.style);
@@ -646,6 +760,8 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             lineWidth: plot.style.lineWidth,
             lineStyle: plot.style.lineStyle,
             paneKey,
+            z,
+            seq,
         });
         return;
     }
@@ -657,7 +773,14 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
     // e.g. crossover marks would show only at the final crossover.
     // Re-emission within an in-progress bar (ticks) shares the bar's
     // time, so last-write-wins per bar is preserved.
-    state.plotOverlays.set(`${plot.slotId}@${plot.time}`, plot);
+    const overlayKey = `${plot.slotId}@${plot.time}`;
+    state.plotOverlays.set(overlayKey, plot);
+    // Glyph overlays (shape / character / arrow) join the z-sorted pass;
+    // record their declaration sequence beside the emission (which
+    // already carries `z`). Substrate overlays (bg-color / bar overrides)
+    // also land here harmlessly — the render pass only reads the glyph
+    // subset's sequence.
+    state.overlaySeq.set(overlayKey, seq);
 }
 
 function applyAlert(
@@ -689,9 +812,14 @@ function applyLog(state: AdapterState, log: LogEmission): void {
 function applyDrawing(state: AdapterState, drawing: DrawingEmission): void {
     if (drawing.op === "remove") {
         state.drawings.delete(drawing.handleId);
+        state.drawingSeq.delete(drawing.handleId);
         return;
     }
     state.drawings.set(drawing.handleId, drawing);
+    // Declaration sequence beside the emission (which carries `z`).
+    // Last-write-wins per handle, matching the drawing's own dedup, so a
+    // re-emitted drawing keeps its latest declaration position.
+    state.drawingSeq.set(drawing.handleId, state.seq++);
 }
 
 function applyValidated<T>(items: ReadonlyArray<T>, apply: (item: T) => void): void {
@@ -778,6 +906,9 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         currentAlertConditions: [],
         recentLogs: [],
         drawings: new Map(),
+        seq: 0,
+        overlaySeq: new Map(),
+        drawingSeq: new Map(),
         palette,
     };
     const host =
@@ -823,6 +954,9 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
             state.currentAlertConditions.length = 0;
             state.recentLogs.length = 0;
             state.drawings.clear();
+            state.seq = 0;
+            state.overlaySeq.clear();
+            state.drawingSeq.clear();
             host.dispose();
         },
     });

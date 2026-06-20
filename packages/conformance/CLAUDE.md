@@ -131,13 +131,16 @@ plot hashes, alert counts, and diagnostic codes.
   presentation fields.** `plot-hash` deliberately hashes only
   `{ bar, value }` (color/width are excluded so existing hashes stay
   stable), so `plot-field` exists to assert `visible` / `color` /
-  `style.lineWidth` / `xShift` on the emission for a `(slotIndex, bar)`
-  pair. `expected: undefined` asserts an omitted field — a visible plot
-  carries no `visible` flag, a non-line-family style carries no
-  `lineWidth`, and a no-offset plot carries no `xShift`. The
-  empty-override parity guarantee is pinned by re-using `plot-hash` on the
-  recolored slot (its numeric series is byte-identical to the no-override
-  run).
+  `style.lineWidth` / `xShift` / `z` on the emission for a
+  `(slotIndex, bar)` pair. `expected: undefined` asserts an omitted
+  field — a visible plot carries no `visible` flag, a non-line-family
+  style carries no `lineWidth`, a no-offset plot carries no `xShift`, and
+  a no-`z`/`z:0` plot carries no `z`. Each non-`default` field needs an
+  explicit `case` in the reader switch (`runConformanceSuite.ts`); the
+  `default` arm is `visible`, so a new field added to the union WITHOUT a
+  matching `case` would silently read `visible`. The empty-override
+  parity guarantee is pinned by re-using `plot-hash` on the recolored
+  slot (its numeric series is byte-identical to the no-override run).
 - **`xShift` is the bidirectional plot-offset presentation field.**
   `PLOT_OFFSET_XSHIFT_SCENARIO` plots an unshifted `bar.close` plus a `+3`
   and a `−3` `ta.sma(..., { offset })` line, then asserts (via
@@ -147,6 +150,19 @@ plot hashes, alert counts, and diagnostic codes.
   presentation display shift, `+n` right / `−n` left, carried on the
   emission and rendered by the adapter). Re-pin the hash via the
   "expected vs actual" message like every other scenario.
+- **`z` is the plot render-order (z-index) presentation field.**
+  `Z_ORDER_SCENARIO` plots an un-`z`'d `bar.close` plus a
+  `plot(ta.sma(...), { z: -1 })`, then asserts (via `plot-field: "z"`)
+  `z = -1` on the `z`'d slot and an omitted field on the un-`z`'d slot
+  (the omit-when-`0` byte-identity guard against a stray `z: 0` leaking
+  onto the wire), plus a `plot-hash` on the un-`z`'d slot proving the
+  value series is never transformed by `z` (its hash is byte-identical to
+  the xShift scenario's unshifted `bar.close` slot —
+  `857ce0c6…` — since `z` is presentation-only). The scenario is
+  **plots-only**: drawing-`z` is unassertable here (no `drawing-field`
+  kind, and `drawing-hash` hashes `DrawingState`, which does not carry
+  the top-level `z`) — it is covered by the runtime unit test and the
+  canvas2d adapter render test instead.
 
 ## Pine round-trip invariants
 

@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import { hline, plot } from "./plot.js";
-import type { HLineOpts, PlotKind, PlotOptsStyle } from "./plot.js";
+import type { HLineOpts, PlotKind, PlotOpts, PlotOptsStyle } from "./plot.js";
 
 describe("plot callable hole", () => {
     it("plot throws outside-runtime sentinel for scalar input", () => {
@@ -68,6 +68,22 @@ describe("PlotKind and PlotOptsStyle types", () => {
             "bar-color",
             "horizontal-histogram",
         ]);
+    });
+});
+
+describe("PlotOpts.z render-order key", () => {
+    it("accepts an optional finite z and rejects non-numbers", () => {
+        const layered: PlotOpts = { z: 2 };
+        const fractional: PlotOpts = { z: 1.5 };
+        const behind: PlotOpts = { z: -1 };
+        const noZ: PlotOpts = { color: "#000" };
+        // @ts-expect-error z is a number, not a string
+        const bad: PlotOpts = { z: "x" };
+        void layered;
+        void fractional;
+        void behind;
+        void noZ;
+        void bad;
     });
 });
 

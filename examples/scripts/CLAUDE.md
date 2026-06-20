@@ -91,6 +91,16 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   anchored-line…"), which asserts the line survives validation and the start
   anchor is pinned to the first bar — a render regression test, since the CLI
   e2e gate is compile-only and would not catch the malformed drop.
+- `z-layering.chart.ts` demonstrates the presentation-only `z`
+  render-order key: it builds a fast/slow EMA(12)/EMA(26) ribbon exactly like
+  `fill-between-band.chart.ts`, then gives the `draw.fillBetween` call
+  `{ z: -1 }` so the fill renders **behind** the `plot(bar.close)` price line
+  (a drawing beneath a plot — which the default group stack, drawings-above-
+  plots, forbids), plus an `SMA(20)` plot at `z: 1` on top to prove `z`
+  crosses bands both ways. `z: 0` (the default) is byte-identical to omitting
+  it; the option never touches `value`/alerts/`state.*`. Compile-only in the
+  CLI e2e gate (like `fill-between-band.chart.ts`); not in the integration
+  render test. Mirrored by the `z-layering` `DEMO_SCRIPTS` entry.
 
 ## Conventions
 

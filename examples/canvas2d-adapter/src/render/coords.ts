@@ -35,11 +35,17 @@ export type Viewport = {
  * resolve the drawn x from `bar` + `xShift` via {@link projectShiftedX},
  * so an omitted `xShift` reproduces the pre-shift `timeToX(time)` x.
  *
+ * `z` is the presentation-only layer key (default `0`); `seq` is the
+ * global declaration-order tiebreak both assigned at ingest. The render
+ * pass sorts every sortable mark by `(z, band, seq)`, so a `PlotPoint`
+ * carries them on each accumulated point.
+ *
  * @since 0.1
  * @stable
  * @example
  *     const p: PlotPoint = {
  *         time: 1_700_000_000_000, value: 42.31, color: "#26a69a", bar: 100,
+ *         z: 0, seq: 0,
  *     };
  *     void p;
  */
@@ -49,12 +55,15 @@ export type PlotPoint = {
     readonly color: string | null;
     readonly bar: number;
     readonly xShift?: number;
+    readonly z: number;
+    readonly seq: number;
 };
 
 /**
  * One horizontal-line definition keyed by callsite slot id. Stays at
  * the most recent value emitted for the slot — `hline` is a last-write
- * primitive at the adapter layer.
+ * primitive at the adapter layer. `z` (default `0`) and `seq` (global
+ * declaration order) are the render-pass sort keys, assigned at ingest.
  *
  * @since 0.1
  * @stable
@@ -64,6 +73,8 @@ export type PlotPoint = {
  *         color: "#ef4444",
  *         lineWidth: 1,
  *         lineStyle: "dashed",
+ *         z: 0,
+ *         seq: 0,
  *     };
  *     void h;
  */
@@ -72,6 +83,8 @@ export type HLine = {
     readonly color: string | null;
     readonly lineWidth: number;
     readonly lineStyle: LineStyle;
+    readonly z: number;
+    readonly seq: number;
 };
 
 /**

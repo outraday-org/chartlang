@@ -38,6 +38,7 @@ function plotEmission(overrides: Partial<PlotEmission> & { slotId: string }): Pl
         pane: overrides.pane ?? "overlay",
         ...(overrides.visible === undefined ? {} : { visible: overrides.visible }),
         ...(overrides.xShift === undefined ? {} : { xShift: overrides.xShift }),
+        ...(overrides.z === undefined ? {} : { z: overrides.z }),
     };
 }
 
@@ -1747,5 +1748,219 @@ describe("runRendererLoop", () => {
         expect(baseHost.drains.length).toBe(1);
         // onEmissions was NOT called, so no new ctx calls were appended.
         expect(ctx.calls.length).toBe(baseline);
+    });
+});
+
+describe("z-order render pass", () => {
+    // Every mark sets `strokeStyle` to a distinctive colour, so the index
+    // of its `set strokeStyle` call in the recorded log is the mark's
+    // paint position. Marks paint in `(z, band, seq)` order, so comparing
+    // these indices pins the global render order. Distinct hex colours
+    // avoid collision with the candle/axis palette.
+    const PLOT_A = "#aa0001";
+    const PLOT_B = "#bb0002";
+    const DRAW_A = "#cc0003";
+    const DRAW_B = "#dd0004";
+
+    // First index at which `strokeStyle` is set to `color`, or -1.
+    function strokeIndex(ctx: MockCanvas2DContext, color: string): number {
+        return ctx.calls.findIndex(
+            (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === color,
+        );
+    }
+
+    // A line plot whose stroke colour is `color`, at the given `z`.
+    function colouredLine(slotId: string, color: string, z?: number): PlotEmission {
+        return plotEmission({
+            slotId,
+            color,
+            value: 102,
+            ...(z === undefined ? {} : { z }),
+        });
+    }
+
+    // A `draw.line` whose stroke colour is `color`, at the given `z`.
+    function colouredDrawing(handleId: string, color: string, z?: number): DrawingEmission {
+        return {
+            ...lineDrawing({
+                handleId,
+                state: {
+                    kind: "line",
+                    anchors: [
+                        { time: SAMPLE_BARS[0].time, price: 100 },
+                        { time: SAMPLE_BARS[1].time, price: 110 },
+                    ],
+                    style: { color },
+                } as unknown as DrawingState,
+            }),
+            ...(z === undefined ? {} : { z }),
+        };
+    }
+
+    it("at the default z=0 paints plots beneath drawings (today's band order)", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [colouredLine("p1", PLOT_A)],
+                drawings: [colouredDrawing("d1", DRAW_A)],
+            }),
+        );
+        const plotIdx = strokeIndex(ctx, PLOT_A);
+        const drawIdx = strokeIndex(ctx, DRAW_A);
+        expect(plotIdx).toBeGreaterThanOrEqual(0);
+        expect(drawIdx).toBeGreaterThanOrEqual(0);
+        // series band (0) < drawing band (3) ⇒ plot paints first (beneath).
+        expect(plotIdx).toBeLessThan(drawIdx);
+    });
+
+    it("a drawing at z=-1 paints beneath a z=0 plot (cross-band reorder)", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [colouredLine("p1", PLOT_A)],
+                drawings: [colouredDrawing("d1", DRAW_A, -1)],
+            }),
+        );
+        const plotIdx = strokeIndex(ctx, PLOT_A);
+        const drawIdx = strokeIndex(ctx, DRAW_A);
+        // z=-1 < z=0 ⇒ the drawing now paints first, beneath the plot,
+        // inverting the default band order.
+        expect(drawIdx).toBeLessThan(plotIdx);
+    });
+
+    it("a plot at z=5 paints above a z=0 drawing (cross-band reorder)", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [colouredLine("p1", PLOT_A, 5)],
+                drawings: [colouredDrawing("d1", DRAW_A)],
+            }),
+        );
+        const plotIdx = strokeIndex(ctx, PLOT_A);
+        const drawIdx = strokeIndex(ctx, DRAW_A);
+        // z=5 > z=0 ⇒ the plot paints last, above the drawing.
+        expect(drawIdx).toBeLessThan(plotIdx);
+    });
+
+    it("a fractional z=1.5 slots a drawing between z=1 and z=2 plots", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [colouredLine("p1", PLOT_A, 1), colouredLine("p2", PLOT_B, 2)],
+                drawings: [colouredDrawing("d1", DRAW_A, 1.5)],
+            }),
+        );
+        const aIdx = strokeIndex(ctx, PLOT_A);
+        const drawIdx = strokeIndex(ctx, DRAW_A);
+        const bIdx = strokeIndex(ctx, PLOT_B);
+        expect(aIdx).toBeLessThan(drawIdx);
+        expect(drawIdx).toBeLessThan(bIdx);
+    });
+
+    it("breaks a (z, band) tie by declaration order", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                // Two plots at the same z in the same band: the later
+                // declaration must paint last (on top).
+                plots: [colouredLine("p1", PLOT_A, 2), colouredLine("p2", PLOT_B, 2)],
+            }),
+        );
+        const aIdx = strokeIndex(ctx, PLOT_A);
+        const bIdx = strokeIndex(ctx, PLOT_B);
+        expect(aIdx).toBeLessThan(bIdx);
+    });
+
+    it("breaks a (z, band) tie by declaration order across drawings too", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                drawings: [colouredDrawing("d1", DRAW_A, 3), colouredDrawing("d2", DRAW_B, 3)],
+            }),
+        );
+        const aIdx = strokeIndex(ctx, DRAW_A);
+        const bIdx = strokeIndex(ctx, DRAW_B);
+        expect(aIdx).toBeLessThan(bIdx);
+    });
+
+    it("keeps alert badges on top regardless of a mark's z", async () => {
+        // Alert badges only paint when the frame has bars, so drive the
+        // loop with a history candle then a drain carrying a high-z plot
+        // and an alert. The badge (an arc) must paint after the plot's
+        // stroke even though the plot is lifted far above via z — alerts
+        // are pinned on top, not z-sorted (v1 deferral).
+        const ctx = new MockCanvas2DContext();
+        const host = stubHost([
+            emissions(),
+            emissions({
+                plots: [colouredLine("p1", PLOT_A, 100)],
+                alerts: [alertEmission({ slotId: "a1", bar: 0 })],
+            }),
+        ]);
+        const { adapter } = buildAdapter({
+            ctx,
+            host,
+            candles: candleStream([
+                { kind: "history", bars: SAMPLE_BARS.slice(0, 2) },
+                { kind: "close", bar: SAMPLE_BARS[2] },
+            ]),
+        });
+        await runRendererLoop(adapter);
+        const plotIdx = strokeIndex(ctx, PLOT_A);
+        // The alert badge draws an arc; it must come after the high-z plot.
+        const arcIdx = ctx.calls.findIndex((c) => c.kind === "arc");
+        expect(plotIdx).toBeGreaterThanOrEqual(0);
+        expect(arcIdx).toBeGreaterThan(plotIdx);
+    });
+
+    it("sorts marks within their pane, not across panes", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                // A subpane plot with a huge z must not jump into the
+                // overlay pane's paint order — panes paint in pane order,
+                // each pane z-sorted independently.
+                plots: [
+                    colouredLine("overlayPlot", PLOT_A, 0),
+                    { ...colouredLine("subPlot", PLOT_B, 999), pane: "rsi" },
+                ],
+            }),
+        );
+        const overlayIdx = strokeIndex(ctx, PLOT_A);
+        const subIdx = strokeIndex(ctx, PLOT_B);
+        // The overlay pane paints fully before the subpane, so the overlay
+        // plot's stroke precedes the subpane plot's despite the subpane's
+        // far-higher z. (z orders within a pane, never across panes.)
+        expect(overlayIdx).toBeGreaterThanOrEqual(0);
+        expect(subIdx).toBeGreaterThan(overlayIdx);
+    });
+
+    it("reproduces today's series → glyph → hline order at z=0", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    colouredLine("line1", PLOT_A),
+                    plotEmission({
+                        slotId: "glyph1",
+                        value: 103,
+                        color: DRAW_A,
+                        style: { kind: "arrow", direction: "up", size: "normal" },
+                    }),
+                    plotEmission({
+                        slotId: "h1",
+                        value: 101,
+                        color: DRAW_B,
+                        style: { kind: "horizontal-line", lineWidth: 1, lineStyle: "solid" },
+                    }),
+                ],
+            }),
+        );
+        const lineIdx = strokeIndex(ctx, PLOT_A);
+        const hlineIdx = strokeIndex(ctx, DRAW_B);
+        // series band (0) before hline band (2): the line stroke precedes
+        // the horizontal-line stroke at the default z.
+        expect(lineIdx).toBeGreaterThanOrEqual(0);
+        expect(hlineIdx).toBeGreaterThan(lineIdx);
     });
 });

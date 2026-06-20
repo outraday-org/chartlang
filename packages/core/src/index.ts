@@ -332,4 +332,5 @@ export type {
     VerticalLineState,
     WorldPoint,
     XabcdPatternState,
+    ZOrdered,
 } from "./draw/index.js";

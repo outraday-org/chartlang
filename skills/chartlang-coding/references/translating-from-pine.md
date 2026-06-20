@@ -138,6 +138,12 @@ To steer a Camp C script into a bounded camp:
 - **Inputs must be literal.** Defaults and option values must be
   compile-time literals (a unary `+`/`-` on a number is fine). A computed
   default rejects. `input.enum` is not supported — use `input.string`.
+- **`explicit_plot_zorder` needs no translation.** chartlang already orders
+  marks by declaration within a group by default, so Pine's
+  `explicit_plot_zorder=true` is chartlang's default — the converter
+  recognizes the flag as a no-op (no warning). For explicit per-mark control,
+  use the chartlang `z` option on `plot()` / `draw.*` (default `0`, higher on
+  top, a negative drawing `z` to sit beneath plots).
 
 ## See also
 

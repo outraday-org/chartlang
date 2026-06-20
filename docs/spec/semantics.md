@@ -355,6 +355,59 @@ last-write-wins. Drawings dedupe within the drawing queue by
 `(handleId, bar)`; last-write-wins. Alert-condition emissions and logs preserve
 append order and are not queue-deduped.
 
+### Render ordering (normative)
+
+The queue order above fixes how emissions *drain*; this subsection fixes how
+adapters *paint* them. A conformant adapter MUST paint marks in the following
+group bands, from bottom to top:
+
+1. **background fills** — paint first, underneath everything.
+2. **plots** — `plot()` / `hline()` series.
+3. **drawings** — `draw.*()` marks.
+4. **alert badges** — paint last, on top of everything.
+
+Within a single band, marks MUST render in **declaration order** — the order
+their `plot()` / `draw.*()` primitive was first called in `compute` on that bar
+— so that a later-declared mark in the same band appears on top of an earlier
+one. This is the same order in which emissions drain into their queues (see the
+queue list above): the surviving mark after `(slotId, bar)` / `(handleId, bar)`
+last-write-wins dedup keeps its first-declaration position in the queue.
+
+Consequences an adapter MUST honor:
+
+- Drawings paint above plots **by default**, because the `drawings` band sits
+  above the `plots` band.
+- To put series A on top of series B, an author calls `plot(B)` before
+  `plot(A)` — last call in the band wins the top.
+
+The default placement of a mark within its band MAY be overridden by an
+explicit numeric `z` (see *Render order key* below).
+
+### Render order key
+
+A presentation-only numeric `z` lets a single mark cross band boundaries. It
+is an optional `apiVersion: 1` field on `PlotOpts` and every `draw.*` option
+bag. Its contract:
+
+- The default is `0`. Omitting `z` (or setting `z === 0`) leaves rendering
+  **identical** to the band + declaration-order rule above — every no-`z`
+  emission is byte-identical to a pre-feature run.
+- An adapter computes one global render order as a **stable sort** by
+  `(z, groupBand, declarationOrder)`: `z` is the primary key, the group band
+  is the tiebreak that keeps the sane default (plots under drawings) when `z`
+  ties, and declaration order keeps last-declared-on-top within a band.
+- Lower `z` paints lower (further back); higher `z` paints higher (further
+  front). A drawing at `z = -1` renders below `z = 0` plots; a plot at
+  `z = 10` renders above `z = 0` drawings.
+- `z` is any finite number; fractional values (e.g. `1.5`) slot a mark
+  between two layers without renumbering. NaN/±Infinity are rejected by the
+  wire validator.
+
+At the default `z = 0` the band + declaration rule above is the whole
+contract, so it stands alone and is back-compatible. The field's full wire
+documentation is on [`PlotEmission`](./emissions.md#plotemission) and
+[`DrawingEmission`](./emissions.md#drawingemission).
+
 ## Drawing Handle Lifecycle
 
 Every `draw.*` call returns a drawing handle. The runtime constructs the
