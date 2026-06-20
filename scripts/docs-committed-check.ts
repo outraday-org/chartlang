@@ -38,20 +38,21 @@ execFileSync("pnpm", ["docs:generate"], { cwd: REPO_ROOT, stdio: "inherit" });
 
 // 2. Ask git which generated pages now differ from what is committed
 //    (HEAD, so staged-but-stale pages are caught too).
-const changed = execFileSync(
-    "git",
-    ["diff", "HEAD", "--name-only", "--", GENERATED_DOCS],
-    { cwd: REPO_ROOT, encoding: "utf8" },
-)
+const changed = execFileSync("git", ["diff", "HEAD", "--name-only", "--", GENERATED_DOCS], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+})
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
 
 if (changed.length > 0) {
     console.error(
-        "docs:committed:check — committed primitive pages are out of date:\n" +
-            changed.map((p) => `  ${p}`).join("\n") +
-            "\n\nThe pages have been regenerated in your working tree — `git add` and commit them.",
+        `docs:committed:check — committed primitive pages are out of date:\n${changed
+            .map((p) => `  ${p}`)
+            .join(
+                "\n",
+            )}\n\nThe pages have been regenerated in your working tree — \`git add\` and commit them.`,
     );
     process.exit(1);
 }
