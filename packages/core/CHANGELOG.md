@@ -1,5 +1,231 @@
 # @invinite-org/chartlang-core
 
+## 1.2.0
+
+### Minor Changes
+
+- 850ae21: Add `bar.point(offset, price)` — index authoring sugar for anchoring drawings
+  by bar offset instead of an absolute timestamp.
+
+  `bar.point` resolves the offset to the existing time-based `WorldPoint`
+  (`{ time, price }`) at compute time, so it composes directly with every
+  `draw.*` anchor argument and introduces no new wire format or anchor union:
+
+  - `bar.point(0, price)` — the current bar.
+  - `bar.point(-n, price)` — `n` bars back, using the real historical timestamp
+    from the runtime's time ring buffer (`NaN` time past retained history; never
+    throws).
+  - `bar.point(n, price)` — a future bar, with the time extrapolated from the
+    median recent bar spacing (falling back to the parsed bar interval when
+    fewer than two bars are retained).
+
+  The compiler's max-lookback analysis now counts a negative integer-literal
+  `bar.point(-n, …)` offset toward `maxLookback` exactly like a `series[n]`
+  lookback, so the runtime sizes the time buffer deeply enough; positive (future)
+  offsets and dynamic offsets contribute no extra depth. The recogniser peels
+  parentheses, so the converter's emitted form `bar.point(-(n), …)` is sized
+  identically to a hand-written `bar.point(-n, …)` (without it, a converted
+  historical tracking line sized its buffer to 0 and resolved to a NaN anchor).
+
+  The Pine v6 converter now lowers `bar_index` drawing anchors to
+  `bar.point(<signed offset>, <price>)` and drops the dead `__BAR_INTERVAL_MS`
+  sentinel and its `bar.time ± (N * __BAR_INTERVAL_MS)` arithmetic — future
+  anchors resolve at runtime instead of needing a host-supplied bar interval.
+
+- ca19e20: Bidirectional plot `offset` — negative offsets shift a plotted series left.
+
+  `offset` becomes a presentation-only **display shift** in bars with the
+  fixed sign convention `+n` = right (future), `−n` = left (past); the
+  numeric series value is unshifted. This replaces the old value-read model
+  (where a positive offset made `series.current` read the value N bars ago
+  and a negative offset resolved to `NaN`). The `*Opts` `offset` JSDoc (and
+  ALMA's `barShift`) now describe both directions and drop the old
+  "negative ⇒ NaN" wording (`AlmaOpts.offset`, the Gaussian-centre
+  position, is unchanged).
+
+  `PlotEmission` gains an optional presentation field `xShift?: number`
+  (signed integer bars; omitted/`0` ≡ no shift, so a no-shift emission is
+  byte-identical to today). `validateEmission` rejects a non-integer
+  `xShift`. The compiler no longer counts `offset` toward `maxLookback`
+  (the value is no longer read from a deeper slot). The runtime threads the
+  declared offset onto the emission as `xShift` (reading a
+  `WeakMap<Series, number>` offset tag set by `makeShiftedSeriesView`; ALMA
+  tags `opts.barShift`) and stops the old value-read shift so
+  `series.current` is unshifted; the reference adapter renders it by
+  projecting `xShift` onto the x-axis (extending the viewport for
+  future-shifted points).
+
+  The Pine converter now maps `plot(<ta.* call>, offset=N)` onto the
+  emitted `ta.*` call's `offset` opt (signed, both directions); a plot
+  whose value is not a direct `ta.*` call drops the offset and emits the
+  new `plot-offset-needs-ta-call` warning, and a plot-level offset
+  replacing the ta call's own `offset=` emits `plot-offset-overrides-ta-offset`.
+
+  The conformance harness's `plot-field` assertion gains an `xShift` field,
+  and a new scenario pins both shift directions plus the unshifted value
+  series.
+
+- 6235ad7: Make the compute bar's OHLCV + derived fields directly indexable as a series.
+
+  `bar.close`, `bar.open`, `bar.high`, `bar.low`, `bar.volume`, and the derived
+  `bar.hl2` / `bar.hlc3` / `bar.ohlc4` / `bar.hlcc4` are now `PriceSeries` /
+  `VolumeSeries` (`number & Series<number>`) on the bar passed to `compute`
+  (`ComputeContext.bar`, typed as the new `BarSeries`). Each field is **both** a
+  scalar — `bar.close * 2`, `plot(bar.close)`, `ta.ema(bar.close, 20)` keep
+  working unchanged — **and** an indexable series, so a script can read prior
+  bars directly:
+
+  ```ts
+  const sma5 =
+    (bar.close[0] + bar.close[1] + bar.close[2] + bar.close[3] + bar.close[4]) /
+    5;
+  ```
+
+  This removes the `ta.ema(bar.close, 1)` identity-trick that scripts previously
+  needed to "republish" a scalar price as an indexable `Series`.
+
+  The adapter-supplied candle type `Bar` (and `request.lowerTf` intrabar bars) is
+  unchanged — it stays scalar OHLCV; only the streaming `compute` bar gains the
+  series shape. `request.security`'s higher-timeframe bar remains the separate
+  `SecurityBar`.
+
+  Migration note: because the field is now an object, `Number.isFinite(bar.close)`
+  is always `false` (it does not coerce) and `bar.close === 42` is `false` (object
+  vs number). Use `bar.close.current` or `+bar.close` in those raw-number
+  contexts. `bar.point(0, bar.close)` continues to work — the runtime coerces the
+  anchor price to a scalar.
+
+- 3bf391a: Add the `draw.fillBetween(edgeA, edgeB, opts?)` drawing primitive — a
+  native filled ribbon between two edges (the closed polygon `edgeA`
+  forward then `edgeB` reversed). It is the chartlang equivalent of Pine's
+  `linefill.new(line1, line2, color)` / `fill(plot1, plot2)`. The
+  pine-converter now lowers static two-line `linefill.new` to it instead of
+  approximating with `draw.rotatedRectangle`, retiring the
+  `linefill-rotatedrect-approximated` diagnostic.
+- 8086003: Add an optional presentation-only `z` (render-order / z-index) option to
+  `plot()` and every `draw.*` primitive. Default `0`; higher renders on
+  top, ties fall back to the existing group + declaration order. Finite
+  numbers only. Affects stacking only — values, alerts, and `state.*` are
+  unchanged.
+
+  Adapter kit: `PlotEmission` and `DrawingEmission` gain the matching
+  presentation-only `z?: number` wire field, validated by
+  `validateEmission` as a finite number (NaN / ±Infinity rejected;
+  fractional and negative allowed). Omitted/`0` stays byte-identical to a
+  pre-feature emission, so existing goldens and conformance hashes are
+  untouched.
+
+  Runtime: `plotImpl` reads `opts.z`, and the drawing-emit path
+  (`createDrawingHandle`) lifts `z` out of `state.style` — into a shallow
+  clone with `z` removed, where the per-kind `draw.*` impls fold the opts
+  bag — and threads it onto the top-level `PlotEmission.z` /
+  `DrawingEmission.z` with the same omit-when-`0` conditional spread used
+  for `xShift`. `z` is persisted **beside** the drawing slot's `state`
+  (never inside `DrawingState`), so an `update` retains the last value. A
+  no-`z` plot or drawing emits no `z` key — byte-identical to the
+  pre-feature baseline. `draw.table` / `draw.group` do not carry `z` in
+  v1.
+
+  Pine converter: `explicit_plot_zorder` is now a recognized no-op instead
+  of an unmapped warning. chartlang already layers marks by declaration
+  order within their group (the normative ordering contract), which is
+  exactly what Pine's `explicit_plot_zorder=true` makes authoritative — so
+  the flag is satisfied by default and needs no chartlang option.
+  `mapDeclarationArgs` no longer raises `indicator-arg-not-mapped` for it;
+  instead it emits a single `explicit-plot-zorder-default` info note
+  (covering both `explicit_plot_zorder=true` and the Pine-default
+  `=false`). The converter still never _emits_ a numeric `z` — Pine has no
+  per-element z source construct. Other unmapped `indicator(...)` args
+  (`timeframe`, etc.) keep warning.
+
+  Compiler: the ambient `@invinite-org/chartlang-core` `.d.ts` shim gains a
+  `ZOrdered { z?: number }` mixin intersected into `PlotOpts` and every
+  `draw.*` option type (mirroring core's `drawingStyle.ts`), so a compiled
+  script's `plot(value, { z })` **and** `draw.*(…, { z })` type-check (the
+  shim stays in lockstep with core).
+
+  Conformance: a new `z-order` scenario pins the plot `z` →
+  `PlotEmission.z` wire contract — a `plot(value, { z: -1 })` emits
+  `z: -1`, a no-`z` plot omits the field (omit-when-`0` byte-identity), and
+  a value-hash proves `z` never transforms the series. The `plot-field`
+  assertion's `field` union widens to also accept `"z"`.
+
+- 073f41b: Add the higher-timeframe expression/callback overload to `request.security`.
+  Alongside the existing data form `request.security({ interval })` →
+  `SecurityBar`, scripts can now write `request.security({ interval }, (bar) =>
+…)` → `Series<number>`, where the callback runs on the **higher-timeframe
+  clock** — `request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20))`
+  is a true weekly EMA(20) (20 weekly bars), not 20 main bars of a weekly-stepped
+  series. The result is aligned no-lookahead down to the main timeline.
+
+  - **core** — the `SecurityExpr` callback type (re-exported from the package
+    root), the second `security` overload, and the shared `statefulPrimitives`
+    entry annotated as covering both arities.
+  - **compiler** — records one `SecurityExpressionDescriptor { slotId, interval,
+paramName }` per expression callsite in `manifest.securityExpressions`
+    (sorted by `slotId`, omitted for the data-only form), and validates each
+    callback against the allowed subset — its `bar` parameter and body locals,
+    the ambient `ta` / `inputs`, safe `Math.*` globals, and literals — rejecting
+    any captured outer binding with the new
+    `request-security-expr-captures-local` diagnostic.
+  - **runtime** — mounts one `SecurityExprRunner` per manifest entry: the
+    callback is captured lazily on the first main compute, driven once per HTF bar
+    close through a dedicated fold `StreamState` so `ta.*` accumulate on the HTF
+    clock, and one sampled value per HTF bar feeds a per-slot output buffer that
+    `request.security(opts, expr)` returns aligned no-lookahead to the main
+    timeline. Capability / interval / stream fallbacks return an all-NaN series
+    with a deduped diagnostic.
+  - **host-worker / host-quickjs** — boot the expression form unchanged; the
+    `__manifest` sidecar already carries `securityExpressions`.
+  - **pine-converter** — Pine's `request.security(sym, "D", ta.ema(close, 9))`
+    now lowers to the chartlang callback form
+    `request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9))` (a bare
+    OHLCV third arg keeps lowering to the data form).
+  - **conformance** — new scenarios prove the weekly expression value differs
+    from a same-length main-timeframe EMA, plus the `multiTimeframe: false` NaN
+    fallback.
+
+- 5a9c24d: Add `state.series(init)` — a writable, indexable user series. Store an
+  arbitrary value each bar (`s.value = expr`) and read its history N bars
+  back (`s[1]`). Number-coercible (`+s`, `s.current`) and usable as a `ta.*`
+  source. The Pine converter lowers a history-indexed `var` to it.
+- 08c536c: Add the `ta.highestbars` / `ta.lowestbars` primitives plus the cross-package
+  wiring that makes them usable as drawing anchors and Pine-converter targets.
+
+  - **core / runtime:** `ta.highestbars(source, length, opts?)` and
+    `ta.lowestbars(source, length, opts?)` return the bar OFFSET (≤ 0) to the
+    highest / lowest `source` value over the trailing `length` bars (window
+    INCLUDES the current bar). `0` → current bar is the extreme; `-k` → the
+    extreme occurred `k` bars ago. Ties resolve to the most recent bar; NaN
+    inputs are skipped; warmup is `length − 1` bars; tick-mode replays the
+    in-progress head as the offset-0 candidate. Registered in
+    `STATEFUL_PRIMITIVES` (now 174 entries) and `TA_REGISTRY` (now 96 entries).
+  - **compiler:** a literal-length `ta.highestbars` / `ta.lowestbars` call
+    contributes `length − 1` toward `maxLookback`, so the runtime sizes the time
+    ring buffer deep enough for a `bar.point(<that offset>, …)` anchor to resolve.
+    A non-literal length contributes 0.
+  - **pine-converter:** `ta.highestbars` / `ta.lowestbars` now map to the real
+    chartlang primitives (previously lossy passthroughs to `ta.highest` /
+    `ta.lowest`). **Behavior change:** a DYNAMIC `bar_index + <non-literal>`
+    drawing-x anchor no longer raises the hard `requires-bar-interval` error —
+    the offset is resolved by `bar.point` at runtime sign-agnostically (a
+    negative runtime offset, e.g. what `ta.highestbars` returns, resolves to the
+    historical timestamp via the time buffer). Only the literal `bar_index + N`
+    future case still requires a bar interval.
+  - **conformance:** new `TA_HIGHEST_LOWEST_BARS_SCENARIO` export pins both
+    primitives end-to-end through the compiler + runtime over the bundled
+    `goldenBars.json` fixture, and is added to `ALL_SCENARIOS`.
+
+### Patch Changes
+
+- 850ae21: Expand the `request.security` / `request.lowerTf` JSDoc into narrative
+  descriptions with realistic examples (higher-timeframe `SecurityBar` reads
+  and lower-timeframe contained-bar arrays), and cross-link both generated
+  primitive pages to the multi-timeframe guide via their `seeAlso` entry in
+  `genPhase4Docs.ts`. The auto-generated `docs/primitives/request/*.md` pages
+  and the hover registry were regenerated from the new JSDoc — no runtime
+  behaviour change.
+
 ## 1.1.1
 
 ### Patch Changes

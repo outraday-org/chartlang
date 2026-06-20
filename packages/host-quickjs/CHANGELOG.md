@@ -1,5 +1,74 @@
 # @invinite-org/chartlang-host-quickjs
 
+## 1.2.0
+
+### Minor Changes
+
+- 073f41b: Add the higher-timeframe expression/callback overload to `request.security`.
+  Alongside the existing data form `request.security({ interval })` →
+  `SecurityBar`, scripts can now write `request.security({ interval }, (bar) =>
+…)` → `Series<number>`, where the callback runs on the **higher-timeframe
+  clock** — `request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20))`
+  is a true weekly EMA(20) (20 weekly bars), not 20 main bars of a weekly-stepped
+  series. The result is aligned no-lookahead down to the main timeline.
+
+  - **core** — the `SecurityExpr` callback type (re-exported from the package
+    root), the second `security` overload, and the shared `statefulPrimitives`
+    entry annotated as covering both arities.
+  - **compiler** — records one `SecurityExpressionDescriptor { slotId, interval,
+paramName }` per expression callsite in `manifest.securityExpressions`
+    (sorted by `slotId`, omitted for the data-only form), and validates each
+    callback against the allowed subset — its `bar` parameter and body locals,
+    the ambient `ta` / `inputs`, safe `Math.*` globals, and literals — rejecting
+    any captured outer binding with the new
+    `request-security-expr-captures-local` diagnostic.
+  - **runtime** — mounts one `SecurityExprRunner` per manifest entry: the
+    callback is captured lazily on the first main compute, driven once per HTF bar
+    close through a dedicated fold `StreamState` so `ta.*` accumulate on the HTF
+    clock, and one sampled value per HTF bar feeds a per-slot output buffer that
+    `request.security(opts, expr)` returns aligned no-lookahead to the main
+    timeline. Capability / interval / stream fallbacks return an all-NaN series
+    with a deduped diagnostic.
+  - **host-worker / host-quickjs** — boot the expression form unchanged; the
+    `__manifest` sidecar already carries `securityExpressions`.
+  - **pine-converter** — Pine's `request.security(sym, "D", ta.ema(close, 9))`
+    now lowers to the chartlang callback form
+    `request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9))` (a bare
+    OHLCV third arg keeps lowering to the data form).
+  - **conformance** — new scenarios prove the weekly expression value differs
+    from a same-length main-timeframe EMA, plus the `multiTimeframe: false` NaN
+    fallback.
+
+### Patch Changes
+
+- 850ae21: Fix single-script multi-timeframe loads dropping their secondary streams.
+  Both host boots now adopt the compiler's object-form `__manifest` sidecar
+  as the authoritative manifest for a single-script module
+  (`buildBundleFromModule` in host-worker, the bundle builder in
+  host-quickjs's `dispatcherCore`). The runtime `defineIndicator` stub zeroes
+  compiler-derived fields (`requestedIntervals`, `outputs`, `plots`,
+  `maxLookback`), so using `mod.default.manifest` left `requestedIntervals`
+  empty — a `request.security` script never registered its secondary streams
+  and every secondary candle was dropped with an `unknown-secondary-stream`
+  warning. Single-object detection goes through a dedicated `isSingleManifest`
+  guard (TS #17002: `Array.isArray` does not subtract a `ReadonlyArray` union
+  member). Cross-host parity is preserved.
+- Updated dependencies [850ae21]
+- Updated dependencies [ca19e20]
+- Updated dependencies [6235ad7]
+- Updated dependencies [3bf391a]
+- Updated dependencies [850ae21]
+- Updated dependencies [8086003]
+- Updated dependencies [850ae21]
+- Updated dependencies [850ae21]
+- Updated dependencies [073f41b]
+- Updated dependencies [5a9c24d]
+- Updated dependencies [08c536c]
+  - @invinite-org/chartlang-core@1.2.0
+  - @invinite-org/chartlang-runtime@1.2.0
+  - @invinite-org/chartlang-adapter-kit@1.3.0
+  - @invinite-org/chartlang-host-worker@1.2.0
+
 ## 1.1.1
 
 ### Patch Changes
