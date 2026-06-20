@@ -1,5 +1,0 @@
----
-"@invinite-org/chartlang-pine-converter": patch
----
-
-Add the package-internal Pine Script v6 AST (`src/ast/`) and recursive-descent parser (`src/parser/`) for top-level declarations and statements. `parseStatements(tokens)` consumes the lexer's token stream and produces a `Script` AST plus structured diagnostics: it parses the `//@version=6` directive, `indicator(...)` declarations (rejecting `strategy(...)`/`library(...)` with `unsupported-strategy`/`unsupported-library` but still walking the body), `var`/`varip`/typed/bare variable declarations, `=`/`:=` assignments, `if`/`else if`/`else`, literal-bounded `for` loops, `switch`/`=>` arms, and `break`/`continue`/`return`. `for ... in` and `while` are rejected with `unsupported-for-in`/`unsupported-while` and the parser recovers past the whole compound statement. Expression slots are filled by an `UnknownExpression` stub (Task 4 substitutes the real expression grammar); every node carries a 1-based `SourceSpan` and the parser never throws. A single-source diagnostic-code registry lands in `src/diagnostics/codes.ts`. The parser and AST are package-internal and not re-exported from the package root.

@@ -1,5 +1,259 @@
 # @invinite-org/chartlang-conformance
 
+## 1.2.0
+
+### Minor Changes
+
+- 3bf391a: Add the `draw.fillBetween(edgeA, edgeB, opts?)` drawing primitive — a
+  native filled ribbon between two edges (the closed polygon `edgeA`
+  forward then `edgeB` reversed). It is the chartlang equivalent of Pine's
+  `linefill.new(line1, line2, color)` / `fill(plot1, plot2)`. The
+  pine-converter now lowers static two-line `linefill.new` to it instead of
+  approximating with `draw.rotatedRectangle`, retiring the
+  `linefill-rotatedrect-approximated` diagnostic.
+- 8086003: Add an optional presentation-only `z` (render-order / z-index) option to
+  `plot()` and every `draw.*` primitive. Default `0`; higher renders on
+  top, ties fall back to the existing group + declaration order. Finite
+  numbers only. Affects stacking only — values, alerts, and `state.*` are
+  unchanged.
+
+  Adapter kit: `PlotEmission` and `DrawingEmission` gain the matching
+  presentation-only `z?: number` wire field, validated by
+  `validateEmission` as a finite number (NaN / ±Infinity rejected;
+  fractional and negative allowed). Omitted/`0` stays byte-identical to a
+  pre-feature emission, so existing goldens and conformance hashes are
+  untouched.
+
+  Runtime: `plotImpl` reads `opts.z`, and the drawing-emit path
+  (`createDrawingHandle`) lifts `z` out of `state.style` — into a shallow
+  clone with `z` removed, where the per-kind `draw.*` impls fold the opts
+  bag — and threads it onto the top-level `PlotEmission.z` /
+  `DrawingEmission.z` with the same omit-when-`0` conditional spread used
+  for `xShift`. `z` is persisted **beside** the drawing slot's `state`
+  (never inside `DrawingState`), so an `update` retains the last value. A
+  no-`z` plot or drawing emits no `z` key — byte-identical to the
+  pre-feature baseline. `draw.table` / `draw.group` do not carry `z` in
+  v1.
+
+  Pine converter: `explicit_plot_zorder` is now a recognized no-op instead
+  of an unmapped warning. chartlang already layers marks by declaration
+  order within their group (the normative ordering contract), which is
+  exactly what Pine's `explicit_plot_zorder=true` makes authoritative — so
+  the flag is satisfied by default and needs no chartlang option.
+  `mapDeclarationArgs` no longer raises `indicator-arg-not-mapped` for it;
+  instead it emits a single `explicit-plot-zorder-default` info note
+  (covering both `explicit_plot_zorder=true` and the Pine-default
+  `=false`). The converter still never _emits_ a numeric `z` — Pine has no
+  per-element z source construct. Other unmapped `indicator(...)` args
+  (`timeframe`, etc.) keep warning.
+
+  Compiler: the ambient `@invinite-org/chartlang-core` `.d.ts` shim gains a
+  `ZOrdered { z?: number }` mixin intersected into `PlotOpts` and every
+  `draw.*` option type (mirroring core's `drawingStyle.ts`), so a compiled
+  script's `plot(value, { z })` **and** `draw.*(…, { z })` type-check (the
+  shim stays in lockstep with core).
+
+  Conformance: a new `z-order` scenario pins the plot `z` →
+  `PlotEmission.z` wire contract — a `plot(value, { z: -1 })` emits
+  `z: -1`, a no-`z` plot omits the field (omit-when-`0` byte-identity), and
+  a value-hash proves `z` never transforms the series. The `plot-field`
+  assertion's `field` union widens to also accept `"z"`.
+
+- 08c536c: Add the `ta.highestbars` / `ta.lowestbars` primitives plus the cross-package
+  wiring that makes them usable as drawing anchors and Pine-converter targets.
+
+  - **core / runtime:** `ta.highestbars(source, length, opts?)` and
+    `ta.lowestbars(source, length, opts?)` return the bar OFFSET (≤ 0) to the
+    highest / lowest `source` value over the trailing `length` bars (window
+    INCLUDES the current bar). `0` → current bar is the extreme; `-k` → the
+    extreme occurred `k` bars ago. Ties resolve to the most recent bar; NaN
+    inputs are skipped; warmup is `length − 1` bars; tick-mode replays the
+    in-progress head as the offset-0 candidate. Registered in
+    `STATEFUL_PRIMITIVES` (now 174 entries) and `TA_REGISTRY` (now 96 entries).
+  - **compiler:** a literal-length `ta.highestbars` / `ta.lowestbars` call
+    contributes `length − 1` toward `maxLookback`, so the runtime sizes the time
+    ring buffer deep enough for a `bar.point(<that offset>, …)` anchor to resolve.
+    A non-literal length contributes 0.
+  - **pine-converter:** `ta.highestbars` / `ta.lowestbars` now map to the real
+    chartlang primitives (previously lossy passthroughs to `ta.highest` /
+    `ta.lowest`). **Behavior change:** a DYNAMIC `bar_index + <non-literal>`
+    drawing-x anchor no longer raises the hard `requires-bar-interval` error —
+    the offset is resolved by `bar.point` at runtime sign-agnostically (a
+    negative runtime offset, e.g. what `ta.highestbars` returns, resolves to the
+    historical timestamp via the time buffer). Only the literal `bar_index + N`
+    future case still requires a bar interval.
+  - **conformance:** new `TA_HIGHEST_LOWEST_BARS_SCENARIO` export pins both
+    primitives end-to-end through the compiler + runtime over the bundled
+    `goldenBars.json` fixture, and is added to `ALL_SCENARIOS`.
+
+### Patch Changes
+
+- ca19e20: Bidirectional plot `offset` — negative offsets shift a plotted series left.
+
+  `offset` becomes a presentation-only **display shift** in bars with the
+  fixed sign convention `+n` = right (future), `−n` = left (past); the
+  numeric series value is unshifted. This replaces the old value-read model
+  (where a positive offset made `series.current` read the value N bars ago
+  and a negative offset resolved to `NaN`). The `*Opts` `offset` JSDoc (and
+  ALMA's `barShift`) now describe both directions and drop the old
+  "negative ⇒ NaN" wording (`AlmaOpts.offset`, the Gaussian-centre
+  position, is unchanged).
+
+  `PlotEmission` gains an optional presentation field `xShift?: number`
+  (signed integer bars; omitted/`0` ≡ no shift, so a no-shift emission is
+  byte-identical to today). `validateEmission` rejects a non-integer
+  `xShift`. The compiler no longer counts `offset` toward `maxLookback`
+  (the value is no longer read from a deeper slot). The runtime threads the
+  declared offset onto the emission as `xShift` (reading a
+  `WeakMap<Series, number>` offset tag set by `makeShiftedSeriesView`; ALMA
+  tags `opts.barShift`) and stops the old value-read shift so
+  `series.current` is unshifted; the reference adapter renders it by
+  projecting `xShift` onto the x-axis (extending the viewport for
+  future-shifted points).
+
+  The Pine converter now maps `plot(<ta.* call>, offset=N)` onto the
+  emitted `ta.*` call's `offset` opt (signed, both directions); a plot
+  whose value is not a direct `ta.*` call drops the offset and emits the
+  new `plot-offset-needs-ta-call` warning, and a plot-level offset
+  replacing the ta call's own `offset=` emits `plot-offset-overrides-ta-offset`.
+
+  The conformance harness's `plot-field` assertion gains an `xShift` field,
+  and a new scenario pins both shift directions plus the unshifted value
+  series.
+
+- 3541445: Size series-index buffers precisely for provably-bounded indices.
+
+  `extractMaxLookback` now resolves a series read at a literal, a
+  bounded-`for` induction variable (`for (let i = 0; i < N; i++) src[i]`),
+  a `const` numeric literal, or an affine combination of those
+  (`src[i + 1]`, `src[K - i]`, `src[2 * i]`) to its exact `maxLookback`
+  contribution via a new compile-time interval resolver
+  (`resolveIndexUpperBound`) sharing one `parseBoundedForLoop` helper with
+  `forbiddenConstructs`. These indices no longer emit the
+  `dynamic-series-index` warning or force the 5000-slot `dynamicFallback`
+  buffer — they size the ring buffer exactly like a literal lookback. The
+  resolver over-approximates (never under-sizes); genuinely dynamic indices
+  (unbounded variables, unsupported operators, non-terminating loops,
+  reassigned loop variables) keep the warning + fallback. A new
+  `loop-sma` conformance scenario pins a `for`-loop SMA as bar-for-bar
+  identical to `ta.sma(close, 5)`.
+
+- 850ae21: Re-pin the `pine-converter-round-trip-camp-a` scenario's `drawing-hash` for the
+  converter's compact single-persistent-handle Camp A lowering. The drawing
+  emission stream's `op`/`state`/`bar` are byte-identical to the previous general
+  slot form; only the `handleId` slot-id string moved (the `draw.line(…)` callsite
+  shifted line/column), so the hash — which includes `handleId` — changes. No
+  runtime or harness behaviour changed.
+- 850ae21: Re-pin the three `pine-converter-round-trip-*` scenario `drawing-hash`es for the
+  converter's readable-identifier rename. The drawing emission stream's
+  `op`/`state`/`bar` are byte-identical (a variable rename is purely lexical and
+  changes no emitted values); only the `handleId` slot-id string moved because the
+  shorter synthesized names shifted the `draw.*` callsite column. No runtime or
+  harness behaviour changed.
+- 656390d: Add the Pine → chartlang end-to-end test suite: a 20-fixture Pine v6 corpus with
+  byte-exact `.expected.chart.ts` + diagnostics goldens (generated from real
+  `convert()` runs, regen via `UPDATE_FIXTURES=1`), determinism + strict-mode
+  golden tests, and three conformance round-trip scenarios
+  (`pine-converter-round-trip-camp-a`/`-camp-b`/`-table`) that ingest a Pine
+  fixture, run `convert()`, compile the output through the chartlang compiler, run
+  it through the runtime, and pin the full drawing-emission stream as a
+  `drawing-hash`.
+- 850ae21: Promote every remaining `@experimental` symbol to `@stable`. The entire
+  `pine-converter` public surface, the three `pineConverterRoundTrip*` conformance
+  scenarios, and `runtime/barPoint.ts` now carry the stable maturity marker.
+  Annotation-only — no behavior, API, or output changes; goldens and conformance
+  reports are byte-identical. The hand-authored `docs/converter/index.md`
+  stability line is updated to match.
+- 073f41b: Add the higher-timeframe expression/callback overload to `request.security`.
+  Alongside the existing data form `request.security({ interval })` →
+  `SecurityBar`, scripts can now write `request.security({ interval }, (bar) =>
+…)` → `Series<number>`, where the callback runs on the **higher-timeframe
+  clock** — `request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20))`
+  is a true weekly EMA(20) (20 weekly bars), not 20 main bars of a weekly-stepped
+  series. The result is aligned no-lookahead down to the main timeline.
+
+  - **core** — the `SecurityExpr` callback type (re-exported from the package
+    root), the second `security` overload, and the shared `statefulPrimitives`
+    entry annotated as covering both arities.
+  - **compiler** — records one `SecurityExpressionDescriptor { slotId, interval,
+paramName }` per expression callsite in `manifest.securityExpressions`
+    (sorted by `slotId`, omitted for the data-only form), and validates each
+    callback against the allowed subset — its `bar` parameter and body locals,
+    the ambient `ta` / `inputs`, safe `Math.*` globals, and literals — rejecting
+    any captured outer binding with the new
+    `request-security-expr-captures-local` diagnostic.
+  - **runtime** — mounts one `SecurityExprRunner` per manifest entry: the
+    callback is captured lazily on the first main compute, driven once per HTF bar
+    close through a dedicated fold `StreamState` so `ta.*` accumulate on the HTF
+    clock, and one sampled value per HTF bar feeds a per-slot output buffer that
+    `request.security(opts, expr)` returns aligned no-lookahead to the main
+    timeline. Capability / interval / stream fallbacks return an all-NaN series
+    with a deduped diagnostic.
+  - **host-worker / host-quickjs** — boot the expression form unchanged; the
+    `__manifest` sidecar already carries `securityExpressions`.
+  - **pine-converter** — Pine's `request.security(sym, "D", ta.ema(close, 9))`
+    now lowers to the chartlang callback form
+    `request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9))` (a bare
+    OHLCV third arg keeps lowering to the data form).
+  - **conformance** — new scenarios prove the weekly expression value differs
+    from a same-length main-timeframe EMA, plus the `multiTimeframe: false` NaN
+    fallback.
+
+- 5a9c24d: Add the `state-series-history` and `pine-converter-round-trip-var-series`
+  conformance scenarios.
+
+  `state-series-history` republishes `bar.close` through a user `state.series`
+  (`s.value = bar.close.current` each bar) and pins `s[2]` byte-identical to a
+  direct `bar.close[2]` read (warmup `NaN`s included), locking the runtime
+  `state.series` slot's advance/commit discipline into the cross-adapter suite.
+
+  `pine-converter-round-trip-var-series` converts the `30-var-series-history`
+  fixture (`var float prev = na` read with `prev[1]`) at module load and pins
+  both plots over the full emission stream — the end-to-end proof that the
+  history-indexed `var` → `state.series` lowering survives convert → compile →
+  runtime.
+
+- Updated dependencies [850ae21]
+- Updated dependencies [ca19e20]
+- Updated dependencies [3541445]
+- Updated dependencies [6235ad7]
+- Updated dependencies [3bf391a]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [850ae21]
+- Updated dependencies [656390d]
+- Updated dependencies [b55d4c8]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [48c1b76]
+- Updated dependencies [48c1b76]
+- Updated dependencies [b55d4c8]
+- Updated dependencies [48c1b76]
+- Updated dependencies [850ae21]
+- Updated dependencies [850ae21]
+- Updated dependencies [48c1b76]
+- Updated dependencies [b55d4c8]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [b55d4c8]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [8086003]
+- Updated dependencies [850ae21]
+- Updated dependencies [850ae21]
+- Updated dependencies [073f41b]
+- Updated dependencies [5a9c24d]
+- Updated dependencies [5a9c24d]
+- Updated dependencies [08c536c]
+  - @invinite-org/chartlang-core@1.2.0
+  - @invinite-org/chartlang-runtime@1.2.0
+  - @invinite-org/chartlang-compiler@1.3.0
+  - @invinite-org/chartlang-pine-converter@0.1.0
+  - @invinite-org/chartlang-adapter-kit@1.3.0
+
 ## 1.1.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-adapter-kit",
-    "version": "1.2.1",
+    "version": "1.3.0",
     "type": "module",
     "license": "MIT",
     "description": "SDK for writing chartlang adapters in consumer repos",

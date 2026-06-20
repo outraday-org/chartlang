@@ -1,5 +1,85 @@
 # @invinite-org/chartlang-cli
 
+## 1.2.0
+
+### Minor Changes
+
+- 656390d: Ship the converter CLI surface and finalize the programmatic API. Add
+  `convertFile(path, opts?)` to `@invinite-org/chartlang-pine-converter`: an async
+  file-system wrapper around `convert` that reads the input as UTF-8, threads
+  `ConvertOpts` through, and — when `opts.outPath` is set and the conversion
+  yields a non-null `output` — writes the converted `.chart.ts` to disk. File I/O
+  failures reject the promise (host-environment errors, distinct from converter
+  diagnostics). Adds the `ConvertFileOpts` type (`ConvertOpts & { outPath? }`).
+
+  Add the `chartlang pine-convert <input.pine>` subcommand to
+  `@invinite-org/chartlang-cli`, a thin in-process layer over `convertFile` + the
+  `@invinite-org/chartlang-pine-converter/diagnostics` formatters. Flags:
+  `--out <path>` (write to file, else stream to stdout), `--report` /
+  `--diagnostics-json` (human report to stderr vs JSON to stdout), `--strict`,
+  `--bar-interval <ms>`, `--bar-index-origin <ms>`. Exit codes: `0` success,
+  `1` error-severity diagnostics, `2` file I/O failure, `3` invalid CLI args.
+
+### Patch Changes
+
+- b1bf0b8: Remove the `AUTO_GENERATED_HEADER` sentinel from generated primitive docs
+  pages. The docs site renders with `markdown.html: false`, so the leading
+  `<!-- AUTO-GENERATED ... -->` HTML comment surfaced as visible text at the
+  top of every page. Generated pages now open directly with their `# ` title
+  heading. The `AUTO_GENERATED_HEADER` export is removed from
+  `@invinite-org/chartlang-cli` — it was a human marker only, never a
+  functional overwrite guard, so the `docs:gate` byte-diff still protects
+  against drift.
+- 850ae21: Expand the `request.security` / `request.lowerTf` JSDoc into narrative
+  descriptions with realistic examples (higher-timeframe `SecurityBar` reads
+  and lower-timeframe contained-bar arrays), and cross-link both generated
+  primitive pages to the multi-timeframe guide via their `seeAlso` entry in
+  `genPhase4Docs.ts`. The auto-generated `docs/primitives/request/*.md` pages
+  and the hover registry were regenerated from the new JSDoc — no runtime
+  behaviour change.
+- 5a9c24d: Add `state.series(init)` — a writable, indexable user series. Store an
+  arbitrary value each bar (`s.value = expr`) and read its history N bars
+  back (`s[1]`). Number-coercible (`+s`, `s.current`) and usable as a `ta.*`
+  source. The Pine converter lowers a history-indexed `var` to it.
+- Updated dependencies [850ae21]
+- Updated dependencies [ca19e20]
+- Updated dependencies [3541445]
+- Updated dependencies [6235ad7]
+- Updated dependencies [3bf391a]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [850ae21]
+- Updated dependencies [656390d]
+- Updated dependencies [b55d4c8]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [48c1b76]
+- Updated dependencies [48c1b76]
+- Updated dependencies [b55d4c8]
+- Updated dependencies [48c1b76]
+- Updated dependencies [850ae21]
+- Updated dependencies [850ae21]
+- Updated dependencies [48c1b76]
+- Updated dependencies [b55d4c8]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [b55d4c8]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [656390d]
+- Updated dependencies [8086003]
+- Updated dependencies [850ae21]
+- Updated dependencies [850ae21]
+- Updated dependencies [073f41b]
+- Updated dependencies [5a9c24d]
+- Updated dependencies [5a9c24d]
+- Updated dependencies [08c536c]
+  - @invinite-org/chartlang-core@1.2.0
+  - @invinite-org/chartlang-compiler@1.3.0
+  - @invinite-org/chartlang-pine-converter@0.1.0
+
 ## 1.1.1
 
 ### Patch Changes
