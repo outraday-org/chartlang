@@ -3,6 +3,7 @@
 
 import type { Scenario } from "../runConformanceSuite.js";
 
+import { BAR_CLOSE_DIRECT_INDEX_SCENARIO } from "./barCloseDirectIndex.scenario.js";
 import { BAR_POINT_TRACKING_LINE_SCENARIO } from "./barPointTrackingLine.scenario.js";
 import { BARSTATE_CONFIRMED_SCENARIO } from "./barstateConfirmed.scenario.js";
 import { BOLLINGER_BANDS_SCENARIO } from "./bollingerBands.scenario.js";
@@ -241,6 +242,7 @@ import { TA_ZIG_ZAG_SCENARIO } from "./taZigZag.scenario.js";
 import { TIMEFRAME_ISDAILY_SCENARIO } from "./timeframeIsdaily.scenario.js";
 import { UNSUPPORTED_INTERVAL_SCENARIO } from "./unsupportedInterval.scenario.js";
 
+export { BAR_CLOSE_DIRECT_INDEX_SCENARIO } from "./barCloseDirectIndex.scenario.js";
 export { BAR_POINT_TRACKING_LINE_SCENARIO } from "./barPointTrackingLine.scenario.js";
 export { BARSTATE_CONFIRMED_SCENARIO } from "./barstateConfirmed.scenario.js";
 export { BOLLINGER_BANDS_SCENARIO } from "./bollingerBands.scenario.js";
@@ -498,6 +500,9 @@ export { PHASE_2_INDICATORS, PHASE_5_DEFERRED } from "./phase2Inventory.js";
 export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     EMA_CROSS_SCENARIO,
     BOLLINGER_BANDS_SCENARIO,
+    // Direct bar.close[N] indexing — the manual SMA(5) overlay is byte-
+    // identical to ta.sma(close, 5) (both plots pin to the same hash).
+    BAR_CLOSE_DIRECT_INDEX_SCENARIO,
     BAR_POINT_TRACKING_LINE_SCENARIO,
     RSI_DIVERGENCE_SCENARIO,
     PLOT_KIND_COVERAGE_SCENARIO,

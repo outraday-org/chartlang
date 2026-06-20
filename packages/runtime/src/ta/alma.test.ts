@@ -135,9 +135,7 @@ describe("ta.alma — opts.barShift (universal display shift)", () => {
         harness(bars, bars.length + 1, (bar) => {
             toggle = !toggle;
             identities.add(
-                toggle
-                    ? alma("slot", bar.close, 5)
-                    : alma("slot", bar.close, 5, { barShift: 0 }),
+                toggle ? alma("slot", bar.close, 5) : alma("slot", bar.close, 5, { barShift: 0 }),
             );
             return null;
         });
@@ -146,7 +144,11 @@ describe("ta.alma — opts.barShift (universal display shift)", () => {
 
     it("non-zero barShift leaves .current unshifted and records the offset (presentation-only)", () => {
         const bars = syntheticBars(30, 11);
-        const unshifted = harness(bars, bars.length + 1, (bar) => alma("slot", bar.close, 5).current);
+        const unshifted = harness(
+            bars,
+            bars.length + 1,
+            (bar) => alma("slot", bar.close, 5).current,
+        );
         const identities = new Set<unknown>();
         const shifted = harness(bars, bars.length + 1, (bar) => {
             const s = alma("slot", bar.close, 5, { barShift: 3 });
@@ -166,7 +168,11 @@ describe("ta.alma — opts.barShift (universal display shift)", () => {
 
     it("a negative barShift is recorded as a left display shift (value unshifted)", () => {
         const bars = syntheticBars(20, 1);
-        const unshifted = harness(bars, bars.length + 1, (bar) => alma("slot", bar.close, 5).current);
+        const unshifted = harness(
+            bars,
+            bars.length + 1,
+            (bar) => alma("slot", bar.close, 5).current,
+        );
         const head = harness(
             bars,
             bars.length + 1,

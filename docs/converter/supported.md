@@ -71,6 +71,29 @@ anchor shape.
 - `yloc.abovebar` / `yloc.belowbar` → the bar high/low padded by a fixed
   fraction of the bar range (`yloc-padding-approximated` info).
 
+## Sources and history
+
+Pine's OHLCV built-ins map to the chartlang compute bar's fields:
+`close` → `bar.close`, `open` → `bar.open`, `high` → `bar.high`,
+`low` → `bar.low`, `volume` → `bar.volume`, and the derived `hl2` / `hlc3` /
+`ohlc4` / `hlcc4` likewise.
+
+These fields are **price series**, so Pine's historical access with a literal
+offset converts directly:
+
+```
+close[2]   // → bar.close[2]  (the close two bars ago)
+high[1]    // → bar.high[1]
+```
+
+A literal `close[N]` is the common case (a loop over `close[i]` is unrolled to
+`bar.close[0]`, `bar.close[1]`, … first). A genuinely **non-literal** series
+index (`close[i]` outside an unrollable loop) is still rejected with
+[`dynamic-series-index`](./diagnostics.md#dynamic-series-index) — use a literal
+offset or a `ta.*` window primitive. History on a `ta.*`-derived scalar
+(`macdLine[1]`, where `macdLine` is a destructured tuple field projected with
+`.current`) is **not** supported.
+
 ## Inputs
 
 | Pine input | chartlang input |

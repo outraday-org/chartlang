@@ -6,6 +6,7 @@ export type {
     AlertConditionDefinition,
     AlertConditionDescriptor,
     Bar,
+    BarSeries,
     BarViewport,
     CapabilityId,
     Color,
@@ -22,11 +23,13 @@ export type {
     PlotOverride,
     PlotSlotDescriptor,
     Price,
+    PriceSeries,
     ScriptManifest,
     SecurityExpressionDescriptor,
     Series,
     Time,
     Volume,
+    VolumeSeries,
 } from "./types.js";
 export { isCompiledScriptBundle } from "./types.js";
 export { intervalToSeconds } from "./interval/intervalToSeconds.js";

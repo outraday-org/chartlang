@@ -139,7 +139,13 @@ describe("drawLine", () => {
 
     it("no-shift / omitted xShift draws at the bar's own x (byte-identical to timeToX)", () => {
         const ctx = new MockCanvas2DContext();
-        drawLine(ctx, [point({ time: 50, value: 40, color: null, bar: 2 })], world, viewport, DEFAULT_PALETTE);
+        drawLine(
+            ctx,
+            [point({ time: 50, value: 40, color: null, bar: 2 })],
+            world,
+            viewport,
+            DEFAULT_PALETTE,
+        );
         const move = ctx.calls.find((c) => c.kind === "moveTo");
         expect(move).toEqual({ kind: "moveTo", x: timeToX(50, viewport), y: 60 });
     });

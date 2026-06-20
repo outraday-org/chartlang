@@ -14,6 +14,8 @@ import { defineIndicator, input, plot, ta } from "@invinite-org/chartlang-core";
 
 // Private dep — bound to a local `const`, never exported. Mounted as a
 // data feed only; its own plots are dropped by the runtime filter.
+// Tip: prefix this with `export` (`export const baseTrend = ...`) to also
+// plot its line — exported indicators render; private ones stay data-only.
 const baseTrend = defineIndicator({
     name: "Base Trend",
     apiVersion: 1,

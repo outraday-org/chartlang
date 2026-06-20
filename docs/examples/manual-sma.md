@@ -2,7 +2,7 @@
 
 # Manual SMA
 
-Define an SMA by hand from the price series: expose bar.close as an indexable Series via a length-1 MA, average the last 5 literal lookbacks, and watch it overlay ta.sma(5) exactly.
+Define an SMA by hand from the price series: index bar.close directly at literal lookbacks, average the last 5 closes, and watch it overlay ta.sma(5).
 
 [Try it live](https://chartlang.invinite.com/?script=manual-sma#demo)
 
@@ -21,18 +21,16 @@ export default defineIndicator({
         // built-in `ta.sma`, but you can also spell the formula out by hand
         // straight from the price series.
         //
-        // `bar.close` is the *scalar* close at the current bar, not a series,
-        // so it cannot be indexed directly. Routing it through a length-1
-        // moving average republishes it as an indexable `Series<number>`
-        // whose literal lookbacks (`src[1]`, `src[2]`, ...) read prior bars.
-        // `ta.ema(_, 1)` is an exact identity (alpha = 1, zero warmup).
-        const src = ta.ema(bar.close, 1);
-
-        // Mean of the last 5 closes: (src[0] + ... + src[4]) / 5. Series
-        // indices must be literal integers, so the window is unrolled.
-        // Out-of-range reads are NaN, so this warms up over 4 bars —
-        // bar-for-bar identical to ta.sma(close, 5).
-        const manual = (src[0] + src[1] + src[2] + src[3] + src[4]) / 5;
+        // `bar.close` is a price series: `bar.close[0]` is the current close,
+        // `bar.close[1]` is one bar ago, and so on. Index it directly — no
+        // helper needed. (It still works as a plain number too, so
+        // `bar.close * 2` and `ta.sma(bar.close, 5)` are fine.)
+        //
+        // Mean of the last 5 closes. Indices must be literal integers, so the
+        // window is unrolled. Out-of-range reads are NaN, so this warms up
+        // over 4 bars — tracking ta.sma(close, 5).
+        const manual =
+            (bar.close[0] + bar.close[1] + bar.close[2] + bar.close[3] + bar.close[4]) / 5;
 
         plot(manual, { color: "#26a69a", title: "Manual SMA(5)" });
         plot(ta.sma(bar.close, 5), { color: "#ef5350", title: "ta.sma(5)" });

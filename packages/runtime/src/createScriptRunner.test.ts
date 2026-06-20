@@ -76,7 +76,7 @@ describe("createScriptRunner", () => {
             name: "demo",
             apiVersion: 1,
             compute: ({ bar }) => {
-                calls.push(bar.close);
+                calls.push(bar.close.current);
             },
         });
         const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
@@ -448,7 +448,7 @@ describe("createScriptRunner", () => {
             name: "push-main",
             apiVersion: 1,
             compute: ({ bar }) => {
-                seen.push(bar.close);
+                seen.push(bar.close.current);
             },
         });
         const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
@@ -664,6 +664,37 @@ describe("createScriptRunner", () => {
         await runner.dispose();
     });
 
+    it("honours manifest.seriesCapacities.dynamicFallback for non-literal series reads", async () => {
+        // A non-literal series index (e.g. `trend[LOOKBACK]` with `const
+        // LOOKBACK = 20`) cannot be sized statically, so the compiler emits
+        // `dynamicFallback: 5000` instead of bumping `maxLookback`. The
+        // runtime must size buffers to that fallback or every deep read
+        // collapses to NaN — the "forecast line never drawn" bug.
+        const deepReads: Array<number> = [];
+        const compute = (ctx: {
+            readonly bar: { readonly close: number };
+            readonly ta: {
+                ema: (slot: string, src: number, len: number) => Record<number, number>;
+            };
+        }): void => {
+            const trend = ctx.ta.ema("deep.chart.ts:1:1#0", ctx.bar.close, 2);
+            deepReads.push(trend[30]);
+        };
+        const base = defineIndicator({ name: "deep", apiVersion: 1, compute: () => {} });
+        const compiled = {
+            manifest: { ...base.manifest, seriesCapacities: { dynamicFallback: 5000 } },
+            compute: compute as never,
+        };
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+        for (let i = 0; i < 40; i += 1) {
+            await runner.onBarClose(makeBar(i));
+        }
+        // With the 5000-slot fallback the buffer retains 30 bars back, so the
+        // final read is finite; a `maxLookback + 1 = 1` buffer yields NaN.
+        expect(Number.isFinite(deepReads.at(-1))).toBe(true);
+        await runner.dispose();
+    });
+
     it("clamps capacity to a minimum of 1 when maxLookback is negative", async () => {
         const compiled = defineIndicator({
             name: "demo",
@@ -713,7 +744,7 @@ describe("createScriptRunner", () => {
             name: "e2e",
             apiVersion: 1,
             compute: ({ bar }) => {
-                seen.push(bar.close);
+                seen.push(bar.close.current);
             },
         });
         const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });

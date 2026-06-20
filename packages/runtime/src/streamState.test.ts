@@ -16,15 +16,21 @@ describe("createStreamState", () => {
         expect(stream.bar.symbol).toBe("AAPL");
         expect(stream.bar.interval).toBe("1D");
         expect(stream.bar.time).toBe(0);
-        expect(stream.bar.volume).toBe(0);
-        expect(stream.bar.open).toBeNaN();
-        expect(stream.bar.high).toBeNaN();
-        expect(stream.bar.low).toBeNaN();
-        expect(stream.bar.close).toBeNaN();
-        expect(stream.bar.hl2).toBeNaN();
-        expect(stream.bar.hlc3).toBeNaN();
-        expect(stream.bar.ohlc4).toBeNaN();
-        expect(stream.bar.hlcc4).toBeNaN();
+        // The OHLCV + derived bar fields are the cached series views (one
+        // identity per buffer) — before the first bar the buffers are empty,
+        // so every numeric field coerces to NaN (`.current` / `+bar.x`).
+        expect(stream.bar.close).toBe(stream.seriesViews.close);
+        expect(stream.bar.volume).toBe(stream.seriesViews.volume);
+        expect(stream.bar.volume.current).toBeNaN();
+        expect(+stream.bar.volume).toBeNaN();
+        expect(stream.bar.open.current).toBeNaN();
+        expect(stream.bar.high.current).toBeNaN();
+        expect(stream.bar.low.current).toBeNaN();
+        expect(stream.bar.close.current).toBeNaN();
+        expect(stream.bar.hl2.current).toBeNaN();
+        expect(stream.bar.hlc3.current).toBeNaN();
+        expect(stream.bar.ohlc4.current).toBeNaN();
+        expect(stream.bar.hlcc4.current).toBeNaN();
     });
 
     it("sizes every OHLCV ring buffer to the supplied capacity", () => {
@@ -135,7 +141,10 @@ describe("createStreamState", () => {
         expect(restored.seriesViews.hl2.current).toBe(11.5);
         expect(restored.bar.time).toBe(2);
         expect(restored.bar.interval).toBe("1m");
-        expect(restored.bar.close).toBe(12);
+        // bar.close is the restored close view — coerces to the head and indexes history
+        expect(+restored.bar.close).toBe(12);
+        expect(restored.bar.close.current).toBe(12);
+        expect(restored.bar.close[1]).toBe(11);
     });
 
     it("rejects stream snapshots whose buffers do not match capacity", () => {
@@ -176,15 +185,15 @@ describe("createStreamState", () => {
         });
 
         expect(restored.bar.time).toBe(0);
-        expect(restored.bar.open).toBeNaN();
-        expect(restored.bar.high).toBeNaN();
-        expect(restored.bar.low).toBeNaN();
-        expect(restored.bar.close).toBeNaN();
-        expect(restored.bar.volume).toBe(0);
-        expect(restored.bar.hl2).toBeNaN();
-        expect(restored.bar.hlc3).toBeNaN();
-        expect(restored.bar.ohlc4).toBeNaN();
-        expect(restored.bar.hlcc4).toBeNaN();
+        expect(restored.bar.open.current).toBeNaN();
+        expect(restored.bar.high.current).toBeNaN();
+        expect(restored.bar.low.current).toBeNaN();
+        expect(restored.bar.close.current).toBeNaN();
+        expect(restored.bar.volume.current).toBeNaN();
+        expect(restored.bar.hl2.current).toBeNaN();
+        expect(restored.bar.hlc3.current).toBeNaN();
+        expect(restored.bar.ohlc4.current).toBeNaN();
+        expect(restored.bar.hlcc4.current).toBeNaN();
     });
 
     it("restores null raw values as NaN-derived values", () => {
@@ -204,11 +213,11 @@ describe("createStreamState", () => {
             },
         });
 
-        expect(restored.bar.high).toBeNaN();
-        expect(restored.bar.hl2).toBeNaN();
-        expect(restored.bar.hlc3).toBeNaN();
-        expect(restored.bar.ohlc4).toBeNaN();
-        expect(restored.bar.hlcc4).toBeNaN();
+        expect(restored.bar.high.current).toBeNaN();
+        expect(restored.bar.hl2.current).toBeNaN();
+        expect(restored.bar.hlc3.current).toBeNaN();
+        expect(restored.bar.ohlc4.current).toBeNaN();
+        expect(restored.bar.hlcc4.current).toBeNaN();
         expect(restored.seriesViews.hl2.current).toBeNaN();
     });
 

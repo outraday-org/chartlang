@@ -727,7 +727,8 @@ describe("onEmissions dispatch", () => {
             });
             await runRendererLoop(adapter);
             const rect = ctx.calls.find((c) => c.kind === "fillRect" && c.w === 4);
-            if (rect === undefined || rect.kind !== "fillRect") throw new Error("no histogram rect");
+            if (rect === undefined || rect.kind !== "fillRect")
+                throw new Error("no histogram rect");
             return rect.x;
         }
         // Column x is centred on the projected x (offset by −width/2), so a
@@ -1128,6 +1129,101 @@ describe("drawing emission dispatch", () => {
         adapter.onEmissions(emissions({ drawings: [bad] }));
         // The frame still draws the background.
         expect(ctx.calls.some((c) => c.kind === "fillRect")).toBe(true);
+    });
+});
+
+describe("future-projected drawing anchors extend xMax", () => {
+    const DRAW_STROKE = "#abcdef";
+    const DAY_MS = 86_400_000;
+
+    // Render a 5-bar history (bars 0..4) with a single `draw.line`
+    // whose anchors are supplied by `state`, then return the line's
+    // projected `from` / `to` x (the `moveTo` / `lineTo` recorded right
+    // after the drawing's strokeStyle is set). The plot area is
+    // 320 width − 52 gutter = 268 px.
+    async function lineEndpoints(state: DrawingState): Promise<{ from: number; to: number }> {
+        const host = stubHost([
+            emissions(),
+            emissions({ drawings: [lineDrawing({ handleId: "fc", state })] }),
+        ]);
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            host,
+            candles: candleStream([
+                { kind: "history", bars: SAMPLE_BARS.slice(0, 4) },
+                { kind: "close", bar: SAMPLE_BARS[4] },
+            ]),
+        });
+        await runRendererLoop(adapter);
+        const idx = ctx.calls.findIndex(
+            (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === DRAW_STROKE,
+        );
+        if (idx < 0) throw new Error("drawing strokeStyle never set");
+        const move = ctx.calls.slice(idx).find((c) => c.kind === "moveTo");
+        const line = ctx.calls.slice(idx).find((c) => c.kind === "lineTo");
+        if (move?.kind !== "moveTo" || line?.kind !== "lineTo") {
+            throw new Error("line did not emit moveTo + lineTo");
+        }
+        return { from: move.x, to: line.x };
+    }
+
+    it("widens the viewport so a `bar.point(+k, …)` line endpoint stays on-screen", async () => {
+        // The forecast-line idiom: anchor at the last bar, project the
+        // far endpoint three bars into the future. Without the widening
+        // the start sits on the right edge (268) and the end overflows
+        // off the canvas; with it the whole segment fits inside the plot.
+        const { from, to } = await lineEndpoints({
+            kind: "line",
+            anchors: [
+                { time: SAMPLE_BARS[4].time, price: 106 },
+                { time: SAMPLE_BARS[4].time + 3 * DAY_MS, price: 120 },
+            ],
+            style: { color: DRAW_STROKE },
+        } as unknown as DrawingState);
+        // xMin = bar0, extended xMax = bar4 + 3 days = bar0 + 7 days.
+        // from = bar4 → (4/7)·268 ≈ 153; to = the new right edge ≈ 268.
+        expect(from).toBeGreaterThan(140);
+        expect(from).toBeLessThan(165);
+        expect(to).toBeGreaterThan(265);
+        expect(to).toBeLessThanOrEqual(268);
+        expect(from).toBeLessThan(to);
+    });
+
+    it("leaves xMax untouched when every anchor is within the data range", async () => {
+        // A line fully inside the history must not move the right edge:
+        // its far endpoint at the last bar lands exactly on it (268).
+        const { to } = await lineEndpoints({
+            kind: "line",
+            anchors: [
+                { time: SAMPLE_BARS[1].time, price: 103 },
+                { time: SAMPLE_BARS[4].time, price: 106 },
+            ],
+            style: { color: DRAW_STROKE },
+        } as unknown as DrawingState);
+        expect(to).toBeGreaterThan(265);
+        expect(to).toBeLessThanOrEqual(268);
+    });
+
+    it("tolerates null fields and non-numeric `time` keys in a drawing state", async () => {
+        // The anchor walker recurses structurally over unknown state
+        // shapes; `validateEmission` only checks the named anchor/style
+        // fields, so extra fields must not crash the walk nor poison the
+        // viewport. A null field is skipped; a non-numeric `time` key is
+        // ignored (no NaN max). The real anchors still project normally.
+        const { from, to } = await lineEndpoints({
+            kind: "line",
+            anchors: [
+                { time: SAMPLE_BARS[2].time, price: 104 },
+                { time: SAMPLE_BARS[4].time, price: 106 },
+            ],
+            style: { color: DRAW_STROKE },
+            _probeNull: null,
+            _probeBadTime: { time: "not-a-number", price: 1 },
+        } as unknown as DrawingState);
+        expect(Number.isFinite(from)).toBe(true);
+        expect(to).toBeGreaterThan(265);
+        expect(to).toBeLessThanOrEqual(268);
     });
 });
 

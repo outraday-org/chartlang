@@ -54,7 +54,7 @@ describe("onHistory", () => {
             name: "demo",
             apiVersion: 1,
             compute: ({ bar }) => {
-                seen.push(bar.close);
+                seen.push(bar.close.current);
             },
         });
         const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
@@ -68,7 +68,7 @@ describe("onHistory", () => {
             name: "demo",
             apiVersion: 1,
             compute: ({ bar }) => {
-                seen.push(bar.close);
+                seen.push(bar.close.current);
             },
         });
         const runner = createScriptRunner({
@@ -107,7 +107,7 @@ describe("onHistory", () => {
             name: "boom",
             apiVersion: 1,
             compute: ({ bar }) => {
-                seen.push(bar.close);
+                seen.push(bar.close.current);
                 if (seen.length === 2) throw new Error("history boom");
             },
         });

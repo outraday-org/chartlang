@@ -74,6 +74,47 @@ describe("makeSeriesView (Float64 backing)", () => {
         const probe = view as unknown as Record<symbol, unknown>;
         expect(Symbol.iterator in probe).toBe(false);
     });
+
+    it("coerces to its current value (buf.at(0)) in numeric and string contexts", () => {
+        const buf = new Float64RingBuffer(4);
+        const view = makeSeriesView<number>(buf);
+        buf.append(10);
+        buf.append(20);
+        // valueOf drives arithmetic / comparison / Math.* coercion.
+        expect(view * 2).toBe(40);
+        expect(view + 1).toBe(21);
+        expect(view > 15).toBe(true);
+        expect(Math.max(view as unknown as number, 5)).toBe(20);
+        expect(Number(view)).toBe(20);
+        expect(+view).toBe(20);
+        // Symbol.toPrimitive drives string coercion (template literals).
+        expect(`${view}`).toBe("20");
+        // The view stays indexable alongside coercion.
+        expect(view[1]).toBe(10);
+        expect(view.current).toBe(20);
+    });
+
+    it("exposes valueOf / Symbol.toPrimitive as functions and via `in`", () => {
+        const buf = new Float64RingBuffer(4);
+        buf.append(7);
+        const view = makeSeriesView<number>(buf);
+        const probe = view as unknown as {
+            valueOf: () => number;
+            [Symbol.toPrimitive]: (hint: string) => number;
+        };
+        expect(typeof probe.valueOf).toBe("function");
+        expect(probe.valueOf()).toBe(7);
+        expect(typeof probe[Symbol.toPrimitive]).toBe("function");
+        expect(probe[Symbol.toPrimitive]("number")).toBe(7);
+        expect("valueOf" in view).toBe(true);
+        expect(Symbol.toPrimitive in (view as unknown as Record<symbol, unknown>)).toBe(true);
+    });
+
+    it("coerces NaN before any bar lands", () => {
+        const buf = new Float64RingBuffer(4);
+        const view = makeSeriesView<number>(buf);
+        expect(Number.isNaN(+view)).toBe(true);
+    });
 });
 
 describe("makeSeriesView (object backing)", () => {

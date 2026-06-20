@@ -7,6 +7,7 @@ import { describe, it } from "vitest";
 import { defineIndicator, type isCompiledScriptBundle, ta } from "./index.js";
 import type {
     Bar,
+    BarSeries,
     BarStateView,
     AlertConditionDefinition,
     BbResult,
@@ -21,6 +22,7 @@ import type {
     PlotOverride,
     PlotSlotDescriptor,
     Price,
+    PriceSeries,
     RequestNamespace,
     RequestSecurityOpts,
     ScaleAxis,
@@ -38,6 +40,7 @@ import type {
     TimeframeView,
     ValueFormat,
     Volume,
+    VolumeSeries,
 } from "./index.js";
 
 describe("public type surface", () => {
@@ -49,18 +52,41 @@ describe("public type surface", () => {
         expectTypeOf<Series<number>["current"]>().toEqualTypeOf<number>();
     });
 
-    it("Bar fields match the Time / Price / Volume aliases", () => {
+    it("Bar (adapter/candle contract) keeps scalar Price/Volume fields", () => {
         expectTypeOf<Bar["time"]>().toEqualTypeOf<Time>();
         expectTypeOf<Bar["open"]>().toEqualTypeOf<Price>();
         expectTypeOf<Bar["close"]>().toEqualTypeOf<Price>();
         expectTypeOf<Bar["volume"]>().toEqualTypeOf<Volume>();
+        expectTypeOf<Bar["hl2"]>().toEqualTypeOf<Price>();
     });
 
-    it("Bar exposes the four Phase-2 derived sources as Price", () => {
-        expectTypeOf<Bar["hl2"]>().toEqualTypeOf<Price>();
-        expectTypeOf<Bar["hlc3"]>().toEqualTypeOf<Price>();
-        expectTypeOf<Bar["ohlc4"]>().toEqualTypeOf<Price>();
-        expectTypeOf<Bar["hlcc4"]>().toEqualTypeOf<Price>();
+    it("BarSeries.time stays a scalar Time; price/volume fields are indexable series", () => {
+        expectTypeOf<BarSeries["time"]>().toEqualTypeOf<Time>();
+        expectTypeOf<BarSeries["open"]>().toEqualTypeOf<PriceSeries>();
+        expectTypeOf<BarSeries["close"]>().toEqualTypeOf<PriceSeries>();
+        expectTypeOf<BarSeries["volume"]>().toEqualTypeOf<VolumeSeries>();
+    });
+
+    it("BarSeries price fields are both a number and an indexable Series", () => {
+        // scalar nature — assignable to a plain number and usable in arithmetic
+        expectTypeOf<BarSeries["close"]>().toMatchTypeOf<number>();
+        // series nature — a literal index and `.current` resolve to number
+        expectTypeOf<BarSeries["close"][1]>().toEqualTypeOf<number>();
+        expectTypeOf<BarSeries["close"]["current"]>().toEqualTypeOf<number>();
+        expectTypeOf<BarSeries["close"]["length"]>().toEqualTypeOf<number>();
+        // assignable to a Series<number> source argument (e.g. ta.* source)
+        expectTypeOf<BarSeries["close"]>().toMatchTypeOf<Series<number>>();
+    });
+
+    it("BarSeries exposes the four Phase-2 derived sources as PriceSeries", () => {
+        expectTypeOf<BarSeries["hl2"]>().toEqualTypeOf<PriceSeries>();
+        expectTypeOf<BarSeries["hlc3"]>().toEqualTypeOf<PriceSeries>();
+        expectTypeOf<BarSeries["ohlc4"]>().toEqualTypeOf<PriceSeries>();
+        expectTypeOf<BarSeries["hlcc4"]>().toEqualTypeOf<PriceSeries>();
+    });
+
+    it("ComputeContext.bar is the indexable BarSeries", () => {
+        expectTypeOf<ComputeContext["bar"]>().toEqualTypeOf<BarSeries>();
     });
 
     it("ta.ema returns Series<number>", () => {

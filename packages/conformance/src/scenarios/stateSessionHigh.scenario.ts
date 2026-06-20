@@ -10,7 +10,8 @@ export default defineIndicator({
     compute({ bar, barstate, plot, state }) {
         const high = state.float(NaN);
         if (barstate.isfirst || Number.isNaN(high.value) || bar.high > high.value) {
-            high.value = bar.high;
+            // store the scalar high (.current), not the live series view
+            high.value = bar.high.current;
         }
         plot(high.value);
     },

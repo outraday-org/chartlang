@@ -39,10 +39,6 @@ import {
     replaceSecondaryHead,
 } from "./execution/secondaryStream.js";
 import { resolveInputs } from "./inputs/index.js";
-import {
-    buildSecurityExprRunners,
-    driveSecurityExpressions,
-} from "./request/securityExprRunner.js";
 import type { PersistentStateStore } from "./persistentStateStore.js";
 import {
     PERSISTENCE_INTERVAL_MS,
@@ -51,6 +47,10 @@ import {
     saveStateSnapshot,
 } from "./persistentStateStore.runtime.js";
 import { validateSnapshot } from "./persistentStateStore.validate.js";
+import {
+    buildSecurityExprRunners,
+    driveSecurityExpressions,
+} from "./request/securityExprRunner.js";
 import type { MutableRunnerEmissions, RuntimeContext } from "./runtimeContext.js";
 import { type StateStore, inMemoryStateStore } from "./stateStore.js";
 import { type StreamState, createStreamState } from "./streamState.js";
@@ -192,9 +192,15 @@ export type CreateScriptRunnerArgs = {
 };
 
 function resolveCapacity(manifest: ScriptManifest): number {
-    const requested = manifest.seriesCapacities.ohlcv;
+    const { ohlcv, dynamicFallback } = manifest.seriesCapacities;
     const fallback = manifest.maxLookback + 1;
-    return Math.max(1, requested ?? fallback);
+    // `dynamicFallback` is the compiler's §6.6 safety net: a non-literal
+    // series index (e.g. `trend[LOOKBACK]` with `const LOOKBACK = 20`)
+    // cannot be sized statically, so `extractMaxLookback` emits a 5000-slot
+    // request instead of bumping `maxLookback`. Honour it here — otherwise
+    // the buffer collapses to `maxLookback + 1` and every dynamic-index read
+    // past slot 0 returns NaN (the "forecast line never drawn" bug).
+    return Math.max(1, ohlcv ?? fallback, dynamicFallback ?? 0);
 }
 
 function createSecondaryStreams(
@@ -431,10 +437,13 @@ function attachBundle(
  * `ACTIVE_RUNTIME_CONTEXT`. Phase 1 ships a single-stream model; the
  * `requestedIntervals` field on the manifest is always empty.
  *
- * Capacity sizing follows PLAN §6.6: prefer
+ * Capacity sizing follows PLAN §6.6: take the max of
  * `manifest.seriesCapacities.ohlcv` (compiler-emitted per-series
- * lookback) and fall back to `manifest.maxLookback + 1`, clamped to a
- * minimum of 1 so an empty-history script still has a valid head slot.
+ * lookback) or the `manifest.maxLookback + 1` floor, and
+ * `manifest.seriesCapacities.dynamicFallback` (the 5000-slot safety net the
+ * compiler emits when a series is read at a non-literal index it cannot size
+ * statically), clamped to a minimum of 1 so an empty-history script still has
+ * a valid head slot.
  *
  * @since 0.1 — widened to accept `CompiledScriptBundle` in 0.7.
  * @example

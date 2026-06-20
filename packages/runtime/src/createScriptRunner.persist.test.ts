@@ -77,7 +77,7 @@ describe("createScriptRunner persistence", () => {
             name: "no-store",
             apiVersion: 1,
             compute: ({ bar }) => {
-                seen.push(bar.close);
+                seen.push(bar.close.current);
             },
         });
         const runner = createScriptRunner({

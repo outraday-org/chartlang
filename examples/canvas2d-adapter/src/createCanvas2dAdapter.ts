@@ -209,12 +209,34 @@ function computeYRange(state: AdapterState, paneKey: string): { yMin: number; yM
     return { yMin, yMax };
 }
 
+// Largest finite world `time` anchored anywhere in a drawing's state.
+// Drawing anchors persist as absolute world `(time, price)` tuples
+// (every `WorldPoint` plus `vertical-line`'s bare `time`), so a
+// future-projected anchor — e.g. `forecast-line`'s `draw.line` whose
+// forward endpoint resolves to `lastTime + k * spacing` — would render
+// off the right edge unless it widens `xMax`, exactly like a `+k` plot
+// shift. Walks the state structurally so the 60-kind `DrawingState`
+// union needs no per-kind anchor enumeration: any nested object/array
+// is recursed; a `time` key with a finite number is a candidate.
+function maxDrawingAnchorTime(state: object, acc: number): number {
+    let max = acc;
+    for (const [key, child] of Object.entries(state)) {
+        if (key === "time" && Number.isFinite(child)) {
+            max = Math.max(max, child as number);
+        } else if (child !== null && typeof child === "object") {
+            max = maxDrawingAnchorTime(child, max);
+        }
+    }
+    return max;
+}
+
 // Widen `xMax` so any future-projected (`+k`) point in this pane stays
 // inside the viewport instead of being clipped past the data edge.
 // Walks the pane's series points (and, for the overlay pane, the glyph
-// overlays) for a positive `xShift` whose target bar reaches past the
-// last bar, taking the largest projected target time. No-shift frames
-// leave `xMax` untouched, so the baseline render is byte-identical.
+// overlays plus every drawing's anchors) for a positive `xShift` /
+// future anchor whose target reaches past the last bar, taking the
+// largest projected target time. No-shift frames with no future-anchored
+// drawing leave `xMax` untouched, so the baseline render is byte-identical.
 function extendXMaxForShifts(
     state: AdapterState,
     paneKey: string,
@@ -251,6 +273,12 @@ function extendXMaxForShifts(
                 continue;
             }
             consider(plot.bar, plot.xShift);
+        }
+        // Drawings render only in the overlay pane (`renderOverlayTail`).
+        // Their anchors carry absolute world times, so a future endpoint
+        // widens `xMax` directly — no `xShift` / `spacing` indirection.
+        for (const drawing of state.drawings.values()) {
+            extended = maxDrawingAnchorTime(drawing.state, extended);
         }
     }
     return extended;
@@ -510,7 +538,14 @@ function renderPaneSeries(
         if (!key.startsWith(prefix)) continue;
         const style = state.plotSeriesStyle.get(key);
         if (style !== undefined && style.kind === "histogram") {
-            renderHistogramSeries(state.ctx, series, style.baseline, world, viewport, state.palette);
+            renderHistogramSeries(
+                state.ctx,
+                series,
+                style.baseline,
+                world,
+                viewport,
+                state.palette,
+            );
             continue;
         }
         drawLine(state.ctx, series, world, viewport, state.palette);

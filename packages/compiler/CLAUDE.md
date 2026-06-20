@@ -97,7 +97,14 @@
   hand-rolled `.d.ts` for `@invinite-org/chartlang-core` so the compiler
   is host-machine independent and deterministic. The shim must stay in
   lockstep with `packages/core/src/` — every new core export needs a
-  matching declaration here.
+  matching declaration here. In particular the shim declares scalar `Bar`,
+  the indexable `BarSeries` (OHLCV + derived fields as
+  `PriceSeries`/`VolumeSeries` = `number & Series<number>`), and
+  `ComputeContext.bar: BarSeries` — this is what makes a compiled script's
+  `bar.close[1]` type-check while `bar.close * 2` / `plot(bar.close)` /
+  `ta.ema(bar.close, …)` keep working. `extractMaxLookback` already
+  recognises `bar.<ohlcv>[N]` textually (via `OHLCV_FIELDS`), so a direct
+  `bar.close[N]` sizes the ring buffer with no analyser change.
   - **Overloaded shim namespaces are `interface`s, never `Readonly<{ … }>`
     object types.** `RequestNamespace` carries the two `security` overloads
     (data + expression form). `Readonly<T>` is a homomorphic mapped type, and

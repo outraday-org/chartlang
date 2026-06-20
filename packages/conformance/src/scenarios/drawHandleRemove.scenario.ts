@@ -26,7 +26,7 @@ export default defineDrawing({
         if (removed) return;
         if (handle === null) {
             handle = draw.text(
-                { time: bar.time, price: bar.close },
+                { time: bar.time, price: bar.close.current },
                 "interactive label",
             );
             return;

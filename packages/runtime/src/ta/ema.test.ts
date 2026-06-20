@@ -201,7 +201,11 @@ describe("ta.ema — opts.offset", () => {
 
     it("offset === -k leaves .current unshifted (no future read; presentation-only)", () => {
         const bars = syntheticBars(20, 1);
-        const unshifted = harness(bars, bars.length + 1, (bar) => ema("slot", bar.close, 5).current);
+        const unshifted = harness(
+            bars,
+            bars.length + 1,
+            (bar) => ema("slot", bar.close, 5).current,
+        );
         const head = harness(
             bars,
             bars.length + 1,

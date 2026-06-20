@@ -5,8 +5,10 @@ import type {
     Bar,
     BarViewport,
     Price,
+    PriceSeries,
     Series,
     StreamSnapshot,
+    VolumeSeries,
     WorldPoint,
 } from "@invinite-org/chartlang-core";
 
@@ -62,13 +64,17 @@ export type OhlcvBuffers = {
 };
 
 /**
- * Mutable scalar view of the current bar. Identity stays stable across
- * the run — Task 6's execution loop mutates the fields in place per
- * bar so scripts that destructure `bar` in `compute` keep seeing fresh
- * values without rebinding.
+ * View of the current bar handed to `compute`. Identity stays stable across
+ * the run. The OHLCV + derived price/volume fields are the stream's cached
+ * number-coercible `Series` views (one identity per ring buffer) — they read
+ * the live buffer head, so a script can both use `bar.close` as a scalar
+ * (`bar.close * 2`) and index it (`bar.close[1]`) without the runtime copying
+ * scalars per bar. `time` stays a mutable scalar (the timestamp axis the
+ * emit/draw pipeline consumes as a raw number); `symbol` / `interval` are
+ * constant strings for a given `StreamState`.
  *
- * `symbol` and `interval` are constant for a given `StreamState`
- * instance; the rest are NaN / 0 before the first bar lands.
+ * Before the first bar the buffers are empty, so `bar.close[0]` / `+bar.close`
+ * read `NaN` and `bar.close.length` is `0`.
  *
  * @since 0.1
  * @example
@@ -78,21 +84,22 @@ export type OhlcvBuffers = {
  *     //     capacity: 5,
  *     //     symbol: "AAPL",
  *     // });
- *     // bar.symbol;   // "AAPL"
- *     // bar.interval; // "1D"
- *     // bar.close;    // NaN until the first bar
+ *     // bar.symbol;       // "AAPL"
+ *     // bar.interval;     // "1D"
+ *     // +bar.close;       // NaN until the first bar
+ *     // bar.close.length; // 0 until the first bar
  */
 export type BarView = {
     time: number;
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    volume: number;
-    hl2: number;
-    hlc3: number;
-    ohlc4: number;
-    hlcc4: number;
+    open: PriceSeries;
+    high: PriceSeries;
+    low: PriceSeries;
+    close: PriceSeries;
+    volume: VolumeSeries;
+    hl2: PriceSeries;
+    hlc3: PriceSeries;
+    ohlc4: PriceSeries;
+    hlcc4: PriceSeries;
     symbol: string;
     interval: string;
     viewport: BarViewport;
@@ -232,27 +239,6 @@ export function createStreamState(args: {
         ohlc4: new Float64RingBuffer(capacity),
         hlcc4: new Float64RingBuffer(capacity),
     };
-    const bar: BarView = {
-        time: 0,
-        open: Number.NaN,
-        high: Number.NaN,
-        low: Number.NaN,
-        close: Number.NaN,
-        volume: 0,
-        hl2: Number.NaN,
-        hlc3: Number.NaN,
-        ohlc4: Number.NaN,
-        hlcc4: Number.NaN,
-        symbol,
-        interval,
-        viewport: Object.freeze({ fromTime: 0, toTime: 0 }),
-        // Closes over the stream's time history + the live `BarView` scalars so
-        // offset-anchored drawings resolve against the real / extrapolated time
-        // at compute time. The `WorldPoint` it returns is the only persisted
-        // anchor frame — `bar.point` adds no new wire shape.
-        point: (offset: number, price: Price): WorldPoint =>
-            resolveBarPoint(ohlcv.time, bar.interval, bar.time, offset, price),
-    };
     const seriesViews: StreamState["seriesViews"] = {
         time: makeSeriesView<number>(ohlcv.time),
         open: makeSeriesView<number>(ohlcv.open),
@@ -264,6 +250,32 @@ export function createStreamState(args: {
         hlc3: makeSeriesView<number>(ohlcv.hlc3),
         ohlc4: makeSeriesView<number>(ohlcv.ohlc4),
         hlcc4: makeSeriesView<number>(ohlcv.hlcc4),
+    };
+    // The OHLCV + derived bar fields ARE the cached series views (one identity
+    // per ring buffer): the views are number-coercible, so `bar.close` works
+    // as a scalar (`+bar.close` / arithmetic reads the live head) and as an
+    // index (`bar.close[1]` reads a prior bar). No per-bar scalar copy is
+    // needed — the views read the buffer head directly, including mid-tick.
+    const bar: BarView = {
+        time: 0,
+        open: seriesViews.open as PriceSeries,
+        high: seriesViews.high as PriceSeries,
+        low: seriesViews.low as PriceSeries,
+        close: seriesViews.close as PriceSeries,
+        volume: seriesViews.volume as VolumeSeries,
+        hl2: seriesViews.hl2 as PriceSeries,
+        hlc3: seriesViews.hlc3 as PriceSeries,
+        ohlc4: seriesViews.ohlc4 as PriceSeries,
+        hlcc4: seriesViews.hlcc4 as PriceSeries,
+        symbol,
+        interval,
+        viewport: Object.freeze({ fromTime: 0, toTime: 0 }),
+        // Closes over the stream's time history + the live scalar `bar.time` /
+        // `bar.interval` so offset-anchored drawings resolve against the real /
+        // extrapolated time at compute time. The `WorldPoint` it returns is the
+        // only persisted anchor frame — `bar.point` adds no new wire shape.
+        point: (offset: number, price: Price): WorldPoint =>
+            resolveBarPoint(ohlcv.time, bar.interval, bar.time, offset, price),
     };
     const stream: StreamState = {
         interval,
@@ -298,30 +310,13 @@ export function createStreamState(args: {
                 });
             }
             recomputeDerivedBuffers(ohlcv, snapshot);
+            // The OHLCV + derived `bar.*` fields are the series views over the
+            // ring buffers just restored above, so they reflect the restored
+            // head with no scalar copy. Only the scalar `time` / `interval`
+            // need writing.
             const current = snapshot.headIndex;
-            if (snapshot.filled === 0 || current < 0) {
-                bar.time = 0;
-                bar.open = Number.NaN;
-                bar.high = Number.NaN;
-                bar.low = Number.NaN;
-                bar.close = Number.NaN;
-                bar.volume = 0;
-                bar.hl2 = Number.NaN;
-                bar.hlc3 = Number.NaN;
-                bar.ohlc4 = Number.NaN;
-                bar.hlcc4 = Number.NaN;
-            } else {
-                bar.time = valueAt(snapshot.buffers.time, current);
-                bar.open = valueAt(snapshot.buffers.open, current);
-                bar.high = valueAt(snapshot.buffers.high, current);
-                bar.low = valueAt(snapshot.buffers.low, current);
-                bar.close = valueAt(snapshot.buffers.close, current);
-                bar.volume = valueAt(snapshot.buffers.volume, current);
-                bar.hl2 = (bar.high + bar.low) / 2;
-                bar.hlc3 = (bar.high + bar.low + bar.close) / 3;
-                bar.ohlc4 = (bar.open + bar.high + bar.low + bar.close) / 4;
-                bar.hlcc4 = (bar.high + bar.low + bar.close + bar.close) / 4;
-            }
+            bar.time =
+                snapshot.filled === 0 || current < 0 ? 0 : valueAt(snapshot.buffers.time, current);
             bar.interval = snapshot.interval;
         },
     };
@@ -351,16 +346,10 @@ export function appendBarToStream(stream: StreamState, rawBar: Bar): void {
     ohlcv.hlc3.append(values.hlc3);
     ohlcv.ohlc4.append(values.ohlc4);
     ohlcv.hlcc4.append(values.hlcc4);
+    // OHLCV + derived bar fields read the buffer head live (they ARE the
+    // series views), so only the scalar `time` / `symbol` / `interval` are
+    // copied onto the `BarView`.
     bar.time = rawBar.time;
-    bar.open = rawBar.open;
-    bar.high = rawBar.high;
-    bar.low = rawBar.low;
-    bar.close = rawBar.close;
-    bar.volume = rawBar.volume;
-    bar.hl2 = values.hl2;
-    bar.hlc3 = values.hlc3;
-    bar.ohlc4 = values.ohlc4;
-    bar.hlcc4 = values.hlcc4;
     bar.symbol = rawBar.symbol;
     bar.interval = rawBar.interval;
 }
@@ -393,16 +382,8 @@ export function replaceStreamHead(stream: StreamState, rawBar: Bar): void {
     ohlcv.hlc3.replaceHead(values.hlc3);
     ohlcv.ohlc4.replaceHead(values.ohlc4);
     ohlcv.hlcc4.replaceHead(values.hlcc4);
+    // See appendBarToStream — the OHLCV/derived views read the head live.
     bar.time = rawBar.time;
-    bar.open = rawBar.open;
-    bar.high = rawBar.high;
-    bar.low = rawBar.low;
-    bar.close = rawBar.close;
-    bar.volume = rawBar.volume;
-    bar.hl2 = values.hl2;
-    bar.hlc3 = values.hlc3;
-    bar.ohlc4 = values.ohlc4;
-    bar.hlcc4 = values.hlcc4;
     bar.symbol = rawBar.symbol;
     bar.interval = rawBar.interval;
 }
@@ -420,7 +401,7 @@ export function replaceStreamHead(stream: StreamState, rawBar: Bar): void {
  */
 export function replaceTickHead(stream: StreamState, rawBar: Bar): void {
     const values = deriveBarSources(rawBar);
-    const { ohlcv, bar } = stream;
+    const { ohlcv } = stream;
     ohlcv.close.replaceHead(rawBar.close);
     ohlcv.high.replaceHead(rawBar.high);
     ohlcv.low.replaceHead(rawBar.low);
@@ -429,14 +410,9 @@ export function replaceTickHead(stream: StreamState, rawBar: Bar): void {
     ohlcv.hlc3.replaceHead(values.hlc3);
     ohlcv.ohlc4.replaceHead(values.ohlc4);
     ohlcv.hlcc4.replaceHead(values.hlcc4);
-    bar.close = rawBar.close;
-    bar.high = rawBar.high;
-    bar.low = rawBar.low;
-    bar.volume = rawBar.volume;
-    bar.hl2 = values.hl2;
-    bar.hlc3 = values.hlc3;
-    bar.ohlc4 = values.ohlc4;
-    bar.hlcc4 = values.hlcc4;
+    // The close-side / derived `bar.*` fields are the series views over these
+    // buffers, so replacing the buffer head is the whole update — no scalar
+    // copy. `time` / `open` are intentionally untouched (tick invariant).
 }
 
 /**

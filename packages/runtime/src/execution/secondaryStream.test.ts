@@ -23,6 +23,6 @@ describe("secondary stream helpers", () => {
 
         expect(stream.ohlcv.close.length).toBe(1);
         expect(stream.seriesViews.close.current).toBe(11);
-        expect(stream.bar.hl2).toBe(10.5);
+        expect(stream.bar.hl2.current).toBe(10.5);
     });
 });

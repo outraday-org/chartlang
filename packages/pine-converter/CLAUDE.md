@@ -933,10 +933,12 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   (`mult * ta.stdev(...)`) is not `.current`-lowered (only top-level), so series
   arithmetic does not yet compile; draw-call style opts (`line.new(…,
   color=lineColor)`) are not input-aware, so an input-styled drawing leaks the
-  bare name; Pine OHLCV / tuple-element history `close[i]` / `macdLine[1]` has no
-  scalar chartlang analogue (the `.current` alias makes `macdLine[1]` →
-  `…macd.current[1]`, invalid); a tuple-decl element reassigned with `:=` is not
-  supported.
+  bare name; a tuple-decl element reassigned with `:=` is not supported.
+  **Pine OHLCV history `close[i]` now COMPILES** — the compute bar's `bar.close`
+  is an indexable `PriceSeries`, so `bar.close[i]` (literal, or an unrolled loop
+  index) type-checks; `14-polyline-rebuild` was removed from the skip list. Only
+  TUPLE-element history (`macdLine[1]`, where `macdLine` is projected with
+  `.current`, so `…macd.current[1]` indexes a scalar) remains unsupported.
 - **Drawing-ownership dedup is the load-bearing skip.** `transformOther` walks
   ALL statements but emits ONLY non-drawing ones: it skips (a) any call that is
   a `DRAWING_KIND_MAP.has` constructor, (b) a `*.set_*`/`*.delete`/`array.*`/

@@ -1,9 +1,15 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.1.1",
-    "passed": 237,
+    "passed": 238,
     "failed": 0,
     "scenarios": [
+        {
+            "id": "bar-close-direct-index",
+            "title": "Direct bar.close[N] indexing tracks ta.sma(close, 5)",
+            "status": "pass",
+            "failures": []
+        },
         {
             "id": "bar-point-tracking-line",
             "title": "bar.point — offset-anchored tracking line",

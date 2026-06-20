@@ -84,11 +84,39 @@ declare module "@invinite-org/chartlang-core" {
         readonly length: number;
     };
     /**
+     * A bar price field — both a scalar \`Price\` (\`bar.close * 2\`,
+     * \`plot(bar.close)\`, \`ta.ema(bar.close, 12)\`) and an indexable
+     * \`Series<Price>\` (\`bar.close[1]\`). Mirrors core's \`PriceSeries\`.
+     */
+    export type PriceSeries = Price & Series<Price>;
+    /** Volume counterpart of \`PriceSeries\`. Mirrors core's \`VolumeSeries\`. */
+    export type VolumeSeries = Volume & Series<Volume>;
+    /**
+     * The \`compute\`-facing bar (\`ComputeContext.bar\`): like \`Bar\` but the
+     * OHLCV + derived fields are indexable \`PriceSeries\` / \`VolumeSeries\`.
+     * Mirrors core's \`BarSeries\`.
+     */
+    export type BarSeries = Omit<
+        Bar,
+        "open" | "high" | "low" | "close" | "volume" | "hl2" | "hlc3" | "ohlc4" | "hlcc4"
+    > & {
+        readonly open: PriceSeries;
+        readonly high: PriceSeries;
+        readonly low: PriceSeries;
+        readonly close: PriceSeries;
+        readonly volume: VolumeSeries;
+        readonly hl2: PriceSeries;
+        readonly hlc3: PriceSeries;
+        readonly ohlc4: PriceSeries;
+        readonly hlcc4: PriceSeries;
+    };
+    /**
      * A \`ta.*\` source-position argument. The runtime
      * (\`packages/runtime/src/ta/lib/sourceValue.ts\`) accepts either a
      * series reference or a scalar; the script-author surface mirrors
-     * that contract so \`ta.ema(bar.close, 12)\` (scalar) and
-     * \`ta.ema(other, 12)\` (series) both typecheck.
+     * that contract so \`ta.ema(bar.close, 12)\` and
+     * \`ta.ema(other, 12)\` (series) both typecheck — \`bar.close\` is now a
+     * \`PriceSeries\` (\`Price & Series<Price>\`), assignable as both.
      */
     export type ScalarOrSeries = Series<number> | number;
     export type SmaOpts = Readonly<{ offset?: number }>;
@@ -1307,7 +1335,7 @@ declare module "@invinite-org/chartlang-core" {
     };
     export const draw: DrawNamespace;
     export type ComputeContext = {
-        readonly bar: Bar;
+        readonly bar: BarSeries;
         readonly inputs: Readonly<Record<string, unknown>>;
         readonly ta: TaNamespace;
         readonly plot: typeof plot;

@@ -108,10 +108,10 @@ describe("onBarTick — head replacement (no length advance)", () => {
                 if (!ctx) return;
                 if (phase === "close") {
                     preTickTime = ctx.stream.bar.time;
-                    preTickOpen = ctx.stream.bar.open;
+                    preTickOpen = ctx.stream.bar.open.current;
                 } else {
                     tickTime = ctx.stream.bar.time;
-                    tickOpen = ctx.stream.bar.open;
+                    tickOpen = ctx.stream.bar.open.current;
                 }
             },
         });
@@ -135,14 +135,14 @@ describe("onBarTick — head replacement (no length advance)", () => {
                 const ctx = ACTIVE_RUNTIME_CONTEXT.current;
                 if (!ctx) return;
                 const { bar } = ctx.stream;
-                snapshot.close = bar.close;
-                snapshot.high = bar.high;
-                snapshot.low = bar.low;
-                snapshot.volume = bar.volume;
-                snapshot.hl2 = bar.hl2;
-                snapshot.hlc3 = bar.hlc3;
-                snapshot.ohlc4 = bar.ohlc4;
-                snapshot.hlcc4 = bar.hlcc4;
+                snapshot.close = bar.close.current;
+                snapshot.high = bar.high.current;
+                snapshot.low = bar.low.current;
+                snapshot.volume = bar.volume.current;
+                snapshot.hl2 = bar.hl2.current;
+                snapshot.hlc3 = bar.hlc3.current;
+                snapshot.ohlc4 = bar.ohlc4.current;
+                snapshot.hlcc4 = bar.hlcc4.current;
             },
         });
         const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });

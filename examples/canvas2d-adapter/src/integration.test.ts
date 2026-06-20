@@ -166,6 +166,7 @@ type CapturedRun = {
     readonly emissions: ReadonlyArray<RunnerEmissions>;
     readonly alerts: ReadonlyArray<unknown>;
     readonly workerErrors: ReadonlyArray<string>;
+    readonly ctx: MockCanvas2DContext;
 };
 
 function phase4ModuleSource(relPath: string, manifest: ScriptManifest): string {
@@ -302,6 +303,29 @@ export default {
 };
 `;
     }
+    if (relPath.endsWith("forecast-line.chart.ts")) {
+        return `
+const manifest = ${manifestJson};
+export default {
+    manifest,
+    compute: (ctx) => {
+        const LOOKBACK = 20;
+        const PROJECT = 20;
+        const trend = ctx.ta.ema("forecast-line.chart.ts:18:23#0", ctx.bar.close, LOOKBACK);
+        const slope = (trend[0] - trend[LOOKBACK]) / LOOKBACK;
+        if (Number.isFinite(slope)) {
+            const start = ctx.bar.point(0, trend[0]);
+            const end = ctx.bar.point(PROJECT, trend[0] + slope * PROJECT);
+            ctx.draw.line("forecast-line.chart.ts:32:13#0", start, end, {
+                color: "#ab47bc",
+                lineWidth: 2,
+                lineStyle: "dotted",
+            });
+        }
+    },
+};
+`;
+    }
     throw new Error(`no Phase-4 module fixture for ${relPath}`);
 }
 
@@ -382,7 +406,7 @@ async function runExampleScript(
     await runRendererLoop(adapter);
     adapter.dispose();
 
-    return { emissions, alerts, workerErrors };
+    return { emissions, alerts, workerErrors, ctx };
 }
 
 function phase4Bar(i: number, close: number, interval: string): Bar {
@@ -651,6 +675,58 @@ describe("canvas2d adapter integration", () => {
         expect(
             rightPlots.some((p) => typeof p.value === "number" && Number.isFinite(p.value)),
         ).toBe(true);
+    });
+
+    it("renders the forecast-line example with a future-projected line that stays on-screen", async () => {
+        // The forecast line anchors at the last bar and projects PROJECT=20
+        // bars into the future via `bar.point(+20, …)`. End-to-end this
+        // exercises (a) the runtime extrapolating a finite future anchor
+        // time (`lastTime + 20 · spacing`) and (b) the adapter widening
+        // `xMax` so the segment renders inside the plot instead of off the
+        // right edge — the user-reported "forecast line not visible" bug.
+        // EMA(20) slope reads `trend[0]` and `trend[20]`, so the far read
+        // (`trend[20]`) only warms ~40 bars in — feed a long trending history.
+        const forecastBars = Array.from({ length: 60 }, (_, i) =>
+            phase4Bar(i, 100 + i * 0.5, "1D"),
+        );
+        const run = await runExampleScript("examples/scripts/forecast-line.chart.ts", forecastBars);
+        expect(run.workerErrors).toEqual([]);
+        expect(hasErrorDiagnostics(run.emissions)).toBe(false);
+
+        // The runtime emits one reused `line` drawing; its far anchor sits
+        // strictly in the future of the last bar (finite, never NaN).
+        const lastLine = run.emissions
+            .flatMap((frame) => frame.drawings)
+            .filter((d) => d.drawingKind === "line" && d.op !== "remove")
+            .at(-1);
+        expect(lastLine).toBeDefined();
+        const anchors = (lastLine?.state as { anchors: ReadonlyArray<{ time: number }> }).anchors;
+        const lastBarTime = forecastBars[forecastBars.length - 1].time;
+        expect(anchors[0].time).toBe(lastBarTime);
+        expect(Number.isFinite(anchors[1].time)).toBe(true);
+        expect(anchors[1].time).toBeGreaterThan(lastBarTime);
+
+        // The adapter projects the final frame's line on-screen: the plot
+        // area is 640 − 52 gutter = 588 px. Without the `xMax` widening the
+        // start would sit on the right edge (588) and the end overflow past
+        // it; with it the whole segment fits, the far end at the new edge.
+        const idx = run.ctx.calls
+            .map((c, i) => ({ c, i }))
+            .filter(
+                ({ c }) => c.kind === "set" && c.prop === "strokeStyle" && c.value === "#ab47bc",
+            )
+            .at(-1)?.i;
+        expect(idx).toBeDefined();
+        const tail = run.ctx.calls.slice(idx ?? 0);
+        const from = tail.find((c) => c.kind === "moveTo");
+        const to = tail.find((c) => c.kind === "lineTo");
+        if (from?.kind !== "moveTo" || to?.kind !== "lineTo") {
+            throw new Error("forecast line did not emit moveTo + lineTo");
+        }
+        expect(from.x).toBeGreaterThan(0);
+        expect(from.x).toBeLessThan(to.x);
+        expect(to.x).toBeGreaterThan(560);
+        expect(to.x).toBeLessThanOrEqual(588);
     });
 
     it("emits a session-high alert on crossover", async () => {

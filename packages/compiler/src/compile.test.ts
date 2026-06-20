@@ -106,6 +106,40 @@ export default defineIndicator({
         expect(dataResult.manifest.securityExpressions).toBeUndefined();
     });
 
+    it("type-checks direct bar.close indexing and arithmetic through the ambient shim", async () => {
+        // `bar.close` (the compute bar) is now a `PriceSeries` — both a scalar
+        // (`bar.close * 2`, `plot(bar.close)`) and an indexable series
+        // (`bar.close[1]`). Before this change `bar.close[1]` was a TS error
+        // ("number has no index signature"); the only way to index a price was
+        // the `ta.ema(bar.close, 1)` identity trick. `transformAndAnalyse` does
+        // not type-check, so the guard must go through `compile`.
+        const DIRECT_INDEX = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "direct",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, plot }) {
+        const manual =
+            (bar.close[0] + bar.close[1] + bar.close[2] + bar.close[3] + bar.close[4]) / 5;
+        const doubled = bar.close * 2;
+        plot(manual, { title: "Manual SMA(5)" });
+        plot(bar.close, { title: "Close" });
+        plot(doubled, { title: "2x close" });
+    },
+});
+`;
+        // compile() throws a CompileError on any type error, so a successful
+        // return already proves `bar.close[1]` / `bar.close * 2` type-check.
+        const result = await compile(DIRECT_INDEX, {
+            apiVersion: 1,
+            sourcePath: "direct.chart.ts",
+        });
+        // The literal `bar.close[4]` widened the OHLCV ring buffer to retain at
+        // least 5 slots (maxLookback = 4).
+        expect(result.manifest.maxLookback).toBeGreaterThanOrEqual(4);
+    });
+
     it("throws CompileError with a `type-error` diagnostic when a TS semantic error fires", async () => {
         // Regression for the gap reported in PLAN §5.2 step 1: semantic
         // type errors (`const x: number = "oops"`) previously slipped

@@ -904,8 +904,8 @@ export default {
             state: {
                 kind: "line",
                 anchors: [
-                    { time: bar.time, price: bar.close },
-                    { time: bar.time + 1, price: bar.close + 1 },
+                    { time: bar.time, price: bar.close.current },
+                    { time: bar.time + 1, price: bar.close.current + 1 },
                 ],
                 style: {},
             },

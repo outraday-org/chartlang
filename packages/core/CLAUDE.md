@@ -44,6 +44,18 @@
   `docs/spec/versioning.md`. `STATEFUL_PRIMITIVES_BY_NAME` derives from the
   same canonical list, so a new entry shows up in both automatically.
 
+- **`Bar` (candle contract) is scalar; `BarSeries` (compute bar) is
+  indexable.** `Bar` is the adapter-supplied / `request.lowerTf` candle —
+  its OHLCV + derived fields stay scalar `Price`/`Volume` so adapters keep
+  emitting plain numbers. `BarSeries` (what `ComputeContext.bar` is typed
+  as) widens those fields to `PriceSeries` / `VolumeSeries`
+  (`number & Series<number>`): both a scalar (arithmetic / `plot` / `ta.*`
+  source) and an indexable series (`bar.close[1]`). `time` / `symbol` /
+  `interval` stay scalar on both. `request.security`'s HTF bar is the
+  separate `SecurityBar`. The compiler's `program.ts` ambient shim mirrors
+  all four types in lockstep, and `ComputeContext.bar` is `BarSeries`
+  there too.
+
 - **Coverage excludes `index.ts` (barrel) and any `types.ts` (declarations).**
   Real exported logic lives in dedicated files with co-located `*.test.ts`
   (unit) and `*.types.test.ts` (`expect-type`) layers. The two type-test

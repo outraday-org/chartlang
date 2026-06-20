@@ -7,7 +7,7 @@ import { plotKindSource } from "./plotKindFixtures.js";
 
 const INLINE_SOURCE = plotKindSource(
     "PlotKind horizontal histogram gated",
-    'plot(bar.close, { style: { kind: "horizontal-histogram", buckets: [{ price: bar.close, volume: bar.volume, color: "#90caf9" }] } });',
+    'plot(bar.close, { style: { kind: "horizontal-histogram", buckets: [{ price: bar.close.current, volume: bar.volume.current, color: "#90caf9" }] } });',
 );
 
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([

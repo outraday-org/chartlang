@@ -8,7 +8,7 @@ export default defineIndicator({
     name: "runtime log info",
     apiVersion: 1,
     compute({ bar, runtime }) {
-        runtime.log.info("bar close", { close: bar.close });
+        runtime.log.info("bar close", { close: bar.close.current });
     },
 });
 `;

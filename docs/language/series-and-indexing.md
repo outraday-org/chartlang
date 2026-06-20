@@ -24,10 +24,30 @@ type Series<T> = {
   ring-buffer capacity the runtime allocated.
 - Negative indices are out of range.
 
-OHLCV inputs are series too — `bar.close` you receive each step is the
-scalar value, but `ta.*` primitives that take a closing-price series read
-the underlying `Series<Price>`. The pre-computed derived sources
-(`bar.hl2`, `bar.hlc3`, `bar.ohlc4`, `bar.hlcc4`) follow the same shape.
+The bar's OHLCV + derived fields are series too — and you can index them
+**directly**. `bar.close` is both a scalar (so `bar.close * 2`,
+`plot(bar.close)`, and `ta.ema(bar.close, 20)` all work) and a
+`Series<Price>` (so `bar.close[1]` is the close one bar ago and
+`bar.close.current` is the current close). The same holds for `bar.open`,
+`bar.high`, `bar.low`, `bar.volume`, and the pre-computed derived sources
+(`bar.hl2`, `bar.hlc3`, `bar.ohlc4`, `bar.hlcc4`). There is no need to route
+a price through a moving average to make it indexable.
+
+```ts
+// Mean of the last 5 closes, straight from the price series.
+const sma5 = (bar.close[0] + bar.close[1] + bar.close[2] + bar.close[3] + bar.close[4]) / 5;
+```
+
+::: warning Raw-number contexts
+Because `bar.close` is now an object, a few number-only idioms behave
+differently: `Number.isFinite(bar.close)` is always `false` (it does not
+coerce) and `bar.close === 42` is `false` (object vs number). Use
+`bar.close.current` or `+bar.close` when you need the raw scalar — for
+example storing it in a `state.*` slot (`high.value = bar.high.current`) or
+building a drawing anchor (`{ time: bar.time, price: bar.close.current }`).
+Arithmetic, comparisons, `Math.*`, `plot(...)`, and `ta.*` sources all coerce
+automatically, so they need no change.
+:::
 
 ## Reading the current and prior bars
 

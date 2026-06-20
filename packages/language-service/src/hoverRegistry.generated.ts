@@ -150,7 +150,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "AlmaOpts",
         "kind": "type",
         "title": "AlmaOpts",
-        "summary": "Options bag for `ta.alma` (Arnaud Legoux MA). `offset` is the\nGaussian-centre position in `[0, 1]` (default `0.85`) — NOT the\nuniversal bar-shift; the universal shift on ALMA uses the distinct\n`barShift` field. `sigma` (default `6`) sets the Gaussian spread\n(spread = `length / sigma`). `lineStyle` is a forward-compat\nplot-styling hint.",
+        "summary": "/**\nOptions bag for `ta.alma` (Arnaud Legoux MA). `offset` is the\nGaussian-centre position in `[0, 1]` (default `0.85`) — NOT the\nuniversal bar-shift. ALMA's universal display shift is the distinct\n`barShift` field, which matches  {@link SmaOpts} (`+n` renders the\nseries `n` bars right, `−n` `n` bars left; presentation-only).\n`sigma` (default `6`) sets the Gaussian spread\n(spread = `length / sigma`). `lineStyle` is a forward-compat\nplot-styling hint.",
         "examples": [
             "const opts: AlmaOpts = { offset: 0.85, sigma: 6 };"
         ],
@@ -397,6 +397,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "function tick(bar: Bar): void {\nconsole.log(bar.close, bar.symbol, bar.interval);\n// Phase 2 — Pine-style derived sources:\nconsole.log(bar.hl2, bar.hlc3, bar.ohlc4, bar.hlcc4);\n// Phase 5 — visible-range fallback:\nconsole.log(bar.viewport.fromTime, bar.viewport.toTime);\n}"
         ],
         "since": "0.1",
+        "stability": "stable"
+    },
+    "BarSeries": {
+        "fqn": "BarSeries",
+        "kind": "type",
+        "title": "BarSeries",
+        "summary": "/**\nThe current bar as `compute` sees it. Identical to  {@link Bar} except the\nOHLCV + derived price/volume fields are  {@link PriceSeries} /\n{@link VolumeSeries} — both a scalar (`bar.close * 2`, `plot(bar.close)`,\n`ta.ema(bar.close, 20)`) and an indexable series (`bar.close[1]` reads the\nclose one bar ago). `time` stays a scalar `Time`.",
+        "examples": [
+            "function delta(bar: BarSeries): number {\nreturn bar.close - bar.close[1];\n}"
+        ],
+        "since": "1.3",
         "stability": "stable"
     },
     "BarssinceOpts": {
@@ -1733,6 +1744,31 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.3",
         "stability": "stable"
     },
+    "draw.fillBetween": {
+        "fqn": "draw.fillBetween",
+        "kind": "function",
+        "title": "draw.fillBetween(edgeA, edgeB, opts?)",
+        "summary": "Fill the ribbon between two edges. Each edge is a list of world\nanchors; the filled region is the closed polygon `edgeA` forward\nthen `edgeB` reversed. The native equivalent of Pine\n`linefill.new(line1, line2, color)` / `fill(plot1, plot2)`.",
+        "paramTable": [
+            {
+                "name": "edgeA",
+                "type": "ReadonlyArray<WorldPoint>",
+                "doc": ""
+            },
+            {
+                "name": "edgeB",
+                "type": "ReadonlyArray<WorldPoint>",
+                "doc": ""
+            },
+            {
+                "name": "opts",
+                "type": "FillBetweenStyle",
+                "doc": ""
+            }
+        ],
+        "since": "0.3",
+        "stability": "stable"
+    },
     "draw.flatTopBottom": {
         "fqn": "draw.flatTopBottom",
         "kind": "function",
@@ -2466,7 +2502,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "DrawingKind",
         "kind": "type",
         "title": "DrawingKind",
-        "summary": "/**\nThe full set of 62 drawing kinds chartlang supports through `draw.*`.\nThe wire format is kebab-case; the TypeScript script surface is\ncamelCase (`draw.horizontalLine(...)`). See  {@link KIND_CAMELCASE} for\nthe canonical bijection.",
+        "summary": "/**\nThe full set of 63 drawing kinds chartlang supports through `draw.*`.\nThe wire format is kebab-case; the TypeScript script surface is\ncamelCase (`draw.horizontalLine(...)`). See  {@link KIND_CAMELCASE} for\nthe canonical bijection.",
         "examples": [
             "const k: DrawingKind = \"fib-retracement\";\nvoid k;"
         ],
@@ -2780,6 +2816,28 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: FibWedgeState = {\nkind: \"fib-wedge\",\nanchors: [\n{ time: 0, price: 0 },\n{ time: 1, price: 1 },\n{ time: 1, price: -1 },\n],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
+        "stability": "stable"
+    },
+    "FillBetweenState": {
+        "fqn": "FillBetweenState",
+        "kind": "type",
+        "title": "FillBetweenState",
+        "summary": "State for a `fill-between` drawing: a filled ribbon between two edges.\nEach edge is an ordered list of world anchors; the rendered region is\nthe closed polygon `edgeA` forward then `edgeB` reversed.",
+        "examples": [
+            "const state: FillBetweenState = {\nkind: \"fill-between\",\nedgeA: [{ time: 0, price: 1 }],\nedgeB: [{ time: 0, price: 0 }],\nstyle: { fill: \"#3b82f6\" },\n};\nvoid state;"
+        ],
+        "since": "0.4",
+        "stability": "stable"
+    },
+    "FillBetweenStyle": {
+        "fqn": "FillBetweenStyle",
+        "kind": "type",
+        "title": "FillBetweenStyle",
+        "summary": "/**\nStyle for  {@link draw.fillBetween} — a filled ribbon between two\nedges. Stroke fields are optional (the band may be fill-only);\n`fill` + `fillAlpha` reuse the  {@link ShapeStyle} fill model.",
+        "examples": [
+            "const s: FillBetweenStyle = { fill: \"#3b82f6\", fillAlpha: 0.2 };\nvoid s;"
+        ],
+        "since": "0.4",
         "stability": "stable"
     },
     "FisherOpts": {
@@ -4351,6 +4409,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "PriceSeries": {
+        "fqn": "PriceSeries",
+        "kind": "type",
+        "title": "PriceSeries",
+        "summary": "A bar price field that is **both** a scalar `Price` (so `bar.close * 2`,\ncomparisons, `Math.*`, `plot(bar.close)`, and `ta.*` source arguments all\nwork) **and** an indexable `Series<Price>` (so `bar.close[1]` reads the\nclose one bar ago, `bar.close.current` reads the current close, and\n`bar.close.length` reads the filled depth). The runtime backs it with a\nnumber-coercible ring-buffer view: arithmetic reads `bar.close[0]` (the\ncurrent value) while a literal index reads that many bars back.",
+        "examples": [
+            "function delta(close: PriceSeries): number {\n// current close minus the close one bar ago\nreturn close - close[1];\n}"
+        ],
+        "since": "1.3",
+        "stability": "stable"
+    },
     "PsarOpts": {
         "fqn": "PsarOpts",
         "kind": "type",
@@ -4855,7 +4924,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "SmaOpts",
         "kind": "type",
         "title": "SmaOpts",
-        "summary": "Options bag for `ta.sma`. `offset` shifts the output forward by `n`\nbars per the universal `opts.offset` convention:\npositive `n` makes `series.current` return the value `n` bars ago,\nnegative `n` reads into the future (NaN at the head).",
+        "summary": "Options bag for `ta.sma`. `offset` is the universal **display shift**\n(in bars) applied to where the series renders, not to its value:\n`+n` shifts the plotted series `n` bars right (into the future), `−n`\nshifts it `n` bars left (into the past), and `0`/omitted is no shift.\nThe shift is presentation-only — `series.current` is the unshifted\nvalue — and rides the plot emission as `xShift`; both signs are valid.",
         "examples": [
             "const opts: SmaOpts = { offset: 0 };"
         ],
@@ -5026,7 +5095,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "STATEFUL_PRIMITIVES_BY_NAME",
         "kind": "property",
         "title": "STATEFUL_PRIMITIVES_BY_NAME",
-        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 174-entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
+        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 175-entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
         "examples": [
             "import { STATEFUL_PRIMITIVES_BY_NAME } from \"@invinite-org/chartlang-core\";\nconst entry = STATEFUL_PRIMITIVES_BY_NAME.get(\"ta.ema\");\n// entry is { name: \"ta.ema\", slot: true } | undefined"
         ],
@@ -7548,6 +7617,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.1",
         "stability": "stable"
     },
+    "VolumeSeries": {
+        "fqn": "VolumeSeries",
+        "kind": "type",
+        "title": "VolumeSeries",
+        "summary": "/**\nVolume counterpart of  {@link PriceSeries} : a bar `volume` field usable both\nas a scalar `Volume` and as an indexable `Series<Volume>` (`bar.volume[1]`).",
+        "examples": [
+            "function avgVol(v: VolumeSeries): number {\nreturn (v[0] + v[1] + v[2]) / 3;\n}"
+        ],
+        "since": "1.3",
+        "stability": "stable"
+    },
     "VortexOpts": {
         "fqn": "VortexOpts",
         "kind": "type",
@@ -7709,7 +7789,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "WmaOpts",
         "kind": "type",
         "title": "WmaOpts",
-        "summary": "Options bag for `ta.wma`. `offset` shifts the output forward by `n`\nbars (Task-29 universal-offset backfill). `lineStyle` is a\npass-through for the script-author's downstream `plot(wma, { lineStyle })`\ncall — not consumed by the primitive itself.",
+        "summary": "/**\nOptions bag for `ta.wma`. `offset` matches  {@link SmaOpts} (the\nuniversal bidirectional display shift). `lineStyle` is a\npass-through for the script-author's downstream `plot(wma, { lineStyle })`\ncall — not consumed by the primitive itself.",
         "examples": [
             "const opts: WmaOpts = { offset: 0 };"
         ],

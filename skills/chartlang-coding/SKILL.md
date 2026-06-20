@@ -95,6 +95,16 @@ Most `ta.*` primitives take a `Series<number>` (an OHLCV source such as
 - `series[n]` for a positive integer literal — the value `n` bars ago.
 - `series.length` — the count of filled slots so far.
 
+The bar's OHLCV + derived fields (`bar.close`, `bar.open`, `bar.high`,
+`bar.low`, `bar.volume`, `bar.hl2`, `bar.hlc3`, `bar.ohlc4`, `bar.hlcc4`)
+are themselves price series — index them directly (`bar.close[1]` is the
+close one bar ago) **and** use them as plain numbers (`bar.close * 2`,
+`plot(bar.close)`, `ta.ema(bar.close, 20)`). No moving-average helper is
+needed to make a price indexable. Because the field is an object,
+`Number.isFinite(bar.close)` is always `false` and `bar.close === 42` is
+`false` — use `bar.close.current` (or `+bar.close`) when you need the raw
+scalar, e.g. storing it in a `state.*` slot or a drawing anchor.
+
 **Warmup.** `ta.ema(_, 14)` returns `NaN` for the first 13 bars;
 `ta.rsi(_, n)` warms over its `n`-bar window; `ta.macd` warms over the
 longer of its two EMAs. Plots whose value is `NaN`/`±Infinity` render

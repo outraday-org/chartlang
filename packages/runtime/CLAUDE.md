@@ -119,11 +119,24 @@
   + taSlots and clears the registry. The aligned return series is cached on
   `requestSecurityExprSeries` (cleared each bar alongside the other
   per-bar request caches).
+- **`bar.*` OHLCV + derived fields ARE the cached series views.** The
+  `BarView`'s `open/high/low/close/volume/hl2/hlc3/ohlc4/hlcc4` fields are
+  the same `makeSeriesView` proxies as `seriesViews.*` (one identity per
+  ring buffer), so `bar.close[1]` reads history and `+bar.close` /
+  arithmetic / `plot(bar.close)` read the live head. The views are
+  number-coercible (`valueOf` + `Symbol.toPrimitive` → `buf.at(0)`), which
+  is what lets a `PriceSeries` (`number & Series<number>`) be both. The
+  append / replace / tick / restore paths therefore do NOT copy these
+  scalars onto the `BarView` — only the scalar `time` / `symbol` /
+  `interval` are written. `bar.point(price)` coerces the anchor price via
+  `Number(...)`, so `bar.point(0, bar.close)` persists a numeric
+  `WorldPoint.price`, not the view object.
 - **§6.7 invariants are property-tested.** `onBarClose.test.ts`
-  pins `bar.X === series.X[0]` and "all series equal length";
-  `onBarTick.test.ts` pins "consecutive ticks don't advance
-  length"; `drain.test.ts` pins "second drain returns empty
-  arrays". Touching the execution loop without re-running
+  pins `+bar.X === series.X[0]` (coerced — `bar.X` is the series view, so
+  it equals `series.X` by identity and `+bar.X` equals `series.X.current`)
+  and "all series equal length"; `onBarTick.test.ts` pins "consecutive
+  ticks don't advance length"; `drain.test.ts` pins "second drain returns
+  empty arrays". Touching the execution loop without re-running
   `pnpm -F @invinite-org/chartlang-runtime test` is unsafe.
 - **`StreamState.interval` stays `""` on the main stream in
   Phase 1.** The runner constructs `createStreamState({ interval:

@@ -134,6 +134,24 @@ Reference adapter package — **not published to npm**.
   background state at a bar, not shifted series visuals: their render
   anchors on the bar's own time and `extendXMaxForShifts` skips them. This
   is explicit (unit-tested), not accidental.
+- **Future-anchored drawings widen `xMax` too.** Drawings render only in
+  the overlay pane (`renderOverlayTail`), and their anchors persist as
+  absolute world `(time, price)` tuples — not `bar` + `xShift`. So a
+  `bar.point(+k, …)` endpoint (e.g. `forecast-line`'s `draw.line`, whose
+  forward anchor resolves to `lastTime + k · spacing`) lands past the data
+  edge and, before this widening, started on the right edge with the rest
+  of the segment overflowing off-canvas — invisible. `extendXMaxForShifts`'
+  overlay branch now also walks `state.drawings` and folds in
+  `maxDrawingAnchorTime(drawing.state, …)`, the largest finite `time`
+  anchored anywhere in the state. That walk is **structural** (recurses any
+  nested object/array, takes any finite `time` key) so the 60-kind
+  `DrawingState` union — `anchors` / `anchor` / `edgeA` / `edgeB` /
+  vertical-line's bare `time` — needs no per-kind enumeration, and it is
+  defensive against unexpected state shapes (`null` fields and non-numeric
+  `time` keys are skipped, never poisoning `xMax` with `NaN`). Drawings
+  fully inside the data range leave `xMax` untouched; only the future case
+  fires. Like the plot path, `xMin` is **not** extended for far-past
+  anchors (canvas-clipped at negative x).
 
 ## Phase-5 invariants
 

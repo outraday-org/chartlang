@@ -48,7 +48,7 @@ describe("runtime.log.*", () => {
             name: "logs",
             apiVersion: 1,
             compute: ({ bar, runtime }) => {
-                runtime.log.info("close", { close: bar.close });
+                runtime.log.info("close", { close: bar.close.current });
             },
         });
         const runner = createScriptRunner({ compiled, capabilities: caps(true) });

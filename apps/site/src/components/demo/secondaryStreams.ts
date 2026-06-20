@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { CandleEvent } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
 
 const MS_PER_SECOND = 1_000;
@@ -70,6 +71,11 @@ function aggregateBucket(bars: ReadonlyArray<Bar>, interval: string): Bar {
     }
     const open = first.open;
     const close = last.close;
+    // No `point` method: input bars are streamed to the worker host via
+    // `postMessage`, and a function is not structured-cloneable (it throws
+    // `DataCloneError`). The runtime injects the real `point` on its own
+    // `BarView`, so input bars stay plain serialisable data — exactly like
+    // the `bars.json` main history (which carries no `point` either).
     return {
         // No-lookahead: the higher-timeframe bar is only known at its
         // close, so it is timestamped at the LAST constituent bar.
@@ -85,50 +91,106 @@ function aggregateBucket(bars: ReadonlyArray<Bar>, interval: string): Bar {
         hlc3: (high + low + close) / 3,
         ohlc4: (open + high + low + close) / 4,
         hlcc4: (high + low + close + close) / 4,
-        // Demo input bars carry no time history, so only the current bar
-        // resolves; the runtime injects the real `point` on its BarView.
-        point: (offset, price) => ({ time: offset === 0 ? last.time : Number.NaN, price }),
-    };
+    } as Bar;
 }
 
+/** Mutable accumulator for the higher-timeframe bucket currently open. */
+type BucketState = { key: number; bars: Bar[] };
+
 /**
- * Resample a main bar series into each requested higher-timeframe
- * interval, keyed by the exact interval literal the manifest carries.
+ * Wrap a main candle source so that, as bars flow through, it synthesises
+ * each requested higher-timeframe stream **live** and weaves the secondary
+ * `close` events into the output.
  *
- * The demo has no real higher-timeframe feed, so this synthesises one by
- * bucketing the main bars (`Math.floor(time / bucketMs)`) and aggregating
- * each bucket OHLCV. Intervals whose literal cannot be parsed are
- * omitted. A bucket size at or below the main bar spacing degrades to a
- * sensible 1:1 mapping rather than producing NaN.
+ * The demo has no real higher-timeframe feed, so this buckets the main bars
+ * (`Math.floor(time / bucketMs)`) and emits one aggregated secondary
+ * `close` (tagged with `streamKey = interval`) each time a bucket rolls
+ * over — i.e. when a bar opens a *new* bucket, the just-completed bucket is
+ * flushed. Doing this on the live stream (not just an up-front resample of
+ * the static history) is what keeps the higher-timeframe series advancing
+ * once `Play` starts pushing fresh bars; a one-shot resample would freeze
+ * the weekly line at the last historical bucket.
+ *
+ * Like {@link createMultiStreamCandlePump}, a `history` batch is **split**
+ * so each secondary close is interleaved at the right point — without the
+ * split a monolithic batch defers every secondary flush to the batch's last
+ * timestamp and the cap-1 secondary ring buffer keeps only the final bar,
+ * leaving the higher-timeframe series all-NaN across the replay. Completed
+ * buckets are timestamped at their last constituent bar (no-lookahead) and
+ * the in-progress bucket is intentionally NOT flushed: a week's close is
+ * only known once the next week opens. Intervals whose literal cannot be
+ * parsed are skipped. `tick` events pass through untouched — a provisional
+ * in-bar update must not roll a higher-timeframe bucket (the demo emits no
+ * ticks, but the guard keeps the contract honest).
  *
  * @since 0.5
  * @example
- *     import { buildSecondaryStreams } from "./secondaryStreams";
- *     const secondary = buildSecondaryStreams(bars, ["1W"]);
- *     // secondary["1W"] is the weekly-resampled series.
+ *     import { createResamplingCandlePump } from "./secondaryStreams";
+ *     const source = createResamplingCandlePump(mainSource, ["1W"]);
+ *     // `source` yields the main events plus woven weekly `close` events.
  */
-export function buildSecondaryStreams(
-    bars: ReadonlyArray<Bar>,
+export function createResamplingCandlePump(
+    main: AsyncIterable<CandleEvent>,
     intervals: ReadonlyArray<string>,
-): Record<string, ReadonlyArray<Bar>> {
-    const result: Record<string, ReadonlyArray<Bar>> = {};
+): AsyncIterable<CandleEvent> {
+    const sizes: Array<{ interval: string; bucketMs: number }> = [];
     for (const interval of intervals) {
         const bucketMs = intervalToBucketMs(interval);
-        if (bucketMs === null) continue;
-        const buckets = new Map<number, Bar[]>();
-        for (const bar of bars) {
-            const key = Math.floor(bar.time / bucketMs);
-            const existing = buckets.get(key);
-            if (existing === undefined) {
-                buckets.set(key, [bar]);
-            } else {
-                existing.push(bar);
-            }
-        }
-        const aggregated = [...buckets.entries()]
-            .sort((a, b) => a[0] - b[0])
-            .map(([, bucketBars]) => aggregateBucket(bucketBars, interval));
-        result[interval] = aggregated;
+        if (bucketMs !== null) sizes.push({ interval, bucketMs });
     }
-    return result;
+    return {
+        async *[Symbol.asyncIterator](): AsyncIterator<CandleEvent> {
+            const open = new Map<string, BucketState>();
+
+            // Fold one main bar into each interval's open bucket, returning a
+            // secondary `close` for every bucket the bar rolled over. The
+            // completed bucket excludes the rolling bar, so its aggregate
+            // stays no-lookahead (timestamped at its own last constituent).
+            function rollover(bar: Bar): CandleEvent[] {
+                const closes: CandleEvent[] = [];
+                for (const { interval, bucketMs } of sizes) {
+                    const key = Math.floor(bar.time / bucketMs);
+                    const cur = open.get(interval);
+                    if (cur === undefined) {
+                        open.set(interval, { key, bars: [bar] });
+                    } else if (key !== cur.key) {
+                        closes.push({
+                            kind: "close",
+                            bar: aggregateBucket(cur.bars, interval),
+                            streamKey: interval,
+                        });
+                        open.set(interval, { key, bars: [bar] });
+                    } else {
+                        cur.bars.push(bar);
+                    }
+                }
+                return closes;
+            }
+
+            for await (const event of main) {
+                if (event.kind === "history") {
+                    let chunk: Bar[] = [];
+                    for (const bar of event.bars) {
+                        const closes = rollover(bar);
+                        if (closes.length > 0) {
+                            if (chunk.length > 0) {
+                                yield { kind: "history", bars: chunk };
+                                chunk = [];
+                            }
+                            for (const close of closes) yield close;
+                        }
+                        chunk.push(bar);
+                    }
+                    if (chunk.length > 0) yield { kind: "history", bars: chunk };
+                    continue;
+                }
+                if (event.kind === "close") {
+                    for (const close of rollover(event.bar)) yield close;
+                    yield event;
+                    continue;
+                }
+                yield event;
+            }
+        },
+    };
 }

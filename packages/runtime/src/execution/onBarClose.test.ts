@@ -113,16 +113,18 @@ describe("onBarClose — step 2 (mutate BarView)", () => {
             const stream = ACTIVE_RUNTIME_CONTEXT.current?.stream;
             if (!stream) throw new Error("no stream");
             const { bar } = stream;
+            // bar.{ohlcv/derived} are number-coercible series views — read the
+            // current value with `.current` (equivalently `+bar.x`).
             snapshot.time = bar.time;
-            snapshot.open = bar.open;
-            snapshot.high = bar.high;
-            snapshot.low = bar.low;
-            snapshot.close = bar.close;
-            snapshot.volume = bar.volume;
-            snapshot.hl2 = bar.hl2;
-            snapshot.hlc3 = bar.hlc3;
-            snapshot.ohlc4 = bar.ohlc4;
-            snapshot.hlcc4 = bar.hlcc4;
+            snapshot.open = bar.open.current;
+            snapshot.high = bar.high.current;
+            snapshot.low = bar.low.current;
+            snapshot.close = bar.close.current;
+            snapshot.volume = bar.volume.current;
+            snapshot.hl2 = bar.hl2.current;
+            snapshot.hlc3 = bar.hlc3.current;
+            snapshot.ohlc4 = bar.ohlc4.current;
+            snapshot.hlcc4 = bar.hlcc4.current;
             snapshot.symbol = bar.symbol;
             snapshot.interval = bar.interval;
         });
@@ -143,23 +145,26 @@ describe("onBarClose — step 2 (mutate BarView)", () => {
     });
 });
 
-describe("onBarClose — step 3 invariant (bar.X === series.X[0])", () => {
-    it("the BarView matches series.current for every field after step 3", async () => {
+describe("onBarClose — step 3 invariant (+bar.X === series.X[0])", () => {
+    it("the BarView coerces to series.current for every field after step 3", async () => {
         const matches: boolean[] = [];
         const { runner } = buildRunnerWithStateCapture(() => {
             const stream = ACTIVE_RUNTIME_CONTEXT.current?.stream;
             if (!stream) throw new Error("no stream");
             const { bar, seriesViews } = stream;
+            // bar.X IS the series view (one identity per buffer); its coerced
+            // scalar equals series.current. Object.is keeps the NaN warmup safe.
             matches.push(bar.time === seriesViews.time.current);
-            matches.push(bar.open === seriesViews.open.current);
-            matches.push(bar.high === seriesViews.high.current);
-            matches.push(bar.low === seriesViews.low.current);
-            matches.push(bar.close === seriesViews.close.current);
-            matches.push(bar.volume === seriesViews.volume.current);
-            matches.push(bar.hl2 === seriesViews.hl2.current);
-            matches.push(bar.hlc3 === seriesViews.hlc3.current);
-            matches.push(bar.ohlc4 === seriesViews.ohlc4.current);
-            matches.push(bar.hlcc4 === seriesViews.hlcc4.current);
+            matches.push(bar.open === seriesViews.open);
+            matches.push(Object.is(+bar.open, seriesViews.open.current));
+            matches.push(Object.is(+bar.high, seriesViews.high.current));
+            matches.push(Object.is(+bar.low, seriesViews.low.current));
+            matches.push(Object.is(+bar.close, seriesViews.close.current));
+            matches.push(Object.is(+bar.volume, seriesViews.volume.current));
+            matches.push(Object.is(+bar.hl2, seriesViews.hl2.current));
+            matches.push(Object.is(+bar.hlc3, seriesViews.hlc3.current));
+            matches.push(Object.is(+bar.ohlc4, seriesViews.ohlc4.current));
+            matches.push(Object.is(+bar.hlcc4, seriesViews.hlcc4.current));
         });
         await runner.onBarClose(makeBar(0));
         expect(matches.every(Boolean)).toBe(true);
@@ -261,7 +266,7 @@ describe("onBarClose — step 6 (barIndex advances)", () => {
 });
 
 describe("onBarClose — §6.7 property invariants", () => {
-    it("invariant 1: bar.X === series.X[0] for every field over arbitrary bar sequences", async () => {
+    it("invariant 1: +bar.X === series.X[0] for every field over arbitrary bar sequences", async () => {
         await fc.assert(
             fc.asyncProperty(fc.array(arbBar, { minLength: 1, maxLength: 20 }), async (bars) => {
                 const matches: boolean[] = [];
@@ -272,16 +277,18 @@ describe("onBarClose — §6.7 property invariants", () => {
                         const stream = ACTIVE_RUNTIME_CONTEXT.current?.stream;
                         if (!stream) return;
                         const { bar, seriesViews } = stream;
+                        // bar.X IS the series view; its coerced scalar equals
+                        // series.current. Object.is keeps NaN slots comparable.
                         matches.push(bar.time === seriesViews.time.current);
-                        matches.push(bar.open === seriesViews.open.current);
-                        matches.push(bar.high === seriesViews.high.current);
-                        matches.push(bar.low === seriesViews.low.current);
-                        matches.push(bar.close === seriesViews.close.current);
-                        matches.push(bar.volume === seriesViews.volume.current);
-                        matches.push(bar.hl2 === seriesViews.hl2.current);
-                        matches.push(bar.hlc3 === seriesViews.hlc3.current);
-                        matches.push(bar.ohlc4 === seriesViews.ohlc4.current);
-                        matches.push(bar.hlcc4 === seriesViews.hlcc4.current);
+                        matches.push(Object.is(+bar.open, seriesViews.open.current));
+                        matches.push(Object.is(+bar.high, seriesViews.high.current));
+                        matches.push(Object.is(+bar.low, seriesViews.low.current));
+                        matches.push(Object.is(+bar.close, seriesViews.close.current));
+                        matches.push(Object.is(+bar.volume, seriesViews.volume.current));
+                        matches.push(Object.is(+bar.hl2, seriesViews.hl2.current));
+                        matches.push(Object.is(+bar.hlc3, seriesViews.hlc3.current));
+                        matches.push(Object.is(+bar.ohlc4, seriesViews.ohlc4.current));
+                        matches.push(Object.is(+bar.hlcc4, seriesViews.hlcc4.current));
                     },
                 });
                 const runner = createScriptRunner({

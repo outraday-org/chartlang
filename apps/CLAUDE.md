@@ -112,15 +112,30 @@ and the demo 500s, the client bundle fails to load, or the whole site
   each deploy (see `DEPLOYMENT.md` → "core import").
 - **`ChartPane.tsx` feeds synthetic higher-timeframe streams for MTF
   scripts.** It reads `(artifact.manifest as ScriptManifest)
-  .requestedIntervals`; when non-empty it resamples the main `bars` into
-  each requested interval via `buildSecondaryStreams`
-  (`src/components/demo/secondaryStreams.ts`) and routes both through
-  `createMultiStreamCandlePump`, so `request.security` scripts (e.g.
-  `htf-trend-filter`) render real values instead of all-NaN. When
-  `requestedIntervals` is empty the pane keeps the plain single-source
-  path byte-for-byte. The adapter is created with `interval:
-  bars[0].interval` (`"1D"` for the demo data, the same as the adapter's
-  `DEFAULT_INTERVAL`, so the non-MTF path is unchanged). NOTE: this only
+  .requestedIntervals`; when non-empty it wraps the main candle source in
+  `createResamplingCandlePump` (`src/components/demo/secondaryStreams.ts`),
+  which buckets the main bars **live** into each requested interval and
+  weaves the secondary `close` events into the stream, so `request.security`
+  scripts (e.g. `htf-trend-filter`) render real values instead of all-NaN.
+  Resampling on the live source (not a one-shot resample of the static
+  history) is what keeps the higher-timeframe series advancing once `Play`
+  pushes fresh bars — a static resample froze the weekly line at the last
+  historical bucket. The pump splits a `history` batch the same way the
+  adapter's `createMultiStreamCandlePump` does (interleaving each secondary
+  close at its rollover point) so the cap-1 secondary ring buffer never
+  collapses the replay to its final bar; the in-progress bucket is not
+  flushed (a week's close is only known once the next week opens). **Demo
+  input bars carry NO `point` method** — `aggregateBucket` /
+  `nextRandomBar` build plain serialisable bars cast to `Bar`, because the
+  worker host streams every candle event through `postMessage` and a
+  function is not structured-cloneable (it throws `DataCloneError`, which
+  killed the renderer loop after the first secondary close — the
+  "only one bar / flat weekly line" symptom); the runtime injects the real
+  `point` on its own `BarView`, exactly as it does for the `point`-less
+  `bars.json` history. When `requestedIntervals` is empty the pane keeps the
+  plain single-source path byte-for-byte. The adapter is created with
+  `interval: bars[0].interval` (`"1D"` for the demo data, the same as the
+  adapter's `DEFAULT_INTERVAL`, so the non-MTF path is unchanged). NOTE: this only
   works because the host boot (`host-worker` `buildBundleFromModule` /
   `host-quickjs` `dispatcherCore`) adopts the compiler's `__manifest`
   sidecar for single-script modules — the runtime `defineIndicator` stub
@@ -128,13 +143,11 @@ and the demo 500s, the client bundle fails to load, or the whole site
   would never register. The `htf-trend-filter` demo uses the
   `request.security` **expression form**
   (`request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 20))`); the
-  demo wiring needs no change because `ChartPane.tsx` keys off
-  `requestedIntervals` (still `["1W"]`), and the new
+  demo wiring keys off `requestedIntervals` (still `["1W"]`), and the new
   `manifest.securityExpressions` rides the SAME `__manifest` sidecar the host
   boot already spreads through — the SecurityExprRunner mounts off it
-  automatically. The weekly line is now visibly smoother/laggier than the
-  daily EMA (the EMA runs on the weekly clock), which is the user-reported
-  symptom fixed.
+  automatically. The weekly line is a stair-step that lags the daily EMA (the
+  EMA runs on the weekly clock) and keeps stepping live during `Play`.
 - The server compile helper lives at `src/lib/server/compile.ts`;
   importing it from any `src/components/*` file would drag the compiler
   into the client graph. The route file is its only importer.

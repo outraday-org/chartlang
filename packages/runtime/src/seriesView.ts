@@ -15,6 +15,14 @@ import type { RingBufferLike } from "./ringBuffer.js";
  * Property reads dispatch as follows:
  * - `series.current` → `buf.at(0)`
  * - `series.length` → `buf.length`
+ * - `series.valueOf` / `series[Symbol.toPrimitive]` → a function returning
+ *   `buf.at(0)`, so a numeric series coerces to its **current** value in any
+ *   value context (`series * 2`, `series > x`, `` `${series}` ``,
+ *   `Math.max(series, …)`). This is what lets `bar.close` be used both as a
+ *   scalar and indexed as a series. Coercion is harmless for non-numeric
+ *   buffers — nothing coerces those. Note `Number.isFinite(series)` is still
+ *   `false` (it does not coerce) and `series === 42` is `false` (object vs
+ *   number); use `series.current` / `+series` there.
  * - `series[n]` (string coerces to a non-negative integer) → `buf.at(n)`
  * - any other key → `undefined`
  *
@@ -38,6 +46,8 @@ export function makeSeriesView<T>(buf: RingBufferLike<T>): Series<T> {
         get(_target, prop) {
             if (prop === "current") return buf.at(0);
             if (prop === "length") return buf.length;
+            if (prop === "valueOf") return () => buf.at(0);
+            if (prop === Symbol.toPrimitive) return () => buf.at(0);
             if (typeof prop === "string") {
                 const n = Number(prop);
                 if (Number.isInteger(n) && n >= 0) return buf.at(n);
@@ -46,6 +56,7 @@ export function makeSeriesView<T>(buf: RingBufferLike<T>): Series<T> {
         },
         has(_target, prop) {
             if (prop === "current" || prop === "length") return true;
+            if (prop === "valueOf" || prop === Symbol.toPrimitive) return true;
             if (typeof prop === "string") {
                 const n = Number(prop);
                 return Number.isInteger(n) && n >= 0;

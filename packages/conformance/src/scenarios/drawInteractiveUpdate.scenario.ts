@@ -26,10 +26,10 @@ export default defineDrawing({
     apiVersion: 1,
     compute({ bar, draw }) {
         if (handle === null) {
-            handle = draw.horizontalLine(bar.close);
+            handle = draw.horizontalLine(bar.close.current);
             return;
         }
-        handle.update({ price: bar.close });
+        handle.update({ price: bar.close.current });
     },
 });
 `;

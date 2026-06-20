@@ -108,6 +108,10 @@ function makeSeriesView(buf) {
         return buf.at(0);
       if (prop === "length")
         return buf.length;
+      if (prop === "valueOf")
+        return () => buf.at(0);
+      if (prop === Symbol.toPrimitive)
+        return () => buf.at(0);
       if (typeof prop === "string") {
         const n = Number(prop);
         if (Number.isInteger(n) && n >= 0)
@@ -117,6 +121,8 @@ function makeSeriesView(buf) {
     },
     has(_target, prop) {
       if (prop === "current" || prop === "length")
+        return true;
+      if (prop === "valueOf" || prop === Symbol.toPrimitive)
         return true;
       if (typeof prop === "string") {
         const n = Number(prop);
@@ -1133,15 +1139,16 @@ function medianSpacingMs(time) {
   return deltas.length % 2 === 1 ? deltas[mid] : (deltas[mid - 1] + deltas[mid]) / 2;
 }
 function resolveBarPoint(time, interval, currentTime, offset, price) {
+  const p = Number(price);
   if (offset === 0)
-    return { time: currentTime, price };
+    return { time: currentTime, price: p };
   if (offset < 0)
-    return { time: time.at(-offset), price };
+    return { time: time.at(-offset), price: p };
   const spacing = (() => {
     const median2 = medianSpacingMs(time);
     return Number.isFinite(median2) ? median2 : intervalSpacingMs(interval);
   })();
-  return { time: currentTime + offset * spacing, price };
+  return { time: currentTime + offset * spacing, price: p };
 }
 
 // ../runtime/dist/streamState.js
@@ -1206,26 +1213,6 @@ function createStreamState(args) {
     ohlc4: new Float64RingBuffer(capacity),
     hlcc4: new Float64RingBuffer(capacity)
   };
-  const bar = {
-    time: 0,
-    open: Number.NaN,
-    high: Number.NaN,
-    low: Number.NaN,
-    close: Number.NaN,
-    volume: 0,
-    hl2: Number.NaN,
-    hlc3: Number.NaN,
-    ohlc4: Number.NaN,
-    hlcc4: Number.NaN,
-    symbol,
-    interval,
-    viewport: Object.freeze({ fromTime: 0, toTime: 0 }),
-    // Closes over the stream's time history + the live `BarView` scalars so
-    // offset-anchored drawings resolve against the real / extrapolated time
-    // at compute time. The `WorldPoint` it returns is the only persisted
-    // anchor frame — `bar.point` adds no new wire shape.
-    point: (offset, price) => resolveBarPoint(ohlcv.time, bar.interval, bar.time, offset, price)
-  };
   const seriesViews = {
     time: makeSeriesView(ohlcv.time),
     open: makeSeriesView(ohlcv.open),
@@ -1237,6 +1224,26 @@ function createStreamState(args) {
     hlc3: makeSeriesView(ohlcv.hlc3),
     ohlc4: makeSeriesView(ohlcv.ohlc4),
     hlcc4: makeSeriesView(ohlcv.hlcc4)
+  };
+  const bar = {
+    time: 0,
+    open: seriesViews.open,
+    high: seriesViews.high,
+    low: seriesViews.low,
+    close: seriesViews.close,
+    volume: seriesViews.volume,
+    hl2: seriesViews.hl2,
+    hlc3: seriesViews.hlc3,
+    ohlc4: seriesViews.ohlc4,
+    hlcc4: seriesViews.hlcc4,
+    symbol,
+    interval,
+    viewport: Object.freeze({ fromTime: 0, toTime: 0 }),
+    // Closes over the stream's time history + the live scalar `bar.time` /
+    // `bar.interval` so offset-anchored drawings resolve against the real /
+    // extrapolated time at compute time. The `WorldPoint` it returns is the
+    // only persisted anchor frame — `bar.point` adds no new wire shape.
+    point: (offset, price) => resolveBarPoint(ohlcv.time, bar.interval, bar.time, offset, price)
   };
   const stream = {
     interval,
@@ -1272,29 +1279,7 @@ function createStreamState(args) {
       }
       recomputeDerivedBuffers(ohlcv, snapshot6);
       const current = snapshot6.headIndex;
-      if (snapshot6.filled === 0 || current < 0) {
-        bar.time = 0;
-        bar.open = Number.NaN;
-        bar.high = Number.NaN;
-        bar.low = Number.NaN;
-        bar.close = Number.NaN;
-        bar.volume = 0;
-        bar.hl2 = Number.NaN;
-        bar.hlc3 = Number.NaN;
-        bar.ohlc4 = Number.NaN;
-        bar.hlcc4 = Number.NaN;
-      } else {
-        bar.time = valueAt(snapshot6.buffers.time, current);
-        bar.open = valueAt(snapshot6.buffers.open, current);
-        bar.high = valueAt(snapshot6.buffers.high, current);
-        bar.low = valueAt(snapshot6.buffers.low, current);
-        bar.close = valueAt(snapshot6.buffers.close, current);
-        bar.volume = valueAt(snapshot6.buffers.volume, current);
-        bar.hl2 = (bar.high + bar.low) / 2;
-        bar.hlc3 = (bar.high + bar.low + bar.close) / 3;
-        bar.ohlc4 = (bar.open + bar.high + bar.low + bar.close) / 4;
-        bar.hlcc4 = (bar.high + bar.low + bar.close + bar.close) / 4;
-      }
+      bar.time = snapshot6.filled === 0 || current < 0 ? 0 : valueAt(snapshot6.buffers.time, current);
       bar.interval = snapshot6.interval;
     }
   };
@@ -1314,15 +1299,6 @@ function appendBarToStream(stream, rawBar) {
   ohlcv.ohlc4.append(values.ohlc4);
   ohlcv.hlcc4.append(values.hlcc4);
   bar.time = rawBar.time;
-  bar.open = rawBar.open;
-  bar.high = rawBar.high;
-  bar.low = rawBar.low;
-  bar.close = rawBar.close;
-  bar.volume = rawBar.volume;
-  bar.hl2 = values.hl2;
-  bar.hlc3 = values.hlc3;
-  bar.ohlc4 = values.ohlc4;
-  bar.hlcc4 = values.hlcc4;
   bar.symbol = rawBar.symbol;
   bar.interval = rawBar.interval;
 }
@@ -1344,21 +1320,12 @@ function replaceStreamHead(stream, rawBar) {
   ohlcv.ohlc4.replaceHead(values.ohlc4);
   ohlcv.hlcc4.replaceHead(values.hlcc4);
   bar.time = rawBar.time;
-  bar.open = rawBar.open;
-  bar.high = rawBar.high;
-  bar.low = rawBar.low;
-  bar.close = rawBar.close;
-  bar.volume = rawBar.volume;
-  bar.hl2 = values.hl2;
-  bar.hlc3 = values.hlc3;
-  bar.ohlc4 = values.ohlc4;
-  bar.hlcc4 = values.hlcc4;
   bar.symbol = rawBar.symbol;
   bar.interval = rawBar.interval;
 }
 function replaceTickHead(stream, rawBar) {
   const values = deriveBarSources(rawBar);
-  const { ohlcv, bar } = stream;
+  const { ohlcv } = stream;
   ohlcv.close.replaceHead(rawBar.close);
   ohlcv.high.replaceHead(rawBar.high);
   ohlcv.low.replaceHead(rawBar.low);
@@ -1367,14 +1334,6 @@ function replaceTickHead(stream, rawBar) {
   ohlcv.hlc3.replaceHead(values.hlc3);
   ohlcv.ohlc4.replaceHead(values.ohlc4);
   ohlcv.hlcc4.replaceHead(values.hlcc4);
-  bar.close = rawBar.close;
-  bar.high = rawBar.high;
-  bar.low = rawBar.low;
-  bar.volume = rawBar.volume;
-  bar.hl2 = values.hl2;
-  bar.hlc3 = values.hlc3;
-  bar.ohlc4 = values.ohlc4;
-  bar.hlcc4 = values.hlcc4;
 }
 function updateFallbackViewport(stream, limit = 100) {
   const length = stream.ohlcv.time.length;
@@ -15522,9 +15481,9 @@ async function maybeSaveStateSnapshot(state2, savedAt, intervalMs) {
 
 // ../runtime/dist/createScriptRunner.js
 function resolveCapacity(manifest) {
-  const requested = manifest.seriesCapacities.ohlcv;
+  const { ohlcv, dynamicFallback } = manifest.seriesCapacities;
   const fallback2 = manifest.maxLookback + 1;
-  return Math.max(1, requested ?? fallback2);
+  return Math.max(1, ohlcv ?? fallback2, dynamicFallback ?? 0);
 }
 function createSecondaryStreams(manifest, capacity) {
   const streams = /* @__PURE__ */ new Map();

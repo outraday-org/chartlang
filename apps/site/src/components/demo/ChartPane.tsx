@@ -3,15 +3,11 @@
 
 import type { AlertEmission, CandleEvent } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
-import {
-    createCanvas2dAdapter,
-    createMultiStreamCandlePump,
-    runRendererLoop,
-} from "chartlang-example-canvas2d-adapter";
+import { createCanvas2dAdapter, runRendererLoop } from "chartlang-example-canvas2d-adapter";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 
 import type { CompiledArtifact } from "./hybridLanguageService";
-import { buildSecondaryStreams } from "./secondaryStreams";
+import { createResamplingCandlePump } from "./secondaryStreams";
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 480;
@@ -87,6 +83,11 @@ function nextRandomBar(prev: Bar, intervalMs: number): Bar {
     const high = Math.max(open, close) * (1 + Math.random() * 0.008);
     const low = Math.min(open, close) * (1 - Math.random() * 0.008);
     const volume = 800 + Math.random() * 400;
+    // No `point` method: bars are streamed to the worker host via
+    // `postMessage`, and a function is not structured-cloneable (it throws
+    // `DataCloneError`). The runtime injects the real `point` on its own
+    // `BarView`, so input bars stay plain serialisable data — exactly like
+    // the `bars.json` static history (which carries no `point` either).
     return {
         time,
         open,
@@ -100,10 +101,7 @@ function nextRandomBar(prev: Bar, intervalMs: number): Bar {
         hlc3: (high + low + close) / 3,
         ohlc4: (open + high + low + close) / 4,
         hlcc4: (high + low + close + close) / 4,
-        // Demo input bars carry no time history, so only the current bar
-        // resolves; the runtime injects the real `point` on its BarView.
-        point: (offset, price) => ({ time: offset === 0 ? time : Number.NaN, price }),
-    };
+    } as Bar;
 }
 
 /**
@@ -184,16 +182,14 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
 
         // Multi-timeframe scripts request higher-timeframe streams in
         // their manifest. The demo has no real HTF feed, so it resamples
-        // the main bars into each requested interval and routes them
-        // through the multi-stream pump. Non-MTF scripts keep the plain
+        // the main bars into each requested interval live (covering both the
+        // history replay and the bars streamed during Play) and weaves the
+        // secondary closes into the source. Non-MTF scripts keep the plain
         // single-source path byte-for-byte.
         const requestedIntervals = (artifact.manifest as ScriptManifest).requestedIntervals;
         const candleSource =
             requestedIntervals.length > 0
-                ? createMultiStreamCandlePump({
-                      main: pushSource.source,
-                      secondary: buildSecondaryStreams(bars, requestedIntervals),
-                  })
+                ? createResamplingCandlePump(pushSource.source, requestedIntervals)
                 : pushSource.source;
         const mainInterval = bars[0]?.interval;
         const adapter = createCanvas2dAdapter({

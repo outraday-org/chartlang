@@ -396,19 +396,17 @@ export default defineIndicator({
 
     it("flows warnings through (dynamic-series-index) without bailing", () => {
         // The `dynamic-series-index` warning fires when a script reads a
-        // Series at a non-literal index. We need a real `Series<number>`
-        // to index into — `bar.close` is a scalar `Price` per the
-        // public type contract — so the fixture imports `ta.ema` and
-        // indexes its return.
+        // Series at a non-literal index. `bar.close` is now an indexable
+        // `PriceSeries` on the compute bar, so we index it directly — no
+        // need to route through `ta.ema` just to obtain a series shape.
         const source = `
-import { defineIndicator, ta } from "@invinite-org/chartlang-core";
+import { defineIndicator } from "@invinite-org/chartlang-core";
 export default defineIndicator({
     name: "demo",
     apiVersion: 1,
     compute: ({ bar }) => {
-        const ema = ta.ema(bar.close, 12);
         const i = 1;
-        const v = ema[i];
+        const v = bar.close[i];
         void v;
     },
 });

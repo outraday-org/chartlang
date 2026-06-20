@@ -63,11 +63,16 @@ export function resolveBarPoint(
     offset: number,
     price: Price,
 ): WorldPoint {
-    if (offset === 0) return { time: currentTime, price };
-    if (offset < 0) return { time: time.at(-offset), price };
+    // `price` is a `Price` (number) by contract, but a script may pass a bar
+    // price field (`bar.point(0, bar.close)`) which is now a number-coercible
+    // series view. Coerce to the scalar so the persisted `WorldPoint.price`
+    // is always a number, never the view object. `Number(NaN)` stays NaN.
+    const p = Number(price);
+    if (offset === 0) return { time: currentTime, price: p };
+    if (offset < 0) return { time: time.at(-offset), price: p };
     const spacing = (() => {
         const median = medianSpacingMs(time);
         return Number.isFinite(median) ? median : intervalSpacingMs(interval);
     })();
-    return { time: currentTime + offset * spacing, price };
+    return { time: currentTime + offset * spacing, price: p };
 }

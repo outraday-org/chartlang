@@ -161,6 +161,75 @@ export type Series<T> = {
 };
 
 /**
+ * A bar price field that is **both** a scalar `Price` (so `bar.close * 2`,
+ * comparisons, `Math.*`, `plot(bar.close)`, and `ta.*` source arguments all
+ * work) **and** an indexable `Series<Price>` (so `bar.close[1]` reads the
+ * close one bar ago, `bar.close.current` reads the current close, and
+ * `bar.close.length` reads the filled depth). The runtime backs it with a
+ * number-coercible ring-buffer view: arithmetic reads `bar.close[0]` (the
+ * current value) while a literal index reads that many bars back.
+ *
+ * Because the value is an object, raw-number reflection differs from a plain
+ * `number`: `Number.isFinite(bar.close)` is always `false` (it does not
+ * coerce) and `bar.close === 42` is `false` (object vs number). Use
+ * `bar.close.current` or `+bar.close` for those contexts.
+ *
+ * @since 1.3
+ * @example
+ *     function delta(close: PriceSeries): number {
+ *         // current close minus the close one bar ago
+ *         return close - close[1];
+ *     }
+ */
+export type PriceSeries = Price & Series<Price>;
+
+/**
+ * Volume counterpart of {@link PriceSeries}: a bar `volume` field usable both
+ * as a scalar `Volume` and as an indexable `Series<Volume>` (`bar.volume[1]`).
+ *
+ * @since 1.3
+ * @example
+ *     function avgVol(v: VolumeSeries): number {
+ *         return (v[0] + v[1] + v[2]) / 3;
+ *     }
+ */
+export type VolumeSeries = Volume & Series<Volume>;
+
+/**
+ * The current bar as `compute` sees it. Identical to {@link Bar} except the
+ * OHLCV + derived price/volume fields are {@link PriceSeries} /
+ * {@link VolumeSeries} — both a scalar (`bar.close * 2`, `plot(bar.close)`,
+ * `ta.ema(bar.close, 20)`) and an indexable series (`bar.close[1]` reads the
+ * close one bar ago). `time` stays a scalar `Time`.
+ *
+ * This is distinct from {@link Bar} on purpose: {@link Bar} is the
+ * adapter-supplied / `request.lowerTf` candle (scalar OHLCV, no per-field
+ * history), while `BarSeries` is the streaming bar inside `compute` where the
+ * runtime retains a ring buffer per field. `request.security`'s higher-
+ * timeframe bar is the separate {@link SecurityBar}.
+ *
+ * @since 1.3
+ * @example
+ *     function delta(bar: BarSeries): number {
+ *         return bar.close - bar.close[1];
+ *     }
+ */
+export type BarSeries = Omit<
+    Bar,
+    "open" | "high" | "low" | "close" | "volume" | "hl2" | "hlc3" | "ohlc4" | "hlcc4"
+> & {
+    readonly open: PriceSeries;
+    readonly high: PriceSeries;
+    readonly low: PriceSeries;
+    readonly close: PriceSeries;
+    readonly volume: VolumeSeries;
+    readonly hl2: PriceSeries;
+    readonly hlc3: PriceSeries;
+    readonly ohlc4: PriceSeries;
+    readonly hlcc4: PriceSeries;
+};
+
+/**
  * CSS color string — `"#rrggbb"`, `"rgb(...)"`, `"hsl(...)"`, etc. Adapters
  * round-trip the string verbatim.
  *
@@ -634,7 +703,7 @@ export type AlertConditionDefinition = AlertConditionDescriptor &
  *     const fn: ComputeFn = ({ bar, plot }) => { plot(bar.close); };
  */
 export type ComputeContext = {
-    readonly bar: Bar;
+    readonly bar: BarSeries;
     readonly inputs: Readonly<Record<string, unknown>>;
     readonly ta: TaNamespace;
     readonly plot: typeof import("./plot/plot.js").plot;
