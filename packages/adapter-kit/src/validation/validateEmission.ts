@@ -471,6 +471,9 @@ function validatePlotEmission(e: Record<string, unknown>): ValidationResult {
     if (e.xShift !== undefined && !Number.isInteger(e.xShift)) {
         return bad("plot.xShift: must be an integer");
     }
+    if (e.z !== undefined && !isFiniteNumber(e.z)) {
+        return bad("plot.z: must be a finite number");
+    }
     return { ok: true };
 }
 
@@ -1572,6 +1575,9 @@ function validateDrawingEmission(e: Record<string, unknown>): ValidationResult {
         return bad(
             `drawing.state.kind: '${String(state.kind)}' must equal drawing.drawingKind '${drawingKind}'`,
         );
+    }
+    if (e.z !== undefined && !isFiniteNumber(e.z)) {
+        return bad("drawing.z: must be a finite number");
     }
     const metaCheck = validateDrawingMeta(state);
     if (!metaCheck.ok) return metaCheck;

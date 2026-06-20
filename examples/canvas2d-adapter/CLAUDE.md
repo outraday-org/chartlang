@@ -172,3 +172,55 @@ Reference adapter package — **not published to npm**.
   streaming path's finite higher-timeframe series. `streamPump.test.ts`
   pins both the streaming order and the multi-bar history interleaving;
   `integration.test.ts` pins a finite weekly EMA under `mode: "history"`.
+
+## Z-order render pass invariants
+
+- **`renderFrame` paints sortable marks through ONE global z-sort pass
+  per pane, not a hard-coded band sequence.** `collectSortableMarks`
+  gathers every sortable mark for a pane — plot **series**, **glyph**
+  overlays (shape / character / arrow / horizontal-histogram, overlay
+  pane only), horizontal **lines**, and **drawings** (overlay pane only)
+  — tags each with `(z, band, seq)`, and `sortByRenderOrder`
+  (`render/renderOrder.ts`) **stable-sorts** ascending by `z`, then
+  `band`, then `seq`. `paintSortableMark` then dispatches each mark to
+  its existing per-kind renderer (`paintSeries` / `paintGlyph` /
+  `drawHorizontalLine` / `drawingDispatch`). The sort changed **order**,
+  not per-mark drawing.
+- **`BAND = { series: 0, glyph: 1, hline: 2, drawing: 3 }` reproduces the
+  pre-`z` phase order.** At the default `z = 0` the composite key reduces
+  to `(band, declarationSeq)` = series → glyphs → hlines → drawings in
+  declaration order — **byte-identical** to the old hard-coded sequence
+  (the `integration.test.ts` pinned hash holds because EMA-cross has no
+  drawings; the z-order tests pin the band order directly). A drawing at
+  `z < 0` sorts beneath `z = 0` plots; a plot at `z > 0` sorts above
+  drawings — the lever a fixed band stack cannot express.
+- **Substrate stays below, alerts stay above — both `z`-independent.**
+  Background fills (`bg-color`), candles, the price axis, and
+  bar/candle overrides paint **before** the sorted pass (still in
+  `renderBackgroundOverlays` / `drawCandles` / `renderBarOverlays`).
+  Alert badges, alert conditions, and the log pane paint **after**, in
+  `renderOverlayTail` — they are pinned on top, **not** sortable by `z`
+  in v1 (a deliberate deferral). Only plots + glyphs + hlines + drawings
+  participate in the `z` sort.
+- **`state.plotOverlays` is partitioned by style.** It holds glyph marks
+  AND substrate overlays; `isGlyphOverlay` selects only the glyph subset
+  (shape / character / arrow / horizontal-histogram) into the sorted
+  band. `bg-color` keeps painting with the background, bar/candle
+  overrides with the candles — neither is `z`-sorted.
+- **Drawings moved OUT of `renderOverlayTail` into the sorted pass.**
+  They render in the overlay pane's translate during the pane walk
+  (same offset as before), so a `z`-bearing drawing layers against plots.
+  `renderOverlayTail` now paints only the always-on-top alert tail.
+- **`z` / `seq` are assigned at ingest and persisted per mark.**
+  `applyPlot` / `applyDrawing` read `emission.z ?? 0` and a global
+  `state.seq++` (ingest order = declaration order). `PlotPoint` and
+  `HLine` (`render/coords.ts`) carry `z`/`seq` inline; glyph overlays and
+  drawings keep their `seq` in the parallel `overlaySeq` / `drawingSeq`
+  maps (written in lockstep with `plotOverlays` / `drawings`), since
+  those stores hold the raw emission (which carries `z` but not `seq`).
+  A series mark uses its **last** point's `z`/`seq` (last-write-wins,
+  like its style).
+- **Sorting is per-pane, never cross-pane.** Panes paint in pane order;
+  each pane's marks are collected and sorted independently. A subpane
+  mark's `z` cannot reorder it into the overlay pane — `z` orders within
+  the resolved pane only (per the README's per-pane scope).

@@ -30,6 +30,10 @@
 // shows `draw.fillBetween` — the native filled ribbon between two edges (the
 // linefill / fill() equivalent): a fast and slow EMA accumulated into two
 // persistent edge arrays and re-emitted as one band every bar.
+// "Z-Order Layering" mirrors examples/scripts/z-layering.chart.ts and shows
+// the presentation-only `z` render-order key: a draw.fillBetween band given
+// `z: -1` so it renders BEHIND the price plot (a drawing beneath a plot, which
+// the fixed group stack alone forbids), plus an SMA at `z: 1` on top.
 // Inlined as strings so the demo does not need a build-time file read.
 
 export type DemoScript = Readonly<{
@@ -484,6 +488,57 @@ export default defineIndicator({
 });
 `;
 
+const Z_LAYERING = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { type WorldPoint, defineIndicator, draw, plot, ta } from "@invinite-org/chartlang-core";
+
+// Two persistent edge arrays, accumulated one { time, price } vertex per bar.
+const fastEdge: WorldPoint[] = [];
+const slowEdge: WorldPoint[] = [];
+
+export default defineIndicator({
+    name: "Z-Order Layering",
+    apiVersion: 1,
+    overlay: true,
+    // One ribbon, re-emitted every bar from the same source line, so a single
+    // "polylines" slot (fill-between's bucket) is the whole drawing budget.
+    maxDrawings: { lines: 0, labels: 0, boxes: 0, polylines: 1, other: 0 },
+    compute({ bar, ta, plot, draw }) {
+        const fast = ta.ema(bar.close, 12);
+        const slow = ta.ema(bar.close, 26);
+
+        // Grow both edges by one vertex per bar — the fast EMA is the band's
+        // top, the slow EMA its bottom.
+        if (Number.isFinite(fast.current) && Number.isFinite(slow.current)) {
+            fastEdge.push({ time: bar.time, price: fast.current });
+            slowEdge.push({ time: bar.time, price: slow.current });
+        }
+
+        // The headline: z: -1 pulls the fill BENEATH the price plot. A draw.*
+        // mark renders above plots by default (its band sits higher), so a
+        // negative z is the only way to put a drawing under a plot — the fixed
+        // group stack alone forbids it.
+        if (fastEdge.length >= 2) {
+            draw.fillBetween(fastEdge, slowEdge, {
+                fill: "#3b82f6",
+                fillAlpha: 0.2,
+                color: "#3b82f6",
+                lineWidth: 1,
+                z: -1,
+            });
+        }
+
+        // The price sits at the default z = 0, above the z: -1 band.
+        plot(bar.close, { color: "#1e293b", title: "Price" });
+
+        // z: 1 lifts the SMA above the price plot — crossing the band the other
+        // way to prove z controls stacking in both directions.
+        plot(ta.sma(bar.close, 20), { color: "#ef5350", title: "SMA on top", z: 1 });
+    },
+});
+`;
+
 export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
     {
         id: "ema-cross",
@@ -575,5 +630,12 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         description:
             "One draw.line composing both X-axis anchor styles: an absolute-time start (the first bar's time and close, pinned in state.* slots) drawn to a bar-index end via bar.point(0, …), so the head stays fixed in time while the tail tracks the current bar.",
         source: ANCHORED_LINE,
+    },
+    {
+        id: "z-layering",
+        label: "Z-Order Layering",
+        description:
+            "Use the presentation-only z option to cross render bands: a draw.fillBetween band given z: -1 renders BEHIND the price plot (a drawing beneath a plot, which the default group stack forbids), while an SMA at z: 1 sits on top.",
+        source: Z_LAYERING,
     },
 ];

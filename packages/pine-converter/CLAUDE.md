@@ -426,7 +426,14 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   (lines/labels/boxes 500, polylines 100) + `max-count-out-of-range`.
   `format.inherit`/`scale.none` → `null` + `indicator-arg-not-mapped`.
   Non-literal scalar args are silently ignored (no field set); strategy-only
-  args fall through the `default` arm and drop silently. A computed title →
+  args fall through the `default` arm and drop silently. `UNMAPPED_ARGS`
+  (`timeframe`, `behind_chart`, …) each raise one `indicator-arg-not-mapped`;
+  `RECOGNIZED_NOOP_ARGS` (currently just `explicit_plot_zorder`) are RECOGNIZED
+  no-ops — chartlang already orders marks by declaration order within their
+  group, so the flag is satisfied by default and emits one
+  `explicit-plot-zorder-default` **info** note (NOT a warning), sets no field,
+  and the converter NEVER emits a numeric `z`. Keep the two sets disjoint; do
+  NOT re-add `explicit_plot_zorder` to `UNMAPPED_ARGS`. A computed title →
   `name: null` + `computed-indicator-title`; the caller substitutes
   `FALLBACK_INDICATOR_NAME` (`"<unknown>"`). The IR's `format`/`scale` are
   NARROWED (`ScaffoldFormat` = `price|percent|volume`, `ScaffoldScale` =

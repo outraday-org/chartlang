@@ -269,6 +269,34 @@ describe("validateEmission — plot", () => {
             message: expect.stringContaining("xShift"),
         });
     });
+
+    it("accepts a finite z (zero, fractional, and negative)", () => {
+        expect(validateEmission({ ...validPlot, z: 0 })).toEqual({ ok: true });
+        expect(validateEmission({ ...validPlot, z: 2.5 })).toEqual({ ok: true });
+        expect(validateEmission({ ...validPlot, z: -3 })).toEqual({ ok: true });
+    });
+
+    it("rejects a non-finite or non-number z", () => {
+        for (const z of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+            expect(validateEmission({ ...validPlot, z })).toMatchObject({
+                ok: false,
+                code: "malformed-emission",
+                message: expect.stringContaining("z"),
+            });
+        }
+        expect(validateEmission({ ...validPlot, z: "1" as unknown as number })).toMatchObject({
+            ok: false,
+            code: "malformed-emission",
+            message: expect.stringContaining("z"),
+        });
+    });
+
+    it("a no-z plot carries no z own-key (byte-identity)", () => {
+        // Omitted z must be byte-identical to a pre-feature emission, so a
+        // stray `z: undefined` cannot leak onto the wire.
+        expect("z" in validPlot).toBe(false);
+        expect(validateEmission(validPlot)).toEqual({ ok: true });
+    });
 });
 
 describe("validateEmission — alert condition", () => {
@@ -1764,6 +1792,34 @@ describe("validateEmission — drawing dispatch", () => {
                 },
             }),
         ).toMatchObject({ ok: false, message: expect.stringContaining("childHandleIds") });
+    });
+
+    it("accepts a finite z (zero, fractional, and negative)", () => {
+        expect(validateEmission({ ...validLineDrawing, z: 0 })).toEqual({ ok: true });
+        expect(validateEmission({ ...validLineDrawing, z: 2.5 })).toEqual({ ok: true });
+        expect(validateEmission({ ...validLineDrawing, z: -3 })).toEqual({ ok: true });
+    });
+
+    it("rejects a non-finite or non-number z", () => {
+        for (const z of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+            expect(validateEmission({ ...validLineDrawing, z })).toMatchObject({
+                ok: false,
+                code: "malformed-emission",
+                message: expect.stringContaining("z"),
+            });
+        }
+        expect(
+            validateEmission({ ...validLineDrawing, z: "1" as unknown as number }),
+        ).toMatchObject({
+            ok: false,
+            code: "malformed-emission",
+            message: expect.stringContaining("z"),
+        });
+    });
+
+    it("a no-z drawing carries no z own-key (byte-identity)", () => {
+        expect("z" in validLineDrawing).toBe(false);
+        expect(validateEmission(validLineDrawing)).toEqual({ ok: true });
     });
 });
 

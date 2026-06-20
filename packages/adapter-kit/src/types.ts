@@ -527,6 +527,24 @@ export type PlotEmission = {
      *     void shifted;
      */
     readonly xShift?: number;
+    /**
+     * Presentation-only render-order key (z-index). Omitted (or `0`) ⇒ no
+     * explicit order, so the emission is byte-identical to a plot that
+     * never carried the field. Higher `z` renders on top; lower (incl.
+     * negative) renders behind. Adapters MUST compute a stable global
+     * order keyed on `(z ?? 0, groupBand, declarationSeq)` — a plot with
+     * `z` below a drawing's `z` renders beneath that drawing, crossing the
+     * default plots-under-drawings band. Any finite number (fractional
+     * allowed); `validateEmission` rejects NaN / ±Infinity. Affects only
+     * stacking — `value`, `xShift`, alerts, and `state.*` are unaffected.
+     *
+     * @since 1.4
+     * @stable
+     * @example
+     *     const behind: PlotEmission["z"] = -1;
+     *     void behind;
+     */
+    readonly z?: number;
 };
 
 /**
@@ -652,6 +670,26 @@ export type DrawingEmission = {
     readonly state: DrawingState;
     readonly bar: number;
     readonly time: number;
+    /**
+     * Presentation-only render-order key (z-index). Omitted (or `0`) ⇒ no
+     * explicit order, so the emission is byte-identical to a drawing that
+     * never carried the field. Higher `z` renders on top; a **negative**
+     * `z` lets a drawing render **below** `z=0` plots, crossing the
+     * default plots-under-drawings band. Adapters MUST compute a stable
+     * global order keyed on `(z ?? 0, groupBand, declarationSeq)`. Any
+     * finite number (fractional allowed); `validateEmission` rejects
+     * NaN / ±Infinity. Affects only stacking — `state.*` geometry is
+     * unaffected. `z` is part of the latest state under the per-`(handleId,
+     * bar)` last-write-wins dedup: a `create` then `update` that changes
+     * `z` takes the updated value.
+     *
+     * @since 1.4
+     * @stable
+     * @example
+     *     const beneathPlots: DrawingEmission["z"] = -1;
+     *     void beneathPlots;
+     */
+    readonly z?: number;
 };
 
 /**

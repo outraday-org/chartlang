@@ -142,6 +142,24 @@ time and returns that `WorldPoint`. It composes directly with every
 draw.line(bar.point(-10, bar.close), bar.point(0, bar.close));
 ```
 
+### Layering / draw order
+
+Three levers control which mark renders on top of which:
+
+- **Call order within a band.** Marks of the same kind paint in the order you
+  call them, last on top. To put series A over series B, call `plot(B)`
+  **before** `plot(A)`. The same rule holds for two `draw.*` calls.
+- **Drawings render above plots by default.** A `draw.*()` mark paints on top
+  of every `plot()` series unless an explicit `z` says otherwise.
+- **The `z` option crosses bands.** `plot()` and every `draw.*()` call take an
+  optional `z?: number` render-order key: default `0`, higher renders on top,
+  lower behind, any finite number (fractional like `z: 1.5` is fine). It is
+  presentation-only — it never changes `value`, alerts, or `state.*`, and
+  `z: 0` is byte-identical to omitting it. Because plots default to a lower
+  band than drawings, a **negative** drawing `z` is the only way to push a
+  drawing beneath a plot: `draw.fillBetween(a, b, { z: -1 })` renders below a
+  default `plot(...)`. See the `z-layering` example.
+
 ## 4. Inputs
 
 Declare user-tunable parameters in the `inputs:` field. The compiler

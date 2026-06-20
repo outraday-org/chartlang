@@ -273,6 +273,27 @@ declare function upsertHorizontalLineDrawing(
 `create` and `update` both carry full state, not a patch. Treat `update`
 as replace-or-mutate in place. Treat `remove` as idempotent.
 
+## Render order
+
+The [adapter contract](./contract.md#render-order) requires a fixed band
+stack — background fills, then plots, then drawings, then alert badges,
+bottom to top — with declaration order breaking ties inside a band. Rather
+than hard-coding that band order as four separate paint passes, build **one
+global render list and sort it once** keyed on `(z ?? 0, band, seq)`:
+
+- `z` is the per-mark render key (default `0`); `band` is the numeric band
+  index above; `seq` is the declaration sequence within the batch.
+- Use a **stable** sort so equal keys keep declaration order, and assign each
+  mark a monotonically increasing `seq` as you collect it.
+
+A single sorted pass is the only shape that stays correct once the numeric
+`z` field ships, because `z` lets one mark cross a band boundary — a hard-coded
+"paint all plots, then all drawings" loop cannot express "this drawing below
+those plots". Writing the sort now means the adapter is forward-compatible
+with `z` at zero cost: at the default `z = 0` the sort degrades exactly to the
+band + declaration order the contract already mandates. The Canvas2D reference
+adapter is the worked example of this single-pass sort once it lands.
+
 ## Running Conformance Locally
 
 The generated test is deliberately not skipped:

@@ -179,6 +179,24 @@ describe("mapDeclarationArgs", () => {
         ).toHaveLength(2);
     });
 
+    it("recognizes explicit_plot_zorder=true as a no-op with an info note, not a warning", () => {
+        const diag = new DiagnosticCollector();
+        const opts = mapDeclarationArgs(
+            [arg(null, str("X")), arg("explicit_plot_zorder", bool(true))],
+            diag,
+        );
+        // chartlang orders by declaration order already, so no field is set.
+        expect(opts).toEqual(mapDeclarationArgs([arg(null, str("X"))], new DiagnosticCollector()));
+        expect(codes(diag)).toContain("pine-converter/transform/explicit-plot-zorder-default");
+        expect(codes(diag)).not.toContain("pine-converter/transform/indicator-arg-not-mapped");
+    });
+
+    it("recognizes explicit_plot_zorder=false the same way (no warning)", () => {
+        const diag = new DiagnosticCollector();
+        mapDeclarationArgs([arg("explicit_plot_zorder", bool(false))], diag);
+        expect(codes(diag)).toEqual(["pine-converter/transform/explicit-plot-zorder-default"]);
+    });
+
     it("silently drops a strategy-only arg", () => {
         const diag = new DiagnosticCollector();
         mapDeclarationArgs([arg("initial_capital", int(10000))], diag);

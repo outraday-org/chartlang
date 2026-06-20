@@ -2664,6 +2664,9 @@ function validatePlotEmission(e) {
   if (e.xShift !== void 0 && !Number.isInteger(e.xShift)) {
     return bad("plot.xShift: must be an integer");
   }
+  if (e.z !== void 0 && !isFiniteNumber(e.z)) {
+    return bad("plot.z: must be a finite number");
+  }
   return { ok: true };
 }
 function validateAlertEmission(e) {
@@ -3681,6 +3684,9 @@ function validateDrawingEmission(e) {
   }
   if (state2.kind !== drawingKind) {
     return bad(`drawing.state.kind: '${String(state2.kind)}' must equal drawing.drawingKind '${drawingKind}'`);
+  }
+  if (e.z !== void 0 && !isFiniteNumber(e.z)) {
+    return bad("drawing.z: must be a finite number");
   }
   const metaCheck = validateDrawingMeta(state2);
   if (!metaCheck.ok)
@@ -4896,7 +4902,18 @@ var OUTSIDE_CTX_MESSAGE2 = "draw called outside an active script step";
 function mergeState(prev, patch) {
   return { ...prev, ...patch, kind: prev.kind };
 }
-function emit2(ctx, handleId, kind, op, state2) {
+function splitZ(state2) {
+  if (!("style" in state2) || state2.style === void 0) {
+    return { state: state2, z: 0 };
+  }
+  const style = state2.style;
+  if (style.z === void 0) {
+    return { state: state2, z: 0 };
+  }
+  const { z, ...rest } = style;
+  return { state: { ...state2, style: rest }, z };
+}
+function emit2(ctx, handleId, kind, op, state2, z) {
   pushDrawing(ctx, {
     kind: "drawing",
     handleId,
@@ -4904,7 +4921,11 @@ function emit2(ctx, handleId, kind, op, state2) {
     op,
     state: state2,
     bar: ctx.barIndex(),
-    time: ctx.stream.bar.time
+    time: ctx.stream.bar.time,
+    // `z` is presentation-only and top-level (never inside `state`);
+    // omit it when `0` so a no-`z` drawing is byte-identical to the
+    // pre-feature baseline — mirrors `PlotEmission.xShift` / `.z`.
+    ...z === 0 ? {} : { z }
   });
 }
 function createDrawingHandle(slotId, subId, kind, initialState) {
@@ -4913,19 +4934,22 @@ function createDrawingHandle(slotId, subId, kind, initialState) {
     throw new Error(OUTSIDE_CTX_MESSAGE2);
   const handleId = `${slotId}#${subId}`;
   const existing = ctx.drawingSlots.get(handleId);
+  const initial = splitZ(initialState);
   let slot;
   let op;
   if (existing === void 0) {
-    slot = { handleId, kind, state: initialState, removed: false };
+    slot = { handleId, kind, state: initial.state, z: initial.z, removed: false };
     ctx.drawingSlots.set(handleId, slot);
     op = "create";
   } else {
-    existing.state = mergeState(existing.state, initialState);
+    existing.state = mergeState(existing.state, initial.state);
+    if (initial.z !== 0)
+      existing.z = initial.z;
     existing.removed = false;
     slot = existing;
     op = "update";
   }
-  emit2(ctx, handleId, kind, op, slot.state);
+  emit2(ctx, handleId, kind, op, slot.state, slot.z);
   return {
     id: handleId,
     update(patch) {
@@ -4935,8 +4959,11 @@ function createDrawingHandle(slotId, subId, kind, initialState) {
       const s = liveCtx.drawingSlots.get(handleId);
       if (s === void 0 || s.removed)
         return;
-      s.state = mergeState(s.state, patch);
-      emit2(liveCtx, handleId, kind, "update", s.state);
+      const split = splitZ(mergeState(s.state, patch));
+      s.state = split.state;
+      if (split.z !== 0)
+        s.z = split.z;
+      emit2(liveCtx, handleId, kind, "update", s.state, s.z);
     },
     remove() {
       const liveCtx = ACTIVE_RUNTIME_CONTEXT.current;
@@ -4946,7 +4973,7 @@ function createDrawingHandle(slotId, subId, kind, initialState) {
       if (s === void 0 || s.removed)
         return;
       s.removed = true;
-      emit2(liveCtx, handleId, kind, "remove", s.state);
+      emit2(liveCtx, handleId, kind, "remove", s.state, s.z);
     }
   };
 }
@@ -6484,6 +6511,7 @@ function plotImpl(ctx, slotId, value, opts) {
   }
   const pane = resolvePane(opts.pane, ctx, slotId);
   const xShift = typeof value === "number" ? 0 : seriesOffsetOf(value);
+  const z = opts.z ?? 0;
   const emission = {
     kind: "plot",
     slotId,
@@ -6495,7 +6523,8 @@ function plotImpl(ctx, slotId, value, opts) {
     color: opts.color ?? null,
     meta: {},
     pane,
-    ...xShift === 0 ? {} : { xShift }
+    ...xShift === 0 ? {} : { xShift },
+    ...z === 0 ? {} : { z }
   };
   pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));
 }

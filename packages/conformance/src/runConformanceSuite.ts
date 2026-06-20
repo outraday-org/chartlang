@@ -183,14 +183,17 @@ export type ScenarioEventStream =
  *
  * The `plot-field` variant inspects a single override-baked or
  * presentation field (`visible` / `color` / `style.lineWidth` /
- * `xShift`) on the emission for a `(slotIndex, bar)` pair — `slotIndex`
- * is the ordinal into the compiled `manifest.plots`. It exists because
- * `plot-hash` deliberately hashes only `{ bar, value }` and cannot see
- * presentation fields. `expected: undefined` asserts an omitted field
- * (e.g. a visible plot carries no `visible` flag; a no-offset plot carries
- * no `xShift`). `xShift` is the bidirectional display shift in bars
- * (`+n` right / future, `−n` left / past) the runtime threads from a
- * plotted offset `ta.*` series. `@since 0.8`.
+ * `xShift` / `z`) on the emission for a `(slotIndex, bar)` pair —
+ * `slotIndex` is the ordinal into the compiled `manifest.plots`. It
+ * exists because `plot-hash` deliberately hashes only `{ bar, value }`
+ * and cannot see presentation fields. `expected: undefined` asserts an
+ * omitted field (e.g. a visible plot carries no `visible` flag; a
+ * no-offset plot carries no `xShift`; a no-`z`/`z:0` plot carries no
+ * `z`). `xShift` is the bidirectional display shift in bars (`+n` right
+ * / future, `−n` left / past) the runtime threads from a plotted offset
+ * `ta.*` series. `z` is the presentation-only render-order key the
+ * runtime threads from `plot(value, { z })`, omitted from the wire when
+ * `0` for byte-identity. `@since 0.8` (`z`: `@since 1.4`).
  *
  * The `all-plots-on-pane` variant asserts every emitted
  * `PlotEmission.pane` equals a single expected pane key — it pins the
@@ -219,7 +222,7 @@ export type ScenarioAssertion =
           readonly kind: "plot-field";
           readonly slotIndex: number;
           readonly bar: number;
-          readonly field: "visible" | "color" | "lineWidth" | "xShift";
+          readonly field: "visible" | "color" | "lineWidth" | "xShift" | "z";
           readonly expected: string | number | boolean | undefined;
       }
     | { readonly kind: "alert-count"; readonly count: number }
@@ -464,6 +467,9 @@ function evalAssertion(
                     break;
                 case "xShift":
                     actual = emission.xShift;
+                    break;
+                case "z":
+                    actual = emission.z;
                     break;
                 default:
                     actual = emission.visible;

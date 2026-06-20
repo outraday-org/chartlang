@@ -818,6 +818,7 @@ declare module "@invinite-org/chartlang-core" {
         lineStyle?: LineStyle;
         pane?: "overlay" | "new" | string;
         style?: PlotOptsStyle;
+        z?: number;
     }>;
     export type HLineOpts = Readonly<{
         color?: Color;
@@ -1152,29 +1153,35 @@ declare module "@invinite-org/chartlang-core" {
         WorldPoint,
         WorldPoint,
     ];
-    export type LineDrawStyle = Readonly<{
+    // Render-order mixin — intersected into every \`draw.*\` opts bag in
+    // lockstep with core's \`drawingStyle.ts\` \`ZOrdered\`. \`z\` is a
+    // presentation-only render-order key (default 0, higher on top); it is
+    // a type/contract addition only, so the shim just surfaces the optional
+    // field for type-checking.
+    export type ZOrdered = Readonly<{ z?: number }>;
+    export type LineDrawStyle = ZOrdered & Readonly<{
         color?: Color;
         lineWidth?: number;
         lineStyle?: LineStyle;
         extendLeft?: boolean;
         extendRight?: boolean;
     }>;
-    export type ShapeStyle = Readonly<{
+    export type ShapeStyle = ZOrdered & Readonly<{
         stroke?: Color;
         fill?: Color;
         lineWidth?: number;
         lineStyle?: LineStyle;
         fillAlpha?: number;
     }>;
-    export type HighlighterStyle = Readonly<{
+    export type HighlighterStyle = ZOrdered & Readonly<{
         color: Color;
         alpha: number;
     }>;
-    export type BrushStyle = Readonly<{
+    export type BrushStyle = ZOrdered & Readonly<{
         stroke: Color;
         fill: Color;
     }>;
-    export type TextOpts = Readonly<{
+    export type TextOpts = ZOrdered & Readonly<{
         color?: Color;
         size?: "tiny" | "small" | "normal" | "large" | "huge";
         halign?: "left" | "center" | "right";
@@ -1182,33 +1189,33 @@ declare module "@invinite-org/chartlang-core" {
         bgColor?: Color;
     }>;
     export type ArrowOpts = LineDrawStyle & Readonly<{ label?: string }>;
-    export type ArrowMarkerOpts = Readonly<{
+    export type ArrowMarkerOpts = ZOrdered & Readonly<{
         color?: Color;
         text?: string;
     }>;
     export type PathOpts = LineDrawStyle & Readonly<{ closed?: boolean }>;
-    export type FillBetweenStyle = Readonly<{
+    export type FillBetweenStyle = ZOrdered & Readonly<{
         color?: Color;
         lineWidth?: number;
         lineStyle?: LineStyle;
         fill?: Color;
         fillAlpha?: number;
     }>;
-    export type FibOpts = Readonly<{
+    export type FibOpts = ZOrdered & Readonly<{
         levels?: ReadonlyArray<number>;
         showLabels?: boolean;
         color?: Color;
         extendLeft?: boolean;
         extendRight?: boolean;
     }>;
-    export type RegressionTrendOpts = Readonly<{
+    export type RegressionTrendOpts = ZOrdered & Readonly<{
         source?: "close" | "open" | "high" | "low" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
         stdevMultiplier?: number;
         showUpperBand?: boolean;
         showLowerBand?: boolean;
         color?: Color;
     }>;
-    export type FrameOpts = Readonly<{
+    export type FrameOpts = ZOrdered & Readonly<{
         label?: string;
         bgColor?: Color;
     }>;

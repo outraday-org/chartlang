@@ -60,7 +60,6 @@ describe("mapDeclarationArgs — property", () => {
                     fc.constantFrom(
                         "timeframe",
                         "timeframe_gaps",
-                        "explicit_plot_zorder",
                         "dynamic_requests",
                         "linktoseries",
                         "process_orders_on_close",

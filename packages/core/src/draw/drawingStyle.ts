@@ -4,6 +4,25 @@
 import type { Color, LineStyle } from "../types.js";
 
 /**
+ * Shared render-order mixin intersected into every `draw.*` option bag.
+ *
+ * Presentation-only render-order key (z-index). Default `0`. Higher
+ * renders on top. A drawing with negative `z` can render **below**
+ * plots (which default to a lower band than drawings). Finite numbers
+ * only; affects stacking only, never geometry or anchors.
+ *
+ * @formula  N/A — render-order key, no math
+ * @anchors  N/A — does not move any anchor
+ * @since 1.4
+ * @stable
+ * @example
+ *     draw.line(a, b, { z: -1 }); // beneath the plots
+ */
+export interface ZOrdered {
+    readonly z?: number;
+}
+
+/**
  * Line / ray / horizontal-line / vertical-line / channel-edge stroke
  * style. `extendLeft` / `extendRight` collapse the invinite `ray` and
  * `extended-line` tools into a single `line` kind.
@@ -16,7 +35,7 @@ import type { Color, LineStyle } from "../types.js";
  *     const s: LineDrawStyle = { color: "#3b82f6", lineWidth: 2, lineStyle: "solid" };
  *     void s;
  */
-export type LineDrawStyle = {
+export type LineDrawStyle = ZOrdered & {
     readonly color?: Color;
     readonly lineWidth?: number;
     readonly lineStyle?: LineStyle;
@@ -43,7 +62,7 @@ export type LineDrawStyle = {
  *     };
  *     void s;
  */
-export type ShapeStyle = {
+export type ShapeStyle = ZOrdered & {
     readonly stroke?: Color;
     readonly fill?: Color;
     readonly lineWidth?: number;
@@ -63,7 +82,7 @@ export type ShapeStyle = {
  *     const s: HighlighterStyle = { color: "#facc15", alpha: 0.3 };
  *     void s;
  */
-export type HighlighterStyle = {
+export type HighlighterStyle = ZOrdered & {
     readonly color: Color;
     readonly alpha: number;
 };
@@ -80,7 +99,7 @@ export type HighlighterStyle = {
  *     const s: BrushStyle = { stroke: "#000000", fill: "#ffffff" };
  *     void s;
  */
-export type BrushStyle = {
+export type BrushStyle = ZOrdered & {
     readonly stroke: Color;
     readonly fill: Color;
 };
@@ -103,7 +122,7 @@ export type BrushStyle = {
  *     };
  *     void t;
  */
-export type TextOpts = {
+export type TextOpts = ZOrdered & {
     readonly color?: Color;
     readonly size?: "tiny" | "small" | "normal" | "large" | "huge";
     readonly halign?: "left" | "center" | "right";
@@ -139,7 +158,7 @@ export type ArrowOpts = LineDrawStyle & {
  *     const m: ArrowMarkerOpts = { color: "#10b981", text: "Long" };
  *     void m;
  */
-export type ArrowMarkerOpts = {
+export type ArrowMarkerOpts = ZOrdered & {
     readonly color?: Color;
     readonly text?: string;
 };
@@ -172,7 +191,7 @@ export type PathOpts = LineDrawStyle & {
  *     const s: FillBetweenStyle = { fill: "#3b82f6", fillAlpha: 0.2 };
  *     void s;
  */
-export type FillBetweenStyle = {
+export type FillBetweenStyle = ZOrdered & {
     /** Optional outline colour drawn around the ribbon. */
     readonly color?: Color;
     /** Outline width in px (default 0 / no stroke when `color` unset). */
@@ -205,7 +224,7 @@ export type FillBetweenStyle = {
  *     };
  *     void f;
  */
-export type FibOpts = {
+export type FibOpts = ZOrdered & {
     readonly levels?: ReadonlyArray<number>;
     readonly showLabels?: boolean;
     readonly color?: Color;
@@ -231,7 +250,7 @@ export type FibOpts = {
  *     };
  *     void r;
  */
-export type RegressionTrendOpts = {
+export type RegressionTrendOpts = ZOrdered & {
     readonly source?: "close" | "open" | "high" | "low" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
     readonly stdevMultiplier?: number;
     readonly showUpperBand?: boolean;
@@ -252,7 +271,7 @@ export type RegressionTrendOpts = {
  *     const f: FrameOpts = { label: "Trade idea", bgColor: "#f1f5f9" };
  *     void f;
  */
-export type FrameOpts = {
+export type FrameOpts = ZOrdered & {
     readonly label?: string;
     readonly bgColor?: Color;
 };

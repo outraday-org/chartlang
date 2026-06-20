@@ -36,7 +36,11 @@ published to npm**.
   filled ribbon (Pine `linefill`/`fill()` equivalent). The
   `anchored-line.chart.ts` sample composes both X-axis anchor styles in one
   `draw.line` — an absolute-time start (first bar's `bar.time`/`bar.close`
-  pinned in `state.*`) to a bar-index end (`bar.point(0, …)`).
+  pinned in `state.*`) to a bar-index end (`bar.point(0, …)`). The
+  `z-layering.chart.ts` sample demonstrates the presentation-only `z`
+  render-order key: a `draw.fillBetween` band given `z: -1` so it renders
+  **behind** the price `plot` (a drawing beneath a plot, which the default
+  group stack forbids), plus an SMA at `z: 1` on top.
 
 ## Phase-1 scope
 

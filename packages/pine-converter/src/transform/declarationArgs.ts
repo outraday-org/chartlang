@@ -92,12 +92,19 @@ const SCALE_MEMBERS: ReadonlyMap<string, ScaffoldScale | null> = new Map([
 const UNMAPPED_ARGS: ReadonlySet<string> = new Set([
     "timeframe",
     "timeframe_gaps",
-    "explicit_plot_zorder",
     "dynamic_requests",
     "linktoseries",
     "process_orders_on_close",
     "behind_chart",
 ]);
+
+// Args that chartlang already satisfies by default — recognized as a no-op
+// rather than dropped with a warning. `explicit_plot_zorder` makes Pine's plot
+// declaration order authoritative, which is chartlang's default (marks layer by
+// declaration order within their group), so the flag needs no chartlang option;
+// each member emits one `explicit-plot-zorder-default` info note. Keep this set
+// disjoint from {@link UNMAPPED_ARGS}.
+const RECOGNIZED_NOOP_ARGS: ReadonlySet<string> = new Set(["explicit_plot_zorder"]);
 
 function stringLiteral(node: ExpressionNode): string | null {
     if (node.kind === "literal-expression" && node.literalKind === "string") {
@@ -228,7 +235,9 @@ function applyNamedArg(arg: Argument, out: MutableOptions, diagnostics: Diagnost
             return;
         }
         default:
-            if (UNMAPPED_ARGS.has(name)) {
+            if (RECOGNIZED_NOOP_ARGS.has(name)) {
+                diagnostics.pushCode("explicit-plot-zorder-default", arg.span);
+            } else if (UNMAPPED_ARGS.has(name)) {
                 diagnostics.pushCode("indicator-arg-not-mapped", arg.span);
             }
             return;
@@ -242,7 +251,10 @@ function applyNamedArg(arg: Argument, out: MutableOptions, diagnostics: Diagnost
  * cap (50) so the converted script preserves the GC behaviour. A computed
  * (non-literal) title yields `name === null`; the caller substitutes the
  * fallback name. Strategy-only args (`initial_capital`, etc.) fall through
- * the `default` arm and are silently dropped.
+ * the `default` arm and are silently dropped. `explicit_plot_zorder` is a
+ * recognized no-op — chartlang already orders marks by declaration order, so
+ * the flag is satisfied by default and emits one `explicit-plot-zorder-default`
+ * info note rather than an `indicator-arg-not-mapped` warning.
  *
  * @since 0.1
  * @stable

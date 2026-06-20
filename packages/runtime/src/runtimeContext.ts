@@ -38,6 +38,15 @@ import type { RuntimeViews } from "./views/index.js";
  * it and re-emit the full payload. `removed: true`
  * is sticky — further `update` / `remove` on the handle no-op.
  *
+ * `z` is the presentation-only render-order key `handle.ts`'s `splitZ`
+ * lifted out of the drawing's `state.style` (default `0`). It is stored
+ * **beside** `state` — never inside `state` / `state.style` — because
+ * the wire carries it as the top-level {@link DrawingEmission.z} field,
+ * not as part of {@link DrawingState}. It persists across bars; an
+ * `update` that does not re-specify a non-zero `z` retains it, a
+ * re-specified non-zero `z` overrides, and a cross-bar re-entry
+ * re-specifies it from the new call.
+ *
  * @since 0.3
  * @stable
  * @example
@@ -45,6 +54,7 @@ import type { RuntimeViews } from "./views/index.js";
  *     //     handleId: "x.chart.ts:1:1#0",
  *     //     kind: "line",
  *     //     state: { kind: "line", anchors: [...], style: {} },
+ *     //     z: 0,
  *     //     removed: false,
  *     // };
  */
@@ -52,6 +62,7 @@ export type DrawingSlot = {
     readonly handleId: string;
     readonly kind: DrawingKind;
     state: DrawingState;
+    z: number;
     removed: boolean;
 };
 

@@ -26,6 +26,7 @@ export type {
     RegressionTrendOpts,
     ShapeStyle,
     TextOpts,
+    ZOrdered,
 } from "./drawingStyle.js";
 export type {
     AbcdPatternState,

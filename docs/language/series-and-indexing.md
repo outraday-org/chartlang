@@ -106,6 +106,54 @@ option. `offset: 0` and the no-offset path are byte-identical.
 > position, so ALMA's universal display shift lives on the distinct
 > `opts.barShift` option instead.
 
+## Layering (z-order) — the `z` option
+
+`offset` moves a mark sideways; `z` controls **which mark renders on top of
+which**. Two rules give the defaults, and an optional `z` overrides them:
+
+- **Group order.** Marks paint in fixed bands, bottom to top: background
+  fills → plots → drawings → alert badges. So a `draw.*()` mark renders
+  **above** every `plot()` by default.
+- **Declaration-order tiebreak.** Within a band, the mark you declare later
+  paints on top. To put line A over line B, call `plot(B)` **before**
+  `plot(A)`.
+
+The optional `z` option on `plot()` and every `draw.*()` call crosses those
+band boundaries. It is a presentation-only render-order key: default `0`,
+higher renders on top, lower behind. Because plots default to a lower band
+than drawings, a **negative** drawing `z` is the only way to push a drawing
+beneath a plot:
+
+```ts
+import { defineIndicator, draw, plot, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Z-Order Layering",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, ta, plot, draw }) {
+        // A shaded box pulled BEHIND the price line via z: -1 — without it,
+        // the drawing band sits above plots and the box would hide the line.
+        draw.rectangle(bar.point(-10, bar.high[0]), bar.point(0, bar.low), {
+            fill: "#dbeafe",
+            fillAlpha: 0.4,
+            z: -1,
+        });
+        plot(bar.close, { title: "Price" });
+        plot(ta.sma(bar.close, 20), { title: "SMA on top", z: 1 });
+    },
+});
+```
+
+`z` is any finite number; fractional values (`z: 1.5`) slot a mark between
+two layers without renumbering. It rides the emission as a top-level `z`
+field (see [`PlotEmission`](../spec/emissions.md#plotemission) /
+[`DrawingEmission`](../spec/emissions.md#drawingemission)); an adapter sorts
+all marks by `(z, groupBand, declarationOrder)`. `z` affects **only**
+stacking — `value`, alerts, and `state.*` are untouched, and `z: 0` is
+byte-identical to the no-`z` path. The full contract is in
+[Execution semantics § Render order key](../spec/semantics.md#render-order-key).
+
 ## Warmup and NaN
 
 Every `ta.*` primitive declares a warmup window. `ta.ema(_, n)` returns
@@ -213,5 +261,6 @@ Out-of-range reads return `NaN` for numeric series.
 
 - The canonical rules: [Execution semantics § Series and indexing](../spec/semantics.md#series-and-indexing).
 - Plot gap rendering: [Emission payloads § PlotEmission](../spec/emissions.md#plotemission).
+- Render order / the `z` option: [Execution semantics § Render order key](../spec/semantics.md#render-order-key).
 - Warmup tags appear on each TA primitive page under
   [TA primitives](../primitives/ta/).
