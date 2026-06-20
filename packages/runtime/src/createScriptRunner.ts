@@ -329,6 +329,7 @@ function buildPrimaryState(
             },
             scriptMaxDrawings: primary.manifest.maxDrawings ?? null,
             stateSlots: new Map(),
+            seriesSlots: new Map(),
             secondaryStreams,
             requestSecurityBars: new Map(),
             requestSecurityAlignments: new Map(),

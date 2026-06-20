@@ -509,6 +509,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** A `var`/`varip` scalar's type could not be inferred from its initializer; it was defaulted to `state.float`.
 - **Suggested fix:** Give the variable a literal initial value so its type can be inferred.
 
+### series-history-non-numeric
+
+- **Code:** `pine-converter/transform/series-history-non-numeric`
+- **Severity:** info
+- **Message:** History indexing on a non-numeric `var` is not supported in chartlang v1 (only numeric series).
+- **Suggested fix:** Track the boolean/string history yourself, or convert the value to a number before indexing it.
+
 ### set-path-unsupported
 
 - **Code:** `pine-converter/transform/set-path-unsupported`
@@ -634,6 +641,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** info
 - **Message:** `varip` drawing-handle persistence has no exact chartlang analogue; intra-bar rollback is not reproduced.
 - **Suggested fix:** Confirm the handle does not rely on Pine's tick-rollback semantics.
+
+### varip-series-approximated
+
+- **Code:** `pine-converter/transform/varip-series-approximated`
+- **Severity:** info
+- **Message:** A history-indexed `varip` scalar lowers to a (non-tick) `state.series`; intra-bar tick-rollback of the history is not reproduced.
+- **Suggested fix:** Confirm the series history does not rely on Pine's `varip` tick-rollback semantics.
 
 ### yloc-padding-approximated
 

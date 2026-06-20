@@ -38,6 +38,18 @@
   the package root `src/index.ts` — alongside `RequestSecurityOpts` /
   `SecurityBar`. Adding a request type means touching all three.
 
+- **`state.series` is the one `state.*` slot that is both writable AND
+  indexable.** `state.float`/`int`/`bool`/`string` return a scalar
+  `MutableSlot<T>` (no indexing); `state.series(init)` returns
+  `NumberSeriesSlot = MutableSlot<number> & Series<number>` — a writable
+  scalar head (`s.value = x`) that also reads back as a number-coercible
+  indexable series (`s[1]`, `s.current`, `+s`), mirroring the `PriceSeries`
+  intersection. The `series` hole is a sentinel like every sibling, and its
+  registry entry rides the same additive rule below. `state.tick.series` is
+  deliberately NOT defined (deferred). The compiler's `program.ts` shim
+  mirrors `NumberSeriesSlot` + the `StateNamespace.series` signature in
+  lockstep.
+
 - **`STATEFUL_PRIMITIVES` is additive within `apiVersion: 1`.** Appending an
   entry is additive (new callsites only). Removing/renaming an entry or
   flipping its `slot` is an `apiVersion: 2` language change — see

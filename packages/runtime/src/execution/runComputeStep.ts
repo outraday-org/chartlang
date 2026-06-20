@@ -6,7 +6,14 @@ import type { RunnerState } from "../createScriptRunner.js";
 import { resetSubIdCounters } from "../emit/draw/index.js";
 import { isRuntimeErrorHalt, pushDiagnostic } from "../emit/index.js";
 import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext.js";
-import { commitStateSlots, flushStateSlots, resetTentativeStateSlots } from "../state/index.js";
+import {
+    advanceSeriesSlots,
+    commitSeriesSlots,
+    commitStateSlots,
+    flushStateSlots,
+    resetSeriesHeads,
+    resetTentativeStateSlots,
+} from "../state/index.js";
 import { type EventKind, refreshRuntimeViews } from "../views/index.js";
 
 /**
@@ -96,6 +103,12 @@ export async function runComputeBody(args: RunComputeStepArgs): Promise<RunCompu
         resetSubIdCounters(state.runtimeContext);
         if (isTick) {
             resetTentativeStateSlots(state.runtimeContext);
+            resetSeriesHeads(state.runtimeContext);
+        } else {
+            // Advance every already-allocated series ring with a fresh NaN
+            // head BEFORE compute, so a slot first allocated mid-compute (it
+            // already holds its seeded head) is not double-advanced.
+            advanceSeriesSlots(state.runtimeContext);
         }
         refreshRuntimeViews(state, eventKind);
         try {
@@ -103,6 +116,7 @@ export async function runComputeBody(args: RunComputeStepArgs): Promise<RunCompu
             if (!isTick) {
                 commitStateSlots(state.runtimeContext);
                 flushStateSlots(state.runtimeContext);
+                commitSeriesSlots(state.runtimeContext);
             }
         } catch (err) {
             if (!isRuntimeErrorHalt(err)) throw err;

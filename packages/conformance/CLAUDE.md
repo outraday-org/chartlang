@@ -189,6 +189,20 @@ plot hashes, alert counts, and diagnostic codes.
   conformance harness only observes runtime diagnostics from the compiled
   chartlang script.
 
+## `state.series` history invariant
+
+- **`state-series-history` pins `s[2]` and `bar.close[2]` to ONE shared
+  `HISTORY_LAG_HASH` constant.** The scenario republishes `bar.close`
+  through a user `state.series` (`s.value = bar.close.current` each bar);
+  the user series' two-bar-old committed history MUST be byte-identical to
+  a direct `bar.close[2]` read (warmup `NaN`s included). Both `plot-hash`
+  entries reference the same constant on purpose. If a future run splits
+  them, the runtime `state.series` advance/commit discipline (Task 3)
+  regressed — fix the runtime, do NOT re-pin the two hashes apart. `s[0]`
+  (the live head) tracks the unshifted close and pins to its own
+  `LIVE_HASH`. Re-pin both via the runner's "expected vs actual" message
+  only when the golden bars change.
+
 ## `request.security` expression-form invariants
 
 - **`mtfSecurityExpressionEma` / `mtfSecurityExpressionNanFallback` prove the

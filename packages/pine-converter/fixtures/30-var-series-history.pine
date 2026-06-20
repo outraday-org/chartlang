@@ -1,0 +1,7 @@
+//@version=6
+indicator("Var series history", overlay=true)
+var float prev = na
+delta = close - prev
+prev := close
+plot(delta)
+plot(prev[1])

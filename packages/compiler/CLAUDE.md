@@ -125,6 +125,22 @@
   passes can never disagree. `unwrapParens` also lives in `loopBounds.ts`
   (a leaf module) so `extractMaxLookback` and `resolveIndexBound` share it
   without a circular import.
+- **`extractMaxLookback` recognises `state.series`-bound variables as
+  series-shaped.** `collectSeriesVarNames` adds a variable's name to
+  `seriesVarNames` when its initializer is a `ta.*` call **or** a
+  `state.series(...)` call (matched on `resolveCalleeName(...) ===
+  "state.series"`, the same resolution the slot-injection pass uses — so an
+  element-access form like `state["series"](...)` is not recognised; that
+  form is rejected upstream as `stateful-call-element-access`). Once the name
+  is collected, `isSeriesShapedAccess`'s identifier branch and the shared
+  `resolveIndexUpperBound` path size an `s[N]` index **identically** to a
+  `ta.*`-bound variable: a resolvable index (literal / bounded-loop
+  induction var / `const` numeric binding) folds into `maxLookback` with no
+  diagnostic; a genuinely-dynamic index trips `dynamic-series-index` +
+  `dynamicFallback = 5000`. This is analysis-only — no index-resolution logic
+  is re-implemented, and aliases (`const t = s; t[2]`) are not tracked (same
+  limitation as the `ta.*` arm). The slot-id injection for `state.series`
+  needs no change (Task 1 registered it `{ slot: true }`).
 - **No DOM lib.** `program.ts` pins `lib: ["lib.es2022.d.ts"]` on the
   in-memory program so scripts cannot rely on browser globals. Hostile
   globals (`Math.random`, `Date`, `fetch`, `setTimeout`, …) are

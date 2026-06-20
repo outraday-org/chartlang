@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { ExpressionNode } from "../ast/index.js";
+import type { ExpressionNode, HistoryAccessExpression } from "../ast/index.js";
 import { remapIdentifier } from "../mapping/index.js";
 import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
 
@@ -143,5 +143,89 @@ export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): s
             // Unrecoverable parser fallback; never reaches a real coordinate
             // arg. Emit a benign placeholder so the output still parses.
             return "undefined";
+    }
+}
+
+/**
+ * Visit every {@link HistoryAccessExpression} (`receiver[offset]`) reachable
+ * inside an expression tree, in pre-order. Used by the `var` → `state.series`
+ * lowering to find every `x[n]` history read of a scalar slot (so a numeric
+ * `var` indexed anywhere lowers to a series), and to flag a non-literal offset.
+ * Pure traversal — descends every child expression slot and never mutates.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     import { forEachHistoryAccess } from "./exprEmit.js";
+ *     const node = {
+ *         kind: "history-access-expression",
+ *         receiver: {
+ *             kind: "identifier-expression",
+ *             name: "prev",
+ *             span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 5 },
+ *         },
+ *         offset: {
+ *             kind: "literal-expression",
+ *             literalKind: "int",
+ *             value: "1",
+ *             span: { startLine: 1, startColumn: 6, endLine: 1, endColumn: 7 },
+ *         },
+ *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 8 },
+ *     } as const;
+ *     const names: string[] = [];
+ *     forEachHistoryAccess(node, (h) => {
+ *         if (h.receiver.kind === "identifier-expression") names.push(h.receiver.name);
+ *     });
+ *     // names === ["prev"]
+ */
+export function forEachHistoryAccess(
+    node: ExpressionNode,
+    visit: (history: HistoryAccessExpression) => void,
+): void {
+    switch (node.kind) {
+        case "identifier-expression":
+        case "literal-expression":
+        case "na-expression":
+        case "unknown-expression":
+            return;
+        case "history-access-expression":
+            visit(node);
+            forEachHistoryAccess(node.receiver, visit);
+            forEachHistoryAccess(node.offset, visit);
+            return;
+        case "unary-expression":
+            forEachHistoryAccess(node.operand, visit);
+            return;
+        case "binary-expression":
+            forEachHistoryAccess(node.left, visit);
+            forEachHistoryAccess(node.right, visit);
+            return;
+        case "ternary-expression":
+            forEachHistoryAccess(node.condition, visit);
+            forEachHistoryAccess(node.consequent, visit);
+            forEachHistoryAccess(node.alternate, visit);
+            return;
+        case "call-expression":
+            forEachHistoryAccess(node.callee, visit);
+            for (const arg of node.args) {
+                forEachHistoryAccess(arg.value, visit);
+            }
+            return;
+        case "member-access-expression":
+            if (node.head !== null) {
+                forEachHistoryAccess(node.head, visit);
+            }
+            return;
+        case "paren-expression":
+            forEachHistoryAccess(node.expression, visit);
+            return;
+        case "tuple-expression":
+            for (const element of node.elements) {
+                forEachHistoryAccess(element, visit);
+            }
+            return;
+        case "lambda-expression":
+            forEachHistoryAccess(node.body, visit);
+            return;
     }
 }

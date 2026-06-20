@@ -92,6 +92,13 @@ declare module "@invinite-org/chartlang-core" {
     /** Volume counterpart of \`PriceSeries\`. Mirrors core's \`VolumeSeries\`. */
     export type VolumeSeries = Volume & Series<Volume>;
     /**
+     * A user-allocated, writable, indexable number series — the value half of
+     * \`state.series(init)\`. Both a writable scalar slot (\`s.value = x\`) and
+     * an indexable \`Series<number>\` (\`s[1]\`, \`s.current\`, \`+s\`). Mirrors
+     * core's \`NumberSeriesSlot\`.
+     */
+    export type NumberSeriesSlot = MutableSlot<number> & Series<number>;
+    /**
      * The \`compute\`-facing bar (\`ComputeContext.bar\`): like \`Bar\` but the
      * OHLCV + derived fields are indexable \`PriceSeries\` / \`VolumeSeries\`.
      * Mirrors core's \`BarSeries\`.
@@ -998,6 +1005,7 @@ declare module "@invinite-org/chartlang-core" {
         int(init: number): MutableSlot<number>;
         bool(init: boolean): MutableSlot<boolean>;
         string(init: string): MutableSlot<string>;
+        series(init: number): NumberSeriesSlot;
         tick: Readonly<{
             float(init: number): MutableSlot<number>;
             int(init: number): MutableSlot<number>;

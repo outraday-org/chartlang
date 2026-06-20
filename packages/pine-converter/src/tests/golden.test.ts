@@ -52,7 +52,7 @@ function diagnosticsForSnapshot(diagnostics: readonly Diagnostic[]): DiagnosticS
 
 describe("converter goldens", () => {
     it("covers the full documented fixture corpus", () => {
-        expect(pineFixtures.length).toBe(30);
+        expect(pineFixtures.length).toBe(31);
     });
 
     for (const fix of pineFixtures) {

@@ -50,6 +50,7 @@ export function dispose(state: RunnerState): void {
     state.runtimeContext.drawingSlots.clear();
     state.runtimeContext.drawingSubIdCounters.clear();
     state.runtimeContext.stateSlots.clear();
+    state.runtimeContext.seriesSlots.clear();
     state.runtimeContext.secondaryStreams.clear();
     state.runtimeContext.requestSecurityBars.clear();
     state.runtimeContext.requestSecurityAlignments.clear();

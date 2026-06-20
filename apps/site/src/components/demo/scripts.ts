@@ -30,6 +30,11 @@
 // shows `draw.fillBetween` — the native filled ribbon between two edges (the
 // linefill / fill() equivalent): a fast and slow EMA accumulated into two
 // persistent edge arrays and re-emitted as one band every bar.
+// "Up Streak" mirrors examples/scripts/up-streak.chart.ts and shows
+// `state.series` — a WRITABLE, indexable user series. It counts consecutive
+// up-closes, a SELF-REFERENTIAL value (defined in terms of its own prior bar)
+// that `bar.close[N]` cannot express, then reads the streak back three bars
+// ago to prove the user series is indexable too.
 // "Z-Order Layering" mirrors examples/scripts/z-layering.chart.ts and shows
 // the presentation-only `z` render-order key: a draw.fillBetween band given
 // `z: -1` so it renders BEHIND the price plot (a drawing beneath a plot, which
@@ -488,6 +493,38 @@ export default defineIndicator({
 });
 `;
 
+const UP_STREAK = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Up Streak",
+    apiVersion: 1,
+    overlay: false,
+    compute({ bar, state, plot }) {
+        // Consecutive up-closes. This is the case that genuinely NEEDS a
+        // writable series: the value is SELF-REFERENTIAL — it is defined in
+        // terms of its OWN value one bar ago — so it cannot be read off
+        // \`bar.close[N]\` the way a plain price lookback can (that is the
+        // directly-indexable-bar-series / Manual SMA case). \`state.series\`
+        // both STORES this bar's streak and lets us look it back N bars later.
+        const streak = state.series(0);
+        const up = bar.close.current > bar.close[1];
+
+        // \`streak[1]\` is the committed streak one bar ago. On the very first
+        // bar it is NaN (no committed history yet), so the warmup guard treats
+        // it as 0 before incrementing; a down-close resets the streak to 0.
+        streak.value = up ? (Number.isFinite(streak[1]) ? streak[1] : 0) + 1 : 0;
+
+        plot(streak.current, { title: "Up streak" });
+        // The history index proves the writable series is also indexable: this
+        // is the streak as it stood three bars ago (NaN during warmup).
+        plot(streak[3], { title: "Streak 3 bars ago" });
+    },
+});
+`;
+
 const Z_LAYERING = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
@@ -630,6 +667,13 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         description:
             "One draw.line composing both X-axis anchor styles: an absolute-time start (the first bar's time and close, pinned in state.* slots) drawn to a bar-index end via bar.point(0, …), so the head stays fixed in time while the tail tracks the current bar.",
         source: ANCHORED_LINE,
+    },
+    {
+        id: "up-streak",
+        label: "Up Streak",
+        description:
+            "state.series — a writable, indexable user series. Counts consecutive up-closes: the history of a value you compute yourself (here a self-referential streak defined from its own prior bar), which bar.close[N] can't express, then reads it back three bars ago.",
+        source: UP_STREAK,
     },
     {
         id: "z-layering",

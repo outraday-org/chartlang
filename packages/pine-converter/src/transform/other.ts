@@ -1,13 +1,18 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CallExpression, ExpressionNode } from "../ast/index.js";
+import type {
+    CallExpression,
+    ExpressionNode,
+    HistoryAccessExpression,
+} from "../ast/index.js";
 import type {
     Assignment,
     Statement,
     TupleDeclaration,
     VariableDeclaration,
 } from "../ast/statements.js";
+import type { SourceSpan } from "../index.js";
 import { DRAWING_KIND_MAP, mathLookup, multiReturnTaLookup, taLookup } from "../mapping/index.js";
 import type { MultiReturnTaMapping, PineDrawingConstructor } from "../mapping/index.js";
 import type { SemanticResult } from "../semantic/index.js";
@@ -15,6 +20,7 @@ import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js"
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
 import { emitWithContext } from "./emitContext.js";
+import { forEachHistoryAccess } from "./exprEmit.js";
 import type { ScriptScaffold } from "./ir.js";
 import type { NameAllocator } from "./nameAllocator.js";
 import { emitPlotFamily, isPlotFamilyCall } from "./plotFamily.js";
@@ -264,28 +270,190 @@ function stateFactory(value: ExpressionNode): string | null {
     return null;
 }
 
-// The `var`/`varip` scalar declarations this transform owns (a drawing-handle
-// or `na`-initialised decl is skipped). Returns a name → slot-local map. The
-// slot local REUSES the Pine scalar identifier (allocator-disambiguated) so a
-// `var int count = 0` reads as `count`, not `__count_state`.
+// Whether a scalar `var`/`varip` holds a numeric value (so its history can lower
+// to a number-backed `state.series`). Read from the slot factory when the type
+// is inferable (`state.int`/`state.float`), else from the declared type
+// annotation (so `var float prev = na` is numeric despite the `na` init), else
+// `true` — an un-inferable init (identifier/expression) defaults to a numeric
+// series (init `Number.NaN`), the same precedent as `scalar-state-type-defaulted`.
+function scalarIsNumeric(decl: VariableDeclaration): boolean {
+    const factory = stateFactory(decl.initializer);
+    if (factory !== null) {
+        return factory === "state.int" || factory === "state.float";
+    }
+    if (decl.typeAnnotation !== null && decl.typeAnnotation.kind === "named-type") {
+        const name = decl.typeAnnotation.name;
+        // `int`/`float` are the only numeric scalar annotations. `bool`/`string`/
+        // `color` are non-numeric; every other named type is a drawing handle,
+        // already filtered out of the scalar candidates before this runs.
+        return name === "int" || name === "float";
+    }
+    return true;
+}
+
+// Whether a top-level statement is a scalar `var`/`varip` declaration this
+// transform owns the lowering of (a drawing-handle, malformed/array-typed, or
+// `input.*` decl is NOT a scalar slot). `na`-init decls ARE candidates here so
+// the history-indexed scan can promote a numeric one (`var float prev = na`) to
+// `state.series`; a non-history-indexed `na`-init candidate is dropped again by
+// `registerStateSlots` (it stays a `let x = Number.NaN`).
+function isScalarSlotCandidate(stmt: Statement, owned: ReadonlySet<string>): stmt is VariableDeclaration {
+    return (
+        stmt.kind === "variable-declaration" &&
+        (stmt.qualifier === "var" || stmt.qualifier === "varip") &&
+        !owned.has(stmt.name) &&
+        !isDrawingConstructorValue(stmt.initializer) &&
+        // A malformed / array-typed decl the parser could not fully model
+        // (e.g. `var line[] xs = array.new<line>()`) is not a scalar slot.
+        stmt.initializer.kind !== "unknown-expression" &&
+        !isInputCall(stmt.initializer)
+    );
+}
+
+// The history-indexed scalar `var`/`varip` candidates, partitioned by whether
+// the scalar is numeric. A numeric history-indexed scalar lowers to
+// `state.series` (so its `x[n]` reads work); a `bool`/`string` one keeps its
+// scalar lowering and gets a `series-history-non-numeric` info. `numeric` maps
+// the Pine name to its declaration (so `emitStateSlots` can pick the init);
+// `nonNumeric` is the Pine-name set. `dynamicOffsetSpans` records the access
+// span of every numeric series-slot read whose offset is not a literal — wiring
+// the registered `dynamic-series-index` error.
+type HistorySeriesScan = {
+    readonly numeric: ReadonlyMap<string, VariableDeclaration>;
+    readonly nonNumeric: ReadonlyMap<string, VariableDeclaration>;
+    readonly dynamicOffsetSpans: ReadonlyMap<string, SourceSpan>;
+};
+
+// Whether a history offset is a compile-time literal (`x[1]`) or a unary-literal
+// (`x[-1]` — degenerate but literal-bounded). A non-literal offset (`x[i]`) on a
+// converter-lowered series slot has no fixed lookback, so it trips
+// `dynamic-series-index`.
+function isLiteralOffset(offset: ExpressionNode): boolean {
+    return (
+        offset.kind === "literal-expression" ||
+        (offset.kind === "unary-expression" && offset.operand.kind === "literal-expression")
+    );
+}
+
+function scanHistorySeries(
+    analysis: SemanticResult,
+    owned: ReadonlySet<string>,
+): HistorySeriesScan {
+    const candidates = new Map<string, VariableDeclaration>();
+    for (const stmt of analysis.script.body) {
+        if (isScalarSlotCandidate(stmt, owned)) {
+            candidates.set(stmt.name, stmt);
+        }
+    }
+    const numeric = new Map<string, VariableDeclaration>();
+    const nonNumeric = new Map<string, VariableDeclaration>();
+    const dynamicOffsetSpans = new Map<string, SourceSpan>();
+    walkHistoryAccesses(analysis.script.body, (history) => {
+        if (history.receiver.kind !== "identifier-expression") {
+            return;
+        }
+        const decl = candidates.get(history.receiver.name);
+        if (decl === undefined) {
+            return;
+        }
+        if (scalarIsNumeric(decl)) {
+            numeric.set(decl.name, decl);
+            if (!isLiteralOffset(history.offset) && !dynamicOffsetSpans.has(decl.name)) {
+                dynamicOffsetSpans.set(decl.name, history.span);
+            }
+        } else {
+            nonNumeric.set(decl.name, decl);
+        }
+    });
+    return { numeric, nonNumeric, dynamicOffsetSpans };
+}
+
+// Visit every `history-access-expression` reachable through a statement list,
+// descending `if`/`for`/`switch`/`block` bodies and every statement's
+// expression tree (via `forEachHistoryAccess`). Mirrors the one-level body walk
+// the drawing-ownership scan uses, extended to the full control-flow tree.
+function walkHistoryAccesses(
+    statements: readonly Statement[],
+    visit: (history: HistoryAccessExpression) => void,
+): void {
+    for (const stmt of statements) {
+        switch (stmt.kind) {
+            case "variable-declaration":
+                forEachHistoryAccess(stmt.initializer, visit);
+                break;
+            case "assignment":
+                forEachHistoryAccess(stmt.value, visit);
+                break;
+            case "tuple-declaration":
+                forEachHistoryAccess(stmt.initializer, visit);
+                break;
+            case "expression-statement":
+                forEachHistoryAccess(stmt.expression, visit);
+                break;
+            case "if-statement":
+                forEachHistoryAccess(stmt.condition, visit);
+                walkHistoryAccesses(stmt.thenBody.body, visit);
+                for (const clause of stmt.elseIfClauses) {
+                    forEachHistoryAccess(clause.condition, visit);
+                    walkHistoryAccesses(clause.body.body, visit);
+                }
+                if (stmt.elseBody !== null) {
+                    walkHistoryAccesses(stmt.elseBody.body, visit);
+                }
+                break;
+            case "for-statement":
+                walkHistoryAccesses(stmt.body.body, visit);
+                break;
+            case "switch-statement":
+                walkHistorySwitch(stmt, visit);
+                break;
+            case "block-statement":
+                walkHistoryAccesses(stmt.body, visit);
+                break;
+            case "break-statement":
+            case "continue-statement":
+            case "return-statement":
+                break;
+        }
+    }
+}
+
+// Visit the history accesses inside a `switch` statement's subject + each case
+// body (factored out so `walkHistoryAccesses` stays flat). The default arm is a
+// `case` whose `test` is `null`.
+function walkHistorySwitch(
+    stmt: Extract<Statement, { kind: "switch-statement" }>,
+    visit: (history: HistoryAccessExpression) => void,
+): void {
+    if (stmt.subject !== null) {
+        forEachHistoryAccess(stmt.subject, visit);
+    }
+    for (const clause of stmt.cases) {
+        if (clause.test !== null) {
+            forEachHistoryAccess(clause.test, visit);
+        }
+        walkHistoryAccesses(clause.body, visit);
+    }
+}
+
+// The `var`/`varip` scalar declarations this transform owns. Returns a name →
+// slot-local map. The slot local REUSES the Pine scalar identifier
+// (allocator-disambiguated) so a `var int count = 0` reads as `count`, not
+// `__count_state`. A `na`-init scalar is registered ONLY when it is a numeric
+// history-indexed series slot (`seriesNames`) — otherwise it stays a plain
+// `let x = Number.NaN` (`emitDeclaration` handles it).
 function registerStateSlots(
     analysis: SemanticResult,
     scaffold: ScriptScaffold,
     owned: ReadonlySet<string>,
+    seriesNames: ReadonlySet<string>,
 ): Map<string, string> {
     const slots = new Map<string, string>();
     for (const stmt of analysis.script.body) {
-        if (
-            stmt.kind !== "variable-declaration" ||
-            (stmt.qualifier !== "var" && stmt.qualifier !== "varip") ||
-            owned.has(stmt.name) ||
-            isDrawingConstructorValue(stmt.initializer) ||
-            stmt.initializer.kind === "na-expression" ||
-            // A malformed / array-typed decl the parser could not fully model
-            // (e.g. `var line[] xs = array.new<line>()`) is not a scalar slot.
-            stmt.initializer.kind === "unknown-expression" ||
-            isInputCall(stmt.initializer)
-        ) {
+        if (!isScalarSlotCandidate(stmt, owned)) {
+            continue;
+        }
+        if (stmt.initializer.kind === "na-expression" && !seriesNames.has(stmt.name)) {
             continue;
         }
         const slot = scaffold.names.allocateForSymbol(stmt.name);
@@ -296,12 +464,17 @@ function registerStateSlots(
 
 // Emit the `appendStateSlot` IR for each registered slot, choosing the slot
 // factory + init expression. Done after the slot-name map is built so the
-// init expression can rewrite references to earlier slots.
+// init expression can rewrite references to earlier slots. A numeric
+// history-indexed scalar (`scan.numeric`) lowers to `state.series`; a
+// non-numeric history-indexed scalar keeps its scalar factory (the
+// `series-history-non-numeric` info for those is pushed in `transformOther`,
+// which sees every non-numeric candidate, not just the registered slots).
 function emitStateSlots(
     analysis: SemanticResult,
     scaffold: ScriptScaffold,
     diagnostics: DiagnosticCollector,
     slots: ReadonlyMap<string, string>,
+    scan: HistorySeriesScan,
     ctx: EmitContext,
 ): void {
     for (const stmt of analysis.script.body) {
@@ -310,6 +483,10 @@ function emitStateSlots(
         }
         const slot = slots.get(stmt.name);
         if (slot === undefined) {
+            continue;
+        }
+        if (scan.numeric.has(stmt.name)) {
+            emitSeriesSlot(stmt, slot, scaffold, diagnostics, scan, ctx);
             continue;
         }
         let factory = stateFactory(stmt.initializer);
@@ -322,6 +499,39 @@ function emitStateSlots(
         const initExpr = `${tick}(${emitWithContext(stmt.initializer, ctx)})`;
         appendStateSlot(scaffold, { name: slot, initExpr });
     }
+}
+
+// Emit a `state.series(<init>)` slot for a numeric history-indexed scalar. The
+// init is the literal numeric value, `Number.NaN` for an `na` init, or
+// `Number.NaN` + `scalar-state-type-defaulted` for an un-inferable init. A
+// `varip` series slot lowers to a (non-tick) `state.series` + a
+// `varip-series-approximated` info (`state.tick.series` is deferred). A
+// non-literal history offset trips the registered `dynamic-series-index` error.
+function emitSeriesSlot(
+    stmt: VariableDeclaration,
+    slot: string,
+    scaffold: ScriptScaffold,
+    diagnostics: DiagnosticCollector,
+    scan: HistorySeriesScan,
+    ctx: EmitContext,
+): void {
+    let init: string;
+    if (stmt.initializer.kind === "na-expression") {
+        init = "Number.NaN";
+    } else if (stateFactory(stmt.initializer) !== null) {
+        init = emitWithContext(stmt.initializer, ctx);
+    } else {
+        diagnostics.pushCode("scalar-state-type-defaulted", stmt.span);
+        init = "Number.NaN";
+    }
+    if (stmt.qualifier === "varip") {
+        diagnostics.pushCode("varip-series-approximated", stmt.span);
+    }
+    const dynamicSpan = scan.dynamicOffsetSpans.get(stmt.name);
+    if (dynamicSpan !== undefined) {
+        diagnostics.pushCode("dynamic-series-index", dynamicSpan);
+    }
+    appendStateSlot(scaffold, { name: slot, initExpr: `state.series(${init})` });
 }
 
 // Read the recorded `input.int` literal default for a registered input name,
@@ -536,7 +746,9 @@ export function transformOther(
 ): void {
     const owned = drawingOwnedSymbols(analysis);
     const defaults = inputDefaults(analysis);
-    const slots = registerStateSlots(analysis, scaffold, owned);
+    const scan = scanHistorySeries(analysis, owned);
+    const seriesNames = new Set(scan.numeric.keys());
+    const slots = registerStateSlots(analysis, scaffold, owned, seriesNames);
     const inputNames = new Set(scaffold.inputs.map((input) => input.name));
     const inputCasts = new Map<string, string>();
     for (const input of scaffold.inputs) {
@@ -552,8 +764,16 @@ export function transformOther(
         stateSlots: slots,
         inputCasts,
         tupleFieldAliases: registerTupleFields(analysis, scaffold.names),
+        seriesSlots: seriesNames,
     };
-    emitStateSlots(analysis, scaffold, diagnostics, slots, ctx);
+    emitStateSlots(analysis, scaffold, diagnostics, slots, scan, ctx);
+    // A bool/string history-indexed scalar keeps its current (non-`state.series`)
+    // lowering and gets a clear info — its `x[n]` is a known v1 gap, never a
+    // silent broken emit. Reported here (not in `emitStateSlots`) so an na-init
+    // non-numeric scalar (which is NOT registered as a slot) is still flagged.
+    for (const [, decl] of scan.nonNumeric) {
+        diagnostics.pushCode("series-history-non-numeric", decl.span);
+    }
     const walk: Walk = { analysis, scaffold, diagnostics, owned, defaults };
     for (const statement of analysis.script.body) {
         for (const line of emitStatement(statement, ctx, walk)) {

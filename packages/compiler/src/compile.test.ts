@@ -140,6 +140,42 @@ export default defineIndicator({
         expect(result.manifest.maxLookback).toBeGreaterThanOrEqual(4);
     });
 
+    it("type-checks a state.series writable + indexable slot through the ambient shim", async () => {
+        // `state.series(0)` returns a `NumberSeriesSlot` (`MutableSlot<number> &
+        // Series<number>`) — both a writable scalar slot (`s.value = …`) and an
+        // indexable, number-coercible series (`s[1]`, `+s`) usable as a `ta.*`
+        // source. `transformAndAnalyse` (analysis-only) does not type-check, so
+        // this guard — which proves the shim's `StateNamespace.series` signature
+        // and `NumberSeriesSlot` alias are correct — must go through `compile`.
+        // The literal `s[3]` index also pins Task 2's end-to-end buffer-sizing
+        // contract: `extractMaxLookback` recognises the `state.series`-bound
+        // variable and folds `3` into `manifest.maxLookback`.
+        const SERIES_SLOT = `
+import { defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+const s = state.series(0);
+export default defineIndicator({
+    name: "series",
+    apiVersion: 1,
+    compute({ bar, ta, plot }) {
+        s.value = bar.close * 2;
+        const a = s[3];
+        const b = +s;
+        const e = ta.ema(s, 5); // proves the slot is accepted as a ta.* source
+        plot(a + b + e[0]);
+    },
+});
+`;
+        // compile() throws a CompileError on any type error, so a successful
+        // return already proves the full `state.series` surface type-checks.
+        const result = await compile(SERIES_SLOT, {
+            apiVersion: 1,
+            sourcePath: "series.chart.ts",
+        });
+        expect(Object.isFrozen(result)).toBe(true);
+        // `s[3]` sized the series ring buffer to retain at least 4 slots.
+        expect(result.manifest.maxLookback).toBeGreaterThanOrEqual(3);
+    });
+
     it("throws CompileError with a `type-error` diagnostic when a TS semantic error fires", async () => {
         // Regression for the gap reported in PLAN §5.2 step 1: semantic
         // type errors (`const x: number = "oops"`) previously slipped

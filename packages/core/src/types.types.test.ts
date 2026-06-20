@@ -6,10 +6,10 @@ import { describe, it } from "vitest";
 
 import { defineIndicator, type isCompiledScriptBundle, ta } from "./index.js";
 import type {
+    AlertConditionDefinition,
     Bar,
     BarSeries,
     BarStateView,
-    AlertConditionDefinition,
     BbResult,
     CompiledScriptBundle,
     CompiledScriptObject,
@@ -17,6 +17,8 @@ import type {
     DependencyDeclaration,
     LineStyle,
     MacdResult,
+    MutableSlot,
+    NumberSeriesSlot,
     OutputDeclaration,
     PlotKind,
     PlotOverride,
@@ -87,6 +89,16 @@ describe("public type surface", () => {
 
     it("ComputeContext.bar is the indexable BarSeries", () => {
         expectTypeOf<ComputeContext["bar"]>().toEqualTypeOf<BarSeries>();
+    });
+
+    it("NumberSeriesSlot is both a writable scalar slot and an indexable series", () => {
+        // resolves through the root export, and is assignable to BOTH halves
+        // of the intersection (writable `.value` + indexable `Series<number>`)
+        expectTypeOf<NumberSeriesSlot>().toMatchTypeOf<MutableSlot<number>>();
+        expectTypeOf<NumberSeriesSlot>().toMatchTypeOf<Series<number>>();
+        expectTypeOf<NumberSeriesSlot[1]>().toEqualTypeOf<number>();
+        expectTypeOf<NumberSeriesSlot["current"]>().toEqualTypeOf<number>();
+        expectTypeOf<NumberSeriesSlot["value"]>().toEqualTypeOf<number>();
     });
 
     it("ta.ema returns Series<number>", () => {

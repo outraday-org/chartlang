@@ -35,7 +35,8 @@ export type ExtractMaxLookbackResult = Readonly<{
  * Walk the source file's `ElementAccessExpression` nodes and infer
  * `maxLookback` plus any `dynamicFallback` capacity from non-literal index
  * reads on Phase-1 series shapes: `bar.<ohlcv>[N]`, `ta.<name>(...)[N]`,
- * and identifier-bound series variables (`const e = ta.ema(...); e[N];`).
+ * and identifier-bound series variables (`const e = ta.ema(...); e[N];` or
+ * `const s = state.series(...); s[N];`).
  *
  * The optional `scope` parameter narrows both the series-variable
  * collection and the lookback walk to a single AST subtree (typically
@@ -156,7 +157,14 @@ function collectSeriesVarNames(scope: ts.Node, checker: ts.TypeChecker): Readonl
             const initializer = node.initializer;
             if (initializer && ts.isCallExpression(initializer)) {
                 const calleeName = resolveCalleeName(initializer, checker);
-                if (calleeName?.startsWith("ta.")) {
+                // A `state.series(...)`-bound variable is series-shaped just
+                // like a `ta.*`-bound one: `s[N]` reads the slot's ring buffer,
+                // so its literal index must fold into `maxLookback`. Matched on
+                // the resolved callee name (the slot-injection path) so an
+                // element-access form like `state["series"](...)` is not
+                // recognised — that form is rejected upstream as
+                // `stateful-call-element-access`.
+                if (calleeName?.startsWith("ta.") || calleeName === "state.series") {
                     names.add(node.name.text);
                 }
             }

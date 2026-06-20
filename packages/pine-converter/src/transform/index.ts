@@ -3,7 +3,7 @@
 
 export { resolveCoordinates, resolveAnchorExpr, anchorToWorldPoint } from "./coordinates.js";
 export type { CoordinateResolution, ResolvedAnchor } from "./coordinates.js";
-export { emitExpr } from "./exprEmit.js";
+export { emitExpr, forEachHistoryAccess } from "./exprEmit.js";
 export type { AnnotationLookup } from "./exprEmit.js";
 export { DiagnosticCollector } from "./diagnosticCollector.js";
 export { transformDeclaration } from "./declaration.js";

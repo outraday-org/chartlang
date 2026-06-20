@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { ExpressionNode } from "../ast/index.js";
 import type { SourceSpan } from "../index.js";
 import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
-import { emitExpr } from "./exprEmit.js";
+import { emitExpr, forEachHistoryAccess } from "./exprEmit.js";
 
 const SPAN: SourceSpan = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 };
 
@@ -261,5 +261,104 @@ describe("emitExpr", () => {
         expect(
             emitExpr({ kind: "unknown-expression", tokens: [], span: SPAN }, noAnnotations),
         ).toBe("undefined");
+    });
+});
+
+describe("forEachHistoryAccess", () => {
+    const history = (receiver: ExpressionNode, offset: ExpressionNode): ExpressionNode => ({
+        kind: "history-access-expression",
+        receiver,
+        offset,
+        span: SPAN,
+    });
+    const names = (node: ExpressionNode): string[] => {
+        const out: string[] = [];
+        forEachHistoryAccess(node, (h) => {
+            if (h.receiver.kind === "identifier-expression") {
+                out.push(h.receiver.name);
+            }
+        });
+        return out;
+    };
+
+    it("visits a bare history access and its leaf operands", () => {
+        expect(names(history(ident("prev"), int("1")))).toEqual(["prev"]);
+        // Leaf nodes (identifier / literal / na / unknown) recurse to nothing.
+        expect(names(ident("x"))).toEqual([]);
+        expect(names(int("1"))).toEqual([]);
+        expect(names({ kind: "na-expression", span: SPAN })).toEqual([]);
+        expect(names({ kind: "unknown-expression", tokens: [], span: SPAN })).toEqual([]);
+    });
+
+    it("descends unary / binary / ternary / paren operand trees", () => {
+        expect(
+            names({ kind: "unary-expression", operator: "-", operand: history(ident("a"), int("1")), span: SPAN }),
+        ).toEqual(["a"]);
+        expect(
+            names({
+                kind: "binary-expression",
+                operator: "+",
+                left: history(ident("b"), int("1")),
+                right: history(ident("c"), int("2")),
+                span: SPAN,
+            }),
+        ).toEqual(["b", "c"]);
+        expect(
+            names({
+                kind: "ternary-expression",
+                condition: history(ident("d"), int("1")),
+                consequent: history(ident("e"), int("1")),
+                alternate: history(ident("f"), int("1")),
+                span: SPAN,
+            }),
+        ).toEqual(["d", "e", "f"]);
+        expect(
+            names({ kind: "paren-expression", expression: history(ident("g"), int("1")), span: SPAN }),
+        ).toEqual(["g"]);
+    });
+
+    it("descends call callee + args and a computed member head", () => {
+        expect(
+            names({
+                kind: "call-expression",
+                callee: ident("f"),
+                args: [{ name: null, value: history(ident("h"), int("1")), span: SPAN }],
+                span: SPAN,
+            }),
+        ).toEqual(["h"]);
+        expect(
+            names({
+                kind: "member-access-expression",
+                head: history(ident("m"), int("1")),
+                chain: ["field"],
+                span: SPAN,
+            }),
+        ).toEqual(["m"]);
+        // A null-head member chain (`a.b.c`) carries no history operand.
+        expect(
+            names({ kind: "member-access-expression", head: null, chain: ["a", "b"], span: SPAN }),
+        ).toEqual([]);
+    });
+
+    it("descends tuple elements and a lambda body", () => {
+        expect(
+            names({
+                kind: "tuple-expression",
+                elements: [history(ident("t1"), int("1")), history(ident("t2"), int("2"))],
+                span: SPAN,
+            }),
+        ).toEqual(["t1", "t2"]);
+        expect(
+            names({
+                kind: "lambda-expression",
+                params: ["x"],
+                body: history(ident("lb"), int("1")),
+                span: SPAN,
+            }),
+        ).toEqual(["lb"]);
+    });
+
+    it("recurses into a nested history receiver (`x[1][2]`)", () => {
+        expect(names(history(history(ident("n"), int("1")), int("2")))).toEqual(["n"]);
     });
 });

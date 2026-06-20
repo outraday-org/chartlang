@@ -132,3 +132,52 @@ describe("emitWithContext", () => {
         expect(emitWithContext({ kind: "na-expression", span: SPAN }, c)).toBe("Number.NaN");
     });
 });
+
+describe("emitWithContext — state.series slots", () => {
+    const history = (receiver: ExpressionNode, offset: ExpressionNode): ExpressionNode => ({
+        kind: "history-access-expression",
+        receiver,
+        offset,
+        span: SPAN,
+    });
+    const seriesCtx = (over: Partial<EmitContext> = {}): EmitContext =>
+        ctx({
+            stateSlots: new Map([["prev", "prev"]]),
+            seriesSlots: new Set(["prev"]),
+            ...over,
+        });
+
+    it("emits a bare slot index for a series-slot history read", () => {
+        expect(
+            emitWithContext(
+                history(ident("prev"), { kind: "literal-expression", literalKind: "int", value: "1", span: SPAN }),
+                seriesCtx(),
+            ),
+        ).toBe("prev[1]");
+    });
+
+    it("emits <slot>.value for a series-slot VALUE read (not history)", () => {
+        expect(emitWithContext(ident("prev"), seriesCtx())).toBe("prev.value");
+    });
+
+    it("falls back to the generic rewrite when the series-slot name has no stateSlots local", () => {
+        // Defensive arm: a `seriesSlots` name not present in `stateSlots`
+        // (unreachable from `transformOther`, which registers both together) —
+        // `seriesSlotReceiver` returns null and the generic recursion runs.
+        expect(
+            emitWithContext(
+                history(ident("prev"), { kind: "literal-expression", literalKind: "int", value: "1", span: SPAN }),
+                ctx({ stateSlots: new Map(), seriesSlots: new Set(["prev"]) }),
+            ),
+        ).toBe("prev[1]");
+    });
+
+    it("leaves a non-series history receiver to the generic rewrite", () => {
+        expect(
+            emitWithContext(
+                history(ident("len"), { kind: "literal-expression", literalKind: "int", value: "1", span: SPAN }),
+                ctx({ inputNames: new Set(["len"]) }),
+            ),
+        ).toBe("inputs.len[1]");
+    });
+});

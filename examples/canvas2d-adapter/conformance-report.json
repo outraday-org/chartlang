@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.1.1",
-    "passed": 240,
+    "passed": 242,
     "failed": 0,
     "scenarios": [
         {
@@ -647,6 +647,12 @@
             "failures": []
         },
         {
+            "id": "pine-converter-round-trip-var-series",
+            "title": "Pine converter round-trip var → state.series history",
+            "status": "pass",
+            "failures": []
+        },
+        {
             "id": "plot-kind-arrow",
             "title": "PlotKind arrow",
             "status": "pass",
@@ -799,6 +805,12 @@
         {
             "id": "runtime-log-info",
             "title": "runtime.log.info emits",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "state-series-history",
+            "title": "state.series history is byte-identical to bar.close[N]",
             "status": "pass",
             "failures": []
         },

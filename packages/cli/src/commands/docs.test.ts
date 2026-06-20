@@ -87,6 +87,8 @@ const MINIMAL_PHASE4_STATE = `export const state = Object.freeze({
     bool(): unknown { return {}; },
     /** Persistent string. @since 0.4 @stable @example const v = state.string("x"); */
     string(): unknown { return {}; },
+    /** Persistent series. @since 1.2 @stable @example const v = state.series(0); */
+    series(): unknown { return {}; },
     /** Tick-persistent state. @since 0.4 @stable @example const v = state.tick.float(1); */
     tick: Object.freeze({
         float(): unknown { return {}; },

@@ -393,6 +393,24 @@ var state = Object.freeze({
     return sentinel("state.string");
   },
   /**
+   * Allocate or read a persistent **series** slot — a writable, indexable
+   * number history. `s.value = expr` writes the current bar's value;
+   * `s[0]` / `s.current` / `+s` read it back, `s[1]` reads one bar ago.
+   * The allocation bar's pre-write head is seeded with `init`; unwritten later
+   * bars and out-of-range history reads are `NaN`. Unlike `state.float`, the
+   * slot retains a bounded window of prior committed values (sized to the
+   * script's deepest literal `s[n]` lookback).
+   *
+   * @since 1.2
+   * @stable
+   * @example
+   *     const fn: typeof state.series = state.series;
+   *     void fn;
+   */
+  series(_init) {
+    return sentinel("state.series");
+  },
+  /**
    * Tick-persistent state slots, Pine `varip` semantics. Writes commit
    * immediately, even during a tick.
    *
@@ -873,6 +891,7 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "state.int", slot: true },
   { name: "state.bool", slot: true },
   { name: "state.string", slot: true },
+  { name: "state.series", slot: true },
   { name: "state.tick.float", slot: true },
   { name: "state.tick.int", slot: true },
   { name: "state.tick.bool", slot: true },
@@ -1369,6 +1388,56 @@ function inMemoryStateStore() {
   };
 }
 
+// ../runtime/dist/state/seriesSlot.js
+function makeSeriesSlotView(buffer) {
+  const reads = makeSeriesView(buffer);
+  return new Proxy(reads, {
+    get(target, prop, receiver) {
+      if (prop === "value")
+        return buffer.at(0);
+      return Reflect.get(target, prop, receiver);
+    },
+    set(_target, prop, value) {
+      if (prop === "value") {
+        buffer.replaceHead(value);
+        return true;
+      }
+      return false;
+    },
+    has(target, prop) {
+      if (prop === "value")
+        return true;
+      return Reflect.has(target, prop);
+    }
+  });
+}
+function createSeriesSlot(buffer, init) {
+  buffer.append(init);
+  return {
+    kind: "state.series",
+    buffer,
+    view: makeSeriesSlotView(buffer),
+    committedHead: init
+  };
+}
+function restoreSeriesSlot(buffer, committedHead) {
+  return {
+    kind: "state.series",
+    buffer,
+    view: makeSeriesSlotView(buffer),
+    committedHead
+  };
+}
+function advanceSeriesSlot(slot) {
+  slot.buffer.append(Number.NaN);
+}
+function commitSeriesSlot(slot) {
+  slot.committedHead = slot.buffer.at(0);
+}
+function resetSeriesSlotHead(slot) {
+  slot.buffer.replaceHead(slot.committedHead);
+}
+
 // ../runtime/dist/state/lifecycle.js
 function resetTentativeStateSlots(ctx) {
   for (const slot of ctx.stateSlots.values()) {
@@ -1402,6 +1471,103 @@ function restoreStateSlots(ctx, slots) {
   ctx.stateSlots.clear();
   for (const [key, value] of Object.entries(slots)) {
     ctx.stateStore.set(key, value);
+  }
+}
+function advanceSeriesSlots(ctx) {
+  for (const slot of ctx.seriesSlots.values()) {
+    advanceSeriesSlot(slot);
+  }
+}
+function commitSeriesSlots(ctx) {
+  for (const slot of ctx.seriesSlots.values()) {
+    commitSeriesSlot(slot);
+  }
+}
+function resetSeriesHeads(ctx) {
+  for (const slot of ctx.seriesSlots.values()) {
+    resetSeriesSlotHead(slot);
+  }
+}
+
+// ../runtime/dist/bufferSnapshot.js
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isInteger(value) {
+  return typeof value === "number" && Number.isInteger(value);
+}
+function finiteOrNull(value) {
+  return Number.isFinite(value) ? value : null;
+}
+function restoreNumber(value) {
+  if (value === null)
+    return Number.NaN;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+function isBufferSnapshot(value) {
+  if (!isRecord(value))
+    return false;
+  if (!isInteger(value.headIndex) || !isInteger(value.filled))
+    return false;
+  return Array.isArray(value.values) && value.values.every((entry) => entry === null || typeof entry === "number" && Number.isFinite(entry));
+}
+function serialiseBuffer(buffer) {
+  const snapshot6 = buffer.serialiseSnapshotBuffer();
+  return {
+    headIndex: snapshot6.headIndex,
+    filled: snapshot6.filled,
+    values: snapshot6.values
+  };
+}
+function restoreBuffer(snapshot6, capacity) {
+  const buffer = new Float64RingBuffer(capacity);
+  try {
+    buffer.restoreFromSnapshotBuffer(snapshot6);
+    return buffer;
+  } catch {
+    return null;
+  }
+}
+
+// ../runtime/dist/state/seriesPersistence.js
+var SERIES_SLOT_SUFFIX = ":series";
+function isSeriesSlotSnapshotKey(key) {
+  return key.endsWith(SERIES_SLOT_SUFFIX);
+}
+function serialiseSeriesSlots(ctx) {
+  const out = {};
+  for (const [key, slot] of ctx.seriesSlots.entries()) {
+    out[key] = {
+      kind: "state.series",
+      buffer: serialiseBuffer(slot.buffer),
+      committedHead: finiteOrNull(slot.committedHead)
+    };
+  }
+  return Object.freeze(out);
+}
+function restoreSeriesSlotSnapshot(snapshot6, capacity) {
+  if (!isRecord(snapshot6) || snapshot6.kind !== "state.series")
+    return null;
+  const bufferSnapshot = snapshot6.buffer;
+  if (!isBufferSnapshot(bufferSnapshot))
+    return null;
+  const committedHead = restoreNumber(snapshot6.committedHead);
+  if (committedHead === null)
+    return null;
+  const buffer = restoreBuffer(bufferSnapshot, capacity);
+  if (buffer === null)
+    return null;
+  return restoreSeriesSlot(buffer, committedHead);
+}
+function restoreSeriesSlots(ctx, slots, capacity) {
+  ctx.seriesSlots.clear();
+  for (const [key, value] of Object.entries(slots)) {
+    if (!isSeriesSlotSnapshotKey(key))
+      continue;
+    const slot = restoreSeriesSlotSnapshot(value, capacity);
+    if (slot !== null) {
+      ctx.seriesSlots.set(key, slot);
+    }
   }
 }
 
@@ -1459,6 +1625,7 @@ function asMutableSlot(slot) {
 
 // ../runtime/dist/state/stateNamespace.js
 var stateKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:state`;
+var seriesKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:series`;
 function getCtx(name) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
@@ -1481,12 +1648,24 @@ function getOrAllocate(name, slotId, init, tickPersistent) {
   ctx.stateSlots.set(key, slot);
   return asMutableSlot(slot);
 }
+function getOrAllocateSeries(slotId, init) {
+  const ctx = getCtx("state.series");
+  const key = seriesKey(ctx, slotId);
+  const existing = ctx.seriesSlots.get(key);
+  if (existing !== void 0) {
+    return existing.view;
+  }
+  const slot = createSeriesSlot(new Float64RingBuffer(ctx.stream.ohlcv.close.capacity), init);
+  ctx.seriesSlots.set(key, slot);
+  return slot.view;
+}
 function buildStateNamespace() {
   const ns = {
     float: (slotId, init) => getOrAllocate("state.float", slotId, init, false),
     int: (slotId, init) => getOrAllocate("state.int", slotId, init, false),
     bool: (slotId, init) => getOrAllocate("state.bool", slotId, init, false),
     string: (slotId, init) => getOrAllocate("state.string", slotId, init, false),
+    series: (slotId, init) => getOrAllocateSeries(slotId, init),
     tick: {
       float: (slotId, init) => getOrAllocate("state.tick.float", slotId, init, true),
       int: (slotId, init) => getOrAllocate("state.tick.int", slotId, init, true),
@@ -1914,6 +2093,7 @@ function buildExprContext(parent, slotId, foldStream) {
     drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
     scriptMaxDrawings: null,
     stateSlots: /* @__PURE__ */ new Map(),
+    seriesSlots: /* @__PURE__ */ new Map(),
     secondaryStreams: parent.secondaryStreams,
     requestSecurityBars: /* @__PURE__ */ new Map(),
     requestSecurityAlignments: /* @__PURE__ */ new Map(),
@@ -1971,9 +2151,15 @@ function evaluate(runner, callback, isTick) {
   const previous = ACTIVE_RUNTIME_CONTEXT.current;
   ACTIVE_RUNTIME_CONTEXT.current = runner.ctx;
   runner.ctx.isTick = isTick;
+  if (isTick)
+    resetSeriesHeads(runner.ctx);
+  else
+    advanceSeriesSlots(runner.ctx);
   try {
     return sampleOutput(callback(runner.foldBar));
   } finally {
+    if (!isTick)
+      commitSeriesSlots(runner.ctx);
     runner.ctx.isTick = false;
     ACTIVE_RUNTIME_CONTEXT.current = previous;
   }
@@ -14537,6 +14723,9 @@ async function runComputeBody(args) {
     resetSubIdCounters(state2.runtimeContext);
     if (isTick) {
       resetTentativeStateSlots(state2.runtimeContext);
+      resetSeriesHeads(state2.runtimeContext);
+    } else {
+      advanceSeriesSlots(state2.runtimeContext);
     }
     refreshRuntimeViews(state2, eventKind);
     try {
@@ -14544,6 +14733,7 @@ async function runComputeBody(args) {
       if (!isTick) {
         commitStateSlots(state2.runtimeContext);
         flushStateSlots(state2.runtimeContext);
+        commitSeriesSlots(state2.runtimeContext);
       }
     } catch (err) {
       if (!isRuntimeErrorHalt(err))
@@ -14696,6 +14886,7 @@ function buildSubRunnerState(args, slotIdPrefix, isDep) {
       },
       scriptMaxDrawings: args.compiled.manifest.maxDrawings ?? null,
       stateSlots: /* @__PURE__ */ new Map(),
+      seriesSlots: /* @__PURE__ */ new Map(),
       secondaryStreams: args.secondaryStreams,
       requestSecurityBars: /* @__PURE__ */ new Map(),
       requestSecurityAlignments: /* @__PURE__ */ new Map(),
@@ -14904,6 +15095,7 @@ function dispose(state2) {
   state2.runtimeContext.drawingSlots.clear();
   state2.runtimeContext.drawingSubIdCounters.clear();
   state2.runtimeContext.stateSlots.clear();
+  state2.runtimeContext.seriesSlots.clear();
   state2.runtimeContext.secondaryStreams.clear();
   state2.runtimeContext.requestSecurityBars.clear();
   state2.runtimeContext.requestSecurityAlignments.clear();
@@ -15028,7 +15220,7 @@ function appendSecondaryHistory(stream, bars) {
 
 // ../runtime/dist/persistentStateStore.validate.js
 var bufferKeys = ["time", "open", "high", "low", "close", "volume"];
-function isRecord(value) {
+function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function isJsonValue2(value) {
@@ -15040,7 +15232,7 @@ function isJsonValue2(value) {
     return Number.isFinite(value);
   if (Array.isArray(value))
     return value.every((entry) => isJsonValue2(entry));
-  if (isRecord(value)) {
+  if (isRecord2(value)) {
     return Object.values(value).every((entry) => isJsonValue2(entry));
   }
   return false;
@@ -15052,34 +15244,34 @@ function isBufferArray(value) {
   return Array.isArray(value) && value.every((entry) => entry === null || isSnapshotNumber(entry));
 }
 function isStreamSnapshot(value) {
-  if (!isRecord(value))
+  if (!isRecord2(value))
     return false;
   if (typeof value.interval !== "string")
     return false;
   if (!Number.isInteger(value.headIndex) || !Number.isInteger(value.filled))
     return false;
   const buffers = value.buffers;
-  if (!isRecord(buffers))
+  if (!isRecord2(buffers))
     return false;
   return bufferKeys.every((key) => isBufferArray(buffers[key]));
 }
 function isSlotsRecord(value) {
-  return isRecord(value) && Object.values(value).every((entry) => isJsonValue2(entry));
+  return isRecord2(value) && Object.values(value).every((entry) => isJsonValue2(entry));
 }
 function isRunnerSnapshot(value) {
-  return isRecord(value) && isSlotsRecord(value.slots);
+  return isRecord2(value) && isSlotsRecord(value.slots);
 }
 function isRunnerSnapshotMap(value) {
-  return isRecord(value) && Object.values(value).every((entry) => isRunnerSnapshot(entry));
+  return isRecord2(value) && Object.values(value).every((entry) => isRunnerSnapshot(entry));
 }
 function validateSnapshot(snap) {
-  if (!isRecord(snap))
+  if (!isRecord2(snap))
     return false;
   if (snap.snapshotVersion !== 1)
     return false;
   if (!isSnapshotNumber(snap.lastBarTime) || !isSnapshotNumber(snap.savedAt))
     return false;
-  if (!isRecord(snap.streams))
+  if (!isRecord2(snap.streams))
     return false;
   if (!Object.values(snap.streams).every((stream) => isStreamSnapshot(stream)))
     return false;
@@ -15098,17 +15290,6 @@ function validateSnapshot(snap) {
 
 // ../runtime/dist/ta/persistence.js
 var TA_SLOT_PREFIX = "ta:";
-function isRecord2(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function finiteOrNull(value) {
-  return Number.isFinite(value) ? value : null;
-}
-function restoreNumber(value) {
-  if (value === null)
-    return Number.NaN;
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
 function restoreNumbers(fields) {
   const out = {};
   for (const key of Object.keys(fields)) {
@@ -15118,33 +15299,6 @@ function restoreNumbers(fields) {
     out[key] = restored;
   }
   return out;
-}
-function isInteger(value) {
-  return typeof value === "number" && Number.isInteger(value);
-}
-function isBufferSnapshot(value) {
-  if (!isRecord2(value))
-    return false;
-  if (!isInteger(value.headIndex) || !isInteger(value.filled))
-    return false;
-  return Array.isArray(value.values) && value.values.every((entry) => entry === null || typeof entry === "number" && Number.isFinite(entry));
-}
-function serialiseBuffer(buffer) {
-  const snapshot6 = buffer.serialiseSnapshotBuffer();
-  return {
-    headIndex: snapshot6.headIndex,
-    filled: snapshot6.filled,
-    values: snapshot6.values
-  };
-}
-function restoreBuffer(snapshot6, capacity) {
-  const buffer = new Float64RingBuffer(capacity);
-  try {
-    buffer.restoreFromSnapshotBuffer(snapshot6);
-    return buffer;
-  } catch {
-    return null;
-  }
 }
 function baseSlot(outBuffer) {
   return {
@@ -15280,7 +15434,7 @@ function restoreRsi(snapshot6) {
   };
 }
 function serialiseTaSlot(slot) {
-  if (!isRecord2(slot))
+  if (!isRecord(slot))
     return null;
   if (slot.kind === "ta.sma")
     return serialiseSma(slot);
@@ -15291,7 +15445,7 @@ function serialiseTaSlot(slot) {
   return null;
 }
 function restoreTaSlot(snapshot6) {
-  if (!isRecord2(snapshot6))
+  if (!isRecord(snapshot6))
     return null;
   if (snapshot6.kind === "ta.sma")
     return restoreSma(snapshot6);
@@ -15346,12 +15500,16 @@ function captureStreams(state2) {
 function primarySectionSlots(state2) {
   return Object.freeze({
     ...serialiseStateSlots(state2.runtimeContext),
+    ...serialiseSeriesSlots(state2.runtimeContext),
     ...serialiseTaSlots(state2.mainStream)
   });
 }
 function runnerSection(ctx) {
   return Object.freeze({
-    slots: Object.freeze({ ...serialiseStateSlots(ctx) })
+    slots: Object.freeze({
+      ...serialiseStateSlots(ctx),
+      ...serialiseSeriesSlots(ctx)
+    })
   });
 }
 function captureSiblings(state2) {
@@ -15396,14 +15554,18 @@ function resolveMainStreamSnapshot(snapshot6, mainInterval) {
   const fallback2 = firstStreamKey(snapshot6);
   return fallback2 === null ? void 0 : snapshot6.streams[fallback2];
 }
-function nonTaSlots(slots) {
+function scalarStateSlots(slots) {
   const out = {};
   for (const [slotKey, value] of Object.entries(slots)) {
-    if (!isTaSlotSnapshotKey(slotKey)) {
+    if (!isTaSlotSnapshotKey(slotKey) && !isSeriesSlotSnapshotKey(slotKey)) {
       out[slotKey] = value;
     }
   }
   return out;
+}
+function restoreRunnerSlots(ctx, slots, capacity) {
+  restoreStateSlots(ctx, scalarStateSlots(slots));
+  restoreSeriesSlots(ctx, slots, capacity);
 }
 function pushMalformedSection(state2, message2) {
   pushDiagnostic(state2.emissions, {
@@ -15423,7 +15585,7 @@ function restoreSiblingSections(state2, siblings) {
       pushMalformedSection(state2, `persistent state snapshot referenced unknown sibling "${exportName}"`);
       continue;
     }
-    restoreStateSlots(sibling.state.runtimeContext, section.slots);
+    restoreRunnerSlots(sibling.state.runtimeContext, section.slots, state2.mainStream.ohlcv.close.capacity);
   }
 }
 function restoreDependencySections(state2, dependencies) {
@@ -15434,7 +15596,7 @@ function restoreDependencySections(state2, dependencies) {
       pushMalformedSection(state2, `persistent state snapshot referenced unknown dependency "${localId}"`);
       continue;
     }
-    restoreStateSlots(dep.state.runtimeContext, section.slots);
+    restoreRunnerSlots(dep.state.runtimeContext, section.slots, state2.mainStream.ohlcv.close.capacity);
   }
 }
 function restoreStateSnapshot(state2, snapshot6) {
@@ -15451,7 +15613,7 @@ function restoreStateSnapshot(state2, snapshot6) {
   }
   const primarySlots = primarySlotsOf(snapshot6);
   restoreTaSlots(state2.mainStream, primarySlots);
-  restoreStateSlots(state2.runtimeContext, nonTaSlots(primarySlots));
+  restoreRunnerSlots(state2.runtimeContext, primarySlots, state2.mainStream.ohlcv.close.capacity);
   if (snapshot6.siblings !== void 0) {
     restoreSiblingSections(state2, snapshot6.siblings);
   }
@@ -15622,6 +15784,7 @@ function buildPrimaryState(args, primary) {
       },
       scriptMaxDrawings: primary.manifest.maxDrawings ?? null,
       stateSlots: /* @__PURE__ */ new Map(),
+      seriesSlots: /* @__PURE__ */ new Map(),
       secondaryStreams,
       requestSecurityBars: /* @__PURE__ */ new Map(),
       requestSecurityAlignments: /* @__PURE__ */ new Map(),

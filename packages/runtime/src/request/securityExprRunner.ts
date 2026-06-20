@@ -11,6 +11,7 @@ import type {
 
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
 import { Float64RingBuffer } from "../ringBuffer.js";
+import { advanceSeriesSlots, commitSeriesSlots, resetSeriesHeads } from "../state/index.js";
 import { inMemoryStateStore } from "../stateStore.js";
 import {
     type StreamState,
@@ -123,6 +124,7 @@ function buildExprContext(
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        seriesSlots: new Map(),
         secondaryStreams: parent.secondaryStreams,
         requestSecurityBars: new Map(),
         requestSecurityAlignments: new Map(),
@@ -219,9 +221,15 @@ function evaluate(runner: SecurityExprRunner, callback: SecurityExpr, isTick: bo
     const previous = ACTIVE_RUNTIME_CONTEXT.current;
     ACTIVE_RUNTIME_CONTEXT.current = runner.ctx;
     runner.ctx.isTick = isTick;
+    // `state.series` inside the callback accumulates on the HTF clock, so it
+    // advances/commits in lockstep with the fold stream — the same close/tick
+    // discipline `runComputeBody` applies to the main compute.
+    if (isTick) resetSeriesHeads(runner.ctx);
+    else advanceSeriesSlots(runner.ctx);
     try {
         return sampleOutput(callback(runner.foldBar));
     } finally {
+        if (!isTick) commitSeriesSlots(runner.ctx);
         runner.ctx.isTick = false;
         ACTIVE_RUNTIME_CONTEXT.current = previous;
     }

@@ -127,6 +127,7 @@ import { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js
 import { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "./pineConverterRoundTripCampB.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "./pineConverterRoundTripTable.scenario.js";
+import { PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO } from "./pineConverterRoundTripVarSeries.scenario.js";
 import { PLOT_OFFSET_XSHIFT_SCENARIO } from "./plotOffsetXshift.scenario.js";
 import { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
 import { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario.js";
@@ -136,6 +137,7 @@ import { RUNTIME_ERROR_SCENARIO } from "./runtimeError.scenario.js";
 import { RUNTIME_LOG_BUDGET_SCENARIO } from "./runtimeLogBudget.scenario.js";
 import { RUNTIME_LOG_GATED_SCENARIO } from "./runtimeLogGated.scenario.js";
 import { RUNTIME_LOG_INFO_SCENARIO } from "./runtimeLogInfo.scenario.js";
+import { STATE_SERIES_HISTORY_SCENARIO } from "./stateSeriesHistory.scenario.js";
 import { STATE_SESSION_HIGH_SCENARIO } from "./stateSessionHigh.scenario.js";
 import { STATE_TICK_COUNTER_SCENARIO } from "./stateTickCounter.scenario.js";
 import { SYMINFO_MINTICK_SCENARIO } from "./syminfoMintick.scenario.js";
@@ -370,6 +372,7 @@ export { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js
 export { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
 export { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "./pineConverterRoundTripCampB.scenario.js";
 export { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "./pineConverterRoundTripTable.scenario.js";
+export { PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO } from "./pineConverterRoundTripVarSeries.scenario.js";
 export { PLOT_OFFSET_XSHIFT_SCENARIO } from "./plotOffsetXshift.scenario.js";
 export { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
 export { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario.js";
@@ -379,6 +382,7 @@ export { RUNTIME_ERROR_SCENARIO } from "./runtimeError.scenario.js";
 export { RUNTIME_LOG_BUDGET_SCENARIO } from "./runtimeLogBudget.scenario.js";
 export { RUNTIME_LOG_GATED_SCENARIO } from "./runtimeLogGated.scenario.js";
 export { RUNTIME_LOG_INFO_SCENARIO } from "./runtimeLogInfo.scenario.js";
+export { STATE_SERIES_HISTORY_SCENARIO } from "./stateSeriesHistory.scenario.js";
 export { STATE_SESSION_HIGH_SCENARIO } from "./stateSessionHigh.scenario.js";
 export { STATE_TICK_COUNTER_SCENARIO } from "./stateTickCounter.scenario.js";
 export { SYMINFO_MINTICK_SCENARIO } from "./syminfoMintick.scenario.js";
@@ -510,6 +514,9 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     // Bounded-loop bar.close[i] indexing — the loop SMA(5) tracks
     // ta.sma(close, 5) bar-for-bar (each plot pins to its own hash).
     LOOP_SMA_SCENARIO,
+    // Writable user state.series — s[2] history is byte-identical to a
+    // direct bar.close[2] read (both plots pin to the same hash).
+    STATE_SERIES_HISTORY_SCENARIO,
     BAR_POINT_TRACKING_LINE_SCENARIO,
     RSI_DIVERGENCE_SCENARIO,
     PLOT_KIND_COVERAGE_SCENARIO,
@@ -804,4 +811,5 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO,
     PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO,
     PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO,
+    PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO,
 ]);

@@ -94,6 +94,43 @@ offset or a `ta.*` window primitive. History on a `ta.*`-derived scalar
 (`macdLine[1]`, where `macdLine` is a destructured tuple field projected with
 `.current`) is **not** supported.
 
+### History on a `var` — `state.series`
+
+Pine's pervasive `var x := …; x[1]` idiom — reading the history of a value you
+**store yourself** — is the one history case that is not a bar field or a
+`ta.*` output. A numeric `var`/`varip` that is read with a literal `[n]`
+anywhere in the script lowers to a chartlang
+[`state.series`](../language/series-and-indexing.md#user-created-series-state-series)
+slot — a writable, indexable user series — and its `[n]` history converts
+**directly**:
+
+```pine
+var float prev = na
+delta = close - prev
+prev := close
+plot(prev[1])
+```
+
+becomes
+
+```ts
+const prev = state.series(Number.NaN);
+let delta = bar.close - prev.value;
+prev.value = bar.close;
+plot(prev[1]);
+```
+
+The literal init picks the seed (`na` → `Number.NaN`); the write stays
+`prev.value = …` and the read `prev.value`, while `prev[1]` is the committed
+history. A numeric `var` **never** read with `[n]` keeps its leaner scalar
+[`state.*`](#state) lowering. A `bool`/`string` history-indexed `var` is out of
+the v1 series scope and is flagged
+[`series-history-non-numeric`](./diagnostics.md#series-history-non-numeric); a
+`varip` series approximates to a (non-tick) `state.series` with
+[`varip-series-approximated`](./diagnostics.md#varip-series-approximated). A
+non-literal series-slot offset rejects with
+[`dynamic-series-index`](./diagnostics.md#dynamic-series-index).
+
 ## Inputs
 
 | Pine input | chartlang input |
@@ -144,6 +181,11 @@ initializer picks the factory (`int`→`state.int`, `float`→`state.float`,
 `state.tick.*` form. An un-inferable type (e.g. a `#RRGGBB` color literal or
 an identifier initializer) defaults to `state.float` with a
 `scalar-state-type-defaulted` info — the converter never silently guesses.
+
+The one exception is a **numeric `var`/`varip` read with a literal `[n]`**: it
+lowers to a writable, indexable `state.series` instead of a scalar slot so the
+`x[n]` history converts directly — see
+[History on a `var`](#history-on-a-var-state-series) above.
 
 ## Plots
 

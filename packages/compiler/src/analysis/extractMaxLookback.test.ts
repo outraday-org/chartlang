@@ -605,4 +605,170 @@ void trend;
 `);
         expect(result.maxLookback).toBe(50);
     });
+
+    it("recognises a state.series-bound variable's literal index", () => {
+        const result = run(`
+import { state } from "@invinite-org/chartlang-core";
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const s = state.series(0);
+s.value = bar.close;
+const p = s[4];
+void p;
+`);
+        expect(result.maxLookback).toBe(4);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("takes the deepest index across two state.series bindings", () => {
+        const result = run(`
+import { state } from "@invinite-org/chartlang-core";
+const a = state.series(0);
+const b = state.series(0);
+const x = a[2];
+const y = b[5];
+void x; void y;
+`);
+        expect(result.maxLookback).toBe(5);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("takes the global max across state.series, ta.*, and bar.* reads", () => {
+        const result = run(`
+import { state, ta } from "@invinite-org/chartlang-core";
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const s = state.series(0);
+const e = ta.ema(bar.close, 20);
+const a = s[3];
+const b = e[9];
+const c = bar.close[6];
+void a; void b; void c;
+`);
+        expect(result.maxLookback).toBe(9);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("sizes a const numeric index on a state.series binding (no warning)", () => {
+        // Proves the state.series arm composes with the bounded-loop resolver,
+        // not just bare literals — `const k = 4` resolves through the shared
+        // `resolveIndexUpperBound` path identically to `bar.*` / `ta.*`.
+        const result = run(`
+import { state } from "@invinite-org/chartlang-core";
+const k = 4;
+const s = state.series(0);
+const p = s[k];
+void p;
+`);
+        expect(result.maxLookback).toBe(4);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("emits dynamic-series-index for a non-literal state.series index", () => {
+        // Mirror the existing bar.* non-literal construction (a `let` mutable
+        // index, which `resolveIndexUpperBound` cannot resolve post-bounded-loop)
+        // — NOT a `const` literal, which now resolves precisely.
+        const result = run(`
+import { state } from "@invinite-org/chartlang-core";
+const s = state.series(0);
+let i = 2;
+const p = s[i];
+void p;
+`);
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.diagnostics[0]?.severity).toBe("warning");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("contributes 0 for a state.series allocated but never indexed", () => {
+        const result = run(`
+import { state } from "@invinite-org/chartlang-core";
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const s = state.series(0);
+s.value = bar.close;
+void s.current;
+`);
+        expect(result.maxLookback).toBe(0);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("does not track a state.series aliased through another variable", () => {
+        // The recogniser keys on the declaration initializer, so an alias
+        // (`const t = s;`) is NOT a series-shaped binding — mirrors the `ta.*`
+        // arm, which does not track aliases either. `t[2]` is treated as a
+        // plain array index and contributes 0 (documented limitation, not a
+        // regression). Building alias analysis is explicitly out of scope.
+        const result = run(`
+import { state } from "@invinite-org/chartlang-core";
+const s = state.series(0);
+const t = s;
+const p = t[2];
+void p;
+`);
+        expect(result.maxLookback).toBe(0);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("scopes a state.series binding to its declaring defineIndicator", () => {
+        const source = `
+import { defineIndicator, state } from "@invinite-org/chartlang-core";
+
+export const sibling = defineIndicator({
+    name: "Sibling",
+    apiVersion: 1,
+    compute() {
+        const s = state.series(0);
+        const a = s[3];
+        void a;
+    },
+});
+
+export default defineIndicator({
+    name: "Default",
+    apiVersion: 1,
+    compute() {
+        const s = state.series(0);
+        const b = s[11];
+        void b;
+    },
+});
+`;
+        const { sourceFile, checker } = createProgramForSource(source, {
+            sourcePath: "demo.chart.ts",
+        });
+        const defineCalls: ts.CallExpression[] = [];
+        const collect = (node: ts.Node): void => {
+            if (
+                ts.isCallExpression(node) &&
+                ts.isIdentifier(node.expression) &&
+                node.expression.text === "defineIndicator"
+            ) {
+                defineCalls.push(node);
+            }
+            ts.forEachChild(node, collect);
+        };
+        ts.forEachChild(sourceFile, collect);
+
+        const siblingCall = defineCalls[0];
+        const defaultCall = defineCalls[1];
+        expect(siblingCall).toBeDefined();
+        expect(defaultCall).toBeDefined();
+
+        const sibling = extractMaxLookback(
+            sourceFile,
+            checker,
+            "demo.chart.ts",
+            siblingCall as ts.Node,
+        );
+        const def = extractMaxLookback(
+            sourceFile,
+            checker,
+            "demo.chart.ts",
+            defaultCall as ts.Node,
+        );
+
+        expect(sibling.maxLookback).toBe(3);
+        expect(def.maxLookback).toBe(11);
+    });
 });

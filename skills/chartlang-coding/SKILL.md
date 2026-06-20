@@ -283,8 +283,18 @@ Highlights of the surface:
   compile with `request-security-expr-captures-local`; read the input
   inside the callback instead (`(bar) => ta.ema(bar.close, inputs.k as
   number)`). `request.lowerTf` stays **data-only** (no callback form).
-- `state.float(key, initial)`, `state.bool(...)`, `state.int(...)` for
-  cross-bar scalar state.
+- `state.float(initial)`, `state.bool(...)`, `state.int(...)`,
+  `state.string(...)` for cross-bar **scalar** state (`s.value` get/set, no
+  indexing). `state.series(initial)` is the one writable **series** slot —
+  store an arbitrary value each bar (`s.value = expr`) and read its history
+  back (`s.current` / `+s` / `s[0]` current, `s[1]` one bar ago, `s.length`
+  filled count). It advances once per bar automatically; an unwritten bar is a
+  `NaN` gap. Like `bar.close`, the handle is an object, so `Number.isFinite(s)`
+  is `false` — use `s.current` / `+s` / `s.value` for the raw scalar. Reach for
+  it only when you need the history of a value **you** compute that is not
+  already a series (a self-referential or conditionally-updated value); index
+  `bar.*` / `ta.*` directly otherwise. It is the lowering target for Pine's
+  `var x := …; x[1]`.
 
 ## 8. Worked examples
 

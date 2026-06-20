@@ -3,17 +3,20 @@
 
 import type { JsonValue, Series } from "@invinite-org/chartlang-core";
 
+import {
+    finiteOrNull,
+    isBufferSnapshot,
+    isInteger,
+    isRecord,
+    restoreBuffer,
+    restoreNumber,
+    serialiseBuffer,
+} from "../bufferSnapshot.js";
 import { Float64RingBuffer } from "../ringBuffer.js";
 import { makeSeriesView } from "../seriesView.js";
 import type { StreamState } from "../streamState.js";
 
 const TA_SLOT_PREFIX = "ta:";
-
-type BufferSnapshot = Readonly<{
-    headIndex: number;
-    filled: number;
-    values: ReadonlyArray<number | null>;
-}>;
 
 type RestoredBaseSlot = {
     readonly outBuffer: Float64RingBuffer;
@@ -52,19 +55,6 @@ type RestoredRsiSlot = RestoredBaseSlot & {
 
 type RestoredTaSlot = RestoredSmaSlot | RestoredEmaSlot | RestoredRsiSlot;
 
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function finiteOrNull(value: number): number | null {
-    return Number.isFinite(value) ? value : null;
-}
-
-function restoreNumber(value: unknown): number | null {
-    if (value === null) return Number.NaN;
-    return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
 /**
  * Restore a record of named numeric fields, returning `null` if any one
  * field fails {@link restoreNumber}. Lets restore functions read several
@@ -83,40 +73,6 @@ function restoreNumbers<K extends string>(
         out[key] = restored;
     }
     return out;
-}
-
-function isInteger(value: unknown): value is number {
-    return typeof value === "number" && Number.isInteger(value);
-}
-
-function isBufferSnapshot(value: unknown): value is BufferSnapshot {
-    if (!isRecord(value)) return false;
-    if (!isInteger(value.headIndex) || !isInteger(value.filled)) return false;
-    return (
-        Array.isArray(value.values) &&
-        value.values.every(
-            (entry) => entry === null || (typeof entry === "number" && Number.isFinite(entry)),
-        )
-    );
-}
-
-function serialiseBuffer(buffer: Float64RingBuffer): JsonValue {
-    const snapshot = buffer.serialiseSnapshotBuffer();
-    return {
-        headIndex: snapshot.headIndex,
-        filled: snapshot.filled,
-        values: snapshot.values,
-    };
-}
-
-function restoreBuffer(snapshot: BufferSnapshot, capacity: number): Float64RingBuffer | null {
-    const buffer = new Float64RingBuffer(capacity);
-    try {
-        buffer.restoreFromSnapshotBuffer(snapshot);
-        return buffer;
-    } catch {
-        return null;
-    }
 }
 
 function baseSlot(outBuffer: Float64RingBuffer): RestoredBaseSlot {

@@ -19,6 +19,7 @@ export type {
     IntervalDescriptor,
     JsonValue,
     LineStyle,
+    NumberSeriesSlot,
     PlotLineStyle,
     PlotOverride,
     PlotSlotDescriptor,

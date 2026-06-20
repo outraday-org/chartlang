@@ -46,6 +46,16 @@ export type EmitContext = Readonly<{
      * `.current` scalar field). Absent (or no entry) → no rewrite.
      */
     tupleFieldAliases?: ReadonlyMap<string, string>;
+    /**
+     * Pine names of the `var`/`varip` scalars lowered to a `state.series` slot
+     * (a numeric scalar that is history-indexed anywhere). A `[n]` history read
+     * of one of these emits the BARE slot local (`<slot>[n]`, a real
+     * `Series<number>` read), not the scalar `<slot>.value[n]` (a typecheck
+     * error). A plain VALUE read still flows through `stateSlots` →
+     * `<slot>.value` (a `state.series` is number-coercible and exposes
+     * `.value`). Absent → no series slots.
+     */
+    seriesSlots?: ReadonlySet<string>;
 }>;
 
 // Rewrite a bare identifier per the context: a shadowing local stays verbatim;
@@ -68,6 +78,23 @@ function rewriteIdentifier(name: string, ctx: EmitContext): string | null {
         return cast === undefined ? `inputs.${name}` : `(inputs.${name} as ${cast})`;
     }
     return null;
+}
+
+// When `receiver` is a bare identifier naming a `state.series` slot, return a
+// node carrying the bare slot LOCAL (so the enclosing `[n]` emits `<slot>[n]`,
+// a real series index) — else `null` (the generic rewrite handles it, e.g. a
+// scalar slot's `<slot>.value` or an OHLCV `bar.close`). A non-series-slot
+// receiver flows through `rewriteTree` unchanged.
+function seriesSlotReceiver(receiver: ExpressionNode, ctx: EmitContext): ExpressionNode | null {
+    if (
+        receiver.kind !== "identifier-expression" ||
+        ctx.seriesSlots === undefined ||
+        !ctx.seriesSlots.has(receiver.name)
+    ) {
+        return null;
+    }
+    const slot = ctx.stateSlots.get(receiver.name);
+    return slot === undefined ? null : { ...receiver, name: slot };
 }
 
 // Recursively apply the identifier rewrite across an expression tree, then
@@ -114,12 +141,20 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext): ExpressionNode {
         }
         case "member-access-expression":
             return node.head === null ? node : { ...node, head: rewriteTree(node.head, ctx) };
-        case "history-access-expression":
+        case "history-access-expression": {
+            // A `[n]` read of a `state.series` slot emits the BARE slot local
+            // (`<slot>[n]`, a real series index), not the `.value`-rewritten
+            // scalar (`<slot>.value[n]`, a typecheck error). The offset still
+            // rewrites normally; the receiver of every OTHER history form is
+            // rewritten by the generic recursion.
+            const seriesReceiver = seriesSlotReceiver(node.receiver, ctx);
             return {
                 ...node,
-                receiver: rewriteTree(node.receiver, ctx),
+                receiver:
+                    seriesReceiver === null ? rewriteTree(node.receiver, ctx) : seriesReceiver,
                 offset: rewriteTree(node.offset, ctx),
             };
+        }
         case "paren-expression":
             return { ...node, expression: rewriteTree(node.expression, ctx) };
         case "tuple-expression":

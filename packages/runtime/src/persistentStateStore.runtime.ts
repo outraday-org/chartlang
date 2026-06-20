@@ -12,7 +12,13 @@ import type { RunnerState } from "./createScriptRunner.js";
 import { pushDiagnostic } from "./emit/index.js";
 import { validateSnapshot } from "./persistentStateStore.validate.js";
 import type { RuntimeContext } from "./runtimeContext.js";
-import { restoreStateSlots, serialiseStateSlots } from "./state/index.js";
+import {
+    isSeriesSlotSnapshotKey,
+    restoreSeriesSlots,
+    restoreStateSlots,
+    serialiseSeriesSlots,
+    serialiseStateSlots,
+} from "./state/index.js";
 import { isTaSlotSnapshotKey, restoreTaSlots, serialiseTaSlots } from "./ta/persistence.js";
 
 /**
@@ -46,13 +52,17 @@ function captureStreams(state: RunnerState): Readonly<Record<string, StreamSnaps
 function primarySectionSlots(state: RunnerState): Readonly<Record<string, JsonValue>> {
     return Object.freeze({
         ...serialiseStateSlots(state.runtimeContext),
+        ...serialiseSeriesSlots(state.runtimeContext),
         ...serialiseTaSlots(state.mainStream),
     } as Record<string, JsonValue>);
 }
 
 function runnerSection(ctx: RuntimeContext): RunnerSnapshot {
     return Object.freeze({
-        slots: Object.freeze({ ...serialiseStateSlots(ctx) } as Record<string, JsonValue>),
+        slots: Object.freeze({
+            ...serialiseStateSlots(ctx),
+            ...serialiseSeriesSlots(ctx),
+        } as Record<string, JsonValue>),
     });
 }
 
@@ -122,14 +132,29 @@ function resolveMainStreamSnapshot(
     return fallback === null ? undefined : snapshot.streams[fallback];
 }
 
-function nonTaSlots(slots: Readonly<Record<string, JsonValue>>): Record<string, unknown> {
+// Scalar `state.*` keys only — strip both `ta:` (restored onto the stream)
+// and `:series` (restored into `ctx.seriesSlots`) so the scalar slot store
+// receives neither.
+function scalarStateSlots(slots: Readonly<Record<string, unknown>>): Record<string, unknown> {
     const out: Record<string, unknown> = {};
     for (const [slotKey, value] of Object.entries(slots)) {
-        if (!isTaSlotSnapshotKey(slotKey)) {
+        if (!isTaSlotSnapshotKey(slotKey) && !isSeriesSlotSnapshotKey(slotKey)) {
             out[slotKey] = value;
         }
     }
     return out;
+}
+
+// Restore a runner's scalar `state.*` slots and `state.series` slots from
+// one merged `slots` record. Series rings are sized to the runner's current
+// ring capacity (the close buffer's capacity).
+function restoreRunnerSlots(
+    ctx: RuntimeContext,
+    slots: Readonly<Record<string, unknown>>,
+    capacity: number,
+): void {
+    restoreStateSlots(ctx, scalarStateSlots(slots));
+    restoreSeriesSlots(ctx, slots, capacity);
 }
 
 function pushMalformedSection(state: RunnerState, message: string): void {
@@ -157,7 +182,11 @@ function restoreSiblingSections(
             );
             continue;
         }
-        restoreStateSlots(sibling.state.runtimeContext, section.slots);
+        restoreRunnerSlots(
+            sibling.state.runtimeContext,
+            section.slots,
+            state.mainStream.ohlcv.close.capacity,
+        );
     }
 }
 
@@ -175,7 +204,11 @@ function restoreDependencySections(
             );
             continue;
         }
-        restoreStateSlots(dep.state.runtimeContext, section.slots);
+        restoreRunnerSlots(
+            dep.state.runtimeContext,
+            section.slots,
+            state.mainStream.ohlcv.close.capacity,
+        );
     }
 }
 
@@ -213,7 +246,11 @@ export function restoreStateSnapshot(state: RunnerState, snapshot: StateSnapshot
 
     const primarySlots = primarySlotsOf(snapshot);
     restoreTaSlots(state.mainStream, primarySlots);
-    restoreStateSlots(state.runtimeContext, nonTaSlots(primarySlots));
+    restoreRunnerSlots(
+        state.runtimeContext,
+        primarySlots,
+        state.mainStream.ohlcv.close.capacity,
+    );
 
     if (snapshot.siblings !== undefined) {
         restoreSiblingSections(state, snapshot.siblings);
