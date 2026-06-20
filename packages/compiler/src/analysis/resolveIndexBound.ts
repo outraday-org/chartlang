@@ -300,10 +300,7 @@ export function collectConstNumberEnv(
             if (seen.has(name)) continue;
             seen.add(name);
             const list = declaration.parent;
-            if (
-                ts.isVariableDeclarationList(list) &&
-                (list.flags & ts.NodeFlags.Const) !== 0
-            ) {
+            if (ts.isVariableDeclarationList(list) && (list.flags & ts.NodeFlags.Const) !== 0) {
                 const value = readNumericLiteralInit(declaration);
                 if (value !== null) env.set(name, value);
             }
@@ -387,8 +384,7 @@ function readNumericLiteralInit(declaration: ts.VariableDeclaration): number | n
     if (ts.isNumericLiteral(expr)) return Number(expr.text);
     if (
         ts.isPrefixUnaryExpression(expr) &&
-        (expr.operator === ts.SyntaxKind.MinusToken ||
-            expr.operator === ts.SyntaxKind.PlusToken) &&
+        (expr.operator === ts.SyntaxKind.MinusToken || expr.operator === ts.SyntaxKind.PlusToken) &&
         ts.isNumericLiteral(expr.operand)
     ) {
         const value = Number(expr.operand.text);

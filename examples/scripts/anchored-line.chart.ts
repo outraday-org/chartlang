@@ -37,10 +37,9 @@ export default defineIndicator({
         // Re-emitting from this same source line every bar reuses one drawing
         // handle, so the line's tail tracks the latest bar while its head stays
         // pinned to the first bar's time.
-        draw.line(
-            { time: startTime.value, price: startPrice.value },
-            bar.point(0, bar.close),
-            { color: "#3b82f6", lineWidth: 2 },
-        );
+        draw.line({ time: startTime.value, price: startPrice.value }, bar.point(0, bar.close), {
+            color: "#3b82f6",
+            lineWidth: 2,
+        });
     },
 });

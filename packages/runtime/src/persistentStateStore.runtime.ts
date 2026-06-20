@@ -246,11 +246,7 @@ export function restoreStateSnapshot(state: RunnerState, snapshot: StateSnapshot
 
     const primarySlots = primarySlotsOf(snapshot);
     restoreTaSlots(state.mainStream, primarySlots);
-    restoreRunnerSlots(
-        state.runtimeContext,
-        primarySlots,
-        state.mainStream.ohlcv.close.capacity,
-    );
+    restoreRunnerSlots(state.runtimeContext, primarySlots, state.mainStream.ohlcv.close.capacity);
 
     if (snapshot.siblings !== undefined) {
         restoreSiblingSections(state, snapshot.siblings);

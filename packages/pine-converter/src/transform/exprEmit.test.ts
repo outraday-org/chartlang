@@ -292,7 +292,12 @@ describe("forEachHistoryAccess", () => {
 
     it("descends unary / binary / ternary / paren operand trees", () => {
         expect(
-            names({ kind: "unary-expression", operator: "-", operand: history(ident("a"), int("1")), span: SPAN }),
+            names({
+                kind: "unary-expression",
+                operator: "-",
+                operand: history(ident("a"), int("1")),
+                span: SPAN,
+            }),
         ).toEqual(["a"]);
         expect(
             names({
@@ -313,7 +318,11 @@ describe("forEachHistoryAccess", () => {
             }),
         ).toEqual(["d", "e", "f"]);
         expect(
-            names({ kind: "paren-expression", expression: history(ident("g"), int("1")), span: SPAN }),
+            names({
+                kind: "paren-expression",
+                expression: history(ident("g"), int("1")),
+                span: SPAN,
+            }),
         ).toEqual(["g"]);
     });
 

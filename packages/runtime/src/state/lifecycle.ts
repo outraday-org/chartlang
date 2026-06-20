@@ -2,11 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { RuntimeContext } from "../runtimeContext.js";
-import {
-    advanceSeriesSlot,
-    commitSeriesSlot,
-    resetSeriesSlotHead,
-} from "./seriesSlot.js";
+import { advanceSeriesSlot, commitSeriesSlot, resetSeriesSlotHead } from "./seriesSlot.js";
 
 /**
  * Persisted representation for a runtime state slot. Keys use

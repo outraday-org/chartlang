@@ -150,7 +150,12 @@ describe("emitWithContext — state.series slots", () => {
     it("emits a bare slot index for a series-slot history read", () => {
         expect(
             emitWithContext(
-                history(ident("prev"), { kind: "literal-expression", literalKind: "int", value: "1", span: SPAN }),
+                history(ident("prev"), {
+                    kind: "literal-expression",
+                    literalKind: "int",
+                    value: "1",
+                    span: SPAN,
+                }),
                 seriesCtx(),
             ),
         ).toBe("prev[1]");
@@ -166,7 +171,12 @@ describe("emitWithContext — state.series slots", () => {
         // `seriesSlotReceiver` returns null and the generic recursion runs.
         expect(
             emitWithContext(
-                history(ident("prev"), { kind: "literal-expression", literalKind: "int", value: "1", span: SPAN }),
+                history(ident("prev"), {
+                    kind: "literal-expression",
+                    literalKind: "int",
+                    value: "1",
+                    span: SPAN,
+                }),
                 ctx({ stateSlots: new Map(), seriesSlots: new Set(["prev"]) }),
             ),
         ).toBe("prev[1]");
@@ -175,7 +185,12 @@ describe("emitWithContext — state.series slots", () => {
     it("leaves a non-series history receiver to the generic rewrite", () => {
         expect(
             emitWithContext(
-                history(ident("len"), { kind: "literal-expression", literalKind: "int", value: "1", span: SPAN }),
+                history(ident("len"), {
+                    kind: "literal-expression",
+                    literalKind: "int",
+                    value: "1",
+                    span: SPAN,
+                }),
                 ctx({ inputNames: new Set(["len"]) }),
             ),
         ).toBe("inputs.len[1]");

@@ -756,10 +756,7 @@ describe("canvas2d adapter integration", () => {
         const anchoredBars = Array.from({ length: 30 }, (_, i) =>
             phase4Bar(i, 100 + i * 0.5, "1D"),
         );
-        const run = await runExampleScript(
-            "examples/scripts/anchored-line.chart.ts",
-            anchoredBars,
-        );
+        const run = await runExampleScript("examples/scripts/anchored-line.chart.ts", anchoredBars);
         expect(run.workerErrors).toEqual([]);
         // The start anchor is built from `state.*` + `bar.close[0]` (a finite
         // scalar, NOT the Series view): the drawing must survive the runtime's
@@ -771,8 +768,9 @@ describe("canvas2d adapter integration", () => {
             .filter((d) => d.drawingKind === "line" && d.op !== "remove")
             .at(-1);
         expect(lastLine).toBeDefined();
-        const anchors = (lastLine?.state as { anchors: ReadonlyArray<{ time: number; price: number }> })
-            .anchors;
+        const anchors = (
+            lastLine?.state as { anchors: ReadonlyArray<{ time: number; price: number }> }
+        ).anchors;
         // Head pinned to the FIRST bar (absolute time); tail at the LAST bar
         // (bar.point(0, …)). Both finite — the bug shipped a non-finite price.
         expect(anchors[0].time).toBe(anchoredBars[0].time);

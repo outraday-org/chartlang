@@ -135,7 +135,10 @@ export function serialiseBuffer(buffer: Float64RingBuffer): JsonValue {
  * @example
  *     // const buf = restoreBuffer(snap, 8); // null on capacity mismatch
  */
-export function restoreBuffer(snapshot: BufferSnapshot, capacity: number): Float64RingBuffer | null {
+export function restoreBuffer(
+    snapshot: BufferSnapshot,
+    capacity: number,
+): Float64RingBuffer | null {
     const buffer = new Float64RingBuffer(capacity);
     try {
         buffer.restoreFromSnapshotBuffer(snapshot);

@@ -46,15 +46,21 @@ describe("resolveIndexUpperBound", () => {
     });
 
     it("resolves a bare `<` loop induction variable to limit - 1", () => {
-        expect(resolveFirstIndex("for (let i = 0; i < 5; i++) { const v = e[i]; void v; }")).toBe(4);
+        expect(resolveFirstIndex("for (let i = 0; i < 5; i++) { const v = e[i]; void v; }")).toBe(
+            4,
+        );
     });
 
     it("resolves a bare `<=` loop induction variable to the limit", () => {
-        expect(resolveFirstIndex("for (let i = 0; i <= 4; i++) { const v = e[i]; void v; }")).toBe(4);
+        expect(resolveFirstIndex("for (let i = 0; i <= 4; i++) { const v = e[i]; void v; }")).toBe(
+            4,
+        );
     });
 
     it("refuses a non-terminating `>` loop induction variable", () => {
-        expect(resolveFirstIndex("for (let i = 0; i > 5; i++) { const v = e[i]; void v; }")).toBeNull();
+        expect(
+            resolveFirstIndex("for (let i = 0; i > 5; i++) { const v = e[i]; void v; }"),
+        ).toBeNull();
     });
 
     it("refuses a `>=` loop induction variable", () => {
@@ -138,7 +144,9 @@ describe("resolveIndexUpperBound", () => {
         // identifier declaration name, so the const collector skips it and
         // the index stays unresolvable.
         expect(
-            resolveFirstIndex("declare const o: { k: number }; const { k } = o; const v = e[k]; void v;"),
+            resolveFirstIndex(
+                "declare const o: { k: number }; const { k } = o; const v = e[k]; void v;",
+            ),
         ).toBeNull();
     });
 

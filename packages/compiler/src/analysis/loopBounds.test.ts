@@ -89,11 +89,15 @@ describe("parseBoundedForLoop", () => {
     });
 
     it("rejects a missing condition", () => {
-        expect(parseBoundedForLoop(firstForStatement("for (let i = 0; ; i++) { break; }"))).toBeNull();
+        expect(
+            parseBoundedForLoop(firstForStatement("for (let i = 0; ; i++) { break; }")),
+        ).toBeNull();
     });
 
     it("rejects a missing incrementor", () => {
-        expect(parseBoundedForLoop(firstForStatement("for (let i = 0; i < 5; ) { i++; }"))).toBeNull();
+        expect(
+            parseBoundedForLoop(firstForStatement("for (let i = 0; i < 5; ) { i++; }")),
+        ).toBeNull();
     });
 
     it("rejects a non-VariableDeclarationList initializer", () => {
@@ -103,13 +107,17 @@ describe("parseBoundedForLoop", () => {
 
     it("rejects a multi-declaration initializer", () => {
         expect(
-            parseBoundedForLoop(firstForStatement("for (let i = 0, j = 0; i < 5; i++) { void j; }")),
+            parseBoundedForLoop(
+                firstForStatement("for (let i = 0, j = 0; i < 5; i++) { void j; }"),
+            ),
         ).toBeNull();
     });
 
     it("rejects a non-identifier declaration name", () => {
         expect(
-            parseBoundedForLoop(firstForStatement("for (const [i] = [0]; 1 < 5; ) { void i; break; }")),
+            parseBoundedForLoop(
+                firstForStatement("for (const [i] = [0]; 1 < 5; ) { void i; break; }"),
+            ),
         ).toBeNull();
     });
 
@@ -174,7 +182,10 @@ describe("unwrapParens", () => {
     });
 
     it("peels any number of nested parentheses", () => {
-        const paren = firstExpressionOfKind("const v = ((7)); void v;", ts.isParenthesizedExpression);
+        const paren = firstExpressionOfKind(
+            "const v = ((7)); void v;",
+            ts.isParenthesizedExpression,
+        );
         const inner = unwrapParens(paren);
         expect(ts.isNumericLiteral(inner)).toBe(true);
         expect(inner.getText()).toBe("7");

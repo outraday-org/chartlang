@@ -1,11 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type {
-    CallExpression,
-    ExpressionNode,
-    HistoryAccessExpression,
-} from "../ast/index.js";
+import type { CallExpression, ExpressionNode, HistoryAccessExpression } from "../ast/index.js";
 import type {
     Assignment,
     Statement,
@@ -297,7 +293,10 @@ function scalarIsNumeric(decl: VariableDeclaration): boolean {
 // the history-indexed scan can promote a numeric one (`var float prev = na`) to
 // `state.series`; a non-history-indexed `na`-init candidate is dropped again by
 // `registerStateSlots` (it stays a `let x = Number.NaN`).
-function isScalarSlotCandidate(stmt: Statement, owned: ReadonlySet<string>): stmt is VariableDeclaration {
+function isScalarSlotCandidate(
+    stmt: Statement,
+    owned: ReadonlySet<string>,
+): stmt is VariableDeclaration {
     return (
         stmt.kind === "variable-declaration" &&
         (stmt.qualifier === "var" || stmt.qualifier === "varip") &&

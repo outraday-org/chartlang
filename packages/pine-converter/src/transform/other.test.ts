@@ -266,9 +266,7 @@ describe("transformOther — series scalars (state.series)", () => {
     });
 
     it("approximates a varip numeric series as a non-tick state.series", () => {
-        const { scaffold, diagnostics } = run(
-            "varip float vp = 0.0\nvp := close\nplot(vp[1])",
-        );
+        const { scaffold, diagnostics } = run("varip float vp = 0.0\nvp := close\nplot(vp[1])");
         expect(scaffold.stateSlots).toEqual([{ name: "vp", initExpr: "state.series(0.0)" }]);
         expect(diagnostics.toArray().map((d) => d.code)).toContain(
             "pine-converter/transform/varip-series-approximated",
@@ -309,18 +307,14 @@ describe("transformOther — series scalars (state.series)", () => {
     });
 
     it("treats a unary non-literal offset (`x[-i]`) as a dynamic series index", () => {
-        const { diagnostics } = run(
-            "var float prev = na\ni = 2\nprev := close\nplot(prev[-i])",
-        );
+        const { diagnostics } = run("var float prev = na\ni = 2\nprev := close\nplot(prev[-i])");
         expect(diagnostics.toArray().map((d) => d.code)).toContain(
             "pine-converter/transform/dynamic-series-index",
         );
     });
 
     it("accepts a unary-literal offset (`x[-1]`) without a dynamic-series-index", () => {
-        const { diagnostics } = run(
-            "var float prev = na\nprev := close\nplot(prev[-1])",
-        );
+        const { diagnostics } = run("var float prev = na\nprev := close\nplot(prev[-1])");
         expect(diagnostics.toArray().map((d) => d.code)).not.toContain(
             "pine-converter/transform/dynamic-series-index",
         );

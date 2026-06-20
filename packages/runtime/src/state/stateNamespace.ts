@@ -1,11 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type {
-    MutableSlot,
-    NumberSeriesSlot,
-    StateNamespace,
-} from "@invinite-org/chartlang-core";
+import type { MutableSlot, NumberSeriesSlot, StateNamespace } from "@invinite-org/chartlang-core";
 
 import { Float64RingBuffer } from "../ringBuffer.js";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
