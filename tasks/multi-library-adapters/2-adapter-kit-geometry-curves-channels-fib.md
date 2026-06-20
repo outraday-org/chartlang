@@ -6,7 +6,7 @@
 
 Extend `decomposeDrawing` (from Task 1) with the curve, freehand,
 channel, and Fibonacci drawing kinds — 20 of the remaining 43 kinds
-(Task 1 covered 19) — each as a pure `(state, view) => DrawPrimitive[]`
+(Task 1 covered 20) — each as a pure `(state, view) => DrawPrimitive[]`
 decomposer ported from the matching canvas2d renderer's geometry.
 
 ## Prerequisites
@@ -77,10 +77,16 @@ anchors), so keep it pure on `state`.
 `fib-spiral`, `fib-circles`, `fib-trend-time`. Port from the 10
 `fib*.ts` renderers.
 
-- Shared levels helper: create `geometry/_lib/fibLevels.ts` holding the
-  default level array (`[0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.272,
-  1.618, 2.618, 4.236]`) and any level-projection helper used by more
-  than one fib decomposer. Reuse `FibOpts.levels` override.
+- Shared levels helper: **move** `geometry/_lib/fibLevels.ts` from
+  `examples/canvas2d-adapter/src/render/draw/fibLevels.ts`. Port it
+  **verbatim** — do not re-derive the level set. The canonical array is
+  `FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.414,
+  1.618, 2.0, 2.618, 4.236]` and the file also exports the
+  `formatLevel(level)` label formatter; both are shared by every fib
+  decomposer today (`fibRetracement`, `fibTrendExtension`, `fibChannel`,
+  `fibSpeedFan`, `fibSpeedArcs`, …). The exact array + formatter are the
+  behavioural contract for Task 4's hash re-pin. Reuse the
+  `FibOpts.levels` override.
 - Each level line → a `polyline` (+ optional `text` label when
   `showLabels`). `fib-spiral` → sampled `polyline` (port the golden-ratio
   bezier sweep from `fibSpiral.ts`). `fib-speed-arcs` / `fib-circles` →
@@ -91,7 +97,7 @@ anchors), so keep it pure on `state`.
 
 Add the 20 `case` arms to `geometry/decompose.ts`, delegating to the new
 decomposers. Keep the placeholder `default` (Task 3 removes it once all
-62 are covered).
+63 are covered).
 
 ### Edge cases
 
@@ -110,7 +116,7 @@ decomposers. Keep the placeholder `default` (Task 3 removes it once all
 | `packages/adapter-kit/src/geometry/types.ts` | Modify | add optional `StrokeStyle.alpha` |
 | `packages/adapter-kit/src/canvas/paintPrimitive.ts` (+test) | Modify | honor `StrokeStyle.alpha` via `globalAlpha` |
 | `packages/adapter-kit/src/geometry/kinds/{curves,freehand,channels,fibonacci}.ts` (+tests) | Create | 20 decomposers |
-| `packages/adapter-kit/src/geometry/_lib/fibLevels.ts` (+test) | Create | shared fib levels |
+| `packages/adapter-kit/src/geometry/_lib/fibLevels.ts` (+test) | Create | shared fib levels — **moved** from canvas2d `draw/fibLevels.ts` (exact `FIB_LEVELS` + `formatLevel`) |
 | `packages/adapter-kit/src/geometry/decompose.ts` (+test) | Modify | add 20 arms |
 
 ## Gates
@@ -133,6 +139,7 @@ coverage; new optional IR field).
   against representative anchors.
 - `StrokeStyle.alpha` added (optional) and honored by `paintPrimitive`;
   Task 1's paint tests updated.
-- Shared `_lib/fibLevels.ts` reused by every fib decomposer (no parallel
-  level arrays).
+- Shared `_lib/fibLevels.ts` (ported verbatim from canvas2d's
+  `draw/fibLevels.ts` — exact `FIB_LEVELS` + `formatLevel`) reused by
+  every fib decomposer (no parallel level arrays).
 - 100% coverage; JSDoc gate green; changeset committed (minor).

@@ -7,7 +7,7 @@
 Complete `decomposeDrawing` with the final 23 drawing kinds — Gann,
 pitchforks, harmonic patterns, Elliott waves, cycles, containers, and the
 `table` viewport overlay — then replace the placeholder `default` arm
-with a `satisfies never` exhaustiveness guard so all 62 `DrawingKind`s
+with a `never` exhaustiveness guard so all 63 `DrawingKind`s
 are provably covered.
 
 ## Prerequisites
@@ -16,13 +16,13 @@ are provably covered.
 
 ## Current Behavior
 
-After Task 2, `decomposeDrawing` covers 39 of 62 kinds (19 from Task 1 +
+After Task 2, `decomposeDrawing` covers 40 of 63 kinds (20 from Task 1 +
 20 from Task 2); the remaining 23 return `[]` via the placeholder
 `default`.
 
 ## Desired Behavior
 
-All 62 kinds decompose to `DrawPrimitive[]`; the dispatcher is
+All 63 kinds decompose to `DrawPrimitive[]`; the dispatcher is
 exhaustive at compile time.
 
 ## Requirements
@@ -92,9 +92,14 @@ default: {
 }
 ```
 
-This now typechecks only because every one of the 62 `DrawingKind`
+This now typechecks only because every one of the 63 `DrawingKind`
 literals has a `case`. A future kind added to core will fail
 `pnpm typecheck` here until a decomposer is added — the intended guard.
+Mirror canvas2d's existing `drawingDispatch.ts` default arm exactly
+(it uses the identical `const _exhaustive: never` pattern and already
+satisfies the 100% coverage gate); replicate any coverage pragma it
+carries so the unreachable `default` does not drop adapter-kit below
+100%.
 
 ### Edge cases
 
@@ -122,13 +127,13 @@ literals has a `case`. A future kind added to core will fail
 ## Changeset
 
 `.changeset/adapter-kit-geometry-complete.md` — **minor** for
-`@invinite-org/chartlang-adapter-kit` (completes the 62-kind decomposer).
+`@invinite-org/chartlang-adapter-kit` (completes the 63-kind decomposer).
 
 ## Acceptance Criteria
 
-- All 62 `DrawingKind`s decompose to `DrawPrimitive[]`; per-kind unit
+- All 63 `DrawingKind`s decompose to `DrawPrimitive[]`; per-kind unit
   tests cover Gann/pitchfork/pattern/elliott/cycle/container/table.
-- The dispatcher uses `satisfies never` and compiles, proving full coverage.
+- The dispatcher's `never` exhaustiveness guard compiles, proving full coverage.
 - All shared geometry (`gannLevels`, `pitchforkGeom`, `fibLevels`,
   `namedPolyline`, `bezier`) lives once in `_lib`.
 - 100% coverage; JSDoc + README gates green; changeset committed (minor).

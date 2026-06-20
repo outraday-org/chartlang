@@ -47,7 +47,7 @@ structure:
   `conformance`.
 - **Comparison matrix** — one row per adapter:
   | Adapter | Library | License | Render tech | Drawing surface | ~Bundle | Source |
-  with `Drawing surface` = "Full (62 + all plots)" and `Source` a GitHub
+  with `Drawing surface` = "Full (63 + all plots)" and `Source` a GitHub
   deep link to `examples/<dir>/` (via `githubFolder(entry)`).
 - **Per-adapter cards** — for each entry: display name, `bestFor`,
   integration strategy (ctx / nodes / graphic), install command

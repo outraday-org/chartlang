@@ -5,7 +5,7 @@
 ## Goal
 
 Migrate `examples/canvas2d-adapter/` to consume the adapter-kit geometry
-layer (Tasks 1–3): replace the 61 per-kind drawing renderers + their
+layer (Tasks 1–3): replace the 63 per-kind drawing renderers + their
 geometry helpers with `paintPrimitive(ctx, decomposeDrawing(emission,
 viewport))`, import `Viewport`/`timeToX`/`priceToY`/`RenderCtx` from
 adapter-kit, and re-export the shared `MockCanvasContext` as
@@ -18,18 +18,20 @@ integration hash with zero behavioural drift.
 
 ## Current Behavior
 
-`canvas2d-adapter` owns: `src/render/coords.ts` (`Viewport`/projection),
-`src/render/clear.ts` (`RenderCtx`), `src/render/draw/` (61 renderers +
-`drawingDispatch.ts` + geometry `_lib`), and `src/testing.ts`
-(`MockCanvas2DContext`). `renderOverlayTail` calls `drawingDispatch(ctx,
-drawing, viewport)`.
+`canvas2d-adapter` owns: `src/render/coords.ts` (`Viewport`/projection +
+bar-shift helpers), `src/render/clear.ts` (`RenderCtx`), `src/render/draw/`
+(63 per-kind renderers + `drawingDispatch.ts` + geometry helpers), and
+`src/testing.ts` (`MockCanvas2DContext`). `renderOverlayTail` calls
+`drawingDispatch(ctx, drawing, viewport)`. `src/render/index.ts` re-exports
+`./draw/index.js`.
 
 ## Desired Behavior
 
 `canvas2d-adapter` keeps its plot/candle/pane/glyph renderers but routes
-**drawings** through the shared layer. The 61 per-kind renderer files and
-the moved geometry `_lib` files are deleted. Public surface
-(`./` and `./testing` exports, `MockCanvas2DContext` name) is unchanged.
+**drawings** through the shared layer. The entire `src/render/draw/`
+directory (63 per-kind renderers + dispatch + geometry helpers) is
+deleted. Public surface (`./` and `./testing` exports,
+`MockCanvas2DContext` name) is unchanged.
 
 ## Requirements
 
@@ -52,22 +54,22 @@ Delete `src/render/draw/drawingDispatch.ts`.
 
 ### 2. Delete the migrated geometry
 
-Remove (now living in adapter-kit):
-
-- All 61 per-kind renderers under `src/render/draw/*.ts`.
-- The geometry `_lib` files moved in Tasks 1–3 (all under
-  `src/render/draw/`): `worldToCanvas.ts`, `bezier.ts`, `gannLevels.ts`,
-  `pitchforkGeom.ts`, `lineExtend.ts`, `arrowhead.ts`, `namedPolyline.ts`,
-  plus the `draw/`-local `shapeStyle.ts`/`textStyle.ts` only if fully
-  subsumed by `paintPrimitive`; otherwise keep what the surviving
-  plot/candle renderers still use.
+Delete the **entire `src/render/draw/` directory** — all 63 per-kind
+renderers, `drawingDispatch.ts`, every geometry helper now living in
+adapter-kit (`worldToCanvas.ts`, `bezier.ts`, `gannLevels.ts`,
+`pitchforkGeom.ts`, `lineExtend.ts`, `arrowhead.ts`, `chevron.ts`,
+`namedPolyline.ts`, `fibLevels.ts`, `shapeStyle.ts`, `textStyle.ts`),
+the `draw/index.ts` barrel, and all co-located `*.test.ts`. This is safe:
+nothing outside `src/render/draw/` imports from it **except**
+`src/render/index.ts`'s `export … from "./draw/index.js"` — remove that
+re-export line from `render/index.ts` (the surviving plot renderers do
+not consume `draw/`).
 
 > **Do NOT delete `src/render/lineDash.ts`.** `dashPattern` was *copied*
 > into adapter-kit `_lib/dash.ts` (Task 1), not moved — `lineDash.ts` is
 > still imported by surviving plot renderers (`render/area.ts`,
-> `render/horizontalLine.ts`). It stays in canvas2d.
-- The per-renderer `*.test.ts` files (their geometry is now tested in
-  adapter-kit). Keep tests for any helper canvas2d still owns.
+> `render/horizontalLine.ts`). It stays in canvas2d (it lives one level
+> **up** from `draw/`, so deleting the `draw/` directory leaves it intact).
 
 > Only the **drawings** path is migrated. The plot/candle/marker/glyph/
 > hline/pane/axis/alert renderers under `src/render/` (`candles.ts`,
@@ -81,11 +83,17 @@ Remove (now living in adapter-kit):
 
 ### 3. Re-point shared types
 
-- Replace `src/render/coords.ts` with a re-export:
+- **Keep `src/render/coords.ts` — do NOT delete it.** Only
+  `Viewport`/`timeToX`/`priceToY` were moved to adapter-kit; `coords.ts`
+  also exports the bar-shift helpers `projectShiftedX`, `shiftedBarTime`,
+  `medianBarSpacing`, and `yToPrice`, which the **surviving plot/candle
+  renderers** still use and which were **not** ported. Re-point only the
+  three moved symbols:
   `export { type Viewport, timeToX, priceToY } from "@invinite-org/chartlang-adapter-kit";`
-  (or delete it and update imports across the surviving renderers to
-  import from adapter-kit directly — prefer the latter to avoid a thin
-  shim).
+  and keep the bar-shift helpers defined locally (they now import
+  `Viewport`/`timeToX`/`priceToY` from adapter-kit instead of defining
+  them). No adapter owns a parallel copy of the projection primitives,
+  while the layout-specific bar-shift math stays canvas2d-local.
 - Replace the `RenderCtx` in `src/render/clear.ts`:
   `export type { RenderCtx } from "@invinite-org/chartlang-adapter-kit/canvas";`
   Keep `clear.ts`'s own `clearFrame`/`clearPaneRect` helpers if present.
@@ -136,8 +144,9 @@ test comment.
 | File | Action | Purpose |
 |------|--------|---------|
 | `examples/canvas2d-adapter/src/createCanvas2dAdapter.ts` | Modify | route drawings via `decomposeDrawing`+`paintPrimitive` |
-| `examples/canvas2d-adapter/src/render/draw/**` | Delete | 61 renderers + dispatch + moved `_lib` (+ their tests) |
-| `examples/canvas2d-adapter/src/render/coords.ts` | Delete/shim | re-point to adapter-kit projection |
+| `examples/canvas2d-adapter/src/render/draw/**` | Delete | entire directory: 63 renderers + dispatch + moved helpers (+ their tests) |
+| `examples/canvas2d-adapter/src/render/index.ts` | Modify | drop the `export … from "./draw/index.js"` re-export |
+| `examples/canvas2d-adapter/src/render/coords.ts` | Modify | re-export `Viewport`/`timeToX`/`priceToY` from adapter-kit; keep local bar-shift helpers (`projectShiftedX`/`shiftedBarTime`/`medianBarSpacing`/`yToPrice`) |
 | `examples/canvas2d-adapter/src/render/clear.ts` | Modify | re-export `RenderCtx` from adapter-kit/canvas |
 | `examples/canvas2d-adapter/src/testing.ts` | Modify | re-export shared mock as `MockCanvas2DContext` |
 | `examples/canvas2d-adapter/src/integration.test.ts` | Modify | re-pin hash; document reason |
@@ -158,8 +167,9 @@ No public-package behaviour change beyond Task 1–3's adapter-kit minor.
 
 ## Acceptance Criteria
 
-- canvas2d renders all 62 drawings via `decomposeDrawing`+`paintPrimitive`;
-  no per-kind renderer or moved `_lib` file remains under `src/render/draw/`.
+- canvas2d renders all 63 drawings via `decomposeDrawing`+`paintPrimitive`;
+  the `src/render/draw/` directory is removed entirely and
+  `render/index.ts` no longer re-exports it.
 - `./` and `./testing` exports unchanged; `MockCanvas2DContext` importable
   from `chartlang-example-canvas2d-adapter/testing`.
 - Integration hash re-pinned with a documented, geometry-preserving reason;

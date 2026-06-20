@@ -4,7 +4,7 @@
 
 ## Goal
 
-Complete the Konva adapter: render all 62 drawing kinds by mapping
+Complete the Konva adapter: render all 63 drawing kinds by mapping
 `decomposeDrawing(emission, viewport)` → Konva nodes
 (`Line`/`Rect`/`Text`/`Arc`/`Path`) on a dedicated drawings layer, using
 the adapter's self-computed overlay `Viewport`. Add the recorded-node
@@ -133,7 +133,7 @@ Private example → no public changeset (patch if repo changesets privates).
 
 ## Acceptance Criteria
 
-- All 62 drawings map to Konva nodes via
+- All 63 drawings map to Konva nodes via
   `decomposeDrawing`+`primitiveToNode`; hashed integration test pinned.
 - `runConformanceSuite(default)` → `failed === 0`.
 - README ≤ 100 lines; docs page added; CLAUDE.md updated.

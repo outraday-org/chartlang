@@ -53,7 +53,7 @@ export type AdapterRegistryEntry = {
     readonly license: string;       // "MIT"
     readonly renderTech: string;    // "Scene-graph (Canvas)"
     readonly strategy: "ctx" | "nodes" | "graphic" | "native-ctx"; // integration style
-    readonly fullSurface: true;     // all 62 drawings + all plot kinds
+    readonly fullSurface: true;     // all 63 drawings + all plot kinds
     readonly approxBundleKb: number;// hand-maintained, deterministic for the gate
     readonly bestFor: string;       // one-line "choose this when…"
 };

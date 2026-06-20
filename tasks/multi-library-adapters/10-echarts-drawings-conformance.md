@@ -4,7 +4,7 @@
 
 ## Goal
 
-Complete the ECharts adapter: render all 62 drawing kinds via the ECharts
+Complete the ECharts adapter: render all 63 drawing kinds via the ECharts
 `graphic` component by mapping `decomposeDrawing(emission, viewport)` →
 ECharts graphic elements (`line`/`polyline`/`polygon`/`text`/`arc`/`sector`).
 Build the `Viewport` from ECharts' pixel conversion of the grid extents.
@@ -133,7 +133,7 @@ Private example → no public changeset (patch if repo changesets privates).
 
 ## Acceptance Criteria
 
-- All 62 drawings map to ECharts `graphic` elements via
+- All 63 drawings map to ECharts `graphic` elements via
   `decomposeDrawing`+`primitiveToGraphic`; hashed integration test pinned;
   viewport verified against `convertToPixel`.
 - `runConformanceSuite(default)` → `failed === 0`.

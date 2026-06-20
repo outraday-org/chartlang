@@ -15,14 +15,15 @@ host the complete chartlang drawing surface:
 | `examples/echarts-adapter/` | `echarts` | Apache-2.0 | Huge install base; native candlesticks; `custom` series + `graphic` with `api.coord()`. |
 | `examples/konva-adapter/` | `konva` | MIT | Generic 2D scene-graph; every drawing maps to a node; retained-mode hit-testing showcases interactive drawings. |
 
-All four are **full-surface** (all ~62 `DrawingKind`s + all `PlotKind`s),
+All four are **full-surface** (all 63 `DrawingKind`s — the 62
+`allPhase3Drawings()` kinds + `table` — plus all `PlotKind`s),
 **headless-testable** (mock library surface + hashed call-log, mirroring
 `MockCanvas2DContext`), and **conformance-wired**. None ship a browser
 demo — they match the existing `canvas2d-adapter` shape exactly
 (library package + test seam + conformance default export).
 
 The enabling refactor: a **renderer-agnostic geometry layer** is added
-to `packages/adapter-kit/` so the 62-kind drawing geometry
+to `packages/adapter-kit/` so the 63-kind drawing geometry
 (fib/gann/elliott/bezier/pitchfork math) is derived **once** and shared.
 `canvas2d-adapter` is refactored to consume it too, so no adapter owns a
 parallel copy of the geometry.
@@ -46,14 +47,15 @@ See repo `CLAUDE.md` (skill-mirroring rule), `examples/CLAUDE.md`,
   `validateEmission`/`decodeDrawing`, `mockCandleSource`,
   `BufferingAdapter`/`PassThroughAdapter`, and all emission/`Capabilities`
   types. **No geometry/projection helpers exist** — `timeToX`/`priceToY`/
-  `Viewport`/`worldPointToCanvas` and all 62 drawing geometries live
+  `Viewport`/`worldPointToCanvas` and all 63 drawing geometries live
   inside `examples/canvas2d-adapter/src/render/`.
 - **`examples/canvas2d-adapter/`** (`chartlang-example-canvas2d-adapter`,
   private) is the reference adapter:
-  - `src/render/draw/` — 61 per-kind renderers + dispatch
+  - `src/render/draw/` — 63 per-kind renderers + dispatch
     (`drawingDispatch.ts`) + geometry helpers (`worldToCanvas.ts`,
     `bezier.ts`, `gannLevels.ts`, `pitchforkGeom.ts`, `lineExtend.ts`,
-    `arrowhead.ts`, `namedPolyline.ts`).
+    `arrowhead.ts`, `chevron.ts`, `namedPolyline.ts`, `fibLevels.ts`,
+    `shapeStyle.ts`, `textStyle.ts`).
   - `src/render/coords.ts` — `Viewport`, `timeToX`, `priceToY`.
   - `src/render/clear.ts` — the `RenderCtx` structural type.
   - `src/testing.ts` — `MockCanvas2DContext` (records calls; `hashCallLog`
@@ -91,7 +93,7 @@ export { paintPrimitive, MockCanvasContext, hashCallLog } from "./canvas/index.j
 ```
 
 - `decomposeDrawing(emission, viewport): ReadonlyArray<DrawPrimitive>` —
-  pure, renderer-agnostic, exhaustive over all 62 `DrawingKind`s.
+  pure, renderer-agnostic, exhaustive over all 63 `DrawingKind`s.
 - `DrawPrimitive` IR — `polyline` | `arc` | `text` | `marker` with
   `StrokeStyle`/`FillStyle`. Every drawing reduces to a flat list.
 - `paintPrimitive(ctx, prim)` + `RenderCtx` + `MockCanvasContext` —
@@ -106,7 +108,7 @@ export { paintPrimitive, MockCanvasContext, hashCallLog } from "./canvas/index.j
 
 Each exposes a `default` headless export (capabilities-only) for
 conformance, a real factory (`createXAdapter`), a full `Capabilities`
-(all 62 drawings + all plot kinds), a mock library surface + hashed
+(all 63 drawings + all plot kinds), a mock library surface + hashed
 integration test, and a README + docs page.
 
 ### Test/tooling deltas
@@ -121,8 +123,8 @@ integration test, and a README + docs page.
 | Decision | Rationale |
 |----------|-----------|
 | **Geometry layer lives in `adapter-kit`, not a new package** | adapter-kit is already "the SDK for writing adapters"; projection + drawing decomposition is exactly adapter-facing geometry. Avoids a new package + scaffold. |
-| **`DrawPrimitive` IR (polyline/arc/text/marker)** | Every one of the 62 renderers reduces to these four shapes with stroke/fill/dash. A flat IR is the smallest thing all five libraries can consume (ctx paths, Konva nodes, ECharts `graphic`, LC primitive). |
-| **`decomposeDrawing` is pure + exhaustive** | No `ctx`, no library types — testable in isolation to 100% in adapter-kit. The `satisfies never` default keeps all 62 kinds covered at compile time. |
+| **`DrawPrimitive` IR (polyline/arc/text/marker)** | Every one of the 63 renderers reduces to these four shapes with stroke/fill/dash. A flat IR is the smallest thing all five libraries can consume (ctx paths, Konva nodes, ECharts `graphic`, LC primitive). |
+| **`decomposeDrawing` is pure + exhaustive** | No `ctx`, no library types — testable in isolation to 100% in adapter-kit. The `never` exhaustiveness default keeps all 63 kinds covered at compile time. |
 | **Only drawings are shared; plots/candles/panes use each library's native facilities** | The whole point of lightweight-charts/ECharts is their native candlesticks, series, and panes. Hand-painting candles there would be wrong. Drawings are the genuinely library-agnostic, expensive-to-duplicate part. |
 | **Canvas sink (`paintPrimitive` + `RenderCtx` + `MockCanvasContext`) in `adapter-kit/canvas`** | lightweight-charts (Series-Primitive), uplot (draw-hook), and canvas2d all paint to a `CanvasRenderingContext2D`. They share one painter + one mock. ECharts/Konva don't import it. |
 | **`canvas2d/src/testing.ts` + `./testing` path stay** | A documented invariant (conformance imports `MockCanvas2DContext` from `chartlang-example-canvas2d-adapter/testing`). `testing.ts` re-exports adapter-kit's `MockCanvasContext` as `MockCanvas2DContext` — implementation shared, public path + name unchanged. |
@@ -194,8 +196,8 @@ Task 6 (LC          Task 8 (uplot     Task 10 (echarts  Task 12 (konva
 | `CANVAS2D_CAPABILITIES` shape | `examples/canvas2d-adapter/src/capabilities.ts` | template for each adapter's full `Capabilities` |
 | `DEFAULT_ADAPTER` shape | `examples/canvas2d-adapter/src/defaultAdapter.ts` | template for each headless conformance export |
 | `createMultiStreamCandlePump` | `examples/canvas2d-adapter/src/streamPump.ts` | MTF pump reused/ported per adapter as needed |
-| Existing 61 canvas2d renderers (geometry math) | `examples/canvas2d-adapter/src/render/draw/*.ts` | **source of truth** ported into `decomposeDrawing` (Tasks 1–3) |
-| `bezier.ts`, `gannLevels.ts`, `pitchforkGeom.ts`, `lineExtend.ts`, `arrowhead.ts`, `namedPolyline.ts` | `examples/canvas2d-adapter/src/render/draw/` | moved into `adapter-kit/src/geometry/_lib/` (Task 1–3) |
+| Existing 63 canvas2d renderers (geometry math) | `examples/canvas2d-adapter/src/render/draw/*.ts` | **source of truth** ported into `decomposeDrawing` (Tasks 1–3) |
+| `bezier.ts`, `gannLevels.ts`, `pitchforkGeom.ts`, `lineExtend.ts`, `arrowhead.ts`, `chevron.ts`, `namedPolyline.ts`, `fibLevels.ts`, `shapeStyle.ts`, `textStyle.ts` | `examples/canvas2d-adapter/src/render/draw/` | moved into `adapter-kit/src/geometry/_lib/` (Task 1–3) |
 | `MockCanvas2DContext` / `hashCallLog` | `examples/canvas2d-adapter/src/testing.ts` | generalised into `adapter-kit/canvas` `MockCanvasContext`; canvas2d re-exports (Task 1, 4) |
 | `runConformanceSuite`, `ALL_SCENARIOS` | `@invinite-org/chartlang-conformance` | each adapter's conformance test + Task 13 |
 | `DrawingState` union, `WorldPoint`, `Bar` | `@invinite-org/chartlang-core` | `decomposeDrawing` input types |

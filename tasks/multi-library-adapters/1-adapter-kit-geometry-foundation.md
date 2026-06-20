@@ -9,10 +9,12 @@ Add a renderer-agnostic **geometry layer** to
 establishes the foundation: the `Viewport` + projection helpers, the
 `DrawPrimitive` IR, the canvas-family sink (`RenderCtx`,
 `paintPrimitive`, `MockCanvasContext`, `hashCallLog`), the shared
-geometry `_lib` helpers (bezier, line-extend, arrowhead, named-polyline),
-and the `decomposeDrawing` dispatcher covering the **basic** drawing
-kinds (lines/rays, boxes/shapes, annotations, marker, text). Tasks 2–3
-extend `decomposeDrawing` to the remaining kinds.
+geometry `_lib` helpers (bezier, line-extend, arrowhead, chevron,
+named-polyline, shape-style, text-style), and the `decomposeDrawing`
+dispatcher covering the **basic** drawing kinds — 20 of the 63
+`DrawingKind`s (lines/rays, boxes/shapes incl. `fill-between`,
+annotations, marker, text). Tasks 2–3 extend `decomposeDrawing` to the
+remaining 43 kinds.
 
 ## Prerequisites
 
@@ -21,9 +23,10 @@ None.
 ## Current Behavior
 
 All projection (`timeToX`/`priceToY`/`Viewport`), the `RenderCtx`
-type, the `MockCanvas2DContext`, and all 62 drawing geometries live
-inside `examples/canvas2d-adapter/src/render/`. `adapter-kit` has no
-geometry surface.
+type, the `MockCanvas2DContext`, and all 63 drawing geometries (63
+per-kind renderers under `src/render/draw/`) live inside
+`examples/canvas2d-adapter/src/render/`. `adapter-kit` has no geometry
+surface.
 
 ## Desired Behavior
 
@@ -85,7 +88,12 @@ export function worldPointToPixel(p: WorldPoint, view: Viewport): Point2 {
 }
 ```
 
-`WorldPoint` from `@invinite-org/chartlang-core`.
+`WorldPoint` from `@invinite-org/chartlang-core`. `worldPointToPixel`
+supersedes canvas2d's `src/render/draw/worldToCanvas.ts`
+(`worldPointToCanvas`), which is just `timeToX`/`priceToY` composed — it
+does **not** use the bar-shift helpers (`projectShiftedX`, `shiftedBarTime`,
+`medianBarSpacing`) that stay in canvas2d's `coords.ts` for plot rendering
+(see Task 4 §3).
 
 ### 3. Shared geometry `_lib` — `packages/adapter-kit/src/geometry/_lib/`
 
@@ -98,12 +106,19 @@ export function worldPointToPixel(p: WorldPoint, view: Viewport): Point2 {
 | `_lib/bezier.ts` | `draw/bezier.ts` | `sampleCubic`, `sampleQuadratic`, `Point2` (re-use IR `Point2`) |
 | `_lib/lineExtend.ts` | `draw/lineExtend.ts` | `extendLineSegment(a, b, opts, view)` → `{ from, to }` |
 | `_lib/arrowhead.ts` | `draw/arrowhead.ts` | returns the arrowhead polygon points (no ctx) |
+| `_lib/chevron.ts` | `draw/chevron.ts` | rewrite `drawChevron` (currently ctx-emitting) to return the chevron triangle polygon points; consumed by the `arrow-mark-up` / `arrow-mark-down` decomposers (§5) |
 | `_lib/namedPolyline.ts` | `draw/namedPolyline.ts` | returns `DrawPrimitive[]` (a polyline + per-vertex `text` primitives) instead of painting |
+| `_lib/shapeStyle.ts` | `draw/shapeStyle.ts` | rewrite `applyShapeStyle` (ctx-mutating) to a pure resolver returning `{ hasFill, fillColor, fillAlpha }`, mapped to the IR `FillStyle` by the box/shape decomposers |
+| `_lib/textStyle.ts` | `draw/textStyle.ts` | `resolveTextOpts` + `SIZE_TO_PX` + `HALIGN_TO_TEXTALIGN` + `VALIGN_TO_TEXTBASELINE` — maps `TextOpts` to the IR `text` primitive's `font` / `align` / `baseline` |
 | `_lib/dash.ts` | **`src/render/lineDash.ts`** (`dashPattern`) | `lineStyle → number[]` — **copy, do not move** (see note) |
 
-The four `draw/`-local helpers (`bezier`, `lineExtend`, `arrowhead`,
-`namedPolyline`) are package-private (consumed by `decomposeDrawing` only)
-and their canvas2d originals are deleted in Task 4.
+The `draw/`-local helpers (`bezier`, `lineExtend`, `arrowhead`,
+`chevron`, `namedPolyline`, `shapeStyle`, `textStyle`) are
+package-private (consumed by `decomposeDrawing` only). They are **not**
+imported by any surviving canvas2d plot renderer (verified: only
+`render/index.ts`'s barrel re-exports `./draw/index.js`), so their
+canvas2d originals — and the whole `src/render/draw/` directory — are
+deleted in Task 4.
 
 > **`dash.ts` is the exception — copy, not move.** `dashPattern` lives at
 > `examples/canvas2d-adapter/src/render/lineDash.ts` (one level **up** from
@@ -136,7 +151,7 @@ export function decomposeDrawing(
 it), exactly as canvas2d does — `decomposeDrawing` operates on whatever
 `state` it is handed.
 
-> **Exhaustiveness note:** until Task 3 lands all 62 arms, the `default`
+> **Exhaustiveness note:** until Task 3 lands all 63 arms, the `default`
 > arm must *not* use `satisfies never` (that would fail to typecheck).
 > Use the widening assignment above; Task 3 replaces the `default` with
 > the `never` guard once every kind is covered.
@@ -144,18 +159,24 @@ it), exactly as canvas2d does — `decomposeDrawing` operates on whatever
 ### 5. Basic-kind decomposers — `packages/adapter-kit/src/geometry/kinds/`
 
 One file per group, each a pure `(state, view) => DrawPrimitive[]`,
-ported from the matching canvas2d renderer's geometry:
+ported from the matching canvas2d renderer's geometry (20 kinds total):
 
 - `lines.ts` — `line`, `horizontal-line`, `horizontal-ray`,
   `vertical-line`, `cross-line`, `trend-angle` (6). Use `extendLineSegment`.
 - `boxes.ts` — `rectangle`, `rotated-rectangle`, `triangle`, `polyline`,
-  `circle`, `ellipse`, `path` (7). Closed polylines / arcs with fill.
+  `circle`, `ellipse`, `path`, `fill-between` (8). Closed polylines /
+  arcs with fill (resolved via `_lib/shapeStyle`). `fill-between` walks
+  `edgeA` forward then `edgeB` in reverse into one closed filled
+  `polyline` — port `draw/fillBetween.ts` (`renderFillBetween`), which is
+  registered under the `"fill-between"` case in `drawingDispatch.ts`.
 - `annotations.ts` — `text`, `arrow`, `arrow-marker`, `arrow-mark-up`,
-  `arrow-mark-down` (5). Arrow uses `_lib/arrowhead`.
+  `arrow-mark-down` (5). `arrow` uses `_lib/arrowhead`; `arrow-mark-up` /
+  `arrow-mark-down` use `_lib/chevron`; `text` resolves `TextOpts` via
+  `_lib/textStyle`.
 - `marker.ts` — `marker` (1) → a `marker` primitive (+ optional `text`).
 
 Reference the exact geometry in
-`examples/canvas2d-adapter/src/render/draw/{line,rectangle,circle,ellipse,text,arrow,marker,...}.ts`.
+`examples/canvas2d-adapter/src/render/draw/{line,rectangle,circle,ellipse,text,arrow,marker,fillBetween,...}.ts`.
 Preserve default colors/widths (e.g. line `#000000` width `1`) so Task 4's
 hash re-pin is behaviour-preserving.
 
@@ -223,7 +244,7 @@ hash re-pin is behaviour-preserving.
 | `packages/adapter-kit/src/geometry/project.ts` (+test) | Create | projection helpers |
 | `packages/adapter-kit/src/geometry/decompose.ts` (+test) | Create | dispatcher (basic arms) |
 | `packages/adapter-kit/src/geometry/kinds/{lines,boxes,annotations,marker}.ts` (+tests) | Create | basic decomposers |
-| `packages/adapter-kit/src/geometry/_lib/{bezier,lineExtend,arrowhead,namedPolyline,dash}.ts` (+tests) | Create | shared geometry helpers (moved) |
+| `packages/adapter-kit/src/geometry/_lib/{bezier,lineExtend,arrowhead,chevron,namedPolyline,shapeStyle,textStyle,dash}.ts` (+tests) | Create | shared geometry helpers (moved; `dash` copied) |
 | `packages/adapter-kit/src/geometry/index.ts` | Create | geometry barrel |
 | `packages/adapter-kit/src/canvas/{renderCtx,paintPrimitive,mockContext,index}.ts` (+tests) | Create | canvas sink + mock |
 | `packages/adapter-kit/src/index.ts` | Modify | export geometry surface |
@@ -245,8 +266,9 @@ hash re-pin is behaviour-preserving.
 
 ## Acceptance Criteria
 
-- `decomposeDrawing` covers all basic kinds (lines, boxes, annotations,
-  marker, text); remaining kinds return `[]` via the placeholder default.
+- `decomposeDrawing` covers all 20 basic kinds (lines, boxes incl.
+  `fill-between`, annotations, marker, text); the remaining 43 kinds
+  return `[]` via the placeholder default.
 - `paintPrimitive` + `MockCanvasContext` + `hashCallLog` exported from the
   `./canvas` sub-path; deterministic hashing verified.
 - 100% line/branch/function coverage on adapter-kit; JSDoc + README gates green.

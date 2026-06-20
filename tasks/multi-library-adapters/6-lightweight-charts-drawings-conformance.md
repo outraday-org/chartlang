@@ -4,7 +4,7 @@
 
 ## Goal
 
-Complete the lightweight-charts adapter: render all 62 drawing kinds via a
+Complete the lightweight-charts adapter: render all 63 drawing kinds via a
 lightweight-charts **Series Primitive** that paints
 `decomposeDrawing(emission, viewport)` to the primitive's
 `CanvasRenderingContext2D` using `paintPrimitive`, with the `Viewport`
@@ -153,7 +153,7 @@ privates). No adapter-kit change unless the §2 `project?` fallback is taken
 
 ## Acceptance Criteria
 
-- All 62 drawing kinds paint via the series primitive +
+- All 63 drawing kinds paint via the series primitive +
   `decomposeDrawing`/`paintPrimitive`; hashed integration test pinned.
 - `runConformanceSuite(default)` reports `failed === 0`.
 - README ≤ 100 lines; docs page added; CLAUDE.md updated.

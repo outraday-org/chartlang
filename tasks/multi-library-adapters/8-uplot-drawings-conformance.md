@@ -4,7 +4,7 @@
 
 ## Goal
 
-Complete the uPlot adapter: render all 62 drawing kinds inside uPlot's
+Complete the uPlot adapter: render all 63 drawing kinds inside uPlot's
 `hooks.draw` by painting `decomposeDrawing(emission, viewport)` to the
 canvas `ctx` via `paintPrimitive`, with the `Viewport` built from uPlot's
 `valToPos`. Add the hashed integration test, wire conformance, ship README
@@ -119,7 +119,7 @@ Private example → no public changeset (patch if repo changesets privates).
 
 ## Acceptance Criteria
 
-- All 62 drawings paint in the draw hook via
+- All 63 drawings paint in the draw hook via
   `decomposeDrawing`/`paintPrimitive`; hashed integration test pinned;
   viewport verified against `u.valToPos`.
 - `runConformanceSuite(default)` → `failed === 0`.
