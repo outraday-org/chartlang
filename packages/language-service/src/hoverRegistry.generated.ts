@@ -4021,7 +4021,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "examples": [
             "function lag(s: NumberSeriesSlot): number {\ns.value = 42;\nreturn s.current - s[1]; // current minus one bar ago\n}"
         ],
-        "since": "1.2",
+        "since": "1.3",
         "stability": "stable"
     },
     "NviOpts": {
@@ -5077,7 +5077,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "examples": [
             "const fn: typeof state.series = state.series;\nvoid fn;"
         ],
-        "since": "1.2",
+        "since": "1.3",
         "stability": "stable"
     },
     "state.string": {
