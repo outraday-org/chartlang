@@ -63,6 +63,7 @@ function freshContext(barIndex = 0): RuntimeContext {
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        seriesSlots: new Map(),
         requestSecurityBars: new Map(),
         diagnosedRequestKeys: new Set(),
         resolvedInputs: Object.freeze({}),

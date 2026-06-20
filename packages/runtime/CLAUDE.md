@@ -73,6 +73,31 @@
   runner-local `stateSlots` map. Do not clear a caller-supplied
   `StateStore` during dispose — warm restart restores from that backing
   store.
+- **`state.series` slots advance in `runComputeBody`, NOT `onBarClose`.**
+  `RuntimeContext.seriesSlots` holds one `SeriesSlot` per
+  `state.series(init)` callsite (`state/seriesSlot.ts`): a
+  `Float64RingBuffer` history ring + an identity-stable
+  `NumberSeriesSlot` view (`makeSeriesSlotView` wraps a reused
+  `makeSeriesView` and adds `value` get→`buffer.at(0)` / set→
+  `replaceHead`) + a `committedHead`. The ring lifecycle is driven inside
+  `execution/runComputeStep.ts:runComputeBody` (next to the `state.*`
+  hooks), so it runs once **per runner** (primary + each dep + each
+  sibling) and once on the HTF expression fold ctx (`securityExprRunner.ts
+  :evaluate`) — NOT in `onBarClose`/`onBarTick`. Close: `advanceSeriesSlots`
+  (`append(NaN)`) runs **before** compute, `commitSeriesSlots`
+  (`committedHead = at(0)`) after; tick: `resetSeriesHeads`
+  (`replaceHead(committedHead)`) before compute, no advance. **Order
+  invariant:** advance-before-compute means a slot first allocated
+  mid-compute on bar K is not present at advance time, so its seeded head
+  (`createSeriesSlot` does `append(init)`) is not double-advanced — the
+  allocation bar grows `length` by exactly one. Unwritten later bars are
+  `NaN` gaps. Snapshot keys use the `:series` suffix (vs `:state` / `ta:`)
+  so the restore router (`persistentStateStore.runtime.ts:
+  restoreRunnerSlots`) splits them out of the scalar state path;
+  `committedHead` is nulled when `NaN` for JSON-cleanliness. There is no
+  `stateStore` flush for series (the `seriesSlots` map is the live source
+  across bars; snapshots serialise from it directly), unlike scalar
+  `state.*` which `flushStateSlots` mirrors into `StateStore`.
 - **`PersistentStateStore` is a sibling lifecycle store, not the slot
   store.** `warmStart(currentMainBarTime)` restores a whole PLAN §6.9
   snapshot before the host feeds new bars; close-cadence and dispose

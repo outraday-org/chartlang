@@ -223,6 +223,133 @@ describe("transformOther — scalars", () => {
     });
 });
 
+describe("transformOther — series scalars (state.series)", () => {
+    it("lowers an na-init numeric var read with [n] to a state.series slot", () => {
+        const { scaffold } = run(
+            "var float prev = na\ndelta = close - prev\nprev := close\nplot(delta)\nplot(prev[1])",
+        );
+        expect(scaffold.stateSlots).toEqual([
+            { name: "prev", initExpr: "state.series(Number.NaN)" },
+        ]);
+        expect(scaffold.computeBody.statements).toEqual([
+            "let delta = bar.close - prev.value;",
+            "prev.value = bar.close;",
+            "plot(delta);",
+            "plot(prev[1]);",
+        ]);
+    });
+
+    it("lowers a literal-numeric var read with [n] to a state.series slot", () => {
+        const { scaffold } = run("var float acc = 0.0\nacc := acc + close\nplot(acc[2])");
+        expect(scaffold.stateSlots).toEqual([{ name: "acc", initExpr: "state.series(0.0)" }]);
+        expect(scaffold.computeBody.statements).toEqual([
+            "acc.value = acc.value + bar.close;",
+            "plot(acc[2]);",
+        ]);
+    });
+
+    it("keeps a numeric var NOT read with [n] as a leaner scalar slot", () => {
+        const { scaffold } = run("var int n = 0\nn := n + 1\nplot(n)");
+        expect(scaffold.stateSlots).toEqual([{ name: "n", initExpr: "state.int(0)" }]);
+    });
+
+    it("defaults an un-inferable-init numeric series to state.series(Number.NaN)", () => {
+        const { scaffold, diagnostics } = run(
+            "var float seed = close\nseed := close\nplot(seed[1])",
+        );
+        expect(scaffold.stateSlots).toEqual([
+            { name: "seed", initExpr: "state.series(Number.NaN)" },
+        ]);
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/scalar-state-type-defaulted",
+        );
+    });
+
+    it("approximates a varip numeric series as a non-tick state.series", () => {
+        const { scaffold, diagnostics } = run(
+            "varip float vp = 0.0\nvp := close\nplot(vp[1])",
+        );
+        expect(scaffold.stateSlots).toEqual([{ name: "vp", initExpr: "state.series(0.0)" }]);
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/varip-series-approximated",
+        );
+    });
+
+    it("keeps a bool var history as a scalar slot and flags series-history-non-numeric", () => {
+        const { scaffold, diagnostics } = run(
+            "var bool up = false\nup := close > open\nplot(up[1] ? 1 : 0)",
+        );
+        expect(scaffold.stateSlots).toEqual([{ name: "up", initExpr: "state.bool(false)" }]);
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/series-history-non-numeric",
+        );
+    });
+
+    it("keeps an na-init bool var history non-numeric (declared type drives it)", () => {
+        const { scaffold, diagnostics } = run(
+            "var bool flag = na\nflag := close > open\nplot(flag[1] ? 1 : 0)",
+        );
+        // na-init non-numeric stays a plain `let` (not registered as a slot).
+        expect(scaffold.stateSlots).toEqual([]);
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/series-history-non-numeric",
+        );
+    });
+
+    it("wires dynamic-series-index for a non-literal series-slot offset", () => {
+        const { scaffold, diagnostics } = run(
+            "var float prev = na\ni = 2\nprev := close\nplot(prev[i])",
+        );
+        expect(scaffold.stateSlots).toEqual([
+            { name: "prev", initExpr: "state.series(Number.NaN)" },
+        ]);
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/dynamic-series-index",
+        );
+    });
+
+    it("treats a unary non-literal offset (`x[-i]`) as a dynamic series index", () => {
+        const { diagnostics } = run(
+            "var float prev = na\ni = 2\nprev := close\nplot(prev[-i])",
+        );
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/dynamic-series-index",
+        );
+    });
+
+    it("accepts a unary-literal offset (`x[-1]`) without a dynamic-series-index", () => {
+        const { diagnostics } = run(
+            "var float prev = na\nprev := close\nplot(prev[-1])",
+        );
+        expect(diagnostics.toArray().map((d) => d.code)).not.toContain(
+            "pine-converter/transform/dynamic-series-index",
+        );
+    });
+
+    it("treats a bare (untyped) na-init var read with [n] as a numeric series", () => {
+        const { scaffold } = run("var p = na\np := close\nplot(p[1])");
+        expect(scaffold.stateSlots).toEqual([{ name: "p", initExpr: "state.series(Number.NaN)" }]);
+    });
+
+    it("ignores a history access whose receiver is not a bare identifier", () => {
+        // `(close - open)[1]` has a non-identifier receiver — no scalar slot to
+        // promote, so the var stays a leaner scalar and no series slot appears.
+        const { scaffold } = run("var float n = 0.0\nn := close\nplot((close - open)[1])");
+        expect(scaffold.stateSlots).toEqual([{ name: "n", initExpr: "state.float(0.0)" }]);
+    });
+
+    it("promotes a color-typed na-init var read with [n] as non-numeric", () => {
+        const { scaffold, diagnostics } = run(
+            "var color c = na\nc := color.red\nplot(c[1] == color.red ? 1 : 0)",
+        );
+        // `color` is non-numeric: not registered as a series slot, and flagged.
+        expect(scaffold.stateSlots).toEqual([]);
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/series-history-non-numeric",
+        );
+    });
+});
+
 describe("transformOther — passthrough and skips", () => {
     it("rewrites input references to inputs.<name>", () => {
         expect(stmts("len = input.int(20)\nplot(ta.sma(close, len))")).toEqual([

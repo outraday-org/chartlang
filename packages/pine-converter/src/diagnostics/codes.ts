@@ -647,6 +647,22 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             "No action needed if the default matches your script; otherwise adjust the chartlang call by hand.",
     },
+    "series-history-non-numeric": {
+        code: "pine-converter/transform/series-history-non-numeric",
+        severity: "info",
+        defaultMessage:
+            "History indexing on a non-numeric `var` is not supported in chartlang v1 (only numeric series).",
+        defaultSuggestion:
+            "Track the boolean/string history yourself, or convert the value to a number before indexing it.",
+    },
+    "varip-series-approximated": {
+        code: "pine-converter/transform/varip-series-approximated",
+        severity: "info",
+        defaultMessage:
+            "A history-indexed `varip` scalar lowers to a (non-tick) `state.series`; intra-bar tick-rollback of the history is not reproduced.",
+        defaultSuggestion:
+            "Confirm the series history does not rely on Pine's `varip` tick-rollback semantics.",
+    },
     "codegen-output-invalid": {
         code: "pine-converter/codegen/codegen-output-invalid",
         severity: "error",

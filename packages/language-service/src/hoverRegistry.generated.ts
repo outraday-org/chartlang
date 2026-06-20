@@ -4013,6 +4013,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.2",
         "stability": "stable"
     },
+    "NumberSeriesSlot": {
+        "fqn": "NumberSeriesSlot",
+        "kind": "type",
+        "title": "NumberSeriesSlot",
+        "summary": "/**\nA user-allocated, writable, indexable number series — the value half of\n{@link state} 's `series` slot. It is **both** a writable scalar slot\n(`s.value = x`, like `state.float`) **and** an indexable\n`Series<number>` (`s[1]`, `s.current`, `+s`, like `bar.close`). Assign\nthe current bar's value with `s.value = …` each step; read history with\n`s[n]` (n bars ago, `NaN` until filled). The runtime backs it with a\nnumber-coercible ring-buffer view sized to the script's max lookback.",
+        "examples": [
+            "function lag(s: NumberSeriesSlot): number {\ns.value = 42;\nreturn s.current - s[1]; // current minus one bar ago\n}"
+        ],
+        "since": "1.2",
+        "stability": "stable"
+    },
     "NviOpts": {
         "fqn": "NviOpts",
         "kind": "type",
@@ -5051,6 +5062,24 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "state.series": {
+        "fqn": "state.series",
+        "kind": "function",
+        "title": "state.series(_init)",
+        "summary": "Allocate or read a persistent **series** slot — a writable, indexable\nnumber history. `s.value = expr` writes the current bar's value;\n`s[0]` / `s.current` / `+s` read it back, `s[1]` reads one bar ago.\nThe allocation bar's pre-write head is seeded with `init`; unwritten later\nbars and out-of-range history reads are `NaN`. Unlike `state.float`, the\nslot retains a bounded window of prior committed values (sized to the\nscript's deepest literal `s[n]` lookback).",
+        "paramTable": [
+            {
+                "name": "_init",
+                "type": "number",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof state.series = state.series;\nvoid fn;"
+        ],
+        "since": "1.2",
+        "stability": "stable"
+    },
     "state.string": {
         "fqn": "state.string",
         "kind": "function",
@@ -5095,7 +5124,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "STATEFUL_PRIMITIVES_BY_NAME",
         "kind": "property",
         "title": "STATEFUL_PRIMITIVES_BY_NAME",
-        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 175-entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
+        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 176-entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
         "examples": [
             "import { STATEFUL_PRIMITIVES_BY_NAME } from \"@invinite-org/chartlang-core\";\nconst entry = STATEFUL_PRIMITIVES_BY_NAME.get(\"ta.ema\");\n// entry is { name: \"ta.ema\", slot: true } | undefined"
         ],

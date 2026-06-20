@@ -148,6 +148,7 @@ function buildSubRunnerState(
             },
             scriptMaxDrawings: args.compiled.manifest.maxDrawings ?? null,
             stateSlots: new Map(),
+            seriesSlots: new Map(),
             secondaryStreams: args.secondaryStreams,
             requestSecurityBars: new Map(),
             requestSecurityAlignments: new Map(),

@@ -2,6 +2,11 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { RuntimeContext } from "../runtimeContext.js";
+import {
+    advanceSeriesSlot,
+    commitSeriesSlot,
+    resetSeriesSlotHead,
+} from "./seriesSlot.js";
 
 /**
  * Persisted representation for a runtime state slot. Keys use
@@ -111,5 +116,60 @@ export function restoreStateSlots(
     ctx.stateSlots.clear();
     for (const [key, value] of Object.entries(slots)) {
         ctx.stateStore.set(key, value);
+    }
+}
+
+/**
+ * Advance every `state.series` ring once for a new close bar — append a
+ * fresh `NaN` head so the prior committed head slides to index 1. Runs
+ * BEFORE compute on close, so a slot first allocated mid-compute (already
+ * holding its seeded head) is not present here and is not double-advanced.
+ *
+ * @since 0.9
+ * @stable
+ * @example
+ *     // advanceSeriesSlots(ctx);
+ *     const advanced = true;
+ *     void advanced;
+ */
+export function advanceSeriesSlots(ctx: RuntimeContext): void {
+    for (const slot of ctx.seriesSlots.values()) {
+        advanceSeriesSlot(slot);
+    }
+}
+
+/**
+ * Commit every `state.series` live head as its bar-close value after
+ * close compute, so the next advance retains it and a tick can reset to
+ * it.
+ *
+ * @since 0.9
+ * @stable
+ * @example
+ *     // commitSeriesSlots(ctx);
+ *     const committed = true;
+ *     void committed;
+ */
+export function commitSeriesSlots(ctx: RuntimeContext): void {
+    for (const slot of ctx.seriesSlots.values()) {
+        commitSeriesSlot(slot);
+    }
+}
+
+/**
+ * Reset every `state.series` live head to its last committed value before
+ * tick compute, so a re-write refines from the committed baseline and a
+ * tick without a write reads the committed head. Does NOT advance length.
+ *
+ * @since 0.9
+ * @stable
+ * @example
+ *     // resetSeriesHeads(ctx);
+ *     const reset = true;
+ *     void reset;
+ */
+export function resetSeriesHeads(ctx: RuntimeContext): void {
+    for (const slot of ctx.seriesSlots.values()) {
+        resetSeriesSlotHead(slot);
     }
 }

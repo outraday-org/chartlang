@@ -25,6 +25,7 @@ import type {
 import type { DepOutputStore } from "./dep/DepOutputStore.js";
 import type { PersistentStateStore } from "./persistentStateStore.js";
 import type { SecurityExprRunner } from "./request/securityExprRunner.js";
+import type { SeriesSlot } from "./state/seriesSlot.js";
 import type { StateSlot } from "./state/stateSlot.js";
 import type { StateStore } from "./stateStore.js";
 import type { StreamState } from "./streamState.js";
@@ -164,6 +165,15 @@ export type RuntimeContext = {
      * @since 0.4
      */
     readonly stateSlots: Map<string, StateSlot<unknown>>;
+    /**
+     * Runtime `state.series` slot store keyed by
+     * `${slotIdPrefix ?? ""}${slotId}:series`. Each holds a history ring +
+     * the identity-stable script-facing view + the last committed head.
+     * The ring advances once per close (script-invisible lockstep), so
+     * `s[1]` is always one committed bar back. Cleared on `dispose` after
+     * the final snapshot captures it. @since 0.9
+     */
+    readonly seriesSlots: Map<string, SeriesSlot>;
     /**
      * Secondary candle streams keyed by `IntervalDescriptor.value`.
      * Mutated only by `createScriptRunner` mount/restore/routing. @since 0.5

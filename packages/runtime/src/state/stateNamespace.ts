@@ -1,9 +1,15 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { MutableSlot, StateNamespace } from "@invinite-org/chartlang-core";
+import type {
+    MutableSlot,
+    NumberSeriesSlot,
+    StateNamespace,
+} from "@invinite-org/chartlang-core";
 
+import { Float64RingBuffer } from "../ringBuffer.js";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { createSeriesSlot } from "./seriesSlot.js";
 import { asMutableSlot, StateSlot } from "./stateSlot.js";
 
 type StoredStateSlot<T> = {
@@ -24,6 +30,18 @@ type StoredStateSlot<T> = {
  */
 const stateKey = (ctx: RuntimeContext, slotId: string): string =>
     `${ctx.slotIdPrefix ?? ""}${slotId}:state`;
+
+/**
+ * Compose the runtime's `state.series` slot key — the `:series` suffix
+ * (vs `:state`) lets the snapshot restore router tell a series slot from a
+ * scalar `state.*` slot. The `slotIdPrefix` isolation rule is identical to
+ * {@link stateKey}.
+ *
+ * @since 0.9
+ * @internal
+ */
+const seriesKey = (ctx: RuntimeContext, slotId: string): string =>
+    `${ctx.slotIdPrefix ?? ""}${slotId}:series`;
 
 function getCtx(name: string): RuntimeContext {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
@@ -55,6 +73,22 @@ function getOrAllocate<T>(
     return asMutableSlot(slot);
 }
 
+function getOrAllocateSeries(slotId: string, init: number): NumberSeriesSlot {
+    const ctx = getCtx("state.series");
+    const key = seriesKey(ctx, slotId);
+    const existing = ctx.seriesSlots.get(key);
+    if (existing !== undefined) {
+        return existing.view;
+    }
+    // Size the ring to the runner's global capacity (`maxLookback + 1`, or
+    // the 5000-slot dynamic fallback). Warm restart rehydrates `seriesSlots`
+    // up front via `restoreSeriesSlots`, so a restored slot is found above
+    // and this seed path only runs for a genuinely first-seen callsite.
+    const slot = createSeriesSlot(new Float64RingBuffer(ctx.stream.ohlcv.close.capacity), init);
+    ctx.seriesSlots.set(key, slot);
+    return slot.view;
+}
+
 /**
  * Build the runtime `state` namespace installed on `ComputeContext`.
  * Each function accepts the compiler-injected `slotId` as its first
@@ -76,6 +110,8 @@ export function buildStateNamespace(): StateNamespace {
             getOrAllocate("state.bool", slotId, init, false),
         string: (slotId: string, init: string): MutableSlot<string> =>
             getOrAllocate("state.string", slotId, init, false),
+        series: (slotId: string, init: number): NumberSeriesSlot =>
+            getOrAllocateSeries(slotId, init),
         tick: {
             float: (slotId: string, init: number): MutableSlot<number> =>
                 getOrAllocate("state.tick.float", slotId, init, true),

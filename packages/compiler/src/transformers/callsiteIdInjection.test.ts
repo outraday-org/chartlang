@@ -173,6 +173,7 @@ state.float(0);
 state.int(0);
 state.bool(false);
 state.string("");
+state.series(0);
 state.tick.float(0);
 state.tick.int(0);
 state.tick.bool(false);

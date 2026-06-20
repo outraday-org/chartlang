@@ -7,13 +7,24 @@ import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 
 describe("HOVER_REGISTRY", () => {
     it("contains the apiVersion 1 language-service symbol set", () => {
-        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(529);
+        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(531);
     });
 
     it("contains the directly-indexable bar series type entries (1.3)", () => {
         expect(HOVER_REGISTRY.PriceSeries).toMatchObject({ fqn: "PriceSeries", kind: "type" });
         expect(HOVER_REGISTRY.VolumeSeries).toMatchObject({ fqn: "VolumeSeries", kind: "type" });
         expect(HOVER_REGISTRY.BarSeries).toMatchObject({ fqn: "BarSeries", kind: "type" });
+    });
+
+    it("contains the writable user series entries (state.series, 1.2)", () => {
+        expect(HOVER_REGISTRY.NumberSeriesSlot).toMatchObject({
+            fqn: "NumberSeriesSlot",
+            kind: "type",
+        });
+        expect(HOVER_REGISTRY["state.series"]).toMatchObject({
+            fqn: "state.series",
+            kind: "function",
+        });
     });
 
     it("contains indicator-composition (Phase 0.7) type entries", () => {

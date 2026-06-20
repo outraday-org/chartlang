@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { NumberSeriesSlot } from "../types.js";
 import type { MutableSlot } from "./mutableSlot.js";
 
 const sentinel = (name: string): never => {
@@ -73,6 +74,25 @@ export const state = Object.freeze({
      */
     string(_init: string): MutableSlot<string> {
         return sentinel("state.string");
+    },
+
+    /**
+     * Allocate or read a persistent **series** slot — a writable, indexable
+     * number history. `s.value = expr` writes the current bar's value;
+     * `s[0]` / `s.current` / `+s` read it back, `s[1]` reads one bar ago.
+     * The allocation bar's pre-write head is seeded with `init`; unwritten later
+     * bars and out-of-range history reads are `NaN`. Unlike `state.float`, the
+     * slot retains a bounded window of prior committed values (sized to the
+     * script's deepest literal `s[n]` lookback).
+     *
+     * @since 1.2
+     * @stable
+     * @example
+     *     const fn: typeof state.series = state.series;
+     *     void fn;
+     */
+    series(_init: number): NumberSeriesSlot {
+        return sentinel("state.series");
     },
 
     /**

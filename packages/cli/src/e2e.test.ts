@@ -26,6 +26,7 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/forecast-line.chart.ts",
     "examples/scripts/fill-between-band.chart.ts",
     "examples/scripts/anchored-line.chart.ts",
+    "examples/scripts/up-streak.chart.ts",
 ] as const;
 
 const COMPILE_TIMEOUT_MS = 15_000;

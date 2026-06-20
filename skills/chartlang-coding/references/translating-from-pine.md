@@ -100,6 +100,16 @@ To steer a Camp C script into a bounded camp:
 - **`varip` is approximated.** A `varip` handle reuses the same slot and
   raises a `varip-approximated` info — chartlang does not reproduce Pine's
   intra-bar tick-rollback. Confirm your script does not rely on it.
+- **`var x := …; x[1]` becomes a `state.series`.** A numeric `var`/`varip`
+  scalar that is read with a literal `[n]` history index lowers to a writable,
+  indexable `state.series` slot (not a scalar `state.float`/`int`), so the
+  `x[n]` history converts directly: `var float prev = na; … prev := close;
+  plot(prev[1])` → `const prev = state.series(Number.NaN); … prev.value =
+  bar.close; plot(prev[1])`. A numeric `var` never read with `[n]` keeps its
+  leaner scalar `state.*` lowering. A `bool`/`string` history-indexed `var` is
+  out of v1 series scope (`series-history-non-numeric`); a `varip` series
+  approximates to a non-tick `state.series` (`varip-series-approximated`); a
+  non-literal series-slot offset rejects (`dynamic-series-index`).
 - **`bar_index` anchors lower to `bar.point`.** A drawing anchored by
   `bar_index` (current, `bar_index[N]` historical, or `bar_index + N`
   future) now lowers to `bar.point(<signed offset>, price)` — the integer

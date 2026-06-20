@@ -9,6 +9,7 @@ import type { InputDescriptor } from "./input/inputDescriptor.js";
 import type { PlotKind } from "./plot/plot.js";
 import type { RequestNamespace } from "./request/index.js";
 import type { RuntimeNamespace } from "./runtime/index.js";
+import type { MutableSlot } from "./state/mutableSlot.js";
 import type { StateNamespace } from "./state/state.js";
 import type { TaNamespace } from "./ta/ta.js";
 import type { BarStateView, SymInfoView, TimeframeView } from "./views/index.js";
@@ -194,6 +195,28 @@ export type PriceSeries = Price & Series<Price>;
  *     }
  */
 export type VolumeSeries = Volume & Series<Volume>;
+
+/**
+ * A user-allocated, writable, indexable number series — the value half of
+ * {@link state}'s `series` slot. It is **both** a writable scalar slot
+ * (`s.value = x`, like `state.float`) **and** an indexable
+ * `Series<number>` (`s[1]`, `s.current`, `+s`, like `bar.close`). Assign
+ * the current bar's value with `s.value = …` each step; read history with
+ * `s[n]` (n bars ago, `NaN` until filled). The runtime backs it with a
+ * number-coercible ring-buffer view sized to the script's max lookback.
+ *
+ * `Number.isFinite(s)` / `s === x` see the **object**, not the number —
+ * use `s.current` / `+s` / `s.value` for raw-number contexts.
+ *
+ * @since 1.2
+ * @stable
+ * @example
+ *     function lag(s: NumberSeriesSlot): number {
+ *         s.value = 42;
+ *         return s.current - s[1]; // current minus one bar ago
+ *     }
+ */
+export type NumberSeriesSlot = MutableSlot<number> & Series<number>;
 
 /**
  * The current bar as `compute` sees it. Identical to {@link Bar} except the

@@ -61,6 +61,11 @@ const HIGHEST_LOWEST_BARS_STATEFUL_ADDITIONS: ReadonlyArray<
 const FILL_BETWEEN_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
     Object.freeze([{ name: "draw.fillBetween", slot: true }] as const);
 
+// `state.series` — the writable, indexable user series slot. A new
+// STATEFUL_PRIMITIVES entry alongside `state.float`/`int`/`bool`/`string`.
+const STATE_SERIES_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
+    Object.freeze([{ name: "state.series", slot: true }] as const);
+
 const PHASE_2_TA_CARDINALITY = PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length;
 const PHASE_4_STATEFUL_CARDINALITY = 163;
 
@@ -95,13 +100,15 @@ describe("Phase 2 surface", () => {
                 PHASE_5_STATEFUL_ADDITIONS.length +
                 PHASE_6_STATEFUL_ADDITIONS.length +
                 HIGHEST_LOWEST_BARS_STATEFUL_ADDITIONS.length +
-                FILL_BETWEEN_STATEFUL_ADDITIONS.length,
+                FILL_BETWEEN_STATEFUL_ADDITIONS.length +
+                STATE_SERIES_STATEFUL_ADDITIONS.length,
         );
         for (const expected of [
             ...PHASE_5_STATEFUL_ADDITIONS,
             ...PHASE_6_STATEFUL_ADDITIONS,
             ...HIGHEST_LOWEST_BARS_STATEFUL_ADDITIONS,
             ...FILL_BETWEEN_STATEFUL_ADDITIONS,
+            ...STATE_SERIES_STATEFUL_ADDITIONS,
         ]) {
             expect(STATEFUL_PRIMITIVES).toContainEqual(expected);
         }

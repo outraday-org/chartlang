@@ -936,9 +936,17 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   bare name; a tuple-decl element reassigned with `:=` is not supported.
   **Pine OHLCV history `close[i]` now COMPILES** — the compute bar's `bar.close`
   is an indexable `PriceSeries`, so `bar.close[i]` (literal, or an unrolled loop
-  index) type-checks; `14-polyline-rebuild` was removed from the skip list. Only
+  index) type-checks; `14-polyline-rebuild` was removed from the skip list.
+  **NUMERIC `var`/`varip` history now COMPILES** too — a numeric scalar that is
+  history-indexed anywhere lowers to `state.series` instead of `state.float`/`int`
+  (see the `state.series` lowering note below), so `var x := …; x[1]` round-trips
+  (fixture `30-var-series-history`, NOT in the skip list). Two gaps remain:
   TUPLE-element history (`macdLine[1]`, where `macdLine` is projected with
-  `.current`, so `…macd.current[1]` indexes a scalar) remains unsupported.
+  `.current`, so `…macd.current[1]` indexes a scalar); and `bool`/`string` `var`
+  history (a `state.series<bool>`/`<string>` is a deferred follow-up — the
+  converter keeps the scalar slot and emits `series-history-non-numeric`, so
+  `<slot>.value[n]` stays a known non-compiling form for those, never in a
+  clean fixture).
 - **Drawing-ownership dedup is the load-bearing skip.** `transformOther` walks
   ALL statements but emits ONLY non-drawing ones: it skips (a) any call that is
   a `DRAWING_KIND_MAP.has` constructor, (b) a `*.set_*`/`*.delete`/`array.*`/
@@ -974,6 +982,27 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   = …`. The `MutableSlot<T>` API is `.value` get/set (NOT the drawing-handle
   slot's `.current()`/`.set()`). A plain `=` declaration → `let x = …`; a `=`
   the semantic pass flags `declaration` → `let`, a reassignment → bare `x = …`.
+- **A history-indexed NUMERIC scalar lowers to `state.series`, NOT the scalar
+  `state.float`/`int` (`scanHistorySeries`/`emitSeriesSlot`, `other.ts`).** Only
+  a numeric `var`/`varip` read with `[n]` ANYWHERE in the script (whole-body +
+  expression-tree walk via the shared `forEachHistoryAccess` in `exprEmit.ts`)
+  becomes `const x = state.series(<init>)` — this is what makes the generated
+  `x[n]` compile (the `state.series` slot is an indexable `Series<number>`, so
+  `x[1]` is a real history read; a scalar `<slot>.value[n]` would be a typecheck
+  error). The init is the literal numeric value, `Number.NaN` for an `na` init
+  (so an `na`-init numeric `var` — normally dropped from the scalar map — IS
+  registered when history-indexed), or `Number.NaN` + `scalar-state-type-
+  defaulted` for an un-inferable init. A `varip` numeric series approximates to a
+  NON-tick `state.series` + `varip-series-approximated` (`state.tick.series` is
+  deferred). A numeric `var` NEVER `[n]`-indexed keeps its leaner scalar slot.
+  VALUE reads still go through `rewriteIdentifier` → `<slot>.value`; HISTORY
+  reads go through `EmitContext.seriesSlots` → the BARE slot local
+  (`<slot>[n]`); writes (`:=`) stay `<slot>.value = …`. A NON-numeric (`bool`/
+  `string`/`color`) history-indexed `var` keeps its scalar lowering and emits
+  `series-history-non-numeric` (info) — its `[n]` is the deferred
+  `state.series<bool>`/`<string>` gap, never in a clean fixture. A non-literal
+  series-slot offset (`x[i]`/`x[-i]`) wires the (pre-existing, error-severity)
+  `dynamic-series-index`.
 - **Loop policy (`emitFor`, §1a) is stateful/non-stateful split, NOT
   unroll-always.** A body that calls a stateful primitive (`plot`/`hline`/
   `alert`/`ta.*`/`draw.*`, detected recursively through nested `if`/`for`/
@@ -1054,17 +1083,22 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `request-security-lookahead-not-supported` (warnings),
   `strategy-signal-only`, `loop-body-unrolled`,
   `mtf-series-to-scalar-conversion`, `loop-unroll-frozen-at-input-default`,
-  `scalar-state-type-defaulted` (infos). Re-exports APPENDED to
-  `src/transform/index.ts`.
+  `scalar-state-type-defaulted`, `series-history-non-numeric`,
+  `varip-series-approximated` (infos — the last two added by the
+  `state.series` `var`-history lowering; `dynamic-series-index` was registered
+  here earlier and is now WIRED). Re-exports APPENDED to `src/transform/
+  index.ts` (incl. `forEachHistoryAccess` from `exprEmit.ts`).
 - **Coverage.** `other.ts`/`controlFlow.ts`/`emitContext.ts`/`statefulNames.ts`/
   `strFormat.ts`/`plotFamily.ts`/`requestSecurity.ts`/`strategySignals.ts` hold
   100% line/branch/function. Parser-unreachable arms (a top-level
   `block-statement`/`return-statement`, a camp-b `collectionSymbol` site, a
   handle-typed symbol skip, a non-identifier push collection, the
-  `array.shift`/`array.remove` eviction variants, an empty subjectless switch)
-  are covered by synthetic-`SemanticResult`/`emitFor` unit tests
-  (`other.synthetic.test.ts`, `controlFlow.test.ts`), the established
-  defensive-arm precedent.
+  `array.shift`/`array.remove` eviction variants, an empty subjectless switch,
+  the `seriesSlotReceiver` slot-undefined defensive arm) are covered by
+  synthetic-`SemanticResult`/`emitFor`/node-literal unit tests
+  (`other.synthetic.test.ts`, `controlFlow.test.ts`, `exprEmit.test.ts`'s
+  `forEachHistoryAccess` walk, `emit-context.test.ts`'s series-slot cases), the
+  established defensive-arm precedent.
 
 ### Codegen (`src/codegen/`)
 

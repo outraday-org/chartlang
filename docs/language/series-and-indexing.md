@@ -186,6 +186,62 @@ Positive (future) offsets need no buffer depth, and a non-literal /
 dynamic offset cannot be sized at compile time (reads past retention
 return a `NaN` time, just like a dynamic series index).
 
+## User-created series — `state.series`
+
+`bar.*` OHLCV fields and `ta.*` outputs are series the runtime hands you.
+`state.series(init)` lets a script mint **its own** writable, indexable
+number series — the one capability the read-only built-ins do not give you.
+The returned handle is both a writable scalar slot (like `state.float`) **and**
+an indexable `Series<number>` (like `bar.close`):
+
+- `s.value = expr` writes **this bar's** value (call it every step).
+- `s.current` / `s[0]` / `+s` read the current head; `s[1]` is one bar ago,
+  `s[3]` three bars ago; `s.length` is the filled count.
+- The slot advances **once per bar automatically** — `s[1]` is always exactly
+  one committed bar back. The allocation bar's pre-write head is seeded with
+  `init`; a bar where you never write leaves a `NaN` gap (carry the previous
+  value forward with `s.value = +s`).
+
+::: warning Raw-number contexts
+Like `bar.close`, the handle is an object, so `Number.isFinite(s)` is always
+`false` and `s === 5` is `false` (object vs number). Use `s.current`, `+s`, or
+`s.value` when you need the raw scalar.
+:::
+
+### Which do I reach for?
+
+To index a built-in or a `ta.*` output, index it **directly** — `bar.close[3]`
+and `ta.ema(bar.close, 14)[1]` already work, with **no** `state.series` needed.
+Reach for `state.series` only when you need the history of a value **you**
+compute that is **not** already a series — especially a **self-referential
+recurrence** (a value defined in terms of its own prior bar) or a
+**conditionally-updated** value. Those genuinely cannot be read off
+`bar.close[N]`:
+
+```ts
+import { defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Up-close streak",
+    apiVersion: 1,
+    overlay: false,
+    compute({ bar, state, plot }) {
+        // Consecutive up-closes: the value depends on its OWN prior bar, so it
+        // can't be read off bar.close[N]. state.series both stores it and lets
+        // you look back at the streak N bars ago.
+        const streak = state.series(0);
+        streak.value = bar.close.current > bar.close[1] ? streak[1] + 1 : 0;
+        plot(streak.current, { title: "Up streak" });
+    },
+});
+```
+
+A `state.series` ring is bounded by the compiler's lookback analysis exactly
+like every other series (see below), so a literal `s[n]` sizes its buffer
+precisely. It is the writable sibling of the bar/`ta.*` series: same `[n]` /
+`.current` / `+s` read surface, same NaN-gap rendering — the only delta is that
+you write its values yourself.
+
 ## Lookback is bounded — dynamic indices are flagged
 
 A series index that the compiler can **prove bounded at compile time** is
