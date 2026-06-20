@@ -113,6 +113,8 @@ Task 2 (categorized demo dialog + VitePress category grouping)
   +--> Tasks 3-10  (TA families: one example per ta.* primitive)
   +--> Tasks 11-18 (draw families: one example per draw.* kind)
   +--> Tasks 19-21 (core: input / state+plot+alert / define+bar+ctx+request)
+  +--> Task 21b     (core: language idioms — own `language` category +
+            |        `examples:idioms` gate; manifest-keyed, not allowlist)
             |   each task: add .chart.ts + catalogue entries, shrink allowlist,
             |   regen scripts.ts + docs/examples
             v
@@ -135,12 +137,16 @@ Tasks 23–25 are the **distribution** phase: 23 lives in chartlang, 24
 and 25 live in the `../invinite/` repo and depend on the published
 package.
 
-Tasks 3–21 are independent of each other (each touches disjoint
+Tasks 3–21 and 21b are independent of each other (each touches disjoint
 `.chart.ts` files + disjoint `catalogue.ts` entries + disjoint allowlist
 keys) and all depend only on Tasks 1 & 2. They are numbered for a
 clean sequential run; the merge points are `catalogue.ts`,
 `coverage-allowlist.json`, and the regenerated `scripts.ts` /
-`docs/examples` (re-run the generators after each task).
+`docs/examples` (re-run the generators after each task). Task 21b is the
+one exception that also lands additive taxonomy/gate deltas on the Task-1
+artifacts (the `language` category + the `examples:idioms` gate); those
+edits are additive and do not collide with the per-primitive ids the
+other W1 tasks own.
 
 ## 5b. Execution Plan & Parallelization (waves)
 
@@ -150,8 +156,8 @@ wide. Tasks can run in these waves to compress wall-clock time:
 | Wave | Tasks | Concurrency | Notes |
 |------|-------|-------------|-------|
 | **W0** | 1 | — | Must complete first: catalogue barrel, fragment dir, generators, gate, taxonomy (incl. `complex`). |
-| **W1** | **2, 3, 4, …, 21** | up to **20 parallel** | Task 2 (demo dialog) only needs the `category` field; Tasks 3–21 each own a disjoint `examples/scripts/*.chart.ts` set + a disjoint `examples/catalogue/<slug>.ts` fragment. None depend on each other. |
-| **W2** | 22 | — | Integration + enforce: needs all of 3–21 landed (allowlist drained) and Task 2's grouped sidebar for `docs:build`. |
+| **W1** | **2, 3, 4, …, 21, 21b** | up to **20 parallel** | Task 2 (demo dialog) only needs the `category` field; Tasks 3–21 + 21b each own a disjoint `examples/scripts/*.chart.ts` set + a disjoint `examples/catalogue/<slug>.ts` fragment. None depend on each other. Task 21b additionally lands additive taxonomy/gate deltas (the `language` category + `examples:idioms` gate); sequence those before the W2 integration step. |
+| **W2** | 22 | — | Integration + enforce: needs all of 3–21 + 21b landed (allowlist drained, idiom manifest seeded) and Task 2's grouped sidebar for `docs:build`. |
 | **W3** | 23 | — | Publish `@invinite-org/chartlang-examples` (chartlang). |
 | **W4** | 24 | — | invinite sync (needs published package). |
 | **W5** | 25 | — | invinite auto-update CI. |
@@ -215,16 +221,20 @@ defers those three commands to the wave boundary.
 | 19 | [Core — inputs](./19-core-inputs.md) | examples | 1,2 | 12 | Medium |
 | 20 | [Core — state, plot, hline & alert](./20-core-state-plot-alert.md) | examples | 1,2 | 11 | Medium |
 | 21 | [Core — define, bar, context & request](./21-core-define-bar-request.md) | examples | 1,2 | 11 | Medium |
-| 22 | [Enforce coverage gate & finalize](./22-enforce-and-finalize.md) | examples, scripts, docs | 1-21 | — | Low |
+| 21b | [Core — language idioms ("how", not "what")](./21b-language-idioms.md) | examples, scripts | 1,2 | 15 | Medium |
+| 22 | [Enforce coverage gate & finalize](./22-enforce-and-finalize.md) | examples, scripts, docs | 1-21, 21b | — | Low |
 | 23 | [Publish examples package & cross-repo trigger](./23-publish-examples-package.md) | packages/examples, .github | 22 | — | Medium |
 | 24 | [invinite — templates sync & unified taxonomy](./24-invinite-templates-sync.md) | **invinite repo** | 23 | — | Medium |
 | 25 | [invinite — auto-update CI](./25-invinite-auto-update-ci.md) | **invinite repo** | 24 | — | Low |
 
-> Per-task example counts sum to ~192 and are the planning target; the
-> authoritative target is the generated `docs/primitives/**` page set
-> the Task-1 gate enumerates. If a count drifts, the gate — not this
-> table — is the source of truth, and the relevant family task absorbs
-> the delta.
+> Per-task example counts for Tasks 3–21 sum to ~192 and are the planning
+> target; the authoritative target is the generated `docs/primitives/**`
+> page set the Task-1 gate enumerates. If a count drifts, the gate — not
+> this table — is the source of truth, and the relevant family task
+> absorbs the delta. **Task 21b is additive on top of the ~192:** its 15
+> examples cover *language idioms* (no primitive page), keyed to the
+> separate `examples/idiom-manifest.json` + `examples:idioms` gate, so
+> they do not count toward the per-primitive target.
 
 ## 7. Code Reuse
 

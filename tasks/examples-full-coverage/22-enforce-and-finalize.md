@@ -11,7 +11,8 @@ docs/skill counts and READMEs, and land the closing changeset.
 
 ## Prerequisites
 
-Tasks 1–21 (every primitive family covered; allowlist drained to empty).
+Tasks 1–21 (every primitive family covered; allowlist drained to empty)
+and Task 21b (language idioms — its `examples:idioms` gate runs here too).
 
 ## Current Behavior
 
@@ -65,6 +66,8 @@ should now be empty. (In sequential mode this is already done; skip.)
   verify per the root `CLAUDE.md` skill-sync rule).
 - `pnpm examples:gate`, `pnpm examples:coverage` — both green with no
   allowlist.
+- `pnpm examples:idioms` — green (Task 21b's idiom gate; manifest-keyed,
+  no allowlist, so unaffected by the allowlist removal above).
 
 ### 3. Counts & READMEs
 
@@ -100,6 +103,7 @@ should now be empty. (In sequential mode this is already done; skip.)
 
 - `pnpm typecheck`, `pnpm lint`, `pnpm test`
 - `pnpm examples:gate`, `pnpm examples:coverage` (enforcing, no allowlist)
+- `pnpm examples:idioms` (Task 21b's idiom gate, manifest-keyed)
 - `pnpm docs:gate`, `pnpm skills:gate`
 - `pnpm docs:build` + `apps/site` Playwright suite
 - `pnpm readme:check`
