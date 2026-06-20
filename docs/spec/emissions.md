@@ -69,6 +69,7 @@ current bar.
 | `pane` | string | `"overlay"`, `"new"`, or a named pane id. Current runtime folds non-overlay requests to `"overlay"` with `unsupported-pane`. |
 | `visible` | optional boolean | Omitted ⇒ visible. Only ever present as `false`, set by the runtime when a host [plot override](../adapters/contract.md#plot-overrides) hides the slot. An adapter MUST skip rendering and scale inclusion for a `visible: false` plot while keeping the slot listed. |
 | `xShift` | optional signed integer | Omitted/`0` ⇒ no shift. Presentation-only display shift in bars: the series renders displaced by `xShift` bars (`+n` right/future, `−n` left/past), set by the runtime from a plotted offset `ta.*` series. It does NOT change `value` or the bar an alert fires on. An adapter MAY honour it (render at the displaced bar) or ignore it (render at the bar's own time). |
+| `z` | optional finite number | Omitted/`0` ⇒ default placement (every no-`z` emission is byte-identical to a pre-feature run). Presentation-only render-order key set from `PlotOpts.z`: higher `z` renders on top, lower behind. Finite numbers only (fractional allowed, e.g. `1.5` to slot between layers); NaN/±Infinity are rejected. An adapter computes one global render order as a stable sort by `(z, groupBand, declarationOrder)` (see [render ordering](./semantics.md#render-order-key)). It affects **only** stacking — never `value`, alerts, or `state.*`. |
 
 Hiding a plot via an override is presentation state, not a diagnostic: a
 `visible: false` emission is a deliberate host instruction, so no
@@ -118,6 +119,7 @@ and `remove` carries the last-known full state.
 | `state` | `DrawingState` | Full state object. `state.kind` MUST equal `drawingKind`. |
 | `bar` | non-negative integer | Main-stream bar index. |
 | `time` | finite number | UTC milliseconds for the bar. |
+| `z` | optional finite number | Omitted/`0` ⇒ default placement (byte-identical to a pre-feature run). Presentation-only render-order key set from the `draw.*` option bag's `z`: higher renders on top, lower behind. Finite numbers only (fractional allowed); NaN/±Infinity are rejected. A drawing at `z = -1` renders **below** `z = 0` plots — the global sort by `(z, groupBand, declarationOrder)` is the only way to put a drawing beneath a plot (see [render ordering](./semantics.md#render-order-key)). `draw.table` and `draw.group` do not carry `z` in v1. |
 
 Every drawing state may include common metadata:
 

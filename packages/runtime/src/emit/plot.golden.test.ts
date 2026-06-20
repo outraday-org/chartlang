@@ -87,4 +87,50 @@ describe("plot — golden", () => {
         expect(hash).toBe("64c0bacd74a7a76ea520c1f30e314dd732ca1946976f24eb5d7f2b1ece5b9d34");
         expect(emissions.plots).toHaveLength(MINI_FIXTURE_BARS);
     });
+
+    it("emits a distinct SHA-256-stable plot array when every plot carries z: 2", () => {
+        const emissions: MutableRunnerEmissions = {
+            plots: [],
+            drawings: [],
+            alerts: [],
+            diagnostics: [],
+            fromBar: 0,
+            toBar: 0,
+        };
+        const stream = createStreamState({ interval: "", capacity: 64, symbol: "" });
+        let barIndex = 0;
+        const ctx: RuntimeContext = {
+            stream,
+            stateStore: inMemoryStateStore(),
+            capabilities: makeCaps(),
+            emissions,
+            barIndex: () => barIndex,
+            isTick: false,
+            drawingSlots: new Map(),
+            drawingSubIdCounters: new Map(),
+            drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+            scriptMaxDrawings: null,
+            stateSlots: new Map(),
+            defaultPane: "overlay",
+            scriptPane: "script:test",
+            plotOverrides: {},
+        };
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        for (let i = 0; i < MINI_FIXTURE_BARS; i += 1) {
+            stream.bar.time = 1_700_000_000_000 + i * 60_000;
+            const close = 100 + i * 0.5;
+            plot("fixture.ts:1:1#0", close, { z: 2 });
+            barIndex += 1;
+        }
+
+        const hash = createHash("sha256").update(JSON.stringify(emissions.plots)).digest("hex");
+
+        // A NEW golden — distinct from the no-z hash above, proving `z`
+        // rides the wire when present (and, by the no-z case staying
+        // pinned, that omitting it is byte-identical to the baseline).
+        expect(hash).toBe("f69aab7bc193dfca23491438f76003af65d6192e2081c75cabf4f556390d996b");
+        expect(emissions.plots).toHaveLength(MINI_FIXTURE_BARS);
+        expect(hash).not.toBe("64c0bacd74a7a76ea520c1f30e314dd732ca1946976f24eb5d7f2b1ece5b9d34");
+    });
 });

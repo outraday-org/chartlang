@@ -151,6 +151,12 @@ To steer a Camp C script into a bounded camp:
   (Pine v6 enums are UDT-backed) — use `input.string` as the migration
   target. chartlang itself supports `input.enum`; this limit is
   converter-only.
+- **`explicit_plot_zorder` needs no translation.** chartlang already orders
+  marks by declaration within a group by default, so Pine's
+  `explicit_plot_zorder=true` is chartlang's default — the converter
+  recognizes the flag as a no-op (no warning). For explicit per-mark control,
+  use the chartlang `z` option on `plot()` / `draw.*` (default `0`, higher on
+  top, a negative drawing `z` to sit beneath plots).
 
 ## See also
 

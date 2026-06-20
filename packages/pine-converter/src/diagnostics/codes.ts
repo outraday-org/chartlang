@@ -663,6 +663,14 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             "Confirm the series history does not rely on Pine's `varip` tick-rollback semantics.",
     },
+    "explicit-plot-zorder-default": {
+        code: "pine-converter/transform/explicit-plot-zorder-default",
+        severity: "info",
+        defaultMessage:
+            "Pine `explicit_plot_zorder` is the default in chartlang (marks layer by declaration order within their group); no flag is needed and none is emitted.",
+        defaultSuggestion:
+            "Remove the argument; chartlang always orders marks by declaration order, so the flag is a no-op either way.",
+    },
     "codegen-output-invalid": {
         code: "pine-converter/codegen/codegen-output-invalid",
         severity: "error",

@@ -236,6 +236,21 @@ export type PlotOpts = Readonly<{
     lineStyle?: LineStyle;
     pane?: "overlay" | "new" | string;
     style?: PlotOptsStyle;
+    /**
+     * Presentation-only render-order key (z-index). Default `0`.
+     * Higher `z` renders on top; lower `z` renders behind. Marks with
+     * equal `z` keep the default group order (plots below drawings) and,
+     * within a group, declaration order. `z` may be any finite number —
+     * fractional values (e.g. `1.5`) slot a mark between two layers
+     * without renumbering. It affects **only** stacking: `value`,
+     * alerts, and `state.*` are unaffected.
+     *
+     * @since 1.4
+     * @stable
+     * @example
+     *     plot(ta.sma(bar.close, 50), { z: -1 }); // behind other plots
+     */
+    z?: number;
 }>;
 
 /**

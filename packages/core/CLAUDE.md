@@ -68,6 +68,23 @@
   all four types in lockstep, and `ComputeContext.bar` is `BarSeries`
   there too.
 
+- **`z` (render-order key) is a presentation-only option declared once on
+  the `ZOrdered` mixin.** `ZOrdered { readonly z?: number }`
+  (`draw/drawingStyle.ts`) is intersected into every world-space `draw.*`
+  option bag (the style types there; `ArrowOpts` / `PathOpts` inherit it
+  transitively via `LineDrawStyle`), and `PlotOpts` (`plot/plot.ts`)
+  carries its own `z?: number` field with the parallel JSDoc. `TableOpts`
+  is **excluded**: `draw.table` is a viewport-HUD overlay (corner-anchored
+  status panel), not part of the world-space `(z, band, seq)` render sort,
+  so it carries no `z` in v1 (matches `docs/spec/emissions.md` —
+  "`draw.table` and `draw.group` do not carry `z`"). `z` is **never** on the `ta.*` series opts (it is a property of
+  the render call, not the series) and **never** part of `DrawingState`
+  (it is a top-level emission field added downstream, not per-handle
+  state). Author the draw `z` JSDoc once on `ZOrdered.z` — do not
+  copy-paste it onto each style type. The option is purely a type/contract
+  addition in core; validation, omit-when-`0` emission, and the global
+  render sort live in `adapter-kit` / `runtime` / the reference adapter.
+
 - **Coverage excludes `index.ts` (barrel) and any `types.ts` (declarations).**
   Real exported logic lives in dedicated files with co-located `*.test.ts`
   (unit) and `*.types.test.ts` (`expect-type`) layers. The two type-test

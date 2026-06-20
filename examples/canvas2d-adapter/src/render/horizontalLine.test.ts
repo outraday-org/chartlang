@@ -17,7 +17,14 @@ const viewport: Viewport = {
     pxHeight: 100,
 };
 
-const baseHLine: HLine = { price: 50, color: "#ff0000", lineWidth: 2, lineStyle: "solid" };
+const baseHLine: HLine = {
+    price: 50,
+    color: "#ff0000",
+    lineWidth: 2,
+    lineStyle: "solid",
+    z: 0,
+    seq: 0,
+};
 
 describe("drawHorizontalLine", () => {
     it("emits the canonical strokeStyle / lineWidth / setLineDash / beginPath / moveTo / lineTo / stroke / setLineDash sequence", () => {

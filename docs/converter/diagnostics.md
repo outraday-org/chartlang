@@ -243,6 +243,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** Series history `x[n]` with a non-literal `n` is not supported in chartlang.
 - **Suggested fix:** Use a literal offset, or read the value through a `ta.*` window primitive.
 
+### explicit-plot-zorder-default
+
+- **Code:** `pine-converter/transform/explicit-plot-zorder-default`
+- **Severity:** info
+- **Message:** Pine `explicit_plot_zorder` is the default in chartlang (marks layer by declaration order within their group); no flag is needed and none is emitted.
+- **Suggested fix:** Remove the argument; chartlang always orders marks by declaration order, so the flag is a no-op either way.
+
 ### fill-not-mapped
 
 - **Code:** `pine-converter/transform/fill-not-mapped`

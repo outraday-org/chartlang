@@ -6,12 +6,12 @@ import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Series } from "@invinite-org/chartlang-core";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { Float64RingBuffer } from "../ringBuffer.js";
 import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
     type RuntimeContext,
 } from "../runtimeContext.js";
-import { Float64RingBuffer } from "../ringBuffer.js";
 import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
 import { inMemoryStateStore } from "../stateStore.js";
 import { createStreamState } from "../streamState.js";
@@ -192,6 +192,66 @@ describe("plot — xShift (presentation offset, Option A)", () => {
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
         plot("a:1:1#0", tagged(0));
         expect(emissions.plots[0].xShift).toBeUndefined();
+    });
+});
+
+describe("plot — z (render-order, omit-when-0)", () => {
+    function tagged(offset: number): Series<number> {
+        const buf = new Float64RingBuffer(8);
+        buf.append(11);
+        buf.append(22);
+        return makeShiftedSeriesView<number>(buf, offset);
+    }
+
+    it("carries a non-zero z onto the emission", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42, { z: 2 });
+        expect(emissions.plots[0].z).toBe(2);
+    });
+
+    it("carries a fractional / negative z", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42, { z: -1.5 });
+        expect(emissions.plots[0].z).toBe(-1.5);
+    });
+
+    it("omits the z key entirely when z is not provided (byte-identical baseline)", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42);
+        const e = emissions.plots[0];
+        expect("z" in e).toBe(false);
+        expect(e.z).toBeUndefined();
+    });
+
+    it("omits the z key when z === 0 (byte-identical to no-z)", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42, { z: 0 });
+        expect("z" in emissions.plots[0]).toBe(false);
+    });
+
+    it("is independent of xShift — a plot can carry both", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", tagged(3), { z: 2 });
+        const e = emissions.plots[0];
+        expect(e.xShift).toBe(3);
+        expect(e.z).toBe(2);
+    });
+
+    it("preserves z through a matching plot override (regression guard)", () => {
+        const { ctx, emissions } = makeCtx({
+            plotOverrides: { "a:1:1#0": { visible: false, color: "#f00" } },
+        });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 1, { z: 4 });
+        const e = emissions.plots[0];
+        expect(e.z).toBe(4);
+        expect(e.visible).toBe(false);
+        expect(e.color).toBe("#f00");
     });
 });
 

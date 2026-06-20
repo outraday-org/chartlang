@@ -1,0 +1,4 @@
+//@version=6
+indicator("Explicit plot zorder", overlay=true, explicit_plot_zorder=true)
+plot(ta.sma(close, 20), "SMA 20", color.blue)
+plot(ta.sma(close, 50), "SMA 50", color.red)

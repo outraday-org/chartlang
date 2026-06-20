@@ -157,6 +157,20 @@
   `ta.ema(bar.close, …)` keep working. `extractMaxLookback` already
   recognises `bar.<ohlcv>[N]` textually (via `OHLCV_FIELDS`), so a direct
   `bar.close[N]` sizes the ring buffer with no analyser change.
+  - **The render-order `z` option lives on a shim `ZOrdered` mixin.** Core's
+    `z?: number` (the `plot-draw-z-order` feature) reaches the shim two ways:
+    `PlotOpts` carries `z?` directly, and `ZOrdered = Readonly<{ z?: number }>`
+    is intersected into **every** world-space `draw.*` opts type
+    (`LineDrawStyle`, `ShapeStyle`, `HighlighterStyle`, `BrushStyle`,
+    `TextOpts`, `ArrowMarkerOpts`, `FillBetweenStyle`, `FibOpts`,
+    `RegressionTrendOpts`, `FrameOpts`; `ArrowOpts`/`PathOpts` inherit it via
+    `LineDrawStyle`) — mirroring core's `drawingStyle.ts`. `TableOpts` is
+    **excluded** (a viewport-HUD overlay, not part of the render sort — see
+    core's `CLAUDE.md`). Without the mixin a
+    `draw.*(…, { z })` callsite fails the semantic-typecheck gate with TS2353
+    even though core accepts it. `z` is a type/contract addition only in the
+    shim (no analyser change — it is not a series read); the omit-when-`0`
+    emission + global render sort live in runtime / adapter-kit / the adapter.
   - **Overloaded shim namespaces are `interface`s, never `Readonly<{ … }>`
     object types.** `RequestNamespace` carries the two `security` overloads
     (data + expression form). `Readonly<T>` is a homomorphic mapped type, and

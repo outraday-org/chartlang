@@ -17,6 +17,8 @@ export {
     yToPrice,
 } from "./coords.js";
 export type { HLine, PlotPoint, Viewport } from "./coords.js";
+export { BAND, sortByRenderOrder } from "./renderOrder.js";
+export type { SortableMark } from "./renderOrder.js";
 export { drawHistogram } from "./histogram.js";
 export type { HistogramArgs } from "./histogram.js";
 export { drawArea } from "./area.js";

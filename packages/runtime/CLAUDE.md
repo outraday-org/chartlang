@@ -233,6 +233,54 @@
   tagged). The compiler contributes zero buffer depth for offset (Task 2)
   and the stale `ta/lib/applyOffset.ts` value-shift helper was deleted —
   nothing preserves the old value-read offset semantics.
+- **`z` is a presentation-only render-order key carried to
+  `PlotEmission.z` / `DrawingEmission.z` with the same omit-when-`0`
+  conditional spread as `xShift`.** Unlike `xShift`, `z` is a direct
+  **call option** (`opts.z`), not a series tag. `emit/plot.ts` reads
+  `opts.z ?? 0` and appends `...(z === 0 ? {} : { z })`. For drawings,
+  `z` lives on the `draw.*` opts bag (core's `ZOrdered` mixin) which the
+  per-kind impls fold into `state.style`; `emit/draw/handle.ts`'s
+  `splitZ` **lifts it back out** of `state.style` — into a **shallow
+  clone** with `z` removed (the caller's style object is never mutated)
+  — so the wire `state` / `state.style` carries no `z` for ANY kind
+  (Task 3 forbids `z` in `DrawingState`). `splitZ` leaves a no-`style`
+  state (e.g. `group`) or a no-`z` style **untouched** (same reference),
+  keeping the no-`z` path byte-identical. The lifted `z` is persisted on
+  the slot record (`DrawingSlot`, `runtimeContext.ts`) **beside**
+  `state` and threaded to the top-level `DrawingEmission.z`
+  (omit-when-`0`). An `update(patch)` re-runs `splitZ` over the merged
+  state, so a patch that re-specifies a non-zero `z` overrides while an
+  omitted/`0` `z` retains the slot's last value; a cross-bar re-entry
+  re-specifies `z` from the new call; `remove` carries the last-known
+  `z` (harmless — no render). Omitted/`0` `z` ⇒ no `z` own-key on the
+  wire, byte-identical to the pre-feature baseline; `z` is NOT part of
+  any dedup key (`(slotId, bar)` / `(handleId, bar)`). The threading
+  lives entirely in `handle.ts` — the ~62 per-kind impls are unchanged.
+  **`draw.table` and `draw.group` are intentionally out of scope for `z`
+  in v1** (README "Deferred/Follow-Up": z on tables/alerts is deferred):
+  `table` hand-picks its state fields (dropping `z` upstream) and
+  `group` takes no opts bag, so neither carries `z` — that is correct,
+  not a gap to "fix".
+  **Known v1 limitation — `z`-out-of-`state` is RUNTIME-enforced, not
+  COMPILE-enforced.** Because every `draw.*` style type carries `z` via
+  core's `ZOrdered` mixin and `DrawingState.style` is typed as those same
+  style types (`LineState.style: LineDrawStyle`, …), the TYPE of
+  `DrawingState.style` still admits `z` — so `splitZ` in `handle.ts` is
+  the *only* thing keeping `z` off `state` on the wire. A future per-kind
+  impl that builds its state and emits WITHOUT routing through
+  `createDrawingHandle` (or a regression in `splitZ`) would silently
+  re-leak `z` into `DrawingState` and STILL typecheck. The `splitZ` seam
+  plus its guard tests in `handle.test.ts` (`"z" in wireState` /
+  `"z" in wireState.style` are `false`; no caller mutation; byte-identity)
+  are the contract. Compile-enforcing this (tightening every
+  `DrawingState.style` to `Omit<…, "z">`, or splitting a z-free
+  `DrawingStyle` wire type from the author opts type) was evaluated and
+  deferred: it would scatter z-stripping across the ~62 per-kind impls or
+  require a DrawingState input/wire type split, defeating the deliberate
+  single-file `handle.ts` seam. Accepted for v1; revisit if a third `z`
+  re-leak class appears. Any NEW `draw.*` impl MUST construct its state
+  via `createDrawingHandle` — never emit a hand-built `DrawingState`
+  carrying a folded-in `z`.
 - **`pushPlot` / `pushAlert` validate via Task 4's
   `validateEmission`; `pushDiagnostic` does not.** Diagnostics are
   the failure sink — recursively validating them would loop. A

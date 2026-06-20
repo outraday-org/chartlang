@@ -45,6 +45,7 @@ import {
     SYMINFO_MINTICK_SCENARIO,
     TIMEFRAME_ISDAILY_SCENARIO,
     UNSUPPORTED_INTERVAL_SCENARIO,
+    Z_ORDER_SCENARIO,
 } from "./scenarios/index.js";
 
 const TEST_CAPABILITIES: Capabilities = {
@@ -279,6 +280,18 @@ describe("runConformanceSuite", () => {
         // (slot 0 carries no `xShift`), and the unshifted-value `plot-hash`.
         const report = await runConformanceSuite(makeAdapter(), {
             scenarios: [PLOT_OFFSET_XSHIFT_SCENARIO],
+            candles: SMALL_BARS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.failures).toEqual([]);
+    }, 30_000);
+
+    it("runs the z-order scenario end-to-end (negative z present, no-z omitted)", async () => {
+        // Exercises the `plot-field: "z"` evaluator arm: slot 1 carries the
+        // threaded `z: -1`, slot 0 omits the field (omit-when-`0` byte-
+        // identity), plus the presentation-independent value `plot-hash`.
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [Z_ORDER_SCENARIO],
             candles: SMALL_BARS,
         });
         expect(report.failed).toBe(0);

@@ -7,7 +7,15 @@ import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 
 describe("HOVER_REGISTRY", () => {
     it("contains the apiVersion 1 language-service symbol set", () => {
-        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(531);
+        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(532);
+    });
+
+    it("contains the render-order ZOrdered mixin type entry (1.4)", () => {
+        expect(HOVER_REGISTRY.ZOrdered).toMatchObject({
+            fqn: "ZOrdered",
+            kind: "type",
+            since: "1.4",
+        });
     });
 
     it("contains the directly-indexable bar series type entries (1.3)", () => {

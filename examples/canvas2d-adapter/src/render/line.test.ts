@@ -23,8 +23,13 @@ const BARS = [{ time: 0 }, { time: 25 }, { time: 50 }, { time: 75 }, { time: 100
 const SPACING = 25;
 const world = { bars: BARS, spacing: SPACING };
 
-function point(p: Omit<PlotPoint, "bar"> & { bar: number }): PlotPoint {
-    return p;
+// `z` / `seq` are render-pass sort keys the adapter assigns at ingest;
+// the pure `drawLine` renderer ignores them. Default both to `0` here so
+// the renderer unit tests stay focused on geometry, not layering.
+function point(
+    p: Omit<PlotPoint, "bar" | "z" | "seq"> & { bar: number; z?: number; seq?: number },
+): PlotPoint {
+    return { z: 0, seq: 0, ...p };
 }
 
 describe("drawLine", () => {
@@ -39,9 +44,9 @@ describe("drawLine", () => {
         drawLine(
             ctx,
             [
-                { time: 0, value: null, color: null, bar: 0 },
-                { time: 25, value: Number.NaN, color: null, bar: 1 },
-                { time: 50, value: Number.POSITIVE_INFINITY, color: null, bar: 2 },
+                point({ time: 0, value: null, color: null, bar: 0 }),
+                point({ time: 25, value: Number.NaN, color: null, bar: 1 }),
+                point({ time: 50, value: Number.POSITIVE_INFINITY, color: null, bar: 2 }),
             ],
             world,
             viewport,
@@ -53,11 +58,11 @@ describe("drawLine", () => {
     it("emits 1 beginPath / 1 moveTo / N-1 lineTo / 1 stroke for an N-point all-finite series", () => {
         const ctx = new MockCanvas2DContext();
         const series: PlotPoint[] = [
-            { time: 0, value: 10, color: null, bar: 0 },
-            { time: 25, value: 20, color: null, bar: 1 },
-            { time: 50, value: 30, color: null, bar: 2 },
-            { time: 75, value: 20, color: null, bar: 3 },
-            { time: 100, value: 10, color: null, bar: 4 },
+            point({ time: 0, value: 10, color: null, bar: 0 }),
+            point({ time: 25, value: 20, color: null, bar: 1 }),
+            point({ time: 50, value: 30, color: null, bar: 2 }),
+            point({ time: 75, value: 20, color: null, bar: 3 }),
+            point({ time: 100, value: 10, color: null, bar: 4 }),
         ];
         drawLine(ctx, series, world, viewport, DEFAULT_PALETTE);
         const beginPaths = ctx.calls.filter((c) => c.kind === "beginPath").length;
@@ -73,12 +78,12 @@ describe("drawLine", () => {
     it("breaks the line into sub-paths on null / non-finite gaps", () => {
         const ctx = new MockCanvas2DContext();
         const series: PlotPoint[] = [
-            { time: 0, value: 10, color: null, bar: 0 },
-            { time: 25, value: 20, color: null, bar: 1 },
-            { time: 50, value: null, color: null, bar: 2 },
-            { time: 75, value: 30, color: null, bar: 3 },
-            { time: 100, value: Number.NaN, color: null, bar: 4 },
-            { time: 100, value: 40, color: null, bar: 4 },
+            point({ time: 0, value: 10, color: null, bar: 0 }),
+            point({ time: 25, value: 20, color: null, bar: 1 }),
+            point({ time: 50, value: null, color: null, bar: 2 }),
+            point({ time: 75, value: 30, color: null, bar: 3 }),
+            point({ time: 100, value: Number.NaN, color: null, bar: 4 }),
+            point({ time: 100, value: 40, color: null, bar: 4 }),
         ];
         drawLine(ctx, series, world, viewport, DEFAULT_PALETTE);
         const beginPaths = ctx.calls.filter((c) => c.kind === "beginPath").length;
@@ -92,9 +97,9 @@ describe("drawLine", () => {
         drawLine(
             ctxA,
             [
-                { time: 0, value: null, color: "#abcdef", bar: 0 },
-                { time: 25, value: 10, color: "#123456", bar: 1 },
-                { time: 50, value: 20, color: null, bar: 2 },
+                point({ time: 0, value: null, color: "#abcdef", bar: 0 }),
+                point({ time: 25, value: 10, color: "#123456", bar: 1 }),
+                point({ time: 50, value: 20, color: null, bar: 2 }),
             ],
             world,
             viewport,
@@ -107,8 +112,8 @@ describe("drawLine", () => {
         drawLine(
             ctxB,
             [
-                { time: 0, value: 10, color: null, bar: 0 },
-                { time: 25, value: 20, color: null, bar: 1 },
+                point({ time: 0, value: 10, color: null, bar: 0 }),
+                point({ time: 25, value: 20, color: null, bar: 1 }),
             ],
             world,
             viewport,
@@ -127,8 +132,8 @@ describe("drawLine", () => {
         drawLine(
             ctx,
             [
-                { time: 0, value: null, color: null, bar: 0 },
-                { time: 25, value: null, color: null, bar: 1 },
+                point({ time: 0, value: null, color: null, bar: 0 }),
+                point({ time: 25, value: null, color: null, bar: 1 }),
             ],
             world,
             viewport,

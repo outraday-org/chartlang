@@ -244,6 +244,7 @@ import { TA_WMA_SCENARIO } from "./taWma.scenario.js";
 import { TA_ZIG_ZAG_SCENARIO } from "./taZigZag.scenario.js";
 import { TIMEFRAME_ISDAILY_SCENARIO } from "./timeframeIsdaily.scenario.js";
 import { UNSUPPORTED_INTERVAL_SCENARIO } from "./unsupportedInterval.scenario.js";
+import { Z_ORDER_SCENARIO } from "./zOrder.scenario.js";
 
 export { BAR_CLOSE_DIRECT_INDEX_SCENARIO } from "./barCloseDirectIndex.scenario.js";
 export { BAR_POINT_TRACKING_LINE_SCENARIO } from "./barPointTrackingLine.scenario.js";
@@ -488,6 +489,7 @@ export { TA_WMA_SCENARIO } from "./taWma.scenario.js";
 export { TA_ZIG_ZAG_SCENARIO } from "./taZigZag.scenario.js";
 export { TIMEFRAME_ISDAILY_SCENARIO } from "./timeframeIsdaily.scenario.js";
 export { UNSUPPORTED_INTERVAL_SCENARIO } from "./unsupportedInterval.scenario.js";
+export { Z_ORDER_SCENARIO } from "./zOrder.scenario.js";
 export { PHASE_2_INDICATORS, PHASE_5_DEFERRED } from "./phase2Inventory.js";
 
 /**
@@ -792,6 +794,11 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     DEP_CROSSOVER_GATE_SCENARIO,
     PLOT_STYLE_OVERRIDES_SCENARIO,
     PLOT_OFFSET_XSHIFT_SCENARIO,
+    // Tier 3 plot/draw z-order — pins `plot(value, { z })` → `PlotEmission.z`
+    // (negative z present on the wire, no-`z` slot omits the field), plus a
+    // value-hash proving `z` is presentation-only. Drawing-`z` is covered by
+    // the runtime + adapter tests (unassertable in this harness).
+    Z_ORDER_SCENARIO,
     // subpane-rendering Task 5 — `overlay: false` routes every plot +
     // hline to `script:<name>`; asserted via the `all-plots-on-pane`
     // variant against the canvas2d reference (subPanes >= 1).

@@ -7868,6 +7868,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         ],
         "since": "0.2",
         "stability": "stable"
+    },
+    "ZOrdered": {
+        "fqn": "ZOrdered",
+        "kind": "type",
+        "title": "ZOrdered",
+        "summary": "Shared render-order mixin intersected into every `draw.*` option bag.",
+        "examples": [
+            "draw.line(a, b, { z: -1 }); // beneath the plots"
+        ],
+        "since": "1.4",
+        "stability": "stable"
     }
 } as const,
 );

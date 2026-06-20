@@ -4,6 +4,7 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
+import { draw } from "./draw.js";
 import type {
     ArrowMarkerOpts,
     ArrowOpts,
@@ -16,7 +17,10 @@ import type {
     RegressionTrendOpts,
     ShapeStyle,
     TextOpts,
+    ZOrdered,
 } from "./drawingStyle.js";
+import type { TableOpts } from "./table.js";
+import type { WorldPoint } from "./worldPoint.js";
 
 describe("drawingStyle bags", () => {
     it("LineDrawStyle carries optional color/lineWidth/lineStyle/extend flags", () => {
@@ -84,5 +88,46 @@ describe("drawingStyle bags", () => {
     it("FrameOpts carries optional label + bgColor", () => {
         expectTypeOf<FrameOpts["label"]>().toEqualTypeOf<string | undefined>();
         expectTypeOf<FrameOpts["bgColor"]>().toEqualTypeOf<string | undefined>();
+    });
+
+    it("ZOrdered carries an optional finite z", () => {
+        expectTypeOf<ZOrdered["z"]>().toEqualTypeOf<number | undefined>();
+    });
+
+    it("every draw option bag inherits the optional z mixin", () => {
+        expectTypeOf<LineDrawStyle["z"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<ShapeStyle["z"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<HighlighterStyle["z"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<BrushStyle["z"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<TextOpts["z"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<ArrowOpts["z"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<ArrowMarkerOpts["z"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<PathOpts["z"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<FibOpts["z"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<RegressionTrendOpts["z"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<FrameOpts["z"]>().toEqualTypeOf<number | undefined>();
+    });
+
+    it("TableOpts does NOT carry z — tables are a viewport HUD layer, not part of the world-space (z, band, seq) sort (v1)", () => {
+        expectTypeOf<TableOpts>().not.toHaveProperty("z");
+    });
+
+    it("z is optional and rejects non-numbers on a draw option bag", () => {
+        const layered: LineDrawStyle = { z: -1 };
+        const noZ: LineDrawStyle = { color: "#000" };
+        // @ts-expect-error z is a number, not a string
+        const bad: LineDrawStyle = { z: "x" };
+        void layered;
+        void noZ;
+        void bad;
+    });
+
+    it("draw.line accepts a z render-order key", () => {
+        const a: WorldPoint = { time: 0, price: 0 };
+        const b: WorldPoint = { time: 1, price: 1 };
+        // Type-only assertion: the stub throws at runtime, so this is never
+        // invoked — we only assert the option bag type-checks.
+        const call = (): ReturnType<typeof draw.line> => draw.line(a, b, { z: -1 });
+        void call;
     });
 });

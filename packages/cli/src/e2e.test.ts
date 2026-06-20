@@ -27,6 +27,7 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/fill-between-band.chart.ts",
     "examples/scripts/anchored-line.chart.ts",
     "examples/scripts/up-streak.chart.ts",
+    "examples/scripts/z-layering.chart.ts",
 ] as const;
 
 const COMPILE_TIMEOUT_MS = 15_000;
