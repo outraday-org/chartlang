@@ -208,7 +208,7 @@ export type VolumeSeries = Volume & Series<Volume>;
  * `Number.isFinite(s)` / `s === x` see the **object**, not the number —
  * use `s.current` / `+s` / `s.value` for raw-number contexts.
  *
- * @since 1.2
+ * @since 1.3
  * @stable
  * @example
  *     function lag(s: NumberSeriesSlot): number {

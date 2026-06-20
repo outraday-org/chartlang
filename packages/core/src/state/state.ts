@@ -85,7 +85,7 @@ export const state = Object.freeze({
      * slot retains a bounded window of prior committed values (sized to the
      * script's deepest literal `s[n]` lookback).
      *
-     * @since 1.2
+     * @since 1.3
      * @stable
      * @example
      *     const fn: typeof state.series = state.series;
