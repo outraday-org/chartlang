@@ -77,7 +77,7 @@ const NAV_LINKS = [
   { href: "/#features", label: "Features" },
   { href: "/#quickstart", label: "Quickstart" },
   { href: "/#demo", label: "Demo" },
-  { href: "/converter", label: "Converter" },
+  { href: "/converter", label: "PineScript Converter" },
   { href: DOCS_URL, label: "Docs" },
 ] as const
 
