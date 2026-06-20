@@ -147,7 +147,10 @@ To steer a Camp C script into a bounded camp:
   can pick the closest fit by hand.
 - **Inputs must be literal.** Defaults and option values must be
   compile-time literals (a unary `+`/`-` on a number is fine). A computed
-  default rejects. `input.enum` is not supported — use `input.string`.
+  default rejects. **The converter** does not translate Pine `input.enum`
+  (Pine v6 enums are UDT-backed) — use `input.string` as the migration
+  target. chartlang itself supports `input.enum`; this limit is
+  converter-only.
 
 ## See also
 
