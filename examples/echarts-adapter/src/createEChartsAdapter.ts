@@ -298,6 +298,11 @@ function bandData(
 // `state.drawings` by `applyDrawing`, so only live drawings are seen here.
 // Non-finite primitives are filtered out (see `primitiveIsFinite`).
 function buildGraphics(state: AdapterState): EChartsGraphicElement[] {
+    // No drawings means no viewport sampling — sampling `convertToPixel`
+    // would otherwise hit the live chart on every frame (real ECharts
+    // throws when sampled before its first layout), so skip it entirely
+    // when there is nothing to project.
+    if (state.drawings.size === 0) return [];
     const view = buildViewport(state.chart, state.bars);
     const graphics: EChartsGraphicElement[] = [];
     for (const drawing of state.drawings.values()) {

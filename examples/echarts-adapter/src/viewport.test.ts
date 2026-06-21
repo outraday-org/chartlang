@@ -136,6 +136,24 @@ describe("buildViewport", () => {
         expect(vp.yMax).toBe(110);
     });
 
+    it("returns a fallback when convertToPixel throws (chart not laid out)", () => {
+        // A live ECharts chart sampled before its first layout throws from
+        // inside `convertToPixel` rather than returning `undefined`.
+        const throwingConvert: EChartsSurface = {
+            setOption() {},
+            resize() {},
+            dispose() {},
+            convertToPixel() {
+                throw new Error("Cannot read properties of undefined (reading 'queryComponents')");
+            },
+        };
+        const bars = [bar(0, 100, 110)];
+        const vp = buildViewport(throwingConvert, bars);
+        expect(vp.xMax).toBe(bars[0].time + 1);
+        expect(vp.yMin).toBe(100);
+        expect(vp.yMax).toBe(110);
+    });
+
     it("handles an empty bar window with a unit fallback extent", () => {
         const noConvert: EChartsSurface = {
             setOption() {},

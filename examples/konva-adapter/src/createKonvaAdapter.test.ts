@@ -17,6 +17,7 @@ import {
     createKonvaAdapter,
     feedCandleEvent,
     handleInterval,
+    runKonvaLoop,
 } from "./createKonvaAdapter.js";
 import type { RecordedNode, RecordedNodeType } from "./testing.js";
 import { MockKonva, hashKonvaScene } from "./testing.js";
@@ -147,6 +148,22 @@ describe("createKonvaAdapter — construction", () => {
         expect(konva.roots[1].type).toBe("Layer");
         expect(konva.roots[2].type).toBe("Layer");
         expect(konva.ops.filter((o) => o.op === "add" && o.on === "Stage")).toHaveLength(2);
+    });
+
+    it("constructs the stage WITHOUT a container by default", () => {
+        const { konva } = build();
+        expect(konva.roots[0].type).toBe("Stage");
+        expect("container" in konva.roots[0].config).toBe(false);
+    });
+
+    it("passes a supplied container into the stage config", () => {
+        // A minimal structural HTMLElement stand-in — the headless MockKonva
+        // records the config bag without touching the DOM, so any object
+        // satisfying the type is enough to assert the seam carries it.
+        const container = {} as HTMLElement;
+        const { konva } = build({ container });
+        expect(konva.roots[0].type).toBe("Stage");
+        expect(konva.roots[0].config.container).toBe(container);
     });
 
     it("defaults capabilities and exposes the host on the handle", () => {
@@ -1070,5 +1087,170 @@ describe("createKonvaAdapter — hash stability", () => {
             return konva;
         };
         expect(hashKonvaScene(make())).toBe(hashKonvaScene(make()));
+    });
+});
+
+// A host that records every push + drain so the loop's per-event drive can
+// be asserted. Each drain returns the next queued emission set (or empty).
+function recordingHost(drainResults: RunnerEmissions[] = []): ScriptHost & {
+    pushed: CandleEvent[];
+    drains: number;
+} {
+    const out = {
+        pushed: [] as CandleEvent[],
+        drains: 0,
+        limits: { maxHeapBytes: 0, maxCpuMsPerStep: 0, maxRingBufferBars: 0 },
+        load: async (_c: HostCompiledScript): Promise<void> => undefined,
+        push: async (e: CandleEvent): Promise<void> => {
+            out.pushed.push(e);
+        },
+        setPlotOverrides: (): void => undefined,
+        drain: async (): Promise<RunnerEmissions> => {
+            const result = drainResults[out.drains] ?? emissions([]);
+            out.drains += 1;
+            return result;
+        },
+        dispose: (): void => undefined,
+    };
+    return out;
+}
+
+async function* candleStream(events: ReadonlyArray<CandleEvent>): AsyncIterable<CandleEvent> {
+    for (const event of events) yield event;
+}
+
+describe("runKonvaLoop", () => {
+    it("iterates the candle source, repaints, pushes every event, drains, and re-renders", async () => {
+        const events: CandleEvent[] = [
+            { kind: "history", bars: [bar(0, 10, 12, 8, 11)] },
+            { kind: "close", bar: bar(10, 11, 13, 10, 12) },
+            { kind: "tick", bar: bar(10, 11, 14, 10, 13) },
+        ];
+        const host = recordingHost([
+            emissions([]),
+            emissions([plot("a", { kind: "line", lineStyle: "solid", lineWidth: 1 })]),
+            emissions([]),
+        ]);
+        const { adapter, konva } = build({ candleSource: candleStream(events), host });
+        await runKonvaLoop(adapter);
+        expect(host.pushed).toEqual(events);
+        expect(host.drains).toBe(3);
+        // feedCandleEvent repainted per event, so the series layer carries
+        // the candle wick + body built from the fed bars.
+        expect(leafTypes(konva)).toContain("Rect");
+    });
+
+    it("throws when handed a handle not produced by createKonvaAdapter", async () => {
+        const foreign = Object.freeze({}) as unknown as KonvaAdapterHandle;
+        await expect(runKonvaLoop(foreign)).rejects.toThrow(/not produced by createKonvaAdapter/);
+    });
+
+    it("returns immediately when the signal is already aborted", async () => {
+        const host = recordingHost([emissions([])]);
+        const { adapter } = build({
+            candleSource: candleStream([{ kind: "close", bar: bar(0, 1, 2, 0, 1) }]),
+            host,
+        });
+        const controller = new AbortController();
+        controller.abort();
+        await runKonvaLoop(adapter, { signal: controller.signal });
+        expect(host.pushed).toEqual([]);
+        expect(host.drains).toBe(0);
+    });
+
+    it("breaks out of the loop on the next iteration after an abort", async () => {
+        const host = recordingHost([emissions([]), emissions([]), emissions([])]);
+        const controller = new AbortController();
+        const events: CandleEvent[] = [
+            { kind: "close", bar: bar(0, 1, 2, 0, 1) },
+            { kind: "close", bar: bar(10, 1, 2, 0, 1) },
+        ];
+        // Abort at the END of each yield so the body's top-of-iteration
+        // abort check is what short-circuits the second event.
+        async function* yieldAll(): AsyncIterable<CandleEvent> {
+            for (const event of events) {
+                yield event;
+                controller.abort();
+            }
+        }
+        const { adapter } = build({ candleSource: yieldAll(), host });
+        await expect(runKonvaLoop(adapter, { signal: controller.signal })).resolves.toBeUndefined();
+        expect(host.pushed.length).toBe(1);
+        expect(host.drains).toBe(1);
+    });
+
+    it("ignores abort when the signal is never triggered", async () => {
+        const host = recordingHost([emissions([]), emissions([])]);
+        const controller = new AbortController();
+        const { adapter } = build({
+            candleSource: candleStream([
+                { kind: "close", bar: bar(0, 1, 2, 0, 1) },
+                { kind: "close", bar: bar(10, 1, 2, 0, 1) },
+            ]),
+            host,
+        });
+        await runKonvaLoop(adapter, { signal: controller.signal });
+        expect(host.pushed.length).toBe(2);
+        expect(host.drains).toBe(2);
+    });
+
+    it("aborts mid-push so the post-push branch returns before draining", async () => {
+        const controller = new AbortController();
+        const event: CandleEvent = { kind: "close", bar: bar(0, 1, 2, 0, 1) };
+        const base = recordingHost([emissions([])]);
+        const host: ScriptHost = {
+            ...base,
+            push: async (e: CandleEvent): Promise<void> => {
+                base.pushed.push(e);
+                controller.abort();
+            },
+        };
+        const { adapter } = build({ candleSource: candleStream([event]), host });
+        await runKonvaLoop(adapter, { signal: controller.signal });
+        expect(base.pushed).toEqual([event]);
+        expect(base.drains).toBe(0);
+    });
+
+    it("aborts during the post-yield microtask so the pre-drain branch returns", async () => {
+        const controller = new AbortController();
+        const event: CandleEvent = { kind: "close", bar: bar(0, 1, 2, 0, 1) };
+        const base = recordingHost([emissions([])]);
+        const host: ScriptHost = {
+            ...base,
+            push: async (e: CandleEvent): Promise<void> => {
+                base.pushed.push(e);
+                // Fire the abort on the next macrotask — after push resolves
+                // but during the loop's `setTimeout(0)` yield, so the
+                // pre-drain abort check short-circuits before draining.
+                setTimeout(() => controller.abort(), 0);
+            },
+        };
+        const { adapter } = build({ candleSource: candleStream([event]), host });
+        await runKonvaLoop(adapter, { signal: controller.signal });
+        expect(base.pushed).toEqual([event]);
+        expect(base.drains).toBe(0);
+    });
+
+    it("aborts during drain so the post-drain branch returns before onEmissions", async () => {
+        const controller = new AbortController();
+        const event: CandleEvent = { kind: "close", bar: bar(0, 1, 2, 0, 1) };
+        const base = recordingHost();
+        const host: ScriptHost = {
+            ...base,
+            drain: async (): Promise<RunnerEmissions> => {
+                base.drains += 1;
+                // Abort while the drain is in flight: the post-drain guard
+                // must short-circuit before onEmissions paints the disposing
+                // stage.
+                controller.abort();
+                return emissions([plot("a", { kind: "line", lineStyle: "solid", lineWidth: 1 })]);
+            },
+        };
+        const { adapter, konva } = build({ candleSource: candleStream([event]), host });
+        await runKonvaLoop(adapter, { signal: controller.signal });
+        expect(base.drains).toBe(1);
+        // feedCandleEvent rebuilt both layers (2 `destroyChildren`); the
+        // skipped onEmissions added no further rebuild, so the count stays 2.
+        expect(konva.ops.filter((o) => o.op === "destroyChildren")).toHaveLength(2);
     });
 });

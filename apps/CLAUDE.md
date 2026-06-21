@@ -172,3 +172,43 @@ and the demo 500s, the client bundle fails to load, or the whole site
   (the example file AND the `DEMO_SCRIPTS` string), then re-run
   `pnpm examples:generate`. Demo-only entries (e.g. `smoothed-rsi-cross`,
   `manual-sma`) have no file and are skipped by the gate.
+- **The demo adapter driver layer dynamic-imports EVERY heavy lib —
+  never statically.** `src/components/demo/adapters/` normalises the five
+  example adapters behind one `DemoAdapterDriver` (`{ host, run(signal),
+  dispose() }`) contract (`adapters/types.ts`); `adapters/registry.ts`'s
+  `DEMO_ADAPTERS` lazily `import()`s each driver module, and each driver
+  `import()`s its adapter package (and, for **echarts** + **konva**, the
+  peer lib itself, because those adapters take an injected
+  `echartsFactory` / `konva` surface rather than importing the lib — the
+  other three import their lib internally). A STATIC `import` of
+  `echarts` / `konva` / `lightweight-charts` / `uplot` or any
+  `chartlang-example-*-adapter` package anywhere in `src/` would bloat the
+  client chunk AND pull DOM-only lib code into the `ssr` build (the demo
+  is reached only through the client-only, lazy `DemoBody`→`ChartPane`
+  path). Verified: a static heavy-lib import makes the lib appear as a
+  large chunk under `dist/server/assets/`; with the dynamic imports the
+  SSR side carries only the ~1KB driver wrappers and the real lib lands in
+  client chunks. The only permitted static references are `import type`
+  (`EChartsSurface` / `KonvaNamespace`, erased by `verbatimModuleSyntax`).
+  Do **not** add these libs to `optimizeDeps.exclude`.
+- **`echarts.init(...)` / `konva.default` are narrowed `as unknown as
+  <seam>` at exactly one point each.** The real `EChartsType`
+  `convertToPixel` overload (value incl. `Date`) and Konva's
+  `StageConfig.container` (`string | HTMLDivElement`) are not structurally
+  assignable to the adapters' narrower `EChartsSurface` / `KonvaNamespace`
+  seams under `exactOptionalPropertyTypes`; the narrowing lives in the
+  echarts / konva driver factory bodies with a `why` comment. Keep it to
+  that one seam — do not widen the adapter seams to absorb the lib types.
+- **canvas2d's driver builds its inner `<canvas class="chart-canvas">`.**
+  `landing.spec.ts` targets `canvas.chart-canvas` and reads its bitmap, so
+  the canvas2d driver must keep that class on the canvas it creates inside
+  the mount element.
+- **`DEMO_ADAPTERS` ids mirror `scripts/adapters/registry.ts`
+  `ADAPTERS[].id`** (`canvas2d`, `echarts`, `konva`, `lightweight-charts`,
+  `uplot`). The list is deliberately NOT imported from `scripts/` (avoids
+  an app→`scripts` bundling dependency); a maintenance comment in
+  `adapters/registry.ts` records that adding/removing an adapter means
+  updating BOTH lists.
+- **Every driver `dispose()` is idempotent and empties `mountEl`**
+  (`mountEl.replaceChildren()`) after one `handle.dispose()`, so switching
+  adapters leaves no orphan canvas/svg/stage behind.

@@ -104,6 +104,17 @@
   font-size: 11px;
 }
 
+.cl-demo .chart-adapter {
+  margin-left: auto;
+}
+
+.cl-demo .chart-surface {
+  width: 800px;
+  height: 480px;
+  position: relative;
+  max-width: 100%;
+}
+
 .cl-demo .chart-canvas {
   background: var(--muted);
   border: 1px solid var(--border);

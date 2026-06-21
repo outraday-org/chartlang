@@ -13,6 +13,7 @@ import type { AlertEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
 import { type ReactElement, Suspense, lazy, useEffect, useRef, useState } from "react";
 
+import { DEFAULT_ADAPTER_ID } from "../demo/adapters/registry";
 import type { CompiledArtifact } from "../demo/hybridLanguageService";
 
 const ChartPane = lazy(() =>
@@ -182,6 +183,7 @@ export function CompilePreview(props: CompilePreviewProps): ReactElement {
                 >
                     <div className="pane pane-chart">
                         <ChartPane
+                            adapterId={DEFAULT_ADAPTER_ID}
                             artifact={artifact}
                             bars={bars}
                             onAlert={handleAlert}

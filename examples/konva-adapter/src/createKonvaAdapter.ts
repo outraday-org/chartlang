@@ -70,6 +70,12 @@ function isFiniteValue(value: number | null): value is number {
 export type CreateKonvaAdapterOpts = {
     readonly konva: KonvaNamespace;
     readonly stage: { readonly width: number; readonly height: number };
+    // Production callers pass the mount element so Konva attaches the
+    // stage's content `<div>` to the DOM (parallel to the canvas2d
+    // adapter's `opts.ctx` "caller provides the surface" seam). Tests omit
+    // it and pass `MockKonva`, whose `Stage` records the config without a
+    // real DOM.
+    readonly container?: HTMLElement;
     readonly candleSource: AsyncIterable<CandleEvent>;
     readonly capabilities?: Capabilities;
     readonly interval?: string;
@@ -858,7 +864,14 @@ function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
 export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHandle {
     const capabilities = opts.capabilities ?? KONVA_CAPABILITIES;
     const palette = opts.palette ?? DEFAULT_PALETTE;
-    const stage = new opts.konva.Stage({ width: opts.stage.width, height: opts.stage.height });
+    // Construct the stage conditionally so the headless (no-container) path
+    // is byte-identical to the original config bag — only a supplied
+    // `container` adds the DOM-mount key.
+    const stage = new opts.konva.Stage(
+        opts.container !== undefined
+            ? { container: opts.container, width: opts.stage.width, height: opts.stage.height }
+            : { width: opts.stage.width, height: opts.stage.height },
+    );
     const seriesLayer = new opts.konva.Layer();
     const drawingsLayer = new opts.konva.Layer();
     stage.add(seriesLayer);
@@ -977,4 +990,86 @@ export function handleInterval(handle: KonvaAdapterHandle): string {
         throw new Error("handleInterval: handle was not produced by createKonvaAdapter");
     }
     return interval;
+}
+
+/**
+ * Optional second argument for {@link runKonvaLoop}. Pass a `signal` from
+ * an `AbortController` to cancel the loop cleanly: once the signal aborts,
+ * the loop drops the current iteration's remaining work, breaks out of the
+ * async-iterator, and resolves (no throw). This is the convention a React
+ * consumer needs when the chart component unmounts mid-stream — the loop
+ * returns silently and the caller does not have to swallow rejections.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     const opts: RunKonvaLoopOpts = { signal: new AbortController().signal };
+ *     void opts;
+ */
+export type RunKonvaLoopOpts = Readonly<{ signal?: AbortSignal }>;
+
+/**
+ * Drive a built Konva adapter through one full pass of its candle source:
+ * iterate the events, repaint each via {@link feedCandleEvent} (which feeds
+ * the bar buffer and rebuilds both layers), `await host.push(event)`, then
+ * `host.drain()` + `handle.onEmissions(...)` between events. Returns when
+ * the source completes; throws whatever the source / host throws. This is
+ * the uniform live drive loop — the Konva analogue of the canvas2d
+ * reference adapter's `runRendererLoop`, so the live demo can drive all
+ * adapters with one `run(signal)` shape.
+ *
+ * Pass `opts.signal` (typically from an `AbortController`) to cancel the
+ * loop cleanly. On abort the loop returns silently — no throw — after
+ * finishing at most one in-flight `host.push` / `host.drain`. The handle's
+ * `AdapterState` is held in the module-local `WeakMap` (not on the public
+ * surface), so this throws the documented sentinel on a handle this module
+ * did not produce — mirroring {@link feedCandleEvent} / {@link handleInterval}.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     import { createKonvaAdapter, runKonvaLoop } from "chartlang-example-konva-adapter";
+ *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
+ *     import Konva from "konva";
+ *     declare const container: HTMLElement;
+ *     const adapter = createKonvaAdapter({
+ *         konva: Konva,
+ *         container,
+ *         stage: { width: 800, height: 400 },
+ *         candleSource: mockCandleSource([]),
+ *     });
+ *     // await adapter.host.load(compiled);
+ *     // await runKonvaLoop(adapter);
+ *     const fn: typeof runKonvaLoop = runKonvaLoop;
+ *     void fn;
+ */
+export async function runKonvaLoop(
+    handle: KonvaAdapterHandle,
+    opts: RunKonvaLoopOpts = {},
+): Promise<void> {
+    const state = HANDLE_STATE.get(handle);
+    const interval = HANDLE_INTERVAL.get(handle);
+    if (state === undefined || interval === undefined) {
+        throw new Error("runKonvaLoop: handle was not produced by createKonvaAdapter");
+    }
+    const signal = opts.signal;
+    const aborted = (): boolean => signal?.aborted ?? false;
+    if (aborted()) return;
+    for await (const event of handle.candles({ interval })) {
+        if (aborted()) return;
+        feedCandleEvent(handle, event);
+        await handle.host.push(event);
+        if (aborted()) return;
+        // Yield once so an async worker host can complete its candle-event
+        // dispatch before the drain frame is processed. In-process hosts
+        // resolve `push` synchronously and this is a no-op for them.
+        await new Promise<void>((r) => setTimeout(r, 0));
+        if (aborted()) return;
+        // Guard after `drain` resolves too: an abort that fires while the
+        // drain is in flight must not paint a disposed stage (matches the
+        // sibling `runEChartsLoop` / `runRendererLoop` post-drain check).
+        const emissions = await handle.host.drain();
+        if (aborted()) return;
+        handle.onEmissions(emissions);
+    }
 }
