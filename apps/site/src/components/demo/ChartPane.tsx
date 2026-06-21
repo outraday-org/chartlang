@@ -3,11 +3,19 @@
 
 import type { AlertEmission, CandleEvent } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
-import { createCanvas2dAdapter, runRendererLoop } from "chartlang-example-canvas2d-adapter";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 
+import type { DemoAdapterDriver } from "./adapters/types";
+import { DEFAULT_ADAPTER_ID, DEMO_ADAPTERS } from "./adapters/registry";
 import type { CompiledArtifact } from "./hybridLanguageService";
 import { createResamplingCandlePump } from "./secondaryStreams";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 480;
@@ -17,19 +25,22 @@ const PLAY_TIMER_MS = 25;
 const FALLBACK_BAR_INTERVAL_MS = 86_400_000;
 
 /**
- * Props for {@link ChartPane}. The pane re-mounts the canvas adapter
- * every time `artifact` changes; the previous adapter is disposed.
- * `onPlayStart` fires when a play run begins so the host can reset
- * its alert feed.
+ * Props for {@link ChartPane}. The pane re-mounts the selected adapter's
+ * driver every time `artifact` or `adapterId` changes; the previous
+ * driver is disposed. `onPlayStart` fires when a play run begins so the
+ * host can reset its alert feed. `onAdapterChange` is optional: when
+ * provided the toolbar renders the adapter switcher (the live demo);
+ * when omitted (the converter preview, which is locked to one adapter)
+ * the switcher is hidden.
  */
 export type ChartPaneProps = Readonly<{
     bars: ReadonlyArray<Bar>;
     artifact: CompiledArtifact | null;
+    adapterId: string;
     onAlert: (alert: AlertEmission) => void;
     onPlayStart: () => void;
+    onAdapterChange?: (id: string) => void;
 }>;
-
-type AdapterHandle = ReturnType<typeof createCanvas2dAdapter>;
 
 type PushCandleSource = Readonly<{
     source: AsyncIterable<CandleEvent>;
@@ -105,9 +116,11 @@ function nextRandomBar(prev: Bar, intervalMs: number): Bar {
 }
 
 /**
- * Right half of the demo. Holds a single `<canvas>` reference; each new
- * artifact disposes the previous adapter, spins up a fresh one, loads
- * the compiled module, and runs the renderer loop in the background.
+ * Right half of the demo. Holds a single container `<div>`; each new
+ * artifact (or adapter selection) disposes the previous driver, resolves
+ * the matching adapter from {@link DEMO_ADAPTERS}, dynamic-imports its
+ * library, mounts a fresh driver into the container, loads the compiled
+ * module, and runs the renderer loop in the background.
  *
  * The chart is static by default: the full dataset goes through one
  * history batch and historical alerts are suppressed. Each press of
@@ -118,17 +131,20 @@ function nextRandomBar(prev: Bar, intervalMs: number): Bar {
  * length) are the only ones forwarded to `onAlert`.
  *
  * Cancellation flows through an `AbortController` that is wired into
- * `runRendererLoop({ signal })`, so the loop exits silently when a new
- * artifact arrives mid-stream instead of throwing through the disposed
- * adapter.
+ * `driver.run(signal)`, so the loop exits silently when a new artifact or
+ * adapter arrives mid-stream instead of throwing through the disposed
+ * driver. Because the factory + `host.load` are async (the driver lazily
+ * imports a heavy lib), every `await` boundary re-checks `signal.aborted`
+ * so a switch mid-import never mounts a stale driver.
  */
 export function ChartPane(props: ChartPaneProps): ReactElement {
-    const { artifact, bars } = props;
+    const { artifact, bars, adapterId, onAdapterChange } = props;
     const [playing, setPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
     const [playRun, setPlayRun] = useState(0);
-    const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const adapterRef = useRef<AdapterHandle | null>(null);
+    const [loadingLib, setLoadingLib] = useState(false);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const driverRef = useRef<DemoAdapterDriver | null>(null);
     const lastBarRef = useRef<Bar | null>(null);
     const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const pendingPlayRef = useRef(false);
@@ -160,14 +176,14 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
     };
 
     useEffect(() => {
-        const canvas = canvasRef.current;
-        if (canvas === null || artifact === null || bars.length === 0) return;
+        const container = containerRef.current;
+        if (container === null || artifact === null || bars.length === 0) return;
 
-        // Tear down the previous adapter cleanly before spinning up a
-        // fresh one. `dispose()` clears the renderer state and
-        // terminates the underlying worker.
-        adapterRef.current?.dispose();
-        adapterRef.current = null;
+        // Tear down the previous driver cleanly before spinning up a
+        // fresh one. `dispose()` clears the renderer state, terminates the
+        // underlying worker, and empties the mount element.
+        driverRef.current?.dispose();
+        driverRef.current = null;
 
         const controller = new AbortController();
         const pushSource = createPushCandleSource(bars);
@@ -192,18 +208,6 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
                 ? createResamplingCandlePump(pushSource.source, requestedIntervals)
                 : pushSource.source;
         const mainInterval = bars[0]?.interval;
-        const adapter = createCanvas2dAdapter({
-            canvas,
-            candleSource,
-            ...(mainInterval !== undefined ? { interval: mainInterval } : {}),
-            onAlert: (alert) => {
-                // Chart bubbles mark every alert at its bar (history
-                // included); the React feed only carries live alerts
-                // from the play run.
-                if (alert.bar >= historyLength) onAlertRef.current(alert);
-            },
-        });
-        adapterRef.current = adapter;
 
         // Paces PLAY_TOTAL_BARS evenly across PLAY_DURATION_MS: each
         // timer tick emits however many bars the elapsed-time target
@@ -240,7 +244,35 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
 
         const start = async (): Promise<void> => {
             try {
-                await adapter.host.load({
+                setLoadingLib(true);
+                // Resolve the selected adapter, falling back to the first
+                // (canvas2d) descriptor for an unknown id.
+                const descriptor =
+                    DEMO_ADAPTERS.find((a) => a.id === adapterId) ?? DEMO_ADAPTERS[0];
+                if (descriptor === undefined) return;
+                const factory = await descriptor.load();
+                if (controller.signal.aborted) return;
+                const driver = await factory(container, {
+                    candleSource,
+                    ...(mainInterval !== undefined ? { interval: mainInterval } : {}),
+                    width: CANVAS_WIDTH,
+                    height: CANVAS_HEIGHT,
+                    onAlert: (alert) => {
+                        // Chart bubbles mark every alert at its bar (history
+                        // included); the React feed only carries live alerts
+                        // from the play run.
+                        if (alert.bar >= historyLength) onAlertRef.current(alert);
+                    },
+                });
+                // A new artifact/adapter arrived while the lib was importing:
+                // discard this now-stale driver instead of mounting it.
+                if (controller.signal.aborted) {
+                    driver.dispose();
+                    return;
+                }
+                driverRef.current = driver;
+                setLoadingLib(false);
+                await driver.host.load({
                     moduleSource: artifact.moduleSource,
                     manifest: artifact.manifest as ScriptManifest,
                 });
@@ -249,10 +281,12 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
                     pendingPlayRef.current = false;
                     beginStream();
                 }
-                await runRendererLoop(adapter, { signal: controller.signal });
+                await driver.run(controller.signal);
             } catch (err) {
                 if (controller.signal.aborted) return;
                 console.error("chart render failed", err);
+            } finally {
+                if (!controller.signal.aborted) setLoadingLib(false);
             }
         };
         void start();
@@ -265,17 +299,20 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
             // A pending run means this teardown IS the play-triggered
             // remount — keep the just-set playing state in that case.
             if (!pendingPlayRef.current) setPlaying(false);
+            setLoadingLib(false);
             pushSource.end();
             controller.abort();
-            adapter.dispose();
-            if (adapterRef.current === adapter) adapterRef.current = null;
+            // The driver may not exist yet if the teardown fires mid-import;
+            // dispose whatever is mounted and clear the ref.
+            driverRef.current?.dispose();
+            driverRef.current = null;
         };
-    }, [artifact, bars, playRun]);
+    }, [artifact, bars, adapterId, playRun]);
 
     useEffect(() => {
         return () => {
-            adapterRef.current?.dispose();
-            adapterRef.current = null;
+            driverRef.current?.dispose();
+            driverRef.current = null;
         };
     }, []);
 
@@ -292,17 +329,38 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
                     {playing ? "Stop" : "Play"}
                 </button>
                 <span className="chart-mode">
-                    {playing
-                        ? `streaming random bars ${progress}/${PLAY_TOTAL_BARS}`
-                        : "static history"}
+                    {loadingLib
+                        ? "loading renderer…"
+                        : playing
+                          ? `streaming random bars ${progress}/${PLAY_TOTAL_BARS}`
+                          : "static history"}
                 </span>
+                {onAdapterChange !== undefined && (
+                    <label className="chart-adapter">
+                        <Select
+                            items={DEMO_ADAPTERS.map((a) => ({ label: a.label, value: a.id }))}
+                            onValueChange={(value) =>
+                                onAdapterChange(value ?? DEFAULT_ADAPTER_ID)
+                            }
+                            value={adapterId}
+                        >
+                            {/* Disabled while streaming to avoid a mid-run
+                                driver re-mount; re-enabled on stop. */}
+                            <SelectTrigger aria-label="Adapter" disabled={playing} size="sm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {DEMO_ADAPTERS.map((a) => (
+                                    <SelectItem key={a.id} value={a.id}>
+                                        {a.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </label>
+                )}
             </div>
-            <canvas
-                className="chart-canvas"
-                height={CANVAS_HEIGHT}
-                ref={canvasRef}
-                width={CANVAS_WIDTH}
-            />
+            <div className="chart-surface" ref={containerRef} />
         </div>
     );
 }

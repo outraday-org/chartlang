@@ -244,6 +244,25 @@ describe("createLightweightChartsAdapter — candle ingestion", () => {
         expect(chart.calls).toContainEqual({ kind: "setData", seriesId: "s0", points: 2 });
     });
 
+    // Regression: candleData() must produce OHLC, not { time, value }.
+    // lightweight-charts throws "Value is undefined" when open/high/low/close
+    // are absent from a Candlestick series data point.
+    it("candlestick update carries OHLC fields, not a scalar value", async () => {
+        const chart = new MockLwcApi();
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([{ kind: "close", bar: bar(1, 10) }]),
+            host: stubHost(),
+        });
+        await runRendererLoop(handle);
+        const candleUpdate = chart.calls.find((c) => c.kind === "update" && c.seriesId === "s0");
+        expect(candleUpdate).toBeDefined();
+        expect(candleUpdate?.kind === "update" && candleUpdate.open).toBe(10);
+        expect(candleUpdate?.kind === "update" && candleUpdate.high).toBe(11);
+        expect(candleUpdate?.kind === "update" && candleUpdate.low).toBe(9);
+        expect(candleUpdate?.kind === "update" && candleUpdate.close).toBe(10);
+    });
+
     it("maps close → update and tick → first-then-update last bar", async () => {
         const chart = new MockLwcApi();
         const handle = createLightweightChartsAdapter({

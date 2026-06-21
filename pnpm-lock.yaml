@@ -246,6 +246,9 @@ importers:
       '@invinite-org/chartlang-editor':
         specifier: workspace:*
         version: link:../../packages/editor
+      '@invinite-org/chartlang-host-worker':
+        specifier: workspace:*
+        version: link:../../packages/host-worker
       '@invinite-org/chartlang-language-service':
         specifier: workspace:*
         version: link:../../packages/language-service
@@ -276,12 +279,33 @@ importers:
       chartlang-example-canvas2d-adapter:
         specifier: workspace:*
         version: link:../../examples/canvas2d-adapter
+      chartlang-example-echarts-adapter:
+        specifier: workspace:*
+        version: link:../../examples/echarts-adapter
+      chartlang-example-konva-adapter:
+        specifier: workspace:*
+        version: link:../../examples/konva-adapter
+      chartlang-example-lightweight-charts-adapter:
+        specifier: workspace:*
+        version: link:../../examples/lightweight-charts-adapter
+      chartlang-example-uplot-adapter:
+        specifier: workspace:*
+        version: link:../../examples/uplot-adapter
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
       codemirror:
         specifier: ^6
         version: 6.0.2
+      echarts:
+        specifier: ^5
+        version: 5.6.0
+      konva:
+        specifier: ^9
+        version: 9.3.22
+      lightweight-charts:
+        specifier: ^5
+        version: 5.2.0
       lucide-react:
         specifier: ^1.18.0
         version: 1.18.0(react@19.2.7)
@@ -300,6 +324,9 @@ importers:
       tailwindcss:
         specifier: ^4
         version: 4.3.1
+      uplot:
+        specifier: ^1
+        version: 1.6.32
     devDependencies:
       '@invinite-org/chartlang-compiler':
         specifier: workspace:*

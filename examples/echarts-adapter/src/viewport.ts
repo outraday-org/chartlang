@@ -135,8 +135,19 @@ export function buildViewport(
     if (convert === undefined) return fallback;
     const loValue: readonly [number, number] = [fallback.xMin, fallback.yMin];
     const hiValue: readonly [number, number] = [fallback.xMax, fallback.yMax];
-    const loPixel = convert.call(chart, { gridIndex }, loValue);
-    const hiPixel = convert.call(chart, { gridIndex }, hiValue);
+    // Before its first layout a live ECharts chart has no coordinate system,
+    // so `convertToPixel` THROWS (it dereferences an absent component model)
+    // rather than returning `undefined`. Treat a throw the same as an
+    // out-of-system result: fall back to the deterministic viewport so the
+    // first frame's `graphic` array is still well-defined.
+    let loPixel: readonly [number, number] | undefined;
+    let hiPixel: readonly [number, number] | undefined;
+    try {
+        loPixel = convert.call(chart, { gridIndex }, loValue);
+        hiPixel = convert.call(chart, { gridIndex }, hiValue);
+    } catch {
+        return fallback;
+    }
     // ECharts returns `undefined` when the value falls outside any coordinate
     // system (e.g. before the chart has laid out) — fall back rather than feed
     // NaN corners into the projection.

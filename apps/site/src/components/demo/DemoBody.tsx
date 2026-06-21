@@ -13,6 +13,7 @@ import type { AlertEmission } from "@invinite-org/chartlang-adapter-kit"
 import type { Bar } from "@invinite-org/chartlang-core"
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react"
 
+import { DEFAULT_ADAPTER_ID, isDemoAdapterId } from "./adapters/registry"
 import { ChartPane } from "./ChartPane"
 import { EditorPane } from "./EditorPane"
 import { type CompiledArtifact, createHybridLanguageService } from "./hybridLanguageService"
@@ -32,6 +33,32 @@ function initialScriptId(): string {
   if (typeof window === "undefined") return fallback
   const requested = new URLSearchParams(window.location.search).get("script")
   return requested !== null && DEMO_SCRIPTS.some((s) => s.id === requested) ? requested : fallback
+}
+
+/**
+ * Resolve the initial adapter id from a `?adapter=<id>` query param so the
+ * choice is shareable/deep-linkable, mirroring {@link initialScriptId}.
+ * Falls back to {@link DEFAULT_ADAPTER_ID} (canvas2d) when the param is
+ * absent or names an unknown adapter. Reads `window` directly — DemoBody
+ * is lazy-loaded and client-only.
+ */
+function resolveInitialAdapterId(): string {
+  if (typeof window === "undefined") return DEFAULT_ADAPTER_ID
+  const requested = new URLSearchParams(window.location.search).get("adapter")
+  return requested !== null && isDemoAdapterId(requested) ? requested : DEFAULT_ADAPTER_ID
+}
+
+/**
+ * Persist the selected adapter to `?adapter=<id>` via `history.replaceState`
+ * (no router navigation — the demo is client-only and must not trigger a
+ * nav). Leaves every other param (notably `?script=`) untouched.
+ */
+function syncAdapterParam(id: string): void {
+  if (typeof window === "undefined") return
+  const params = new URLSearchParams(window.location.search)
+  params.set("adapter", id)
+  const { pathname, hash } = window.location
+  history.replaceState(null, "", `${pathname}?${params.toString()}${hash}`)
 }
 
 function AlertsList(props: Readonly<{ alerts: ReadonlyArray<AlertEmission> }>): ReactElement {
@@ -64,6 +91,7 @@ export default function DemoBody(): ReactElement {
   const [bars, setBars] = useState<ReadonlyArray<Bar>>([])
   const [alerts, setAlerts] = useState<ReadonlyArray<AlertEmission>>([])
   const [scriptId, setScriptId] = useState(initialScriptId)
+  const [adapterId, setAdapterId] = useState(resolveInitialAdapterId)
   const script = DEMO_SCRIPTS.find((s) => s.id === scriptId) ?? DEMO_SCRIPTS[0]
   const setArtifactRef = useRef(setArtifact)
   setArtifactRef.current = setArtifact
@@ -137,8 +165,16 @@ export default function DemoBody(): ReactElement {
         </section>
         <section className="pane pane-chart">
           <ChartPane
+            adapterId={adapterId}
             artifact={artifact}
             bars={bars}
+            onAdapterChange={(id) => {
+              // Switching the adapter only re-mounts the chart; the
+              // script, alerts, and artifact are intentionally preserved
+              // (unlike the script Select, which clears them).
+              setAdapterId(id)
+              syncAdapterParam(id)
+            }}
             onAlert={handleAlert}
             onPlayStart={() => setAlerts([])}
           />

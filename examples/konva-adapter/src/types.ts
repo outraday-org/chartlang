@@ -217,8 +217,10 @@ export type KonvaStage = KonvaNode & {
 
 /**
  * Options the adapter passes to the injected `Stage` constructor.
- * `container` is omitted because the adapter renders headlessly / lets
- * the caller wire a DOM node; the structural seam only needs the size.
+ * `container` is the DOM-mount seam: when a production caller supplies it,
+ * Konva attaches the stage's content `<div>` to that element so the scene
+ * is visible. It is OMITTED on the headless path (the `MockKonva` tests),
+ * which records or drops the extra key without a real DOM.
  *
  * @since 1.4
  * @stable
@@ -229,6 +231,7 @@ export type KonvaStage = KonvaNode & {
 export type StageConfig = {
     readonly width: number;
     readonly height: number;
+    readonly container?: HTMLElement;
 };
 
 /**

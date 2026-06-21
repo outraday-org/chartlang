@@ -206,10 +206,30 @@ function defaultCreateChart(container: HTMLElement): LwcChart {
     const chart = createChart(container);
     const wrap = (seriesType: string, paneIndex: number): LwcSeries => {
         const series = chart.addSeries(SERIES_DEFINITION[seriesType], {}, paneIndex);
+        const isCandlestick = seriesType === "Candlestick";
         return {
             setData: (data) =>
-                series.setData(data.map((p) => ({ time: toTime(p.time), value: p.value }))),
-            update: (point) => series.update({ time: toTime(point.time), value: point.value }),
+                isCandlestick
+                    ? series.setData(
+                          data.map((p) => ({
+                              time: toTime(p.time),
+                              open: p.open ?? 0,
+                              high: p.high ?? 0,
+                              low: p.low ?? 0,
+                              close: p.close ?? 0,
+                          })),
+                      )
+                    : series.setData(data.map((p) => ({ time: toTime(p.time), value: p.value }))),
+            update: (point) =>
+                isCandlestick
+                    ? series.update({
+                          time: toTime(point.time),
+                          open: point.open ?? 0,
+                          high: point.high ?? 0,
+                          low: point.low ?? 0,
+                          close: point.close ?? 0,
+                      })
+                    : series.update({ time: toTime(point.time), value: point.value }),
             applyOptions: (options) => series.applyOptions(options),
             createPriceLine: (options) => series.createPriceLine({ price: options.price }),
             removePriceLine: (line) => series.removePriceLine(line as IPriceLine),
@@ -488,12 +508,17 @@ function ensureCandleSeries(state: AdapterState): LwcSeries {
     return series;
 }
 
-function candleData(bar: Bar): { time: number; value?: number } {
-    // The structural `LwcSeries` carries a `{ time, value? }` shape; the
-    // production bridge maps OHLC onto the candlestick series' data. The
-    // mock records `time` (+ a representative `value`) so candle ingestion is
-    // assertable; `close` is the representative value for the hashed log.
-    return { time: bar.time, value: bar.close };
+function candleData(bar: Bar): {
+    time: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+} {
+    // A lightweight-charts Candlestick series requires all four OHLC fields.
+    // IMPORTANT: passing only `value` (the old behaviour) caused LC to read
+    // `open` as undefined and throw "Value is undefined" at runtime.
+    return { time: bar.time, open: bar.open, high: bar.high, low: bar.low, close: bar.close };
 }
 
 function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
