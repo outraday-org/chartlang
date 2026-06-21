@@ -101,8 +101,8 @@ indicator.)
 ### 5. Workspace + gate wiring
 
 - The app is picked up by the root `pnpm-workspace.yaml` `apps/*` glob
-  (confirm the glob already covers `apps/*`; if it only lists
-  `apps/site`, widen to `apps/*`).
+  (verified present — `pnpm-workspace.yaml` already lists `- "apps/*"`, so
+  no edit is needed; just confirm the new app resolves after `pnpm install`).
 - Confirm the root `biome.json` ignore covers `apps/**` (it does per
   `apps/CLAUDE.md`) — `apps/react-starter` inherits it. Same for the
   root `vitest.config.ts` `apps/**` exclude.
@@ -137,7 +137,7 @@ Every committed `.ts`/`.tsx` carries the repo MIT header (same rule as
 | `apps/react-starter/src/routes/index.tsx` | Create | two-pane placeholder workspace |
 | `apps/react-starter/README.md` | Create | ≤100-line app README |
 | `apps/CLAUDE.md` | Modify | document the second app + brand relaxation |
-| `pnpm-workspace.yaml` | Modify (if needed) | ensure `apps/*` glob |
+| `pnpm-workspace.yaml` | No change (verify only) | already lists `apps/*` |
 
 ## Gates
 

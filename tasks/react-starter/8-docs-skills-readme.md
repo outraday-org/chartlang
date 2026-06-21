@@ -53,8 +53,17 @@ skill presenting `create-chartlang` as the recommended starting point
 for integrators who want a working app (editor + host + adapter wired),
 distinct from hand-integrating the packages. Mirror the
 `activeAdapter` seam + the compile-server-route pattern at a high level.
-Run `pnpm skills:generate` if the generated reference is affected and
-commit the result (the `skills:gate` will fail CI otherwise).
+These are **hand-authored** edits to `skills/chartlang-setup/` (SKILL.md +
+`references/embed.md` / `adapter.md`), which are **not** covered by the
+`skills:gate`.
+
+> **`primitives.md` is NOT affected by this feature.**
+> `skills/chartlang-coding/references/primitives.md` is generated **only**
+> from `ta.*` / `draw.*` JSDoc (`scripts/generate-skills-reference.ts`).
+> This feature adds no primitives, so `pnpm skills:generate` is a no-op
+> here and `pnpm skills:gate` (which byte-diffs that one file) stays green
+> untouched. Still run `pnpm skills:gate` as a safety check, but do **not**
+> hand-edit `primitives.md`.
 
 ### 3. Root README + apps/CLAUDE.md
 
@@ -73,8 +82,10 @@ commit the result (the `skills:gate` will fail CI otherwise).
 
 ### Edge cases
 
-- **Skill drift:** if `pnpm skills:generate` output changes, commit it or
-  `skills:gate` fails — verify the gate is green.
+- **Skill drift:** `pnpm skills:gate` byte-diffs the generated
+  `primitives.md`, which this feature does not touch — the gate should be
+  green without regeneration. Confirm it is (a red gate here would mean an
+  unrelated primitive change leaked in).
 - **Docs example links** must point at real, shipped surfaces (the
   starter routes, the CLI `add-adapter`, the adapters gallery), not
   placeholders.
@@ -93,8 +104,7 @@ commit the result (the `skills:gate` will fail CI otherwise).
 |------|--------|---------|
 | `docs/guide/react-starter.md` | Create | starter + installer guide |
 | `docs/.vitepress/config.ts` | Modify | nav/sidebar entry |
-| `skills/chartlang-setup/**` | Modify | starter as recommended path |
-| `skills/chartlang-coding/references/primitives.md` | Regenerate (if affected) | `pnpm skills:generate` output |
+| `skills/chartlang-setup/**` | Modify | starter as recommended path (hand-authored; not gate-generated) |
 | `README.md` (root) | Modify | starter + `npm create` mention |
 | `apps/CLAUDE.md` | Modify | finalize `apps/react-starter` entry |
 
