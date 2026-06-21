@@ -1,5 +1,57 @@
 # @invinite-org/chartlang-adapter-kit
 
+## 1.4.0
+
+### Minor Changes
+
+- 03f59bf: Complete the `adapter-kit` geometry layer with the final 23 drawing-kind
+  decomposers — 4 gann (`gann-box`, `gann-square-fixed`, `gann-square`,
+  `gann-fan`), 2 pitchforks (`pitchfork`, `pitchfan`), 6 harmonic patterns
+  (`xabcd-pattern`, `cypher-pattern`, `head-and-shoulders`, `abcd-pattern`,
+  `triangle-pattern`, `three-drives-pattern`), 5 elliott waves
+  (`elliott-impulse-wave`, `elliott-correction-wave`, `elliott-triangle-wave`,
+  `elliott-double-combo`, `elliott-triple-combo`), 3 cycles (`cyclic-lines`,
+  `time-cycles`, `sine-line`), and 3 containers (`group`, `frame`, `table`).
+
+  `decomposeDrawing` is now **exhaustive over all 63 `DrawingKind`s**: its
+  `default` arm is a `const _exhaustive: never` guard, so adding a future kind to
+  core fails `pnpm typecheck` until a decomposer is added. The `table` kind
+  decomposes in CSS-pixel/viewport space (it resolves `position` against the
+  `Viewport` rather than world coordinates).
+
+  Move the shared `gannLevels` (`GANN_LEVELS` / `GANN_FAN_RATIOS` /
+  `GANN_FAN_LABELS` / `formatGannRatio`) and `pitchforkGeom`
+  (`medianOriginFor` / `medianTargetFor`) helpers into package-private
+  `geometry/_lib/`, reused by the gann and pitchfork decomposers.
+
+- 03f59bf: Extend the `adapter-kit` geometry layer with 20 more drawing-kind decomposers —
+  3 curves (`arc`, `curve`, `double-curve`), 3 freehand (`pen`, `highlighter`,
+  `brush`), 4 channels (`trend-channel`, `flat-top-bottom`, `disjoint-channel`,
+  `regression-trend`), and 10 fibonacci (`fib-retracement`, `fib-trend-extension`,
+  `fib-channel`, `fib-time-zone`, `fib-wedge`, `fib-speed-fan`, `fib-speed-arcs`,
+  `fib-spiral`, `fib-circles`, `fib-trend-time`). `decomposeDrawing` now covers 40
+  of the 63 kinds; the remaining 23 return `[]` until Task 3.
+
+  Add an optional `StrokeStyle.alpha` IR field (backward-compatible — omitted
+  strokes are byte-identical to before): `paintPrimitive` brackets the `stroke()`
+  in `globalAlpha` when set, expressing the `highlighter` translucency.
+
+  Move the shared `FIB_LEVELS` ratio array + `formatLevel` label formatter into a
+  package-private `geometry/_lib/fibLevels.ts`, reused by every fib decomposer.
+
+- 03f59bf: Add a renderer-agnostic geometry layer to `adapter-kit`: the `Viewport` +
+  projection helpers (`timeToX`, `priceToY`, `worldPointToPixel`), the
+  `DrawPrimitive` IR (`polyline` / `arc` / `text` / `marker` with `StrokeStyle` /
+  `FillStyle`), and `decomposeDrawing(emission, viewport)` covering the 20 basic
+  drawing kinds (lines / rays, boxes / shapes incl. `fill-between`, annotations,
+  marker, text). The remaining 43 kinds return `[]` until Tasks 2–3 land their
+  decomposers.
+
+  Also ships the canvas-family sink under the new `./canvas` sub-path:
+  `RenderCtx`, `paintPrimitive(ctx, prim)`, the generalised `MockCanvasContext`
+  (records every method + setter), and `hashCallLog` for deterministic call-log
+  hashing.
+
 ## 1.3.0
 
 ### Minor Changes
