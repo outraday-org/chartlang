@@ -25,14 +25,24 @@ const GLYPH_WIDTH_RATIO = 0.6;
 const TEXT_BG_PAD_X = 4;
 const TEXT_BG_PAD_Y = 2;
 
-// Bake an `alpha ∈ [0, 1]` into a hex colour as the `#rrggbbaa` channel —
-// Konva accepts the 8-digit form. Matches the adapter's existing
-// `withAlpha` for plot bands, so a primitive's `fill`/`stroke` alpha lands
-// in the colour string the node-tree hash projection reads (rather than a
-// node-level `opacity` the projection would miss). A colour that already
-// carries an alpha channel, or is not a plain `#rrggbb`, is returned
-// unchanged.
-function withAlpha(color: string, alpha: number): string {
+/**
+ * Bake an `alpha ∈ [0, 1]` into a hex colour as the `#rrggbbaa` channel —
+ * Konva accepts the 8-digit form, so a primitive's `fill`/`stroke` alpha
+ * lands in the colour string the node-tree hash projection reads (rather
+ * than a node-level `opacity` the projection would miss). A colour that
+ * already carries an alpha channel, or is not a plain `#rrggbb` (e.g. a
+ * named colour or an `rgba(…)` string), is returned UNCHANGED — appending
+ * two more hex digits would corrupt it. This is the single guarded
+ * implementation shared by the primitive sink AND the series builders
+ * (`filled-band` / `area` fills) in `createKonvaAdapter.ts`.
+ *
+ * @since 1.4
+ * @stable
+ * @example
+ *     withAlpha("#3b82f6", 0.5); // "#3b82f680"
+ *     withAlpha("red", 0.5); // "red" (non-6-hex passes through)
+ */
+export function withAlpha(color: string, alpha: number): string {
     if (!/^#[0-9a-fA-F]{6}$/.test(color)) return color;
     const clamped = Math.max(0, Math.min(1, alpha));
     const byte = Math.round(clamped * 255);

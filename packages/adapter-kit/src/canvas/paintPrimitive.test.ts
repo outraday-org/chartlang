@@ -135,7 +135,7 @@ describe("paintPrimitive — polyline", () => {
 });
 
 describe("paintPrimitive — arc", () => {
-    it("strokes and fills an arc", () => {
+    it("strokes and fills a closed arc, issuing closePath", () => {
         const ctx = new MockCanvasContext();
         paintPrimitive(ctx, {
             kind: "arc",
@@ -144,6 +144,7 @@ describe("paintPrimitive — arc", () => {
             r: 10,
             start: 0,
             end: Math.PI * 2,
+            closed: true,
             stroke: { color: "#000", width: 1, dash: [] },
             fill: { color: "#eee", alpha: 1 },
         });
@@ -163,7 +164,7 @@ describe("paintPrimitive — arc", () => {
         ]);
     });
 
-    it("fills an arc with no stroke (dot case)", () => {
+    it("fills an open arc with no stroke, omitting closePath (dot case)", () => {
         const ctx = new MockCanvasContext();
         paintPrimitive(ctx, {
             kind: "arc",
@@ -172,17 +173,32 @@ describe("paintPrimitive — arc", () => {
             r: 3,
             start: 0,
             end: Math.PI * 2,
+            closed: false,
             fill: { color: "#3b82f6", alpha: 1 },
         });
         expect(ctx.calls.map((c) => c.kind)).toEqual([
             "beginPath",
             "arc",
-            "closePath",
             "set",
             "set",
             "fill",
             "set",
         ]);
+    });
+
+    it("omits closePath for an open partial arc (trend-angle / time-cycles chord regression guard)", () => {
+        const ctx = new MockCanvasContext();
+        paintPrimitive(ctx, {
+            kind: "arc",
+            cx: 0,
+            cy: 0,
+            r: 5,
+            start: Math.PI,
+            end: Math.PI * 2,
+            closed: false,
+            stroke: { color: "#0ea5e9", width: 1, dash: [] },
+        });
+        expect(ctx.calls.map((c) => c.kind)).not.toContain("closePath");
     });
 });
 

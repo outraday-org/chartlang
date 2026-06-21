@@ -24,13 +24,30 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   decision is "stacked instances" (not one instance with multiple
   scales) so each pane owns an independent scale + axis, mirroring
   canvas2d's per-pane rects.
+- **`pane:"new"` allocates a fresh sub-pane per emitting SLOT.**
+  `resolvePaneKey(pane, slotId)` maps `"overlay"` → `"overlay"`, a named
+  string → itself (stable sub-pane, reused), and `"new"` → `new:${slotId}`.
+  Each distinct call site asking for `"new"` therefore lands in its OWN
+  sub-pane (matching the lightweight-charts adapter), while the SAME slot
+  re-emitting `"new"` every bar reuses its first-allocated pane — the key
+  is slot-derived, not a running counter, so there is no runaway
+  pane-per-frame (the runtime re-emits each slot on every bar close).
 - **Candles + horizontal lines + drawings paint in a `hooks.draw` ctx
   pass, to the instance's OWN `u.ctx`.** `paintPaneOverlay(state, paneKey,
   u)` reads `u.ctx` (a real `CanvasRenderingContext2D` in production, a
   `MockCanvasContext` under test) and maps hline y via `u.valToPos(price,
-  "y", true)`. Drawings paint LAST in this hook (see the drawings invariant
-  below). Establish new ctx-drawn marks here, do not add a parallel hook.
-  A non-finite `valToPos` (scale not yet ranged) skips the hline.
+  "y", true)`. The hline stroke honours the `horizontal-line` style's
+  `lineWidth` + `lineStyle` — `ctx.lineWidth = hline.lineWidth` +
+  `ctx.setLineDash(dashPattern(hline.lineStyle))` before stroking, reset to
+  `1` + `[]` after so the drawing pass and later hlines are not
+  contaminated. `dashPattern` is a LOCAL copy of canvas2d's
+  `render/lineDash.ts` convention (`solid`→`[]`, `dashed`→`[6,4]`,
+  `dotted`→`[2,4]`); it is not promoted to adapter-kit and cross-importing
+  another example's `src/` is forbidden, so the few-line convention is
+  mirrored here. Drawings paint LAST in this hook (see the drawings
+  invariant below). Establish new ctx-drawn marks here, do not add a
+  parallel hook. A non-finite `valToPos` (scale not yet ranged) skips the
+  hline.
 - **Candle geometry is the ONLY ported logic.** `candlePaths.ts` ports
   uPlot's official candlestick-demo path math (wick line + bull/bear body
   rect) translated to a pure `RenderCtx` sink. It is NOT an

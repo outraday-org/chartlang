@@ -147,6 +147,21 @@ function findSeries(option: EChartsOption, name: string): SeriesOption {
     return found;
 }
 
+// A polygon `graphic` element the adapter emits for volume-profile buckets +
+// closed drawings. The structural shape `buildOption` produces is narrower than
+// ECharts' loose graphic type, so the test reads it through this view.
+type GraphicEl = {
+    readonly type?: string;
+    readonly shape: { readonly points: ReadonlyArray<readonly [number, number]> };
+    readonly style: { readonly fill?: string };
+};
+
+function graphicArray(option: EChartsOption): GraphicEl[] {
+    const graphic: unknown = option.graphic;
+    if (!Array.isArray(graphic)) throw new Error("expected a graphic array");
+    return graphic as GraphicEl[];
+}
+
 afterEach(() => {
     vi.restoreAllMocks();
 });
@@ -277,6 +292,35 @@ describe("createEChartsAdapter — plot kinds", () => {
         expect(step.data).toEqual(["-", 5]);
     });
 
+    it("forwards lineWidth + dashed lineStyle into the ECharts lineStyle (line + area)", async () => {
+        const bars = [bar(0, 100)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "line", lineWidth: 3, lineStyle: "dashed" },
+                    bar: 0,
+                    slotId: "ln",
+                    value: 10,
+                    color: "#00ff00",
+                }),
+                plot({
+                    style: { kind: "area", lineWidth: 2, lineStyle: "dotted", fillAlpha: 0.4 },
+                    bar: 0,
+                    slotId: "ar",
+                    value: 9,
+                    color: "#0000ff",
+                }),
+            ]),
+        ];
+        const option = lastOption(await drive(bars, frames));
+        const line = findSeries(option, "overlay|ln") as LineSeriesOption;
+        expect(line.lineStyle).toEqual({ color: "#00ff00", width: 3, type: "dashed" });
+        const area = findSeries(option, "overlay|ar") as LineSeriesOption;
+        // The area's line carries the width + dash too, alongside its areaStyle.
+        expect(area.lineStyle).toEqual({ color: "#0000ff", width: 2, type: "dotted" });
+        expect(area.areaStyle).toEqual({ opacity: 0.4 });
+    });
+
     it("maps area to a line series with areaStyle", async () => {
         const bars = [bar(0, 100)];
         const frames = [
@@ -296,7 +340,7 @@ describe("createEChartsAdapter — plot kinds", () => {
         expect(area.areaStyle).toEqual({ opacity: 0.3 });
     });
 
-    it("maps histogram and horizontal-histogram to bar series", async () => {
+    it("maps histogram to a bar series", async () => {
         const bars = [bar(0, 100)];
         const frames = [
             frameWith([
@@ -306,20 +350,73 @@ describe("createEChartsAdapter — plot kinds", () => {
                     slotId: "hist",
                     value: 4,
                 }),
-                plot({
-                    style: {
-                        kind: "horizontal-histogram",
-                        buckets: [{ price: 100, volume: 5 }],
-                    },
-                    bar: 0,
-                    slotId: "hhist",
-                    value: 2,
-                }),
             ]),
         ];
         const option = lastOption(await drive(bars, frames));
         expect((findSeries(option, "overlay|hist") as BarSeriesOption).type).toBe("bar");
-        expect((findSeries(option, "overlay|hhist") as BarSeriesOption).type).toBe("bar");
+    });
+
+    it("renders horizontal-histogram buckets as per-bucket polygon graphics (not a bar)", async () => {
+        const bars = [bar(0, 100), bar(1, 110)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: {
+                        kind: "horizontal-histogram",
+                        buckets: [
+                            { price: 101, volume: 5, color: "#ff0000" },
+                            // The taller bucket spans the full max width; this
+                            // half-volume bucket is half as long.
+                            { price: 105, volume: 10 },
+                            // A zero-volume bucket contributes no bar.
+                            { price: 108, volume: 0 },
+                        ],
+                    },
+                    bar: 0,
+                    slotId: "vp",
+                    value: null,
+                }),
+            ]),
+        ];
+        const option = lastOption(await drive(bars, frames));
+        // A volume-profile series is NOT a per-bar bar series.
+        expect(seriesArray(option).some((s) => s.name === "overlay|vp")).toBe(false);
+        const graphic = graphicArray(option);
+        // Two finite-volume buckets → two polygons; the zero-volume row drops.
+        const polys = graphic.filter((g) => g?.type === "polygon");
+        expect(polys).toHaveLength(2);
+        // The half-volume bucket's bar is half the full-width bucket's bar.
+        const widthOf = (poly: GraphicEl): number => {
+            const pts = poly.shape.points;
+            return Math.max(...pts.map((p) => p[0])) - Math.min(...pts.map((p) => p[0]));
+        };
+        const widths = polys.map(widthOf).sort((a, b) => a - b);
+        expect(widths[1]).toBeGreaterThan(0);
+        expect(widths[0]).toBeCloseTo(widths[1] / 2, 6);
+        // The first bucket carries its explicit colour; the second falls back.
+        const red = polys.find((p) => p.style.fill === "#ff0000");
+        expect(red).toBeDefined();
+        const fallback = polys.find((p) => p.style.fill === "#3b82f6");
+        expect(fallback).toBeDefined();
+    });
+
+    it("renders nothing for a horizontal-histogram whose buckets are all zero-volume", async () => {
+        const bars = [bar(0, 100)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: {
+                        kind: "horizontal-histogram",
+                        buckets: [{ price: 100, volume: 0 }],
+                    },
+                    bar: 0,
+                    slotId: "vp",
+                    value: null,
+                }),
+            ]),
+        ];
+        const option = lastOption(await drive(bars, frames));
+        expect(graphicArray(option).filter((g) => g?.type === "polygon")).toHaveLength(0);
     });
 
     it("maps filled-band to two stacked line series with the band areaStyle", async () => {

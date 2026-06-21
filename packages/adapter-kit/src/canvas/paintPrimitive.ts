@@ -100,7 +100,7 @@ export function paintPrimitive(ctx: RenderCtx, p: DrawPrimitive): void {
             if (p.stroke !== undefined) applyStrokeStyle(ctx, p.stroke);
             ctx.beginPath();
             ctx.arc(p.cx, p.cy, p.r, p.start, p.end);
-            ctx.closePath();
+            if (p.closed) ctx.closePath();
             if (p.fill !== undefined) applyFill(ctx, p.fill);
             if (p.stroke !== undefined) strokeWithAlpha(ctx, p.stroke);
             return;

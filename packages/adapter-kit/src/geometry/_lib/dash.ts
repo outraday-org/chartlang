@@ -27,3 +27,17 @@ export function dashPattern(style: LineStyle): ReadonlyArray<number> {
             return [2, 4];
     }
 }
+
+/**
+ * The `setLineDash` segment array for a solid stroke — an empty array.
+ * Shared by the decomposers that emit always-solid primitives (fib
+ * arcs, gann/pitchfork rays, container borders) so the `"solid"` dash
+ * constant lives in one place instead of a per-file re-declaration.
+ *
+ * @since 1.3
+ * @stable
+ * @example
+ *     const d = SOLID_DASH; // []
+ *     void d;
+ */
+export const SOLID_DASH: ReadonlyArray<number> = [];

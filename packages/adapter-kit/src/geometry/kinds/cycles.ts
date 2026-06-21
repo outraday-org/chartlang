@@ -14,24 +14,15 @@ import type {
     TimeCyclesState,
 } from "@invinite-org/chartlang-core";
 
-import { dashPattern } from "../_lib/dash.js";
+import { strokeOf } from "../_lib/strokeStyle.js";
 import { worldPointToPixel } from "../project.js";
-import type { DrawPrimitive, StrokeStyle, Viewport } from "../types.js";
+import type { DrawPrimitive, Viewport } from "../types.js";
 
 const DEFAULT_COLOR = "#0ea5e9";
-const DEFAULT_LINE_WIDTH = 1;
 const CYCLIC_MAX_REPEATS = 256;
 const TIME_CYCLES_MAX_REPEATS_PER_SIDE = 64;
 const SINE_SAMPLES_PER_PERIOD = 32;
 const VIEWPORT_PAD_PX = 16;
-
-function strokeOf(style: CyclicLinesState["style"]): StrokeStyle {
-    return {
-        color: style.color ?? DEFAULT_COLOR,
-        width: style.lineWidth ?? DEFAULT_LINE_WIDTH,
-        dash: dashPattern(style.lineStyle ?? "solid"),
-    };
-}
 
 /**
  * Decompose a `cyclic-lines` drawing — repeated full-height vertical
@@ -56,7 +47,7 @@ export function decomposeCyclicLines(
     const toPx = worldPointToPixel(state.anchors[1], view);
     const periodPx = Math.abs(toPx.x - fromPx.x);
     if (!Number.isFinite(periodPx) || periodPx <= 0) return [];
-    const stroke = strokeOf(state.style);
+    const stroke = strokeOf(state.style, DEFAULT_COLOR);
     const out: DrawPrimitive[] = [];
     for (let k = 0; k < CYCLIC_MAX_REPEATS; k++) {
         const x = fromPx.x + k * periodPx;
@@ -101,7 +92,7 @@ export function decomposeTimeCycles(
     const radius = diameter / 2;
     const baselineY = fromPx.y;
     const primaryCx = (fromPx.x + toPx.x) / 2;
-    const stroke = strokeOf(state.style);
+    const stroke = strokeOf(state.style, DEFAULT_COLOR);
     const out: DrawPrimitive[] = [];
     const pushArc = (cx: number): void => {
         out.push({
@@ -111,6 +102,7 @@ export function decomposeTimeCycles(
             r: radius,
             start: Math.PI,
             end: 2 * Math.PI,
+            closed: false,
             stroke,
         });
     };
@@ -175,5 +167,7 @@ export function decomposeSineLine(
         const x = xMin + i * stepPx;
         points.push({ x, y: sampleY(x) });
     }
-    return [{ kind: "polyline", points, closed: false, stroke: strokeOf(state.style) }];
+    return [
+        { kind: "polyline", points, closed: false, stroke: strokeOf(state.style, DEFAULT_COLOR) },
+    ];
 }

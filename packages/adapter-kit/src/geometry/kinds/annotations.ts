@@ -153,6 +153,7 @@ export function decomposeArrowMarker(
             r: MARKER_DOT_RADIUS,
             start: 0,
             end: TWO_PI,
+            closed: false,
             fill: { color, alpha: SOLID_FILL_ALPHA },
         },
         {

@@ -108,7 +108,10 @@ function fallbackViewport(bars: ReadonlyArray<Bar>): Viewport {
  * declarative `graphic` array is always well-defined.
  *
  * The bar-time x extent comes from the bar window (the x axis is a category of
- * bar times); the price extent and pixel rect come from the samples.
+ * bar times); the price extent and pixel rect come from the samples. `gridIndex`
+ * selects which pane's grid to sample (overlay = 0, subpanes follow
+ * `paneOrder`), so a price-anchored visual in a subpane projects against that
+ * pane's own scale.
  *
  * @since 1.4
  * @stable
@@ -120,7 +123,11 @@ function fallbackViewport(bars: ReadonlyArray<Bar>): Viewport {
  *     // vp.pxWidth > 0
  *     void vp;
  */
-export function buildViewport(chart: EChartsSurface, bars: ReadonlyArray<Bar>): Viewport {
+export function buildViewport(
+    chart: EChartsSurface,
+    bars: ReadonlyArray<Bar>,
+    gridIndex = 0,
+): Viewport {
     const fallback = fallbackViewport(bars);
     const convert = chart.convertToPixel;
     // No conversion available (headless default, or a chart not yet laid out):
@@ -128,8 +135,8 @@ export function buildViewport(chart: EChartsSurface, bars: ReadonlyArray<Bar>): 
     if (convert === undefined) return fallback;
     const loValue: readonly [number, number] = [fallback.xMin, fallback.yMin];
     const hiValue: readonly [number, number] = [fallback.xMax, fallback.yMax];
-    const loPixel = convert.call(chart, { gridIndex: 0 }, loValue);
-    const hiPixel = convert.call(chart, { gridIndex: 0 }, hiValue);
+    const loPixel = convert.call(chart, { gridIndex }, loValue);
+    const hiPixel = convert.call(chart, { gridIndex }, hiValue);
     // ECharts returns `undefined` when the value falls outside any coordinate
     // system (e.g. before the chart has laid out) — fall back rather than feed
     // NaN corners into the projection.

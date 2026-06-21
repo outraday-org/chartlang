@@ -81,6 +81,7 @@ describe("primitiveToGraphic", () => {
             r: 12,
             start: 0,
             end: Math.PI,
+            closed: false,
             stroke: { color: "#10b981", width: 1, dash: [] },
         });
         expect(el).toEqual({
@@ -249,7 +250,9 @@ describe("primitiveIsFinite", () => {
     });
 
     it("validates an arc's centre / radius / angles", () => {
-        expect(primitiveIsFinite({ kind: "arc", cx: 1, cy: 2, r: 3, start: 0, end: 1 })).toBe(true);
+        expect(
+            primitiveIsFinite({ kind: "arc", cx: 1, cy: 2, r: 3, start: 0, end: 1, closed: false }),
+        ).toBe(true);
         expect(
             primitiveIsFinite({
                 kind: "arc",
@@ -258,6 +261,7 @@ describe("primitiveIsFinite", () => {
                 r: Number.NaN,
                 start: 0,
                 end: 1,
+                closed: false,
             }),
         ).toBe(false);
     });

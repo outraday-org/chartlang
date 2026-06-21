@@ -49,7 +49,18 @@ export type LwcRecordedCall =
     | {
           readonly kind: "createPriceLine";
           readonly seriesId: string;
+          readonly priceLineId: string;
           readonly price: number;
+      }
+    | {
+          readonly kind: "applyPriceLineOptions";
+          readonly priceLineId: string;
+          readonly price: number;
+      }
+    | {
+          readonly kind: "removePriceLine";
+          readonly seriesId: string;
+          readonly priceLineId: string;
       }
     | {
           readonly kind: "setMarkers";
@@ -57,6 +68,28 @@ export type LwcRecordedCall =
           readonly markers: number;
       }
     | { readonly kind: "attachPrimitive"; readonly seriesId: string };
+
+/**
+ * Structural shape the factory uses for a single native price line. Both
+ * the real lightweight-charts `IPriceLine` and {@link MockLwcApi}'s recorded
+ * price line satisfy it — the factory only `applyOptions({ price })`s an
+ * existing line (to re-price it across bars) and hands the handle back to
+ * {@link LwcSeries.removePriceLine}.
+ *
+ * @since 1.4
+ * @stable
+ * @example
+ *     declare const line: LwcPriceLine;
+ *     line.applyOptions({ price: 42 });
+ *     void line;
+ */
+export type LwcPriceLine = {
+    applyOptions(options: { price: number }): void;
+};
+
+// Internal: the mock tags each handed-back price line with its deterministic
+// ordinal so `removePriceLine` can attribute without a fallible WeakMap lookup.
+type RecordedPriceLine = LwcPriceLine & { readonly priceLineId: string };
 
 /**
  * Structural shape the factory uses for a single native series. Both the
@@ -74,7 +107,8 @@ export type LwcSeries = {
     setData(data: ReadonlyArray<{ time: number; value?: number }>): void;
     update(point: { time: number; value?: number }): void;
     applyOptions(options: Readonly<Record<string, unknown>>): void;
-    createPriceLine(options: { price: number }): unknown;
+    createPriceLine(options: { price: number }): LwcPriceLine;
+    removePriceLine(line: LwcPriceLine): void;
     setMarkers(markers: ReadonlyArray<{ time: number }>): void;
     // Task 6: the drawing series-primitive overlay attaches here. `primitive`
     // is structurally an `ISeriesPrimitive`; the factory anchors one instance
@@ -126,6 +160,7 @@ export class MockLwcApi implements LwcChart {
     readonly calls: LwcRecordedCall[] = [];
     private seriesCount = 0;
     private paneCount = 1;
+    private priceLineCount = 0;
 
     addSeries(
         seriesType: string,
@@ -135,6 +170,11 @@ export class MockLwcApi implements LwcChart {
         const seriesId = `s${this.seriesCount++}`;
         this.calls.push({ kind: "addSeries", seriesId, seriesType, paneIndex });
         const calls = this.calls;
+        // Each recorded price line carries its deterministic ordinal (`pl0`,
+        // `pl1`, …) on the handle itself, so re-pricing
+        // (`applyPriceLineOptions`) and removal (`removePriceLine`) attribute
+        // to the exact line with no fallible lookup.
+        const nextPriceLineId = (): string => `pl${this.priceLineCount++}`;
         return {
             setData(data): void {
                 calls.push({ kind: "setData", seriesId, points: data.length });
@@ -150,9 +190,29 @@ export class MockLwcApi implements LwcChart {
             applyOptions(options): void {
                 calls.push({ kind: "applyOptions", seriesId, options });
             },
-            createPriceLine(options): unknown {
-                calls.push({ kind: "createPriceLine", seriesId, price: options.price });
-                return {};
+            createPriceLine(options): LwcPriceLine {
+                const priceLineId = nextPriceLineId();
+                calls.push({
+                    kind: "createPriceLine",
+                    seriesId,
+                    priceLineId,
+                    price: options.price,
+                });
+                const line: RecordedPriceLine = {
+                    priceLineId,
+                    applyOptions(next): void {
+                        calls.push({
+                            kind: "applyPriceLineOptions",
+                            priceLineId,
+                            price: next.price,
+                        });
+                    },
+                };
+                return line;
+            },
+            removePriceLine(line): void {
+                const priceLineId = (line as RecordedPriceLine).priceLineId;
+                calls.push({ kind: "removePriceLine", seriesId, priceLineId });
             },
             setMarkers(markers): void {
                 calls.push({ kind: "setMarkers", seriesId, markers: markers.length });
@@ -228,7 +288,20 @@ function canonicalise(call: LwcRecordedCall): Record<string, unknown> {
             return {
                 kind: call.kind,
                 seriesId: call.seriesId,
+                priceLineId: call.priceLineId,
                 price: roundFloat(call.price),
+            };
+        case "applyPriceLineOptions":
+            return {
+                kind: call.kind,
+                priceLineId: call.priceLineId,
+                price: roundFloat(call.price),
+            };
+        case "removePriceLine":
+            return {
+                kind: call.kind,
+                seriesId: call.seriesId,
+                priceLineId: call.priceLineId,
             };
         case "setMarkers":
             return { kind: call.kind, seriesId: call.seriesId, markers: call.markers };

@@ -10,14 +10,13 @@
 
 import type { PitchfanState, PitchforkState } from "@invinite-org/chartlang-core";
 
+import { SOLID_DASH } from "../_lib/dash.js";
 import { medianOriginFor, medianTargetFor } from "../_lib/pitchforkGeom.js";
 import { worldPointToPixel } from "../project.js";
 import type { DrawPrimitive, Viewport } from "../types.js";
 
 const DEFAULT_COLOR = "#ec4899";
 const DEFAULT_LINE_WIDTH = 1;
-
-const SOLID_DASH: ReadonlyArray<number> = [];
 
 /**
  * Decompose a `pitchfork` drawing — three line segments: a median rail

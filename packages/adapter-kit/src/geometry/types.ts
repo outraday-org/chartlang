@@ -117,6 +117,14 @@ export type DrawPrimitive =
           readonly r: number;
           readonly start: number;
           readonly end: number;
+          /**
+           * Whether the painter issues `closePath()` after the arc —
+           * drawing the chord back to the arc's start. `true` only for a
+           * full-circle shape (e.g. `circle`); partial arcs (the
+           * `trend-angle` indicator, `time-cycles`) MUST be `false`, else
+           * the chord renders as a spurious diameter line.
+           */
+          readonly closed: boolean;
           readonly stroke?: StrokeStyle;
           readonly fill?: FillStyle;
       }

@@ -405,7 +405,12 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
                 { slotId: "hl0", value: null },
             ),
         ]);
-        expect(chart.calls).toContainEqual({ kind: "createPriceLine", seriesId: "s0", price: 0 });
+        expect(chart.calls).toContainEqual({
+            kind: "createPriceLine",
+            seriesId: "s0",
+            priceLineId: "pl0",
+            price: 0,
+        });
     });
 
     it("horizontal-line in a subpane anchors on that pane's first series", async () => {
@@ -429,6 +434,87 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
             ),
         ]);
         expect(chart.calls.some((c) => c.kind === "createPriceLine")).toBe(false);
+    });
+
+    it("re-emitting one horizontal-line slot re-prices a single price line, not N", async () => {
+        const chart = new MockLwcApi();
+        const host = stubHost();
+        // The slot re-emits each bar with a moving price — three bars total.
+        let price = 10;
+        (host.drain as ReturnType<typeof vi.fn>).mockImplementation(async () =>
+            emissions({
+                plots: [
+                    plot(
+                        { kind: "horizontal-line", lineWidth: 1, lineStyle: "solid" },
+                        { slotId: "hl", value: price++ },
+                    ),
+                ],
+            }),
+        );
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([
+                { kind: "close", bar: bar(1) },
+                { kind: "close", bar: bar(2) },
+                { kind: "close", bar: bar(3) },
+            ]),
+            host,
+        });
+        await runRendererLoop(handle);
+        // Exactly ONE native price line created — the re-sights re-price it.
+        const created = chart.calls.filter((c) => c.kind === "createPriceLine");
+        expect(created).toHaveLength(1);
+        const repriced = chart.calls.filter((c) => c.kind === "applyPriceLineOptions");
+        expect(repriced).toHaveLength(2);
+        expect(repriced.map((c) => (c.kind === "applyPriceLineOptions" ? c.price : -1))).toEqual([
+            11, 12,
+        ]);
+    });
+
+    it("hiding a horizontal-line slot removes its native price line", async () => {
+        const chart = new MockLwcApi();
+        const host = stubHost();
+        // First bar shows the line; second bar emits the slot visible:false.
+        let frame = 0;
+        (host.drain as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+            const visible = frame++ === 0;
+            return emissions({
+                plots: [
+                    plot(
+                        { kind: "horizontal-line", lineWidth: 1, lineStyle: "solid" },
+                        { slotId: "hl", ...(visible ? {} : { visible: false }) },
+                    ),
+                ],
+            });
+        });
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([
+                { kind: "close", bar: bar(1) },
+                { kind: "close", bar: bar(2) },
+            ]),
+            host,
+        });
+        await runRendererLoop(handle);
+        expect(chart.calls.filter((c) => c.kind === "createPriceLine")).toHaveLength(1);
+        const removed = chart.calls.filter((c) => c.kind === "removePriceLine");
+        expect(removed).toHaveLength(1);
+        expect(removed[0]?.kind === "removePriceLine" && removed[0].priceLineId).toBe("pl0");
+    });
+
+    it("hiding a horizontal-line slot that never had a price line is a no-op", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(
+            emissions({
+                plots: [
+                    plot(
+                        { kind: "horizontal-line", lineWidth: 1, lineStyle: "solid" },
+                        { slotId: "never", visible: false },
+                    ),
+                ],
+            }),
+        );
+        expect(chart.calls.some((c) => c.kind === "removePriceLine")).toBe(false);
     });
 
     it("shape / character / arrow / marker / label set markers on the candle series", async () => {

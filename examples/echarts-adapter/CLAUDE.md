@@ -51,14 +51,36 @@ test seam + capabilities-only conformance default export).
 
 - **Plot kinds map to NATIVE ECharts facilities** (per `buildOption`):
   candlestick / line (`step:'end'` for step-line) / area (`areaStyle`) /
-  bar (histogram + horizontal-histogram) / stacked line-pair (filled-band)
-  / `markLine` (horizontal-line) / `scatter` (shape/marker/character/arrow/
-  label). Candle-state overrides (`candle-override` / `bar-override` /
-  `bar-color`) become per-bar candlestick `itemStyle`; `bg-color` becomes
-  the chart `backgroundColor`. None of these create a series — they are
-  applied during `applyPlot` and `StoredSeries.style` is narrowed
-  (`SeriesStyle`) to EXCLUDE them, keeping `buildOption`'s series switch
-  exhaustive over exactly the series-producing kinds.
+  bar (histogram) / stacked line-pair (filled-band) / `markLine`
+  (horizontal-line) / `scatter` (shape/marker/character/arrow/label). The
+  `line` / `step-line` / `area` series forward the IR stroke `lineWidth` +
+  `LineStyle` dash into the ECharts `lineStyle` (`{ color, width, type }`,
+  where `type` is `"solid"|"dashed"|"dotted"` — byte-identical to the IR
+  `LineStyle`, no translation table). Candle-state overrides
+  (`candle-override` / `bar-override` / `bar-color`) become per-bar
+  candlestick `itemStyle`; `bg-color` becomes the chart `backgroundColor`.
+  None of these create a series — they are applied during `applyPlot` and
+  `StoredSeries.style` is narrowed (`SeriesStyle`) to EXCLUDE them, keeping
+  `buildOption`'s series switch exhaustive over exactly the series-producing
+  kinds.
+
+- **`horizontal-histogram` (volume profile) renders as `graphic`
+  rectangles, NOT a per-bar bar series.** Its geometry lives in
+  `style.buckets` (`{ price, volume, color? }` rows), not the scalar per-bar
+  `value`, so `barSeries` (which reads `value`) would drop it. `buildOption`'s
+  series switch emits NOTHING for the `horizontal-histogram` arm;
+  `buildHorizontalHistograms` instead maps each bucket to a left-anchored
+  horizontal-bar `polygon` graphic — `price → priceToY(view)` row, length
+  `(volume / maxVolume) * HHIST_MAX_WIDTH_PX`, fill `bucket.color ??
+  DEFAULT_LINE_COLOR` — projected against the series' OWN pane grid (overlay
+  = 0). `buildViewport(chart, bars, gridIndex)` takes the pane's grid so a
+  subpane profile uses that pane's price scale. A zero `maxVolume` or a
+  zero-volume bucket contributes nothing; bucket prices/volumes are
+  guaranteed finite (`validateEmission` drops non-finite emissions upstream),
+  so no per-bucket finiteness guard. These graphics PREPEND `buildGraphics`'
+  drawing graphics in `option.graphic`. A change here re-pins
+  `integration.test.ts`'s `hashOptionLog` (the EMA-cross bundle emits none,
+  so its hash is unaffected).
 
 - **Sub-panes are ECharts `grid`s.** One `grid` + x/y axis pair per
   `paneOrder` key (overlay = grid 0), mirroring canvas2d's `paneOrder`.

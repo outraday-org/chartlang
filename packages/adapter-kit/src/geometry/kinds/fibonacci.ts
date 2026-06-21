@@ -24,6 +24,7 @@ import type {
 } from "@invinite-org/chartlang-core";
 
 import { sampleCubic } from "../_lib/bezier.js";
+import { SOLID_DASH } from "../_lib/dash.js";
 import { FIB_LEVELS, formatLevel } from "../_lib/fibLevels.js";
 import { extendLineSegment } from "../_lib/lineExtend.js";
 import { priceToY, timeToX, worldPointToPixel } from "../project.js";
@@ -36,8 +37,6 @@ const LABEL_OFFSET_PX = 4;
 const LABEL_TOP_PX = 12;
 const LABEL_OFFSET_FRACTION = 0.25;
 const TAU = Math.PI * 2;
-
-const SOLID_DASH: ReadonlyArray<number> = [];
 
 /**
  * Build a level-line label `text` primitive. Shared by every fib
@@ -475,6 +474,7 @@ function concentricArcs(
             r: radius,
             start: 0,
             end: TAU,
+            closed: false,
             stroke: { color, width: DEFAULT_LINE_WIDTH, dash: SOLID_DASH },
         });
         if (showLabels) {

@@ -34,15 +34,18 @@ describe("MockLwcApi", () => {
         series.update({ time: 4 });
         series.applyOptions({ visible: false });
         const priceLine = series.createPriceLine({ price: 42 });
+        priceLine.applyOptions({ price: 43 });
+        series.removePriceLine(priceLine);
         series.setMarkers([{ time: 5 }, { time: 6 }]);
         series.attachPrimitive({ paneViews: () => [] });
-        expect(priceLine).toEqual({});
         expect(chart.calls.slice(1)).toEqual([
             { kind: "setData", seriesId: "s0", points: 2 },
             { kind: "update", seriesId: "s0", time: 3, value: 30 },
             { kind: "update", seriesId: "s0", time: 4, value: null },
             { kind: "applyOptions", seriesId: "s0", options: { visible: false } },
-            { kind: "createPriceLine", seriesId: "s0", price: 42 },
+            { kind: "createPriceLine", seriesId: "s0", priceLineId: "pl0", price: 42 },
+            { kind: "applyPriceLineOptions", priceLineId: "pl0", price: 43 },
+            { kind: "removePriceLine", seriesId: "s0", priceLineId: "pl0" },
             { kind: "setMarkers", seriesId: "s0", markers: 2 },
             { kind: "attachPrimitive", seriesId: "s0" },
         ]);
@@ -84,7 +87,9 @@ describe("hashLwcCallLog", () => {
             s.update({ time: 2, value: 2.123456789 });
             s.update({ time: 3 });
             s.applyOptions({ visible: true });
-            s.createPriceLine({ price: 9.87654321 });
+            const pl = s.createPriceLine({ price: 9.87654321 });
+            pl.applyOptions({ price: 8.12345678 });
+            s.removePriceLine(pl);
             s.setMarkers([{ time: 4 }]);
             s.attachPrimitive({ paneViews: () => [] });
             chart.addPane();

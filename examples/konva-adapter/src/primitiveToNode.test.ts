@@ -135,6 +135,7 @@ describe("primitiveToNode — arc", () => {
             r: 12,
             start: 0,
             end: Math.PI * 2,
+            closed: true,
             stroke: { color: "#14b8a6", width: 1, dash: [] },
         });
         expect(nodes[0].type).toBe("Arc");
@@ -157,6 +158,7 @@ describe("primitiveToNode — arc", () => {
             r: 5,
             start: 0,
             end: Math.PI * 2,
+            closed: true,
             stroke: { color: "#000000", width: 1, dash: [2, 3] },
             fill: { color: "#000000", alpha: 1 },
         });
@@ -172,6 +174,7 @@ describe("primitiveToNode — arc", () => {
             r: 3,
             start: 0,
             end: Math.PI * 2,
+            closed: true,
             fill: { color: "#000000", alpha: 0.25 },
         });
         expect(nodes[0].type).toBe("Arc");
@@ -188,6 +191,7 @@ describe("primitiveToNode — arc", () => {
             r: 10,
             start: 0,
             end: Math.PI / 2,
+            closed: false,
             stroke: { color: "#3b82f6", width: 1, dash: [] },
         });
         expect(nodes[0].type).toBe("Path");
@@ -206,6 +210,7 @@ describe("primitiveToNode — arc", () => {
             r: 4,
             start: 0,
             end: Math.PI * 1.5,
+            closed: false,
             stroke: { color: "#000000", width: 1, dash: [] },
         });
         expect(large.nodes[0].config.data).toContain("A 4 4 0 1 1");
@@ -217,6 +222,7 @@ describe("primitiveToNode — arc", () => {
             r: 4,
             start: 0,
             end: -Math.PI / 4,
+            closed: false,
             stroke: { color: "#000000", width: 1, dash: [3, 3] },
             fill: { color: "#ffffff", alpha: 0.5 },
         });
@@ -234,6 +240,7 @@ describe("primitiveToNode — arc", () => {
             r: 10,
             start: 0,
             end: Math.PI / 2,
+            closed: false,
         });
         expect(nodes[0].config.stroke).toBeUndefined();
         expect(nodes[0].config.fill).toBeUndefined();
@@ -241,10 +248,12 @@ describe("primitiveToNode — arc", () => {
 
     it("skips an arc with a non-finite centre or radius", () => {
         expect(
-            build({ kind: "arc", cx: Number.NaN, cy: 0, r: 1, start: 0, end: 1 }).nodes,
+            build({ kind: "arc", cx: Number.NaN, cy: 0, r: 1, start: 0, end: 1, closed: false })
+                .nodes,
         ).toHaveLength(0);
         expect(
-            build({ kind: "arc", cx: 0, cy: 0, r: Number.NaN, start: 0, end: 1 }).nodes,
+            build({ kind: "arc", cx: 0, cy: 0, r: Number.NaN, start: 0, end: 1, closed: false })
+                .nodes,
         ).toHaveLength(0);
     });
 });

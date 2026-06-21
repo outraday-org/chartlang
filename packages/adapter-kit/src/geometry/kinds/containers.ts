@@ -17,6 +17,7 @@ import type {
     TableState,
 } from "@invinite-org/chartlang-core";
 
+import { SOLID_DASH } from "../_lib/dash.js";
 import { worldPointToPixel } from "../project.js";
 import type { DrawPrimitive, FillStyle, StrokeStyle, Viewport } from "../types.js";
 
@@ -53,8 +54,6 @@ const FRAME_LINE_WIDTH = 1;
 const FRAME_LABEL_FONT = "12px sans-serif";
 const FRAME_LABEL_INSET_X = 6;
 const FRAME_LABEL_INSET_Y = 14;
-
-const SOLID_DASH: ReadonlyArray<number> = [];
 
 /**
  * Decompose a `frame` drawing — a stroked rectangle between the two

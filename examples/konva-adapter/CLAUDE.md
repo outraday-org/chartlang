@@ -115,6 +115,23 @@ capabilities-only conformance default export).
   non-finite yields no node — a documented divergence from the canvas
   painter's `NaN` no-op.
 
+- **`withAlpha` is the SINGLE guarded colour helper, exported from
+  `primitiveToNode.ts` and reused by the series builders.** It bakes an
+  `alpha ∈ [0, 1]` into a `#rrggbbaa` colour, but ONLY for a plain
+  `#rrggbb` input — a named / `rgba(…)` / already-alpha colour fails the
+  `/^#[0-9a-fA-F]{6}$/` guard and passes through UNCHANGED (appending two
+  more hex digits would corrupt it). `createKonvaAdapter.ts` imports this
+  one copy for the `filled-band` fill AND the `area` fill (which carries
+  the style's `fillAlpha`, stroke stays opaque). Do not reintroduce an
+  unguarded local copy.
+
+- **`state.barsByTime` indexes `bar.time → bar` for O(1) override
+  lookups.** `applyCandleEvent` keeps the `Map` in sync with `bars`
+  (history appends, a tick deletes the prior last-bar key before
+  re-indexing, dispose clears it). `buildOverlay`'s candle-/bar-override /
+  bar-color path reads it with `.get(plot.time)` instead of an O(bars)
+  `find` per drain.
+
 - **Text `bgColor` is a Konva-specific enrichment.** The canvas
   `paintPrimitive` DROPS a text primitive's `bgColor` (a structural
   `RenderCtx` cannot measure text); Konva CAN express it, so the adapter

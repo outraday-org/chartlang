@@ -15,7 +15,7 @@
  * for the outer rectangle). The 1/4 subdivisions match the upstream
  * invinite default and are the pinned Phase-3 wire shape.
  *
- * @since 0.3
+ * @since 1.3
  * @stable
  * @example
  *     import { GANN_LEVELS } from "./gannLevels.js";
@@ -29,7 +29,7 @@ export const GANN_LEVELS: ReadonlyArray<number> = Object.freeze([0, 0.25, 0.5, 0
  * doubles the slope, 2×1 halves it, etc. The 9-entry tuple matches the
  * upstream invinite default `FibGannLevel` set.
  *
- * @since 0.3
+ * @since 1.3
  * @stable
  * @example
  *     import { GANN_FAN_RATIOS } from "./gannLevels.js";
@@ -53,7 +53,7 @@ export const GANN_FAN_RATIOS: ReadonlyArray<number> = Object.freeze([
  * greater than 1 render as `"1x<n>"`; ratios less than 1 render as
  * `"<n>x1"`; 1×1 is the identity.
  *
- * @since 0.3
+ * @since 1.3
  * @stable
  * @example
  *     import { GANN_FAN_LABELS } from "./gannLevels.js";
@@ -76,7 +76,7 @@ export const GANN_FAN_LABELS: ReadonlyArray<string> = Object.freeze([
  * `"1x<n>"`; ratios `< 1` render as `"<n>x1"` where `n = round(1 /
  * ratio)`. Used when fan labels are enabled.
  *
- * @since 0.3
+ * @since 1.3
  * @stable
  * @example
  *     import { formatGannRatio } from "./gannLevels.js";

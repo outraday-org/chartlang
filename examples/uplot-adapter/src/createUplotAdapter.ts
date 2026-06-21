@@ -20,7 +20,7 @@ import {
     validateEmission,
 } from "@invinite-org/chartlang-adapter-kit";
 import { type RenderCtx, paintPrimitive } from "@invinite-org/chartlang-adapter-kit/canvas";
-import type { Bar } from "@invinite-org/chartlang-core";
+import type { Bar, LineStyle } from "@invinite-org/chartlang-core";
 import {
     type ScriptHost,
     type WorkerLike,
@@ -192,6 +192,8 @@ type PlotPoint = {
 type PanedHLine = {
     readonly price: number;
     readonly color: string;
+    readonly lineWidth: number;
+    readonly lineStyle: LineStyle;
     readonly paneKey: string;
 };
 
@@ -259,8 +261,32 @@ function paneSlotKey(paneKey: string, slotId: string): string {
     return `${paneKey}|${slotId}`;
 }
 
+// Resolve a `PlotEmission.pane` to the stable pane key the renderer stacks
+// instances by. `"overlay"` is pane 0; a named string keys a stable
+// sub-pane on first sight and is reused; `"new"` allocates a FRESH sub-pane
+// per emitting slot (`new:${slotId}`), mirroring the lightweight-charts
+// adapter, where each distinct `"new"` call site lands in its own pane.
+// The key is derived from the slot (not a running counter) so the same
+// call site re-emitting `"new"` every bar reuses its pane instead of
+// allocating a runaway pane per frame — the runtime re-emits each slot on
+// every bar close.
+function resolvePaneKey(pane: string, slotId: string): string {
+    return pane === "new" ? `new:${slotId}` : pane;
+}
+
 function paneKeyPrefix(paneKey: string): string {
     return `${paneKey}|`;
+}
+
+// Canonical `setLineDash` segment array per chartlang `LineStyle`. A local
+// copy of the canvas2d adapter's `render/lineDash.ts` convention (`"solid"`
+// → `[]`, `"dashed"` → `[6, 4]`, `"dotted"` → `[2, 4]`): the helper is not
+// promoted to adapter-kit, and cross-importing another example's `src/` is
+// forbidden, so the few-line convention is mirrored here.
+function dashPattern(style: LineStyle): readonly number[] {
+    if (style === "dashed") return [6, 4];
+    if (style === "dotted") return [2, 4];
+    return [];
 }
 
 // Map a chartlang `PlotStyle` to the uPlot path family the series uses.
@@ -404,10 +430,16 @@ function paintPaneOverlay(state: AdapterState, paneKey: string, u: UplotLike): v
         const y = u.valToPos(hline.price, "y", true);
         if (!Number.isFinite(y)) continue;
         ctx.strokeStyle = hline.color;
+        ctx.lineWidth = hline.lineWidth;
+        ctx.setLineDash(dashPattern(hline.lineStyle));
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(viewport.pxWidth, y);
         ctx.stroke();
+        // Restore solid 1px so the drawing pass + later hlines are not
+        // contaminated by this line's width / dash (canvas2d convention).
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
     }
     paintDrawings(state, u, ctx);
 }
@@ -520,7 +552,7 @@ function renderFrame(state: AdapterState): void {
 
 function applyPlot(state: AdapterState, plot: PlotEmission): void {
     if (plot.visible === false) return;
-    const paneKey = plot.pane;
+    const paneKey = resolvePaneKey(plot.pane, plot.slotId);
     if (paneKey !== "overlay" && !state.paneOrder.includes(paneKey)) {
         state.paneOrder.push(paneKey);
     }
@@ -536,6 +568,8 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
         state.hlines.set(plot.slotId, {
             price: plot.value ?? 0,
             color: plot.color ?? HLINE_COLOR,
+            lineWidth: plot.style.lineWidth,
+            lineStyle: plot.style.lineStyle,
             paneKey,
         });
         return;

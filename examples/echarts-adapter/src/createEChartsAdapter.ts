@@ -12,11 +12,13 @@ import {
     type PlotEmission,
     type PlotStyle,
     type RunnerEmissions,
+    type Viewport,
     decomposeDrawing,
     defineAdapter,
+    priceToY,
     validateEmission,
 } from "@invinite-org/chartlang-adapter-kit";
-import type { Bar } from "@invinite-org/chartlang-core";
+import type { Bar, LineStyle } from "@invinite-org/chartlang-core";
 import {
     type ScriptHost,
     type WorkerLike,
@@ -46,6 +48,11 @@ const MAX_RECENT_ALERTS = 256;
 const GAP = "-";
 const DEFAULT_BG_COLOR = "#0b0e11";
 const DEFAULT_LINE_COLOR = "#3b82f6";
+// A volume-profile (`horizontal-histogram`) bucket renders as a left-anchored
+// horizontal bar: the longest bucket spans `HHIST_MAX_WIDTH_PX` and each row is
+// `HHIST_ROW_HEIGHT_PX` tall. Mirrors the konva adapter's per-bucket geometry.
+const HHIST_MAX_WIDTH_PX = 80;
+const HHIST_ROW_HEIGHT_PX = 4;
 
 /**
  * Constructor options for {@link createEChartsAdapter}. The `host`/`workerLike`
@@ -205,13 +212,33 @@ function seriesColor(series: StoredSeries): string {
     return DEFAULT_LINE_COLOR;
 }
 
+// The line-family styles (`line` / `step-line` / `area`) all carry a stroke
+// `lineWidth` + a `LineStyle` dash. `lineSeries` is only ever called for those
+// three kinds; this narrows to the carrier so the width + dash forward into the
+// ECharts `lineStyle`. (`SeriesStyle` is broader; the candle / hline / bg kinds
+// never reach `lineSeries`.)
+type LineFamilyStyle = Extract<SeriesStyle, { kind: "line" | "step-line" | "area" }>;
+
+// Map the IR stroke (`lineWidth` + `LineStyle` dash, both shared with the canvas
+// adapters) onto the ECharts `lineStyle` bag. `LineStyle` ("solid"/"dashed"/
+// "dotted") is byte-identical to ECharts' `lineStyle.type`, so it forwards
+// directly — no translation table.
+function echartsLineStyle(
+    style: LineFamilyStyle,
+    color: string,
+): { readonly color: string; readonly width: number; readonly type: LineStyle } {
+    return { color, width: style.lineWidth, type: style.lineStyle };
+}
+
 function lineSeries(
     name: string,
     series: StoredSeries,
+    style: LineFamilyStyle,
     barCount: number,
     grid: number,
     extra: Partial<LineSeriesOption>,
 ): LineSeriesOption {
+    const color = seriesColor(series);
     return {
         type: "line",
         name,
@@ -219,8 +246,8 @@ function lineSeries(
         yAxisIndex: grid,
         showSymbol: false,
         connectNulls: false,
-        lineStyle: { color: seriesColor(series) },
-        itemStyle: { color: seriesColor(series) },
+        lineStyle: echartsLineStyle(style, color),
+        itemStyle: { color },
         data: seriesData(series.points, barCount),
         z: series.z,
         ...extra,
@@ -281,6 +308,60 @@ function buildGraphics(state: AdapterState): EChartsGraphicElement[] {
     return graphics;
 }
 
+// A volume-profile (`horizontal-histogram`) bucket → a left-anchored horizontal
+// bar `polygon` graphic: the row sits at `priceToY(bucket.price)` and spans
+// `(bucket.volume / maxVolume) * HHIST_MAX_WIDTH_PX` from the pane's left edge.
+// ECharts has no axis-free horizontal-bar facility within a value-y grid, so
+// (like drawings) these ride the declarative `graphic` array. A zero
+// `maxVolume` or a non-positive bucket width contributes nothing. Bucket prices
+// + volumes are guaranteed finite — `validateEmission` drops any emission with
+// a non-finite number anywhere in its tree before it is stored.
+function horizontalHistogramGraphics(
+    style: Extract<PlotStyle, { kind: "horizontal-histogram" }>,
+    view: Viewport,
+): EChartsGraphicElement[] {
+    let maxVolume = 0;
+    for (const bucket of style.buckets) {
+        if (bucket.volume > maxVolume) maxVolume = bucket.volume;
+    }
+    if (maxVolume <= 0) return [];
+    const graphics: EChartsGraphicElement[] = [];
+    for (const bucket of style.buckets) {
+        const width = (bucket.volume / maxVolume) * HHIST_MAX_WIDTH_PX;
+        if (width <= 0) continue;
+        const y = priceToY(bucket.price, view);
+        const top = y - HHIST_ROW_HEIGHT_PX / 2;
+        const bottom = y + HHIST_ROW_HEIGHT_PX / 2;
+        graphics.push({
+            type: "polygon",
+            shape: {
+                points: [
+                    [0, top],
+                    [width, top],
+                    [width, bottom],
+                    [0, bottom],
+                ],
+            },
+            style: { fill: bucket.color ?? DEFAULT_LINE_COLOR },
+        });
+    }
+    return graphics;
+}
+
+// Render every stored `horizontal-histogram` series' buckets into per-bucket
+// `polygon` graphics, projected against the series' OWN pane grid (overlay = 0)
+// so a subpane volume profile uses that pane's price scale.
+function buildHorizontalHistograms(state: AdapterState): EChartsGraphicElement[] {
+    const graphics: EChartsGraphicElement[] = [];
+    for (const [key, stored] of state.series) {
+        if (stored.style.kind !== "horizontal-histogram") continue;
+        const paneKey = key.slice(0, key.indexOf("|"));
+        const view = buildViewport(state.chart, state.bars, gridIndexOf(state, paneKey));
+        graphics.push(...horizontalHistogramGraphics(stored.style, view));
+    }
+    return graphics;
+}
+
 function buildOption(state: AdapterState): EChartsOption {
     const barCount = state.bars.length;
     const categories = state.bars.map((bar) => bar.time);
@@ -331,21 +412,27 @@ function buildOption(state: AdapterState): EChartsOption {
             case "line":
             case "step-line":
                 series.push(
-                    lineSeries(name, stored, barCount, grid, {
+                    lineSeries(name, stored, stored.style, barCount, grid, {
                         ...(stored.style.kind === "step-line" ? { step: "end" } : {}),
                     }),
                 );
                 break;
             case "area":
                 series.push(
-                    lineSeries(name, stored, barCount, grid, {
+                    lineSeries(name, stored, stored.style, barCount, grid, {
                         areaStyle: { opacity: stored.style.fillAlpha },
                     }),
                 );
                 break;
             case "histogram":
-            case "horizontal-histogram":
                 series.push(barSeries(name, stored, barCount, grid));
+                break;
+            case "horizontal-histogram":
+                // A volume-profile series is NOT a per-bar bar: its geometry
+                // lives in `style.buckets` (price → row, volume → length), not
+                // in the scalar per-bar `value`. It renders as per-bucket
+                // `polygon` graphics in `buildHorizontalHistograms`, so the
+                // series loop emits nothing here.
                 break;
             case "filled-band": {
                 const stack = `band-${name}`;
@@ -419,7 +506,7 @@ function buildOption(state: AdapterState): EChartsOption {
         xAxis: xAxes,
         yAxis: yAxes,
         series,
-        graphic: buildGraphics(state),
+        graphic: [...buildHorizontalHistograms(state), ...buildGraphics(state)],
     };
 }
 

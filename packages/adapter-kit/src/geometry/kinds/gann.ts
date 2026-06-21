@@ -15,6 +15,7 @@ import type {
     GannSquareState,
 } from "@invinite-org/chartlang-core";
 
+import { SOLID_DASH } from "../_lib/dash.js";
 import { GANN_FAN_RATIOS, GANN_LEVELS } from "../_lib/gannLevels.js";
 import { worldPointToPixel } from "../project.js";
 import type { DrawPrimitive, Viewport } from "../types.js";
@@ -22,8 +23,6 @@ import type { DrawPrimitive, Viewport } from "../types.js";
 const DEFAULT_COLOR = "#a855f7";
 const DEFAULT_LINE_WIDTH = 1;
 const SIDE_PX = 80;
-
-const SOLID_DASH: ReadonlyArray<number> = [];
 
 /**
  * Shared subdivision-grid builder for the three Gann box kinds — one

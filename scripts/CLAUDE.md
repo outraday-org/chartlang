@@ -63,9 +63,13 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
   canvas2d report pair** (`examples/canvas2d-adapter/CONFORMANCE.md` +
   `conformance-report.json`) — the reference adapter is the single adapter
   with a committed, diff-friendly report; the other four are run for
-  pass/fail only and own no committed report. Adding a new example adapter =
-  append an entry to `CONFORMANCE_ADAPTERS` (and build its dist before CI's
-  conformance step). The report run reuses the loop's canvas2d run — the
+  pass/fail only and own no committed report. `CONFORMANCE_ADAPTERS` is
+  **derived from `ADAPTERS` in `scripts/adapters/registry.ts`** (the same
+  SSOT `gen-adapters` reads), so adding a new example adapter = append ONE
+  entry to that registry (and build its dist before CI's conformance step) —
+  no second list to keep in sync. Registry order keeps canvas2d first, so
+  `CONFORMANCE_ADAPTERS[0]` is the reference adapter the `--report` /
+  `--check` paths key on. The report run reuses the loop's canvas2d run — the
   suite is never executed twice for one adapter.
 - `gen-adapters.ts` (`adapters:generate` / `adapters:gate`) bakes each
   example adapter declared in `scripts/adapters/registry.ts` (the SSOT —

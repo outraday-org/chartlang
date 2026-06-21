@@ -196,6 +196,7 @@ export function decomposeCircle(state: CircleState, view: Viewport): ReadonlyArr
             r: radius,
             start: 0,
             end: TWO_PI,
+            closed: true,
             stroke,
             ...(fill === undefined ? {} : { fill }),
         },

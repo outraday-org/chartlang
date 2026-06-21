@@ -14,11 +14,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
 import {
+    type ConformanceReportMeta,
     renderConformanceJson,
     renderConformanceMarkdown,
-    type ConformanceReportMeta,
 } from "../packages/conformance/src/report/renderReport";
 import type { ConformanceReport } from "../packages/conformance/src/runConformanceSuite";
+import { ADAPTERS } from "./adapters/registry";
 
 const ROOT = process.cwd();
 
@@ -33,7 +34,7 @@ type ConformanceModule = {
  * `dir` is the repo-relative example directory; the runner imports its
  * `src/index.ts` (preferred) then falls back to its built `dist/index.js`.
  *
- * @since 1.0
+ * @since 1.3
  * @stable
  * @example
  *     const entry: ConformanceAdapter = {
@@ -55,19 +56,21 @@ export type ConformanceAdapter = {
  * `<dir>/dist/index.js`; its `default` export (a capabilities-only headless
  * `Adapter`) is the conformance subject.
  *
- * @since 1.0
+ * Derived from the `ADAPTERS` registry (`scripts/adapters/registry.ts`,
+ * the same SSOT `gen-adapters` reads) so a new adapter is added in ONE
+ * place. Registry order puts the canvas2d reference first, so
+ * `CONFORMANCE_ADAPTERS[0]` is the reference adapter — the invariant the
+ * `--report` / `--check` paths rely on.
+ *
+ * @since 1.3
  * @stable
  * @example
  *     // CONFORMANCE_ADAPTERS[0].name === "canvas2d"
  *     void CONFORMANCE_ADAPTERS;
  */
-export const CONFORMANCE_ADAPTERS: ReadonlyArray<ConformanceAdapter> = Object.freeze([
-    { name: "canvas2d", dir: "examples/canvas2d-adapter" },
-    { name: "lightweight-charts", dir: "examples/lightweight-charts-adapter" },
-    { name: "uplot", dir: "examples/uplot-adapter" },
-    { name: "echarts", dir: "examples/echarts-adapter" },
-    { name: "konva", dir: "examples/konva-adapter" },
-]);
+export const CONFORMANCE_ADAPTERS: ReadonlyArray<ConformanceAdapter> = Object.freeze(
+    ADAPTERS.map((a) => ({ name: a.id, dir: a.exampleDir })),
+);
 
 /**
  * Parsed CLI options for `scripts/run-conformance.ts`.
@@ -310,13 +313,13 @@ function printDrift(drift: ReadonlyArray<ConformanceReportDrift>): void {
  * `<dir>/dist/index.js`. Returns `null` when neither resolves a `default`
  * export, so the runner can log-and-continue for a not-yet-built adapter.
  *
- * @since 1.0
+ * @since 1.3
  * @stable
  * @example
  *     const adapter = await loadAdapter("/repo", "examples/canvas2d-adapter");
  *     void adapter;
  */
-export async function loadAdapter(root: string, dir: string): Promise<unknown | null> {
+export async function loadAdapter(root: string, dir: string): Promise<unknown> {
     const mod =
         (await tryImport<AdapterModule>(join(root, dir, "src/index.ts"))) ??
         (await tryImport<AdapterModule>(join(root, dir, "dist/index.js")));
@@ -344,6 +347,9 @@ async function main(argv: ReadonlyArray<string> = process.argv.slice(2)): Promis
     // reuses the loop's run — the suite is never run twice for one adapter.
     let canvas2dAdapter: unknown = null;
     let canvas2dReport: ConformanceReport | null = null;
+    // The reference adapter is the registry's first entry (canvas2d); it is
+    // the only one with a committed, diff-friendly report pair.
+    const referenceName = CONFORMANCE_ADAPTERS[0]?.name;
 
     for (const entry of CONFORMANCE_ADAPTERS) {
         const adapter = await loadAdapter(ROOT, entry.dir);
@@ -353,7 +359,7 @@ async function main(argv: ReadonlyArray<string> = process.argv.slice(2)): Promis
         }
 
         const report = await runSuite(adapter);
-        if (entry.name === "canvas2d") {
+        if (entry.name === referenceName) {
             canvas2dAdapter = adapter;
             canvas2dReport = report;
         }

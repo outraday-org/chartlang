@@ -17,10 +17,10 @@ import type {
 } from "@invinite-org/chartlang-core";
 
 import { dashPattern } from "../_lib/dash.js";
+import { strokeOf } from "../_lib/strokeStyle.js";
 import { worldPointToPixel } from "../project.js";
-import type { DrawPrimitive, StrokeStyle, Viewport } from "../types.js";
+import type { DrawPrimitive, Viewport } from "../types.js";
 
-const DEFAULT_COLOR = "#000000";
 const DEFAULT_LINE_WIDTH = 1;
 
 /**
@@ -28,18 +28,6 @@ const DEFAULT_LINE_WIDTH = 1;
  * `#3b82f6`, matching the canvas2d source renderer.
  */
 const REGRESSION_DEFAULT_COLOR = "#3b82f6";
-
-function strokeOf(style: {
-    readonly color?: string | undefined;
-    readonly lineWidth?: number | undefined;
-    readonly lineStyle?: "solid" | "dashed" | "dotted" | undefined;
-}): StrokeStyle {
-    return {
-        color: style.color ?? DEFAULT_COLOR,
-        width: style.lineWidth ?? DEFAULT_LINE_WIDTH,
-        dash: dashPattern(style.lineStyle ?? "solid"),
-    };
-}
 
 /**
  * Decompose a `trend-channel` drawing — two parallel line segments. The

@@ -12,7 +12,7 @@
  * retracement decomposer that needs the bracket lines (the 0% and 100%
  * anchor levels) doesn't have to splice them in.
  *
- * @since 0.3
+ * @since 1.3
  * @stable
  * @example
  *     for (const level of FIB_LEVELS) {
@@ -33,7 +33,7 @@ export const FIB_LEVELS: ReadonlyArray<number> = Object.freeze([
  * `"0.618"`, `"1.272"`). Matches the Pine-style label convention used
  * by the invinite fib tools.
  *
- * @since 0.3
+ * @since 1.3
  * @stable
  * @example
  *     formatLevel(0);     // "0.0"

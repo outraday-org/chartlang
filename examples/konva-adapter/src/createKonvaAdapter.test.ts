@@ -460,6 +460,10 @@ describe("createKonvaAdapter — plots", () => {
             (n) => n.type === "Line" && n.config.closed === true,
         );
         expect(closed).toBeDefined();
+        // The area fill carries the requested `fillAlpha` baked into the
+        // colour (0.3 → `4d`); the stroke stays fully opaque.
+        expect(closed?.config.fill).toBe("#90caf94d");
+        expect(closed?.config.stroke).toBe("#90caf9");
     });
 
     it("skips an area series with fewer than two finite points", () => {
@@ -538,6 +542,43 @@ describe("createKonvaAdapter — plots", () => {
             (n) => n.type === "Line" && n.config.closed === true,
         );
         expect(closed.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("bakes the band alpha into a 6-hex fill but passes a non-6-hex fill through unchanged", () => {
+        const { adapter, konva } = withBars();
+        const bandStyle = (): PlotStyle => ({
+            kind: "filled-band",
+            upper: 13,
+            lower: 9,
+            alpha: 0.5,
+        });
+        // A plain `#rrggbb` colour gets the alpha baked into `#rrggbbaa`
+        // (0.5 → `80`); a named / `rgba()` colour the guard does not match
+        // is returned UNCHANGED — appending two hex digits would corrupt it.
+        emit(adapter, [
+            plot("hex", bandStyle(), { bar: 0, time: 0, value: 11, color: "#112233" }),
+            plot("hex", bandStyle(), { bar: 1, time: 10, value: 12, color: "#112233" }),
+        ]);
+        const hexBand = groupChildren(konva)[0].find(
+            (n) => n.type === "Line" && n.config.closed === true && n.config.fill === "#11223380",
+        );
+        expect(hexBand).toBeDefined();
+
+        const named = build();
+        feedCandleEvent(named.adapter, {
+            kind: "history",
+            bars: [bar(0, 10, 12, 8, 11), bar(10, 11, 13, 10, 12)],
+        });
+        named.adapter.onEmissions(
+            emissions([
+                plot("named", bandStyle(), { bar: 0, time: 0, value: 11, color: "rgb(1,2,3)" }),
+                plot("named", bandStyle(), { bar: 1, time: 10, value: 12, color: "rgb(1,2,3)" }),
+            ]),
+        );
+        const namedBand = groupChildren(named.konva)[0].find(
+            (n) => n.type === "Line" && n.config.closed === true,
+        );
+        expect(namedBand?.config.fill).toBe("rgb(1,2,3)");
     });
 
     it("renders a horizontal line across the pane", () => {

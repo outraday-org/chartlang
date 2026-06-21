@@ -26,7 +26,7 @@ import {
 import { KONVA_CAPABILITIES, KONVA_SYM_INFO } from "./capabilities.js";
 import { DEFAULT_PALETTE, type KonvaPalette } from "./palette.js";
 import { type PaneLayoutEntry, computePaneLayout } from "./paneLayout.js";
-import { primitiveToNode } from "./primitiveToNode.js";
+import { primitiveToNode, withAlpha } from "./primitiveToNode.js";
 import type { KonvaGroup, KonvaLayer, KonvaNamespace, KonvaNode, KonvaStage } from "./types.js";
 
 const DEFAULT_INTERVAL = "1D";
@@ -127,6 +127,10 @@ type AdapterState = {
     readonly drawingsLayer: KonvaLayer;
     readonly stageSize: { readonly width: number; readonly height: number };
     readonly bars: Bar[];
+    // `bar.time → bar` index kept in sync with `bars` in `applyCandleEvent`,
+    // so per-override bar lookups in `buildOverlay` (candle-/bar-override /
+    // bar-color) are O(1) instead of an O(bars) `find` per drain.
+    readonly barsByTime: Map<number, Bar>;
     // Distinct pane keys in first-emit order; `"overlay"` is always index 0.
     paneOrder: string[];
     // One entry per `${pane}|${slotId}` series, holding its accumulated
@@ -351,7 +355,9 @@ function buildAreaSeries(
             new state.konva.Line({
                 points: closed,
                 closed: true,
-                fill: color,
+                // The fill carries the requested `fillAlpha` (baked into the
+                // `#rrggbbaa` colour); the stroke stays fully opaque.
+                fill: withAlpha(color, style.fillAlpha),
                 stroke: color,
                 strokeWidth: style.lineWidth,
                 ...(dash === undefined ? {} : { dash }),
@@ -506,7 +512,7 @@ function buildOverlay(
             // Re-tint the bar's body: one `Rect` at the bar with the
             // override colour. canvas2d paints these with the candles; the
             // Konva node tree expresses the same per-bar tint.
-            const bar = state.bars.find((b) => b.time === plot.time);
+            const bar = state.barsByTime.get(plot.time);
             if (bar === undefined) return;
             const color = style.kind === "candle-override" ? style.bull : style.color;
             const x = timeToX(bar.time, viewport);
@@ -602,15 +608,6 @@ function seriesColor(series: ReadonlyArray<SeriesPoint>, fallback: string): stri
         if (color !== null) return color;
     }
     return fallback;
-}
-
-// Bracket a hex colour with an alpha by appending the two-hex-digit alpha
-// channel (Konva accepts `#rrggbbaa`). `alpha ∈ [0, 1]`.
-function withAlpha(color: string, alpha: number): string {
-    const clamped = Math.max(0, Math.min(1, alpha));
-    const byte = Math.round(clamped * 255);
-    const hex = byte.toString(16).padStart(2, "0");
-    return `${color}${hex}`;
 }
 
 // A `plotOverlays` entry is a non-series visual the overlay/subpane group
@@ -810,18 +807,29 @@ function buildPaneSeries(
 function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
     if (event.streamKey !== undefined) return;
     if (event.kind === "history") {
-        state.bars.push(...event.bars);
+        for (const bar of event.bars) {
+            state.bars.push(bar);
+            state.barsByTime.set(bar.time, bar);
+        }
         return;
     }
     if (event.kind === "tick") {
         if (state.bars.length === 0) {
             state.bars.push(event.bar);
+            state.barsByTime.set(event.bar.time, event.bar);
             return;
         }
+        // A tick replaces the in-progress last bar: drop its prior time
+        // mapping before re-indexing, so a tick that re-times the bar does
+        // not leave a stale entry.
+        const prev = state.bars[state.bars.length - 1];
+        state.barsByTime.delete(prev.time);
         state.bars[state.bars.length - 1] = event.bar;
+        state.barsByTime.set(event.bar.time, event.bar);
         return;
     }
     state.bars.push(event.bar);
+    state.barsByTime.set(event.bar.time, event.bar);
 }
 
 /**
@@ -862,6 +870,7 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
         drawingsLayer,
         stageSize: { width: opts.stage.width, height: opts.stage.height },
         bars: [],
+        barsByTime: new Map(),
         paneOrder: ["overlay"],
         plotSeries: new Map(),
         plotOverlays: new Map(),
@@ -904,6 +913,7 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
         },
         dispose: () => {
             state.bars.length = 0;
+            state.barsByTime.clear();
             state.paneOrder = ["overlay"];
             state.plotSeries.clear();
             state.plotOverlays.clear();

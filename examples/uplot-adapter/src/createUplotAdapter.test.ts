@@ -323,6 +323,53 @@ describe("createUplotAdapter — candles + panes", () => {
         );
     });
 
+    it("allocates a fresh pane per distinct slot emitting pane:\"new\"", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    // Two distinct slots both ask for pane:"new"; each must land
+                    // in its OWN sub-pane (not collapse into a shared "new" key),
+                    // mirroring the lightweight-charts adapter.
+                    plotEmission({ slotId: "a", pane: "new", value: 10, time: BARS[0].time }),
+                    plotEmission({ slotId: "b", pane: "new", value: 20, time: BARS[0].time }),
+                ],
+            }),
+        ]);
+        // overlay + two fresh sub-panes.
+        expect(instances.length).toBe(3);
+        const paneKeys = instances.map((u) =>
+            u.records[0].kind === "new" ? u.records[0].opts.paneKey : "",
+        );
+        expect(paneKeys[0]).toBe("overlay");
+        expect(paneKeys[1]).toBe("new:a");
+        expect(paneKeys[2]).toBe("new:b");
+    });
+
+    it("reuses the same pane:\"new\" pane when one slot re-emits across frames", async () => {
+        const host = stubHost([
+            emissions({
+                plots: [plotEmission({ slotId: "a", pane: "new", value: 10, time: BARS[0].time })],
+            }),
+            emissions({
+                plots: [plotEmission({ slotId: "a", pane: "new", value: 11, time: BARS[1].time })],
+            }),
+        ]);
+        const { adapter, instances } = build({
+            host,
+            candles: candleStream([
+                { kind: "close", bar: BARS[0] },
+                { kind: "close", bar: BARS[1] },
+            ]),
+        });
+        await runUplotLoop(adapter);
+        // The slot re-emits each frame but reuses its first-allocated pane —
+        // no runaway pane-per-frame.
+        expect(instances.length).toBe(2);
+        expect(instances[1].records[0].kind === "new" && instances[1].records[0].opts.paneKey).toBe(
+            "new:a",
+        );
+    });
+
     it("falls back to a unit y-range for a subpane with no finite values", async () => {
         const { instances } = await drive([
             emissions({
@@ -644,6 +691,63 @@ describe("createUplotAdapter — horizontal lines", () => {
             (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === "#123456",
         );
         expect(hlineStroke).toBe(false);
+    });
+
+    it("applies the hline's lineWidth + dash, then resets to solid 1px", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "h",
+                        style: { kind: "horizontal-line", lineWidth: 3, lineStyle: "dashed" },
+                        value: 102,
+                        color: "#ff0000",
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        // The hline strokes at width 3 with the dashed pattern, then restores
+        // solid 1px so downstream draws are not contaminated.
+        const widthSets = overlay.ctx.calls.filter(
+            (c) => c.kind === "set" && c.prop === "lineWidth",
+        );
+        expect(widthSets.some((c) => c.kind === "set" && c.value === 3)).toBe(true);
+        const dashes = overlay.ctx.calls.filter((c) => c.kind === "setLineDash");
+        expect(dashes.some((c) => c.kind === "setLineDash" && c.segments.length > 0)).toBe(true);
+        // The last width + dash the hline emits restore the defaults.
+        const lastWidth = widthSets.at(-1);
+        expect(lastWidth?.kind === "set" && lastWidth.value).toBe(1);
+        const lastDash = dashes.at(-1);
+        expect(lastDash?.kind === "setLineDash" && lastDash.segments).toEqual([]);
+    });
+
+    it("strokes a dotted hline with the dotted dash pattern", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "h",
+                        style: { kind: "horizontal-line", lineWidth: 1, lineStyle: "dotted" },
+                        value: 102,
+                        color: "#00ff00",
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        const dotted = overlay.ctx.calls.some(
+            (c) =>
+                c.kind === "setLineDash" &&
+                c.segments.length === 2 &&
+                c.segments[0] === 2 &&
+                c.segments[1] === 4,
+        );
+        expect(dotted).toBe(true);
     });
 
     it("routes a subpane hline into its own pane's draw hook", async () => {

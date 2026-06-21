@@ -10,12 +10,9 @@
 import type { ArcState, CurveState, DoubleCurveState } from "@invinite-org/chartlang-core";
 
 import { sampleCubic, sampleQuadratic } from "../_lib/bezier.js";
-import { dashPattern } from "../_lib/dash.js";
+import { strokeOf } from "../_lib/strokeStyle.js";
 import { worldPointToPixel } from "../project.js";
-import type { DrawPrimitive, StrokeStyle, Viewport } from "../types.js";
-
-const DEFAULT_COLOR = "#000000";
-const DEFAULT_LINE_WIDTH = 1;
+import type { DrawPrimitive, Viewport } from "../types.js";
 
 /**
  * Number of polyline segments each curve is sampled into — matching the
@@ -24,18 +21,6 @@ const DEFAULT_LINE_WIDTH = 1;
  * a sampled polyline).
  */
 const CURVE_SAMPLES = 32;
-
-function strokeOf(style: {
-    readonly color?: string | undefined;
-    readonly lineWidth?: number | undefined;
-    readonly lineStyle?: "solid" | "dashed" | "dotted" | undefined;
-}): StrokeStyle {
-    return {
-        color: style.color ?? DEFAULT_COLOR,
-        width: style.lineWidth ?? DEFAULT_LINE_WIDTH,
-        dash: dashPattern(style.lineStyle ?? "solid"),
-    };
-}
 
 /**
  * Decompose an `arc` drawing — a quadratic Bezier whose middle anchor

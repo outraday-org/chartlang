@@ -27,7 +27,7 @@ type PitchforkVariant = PitchforkState["variant"];
  * - `modifiedSchiff` — origin = `mid(a, b)`; target = `mid(b, c)`.
  * - `inside` — origin = `mid(b, c)`; target = `midBC + (c - midAB)`.
  *
- * @since 0.3
+ * @since 1.3
  * @stable
  * @example
  *     import { medianOriginFor } from "./pitchforkGeom.js";
@@ -62,7 +62,7 @@ export function medianOriginFor(
  * extension vector `target - origin` reused for the two parallel handle
  * rails.
  *
- * @since 0.3
+ * @since 1.3
  * @stable
  * @example
  *     import { medianTargetFor } from "./pitchforkGeom.js";

@@ -57,6 +57,7 @@ import {
     AreaSeries,
     CandlestickSeries,
     HistogramSeries,
+    type IPriceLine,
     type ISeriesPrimitive,
     LineSeries,
     type SeriesDefinition,
@@ -70,7 +71,7 @@ import {
 
 import { LWC_CAPABILITIES, LWC_SYM_INFO } from "./capabilities.js";
 import { DrawingPrimitive } from "./drawingPrimitive.js";
-import type { LwcChart, LwcSeries } from "./testing.js";
+import type { LwcChart, LwcPriceLine, LwcSeries } from "./testing.js";
 
 const DEFAULT_INTERVAL = "1D";
 const MAX_RECENT_ALERTS = 256;
@@ -135,6 +136,12 @@ type AdapterState = {
     // Keyed by `${paneKey}|${slotId}` so one callsite can land in distinct
     // panes and each gets its own native series.
     readonly series: Map<string, PaneSeries>;
+    // The native price line a `horizontal-line` slot owns, keyed by the same
+    // `${paneKey}|${slotId}`. The runtime re-emits the slot every bar; we
+    // re-price the SAME line instead of stacking a new one each frame (LC has
+    // no price-line dedup). The series the line is anchored on is held so a
+    // hidden / removed slot can `removePriceLine` it.
+    readonly priceLines: Map<string, { readonly line: LwcPriceLine; readonly anchor: LwcSeries }>;
     // The candlestick series of the overlay pane, lazily created on the first
     // candle event — the anchor for overlay-pane price lines.
     candleSeries: LwcSeries | undefined;
@@ -205,6 +212,7 @@ function defaultCreateChart(container: HTMLElement): LwcChart {
             update: (point) => series.update({ time: toTime(point.time), value: point.value }),
             applyOptions: (options) => series.applyOptions(options),
             createPriceLine: (options) => series.createPriceLine({ price: options.price }),
+            removePriceLine: (line) => series.removePriceLine(line as IPriceLine),
             setMarkers: (markers) =>
                 createSeriesMarkers(
                     series,
@@ -315,14 +323,37 @@ function applyFilledBand(
     entry.lower?.update(dataPoint(plot.time, style.lower));
 }
 
+function removePriceLine(state: AdapterState, key: string): void {
+    const existing = state.priceLines.get(key);
+    if (existing === undefined) return;
+    existing.anchor.removePriceLine(existing.line);
+    state.priceLines.delete(key);
+}
+
 function applyHorizontalLine(state: AdapterState, plot: PlotEmission): void {
-    // Anchor a native price line on the pane's candle series (overlay) or the
-    // pane's first series. If neither exists yet there is nothing to attach to
-    // this frame — a no-op (the runtime re-emits hlines per bar).
+    // The runtime re-emits a `horizontal-line` slot every bar. LC has no
+    // price-line dedup, so creating one per emission would stack N overlapping
+    // native lines. Track the line per `${pane}|${slotId}` and re-price the
+    // SAME handle on re-sight; remove it when the slot is hidden / gone.
+    const key = paneSlotKey(plot.pane, plot.slotId);
+    if (plot.visible === false) {
+        removePriceLine(state, key);
+        return;
+    }
+    const price = plot.value ?? 0;
+    const existing = state.priceLines.get(key);
+    if (existing !== undefined) {
+        existing.line.applyOptions({ price });
+        return;
+    }
+    // First sight: anchor a native price line on the pane's candle series
+    // (overlay) or the pane's first series. If neither exists yet there is
+    // nothing to attach to this frame — a no-op (re-tried next bar).
     const anchor =
         plot.pane === "overlay" ? state.candleSeries : firstSeriesInPane(state, plot.pane);
     if (anchor === undefined) return;
-    anchor.createPriceLine({ price: plot.value ?? 0 });
+    const line = anchor.createPriceLine({ price });
+    state.priceLines.set(key, { line, anchor });
 }
 
 function firstSeriesInPane(state: AdapterState, pane: string): LwcSeries | undefined {
@@ -520,6 +551,7 @@ export function createLightweightChartsAdapter(
         bars: [],
         paneIndex: new Map(),
         series: new Map(),
+        priceLines: new Map(),
         candleSeries: undefined,
         recentAlerts: [],
         currentAlertConditions: [],
@@ -559,6 +591,9 @@ export function createLightweightChartsAdapter(
             state.bars.length = 0;
             state.paneIndex.clear();
             state.series.clear();
+            // The chart's `remove()` below tears down its series + price lines;
+            // dropping our references is enough (no per-line removePriceLine).
+            state.priceLines.clear();
             state.candleSeries = undefined;
             state.recentAlerts.length = 0;
             state.currentAlertConditions.length = 0;

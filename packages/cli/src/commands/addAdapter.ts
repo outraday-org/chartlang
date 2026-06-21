@@ -81,7 +81,7 @@ function isPackageManager(value: string): value is PackageManager {
 }
 
 function installCommand(pm: PackageManager): string {
-    return pm === "npm" ? "npm install" : `${pm} install`;
+    return `${pm} install`;
 }
 
 /**
@@ -197,6 +197,16 @@ export async function runAddAdapter(
         strict: true,
     });
 
+    let id = parsed.positionals[0];
+
+    if (parsed.values.list || (id === undefined && !deps.isTTY)) {
+        deps.stdout.write(renderList(ADAPTER_REGISTRY));
+        return;
+    }
+
+    // `--pm` only feeds the next-steps printout, so validate it after the
+    // `--list` short-circuit — `add-adapter --list` should print the matrix
+    // regardless of an (ignored) `--pm` value.
     const pmRaw = parsed.values.pm ?? "npm";
     if (!isPackageManager(pmRaw)) {
         deps.stderr.write(
@@ -206,13 +216,6 @@ export async function runAddAdapter(
         return;
     }
     const pm: PackageManager = pmRaw;
-
-    let id = parsed.positionals[0];
-
-    if (parsed.values.list || (id === undefined && !deps.isTTY)) {
-        deps.stdout.write(renderList(ADAPTER_REGISTRY));
-        return;
-    }
 
     if (id === undefined) {
         const prompter = deps.createPrompter();

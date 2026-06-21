@@ -21,26 +21,14 @@ import type {
 
 import { dashPattern } from "../_lib/dash.js";
 import { extendLineSegment } from "../_lib/lineExtend.js";
+import { strokeOf } from "../_lib/strokeStyle.js";
 import { priceToY, timeToX, worldPointToPixel } from "../project.js";
-import type { DrawPrimitive, StrokeStyle, Viewport } from "../types.js";
+import type { DrawPrimitive, Viewport } from "../types.js";
 
 const DEFAULT_COLOR = "#000000";
-const DEFAULT_LINE_WIDTH = 1;
 const ANGLE_ARC_RADIUS_PX = 24;
 const ANGLE_TEXT_FONT = "12px sans-serif";
 const ANGLE_TEXT_OFFSET_PX = 6;
-
-function strokeOf(style: {
-    readonly color?: string | undefined;
-    readonly lineWidth?: number | undefined;
-    readonly lineStyle?: "solid" | "dashed" | "dotted" | undefined;
-}): StrokeStyle {
-    return {
-        color: style.color ?? DEFAULT_COLOR,
-        width: style.lineWidth ?? DEFAULT_LINE_WIDTH,
-        dash: dashPattern(style.lineStyle ?? "solid"),
-    };
-}
 
 /**
  * Decompose a `line` drawing — a single segment, optionally extended to
@@ -233,6 +221,7 @@ export function decomposeTrendAngle(
             r: ANGLE_ARC_RADIUS_PX,
             start: -angleRad,
             end: 0,
+            closed: false,
             stroke: { color, width: stroke.width, dash: dashPattern("solid") },
         },
         {
