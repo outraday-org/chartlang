@@ -123,8 +123,16 @@ async function exists(path: string): Promise<boolean> {
 describe("renderLibraryChoices", () => {
     it("lists echarts first and marks the default", () => {
         const text = renderLibraryChoices([
-            { id: "canvas2d", displayName: "Canvas 2D", library: "(none)" } as unknown as GeneratedAdapterMeta,
-            { id: "echarts", displayName: "ECharts", library: "echarts" } as unknown as GeneratedAdapterMeta,
+            {
+                id: "canvas2d",
+                displayName: "Canvas 2D",
+                library: "(none)",
+            } as unknown as GeneratedAdapterMeta,
+            {
+                id: "echarts",
+                displayName: "ECharts",
+                library: "echarts",
+            } as unknown as GeneratedAdapterMeta,
         ]);
         const echartsLine = text.indexOf("echarts");
         const canvasLine = text.indexOf("canvas2d");
