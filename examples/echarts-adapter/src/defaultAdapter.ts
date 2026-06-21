@@ -22,8 +22,8 @@ async function* emptyCandleSource(): AsyncIterator<CandleEvent> {
  * Production callers should use `createEChartsAdapter` instead, which wires a
  * real ECharts chart + worker host against a DOM container.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import defaultAdapter, { DEFAULT_ADAPTER } from "chartlang-example-echarts-adapter";
  *     // defaultAdapter === DEFAULT_ADAPTER

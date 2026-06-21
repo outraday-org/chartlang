@@ -23,7 +23,7 @@ async function* emptyCandleSource(): AsyncIterator<CandleEvent> {
  * Production callers should use `createLightweightChartsAdapter` instead,
  * which wires a real chart + worker host against a container element.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import defaultAdapter, { DEFAULT_ADAPTER } from "chartlang-example-lightweight-charts-adapter";

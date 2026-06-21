@@ -22,8 +22,8 @@ export { buildViewport, computeViewport } from "./viewport.js";
  * `import defaultAdapter from "chartlang-example-echarts-adapter"` without a
  * named binding.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import defaultAdapter from "chartlang-example-echarts-adapter";
  *     // defaultAdapter.capabilities.plots.has("line") === true

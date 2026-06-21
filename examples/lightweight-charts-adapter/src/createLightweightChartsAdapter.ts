@@ -83,7 +83,7 @@ const MAX_RECENT_ALERTS = 256;
  * lightweight-charts `createChart`). The `host` / `workerLike` fields are the
  * worker-host test seams, same as the canvas2d adapter.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { MockLwcApi } from "chartlang-example-lightweight-charts-adapter/testing";
@@ -111,7 +111,7 @@ export type CreateLightweightChartsAdapterOpts = {
  * Public handle the consumer drives. `host` is exposed so callers can
  * `await adapter.host.load(compiled)` before driving the candle source.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     declare const adapter: LwcAdapterHandle;
@@ -498,7 +498,7 @@ function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
  * through an attached {@link DrawingPrimitive} overlay (`decomposeDrawing` +
  * the shared canvas sink).
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { createLightweightChartsAdapter } from "chartlang-example-lightweight-charts-adapter";
@@ -581,7 +581,7 @@ export function createLightweightChartsAdapter(
  * loop drops the remaining work and resolves (no throw), matching the
  * canvas2d adapter's cancellation contract.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const opts: RunRendererLoopOpts = { signal: new AbortController().signal };
@@ -599,7 +599,7 @@ export type RunRendererLoopOpts = Readonly<{
  * host throws. Pass `opts.signal` to cancel cleanly (returns silently on
  * abort).
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { createLightweightChartsAdapter, runRendererLoop } from "chartlang-example-lightweight-charts-adapter";

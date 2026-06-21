@@ -5,10 +5,26 @@ adapter contract is small — declare what you support, feed candles,
 translate emissions — and a conformance suite (220 scenarios) tells
 you when the implementation is correct.
 
-## Scaffold
+## Start from a working adapter (fast path)
 
-The CLI generates a complete starter package — source, smoke test,
-conformance test, and a report script:
+If your library is one of the five chartlang already supports
+(canvas2d, lightweight-charts, uPlot, ECharts, Konva), don't start from
+scratch — drop a complete, version-pinned, conformance-green copy into
+your repo with one command:
+
+```bash
+npx @invinite-org/chartlang-cli add-adapter <library>
+```
+
+Browse the [adapter gallery](../adapters/gallery.md) to compare them by
+license, render tech, bundle size, and install command, then `add-adapter`
+the closest one and adapt it. Run `add-adapter --list` to see the matrix in
+your terminal.
+
+## Scaffold a blank starter
+
+For a library not in the gallery, the CLI generates an empty starter
+package — source, smoke test, conformance test, and a report script:
 
 ```bash
 pnpm dlx @invinite-org/chartlang-cli scaffold-adapter my-trading-chart
@@ -16,11 +32,11 @@ cd my-trading-chart
 pnpm install
 ```
 
-The scaffolded package is intentionally `"private": true` — adapter
-packages live in consumer repositories and publish under the owner's
-own scope when they ship. Re-running `scaffold-adapter` against a
-non-empty directory refuses to overwrite (idempotence is enforced; no
-`--force` flag).
+Both the scaffolded and `add-adapter` packages are intentionally
+`"private": true` — adapter packages live in consumer repositories and
+publish under the owner's own scope when they ship. Re-running
+`scaffold-adapter` against a non-empty directory refuses to overwrite
+(idempotence is enforced; no `--force` flag).
 
 ## Declare capabilities honestly
 

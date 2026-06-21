@@ -1,12 +1,15 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import { runAddAdapter } from "./commands/addAdapter.js";
 import { runCompile } from "./commands/compile.js";
 import { runDocsCommand } from "./commands/docs.js";
 import { runHelp } from "./commands/help.js";
 import { runPineConvert } from "./commands/pineConvert.js";
 import { runScaffoldAdapter } from "./commands/scaffoldAdapter.js";
 
+export { defaultAddAdapterDeps, renderList, runAddAdapter } from "./commands/addAdapter.js";
+export type { AddAdapterDeps, Prompter } from "./commands/addAdapter.js";
 export { runCompile } from "./commands/compile.js";
 export { runDocsCommand } from "./commands/docs.js";
 export {
@@ -42,7 +45,11 @@ export { runScaffoldAdapter } from "./commands/scaffoldAdapter.js";
  * `docs/primitives/ta/<id>.md` per primitive from the runtime JSDoc —
  * and `pine-convert`, which converts a Pine Script v6 file to a
  * chartlang `.chart.ts` via `@invinite-org/chartlang-pine-converter`.
- * Later phases add `lint` / `bench` via the same dispatcher seam.
+ * Phase 3 adds `add-adapter` — drops a complete, runnable library
+ * adapter (canvas2d / echarts / konva / lightweight-charts / uplot) from
+ * the offline bundle baked into the CLI (vs `scaffold-adapter`, which
+ * emits a blank starter). Later phases add `lint` / `bench` via the same
+ * dispatcher seam.
  *
  * @since 0.1
  * @example
@@ -59,6 +66,9 @@ export async function runCli(argv: ReadonlyArray<string>): Promise<void> {
             return;
         case "scaffold-adapter":
             await runScaffoldAdapter(rest);
+            return;
+        case "add-adapter":
+            await runAddAdapter(rest);
             return;
         case "docs":
             await runDocsCommand(rest);

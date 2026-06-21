@@ -55,8 +55,8 @@ const DEFAULT_LINE_COLOR = "#3b82f6";
  * `echartsFactory` lets tests supply an {@link EChartsSurface} mock; production
  * callers pass a factory that returns `echarts.init(container)`.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import type { CreateEChartsAdapterOpts } from "chartlang-example-echarts-adapter";
  *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
@@ -94,8 +94,8 @@ export type CreateEChartsAdapterOpts = {
  * `await adapter.host.load(compiled)` before invoking
  * {@link runEChartsLoop}.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import type { EChartsAdapterHandle } from "chartlang-example-echarts-adapter";
  *     declare const adapter: EChartsAdapterHandle;
@@ -591,8 +591,8 @@ function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
  * `chart.setOption(option, { notMerge: true })` so each drain produces the
  * full, authoritative option tree.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import { createEChartsAdapter } from "chartlang-example-echarts-adapter";
  *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
@@ -680,8 +680,8 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
  * current iteration's remaining work, breaks out of the async-iterator, and
  * resolves (no throw).
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import type { RunEChartsLoopOpts } from "chartlang-example-echarts-adapter";
  *     const opts: RunEChartsLoopOpts = { signal: new AbortController().signal };
@@ -700,8 +700,8 @@ export type RunEChartsLoopOpts = Readonly<{
  * Pass `opts.signal` to cancel the loop cleanly — on abort it returns silently
  * (no throw) after finishing at most one in-flight `push` / `drain`.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import { createEChartsAdapter, runEChartsLoop } from "chartlang-example-echarts-adapter";
  *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";

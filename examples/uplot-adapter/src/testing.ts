@@ -14,7 +14,7 @@ type AlignedData = ReadonlyArray<ReadonlyArray<number | null>>;
  * update sequence without standing up a DOM. `new` captures the built
  * {@link UplotOptions} + the initial data + the target's pane key.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const r: UplotRecord = { kind: "setScale", scaleKey: "y", min: 0, max: 1 };
@@ -40,7 +40,7 @@ export type UplotRecord =
  * call log. `runDraw()` invokes the instance's registered `hooks.draw`
  * (what a real uPlot does each redraw) so tests can drive the ctx pass.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { MockUplot } from "chartlang-example-uplot-adapter/testing";
@@ -137,7 +137,7 @@ export class MockUplot implements UplotLike {
      * Invoke every registered `hooks.draw` (what a real uPlot does each
      * redraw), driving the adapter's ctx pass against {@link ctx}.
      *
-     * @since 0.1
+     * @since 1.4
      * @stable
      * @example
      *     import { MockUplot } from "chartlang-example-uplot-adapter/testing";
@@ -157,7 +157,7 @@ export class MockUplot implements UplotLike {
  * constructs (one per pane), in construction order, so tests can inspect
  * the per-pane build + drive each instance's draw pass.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { makeMockUplotFactory } from "chartlang-example-uplot-adapter/testing";

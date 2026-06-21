@@ -25,7 +25,7 @@ export { UPLOT_PRICE_SCALE, buildViewport, offsetForViewport } from "./viewport.
  * `import defaultAdapter from "chartlang-example-uplot-adapter"` without a
  * named binding.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import defaultAdapter from "chartlang-example-uplot-adapter";

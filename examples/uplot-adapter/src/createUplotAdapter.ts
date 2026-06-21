@@ -55,7 +55,7 @@ type AlignedData = ReadonlyArray<ReadonlyArray<number | null>>;
  * shape). `valToPos` + `ctx` are what the `hooks.draw` pass reads to
  * paint horizontal lines (and, in Task 8, drawings).
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     declare const u: UplotLike;
@@ -85,7 +85,7 @@ export type UplotLike = {
  * A subset of uPlot's `Series` carrying only the fields the factory sets;
  * `paths` selects line vs step vs bars vs band rendering.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const s: UplotSeriesSpec = { label: "EMA", scale: "y", stroke: "#3b82f6", paths: "line" };
@@ -104,7 +104,7 @@ export type UplotSeriesSpec = {
  * A subset of uPlot's `Options`; `hooks.draw` is the ctx pass for
  * horizontal lines (extended for drawings in Task 8).
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     declare const opts: UplotOptions;
@@ -123,7 +123,7 @@ export type UplotOptions = {
  * aligned data + a DOM target. Production uses the default (real uPlot);
  * tests inject a `MockUplot` factory.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const f: UplotFactory = (_opts, _data, _target) => {
@@ -144,7 +144,7 @@ export type UplotFactory = (
  * `MockUplot` factory plus a `MockCanvasContext` as the draw-hook ctx.
  * `host` / `workerLike` mirror the canvas2d adapter's host seams.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
@@ -175,7 +175,7 @@ export type CreateUplotAdapterOpts = {
  * Public handle the consumer drives. `host` is exposed so callers can
  * `await adapter.host.load(compiled)` before invoking {@link runUplotLoop}.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     declare const adapter: UplotAdapterHandle;
@@ -627,7 +627,7 @@ function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
  * buffered for Task 8. The returned `host` is exposed so the consumer can
  * `await adapter.host.load(compiled)` before invoking {@link runUplotLoop}.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { createUplotAdapter } from "chartlang-example-uplot-adapter";
@@ -726,7 +726,7 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
  * drops the remaining work, breaks out of the iterator, and resolves (no
  * throw) — the convention a React consumer needs on unmount.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const opts: RunUplotLoopOpts = { signal: new AbortController().signal };
@@ -740,7 +740,7 @@ export type RunUplotLoopOpts = Readonly<{ signal?: AbortSignal }>;
  * then `host.drain()` + `onEmissions(...)`. Returns when the source
  * completes. Pass `opts.signal` to cancel cleanly (no throw on abort).
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { createUplotAdapter, runUplotLoop } from "chartlang-example-uplot-adapter";

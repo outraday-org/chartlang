@@ -37,7 +37,7 @@ import type { Viewport } from "@invinite-org/chartlang-adapter-kit";
  * is outside the loaded data); `getVisibleRange` gives the visible window in
  * the horizontal-scale item type (UTC-second / ms timestamps here).
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const ts: LwcTimeScaleProjector = {
@@ -58,7 +58,7 @@ export type LwcTimeScaleProjector = {
  * `priceToCoordinate` is its forward partner. Either returns `null` before the
  * series has data.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const s: LwcSeriesProjector = {
@@ -79,7 +79,7 @@ export type LwcSeriesProjector = {
  * in); `mediaSize` is the CSS-pixel size LC's converters speak; the pixel
  * ratios bridge media → bitmap.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const scope: BitmapScope = {
@@ -153,7 +153,7 @@ function identityViewport(pxWidth: number, pxHeight: number): Viewport {
  * anchors) falls back to an identity viewport for that axis so painting never
  * throws.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     declare const timeScale: LwcTimeScaleProjector;

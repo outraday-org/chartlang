@@ -6,13 +6,21 @@ const HELP_TEXT = `chartlang — script compiler + adapter scaffolding
 Usage:
   chartlang compile <file...> [--sourcemap[=mode]] [--minify] [--out <dir>]
   chartlang scaffold-adapter <name> [--target <dir>]
+  chartlang add-adapter [id] [dir] [--list] [--name <pkg>] [--pm <npm|pnpm|yarn|bun>] [--force]
   chartlang docs [--source <dir>] [--out <dir>] [--draw-source <dir>] [--draw-out <dir>]
   chartlang pine-convert <input.pine> [--out <path>] [--strict] [--diagnostics-json] [--report] [--bar-interval <ms>] [--bar-index-origin <ms>]
   chartlang --help
 
+  scaffold-adapter writes a BLANK starter adapter to fill in yourself.
+  add-adapter writes a COMPLETE, runnable library adapter (canvas2d /
+  echarts / konva / lightweight-charts / uplot) you can build + run now;
+  use --list to compare them.
+
 Examples:
   chartlang compile examples/scripts/ema-cross.chart.ts
   chartlang scaffold-adapter my-trading-chart --target ./out
+  chartlang add-adapter --list
+  chartlang add-adapter konva ./my-chart --pm pnpm
   chartlang docs --out docs/primitives/ta --draw-out docs/primitives/draw
   chartlang pine-convert strategy.pine --out strategy.chart.ts
 `;

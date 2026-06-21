@@ -12,8 +12,8 @@ import type { EChartsOption, SetOptionOpts } from "echarts/types/dist/echarts";
  * `EChartsType`) so the mock does not have to implement the chart's whole
  * surface.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import type { EChartsSurface } from "chartlang-example-echarts-adapter";
  *     declare const chart: EChartsSurface;

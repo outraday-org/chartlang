@@ -19,6 +19,7 @@ describe("printHelp", () => {
         expect(out).toMatch(/chartlang — script compiler/);
         expect(out).toMatch(/chartlang compile <file\.\.\.>/);
         expect(out).toMatch(/chartlang scaffold-adapter <name>/);
+        expect(out).toMatch(/chartlang add-adapter \[id\] \[dir\] \[--list\]/);
         expect(out).toMatch(/chartlang docs \[--source <dir>\] \[--out <dir>\]/);
         expect(out).toMatch(/chartlang --help/);
         expect(out).toMatch(/Examples:/);

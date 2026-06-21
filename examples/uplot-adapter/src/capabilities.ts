@@ -46,7 +46,7 @@ const UPLOT_DRAWING_KINDS: ReadonlySet<DrawingKind> = capabilities.union(
  * Frozen so consumer-repo adapters that copy from this folder cannot
  * accidentally mutate the bag at runtime.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { UPLOT_CAPABILITIES } from "chartlang-example-uplot-adapter";
@@ -90,7 +90,7 @@ export const UPLOT_CAPABILITIES: Capabilities = Object.freeze({
 /**
  * Demo symbol metadata exposed by the uPlot example adapter.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { UPLOT_SYM_INFO } from "chartlang-example-uplot-adapter";

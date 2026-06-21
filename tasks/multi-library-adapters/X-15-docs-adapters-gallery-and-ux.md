@@ -1,6 +1,6 @@
 # Docs adapters gallery (generated) + README standardization + UX polish
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

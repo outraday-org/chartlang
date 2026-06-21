@@ -79,7 +79,7 @@ export default defineConfig({
             { text: "Language", link: "/language/overview" },
             { text: "Spec", link: "/spec/grammar" },
             { text: "Primitives", link: "/primitives/ta/" },
-            { text: "Adapters", link: "/adapters/" },
+            { text: "Adapters", link: "/adapters/gallery" },
             { text: "Hosts", link: "/hosts/worker" },
             { text: "Reference", link: "/reference/glossary" },
             { text: "Skills", link: "/skills/" },
@@ -248,6 +248,7 @@ export default defineConfig({
                 {
                     text: "Adapters",
                     items: [
+                        { text: "Gallery", link: "/adapters/gallery" },
                         { text: "Overview", link: "/adapters/" },
                         { text: "Contract", link: "/adapters/contract" },
                         { text: "Capabilities", link: "/adapters/capabilities" },

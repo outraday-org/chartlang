@@ -49,8 +49,8 @@ const ECHARTS_DRAWING_KINDS: ReadonlySet<DrawingKind> = capabilities.union(
  * Frozen so consumer-repo adapters that copy from this folder cannot
  * accidentally mutate the bag at runtime.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import { ECHARTS_CAPABILITIES } from "chartlang-example-echarts-adapter";
  *     // ECHARTS_CAPABILITIES.plots.has("line") === true
@@ -94,8 +94,8 @@ export const ECHARTS_CAPABILITIES: Capabilities = Object.freeze({
 /**
  * Demo symbol metadata exposed by the ECharts example adapter.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import { ECHARTS_SYM_INFO } from "chartlang-example-echarts-adapter";
  *     void ECHARTS_SYM_INFO.ticker;

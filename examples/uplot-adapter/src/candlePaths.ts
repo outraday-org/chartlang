@@ -17,7 +17,7 @@ import type { RenderCtx } from "@invinite-org/chartlang-adapter-kit/canvas";
  * `openY` / `closeY` / `highY` / `lowY` are pixel y for the four prices
  * (canvas y grows downward, so a higher price is a smaller y).
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const c: ProjectedCandle = { x: 50, openY: 80, closeY: 40, highY: 20, lowY: 100 };
@@ -36,7 +36,7 @@ export type ProjectedCandle = {
  * candle body width in pixels; `bull` / `bear` tint the body (and wick)
  * by close-vs-open; `doji` (open === close) falls back to `bull`.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const s: CandlePathStyle = { bodyWidth: 6, bull: "#26a69a", bear: "#ef5350" };
@@ -59,7 +59,7 @@ const MIN_BODY_HEIGHT_PX = 1;
  * skip — no spurious wick or body — so a gappy series leaves a gap. The
  * call sequence is canonical so adapters can pin a `hashCallLog`.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { MockCanvasContext } from "@invinite-org/chartlang-adapter-kit/canvas";

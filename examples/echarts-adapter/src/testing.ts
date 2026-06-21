@@ -13,8 +13,8 @@ import type { EChartsSurface } from "./types.js";
  * emission drain, so the recorded log is the option-tree history (plus the
  * terminal `dispose`).
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     const call: RecordedOptionCall = { kind: "setOption", option: { series: [] } };
  *     void call;
@@ -36,8 +36,8 @@ export type RecordedOptionCall =
  * price term is negated. Exported so the viewport test can reproduce the exact
  * pixels without re-deriving the constants.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import { mockValueToPixel } from "chartlang-example-echarts-adapter/testing";
  *     const [px, py] = mockValueToPixel([0, 0]);
@@ -57,8 +57,8 @@ export function mockValueToPixel(value: readonly [number, number]): readonly [nu
  * option tree the factory emits without standing up a real chart or a DOM —
  * mirroring `chartlang-example-canvas2d-adapter`'s `MockCanvas2DContext`.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import { MockECharts } from "chartlang-example-echarts-adapter/testing";
  *     const chart = new MockECharts();
@@ -161,8 +161,8 @@ function canonicaliseCall(call: RecordedOptionCall): Record<string, unknown> {
  * typed against. Used to pin the end-to-end option output against a golden
  * constant.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import { MockECharts, hashOptionLog } from "chartlang-example-echarts-adapter/testing";
  *     const chart = new MockECharts();

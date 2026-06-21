@@ -40,8 +40,8 @@ type GraphicTextStyle = {
  * `arc` carry a `shape` + path `style`; `text` carries `x` / `y` + a text
  * `style`.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import type { EChartsGraphicElement } from "chartlang-example-echarts-adapter";
  *     const el: EChartsGraphicElement = {
@@ -123,8 +123,8 @@ function isFinitePoint(p: Point2): boolean {
  * polyline (all points dropped upstream) is also treated as non-finite so the
  * element is skipped rather than emitting a zero-point shape.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import { primitiveIsFinite } from "chartlang-example-echarts-adapter";
  *     const ok = primitiveIsFinite({
@@ -206,8 +206,8 @@ function markerGraphic(p: Extract<DrawPrimitive, { kind: "marker" }>): EChartsGr
  * The function is total over the four IR kinds; the `default` arm is the
  * `never` exhaustiveness guard (a future IR kind fails `pnpm typecheck` here).
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import { primitiveToGraphic } from "chartlang-example-echarts-adapter";
  *     const el = primitiveToGraphic({

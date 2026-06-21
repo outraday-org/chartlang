@@ -1,56 +1,49 @@
 # chartlang-example-konva-adapter
 
-`experimental`
-
-Example adapter — renders chartlang OHLC candles, `plot` series, `hline`
+Full-surface adapter — renders OHLC candles, `plot` series, `hline`
 horizontal lines, and all 63 `draw.*` drawing kinds to a
-[Konva](https://konvajs.org) scene-graph (nodes, not pixels). Konva has no
-chart facilities, so the adapter owns its own coordinate scale (the shared
-adapter-kit projection) and builds every visual as a `Rect` / `Line` /
-`Text` / `Arc` / `Path` node. Drawings are decomposed once via the shared
-`decomposeDrawing` IR, then each `DrawPrimitive` maps to its Konva node(s)
-through `primitiveToNode`. Copy from this folder when writing your own
-Konva adapter.
+[Konva](https://konvajs.org) scene-graph. Konva has no chart facilities, so
+the adapter owns its own coordinate scale and builds every visual as a
+retained-mode node (`Rect` / `Line` / `Text` / `Arc` / `Path`).
 
-## Install
+`experimental` · MIT · copy-only — not published · Scene-graph (Canvas) ·
+full conformance
 
-Not published — copy from `examples/konva-adapter/`.
+## Get it
+
+```bash
+npx @invinite-org/chartlang-cli add-adapter konva
+```
+
+Not published to npm — `add-adapter` bakes a version-pinned copy into your
+repo, or copy
+[`examples/konva-adapter/`](https://github.com/outraday-org/chartlang/tree/main/examples/konva-adapter)
+directly.
 
 ## Public surface
 
-- `createKonvaAdapter(opts) → KonvaAdapterHandle` — main factory; returns
-  an `Adapter` plus an attached `ScriptHost`. `opts.konva` is the injected
-  Konva namespace (production passes the real `Konva`; tests pass
-  `MockKonva`) — the factory never statically imports `konva`, keeping the
-  package headless + free of the native `canvas` dependency.
-- `feedCandleEvent(handle, event)` — feed one candle event into the bar
-  buffer and rebuild the series + drawings layers.
-- `handleInterval(handle) → string` — the resolved chart interval.
-- `primitiveToNode(K, prim) → ReadonlyArray<KonvaNode>` — map one
-  `DrawPrimitive` to Konva node(s): `polyline` → `Line` (open / closed);
-  full-circle `arc` → `Arc` ring; partial `arc` → `Path` (SVG `A` + `Z`
-  chord); `text` → `Text` (+ a backing `Rect` when `bgColor` is set);
-  `marker` → a per-shape `Arc` / `Rect` / closed `Line` glyph. `parseFont`
-  splits the IR `"<px>px <family>"` font string into Konva's
-  `fontSize` / `fontFamily`.
-- `KONVA_CAPABILITIES` — `Capabilities` bag declaring every Phase-5 plot
-  kind, all 63 drawing kinds (62 `allPhase3Drawings()` + `table`), `log` +
-  `toast` alerts, multi-timeframe candles, unlimited sub-panes, full
-  `syminfo.*`, alert conditions, and logs. Byte-for-byte the canvas2d
-  shape.
-- `KONVA_SYM_INFO` — demo symbol metadata.
-- `DEFAULT_ADAPTER` (also the default export) — headless,
-  capabilities-only conformance export.
-- `computePaneLayout`, `PaneRect`, `PaneLayoutEntry` — adapter-local pane
-  layout (overlay 80% + uniform subpanes).
-- `DEFAULT_PALETTE`, `KonvaPalette` — colour constants + type.
-- The `KonvaNamespace` structural seam types (`KonvaStage`, `KonvaLayer`,
-  `Rect`/`Line`/`Text`/`Arc`/`Path` config bags, …).
-- Sub-path `chartlang-example-konva-adapter/testing`:
-  - `MockKonva` — headless recording stand-in for the Konva namespace.
-  - `hashKonvaScene(mock) → string` / `projectNode` — project the recorded
-    node tree into canvas `RecordedCall`s and hash via the shared
-    `hashCallLog` (floats rounded to 4 dp).
+- `createKonvaAdapter(opts) → KonvaAdapterHandle` — main factory; returns an
+  `Adapter` plus an attached `ScriptHost`. `opts.konva` is the injected
+  Konva namespace (real `Konva` in production, `MockKonva` in tests), so the
+  package never statically imports `konva` and stays headless.
+- `feedCandleEvent(handle, event)` / `handleInterval(handle) → string` —
+  feed one candle event + read the resolved chart interval.
+- `KONVA_CAPABILITIES` / `KONVA_SYM_INFO` — full `Capabilities` bag + demo
+  symbol metadata.
+- `DEFAULT_ADAPTER` (also the package `default`) — headless,
+  capabilities-only adapter the conformance suite consumes.
+- `primitiveToNode(K, prim) → ReadonlyArray<KonvaNode>` — the scene-graph
+  drawing map; `computePaneLayout` + the `KonvaNamespace` structural seam
+  types round out the surface.
+- Sub-path `chartlang-example-konva-adapter/testing` — `MockKonva` +
+  `hashKonvaScene(mock)` (projects nodes to canvas calls, then `hashCallLog`).
+
+## How drawings render
+
+The shared `decomposeDrawing(emission, view)` IR maps each primitive via
+`primitiveToNode` to its Konva node(s) — `polyline` → `Line`, full-circle
+`arc` → `Arc` ring, partial `arc` → `Path`, `text` → `Text` (+ a backing
+`Rect`), `marker` → a per-shape glyph. No `paintPrimitive` (nodes, not pixels).
 
 ## Minimum-viable API call
 
@@ -73,7 +66,10 @@ for (const bar of bars) feedCandleEvent(adapter, { kind: "close", bar });
 
 ## Docs
 
-See [`docs/adapters/writing-an-adapter.md`](../../docs/adapters/writing-an-adapter.md).
+See the [adapter gallery](../../docs/adapters/gallery.md) for a comparison of
+all five adapters, and
+[`docs/adapters/reference/konva.md`](../../docs/adapters/reference/konva.md)
+for this adapter's deep dive.
 
 ## License
 

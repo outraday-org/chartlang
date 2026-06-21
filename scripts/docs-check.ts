@@ -40,7 +40,16 @@ async function collectSourceFiles(dir: string, out: string[]): Promise<void> {
     for (const entry of entries) {
         const full = join(dir, entry.name);
         if (entry.isDirectory()) {
-            if (entry.name === "__fixtures__" || entry.name === "node_modules") continue;
+            // `generated/` holds machine-generated modules (e.g. the cli's
+            // baked adapter bundles from `pnpm adapters:generate`) — they are
+            // drift-guarded by their own gate, not the JSDoc gate.
+            if (
+                entry.name === "__fixtures__" ||
+                entry.name === "node_modules" ||
+                entry.name === "generated"
+            ) {
+                continue;
+            }
             await collectSourceFiles(full, out);
             continue;
         }

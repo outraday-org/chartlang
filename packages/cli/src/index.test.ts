@@ -63,6 +63,14 @@ describe("runCli dispatcher", () => {
         expect(process.exitCode).toBe(1);
     });
 
+    it("dispatches `add-adapter` to runAddAdapter", async () => {
+        // --list short-circuits before any filesystem write — proves dispatch
+        // through the default IO deps.
+        await runCli(["add-adapter", "--list"]);
+        expect(stdoutChunks.join("")).toMatch(/Available chartlang adapters/);
+        expect(process.exitCode).toBeUndefined();
+    });
+
     it("dispatches `docs` to runDocsCommand", async () => {
         // --help short-circuits the generator — proves dispatch without
         // requiring the runtime source tree to be reachable from the

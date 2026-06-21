@@ -47,7 +47,7 @@ import {
  * fields {@link buildViewport} reads. This is the testable seam: a test
  * constructs one directly with a mock context.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     declare const ctx: RenderCtx;
@@ -70,7 +70,7 @@ export type PaintScope = BitmapScope & { readonly context: RenderCtx };
  * {@link BitmapScope} fields plus the live drawing context. The DOM context is
  * narrowed to {@link RenderCtx} at the single documented seam in `draw`.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     declare const target: BitmapDrawTarget;
@@ -88,7 +88,7 @@ export type BitmapDrawTarget = {
  * primitive is testable without a real chart; the real attach parameter is
  * structurally assignable.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const param: DrawingPrimitiveAttach = {
@@ -110,7 +110,7 @@ export type DrawingPrimitiveAttach = {
  * drawings to the shared IR and paints them through the canvas sink against a
  * viewport derived from LC's own converters.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { DrawingPrimitive } from "chartlang-example-lightweight-charts-adapter";

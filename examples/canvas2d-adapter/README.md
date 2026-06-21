@@ -1,77 +1,47 @@
 # chartlang-example-canvas2d-adapter
 
-`experimental`
+Reference adapter — renders chartlang OHLC candles, `plot` series, `hline`
+horizontal lines, all 63 `draw.*` drawing kinds, and `alert` badges to an
+HTML `<canvas>` 2D context. The zero-dependency baseline every other
+adapter is measured against.
 
-Reference adapter — renders OHLC candles, `plot` line series,
-`hline` horizontal lines, and `alert` badges to a `<canvas>`
-element via the 2D context. Copy from this folder when writing
-your own adapter.
+`experimental` · MIT · copy-only — not published · HTML Canvas 2D context ·
+full conformance
 
-## Install
+## Get it
 
-Not published — copy from `examples/canvas2d-adapter/`.
+```bash
+npx @invinite-org/chartlang-cli add-adapter canvas2d
+```
+
+Not published to npm — `add-adapter` bakes a version-pinned copy into your
+repo, or copy
+[`examples/canvas2d-adapter/`](https://github.com/outraday-org/chartlang/tree/main/examples/canvas2d-adapter)
+directly.
 
 ## Public surface
 
-- `createCanvas2dAdapter(opts) → Canvas2dAdapterHandle` — main
-  factory; returns an `Adapter` plus an attached `ScriptHost` so
-  consumers can `await adapter.host.load(compiled)` before
-  driving the renderer loop.
-- `runRendererLoop(handle, opts?) → Promise<void>` — convenience
-  helper that iterates the candle source, pushes each event to the
-  host, drains, and feeds emissions back into `adapter.onEmissions`.
-  Pass `opts.signal` (an `AbortSignal`) to cancel the loop cleanly;
-  on abort the loop returns silently — no throw — so React consumers
-  can unmount mid-stream without swallowing rejections.
-- `CANVAS2D_CAPABILITIES` — `Capabilities` bag declaring the 9
-  Phase-1+2 plot kinds, all 61 Phase-3 drawing kinds, `log` +
-  `toast` alert channels, three intervals, and per-bucket
-  `maxDrawingsPerScript` budgets sized for the `drawAll61` smoke
-  scenario.
+- `createCanvas2dAdapter(opts) → Canvas2dAdapterHandle` — main factory;
+  returns an `Adapter` plus an attached `ScriptHost` so consumers can
+  `await adapter.host.load(compiled)` before driving the renderer loop.
+- `runRendererLoop(handle, opts?) → Promise<void>` — iterates the candle
+  source, pushes each event to the host, drains, and feeds emissions back
+  into `adapter.onEmissions`. Pass `opts.signal` (an `AbortSignal`) to
+  cancel cleanly — on abort the loop returns silently, no throw.
+- `CANVAS2D_CAPABILITIES` — full `Capabilities` bag (every plot kind, all
+  63 drawing kinds, `log` + `toast` alerts, MTF, unlimited sub-panes).
+- `DEFAULT_ADAPTER` (also the package `default`) — headless,
+  capabilities-only adapter the conformance suite consumes.
 - `DEFAULT_PALETTE`, `Palette` — colour constants + type.
+- Sub-path `chartlang-example-canvas2d-adapter/testing` — `MockCanvas2DContext`
+  (records calls) + `hashCallLog` (SHA-256, floats rounded to 4 dp).
 
-## Drawing rendering (Phase 3)
+## How drawings render
 
-Shared scaffolding under `src/render/draw/` powering every per-kind
-renderer (Tasks 5–18):
-
-- `worldPointToCanvas(p, view) → { x, y }` — composes `timeToX` +
-  `priceToY`; the projector every drawing renderer consumes.
-- `drawingDispatch(ctx, emission, view) → void` — single switch over
-  the 61-entry `DrawingKind` union with `satisfies never`
-  exhaustiveness. Task 4 stubs every arm to no-op; per-kind tasks
-  swap in their renderer one arm at a time. `op: "remove"`
-  short-circuits.
-- `FIB_LEVELS` + `formatLevel(level)` — canonical Fibonacci ratios
-  (13 entries: 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.414,
-  1.618, 2, 2.618, 4.236) + Pine-style label formatter consumed by
-  every fib renderer (Tasks 11–12).
-- `quadraticBezier` / `cubicBezier` / `sampleQuadratic` /
-  `sampleCubic` + the `Point2` type — pure curve helpers consumed
-  by `arc` / `curve` / `doubleCurve` (Task 8), `fibSpiral` (Task 12),
-  and pattern-leg projections (Task 15). Endpoints are float-exact.
-
-`createCanvas2dAdapter`'s `ingest` accumulates `DrawingEmission`s
-keyed by `handleId` (last-write-wins; `op: "remove"` drops the key)
-and `renderFrame` walks the map through `drawingDispatch` against
-the computed `Viewport`.
-
-- Sub-path `chartlang-example-canvas2d-adapter/testing`:
-  - `MockCanvas2DContext` — hand-rolled Canvas 2D mock for tests.
-  - `RecordedCall` — discriminated union over the mock's
-    captured calls.
-  - `hashCallLog(calls) → string` — deterministic SHA-256 over
-    a canonicalised call log (floats rounded to 4 dp).
-
-## Pane-aware rendering
-
-`AdapterState.plotSeries` is keyed by `${paneKey}|${slotId}`; `paneOrder` is
-`["overlay", ...subpaneKeys]` in first-emit order. `renderFrame` walks
-`computePaneLayout(state.paneOrder, state.canvas)` and draws each pane in its rect
-via `ctx.save(); ctx.translate(0, rect.y); ...; ctx.restore()`, so the pure
-`render/<kind>.ts` helpers keep emitting y relative to `viewport.pxHeight`. The
-price pane takes the top 80%, subpanes share the bottom 20%, and each gets an
-independent y-scale + right-gutter price axis; bars/drawings/alerts are overlay-bound.
+The shared `decomposeDrawing(emission, viewport)` (exhaustive over all 63
+kinds) reduces each drawing to a flat `DrawPrimitive` IR, then the canvas
+sink `paintPrimitive(ctx, prim)` (from `@invinite-org/chartlang-adapter-kit/canvas`)
+paints each one — no per-kind drawing code lives in the adapter.
 
 ## Minimum-viable API call
 
@@ -93,7 +63,10 @@ await runRendererLoop(adapter);
 
 ## Docs
 
-See [`docs/adapters/writing-an-adapter.md`](../../docs/adapters/writing-an-adapter.md).
+See the [adapter gallery](../../docs/adapters/gallery.md) for a comparison of
+all five adapters, and
+[`docs/adapters/reference/canvas2d.md`](../../docs/adapters/reference/canvas2d.md)
+for this adapter's deep dive.
 
 ## License
 

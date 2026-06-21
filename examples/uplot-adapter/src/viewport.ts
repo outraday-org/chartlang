@@ -11,7 +11,7 @@ import type { UplotLike } from "./createUplotAdapter.js";
  * (`setScale("y", …)`), so drawings + horizontal lines project off the
  * same scale the series use.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { UPLOT_PRICE_SCALE } from "chartlang-example-uplot-adapter";
@@ -49,7 +49,7 @@ function dpr(): number {
  * baking `bbox.left` into `xMin`) keeps `decomposeDrawing`'s output in the
  * clean plotting-area space the candle + hline pass already use.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { buildViewport } from "chartlang-example-uplot-adapter";
@@ -78,7 +78,7 @@ export function buildViewport(u: UplotLike): Viewport {
  * uPlot's series occupy. `bbox.left/top` are canvas px, so they are
  * divided by `devicePixelRatio` to match the CSS-px viewport.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { offsetForViewport } from "chartlang-example-uplot-adapter";

@@ -23,7 +23,7 @@ async function* emptyCandleSource(): AsyncIterator<CandleEvent> {
  * Production callers should use `createUplotAdapter` instead, which
  * wires real uPlot instances + a worker host against DOM targets.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import defaultAdapter, { DEFAULT_ADAPTER } from "chartlang-example-uplot-adapter";

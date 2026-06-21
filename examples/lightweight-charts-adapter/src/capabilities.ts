@@ -33,7 +33,7 @@ const LWC_INTERVALS = [
  * Frozen so consumer-repo adapters that copy from this folder cannot
  * accidentally mutate the bag at runtime.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { LWC_CAPABILITIES } from "chartlang-example-lightweight-charts-adapter";
@@ -80,7 +80,7 @@ export const LWC_CAPABILITIES: Capabilities = Object.freeze({
 /**
  * Demo symbol metadata exposed by the lightweight-charts adapter.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { LWC_SYM_INFO } from "chartlang-example-lightweight-charts-adapter";

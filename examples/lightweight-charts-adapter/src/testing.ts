@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
  * call can be attributed to the series it was made on without leaking a
  * live object reference into the log.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     const call: LwcRecordedCall = { kind: "addSeries", seriesId: "s0", seriesType: "Line", paneIndex: 0 };
@@ -63,7 +63,7 @@ export type LwcRecordedCall =
  * real lightweight-charts `ISeriesApi` and {@link MockLwcApi}'s recorded
  * series satisfy it — the factory never reaches past these methods.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     declare const s: LwcSeries;
@@ -86,7 +86,7 @@ export type LwcSeries = {
  * Structural shape the factory uses for the chart. Both the real
  * lightweight-charts `IChartApi` and {@link MockLwcApi} satisfy it.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     declare const c: LwcChart;
@@ -111,7 +111,7 @@ export type LwcChart = {
  * shared log — so a test can assert the exact native call sequence the
  * factory produced.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { MockLwcApi } from "chartlang-example-lightweight-charts-adapter/testing";
@@ -180,7 +180,7 @@ export class MockLwcApi implements LwcChart {
  * `new MockCanvas2DContext()` + `ctx.calls` pattern for tests that want
  * the log without reaching through the chart.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { createMockChart } from "chartlang-example-lightweight-charts-adapter/testing";
@@ -245,7 +245,7 @@ function canonicalise(call: LwcRecordedCall): Record<string, unknown> {
  * (imported by tests from `@invinite-org/chartlang-adapter-kit/canvas`),
  * specialised to the native-call vocabulary lightweight-charts records.
  *
- * @since 0.1
+ * @since 1.4
  * @stable
  * @example
  *     import { MockLwcApi, hashLwcCallLog } from "chartlang-example-lightweight-charts-adapter/testing";

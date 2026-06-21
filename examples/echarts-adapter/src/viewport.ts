@@ -37,8 +37,8 @@ type Sample = {
  * Pure — no ECharts instance, no DOM — so it is unit-testable against the
  * `convertToPixel` identity.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import { computeViewport } from "chartlang-example-echarts-adapter";
  *     const vp = computeViewport(
@@ -110,8 +110,8 @@ function fallbackViewport(bars: ReadonlyArray<Bar>): Viewport {
  * The bar-time x extent comes from the bar window (the x axis is a category of
  * bar times); the price extent and pixel rect come from the samples.
  *
- * @since 1.5
- * @experimental
+ * @since 1.4
+ * @stable
  * @example
  *     import { buildViewport } from "chartlang-example-echarts-adapter";
  *     import type { EChartsSurface } from "chartlang-example-echarts-adapter";

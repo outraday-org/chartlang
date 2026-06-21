@@ -3926,6 +3926,63 @@ function validateEmission(e) {
   }
 }
 
+// ../adapter-kit/dist/geometry/_lib/arrowhead.js
+var ARROWHEAD_HALF_ANGLE = Math.PI / 6;
+
+// ../adapter-kit/dist/geometry/kinds/annotations.js
+var TWO_PI = Math.PI * 2;
+
+// ../adapter-kit/dist/geometry/kinds/boxes.js
+var TWO_PI2 = Math.PI * 2;
+
+// ../adapter-kit/dist/geometry/_lib/fibLevels.js
+var FIB_LEVELS = Object.freeze([
+  0,
+  0.236,
+  0.382,
+  0.5,
+  0.618,
+  0.786,
+  1,
+  1.272,
+  // biome-ignore lint/suspicious/noApproximativeNumericConstant: canonical fib ratio, not √2.
+  1.414,
+  1.618,
+  2,
+  2.618,
+  4.236
+]);
+
+// ../adapter-kit/dist/geometry/kinds/fibonacci.js
+var TAU = Math.PI * 2;
+var PHI = (1 + Math.sqrt(5)) / 2;
+var SPIRAL_K = 4 * (Math.sqrt(2) - 1) / 3;
+
+// ../adapter-kit/dist/geometry/_lib/gannLevels.js
+var GANN_LEVELS = Object.freeze([0, 0.25, 0.5, 0.75, 1]);
+var GANN_FAN_RATIOS = Object.freeze([
+  1,
+  2,
+  3,
+  0.5,
+  1 / 3,
+  4,
+  0.25,
+  8,
+  0.125
+]);
+var GANN_FAN_LABELS = Object.freeze([
+  "1x1",
+  "1x2",
+  "1x3",
+  "2x1",
+  "3x1",
+  "1x4",
+  "4x1",
+  "1x8",
+  "8x1"
+]);
+
 // ../runtime/dist/emit/emissionsQueue.js
 function pushPlot(queue, e) {
   const result = validateEmission(e);

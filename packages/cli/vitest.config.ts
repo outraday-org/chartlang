@@ -14,6 +14,9 @@ export default defineConfig({
                 "src/**/index.ts",
                 "src/**/types.ts",
                 "src/bin.ts",
+                // Machine-generated adapter bundles (pnpm adapters:generate) —
+                // string-literal modules, drift-guarded by adapters:gate.
+                "src/generated/**",
             ],
         },
     },
