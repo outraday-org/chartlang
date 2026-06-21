@@ -51,6 +51,27 @@ describe("MockLwcApi", () => {
         ]);
     });
 
+    it("records OHLC fields on a candlestick update point", () => {
+        const chart = new MockLwcApi();
+        const series = chart.addSeries("Candlestick", {}, 0);
+        // setData records only the point count; OHLC is not per-point in the log.
+        series.setData([{ time: 1, open: 10, high: 12, low: 9, close: 11 }]);
+        series.update({ time: 2, open: 11, high: 13, low: 10, close: 12 });
+        expect(chart.calls.slice(1)).toEqual([
+            { kind: "setData", seriesId: "s0", points: 1 },
+            {
+                kind: "update",
+                seriesId: "s0",
+                time: 2,
+                value: null,
+                open: 11,
+                high: 13,
+                low: 10,
+                close: 12,
+            },
+        ]);
+    });
+
     it("records addPane with an incrementing pane index", () => {
         const chart = new MockLwcApi();
         expect(chart.addPane()).toEqual({ paneIndex: 1 });
@@ -118,6 +139,33 @@ describe("hashLwcCallLog", () => {
         beyond.addSeries("Line", {}, 0).update({ time: 1, value: 1.5 });
         expect(hashLwcCallLog(within.calls)).toBe(hashLwcCallLog(base.calls));
         expect(hashLwcCallLog(beyond.calls)).not.toBe(hashLwcCallLog(base.calls));
+    });
+
+    it("canonicalises OHLC fields on a candlestick update", () => {
+        const a = new MockLwcApi();
+        const b = new MockLwcApi();
+        for (const chart of [a, b]) {
+            chart.addSeries("Candlestick", {}, 0).update({
+                time: 1,
+                open: 10.12345678,
+                high: 12.12345678,
+                low: 9.12345678,
+                close: 11.12345678,
+            });
+        }
+        // Both produce the same hash (OHLC fields rounded to 4 dp).
+        expect(hashLwcCallLog(a.calls)).toBe(hashLwcCallLog(b.calls));
+        expect(hashLwcCallLog(a.calls)).toMatch(/^[0-9a-f]{64}$/);
+        // A log with a different OHLC close produces a different hash.
+        const c = new MockLwcApi();
+        c.addSeries("Candlestick", {}, 0).update({
+            time: 1,
+            open: 10.12345678,
+            high: 12.12345678,
+            low: 9.12345678,
+            close: 99,
+        });
+        expect(hashLwcCallLog(c.calls)).not.toBe(hashLwcCallLog(a.calls));
     });
 });
 

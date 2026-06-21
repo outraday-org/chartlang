@@ -144,6 +144,23 @@ test seam + capabilities-only conformance default export).
   exercised headlessly (the pure `computeViewport` is verified against the
   `convertToPixel` identity in `viewport.test.ts`).
 
+- **`convertToPixel` is sampled ONLY when there is something to project.**
+  `buildGraphics` returns `[]` early when `state.drawings` is empty, and
+  `buildHorizontalHistograms` only samples per histogram series — so a
+  drawing-free frame (e.g. the EMA-cross bundle) never calls
+  `convertToPixel`. This matters live: a REAL ECharts chart THROWS from
+  inside `convertToPixel` (dereferencing an absent component model) when
+  sampled before its first layout, not just returns `undefined`, so
+  `buildViewport` also wraps the two `convertToPixel` calls in a
+  `try/catch` and falls back to the deterministic viewport on a throw.
+  The headless `MockECharts` neither throws nor short-circuits, so this
+  is exercised by `viewport.test.ts` (the throwing-surface case) + the
+  drawing/no-drawing frames in `createEChartsAdapter.test.ts`. Because
+  `hashOptionLog` records `convertToPixel` calls, removing the spurious
+  drawing-free samples re-pinned `integration.test.ts`'s `PINNED_HASH`
+  (the `setOption` option trees are byte-identical — only the empty-frame
+  `convertToPixel` entries left the call log).
+
 - **The in-package conformance test drives the FULL default scenario suite.**
   `src/conformance.test.ts` calls `runConformanceSuite(default)` and asserts
   `failed === 0` against the capabilities-only default export. It carries a

@@ -39,7 +39,13 @@ export type LwcRecordedCall =
           readonly kind: "update";
           readonly seriesId: string;
           readonly time: number;
+          // Line / area / histogram series carry `value` (null = whitespace gap).
+          // Candlestick series carry the four OHLC fields instead.
           readonly value: number | null;
+          readonly open?: number;
+          readonly high?: number;
+          readonly low?: number;
+          readonly close?: number;
       }
     | {
           readonly kind: "applyOptions";
@@ -92,6 +98,29 @@ export type LwcPriceLine = {
 type RecordedPriceLine = LwcPriceLine & { readonly priceLineId: string };
 
 /**
+ * A single data point passed to {@link LwcSeries.setData} or
+ * {@link LwcSeries.update}. Line / area / histogram series use the `value`
+ * field; a candlestick series uses the OHLC fields. A whitespace (gap) point
+ * carries only `time` (both `value` and OHLC fields absent).
+ *
+ * @since 1.4
+ * @stable
+ * @example
+ *     const linePoint: LwcDataPoint = { time: 1, value: 42 };
+ *     const candlePoint: LwcDataPoint = { time: 1, open: 10, high: 12, low: 9, close: 11 };
+ *     const gapPoint: LwcDataPoint = { time: 1 };
+ *     void linePoint; void candlePoint; void gapPoint;
+ */
+export type LwcDataPoint = {
+    readonly time: number;
+    readonly value?: number;
+    readonly open?: number;
+    readonly high?: number;
+    readonly low?: number;
+    readonly close?: number;
+};
+
+/**
  * Structural shape the factory uses for a single native series. Both the
  * real lightweight-charts `ISeriesApi` and {@link MockLwcApi}'s recorded
  * series satisfy it — the factory never reaches past these methods.
@@ -104,8 +133,8 @@ type RecordedPriceLine = LwcPriceLine & { readonly priceLineId: string };
  *     void s;
  */
 export type LwcSeries = {
-    setData(data: ReadonlyArray<{ time: number; value?: number }>): void;
-    update(point: { time: number; value?: number }): void;
+    setData(data: ReadonlyArray<LwcDataPoint>): void;
+    update(point: LwcDataPoint): void;
     applyOptions(options: Readonly<Record<string, unknown>>): void;
     createPriceLine(options: { price: number }): LwcPriceLine;
     removePriceLine(line: LwcPriceLine): void;
@@ -185,6 +214,10 @@ export class MockLwcApi implements LwcChart {
                     seriesId,
                     time: point.time,
                     value: point.value ?? null,
+                    ...(point.open !== undefined ? { open: point.open } : {}),
+                    ...(point.high !== undefined ? { high: point.high } : {}),
+                    ...(point.low !== undefined ? { low: point.low } : {}),
+                    ...(point.close !== undefined ? { close: point.close } : {}),
                 });
             },
             applyOptions(options): void {
@@ -281,6 +314,10 @@ function canonicalise(call: LwcRecordedCall): Record<string, unknown> {
                 seriesId: call.seriesId,
                 time: roundFloat(call.time),
                 value: call.value === null ? null : roundFloat(call.value),
+                ...(call.open !== undefined ? { open: roundFloat(call.open) } : {}),
+                ...(call.high !== undefined ? { high: roundFloat(call.high) } : {}),
+                ...(call.low !== undefined ? { low: roundFloat(call.low) } : {}),
+                ...(call.close !== undefined ? { close: roundFloat(call.close) } : {}),
             };
         case "applyOptions":
             return { kind: call.kind, seriesId: call.seriesId, options: call.options };

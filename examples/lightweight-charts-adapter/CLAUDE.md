@@ -32,6 +32,15 @@ lightweight-charts integration.
   native facility). `bg-color` and `horizontal-histogram` have **no**
   native facility and are documented **no-ops** in v1 (still declared in
   the capability surface, deferred to the Task-6 primitive path).
+- **The production bridge maps OHLC onto the candlestick series' data.**
+  `candleData(bar)` returns `{ time, open, high, low, close }`; passing
+  only `{ time, value }` to a Candlestick series causes lightweight-charts
+  to throw "Value is undefined" (it reads `open` as undefined). The
+  structural `LwcDataPoint` carries all five fields as optional to
+  accommodate both line (uses `value`) and candlestick (uses OHLC)
+  series through the same `LwcSeries.setData` / `update` interface.
+  `MockLwcApi.update` records the OHLC fields when present so candle
+  ingestion remains assertable without a DOM chart.
 - **`filled-band` maps to two native line series; the fill BETWEEN them
   is a Task-6 drawing** (lightweight-charts has no native band kind).
   Null `upper` / `lower` become whitespace points. This seam is the one

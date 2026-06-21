@@ -9,10 +9,12 @@ export {
     createKonvaAdapter,
     feedCandleEvent,
     handleInterval,
+    runKonvaLoop,
 } from "./createKonvaAdapter.js";
 export type {
     CreateKonvaAdapterOpts,
     KonvaAdapterHandle,
+    RunKonvaLoopOpts,
 } from "./createKonvaAdapter.js";
 export { computePaneLayout } from "./paneLayout.js";
 export type { PaneLayoutEntry, PaneRect } from "./paneLayout.js";

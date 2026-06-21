@@ -43,6 +43,16 @@ capabilities-only conformance default export).
   example consumers. This mirrors canvas2d's `opts.ctx` "caller provides
   the surface" seam.
 
+- **`opts.container` is the DOM-mount seam (parallel to canvas2d's
+  `opts.ctx`).** `createKonvaAdapter` accepts an optional
+  `container?: HTMLElement`; when supplied, the `Stage` is constructed with
+  it so Konva attaches the content `<div>` to the document (the live demo
+  passes the mount element). It is OMITTED on the headless path — the
+  no-container `Stage` config is byte-identical to the original, and
+  `MockKonva` records the `container` key without a real DOM. The
+  `StageConfig` structural seam in `src/types.ts` carries the optional
+  `container`.
+
 - **No `node-canvas` / `canvas` dependency.** The mock node tree
   (`MockKonva`) is the only test surface — assert the node tree (types +
   config), not pixels. Adding `node-canvas` reintroduces a native build
@@ -172,11 +182,16 @@ capabilities-only conformance default export).
 - **`src/integration.test.ts` drives the worker host, then pins one
   `hashKonvaScene` golden.** A hand-built EMA-cross + drawings bundle
   (`ctx.draw.line`/`rectangle`/`fibRetracement`/`marker` on the last bar)
-  runs through a `MessageChannel`-paired `WorkerLike`; the local loop calls
-  `feedCandleEvent` + `host.push`/`drain` + `onEmissions` per event (Konva
-  has no `runRendererLoop`). It asserts the series + drawings node trees
-  structurally AND a pinned `PINNED_HASH` — re-snap from the failure
-  message on a deliberate mapping change.
+  runs through a `MessageChannel`-paired `WorkerLike`. Konva now ships
+  `runKonvaLoop` — the uniform live drive loop (the Konva analogue of
+  canvas2d's `runRendererLoop`: abort-guarded + the worker-host
+  `setTimeout(0)` yield, reusing `feedCandleEvent` for the per-event
+  repaint), so the integration test MAY drive via it; it currently hand-rolls
+  the equivalent `feedCandleEvent` + `host.push`/`drain` + `onEmissions` per
+  event. It asserts the series + drawings node trees structurally AND a
+  pinned `PINNED_HASH` — re-snap from the failure message on a deliberate
+  mapping change. Driving via `runKonvaLoop` must keep the same hash (the
+  EMA-cross bundle emits no new geometry).
 
 - **`src/conformance.test.ts` runs `runConformanceSuite(DEFAULT_ADAPTER)`
   → `failed === 0`.** This adds `@invinite-org/chartlang-conformance` as a
