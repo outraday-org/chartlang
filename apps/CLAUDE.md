@@ -15,6 +15,20 @@ artefacts that ship alongside the published packages).
   `pnpm dlx shadcn@latest init --preset b0 --base base --template start`
   (see `tasks/old/landing-site-netlify-deploy/`). Deploy mechanics live
   in `DEPLOYMENT.md`.
+- `apps/react-starter/` — `chartlang-react-starter`. A private,
+  clonable TanStack Start starter (the tree `create-chartlang` clones
+  for `npm create chartlang@latest`). Scaffolded with the **stock
+  shadcn Base UI _default_ (neutral) theme** —
+  `pnpm dlx shadcn@latest init --base base --template start --preset nova`
+  (NOT the site's `--preset b0`). Dev on port **3100** so it can run
+  alongside the site (3000).
+  **Brand-relaxation exception:** this is the one tree where the repo
+  `brand/` single-source-of-truth contract is deliberately relaxed — it
+  must **NOT** `@import "../../../brand/brand.css"`, must **NOT** use the
+  `b0` preset, and must carry no chartlang brand tokens. Its
+  `src/styles.css` ships the plain shadcn neutral `:root` / `.dark`
+  token block so the user re-themes the clone themselves. See
+  `apps/react-starter/README.md`.
 
 ## Conventions
 

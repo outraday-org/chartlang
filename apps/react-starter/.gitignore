@@ -1,0 +1,27 @@
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
+.env*
+!.env.example
+.tanstack
+.wrangler
+.output
+.vinxi
+__unconfig*
+todos.json
+
+# sqlite (better-sqlite3 + WAL sidecars)
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# typescript
+*.tsbuildinfo
+
+# playwright
+test-results
+playwright-report
+playwright/.cache

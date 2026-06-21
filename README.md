@@ -37,13 +37,20 @@ export default defineIndicator({
 
 ## Try it
 
-Three ways to exercise the full stack end-to-end:
+Four ways to exercise the full stack end-to-end:
 
 - **Live demo** — open
   [chartlang.invinite.com](https://chartlang.invinite.com) in any
   browser. The landing page embeds a live editor + chart playground
   that compiles your script in a Netlify Function and renders it
   through the reference canvas2d adapter — nothing to install.
+- **Scaffold your own app** — `npm create chartlang@latest my-app`
+  clones the [react-starter](./apps/react-starter) (editor + live chart
+  + EODData + SQLite) with the chart library you pick wired in. See the
+  [starter guide](./docs/getting-started/react-starter.md):
+  ```bash
+  npm create chartlang@latest my-app
+  ```
 - **Run the site locally** — clone this repo and run the
   marketing + demo site against the workspace packages. See
   [Run the site locally](./docs/getting-started/run-the-site-locally.md):

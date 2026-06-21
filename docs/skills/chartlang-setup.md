@@ -11,6 +11,22 @@ adapter. Use it when the assistant is touching
 It is *not* for writing `.chart.ts` scripts. The skill that helps an end user's
 editor assistant author scripts is [chartlang-coding](./chartlang-coding).
 
+## Fastest start — clone the starter
+
+The skill's recommended starting point is the **react-starter**: rather than
+hand-wiring the boundaries, scaffold a runnable app that already does it.
+
+```bash
+npm create chartlang@latest my-app
+```
+
+It clones a TanStack Start app with the full embed path wired — the compiler
+behind a `/api/compile` server route, a Worker host, and a chart adapter
+behind one swappable `src/lib/chart/activeAdapter.ts` module — plus a
+CodeMirror editor, an EODData symbol picker, and SQLite saved scripts. See
+the [starter guide](../getting-started/react-starter). The hand-integration
+paths below are for embedding chartlang into an *existing* product.
+
 ## What it teaches
 
 The compiler → host → adapter data flow, capability gating, the host parity

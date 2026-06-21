@@ -67,9 +67,31 @@ constructor swap (see § 5).
 
 | If you want to… | Read | Package(s) |
 |---|---|---|
+| Get a working app fast (editor + chart already wired) | § 3 — `npm create chartlang@latest` | scaffolds the starter |
 | Run user scripts inside an existing chart UI | [`references/embed.md`](./references/embed.md) | `-compiler`, `-host-worker`, `-adapter-kit` |
 | Render chartlang on a new chart vendor | [`references/adapter.md`](./references/adapter.md) | `-adapter-kit` |
 | Fire alerts server-side with no browser | [`references/server-alerts.md`](./references/server-alerts.md) | `-compiler`, `-host-quickjs` |
+
+**Recommended starting point — clone the starter.** If you want a real,
+runnable app instead of hand-wiring the boundaries below, scaffold the
+react-starter:
+
+```bash
+npm create chartlang@latest my-app
+```
+
+It clones a private TanStack Start app that already wires the full embed
+path: the **compiler behind a `POST /api/compile` server route**, a Worker
+host on the client, and a chart adapter — rendered through one swappable
+module, `src/lib/chart/activeAdapter.ts` (default echarts; the installer
+prompts you to pick a library). It adds a CodeMirror editor, an EODData
+symbol picker (free tier, daily US EOD), and SQLite saved scripts. Re-theme
+it freely (stock shadcn neutral theme) and switch libraries later with
+`npx @invinite-org/chartlang-cli add-adapter <id>` + editing the
+`activeAdapter.ts` seam. See the
+[starter guide](https://chartlang.invinite.com/getting-started/react-starter).
+Reach for the hand-integration paths below when you are embedding chartlang
+into an *existing* product rather than starting fresh.
 
 ## 3. Install
 
