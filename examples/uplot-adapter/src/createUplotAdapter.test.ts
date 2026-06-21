@@ -323,7 +323,7 @@ describe("createUplotAdapter — candles + panes", () => {
         );
     });
 
-    it("allocates a fresh pane per distinct slot emitting pane:\"new\"", async () => {
+    it('allocates a fresh pane per distinct slot emitting pane:"new"', async () => {
         const { instances } = await drive([
             emissions({
                 plots: [
@@ -345,7 +345,7 @@ describe("createUplotAdapter — candles + panes", () => {
         expect(paneKeys[2]).toBe("new:b");
     });
 
-    it("reuses the same pane:\"new\" pane when one slot re-emits across frames", async () => {
+    it('reuses the same pane:"new" pane when one slot re-emits across frames', async () => {
         const host = stubHost([
             emissions({
                 plots: [plotEmission({ slotId: "a", pane: "new", value: 10, time: BARS[0].time })],

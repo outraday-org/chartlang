@@ -255,9 +255,7 @@ describe("createLightweightChartsAdapter — candle ingestion", () => {
             host: stubHost(),
         });
         await runRendererLoop(handle);
-        const candleUpdate = chart.calls.find(
-            (c) => c.kind === "update" && c.seriesId === "s0",
-        );
+        const candleUpdate = chart.calls.find((c) => c.kind === "update" && c.seriesId === "s0");
         expect(candleUpdate).toBeDefined();
         expect(candleUpdate?.kind === "update" && candleUpdate.open).toBe(10);
         expect(candleUpdate?.kind === "update" && candleUpdate.high).toBe(11);
