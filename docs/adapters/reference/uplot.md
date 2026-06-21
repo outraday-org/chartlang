@@ -62,26 +62,34 @@ plotting-area bbox:
 | --- | --- |
 | `xMin` / `xMax` | `u.scales.x.min` / `.max` |
 | `yMin` / `yMax` | `u.scales.y.min` / `.max` |
-| `pxWidth` / `pxHeight` | `u.bbox.width` / `.height`, divided by `devicePixelRatio` |
+| `pxWidth` / `pxHeight` | `u.bbox.width` / `.height` (device px, verbatim) |
 
-### devicePixelRatio and the plotting-area offset
+### Device pixels and the plotting-area offset
 
-`u.valToPos(val, key, true)` returns a **canvas** pixel: it folds in the
-`bbox.left/top` plotting-area offset and is expressed in canvas px (scaled
-by `devicePixelRatio`). adapter-kit's projection starts at the
-plotting-area origin `(0, 0)` and works in **CSS px**. The adapter
-reconciles the two by:
+`u.valToPos(val, key, true)` returns a **canvas (device)** pixel: it folds
+in the `bbox.left/top` plotting-area offset, and `bbox.width ===
+plotWidthCss × devicePixelRatio`. uPlot never `ctx.scale`s — it
+pre-multiplies every coordinate by `pxRatio` — so the `hooks.draw` ctx is
+that same unscaled device-px canvas. The adapter therefore works **directly
+in device px**:
 
-1. building the `Viewport` in CSS px (`bbox.width/height ÷ dpr`), so
-   `timeToX` / `priceToY` produce plotting-area-relative CSS pixels; and
-2. translating the canvas once by the CSS-px `bbox.left/top` offset
-   (`offsetForViewport`) around the drawing pass, so those plotting-area
-   pixels land on the exact canvas pixel uPlot's series occupy.
+1. the `Viewport` carries `bbox.width/height` verbatim, so `timeToX` /
+   `priceToY` produce plotting-area-relative **device** pixels; and
+2. each pass shifts by the device-px `bbox.left/top` offset
+   (`offsetForViewport`) — candles fold it into their coords, the drawing
+   pass `ctx.translate`s by it once — so those plotting-area pixels land on
+   the exact canvas pixel uPlot's series occupy.
 
 Splitting the offset out (rather than baking `bbox.left` into `xMin`) keeps
 `decomposeDrawing`'s output in the clean plotting-area space the candle +
-hline pass already use. Verified by sampling `worldPointToPixel(p, view) +
-offset` against `u.valToPos` for several points in `viewport.test.ts`.
+hline pass also use. Verified by sampling `timeToX/priceToY(view) + offset`
+against `u.valToPos` for several points (including a Retina-shaped bbox with
+a non-zero device-px inset) in `viewport.test.ts`.
+
+> **Consumers:** import uPlot's stylesheet once (`import
+> "uplot/dist/uPlot.min.css"`). It sizes the canvas + positions
+> `.u-wrap`/`.u-over`; without it the canvas renders at its device-px
+> backing size (2× on Retina) and overflows its mount.
 
 ## Capabilities and conformance
 

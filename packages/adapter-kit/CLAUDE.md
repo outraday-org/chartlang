@@ -106,6 +106,41 @@ layer** every adapter shares.
   (`projectShiftedX`, `shiftedBarTime`, `medianBarSpacing`) stay in the
   canvas2d adapter's `render/coords.ts` for plot rendering.
 
+## Interaction-layer invariants (`src/interaction/`)
+
+- **`createViewController()` is the shared pan/zoom MATH; it is pure and
+  DOM-free.** It holds a user x-window (world time) + a `userInteracted`
+  flag. `resolveXWindow(dataXMin, dataXMax)` returns the FULL data range
+  until the user interacts (auto-follow live bars), then the held window
+  re-clamped into the current data bounds. `zoomAt` / `panBy` / `reset` are
+  the transforms; `zoomAt` seeds the held window from the data bounds on the
+  first call, guards a `minSpan` floor, and clamps the span to
+  `dataSpan * maxSpanFactor` (default `1` ⇒ cannot zoom out past all-data).
+  All branches are unit-tested to 100% — no DOM, no library types.
+- **`yRangeInWindow(candidates, win)` is the shared "auto-fit the price
+  scale to the VISIBLE window" helper** (lightweight-charts parity). The two
+  self-scaled adapters feed bars `{x:time, lo:low, hi:high}` + series points
+  and fold only in-window finite rows; horizontal lines (no `x`) are folded
+  in by the CALLER, not here. Returns `undefined` when no in-window finite
+  candidate exists so the caller keeps its `(0,1)` + degenerate-widen + pad.
+- **`attachInteraction(el, handlers)` wires wheel→`zoomAt`, drag→`panBy`,
+  dblclick→`reset`, returning a detach fn.** The `addEventListener` plumbing
+  is the ONLY DOM-bound code and carries the `/* v8 ignore */` seam; the
+  decision cores (`onWheelCore` / `onDragCore` / `onDblCore`) are pure and
+  100% covered via synthetic-number tests. Consumers supply `pxToWorldX`,
+  `worldXPerPx`, `dataBounds`, `controller`, `requestRender` (closures over
+  the adapter's last overlay `Viewport`). The wheel factor is
+  `Math.exp(deltaY * zoomStep)`, so zoom-out exists in BOTH directions.
+- **Shipped on the ROOT `.` entry, NOT `./canvas`.** Konva (forbidden from
+  `/canvas`) imports `createViewController` / `yRangeInWindow`, so the
+  interaction surface rides the root barrel alongside `timeToX` / `Viewport`.
+  Every export carries `@since 1.6` + `@stable` + `@example` (the gate).
+- **Reused by uplot too, despite uPlot being library-scaled.** uPlot speaks
+  `setScale("x")` directly, so its adapter passes `u.over` to
+  `attachInteraction` and a `requestRender` that pushes
+  `controller.resolveXWindow(...)` onto every pane instance. The controller
+  is library-agnostic by design.
+
 ## Package-shape invariants
 
 - **`./canvas` is hand-added to `package.json#exports`.**

@@ -9,6 +9,7 @@ export {
     createKonvaAdapter,
     feedCandleEvent,
     handleInterval,
+    redraw,
     runKonvaLoop,
 } from "./createKonvaAdapter.js";
 export type {

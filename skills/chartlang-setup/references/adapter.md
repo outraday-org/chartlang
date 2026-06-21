@@ -145,6 +145,36 @@ each with `StrokeStyle` / `FillStyle`. The recommended authoring pattern is
 **decompose once, then map each primitive to your library** — you only write
 the four-primitive mapping, never the drawing math.
 
+**Pan / zoom for self-scaled adapters.** If your library has no built-in
+zoom/pan (e.g. a canvas or scene-graph renderer where you compute the
+`Viewport` yourself), `adapter-kit` ships a library-agnostic controller so you
+don't hand-roll the math:
+
+```ts
+import { createViewController, attachInteraction, yRangeInWindow }
+  from "@invinite-org/chartlang-adapter-kit";
+
+const view = createViewController();
+// Per frame: resolve the x-window (full data range until the user interacts,
+// then their held window) and auto-fit y to what's visible.
+const win = view.resolveXWindow(dataXMin, dataXMax);
+const y = yRangeInWindow(bars.map((b) => ({ x: b.time, lo: b.low, hi: b.high })), win);
+
+// Once, on a real DOM element: wheel→zoom, drag→pan, dblclick→reset.
+const detach = attachInteraction(canvasEl, {
+  controller: view,
+  pxToWorldX: (px) => /* invert your time→x */ 0,
+  worldXPerPx: () => /* world units per pixel */ 1,
+  dataBounds: () => ({ xMin: dataXMin, xMax: dataXMax }),
+  requestRender: () => renderFrame(), // re-render on interaction
+});
+```
+
+Libraries with native zoom (uPlot, ECharts, lightweight-charts) don't need the
+controller for the gestures — but watch the **stomp trap**: if you rebuild the
+whole chart every frame, persist the user's window (a `userInteracted` flag, or
+read the native zoom back) so streaming data doesn't snap the view back.
+
 There are **two integration strategies** for the mapping step:
 
 1. **Canvas / ctx adapters reuse the shared painter.** If your library hands

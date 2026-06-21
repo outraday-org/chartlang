@@ -9,6 +9,17 @@ const CHARTLANG_SCOPE = "@invinite-org/chartlang-";
 const EXAMPLE_ADAPTER_PREFIX = "chartlang-example-";
 const EXAMPLE_ADAPTER_SUFFIX = "-adapter";
 
+// The starter ships every adapter-matrix chart lib (echarts in deps;
+// konva/lightweight-charts/uplot in devDeps) for its in-monorepo dev setup.
+// A standalone clone needs only the chosen library, so all four are dropped
+// here; the caller re-adds the chosen one at its registry range afterwards.
+const MATRIX_CHART_LIBS: ReadonlyArray<string> = [
+    "echarts",
+    "konva",
+    "lightweight-charts",
+    "uplot",
+];
+
 /**
  * Options for {@link rewriteStarterPackageJson}.
  *
@@ -69,7 +80,8 @@ function resolveChartlangRange(
  * Rewrite ONE dependency block (deps or devDeps): replace every
  * `@invinite-org/chartlang-*: workspace:*` with its published `^`-range, drop
  * every `chartlang-example-*-adapter: workspace:*` (the chosen one is vendored
- * locally), and leave non-chartlang deps untouched.
+ * locally), drop every matrix chart lib (the caller re-adds only the chosen
+ * one), and leave non-chartlang deps untouched.
  */
 function rewriteBlock(
     block: DepMap | undefined,
@@ -82,6 +94,10 @@ function rewriteBlock(
     for (const [name, range] of Object.entries(block)) {
         if (isExampleAdapterName(name)) {
             // The chosen adapter is vendored; the other examples are not shipped.
+            continue;
+        }
+        if (MATRIX_CHART_LIBS.includes(name)) {
+            // Drop every matrix chart lib; the caller re-adds only the chosen one.
             continue;
         }
         if (name.startsWith(CHARTLANG_SCOPE) && range === WORKSPACE_RANGE) {

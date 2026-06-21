@@ -26,6 +26,22 @@ capabilities-only conformance default export).
   `@invinite-org/chartlang-adapter-kit` — no local projection copy. It is
   the second "self-scaled" adapter after canvas2d.
 
+- **`computePaneViewport` reserves a 52px `Y_AXIS_GUTTER_PX`
+  (`pxWidth = rect.w - gutter`) so konva's candle x-extent matches
+  canvas2d.** Konva paints NO axis labels into the gutter — it is scale
+  parity with canvas2d, not a label reservation. This changed geometry, so
+  the integration `PINNED_HASH` (`hashKonvaScene`) was re-snapped for it;
+  re-snap again on any deliberate mapping change.
+
+- **Zoom / pan / auto-fit via the shared adapter-kit `ViewController`** (same
+  wiring as canvas2d). `state.view.resolveXWindow` picks the per-frame
+  x-window (auto-follow until the user interacts, then the held window); y
+  auto-fits the visible window via `computeYRange(..., win)` →
+  `yRangeInWindow`. `attachInteraction` binds wheel/drag/dblclick to
+  `opts.container` (the real mount el; guarded + `/* v8 ignore */`d, omitted
+  under `MockKonva`); `requestRender` rebuilds both layers. `redraw(handle)`
+  is the exported re-render entry; the detach fn runs in `dispose`.
+
 - **Pane layout is ported locally; sharing it is a deferred follow-up.**
   `src/paneLayout.ts` (`computePaneLayout`, overlay top 80% + uniform
   subpanes, last absorbs the rounding remainder) is ported verbatim-in-

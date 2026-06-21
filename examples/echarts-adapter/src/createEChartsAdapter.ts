@@ -171,6 +171,12 @@ type AdapterState = {
     // Drawings are buffered here for Task 10's `graphic`-path renderer; this
     // task does not paint them.
     readonly drawings: Map<string, DrawingEmission>;
+    // The user's `dataZoom` window in percent (0–100). Carried across the
+    // per-drain `setOption(notMerge:true)` rebuild — which would otherwise
+    // reset zoom to 0/100 — by reading the live values back before each
+    // rebuild. Stay 0/100 (full, auto-follow) until the user zooms/pans.
+    zoomStart: number;
+    zoomEnd: number;
 };
 
 function paneSlotKey(paneKey: string, slotId: string): string {
@@ -367,6 +373,18 @@ function buildHorizontalHistograms(state: AdapterState): EChartsGraphicElement[]
     return graphics;
 }
 
+// Capture the user's live `dataZoom` window before the next rebuild. ECharts
+// updates `dataZoom[0].start`/`.end` in place on an inside zoom/pan; reading
+// them back here (and re-emitting them in `buildOption`) is what survives the
+// `notMerge:true` rebuild. The headless/default surface omits `getOption`, and
+// the very first frame has no `dataZoom` yet — both leave the window untouched.
+function syncUserZoom(state: AdapterState): void {
+    const zoom = state.chart.getOption?.()?.dataZoom?.[0];
+    if (zoom === undefined) return;
+    state.zoomStart = zoom.start;
+    state.zoomEnd = zoom.end;
+}
+
 function buildOption(state: AdapterState): EChartsOption {
     const barCount = state.bars.length;
     const categories = state.bars.map((bar) => bar.time);
@@ -382,11 +400,16 @@ function buildOption(state: AdapterState): EChartsOption {
         gridIndex: i,
         data: categories,
         boundaryGap: true,
+        // The x axis (line, ticks, time labels) is hidden — the demo presents a
+        // clean candle field with no time gutter.
+        show: false,
     }));
     const yAxes = state.paneOrder.map((_paneKey, i) => ({
         type: "value" as const,
         gridIndex: i,
         scale: true,
+        // No horizontal grid lines across the plot; keep the price labels.
+        splitLine: { show: false },
     }));
 
     const series: SeriesOption[] = [];
@@ -511,6 +534,20 @@ function buildOption(state: AdapterState): EChartsOption {
         xAxis: xAxes,
         yAxis: yAxes,
         series,
+        // Inside (no slider) wheel-zoom + drag-pan across EVERY pane grid in
+        // lockstep, so stacked panes share one time window. `start`/`end`
+        // carry the user's window across the `notMerge:true` rebuild.
+        dataZoom: [
+            {
+                type: "inside",
+                xAxisIndex: state.paneOrder.map((_paneKey, i) => i),
+                filterMode: "none",
+                zoomOnMouseWheel: true,
+                moveOnMouseMove: true,
+                start: state.zoomStart,
+                end: state.zoomEnd,
+            },
+        ],
         graphic: [...buildHorizontalHistograms(state), ...buildGraphics(state)],
     };
 }
@@ -711,6 +748,8 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
         currentAlertConditions: [],
         recentLogs: [],
         drawings: new Map(),
+        zoomStart: 0,
+        zoomEnd: 100,
     };
     const host =
         opts.host ??
@@ -742,6 +781,9 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
         candles: () => opts.candleSource,
         onEmissions: (emissions) => {
             ingest(state, emissions, opts.onAlert);
+            // Read the user's live zoom back before the destructive rebuild,
+            // so an inside-zoom/pan survives `notMerge:true`.
+            syncUserZoom(state);
             state.chart.setOption(buildOption(state), { notMerge: true });
         },
         dispose: () => {

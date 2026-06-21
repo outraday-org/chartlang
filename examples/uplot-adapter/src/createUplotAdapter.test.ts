@@ -305,6 +305,64 @@ describe("createUplotAdapter — candles + panes", () => {
         }
     });
 
+    it("zooms the x scale on a wheel gesture and holds the view afterwards", async () => {
+        const { instances, adapter } = await drive([emissions(), emissions()]);
+        const overlay = instances[0];
+        // Wheel up (negative deltaY) zooms in about the cursor.
+        overlay.dispatch("wheel", { offsetX: 100, deltaY: -200, preventDefault: () => {} });
+        const xScale = overlay.records.filter((r) => r.kind === "setScale" && r.scaleKey === "x");
+        expect(xScale.length).toBeGreaterThan(0);
+
+        // A subsequent frame must HOLD the user's window: setData with
+        // resetScales:false and NO further y re-pin.
+        const before = overlay.records.length;
+        adapter.onEmissions(emissions());
+        const added = overlay.records.slice(before);
+        const setData = added.find((r) => r.kind === "setData");
+        expect(setData?.kind === "setData" && setData.resetScales).toBe(false);
+        expect(added.some((r) => r.kind === "setScale" && r.scaleKey === "y")).toBe(false);
+    });
+
+    it("pans the x scale on a pointer drag", async () => {
+        const { instances } = await drive([emissions()]);
+        const overlay = instances[0];
+        overlay.dispatch("pointerdown", { clientX: 50, pointerId: 1 });
+        overlay.dispatch("pointermove", { clientX: 80, pointerId: 1 });
+        overlay.dispatch("pointerup", { pointerId: 1 });
+        expect(overlay.records.some((r) => r.kind === "setScale" && r.scaleKey === "x")).toBe(true);
+    });
+
+    it("resets to auto-follow on a double-click", async () => {
+        const { instances, adapter } = await drive([emissions(), emissions()]);
+        const overlay = instances[0];
+        overlay.dispatch("wheel", { offsetX: 100, deltaY: -200, preventDefault: () => {} });
+        overlay.dispatch("dblclick", {});
+        // After reset the next frame re-pins y again (auto-follow resumed).
+        const before = overlay.records.length;
+        adapter.onEmissions(emissions());
+        const added = overlay.records.slice(before);
+        expect(added.some((r) => r.kind === "setScale" && r.scaleKey === "y")).toBe(true);
+    });
+
+    it("tolerates a wheel gesture before any bars are loaded", () => {
+        const { instances, adapter } = build({});
+        // A frame with no bars still builds + wires the overlay instance.
+        adapter.onEmissions(emissions());
+        expect(() =>
+            instances[0].dispatch("wheel", { offsetX: 10, deltaY: -100, preventDefault: () => {} }),
+        ).not.toThrow();
+    });
+
+    it("widens a single-bar data window so the x span is never zero", async () => {
+        // One bar ⇒ data xMax === xMin; barsXBounds widens it by 1.
+        const { instances } = await drive([emissions()], [BARS[0]]);
+        const overlay = instances[0];
+        expect(() =>
+            overlay.dispatch("wheel", { offsetX: 10, deltaY: -100, preventDefault: () => {} }),
+        ).not.toThrow();
+        expect(overlay.records.some((r) => r.kind === "setScale" && r.scaleKey === "x")).toBe(true);
+    });
+
     it("stacks a new instance per pane, overlay first", async () => {
         const { instances } = await drive([
             emissions({

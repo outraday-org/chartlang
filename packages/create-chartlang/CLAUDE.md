@@ -63,5 +63,38 @@ the single `activeAdapter.ts` seam + `package.json` workspace deps, writes
   (asserted by a test) so the user's project ships none of the monorepo's
   maintenance/CI files.
 
+- **The clone is made STANDALONE by four post-clone transforms** so the emitted
+  project installs, typechecks, builds, and runs with no monorepo around it.
+  All four live in `create-chartlang` only — they never touch the published
+  compiler, the `react-starter` app, or the CLI.
+  - **Standalone tsconfig (`starterTsconfig.ts`).** The cloned `tsconfig.json`
+    `extends "../../tsconfig.base.json"`, a monorepo-relative path absent from a
+    standalone clone (breaks `vite build` + `tsc --noEmit`). `writeStandaloneTsconfig`
+    writes `<targetDir>/tsconfig.base.json` from the BAKED `STANDALONE_TSCONFIG_BASE`
+    constant, then repoints the cloned `tsconfig.json` `extends` →
+    `"./tsconfig.base.json"`. If the clone has no `tsconfig.json` the base is
+    still written and the repoint is skipped. The baked constant is held in sync
+    with the repo-root `tsconfig.base.json` by a deep-equal PARITY TEST
+    (`starterTsconfig.test.ts`) — bump it there if the root base changes. The
+    vendored adapter's own `extends: "../../tsconfig.base.json"` resolves to this
+    clone-root base automatically; do NOT modify the adapter tsconfig.
+  - **`.npmrc legacy-peer-deps` (`writeNpmrc`).** Published
+    `@invinite-org/chartlang-compiler` depends on `esbuild@^0.24` while `vite@8`
+    has an optional peer `esbuild@^0.27 || ^0.28`; the app runs fine on 0.24, so
+    the clone writes `<targetDir>/.npmrc` with `legacy-peer-deps=true` to clear
+    npm's strict optional-peer check. Do NOT bump esbuild or touch the compiler.
+  - **Vendored-adapter SRC repoint (`repointVendoredPackageJson`) — intentional
+    DIVERGENCE from `cli add-adapter`.** `add-adapter` keeps the bundle's
+    dist-pointing `package.json` (it expects a build); create-chartlang vendors
+    only `src/` and never builds, so the vendored `package.json`'s `main`/`types`
+    and every `exports` entry's `types`/`import` are repointed `./dist/*` →
+    `./src/*.ts` (`.d.ts`/`.js` → `.ts`). Vite + tsc then resolve the adapter
+    directly from source with NO build step. Absent fields are left untouched.
+  - **Matrix chart-lib drop (`rewritePackageJson.ts`).** The starter ships every
+    adapter-matrix chart lib (`echarts` in deps; `konva`/`lightweight-charts`/`uplot`
+    in devDeps) for its in-monorepo dev setup. `rewriteBlock` drops all of
+    `MATRIX_CHART_LIBS`; the existing re-add of the chosen `chartLibrary` at its
+    registry range puts back only the one the user picked (none for canvas2d).
+
 See `packages/CLAUDE.md` (package-wide gates) and `apps/react-starter/CLAUDE.md`
 (the seam SSOT + what the clone contains).

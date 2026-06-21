@@ -12,6 +12,7 @@ export {
     bundleChartlangVersions,
     defaultDeps,
     renderLibraryChoices,
+    repointVendoredPackageJson,
     resolveAdapter,
     runCreateChartlang,
     STARTER_SOURCE_BASE,
@@ -28,6 +29,7 @@ export { rewriteStarterPackageJson } from "./rewritePackageJson.js";
 export type { RewriteOpts } from "./rewritePackageJson.js";
 export { isSeamId, SEAM_IDS, seamTemplateFor } from "./seamTemplates.js";
 export type { SeamId } from "./seamTemplates.js";
+export { STANDALONE_TSCONFIG_BASE, writeStandaloneTsconfig } from "./starterTsconfig.js";
 
 await runCreateChartlang(
     process.argv.slice(2),

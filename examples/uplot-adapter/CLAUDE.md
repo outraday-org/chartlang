@@ -16,6 +16,29 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
 
 ## Invariants
 
+- **Pan/zoom: uPlot is library-scaled, but the adapter still drives the
+  shared adapter-kit `ViewController`.** uPlot's native drag-zoom is DISABLED
+  (`cursor.drag.x/y:false` in `defaultUplotFactory`); instead a `hooks.ready`
+  pass calls `wireUplotInteraction`, which `attachInteraction`s onto `u.over`
+  with bridge handlers (`pxToWorldX = u.posToVal`, `worldXPerPx` from
+  `posToVal(1)−posToVal(0)`, `requestRender` pushes
+  `view.resolveXWindow(...)` onto EVERY pane instance via `setScale("x", …)`
+  so stacked panes stay x-synced). The wheel zooms BOTH ways — the
+  zoom-out the native default lacked. Detach fns are collected in
+  `state.interactionDetachers` and run on dispose.
+- **`state.userInteracted` gates the per-frame re-pin.** While `false`,
+  `renderFrame` re-`setScale("y", …)` and `setData(data)` auto-follows
+  (uPlot re-ranges x). Once a gesture flips it `true`, `renderFrame` STOPS
+  re-pinning y and calls `setData(data, false)` (`resetScales:false`) so
+  streaming bars don't snap the held window back. A dblclick `reset()`s the
+  controller → `userInteracted` returns to `false` and auto-follow resumes.
+- **`UplotLike` gained `over` + `posToVal`; `UplotOptions.hooks` gained
+  `ready`.** `MockUplot` implements a dispatchable `over` stub (+ `dispatch`,
+  `posToVal`, runs `ready` in its constructor, honours `setData(_, false)`)
+  so the interaction path is exercised headlessly. The draw-pass `PINNED_HASH`
+  is UNCHANGED — the no-interaction frame is byte-identical (the ready hook
+  paints nothing, `setScale("y")` still fires, `setData` reset unchanged).
+
 - **Sub-panes are stacked uPlot instances keyed by
   `PlotEmission.pane`.** `AdapterState.paneOrder` is `["overlay",
   ...subpaneKeys]` in first-emit order; `renderFrame` lazily builds one
@@ -47,7 +70,9 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   mirrored here. Drawings paint LAST in this hook (see the drawings
   invariant below). Establish new ctx-drawn marks here, do not add a
   parallel hook. A non-finite `valToPos` (scale not yet ranged) skips the
-  hline.
+  hline. Candles + hlines project through uPlot's REAL plotting-area
+  viewport (`buildViewport(u)`, device px) so they align with uPlot's own
+  series + axes on a Retina canvas — see the `buildViewport` invariant.
 - **Candle geometry is the ONLY ported logic.** `candlePaths.ts` ports
   uPlot's official candlestick-demo path math (wick line + bull/bear body
   rect) translated to a pure `RenderCtx` sink. It is NOT an
@@ -77,20 +102,35 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   against EACH pane's own scales, so a sub-pane drawing projects into that
   pane's price range. Geometry is consumed ONLY through public adapter-kit
   (`decomposeDrawing`) + `/canvas` (`paintPrimitive`) — never re-derived.
-- **`buildViewport(u)` reproduces `u.valToPos`; dpr + bbox offset are
-  reconciled deliberately.** `u.valToPos(val, key, true)` returns a CANVAS
-  pixel (folds in `bbox.left/top`, scaled by `devicePixelRatio`).
-  adapter-kit's `timeToX`/`priceToY` start at the plotting-area origin in
-  CSS px. So `buildViewport` reads `u.scales.x/y` for the ranges and
-  `u.bbox.width/height ÷ dpr` for `pxWidth/pxHeight` (CSS px), and
-  `offsetForViewport` returns the CSS-px `bbox.left/top` offset the draw
-  pass translates by ONCE. The offset is split OUT of the viewport (not
-  baked into `xMin`) so `decomposeDrawing` stays in the clean plotting-area
-  space the candle + hline pass use. `viewport.test.ts` PROVES the
-  reproduction by sampling `worldPointToPixel(p, view) + offset` against a
-  real-uPlot-shaped stub `valToPos` (incl. a dpr=2 case). The headless
-  `MockUplot` keeps dpr=1 + bbox offset 0, so the translate is `(0,0)`
-  under test; the dpr/offset math rides the sampling test.
+- **`buildViewport(u)` reproduces `u.valToPos` in DEVICE px; the whole
+  ctx pass shares one coordinate space.** `u.valToPos(val, key, true)`
+  returns a CANVAS (device) pixel — uPlot's `getHPos`/`getVPos` use the
+  device-px `plotWid`/`plotLft` (`bbox.width === plotWidthCss ×
+  devicePixelRatio`), and uPlot NEVER `ctx.scale`s (it pre-multiplies every
+  coordinate by `pxRatio`), so the `hooks.draw` ctx is that same unscaled
+  device-px canvas. `buildViewport` therefore reads `u.scales.x/y` for the
+  ranges and `u.bbox.width/height` VERBATIM (device px) for
+  `pxWidth/pxHeight`, and `offsetForViewport` returns the device-px
+  `bbox.left/top` offset. The offset is split OUT of the viewport (not baked
+  into `xMin`) so `decomposeDrawing` stays in clean plotting-area space.
+  **The candle + hline pass projects through this SAME `buildViewport`** —
+  candles fold the `(dx,dy)` offset into their coords (`projectCandles`,
+  drawn with no translate so the drawing-pass translate-count tests hold),
+  hlines take their y from `u.valToPos` (already offset) and span `dx →
+  dx + view.pxWidth`, and drawings translate by `(dx,dy)` once. (An earlier
+  revision divided everything by `devicePixelRatio` to land in CSS px and
+  the candle pass used a hand-rolled `state.width − Y_AXIS_GUTTER_PX` rect;
+  both only rendered correctly at dpr 1 — on a Retina display the candles +
+  hlines + drawings collapsed into a small mis-placed region of the canvas.
+  Device px is uPlot's real space.) `viewport.test.ts` PROVES the
+  reproduction by sampling `timeToX/priceToY(view) + offset` against a
+  real-uPlot-shaped device-px stub `valToPos` (incl. a Retina-shaped bbox
+  with a non-zero device-px inset). The headless `MockUplot` keeps dpr=1 +
+  bbox offset 0, so candle/hline/drawing coords are plotting-area-relative
+  under test; the device-px offset math rides the sampling test.
+  `computePaneViewportFor` survives only to feed `renderFrame`'s
+  `setScale("y", …)` the pane's y range (its `pxWidth`/gutter no longer
+  reach the ctx).
 - **`UplotLike` exposes `scales` + `bbox`; `MockUplot` populates both.**
   The structural `UplotLike` gained `readonly scales` (a `Record` of
   `{ min?, max? }`, `x` = time / `y` = price) + `readonly bbox`

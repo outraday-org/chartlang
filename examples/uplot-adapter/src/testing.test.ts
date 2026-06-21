@@ -50,6 +50,22 @@ describe("MockUplot", () => {
         expect(u.valToPos(5, "y")).toBe(50);
     });
 
+    it("dispatch is a no-op when no listener is registered for the type", () => {
+        // A bare MockUplot wires no `ready` hooks, so `over` has no listeners.
+        const u = new MockUplot(opts(), [[0, 1]]);
+        expect(() => u.dispatch("wheel", { offsetX: 0, deltaY: 0 })).not.toThrow();
+    });
+
+    it("inverts posToVal for the x and y scales", () => {
+        const u = new MockUplot(opts({ width: 100, height: 100 }), [[0, 10]]);
+        u.setScale("y", { min: 0, max: 10 });
+        // x: pixel 50 of width 100 over [0, 10] → 5.
+        expect(u.posToVal(50, "x")).toBe(5);
+        // y is flipped: pixel 0 → max (10), pixel 100 → min (0).
+        expect(u.posToVal(0, "y")).toBe(10);
+        expect(u.posToVal(100, "y")).toBe(0);
+    });
+
     it("ignores non-y setScale for the valToPos mapping", () => {
         const u = new MockUplot(opts({ height: 100 }), [[0, 1]]);
         u.setScale("x", { min: 100, max: 200 });

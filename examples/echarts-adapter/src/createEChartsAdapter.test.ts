@@ -252,6 +252,34 @@ describe("createEChartsAdapter — base option tree", () => {
             [100.5, 101, 100, 102],
         ]);
     });
+
+    it("emits an inside dataZoom spanning every pane grid, full window by default", async () => {
+        const chart = await drive([bar(0, 100)], []);
+        const dataZoom = lastOption(chart).dataZoom;
+        const first = Array.isArray(dataZoom) ? dataZoom[0] : dataZoom;
+        expect(first?.type).toBe("inside");
+        expect(first?.start).toBe(0);
+        expect(first?.end).toBe(100);
+    });
+
+    it("preserves the user's dataZoom window across the notMerge rebuild", () => {
+        const chart = new MockECharts();
+        const adapter = createEChartsAdapter({
+            echartsFactory: () => chart,
+            candleSource: mockCandleSource([]),
+            host: stubHost([]),
+        });
+        // First frame seeds the full window; then the user zooms in.
+        adapter.onEmissions(emptyEmissions());
+        chart.applyUserZoom(20, 80);
+        // The next destructive rebuild must restore the user's 20–80 window.
+        adapter.onEmissions(emptyEmissions());
+        const dataZoom = lastOption(chart).dataZoom;
+        const first = Array.isArray(dataZoom) ? dataZoom[0] : dataZoom;
+        expect(first?.start).toBe(20);
+        expect(first?.end).toBe(80);
+        adapter.dispose();
+    });
 });
 
 describe("createEChartsAdapter — plot kinds", () => {

@@ -29,6 +29,19 @@ test seam + capabilities-only conformance default export).
   change re-shapes that tree and re-pins `integration.test.ts`'s
   `hashOptionLog` constant.
 
+- **Zoom / pan ride a native `dataZoom` (`type:"inside"`), persisted across
+  the `notMerge:true` rebuild.** `buildOption` emits ONE inside dataZoom
+  whose `xAxisIndex` lists EVERY pane grid (wheel-zoom + drag-pan in
+  lockstep), with `start`/`end` from `state.zoomStart`/`zoomEnd` (default
+  `0`/`100` = full window, auto-follows the growing category axis). Because
+  `setOption(notMerge:true)` would reset the user's window, `onEmissions`
+  calls `syncUserZoom(state)` FIRST — reading `chart.getOption?.()
+  ?.dataZoom?.[0]` back into `zoomStart`/`zoomEnd` so an inside-zoom/pan
+  survives the rebuild. `EChartsSurface` gained an optional `getOption?`;
+  `MockECharts` implements it (+ `applyUserZoom(start,end)` to simulate a
+  gesture) and tracks the live window from each applied option. Adding
+  `dataZoom` to the tree re-pinned `integration.test.ts`'s `PINNED_HASH`.
+
 - **`opts.echartsFactory` is the mandatory instance seam.** Production
   passes `() => echarts.init(container)`; tests pass `() => new
   MockECharts()`. Unlike canvas2d's `opts.ctx` (which has a `getContext`

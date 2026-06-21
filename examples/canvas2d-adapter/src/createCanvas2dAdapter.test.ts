@@ -20,6 +20,7 @@ import { CANVAS2D_CAPABILITIES } from "./capabilities.js";
 import {
     type Canvas2dAdapterHandle,
     createCanvas2dAdapter,
+    redraw,
     runRendererLoop,
 } from "./createCanvas2dAdapter.js";
 import { MockCanvas2DContext } from "./testing.js";
@@ -194,6 +195,23 @@ beforeEach(() => {
 
 afterEach(() => {
     vi.restoreAllMocks();
+});
+
+describe("redraw", () => {
+    it("repaints the current frame on demand", () => {
+        const { adapter, ctx } = buildAdapter({});
+        const before = ctx.calls.length;
+        redraw(adapter);
+        // A frame clears at least the overlay pane rect, so calls advance.
+        expect(ctx.calls.length).toBeGreaterThan(before);
+    });
+
+    it("throws the sentinel on a foreign handle", () => {
+        const foreign = {} as Canvas2dAdapterHandle;
+        expect(() => redraw(foreign)).toThrow(
+            "redraw: handle was not produced by createCanvas2dAdapter",
+        );
+    });
 });
 
 describe("createCanvas2dAdapter — construction", () => {

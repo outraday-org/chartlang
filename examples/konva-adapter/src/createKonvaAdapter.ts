@@ -6,15 +6,22 @@ import {
     type CandleEvent,
     type Capabilities,
     type DrawingEmission,
+    type InteractionHandlers,
     type PlotEmission,
     type PlotStyle,
     type RunnerEmissions,
+    type ViewController,
     type Viewport,
+    type WindowYInput,
+    type XWindow,
+    attachInteraction,
+    createViewController,
     decomposeDrawing,
     defineAdapter,
     priceToY,
     timeToX,
     validateEmission,
+    yRangeInWindow,
 } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
 import {
@@ -31,6 +38,11 @@ import type { KonvaGroup, KonvaLayer, KonvaNamespace, KonvaNode, KonvaStage } fr
 
 const DEFAULT_INTERVAL = "1D";
 const Y_AXIS_PADDING = 0.05;
+// Right-edge gutter reserved on every pane, matching the canvas2d reference
+// adapter's `Y_AXIS_GUTTER_PX` so konva's candle x-extent (and therefore its
+// scale) lines up with canvas2d. Konva paints no axis labels into it — this
+// is scale parity, not a label reservation.
+const Y_AXIS_GUTTER_PX = 52;
 const BODY_WIDTH_RATIO = 0.6;
 const HISTOGRAM_BAR_WIDTH_PX = 4;
 const GLYPH_FONT_FAMILY = "sans-serif";
@@ -152,6 +164,13 @@ type AdapterState = {
     // by `rebuildDrawingsLayer` through the shared `decomposeDrawing` IR.
     readonly drawings: Map<string, DrawingEmission>;
     readonly palette: KonvaPalette;
+    // Pan/zoom controller (adapter-kit); see the canvas2d adapter for the
+    // identical wiring. `resolveXWindow` picks the per-frame x window;
+    // `lastOverlayViewport` feeds the DOM handlers' pixel↔world mapping;
+    // `detachInteraction` removes the listeners on dispose.
+    readonly view: ViewController;
+    lastOverlayViewport?: Viewport;
+    detachInteraction?: () => void;
 };
 
 const HANDLE_STATE: WeakMap<KonvaAdapterHandle, AdapterState> = new WeakMap();
@@ -174,33 +193,41 @@ function dashFor(lineStyle: "solid" | "dashed" | "dotted"): ReadonlyArray<number
     return undefined;
 }
 
-// Collect the y-range a single pane should span. The overlay pane sees
-// bars ∪ overlay-keyed series ∪ overlay-keyed hlines; a subpane sees only
-// its own series + hlines (so an RSI band in 0-100 never stretches the
-// price scale). Returns ±Infinity when no finite candidate was observed —
-// the caller maps that to the (0, 1) fallback.
-function computeYRange(state: AdapterState, paneKey: string): { yMin: number; yMax: number } {
-    let yMin = Number.POSITIVE_INFINITY;
-    let yMax = Number.NEGATIVE_INFINITY;
-    const observe = (v: number): void => {
-        if (v < yMin) yMin = v;
-        if (v > yMax) yMax = v;
-    };
+// Collect the y-range a single pane should span, auto-fit to the VISIBLE x
+// window (so a zoomed-in view re-scales the price axis to what's on screen,
+// matching lightweight-charts). The overlay pane sees bars ∪ overlay-keyed
+// series; a subpane sees only its own series (so an RSI band in 0-100 never
+// stretches the price scale). Horizontal lines span the whole chart, so they
+// fold in unconditionally (not x-window filtered). Returns ±Infinity when no
+// finite candidate was observed — the caller maps that to the (0, 1) fallback.
+function computeYRange(
+    state: AdapterState,
+    paneKey: string,
+    win: XWindow,
+): { yMin: number; yMax: number } {
+    const candidates: WindowYInput[] = [];
     if (paneKey === "overlay") {
         for (const bar of state.bars) {
-            observe(bar.high);
-            observe(bar.low);
+            candidates.push({ x: bar.time, lo: bar.low, hi: bar.high });
         }
     }
     const prefix = paneKeyPrefix(paneKey);
     for (const [key, entry] of state.plotSeries) {
         if (!key.startsWith(prefix)) continue;
         for (const point of entry.points) {
-            if (point.value !== null && Number.isFinite(point.value)) observe(point.value);
+            if (point.value !== null) {
+                candidates.push({ x: point.time, lo: point.value, hi: point.value });
+            }
         }
     }
+    const windowed = yRangeInWindow(candidates, win);
+    let yMin = windowed?.yMin ?? Number.POSITIVE_INFINITY;
+    let yMax = windowed?.yMax ?? Number.NEGATIVE_INFINITY;
     for (const hline of state.hlines.values()) {
-        if (hline.paneKey === paneKey && Number.isFinite(hline.price)) observe(hline.price);
+        if (hline.paneKey === paneKey && Number.isFinite(hline.price)) {
+            if (hline.price < yMin) yMin = hline.price;
+            if (hline.price > yMax) yMax = hline.price;
+        }
     }
     return { yMin, yMax };
 }
@@ -208,16 +235,20 @@ function computeYRange(state: AdapterState, paneKey: string): { yMin: number; yM
 function computePaneViewport(state: AdapterState, entry: PaneLayoutEntry): Viewport {
     const { bars } = state;
     const { rect, paneKey } = entry;
+    // Reserve the right gutter so konva's candle x-extent matches canvas2d.
+    const plotWidth = Math.max(1, rect.w - Y_AXIS_GUTTER_PX);
     if (bars.length === 0) {
-        return { xMin: 0, xMax: 1, yMin: 0, yMax: 1, pxWidth: rect.w, pxHeight: rect.h };
+        return { xMin: 0, xMax: 1, yMin: 0, yMax: 1, pxWidth: plotWidth, pxHeight: rect.h };
     }
-    let xMin = Number.POSITIVE_INFINITY;
-    let xMax = Number.NEGATIVE_INFINITY;
+    let dataXMin = Number.POSITIVE_INFINITY;
+    let dataXMax = Number.NEGATIVE_INFINITY;
     for (const bar of bars) {
-        if (bar.time < xMin) xMin = bar.time;
-        if (bar.time > xMax) xMax = bar.time;
+        if (bar.time < dataXMin) dataXMin = bar.time;
+        if (bar.time > dataXMax) dataXMax = bar.time;
     }
-    let { yMin, yMax } = computeYRange(state, paneKey);
+    // Full data range until the user interacts, then the held window.
+    const win = state.view.resolveXWindow(dataXMin, dataXMax);
+    let { yMin, yMax } = computeYRange(state, paneKey, win);
     if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
         yMin = 0;
         yMax = 1;
@@ -227,11 +258,11 @@ function computePaneViewport(state: AdapterState, entry: PaneLayoutEntry): Viewp
     }
     const yPad = (yMax - yMin) * Y_AXIS_PADDING;
     return {
-        xMin,
-        xMax: xMax === xMin ? xMin + 1 : xMax,
+        xMin: win.xMin,
+        xMax: win.xMax === win.xMin ? win.xMin + 1 : win.xMax,
         yMin: yMin - yPad,
         yMax: yMax + yPad,
-        pxWidth: rect.w,
+        pxWidth: plotWidth,
         pxHeight: rect.h,
     };
 }
@@ -732,6 +763,10 @@ function rebuildSeriesLayer(state: AdapterState): void {
     for (const entry of layout) {
         const group = new state.konva.Group({ x: entry.rect.x, y: entry.rect.y });
         const viewport = computePaneViewport(state, entry);
+        if (entry.paneKey === "overlay") {
+            // Cached for the DOM interaction handlers' pixel↔world mapping.
+            state.lastOverlayViewport = viewport;
+        }
         if (entry.paneKey === "overlay" && state.bars.length > 0) {
             buildCandles(state, group, viewport);
         }
@@ -890,7 +925,47 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
         hlines: new Map(),
         drawings: new Map(),
         palette,
+        view: createViewController(),
     };
+    // Wire wheel-zoom / drag-pan / dblclick-reset on the mount element when
+    // running against a real DOM (production passes `opts.container`).
+    // Headless tests omit it + use `MockKonva`, so no listeners attach and
+    // the pinned scene hash / coverage are unaffected. `requestRender`
+    // rebuilds both layers because the drive loop only repaints on candles.
+    /* v8 ignore start -- DOM interaction wiring; only runs against a real container */
+    const container = opts.container as Partial<HTMLElement> | undefined;
+    if (container !== undefined && typeof container.addEventListener === "function") {
+        const handlers: InteractionHandlers = {
+            controller: state.view,
+            pxToWorldX: (px) => {
+                const v = state.lastOverlayViewport;
+                if (v === undefined) return 0;
+                return v.xMin + (px / v.pxWidth) * (v.xMax - v.xMin);
+            },
+            worldXPerPx: () => {
+                const v = state.lastOverlayViewport;
+                if (v === undefined) return 1;
+                return (v.xMax - v.xMin) / v.pxWidth;
+            },
+            dataBounds: () => {
+                const { bars } = state;
+                if (bars.length === 0) return { xMin: 0, xMax: 1 };
+                let xMin = Number.POSITIVE_INFINITY;
+                let xMax = Number.NEGATIVE_INFINITY;
+                for (const bar of bars) {
+                    if (bar.time < xMin) xMin = bar.time;
+                    if (bar.time > xMax) xMax = bar.time;
+                }
+                return { xMin, xMax };
+            },
+            requestRender: () => {
+                rebuildSeriesLayer(state);
+                rebuildDrawingsLayer(state);
+            },
+        };
+        state.detachInteraction = attachInteraction(container as HTMLElement, handlers);
+    }
+    /* v8 ignore stop */
     const host =
         opts.host ??
         createWorkerHost(
@@ -932,6 +1007,8 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
             state.plotOverlays.clear();
             state.hlines.clear();
             state.drawings.clear();
+            /* v8 ignore next -- only set on the real-container interaction path */
+            state.detachInteraction?.();
             state.stage.destroy();
             host.dispose();
         },
@@ -941,6 +1018,35 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
     HANDLE_STATE.set(handle, state);
     HANDLE_INTERVAL.set(handle, opts.interval ?? DEFAULT_INTERVAL);
     return handle;
+}
+
+/**
+ * Rebuild the series + drawings layers without a new candle event — the
+ * repaint the DOM interaction handlers (wheel-zoom / drag-pan /
+ * dblclick-reset) call after a gesture changes the view window. Retrieves
+ * the handle's `AdapterState` through the module-local `WeakMap` and throws
+ * the documented sentinel on a foreign handle.
+ *
+ * @since 1.6
+ * @stable
+ * @example
+ *     import { createKonvaAdapter, redraw } from "chartlang-example-konva-adapter";
+ *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
+ *     import { MockKonva } from "chartlang-example-konva-adapter/testing";
+ *     const adapter = createKonvaAdapter({
+ *         konva: new MockKonva() as never,
+ *         stage: { width: 10, height: 10 },
+ *         candleSource: mockCandleSource([]),
+ *     });
+ *     redraw(adapter);
+ */
+export function redraw(handle: KonvaAdapterHandle): void {
+    const state = HANDLE_STATE.get(handle);
+    if (state === undefined) {
+        throw new Error("redraw: handle was not produced by createKonvaAdapter");
+    }
+    rebuildSeriesLayer(state);
+    rebuildDrawingsLayer(state);
 }
 
 /**
