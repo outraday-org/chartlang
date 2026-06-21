@@ -1,5 +1,15 @@
 # @invinite-org/chartlang-editor
 
+## 2.1.4
+
+### Patch Changes
+
+- Updated dependencies [03f59bf]
+- Updated dependencies [03f59bf]
+- Updated dependencies [03f59bf]
+  - @invinite-org/chartlang-adapter-kit@1.4.0
+  - @invinite-org/chartlang-language-service@1.4.3
+
 ## 2.1.3
 
 ### Patch Changes

@@ -1,5 +1,23 @@
 # @invinite-org/chartlang-cli
 
+## 1.3.0
+
+### Minor Changes
+
+- a165b3b: Add `chartlang add-adapter [id] [dir]` — drop a complete, runnable library
+  adapter (canvas2d, echarts, konva, lightweight-charts, uplot) into your repo
+  from an offline, version-pinned bundle baked into the CLI. Supports `--list`
+  (comparison matrix), `--name <pkg>`, `--pm <npm|pnpm|yarn|bun>`, and `--force`.
+  Unlike `scaffold-adapter` (a blank starter), `add-adapter` writes a full,
+  conformance-green adapter with its chartlang dependencies pinned to the
+  matching published versions. Zero new runtime dependencies.
+- c7fd749: Re-export `BUNDLED_ADAPTERS`, `ADAPTER_REGISTRY`, and the
+  `GeneratedAdapterBundle` / `GeneratedAdapterMeta` types from the package's
+  public entry point. This lets downstream installers (e.g. `create-chartlang`)
+  vendor the offline, version-pinned adapter bundles from a single source of
+  truth instead of deep-importing `src/generated/**` or depending on the
+  unpublished example adapters. Additive — no existing export changes.
+
 ## 1.2.0
 
 ### Minor Changes
