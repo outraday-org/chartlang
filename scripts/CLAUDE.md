@@ -14,7 +14,12 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
   header).
 - `scaffold.ts` is **idempotent**: re-running it must produce zero diff on
   an already-scaffolded tree. Adding a new package = append to
-  `PACKAGE_DIRS` and re-run `pnpm scaffold`.
+  `PACKAGE_DIRS` and re-run `pnpm scaffold`. **Not every published package
+  belongs in `PACKAGE_DIRS`:** `create-chartlang` is hand-authored and
+  excluded, because the template emits a scoped `@invinite-org/chartlang-
+  <name>` name with no `bin` field, whereas that package publishes under the
+  bare name `create-chartlang` with a `bin`. Adding it would break the
+  zero-diff guarantee. See `packages/create-chartlang/CLAUDE.md`.
 - `SUBPATH_EXPORTS` entries can be **forward-reserved** before the matching
   `src/<subpath>/` ships real exports — the map is the authoritative
   `package.json#exports` shape, and an empty subpath module is fine until

@@ -11,6 +11,15 @@ import { runScaffoldAdapter } from "./commands/scaffoldAdapter.js";
 export { defaultAddAdapterDeps, renderList, runAddAdapter } from "./commands/addAdapter.js";
 export type { AddAdapterDeps, Prompter } from "./commands/addAdapter.js";
 export { runCompile } from "./commands/compile.js";
+// The offline, version-pinned adapter bundles + their registry metadata.
+// Re-exported from the public surface so downstream installers (e.g.
+// `create-chartlang`) vendor adapters from a single source of truth instead
+// of deep-importing `src/generated/**` or the unpublished `examples/*`.
+export { ADAPTER_REGISTRY, BUNDLED_ADAPTERS } from "./generated/adapters/index.js";
+export type {
+    GeneratedAdapterBundle,
+    GeneratedAdapterMeta,
+} from "./generated/adapters/index.js";
 export { runDocsCommand } from "./commands/docs.js";
 export {
     generateDrawingDocsPage,

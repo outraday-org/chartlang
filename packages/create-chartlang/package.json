@@ -1,0 +1,43 @@
+{
+    "name": "create-chartlang",
+    "version": "0.0.0",
+    "type": "module",
+    "license": "MIT",
+    "description": "npm create chartlang — scaffold a runnable chartlang starter app (TanStack Start + your chosen chart library).",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "bin": {
+        "create-chartlang": "./dist/index.js"
+    },
+    "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "test": "vitest run --coverage"
+    },
+    "dependencies": {
+        "@invinite-org/chartlang-cli": "workspace:^",
+        "giget": "^1.2.3"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0"
+    },
+    "publishConfig": {
+        "access": "public",
+        "provenance": true
+    },
+    "engines": {
+        "node": ">=20"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/outraday-org/chartlang.git",
+        "directory": "packages/create-chartlang"
+    }
+}

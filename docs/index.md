@@ -30,6 +30,9 @@ export default defineIndicator({
 
 - [Write your first script](./getting-started/write-your-first-script.md)
   — install core, write an EMA-cross indicator, compile and render it.
+- [Start from a working app](./getting-started/react-starter.md) —
+  `npm create chartlang@latest my-app` scaffolds a full editor + live
+  chart starter with the chart library you pick.
 - [Embed in your chart](./getting-started/embed-in-our-chart.md) —
   wire the compiler, host, and adapter into an existing chart UI.
 - [Write your first adapter](./getting-started/write-your-first-adapter.md)

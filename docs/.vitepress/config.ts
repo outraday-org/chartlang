@@ -129,6 +129,10 @@ export default defineConfig({
                             link: "/getting-started/write-your-first-script",
                         },
                         {
+                            text: "Start from a working app",
+                            link: "/getting-started/react-starter",
+                        },
+                        {
                             text: "Embed in your chart",
                             link: "/getting-started/embed-in-our-chart",
                         },
