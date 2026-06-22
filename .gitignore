@@ -18,3 +18,6 @@ docs/public/logo.ico
 .pi/sessions/
 .pi/npm/
 .pi/team-id
+
+# Local scratch: published create-chartlang installs for manual testing (git-ignored)
+local-starters/
