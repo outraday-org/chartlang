@@ -44,7 +44,7 @@
         "test:scripts": "vitest run -c scripts/vitest.config.ts",
         "chartlang": "tsx packages/cli/src/bin.ts",
         "changeset": "changeset",
-        "changeset:version": "changeset version && biome format --write . && pnpm conformance:report",
+        "changeset:version": "changeset version && pnpm adapters:generate && biome format --write . && pnpm conformance:report",
         "release": "pnpm build && changeset publish",
         "publish:release": "pnpm release",
         "site:dev": "pnpm --filter chartlang-site dev",

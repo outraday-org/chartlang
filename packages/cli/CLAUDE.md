@@ -34,6 +34,16 @@
   byte-diffs it in CI). The command has zero new runtime deps
   (`node:fs/promises`, `node:path`, `node:util.parseArgs`,
   `node:readline/promises` only).
+- **The bundles embed each adapter package's `package.json` verbatim —
+  including its dependency version ranges — so a version bump drifts them.**
+  A changesets release that bumps any `@invinite-org/chartlang-*` dep range
+  in an example adapter (e.g. `adapter-kit ^1.4.0 → ^1.5.0`) makes the
+  committed bundle stale even though no source changed, failing
+  `adapters:gate` on the release-merge push. To keep this self-healing the
+  root `changeset:version` script runs `pnpm adapters:generate` right after
+  `changeset version`, so the regenerated bundles land inside the "Version
+  Packages" PR. If you ever bump an adapter dep range outside that flow,
+  re-run the generator and commit the bundles in the same change.
 - **`add-adapter` substitutes `__PKG_NAME__` only in `package.json`,
   refuses a non-empty dir without `--force`, and exits 1 on an unknown id
   or invalid `--pm`.** The IO seam (`AddAdapterDeps` / `defaultAddAdapterDeps`)
