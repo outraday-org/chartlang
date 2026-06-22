@@ -63,6 +63,13 @@ dev/preview):
 A single-file SQLite DB (`data/starter.db`, git-ignored) stores saved
 scripts. Drizzle gives the typed schema + migrations.
 
+- **`data/` MUST be excluded from Vite's dev watcher.**
+  `vite.config.ts` sets `server.watch.ignored` to ignore `**/data/**` +
+  `**/*.db*`. The DB is written on boot (seed), symbol search (EOD cache +
+  quota), symbol load, and save; `data/` sits inside the project, so without
+  this every write trips Vite's watcher and triggers a **full page reload** —
+  which, mid-search, closes the symbol dialog and reads as the page refreshing
+  on every keystroke. Do not remove it.
 - **The DB layer is server-only by import boundary, not by a stub.**
   `src/lib/server/db/{index,schema,scripts,seed}.ts` import
   `better-sqlite3` (a native addon). They are reached **only** through the
@@ -195,12 +202,26 @@ default **echarts**. It is the **only** file in the app that names a concrete
   So **editing → debounced compile → artifact → chart** needs no extra
   debounce. The React `<ChartlangEditor>` wrapper does **not** expose
   `lintDebounceMs`, so the debounce stays at the editor default.
-- **Editor uses the DEFAULT (light) CodeMirror theme — NOT `chartlangDark`.**
-  `EditorPane.tsx` passes an empty `extensions` array on purpose: the stock
-  shadcn neutral palette wants the light editor. `apps/site` keeps
-  `chartlangDark` for the brand; the starter deliberately diverges. The
-  `.cm-editor { height: 100% }` rule in `src/styles.css` (no brand tokens)
-  fills the flex pane.
+- **The editor FOLLOWS the app's shadcn light/dark mode.** `EditorPane.tsx`
+  composes `chartlangDark` (from the editor package) in dark mode and the
+  starter-local `chartlangLight` (`src/components/workspace/editorTheme.ts`) in
+  light mode. The editor package ships only the dark theme, so the light
+  variant lives in the starter — built from the same CodeMirror primitives
+  (`@codemirror/{language,state,view}` + `@lezer/highlight`, pinned `^6`/`^1`
+  so they dedupe to the editor's single `@codemirror/state` instance; a second
+  copy makes CodeMirror reject the extension at mount). The React
+  `<ChartlangEditor>` reads `extensions` only at MOUNT, so `index.tsx` folds
+  the resolved theme into the editor `key` (`${editorKey}-${editorTheme}`) to
+  remount on a toggle; since `index.tsx` passes the live buffer as
+  `initialSource`, the remount preserves the user's edits. The `.cm-editor
+  { height: 100% }` rule in `src/styles.css` fills the flex pane.
+- **Theme switch is next-themes, wired in `__root.tsx`.** A `<ThemeProvider
+  attribute="class" storageKey="theme">` wraps the body; the header's
+  `ThemeToggle` (`src/components/theme/ThemeToggle.tsx`, top-right) drives it,
+  and `sonner` + the editor read the same `useTheme()`. The `THEME_INIT` head
+  script is a no-flash bootstrap that mirrors next-themes' class resolution
+  ("dark"/"light" explicit, "system"/absent → OS preference). The toggle
+  renders a neutral placeholder until mounted to avoid a hydration mismatch.
 - **Typing must never re-fetch EOD.** `bars` changes only on a symbol pick
   (`loadSymbol`); `artifact` changes only on a compile. They are separate
   state, and `ChartPane`'s effect keys on `[artifact, bars]`. Keep them

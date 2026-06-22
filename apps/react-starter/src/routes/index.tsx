@@ -16,6 +16,7 @@ import type { Bar } from "@invinite-org/chartlang-core"
 import type { LspDiagnostic } from "@invinite-org/chartlang-language-service"
 import { createFileRoute } from "@tanstack/react-router"
 import { BellIcon } from "lucide-react"
+import { useTheme } from "next-themes"
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -84,6 +85,13 @@ const STATUS_TONE_CLASS: Record<ReturnType<typeof statusLabel>["tone"], string> 
 }
 
 function Workspace(): ReactElement {
+  // The editor follows the app's light/dark mode. `resolvedTheme` collapses
+  // "system" to the concrete theme; it is undefined until next-themes mounts,
+  // so default to light. Folded into the editor `key` below so a toggle
+  // remounts the editor with the matching CodeMirror theme.
+  const { resolvedTheme } = useTheme()
+  const editorTheme: "light" | "dark" = resolvedTheme === "dark" ? "dark" : "light"
+
   const [source, setSource] = useState("")
   const [loadedSource, setLoadedSource] = useState("")
   const [symbol, setSymbol] = useState<string | null>(null)
@@ -293,9 +301,10 @@ export default defineIndicator({
           <div className="min-h-0 flex-1">
             <EditorPane
               initialSource={source}
-              key={editorKey}
+              key={`${editorKey}-${editorTheme}`}
               onSourceChange={setSource}
               service={service}
+              theme={editorTheme}
             />
           </div>
         </div>

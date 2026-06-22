@@ -97,10 +97,8 @@ export async function runActiveLoop(
 `;
 
 const LWC_SEAM = `${HEADER}
-import { createChart } from "lightweight-charts"
 import {
   createLightweightChartsAdapter,
-  type CreateLightweightChartsAdapterOpts,
   type LwcAdapterHandle,
   runRendererLoop,
 } from "chartlang-example-lightweight-charts-adapter"
@@ -111,18 +109,9 @@ export const ACTIVE_ADAPTER_ID = "lightweight-charts"
 
 ${OPTS_TYPES}
 
-// The real lightweight-charts \`IChartApi\` is wider than the slice the adapter
-// consumes (its internal \`LwcChart\`); the two do not structurally overlap for
-// TS, so go through \`unknown\` at the boundary.
-const makeChart = (el: HTMLElement) =>
-  createChart(el) as unknown as ReturnType<
-    NonNullable<CreateLightweightChartsAdapterOpts["createChart"]>
-  >
-
 export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandle {
   return createLightweightChartsAdapter({
     container: opts.container,
-    createChart: makeChart,
     candleSource: opts.candleSource,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),

@@ -8,20 +8,25 @@
 // compile on a built-in debounce (`lintDebounceMs`), and the hybrid service's
 // observer side-channel hands the resulting artifact to the chart.
 //
-// THEME: unlike apps/site (which composes `chartlangDark` for the brand), the
-// starter passes NO theme extension so CodeMirror's `basicSetup` default
-// (light) theme renders — that matches the stock shadcn neutral palette this
-// starter ships. The editor surface is sized to fill its flex pane via the
-// `.cm-editor` rule in src/styles.css. Re-theme freely (drop a CodeMirror
-// theme extension into EDITOR_EXTENSIONS) when re-skinning the clone.
+// THEME: the editor follows the app's shadcn light/dark mode — `chartlangDark`
+// (from the editor package) in dark mode, the starter-local `chartlangLight`
+// in light mode. Both are composed as the last extension so they override
+// `basicSetup`'s default theme. The React `<ChartlangEditor>` reads
+// `extensions` at MOUNT time only, so the caller (index.tsx) folds the theme
+// into the editor's `key` to remount on a toggle; because index passes the
+// live buffer as `initialSource`, the remount preserves the user's edits. The
+// editor surface is sized to fill its flex pane via the `.cm-editor` rule in
+// src/styles.css.
 //
 // The React `<ChartlangEditor>` wrapper does not expose `lintDebounceMs`, so
 // the compile debounce stays at the editor's built-in default (the linter
 // already debounces `compileToDiagnostics`; typing never floods /api/compile).
 
+import { chartlangDark } from "@invinite-org/chartlang-editor"
 import { ChartlangEditor } from "@invinite-org/chartlang-editor/react"
 import { type ComponentProps, type ReactElement } from "react"
 
+import { chartlangLight } from "./editorTheme"
 import type { createHybridLanguageService } from "./hybridLanguageService"
 
 type LanguageService = ReturnType<typeof createHybridLanguageService>
@@ -31,8 +36,10 @@ type LanguageService = ReturnType<typeof createHybridLanguageService>
 type EditorExtensions = NonNullable<ComponentProps<typeof ChartlangEditor>["extensions"]>
 
 // Hoisted so the prop identity stays stable across re-renders (the editor
-// reads `extensions` at mount time only). Empty = CodeMirror's light default.
-const EDITOR_EXTENSIONS: EditorExtensions = []
+// reads `extensions` at mount time only; a remount on theme change is driven
+// by the editor `key` in index.tsx).
+const DARK_EXTENSIONS: EditorExtensions = [chartlangDark]
+const LIGHT_EXTENSIONS: EditorExtensions = [chartlangLight]
 
 /**
  * Props for {@link EditorPane}. The hybrid language service injects a
@@ -43,6 +50,8 @@ export type EditorPaneProps = Readonly<{
   initialSource: string
   service: LanguageService
   onSourceChange: (next: string) => void
+  /** Resolved app theme; selects the CodeMirror theme extension. */
+  theme: "light" | "dark"
 }>
 
 /**
@@ -54,7 +63,7 @@ export function EditorPane(props: EditorPaneProps): ReactElement {
   return (
     <ChartlangEditor
       className="h-full overflow-hidden"
-      extensions={EDITOR_EXTENSIONS}
+      extensions={props.theme === "dark" ? DARK_EXTENSIONS : LIGHT_EXTENSIONS}
       onSourceChange={props.onSourceChange}
       service={props.service}
       source={props.initialSource}

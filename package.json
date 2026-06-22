@@ -55,7 +55,8 @@
         "site:e2e:install": "pnpm --filter chartlang-site e2e:install",
         "brand:sync": "pnpm tsx scripts/sync-brand-assets.ts",
         "docs:dev": "pnpm brand:sync && vitepress dev docs",
-        "docs:build": "pnpm brand:sync && vitepress build docs"
+        "docs:build": "pnpm brand:sync && vitepress build docs",
+        "starters:local": "pnpm --filter @invinite-org/create-chartlang build && pnpm tsx scripts/refresh-local-starters.ts"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.0",

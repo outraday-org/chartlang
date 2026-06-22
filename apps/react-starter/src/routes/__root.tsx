@@ -4,14 +4,18 @@
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
+import { ThemeProvider } from "next-themes"
 
+import { ThemeToggle } from "@/components/theme/ThemeToggle"
 import { Toaster } from "@/components/ui/sonner"
 import appCss from "../styles.css?url"
 
-// Runs before first paint to set the theme class from a saved choice or
-// the OS preference, avoiding a light/dark flash on SSR hydration. The
-// starter ships no theme toggle yet — re-theme or wire one up freely.
-const THEME_INIT = `(()=>{try{var t=localStorage.getItem("theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.classList.toggle("dark",t==="dark")}catch(e){}})()`
+// Runs before first paint to set the theme class from the saved choice or the
+// OS preference, avoiding a light/dark flash before next-themes hydrates. It
+// mirrors next-themes' own resolution for `attribute="class"` + storageKey
+// "theme": an explicit "dark"/"light" wins, "system"/absent falls back to the
+// OS preference. The ThemeToggle in the header drives it via next-themes.
+const THEME_INIT = `(()=>{try{var t=localStorage.getItem("theme");var d=t==="dark"||((t===null||t==="system")&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d)}catch(e){}})()`
 
 export const Route = createRootRoute({
   head: () => ({
@@ -46,13 +50,22 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="flex h-svh flex-col">
-        <header className="flex h-12 shrink-0 items-center border-b border-border px-4">
-          <span className="text-sm font-semibold tracking-tight text-foreground">
-            chartlang starter
-          </span>
-        </header>
-        <main className="min-h-0 flex-1">{children}</main>
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          disableTransitionOnChange
+          enableSystem
+          storageKey="theme"
+        >
+          <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+            <span className="text-sm font-semibold tracking-tight text-foreground">
+              chartlang starter
+            </span>
+            <ThemeToggle />
+          </header>
+          <main className="min-h-0 flex-1">{children}</main>
+          <Toaster />
+        </ThemeProvider>
         <TanStackDevtools
           config={{ position: "bottom-right" }}
           plugins={[
