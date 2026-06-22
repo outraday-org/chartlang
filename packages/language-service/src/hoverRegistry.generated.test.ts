@@ -7,7 +7,7 @@ import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 
 describe("HOVER_REGISTRY", () => {
     it("contains the apiVersion 1 language-service symbol set", () => {
-        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(532);
+        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(534);
     });
 
     it("contains the render-order ZOrdered mixin type entry (1.4)", () => {
@@ -31,6 +31,17 @@ describe("HOVER_REGISTRY", () => {
         });
         expect(HOVER_REGISTRY["state.series"]).toMatchObject({
             fqn: "state.series",
+            kind: "function",
+        });
+    });
+
+    it("contains the bounded-collection entries (state.array, 1.3)", () => {
+        expect(HOVER_REGISTRY.MutableArraySlot).toMatchObject({
+            fqn: "MutableArraySlot",
+            kind: "type",
+        });
+        expect(HOVER_REGISTRY["state.array"]).toMatchObject({
+            fqn: "state.array",
             kind: "function",
         });
     });

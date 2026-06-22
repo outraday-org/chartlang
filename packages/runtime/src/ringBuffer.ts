@@ -184,4 +184,28 @@ export class Float64RingBuffer implements RingBufferLike<number> {
         this.head = -1;
         this.filled = 0;
     }
+
+    /**
+     * Overwrite this ring's entire state with a copy of `other`'s. A single
+     * `Float64Array.prototype.set()` memcpy plus a head/filled copy — `O(capacity)`
+     * with a small constant, not an element loop. `state.array`'s two-ring tick
+     * discipline (`packages/runtime/src/state/arrayStateSlot.ts`) calls this every
+     * tick to roll the tentative ring back to committed (and on close to commit it),
+     * so the typed-array `set()` is load-bearing for the hot path. Both rings in a
+     * slot share `capacity`, so this never reshapes the backing array.
+     *
+     * @since 1.3
+     * @stable
+     * @example
+     *     const a = new Float64RingBuffer(4);
+     *     const b = new Float64RingBuffer(4);
+     *     a.append(1);
+     *     b.copyFrom(a);
+     *     b.at(0); // 1
+     */
+    copyFrom(other: Float64RingBuffer): void {
+        this.buf.set(other.buf);
+        this.head = other.head;
+        this.filled = other.filled;
+    }
 }

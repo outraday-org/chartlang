@@ -25,6 +25,7 @@ import type {
     PlotSlotDescriptor,
     Price,
     PriceSeries,
+    RequestedFeed,
     RequestNamespace,
     RequestSecurityOpts,
     ScaleAxis,
@@ -245,10 +246,24 @@ describe("public type surface", () => {
         >();
     });
 
-    it("SecurityExpressionDescriptor pins slotId / interval / paramName", () => {
+    it("SecurityExpressionDescriptor pins slotId / interval / paramName + optional symbol", () => {
         expectTypeOf<SecurityExpressionDescriptor["slotId"]>().toEqualTypeOf<string>();
         expectTypeOf<SecurityExpressionDescriptor["interval"]>().toEqualTypeOf<string>();
         expectTypeOf<SecurityExpressionDescriptor["paramName"]>().toEqualTypeOf<string>();
+        expectTypeOf<SecurityExpressionDescriptor["symbol"]>().toEqualTypeOf<string | undefined>();
+    });
+
+    it("ScriptManifest exposes the optional requestedFeeds superset", () => {
+        expectTypeOf<ScriptManifest["requestedFeeds"]>().toEqualTypeOf<
+            ReadonlyArray<RequestedFeed> | undefined
+        >();
+        // requestedIntervals keeps its main-symbol HTF-projection shape
+        expectTypeOf<ScriptManifest["requestedIntervals"]>().toEqualTypeOf<ReadonlyArray<string>>();
+    });
+
+    it("RequestedFeed pins optional symbol + required interval", () => {
+        expectTypeOf<RequestedFeed["symbol"]>().toEqualTypeOf<string | undefined>();
+        expectTypeOf<RequestedFeed["interval"]>().toEqualTypeOf<string>();
     });
 
     it("PlotOverride fields are all optional and JSON-clean", () => {

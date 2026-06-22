@@ -66,6 +66,13 @@ const FILL_BETWEEN_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; sl
 const STATE_SERIES_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
     Object.freeze([{ name: "state.series", slot: true }] as const);
 
+// `state.array` — the persistent, bounded FIFO collection slot. A new
+// STATEFUL_PRIMITIVES entry alongside `state.series` (the allocation callsite
+// is `{ slot: true }`; `push`/`get`/`last`/`clear` are handle methods, not
+// registry callsites).
+const STATE_ARRAY_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
+    Object.freeze([{ name: "state.array", slot: true }] as const);
+
 const PHASE_2_TA_CARDINALITY = PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length;
 const PHASE_4_STATEFUL_CARDINALITY = 163;
 
@@ -101,7 +108,8 @@ describe("Phase 2 surface", () => {
                 PHASE_6_STATEFUL_ADDITIONS.length +
                 HIGHEST_LOWEST_BARS_STATEFUL_ADDITIONS.length +
                 FILL_BETWEEN_STATEFUL_ADDITIONS.length +
-                STATE_SERIES_STATEFUL_ADDITIONS.length,
+                STATE_SERIES_STATEFUL_ADDITIONS.length +
+                STATE_ARRAY_STATEFUL_ADDITIONS.length,
         );
         for (const expected of [
             ...PHASE_5_STATEFUL_ADDITIONS,
@@ -109,6 +117,7 @@ describe("Phase 2 surface", () => {
             ...HIGHEST_LOWEST_BARS_STATEFUL_ADDITIONS,
             ...FILL_BETWEEN_STATEFUL_ADDITIONS,
             ...STATE_SERIES_STATEFUL_ADDITIONS,
+            ...STATE_ARRAY_STATEFUL_ADDITIONS,
         ]) {
             expect(STATEFUL_PRIMITIVES).toContainEqual(expected);
         }

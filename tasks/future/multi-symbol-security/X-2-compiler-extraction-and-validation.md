@@ -1,6 +1,6 @@
 # Task 2 — Compiler: extract symbol into `requestedFeeds` + literal validation
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

@@ -1010,6 +1010,39 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `state.series<bool>`/`<string>` gap, never in a clean fixture. A non-literal
   series-slot offset (`x[i]`/`x[-i]`) wires the (pre-existing, error-severity)
   `dynamic-series-index`.
+- **A bounded numeric `var array<float|int>` lowers to `state.array`
+  (`numericArray.ts` + `emitArraySlots`/`emitContext.ts`).** A NUMERIC Camp B
+  ring — `var`/`varip array<float|int>` whose initializer is `array.new(...)`,
+  with a FIFO eviction signature — now lowers to `const <name> =
+  state.array<number>(K)`, the numeric analogue of the drawing-handle Camp B
+  ring (`campB.ts`). The detection is the `array.new(...)` initializer (the
+  load-bearing discriminator: the parser collapses `array<float>` to a `float`
+  annotation, so the SCALAR pipeline would otherwise mis-lower
+  `var array<float> win = array.new()` to `state.float(array.new())` — adding
+  the array names to `owned` is what stops that). The element type is read from
+  the `var array<T>` annotation (`int`/`float` → numeric; `bool`/`string`/`color`
+  → non-numeric; a null annotation defaults to numeric). The cap `K` comes from
+  the eviction-guard literal (`if array.size(coll) >|>= K` whose body BARE-shifts
+  `array.shift(coll)` / `array.remove(coll, …)` — a numeric ring has NO handle to
+  `*.delete`) or the `array.new<float>(K)` literal size arg (guard wins). Only
+  ROOT-level decls are scanned (a nested-only decl is not a top-level `var`); a
+  handle ring (`var array<line>`) is an OWNED drawing site, filtered out before
+  the numeric scan, so the two paths never collide. Operations rewrite onto the
+  slot via `EmitContext.arraySlots` (`array.push(coll, v)` → `<slot>.push(v)`,
+  `array.get(coll, n)` → `<slot>.get(n)`, `array.size` → `<slot>.size`,
+  `array.last` → `<slot>.last()`, `array.first` → `<slot>.get(<slot>.size - 1)`,
+  `array.clear` → `<slot>.clear()`; an unrecognised `array.*` member over a slot
+  falls through to a raw emit). The eviction `if` is elided (the ring rotates
+  modulo K) + one `ring-eviction-implicit` info. A NON-numeric collection emits
+  `array-collection-non-numeric` (info); an unbounded (no-cap, or `K <= 0`)
+  numeric array hard-rejects `unbounded-array-collection` (error) — chartlang has
+  no unbounded collection. **A `for i = 0 to array.size(coll)` summation does NOT
+  lower** — chartlang's compiler requires LITERAL `for` bounds
+  (`unbounded-loop`), and a literal-`K` bound would NaN-poison the unfilled tail,
+  so the converter leaves the loop to the existing `loop-bounds-not-literal`
+  reject. Fixture `31-var-array-window` (push + `last`/`get`/`size` reads, NOT in
+  the skip list) is the round-trip proof. `state.map`, matrices, and non-numeric
+  collections stay documented gaps.
 - **Loop policy (`emitFor`, §1a) is stateful/non-stateful split, NOT
   unroll-always.** A body that calls a stateful primitive (`plot`/`hline`/
   `alert`/`ta.*`/`draw.*`, detected recursively through nested `if`/`for`/
@@ -1048,19 +1081,27 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   scalar context inserts `.current` + `mtf-series-to-scalar-conversion`. `fill`
   → `fill-not-mapped` (error); `math.random`/`math.round_to_mintick`/`ta.kcw` →
   `math-not-mapped`/`ta-not-mapped` warn + `/* TODO unmapped */`.
-- **`request.security`'s THIRD arg decides the chartlang form
-  (`requestSecurity.ts`).** A bare OHLCV source field lowers to the **data**
-  form `request.security({ interval }).<field>`; ANY other source (a
+- **`request.security`'s THIRD arg decides the chartlang FORM; the FIRST arg
+  decides the SYMBOL (`requestSecurity.ts`).** A bare OHLCV source field lowers
+  to the **data** form `request.security(<opts>).<field>`; ANY other source (a
   `ta.*`/expression) lowers to the **callback** form
-  `request.security({ interval }, (bar) => <source>)` — the HTF expression form
-  that runs on the higher-timeframe clock the way Pine does. The callback body
-  is `emitWithContext(source, ctx)` verbatim (the shared field mapper already
+  `request.security(<opts>, (bar) => <source>)` — the HTF expression form that
+  runs on the higher-timeframe clock the way Pine does. The callback body is
+  `emitWithContext(source, ctx)` verbatim (the shared field mapper already
   rewrites the source's `close`/`hl2`/… reads to `bar.close`/`bar.hl2`/…). Do
   NOT re-introduce the old `request.security({ interval }).<emitted-source>`
   main-timeframe shape — it counted the `ta.*` window in main bars, the root
-  bug. `request-security-not-mapped` is now reserved for the genuinely-
-  unsupported shapes (non-literal / out-of-table timeframe, missing args); an
-  in-subset `ta.*` source is supported.
+  bug. The `<opts>` symbol slot is decided by the first arg: `syminfo.tickerid`
+  reads the chart's own symbol → omit `symbol` (`{ interval }`, byte-identical
+  to the single-symbol output); a **string literal** (`"NASDAQ:AAPL"`) carries
+  the symbol into chartlang multi-symbol (`{ symbol, interval }`) and pushes an
+  **info** `request-security-different-symbol` so downstream tooling still sees
+  the cross-symbol read; any other symbol expression (a computed ticker, a
+  non-`tickerid` identifier) is un-mappable — chartlang requires a literal
+  symbol too — and pushes `request-security-not-mapped`. `request-security-not-
+  mapped` is reserved for the genuinely-unsupported shapes (non-literal symbol,
+  non-literal / out-of-table timeframe, missing args); an in-subset `ta.*`
+  source and a literal symbol are both supported.
 - **Pine `plot(<value>, offset=N)` threads onto a direct `ta.*` plot value
   (`plotFamily.ts` `emitPlot`).** `emitPlot` IS passed the
   `DiagnosticCollector` (the `case "plot"` site threads it; `hline`/
@@ -1086,8 +1127,11 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `str-format-not-mapped`, `str-not-mapped` (warnings), `fill-not-mapped`,
   `request-security-not-mapped`, `dynamic-series-index`,
   `loop-bounds-not-literal-for-stateful-body` (errors),
-  `request-security-different-symbol`,
-  `request-security-lookahead-not-supported` (warnings),
+  `request-security-lookahead-not-supported` (warning),
+  `request-security-different-symbol` (info — repurposed from a warning when
+  multi-symbol landed; the CODE STRING is unchanged, only the severity/message
+  are: a literal cross-symbol read now LOWERS to `{ symbol, interval }` rather
+  than being rejected),
   `strategy-signal-only`, `loop-body-unrolled`,
   `mtf-series-to-scalar-conversion`, `loop-unroll-frozen-at-input-default`,
   `scalar-state-type-defaulted`, `series-history-non-numeric`,

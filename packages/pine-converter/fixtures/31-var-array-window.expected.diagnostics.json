@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/ring-eviction-implicit",
+        "severity": "info",
+        "message": "The explicit `array.shift`/`*.delete` FIFO eviction was removed; the ring buffer evicts implicitly.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 1,
+            "endLine": 3,
+            "endColumn": 43
+        },
+        "suggestion": "No action needed; the ring's modulo-K write reproduces the eviction."
+    }
+]

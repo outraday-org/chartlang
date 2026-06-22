@@ -2,7 +2,8 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { CandleEvent } from "@invinite-org/chartlang-adapter-kit";
-import type { Bar } from "@invinite-org/chartlang-core";
+import type { Bar, RequestedFeed } from "@invinite-org/chartlang-core";
+import { feedKey } from "@invinite-org/chartlang-core";
 
 const MS_PER_SECOND = 1_000;
 const MS_PER_MINUTE = 60 * MS_PER_SECOND;
@@ -157,7 +158,10 @@ export function createResamplingCandlePump(
                         closes.push({
                             kind: "close",
                             bar: aggregateBucket(cur.bars, interval),
-                            streamKey: interval,
+                            // The chart's own symbol at a higher timeframe:
+                            // `feedKey(undefined, iv) === iv`, byte-identical to
+                            // the pre-multi-symbol wire.
+                            streamKey: feedKey(undefined, interval),
                         });
                         open.set(interval, { key, bars: [bar] });
                     } else {
@@ -180,6 +184,140 @@ export function createResamplingCandlePump(
                             for (const close of closes) yield close;
                         }
                         chunk.push(bar);
+                    }
+                    if (chunk.length > 0) yield { kind: "history", bars: chunk };
+                    continue;
+                }
+                if (event.kind === "close") {
+                    for (const close of rollover(event.bar)) yield close;
+                    yield event;
+                    continue;
+                }
+                yield event;
+            }
+        },
+    };
+}
+
+// Deterministic per-symbol seed so a second instrument's synthetic series is
+// stable across reloads (the demo has no real multi-symbol feed). A small hash
+// of the ticker offsets + scales the chart-symbol close into a distinct,
+// repeatable series.
+function symbolSeed(symbol: string): { offset: number; scale: number } {
+    let hash = 0;
+    for (let i = 0; i < symbol.length; i += 1) {
+        hash = (hash * 31 + symbol.charCodeAt(i)) >>> 0;
+    }
+    return { offset: (hash % 50) - 25, scale: 0.5 + ((hash >> 8) % 100) / 100 };
+}
+
+/**
+ * Wrap a main candle source so that, for every requested **different-symbol**
+ * feed, it synthesises a deterministic secondary stream from the main bars and
+ * weaves the secondary `close` events in — tagged with the composite
+ * {@link feedKey} the runtime keys on (`"<symbol>@<interval>"`).
+ *
+ * The demo has no real multi-symbol feed, so each non-chart-symbol feed is a
+ * stable per-ticker transform of the chart-symbol close (offset + scale derived
+ * from a hash of the ticker), bucketed into the feed's interval exactly like
+ * {@link createResamplingCandlePump}. Chart-symbol feeds (no `symbol`, or the
+ * chart's own ticker) are left to the interval-only resampler — this pump only
+ * handles the genuinely different symbols, keeping the single-symbol wire
+ * byte-identical.
+ *
+ * @since 1.2
+ * @example
+ *     import { createMultiSymbolCandlePump } from "./secondaryStreams";
+ *     const source = createMultiSymbolCandlePump(mainSource, "AAPL", [
+ *         { symbol: "AMEX:SPY", interval: "1D" },
+ *     ]);
+ *     // `source` yields the main events plus woven `AMEX:SPY@1D` closes.
+ */
+export function createMultiSymbolCandlePump(
+    main: AsyncIterable<CandleEvent>,
+    chartSymbol: string,
+    feeds: ReadonlyArray<RequestedFeed>,
+): AsyncIterable<CandleEvent> {
+    const symbolFeeds: Array<{ symbol: string; bucketMs: number; key: string }> = [];
+    for (const feed of feeds) {
+        // Skip chart-symbol feeds — the interval-only resampler owns those.
+        if (feed.symbol === undefined || feed.symbol === chartSymbol) continue;
+        const bucketMs = intervalToBucketMs(feed.interval);
+        if (bucketMs !== null) {
+            symbolFeeds.push({
+                symbol: feed.symbol,
+                bucketMs,
+                key: feedKey(feed.symbol, feed.interval),
+            });
+        }
+    }
+    return {
+        async *[Symbol.asyncIterator](): AsyncIterator<CandleEvent> {
+            const open = new Map<string, BucketState>();
+
+            // Build the synthetic secondary bar for one feed from a main bar.
+            function syntheticBar(
+                feed: { symbol: string; key: string },
+                interval: string,
+                src: Bar,
+            ): Bar {
+                const { offset, scale } = symbolSeed(feed.symbol);
+                const shift = (v: number): number => v * scale + offset;
+                const open_ = shift(src.open);
+                const high = shift(src.high);
+                const low = shift(src.low);
+                const close = shift(src.close);
+                return {
+                    time: src.time,
+                    open: open_,
+                    high,
+                    low,
+                    close,
+                    volume: src.volume,
+                    symbol: feed.symbol,
+                    interval,
+                    hl2: (high + low) / 2,
+                    hlc3: (high + low + close) / 3,
+                    ohlc4: (open_ + high + low + close) / 4,
+                    hlcc4: (high + low + close + close) / 4,
+                } as Bar;
+            }
+
+            function rollover(srcBar: Bar): CandleEvent[] {
+                const closes: CandleEvent[] = [];
+                for (const feed of symbolFeeds) {
+                    const synthetic = syntheticBar(feed, srcBar.interval, srcBar);
+                    const bucketKey = Math.floor(srcBar.time / feed.bucketMs);
+                    const cur = open.get(feed.key);
+                    if (cur === undefined) {
+                        open.set(feed.key, { key: bucketKey, bars: [synthetic] });
+                    } else if (bucketKey !== cur.key) {
+                        closes.push({
+                            kind: "close",
+                            bar: aggregateBucket(cur.bars, srcBar.interval),
+                            streamKey: feed.key,
+                        });
+                        open.set(feed.key, { key: bucketKey, bars: [synthetic] });
+                    } else {
+                        cur.bars.push(synthetic);
+                    }
+                }
+                return closes;
+            }
+
+            for await (const event of main) {
+                if (event.kind === "history") {
+                    let chunk: Bar[] = [];
+                    for (const srcBar of event.bars) {
+                        const closes = rollover(srcBar);
+                        if (closes.length > 0) {
+                            if (chunk.length > 0) {
+                                yield { kind: "history", bars: chunk };
+                                chunk = [];
+                            }
+                            for (const close of closes) yield close;
+                        }
+                        chunk.push(srcBar);
                     }
                     if (chunk.length > 0) yield { kind: "history", bars: chunk };
                     continue;

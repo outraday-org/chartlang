@@ -1,6 +1,6 @@
 # Task 4 — Adapter-kit: `streamKey` composite + `multiSymbol` capability
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

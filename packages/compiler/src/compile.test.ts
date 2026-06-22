@@ -104,6 +104,56 @@ export default defineIndicator({
             sourcePath: "data.chart.ts",
         });
         expect(dataResult.manifest.securityExpressions).toBeUndefined();
+        // The widened opts (`{ symbol, interval }`) type-checks through both
+        // overloads — the symbol field is optional, so the symbol-omitted forms
+        // above stay green while this different-symbol form compiles too.
+        const SYMBOL_FORM = `
+import { defineIndicator, plot, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "ratio",
+    apiVersion: 1,
+    compute({ plot, request }) {
+        const spy = request.security({ symbol: "AMEX:SPY", interval: "1D" });
+        const qqq = request.security({ symbol: "NASDAQ:QQQ", interval: "1D" });
+        plot(spy.close.current / qqq.close.current, { title: "SPY/QQQ" });
+    },
+});
+`;
+        // compile() throws on any type error, so a successful return proves the
+        // symbol-bearing opts type-check through the shim. The compiler now
+        // extracts the two distinct symbols into `requestedFeeds` (sorted by
+        // `feedKey`), while `requestedIntervals` stays the main-symbol projection
+        // (empty here — both feeds carry a non-chart symbol).
+        const symbolResult = await compile(SYMBOL_FORM, {
+            apiVersion: 1,
+            sourcePath: "ratio.chart.ts",
+        });
+        expect(symbolResult.manifest.securityExpressions).toBeUndefined();
+        expect(symbolResult.manifest.requestedFeeds).toEqual([
+            { symbol: "AMEX:SPY", interval: "1D" },
+            { symbol: "NASDAQ:QQQ", interval: "1D" },
+        ]);
+        expect(symbolResult.manifest.requestedIntervals).toEqual([]);
+        // A symbol-omitted (chart-symbol HTF) request lists a `{ interval }` feed
+        // AND keeps its interval in `requestedIntervals` — byte-compat.
+        expect(dataResult.manifest.requestedFeeds).toEqual([{ interval: "1W" }]);
+        expect(dataResult.manifest.requestedIntervals).toEqual(["1W"]);
+        // A script with no request.security omits `requestedFeeds` entirely.
+        const NO_REQUEST = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "plain",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        plot(bar.close);
+    },
+});
+`;
+        const plainResult = await compile(NO_REQUEST, {
+            apiVersion: 1,
+            sourcePath: "plain.chart.ts",
+        });
+        expect(plainResult.manifest.requestedFeeds).toBeUndefined();
     });
 
     it("type-checks direct bar.close indexing and arithmetic through the ambient shim", async () => {
@@ -174,6 +224,78 @@ export default defineIndicator({
         expect(Object.isFrozen(result)).toBe(true);
         // `s[3]` sized the series ring buffer to retain at least 4 slots.
         expect(result.manifest.maxLookback).toBeGreaterThanOrEqual(3);
+    });
+
+    it("type-checks a state.array bounded collection through the ambient shim", async () => {
+        // `state.array<number>(20)` returns a `MutableArraySlot<number>` — a
+        // bounded FIFO collection handle (`push`/`get`/`last`/`size`/`capacity`/
+        // `clear`), NOT a number-coercible slot. `transformAndAnalyse`
+        // (analysis-only) does not type-check, so this guard — which proves the
+        // shim's `StateNamespace.array` signature and `MutableArraySlot` alias
+        // are correct — must go through `compile`. The in-loop `win.get(i)` is a
+        // method call on a value, NOT a registry callsite, so it must NOT trip
+        // `stateful-call-inside-loop` — this test pins that too.
+        // The `for` bound is the literal `20` (a bounded loop the compiler
+        // accepts) and the body calls `win.get(i)` — a method call on a value,
+        // NOT a registry callsite — so it exercises that the in-loop ban does
+        // not fire for the collection read surface.
+        const ARRAY_SLOT = `
+import { defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+const win = state.array<number>(20);
+export default defineIndicator({
+    name: "array",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        win.push(bar.close * 2);
+        let sum = 0;
+        let n = 0;
+        for (let i = 0; i < 20; i++) {
+            if (i < win.size) {
+                sum += win.get(i);
+                n += 1;
+            }
+        }
+        plot(n > 0 ? sum / n : 0);
+    },
+});
+`;
+        // compile() throws a CompileError on any type/analysis error, so a
+        // successful return proves both that the shim retyping is correct and
+        // that the in-loop `.get(i)` method call did not trip the in-loop ban.
+        const result = await compile(ARRAY_SLOT, {
+            apiVersion: 1,
+            sourcePath: "array.chart.ts",
+        });
+        expect(Object.isFrozen(result)).toBe(true);
+    });
+
+    it("throws CompileError for a non-literal state.array capacity", async () => {
+        // End-to-end guard: a runtime-valued capacity breaks the
+        // bounded-snapshot invariant and must error at the compiler boundary
+        // with `state-array-capacity-not-literal` (Task 3).
+        const source = `
+import { defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "dyn cap",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        let len = 20;
+        const win = state.array<number>(len);
+        win.push(bar.close);
+        plot(win.size);
+    },
+});
+`;
+        try {
+            await compile(source, { apiVersion: 1, sourcePath: "dyn-cap.chart.ts" });
+            expect.unreachable("compile should have thrown a CompileError");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CompileError);
+            const compileError = err as CompileError;
+            expect(
+                compileError.diagnostics.some((d) => d.code === "state-array-capacity-not-literal"),
+            ).toBe(true);
+        }
     });
 
     it("throws CompileError with a `type-error` diagnostic when a TS semantic error fires", async () => {

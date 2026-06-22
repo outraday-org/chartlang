@@ -14,6 +14,10 @@ function ident(name: string): ExpressionNode {
     return { kind: "identifier-expression", name, span: SPAN };
 }
 
+function historyOf(receiver: ExpressionNode, offset: ExpressionNode): ExpressionNode {
+    return { kind: "history-access-expression", receiver, offset, span: SPAN };
+}
+
 function ctx(over: Partial<EmitContext> = {}): EmitContext {
     return {
         annotations: new Map(),
@@ -194,5 +198,97 @@ describe("emitWithContext — state.series slots", () => {
                 ctx({ inputNames: new Set(["len"]) }),
             ),
         ).toBe("inputs.len[1]");
+    });
+});
+
+describe("emitWithContext — state.array slots", () => {
+    const intLit = (value: string): ExpressionNode => ({
+        kind: "literal-expression",
+        literalKind: "int",
+        value,
+        span: SPAN,
+    });
+    const arrayCall = (member: string, args: readonly ExpressionNode[]): ExpressionNode => ({
+        kind: "call-expression",
+        callee: {
+            kind: "member-access-expression",
+            head: null,
+            chain: member.split("."),
+            span: SPAN,
+        },
+        args: args.map((value) => ({ name: null, value, span: SPAN })),
+        span: SPAN,
+    });
+    const arrayCtx = (over: Partial<EmitContext> = {}): EmitContext =>
+        ctx({ arraySlots: new Map([["win", { local: "win", cap: 20 }]]), ...over });
+
+    it("rewrites array.push(coll, v) → <slot>.push(v)", () => {
+        expect(
+            emitWithContext(arrayCall("array.push", [ident("win"), ident("close")]), arrayCtx()),
+        ).toBe("win.push(bar.close)");
+    });
+
+    it("rewrites array.get(coll, n) → <slot>.get(n)", () => {
+        expect(
+            emitWithContext(arrayCall("array.get", [ident("win"), intLit("2")]), arrayCtx()),
+        ).toBe("win.get(2)");
+    });
+
+    it("rewrites array.size(coll) → <slot>.size", () => {
+        expect(emitWithContext(arrayCall("array.size", [ident("win")]), arrayCtx())).toBe(
+            "win.size",
+        );
+    });
+
+    it("rewrites array.last(coll) → <slot>.last()", () => {
+        expect(emitWithContext(arrayCall("array.last", [ident("win")]), arrayCtx())).toBe(
+            "win.last()",
+        );
+    });
+
+    it("rewrites array.first(coll) → <slot>.get(<slot>.size - 1)", () => {
+        expect(emitWithContext(arrayCall("array.first", [ident("win")]), arrayCtx())).toBe(
+            "win.get(win.size - 1)",
+        );
+    });
+
+    it("rewrites array.clear(coll) → <slot>.clear()", () => {
+        expect(emitWithContext(arrayCall("array.clear", [ident("win")]), arrayCtx())).toBe(
+            "win.clear()",
+        );
+    });
+
+    it("lowers a missing push value to an empty argument", () => {
+        // Defensive: a malformed `array.push(win)` (no value) emits `win.push()`.
+        expect(emitWithContext(arrayCall("array.push", [ident("win")]), arrayCtx())).toBe(
+            "win.push()",
+        );
+    });
+
+    it("leaves an unrecognised array.* member over a slot to the generic path", () => {
+        expect(emitWithContext(arrayCall("array.pop", [ident("win")]), arrayCtx())).toBe(
+            "array.pop(win)",
+        );
+    });
+
+    it("leaves an array.* call whose first arg is not a slot identifier untouched", () => {
+        // `array.size(close[1])` — first arg is a history access, not a bare
+        // slot identifier — so the array rewrite does not fire.
+        expect(
+            emitWithContext(
+                arrayCall("array.size", [historyOf(ident("close"), intLit("1"))]),
+                arrayCtx(),
+            ),
+        ).toBe("array.size(bar.close[1])");
+    });
+
+    it("leaves an array.* call with no arguments untouched", () => {
+        expect(emitWithContext(arrayCall("array.new", []), arrayCtx())).toBe("array.new()");
+    });
+
+    it("leaves an array.* call untouched when no array slots are registered", () => {
+        expect(emitWithContext(arrayCall("array.size", [ident("win")]), ctx())).toBe(
+            "array.size(win)",
+        );
     });
 });

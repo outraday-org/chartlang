@@ -29,6 +29,7 @@ import type { Adapter, CandleEvent, Capabilities, RunnerEmissions } from "../typ
  *             inputs: new Set(),
  *             intervals: [],
  *             multiTimeframe: false,
+ *             multiSymbol: false,
  *             subPanes: 0,
  *             symInfoFields: new Set(),
  *             maxDrawingsPerScript: {

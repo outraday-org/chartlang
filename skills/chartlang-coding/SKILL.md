@@ -295,6 +295,32 @@ Highlights of the surface:
   already a series (a self-referential or conditionally-updated value); index
   `bar.*` / `ta.*` directly otherwise. It is the lowering target for Pine's
   `var x := …; x[1]`.
+- `state.array<number>(capacity)` is a persistent **bounded collection** — a
+  fixed-capacity FIFO ring you **push** many values into across bars:
+  `a.push(v)` appends (oldest evicted at capacity), `a.get(n)` reads the `n`-th
+  element from newest (`a.get(0)` is newest; out-of-range ⇒ `NaN`), `a.last()`
+  === `a.get(0)`, `a.size` is the filled count (≤ `a.capacity`), `a.clear()`
+  empties it. `capacity` **must be a compile-time numeric literal** (a `const`
+  numeric binding resolves; max `100_000`); a non-literal is
+  `state-array-capacity-not-literal`. Like the other handles it is an object, so
+  it is **not** number-coercible — `+a` is `NaN`; read with `a.get(n)` /
+  `a.last()`. **Distinguish from `state.series`:** `state.series` is "the value
+  `N` **bars** ago" (one value's bar history); `state.array` is "a bounded
+  **bag** of the last `K` things I **pushed**" (a rolling window, an event-value
+  log, a multi-push-per-bar accumulator). Only the allocation `state.array(...)`
+  call is a stateful registry callsite — `push`/`get`/`last` are handle methods,
+  so they ARE legal inside a bounded `for` loop (iterate elements with a
+  **literal** bound + an inner `if (i < a.size)` guard):
+
+  ```ts
+  const win = state.array<number>(20);
+  win.push(bar.close.current);
+  let sum = 0;
+  for (let i = 0; i < 20; i++) {
+      if (i < win.size) sum += win.get(i);
+  }
+  plot(win.size > 0 ? sum / win.size : Number.NaN);
+  ```
 
 ## 8. Worked examples
 

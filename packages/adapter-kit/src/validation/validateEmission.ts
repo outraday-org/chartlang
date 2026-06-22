@@ -124,6 +124,7 @@ const VALID_DIAGNOSTIC_CODES: ReadonlySet<string> = new Set<DiagnosticCode>([
     "unsupported-pane",
     "unsupported-interval",
     "multi-timeframe-not-supported",
+    "multi-symbol-not-supported",
     "unknown-secondary-stream",
     "lookback-exceeded",
     "drawing-budget-exceeded",

@@ -72,6 +72,7 @@ function freshContext(): RuntimeContext {
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        chartSymbol: "",
         secondaryStreams: new Map(),
         requestSecurityBars: new Map(),
         requestSecurityAlignments: new Map(),

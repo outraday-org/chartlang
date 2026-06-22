@@ -22,6 +22,7 @@ import type { Adapter } from "./types.js";
  *             inputs: new Set(),
  *             intervals: [],
  *             multiTimeframe: false,
+ *             multiSymbol: false,
  *             subPanes: 0,
  *             symInfoFields: new Set(),
  *             maxDrawingsPerScript: {
@@ -62,6 +63,7 @@ export type DefineAdapterOpts = Omit<Adapter, "dispose"> & {
  *             inputs: new Set(),
  *             intervals: [],
  *             multiTimeframe: false,
+ *             multiSymbol: false,
  *             subPanes: 0,
  *             symInfoFields: new Set(),
  *             maxDrawingsPerScript: {

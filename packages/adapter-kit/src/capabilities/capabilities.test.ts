@@ -143,6 +143,11 @@ describe("capabilities builders", () => {
         expect(capabilities.multiTimeframe(false)).toEqual({ multiTimeframe: false });
     });
 
+    it("multiSymbol(...) returns the expected partial", () => {
+        expect(capabilities.multiSymbol(true)).toEqual({ multiSymbol: true });
+        expect(capabilities.multiSymbol(false)).toEqual({ multiSymbol: false });
+    });
+
     it("subPanes(...) returns the expected partial", () => {
         expect(capabilities.subPanes(Number.MAX_SAFE_INTEGER)).toEqual({
             subPanes: Number.MAX_SAFE_INTEGER,

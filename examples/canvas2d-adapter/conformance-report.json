@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.2.0",
-    "passed": 242,
+    "passed": 246,
     "failed": 0,
     "scenarios": [
         {
@@ -629,6 +629,18 @@
             "failures": []
         },
         {
+            "id": "multi-symbol-not-supported",
+            "title": "Multi-symbol capability false",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "multi-symbol-ratio",
+            "title": "Multi-symbol request.security ratio",
+            "status": "pass",
+            "failures": []
+        },
+        {
             "id": "pine-converter-round-trip-camp-a",
             "title": "Pine converter round-trip Camp A",
             "status": "pass",
@@ -643,6 +655,12 @@
         {
             "id": "pine-converter-round-trip-table",
             "title": "Pine converter round-trip table",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "pine-converter-round-trip-var-array",
+            "title": "Pine converter round-trip var array → state.array",
             "status": "pass",
             "failures": []
         },
@@ -805,6 +823,12 @@
         {
             "id": "runtime-log-info",
             "title": "runtime.log.info emits",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "state-array-rolling-window",
+            "title": "state.array rolling-window mean is a stable finite series",
             "status": "pass",
             "failures": []
         },

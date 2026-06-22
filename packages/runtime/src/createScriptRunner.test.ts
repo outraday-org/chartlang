@@ -25,6 +25,7 @@ function makeCapabilities(maxLookback = 5000): Capabilities {
             { value: "1D", label: "1 day", group: "daily" },
         ],
         multiTimeframe: false,
+        multiSymbol: false,
         subPanes: 0,
         symInfoFields: new Set(),
         maxDrawingsPerScript: {
@@ -439,6 +440,142 @@ describe("createScriptRunner", () => {
         await runner.onBarClose(makeBar(0));
 
         expect(observedSizes).toEqual([2]);
+        await runner.dispose();
+    });
+
+    it("registers one secondary stream per requestedFeeds entry, keyed by feedKey", async () => {
+        const observedKeys: string[] = [];
+        const compiled = defineIndicator({
+            name: "feeds",
+            apiVersion: 1,
+            compute: () => {
+                const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+                observedKeys.push(...(ctx?.secondaryStreams.keys() ?? []));
+            },
+        });
+        const customCompiled = {
+            manifest: {
+                ...compiled.manifest,
+                // SPY/QQQ @ 1D plus a chart-symbol (omitted) 1D; the explicit
+                // chart ticker collapses onto the omitted one.
+                requestedFeeds: [
+                    { interval: "1D" },
+                    { symbol: "AMEX:SPY", interval: "1D" },
+                    { symbol: "NASDAQ:QQQ", interval: "1D" },
+                    { symbol: "AAPL", interval: "1D" },
+                ],
+                requestedIntervals: ["1D"],
+            },
+            compute: compiled.compute,
+        };
+        const runner = createScriptRunner({
+            compiled: customCompiled,
+            capabilities: makeCapabilities(),
+            symInfo: { ticker: "AAPL" },
+        });
+
+        await runner.onBarClose(makeBar(0));
+
+        // Omitted + explicit-chart-symbol collapse to the bare interval; SPY and
+        // QQQ each get their own composite feed key — four feeds, three streams.
+        expect(observedKeys).toEqual(["1D", "AMEX:SPY@1D", "NASDAQ:QQQ@1D"]);
+        await runner.dispose();
+    });
+
+    it("mounts secondary streams that carry their resolved symbol", async () => {
+        let omittedSymbol = "";
+        let spySymbol = "";
+        const compiled = defineIndicator({
+            name: "feed-symbols",
+            apiVersion: 1,
+            compute: () => {
+                const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+                omittedSymbol = ctx?.secondaryStreams.get("1D")?.bar.symbol ?? "";
+                spySymbol = ctx?.secondaryStreams.get("AMEX:SPY@1D")?.bar.symbol ?? "";
+            },
+        });
+        const customCompiled = {
+            manifest: {
+                ...compiled.manifest,
+                requestedFeeds: [{ interval: "1D" }, { symbol: "AMEX:SPY", interval: "1D" }],
+                requestedIntervals: ["1D"],
+            },
+            compute: compiled.compute,
+        };
+        const runner = createScriptRunner({
+            compiled: customCompiled,
+            capabilities: makeCapabilities(),
+            symInfo: { ticker: "AAPL" },
+        });
+
+        await runner.onBarClose(makeBar(0));
+
+        // Omitted feed → chart symbol; explicit symbol → itself.
+        expect(omittedSymbol).toBe("AAPL");
+        expect(spySymbol).toBe("AMEX:SPY");
+        await runner.dispose();
+    });
+
+    it("routes a composite-keyed secondary event to its feed and rejects an unknown composite key", async () => {
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "push-composite",
+            apiVersion: 1,
+            compute: ({ request }) => {
+                const spy = (
+                    request as unknown as {
+                        readonly security: (
+                            slotId: string,
+                            opts: { readonly symbol?: string; readonly interval: string },
+                        ) => { readonly close: { readonly current: number } };
+                    }
+                ).security("slot#0", { symbol: "AMEX:SPY", interval: "1D" });
+                seen.push(spy.close.current);
+            },
+        });
+        const customCompiled = {
+            manifest: {
+                ...compiled.manifest,
+                requestedFeeds: [{ symbol: "AMEX:SPY", interval: "1D" }],
+                requestedIntervals: [],
+            },
+            compute: compiled.compute,
+        };
+        const runner = createScriptRunner({
+            compiled: customCompiled,
+            // A different-symbol feed needs both gates open.
+            capabilities: { ...makeCapabilities(), multiTimeframe: true, multiSymbol: true },
+            symInfo: { ticker: "AAPL" },
+        });
+
+        await runner.push({
+            kind: "close",
+            bar: { ...makeBar(0), time: makeBar(0).time - 60_000, close: 412, interval: "1D" },
+            streamKey: "AMEX:SPY@1D",
+        });
+        // An event tagged with an unregistered composite key is dropped with a
+        // diagnostic; drain it before the main close (which resets emissions).
+        await runner.push({
+            kind: "close",
+            bar: { ...makeBar(0), interval: "1D", close: 999 },
+            streamKey: "NASDAQ:QQQ@1D",
+        });
+        expect(runner.drain().diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "unknown-secondary-stream",
+                message:
+                    'Secondary stream "NASDAQ:QQQ@1D" was not registered by the script manifest',
+                slotId: null,
+                bar: 0,
+            },
+        ]);
+        await runner.push({ kind: "close", bar: makeBar(0) });
+
+        // The SPY close routed to its composite feed; the unknown QQQ event did
+        // not leak into the SPY stream.
+        expect(seen).toEqual([412]);
         await runner.dispose();
     });
 

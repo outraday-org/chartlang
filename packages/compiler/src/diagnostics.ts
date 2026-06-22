@@ -15,7 +15,11 @@ import type ts from "typescript";
  * `duplicate-output-title` for clashing `plot(value, { title })`
  * declarations in the same script). The HTF-expression feature adds
  * `request-security-expr-captures-local` for an out-of-subset reference
- * inside a `request.security({ interval }, (bar) => …)` callback.
+ * inside a `request.security({ interval }, (bar) => …)` callback. The
+ * `state.array` feature adds `state-array-capacity-not-literal` and
+ * `state-array-capacity-exceeds-max` for the capacity-literal guard. The
+ * multi-symbol feature adds `request-security-symbol-not-literal` for a
+ * non-literal `request.security({ symbol })` opt.
  *
  * @since 0.1
  * @example
@@ -49,7 +53,10 @@ export type CompileDiagnosticCode =
     | "dep-dynamic"
     | "dep-output-not-titled"
     | "duplicate-output-title"
-    | "request-security-expr-captures-local";
+    | "request-security-expr-captures-local"
+    | "state-array-capacity-not-literal"
+    | "state-array-capacity-exceeds-max"
+    | "request-security-symbol-not-literal";
 
 /**
  * Single diagnostic the compiler emits while transforming or analysing a

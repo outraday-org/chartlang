@@ -32,6 +32,19 @@ The converter classifies each `.new()` site deterministically:
   (`if array.size(coll) > K` → `array.shift`/`*.delete`). Lowers to a
   fixed-capacity chartlang ring; the explicit eviction block is removed
   (the ring rotates modulo K) and an info marks the elision.
+- **Camp B — numeric ring.** The numeric analogue: a bounded
+  `var array<float|int>` filled by `array.push(coll, <number>)` with the same
+  FIFO eviction signature (`if array.size(coll) > K` → `array.shift(coll)` /
+  `array.remove(coll, 0)`). Lowers to `const <name> = state.array<number>(K)`;
+  `array.push`/`get`/`size`/`last`/`first`/`clear` map onto the slot's surface
+  and the eviction block is elided (one `ring-eviction-implicit` info). The cap
+  `K` comes from the eviction guard or an `array.new<float>(K)` size argument; a
+  numeric array with no detectable cap hard-rejects `unbounded-array-collection`.
+  A non-numeric collection (`array<string|bool|color>`) emits
+  `array-collection-non-numeric` — only numeric `state.array` is supported in
+  v1. A `for i = 0 to array.size(coll) - 1` summation does **not** lower
+  (chartlang requires literal `for` bounds); read the window with direct
+  `array.get`/`array.last`/`array.size` calls instead.
 - **Camp C — heuristic-or-reject.** A dynamic collection that fits neither
   shape cleanly. The converter tries to fold it into a Camp B ring using a
   capacity heuristic (an `indicator(max_*_count=…)` cap, a literal loop

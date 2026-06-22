@@ -24,11 +24,15 @@ import { createRuntimeViews } from "../views/index.js";
 import { buildRequestNamespace } from "./requestNamespace.js";
 
 type RuntimeRequestNamespace = {
-    readonly security: (slotId: string, opts: RequestSecurityOpts) => SecurityBar;
+    readonly security: (
+        slotId: string,
+        opts: RequestSecurityOpts,
+        expr?: (bar: SecurityBar) => Series<number> | number,
+    ) => SecurityBar;
     readonly lowerTf: (slotId: string, opts: RequestLowerTfOpts) => Series<ReadonlyArray<Bar>>;
 };
 
-function makeCapabilities(multiTimeframe: boolean): Capabilities {
+function makeCapabilities(multiTimeframe: boolean, multiSymbol = false): Capabilities {
     return {
         plots: capabilities.allLines(),
         drawings: new Set(),
@@ -42,6 +46,7 @@ function makeCapabilities(multiTimeframe: boolean): Capabilities {
             { value: "1D", label: "1 day", group: "daily" },
         ],
         multiTimeframe,
+        multiSymbol,
         subPanes: 0,
         symInfoFields: new Set(),
         maxDrawingsPerScript: {
@@ -67,7 +72,7 @@ function makeEmissions(): MutableRunnerEmissions {
     };
 }
 
-function makeContext(multiTimeframe = true): RuntimeContext {
+function makeContext(multiTimeframe = true, multiSymbol = true): RuntimeContext {
     const stream = createStreamState({ interval: "1m", capacity: 5, symbol: "AAPL" });
     stream.bar.time = 1_700_000_000_000;
     const secondary = createStreamState({ interval: "1D", capacity: 5, symbol: "AAPL" });
@@ -79,7 +84,7 @@ function makeContext(multiTimeframe = true): RuntimeContext {
     return {
         stream,
         stateStore: inMemoryStateStore(),
-        capabilities: makeCapabilities(multiTimeframe),
+        capabilities: makeCapabilities(multiTimeframe, multiSymbol),
         emissions: makeEmissions(),
         barIndex: () => 3,
         isTick: false,
@@ -94,6 +99,7 @@ function makeContext(multiTimeframe = true): RuntimeContext {
         },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        chartSymbol: "AAPL",
         secondaryStreams,
         requestSecurityBars: new Map(),
         requestSecurityAlignments: new Map(),
@@ -405,6 +411,161 @@ describe("buildRequestNamespace", () => {
 
         expect(Number.isNaN(next.close.current)).toBe(true);
         expect(ctx.emissions.diagnostics).toHaveLength(1);
+    });
+
+    it("routes a different-symbol request to its composite feed and back-compat collapses the chart symbol", () => {
+        const ctx = makeContext(true);
+        // SPY @ 1D registered under the composite key; AAPL @ 1D under the bare
+        // interval (chart symbol). `feedKey` builds both.
+        const spy = createStreamState({ interval: "1D", capacity: 5, symbol: "AMEX:SPY" });
+        appendSecondaryBar(spy, {
+            time: 1_700_000_000_000,
+            open: 400,
+            high: 405,
+            low: 395,
+            close: 402,
+            volume: 5_000,
+            symbol: "AMEX:SPY",
+            interval: "1D",
+        });
+        ctx.secondaryStreams.set("AMEX:SPY@1D", spy);
+        pushBars(ctx);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        const spyBar = request.security("slot#0", { symbol: "AMEX:SPY", interval: "1D" });
+        const aaplOmitted = request.security("slot#1", { interval: "1D" });
+        // Passing the chart's own ticker explicitly must collapse to the bare
+        // interval — the SAME cached bar as the omitted-symbol form, no
+        // duplicate stream allocation.
+        const aaplExplicit = request.security("slot#1", { symbol: "AAPL", interval: "1D" });
+
+        // Two distinct symbols do not cross-talk.
+        expect(spyBar.close.current).toBe(402);
+        expect(spyBar.symbol.current).toBe("AMEX:SPY");
+        expect(aaplOmitted.close.current).toBe(202);
+        expect(aaplOmitted.symbol.current).toBe("AAPL");
+        // Explicit chart symbol === omitted: identical cached SecurityBar.
+        expect(aaplExplicit).toBe(aaplOmitted);
+        expect(ctx.emissions.diagnostics).toEqual([]);
+    });
+
+    it("keys the diagnostic dedupe per feed: same interval, different symbols emit twice", () => {
+        const ctx = makeContext(false);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        request.security("slot#0", { interval: "1D" });
+        request.security("slot#0", { symbol: "AMEX:SPY", interval: "1D" });
+
+        expect(ctx.emissions.diagnostics).toHaveLength(2);
+        expect(ctx.diagnosedRequestKeys).toEqual(
+            new Set([
+                "multi-timeframe-not-supported|slot#0|1D|security",
+                "multi-timeframe-not-supported|slot#0|AMEX:SPY@1D|security",
+            ]),
+        );
+    });
+
+    it("returns an all-NaN bar with one multi-symbol-not-supported when multiSymbol is off", () => {
+        // multiTimeframe ON, multiSymbol OFF: a DIFFERENT symbol trips the
+        // symbol gate first and returns NaN with a single deduped diagnostic.
+        const ctx = makeContext(true, false);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        const first = request.security("slot#0", { symbol: "AMEX:SPY", interval: "1D" });
+        const second = request.security("slot#0", { symbol: "AMEX:SPY", interval: "1D" });
+
+        expect(Number.isNaN(first.close.current)).toBe(true);
+        // Cache hit: same SecurityBar identity, one diagnostic.
+        expect(second).toBe(first);
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "multi-symbol-not-supported",
+                message:
+                    "Adapter declares multiSymbol: false; request.security for a different symbol returns NaN",
+                slotId: "slot#0",
+                bar: 3,
+            },
+        ]);
+    });
+
+    it("leaves a chart-symbol request on the multiTimeframe gate when multiSymbol is off", () => {
+        // multiTimeframe OFF, multiSymbol OFF: an omitted symbol (chart symbol)
+        // must NOT trip the symbol gate — it stays multiTimeframe-gated,
+        // byte-identical to the pre-multi-symbol baseline.
+        const ctx = makeContext(false, false);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        request.security("slot#0", { interval: "1D" });
+
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "multi-timeframe-not-supported",
+                message: "Adapter declares multiTimeframe: false; request.security returns NaN",
+                slotId: "slot#0",
+                bar: 3,
+            },
+        ]);
+    });
+
+    it("trips the symbol gate before the timeframe gate for a both-different request", () => {
+        // Different symbol AND different interval against multiSymbol:false:
+        // ONE multi-symbol-not-supported, not also multi-timeframe-not-supported.
+        const ctx = makeContext(false, false);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        request.security("slot#0", { symbol: "AMEX:SPY", interval: "1m" });
+
+        expect(ctx.emissions.diagnostics).toHaveLength(1);
+        expect(ctx.diagnosedRequestKeys).toEqual(
+            new Set(["multi-symbol-not-supported|slot#0|AMEX:SPY@1m|security"]),
+        );
+    });
+
+    it("dedupes multi-symbol-not-supported per feed: two unsupported symbols warn twice", () => {
+        const ctx = makeContext(true, false);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        request.security("slot#0", { symbol: "AMEX:SPY", interval: "1D" });
+        request.security("slot#0", { symbol: "NASDAQ:QQQ", interval: "1D" });
+
+        expect(ctx.emissions.diagnostics).toHaveLength(2);
+        expect(ctx.diagnosedRequestKeys).toEqual(
+            new Set([
+                "multi-symbol-not-supported|slot#0|AMEX:SPY@1D|security",
+                "multi-symbol-not-supported|slot#0|NASDAQ:QQQ@1D|security",
+            ]),
+        );
+    });
+
+    it("allows a different symbol at a different interval only via multiTimeframe", () => {
+        // multiSymbol ON, multiTimeframe OFF: the symbol gate passes; the
+        // different interval still needs multiTimeframe and trips its diagnostic.
+        const ctx = makeContext(false, true);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        request.security("slot#0", { symbol: "AMEX:SPY", interval: "1D" });
+
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "multi-timeframe-not-supported",
+                message: "Adapter declares multiTimeframe: false; request.security returns NaN",
+                slotId: "slot#0",
+                bar: 3,
+            },
+        ]);
     });
 
     it("falls back to NaN numeric series when a defensive numeric lookup misses", () => {

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import { feedKey } from "@invinite-org/chartlang-core";
+
 import type { Bar } from "@invinite-org/chartlang-core";
 import type { CandleEvent } from "../types.js";
 
@@ -29,6 +31,12 @@ export type MockCandleSourceMode = "history" | "stream" | "history-then-stream";
  * stream after the warm-up batch. `streamTail` is clamped to
  * `[0, bars.length]`.
  *
+ * `symbol` drives the secondary-stream wire: when set, every emitted event
+ * is tagged with `streamKey: feedKey(symbol, interval)` so the mock can
+ * drive a different-symbol scenario through the standard wire. Omit it for
+ * the main stream — events then carry no `streamKey`, byte-identical to the
+ * single-symbol baseline.
+ *
  * @since 0.5
  * @stable
  * @example
@@ -36,12 +44,14 @@ export type MockCandleSourceMode = "history" | "stream" | "history-then-stream";
  *         interval: "1D",
  *         mode: "history-then-stream",
  *         streamTail: 20,
+ *         symbol: "AMEX:SPY",
  *     };
  */
 export type MockCandleSourceOpts = {
     readonly interval: string;
     readonly mode?: MockCandleSourceMode;
     readonly streamTail?: number;
+    readonly symbol?: string;
 };
 
 const DEFAULT_STREAM_TAIL = 1;
@@ -62,6 +72,10 @@ const DEFAULT_STREAM_TAIL = 1;
  *   `streamTail >= bars.length` yields an empty history batch followed
  *   by a close-per-bar.
  *
+ * A `symbol` opt tags every event with `streamKey: feedKey(symbol, interval)`
+ * so the mock can drive a different-symbol secondary stream. Omitting it
+ * leaves events untagged (main stream), byte-identical to the baseline.
+ *
  * @since 0.1
  * @stable
  * @example
@@ -78,23 +92,28 @@ export function mockCandleSource(
 ): AsyncIterable<CandleEvent> {
     const mode: MockCandleSourceMode = opts.mode ?? "history";
     const streamTail = clampTail(opts.streamTail ?? DEFAULT_STREAM_TAIL, bars.length);
+    // Only a present symbol widens the wire to a secondary stream; an omitted
+    // symbol leaves `streamKey` off so the main-stream output stays
+    // byte-identical to the single-symbol baseline.
+    const tag: { readonly streamKey?: string } =
+        opts.symbol === undefined ? {} : { streamKey: feedKey(opts.symbol, opts.interval) };
     return {
         async *[Symbol.asyncIterator](): AsyncIterator<CandleEvent> {
             if (mode === "history") {
-                yield { kind: "history", bars };
+                yield { kind: "history", bars, ...tag };
                 return;
             }
             if (mode === "stream") {
                 for (const bar of bars) {
-                    yield { kind: "close", bar };
+                    yield { kind: "close", bar, ...tag };
                 }
                 return;
             }
             // history-then-stream
             const splitAt = bars.length - streamTail;
-            yield { kind: "history", bars: bars.slice(0, splitAt) };
+            yield { kind: "history", bars: bars.slice(0, splitAt), ...tag };
             for (let i = splitAt; i < bars.length; i += 1) {
-                yield { kind: "close", bar: bars[i] };
+                yield { kind: "close", bar: bars[i], ...tag };
             }
         },
     };

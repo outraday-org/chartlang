@@ -171,6 +171,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** A ring-update loop references a handle's prior anchor, which the ring does not store; a TODO was left.
 - **Suggested fix:** Recompute the anchor from the original creation expression, or mirror it in a state slot.
 
+### array-collection-non-numeric
+
+- **Code:** `pine-converter/transform/array-collection-non-numeric`
+- **Severity:** info
+- **Message:** Persistent non-numeric collections are not supported in chartlang v1 (only numeric `state.array`).
+- **Suggested fix:** Hold numeric values in the array, or track the non-numeric data with scalar `state.*` slots.
+
 ### camp-c-heuristic-applied
 
 - **Code:** `pine-converter/transform/camp-c-heuristic-applied`
@@ -461,9 +468,9 @@ hard-rejects and the recommended Pine rewrites.
 ### request-security-different-symbol
 
 - **Code:** `pine-converter/transform/request-security-different-symbol`
-- **Severity:** warning
-- **Message:** `request.security` on a different symbol than `syminfo.tickerid` is not supported; chartlang's v1 MTF is same-symbol only.
-- **Suggested fix:** Request the same symbol at a different interval, or drop the cross-symbol read.
+- **Severity:** info
+- **Message:** `request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.
+- **Suggested fix:** Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol.
 
 ### request-security-lookahead-not-supported
 
@@ -618,6 +625,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** warning
 - **Message:** A `table` variable is initialised by more than one `table.new(...)`; the first wins.
 - **Suggested fix:** Create the table once; mutate its cells rather than re-creating it.
+
+### unbounded-array-collection
+
+- **Code:** `pine-converter/transform/unbounded-array-collection`
+- **Severity:** error
+- **Message:** A persistent numeric array with no detectable capacity cannot be bounded; chartlang has no unbounded collection.
+- **Suggested fix:** Add a FIFO eviction guard (`if array.size(coll) > K` → `array.shift(coll)`) or size the array via `array.new<float>(K)` so the capacity is a literal.
 
 ### unknown-input-primitive
 

@@ -23,6 +23,7 @@ function makeCapabilities(): Capabilities {
         inputs: new Set(),
         intervals: [],
         multiTimeframe: false,
+        multiSymbol: false,
         subPanes: 0,
         symInfoFields: new Set(),
         maxDrawingsPerScript: { lines: 10, labels: 10, boxes: 10, polylines: 10, other: 10 },

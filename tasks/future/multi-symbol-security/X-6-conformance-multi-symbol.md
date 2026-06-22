@@ -1,6 +1,6 @@
 # Task 6 — Conformance: two-symbol ratio scenario + golden
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

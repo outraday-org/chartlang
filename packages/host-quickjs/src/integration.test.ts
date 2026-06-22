@@ -4,6 +4,7 @@
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities, PlotOverride } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
+import { feedKey } from "@invinite-org/chartlang-core";
 import { createWorkerBoot, createWorkerHost } from "@invinite-org/chartlang-host-worker";
 import type {
     HostCompiledScript,
@@ -30,6 +31,7 @@ function makeCapabilities(): Capabilities {
         inputs: new Set(),
         intervals: [],
         multiTimeframe: false,
+        multiSymbol: false,
         subPanes: 0,
         symInfoFields: new Set(),
         maxDrawingsPerScript: { lines: 10, labels: 10, boxes: 10, polylines: 10, other: 10 },
@@ -259,6 +261,105 @@ async function runQuickJsWithOverrides(): Promise<string> {
     return JSON.stringify(emissions);
 }
 
+function multiSymbolCapabilities(): Capabilities {
+    return {
+        ...makeCapabilities(),
+        intervals: [
+            { value: "1m", label: "1 minute", group: "minute" },
+            { value: "1D", label: "1 day", group: "daily" },
+        ],
+        // A different-symbol feed needs BOTH gates open.
+        multiTimeframe: true,
+        multiSymbol: true,
+    };
+}
+
+function twoSymbolManifest(): ScriptManifest {
+    return {
+        ...manifest("spy-qqq-ratio"),
+        requestedIntervals: [],
+        requestedFeeds: [
+            { symbol: "AMEX:SPY", interval: "1D" },
+            { symbol: "NASDAQ:QQQ", interval: "1D" },
+        ],
+        seriesCapacities: { ohlcv: 16 },
+        maxLookback: 0,
+    };
+}
+
+const TWO_SYMBOL_FIXTURE: ScriptFixture = {
+    name: "spy-qqq-ratio",
+    manifest: twoSymbolManifest(),
+    source: source(
+        twoSymbolManifest(),
+        `({ request, plot }) => {
+            const spy = request.security("ratio:1:1#0", { symbol: "AMEX:SPY", interval: "1D" });
+            const qqq = request.security("ratio:2:1#0", { symbol: "NASDAQ:QQQ", interval: "1D" });
+            plot("ratio:3:1#0", spy.close.current, {});
+            plot("ratio:4:1#0", qqq.close.current, {});
+            plot("ratio:5:1#0", spy.close.current / qqq.close.current, {});
+        }`,
+    ),
+};
+
+function symbolBar(time: number, close: number, symbol: string): Bar {
+    return {
+        time,
+        open: close,
+        high: close + 1,
+        low: close - 1,
+        close,
+        hl2: close,
+        hlc3: close,
+        ohlc4: close,
+        hlcc4: close,
+        volume: 10,
+        symbol,
+        interval: "1D",
+    };
+}
+
+const SPY_HISTORY = [400, 410].map((c, i) => symbolBar(i * 86_400_000, c, "AMEX:SPY"));
+const QQQ_HISTORY = [300, 305].map((c, i) => symbolBar(i * 86_400_000, c, "NASDAQ:QQQ"));
+const MAIN_HISTORY = [
+    symbolBar(86_400_000, 100, "X"),
+    symbolBar(86_400_000 + 60_000, 101, "X"),
+].map((b) => ({ ...b, interval: "1m" }));
+
+async function runWorkerTwoSymbol(): Promise<string> {
+    const { worker, scope } = pair();
+    createWorkerBoot(scope);
+    const host = createWorkerHost({
+        capabilities: multiSymbolCapabilities(),
+        workerLike: worker,
+    });
+    await host.load({
+        moduleSource: TWO_SYMBOL_FIXTURE.source,
+        manifest: TWO_SYMBOL_FIXTURE.manifest,
+    });
+    await host.push({ kind: "history", bars: SPY_HISTORY, streamKey: feedKey("AMEX:SPY", "1D") });
+    await host.push({ kind: "history", bars: QQQ_HISTORY, streamKey: feedKey("NASDAQ:QQQ", "1D") });
+    await host.push({ kind: "history", bars: MAIN_HISTORY });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const emissions = await host.drain();
+    host.dispose();
+    return JSON.stringify(emissions);
+}
+
+async function runQuickJsTwoSymbol(): Promise<string> {
+    const host = createQuickJsHost({ capabilities: multiSymbolCapabilities() });
+    await host.load({
+        moduleSource: TWO_SYMBOL_FIXTURE.source,
+        manifest: TWO_SYMBOL_FIXTURE.manifest,
+    });
+    await host.push({ kind: "history", bars: SPY_HISTORY, streamKey: feedKey("AMEX:SPY", "1D") });
+    await host.push({ kind: "history", bars: QQQ_HISTORY, streamKey: feedKey("NASDAQ:QQQ", "1D") });
+    await host.push({ kind: "history", bars: MAIN_HISTORY });
+    const emissions = await host.drain();
+    host.dispose();
+    return JSON.stringify(emissions);
+}
+
 describe("host-quickjs integration parity", () => {
     for (const fixture of FIXTURES) {
         it(`matches host-worker emissions for ${fixture.name}`, async () => {
@@ -284,6 +385,24 @@ describe("host-quickjs integration parity", () => {
         expect(hidden?.visible).toBe(false);
         expect(recolored?.color).toBe("#ff0000");
         expect(recolored?.style.lineWidth).toBe(3);
+    });
+
+    it("matches host-worker emissions for a two-symbol composite-stream script", async () => {
+        const quickjs = await runQuickJsTwoSymbol();
+        const worker = await runWorkerTwoSymbol();
+        expect(quickjs).toBe(worker);
+        // Sanity: both composite streams routed to finite, DISTINCT values and
+        // the ratio is their quotient (the streams did not cross-talk).
+        const drained = JSON.parse(quickjs) as {
+            plots: ReadonlyArray<{ slotId: string; value: number }>;
+            diagnostics: ReadonlyArray<unknown>;
+        };
+        const head = (slotId: string): number | undefined =>
+            drained.plots.filter((p) => p.slotId === slotId).at(-1)?.value;
+        expect(head("ratio:3:1#0")).toBeCloseTo(410, 6);
+        expect(head("ratio:4:1#0")).toBeCloseTo(305, 6);
+        expect(head("ratio:5:1#0")).toBeCloseTo(410 / 305, 6);
+        expect(drained.diagnostics).toEqual([]);
     });
 
     it("mounts a §22.10 multi-export bundle and forwards sibling plots with `export:` prefix", async () => {

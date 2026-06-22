@@ -41,6 +41,8 @@ export type { CellSpec } from "./tables.js";
 export { transformPolylineLinefill } from "./polylineLinefill.js";
 export { convertColor, transpToAlphaHex } from "./colorConvert.js";
 export { transformOther } from "./other.js";
+export { scanNumericArrays } from "./numericArray.js";
+export type { NumericArrayScan } from "./numericArray.js";
 export { emitWithContext } from "./emitContext.js";
 export type { EmitContext } from "./emitContext.js";
 export {

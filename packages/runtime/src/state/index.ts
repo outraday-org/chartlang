@@ -2,11 +2,19 @@
 // See the LICENSE file in the repo root for full license text.
 
 export {
+    isArraySlotSnapshotKey,
+    restoreArraySlots,
+    serialiseArraySlots,
+} from "./arrayPersistence.js";
+export { ArrayStateSlot } from "./arrayStateSlot.js";
+export {
     advanceSeriesSlots,
+    commitArraySlots,
     commitSeriesSlots,
     commitStateSlots,
     flushStateSlots,
     resetSeriesHeads,
+    resetTentativeArraySlots,
     restoreStateSlots,
     resetTentativeStateSlots,
     serialiseStateSlots,

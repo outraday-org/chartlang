@@ -61,6 +61,8 @@ describe("INDEX_TS", () => {
         expect(text).toMatch(/id: "my-adapter"/);
         expect(text).toMatch(/name: "My-adapter"/);
         expect(text).toMatch(/export default adapter/);
+        // Scaffolded adapters are multi-symbol-aware from day one.
+        expect(text).toMatch(/capabilities\.multiSymbol\(true\)/);
     });
 });
 

@@ -105,6 +105,28 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   it; the option never touches `value`/alerts/`state.*`. Compile-only in the
   CLI e2e gate (like `fill-between-band.chart.ts`); not in the integration
   render test. Mirrored by the `z-layering` `DEMO_SCRIPTS` entry.
+- `rolling-window-mean.chart.ts` demonstrates the persistent **collection**
+  primitive `state.array<number>(capacity)`: it pushes one `bar.close` per bar
+  into a 20-slot FIFO ring and averages the ELEMENTS in a bounded `for` loop
+  (literal bound `< 20` + an inner `if (i < win.size)` guard, since
+  `push`/`get` are handle methods legal inside a loop — only the allocation
+  call is the registry callsite). This is the "bounded bag of the last K pushed
+  values" idiom that `state.series` (one value's bar history, see
+  `up-streak.chart.ts`) can't express. Compile-only in the CLI e2e gate; not in
+  the integration render test. Mirrored by the `rolling-window-mean`
+  `DEMO_SCRIPTS` entry.
+- `symbol-ratio.chart.ts` demonstrates the multi-symbol
+  `request.security({ symbol, interval })` form: it reads two DIFFERENT
+  instruments (`AMEX:SPY` and `NASDAQ:QQQ`) at the chart interval and plots
+  their close ratio. The `symbol` must be a compile-time literal (string
+  literal / `input.symbol` / `input.enum`), and a non-chart symbol requires the
+  adapter's `multiSymbol` capability — otherwise each series degrades to all-NaN
+  with one `multi-symbol-not-supported` diagnostic. Reads `.close.current` for
+  the live scalar because `SecurityBar.close` is a `Series<Price>` (indexable,
+  NOT number-coercible), so a raw `spy.close / qqq.close` would not type-check.
+  Compile-only in the CLI e2e gate; not in the integration render test. Mirrored
+  by the `symbol-ratio` `DEMO_SCRIPTS` entry (which the demo drives against a
+  synthetic second-symbol stream via `createMultiSymbolCandlePump`).
 
 ## Conventions
 

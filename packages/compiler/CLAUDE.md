@@ -31,13 +31,37 @@
 - **`request.security` has two arities; the expression form is analysed, not
   rewritten.** `extractRequestAnalysis` (in `extractRequestedIntervals.ts`)
   detects a second arrow/function-expression argument and records one
-  `SecurityExpressionDescriptor { slotId, interval, paramName }` per callsite
-  in `manifest.securityExpressions` (sorted by `slotId`, omitted when empty so
-  data-only snapshots stay byte-identical). The compiled callback stays
+  `SecurityExpressionDescriptor { slotId, symbol?, interval, paramName }` per
+  callsite in `manifest.securityExpressions` (sorted by `slotId`, omitted when
+  empty so data-only snapshots stay byte-identical). The compiled callback stays
   **inline** in the emitted module — the descriptor is only the registry the
   runtime uses to know which slot id runs on an HTF clock. Only a
   string-literal `interval` anchors an expression unit; an `input.enum`
-  interval (multi-valued) does not. The capture check `validateSecurityExpr`
+  interval (multi-valued) does not. The descriptor's `symbol` is attached only
+  for a string-literal or `input.symbol`-default symbol (a single concrete
+  clock); an `input.enum`/dynamic/empty-literal/omitted symbol leaves it off
+  (omitted ⇒ chart symbol), exactly as a multi-valued `input.enum` interval
+  can't anchor a single clock.
+- **`request.security` reads the optional `symbol` opt the same three ways as
+  `interval`, plus the `input.symbol`-default path, and emits
+  `manifest.requestedFeeds`.** `resolveOptString` reads `{ symbol }` as a string
+  literal, an `inputs.<enum>` access (all options), an `inputs.<name>`
+  `input.symbol` **default** literal (NEW — `interval` never uses this; an
+  `input.interval` is the main-chart interval, not a feed interval), an absent
+  property, or a genuinely-dynamic expression. A dynamic symbol emits the
+  append-only `request-security-symbol-not-literal` diagnostic and is excluded
+  (mirrors `request-security-interval-not-literal`; both can fire on one
+  callsite). The analyser builds `RequestAnalysis.feeds` as the cartesian
+  product of resolved symbols × intervals, deduped into a
+  `Map<string, RequestedFeed>` keyed by the shared core `feedKey(symbol,
+  interval)` and emitted sorted by that key (byte-stable for the determinism
+  gate). `requestedFeeds` is omitted when empty (no-`request.security` snapshots
+  stay byte-identical) and — like `securityExpressions` — attaches to the
+  **default manifest only**. A symbol-omitted (or empty-literal, per `feedKey`'s
+  empty-collapse) feed keeps its interval in `requestedIntervals` (the
+  unchanged main-symbol projection); a present-symbol feed does not.
+  `request.lowerTf` has no symbol dimension — it never produces a feed and keeps
+  its existing interval-only path. The capture check `validateSecurityExpr`
   runs **once at file scope** (the `validateExpressions: true` flag is passed
   only by `transformAndAnalyse`'s file-level call, never the per-drawn
   `buildDrawnManifest` call) so multi-export files don't double-report. Its
@@ -141,6 +165,26 @@
   is re-implemented, and aliases (`const t = s; t[2]`) are not tracked (same
   limitation as the `ta.*` arm). The slot-id injection for `state.series`
   needs no change (Task 1 registered it `{ slot: true }`).
+- **`state.array` capacity must resolve to a bounded positive-integer
+  literal.** `runStateArrayCapacity` (`analysis/stateArrayCapacity.ts`) walks
+  the **original** AST and, for each `state.array` callsite (matched on
+  `resolveCalleeName(...) === "state.array"`, so the element-access form is not
+  double-reported — it is already `stateful-call-element-access`), reads the
+  capacity as `node.arguments[0]`. This is the pre-injection position: the pass
+  runs before `callsiteIdInjection` prepends the slot-id literal, so the
+  capacity is `arguments[0]` here even though it becomes `arguments[1]` in the
+  emitted module — never read `arguments[1]` in this pass. Capacity resolution
+  **reuses** `resolveIndexUpperBound` + `collectConstNumberEnv` (the same
+  machinery that sizes a series index), so a numeric literal, a
+  parenthesised/unary-`±` literal, an affine combination, and a `const`
+  numeric binding (`const K = 20; state.array(K)`) all resolve; a `let`, an
+  input, or any runtime value resolves to `null`. A `null` capacity (or a
+  missing argument) errors `state-array-capacity-not-literal`; a resolved
+  capacity that is `<= 0`, non-integer, or `> MAX_STATE_ARRAY_CAPACITY`
+  (100_000) errors `state-array-capacity-exceeds-max`. Both are **errors** — a
+  non-literal capacity breaks the bounded-snapshot guarantee. The pass is
+  independent of `statefulCallInLoop`: a `state.array(...)` inside a loop
+  collects both codes (acceptable, mirrors element-access multi-reporting).
 - **No DOM lib.** `program.ts` pins `lib: ["lib.es2022.d.ts"]` on the
   in-memory program so scripts cannot rely on browser globals. Hostile
   globals (`Math.random`, `Date`, `fetch`, `setTimeout`, …) are

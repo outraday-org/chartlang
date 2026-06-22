@@ -19,11 +19,15 @@ interval. Two forms:
   clocked to the main timeline, so `ta.ema(weekly.close, 20)` would
   average 20 *main* bars.
 
-The `interval` must be a compile-time literal (a string literal or an
-`input.enum` value); the compiler walks every call to populate
-`manifest.requestedIntervals`. When the adapter does not advertise
-`Capabilities.multiTimeframe`, the series degrades to all-NaN rather than
-erroring. See the multi-timeframe guide for alignment and interval-format
+Both `symbol` and `interval` must be compile-time literals (a string
+literal, an `input.symbol` default, or an `input.enum` value); the compiler
+walks every call to populate `manifest.requestedFeeds` (and the main-symbol
+projection `manifest.requestedIntervals`). `symbol` is **optional** —
+omitting it reads the chart's own symbol (the higher-timeframe-only case).
+When the adapter does not advertise `Capabilities.multiTimeframe`, the
+series degrades to all-NaN rather than erroring; a non-chart `symbol`
+additionally requires `Capabilities.multiSymbol` and otherwise degrades to
+all-NaN. See the multi-timeframe guide for alignment and interval-format
 details.
 
 ## Signature

@@ -27,6 +27,8 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/fill-between-band.chart.ts",
     "examples/scripts/anchored-line.chart.ts",
     "examples/scripts/up-streak.chart.ts",
+    "examples/scripts/rolling-window-mean.chart.ts",
+    "examples/scripts/symbol-ratio.chart.ts",
     "examples/scripts/z-layering.chart.ts",
 ] as const;
 

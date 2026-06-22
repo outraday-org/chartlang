@@ -51,6 +51,7 @@ export function dispose(state: RunnerState): void {
     state.runtimeContext.drawingSubIdCounters.clear();
     state.runtimeContext.stateSlots.clear();
     state.runtimeContext.seriesSlots.clear();
+    state.runtimeContext.arraySlots.clear();
     state.runtimeContext.secondaryStreams.clear();
     state.runtimeContext.requestSecurityBars.clear();
     state.runtimeContext.requestSecurityAlignments.clear();
@@ -65,7 +66,7 @@ export function dispose(state: RunnerState): void {
             runner.foldStream.taSlots.clear();
             runner.output.reset();
         }
-        // Drops every runner reference; the per-interval index holds the same
+        // Drops every runner reference; the per-feed index holds the same
         // (now-reset) objects, so clearing `bySlot` is the authoritative
         // teardown. The whole `RuntimeContext` is discarded after dispose.
         exprRunners.clear();

@@ -34,6 +34,7 @@ describe("UPLOT_CAPABILITIES", () => {
 
     it("declares MTF, unlimited sub-panes, alert conditions, and logs", () => {
         expect(UPLOT_CAPABILITIES.multiTimeframe).toBe(true);
+        expect(UPLOT_CAPABILITIES.multiSymbol).toBe(true);
         expect(UPLOT_CAPABILITIES.subPanes).toBe(Number.MAX_SAFE_INTEGER);
         expect(UPLOT_CAPABILITIES.alertConditions).toBe(true);
         expect(UPLOT_CAPABILITIES.logs).toBe(true);

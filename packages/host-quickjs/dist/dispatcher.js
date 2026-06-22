@@ -98,6 +98,29 @@ var Float64RingBuffer = class {
     this.head = -1;
     this.filled = 0;
   }
+  /**
+   * Overwrite this ring's entire state with a copy of `other`'s. A single
+   * `Float64Array.prototype.set()` memcpy plus a head/filled copy — `O(capacity)`
+   * with a small constant, not an element loop. `state.array`'s two-ring tick
+   * discipline (`packages/runtime/src/state/arrayStateSlot.ts`) calls this every
+   * tick to roll the tentative ring back to committed (and on close to commit it),
+   * so the typed-array `set()` is load-bearing for the hot path. Both rings in a
+   * slot share `capacity`, so this never reshapes the backing array.
+   *
+   * @since 1.3
+   * @stable
+   * @example
+   *     const a = new Float64RingBuffer(4);
+   *     const b = new Float64RingBuffer(4);
+   *     a.append(1);
+   *     b.copyFrom(a);
+   *     b.at(0); // 1
+   */
+  copyFrom(other) {
+    this.buf.set(other.buf);
+    this.head = other.head;
+    this.filled = other.filled;
+  }
 };
 
 // ../runtime/dist/seriesView.js
@@ -411,6 +434,26 @@ var state = Object.freeze({
     return sentinel("state.series");
   },
   /**
+   * Allocate or read a persistent **bounded collection** slot — a
+   * fixed-capacity FIFO ring you push values into across bars. `a.push(v)`
+   * appends (evicting the oldest once full); `a.get(n)` reads the `n`-th
+   * element from the newest; `a.last()` is the newest; `a.size` is the
+   * filled count; `a.capacity` is the bound; `a.clear()` empties it.
+   * `capacity` must be a compile-time numeric literal (the slot is bounded
+   * so it serializes). Unlike {@link state}.series (one value's bar-indexed
+   * history), this is a collection of many pushed values. v1 supports
+   * `number` element type.
+   *
+   * @since 1.3
+   * @stable
+   * @example
+   *     const fn: typeof state.array = state.array;
+   *     void fn;
+   */
+  array(_capacity) {
+    return sentinel("state.array");
+  },
+  /**
    * Tick-persistent state slots, Pine `varip` semantics. Writes commit
    * immediately, even during a tick.
    *
@@ -480,6 +523,11 @@ function lowerTf(_opts) {
   return sentinel2("request.lowerTf");
 }
 var request = Object.freeze({ security, lowerTf });
+
+// ../core/dist/request/feedKey.js
+function feedKey(symbol, interval) {
+  return symbol === void 0 || symbol === "" ? interval : `${symbol}@${interval}`;
+}
 
 // ../core/dist/runtime/runtime.js
 function _logInfo(_message, _meta) {
@@ -896,6 +944,7 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "state.tick.int", slot: true },
   { name: "state.tick.bool", slot: true },
   { name: "state.tick.string", slot: true },
+  { name: "state.array", slot: true },
   // Both the data form `request.security({ interval })` and the expression
   // form `request.security({ interval }, (bar) => …)` route through this one
   // entry: `slot: true` injects the slot id as the first argument regardless
@@ -1388,6 +1437,142 @@ function inMemoryStateStore() {
   };
 }
 
+// ../runtime/dist/bufferSnapshot.js
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isInteger(value) {
+  return typeof value === "number" && Number.isInteger(value);
+}
+function finiteOrNull(value) {
+  return Number.isFinite(value) ? value : null;
+}
+function restoreNumber(value) {
+  if (value === null)
+    return Number.NaN;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+function isBufferSnapshot(value) {
+  if (!isRecord(value))
+    return false;
+  if (!isInteger(value.headIndex) || !isInteger(value.filled))
+    return false;
+  return Array.isArray(value.values) && value.values.every((entry) => entry === null || typeof entry === "number" && Number.isFinite(entry));
+}
+function serialiseBuffer(buffer) {
+  const snapshot6 = buffer.serialiseSnapshotBuffer();
+  return {
+    headIndex: snapshot6.headIndex,
+    filled: snapshot6.filled,
+    values: snapshot6.values
+  };
+}
+function restoreBuffer(snapshot6, capacity) {
+  const buffer = new Float64RingBuffer(capacity);
+  try {
+    buffer.restoreFromSnapshotBuffer(snapshot6);
+    return buffer;
+  } catch {
+    return null;
+  }
+}
+
+// ../runtime/dist/state/arrayStateSlot.js
+var ArrayStateSlot = class {
+  constructor(capacity) {
+    __publicField(this, "capacity");
+    __publicField(this, "committedRing");
+    __publicField(this, "tentativeRing");
+    __publicField(this, "handle");
+    this.capacity = capacity;
+    this.committedRing = new Float64RingBuffer(capacity);
+    this.tentativeRing = new Float64RingBuffer(capacity);
+    this.handle = buildArrayHandle(this);
+  }
+  /** Commit the tentative ring into the committed ring (bar close). */
+  onBarClose() {
+    this.committedRing.copyFrom(this.tentativeRing);
+  }
+  /** Roll the tentative ring back to the committed ring (head-replacing tick). */
+  onBarTick() {
+    this.tentativeRing.copyFrom(this.committedRing);
+  }
+};
+function buildArrayHandle(slot) {
+  return {
+    push(value) {
+      slot.tentativeRing.append(value);
+    },
+    get(n) {
+      return slot.tentativeRing.at(n);
+    },
+    last() {
+      return slot.tentativeRing.at(0);
+    },
+    clear() {
+      slot.tentativeRing.reset();
+    },
+    get size() {
+      return slot.tentativeRing.length;
+    },
+    get capacity() {
+      return slot.capacity;
+    }
+  };
+}
+function createArrayStateSlot(capacity) {
+  return new ArrayStateSlot(capacity);
+}
+function restoreArrayStateSlot(committedRing, tentativeRing) {
+  const slot = new ArrayStateSlot(committedRing.capacity);
+  slot.committedRing.copyFrom(committedRing);
+  slot.tentativeRing.copyFrom(tentativeRing);
+  return slot;
+}
+
+// ../runtime/dist/state/arrayPersistence.js
+var ARRAY_SLOT_SUFFIX = ":array";
+function isArraySlotSnapshotKey(key) {
+  return key.endsWith(ARRAY_SLOT_SUFFIX);
+}
+function serialiseArraySlots(ctx) {
+  const out = {};
+  for (const [key, slot] of ctx.arraySlots.entries()) {
+    out[key] = {
+      kind: "state.array",
+      capacity: slot.capacity,
+      committed: serialiseBuffer(slot.committedRing),
+      tentative: serialiseBuffer(slot.tentativeRing)
+    };
+  }
+  return Object.freeze(out);
+}
+function restoreArraySlotSnapshot(snapshot6) {
+  if (!isRecord(snapshot6) || snapshot6.kind !== "state.array")
+    return null;
+  if (!isInteger(snapshot6.capacity) || snapshot6.capacity <= 0)
+    return null;
+  const { committed, tentative } = snapshot6;
+  if (!isBufferSnapshot(committed) || !isBufferSnapshot(tentative))
+    return null;
+  const committedRing = restoreBuffer(committed, snapshot6.capacity);
+  const tentativeRing = restoreBuffer(tentative, snapshot6.capacity);
+  if (committedRing === null || tentativeRing === null)
+    return null;
+  return restoreArrayStateSlot(committedRing, tentativeRing);
+}
+function restoreArraySlots(ctx, slots) {
+  ctx.arraySlots.clear();
+  for (const [key, value] of Object.entries(slots)) {
+    if (!isArraySlotSnapshotKey(key))
+      continue;
+    const slot = restoreArraySlotSnapshot(value);
+    if (slot !== null) {
+      ctx.arraySlots.set(key, slot);
+    }
+  }
+}
+
 // ../runtime/dist/state/seriesSlot.js
 function makeSeriesSlotView(buffer) {
   const reads = makeSeriesView(buffer);
@@ -1488,44 +1673,14 @@ function resetSeriesHeads(ctx) {
     resetSeriesSlotHead(slot);
   }
 }
-
-// ../runtime/dist/bufferSnapshot.js
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function resetTentativeArraySlots(ctx) {
+  for (const slot of ctx.arraySlots.values()) {
+    slot.onBarTick();
+  }
 }
-function isInteger(value) {
-  return typeof value === "number" && Number.isInteger(value);
-}
-function finiteOrNull(value) {
-  return Number.isFinite(value) ? value : null;
-}
-function restoreNumber(value) {
-  if (value === null)
-    return Number.NaN;
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-function isBufferSnapshot(value) {
-  if (!isRecord(value))
-    return false;
-  if (!isInteger(value.headIndex) || !isInteger(value.filled))
-    return false;
-  return Array.isArray(value.values) && value.values.every((entry) => entry === null || typeof entry === "number" && Number.isFinite(entry));
-}
-function serialiseBuffer(buffer) {
-  const snapshot6 = buffer.serialiseSnapshotBuffer();
-  return {
-    headIndex: snapshot6.headIndex,
-    filled: snapshot6.filled,
-    values: snapshot6.values
-  };
-}
-function restoreBuffer(snapshot6, capacity) {
-  const buffer = new Float64RingBuffer(capacity);
-  try {
-    buffer.restoreFromSnapshotBuffer(snapshot6);
-    return buffer;
-  } catch {
-    return null;
+function commitArraySlots(ctx) {
+  for (const slot of ctx.arraySlots.values()) {
+    slot.onBarClose();
   }
 }
 
@@ -1626,6 +1781,7 @@ function asMutableSlot(slot) {
 // ../runtime/dist/state/stateNamespace.js
 var stateKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:state`;
 var seriesKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:series`;
+var arrayKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:array`;
 function getCtx(name) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
@@ -1659,6 +1815,17 @@ function getOrAllocateSeries(slotId, init) {
   ctx.seriesSlots.set(key, slot);
   return slot.view;
 }
+function getOrAllocateArray(slotId, capacity) {
+  const ctx = getCtx("state.array");
+  const key = arrayKey(ctx, slotId);
+  const existing = ctx.arraySlots.get(key);
+  if (existing !== void 0) {
+    return existing.handle;
+  }
+  const slot = createArrayStateSlot(capacity);
+  ctx.arraySlots.set(key, slot);
+  return slot.handle;
+}
 function buildStateNamespace() {
   const ns = {
     float: (slotId, init) => getOrAllocate("state.float", slotId, init, false),
@@ -1666,6 +1833,7 @@ function buildStateNamespace() {
     bool: (slotId, init) => getOrAllocate("state.bool", slotId, init, false),
     string: (slotId, init) => getOrAllocate("state.string", slotId, init, false),
     series: (slotId, init) => getOrAllocateSeries(slotId, init),
+    array: (slotId, capacity) => getOrAllocateArray(slotId, capacity),
     tick: {
       float: (slotId, init) => getOrAllocate("state.tick.float", slotId, init, true),
       int: (slotId, init) => getOrAllocate("state.tick.int", slotId, init, true),
@@ -2051,7 +2219,7 @@ function createRuntimeViews(opts = {}) {
 }
 
 // ../runtime/dist/request/securityExprRunner.js
-function makeFoldBar(foldStream, interval) {
+function makeFoldBar(foldStream, symbol, interval) {
   const { seriesViews } = foldStream;
   return Object.freeze({
     time: seriesViews.time,
@@ -2064,7 +2232,7 @@ function makeFoldBar(foldStream, interval) {
     hlc3: seriesViews.hlc3,
     ohlc4: seriesViews.ohlc4,
     hlcc4: seriesViews.hlcc4,
-    symbol: makeConstantStringSeries(""),
+    symbol: makeConstantStringSeries(symbol),
     interval: makeConstantStringSeries(interval)
   });
 }
@@ -2094,6 +2262,8 @@ function buildExprContext(parent, slotId, foldStream) {
     scriptMaxDrawings: null,
     stateSlots: /* @__PURE__ */ new Map(),
     seriesSlots: /* @__PURE__ */ new Map(),
+    arraySlots: /* @__PURE__ */ new Map(),
+    chartSymbol: parent.chartSymbol,
     secondaryStreams: parent.secondaryStreams,
     requestSecurityBars: /* @__PURE__ */ new Map(),
     requestSecurityAlignments: /* @__PURE__ */ new Map(),
@@ -2112,13 +2282,13 @@ function buildExprContext(parent, slotId, foldStream) {
   };
 }
 function createSecurityExprRunner(args) {
-  const { slotId, interval, capacity, parent } = args;
-  const foldStream = createStreamState({ interval, capacity, symbol: "" });
+  const { slotId, symbol, interval, capacity, parent } = args;
+  const foldStream = createStreamState({ interval, capacity, symbol });
   return {
     slotId,
     interval,
     foldStream,
-    foldBar: makeFoldBar(foldStream, interval),
+    foldBar: makeFoldBar(foldStream, symbol, interval),
     ctx: buildExprContext(parent, slotId, foldStream),
     output: new Float64RingBuffer(capacity),
     processedHtfCount: 0
@@ -2126,23 +2296,26 @@ function createSecurityExprRunner(args) {
 }
 function buildSecurityExprRunners(manifest, parent, capacity) {
   const bySlot = /* @__PURE__ */ new Map();
-  const byInterval = /* @__PURE__ */ new Map();
+  const byFeed = /* @__PURE__ */ new Map();
   for (const descriptor of manifest.securityExpressions ?? []) {
+    const resolved = descriptor.symbol === void 0 || descriptor.symbol === parent.chartSymbol ? void 0 : descriptor.symbol;
+    const key = feedKey(resolved, descriptor.interval);
     const runner = createSecurityExprRunner({
       slotId: descriptor.slotId,
+      symbol: descriptor.symbol ?? parent.chartSymbol,
       interval: descriptor.interval,
       capacity,
       parent
     });
     bySlot.set(descriptor.slotId, runner);
-    const list = byInterval.get(descriptor.interval);
+    const list = byFeed.get(key);
     if (list === void 0) {
-      byInterval.set(descriptor.interval, [runner]);
+      byFeed.set(key, [runner]);
     } else {
       list.push(runner);
     }
   }
-  return { bySlot, byInterval };
+  return { bySlot, byFeed };
 }
 function sampleOutput(result) {
   return typeof result === "number" ? result : result.current;
@@ -2177,8 +2350,8 @@ function foldTick(runner, bar) {
   replaceStreamHead(runner.foldStream, bar);
   runner.output.replaceHead(evaluate(runner, runner.callback, true));
 }
-function driveSecurityExpressions(parent, interval, mode, bar) {
-  const runners = parent.securityExprRunnersByInterval?.get(interval);
+function driveSecurityExpressions(parent, streamKey, mode, bar) {
+  const runners = parent.securityExprRunnersByFeed?.get(streamKey);
   if (runners === void 0)
     return;
   for (const runner of runners) {
@@ -2248,11 +2421,11 @@ function seriesAscending(stream, sourceKey) {
   }
   return values;
 }
-function alignmentKey(slotId, interval, sourceKey) {
-  return `${slotId}|${interval}|${sourceKey}`;
+function alignmentKey(slotId, feed, sourceKey) {
+  return `${slotId}|${feed}|${sourceKey}`;
 }
-function alignedSeries(ctx, slotId, interval, sourceKey, secondary) {
-  const key = alignmentKey(slotId, interval, sourceKey);
+function alignedSeries(ctx, slotId, feed, sourceKey, secondary) {
+  const key = alignmentKey(slotId, feed, sourceKey);
   const existing = ctx.requestSecurityAlignments.get(key);
   if (existing !== void 0)
     return existing;
@@ -2287,13 +2460,13 @@ function makeAlignedSeriesProxy(ctx, produce) {
     }
   });
 }
-function makeAlignedNumberSeries(ctx, slotId, interval, sourceKey, secondary) {
-  return makeAlignedSeriesProxy(ctx, () => alignedSeries(ctx, slotId, interval, sourceKey, secondary));
+function makeAlignedNumberSeries(ctx, slotId, feed, sourceKey, secondary) {
+  return makeAlignedSeriesProxy(ctx, () => alignedSeries(ctx, slotId, feed, sourceKey, secondary));
 }
-function makeLiveSecurityBar(ctx, slotId, interval, secondary) {
+function makeLiveSecurityBar(ctx, slotId, feed, interval, secondary) {
   const numeric = /* @__PURE__ */ new Map();
   for (const key of NUMERIC_SOURCE_KEYS) {
-    numeric.set(key, makeAlignedNumberSeries(ctx, slotId, interval, key, secondary));
+    numeric.set(key, makeAlignedNumberSeries(ctx, slotId, feed, key, secondary));
   }
   return Object.freeze({
     time: numeric.get("time") ?? makeSeries(Number.NaN),
@@ -2310,57 +2483,68 @@ function makeLiveSecurityBar(ctx, slotId, interval, secondary) {
     interval: makeConstantStringSeries(interval)
   });
 }
-function fallbackNaN(ctx, cacheKey, slotId, interval, code, message2) {
-  pushOnce(ctx, code, slotId, interval, "security", message2);
+var MULTI_SYMBOL_MSG = "Adapter declares multiSymbol: false; request.security for a different symbol returns NaN";
+function fallbackNaN(ctx, cacheKey, slotId, feed, code, message2) {
+  pushOnce(ctx, code, slotId, feed, "security", message2);
   const bar = makeNanSecurityBar();
   ctx.requestSecurityBars.set(cacheKey, bar);
   return bar;
 }
-function makeSecurityBar(ctx, slotId, interval) {
-  const cacheKey = `${slotId}|${interval}`;
+function makeSecurityBar(ctx, slotId, symbol, interval) {
+  const feed = feedKey(symbol, interval);
+  const cacheKey = `${slotId}|${feed}`;
   const existing = ctx.requestSecurityBars.get(cacheKey);
   if (existing !== void 0)
     return existing;
+  if (symbol !== void 0 && !ctx.capabilities.multiSymbol) {
+    return fallbackNaN(ctx, cacheKey, slotId, feed, "multi-symbol-not-supported", MULTI_SYMBOL_MSG);
+  }
   if (!ctx.capabilities.multiTimeframe) {
-    return fallbackNaN(ctx, cacheKey, slotId, interval, "multi-timeframe-not-supported", "Adapter declares multiTimeframe: false; request.security returns NaN");
+    return fallbackNaN(ctx, cacheKey, slotId, feed, "multi-timeframe-not-supported", "Adapter declares multiTimeframe: false; request.security returns NaN");
   }
   const known = ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
   if (!known) {
-    return fallbackNaN(ctx, cacheKey, slotId, interval, "unsupported-interval", `Requested interval "${interval}" is not in Capabilities.intervals`);
+    return fallbackNaN(ctx, cacheKey, slotId, feed, "unsupported-interval", `Requested interval "${interval}" is not in Capabilities.intervals`);
   }
-  const secondary = ctx.secondaryStreams.get(interval);
+  const secondary = ctx.secondaryStreams.get(feed);
   if (secondary === void 0) {
-    return fallbackNaN(ctx, cacheKey, slotId, interval, "unknown-secondary-stream", `Requested interval "${interval}" has no registered secondary stream`);
+    return fallbackNaN(ctx, cacheKey, slotId, feed, "unknown-secondary-stream", `Requested interval "${interval}" has no registered secondary stream`);
   }
-  const bar = makeLiveSecurityBar(ctx, slotId, interval, secondary);
+  const bar = makeLiveSecurityBar(ctx, slotId, feed, interval, secondary);
   ctx.requestSecurityBars.set(cacheKey, bar);
   return bar;
 }
 function makeNanNumberSeries() {
   return makeSeries(Number.NaN);
 }
-function resolveSecondaryOrDiagnose(ctx, slotId, interval) {
+function resolveSecondaryOrDiagnose(ctx, slotId, feed, interval) {
   if (!ctx.capabilities.multiTimeframe) {
-    pushOnce(ctx, "multi-timeframe-not-supported", slotId, interval, "security", "Adapter declares multiTimeframe: false; request.security returns NaN");
+    pushOnce(ctx, "multi-timeframe-not-supported", slotId, feed, "security", "Adapter declares multiTimeframe: false; request.security returns NaN");
     return void 0;
   }
   if (!ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval)) {
-    pushOnce(ctx, "unsupported-interval", slotId, interval, "security", `Requested interval "${interval}" is not in Capabilities.intervals`);
+    pushOnce(ctx, "unsupported-interval", slotId, feed, "security", `Requested interval "${interval}" is not in Capabilities.intervals`);
     return void 0;
   }
-  const secondary = ctx.secondaryStreams.get(interval);
+  const secondary = ctx.secondaryStreams.get(feed);
   if (secondary === void 0) {
-    pushOnce(ctx, "unknown-secondary-stream", slotId, interval, "security", `Requested interval "${interval}" has no registered secondary stream`);
+    pushOnce(ctx, "unknown-secondary-stream", slotId, feed, "security", `Requested interval "${interval}" has no registered secondary stream`);
   }
   return secondary;
 }
-function makeSecurityExprSeries(ctx, runner, interval) {
-  const cacheKey = `${runner.slotId}|${interval}`;
+function makeSecurityExprSeries(ctx, runner, feed, isDifferentSymbol) {
+  const cacheKey = `${runner.slotId}|${feed}`;
   const cache = ctx.requestSecurityExprSeries;
   const existing = cache?.get(cacheKey);
   if (existing !== void 0)
     return existing;
-  const secondary = resolveSecondaryOrDiagnose(ctx, runner.slotId, interval);
+  if (isDifferentSymbol && !ctx.capabilities.multiSymbol) {
+    pushOnce(ctx, "multi-symbol-not-supported", runner.slotId, feed, "security", MULTI_SYMBOL_MSG);
+    const nan = makeNanNumberSeries();
+    cache?.set(cacheKey, nan);
+    return nan;
+  }
+  const secondary = resolveSecondaryOrDiagnose(ctx, runner.slotId, feed, runner.interval);
   const series = secondary === void 0 ? makeNanNumberSeries() : makeAlignedSeriesProxy(ctx, () => getOrAlign(ascendingBarsFor(ctx, secondary), ascendingValues(runner.output), ascendingBarsFor(ctx, ctx.stream)));
   cache?.set(cacheKey, series);
   return series;
@@ -2374,18 +2558,23 @@ function getCtx2(name) {
   }
   return ctx;
 }
+function resolveSymbol(ctx, symbol) {
+  return symbol === void 0 || symbol === ctx.chartSymbol ? void 0 : symbol;
+}
 function security2(slotId, opts, expr) {
   const ctx = getCtx2("request.security");
+  const symbol = resolveSymbol(ctx, opts.symbol);
+  const feed = feedKey(symbol, opts.interval);
   const runner = ctx.securityExprRunners?.get(slotId);
   if (runner === void 0) {
-    return makeSecurityBar(ctx, slotId, opts.interval);
+    return makeSecurityBar(ctx, slotId, symbol, opts.interval);
   }
   if (expr !== void 0) {
-    const secondary = ctx.secondaryStreams.get(opts.interval);
+    const secondary = ctx.secondaryStreams.get(feed);
     if (secondary !== void 0)
       captureAndCatchUp(runner, expr, secondary);
   }
-  return makeSecurityExprSeries(ctx, runner, opts.interval);
+  return makeSecurityExprSeries(ctx, runner, feed, symbol !== void 0);
 }
 function lowerTf2(slotId, opts) {
   const ctx = getCtx2("request.lowerTf");
@@ -2519,6 +2708,7 @@ var VALID_DIAGNOSTIC_CODES = /* @__PURE__ */ new Set([
   "unsupported-pane",
   "unsupported-interval",
   "multi-timeframe-not-supported",
+  "multi-symbol-not-supported",
   "unknown-secondary-stream",
   "lookback-exceeded",
   "drawing-budget-exceeded",
@@ -14781,6 +14971,7 @@ async function runComputeBody(args) {
     if (isTick) {
       resetTentativeStateSlots(state2.runtimeContext);
       resetSeriesHeads(state2.runtimeContext);
+      resetTentativeArraySlots(state2.runtimeContext);
     } else {
       advanceSeriesSlots(state2.runtimeContext);
     }
@@ -14791,6 +14982,7 @@ async function runComputeBody(args) {
         commitStateSlots(state2.runtimeContext);
         flushStateSlots(state2.runtimeContext);
         commitSeriesSlots(state2.runtimeContext);
+        commitArraySlots(state2.runtimeContext);
       }
     } catch (err) {
       if (!isRuntimeErrorHalt(err))
@@ -14944,6 +15136,8 @@ function buildSubRunnerState(args, slotIdPrefix, isDep) {
       scriptMaxDrawings: args.compiled.manifest.maxDrawings ?? null,
       stateSlots: /* @__PURE__ */ new Map(),
       seriesSlots: /* @__PURE__ */ new Map(),
+      arraySlots: /* @__PURE__ */ new Map(),
+      chartSymbol: args.chartSymbol,
       secondaryStreams: args.secondaryStreams,
       requestSecurityBars: /* @__PURE__ */ new Map(),
       requestSecurityAlignments: /* @__PURE__ */ new Map(),
@@ -15153,6 +15347,7 @@ function dispose(state2) {
   state2.runtimeContext.drawingSubIdCounters.clear();
   state2.runtimeContext.stateSlots.clear();
   state2.runtimeContext.seriesSlots.clear();
+  state2.runtimeContext.arraySlots.clear();
   state2.runtimeContext.secondaryStreams.clear();
   state2.runtimeContext.requestSecurityBars.clear();
   state2.runtimeContext.requestSecurityAlignments.clear();
@@ -15558,6 +15753,7 @@ function primarySectionSlots(state2) {
   return Object.freeze({
     ...serialiseStateSlots(state2.runtimeContext),
     ...serialiseSeriesSlots(state2.runtimeContext),
+    ...serialiseArraySlots(state2.runtimeContext),
     ...serialiseTaSlots(state2.mainStream)
   });
 }
@@ -15565,7 +15761,8 @@ function runnerSection(ctx) {
   return Object.freeze({
     slots: Object.freeze({
       ...serialiseStateSlots(ctx),
-      ...serialiseSeriesSlots(ctx)
+      ...serialiseSeriesSlots(ctx),
+      ...serialiseArraySlots(ctx)
     })
   });
 }
@@ -15614,7 +15811,7 @@ function resolveMainStreamSnapshot(snapshot6, mainInterval) {
 function scalarStateSlots(slots) {
   const out = {};
   for (const [slotKey, value] of Object.entries(slots)) {
-    if (!isTaSlotSnapshotKey(slotKey) && !isSeriesSlotSnapshotKey(slotKey)) {
+    if (!isTaSlotSnapshotKey(slotKey) && !isSeriesSlotSnapshotKey(slotKey) && !isArraySlotSnapshotKey(slotKey)) {
       out[slotKey] = value;
     }
   }
@@ -15623,6 +15820,7 @@ function scalarStateSlots(slots) {
 function restoreRunnerSlots(ctx, slots, capacity) {
   restoreStateSlots(ctx, scalarStateSlots(slots));
   restoreSeriesSlots(ctx, slots, capacity);
+  restoreArraySlots(ctx, slots);
 }
 function pushMalformedSection(state2, message2) {
   pushDiagnostic(state2.emissions, {
@@ -15733,12 +15931,19 @@ function resolveCapacity(manifest) {
   const fallback2 = manifest.maxLookback + 1;
   return Math.max(1, ohlcv ?? fallback2, dynamicFallback ?? 0);
 }
-function createSecondaryStreams(manifest, capacity) {
+function legacyFeedsFromIntervals(manifest) {
+  return manifest.requestedIntervals.map((interval) => ({ interval }));
+}
+function createSecondaryStreams(manifest, capacity, chartSymbol) {
   const streams = /* @__PURE__ */ new Map();
-  for (const interval of manifest.requestedIntervals) {
-    if (streams.has(interval))
+  const feeds = manifest.requestedFeeds ?? legacyFeedsFromIntervals(manifest);
+  for (const feed of feeds) {
+    const resolved = feed.symbol === void 0 || feed.symbol === chartSymbol ? void 0 : feed.symbol;
+    const key = feedKey(resolved, feed.interval);
+    if (streams.has(key))
       continue;
-    streams.set(interval, createStreamState({ interval, capacity, symbol: "" }));
+    const symbol = feed.symbol ?? chartSymbol;
+    streams.set(key, createStreamState({ interval: feed.interval, capacity, symbol }));
   }
   return streams;
 }
@@ -15795,8 +16000,9 @@ function primaryOf(compiled) {
 }
 function buildPrimaryState(args, primary) {
   const capacity = resolveCapacity(primary.manifest);
+  const chartSymbol = args.symInfo?.ticker ?? "";
   const mainStream = createStreamState({ interval: "", capacity, symbol: "" });
-  const secondaryStreams = createSecondaryStreams(primary.manifest, capacity);
+  const secondaryStreams = createSecondaryStreams(primary.manifest, capacity, chartSymbol);
   const stateStore = args.stateStore ?? inMemoryStateStore();
   const now = args.now ?? Date.now;
   const views = createRuntimeViews({
@@ -15842,6 +16048,8 @@ function buildPrimaryState(args, primary) {
       scriptMaxDrawings: primary.manifest.maxDrawings ?? null,
       stateSlots: /* @__PURE__ */ new Map(),
       seriesSlots: /* @__PURE__ */ new Map(),
+      arraySlots: /* @__PURE__ */ new Map(),
+      chartSymbol,
       secondaryStreams,
       requestSecurityBars: /* @__PURE__ */ new Map(),
       requestSecurityAlignments: /* @__PURE__ */ new Map(),
@@ -15871,7 +16079,7 @@ function buildPrimaryState(args, primary) {
   state2.runtimeContext.plotOverrides = args.plotOverrides ?? args.resolvePlotOverrides?.(primary.manifest.name) ?? Object.freeze({});
   const exprRunners = buildSecurityExprRunners(primary.manifest, state2.runtimeContext, capacity);
   state2.runtimeContext.securityExprRunners = exprRunners.bySlot;
-  state2.runtimeContext.securityExprRunnersByInterval = exprRunners.byInterval;
+  state2.runtimeContext.securityExprRunnersByFeed = exprRunners.byFeed;
   state2.runtimeContext.requestSecurityExprSeries = /* @__PURE__ */ new Map();
   return state2;
 }
@@ -15893,10 +16101,12 @@ function attachBundle(primary, bundle, capabilities2, now) {
     }))
   ];
   const store = createDepOutputStore({ producers, capacity: storeCapacity });
+  const { chartSymbol } = primary.runtimeContext;
   const depRunners = bundle.dependencies.map((entry) => createDepRunner({
     compiled: entry.compiled,
     localId: entry.localId,
     parentCapabilities: capabilities2,
+    chartSymbol,
     mainStream: primary.mainStream,
     secondaryStreams: primary.runtimeContext.secondaryStreams,
     depOutputStore: store,
@@ -15907,6 +16117,7 @@ function attachBundle(primary, bundle, capabilities2, now) {
     compiled: entry.compiled,
     exportName: entry.exportName,
     parentCapabilities: capabilities2,
+    chartSymbol,
     mainStream: primary.mainStream,
     secondaryStreams: primary.runtimeContext.secondaryStreams,
     depOutputStore: store,

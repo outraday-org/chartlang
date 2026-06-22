@@ -166,7 +166,7 @@ plot hashes, alert counts, and diagnostic codes.
 
 ## Pine round-trip invariants
 
-- **The three `pine-converter-round-trip-*` scenarios convert a committed
+- **The `pine-converter-round-trip-*` scenarios convert a committed
   `.pine` fixture at SCENARIO-MODULE-LOAD time.** Each scenario
   `readFileSync`s a `packages/pine-converter/fixtures/<n>.pine` file (via an
   `import.meta.url`-relative URL), calls `convert(source, { barInterval:
@@ -175,7 +175,10 @@ plot hashes, alert counts, and diagnostic codes.
   string exactly like any other inline scenario — the scenario module NEVER
   imports `compile`/`createScriptRunner`, preserving the harness contract.
   This makes `@invinite-org/chartlang-pine-converter` a `dependencies` entry of
-  this package (the scenarios are `src`, shipped in `dist`).
+  this package (the scenarios are `src`, shipped in `dist`). The drawing camps
+  (A/B/table) pin a `drawing-hash`; the two value-lowering round-trips
+  (`var-series` → `state.series`, `var-array` → `state.array`) pin a
+  `plot-hash` instead (they emit plots, not drawings).
 - **The pinned `drawing-hash` is GENERATED from a real
   convert→compile→runtime run, not hand-authored.** Re-pin via the harness's
   "expected vs actual" failure message (run
@@ -202,6 +205,24 @@ plot hashes, alert counts, and diagnostic codes.
   (the live head) tracks the unshifted close and pins to its own
   `LIVE_HASH`. Re-pin both via the runner's "expected vs actual" message
   only when the golden bars change.
+
+## `state.array` rolling-window invariant
+
+- **`state-array-rolling-window` bounds its accumulation loop by the
+  capacity LITERAL, not `win.size`.** The scenario pushes `bar.close.current`
+  into a `state.array<number>(5)` each bar and sums the window. The natural
+  `for (let i = 0; i < win.size; i++)` form is a COMPILE ERROR
+  (`unbounded-loop` — the compiler requires a literal numeric bound), so the
+  loop counts to the literal `5` and an inner `if (i < win.size)` guard skips
+  the unfilled slots during warmup. The in-loop `win.get(i)` is a HANDLE
+  method (loop-legal); only the allocation `state.array(...)` is a stateful
+  registry callsite. The window-mean plot pins to its own SHA-256; the
+  `ta.sma(close, 5)` plot pins to the SAME `TA_SMA_HASH` as
+  `barCloseDirectIndex.scenario.ts` (the runtime SMA is deterministic over
+  the shared golden bars). Do NOT assert the window-mean and ta.sma hashes
+  are equal — the window mean is finite from bar 0 (averages over `size < 5`)
+  while ta.sma has a NaN warmup. Re-pin via the runner's "expected vs actual"
+  message only when the golden bars change.
 
 ## `request.security` expression-form invariants
 
@@ -232,3 +253,46 @@ plot hashes, alert counts, and diagnostic codes.
   coverage stays in the compiler's `validateSecurityExpr.test.ts`. Adding a
   conformance scenario for it would require extending the `Scenario` type +
   `runConformanceSuite` with a compile-fail assertion mode first.
+
+## Multi-symbol `request.security` invariants
+
+- **`Scenario.secondaryFeeds` keys secondary streams by the composite
+  `feedKey(symbol, interval)`, NOT a hand-composed string.** It is the
+  multi-symbol sibling of the interval-keyed `secondaryCandles`
+  (back-compat). `runOne`'s `resolveSecondaryStreams` flattens both into one
+  `streamKey → bars` list; a `secondaryFeeds` entry derives its `streamKey`
+  via the core `feedKey(feed.symbol, feed.interval)` helper so the wire key
+  matches the runtime's composite stream key byte-for-byte (the load-bearing
+  format both sides must agree on). The harness then feeds each bar tagged
+  with that `streamKey` exactly as it does for `secondaryCandles`, so NO
+  routing change was needed — the runtime already keys secondary streams by
+  `feedKey`. The two fields may be combined; their keys must not collide.
+- **`multiSymbolRatio` / `multiSymbolNotSupported` prove the two-symbol key
+  end-to-end.** Both inline `plot(spy.close.current / qqq.close.current)` for
+  `AMEX:SPY` + `NASDAQ:QQQ` at `"1D"`, fed via `secondaryFeeds`
+  (`MTF_SPY_FIXTURE_BARS` 600/620/640, `MTF_QQQ_FIXTURE_BARS` 300/310/320 —
+  timestamp-aligned to `MTF_DAILY_FIXTURE_BARS`). The happy-path golden
+  (`f3c29388…`, `multiTimeframe: true` + `multiSymbol: true`) carries the
+  finite ratio (~2) — a value reachable ONLY if the composite key routed the
+  two fixtures to distinct streams (the main golden band is ~100, a
+  same-symbol read would be 1). `SecurityBar.close` is `Series<Price>` (NOT
+  number-coercible like `bar.close`), so the ratio reads `.current`. The
+  capability-false sibling (`multiSymbol: false`, `multiTimeframe: true`)
+  pins an all-NaN `plot-hash` (`18fb0cce…`, byte-identical to
+  `mtfCapabilityFalse`'s all-NaN hash — same `{ bar, value: null }` tuples,
+  do not assume divergence on a re-pin) + `diagnostic-code-present:
+  "multi-symbol-not-supported"`. Re-mint hashes via the harness's "expected
+  vs actual" failure message exactly like every other scenario.
+- **`multiSymbolRatio.test.ts` is the distinctness guard.** The harness
+  vocabulary cannot express "the two symbol series are distinct", so the
+  co-located test compiles the ratio source, drives it through
+  `createScriptRunner` with the `{ multiTimeframe: true, multiSymbol: true }`
+  bag + both fixtures pushed under their `feedKey` streamKeys, and asserts the
+  ratio is finite and ≠ 1 (~2) — the regression guard that the composite key
+  actually separates symbols rather than collapsing them onto one stream.
+  Both scenarios are in `ALL_SCENARIOS` and in `MULTI_SYMBOL_SCENARIOS` for
+  the end-to-end pass in `runConformanceSuite.test.ts`. The compiler typechecks
+  the `{ symbol, interval }` opts against its in-memory core ambient shim
+  (`packages/compiler/src/program.ts`), so a STALE compiler `dist` (missing
+  `RequestSecurityOpts.symbol`) makes these scenarios compile-fail — rebuild
+  core + compiler first if that happens.

@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/request-security-different-symbol",
+        "severity": "info",
+        "message": "`request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 8,
+            "endLine": 3,
+            "endColumn": 51
+        },
+        "suggestion": "Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol."
+    }
+]

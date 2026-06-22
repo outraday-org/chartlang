@@ -35,8 +35,12 @@ export type CandleEvent =
           readonly kind: "history";
           readonly bars: ReadonlyArray<Bar>;
           /**
-           * Secondary-stream key. Omit for the main stream; set to a
-           * requested interval value such as `"1D"` for MTF candles.
+           * Secondary-stream feed key. Omit for the main stream; otherwise set
+           * to the composite key built by core's `feedKey(symbol, interval)` —
+           * the bare interval (`"1D"`) for a higher-timeframe stream of the
+           * chart's own symbol, or `"<symbol>@<interval>"` (`"AMEX:SPY@1D"`)
+           * for a different-symbol stream. Must match the runtime's
+           * secondary-stream key byte-for-byte.
            *
            * @since 0.5
            */
@@ -46,8 +50,12 @@ export type CandleEvent =
           readonly kind: "close";
           readonly bar: Bar;
           /**
-           * Secondary-stream key. Omit for the main stream; set to a
-           * requested interval value such as `"1D"` for MTF candles.
+           * Secondary-stream feed key. Omit for the main stream; otherwise set
+           * to the composite key built by core's `feedKey(symbol, interval)` —
+           * the bare interval (`"1D"`) for a higher-timeframe stream of the
+           * chart's own symbol, or `"<symbol>@<interval>"` (`"AMEX:SPY@1D"`)
+           * for a different-symbol stream. Must match the runtime's
+           * secondary-stream key byte-for-byte.
            *
            * @since 0.5
            */
@@ -57,8 +65,12 @@ export type CandleEvent =
           readonly kind: "tick";
           readonly bar: Bar;
           /**
-           * Secondary-stream key. Omit for the main stream; set to a
-           * requested interval value such as `"1D"` for MTF candles.
+           * Secondary-stream feed key. Omit for the main stream; otherwise set
+           * to the composite key built by core's `feedKey(symbol, interval)` —
+           * the bare interval (`"1D"`) for a higher-timeframe stream of the
+           * chart's own symbol, or `"<symbol>@<interval>"` (`"AMEX:SPY@1D"`)
+           * for a different-symbol stream. Must match the runtime's
+           * secondary-stream key byte-for-byte.
            *
            * @since 0.5
            */
@@ -242,6 +254,7 @@ export type DrawingCounts = CoreDrawingCounts;
  *         inputs: new Set(),
  *         intervals: [],
  *         multiTimeframe: false,
+ *         multiSymbol: false,
  *         subPanes: 0,
  *         symInfoFields: new Set(),
  *         maxDrawingsPerScript: {
@@ -302,6 +315,25 @@ export type Capabilities = {
      *     void enabled;
      */
     readonly multiTimeframe: boolean;
+    /**
+     * Whether the adapter can deliver candle streams for a **different symbol**
+     * than the chart's own (e.g. a cross-instrument ratio). A strictly larger
+     * capability than {@link Capabilities.multiTimeframe} — an adapter can
+     * resample its own symbol to a higher timeframe without being able to fetch
+     * another instrument. `false` triggers the all-NaN fallback for any
+     * `request.security({ symbol })` whose symbol differs from the chart symbol
+     * (a chart-symbol / interval-only request stays gated only by
+     * `multiTimeframe`). Independent of `multiTimeframe` — the runtime gates
+     * per request (symbol differs ⇒ `multiSymbol`; interval differs ⇒
+     * `multiTimeframe`).
+     *
+     * @since 1.2
+     * @stable
+     * @example
+     *     const enabled: Capabilities["multiSymbol"] = false;
+     *     void enabled;
+     */
+    readonly multiSymbol: boolean;
     /**
      * Max number of sub-panes the adapter can render for one script. Use
      * `Number.MAX_SAFE_INTEGER` as the unlimited sentinel per PLAN §7.2.
@@ -712,6 +744,13 @@ export type DrawingEmission = {
  * - `dep-output-not-titled` — producer's `plot(...)` has no `title`,
  *   so consumers cannot reference it by name.
  *
+ * `multi-symbol-not-supported` — a `request.security` for a DIFFERENT symbol
+ * than the chart's against an adapter declaring `multiSymbol: false` degrades
+ * to all-NaN, mirroring `multi-timeframe-not-supported`. The runtime gates per
+ * request (symbol differs ⇒ this code; interval differs ⇒
+ * `multi-timeframe-not-supported`), and the symbol gate precedes the timeframe
+ * gate so a both-different request emits only this code.
+ *
  * @since 0.1
  * @stable
  * @example
@@ -727,6 +766,7 @@ export type DiagnosticCode =
     | "unsupported-pane"
     | "unsupported-interval"
     | "multi-timeframe-not-supported"
+    | "multi-symbol-not-supported"
     | "unknown-secondary-stream"
     | "lookback-exceeded"
     | "drawing-budget-exceeded"

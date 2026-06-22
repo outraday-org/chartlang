@@ -98,6 +98,39 @@
   `stateStore` flush for series (the `seriesSlots` map is the live source
   across bars; snapshots serialise from it directly), unlike scalar
   `state.*` which `flushStateSlots` mirrors into `StateStore`.
+- **`state.array` slots are a parallel `arraySlots` map driven from
+  `runComputeBody`, NOT folded into `stateSlots`.**
+  `RuntimeContext.arraySlots` holds one `ArrayStateSlot`
+  (`state/arrayStateSlot.ts`) per `state.array(capacity)` callsite, keyed
+  `${slotIdPrefix}${slotId}:array`. Each slot is **two** `Float64RingBuffer`s
+  (`committedRing` / `tentativeRing`) behind an identity-stable
+  `MutableArraySlot<number>` handle (`buildArrayHandle`: `push`/`get`/`last`/
+  `clear` + `size`/`capacity`, all routed through the **tentative** ring —
+  mirroring `StateSlot.set`/`get` reading/writing tentative; committed is the
+  rollback source). **Decision: a parallel map (like `seriesSlots`), not a
+  `kind`-tagged `stateSlots`** — both collection primitives share the two-ring
+  shape, snapshot directly from the live map with no `StateStore` flush, and
+  keeping the scalar `stateSlots` generic untouched is cleaner than a
+  discriminated union + a special-cased `flushStateSlots`. The two-ring tick
+  discipline mirrors `StateSlot`: `onBarClose` copies tentative→committed,
+  `onBarTick` copies committed→tentative, via a typed-array
+  `Float64RingBuffer.copyFrom` memcpy (`O(capacity)`, bounded by the required
+  capacity literal — see `tasks/future/state-array/README.md` Architecture
+  Decisions). Lifecycle runs in `execution/runComputeStep.ts:runComputeBody`
+  next to the series hooks: `commitArraySlots` after close compute,
+  `resetTentativeArraySlots` before tick compute. **There is NO advance hook**
+  (unlike `state.series` — the array changes only when the author pushes, so a
+  slot first allocated mid-compute on bar K is not pre-advanced; its pushes
+  this bar are committed on close). Snapshot keys use the `:array` suffix (vs
+  `:state` / `:series` / `ta:`) so `restoreRunnerSlots` routes them out of the
+  scalar path; `arrayPersistence.ts` serialises
+  `{ kind: "state.array", capacity, committed, tentative }` and restores both
+  rings via `restoreBuffer` at the persisted `capacity` — a script-edited
+  capacity (ring-shape mismatch) or malformed entry degrades to a fresh slot
+  without throwing. There is no `StateStore` flush for arrays (the `arraySlots`
+  map is the live source across bars); `dispose` clears the runner-local map
+  like `seriesSlots`. Bundle dep/sibling array slots ride the `slotIdPrefix`
+  isolation exactly like `state.*`.
 - **`PersistentStateStore` is a sibling lifecycle store, not the slot
   store.** `warmStart(currentMainBarTime)` restores a whole PLAN §6.9
   snapshot before the host feeds new bars; close-cadence and dispose
@@ -107,17 +140,60 @@
   stream has wrapped, `StateSnapshot` has no exact historical bar-index
   field.
 - **`request.security` is a Phase-4 NaN fallback.** Task 11 added
-  `RuntimeContext.requestSecurityBars` keyed by `slotId|interval` and
-  `diagnosedRequestKeys` keyed by `code|slotId|interval`. The cache
+  `RuntimeContext.requestSecurityBars` keyed by `slotId|feedKey` and
+  `diagnosedRequestKeys` keyed by `code|slotId|feedKey|kind`. The cache
   preserves per-callsite `SecurityBar` identity; diagnostics are deduped
   per mount and both maps are cleared on `dispose`. Do not wire real HTF
   alignment here — Phase 5 replaces only the value producer.
+- **Every secondary map/cache is keyed by the composite
+  `feedKey(symbol, interval)` (core's single shared helper — NEVER
+  re-derived inline).** `secondaryStreams`, `requestSecurityBars`
+  (`slotId|feedKey`), `requestSecurityAlignments`
+  (`slotId|feedKey|sourceKey`), `requestSecurityExprSeries`
+  (`slotId|feedKey`), and `securityExprRunnersByFeed` (the
+  secondary-close fan-out index, renamed from `…ByInterval`) all use it.
+  `RuntimeContext.chartSymbol` is the chart's own symbol resolved once at
+  mount from `args.symInfo?.ticker` (`""` when absent). `createSecondaryStreams`
+  iterates `manifest.requestedFeeds ?? legacyFeedsFromIntervals(manifest)`,
+  and `requestNamespace.security` resolves `opts.symbol ?? chartSymbol`
+  **and collapses `symbol === chartSymbol → undefined` BEFORE keying**, so an
+  omitted symbol AND an explicit chart-symbol both produce the bare-interval
+  key (`feedKey(undefined, "1D") === "1D"`) — one stream, no duplicate.
+  The same chart-symbol collapse runs in `createSecondaryStreams` and
+  `buildSecurityExprRunners` so the secondary stream key, expr-runner index,
+  caches, and diagnostics for the symbol-omitted path are byte-identical to
+  the pre-multi-symbol baseline (existing MTF goldens/snapshots do not move).
+  A genuinely different symbol keys as `"<symbol>@<interval>"` (the `@` cannot
+  appear in an interval literal, so the two key spaces never collide). The
+  host wire `CandleEvent.streamKey` carries this same composite key (Task 4/5),
+  so `pushSecondaryEvent` routes by it with no structural change.
+- **The `multiSymbol` NaN-fallback gate precedes the `multiTimeframe` gate.**
+  `makeSecurityBar` / `makeSecurityExprSeries` (`request/security.ts`) gate in
+  this order: **symbol** (`multiSymbol`) → **timeframe** (`multiTimeframe`) →
+  `unsupported-interval` → `unknown-secondary-stream`. The "is this a DIFFERENT
+  symbol?" signal is simply `symbol !== undefined` (`makeSecurityBar`) /
+  `isDifferentSymbol` (`makeSecurityExprSeries`), because `requestNamespace`'s
+  `resolveSymbol` already collapses an omitted symbol AND the chart's own ticker
+  to `undefined`. A different symbol against `capabilities.multiSymbol === false`
+  returns an all-NaN bar/series and pushes a single deduped
+  `multi-symbol-not-supported` (message: `Adapter declares multiSymbol: false;
+  request.security for a different symbol returns NaN`), keyed on the composite
+  `feedKey` so SPY-unsupported and QQQ-unsupported each warn once. A request
+  that is BOTH a different symbol AND a different interval trips ONLY the symbol
+  code (the symbol gate runs first). A chart-symbol request (omitted / chart
+  ticker) NEVER trips the symbol gate — it stays `multiTimeframe`-gated,
+  byte-identical to the pre-multi-symbol baseline. `multiSymbol: true` +
+  `multiTimeframe: false`: a different symbol at the *chart* interval is allowed
+  (symbol gate passes, no interval gate); at a *different* interval it still
+  trips `multi-timeframe-not-supported`.
 - **`request.security(opts, expr)` is driven on HTF bar close, not main
   close.** `createScriptRunner` mounts one
   `request/securityExprRunner.ts:SecurityExprRunner` per
   `manifest.securityExpressions` entry, keyed on
   `RuntimeContext.securityExprRunners` (by `slotId`) +
-  `securityExprRunnersByInterval` (for the secondary-close fan-out). Each
+  `securityExprRunnersByFeed` (keyed by the composite `feedKey(symbol,
+  interval)` for the secondary-close fan-out; a symbol-omitted callsite
+  collapses to the bare interval). Each
   runner owns a dedicated **fold `StreamState`** clocked on its HTF
   interval, a private `RuntimeContext` (`stream = foldStream`,
   `slotIdPrefix = "security:<slotId>/"`), a fold `SecurityBar` view backed
@@ -125,7 +201,8 @@
   sampled value per HTF bar). `ta.*` inside the callback read/write
   `foldStream.taSlots`, so they accumulate on the HTF clock — the whole
   point of the feature. `pushSecondaryEvent` calls
-  `driveSecurityExpressions(ctx, interval, "close" | "tick", bar)` right
+  `driveSecurityExpressions(ctx, streamKey, "close" | "tick", bar)` (where
+  `streamKey` is the composite `feedKey` the event carries) right
   after appending/replacing the real secondary stream: a **close** folds
   the bar + appends one output and increments `processedHtfCount`; a
   **tick** replace-heads the fold stream + output (no length advance,

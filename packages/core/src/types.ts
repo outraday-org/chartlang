@@ -409,6 +409,7 @@ export type PlotSlotDescriptor = {
  * @since 0.7
  * @stable
  * @example
+ *     // symbol omitted ⇒ the chart's own symbol (the HTF-only back-compat case)
  *     const unit: SecurityExpressionDescriptor = {
  *         slotId: "trend.ts:8:21#0",
  *         interval: "1W",
@@ -418,8 +419,32 @@ export type PlotSlotDescriptor = {
  */
 export type SecurityExpressionDescriptor = {
     readonly slotId: string;
+    /**
+     * Requested symbol; omitted ⇒ the chart's own symbol.
+     *
+     * @since 1.2
+     */
+    readonly symbol?: string;
     readonly interval: string;
     readonly paramName: string;
+};
+
+/**
+ * One requested secondary feed — a `(symbol, interval)` pair the script's
+ * `request.security` calls ask for. `symbol` omitted ⇒ the chart's own
+ * symbol (the higher-timeframe-only case). The compiler emits one entry per
+ * **distinct** feed; the runtime creates one secondary `StreamState` per
+ * entry, keyed by the shared `feedKey(symbol, interval)` composite.
+ *
+ * @since 1.2
+ * @stable
+ * @example
+ *     const f: RequestedFeed = { symbol: "AMEX:SPY", interval: "1D" };
+ *     void f;
+ */
+export type RequestedFeed = {
+    readonly symbol?: string;
+    readonly interval: string;
 };
 
 /**
@@ -629,10 +654,30 @@ export type ScriptManifest = {
      * @example
      *     const v: ScriptManifest["securityExpressions"] = [
      *         { slotId: "trend.ts:8:21#0", interval: "1W", paramName: "bar" },
+     *         { slotId: "aapl.ts:9:21#0", symbol: "NASDAQ:AAPL", interval: "1W", paramName: "bar" },
      *     ];
      *     void v;
      */
     readonly securityExpressions?: ReadonlyArray<SecurityExpressionDescriptor>;
+    /**
+     * Every distinct secondary feed the script's `request.security` calls
+     * request, as `(symbol?, interval)` pairs. Superset of
+     * {@link ScriptManifest.requestedIntervals}, which stays the
+     * **main-symbol** HTF projection (symbol-omitted feeds) for back-compat —
+     * adding this field is additive within `apiVersion: 1`, whereas reshaping
+     * `requestedIntervals` would not be. Absent on scripts with no
+     * `request.security` so existing manifest snapshots stay byte-identical.
+     *
+     * @since 1.2
+     * @stable
+     * @example
+     *     const v: ScriptManifest["requestedFeeds"] = [
+     *         { interval: "1W" },
+     *         { symbol: "AMEX:SPY", interval: "1D" },
+     *     ];
+     *     void v;
+     */
+    readonly requestedFeeds?: ReadonlyArray<RequestedFeed>;
     /**
      * The ES-module binding name this manifest was reached through.
      * `"default"` for `export default defineIndicator(...)`; the

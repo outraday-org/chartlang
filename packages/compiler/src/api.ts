@@ -24,6 +24,7 @@ import {
     extractRequestAnalysis,
     extractRequiresIntervals,
     runForbiddenConstructs,
+    runStateArrayCapacity,
     runStatefulCallInLoop,
     runStructuralChecks,
     validateLowerTfIntervals,
@@ -144,6 +145,7 @@ export function transformAndAnalyse(
         sourcePath,
         STATEFUL_PRIMITIVES_BY_NAME,
     );
+    const stateArrayCapacity = runStateArrayCapacity(sourceFile, checker, sourcePath);
     // PLAN §5.2 step 1: the pipeline starts with tsc programmatic-API
     // typechecking against `@invinite-org/chartlang-core`'s ambient
     // declarations. Surface every semantic error coming from the
@@ -186,6 +188,7 @@ export function transformAndAnalyse(
         ...structural.diagnostics,
         ...forbidden,
         ...statefulInLoop,
+        ...stateArrayCapacity,
         ...depGraph.diagnostics,
     ];
     const hasError = earlyDiagnostics.some((d) => d.severity === "error");
@@ -324,6 +327,9 @@ export function transformAndAnalyse(
               ...(fileRequestAnalysis.securityExpressions.length === 0
                   ? {}
                   : { securityExpressions: fileRequestAnalysis.securityExpressions }),
+              ...(fileRequestAnalysis.feeds.length === 0
+                  ? {}
+                  : { requestedFeeds: fileRequestAnalysis.feeds }),
           });
 
     const allDiagnostics: CompileDiagnostic[] = [
@@ -406,11 +412,15 @@ function buildDrawnManifest(
         ...(dependencies === undefined || dependencies.length === 0 ? {} : { dependencies }),
         ...(outputs === undefined ? {} : { outputs }),
         ...(plotSlots === undefined || plotSlots.length === 0 ? {} : { plots: plotSlots }),
-        // Mirror `plots` scoping: the flat security-expression list attaches to
-        // the default manifest only (the call that also receives `plotSlots`).
+        // Mirror `plots` scoping: the flat security-expression list and the
+        // requested-feeds list attach to the default manifest only (the call
+        // that also receives `plotSlots`).
         ...(plotSlots === undefined || requestAnalysis.securityExpressions.length === 0
             ? {}
             : { securityExpressions: requestAnalysis.securityExpressions }),
+        ...(plotSlots === undefined || requestAnalysis.feeds.length === 0
+            ? {}
+            : { requestedFeeds: requestAnalysis.feeds }),
         exportName: drawn.exportName,
         isDrawn: true,
         ...(siblings !== undefined && siblings.length > 0 ? { siblings } : {}),

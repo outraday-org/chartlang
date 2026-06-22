@@ -8,6 +8,7 @@ import type {
     SecurityExpr,
     Series,
 } from "@invinite-org/chartlang-core";
+import { feedKey } from "@invinite-org/chartlang-core";
 
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
 import { Float64RingBuffer } from "../ringBuffer.js";
@@ -60,24 +61,25 @@ export type SecurityExprRunner = {
 
 /**
  * The pair of lookup maps the runtime threads onto its {@link RuntimeContext}:
- * `bySlot` keyed by `slotId` (overload dispatch + capture) and `byInterval`
- * keyed by `IntervalDescriptor.value` (the fan-out from a secondary close).
+ * `bySlot` keyed by `slotId` (overload dispatch + capture) and `byFeed` keyed
+ * by the composite `feedKey(symbol, interval)` (the fan-out from a secondary
+ * close, whose `streamKey` carries that same composite key).
  *
  * @since 0.7
  * @stable
  * @example
  *     const registry: SecurityExprRegistry = {
  *         bySlot: new Map(),
- *         byInterval: new Map(),
+ *         byFeed: new Map(),
  *     };
  *     void registry;
  */
 export type SecurityExprRegistry = {
     readonly bySlot: Map<string, SecurityExprRunner>;
-    readonly byInterval: ReadonlyMap<string, ReadonlyArray<SecurityExprRunner>>;
+    readonly byFeed: ReadonlyMap<string, ReadonlyArray<SecurityExprRunner>>;
 };
 
-function makeFoldBar(foldStream: StreamState, interval: string): SecurityBar {
+function makeFoldBar(foldStream: StreamState, symbol: string, interval: string): SecurityBar {
     const { seriesViews } = foldStream;
     return Object.freeze({
         time: seriesViews.time,
@@ -90,7 +92,7 @@ function makeFoldBar(foldStream: StreamState, interval: string): SecurityBar {
         hlc3: seriesViews.hlc3,
         ohlc4: seriesViews.ohlc4,
         hlcc4: seriesViews.hlcc4,
-        symbol: makeConstantStringSeries(""),
+        symbol: makeConstantStringSeries(symbol),
         interval: makeConstantStringSeries(interval),
     });
 }
@@ -125,6 +127,8 @@ function buildExprContext(
         scriptMaxDrawings: null,
         stateSlots: new Map(),
         seriesSlots: new Map(),
+        arraySlots: new Map(),
+        chartSymbol: parent.chartSymbol,
         secondaryStreams: parent.secondaryStreams,
         requestSecurityBars: new Map(),
         requestSecurityAlignments: new Map(),
@@ -158,17 +162,18 @@ function buildExprContext(
  */
 export function createSecurityExprRunner(args: {
     readonly slotId: string;
+    readonly symbol: string;
     readonly interval: string;
     readonly capacity: number;
     readonly parent: RuntimeContext;
 }): SecurityExprRunner {
-    const { slotId, interval, capacity, parent } = args;
-    const foldStream = createStreamState({ interval, capacity, symbol: "" });
+    const { slotId, symbol, interval, capacity, parent } = args;
+    const foldStream = createStreamState({ interval, capacity, symbol });
     return {
         slotId,
         interval,
         foldStream,
-        foldBar: makeFoldBar(foldStream, interval),
+        foldBar: makeFoldBar(foldStream, symbol, interval),
         ctx: buildExprContext(parent, slotId, foldStream),
         output: new Float64RingBuffer(capacity),
         processedHtfCount: 0,
@@ -177,7 +182,7 @@ export function createSecurityExprRunner(args: {
 
 /**
  * Mount one runner per `manifest.securityExpressions` entry and return the
- * `bySlot` / `byInterval` lookup maps. Returns empty maps when the manifest
+ * `bySlot` / `byFeed` lookup maps. Returns empty maps when the manifest
  * declares no expression callsites (the common single-timeframe case), so the
  * secondary-close drive pays a single empty-map check.
  *
@@ -185,7 +190,7 @@ export function createSecurityExprRunner(args: {
  * @stable
  * @example
  *     // const registry = buildSecurityExprRunners(manifest, ctx, 64);
- *     const built = "bySlot + byInterval";
+ *     const built = "bySlot + byFeed";
  *     void built;
  */
 export function buildSecurityExprRunners(
@@ -194,23 +199,36 @@ export function buildSecurityExprRunners(
     capacity: number,
 ): SecurityExprRegistry {
     const bySlot = new Map<string, SecurityExprRunner>();
-    const byInterval = new Map<string, SecurityExprRunner[]>();
+    const byFeed = new Map<string, SecurityExprRunner[]>();
     for (const descriptor of manifest.securityExpressions ?? []) {
+        // Index by the composite feed key (the same key the secondary stream is
+        // registered under and `CandleEvent.streamKey` carries). Collapse a
+        // chart-symbol descriptor (omitted, or the chart's own ticker passed
+        // explicitly) to `undefined` BEFORE keying — mirroring
+        // `createSecondaryStreams` — so the omitted-symbol path stays
+        // byte-identical to the pre-multi-symbol baseline. The fold stream
+        // carries the RESOLVED symbol (chart symbol when omitted).
+        const resolved =
+            descriptor.symbol === undefined || descriptor.symbol === parent.chartSymbol
+                ? undefined
+                : descriptor.symbol;
+        const key = feedKey(resolved, descriptor.interval);
         const runner = createSecurityExprRunner({
             slotId: descriptor.slotId,
+            symbol: descriptor.symbol ?? parent.chartSymbol,
             interval: descriptor.interval,
             capacity,
             parent,
         });
         bySlot.set(descriptor.slotId, runner);
-        const list = byInterval.get(descriptor.interval);
+        const list = byFeed.get(key);
         if (list === undefined) {
-            byInterval.set(descriptor.interval, [runner]);
+            byFeed.set(key, [runner]);
         } else {
             list.push(runner);
         }
     }
-    return { bySlot, byInterval };
+    return { bySlot, byFeed };
 }
 
 function sampleOutput(result: Series<number> | number): number {
@@ -249,7 +267,9 @@ function foldTick(runner: SecurityExprRunner, bar: Bar): void {
 }
 
 /**
- * Drive every runner registered on `interval` for one secondary event. A
+ * Drive every runner registered on the composite feed key `streamKey` for one
+ * secondary event. `streamKey` is the `feedKey(symbol, interval)` the secondary
+ * stream is registered under (and that `CandleEvent.streamKey` carries). A
  * `"close"` folds the bar into the fold stream and appends one sampled output;
  * a `"tick"` replaces the fold head and the output head without advancing
  * length. Runners whose callback is not yet captured are skipped — the first
@@ -264,11 +284,11 @@ function foldTick(runner: SecurityExprRunner, bar: Bar): void {
  */
 export function driveSecurityExpressions(
     parent: RuntimeContext,
-    interval: string,
+    streamKey: string,
     mode: "close" | "tick",
     bar: Bar,
 ): void {
-    const runners = parent.securityExprRunnersByInterval?.get(interval);
+    const runners = parent.securityExprRunnersByFeed?.get(streamKey);
     if (runners === undefined) return;
     for (const runner of runners) {
         if (mode === "close") {

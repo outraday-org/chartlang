@@ -107,6 +107,8 @@ import { MTF_REQUEST_SECURITY_CLOSE_SCENARIO } from "./mtfRequestSecurityClose.s
 import { MTF_SECURITY_EXPRESSION_EMA_SCENARIO } from "./mtfSecurityExpressionEma.scenario.js";
 import { MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO } from "./mtfSecurityExpressionNanFallback.scenario.js";
 import { MTF_UNSUPPORTED_INTERVAL_SCENARIO } from "./mtfUnsupportedInterval.scenario.js";
+import { MULTI_SYMBOL_NOT_SUPPORTED_SCENARIO } from "./multiSymbolNotSupported.scenario.js";
+import { MULTI_SYMBOL_RATIO_SCENARIO } from "./multiSymbolRatio.scenario.js";
 import { PLOT_KIND_ARROW_SCENARIO } from "./plotKindArrow.scenario.js";
 import { PLOT_KIND_ARROW_GATED_SCENARIO } from "./plotKindArrowGated.scenario.js";
 import { PLOT_KIND_BAR_COLOR_SCENARIO } from "./plotKindBarColor.scenario.js";
@@ -127,6 +129,7 @@ import { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js
 import { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "./pineConverterRoundTripCampB.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "./pineConverterRoundTripTable.scenario.js";
+import { PINE_CONVERTER_ROUND_TRIP_VAR_ARRAY_SCENARIO } from "./pineConverterRoundTripVarArray.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO } from "./pineConverterRoundTripVarSeries.scenario.js";
 import { PLOT_OFFSET_XSHIFT_SCENARIO } from "./plotOffsetXshift.scenario.js";
 import { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
@@ -137,6 +140,7 @@ import { RUNTIME_ERROR_SCENARIO } from "./runtimeError.scenario.js";
 import { RUNTIME_LOG_BUDGET_SCENARIO } from "./runtimeLogBudget.scenario.js";
 import { RUNTIME_LOG_GATED_SCENARIO } from "./runtimeLogGated.scenario.js";
 import { RUNTIME_LOG_INFO_SCENARIO } from "./runtimeLogInfo.scenario.js";
+import { STATE_ARRAY_ROLLING_WINDOW_SCENARIO } from "./stateArrayRollingWindow.scenario.js";
 import { STATE_SERIES_HISTORY_SCENARIO } from "./stateSeriesHistory.scenario.js";
 import { STATE_SESSION_HIGH_SCENARIO } from "./stateSessionHigh.scenario.js";
 import { STATE_TICK_COUNTER_SCENARIO } from "./stateTickCounter.scenario.js";
@@ -352,6 +356,8 @@ export { MTF_REQUEST_SECURITY_CLOSE_SCENARIO } from "./mtfRequestSecurityClose.s
 export { MTF_SECURITY_EXPRESSION_EMA_SCENARIO } from "./mtfSecurityExpressionEma.scenario.js";
 export { MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO } from "./mtfSecurityExpressionNanFallback.scenario.js";
 export { MTF_UNSUPPORTED_INTERVAL_SCENARIO } from "./mtfUnsupportedInterval.scenario.js";
+export { MULTI_SYMBOL_NOT_SUPPORTED_SCENARIO } from "./multiSymbolNotSupported.scenario.js";
+export { MULTI_SYMBOL_RATIO_SCENARIO } from "./multiSymbolRatio.scenario.js";
 export { PLOT_KIND_ARROW_SCENARIO } from "./plotKindArrow.scenario.js";
 export { PLOT_KIND_ARROW_GATED_SCENARIO } from "./plotKindArrowGated.scenario.js";
 export { PLOT_KIND_BAR_COLOR_SCENARIO } from "./plotKindBarColor.scenario.js";
@@ -372,6 +378,7 @@ export { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js
 export { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
 export { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "./pineConverterRoundTripCampB.scenario.js";
 export { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "./pineConverterRoundTripTable.scenario.js";
+export { PINE_CONVERTER_ROUND_TRIP_VAR_ARRAY_SCENARIO } from "./pineConverterRoundTripVarArray.scenario.js";
 export { PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO } from "./pineConverterRoundTripVarSeries.scenario.js";
 export { PLOT_OFFSET_XSHIFT_SCENARIO } from "./plotOffsetXshift.scenario.js";
 export { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
@@ -382,6 +389,7 @@ export { RUNTIME_ERROR_SCENARIO } from "./runtimeError.scenario.js";
 export { RUNTIME_LOG_BUDGET_SCENARIO } from "./runtimeLogBudget.scenario.js";
 export { RUNTIME_LOG_GATED_SCENARIO } from "./runtimeLogGated.scenario.js";
 export { RUNTIME_LOG_INFO_SCENARIO } from "./runtimeLogInfo.scenario.js";
+export { STATE_ARRAY_ROLLING_WINDOW_SCENARIO } from "./stateArrayRollingWindow.scenario.js";
 export { STATE_SERIES_HISTORY_SCENARIO } from "./stateSeriesHistory.scenario.js";
 export { STATE_SESSION_HIGH_SCENARIO } from "./stateSessionHigh.scenario.js";
 export { STATE_TICK_COUNTER_SCENARIO } from "./stateTickCounter.scenario.js";
@@ -517,6 +525,10 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     // Writable user state.series — s[2] history is byte-identical to a
     // direct bar.close[2] read (both plots pin to the same hash).
     STATE_SERIES_HISTORY_SCENARIO,
+    // Persistent bounded collection state.array — a rolling-window mean over
+    // the last five pushed closes (each plot pins to its own hash; the window
+    // mean is finite from bar 0 while ta.sma(5) has a NaN warmup).
+    STATE_ARRAY_ROLLING_WINDOW_SCENARIO,
     BAR_POINT_TRACKING_LINE_SCENARIO,
     RSI_DIVERGENCE_SCENARIO,
     PLOT_KIND_COVERAGE_SCENARIO,
@@ -777,6 +789,12 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO,
     MTF_UNSUPPORTED_INTERVAL_SCENARIO,
     MTF_CAPABILITY_FALSE_SCENARIO,
+    // multi-symbol request.security — two DIFFERENT symbols at one interval.
+    // The composite feedKey(symbol, interval) routes SPY/QQQ to distinct
+    // streams; the ratio (~2) is the end-to-end key proof. The capability-false
+    // sibling proves the multiSymbol: false NaN fallback + diagnostic.
+    MULTI_SYMBOL_RATIO_SCENARIO,
+    MULTI_SYMBOL_NOT_SUPPORTED_SCENARIO,
     LOWER_TF_HAPPY_PATH_SCENARIO,
     LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO,
     LOWER_TF_CAPABILITY_FALSE_SCENARIO,
@@ -812,4 +830,5 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO,
     PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO,
     PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO,
+    PINE_CONVERTER_ROUND_TRIP_VAR_ARRAY_SCENARIO,
 ]);

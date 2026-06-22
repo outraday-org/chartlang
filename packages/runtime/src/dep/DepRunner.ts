@@ -91,6 +91,13 @@ export type SiblingRunner = Readonly<{
 export type CreateDepRunnerArgs = Readonly<{
     readonly compiled: CompiledScriptObject;
     readonly parentCapabilities: Capabilities;
+    /**
+     * The bundle's chart symbol (the parent runner's resolved
+     * `syminfo.ticker`). A `request.security` inside a dep / sibling resolves a
+     * symbol-omitted / explicit-chart-symbol request against it, exactly like
+     * the primary runner. @since 1.4
+     */
+    readonly chartSymbol: string;
     readonly mainStream: StreamState;
     readonly secondaryStreams: Map<string, StreamState>;
     readonly depOutputStore: DepOutputStore;
@@ -149,6 +156,8 @@ function buildSubRunnerState(
             scriptMaxDrawings: args.compiled.manifest.maxDrawings ?? null,
             stateSlots: new Map(),
             seriesSlots: new Map(),
+            arraySlots: new Map(),
+            chartSymbol: args.chartSymbol,
             secondaryStreams: args.secondaryStreams,
             requestSecurityBars: new Map(),
             requestSecurityAlignments: new Map(),

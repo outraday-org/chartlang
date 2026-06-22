@@ -36,9 +36,14 @@ const runtimeRequest: RequestNamespace = {
 };
 
 describe("request namespace type surface", () => {
-    it("accepts the minimum request.security opts shape", () => {
-        expectTypeOf<RequestSecurityOpts>().toEqualTypeOf<Readonly<{ interval: string }>>();
+    it("accepts the minimum request.security opts shape with optional symbol", () => {
+        expectTypeOf<RequestSecurityOpts>().toEqualTypeOf<
+            Readonly<{ symbol?: string; interval: string }>
+        >();
+        // symbol omitted (chart-symbol back-compat) and symbol-bearing both match
         expectTypeOf({ interval: "5m" }).toMatchTypeOf<RequestSecurityOpts>();
+        expectTypeOf({ symbol: "AMEX:SPY", interval: "1D" }).toMatchTypeOf<RequestSecurityOpts>();
+        expectTypeOf<RequestSecurityOpts["symbol"]>().toEqualTypeOf<string | undefined>();
     });
 
     it("returns SecurityBar from a runtime-provided namespace", () => {
@@ -54,6 +59,13 @@ describe("request namespace type surface", () => {
         expectTypeOf(security({ interval: "1W" }, (bar) => bar.close)).toEqualTypeOf<
             Series<number>
         >();
+        // both overloads also accept a different-symbol opts object
+        expectTypeOf(
+            security({ symbol: "AMEX:SPY", interval: "1D" }),
+        ).toEqualTypeOf<SecurityBar>();
+        expectTypeOf(
+            security({ symbol: "AMEX:SPY", interval: "1D" }, (bar) => bar.close),
+        ).toEqualTypeOf<Series<number>>();
     });
 
     it("SecurityExpr accepts series-returning and number-returning callbacks", () => {

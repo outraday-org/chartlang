@@ -525,6 +525,64 @@ export default defineIndicator({
 });
 `;
 
+const ROLLING_WINDOW = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Rolling Window Mean",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, state, plot }) {
+        // A bounded bag of the last 20 closes. This is the case that genuinely
+        // needs a PUSHED collection, not a single \`state.series\`: we push one
+        // value per bar into a fixed-capacity FIFO ring (oldest evicted at
+        // capacity) and then iterate the ELEMENTS to average them. \`state.array\`
+        // is "a bounded bag of the last K things I pushed"; \`state.series\` is
+        // "one value's bar history" — neither expresses the other.
+        const win = state.array<number>(20);
+        win.push(bar.close.current);
+
+        // \`get(i)\` walks the ELEMENTS (0 = newest), not bars. The loop bound is
+        // a literal and the inner \`if (i < win.size)\` guard skips the unfilled
+        // slots during warmup — \`push\`/\`get\` are handle methods, so they are
+        // legal inside the bounded loop (only the allocation call is not).
+        let sum = 0;
+        for (let i = 0; i < 20; i++) {
+            if (i < win.size) sum += win.get(i);
+        }
+
+        plot(win.size > 0 ? sum / win.size : Number.NaN, { title: "Mean(20)" });
+    },
+});
+`;
+
+const SYMBOL_RATIO = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, plot, request } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Symbol Ratio",
+    apiVersion: 1,
+    compute({ plot, request }) {
+        // Read two DIFFERENT instruments at the chart interval via the
+        // multi-symbol \`request.security({ symbol, interval })\` form. \`symbol\`
+        // must be a compile-time literal, and a non-chart symbol requires the
+        // adapter's \`multiSymbol\` capability — otherwise each series degrades
+        // to all-NaN with one \`multi-symbol-not-supported\` diagnostic.
+        const spy = request.security({ symbol: "AMEX:SPY", interval: "1D" });
+        const qqq = request.security({ symbol: "NASDAQ:QQQ", interval: "1D" });
+
+        // \`SecurityBar.close\` is a \`Series<Price>\` (indexable, NOT
+        // number-coercible), so read \`.current\` for the live scalar before the
+        // ratio division.
+        plot(spy.close.current / qqq.close.current, { title: "SPY/QQQ" });
+    },
+});
+`;
+
 const Z_LAYERING = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
@@ -679,6 +737,20 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         description:
             "state.series — a writable, indexable user series. Counts consecutive up-closes: the history of a value you compute yourself (here a self-referential streak defined from its own prior bar), which bar.close[N] can't express, then reads it back three bars ago.",
         source: UP_STREAK,
+    },
+    {
+        id: "rolling-window-mean",
+        label: "Rolling Window Mean",
+        description:
+            "state.array — a bounded collection you push many values into. Here a rolling mean over the last 20 closes: push one close per bar into a fixed-capacity FIFO ring, then iterate the ELEMENTS (a.get(i), 0 = newest) to average them. This is the bounded bag of the last K pushed values that state.series (one value's bar history) can't express.",
+        source: ROLLING_WINDOW,
+    },
+    {
+        id: "symbol-ratio",
+        label: "Symbol Ratio",
+        description:
+            "Multi-symbol request.security: read two DIFFERENT instruments (AMEX:SPY and NASDAQ:QQQ) at the chart interval and plot their close ratio. The symbol must be a compile-time literal, and a non-chart symbol needs the adapter's multiSymbol capability — otherwise the series degrade to NaN with a multi-symbol-not-supported diagnostic.",
+        source: SYMBOL_RATIO,
     },
     {
         id: "z-layering",

@@ -1,0 +1,10 @@
+//@version=6
+indicator("Rolling window array", overlay=true)
+var array<float> win = array.new<float>()
+array.push(win, close)
+if array.size(win) > 20
+    array.shift(win)
+newest = array.last(win)
+prevDay = array.get(win, 1)
+count = array.size(win)
+plot((newest + prevDay) / count)

@@ -119,6 +119,13 @@ export const PHASE4_DOC_ENTRIES: ReadonlyArray<Phase4DocEntry> = Object.freeze([
         seeAlso: "`state.*` namespace",
     }),
     Object.freeze({
+        title: "state.array",
+        sourceRelPath: `${CORE}/state/state.ts`,
+        symbolPath: ["state", "array"],
+        outRelPath: "docs/primitives/state/array.md",
+        seeAlso: "`state.*` namespace",
+    }),
+    Object.freeze({
         title: "barstate",
         sourceRelPath: `${CORE}/views/barstate.ts`,
         symbolPath: ["barstate"],

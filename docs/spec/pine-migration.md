@@ -341,7 +341,9 @@ Status meanings:
 | `var` cross-bar state | Running highs/lows, SuperTrend direction, Chandelier trailing stops | `state.float`, `state.int`, `state.bool`, `state.string` | covered: [state example](#_5-state---pine-var) |
 | `varip` tick-persistent state | Intrabar counters, realtime repaint guards | `state.tick.*` for scalar slots only | covered-inline: [state slots](/spec/semantics#callsite-id-stability-and-state-slots) |
 | `line.new`, `box.new`, `label.new`, `table.new` | Pivot Points, ZigZag, Support/Resistance, dashboards | `draw.*` plus `DrawingHandle.update/remove` | covered: [drawings example](#_2-drawings---labeled-range), [drawing lifecycle](/spec/semantics#drawing-handle-lifecycle) |
-| Arrays and matrices | ZigZag, Market Structure, Volume Profile variants | Bounded literal arrays and TypeScript objects only; persistent collections are not v1 | not-supported: [persistent collections](#persistent-collections-and-large-arrays) |
+| Bounded literal arrays and matrices | ZigZag, Market Structure, Volume Profile variants | Bounded literal arrays and ordinary TypeScript objects | covered-inline: literals/objects are valid where they stay in the grammar subset |
+| Persistent numeric collection (a bounded `var array<float>`/`<int>` ring) | ZigZag swing buffers, rolling-window medians, event-value logs | `state.array<number>(capacity)` — a bounded FIFO ring with a compile-time literal capacity | covered: [persistent collections](#persistent-collections-and-large-arrays) |
+| Persistent maps, matrices, and non-numeric collections | `map.new`, `matrix.new`, `array<bool>`/`array<string>` | `state.map` / matrices / non-numeric persistent collections are not v1 | not-supported: [persistent collections](#persistent-collections-and-large-arrays) |
 | Loops over history or drawing sets | Pivot Point levels, table rows, ZigZag segments | Bounded `for` loops with literal numeric bounds; no stateful calls inside loops | covered-inline: [grammar loop rules](/spec/grammar#typescript-subset) |
 | Pine libraries (`library()`, `import`) | PineCoders libraries, community utility packages | Normal bundled TypeScript helper modules only; Pine library scripts are not v1 | not-supported: [Pine library scripts](#pine-library-scripts) |
 | Strategy primitives (`strategy.*`) | RSI Strategy, SuperTrend Strategy, Chandelier strategy variants | No order, fill, P&L, or equity-curve language in v1 | not-supported: [strategy primitives](#strategy-primitives) |
@@ -380,9 +382,23 @@ but reusable language-level libraries are Beyond 1.0.
 ### Persistent Collections and Large Arrays
 
 Bounded literal arrays and ordinary TypeScript objects are valid where they
-stay within the grammar subset. Persistent `state.array(...)`,
-`state.map(...)`, matrices, and large mutable collections are deferred
-until a serialization policy is agreed.
+stay within the grammar subset.
+
+A bounded **numeric** persistent collection IS supported in v1:
+[`state.array<number>(capacity)`](/primitives/state/array) is a fixed-capacity
+FIFO ring you push values into across bars — the chartlang equivalent of a Pine
+`var array<float>` / `var array<int>` with capacity eviction. The
+serialization policy this once-deferred feature waited on is simply: **a
+required compile-time literal `capacity` plus reuse of the ring buffer's
+existing snapshot hooks.** Because `capacity` is a literal, the backing store is
+fixed-size, the per-bar tick rollback is bounded, and the snapshot stays
+JSON-clean — no new wire format. A non-literal capacity is a compile error
+(`state-array-capacity-not-literal`); a capacity outside the bound is
+`state-array-capacity-exceeds-max` (`MAX_STATE_ARRAY_CAPACITY` = 100 000).
+
+Still deferred until a key/clone serialization policy is agreed:
+`state.map(...)`, matrices, **non-numeric** persistent collections
+(`bool` / `string` / object element types), and large mutable collections.
 
 ### Imperative Drawing Mutation Differences
 

@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { SecurityBar, Series } from "@invinite-org/chartlang-core";
+import { feedKey } from "@invinite-org/chartlang-core";
 
 import type { RuntimeContext } from "../runtimeContext.js";
 import type { StreamState } from "../streamState.js";
@@ -77,18 +78,18 @@ function seriesAscending(stream: StreamState, sourceKey: NumericSourceKey): Read
     return values;
 }
 
-function alignmentKey(slotId: string, interval: string, sourceKey: NumericSourceKey): string {
-    return `${slotId}|${interval}|${sourceKey}`;
+function alignmentKey(slotId: string, feed: string, sourceKey: NumericSourceKey): string {
+    return `${slotId}|${feed}|${sourceKey}`;
 }
 
 function alignedSeries(
     ctx: RuntimeContext,
     slotId: string,
-    interval: string,
+    feed: string,
     sourceKey: NumericSourceKey,
     secondary: StreamState,
 ): ReadonlyArray<number> {
-    const key = alignmentKey(slotId, interval, sourceKey);
+    const key = alignmentKey(slotId, feed, sourceKey);
     const existing = ctx.requestSecurityAlignments.get(key);
     if (existing !== undefined) return existing;
     const htfBars = ascendingBarsFor(ctx, secondary);
@@ -137,24 +138,25 @@ function makeAlignedSeriesProxy(
 function makeAlignedNumberSeries(
     ctx: RuntimeContext,
     slotId: string,
-    interval: string,
+    feed: string,
     sourceKey: NumericSourceKey,
     secondary: StreamState,
 ): Series<number> {
     return makeAlignedSeriesProxy(ctx, () =>
-        alignedSeries(ctx, slotId, interval, sourceKey, secondary),
+        alignedSeries(ctx, slotId, feed, sourceKey, secondary),
     );
 }
 
 function makeLiveSecurityBar(
     ctx: RuntimeContext,
     slotId: string,
+    feed: string,
     interval: string,
     secondary: StreamState,
 ): SecurityBar {
     const numeric = new Map<NumericSourceKey, Series<number>>();
     for (const key of NUMERIC_SOURCE_KEYS) {
-        numeric.set(key, makeAlignedNumberSeries(ctx, slotId, interval, key, secondary));
+        numeric.set(key, makeAlignedNumberSeries(ctx, slotId, feed, key, secondary));
     }
     return Object.freeze({
         time: numeric.get("time") ?? makeSeries(Number.NaN),
@@ -172,45 +174,81 @@ function makeLiveSecurityBar(
     });
 }
 
+// The adapter does not advertise `multiSymbol`, so a `request.security` for a
+// symbol other than the chart's own degrades to all-NaN — mirroring the
+// `multiTimeframe` fallback message exactly, only naming the symbol gate.
+const MULTI_SYMBOL_MSG =
+    "Adapter declares multiSymbol: false; request.security for a different symbol returns NaN";
+
 function fallbackNaN(
     ctx: RuntimeContext,
     cacheKey: string,
     slotId: string,
-    interval: string,
-    code: "unsupported-interval" | "multi-timeframe-not-supported" | "unknown-secondary-stream",
+    feed: string,
+    code:
+        | "unsupported-interval"
+        | "multi-timeframe-not-supported"
+        | "multi-symbol-not-supported"
+        | "unknown-secondary-stream",
     message: string,
 ): SecurityBar {
-    pushOnce(ctx, code, slotId, interval, "security", message);
+    pushOnce(ctx, code, slotId, feed, "security", message);
     const bar = makeNanSecurityBar();
     ctx.requestSecurityBars.set(cacheKey, bar);
     return bar;
 }
 
 /**
- * Return the runtime `request.security` bar for a callsite and interval.
+ * Return the runtime `request.security` bar for a callsite and `(symbol,
+ * interval)` feed. `symbol` is already chart-symbol resolved + collapsed by the
+ * caller (`undefined` ⇒ the chart's own symbol), so the composite
+ * {@link feedKey} collapses to the bare interval for the chart-symbol path —
+ * keeping the cache key, secondary-stream lookup, and diagnostics
+ * byte-identical to the pre-multi-symbol baseline.
+ *
+ * A non-`undefined` `symbol` is therefore always a DIFFERENT symbol: the gate
+ * order is symbol (`multiSymbol`) → timeframe (`multiTimeframe`) →
+ * `unsupported-interval` → `unknown-secondary-stream`, so a request that is
+ * both a different symbol AND a different interval against `multiSymbol: false`
+ * trips `multi-symbol-not-supported` first (one diagnostic, not both).
  *
  * @since 0.5
  * @stable
  * @example
- *     // const bar = makeSecurityBar(ctx, "slot#0", "1D");
+ *     // const bar = makeSecurityBar(ctx, "slot#0", undefined, "1D");
  *     const requested = "1D";
  *     void requested;
  */
 export function makeSecurityBar(
     ctx: RuntimeContext,
     slotId: string,
+    symbol: string | undefined,
     interval: string,
 ): SecurityBar {
-    const cacheKey = `${slotId}|${interval}`;
+    const feed = feedKey(symbol, interval);
+    const cacheKey = `${slotId}|${feed}`;
     const existing = ctx.requestSecurityBars.get(cacheKey);
     if (existing !== undefined) return existing;
+
+    // Symbol gate precedes the timeframe gate: a different symbol is a strictly
+    // larger ask than a higher timeframe of the chart's own symbol.
+    if (symbol !== undefined && !ctx.capabilities.multiSymbol) {
+        return fallbackNaN(
+            ctx,
+            cacheKey,
+            slotId,
+            feed,
+            "multi-symbol-not-supported",
+            MULTI_SYMBOL_MSG,
+        );
+    }
 
     if (!ctx.capabilities.multiTimeframe) {
         return fallbackNaN(
             ctx,
             cacheKey,
             slotId,
-            interval,
+            feed,
             "multi-timeframe-not-supported",
             "Adapter declares multiTimeframe: false; request.security returns NaN",
         );
@@ -222,25 +260,25 @@ export function makeSecurityBar(
             ctx,
             cacheKey,
             slotId,
-            interval,
+            feed,
             "unsupported-interval",
             `Requested interval "${interval}" is not in Capabilities.intervals`,
         );
     }
 
-    const secondary = ctx.secondaryStreams.get(interval);
+    const secondary = ctx.secondaryStreams.get(feed);
     if (secondary === undefined) {
         return fallbackNaN(
             ctx,
             cacheKey,
             slotId,
-            interval,
+            feed,
             "unknown-secondary-stream",
             `Requested interval "${interval}" has no registered secondary stream`,
         );
     }
 
-    const bar = makeLiveSecurityBar(ctx, slotId, interval, secondary);
+    const bar = makeLiveSecurityBar(ctx, slotId, feed, interval, secondary);
     ctx.requestSecurityBars.set(cacheKey, bar);
     return bar;
 }
@@ -252,6 +290,7 @@ function makeNanNumberSeries(): Series<number> {
 function resolveSecondaryOrDiagnose(
     ctx: RuntimeContext,
     slotId: string,
+    feed: string,
     interval: string,
 ): StreamState | undefined {
     if (!ctx.capabilities.multiTimeframe) {
@@ -259,7 +298,7 @@ function resolveSecondaryOrDiagnose(
             ctx,
             "multi-timeframe-not-supported",
             slotId,
-            interval,
+            feed,
             "security",
             "Adapter declares multiTimeframe: false; request.security returns NaN",
         );
@@ -270,19 +309,19 @@ function resolveSecondaryOrDiagnose(
             ctx,
             "unsupported-interval",
             slotId,
-            interval,
+            feed,
             "security",
             `Requested interval "${interval}" is not in Capabilities.intervals`,
         );
         return undefined;
     }
-    const secondary = ctx.secondaryStreams.get(interval);
+    const secondary = ctx.secondaryStreams.get(feed);
     if (secondary === undefined) {
         pushOnce(
             ctx,
             "unknown-secondary-stream",
             slotId,
-            interval,
+            feed,
             "security",
             `Requested interval "${interval}" has no registered secondary stream`,
         );
@@ -298,26 +337,48 @@ function resolveSecondaryOrDiagnose(
  * the OHLCV alignment kernel via {@link getOrAlign}. Capability / interval /
  * stream fallbacks return an all-NaN series and push a deduped diagnostic,
  * matching {@link makeSecurityBar}. The returned Proxy identity is cached per
- * `slotId|interval` for the bar.
+ * `slotId|feedKey` for the bar. `feed` is the composite key the caller built
+ * from the resolved `(symbol, interval)`; `runner.interval` is the bare
+ * interval used for the capability check and diagnostic text.
+ *
+ * `isDifferentSymbol` (`true` when the resolved symbol differs from the chart
+ * symbol) gates the all-NaN `multi-symbol-not-supported` fallback BEFORE the
+ * timeframe gate, mirroring {@link makeSecurityBar}'s order exactly.
  *
  * @since 0.7
  * @stable
  * @example
- *     // const trend = makeSecurityExprSeries(ctx, runner, "1W");
+ *     // const trend = makeSecurityExprSeries(ctx, runner, "1W", false);
  *     const requested = "1W";
  *     void requested;
  */
 export function makeSecurityExprSeries(
     ctx: RuntimeContext,
     runner: SecurityExprRunner,
-    interval: string,
+    feed: string,
+    isDifferentSymbol: boolean,
 ): Series<number> {
-    const cacheKey = `${runner.slotId}|${interval}`;
+    const cacheKey = `${runner.slotId}|${feed}`;
     const cache = ctx.requestSecurityExprSeries;
     const existing = cache?.get(cacheKey);
     if (existing !== undefined) return existing;
 
-    const secondary = resolveSecondaryOrDiagnose(ctx, runner.slotId, interval);
+    // Symbol gate precedes the timeframe gate, matching `makeSecurityBar`.
+    if (isDifferentSymbol && !ctx.capabilities.multiSymbol) {
+        pushOnce(
+            ctx,
+            "multi-symbol-not-supported",
+            runner.slotId,
+            feed,
+            "security",
+            MULTI_SYMBOL_MSG,
+        );
+        const nan = makeNanNumberSeries();
+        cache?.set(cacheKey, nan);
+        return nan;
+    }
+
+    const secondary = resolveSecondaryOrDiagnose(ctx, runner.slotId, feed, runner.interval);
     const series =
         secondary === undefined
             ? makeNanNumberSeries()

@@ -3,6 +3,7 @@
 
 export { state } from "./state.js";
 export type { StateNamespace } from "./state.js";
+export type { MutableArraySlot } from "./arraySlot.js";
 export type { MutableSlot } from "./mutableSlot.js";
 export type {
     RunnerSnapshot,

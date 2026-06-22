@@ -87,6 +87,7 @@ describe("type assertions", () => {
             | "unsupported-pane"
             | "unsupported-interval"
             | "multi-timeframe-not-supported"
+            | "multi-symbol-not-supported"
             | "unknown-secondary-stream"
             | "lookback-exceeded"
             | "drawing-budget-exceeded"
@@ -152,6 +153,46 @@ describe("type assertions", () => {
         expectTypeOf<Extract<CandleEvent, { kind: "tick" }>["streamKey"]>().toEqualTypeOf<
             string | undefined
         >();
+    });
+
+    it("CandleEvent accepts a composite feed-key streamKey", () => {
+        // The composite `"<symbol>@<interval>"` key built by feedKey is a
+        // plain string, so the wire type accepts it unchanged.
+        const bar: Bar = {
+            time: 0,
+            open: 1,
+            high: 1,
+            low: 1,
+            close: 1,
+            volume: 0,
+            symbol: "AMEX:SPY",
+            interval: "1D",
+        };
+        const evt: CandleEvent = { kind: "close", bar, streamKey: "AMEX:SPY@1D" };
+        expect(evt.streamKey).toBe("AMEX:SPY@1D");
+    });
+
+    it("Capabilities.multiSymbol is a required boolean independent of multiTimeframe", () => {
+        expectTypeOf<Capabilities["multiSymbol"]>().toEqualTypeOf<boolean>();
+        // A Capabilities object missing multiSymbol is a type error — proven by
+        // omitting it from this `@ts-expect-error`ed literal.
+        // @ts-expect-error multiSymbol is required
+        const missing: Capabilities = {
+            plots: new Set<PlotKind>(),
+            drawings: new Set(),
+            alerts: new Set(),
+            alertConditions: false,
+            logs: false,
+            inputs: new Set(),
+            intervals: [],
+            multiTimeframe: false,
+            subPanes: 0,
+            symInfoFields: new Set(),
+            maxDrawingsPerScript: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
+            maxLookback: 0,
+            maxTickHz: 0,
+        };
+        void missing;
     });
 
     it("DrawingKind matches the core 61-entry union", () => {

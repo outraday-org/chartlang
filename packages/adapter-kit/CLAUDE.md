@@ -141,6 +141,27 @@ layer** every adapter shares.
   `controller.resolveXWindow(...)` onto every pane instance. The controller
   is library-agnostic by design.
 
+## Wire + capability invariants
+
+- **`CandleEvent.streamKey` IS the composite feed key — the same string
+  `feedKey(symbol, interval)` produces, byte-for-byte.** Omit it for the main
+  stream; a bare interval (`"1D"`) tags a higher-timeframe stream of the
+  chart's own symbol; `"<symbol>@<interval>"` (`"AMEX:SPY@1D"`) tags a
+  different-symbol stream. The wire TYPE stays `string` — only the meaning
+  widened. `feedKey` is re-exported from the barrel (identity from core, NOT a
+  fork) so producers build the key from the one canonical helper; never
+  re-derive the format inline. `mockCandleSource({ symbol })` tags its events
+  through `feedKey`; omitting `symbol` leaves `streamKey` off, byte-identical
+  to the single-symbol baseline.
+- **`Capabilities.multiSymbol` is a required boolean, independent of
+  `multiTimeframe`.** It gates non-chart-symbol `request.security` requests
+  (a strictly larger ask than a higher timeframe of the chart's own symbol).
+  The two are orthogonal: a builder setting one never implies the other, and
+  the runtime gates per request (symbol differs ⇒ `multiSymbol`; interval
+  differs ⇒ `multiTimeframe`). Default `false` (conservative; adapters opt
+  in). The `multi-symbol-not-supported` NaN fallback itself lives in the
+  runtime/host (the multi-symbol-security feature's Task 5), not here.
+
 ## Package-shape invariants
 
 - **`./canvas` is hand-added to `package.json#exports`.**

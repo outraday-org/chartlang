@@ -6,6 +6,37 @@ import { describe, expect, it } from "vitest";
 
 import { Float64RingBuffer, RingBuffer, type RingBufferLike } from "./ringBuffer.js";
 
+describe("Float64RingBuffer.copyFrom", () => {
+    it("copies values, head, and filled from a partially-filled source", () => {
+        const src = new Float64RingBuffer(4);
+        src.append(1);
+        src.append(2);
+        src.append(3);
+        const dst = new Float64RingBuffer(4);
+        dst.copyFrom(src);
+        expect(dst.length).toBe(3);
+        expect(dst.at(0)).toBe(3);
+        expect(dst.at(1)).toBe(2);
+        expect(dst.at(2)).toBe(1);
+        expect(dst.at(3)).toBeNaN();
+    });
+
+    it("overwrites the destination's prior state (including a wrapped source)", () => {
+        const src = new Float64RingBuffer(3);
+        src.append(10);
+        src.append(20);
+        src.append(30);
+        src.append(40); // evicts 10, wraps head
+        const dst = new Float64RingBuffer(3);
+        dst.append(99);
+        dst.append(98);
+        dst.copyFrom(src);
+        expect(dst.at(0)).toBe(40);
+        expect(dst.at(1)).toBe(30);
+        expect(dst.at(2)).toBe(20);
+    });
+});
+
 describe("RingBuffer<T>", () => {
     it("starts empty", () => {
         const buf = new RingBuffer<string>(3);

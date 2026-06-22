@@ -169,3 +169,41 @@ export function resetSeriesHeads(ctx: RuntimeContext): void {
         resetSeriesSlotHead(slot);
     }
 }
+
+/**
+ * Roll every `state.array` slot's tentative ring back to its committed ring
+ * before tick compute, so a head-replacing tick discards in-progress pushes
+ * (and a tick without a push reads the committed collection). Runs once per
+ * tick, before compute, next to {@link resetSeriesHeads}. There is no advance —
+ * the array changes only when the author pushes.
+ *
+ * @since 1.3
+ * @stable
+ * @example
+ *     // resetTentativeArraySlots(ctx);
+ *     const reset = true;
+ *     void reset;
+ */
+export function resetTentativeArraySlots(ctx: RuntimeContext): void {
+    for (const slot of ctx.arraySlots.values()) {
+        slot.onBarTick();
+    }
+}
+
+/**
+ * Commit every `state.array` slot's tentative ring into its committed ring
+ * after close compute, so the next tick can roll back to it. Runs once per
+ * close, after compute, next to {@link commitSeriesSlots}.
+ *
+ * @since 1.3
+ * @stable
+ * @example
+ *     // commitArraySlots(ctx);
+ *     const committed = true;
+ *     void committed;
+ */
+export function commitArraySlots(ctx: RuntimeContext): void {
+    for (const slot of ctx.arraySlots.values()) {
+        slot.onBarClose();
+    }
+}

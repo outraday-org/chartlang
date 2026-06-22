@@ -36,7 +36,35 @@
 - **`SecurityExpr` is exported from three places in lockstep.**
   `request/request.ts` (source), `request/index.ts` (request barrel), and
   the package root `src/index.ts` — alongside `RequestSecurityOpts` /
-  `SecurityBar`. Adding a request type means touching all three.
+  `SecurityBar`. Adding a request type means touching all three. `feedKey`
+  (value) + `RequestedFeed` (type) join this lockstep: `feedKey` lives in
+  `request/feedKey.ts` and is re-exported from `request/index.ts` and
+  `src/index.ts`; `RequestedFeed` is declared in `types.ts` and re-exported
+  through the request barrel + the root `types.js` block.
+
+- **`feedKey(symbol, interval)` is the single source of the secondary-feed
+  composite-key format.** `request/feedKey.ts` is the one place the
+  `(symbol, interval)` stream key is built. It is load-bearing like a slot id:
+  the runtime keys every secondary map/cache on it AND the host wire
+  (`CandleEvent.streamKey`) carries the same string, so producer and consumer
+  must agree byte-for-byte — never re-derive it inline. An omitted/empty
+  symbol collapses to the bare interval (`feedKey(undefined, "1D") === "1D"`)
+  so the chart-symbol path stays byte-identical to the pre-multi-symbol
+  baseline; a present symbol encodes as `"<symbol>@<interval>"` (the `@` cannot
+  appear in an interval literal, so the two key spaces never collide).
+
+- **`requestedFeeds` is the superset; `requestedIntervals` is its main-symbol
+  projection.** `ScriptManifest.requestedFeeds?: RequestedFeed[]` lists every
+  distinct `(symbol?, interval)` feed; `requestedIntervals` keeps its exact
+  existing meaning — the symbol-omitted (main-symbol) HTF intervals — for
+  back-compat. Adding `requestedFeeds` is additive within `apiVersion: 1`;
+  reshaping `requestedIntervals` would not be (that would force
+  `apiVersion: 2`). The two are NOT mutually exclusive: a symbol-omitted
+  interval appears in both. Both `requestedFeeds` and `requestedIntervals` are
+  omitted on scripts with no `request.security` so existing manifest snapshots
+  stay byte-identical. `RequestSecurityOpts.symbol` and
+  `SecurityExpressionDescriptor.symbol` are likewise optional (omitted ⇒ chart
+  symbol). The compiler's `program.ts` shim mirrors all of this in lockstep.
 
 - **`state.series` is the one `state.*` slot that is both writable AND
   indexable.** `state.float`/`int`/`bool`/`string` return a scalar
@@ -49,6 +77,20 @@
   deliberately NOT defined (deferred). The compiler's `program.ts` shim
   mirrors `NumberSeriesSlot` + the `StateNamespace.series` signature in
   lockstep.
+
+- **`state.array` is a plain collection handle, NOT a slot/series
+  intersection.** `state.array<T>(capacity)` returns `MutableArraySlot<T>`
+  (`arraySlot.ts`) — a bounded FIFO collection surface
+  (`push`/`get`/`last`/`clear` + readonly `size`/`capacity`). Unlike
+  `state.series` (number-coercible `MutableSlot<number> & Series<number>`),
+  it is deliberately **not** a `MutableSlot` and **not** number-coercible
+  (no `.value`, no `+a`): a collection is a different shape from a value.
+  `get(n)` is **element**-indexed (`0` = newest), not bar-indexed; out-of-range
+  returns the element's empty value (`NaN` for `number`). The hole is a
+  sentinel like every sibling; its registry entry rides the additive rule
+  below; `state.tick.array` is deliberately NOT defined (deferred). The
+  compiler's `program.ts` shim mirrors `MutableArraySlot` + the
+  `StateNamespace.array` signature in lockstep. v1 element type is `number`.
 
 - **`STATEFUL_PRIMITIVES` is additive within `apiVersion: 1`.** Appending an
   entry is additive (new callsites only). Removing/renaming an entry or

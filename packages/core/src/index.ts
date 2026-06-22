@@ -25,6 +25,7 @@ export type {
     PlotSlotDescriptor,
     Price,
     PriceSeries,
+    RequestedFeed,
     ScriptManifest,
     SecurityExpressionDescriptor,
     Series,
@@ -208,7 +209,7 @@ export type {
     TimeDescriptor,
 } from "./input/index.js";
 export { state } from "./state/index.js";
-export type { MutableSlot, StateNamespace } from "./state/index.js";
+export type { MutableArraySlot, MutableSlot, StateNamespace } from "./state/index.js";
 export type {
     RunnerSnapshot,
     StateSnapshot,
@@ -217,7 +218,7 @@ export type {
 } from "./state/index.js";
 export { barstate, syminfo, timeframe } from "./views/index.js";
 export type { BarStateView, SymbolType, SymInfoView, TimeframeView } from "./views/index.js";
-export { request } from "./request/index.js";
+export { feedKey, request } from "./request/index.js";
 export type {
     RequestLowerTfOpts,
     RequestNamespace,

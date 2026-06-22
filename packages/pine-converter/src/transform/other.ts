@@ -14,11 +14,13 @@ import type { MultiReturnTaMapping, PineDrawingConstructor } from "../mapping/in
 import type { SemanticResult } from "../semantic/index.js";
 import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
-import type { EmitContext } from "./emitContext.js";
+import type { ArraySlotInfo, EmitContext } from "./emitContext.js";
 import { emitWithContext } from "./emitContext.js";
 import { forEachHistoryAccess } from "./exprEmit.js";
 import type { ScriptScaffold } from "./ir.js";
 import type { NameAllocator } from "./nameAllocator.js";
+import type { NumericArrayScan } from "./numericArray.js";
+import { scanNumericArrays } from "./numericArray.js";
 import { emitPlotFamily, isPlotFamilyCall } from "./plotFamily.js";
 import { emitRequestSecurity, isRequestSecurityCall } from "./requestSecurity.js";
 import { appendComputeStatement, appendStateSlot } from "./scaffoldMutators.js";
@@ -179,32 +181,46 @@ function evictionGuardCollection(condition: ExpressionNode): string | null {
     return arg !== undefined && arg.kind === "identifier-expression" ? arg.name : null;
 }
 
-// Whether a statement is a `*.delete(array.shift|remove(coll))` eviction line.
+// Whether a statement removes the head of `collection`: a handle ring's
+// `*.delete(array.shift|remove(coll))`, or a numeric ring's BARE
+// `array.shift(coll)` / `array.remove(coll, …)` (no handle to delete).
 function isEvictionDelete(stmt: Statement, collection: string): boolean {
     if (stmt.kind !== "expression-statement" || stmt.expression.kind !== "call-expression") {
         return false;
     }
-    const name = calleeName(stmt.expression);
-    if (name === null || !name.endsWith(".delete")) {
-        return false;
+    return isHeadRemoval(stmt.expression, collection);
+}
+
+// Whether a call removes the head of `collection`: a bare `array.shift(coll)` /
+// `array.remove(coll, …)`, or a `*.delete(...)` wrapping one of those.
+function isHeadRemoval(call: CallExpression, collection: string): boolean {
+    const name = calleeName(call);
+    if (name === "array.shift" || name === "array.remove") {
+        const target = call.args[0]?.value;
+        return (
+            target !== undefined &&
+            target.kind === "identifier-expression" &&
+            target.name === collection
+        );
     }
-    const arg = stmt.expression.args[0]?.value;
-    if (arg === undefined || arg.kind !== "call-expression") {
-        return false;
+    if (name?.endsWith(".delete")) {
+        const arg = call.args[0]?.value;
+        return (
+            arg !== undefined && arg.kind === "call-expression" && isHeadRemoval(arg, collection)
+        );
     }
-    const inner = calleeName(arg);
-    const target = arg.args[0]?.value;
-    return (
-        (inner === "array.shift" || inner === "array.remove") &&
-        target !== undefined &&
-        target.kind === "identifier-expression" &&
-        target.name === collection
-    );
+    return false;
 }
 
 // Whether a call is a drawing constructor / setter / collection-or-table
-// mutation the drawing transforms already consumed.
-function isDrawingOwnedCall(call: CallExpression, owned: ReadonlySet<string>): boolean {
+// mutation the drawing transforms already consumed. An `array.*` call over a
+// numeric `state.array` slot (`arrayNames`) is NOT drawing-owned — it emits,
+// rewritten onto the slot by the `EmitContext` — so it is excluded here.
+function isDrawingOwnedCall(
+    call: CallExpression,
+    owned: ReadonlySet<string>,
+    arrayNames: ReadonlySet<string>,
+): boolean {
     const name = calleeName(call);
     if (name === null) {
         return false;
@@ -213,7 +229,7 @@ function isDrawingOwnedCall(call: CallExpression, owned: ReadonlySet<string>): b
         return true;
     }
     const target = firstArgName(call);
-    if (target === null || !owned.has(target)) {
+    if (target === null || arrayNames.has(target) || !owned.has(target)) {
         return false;
     }
     // A collection / table / linefill mutation, or any `*.set_*`/`*.delete`
@@ -561,12 +577,42 @@ function inputDefaults(analysis: SemanticResult): Map<string, number> {
     return defaults;
 }
 
+// Register a `state.array` slot per bounded numeric array, emit its
+// `const <slot> = state.array<number>(K);` declaration, push the
+// eviction-elision info (the ring rotates internally), and report the
+// non-numeric / unbounded collections. Returns the Pine-name → slot map threaded
+// into the `EmitContext` so `array.*(coll, …)` calls rewrite onto the slot. The
+// slot local reuses the Pine collection identifier (allocator-disambiguated) so
+// `var array<float> win` reads as `win`. Done before the statement walk so each
+// slot decl precedes its first use.
+function emitArraySlots(
+    scaffold: ScriptScaffold,
+    diagnostics: DiagnosticCollector,
+    scan: NumericArrayScan,
+): Map<string, ArraySlotInfo> {
+    const slots = new Map<string, ArraySlotInfo>();
+    for (const [name, info] of scan.slots) {
+        const local = scaffold.names.allocateForSymbol(name);
+        slots.set(name, { local, cap: info.cap });
+        appendStateSlot(scaffold, { name: local, initExpr: `state.array<number>(${info.cap})` });
+        diagnostics.pushCode("ring-eviction-implicit", info.decl.span);
+    }
+    for (const [, span] of scan.nonNumeric) {
+        diagnostics.pushCode("array-collection-non-numeric", span);
+    }
+    for (const [, span] of scan.unbounded) {
+        diagnostics.pushCode("unbounded-array-collection", span);
+    }
+    return slots;
+}
+
 // The transform's mutable threading context.
 type Walk = {
     readonly analysis: SemanticResult;
     readonly scaffold: ScriptScaffold;
     readonly diagnostics: DiagnosticCollector;
     readonly owned: ReadonlySet<string>;
+    readonly arrayNames: ReadonlySet<string>;
     readonly defaults: ReadonlyMap<string, number>;
 };
 
@@ -743,7 +789,24 @@ export function transformOther(
     scaffold: ScriptScaffold,
     diagnostics: DiagnosticCollector,
 ): void {
-    const owned = drawingOwnedSymbols(analysis);
+    const drawingOwned = drawingOwnedSymbols(analysis);
+    // A `var array<…>` collection (a bounded numeric ring, a non-numeric
+    // collection, or an unbounded numeric ring) is added to `owned` so its
+    // `array.new(...)` decl + FIFO-eviction `if` are skipped by the statement
+    // walk — the SCALAR pipeline must never mis-lower an `array.new(...)` decl as
+    // a `state.float(array.new())` slot. A bounded numeric ring's
+    // `array.push`/`array.get` operations still emit (rewritten onto the slot);
+    // a rejected collection's operations emit raw (the output is an error stub).
+    const arrayScan = scanNumericArrays(analysis, drawingOwned);
+    const owned: ReadonlySet<string> = new Set([
+        ...drawingOwned,
+        ...arrayScan.slots.keys(),
+        ...arrayScan.nonNumeric.keys(),
+        ...arrayScan.unbounded.keys(),
+    ]);
+    // Numeric-array slots are registered + emitted first so their `const <slot>
+    // = state.array<number>(K);` declarations precede the scalar slots.
+    const arraySlots = emitArraySlots(scaffold, diagnostics, arrayScan);
     const defaults = inputDefaults(analysis);
     const scan = scanHistorySeries(analysis, owned);
     const seriesNames = new Set(scan.numeric.keys());
@@ -764,6 +827,7 @@ export function transformOther(
         inputCasts,
         tupleFieldAliases: registerTupleFields(analysis, scaffold.names),
         seriesSlots: seriesNames,
+        arraySlots,
     };
     emitStateSlots(analysis, scaffold, diagnostics, slots, scan, ctx);
     // A bool/string history-indexed scalar keeps its current (non-`state.series`)
@@ -773,7 +837,14 @@ export function transformOther(
     for (const [, decl] of scan.nonNumeric) {
         diagnostics.pushCode("series-history-non-numeric", decl.span);
     }
-    const walk: Walk = { analysis, scaffold, diagnostics, owned, defaults };
+    const walk: Walk = {
+        analysis,
+        scaffold,
+        diagnostics,
+        owned,
+        arrayNames: new Set(arraySlots.keys()),
+        defaults,
+    };
     for (const statement of analysis.script.body) {
         for (const line of emitStatement(statement, ctx, walk)) {
             appendComputeStatement(scaffold, line);
@@ -893,7 +964,7 @@ function emitExpressionStatement(
     if (expr.kind !== "call-expression") {
         return [`${emitWithContext(expr, ctx)};`];
     }
-    if (isDrawingOwnedCall(expr, walk.owned)) {
+    if (isDrawingOwnedCall(expr, walk.owned, walk.arrayNames)) {
         return [];
     }
     if (isPlotFamilyCall(expr)) {

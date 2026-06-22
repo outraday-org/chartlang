@@ -4,6 +4,7 @@
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
+import { feedKey } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import { createWorkerBoot, type WorkerBootScope } from "./createWorkerBoot.js";
@@ -63,6 +64,7 @@ function makeCapabilities(): Capabilities {
         inputs: new Set(),
         intervals: [],
         multiTimeframe: false,
+        multiSymbol: false,
         subPanes: 0,
         symInfoFields: new Set(),
         maxDrawingsPerScript: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
@@ -167,6 +169,59 @@ function dailyBar(time: number, close: number): Bar {
     };
 }
 
+function multiSymbolCapabilities(): Capabilities {
+    return {
+        ...mtfCapabilities(),
+        // A different-symbol feed needs BOTH gates open.
+        multiSymbol: true,
+    };
+}
+
+function twoSymbolManifest(): ScriptManifest {
+    return {
+        ...manifest(),
+        name: "spy-qqq-ratio",
+        // The composite feeds the runtime registers (one secondary stream per
+        // distinct symbol@interval). `requestedIntervals` stays the main-symbol
+        // HTF projection (empty here — neither symbol is the chart's own).
+        requestedIntervals: [],
+        requestedFeeds: [
+            { symbol: "AMEX:SPY", interval: "1D" },
+            { symbol: "NASDAQ:QQQ", interval: "1D" },
+        ],
+        seriesCapacities: { ohlcv: 16 },
+        maxLookback: 0,
+    };
+}
+
+// Data-form two-symbol script: reads SPY and QQQ daily closes and plots each
+// plus their ratio. The compiler would inline the slotId on each callsite.
+const TWO_SYMBOL_SOURCE = `
+export default {
+    manifest: ${JSON.stringify(twoSymbolManifest())},
+    compute: (ctx) => {
+        const spy = ctx.request.security("ratio.chart.ts:1:1#0", { symbol: "AMEX:SPY", interval: "1D" });
+        const qqq = ctx.request.security("ratio.chart.ts:2:1#0", { symbol: "NASDAQ:QQQ", interval: "1D" });
+        ctx.plot("ratio.chart.ts:3:1#0", spy.close.current, {});
+        ctx.plot("ratio.chart.ts:4:1#0", qqq.close.current, {});
+        ctx.plot("ratio.chart.ts:5:1#0", spy.close.current / qqq.close.current, {});
+    },
+};
+`;
+
+function symbolBar(time: number, close: number, symbol: string): Bar {
+    return {
+        time,
+        open: close,
+        high: close + 1,
+        low: close - 1,
+        close,
+        volume: 10,
+        symbol,
+        interval: "1D",
+    };
+}
+
 describe("host-worker integration", () => {
     it("boots the request.security expression form and aligns a weekly EMA", async () => {
         const { worker, scope } = pair();
@@ -211,6 +266,54 @@ describe("host-worker integration", () => {
         expect(weeklyHead).toBeCloseTo(30, 6);
         expect(Number.isFinite(mainHead)).toBe(true);
         expect(weeklyHead).not.toBeCloseTo(mainHead, 3);
+        expect(drained.diagnostics).toEqual([]);
+
+        host.dispose();
+    });
+
+    it("loads a two-symbol data-form script and routes each composite stream", async () => {
+        const { worker, scope } = pair();
+        createWorkerBoot(scope);
+        const host = createWorkerHost({
+            capabilities: multiSymbolCapabilities(),
+            workerLike: worker,
+        });
+
+        const compiled: HostCompiledScript = {
+            moduleSource: TWO_SYMBOL_SOURCE,
+            manifest: twoSymbolManifest(),
+        };
+        await host.load(compiled);
+
+        // Two distinct secondary streams, each tagged with the composite feed
+        // key built from the SAME `feedKey` helper the runtime keys on.
+        await host.push({
+            kind: "history",
+            bars: [400, 410].map((c, i) => symbolBar(i * 86_400_000, c, "AMEX:SPY")),
+            streamKey: feedKey("AMEX:SPY", "1D"),
+        });
+        await host.push({
+            kind: "history",
+            bars: [300, 305].map((c, i) => symbolBar(i * 86_400_000, c, "NASDAQ:QQQ")),
+            streamKey: feedKey("NASDAQ:QQQ", "1D"),
+        });
+        await host.push({
+            kind: "history",
+            bars: [bar(86_400_000, 100), bar(86_400_000 + 60_000, 101)],
+        });
+        await new Promise((r) => setTimeout(r, 20));
+
+        const drained = await host.drain();
+        const spyHead = drained.plots.filter((p) => p.slotId === "ratio.chart.ts:3:1#0").at(-1);
+        const qqqHead = drained.plots.filter((p) => p.slotId === "ratio.chart.ts:4:1#0").at(-1);
+        const ratioHead = drained.plots.filter((p) => p.slotId === "ratio.chart.ts:5:1#0").at(-1);
+
+        // Both symbol streams produced finite, DISTINCT values; the ratio is
+        // their quotient — proving the two composite streams did not cross-talk.
+        expect(spyHead?.value).toBeCloseTo(410, 6);
+        expect(qqqHead?.value).toBeCloseTo(305, 6);
+        expect(spyHead?.value).not.toBeCloseTo(qqqHead?.value ?? Number.NaN, 3);
+        expect(ratioHead?.value).toBeCloseTo(410 / 305, 6);
         expect(drained.diagnostics).toEqual([]);
 
         host.dispose();

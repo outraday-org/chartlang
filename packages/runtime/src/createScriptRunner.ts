@@ -12,9 +12,10 @@ import type {
     CompiledScriptBundle,
     CompiledScriptObject,
     ComputeFn,
+    RequestedFeed,
     ScriptManifest,
 } from "@invinite-org/chartlang-core";
-import { isCompiledScriptBundle } from "@invinite-org/chartlang-core";
+import { feedKey, isCompiledScriptBundle } from "@invinite-org/chartlang-core";
 
 import {
     type DepOutputStore,
@@ -203,14 +204,36 @@ function resolveCapacity(manifest: ScriptManifest): number {
     return Math.max(1, ohlcv ?? fallback, dynamicFallback ?? 0);
 }
 
+// A manifest produced BEFORE the multi-symbol feature has no `requestedFeeds`
+// field but may carry `requestedIntervals`; projecting the interval list to
+// symbol-omitted feeds keeps such a manifest mounting its main-symbol HTF
+// streams. This `requestedFeeds ?? …` fallback is the apiVersion-1
+// forward-compat seam; because `feedKey(undefined, iv) === iv`, the resulting
+// keys equal today's interval keys exactly.
+function legacyFeedsFromIntervals(manifest: ScriptManifest): RequestedFeed[] {
+    return manifest.requestedIntervals.map((interval) => ({ interval }));
+}
+
 function createSecondaryStreams(
     manifest: ScriptManifest,
     capacity: number,
+    chartSymbol: string,
 ): Map<string, StreamState> {
     const streams = new Map<string, StreamState>();
-    for (const interval of manifest.requestedIntervals) {
-        if (streams.has(interval)) continue;
-        streams.set(interval, createStreamState({ interval, capacity, symbol: "" }));
+    const feeds = manifest.requestedFeeds ?? legacyFeedsFromIntervals(manifest);
+    for (const feed of feeds) {
+        // Collapse a feed whose symbol IS the chart symbol (omitted, or the
+        // author passed the chart's own ticker explicitly) to `undefined`
+        // BEFORE keying, mirroring `requestNamespace`'s resolution: `feedKey`
+        // then yields the bare interval, so both spellings hit one stream and
+        // the chart-symbol path stays byte-identical to the baseline. A
+        // genuinely different symbol survives as `"<symbol>@<interval>"`.
+        const resolved =
+            feed.symbol === undefined || feed.symbol === chartSymbol ? undefined : feed.symbol;
+        const key = feedKey(resolved, feed.interval);
+        if (streams.has(key)) continue;
+        const symbol = feed.symbol ?? chartSymbol;
+        streams.set(key, createStreamState({ interval: feed.interval, capacity, symbol }));
     }
     return streams;
 }
@@ -278,8 +301,13 @@ function buildPrimaryState(
     primary: CompiledScriptObject,
 ): RunnerState {
     const capacity = resolveCapacity(primary.manifest);
+    // The chart symbol is the adapter's `syminfo.ticker` when supplied — the
+    // single existing mount-time source (the main stream's `symbol` is `""`
+    // until bars flow). A symbol-omitted / explicit-chart-symbol request
+    // collapses against this value to the bare-interval feed key.
+    const chartSymbol = args.symInfo?.ticker ?? "";
     const mainStream = createStreamState({ interval: "", capacity, symbol: "" });
-    const secondaryStreams = createSecondaryStreams(primary.manifest, capacity);
+    const secondaryStreams = createSecondaryStreams(primary.manifest, capacity, chartSymbol);
     const stateStore = args.stateStore ?? inMemoryStateStore();
     const now = args.now ?? Date.now;
     const views = createRuntimeViews({
@@ -330,6 +358,8 @@ function buildPrimaryState(
             scriptMaxDrawings: primary.manifest.maxDrawings ?? null,
             stateSlots: new Map(),
             seriesSlots: new Map(),
+            arraySlots: new Map(),
+            chartSymbol,
             secondaryStreams,
             requestSecurityBars: new Map(),
             requestSecurityAlignments: new Map(),
@@ -367,7 +397,7 @@ function buildPrimaryState(
         Object.freeze({});
     const exprRunners = buildSecurityExprRunners(primary.manifest, state.runtimeContext, capacity);
     state.runtimeContext.securityExprRunners = exprRunners.bySlot;
-    state.runtimeContext.securityExprRunnersByInterval = exprRunners.byInterval;
+    state.runtimeContext.securityExprRunnersByFeed = exprRunners.byFeed;
     state.runtimeContext.requestSecurityExprSeries = new Map();
     return state;
 }
@@ -398,11 +428,13 @@ function attachBundle(
         })),
     ];
     const store = createDepOutputStore({ producers, capacity: storeCapacity });
+    const { chartSymbol } = primary.runtimeContext;
     const depRunners: DepRunner[] = bundle.dependencies.map((entry) =>
         createDepRunner({
             compiled: entry.compiled,
             localId: entry.localId,
             parentCapabilities: capabilities,
+            chartSymbol,
             mainStream: primary.mainStream,
             secondaryStreams: primary.runtimeContext.secondaryStreams,
             depOutputStore: store,
@@ -415,6 +447,7 @@ function attachBundle(
             compiled: entry.compiled,
             exportName: entry.exportName,
             parentCapabilities: capabilities,
+            chartSymbol,
             mainStream: primary.mainStream,
             secondaryStreams: primary.runtimeContext.secondaryStreams,
             depOutputStore: store,

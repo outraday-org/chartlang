@@ -63,10 +63,27 @@ describe("emitRequestSecurity", () => {
         );
     });
 
-    it("warns request-security-different-symbol for a non-tickerid symbol", () => {
-        const { source, codes } = emit('request.security("AAPL", "D", close)');
-        expect(source).toBe('request.security({ interval: "1d" }).close');
+    it("carries a literal different symbol into the opts (multi-symbol)", () => {
+        const { source, codes } = emit('request.security("NASDAQ:AAPL", "D", close)');
+        expect(source).toBe('request.security({ symbol: "NASDAQ:AAPL", interval: "1d" }).close');
         expect(codes).toContain("pine-converter/transform/request-security-different-symbol");
+    });
+
+    it("lowers a literal different symbol with a ta.* source to the callback form", () => {
+        const { source, codes } = emit('request.security("AMEX:SPY", "1W", ta.ema(close, 9))');
+        expect(source).toBe(
+            'request.security({ symbol: "AMEX:SPY", interval: "1w" }, (bar) => ta.ema(bar.close, 9))',
+        );
+        expect(codes).toContain("pine-converter/transform/request-security-different-symbol");
+    });
+
+    it("rejects a computed (non-literal) symbol as request-security-not-mapped", () => {
+        const { source, codes } = emit("request.security(sym, \"D\", close)");
+        expect(source).toBeNull();
+        expect(codes).toContain("pine-converter/transform/request-security-not-mapped");
+        expect(codes).not.toContain(
+            "pine-converter/transform/request-security-different-symbol",
+        );
     });
 
     it("warns request-security-lookahead-not-supported", () => {

@@ -26,9 +26,34 @@ import type {
     CompiledScriptObject,
     ScriptManifest,
 } from "@invinite-org/chartlang-core";
+import { feedKey } from "@invinite-org/chartlang-core";
 import { createScriptRunner } from "@invinite-org/chartlang-runtime";
 
 import { GOLDEN_BARS_PATH, type GoldenBars } from "./fixtures/generateGoldenBars.js";
+
+/**
+ * A secondary stream identified by its composite `(symbol, interval)` feed.
+ * The harness derives the wire `streamKey` via the core `feedKey(symbol,
+ * interval)` helper — never a hand-composed `"<symbol>@<interval>"` string —
+ * so the conformance scenario and the runtime agree on the byte-for-byte key.
+ * `symbol` is omitted for a chart-symbol higher-timeframe feed (which collapses
+ * to the bare interval, `feedKey(undefined, "1D") === "1D"`); a different
+ * symbol survives as `"<symbol>@<interval>"`. This is the multi-symbol sibling
+ * of {@link Scenario.secondaryCandles} (the interval-keyed back-compat shape).
+ *
+ * @since 1.3
+ * @stable
+ * @example
+ *     import type { SecondaryFeed } from "@invinite-org/chartlang-conformance";
+ *     declare const bars: SecondaryFeed["bars"];
+ *     const spy: SecondaryFeed = { symbol: "AMEX:SPY", interval: "1D", bars };
+ *     void spy;
+ */
+export type SecondaryFeed = {
+    readonly symbol?: string;
+    readonly interval: string;
+    readonly bars: ReadonlyArray<Bar>;
+};
 
 /**
  * A single conformance scenario. The script source comes from
@@ -93,6 +118,15 @@ export type Scenario = {
     readonly capabilitiesOverride?: Partial<Capabilities>;
     readonly candleLimit?: number;
     readonly secondaryCandles?: Readonly<Record<string, ReadonlyArray<Bar>>>;
+    /**
+     * Secondary streams identified by their composite `(symbol, interval)`
+     * feed. Each entry's wire `streamKey` is derived via `feedKey(symbol,
+     * interval)`, so a multi-symbol scenario (e.g. SPY + QQQ at `"1D"`) drives
+     * two distinct streams without hand-composing the key. Folded into the
+     * same per-key feed iteration as {@link Scenario.secondaryCandles}; the two
+     * fields may be combined (their keys must not collide). `@since 1.3`.
+     */
+    readonly secondaryFeeds?: ReadonlyArray<SecondaryFeed>;
     readonly eventStream?: ScenarioEventStream;
     /**
      * Mount-time plot overrides, keyed by ordinal index into the compiled
@@ -382,6 +416,35 @@ function resolveOverrideMap(
         if (slotId !== undefined) map[slotId] = override;
     }
     return map;
+}
+
+type ResolvedSecondaryStream = {
+    readonly streamKey: string;
+    readonly bars: ReadonlyArray<Bar>;
+};
+
+/**
+ * Flatten a scenario's secondary streams into `streamKey → bars` rows. The
+ * interval-keyed `secondaryCandles` carries its bare key through unchanged
+ * (back-compat); each `secondaryFeeds` entry derives its composite key via the
+ * core `feedKey(symbol, interval)` helper so it matches the runtime's stream
+ * key byte-for-byte. The two sources are concatenated; an author colliding
+ * keys across both surfaces gets two same-key rows (harmless — the runtime
+ * routes both to the one stream the manifest registered).
+ */
+function resolveSecondaryStreams(scenario: Scenario): ReadonlyArray<ResolvedSecondaryStream> {
+    const streams: ResolvedSecondaryStream[] = [];
+    if (scenario.secondaryCandles !== undefined) {
+        for (const [streamKey, bars] of Object.entries(scenario.secondaryCandles)) {
+            streams.push({ streamKey, bars });
+        }
+    }
+    if (scenario.secondaryFeeds !== undefined) {
+        for (const feed of scenario.secondaryFeeds) {
+            streams.push({ streamKey: feedKey(feed.symbol, feed.interval), bars: feed.bars });
+        }
+    }
+    return streams;
 }
 
 const PACKAGE_DIR = resolvePath(fileURLToPath(import.meta.url), "../..");
@@ -766,24 +829,25 @@ async function runOne(
         const scenarioCandles =
             scenario.candleLimit === undefined ? candles : candles.slice(0, scenario.candleLimit);
         const stream = scenario.eventStream ?? { kind: "close" };
+        // Unify the interval-keyed `secondaryCandles` (back-compat) and the
+        // composite-feed `secondaryFeeds` into one `streamKey → bars` list.
+        // `secondaryFeeds` derives its key via the core `feedKey` helper so the
+        // wire key matches the runtime's composite key byte-for-byte.
+        const secondaryStreams = resolveSecondaryStreams(scenario);
         const secondaryIndexes = new Map<string, number>();
         let eventIndex = 0;
         for (const bar of scenarioCandles) {
-            if (scenario.secondaryCandles !== undefined) {
-                for (const [streamKey, secondaryBars] of Object.entries(
-                    scenario.secondaryCandles,
-                )) {
-                    let secondaryIndex = secondaryIndexes.get(streamKey) ?? 0;
-                    while (
-                        secondaryIndex < secondaryBars.length &&
-                        secondaryBars[secondaryIndex].time <= bar.time
-                    ) {
-                        const secondary = secondaryBars[secondaryIndex];
-                        await pushRunnerEvent(runner, { kind: "close", bar: secondary, streamKey });
-                        secondaryIndex += 1;
-                    }
-                    secondaryIndexes.set(streamKey, secondaryIndex);
+            for (const { streamKey, bars: secondaryBars } of secondaryStreams) {
+                let secondaryIndex = secondaryIndexes.get(streamKey) ?? 0;
+                while (
+                    secondaryIndex < secondaryBars.length &&
+                    secondaryBars[secondaryIndex].time <= bar.time
+                ) {
+                    const secondary = secondaryBars[secondaryIndex];
+                    await pushRunnerEvent(runner, { kind: "close", bar: secondary, streamKey });
+                    secondaryIndex += 1;
                 }
+                secondaryIndexes.set(streamKey, secondaryIndex);
             }
             if (stream.kind === "initial-close-then-ticks" && eventIndex > 0) {
                 await pushRunnerEvent(runner, { kind: "tick", bar });

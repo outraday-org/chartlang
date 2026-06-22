@@ -3,6 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 
+import type { RequestedFeed } from "@invinite-org/chartlang-core";
+
 import type { CompileDiagnostic } from "../diagnostics.js";
 import { createProgramForSource } from "../program.js";
 import { extractInputs } from "./extractInputs.js";
@@ -50,6 +52,56 @@ function runWithInputs(
     );
     return Object.freeze({
         intervals,
+        diagnostics: Object.freeze(diagnostics.slice()),
+    });
+}
+
+function runFeeds(source: string): Readonly<{
+    intervals: ReadonlyArray<string>;
+    feeds: ReadonlyArray<RequestedFeed>;
+    diagnostics: ReadonlyArray<CompileDiagnostic>;
+}> {
+    const { sourceFile, checker } = createProgramForSource(source, {
+        sourcePath: "demo.chart.ts",
+    });
+    const inputResult = extractInputs(sourceFile, checker, "demo.chart.ts");
+    const diagnostics: CompileDiagnostic[] = [...inputResult.diagnostics];
+    const analysis = extractRequestAnalysis(
+        sourceFile,
+        checker,
+        inputResult.inputs,
+        diagnostics,
+        "demo.chart.ts",
+    );
+    return Object.freeze({
+        intervals: analysis.intervals,
+        feeds: analysis.feeds,
+        diagnostics: Object.freeze(diagnostics.slice()),
+    });
+}
+
+function runFeedsWithInputs(
+    source: string,
+    inputs: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
+): Readonly<{
+    intervals: ReadonlyArray<string>;
+    feeds: ReadonlyArray<RequestedFeed>;
+    diagnostics: ReadonlyArray<CompileDiagnostic>;
+}> {
+    const { sourceFile, checker } = createProgramForSource(source, {
+        sourcePath: "demo.chart.ts",
+    });
+    const diagnostics: CompileDiagnostic[] = [];
+    const analysis = extractRequestAnalysis(
+        sourceFile,
+        checker,
+        inputs,
+        diagnostics,
+        "demo.chart.ts",
+    );
+    return Object.freeze({
+        intervals: analysis.intervals,
+        feeds: analysis.feeds,
         diagnostics: Object.freeze(diagnostics.slice()),
     });
 }
@@ -341,5 +393,344 @@ const trend = request.security({ interval: "1W" }, (bar) => bar.close[k]);`;
         expect(analyse(captured, true).diagnostics.map((d) => d.code)).toContain(
             "request-security-expr-captures-local",
         );
+    });
+
+    it("attaches a literal symbol to the expression descriptor", () => {
+        const result = analyse(
+            `import { request } from "@invinite-org/chartlang-core";
+const trend = request.security({ symbol: "NASDAQ:AAPL", interval: "1W" }, (bar) => bar.close);`,
+        );
+        expect(result.securityExpressions).toEqual([
+            {
+                slotId: "demo.chart.ts:2:15#0",
+                symbol: "NASDAQ:AAPL",
+                interval: "1W",
+                paramName: "bar",
+            },
+        ]);
+    });
+
+    it("attaches an input.symbol default to the expression descriptor", () => {
+        const result = analyse(
+            `import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { sym: input.symbol("AMEX:SPY") },
+    compute: ({ inputs, request }) => {
+        request.security({ symbol: inputs.sym, interval: "1D" }, (bar) => bar.close);
+    },
+});`,
+        );
+        expect(result.securityExpressions).toEqual([
+            {
+                slotId: "demo.chart.ts:7:9#0",
+                symbol: "AMEX:SPY",
+                interval: "1D",
+                paramName: "bar",
+            },
+        ]);
+    });
+
+    it("omits the descriptor symbol for an input.enum symbol", () => {
+        const result = analyse(
+            `import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { sym: input.enum("A", ["A", "B"] as const) },
+    compute: ({ inputs, request }) => {
+        request.security({ symbol: inputs.sym, interval: "1D" }, (bar) => bar.close);
+    },
+});`,
+        );
+        expect(result.securityExpressions).toEqual([
+            { slotId: "demo.chart.ts:7:9#0", interval: "1D", paramName: "bar" },
+        ]);
+    });
+
+    it("omits the descriptor symbol for an empty-literal symbol", () => {
+        const result = analyse(
+            `import { request } from "@invinite-org/chartlang-core";
+const trend = request.security({ symbol: "", interval: "1W" }, (bar) => bar.close);`,
+        );
+        expect(result.securityExpressions).toEqual([
+            { slotId: "demo.chart.ts:2:15#0", interval: "1W", paramName: "bar" },
+        ]);
+    });
+
+    it("omits the descriptor symbol for a dynamic symbol (interval still anchors)", () => {
+        const result = analyse(
+            `import { request } from "@invinite-org/chartlang-core";
+declare const s: string;
+const trend = request.security({ symbol: s, interval: "1W" }, (bar) => bar.close);`,
+        );
+        expect(result.securityExpressions).toEqual([
+            { slotId: "demo.chart.ts:3:15#0", interval: "1W", paramName: "bar" },
+        ]);
+        expect(result.diagnostics.map((d) => d.code)).toContain(
+            "request-security-symbol-not-literal",
+        );
+    });
+});
+
+describe("extractRequestAnalysis requested feeds", () => {
+    it("records a literal symbol+interval feed not joined to requestedIntervals", () => {
+        const result = runFeeds(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.security({ symbol: "AMEX:SPY", interval: "1D" });
+    },
+});
+`);
+        expect(result.feeds).toEqual([{ symbol: "AMEX:SPY", interval: "1D" }]);
+        expect(result.intervals).toEqual([]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("records an omitted-symbol feed and joins its interval to requestedIntervals", () => {
+        const result = runFeeds(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.security({ interval: "1W" });
+    },
+});
+`);
+        expect(result.feeds).toEqual([{ interval: "1W" }]);
+        expect(result.intervals).toEqual(["1W"]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("treats an empty-literal symbol as the chart symbol", () => {
+        const result = runFeeds(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.security({ symbol: "", interval: "1D" });
+    },
+});
+`);
+        expect(result.feeds).toEqual([{ interval: "1D" }]);
+        expect(result.intervals).toEqual(["1D"]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("resolves an input.symbol default into the feed", () => {
+        const result = runFeeds(`
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { sym: input.symbol("NASDAQ:QQQ") },
+    compute: ({ inputs, request }) => {
+        request.security({ symbol: inputs.sym, interval: "1D" });
+    },
+});
+`);
+        expect(result.feeds).toEqual([{ symbol: "NASDAQ:QQQ", interval: "1D" }]);
+        expect(result.intervals).toEqual([]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("expands an input.enum symbol into one feed per option (cartesian with intervals)", () => {
+        const result = runFeeds(`
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: {
+        sym: input.enum("AMEX:SPY", ["AMEX:SPY", "NASDAQ:QQQ"] as const),
+        htf: input.enum("1D", ["1D", "1W"] as const),
+    },
+    compute: ({ inputs, request }) => {
+        request.security({ symbol: inputs.sym, interval: inputs.htf });
+    },
+});
+`);
+        expect(result.feeds).toEqual([
+            { symbol: "AMEX:SPY", interval: "1D" },
+            { symbol: "AMEX:SPY", interval: "1W" },
+            { symbol: "NASDAQ:QQQ", interval: "1D" },
+            { symbol: "NASDAQ:QQQ", interval: "1W" },
+        ]);
+        expect(result.intervals).toEqual([]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("excludes a dynamic symbol and emits request-security-symbol-not-literal", () => {
+        const result = runFeeds(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+declare const s: string;
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.security({ symbol: s, interval: "1D" });
+    },
+});
+`);
+        expect(result.feeds).toEqual([]);
+        expect(result.intervals).toEqual([]);
+        expect(result.diagnostics.map((d) => d.code)).toEqual([
+            "request-security-symbol-not-literal",
+        ]);
+        expect(result.diagnostics[0]?.message).toBe(
+            "request.security({ symbol }) must be a string literal, an input.symbol default, or an input.enum value",
+        );
+    });
+
+    it("emits both diagnostics when symbol and interval are both dynamic", () => {
+        const result = runFeeds(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+declare const s: string;
+declare const tf: string;
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.security({ symbol: s, interval: tf });
+    },
+});
+`);
+        expect(result.feeds).toEqual([]);
+        expect(result.intervals).toEqual([]);
+        expect(result.diagnostics.map((d) => d.code).sort()).toEqual([
+            "request-security-interval-not-literal",
+            "request-security-symbol-not-literal",
+        ]);
+    });
+
+    it("dedups the same symbol+interval requested by two callsites", () => {
+        const result = runFeeds(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.security({ symbol: "AMEX:SPY", interval: "1D" });
+        request.security({ symbol: "AMEX:SPY", interval: "1D" });
+    },
+});
+`);
+        expect(result.feeds).toEqual([{ symbol: "AMEX:SPY", interval: "1D" }]);
+    });
+
+    it("sorts distinct symbols deterministically by feedKey", () => {
+        const result = runFeeds(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.security({ symbol: "NASDAQ:QQQ", interval: "1D" });
+        request.security({ symbol: "AMEX:SPY", interval: "1D" });
+        request.security({ interval: "1D" });
+    },
+});
+`);
+        // feedKey: "1D" (omitted) < "AMEX:SPY@1D" < "NASDAQ:QQQ@1D".
+        expect(result.feeds).toEqual([
+            { interval: "1D" },
+            { symbol: "AMEX:SPY", interval: "1D" },
+            { symbol: "NASDAQ:QQQ", interval: "1D" },
+        ]);
+        expect(result.intervals).toEqual(["1D"]);
+    });
+
+    it("rejects an inputs.symbol descriptor whose default is not a string", () => {
+        // Manual caller path: a `symbol`-kind descriptor with a non-string
+        // default cannot resolve, so it falls through to the dynamic diagnostic.
+        const result = runFeedsWithInputs(
+            `import { request } from "@invinite-org/chartlang-core";
+request.security({ symbol: inputs.sym, interval: "1D" });`,
+            { sym: { kind: "symbol", defaultValue: 1 } },
+        );
+        expect(result.feeds).toEqual([]);
+        expect(result.diagnostics.map((d) => d.code)).toEqual([
+            "request-security-symbol-not-literal",
+        ]);
+    });
+
+    it("rejects an inputs reference that is neither enum nor symbol", () => {
+        const result = runFeedsWithInputs(
+            `import { request } from "@invinite-org/chartlang-core";
+request.security({ symbol: inputs.sym, interval: "1D" });`,
+            { sym: { kind: "string", defaultValue: "x" } },
+        );
+        expect(result.feeds).toEqual([]);
+        expect(result.diagnostics.map((d) => d.code)).toEqual([
+            "request-security-symbol-not-literal",
+        ]);
+    });
+
+    it("rejects a missing inputs reference for the symbol opt", () => {
+        const result = runFeedsWithInputs(
+            `import { request } from "@invinite-org/chartlang-core";
+request.security({ symbol: inputs.missing, interval: "1D" });`,
+            {},
+        );
+        expect(result.feeds).toEqual([]);
+        expect(result.diagnostics.map((d) => d.code)).toEqual([
+            "request-security-symbol-not-literal",
+        ]);
+    });
+
+    it("rejects a property-access symbol on a non-inputs identifier", () => {
+        const result = runFeeds(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+declare const bar: { symbol: string };
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.security({ symbol: bar.symbol, interval: "1D" });
+    },
+});
+`);
+        expect(result.feeds).toEqual([]);
+        expect(result.diagnostics.map((d) => d.code)).toEqual([
+            "request-security-symbol-not-literal",
+        ]);
+    });
+
+    it("rejects a symbol whose access base is not a bare identifier", () => {
+        const result = runFeeds(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+declare const a: { b: { symbol: string } };
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.security({ symbol: a.b.symbol, interval: "1D" });
+    },
+});
+`);
+        expect(result.feeds).toEqual([]);
+        expect(result.diagnostics.map((d) => d.code)).toEqual([
+            "request-security-symbol-not-literal",
+        ]);
+    });
+
+    it("produces no feeds when there are no request.security calls", () => {
+        const result = runFeeds(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: () => {
+        request.lowerTf({ interval: "30s" });
+    },
+});
+`);
+        expect(result.feeds).toEqual([]);
+        expect(result.intervals).toEqual(["30s"]);
     });
 });

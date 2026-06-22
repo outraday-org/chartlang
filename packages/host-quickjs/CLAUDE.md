@@ -46,7 +46,13 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   `ReadonlyArray` union member). Cross-host parity with host-worker is the
   conformance contract. The whole `__manifest` is spread through, so the
   HTF-expression `request.security(opts, expr)` form (carried by
-  `manifest.securityExpressions`) needs no dispatcher change.
+  `manifest.securityExpressions`) needs no dispatcher change. The multi-symbol
+  feature (`manifest.requestedFeeds` + the composite `CandleEvent.streamKey`
+  `feedKey(symbol, interval)`) rides the SAME spread with NO dispatcher change —
+  `requestedFeeds` carries through the full spread and `streamKey` passes
+  untouched, so a two-symbol script routes each composite stream identically to
+  host-worker (cross-host parity covered by `integration.test.ts`'s two-symbol
+  parity test).
 - **Compiled source is evaluated directly, not via `data:` URLs.** The
   host-worker `data:` URL invariant is browser-specific; QuickJS receives the
   module source through the JSON membrane and the dispatcher turns supported

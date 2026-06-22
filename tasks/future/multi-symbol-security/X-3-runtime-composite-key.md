@@ -1,6 +1,6 @@
 # Task 3 — Runtime: composite `(symbol, interval)` keys
 
-> **Status: TODO**
+> **Status: DONE** (see `3-runtime-composite-key.plan.md` for the as-built audit).
 
 ## Goal
 

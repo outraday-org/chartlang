@@ -539,11 +539,11 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
     },
     "request-security-different-symbol": {
         code: "pine-converter/transform/request-security-different-symbol",
-        severity: "warning",
+        severity: "info",
         defaultMessage:
-            "`request.security` on a different symbol than `syminfo.tickerid` is not supported; chartlang's v1 MTF is same-symbol only.",
+            "`request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.",
         defaultSuggestion:
-            "Request the same symbol at a different interval, or drop the cross-symbol read.",
+            "Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol.",
     },
     "request-security-lookahead-not-supported": {
         code: "pine-converter/transform/request-security-lookahead-not-supported",
@@ -670,6 +670,22 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
             "Pine `explicit_plot_zorder` is the default in chartlang (marks layer by declaration order within their group); no flag is needed and none is emitted.",
         defaultSuggestion:
             "Remove the argument; chartlang always orders marks by declaration order, so the flag is a no-op either way.",
+    },
+    "array-collection-non-numeric": {
+        code: "pine-converter/transform/array-collection-non-numeric",
+        severity: "info",
+        defaultMessage:
+            "Persistent non-numeric collections are not supported in chartlang v1 (only numeric `state.array`).",
+        defaultSuggestion:
+            "Hold numeric values in the array, or track the non-numeric data with scalar `state.*` slots.",
+    },
+    "unbounded-array-collection": {
+        code: "pine-converter/transform/unbounded-array-collection",
+        severity: "error",
+        defaultMessage:
+            "A persistent numeric array with no detectable capacity cannot be bounded; chartlang has no unbounded collection.",
+        defaultSuggestion:
+            "Add a FIFO eviction guard (`if array.size(coll) > K` → `array.shift(coll)`) or size the array via `array.new<float>(K)` so the capacity is a literal.",
     },
     "codegen-output-invalid": {
         code: "pine-converter/codegen/codegen-output-invalid",

@@ -83,18 +83,25 @@ export function isRequestSecurityCall(call: CallExpression): boolean {
 }
 
 /**
- * Lower a v1 single-symbol intraday MTF `request.security(syminfo.tickerid,
- * "<timeframe>", <source>)` call. A bare OHLCV source lowers to the chartlang
- * **data** form `request.security({ interval: "<interval>" }).<field>` (a
- * `Series`); a `ta.*` / expression source lowers to the chartlang **callback**
- * form `request.security({ interval: "<interval>" }, (bar) => <source>)`, which
- * runs the expression on the higher-timeframe clock the way Pine does (the
- * source's `close`/`hl2`/… already rewrite to `bar.close`/`bar.hl2`/… through
- * the shared field mapper). A different symbol pushes
- * `request-security-different-symbol`; a `lookahead` named arg pushes
- * `request-security-lookahead-not-supported`. An out-of-subset shape
- * (non-literal timeframe, missing args) pushes `request-security-not-mapped`
- * and returns `null`.
+ * Lower an MTF `request.security(<symbol>, "<timeframe>", <source>)` call. The
+ * symbol arg decides the opts: `syminfo.tickerid` reads the chart's own symbol
+ * and omits `symbol` (`{ interval }`, byte-identical to the single-symbol
+ * form); a **string literal** (`"NASDAQ:AAPL"`) carries the symbol into the
+ * opts (`{ symbol, interval }`, chartlang multi-symbol) and pushes an info
+ * `request-security-different-symbol` so downstream tooling still sees the
+ * cross-symbol read; any other symbol expression (a computed ticker, a
+ * non-`tickerid` identifier) is un-mappable — chartlang requires a literal
+ * symbol too — and pushes `request-security-not-mapped` returning `null`.
+ *
+ * A bare OHLCV source lowers to the chartlang **data** form
+ * `request.security(<opts>).<field>` (a `Series`); a `ta.*` / expression
+ * source lowers to the chartlang **callback** form
+ * `request.security(<opts>, (bar) => <source>)`, which runs the expression on
+ * the higher-timeframe clock the way Pine does (the source's `close`/`hl2`/…
+ * already rewrite to `bar.close`/`bar.hl2`/… through the shared field mapper).
+ * A `lookahead` named arg pushes `request-security-lookahead-not-supported`. An
+ * out-of-subset shape (non-literal timeframe, missing args) pushes
+ * `request-security-not-mapped` and returns `null`.
  *
  * @since 0.1
  * @stable
@@ -149,8 +156,14 @@ export function emitRequestSecurity(
         diagnostics.pushCode("request-security-not-mapped", call.span);
         return null;
     }
-    if (!isTickerId(symbol)) {
-        diagnostics.pushCode("request-security-different-symbol", call.span);
+    // Resolve the symbol arg into the opts. `syminfo.tickerid` is the chart's
+    // own symbol → omit `symbol` (byte-identical to the single-symbol form). A
+    // string literal lowers to chartlang multi-symbol; anything else is a
+    // computed/non-literal ticker chartlang cannot key on.
+    const tickerSymbol = isTickerId(symbol) ? null : stringLiteralValue(symbol);
+    if (!isTickerId(symbol) && tickerSymbol === null) {
+        diagnostics.pushCode("request-security-not-mapped", call.span);
+        return null;
     }
     const raw = stringLiteralValue(timeframe);
     if (raw === null) {
@@ -162,7 +175,15 @@ export function emitRequestSecurity(
         diagnostics.pushCode("request-security-not-mapped", call.span);
         return null;
     }
-    const opts = `{ interval: ${JSON.stringify(interval)} }`;
+    if (tickerSymbol !== null) {
+        // A mappable cross-symbol read — emit the info so downstream tooling
+        // still sees the cross-symbol signal even though it now lowers cleanly.
+        diagnostics.pushCode("request-security-different-symbol", call.span);
+    }
+    const opts =
+        tickerSymbol === null
+            ? `{ interval: ${JSON.stringify(interval)} }`
+            : `{ symbol: ${JSON.stringify(tickerSymbol)}, interval: ${JSON.stringify(interval)} }`;
     const field = securityField(source);
     // A bare OHLCV field reads the aligned data form; any other source (a
     // `ta.*`/expression) runs on the HTF clock via the callback form. The

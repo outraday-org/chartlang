@@ -65,6 +65,32 @@ that caps the collection. It converts to a fixed-capacity chartlang ring;
 the eviction block is removed (the ring rotates internally) and an info
 notes the elision. **This is the idiom for "keep the last K drawings."**
 
+A Camp B ring holding **numeric values** (not drawing handles) lowers the
+same way — to a persistent `state.array<number>(K)`:
+
+```text
+// Pine: a bounded var array<float> with the same FIFO-eviction signature.
+var array<float> win = array.new<float>()
+array.push(win, close)
+if array.size(win) > 20
+    array.shift(win)
+plot(array.get(win, 0))
+```
+
+converts to:
+
+```ts
+// chartlang: the eviction block is elided (the ring self-bounds), and the
+// literal cap K becomes the required state.array capacity. get(0) is newest.
+const win = state.array<number>(20);
+win.push(bar.close);
+plot(win.get(0));
+```
+
+Only **numeric** (`float` / `int`) value rings have a target; a
+`var array<bool>` / `var array<string>` rejects as
+`array-collection-non-numeric`.
+
 ### Camp C — dynamic collections (often a reject)
 
 A collection that fits neither shape cleanly. The converter tries to infer
@@ -95,6 +121,32 @@ To steer a Camp C script into a bounded camp:
 | `while` / `for ... in` | Unbounded loops. | Use a literal `for i = a to b`. |
 | `strategy(...)` | No backtester. | Convert as `indicator(...)`; emit orders as `alert(...)`. |
 
+## `request.security` — timeframe AND symbol
+
+Pine's positional `request.security(symbol, timeframe, expr)` maps to
+chartlang's options-object `request.security({ symbol?, interval }, (bar) =>
+expr)`. The **first** Pine arg (the symbol) decides whether the chartlang opts
+carry a `symbol`:
+
+| Pine | chartlang | Notes |
+|---|---|---|
+| `request.security(syminfo.tickerid, "1D", close)` | `request.security({ interval: "1D" }).close` | Chart's own symbol ⇒ `symbol` **omitted** (byte-identical to the higher-timeframe-only case). |
+| `request.security("NASDAQ:AAPL", "1D", close)` | `request.security({ symbol: "NASDAQ:AAPL", interval: "1D" }).close` | A **literal** different symbol ⇒ `{ symbol, interval }` (multi-symbol). |
+| `request.security(someComputedTicker, "1D", close)` | _reject_ `request-security-not-mapped` | The symbol must be a compile-time literal (string literal / `input.symbol` / `input.enum`); a computed ticker can't lower. |
+
+The expression form carries the symbol the same way:
+`request.security("NASDAQ:AAPL", "1D", ta.ema(close, 20))` →
+`request.security({ symbol: "NASDAQ:AAPL", interval: "1D" }, (bar) =>
+ta.ema(bar.close, 20))`.
+
+A non-chart symbol additionally requires the adapter's **`multiSymbol`**
+capability (a strictly larger ask than `multiTimeframe`); against an adapter
+that declares `multiSymbol: false`, a different-symbol read degrades to an
+all-NaN series with one `multi-symbol-not-supported` diagnostic. The data form's
+`SecurityBar.close` is a `Series<Price>` (indexable, NOT number-coercible), so
+read `.current` for the live scalar before arithmetic
+(`spy.close.current / qqq.close.current`).
+
 ## Gotchas
 
 - **`varip` is approximated.** A `varip` handle reuses the same slot and
@@ -110,6 +162,15 @@ To steer a Camp C script into a bounded camp:
   out of v1 series scope (`series-history-non-numeric`); a `varip` series
   approximates to a non-tick `state.series` (`varip-series-approximated`); a
   non-literal series-slot offset rejects (`dynamic-series-index`).
+- **A bounded numeric `var array<float>`/`<int>` becomes a `state.array`.** A
+  Camp B numeric value ring (an `array.push` plus an `array.size > K` →
+  `array.shift` eviction) lowers to a persistent `const a =
+  state.array<number>(K)`; the eviction block is elided (the ring self-bounds)
+  and an info notes it. `a.push(v)` / `a.get(n)` (0 = newest) / `a.last()` /
+  `a.size` map the Pine `array.*` reads. This is distinct from the scalar `var x
+  := …; x[1]` → `state.series` case above: `state.series` is one value's bar
+  history, `state.array` is a bounded bag of pushed values. `array<bool>` /
+  `array<string>` value rings reject as `array-collection-non-numeric`.
 - **`bar_index` anchors lower to `bar.point`.** A drawing anchored by
   `bar_index` (current, `bar_index[N]` historical, or `bar_index + N`
   future) now lowers to `bar.point(<signed offset>, price)` — the integer

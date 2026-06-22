@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { ExpressionNode } from "../ast/index.js";
+import type { CallExpression, ExpressionNode } from "../ast/index.js";
 import type { AnnotationLookup } from "./exprEmit.js";
 import { emitExpr } from "./exprEmit.js";
 import { emitStr } from "./strFormat.js";
@@ -56,7 +56,90 @@ export type EmitContext = Readonly<{
      * `.value`). Absent → no series slots.
      */
     seriesSlots?: ReadonlySet<string>;
+    /**
+     * Pine collection name → its chartlang `state.array` slot (local name +
+     * literal capacity `K`), for a bounded numeric `var array<float|int>`
+     * lowered to `state.array<number>(K)`. An `array.*(coll, …)` call over one
+     * of these rewrites onto the slot's surface (`array.push(coll, v)` →
+     * `<slot>.push(v)`, `array.get(coll, n)` → `<slot>.get(n)`,
+     * `array.size(coll)` → `<slot>.size`, `array.last(coll)` → `<slot>.last()`,
+     * `array.first(coll)` → `<slot>.get(<slot>.size - 1)`, `array.clear(coll)` →
+     * `<slot>.clear()`). The capacity sizes a `for i = 0 to array.size(coll)`
+     * walk's LITERAL loop bound (chartlang forbids a non-literal bound; the
+     * slot's `get` gates the filled count internally). Absent → no array slots.
+     */
+    arraySlots?: ReadonlyMap<string, ArraySlotInfo>;
 }>;
+
+/**
+ * A bounded numeric `state.array` slot: its chartlang local name and its
+ * compile-time literal capacity `K`.
+ *
+ * @since 0.1
+ * @experimental
+ * @example
+ *     const info: ArraySlotInfo = { local: "win", cap: 20 };
+ *     void info;
+ */
+export type ArraySlotInfo = Readonly<{ local: string; cap: number }>;
+
+// The bare-rooted dotted callee of a call (`array.push`), or `null` for a
+// computed callee. Local to the rewrite so `emitContext` stays self-contained.
+function dottedCallee(callee: ExpressionNode): string | null {
+    if (callee.kind === "member-access-expression" && callee.head === null) {
+        return callee.chain.join(".");
+    }
+    return null;
+}
+
+// The chartlang `state.array` slot local a call's first argument targets, or
+// `null` when the first arg is not a bare identifier naming a registered array
+// slot.
+function arraySlotOf(call: CallExpression, ctx: EmitContext): string | null {
+    if (ctx.arraySlots === undefined) {
+        return null;
+    }
+    const first = call.args[0]?.value;
+    if (first === undefined || first.kind !== "identifier-expression") {
+        return null;
+    }
+    return ctx.arraySlots.get(first.name)?.local ?? null;
+}
+
+// Rewrite an `array.*(coll, …)` call over a registered numeric array slot onto
+// the slot's chartlang surface, returning the emitted source string. Arguments
+// are lowered recursively so a nested rewrite still applies. Returns `null` for
+// any call that is not an array-slot operation (the generic recursion handles
+// it). An unrecognised `array.*` member over a slot also returns `null` —
+// leaving it to the generic path — so a future array builtin never silently
+// mis-lowers.
+function rewriteArrayBuiltin(call: CallExpression, ctx: EmitContext): string | null {
+    const slot = arraySlotOf(call, ctx);
+    const name = dottedCallee(call.callee);
+    if (slot === null || name === null) {
+        return null;
+    }
+    const arg = (index: number): string => {
+        const value = call.args[index]?.value;
+        return value === undefined ? "" : emitWithContext(value, ctx);
+    };
+    switch (name) {
+        case "array.push":
+            return `${slot}.push(${arg(1)})`;
+        case "array.get":
+            return `${slot}.get(${arg(1)})`;
+        case "array.size":
+            return `${slot}.size`;
+        case "array.last":
+            return `${slot}.last()`;
+        case "array.first":
+            return `${slot}.get(${slot}.size - 1)`;
+        case "array.clear":
+            return `${slot}.clear()`;
+        default:
+            return null;
+    }
+}
 
 // Rewrite a bare identifier per the context: a shadowing local stays verbatim;
 // a `var`/`varip` scalar reads through its `state.*` slot's `.value`; a
@@ -124,6 +207,14 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext): ExpressionNode {
                 alternate: rewriteTree(node.alternate, ctx),
             };
         case "call-expression": {
+            // Lower an `array.*(coll, …)` operation over a numeric `state.array`
+            // slot onto the slot's surface (`array.push(coll, v)` →
+            // `<slot>.push(v)`). Spliced as a verbatim identifier so `emitExpr`
+            // re-emits it as-is; a non-array-slot call falls through.
+            const arrayLowered = rewriteArrayBuiltin(node, ctx);
+            if (arrayLowered !== null) {
+                return { kind: "identifier-expression", name: arrayLowered, span: node.span };
+            }
             // Lower a `str.*` call wherever it appears (a cell text, a plot
             // title, a binary operand) — `emitExpr` alone would leak the
             // undefined `str` identifier. The lowered source is spliced as a

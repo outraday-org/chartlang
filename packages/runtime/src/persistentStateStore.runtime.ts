@@ -13,9 +13,12 @@ import { pushDiagnostic } from "./emit/index.js";
 import { validateSnapshot } from "./persistentStateStore.validate.js";
 import type { RuntimeContext } from "./runtimeContext.js";
 import {
+    isArraySlotSnapshotKey,
     isSeriesSlotSnapshotKey,
+    restoreArraySlots,
     restoreSeriesSlots,
     restoreStateSlots,
+    serialiseArraySlots,
     serialiseSeriesSlots,
     serialiseStateSlots,
 } from "./state/index.js";
@@ -53,6 +56,7 @@ function primarySectionSlots(state: RunnerState): Readonly<Record<string, JsonVa
     return Object.freeze({
         ...serialiseStateSlots(state.runtimeContext),
         ...serialiseSeriesSlots(state.runtimeContext),
+        ...serialiseArraySlots(state.runtimeContext),
         ...serialiseTaSlots(state.mainStream),
     } as Record<string, JsonValue>);
 }
@@ -62,6 +66,7 @@ function runnerSection(ctx: RuntimeContext): RunnerSnapshot {
         slots: Object.freeze({
             ...serialiseStateSlots(ctx),
             ...serialiseSeriesSlots(ctx),
+            ...serialiseArraySlots(ctx),
         } as Record<string, JsonValue>),
     });
 }
@@ -132,13 +137,17 @@ function resolveMainStreamSnapshot(
     return fallback === null ? undefined : snapshot.streams[fallback];
 }
 
-// Scalar `state.*` keys only — strip both `ta:` (restored onto the stream)
-// and `:series` (restored into `ctx.seriesSlots`) so the scalar slot store
-// receives neither.
+// Scalar `state.*` keys only — strip `ta:` (restored onto the stream),
+// `:series` (restored into `ctx.seriesSlots`), and `:array` (restored into
+// `ctx.arraySlots`) so the scalar slot store receives none of them.
 function scalarStateSlots(slots: Readonly<Record<string, unknown>>): Record<string, unknown> {
     const out: Record<string, unknown> = {};
     for (const [slotKey, value] of Object.entries(slots)) {
-        if (!isTaSlotSnapshotKey(slotKey) && !isSeriesSlotSnapshotKey(slotKey)) {
+        if (
+            !isTaSlotSnapshotKey(slotKey) &&
+            !isSeriesSlotSnapshotKey(slotKey) &&
+            !isArraySlotSnapshotKey(slotKey)
+        ) {
             out[slotKey] = value;
         }
     }
@@ -155,6 +164,7 @@ function restoreRunnerSlots(
 ): void {
     restoreStateSlots(ctx, scalarStateSlots(slots));
     restoreSeriesSlots(ctx, slots, capacity);
+    restoreArraySlots(ctx, slots);
 }
 
 function pushMalformedSection(state: RunnerState, message: string): void {

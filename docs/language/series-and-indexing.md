@@ -290,6 +290,56 @@ precisely. It is the writable sibling of the bar/`ta.*` series: same `[n]` /
 `.current` / `+s` read surface, same NaN-gap rendering — the only delta is that
 you write its values yourself.
 
+## Persistent collections — `state.array`
+
+`state.series` is the history of **one** value: it advances once per bar and
+`s[n]` reads that value **`n` bars ago**. `state.array<number>(capacity)` is a
+different shape — a bounded FIFO **collection** you **push** many values into,
+and `a.get(n)` reads the **`n`-th element from newest**, NOT "`n` bars ago".
+
+```ts
+const win = state.array<number>(20); // capacity is a required literal (max 100_000)
+```
+
+- `a.push(v)` — append to the front; once full, the oldest is evicted (FIFO).
+- `a.get(n)` — the `n`-th element from the newest (`a.get(0)` is the newest);
+  an out-of-range read returns `NaN` (it never throws).
+- `a.last()` — the newest element (=== `a.get(0)`).
+- `a.size` — the filled count, capped at `a.capacity`.
+- `a.capacity` — the literal you allocated with.
+- `a.clear()` — empty it.
+
+`capacity` must be a compile-time numeric literal (a `const` numeric binding
+resolves too); a non-literal is a compile error
+(`state-array-capacity-not-literal`). The bound is what keeps the slot
+serialization-clean. `push` / `get` / `last` are **handle methods**, so unlike
+the allocation call they are legal inside a bounded `for` loop — iterating the
+window's elements is the whole point.
+
+::: warning Raw-number contexts
+`state.array` is a collection **handle**, not a value — it is **not**
+number-coercible. `+a` is `NaN` and `Number.isFinite(a)` is `false`. Read
+elements with `a.get(n)` / `a.last()`.
+:::
+
+### Which do I reach for?
+
+- Use **`state.series`** for "the value `N` **bars** ago" — a single value's bar
+  history (a self-referential recurrence, a conditionally-updated scalar).
+- Use **`state.array`** for "a bounded **bag** of the last `K` things I pushed" —
+  a rolling window, an event-value log, or an accumulator you push to several
+  times per bar. Neither expresses the other.
+
+```ts
+// A rolling window of the last 20 closes — pushes accumulate across bars,
+// oldest evicted at capacity. get(i) iterates ELEMENTS, not bars.
+const win = state.array<number>(20);
+win.push(bar.close.current);
+let sum = 0;
+for (let i = 0; i < win.size; i++) sum += win.get(i);
+plot(win.size > 0 ? sum / win.size : 0);
+```
+
 ## Lookback is bounded — dynamic indices are flagged
 
 A series index that the compiler can **prove bounded at compile time** is

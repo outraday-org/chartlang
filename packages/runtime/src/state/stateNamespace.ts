@@ -1,10 +1,16 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { MutableSlot, NumberSeriesSlot, StateNamespace } from "@invinite-org/chartlang-core";
+import type {
+    MutableArraySlot,
+    MutableSlot,
+    NumberSeriesSlot,
+    StateNamespace,
+} from "@invinite-org/chartlang-core";
 
 import { Float64RingBuffer } from "../ringBuffer.js";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import { createArrayStateSlot } from "./arrayStateSlot.js";
 import { createSeriesSlot } from "./seriesSlot.js";
 import { asMutableSlot, StateSlot } from "./stateSlot.js";
 
@@ -38,6 +44,18 @@ const stateKey = (ctx: RuntimeContext, slotId: string): string =>
  */
 const seriesKey = (ctx: RuntimeContext, slotId: string): string =>
     `${ctx.slotIdPrefix ?? ""}${slotId}:series`;
+
+/**
+ * Compose the runtime's `state.array` slot key — the `:array` suffix (vs
+ * `:state` / `:series`) lets the snapshot restore router tell an array slot
+ * from a scalar or series slot. The `slotIdPrefix` isolation rule is identical
+ * to {@link stateKey}.
+ *
+ * @since 1.3
+ * @internal
+ */
+const arrayKey = (ctx: RuntimeContext, slotId: string): string =>
+    `${ctx.slotIdPrefix ?? ""}${slotId}:array`;
 
 function getCtx(name: string): RuntimeContext {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
@@ -85,6 +103,22 @@ function getOrAllocateSeries(slotId: string, init: number): NumberSeriesSlot {
     return slot.view;
 }
 
+function getOrAllocateArray(slotId: string, capacity: number): MutableArraySlot<number> {
+    const ctx = getCtx("state.array");
+    const key = arrayKey(ctx, slotId);
+    const existing = ctx.arraySlots.get(key);
+    if (existing !== undefined) {
+        return existing.handle;
+    }
+    // No store-consult / seed: an empty collection starts empty, and warm
+    // restart rehydrates `arraySlots` up front via `restoreArraySlots` (mirrors
+    // the `state.series` allocator), so this path only runs for a first-seen
+    // callsite.
+    const slot = createArrayStateSlot(capacity);
+    ctx.arraySlots.set(key, slot);
+    return slot.handle;
+}
+
 /**
  * Build the runtime `state` namespace installed on `ComputeContext`.
  * Each function accepts the compiler-injected `slotId` as its first
@@ -108,6 +142,8 @@ export function buildStateNamespace(): StateNamespace {
             getOrAllocate("state.string", slotId, init, false),
         series: (slotId: string, init: number): NumberSeriesSlot =>
             getOrAllocateSeries(slotId, init),
+        array: (slotId: string, capacity: number): MutableArraySlot<number> =>
+            getOrAllocateArray(slotId, capacity),
         tick: {
             float: (slotId: string, init: number): MutableSlot<number> =>
                 getOrAllocate("state.tick.float", slotId, init, true),

@@ -4,6 +4,7 @@
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest, Series } from "@invinite-org/chartlang-core";
+import { feedKey } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -30,7 +31,7 @@ import {
 
 const HTF = "1D";
 
-function makeCapabilities(multiTimeframe: boolean): Capabilities {
+function makeCapabilities(multiTimeframe: boolean, multiSymbol = false): Capabilities {
     return {
         plots: capabilities.allLines(),
         drawings: new Set(),
@@ -40,6 +41,7 @@ function makeCapabilities(multiTimeframe: boolean): Capabilities {
         inputs: new Set(),
         intervals: [{ value: HTF, label: "1 day", group: "daily" }],
         multiTimeframe,
+        multiSymbol,
         subPanes: 0,
         symInfoFields: new Set(),
         maxDrawingsPerScript: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
@@ -76,14 +78,14 @@ function manifestWithExpr(slotId: string): ScriptManifest {
     };
 }
 
-function makeContext(multiTimeframe = true): RuntimeContext {
+function makeContext(multiTimeframe = true, multiSymbol = false): RuntimeContext {
     const stream = createStreamState({ interval: "1m", capacity: 64, symbol: "AAPL" });
     const secondary = createStreamState({ interval: HTF, capacity: 64, symbol: "AAPL" });
     const ctx: RuntimeContext = {
         stream,
         stateStore: inMemoryStateStore(),
         lastPersistTime: 0,
-        capabilities: makeCapabilities(multiTimeframe),
+        capabilities: makeCapabilities(multiTimeframe, multiSymbol),
         emissions: makeEmissions(),
         barIndex: () => stream.ohlcv.close.length - 1,
         isTick: false,
@@ -92,6 +94,7 @@ function makeContext(multiTimeframe = true): RuntimeContext {
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        chartSymbol: "AAPL",
         secondaryStreams: new Map([[HTF, secondary]]),
         requestSecurityBars: new Map(),
         requestSecurityAlignments: new Map(),
@@ -114,7 +117,7 @@ function makeContext(multiTimeframe = true): RuntimeContext {
 function mountRunner(ctx: RuntimeContext, slotId: string): SecurityExprRunner {
     const built = buildSecurityExprRunners(manifestWithExpr(slotId), ctx, 64);
     ctx.securityExprRunners = built.bySlot;
-    ctx.securityExprRunnersByInterval = built.byInterval;
+    ctx.securityExprRunnersByFeed = built.byFeed;
     const runner = built.bySlot.get(slotId);
     if (runner === undefined) throw new Error("runner not mounted");
     return runner;
@@ -204,7 +207,7 @@ describe("buildSecurityExprRunners", () => {
             8,
         );
         expect(built.bySlot.size).toBe(0);
-        expect(built.byInterval.size).toBe(0);
+        expect(built.byFeed.size).toBe(0);
     });
 
     it("indexes multiple runners on the same interval", () => {
@@ -218,7 +221,26 @@ describe("buildSecurityExprRunners", () => {
         };
         const built = buildSecurityExprRunners(manifest, ctx, 64);
         expect(built.bySlot.size).toBe(2);
-        expect(built.byInterval.get(HTF)).toHaveLength(2);
+        expect(built.byFeed.get(HTF)).toHaveLength(2);
+    });
+
+    it("indexes a different-symbol descriptor under its composite feed key", () => {
+        const ctx = makeContext();
+        const manifest: ScriptManifest = {
+            ...manifestWithExpr("spy#0"),
+            securityExpressions: [
+                // Chart symbol (omitted) collapses to the bare interval; the
+                // explicit chart ticker collapses identically; a DIFFERENT
+                // symbol keys as the composite `<symbol>@<interval>`.
+                { slotId: "chart#0", interval: HTF, paramName: "bar" },
+                { slotId: "explicit#0", symbol: "AAPL", interval: HTF, paramName: "bar" },
+                { slotId: "spy#0", symbol: "AMEX:SPY", interval: HTF, paramName: "bar" },
+            ],
+        };
+        const built = buildSecurityExprRunners(manifest, ctx, 64);
+        expect(built.byFeed.get(HTF)).toHaveLength(2);
+        expect(built.byFeed.get(feedKey("AMEX:SPY", HTF))).toHaveLength(1);
+        expect(built.bySlot.get("spy#0")?.foldBar.symbol.current).toBe("AMEX:SPY");
     });
 });
 
@@ -267,7 +289,7 @@ describe("driveSecurityExpressions + makeSecurityExprSeries", () => {
         mainCloses.forEach((c, i) => pushMainClose(ctx, i * 43_200_000, c));
 
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
-        const series = makeSecurityExprSeries(ctx, runner, HTF);
+        const series = makeSecurityExprSeries(ctx, runner, HTF, false);
 
         // Stair-stepped: within an HTF bucket the value holds (the most recent
         // HTF EMA at or before the main bar's time).
@@ -297,8 +319,8 @@ describe("driveSecurityExpressions + makeSecurityExprSeries", () => {
         pushMainClose(ctx, 0, 10);
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
 
-        const first = makeSecurityExprSeries(ctx, runner, HTF);
-        const second = makeSecurityExprSeries(ctx, runner, HTF);
+        const first = makeSecurityExprSeries(ctx, runner, HTF, false);
+        const second = makeSecurityExprSeries(ctx, runner, HTF, false);
         expect(second).toBe(first);
     });
 
@@ -407,14 +429,14 @@ describe("makeSecurityExprSeries fallbacks", () => {
         const runner = mountRunner(ctx, "expr#nomtf");
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
 
-        const series = makeSecurityExprSeries(ctx, runner, HTF);
+        const series = makeSecurityExprSeries(ctx, runner, HTF, false);
         expect(Number.isNaN(series.current)).toBe(true);
         // The NaN fallback is the zero-length sentinel series (matches
         // `makeNanSecurityBar`): indexed access reads `undefined`.
         expect(series[0]).toBeUndefined();
         expect(series.length).toBe(0);
         // Cache hit on the second call (no second diagnostic).
-        makeSecurityExprSeries(ctx, runner, HTF);
+        makeSecurityExprSeries(ctx, runner, HTF, false);
         expect(ctx.emissions.diagnostics).toEqual([
             {
                 kind: "diagnostic",
@@ -429,14 +451,24 @@ describe("makeSecurityExprSeries fallbacks", () => {
 
     it("emits unsupported-interval for an interval absent from capabilities", () => {
         const ctx = makeContext(true);
-        const runner = mountRunner(ctx, "expr#badint");
+        // The runner's own interval (`1W`) is what the capability check reads;
+        // mount it directly so the unsupported interval is the runner's, not an
+        // arbitrary feed key.
+        const runner = createSecurityExprRunner({
+            slotId: "expr#badint",
+            symbol: "",
+            interval: "1W",
+            capacity: 8,
+            parent: ctx,
+        });
+        ctx.securityExprRunners = new Map([[runner.slotId, runner]]);
         ctx.secondaryStreams.set(
             "1W",
             createStreamState({ interval: "1W", capacity: 8, symbol: "" }),
         );
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
 
-        const series = makeSecurityExprSeries(ctx, runner, "1W");
+        const series = makeSecurityExprSeries(ctx, runner, "1W", false);
         expect(Number.isNaN(series.current)).toBe(true);
         expect(ctx.emissions.diagnostics[0].code).toBe("unsupported-interval");
     });
@@ -447,9 +479,52 @@ describe("makeSecurityExprSeries fallbacks", () => {
         ctx.secondaryStreams.clear();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;
 
-        const series = makeSecurityExprSeries(ctx, runner, HTF);
+        const series = makeSecurityExprSeries(ctx, runner, HTF, false);
         expect(Number.isNaN(series.current)).toBe(true);
         expect(ctx.emissions.diagnostics[0].code).toBe("unknown-secondary-stream");
+    });
+
+    it("emits multi-symbol-not-supported once for a different symbol when multiSymbol is off", () => {
+        // multiTimeframe ON, multiSymbol OFF: a DIFFERENT-symbol expression
+        // request trips the symbol gate before any interval/stream check.
+        const ctx = makeContext(true, false);
+        const runner = mountRunner(ctx, "expr#nosym");
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const feed = feedKey("AMEX:SPY", HTF);
+
+        const series = makeSecurityExprSeries(ctx, runner, feed, true);
+        expect(Number.isNaN(series.current)).toBe(true);
+        expect(series.length).toBe(0);
+        // Cache hit on the second call → still one diagnostic.
+        makeSecurityExprSeries(ctx, runner, feed, true);
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "multi-symbol-not-supported",
+                message:
+                    "Adapter declares multiSymbol: false; request.security for a different symbol returns NaN",
+                slotId: "expr#nosym",
+                bar: -1,
+            },
+        ]);
+    });
+
+    it("allows a different symbol at the chart interval when multiSymbol is on", () => {
+        const ctx = makeContext(true, true);
+        const runner = mountRunner(ctx, "expr#sym");
+        const feed = feedKey("AMEX:SPY", HTF);
+        ctx.secondaryStreams.set(
+            feed,
+            createStreamState({ interval: HTF, capacity: 8, symbol: "AMEX:SPY" }),
+        );
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const series = makeSecurityExprSeries(ctx, runner, feed, true);
+        // No symbol/timeframe diagnostic: the gate passed and the registered
+        // (empty) stream yields an all-NaN-but-non-diagnostic aligned series.
+        expect(ctx.emissions.diagnostics).toEqual([]);
+        void series;
     });
 });
 
@@ -458,6 +533,7 @@ describe("createSecurityExprRunner", () => {
         const ctx = makeContext();
         const runner = createSecurityExprRunner({
             slotId: "r#0",
+            symbol: "",
             interval: HTF,
             capacity: 8,
             parent: ctx,
@@ -513,7 +589,7 @@ describe("no-lookahead property", () => {
                     });
 
                     ACTIVE_RUNTIME_CONTEXT.current = ctx;
-                    const series = makeSecurityExprSeries(ctx, runner, HTF);
+                    const series = makeSecurityExprSeries(ctx, runner, HTF, false);
                     ACTIVE_RUNTIME_CONTEXT.current = null;
 
                     for (let head = 0; head < mainTimes.length; head += 1) {

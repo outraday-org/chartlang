@@ -1,6 +1,6 @@
 # Task 7 — Docs + pine-converter mapping + skills + example
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

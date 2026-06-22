@@ -9,3 +9,5 @@ export {
     type SecurityBar,
     type SecurityExpr,
 } from "./request.js";
+export { feedKey } from "./feedKey.js";
+export type { RequestedFeed } from "../types.js";

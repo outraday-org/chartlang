@@ -4,7 +4,8 @@ Scripts read a second timeframe through the `request.*` namespace:
 
 | Call | Direction | Returns |
 | --- | --- | --- |
-| `request.security({ interval })` | a **higher** timeframe | a `SecurityBar` (series-shaped OHLCV view) |
+| `request.security({ interval })` | a **higher** timeframe (chart symbol) | a `SecurityBar` (series-shaped OHLCV view) |
+| `request.security({ symbol, interval })` | a **different instrument** | a `SecurityBar` for that symbol |
 | `request.lowerTf({ interval })` | a **lower** timeframe | a `Series<ReadonlyArray<Bar>>` (the intrabar bars inside each main bar) |
 
 ## Higher timeframe: `request.security`
@@ -103,14 +104,43 @@ interval must be **strictly lower** than the chart interval — a higher or
 equal interval is rejected at compile time with `lower-tf-not-lower` when
 the ordering is statically known.
 
-## The interval must be a literal
+## Multi-symbol: a different instrument
 
-The `interval` is part of the compiled manifest, so it must be a
-**compile-time literal** — a string literal or an `input.enum` value.
-A dynamic expression is rejected by the compiler
-(`request-security-interval-not-literal`). The compiler walks every
-`request.security` call to populate `manifest.requestedIntervals`, which is
-how the host knows which secondary streams to feed.
+Pass a `symbol` alongside the `interval` to read a **different instrument**,
+the way Pine's `request.security("NASDAQ:AAPL", "1D", close)` does. Omitting
+`symbol` keeps the existing meaning (the chart's own symbol at a higher
+timeframe), so every pre-multi-symbol script is byte-identical.
+
+```ts
+// SPY priced in QQQ — a ratio against a DIFFERENT symbol.
+const spy = request.security({ symbol: "AMEX:SPY", interval: "1D" });
+const qqq = request.security({ symbol: "NASDAQ:QQQ", interval: "1D" });
+plot(spy.close.current / qqq.close.current, { title: "SPY/QQQ" });
+
+// A weekly EMA(20) of a different symbol — the expression form carries
+// the symbol too, and runs on that symbol's weekly clock.
+const trend = request.security(
+    { symbol: "NASDAQ:AAPL", interval: "1W" },
+    (bar) => ta.ema(bar.close, 20),
+);
+plot(trend, { title: "AAPL weekly EMA(20)" });
+```
+
+A `SecurityBar` field is a `Series<...>`, not a number, so cross-symbol
+arithmetic reads the scalar head explicitly — `spy.close.current /
+qqq.close.current`, not `spy.close / qqq.close`.
+
+## Both `symbol` and `interval` must be literals
+
+Both are part of the compiled manifest, so each must be a **compile-time
+literal** — a string literal, an `input.symbol` default, or an `input.enum`
+value. A dynamic expression is rejected by the compiler
+(`request-security-interval-not-literal` for the interval,
+`request-security-symbol-not-literal` for the symbol). The compiler walks every
+`request.security` call to populate `manifest.requestedFeeds` (the full set of
+distinct `(symbol?, interval)` feeds) and `manifest.requestedIntervals` (the
+main-symbol projection, retained for back-compat), which is how the host knows
+which secondary streams to feed.
 
 ## Interval format
 
@@ -129,19 +159,23 @@ most-recent *closed* secondary value is held until the next secondary close
 arrives. A higher-timeframe series therefore steps forward only on its own
 boundaries and never reveals a future value to an earlier main bar.
 
-## Same symbol only
-
-In `apiVersion: 1`, `request.*` reads the **same symbol** as the chart at a
-different timeframe. Cross-symbol requests are not part of the frozen v1
-surface.
-
 ## Adapter support
 
-Multi-timeframe is gated on the adapter advertising
-`Capabilities.multiTimeframe`. When the adapter does not support it (or the
-interval is unsupported, or the host fails to register the stream), the
-`SecurityBar` falls back to all-`NaN` series and the script degrades to a
-silent no-op rather than erroring — per the capability-gating contract.
+Higher-timeframe reads of the **chart's own symbol** are gated on the adapter
+advertising `Capabilities.multiTimeframe`. Reading a **different symbol** is a
+strictly larger ask (an adapter that can resample its own symbol to a higher
+timeframe cannot necessarily fetch another instrument), so it has its own gate:
+`Capabilities.multiSymbol`.
+
+When the adapter does not advertise the relevant capability (or the interval is
+unsupported, or the host fails to register the stream), the `SecurityBar` falls
+back to all-`NaN` series and the script degrades to a silent no-op rather than
+erroring — per the capability-gating contract. A different-symbol request
+against an adapter declaring `multiSymbol: false` degrades with a single
+`multi-symbol-not-supported` diagnostic, mirroring `multi-timeframe-not-
+supported`; the symbol gate precedes the timeframe gate, so a request that is
+both a different symbol AND a different timeframe against `multiSymbol: false`
+emits only `multi-symbol-not-supported`.
 
 ## Cross-links
 

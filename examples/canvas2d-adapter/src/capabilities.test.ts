@@ -58,6 +58,7 @@ describe("CANVAS2D_CAPABILITIES", () => {
         expect(CANVAS2D_CAPABILITIES.alertConditions).toBe(true);
         expect(CANVAS2D_CAPABILITIES.logs).toBe(true);
         expect(CANVAS2D_CAPABILITIES.multiTimeframe).toBe(true);
+        expect(CANVAS2D_CAPABILITIES.multiSymbol).toBe(true);
     });
 
     it("ships the Phase-6 intervals in picker order with canonical groups", () => {

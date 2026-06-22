@@ -1,6 +1,6 @@
 # Task 5 — Host / reference-adapter wiring + multi-symbol NaN fallback
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

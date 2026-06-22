@@ -5,6 +5,7 @@ export { runStructuralChecks } from "./structuralChecks.js";
 export type { StructuralBindingInfo, StructuralCheckResult } from "./structuralChecks.js";
 export { runForbiddenConstructs } from "./forbiddenConstructs.js";
 export { runStatefulCallInLoop } from "./statefulCallInLoop.js";
+export { MAX_STATE_ARRAY_CAPACITY, runStateArrayCapacity } from "./stateArrayCapacity.js";
 export { extractCapabilities } from "./extractCapabilities.js";
 export { extractMaxLookback } from "./extractMaxLookback.js";
 export type { ExtractMaxLookbackResult } from "./extractMaxLookback.js";

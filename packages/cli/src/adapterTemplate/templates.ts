@@ -153,6 +153,11 @@ export const starterCapabilities: Capabilities = Object.freeze({
     maxTickHz: 30,
     ...capabilities.intervals(STARTER_INTERVALS),
     ...capabilities.multiTimeframe(true),
+    // Tag a different-symbol secondary stream's \`CandleEvent.streamKey\` with the
+    // composite feed key \`feedKey(symbol, interval)\` (e.g. "AMEX:SPY@1D"); a
+    // chart-symbol stream uses the bare interval ("1D"). Set false if your data
+    // source cannot fetch instruments other than the chart's own symbol.
+    ...capabilities.multiSymbol(true),
     ...capabilities.subPanes(Number.MAX_SAFE_INTEGER),
     ...capabilities.symInfoFields([
         "ticker",

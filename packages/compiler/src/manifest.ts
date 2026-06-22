@@ -7,6 +7,7 @@ import type {
     DependencyDeclaration,
     OutputDeclaration,
     PlotSlotDescriptor,
+    RequestedFeed,
     ScriptManifest,
     SecurityExpressionDescriptor,
 } from "@invinite-org/chartlang-core";
@@ -37,6 +38,7 @@ export function buildManifest(args: {
     readonly kind: "indicator" | "drawing" | "alert" | "alertCondition";
     readonly capabilities: ReadonlyArray<CapabilityId>;
     readonly requestedIntervals: ReadonlyArray<string>;
+    readonly requestedFeeds?: ReadonlyArray<RequestedFeed>;
     readonly userPickableInterval: boolean;
     readonly seriesCapacities: Readonly<Record<string, number>>;
     readonly maxLookback: number;
@@ -121,6 +123,10 @@ export function buildManifest(args: {
                       .sort((a, b) => a.slotId.localeCompare(b.slotId))
                       .map((s) => Object.freeze({ ...s })),
               );
+    const requestedFeeds =
+        args.requestedFeeds === undefined || args.requestedFeeds.length === 0
+            ? undefined
+            : Object.freeze(args.requestedFeeds.map((f) => Object.freeze({ ...f })));
     const siblings =
         args.siblings === undefined || args.siblings.length === 0
             ? undefined
@@ -147,6 +153,7 @@ export function buildManifest(args: {
         ...(outputs === undefined ? {} : { outputs }),
         ...(plots === undefined ? {} : { plots }),
         ...(securityExpressions === undefined ? {} : { securityExpressions }),
+        ...(requestedFeeds === undefined ? {} : { requestedFeeds }),
         ...(args.exportName === undefined ? {} : { exportName: args.exportName }),
         ...(args.isDrawn === undefined ? {} : { isDrawn: args.isDrawn }),
         ...(siblings === undefined ? {} : { siblings }),

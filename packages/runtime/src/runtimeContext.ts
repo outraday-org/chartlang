@@ -25,6 +25,7 @@ import type {
 import type { DepOutputStore } from "./dep/DepOutputStore.js";
 import type { PersistentStateStore } from "./persistentStateStore.js";
 import type { SecurityExprRunner } from "./request/securityExprRunner.js";
+import type { ArrayStateSlot } from "./state/arrayStateSlot.js";
 import type { SeriesSlot } from "./state/seriesSlot.js";
 import type { StateSlot } from "./state/stateSlot.js";
 import type { StateStore } from "./stateStore.js";
@@ -186,20 +187,46 @@ export type RuntimeContext = {
      */
     readonly seriesSlots: Map<string, SeriesSlot>;
     /**
-     * Secondary candle streams keyed by `IntervalDescriptor.value`.
-     * Mutated only by `createScriptRunner` mount/restore/routing. @since 0.5
+     * Runtime `state.array` slot store keyed by
+     * `${slotIdPrefix ?? ""}${slotId}:array`. Each holds two
+     * `Float64RingBuffer`s (committed + tentative) behind an identity-stable
+     * bounded-FIFO handle. A parallel map (vs folding into `stateSlots`)
+     * mirrors the `state.series` precedent — both collection primitives share
+     * the two-ring shape and snapshot directly from the live map with no
+     * `StateStore` flush. Cleared on `dispose`. @since 1.3
+     */
+    readonly arraySlots: Map<string, ArrayStateSlot>;
+    /**
+     * The chart's own symbol, resolved once at mount from the adapter
+     * `syminfo.ticker` (`""` when the adapter supplies none). A
+     * `request.security` call that omits `symbol` — or passes this exact
+     * ticker — resolves to it and collapses to the bare-interval
+     * {@link feedKey}, so the chart-symbol path is byte-identical to the
+     * pre-multi-symbol baseline. Only a *different* symbol allocates a
+     * `"<symbol>@<interval>"` feed. @since 1.4
+     */
+    readonly chartSymbol: string;
+    /**
+     * Secondary candle streams keyed by the composite
+     * `feedKey(symbol, interval)` (the shared core helper). A symbol-omitted
+     * feed collapses to the bare interval — `feedKey(undefined, "1D") === "1D"`
+     * — so the chart-symbol path is byte-identical to the pre-multi-symbol
+     * baseline; a non-chart symbol keys as `"<symbol>@<interval>"`. Mutated only
+     * by `createScriptRunner` mount/restore/routing. @since 0.5
      */
     readonly secondaryStreams: Map<string, StreamState>;
     /**
-     * Per-`request.security` slot cache keyed by `slotId|interval`. Phase 4
+     * Per-`request.security` slot cache keyed by `slotId|feedKey`. Phase 4
      * stores NaN fallback bars here; Phase 5 replaces the value producer with
-     * aligned secondary stream series while preserving stable identity.
+     * aligned secondary stream series while preserving stable identity. The
+     * `feedKey` collapses to the bare interval for chart-symbol requests, so
+     * the omitted-symbol cache key is byte-identical to the baseline.
      * @since 0.4
      */
     readonly requestSecurityBars: Map<string, SecurityBar>;
     /**
      * Per-compute aligned numeric arrays keyed by
-     * `slotId|interval|sourceKey`. Cleared on main-stream close/tick before
+     * `slotId|feedKey|sourceKey`. Cleared on main-stream close/tick before
      * `compute` so `request.security` re-aligns against the latest
      * secondary buffers. @since 0.5
      */
@@ -224,16 +251,18 @@ export type RuntimeContext = {
      */
     securityExprRunners?: Map<string, SecurityExprRunner>;
     /**
-     * Per-interval index into {@link securityExprRunners}, keyed by
-     * `IntervalDescriptor.value`. `driveSecurityExpressions` fans a
-     * secondary close / tick out to every runner on that interval.
-     * Absent when no expression callsites are declared. Cleared on
-     * `dispose`. @since 0.7
+     * Per-feed index into {@link securityExprRunners}, keyed by the composite
+     * `feedKey(symbol, interval)`. `driveSecurityExpressions` fans a secondary
+     * close / tick (tagged with that same composite key on
+     * `CandleEvent.streamKey`) out to every runner on that feed. A
+     * symbol-omitted callsite collapses to the bare interval, byte-identical to
+     * the pre-multi-symbol baseline. Absent when no expression callsites are
+     * declared. Cleared on `dispose`. @since 0.7
      */
-    securityExprRunnersByInterval?: ReadonlyMap<string, ReadonlyArray<SecurityExprRunner>>;
+    securityExprRunnersByFeed?: ReadonlyMap<string, ReadonlyArray<SecurityExprRunner>>;
     /**
      * Per-compute aligned expression-output series cache keyed by
-     * `slotId|interval`. Holds the stable `Series<number>` Proxy each
+     * `slotId|feedKey`. Holds the stable `Series<number>` Proxy each
      * expression-form `request.security` returns; cleared each bar
      * (alongside {@link requestSecurityAlignments}) so the proxy re-aligns
      * the runner's output buffer against the latest secondary buffers.

@@ -32,6 +32,8 @@ import {
     INPUT_INTERVAL_SCENARIO,
     MTF_SECURITY_EXPRESSION_EMA_SCENARIO,
     MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO,
+    MULTI_SYMBOL_NOT_SUPPORTED_SCENARIO,
+    MULTI_SYMBOL_RATIO_SCENARIO,
     PLOT_OFFSET_XSHIFT_SCENARIO,
     PLOT_STYLE_OVERRIDES_SCENARIO,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
@@ -164,6 +166,10 @@ const PHASE_4_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     TIMEFRAME_ISDAILY_SCENARIO,
     UNSUPPORTED_INTERVAL_SCENARIO,
 ]);
+const MULTI_SYMBOL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
+    MULTI_SYMBOL_RATIO_SCENARIO,
+    MULTI_SYMBOL_NOT_SUPPORTED_SCENARIO,
+]);
 const PHASE_5_ALERT_CONDITION_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     DEFINE_ALERT_CONDITION_FIRES_SCENARIO,
     DEFINE_ALERT_CONDITION_GATED_SCENARIO,
@@ -219,6 +225,18 @@ describe("runConformanceSuite", () => {
         expect(report.failures).toEqual([]);
         expect(report.scenarios.map((scenario) => scenario.status)).toEqual(
             PHASE_4_SCENARIOS.map(() => "pass"),
+        );
+    }, 60_000);
+
+    it("runs multi-symbol request.security scenarios end-to-end", async () => {
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: MULTI_SYMBOL_SCENARIOS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(MULTI_SYMBOL_SCENARIOS.length);
+        expect(report.failures).toEqual([]);
+        expect(report.scenarios.map((scenario) => scenario.status)).toEqual(
+            MULTI_SYMBOL_SCENARIOS.map(() => "pass"),
         );
     }, 60_000);
 

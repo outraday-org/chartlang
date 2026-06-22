@@ -28,6 +28,7 @@ describe("KONVA_CAPABILITIES", () => {
         expect(KONVA_CAPABILITIES.alertConditions).toBe(true);
         expect(KONVA_CAPABILITIES.logs).toBe(true);
         expect(KONVA_CAPABILITIES.multiTimeframe).toBe(true);
+        expect(KONVA_CAPABILITIES.multiSymbol).toBe(true);
         expect(KONVA_CAPABILITIES.subPanes).toBe(Number.MAX_SAFE_INTEGER);
         expect(KONVA_CAPABILITIES.inputs.size).toBe(0);
     });

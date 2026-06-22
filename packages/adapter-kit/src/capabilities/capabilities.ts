@@ -158,6 +158,22 @@ export const capabilities = {
         return { multiTimeframe: enabled };
     },
     /**
+     * Declares whether the adapter can deliver candle streams for a symbol
+     * other than the chart's own. Independent of `multiTimeframe` — setting one
+     * does not imply the other.
+     *
+     * @since 1.2
+     * @stable
+     * @example
+     *     import { capabilities } from "@invinite-org/chartlang-adapter-kit";
+     *
+     *     const partial = capabilities.multiSymbol(false);
+     *     void partial;
+     */
+    multiSymbol(enabled: boolean): { multiSymbol: boolean } {
+        return { multiSymbol: enabled };
+    },
+    /**
      * Declares the maximum supported sub-pane count for one script.
      *
      * @since 0.4

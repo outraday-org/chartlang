@@ -43,6 +43,41 @@ describe("mockCandleSource", () => {
         }
     });
 
+    it("tags every event with a feedKey streamKey when symbol is set (history)", async () => {
+        const bars: ReadonlyArray<Bar> = [makeBar(0, 1)];
+        const events = await collect(
+            mockCandleSource(bars, { interval: "1D", symbol: "AMEX:SPY" }),
+        );
+        expect(events).toEqual([{ kind: "history", bars, streamKey: "AMEX:SPY@1D" }]);
+    });
+
+    it("tags every event with a feedKey streamKey when symbol is set (stream)", async () => {
+        const bars: ReadonlyArray<Bar> = [makeBar(0, 1), makeBar(60_000, 2)];
+        const events = await collect(
+            mockCandleSource(bars, { interval: "1D", mode: "stream", symbol: "AMEX:SPY" }),
+        );
+        expect(events).toEqual([
+            { kind: "close", bar: bars[0], streamKey: "AMEX:SPY@1D" },
+            { kind: "close", bar: bars[1], streamKey: "AMEX:SPY@1D" },
+        ]);
+    });
+
+    it("tags every event with a feedKey streamKey when symbol is set (history-then-stream)", async () => {
+        const bars: ReadonlyArray<Bar> = [makeBar(0, 1), makeBar(60_000, 2), makeBar(120_000, 3)];
+        const events = await collect(
+            mockCandleSource(bars, {
+                interval: "1D",
+                mode: "history-then-stream",
+                streamTail: 1,
+                symbol: "AMEX:SPY",
+            }),
+        );
+        expect(events).toEqual([
+            { kind: "history", bars: bars.slice(0, 2), streamKey: "AMEX:SPY@1D" },
+            { kind: "close", bar: bars[2], streamKey: "AMEX:SPY@1D" },
+        ]);
+    });
+
     it("history mode with an empty array yields a single empty history batch", async () => {
         const events = await collect(mockCandleSource([], { interval: "1D" }));
         expect(events).toEqual([{ kind: "history", bars: [] }]);

@@ -1,6 +1,6 @@
 # Task 1 — Spec + manifest `requestedFeeds` + core opts `symbol` + `feedKey`
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

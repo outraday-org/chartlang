@@ -54,6 +54,7 @@ export const LWC_CAPABILITIES: Capabilities = Object.freeze({
     maxTickHz: 30,
     ...capabilities.intervals(LWC_INTERVALS),
     ...capabilities.multiTimeframe(true),
+    ...capabilities.multiSymbol(true),
     ...capabilities.subPanes(Number.MAX_SAFE_INTEGER),
     ...capabilities.symInfoFields([
         "ticker",

@@ -14,6 +14,7 @@ export type {
     ScenarioEventStream,
     ScenarioOverrideEvent,
     ScenarioResult,
+    SecondaryFeed,
 } from "./runConformanceSuite.js";
 export {
     ALL_SCENARIOS,
@@ -108,6 +109,8 @@ export {
     MTF_CAPABILITY_FALSE_SCENARIO,
     MTF_REQUEST_SECURITY_CLOSE_SCENARIO,
     MTF_UNSUPPORTED_INTERVAL_SCENARIO,
+    MULTI_SYMBOL_NOT_SUPPORTED_SCENARIO,
+    MULTI_SYMBOL_RATIO_SCENARIO,
     PHASE_2_INDICATORS,
     PHASE_5_DEFERRED,
     PLOT_KIND_ARROW_GATED_SCENARIO,

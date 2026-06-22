@@ -1000,12 +1000,21 @@ declare module "@invinite-org/chartlang-core" {
     export type MutableSlot<T> = {
         value: T;
     };
+    export type MutableArraySlot<T> = {
+        push(value: T): void;
+        get(n: number): T;
+        last(): T;
+        clear(): void;
+        readonly size: number;
+        readonly capacity: number;
+    };
     export type StateNamespace = Readonly<{
         float(init: number): MutableSlot<number>;
         int(init: number): MutableSlot<number>;
         bool(init: boolean): MutableSlot<boolean>;
         string(init: string): MutableSlot<string>;
         series(init: number): NumberSeriesSlot;
+        array<T>(capacity: number): MutableArraySlot<T>;
         tick: Readonly<{
             float(init: number): MutableSlot<number>;
             int(init: number): MutableSlot<number>;
@@ -1054,7 +1063,7 @@ declare module "@invinite-org/chartlang-core" {
         readonly inSeconds: number;
     };
     export const timeframe: TimeframeView;
-    export type RequestSecurityOpts = Readonly<{ interval: string }>;
+    export type RequestSecurityOpts = Readonly<{ symbol?: string; interval: string }>;
     export type RequestLowerTfOpts = Readonly<{ interval: string }>;
     export type SecurityBar = Readonly<{
         readonly time: Series<Time>;
@@ -1094,8 +1103,13 @@ declare module "@invinite-org/chartlang-core" {
     }>;
     export type SecurityExpressionDescriptor = Readonly<{
         readonly slotId: string;
+        readonly symbol?: string;
         readonly interval: string;
         readonly paramName: string;
+    }>;
+    export type RequestedFeed = Readonly<{
+        readonly symbol?: string;
+        readonly interval: string;
     }>;
     export type DependencyDeclaration = Readonly<{
         readonly localId: string;
@@ -1129,6 +1143,7 @@ declare module "@invinite-org/chartlang-core" {
         readonly outputs?: ReadonlyArray<OutputDeclaration>;
         readonly plots?: ReadonlyArray<PlotSlotDescriptor>;
         readonly securityExpressions?: ReadonlyArray<SecurityExpressionDescriptor>;
+        readonly requestedFeeds?: ReadonlyArray<RequestedFeed>;
         readonly exportName?: string;
         readonly siblings?: ReadonlyArray<ScriptManifest>;
         readonly isDrawn?: boolean;

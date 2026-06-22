@@ -1,0 +1,6 @@
+//@version=6
+indicator("Multi-symbol request.security", overlay=true)
+aapl = request.security("NASDAQ:AAPL", "D", close)
+self = request.security(syminfo.tickerid, "D", close)
+plot(aapl)
+plot(self)

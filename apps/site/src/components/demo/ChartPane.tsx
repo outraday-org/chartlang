@@ -8,7 +8,7 @@ import { type ReactElement, useEffect, useRef, useState } from "react";
 import type { DemoAdapterDriver } from "./adapters/types";
 import { DEFAULT_ADAPTER_ID, DEMO_ADAPTERS } from "./adapters/registry";
 import type { CompiledArtifact } from "./hybridLanguageService";
-import { createResamplingCandlePump } from "./secondaryStreams";
+import { createMultiSymbolCandlePump, createResamplingCandlePump } from "./secondaryStreams";
 import {
     Select,
     SelectContent,
@@ -215,11 +215,26 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
         // history replay and the bars streamed during Play) and weaves the
         // secondary closes into the source. Non-MTF scripts keep the plain
         // single-source path byte-for-byte.
-        const requestedIntervals = (artifact.manifest as ScriptManifest).requestedIntervals;
-        const candleSource =
+        const manifest = artifact.manifest as ScriptManifest;
+        const requestedIntervals = manifest.requestedIntervals;
+        const requestedFeeds = manifest.requestedFeeds ?? [];
+        const chartSymbol = bars[0]?.symbol ?? "";
+        // Multi-symbol scripts request a DIFFERENT instrument (a feed carrying
+        // its own `symbol`). The demo has no real cross-instrument feed, so it
+        // synthesises a deterministic per-ticker transform of the main bars and
+        // weaves those secondary closes in, tagged with the composite feedKey
+        // the runtime keys on. Chart-symbol feeds stay on the interval-only
+        // resampler, so a pure-MTF script's wire is byte-identical.
+        const hasDifferentSymbolFeed = requestedFeeds.some(
+            (feed) => feed.symbol !== undefined && feed.symbol !== chartSymbol,
+        );
+        const intervalSource =
             requestedIntervals.length > 0
                 ? createResamplingCandlePump(pushSource.source, requestedIntervals)
                 : pushSource.source;
+        const candleSource = hasDifferentSymbolFeed
+            ? createMultiSymbolCandlePump(intervalSource, chartSymbol, requestedFeeds)
+            : intervalSource;
         const mainInterval = bars[0]?.interval;
 
         // Paces PLAY_TOTAL_BARS evenly across PLAY_DURATION_MS: each

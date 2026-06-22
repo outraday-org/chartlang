@@ -3991,6 +3991,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.2",
         "stability": "stable"
     },
+    "MutableArraySlot": {
+        "fqn": "MutableArraySlot",
+        "kind": "type",
+        "title": "MutableArraySlot",
+        "summary": "/**\nScript-facing handle on a persistent, bounded **FIFO collection** —\nPine's `var array<…>` with capacity eviction. Unlike  {@link MutableSlot} * (one value's history) or a `Series` (bar-indexed history), this is a\n*collection** you push many values into: `push` appends (evicting the\noldest once `capacity` is reached), `get(n)` reads the `n`-th element from\nthe newest (`n = 0`), `last()` is the newest, `size` is the current filled\ncount, `capacity` is the fixed bound, and `clear()` empties it.",
+        "examples": [
+            "function rollingMean(a: MutableArraySlot<number>, x: number): number {\na.push(x);\nlet sum = 0;\nfor (let i = 0; i < a.size; i++) sum += a.get(i);\nreturn sum / a.size;\n}"
+        ],
+        "since": "1.3",
+        "stability": "stable"
+    },
     "MutableSlot": {
         "fqn": "MutableSlot",
         "kind": "type",
@@ -5006,6 +5017,24 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const ns: typeof state = state;\nvoid ns;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "state.array": {
+        "fqn": "state.array",
+        "kind": "function",
+        "title": "state.array(_capacity)",
+        "summary": "/**\nAllocate or read a persistent **bounded collection** slot — a\nfixed-capacity FIFO ring you push values into across bars. `a.push(v)`\nappends (evicting the oldest once full); `a.get(n)` reads the `n`-th\nelement from the newest; `a.last()` is the newest; `a.size` is the\nfilled count; `a.capacity` is the bound; `a.clear()` empties it.\n`capacity` must be a compile-time numeric literal (the slot is bounded\nso it serializes). Unlike  {@link state} .series (one value's bar-indexed\nhistory), this is a collection of many pushed values. v1 supports\n`number` element type.",
+        "paramTable": [
+            {
+                "name": "_capacity",
+                "type": "number",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof state.array = state.array;\nvoid fn;"
+        ],
+        "since": "1.3",
         "stability": "stable"
     },
     "state.bool": {

@@ -21,6 +21,12 @@ describe("capabilities Phase 4 builder types", () => {
         }>();
     });
 
+    it("multiSymbol(...) returns the typed flag partial", () => {
+        expectTypeOf(capabilities.multiSymbol(false)).toEqualTypeOf<{
+            multiSymbol: boolean;
+        }>();
+    });
+
     it("subPanes(...) returns the typed sub-pane partial", () => {
         expectTypeOf(capabilities.subPanes(1)).toEqualTypeOf<{ subPanes: number }>();
     });

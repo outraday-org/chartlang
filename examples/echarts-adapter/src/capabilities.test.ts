@@ -32,6 +32,7 @@ describe("ECHARTS_CAPABILITIES", () => {
         expect(ECHARTS_CAPABILITIES.intervals.length).toBeGreaterThan(0);
         expect(ECHARTS_CAPABILITIES.subPanes).toBe(Number.MAX_SAFE_INTEGER);
         expect(ECHARTS_CAPABILITIES.multiTimeframe).toBe(true);
+        expect(ECHARTS_CAPABILITIES.multiSymbol).toBe(true);
         expect(ECHARTS_CAPABILITIES.symInfoFields.has("ticker")).toBe(true);
         expect(ECHARTS_CAPABILITIES.maxDrawingsPerScript.lines).toBe(200);
         expect(ECHARTS_CAPABILITIES.alertConditions).toBe(true);

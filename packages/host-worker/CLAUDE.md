@@ -49,7 +49,13 @@ same `ScriptHost` shape with real preemption + hard heap caps.
   `__manifest` is spread through, so the HTF-expression
   `request.security(opts, expr)` form needs no host change — its
   `manifest.securityExpressions` rides the same sidecar (covered by
-  `integration.test.ts`'s expression-form boot test).
+  `integration.test.ts`'s expression-form boot test). The multi-symbol feature
+  (`manifest.requestedFeeds` + the composite `CandleEvent.streamKey`
+  `feedKey(symbol, interval)`) rides the SAME spread with NO dispatcher/boot
+  change: `requestedFeeds` is an unknown-to-the-stub field the full spread
+  carries through, and `streamKey` passes untouched, so a two-symbol script
+  routes each composite stream (covered by `integration.test.ts`'s
+  two-symbol data-form test).
 - **`HostToWorker.load` carries `limits` alongside `capabilities`.**
   The worker boot is stateless about both — no in-worker default
   capabilities bag, no in-worker default limits. The host is the

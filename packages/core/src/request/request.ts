@@ -13,8 +13,24 @@ import type { Bar, Price, Series, Time, Volume } from "../types.js";
  * @example
  *     const opts: RequestSecurityOpts = { interval: "1D" };
  *     void opts;
+ * @example
+ *     // read a different instrument (requires Capabilities.multiSymbol)
+ *     const spy: RequestSecurityOpts = { symbol: "AMEX:SPY", interval: "1D" };
+ *     void spy;
  */
 export type RequestSecurityOpts = Readonly<{
+    /**
+     * The instrument to read. Omit for the chart's own symbol (the existing
+     * behavior). Must be a compile-time literal — a string literal, an
+     * `input.symbol` default, or an `input.enum` value; the compiler's
+     * literal-only pass rejects a dynamic expression with
+     * `request-security-symbol-not-literal`. A non-chart symbol additionally
+     * requires `Capabilities.multiSymbol`; otherwise the series degrades to
+     * all-NaN.
+     *
+     * @since 1.2
+     */
+    readonly symbol?: string;
     readonly interval: string;
 }>;
 
@@ -108,11 +124,15 @@ const sentinel = (name: string): never => {
  *   clocked to the main timeline, so `ta.ema(weekly.close, 20)` would
  *   average 20 *main* bars.
  *
- * The `interval` must be a compile-time literal (a string literal or an
- * `input.enum` value); the compiler walks every call to populate
- * `manifest.requestedIntervals`. When the adapter does not advertise
- * `Capabilities.multiTimeframe`, the series degrades to all-NaN rather than
- * erroring. See the multi-timeframe guide for alignment and interval-format
+ * Both `symbol` and `interval` must be compile-time literals (a string
+ * literal, an `input.symbol` default, or an `input.enum` value); the compiler
+ * walks every call to populate `manifest.requestedFeeds` (and the main-symbol
+ * projection `manifest.requestedIntervals`). `symbol` is **optional** —
+ * omitting it reads the chart's own symbol (the higher-timeframe-only case).
+ * When the adapter does not advertise `Capabilities.multiTimeframe`, the
+ * series degrades to all-NaN rather than erroring; a non-chart `symbol`
+ * additionally requires `Capabilities.multiSymbol` and otherwise degrades to
+ * all-NaN. See the multi-timeframe guide for alignment and interval-format
  * details.
  *
  * @since 0.4
@@ -125,6 +145,11 @@ const sentinel = (name: string): never => {
  *     // data form — aligned weekly close
  *     const weekly = request.security({ interval: "1W" });
  *     plot(weekly.close, { title: "Weekly close" });
+ * @example
+ *     // different symbol — a ratio against another instrument (needs multiSymbol)
+ *     const spy = request.security({ symbol: "AMEX:SPY", interval: "1D" });
+ *     const qqq = request.security({ symbol: "NASDAQ:QQQ", interval: "1D" });
+ *     plot(spy.close.current / qqq.close.current, { title: "SPY/QQQ" });
  */
 function security(opts: RequestSecurityOpts): SecurityBar;
 function security(opts: RequestSecurityOpts, expr: SecurityExpr): Series<number>;

@@ -64,6 +64,7 @@ function freshContext(barIndex = 0): RuntimeContext {
         scriptMaxDrawings: null,
         stateSlots: new Map(),
         seriesSlots: new Map(),
+        arraySlots: new Map(),
         requestSecurityBars: new Map(),
         diagnosedRequestKeys: new Set(),
         resolvedInputs: Object.freeze({}),
