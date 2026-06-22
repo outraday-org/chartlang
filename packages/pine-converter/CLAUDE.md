@@ -1029,10 +1029,15 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   handle ring (`var array<line>`) is an OWNED drawing site, filtered out before
   the numeric scan, so the two paths never collide. Operations rewrite onto the
   slot via `EmitContext.arraySlots` (`array.push(coll, v)` → `<slot>.push(v)`,
-  `array.get(coll, n)` → `<slot>.get(n)`, `array.size` → `<slot>.size`,
-  `array.last` → `<slot>.last()`, `array.first` → `<slot>.get(<slot>.size - 1)`,
-  `array.clear` → `<slot>.clear()`; an unrecognised `array.*` member over a slot
-  falls through to a raw emit). The eviction `if` is elided (the ring rotates
+  `array.get(coll, n)` → `<slot>.get(<slot>.size - 1 - (n))`, `array.size` →
+  `<slot>.size`, `array.last` → `<slot>.last()`, `array.first` →
+  `<slot>.get(<slot>.size - 1)`, `array.clear` → `<slot>.clear()`; an
+  unrecognised `array.*` member over a slot falls through to a raw emit). **The
+  `array.get` index is INVERTED** because Pine `array.get` indexes from the
+  oldest (index 0 = first pushed, evicted by `array.shift`) while chartlang
+  `state.array.get(n)` is newest-first (`n = 0` newest); `array.last`/
+  `array.first` likewise map to newest/oldest so all three reads target the
+  same element Pine would. The eviction `if` is elided (the ring rotates
   modulo K) + one `ring-eviction-implicit` info. A NON-numeric collection emits
   `array-collection-non-numeric` (info); an unbounded (no-cap, or `K <= 0`)
   numeric array hard-rejects `unbounded-array-collection` (error) — chartlang has

@@ -127,7 +127,13 @@ function rewriteArrayBuiltin(call: CallExpression, ctx: EmitContext): string | n
         case "array.push":
             return `${slot}.push(${arg(1)})`;
         case "array.get":
-            return `${slot}.get(${arg(1)})`;
+            // Pine `array.get(coll, n)` indexes from the OLDEST element (index
+            // 0 = first pushed; `array.shift` evicts index 0), whereas
+            // chartlang `state.array.get(n)` indexes from the NEWEST (n = 0).
+            // Invert the index so the translated read targets the SAME element
+            // (Pine index 0 → chartlang `size - 1`). `array.first`/`array.last`
+            // below already account for this; `get` must too.
+            return `${slot}.get(${slot}.size - 1 - (${arg(1)}))`;
         case "array.size":
             return `${slot}.size`;
         case "array.last":

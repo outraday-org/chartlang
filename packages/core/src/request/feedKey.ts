@@ -13,7 +13,7 @@
  * symbol-omitted wire and every key stay byte-identical to the pre-multi-symbol
  * baseline. A present symbol encodes as `"<symbol>@<interval>"`.
  *
- * @since 1.2
+ * @since 1.3
  * @stable
  * @example
  *     feedKey(undefined, "1D"); // "1D"  (chart symbol, back-compat)

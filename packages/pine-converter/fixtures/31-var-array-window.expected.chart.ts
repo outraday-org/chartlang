@@ -18,7 +18,7 @@ export default defineIndicator({
             const win = state.array<number>(20);
             win.push(bar.close);
             let newest = win.last();
-            let prevDay = win.get(1);
+            let prevDay = win.get(win.size - 1 - (1));
             let count = win.size;
             plot((newest + prevDay) / count);
         },

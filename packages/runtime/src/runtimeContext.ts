@@ -203,7 +203,7 @@ export type RuntimeContext = {
      * ticker — resolves to it and collapses to the bare-interval
      * {@link feedKey}, so the chart-symbol path is byte-identical to the
      * pre-multi-symbol baseline. Only a *different* symbol allocates a
-     * `"<symbol>@<interval>"` feed. @since 1.4
+     * `"<symbol>@<interval>"` feed. @since 1.3
      */
     readonly chartSymbol: string;
     /**

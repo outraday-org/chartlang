@@ -336,7 +336,12 @@ elements with `a.get(n)` / `a.last()`.
 const win = state.array<number>(20);
 win.push(bar.close.current);
 let sum = 0;
-for (let i = 0; i < win.size; i++) sum += win.get(i);
+// The loop bound MUST be the capacity LITERAL (the compiler rejects a
+// non-literal bound like `i < win.size` as `unbounded-loop`); the inner
+// guard skips the still-empty slots during warmup.
+for (let i = 0; i < 20; i++) {
+    if (i < win.size) sum += win.get(i);
+}
 plot(win.size > 0 ? sum / win.size : 0);
 ```
 

@@ -32,7 +32,7 @@ const INLINE_SOURCE = CONVERTED.output;
 // `state.array` accumulates, FIFO-evicts, and reads back (`last`/`get`/`size`)
 // across convert → compile → runtime. Re-pin via the runner's "expected vs
 // actual" message if the golden bars change.
-const WINDOW_HASH = "bf1768c25b35f86b1e09b01ffcb0563075e2e4695a223591d10bd8747296785c";
+const WINDOW_HASH = "7a694f525e35762b9d5555ed54b86e1318790f74a0de91137c9a91f72557a4c3";
 
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
     {

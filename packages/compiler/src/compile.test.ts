@@ -348,6 +348,36 @@ export default defineIndicator({
         }
     });
 
+    it("throws CompileError for a non-literal request.security symbol", async () => {
+        // End-to-end guard: a runtime-valued symbol cannot be pre-enumerated
+        // into `requestedFeeds`, so it must error at the compiler boundary with
+        // `request-security-symbol-not-literal` (mirrors the interval rule).
+        const source = `
+import { defineIndicator, plot, request } from "@invinite-org/chartlang-core";
+declare const s: string;
+export default defineIndicator({
+    name: "dyn sym",
+    apiVersion: 1,
+    compute({ plot, request }) {
+        const feed = request.security({ symbol: s, interval: "1D" });
+        plot(feed.close.current);
+    },
+});
+`;
+        try {
+            await compile(source, { apiVersion: 1, sourcePath: "dyn-sym.chart.ts" });
+            expect.unreachable("compile should have thrown a CompileError");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CompileError);
+            const compileError = err as CompileError;
+            expect(
+                compileError.diagnostics.some(
+                    (d) => d.code === "request-security-symbol-not-literal",
+                ),
+            ).toBe(true);
+        }
+    });
+
     it("throws CompileError with a `type-error` diagnostic when a TS semantic error fires", async () => {
         // Regression for the gap reported in PLAN §5.2 step 1: semantic
         // type errors (`const x: number = "oops"`) previously slipped

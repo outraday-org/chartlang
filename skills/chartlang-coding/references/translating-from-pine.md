@@ -74,18 +74,25 @@ var array<float> win = array.new<float>()
 array.push(win, close)
 if array.size(win) > 20
     array.shift(win)
-plot(array.get(win, 0))
+plot(array.last(win))
 ```
 
 converts to:
 
 ```ts
 // chartlang: the eviction block is elided (the ring self-bounds), and the
-// literal cap K becomes the required state.array capacity. get(0) is newest.
+// literal cap K becomes the required state.array capacity.
 const win = state.array<number>(20);
 win.push(bar.close);
-plot(win.get(0));
+plot(win.last());
 ```
+
+**Index direction flips.** Pine `array.get(coll, n)` indexes from the
+**oldest** element (index `0` is the first pushed; `array.shift` evicts it),
+whereas `state.array.get(n)` indexes from the **newest** (`0` is the newest).
+The converter inverts the index so a translated read targets the same element:
+`array.get(win, n)` → `win.get(win.size - 1 - n)`, while `array.last(win)` →
+`win.last()` and `array.first(win)` → `win.get(win.size - 1)`.
 
 Only **numeric** (`float` / `int`) value rings have a target; a
 `var array<bool>` / `var array<string>` rejects as

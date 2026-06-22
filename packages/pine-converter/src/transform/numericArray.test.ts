@@ -81,7 +81,7 @@ array.clear(win)
 plot(a + b + c + d)`;
         expect(stmts(body)).toEqual([
             "win.push(bar.close);",
-            "let a = win.get(2);",
+            "let a = win.get(win.size - 1 - (2));",
             "let b = win.size;",
             "let c = win.last();",
             "let d = win.get(win.size - 1);",

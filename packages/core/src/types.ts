@@ -422,7 +422,7 @@ export type SecurityExpressionDescriptor = {
     /**
      * Requested symbol; omitted ⇒ the chart's own symbol.
      *
-     * @since 1.2
+     * @since 1.3
      */
     readonly symbol?: string;
     readonly interval: string;
@@ -436,7 +436,7 @@ export type SecurityExpressionDescriptor = {
  * **distinct** feed; the runtime creates one secondary `StreamState` per
  * entry, keyed by the shared `feedKey(symbol, interval)` composite.
  *
- * @since 1.2
+ * @since 1.3
  * @stable
  * @example
  *     const f: RequestedFeed = { symbol: "AMEX:SPY", interval: "1D" };
@@ -668,7 +668,7 @@ export type ScriptManifest = {
      * `requestedIntervals` would not be. Absent on scripts with no
      * `request.security` so existing manifest snapshots stay byte-identical.
      *
-     * @since 1.2
+     * @since 1.3
      * @stable
      * @example
      *     const v: ScriptManifest["requestedFeeds"] = [

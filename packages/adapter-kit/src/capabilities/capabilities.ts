@@ -162,7 +162,7 @@ export const capabilities = {
      * other than the chart's own. Independent of `multiTimeframe` — setting one
      * does not imply the other.
      *
-     * @since 1.2
+     * @since 1.6
      * @stable
      * @example
      *     import { capabilities } from "@invinite-org/chartlang-adapter-kit";

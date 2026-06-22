@@ -228,10 +228,12 @@ describe("emitWithContext — state.array slots", () => {
         ).toBe("win.push(bar.close)");
     });
 
-    it("rewrites array.get(coll, n) → <slot>.get(n)", () => {
+    it("rewrites array.get(coll, n) → <slot>.get(<slot>.size - 1 - (n))", () => {
+        // Pine indexes from oldest (0) while chartlang `get(0)` is newest, so
+        // the index is inverted to read the same element.
         expect(
             emitWithContext(arrayCall("array.get", [ident("win"), intLit("2")]), arrayCtx()),
-        ).toBe("win.get(2)");
+        ).toBe("win.get(win.size - 1 - (2))");
     });
 
     it("rewrites array.size(coll) → <slot>.size", () => {

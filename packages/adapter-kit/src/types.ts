@@ -327,7 +327,7 @@ export type Capabilities = {
      * per request (symbol differs ⇒ `multiSymbol`; interval differs ⇒
      * `multiTimeframe`).
      *
-     * @since 1.2
+     * @since 1.6
      * @stable
      * @example
      *     const enabled: Capabilities["multiSymbol"] = false;

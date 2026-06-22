@@ -48,6 +48,12 @@ function bucketAt(
         );
     }
 
+    // `request.lowerTf` is chart-symbol-only (per-feed symbol is a deferred
+    // follow-up), so the bare interval IS the feed key — `feedKey(undefined,
+    // interval) === interval`. Keying the (feed-keyed) `secondaryStreams` map
+    // and the cache below by the bare interval is therefore byte-identical to
+    // routing through `feedKey`; if `lowerTf` ever gains a symbol, switch both
+    // sites to `feedKey(symbol, interval)` so they cannot silently mis-key.
     const secondary = ctx.secondaryStreams.get(interval);
     if (secondary === undefined) {
         return fallback(
