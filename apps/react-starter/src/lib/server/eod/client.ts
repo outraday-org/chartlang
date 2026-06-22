@@ -21,17 +21,15 @@ import {
   InvalidSymbolError,
   MissingApiKeyError,
   type EodQuote,
-  type EodSymbol,
   type SymbolHit,
 } from "./types"
 
-/** Default request base; override with `EODDATA_BASE_URL` (e2e points it local). */
-const DEFAULT_BASE_URL = "https://api.eoddata.com/v1"
-
-// Free tier: US equities only. EODData's exact exchange codes are confirmed at
-// integration time; an unknown code degrades to an empty list / friendly error
-// (never a crash) because every symbol is validated against the cached index.
-const US_EXCHANGES = ["NASDAQ", "NYSE", "AMEX", "OTCBB"] as const
+// Default request base. The live OpenAPI spec (https://api.eoddata.com/
+// openapi/v1.json) declares NO `servers` array and bare paths (`/Symbol/...`),
+// so the base is the spec's own host — `https://api.eoddata.com`, NOT a `/v1`
+// subpath (a `/v1` prefix 404s every call). Override with `EODDATA_BASE_URL`
+// (e2e points it at the local mock server).
+const DEFAULT_BASE_URL = "https://api.eoddata.com"
 
 /** Daily EOD interval token per the spec's `Interval` enum (`d` = daily). */
 const DAILY_INTERVAL = "d"
@@ -100,43 +98,40 @@ export async function eodFetch<T>(path: string, query?: Record<string, string>):
   return (await res.json()) as T
 }
 
-// --- Symbol index -----------------------------------------------------------
+// --- Symbol search ----------------------------------------------------------
 
-/** Fetch + merge the US per-exchange symbol lists into one de-duped index. */
-export async function fetchSymbolIndex(): Promise<SymbolHit[]> {
-  const seen = new Set<string>()
-  const hits: SymbolHit[] = []
-  for (const exchange of US_EXCHANGES) {
-    let rows: EodSymbol[]
-    try {
-      rows = await eodFetch<EodSymbol[]>(`/Symbol/List/${exchange}`)
-    } catch (err) {
-      // A single unreachable/unknown exchange must not sink the whole index;
-      // skip it (the cache stores whatever resolved).
-      if (err instanceof EodDataError) continue
-      throw err
-    }
-    for (const row of rows) {
-      const code = row.code?.toUpperCase()
-      if (!code || seen.has(code)) continue
-      seen.add(code)
-      hits.push({ code, name: row.name ?? code, exchange: row.exchangeCode ?? exchange })
-    }
-  }
-  return hits
+/** A row from `GET /Symbol/Search/{searchString}` (only the fields we use). */
+type EodSearchRow = {
+  symbolCode?: string
+  symbolName?: string
+  exchangeCode?: string
 }
 
-/** Pure case-insensitive prefix/substring filter over a cached index. */
-export function filterSymbols(index: readonly SymbolHit[], query: string): SymbolHit[] {
-  const q = query.trim().toUpperCase()
-  if (q.length === 0) return index.slice(0, 50)
-  const starts: SymbolHit[] = []
-  const contains: SymbolHit[] = []
-  for (const hit of index) {
-    if (hit.code.startsWith(q)) starts.push(hit)
-    else if (hit.code.includes(q) || hit.name.toUpperCase().includes(q)) contains.push(hit)
+/**
+ * Resolve symbols matching `query` via `GET /Symbol/Search/{q}` — ONE API call
+ * that returns each match WITH its home exchange (so a single search both
+ * powers a picker and resolves the exchange a daily-bars fetch needs). This
+ * replaces fetching + merging the four full per-exchange symbol lists (~7 MB,
+ * serialised behind the throttle), which is far too heavy + slow for the free
+ * tier. De-duped by `exchange:code`, capped at 50.
+ */
+export async function searchSymbolApi(query: string): Promise<SymbolHit[]> {
+  const q = query.trim()
+  if (q.length === 0) return []
+  const rows = await eodFetch<EodSearchRow[]>(`/Symbol/Search/${encodeURIComponent(q)}`)
+  const seen = new Set<string>()
+  const hits: SymbolHit[] = []
+  for (const row of rows) {
+    const code = row.symbolCode?.toUpperCase()
+    const exchange = row.exchangeCode
+    if (!code || !exchange) continue
+    const key = `${exchange}:${code}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    hits.push({ code, name: row.symbolName ?? code, exchange })
+    if (hits.length >= 50) break
   }
-  return [...starts, ...contains].slice(0, 50)
+  return hits
 }
 
 // --- Daily bars -------------------------------------------------------------

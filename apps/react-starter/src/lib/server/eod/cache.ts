@@ -25,10 +25,9 @@ import type { Bar } from "@invinite-org/chartlang-core"
 import { getDb, schema } from "../db/index"
 import {
   fetchDailyQuotes,
-  fetchSymbolIndex,
-  filterSymbols,
   mapQuotesToBars,
   normalizeTicker,
+  searchSymbolApi,
 } from "./client"
 import {
   InvalidSymbolError,
@@ -40,11 +39,8 @@ import {
 
 /** Free-tier default; override with `EODDATA_DAILY_LIMIT` (e2e sets it low). */
 const DEFAULT_DAILY_LIMIT = 100
-const SYMBOLS_TTL_MS = 7 * 24 * 60 * 60 * 1000 // symbol lists change rarely
 const BARS_TTL_MS = 24 * 60 * 60 * 1000 // daily bars refresh once a day
 
-const INDEX_SYMBOL = "*"
-const INDEX_RANGE = "symbols:US"
 const BARS_RANGE = "daily:max"
 
 function dailyLimit(): number {
@@ -117,43 +113,24 @@ function consumeQuota(): void {
 
 // --- Symbol search ----------------------------------------------------------
 
-/** Read-through US symbol index. Fetches (1 quota call) only on a cold/stale
- * cache; otherwise serves the cached merged list. */
-function getSymbolIndex(): SymbolHit[] {
-  const cached = readCache(INDEX_SYMBOL, INDEX_RANGE)
-  if (cached && isFresh(cached.fetchedAt, SYMBOLS_TTL_MS)) {
-    return cached.bars as SymbolHit[]
-  }
-  return [] // signal "needs network" to the async caller
-}
-
 /**
- * Search US symbols. Serves the cached index when fresh; otherwise spends one
- * quota call to (re)build it, then filters. When the quota is spent and no
- * cached index exists, returns whatever stale index is available (possibly
- * empty) rather than throwing — search must stay usable offline.
+ * Search US symbols via EODData's `Symbol/Search` (one quota call per query).
+ * Returns matches WITH their home exchange. Empty query or a spent quota
+ * yields an empty list rather than throwing — the picker stays usable.
  */
 export async function searchSymbols(query: string): Promise<SymbolHit[]> {
-  let index = getSymbolIndex()
-  if (index.length === 0) {
-    const stale = readCache(INDEX_SYMBOL, INDEX_RANGE)
-    if (hasQuota()) {
-      consumeQuota()
-      index = await fetchSymbolIndex()
-      writeCache(INDEX_SYMBOL, INDEX_RANGE, index)
-    } else {
-      index = (stale?.bars as SymbolHit[]) ?? []
-    }
-  }
-  return filterSymbols(index, query)
+  const q = query.trim()
+  if (q.length === 0 || !hasQuota()) return []
+  consumeQuota()
+  return searchSymbolApi(q)
 }
 
 // --- Daily bars -------------------------------------------------------------
 
-/** Resolve a symbol's home exchange from the (cached) index. */
+/** Resolve a symbol's home exchange via `Symbol/Search` (one quota call). */
 async function resolveHit(symbol: string): Promise<SymbolHit | null> {
-  const index = await searchSymbols(symbol)
-  return index.find((h) => h.code === symbol) ?? null
+  const hits = await searchSymbols(symbol)
+  return hits.find((h) => h.code === symbol) ?? hits[0] ?? null
 }
 
 /**
