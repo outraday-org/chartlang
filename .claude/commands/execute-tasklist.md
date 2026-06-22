@@ -73,9 +73,28 @@ produces zero diff. Never hand-write the six §22.4 template files
 
 **Detect mode** based on the argument:
 - If the argument ends in `.md` → **single-task mode** (the argument is a task file)
-- Otherwise → **folder mode** (the argument is a task folder)
+- Otherwise → **folder mode** (the argument is a task folder — may be a *leaf*
+  tasklist or an *aggregate* folder-of-tasklists; classify it below)
 
-### Folder mode
+### Classify the folder: leaf vs aggregate
+
+Inspect the target directory:
+
+- It is a **leaf tasklist** if it directly contains one or more `N-*.md` task
+  files (N = a number), excluding `X-`-prefixed (completed) files.
+- It is an **aggregate tasklist** if it contains **no** `N-*.md` files directly
+  but contains **subdirectories that are themselves tasklists** (leaf *or*
+  aggregate).
+
+Classification recurses — an aggregate may contain aggregates. Example:
+`tasks/future/` is aggregate; its children `state-array/`, `math-utilities/`,
+… are leaves, and one child `pine-converter-coverage/` is itself aggregate
+(its `T1-…/` … `T12-…/` children are leaves).
+
+If the directory has neither `N-*.md` files nor tasklist subdirectories, tell
+the user there are no tasks and stop.
+
+### Leaf mode
 
 1. Read the `README.md` in the provided task folder to understand the feature.
 2. List all task files matching the pattern `N-*.md` (where N is a number).
@@ -90,7 +109,68 @@ Found <N> tasks to execute in <folder>:
   ...
 ```
 
-If no uncompleted tasks are found, tell the user and stop.
+If no uncompleted tasks are found, tell the user and stop. Then proceed to the
+runtime's task-wave flow (Steps 2–6).
+
+### Aggregate mode
+
+1. Read the aggregate folder's `README.md`.
+2. Enumerate child tasklist directories. Skip any child that has no `N-*.md`
+   files and no tasklist descendants, and skip any child whose every task file
+   is already `X-`-prefixed.
+3. Build a **folder dependency map** from the README (see *Parsing folder
+   order* below).
+4. Group child folders into **folder waves** — a wave contains every child
+   whose folder-dependencies are satisfied by earlier waves (the same
+   wave-grouping algorithm as Step 3, but at folder granularity).
+5. Report the folder plan:
+
+```
+Aggregate plan for <folder> (parsed from README.md):
+  Folder wave 1 (no deps): state-array, multi-symbol-security, …
+  Folder wave 2: array-analytics, map-collection
+  Folder wave 3: pine-converter-coverage
+```
+
+6. **Process folder waves sequentially.** For each child folder, in wave order,
+   run the full flow for that folder — recursing into Step 1 (so an aggregate
+   child like `pine-converter-coverage/` is itself classified and expanded).
+   Cross-folder dependencies that point **outside** the current subtree are
+   guaranteed satisfied, because the parent wave ordering already completed
+   those folders first.
+
+**Default execution within a folder wave is sequential across folders** — one
+leaf tasklist fully completes (execute **and** quality pass) before the next
+starts. This is deliberate: separate folders frequently edit the same hotspot
+files (the compiler ambient shim `packages/compiler/src/program.ts`, the core
+barrel `packages/core/src/index.ts`, `STATEFUL_PRIMITIVES`, the skills
+generator + generated `skills/chartlang-coding/references/primitives.md`, and
+the `packages/pine-converter` mapping tables), and concurrent teammates in
+different folders would clobber each other. The per-task parallelism **within**
+each leaf folder (Step 4) is retained — that is where concurrency happens. Only
+if the user explicitly passes `--parallel-folders` do you run a folder wave's
+leaves concurrently; if you do, warn about the contention above first.
+
+Team/run lifecycle (Runtime A): create **one** team
+`execute-<aggregate-folder-name>` at the start of the aggregate run and delete
+it once at the very end — do not create/delete a team per leaf.
+
+### Parsing folder order (aggregate README convention)
+
+Build the folder dependency map from the aggregate README, in this precedence:
+
+1. **Folder dependency table** (canonical, machine-readable): a Markdown table
+   that has a **Depends on** column, where the **first column** holds each
+   child's identifier — a folder name or a unique prefix of one (e.g. `T1`
+   resolves to `T1-udf-declarations/`). For each row, a token in the *Depends
+   on* cell is a dependency **only if it resolves to a sibling child folder**
+   (by exact name or unique prefix); every other token (a deliverable name, a
+   prose note, a `../other-folder/` reference) is treated as a note and ignored
+   — those are cross-subtree deps already enforced by the parent wave ordering.
+2. If no such table exists, fall back to the order folders are **first
+   mentioned** under a wave / execution-plan heading.
+3. If neither exists, fall back to **alphabetical, one folder per wave** and
+   warn the user that the ordering is unverified.
 
 ### Single-task mode
 
@@ -153,6 +233,13 @@ Execution plan (parsed from README.md dependencies):
 
 If the Dependencies column is missing or all tasks list "None", fall back to
 **sequential execution** (each task is its own wave).
+
+**Ignore non-numeric tokens in the Dependencies column.** A leaf task's
+Dependencies cell sometimes names another *folder* (e.g. `state-array`) rather
+than a task number — that is a cross-folder dependency. It is already enforced
+by the aggregate folder-wave ordering (Step 1, aggregate mode), so drop it when
+building this folder's task waves; only numeric tokens (`1`, `2`, `1, 2`,
+`1–6`) determine intra-folder waves.
 
 ## Step 4: Execute Waves
 
@@ -570,10 +657,11 @@ there is nothing to stop or delete. Proceed to Step 7.
 
 ## Step 7: Clean Up Plan Files
 
-Delete all `.plan.md` files generated during execution:
+Delete all `.plan.md` files generated during execution. In aggregate mode the
+plan files are scattered across the leaf subfolders, so delete recursively:
 
 ```bash
-rm <task-folder>/*.plan.md
+find <task-folder> -name '*.plan.md' -delete
 ```
 
 These are intermediate audit artifacts — the completed task files (prefixed
@@ -607,11 +695,38 @@ Present a summary:
 - [ ] <Any unresolved issues>
 ```
 
+**Aggregate mode:** prefix the report with the folder-wave plan and group the
+results table by folder, so the reader sees both the cross-folder order and the
+per-task outcome:
+
+```
+### Folder Execution Plan
+  Folder wave 1: state-array, multi-symbol-security, …
+  Folder wave 2: array-analytics, map-collection
+  Folder wave 3: pine-converter-coverage
+
+### Results
+| Folder | Task | Wave | Plan+Execute | Quality Grade | Status |
+|--------|------|------|--------------|---------------|--------|
+| state-array | 1: <title> | 1 | OK | Ship | Marked done |
+| …          | …          | … | …  | …    | …           |
+```
+
 ## Constraints
 
-- Process waves **sequentially** — a wave only starts after the previous wave
-  completes
-- Within each wave, execute all tasks **in parallel** using concurrent teammates
+- A target folder may be a **leaf** tasklist (`N-*.md` files) or an
+  **aggregate** folder-of-tasklists (e.g. `tasks/future/`). Aggregate mode
+  classifies recursively, orders child folders into **folder waves** from the
+  aggregate README's folder dependency table, and processes each child folder
+  through the normal flow (Steps 2–6) in wave order.
+- Folder waves run **sequentially**; within a folder wave, leaf tasklists run
+  **sequentially by default** (shared-hotspot-file contention) unless the user
+  passes `--parallel-folders`. Per-task parallelism *within* a leaf folder is
+  always retained.
+- Process task waves **sequentially** — a wave only starts after the previous
+  wave completes
+- Within each task wave, execute all tasks **in parallel** using concurrent
+  teammates
 - Parse the Dependencies column from the Task Summary table to determine waves
 - If no Dependencies column exists, fall back to sequential (one task per wave)
 - Do NOT implement code yourself — always delegate to teammates
