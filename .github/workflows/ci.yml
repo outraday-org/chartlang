@@ -15,10 +15,13 @@ concurrency:
 
 jobs:
     # Decide whether this push to main is the merge of the
-    # `changeset-release/main` "Version Packages" PR. Look up the PR(s)
-    # associated with the pushed commit (robust across merge/squash/rebase)
-    # and check the head ref. `test` uses this to skip the redundant matrix
-    # only on that release merge — every other push still runs it.
+    # `changeset-release/main` "Version Packages" PR. First check the merge
+    # commit message (available immediately), then fall back to the PR(s)
+    # associated with the pushed commit (robust across squash/rebase). The
+    # `/commits/{sha}/pulls` association is eventually-consistent and can lag
+    # the push by a few seconds, so the fallback polls instead of asking once.
+    # `test` uses this to skip the redundant matrix only on that release
+    # merge — every other push still runs it.
     detect:
         name: Detect release merge
         runs-on: ubuntu-latest
@@ -31,14 +34,34 @@ jobs:
             - id: check
               env:
                   GH_TOKEN: ${{ github.token }}
+                  HEAD_COMMIT_MSG: ${{ github.event.head_commit.message }}
               run: |
                   if [ "${{ github.event_name }}" != "push" ]; then
                     echo "is_release_merge=false" >> "$GITHUB_OUTPUT"
                     exit 0
                   fi
-                  n=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
-                        --jq '[.[] | select(.head.ref == "changeset-release/main")] | length')
-                  echo "associated changeset-release PRs: $n"
+                  # Fast path: the merge commit message names the branch
+                  # immediately (no API lag). Covers the standard merge-commit
+                  # subject `Merge pull request #N from <org>/changeset-release/main`.
+                  if printf '%s' "$HEAD_COMMIT_MSG" | grep -q "changeset-release/main"; then
+                    echo "commit message references changeset-release/main"
+                    echo "is_release_merge=true" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
+                  # Fallback: the PR(s) associated with the pushed commit
+                  # (robust across squash/rebase, where the branch name is not
+                  # in the commit message). `/commits/{sha}/pulls` is
+                  # eventually-consistent — right after a merge it can return an
+                  # empty array for a few seconds — so poll until it settles
+                  # instead of asking once and losing the race.
+                  n=0
+                  for attempt in 1 2 3 4 5; do
+                    n=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+                          --jq '[.[] | select(.head.ref == "changeset-release/main")] | length')
+                    echo "attempt $attempt: associated changeset-release PRs: $n"
+                    [ "$n" -gt 0 ] && break
+                    sleep 5
+                  done
                   if [ "$n" -gt 0 ]; then
                     echo "is_release_merge=true" >> "$GITHUB_OUTPUT"
                   else
