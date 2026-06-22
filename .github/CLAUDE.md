@@ -77,6 +77,23 @@ GitHub-specific configuration: CI workflow and pull-request template.
   and ensure `NPM_TOKEN` is configured in repo secrets before merging
   release PRs. Manual fallback is `pnpm publish:release` from a maintainer
   machine.
+- **`changeset publish` is non-atomic, and that is safe to re-run.** It
+  publishes packages one at a time; if one fails (e.g. an E403 because the
+  `NPM_TOKEN` is scoped to `@invinite-org` and the package name is outside
+  that scope), the already-published packages stay published, their git
+  tags are pushed, and the job exits 1. **Recovery is just a normal push to
+  `main`** — the next `changeset publish` skips every package whose version
+  is already on npm and retries only the one that failed (observed
+  2026-06-22: `create-chartlang` was unscoped, hit E403 while the 11
+  `@invinite-org/*` packages published; renaming it to
+  `@invinite-org/create-chartlang` and re-pushing published it cleanly). So
+  do **not** bump versions or hand-edit changesets to recover from a partial
+  publish — fix the underlying cause and push again. Note that a
+  **first-ever** publish of a new package name takes a few minutes to appear
+  on the registry read endpoint (`npm view`/registry GET returns 404 right
+  after a successful publish); the publish log + the pushed
+  `<name>@<version>` tag are the source of truth, not an immediate
+  `npm view`.
 - `pull_request_template.md` is **§22.7 verbatim** — six checklist items.
   New checklist items go in `pull_request_template.md` first, then mirror here.
 
