@@ -3,11 +3,11 @@
 > **Stability: experimental.**
 
 A clonable **chartlang workspace starter** — a private TanStack Start
-app you scaffold with `npm create chartlang@latest` and then own and
+app you scaffold with `npm create @invinite-org/chartlang@latest` and then own and
 extend yourself. It pairs a script editor with a live chart: write a
 chartlang indicator/drawing/alert script on the left, see it render on
 the right. Private workspace package (`"private": true`); not published
-to npm. The published installer that clones it is `create-chartlang`.
+to npm. The published installer that clones it is `@invinite-org/create-chartlang`.
 
 This is a **starter, not the chartlang product**: it ships the stock
 **shadcn Base UI default (neutral) theme** so you can re-theme it freely.

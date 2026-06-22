@@ -1,16 +1,16 @@
-# create-chartlang
+# @invinite-org/create-chartlang
 
 > **Stability: experimental.**
 
-The `npm create chartlang` installer — scaffold a runnable chartlang starter
+The `npm create @invinite-org/chartlang` installer — scaffold a runnable chartlang starter
 app (TanStack Start editor + live chart + EODData + SQLite) with your chosen
 chart library wired in.
 
 ## Usage
 
 ```bash
-npm create chartlang@latest my-app
-# or: pnpm create chartlang my-app · npx create-chartlang my-app
+npm create @invinite-org/chartlang@latest my-app
+# or: pnpm create @invinite-org/chartlang my-app · npx @invinite-org/create-chartlang my-app
 ```
 
 It clones `apps/react-starter` from GitHub, prompts for a chart library
@@ -34,11 +34,11 @@ create-chartlang [dir] [--library <id>] [--pm <npm|pnpm|yarn|bun>] [--no-install
 The installer is also importable for programmatic scaffolding / testing:
 
 ```bash
-pnpm add create-chartlang
+pnpm add @invinite-org/create-chartlang
 ```
 
 ```ts
-import { runCreateChartlang, defaultDeps } from "create-chartlang";
+import { runCreateChartlang, defaultDeps } from "@invinite-org/create-chartlang";
 
 await runCreateChartlang(["my-app", "--library", "echarts"], defaultDeps({
   cloneStarter: async () => {/* clone the starter tree */},

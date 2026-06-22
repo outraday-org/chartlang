@@ -11,7 +11,7 @@
  * @since 0.1
  * @experimental
  * @example
- *     import { STARTER_CLONE_REF } from "create-chartlang";
+ *     import { STARTER_CLONE_REF } from "@invinite-org/create-chartlang";
  *     const source = `github:outraday-org/chartlang/apps/react-starter${STARTER_CLONE_REF}`;
  *     void source;
  */
@@ -32,7 +32,7 @@ export const STARTER_CLONE_REF = "#main";
  * @since 0.1
  * @stable
  * @example
- *     import { CHARTLANG_VERSIONS } from "create-chartlang";
+ *     import { CHARTLANG_VERSIONS } from "@invinite-org/create-chartlang";
  *     const range = CHARTLANG_VERSIONS["@invinite-org/chartlang-editor"];
  *     void range;
  */

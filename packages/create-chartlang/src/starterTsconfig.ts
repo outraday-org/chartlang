@@ -25,7 +25,7 @@ const STANDALONE_EXTENDS = "./tsconfig.base.json";
  * @since 0.1
  * @stable
  * @example
- *     import { STANDALONE_TSCONFIG_BASE } from "create-chartlang";
+ *     import { STANDALONE_TSCONFIG_BASE } from "@invinite-org/create-chartlang";
  *     void STANDALONE_TSCONFIG_BASE.compilerOptions.strict;
  */
 export const STANDALONE_TSCONFIG_BASE = {
@@ -72,7 +72,7 @@ type TsconfigFile = {
  * @since 0.1
  * @stable
  * @example
- *     import { writeStandaloneTsconfig } from "create-chartlang";
+ *     import { writeStandaloneTsconfig } from "@invinite-org/create-chartlang";
  *     await writeStandaloneTsconfig("/tmp/my-app");
  */
 export async function writeStandaloneTsconfig(dir: string): Promise<void> {

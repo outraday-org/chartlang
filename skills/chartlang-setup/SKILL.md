@@ -67,7 +67,7 @@ constructor swap (see § 5).
 
 | If you want to… | Read | Package(s) |
 |---|---|---|
-| Get a working app fast (editor + chart already wired) | § 3 — `npm create chartlang@latest` | scaffolds the starter |
+| Get a working app fast (editor + chart already wired) | § 3 — `npm create @invinite-org/chartlang@latest` | scaffolds the starter |
 | Run user scripts inside an existing chart UI | [`references/embed.md`](./references/embed.md) | `-compiler`, `-host-worker`, `-adapter-kit` |
 | Render chartlang on a new chart vendor | [`references/adapter.md`](./references/adapter.md) | `-adapter-kit` |
 | Fire alerts server-side with no browser | [`references/server-alerts.md`](./references/server-alerts.md) | `-compiler`, `-host-quickjs` |
@@ -77,7 +77,7 @@ runnable app instead of hand-wiring the boundaries below, scaffold the
 react-starter:
 
 ```bash
-npm create chartlang@latest my-app
+npm create @invinite-org/chartlang@latest my-app
 ```
 
 It clones a private TanStack Start app that already wires the full embed

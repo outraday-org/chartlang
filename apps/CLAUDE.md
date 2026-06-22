@@ -16,8 +16,8 @@ artefacts that ship alongside the published packages).
   (see `tasks/old/landing-site-netlify-deploy/`). Deploy mechanics live
   in `DEPLOYMENT.md`.
 - `apps/react-starter/` — `chartlang-react-starter`. A private,
-  clonable TanStack Start starter (the tree `create-chartlang` clones
-  for `npm create chartlang@latest`). Scaffolded with the **stock
+  clonable TanStack Start starter (the tree `@invinite-org/create-chartlang`
+  clones for `npm create @invinite-org/chartlang@latest`). Scaffolded with the **stock
   shadcn Base UI _default_ (neutral) theme** —
   `pnpm dlx shadcn@latest init --base base --template start --preset nova`
   (NOT the site's `--preset b0`). Dev on port **3100** so it can run

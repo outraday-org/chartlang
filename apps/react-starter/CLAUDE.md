@@ -1,7 +1,7 @@
 # apps/react-starter/
 
 `chartlang-react-starter` — the private, clonable TanStack Start starter
-that `create-chartlang` clones for `npm create chartlang@latest`. Stock
+that `@invinite-org/create-chartlang` clones for `npm create @invinite-org/chartlang@latest`. Stock
 shadcn Base UI **default (neutral)** theme; dev on port **3100**.
 
 See `apps/CLAUDE.md` for the apps-wide rules (Biome/coverage/changeset/

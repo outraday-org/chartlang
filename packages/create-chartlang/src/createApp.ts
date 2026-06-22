@@ -50,7 +50,7 @@ const STRIP_ENTRIES = ["CLAUDE.md", "tests", ".changeset", ".github", "playwrigh
  * @since 0.1
  * @stable
  * @example
- *     import { STARTER_SOURCE_BASE } from "create-chartlang";
+ *     import { STARTER_SOURCE_BASE } from "@invinite-org/create-chartlang";
  *     void STARTER_SOURCE_BASE;
  */
 export const STARTER_SOURCE_BASE = "github:outraday-org/chartlang/apps/react-starter";
@@ -63,7 +63,7 @@ export const STARTER_SOURCE_BASE = "github:outraday-org/chartlang/apps/react-sta
  * @since 0.1
  * @stable
  * @example
- *     import type { Prompter } from "create-chartlang";
+ *     import type { Prompter } from "@invinite-org/create-chartlang";
  *     const p: Prompter = { question: async () => "echarts", close: () => {} };
  *     void p;
  */
@@ -80,7 +80,7 @@ export type Prompter = {
  * @since 0.1
  * @stable
  * @example
- *     import type { CloneRequest } from "create-chartlang";
+ *     import type { CloneRequest } from "@invinite-org/create-chartlang";
  *     declare const req: CloneRequest;
  *     void req.dir;
  */
@@ -98,7 +98,7 @@ export type CloneRequest = Readonly<{
  * @since 0.1
  * @stable
  * @example
- *     import type { CloneStarter } from "create-chartlang";
+ *     import type { CloneStarter } from "@invinite-org/create-chartlang";
  *     const clone: CloneStarter = async () => {};
  *     void clone;
  */
@@ -113,7 +113,7 @@ export type CloneStarter = (req: CloneRequest) => Promise<void>;
  * @since 0.1
  * @stable
  * @example
- *     import type { CreateChartlangDeps } from "create-chartlang";
+ *     import type { CreateChartlangDeps } from "@invinite-org/create-chartlang";
  *     declare const deps: CreateChartlangDeps;
  *     void deps.isTTY;
  */
@@ -137,7 +137,7 @@ function isPackageManager(value: string): value is PackageManager {
  * @since 0.1
  * @stable
  * @example
- *     import type { ResolvedAdapter } from "create-chartlang";
+ *     import type { ResolvedAdapter } from "@invinite-org/create-chartlang";
  *     declare const r: ResolvedAdapter;
  *     void r.bundle.id;
  */
@@ -155,7 +155,7 @@ export type ResolvedAdapter = Readonly<{
  * @since 0.1
  * @stable
  * @example
- *     import { resolveAdapter } from "create-chartlang";
+ *     import { resolveAdapter } from "@invinite-org/create-chartlang";
  *     const { bundle, meta } = resolveAdapter("echarts");
  *     void bundle.id;
  *     void meta.library;
@@ -184,7 +184,7 @@ async function isNonEmptyDir(path: string): Promise<boolean> {
  * @since 0.1
  * @stable
  * @example
- *     import { renderLibraryChoices } from "create-chartlang";
+ *     import { renderLibraryChoices } from "@invinite-org/create-chartlang";
  *     const text = renderLibraryChoices([]);
  *     void text;
  */
@@ -216,7 +216,7 @@ function orderedRegistry(
  * @since 0.1
  * @stable
  * @example
- *     import { bundleChartlangVersions } from "create-chartlang";
+ *     import { bundleChartlangVersions } from "@invinite-org/create-chartlang";
  *     const map = bundleChartlangVersions({ id: "x", files: {} });
  *     void map;
  */
@@ -277,7 +277,7 @@ type VendoredAdapterPkg = {
  * @since 0.1
  * @stable
  * @example
- *     import { repointVendoredPackageJson } from "create-chartlang";
+ *     import { repointVendoredPackageJson } from "@invinite-org/create-chartlang";
  *     const next = repointVendoredPackageJson('{"main":"./dist/index.js"}', "@local/x-adapter");
  *     void next;
  */
@@ -452,7 +452,7 @@ async function resolveLibrary(
  * @since 0.1
  * @stable
  * @example
- *     import { defaultDeps } from "create-chartlang";
+ *     import { defaultDeps } from "@invinite-org/create-chartlang";
  *     const deps = defaultDeps({
  *         cloneStarter: async () => {},
  *         runInstall: async () => {},
@@ -488,7 +488,7 @@ export function defaultDeps(
  * @since 0.1
  * @stable
  * @example
- *     import { runCreateChartlang, defaultDeps } from "create-chartlang";
+ *     import { runCreateChartlang, defaultDeps } from "@invinite-org/create-chartlang";
  *     await runCreateChartlang(["my-app", "--library", "echarts"], defaultDeps({
  *         cloneStarter: async () => {},
  *         runInstall: async () => {},

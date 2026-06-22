@@ -7,10 +7,10 @@ indicator/drawing/alert script on the left, see it render on the right.
 One command scaffolds your own copy, wired to the chart library you pick.
 
 ```bash
-npm create chartlang@latest my-app
+npm create @invinite-org/chartlang@latest my-app
 ```
 
-The installer is [`create-chartlang`](https://www.npmjs.com/package/create-chartlang);
+The installer is [`@invinite-org/create-chartlang`](https://www.npmjs.com/package/@invinite-org/create-chartlang);
 the tree it clones lives at
 [`apps/react-starter/`](https://github.com/outraday-org/chartlang/tree/main/apps/react-starter).
 
@@ -41,8 +41,8 @@ worker host on the client) but ships a full app around it:
    `lightweight-charts` · `uplot` · `konva` · `canvas2d`):
 
    ```bash
-   npm create chartlang@latest my-app
-   # pnpm create chartlang my-app · npx create-chartlang my-app
+   npm create @invinite-org/chartlang@latest my-app
+   # pnpm create @invinite-org/chartlang my-app · npx @invinite-org/create-chartlang my-app
    ```
 
 2. **Get a free EODData key.** Sign up at

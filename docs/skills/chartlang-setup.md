@@ -17,7 +17,7 @@ The skill's recommended starting point is the **react-starter**: rather than
 hand-wiring the boundaries, scaffold a runnable app that already does it.
 
 ```bash
-npm create chartlang@latest my-app
+npm create @invinite-org/chartlang@latest my-app
 ```
 
 It clones a TanStack Start app with the full embed path wired — the compiler

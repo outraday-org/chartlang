@@ -26,7 +26,7 @@ const MATRIX_CHART_LIBS: ReadonlyArray<string> = [
  * @since 0.1
  * @stable
  * @example
- *     import type { RewriteOpts } from "create-chartlang";
+ *     import type { RewriteOpts } from "@invinite-org/create-chartlang";
  *     declare const opts: RewriteOpts;
  *     void opts.projectName;
  */
@@ -149,7 +149,7 @@ type PackageJson = {
  * @since 0.1
  * @stable
  * @example
- *     import { rewriteStarterPackageJson } from "create-chartlang";
+ *     import { rewriteStarterPackageJson } from "@invinite-org/create-chartlang";
  *     const next = rewriteStarterPackageJson({
  *         source: '{"name":"x","dependencies":{}}',
  *         projectName: "my-app",

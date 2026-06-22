@@ -11,8 +11,8 @@ Workspace packages published under the `@invinite-org/chartlang-*` npm scope.
   Adding a new package = append to `PACKAGE_DIRS` in the scaffold and
   re-run. Do not write the six template files by hand. **Exception:
   `create-chartlang`** is hand-authored and deliberately NOT in
-  `PACKAGE_DIRS` — it publishes under the bare name `create-chartlang` with a
-  `bin`, which the scoped (`@invinite-org/chartlang-<name>`, no-`bin`) library
+  `PACKAGE_DIRS` — it publishes as `@invinite-org/create-chartlang` with a
+  `bin`, which the `@invinite-org/chartlang-<name>` (no-`bin`) library
   template can't express. See `packages/create-chartlang/CLAUDE.md`.
 - `src/index.ts` must export a `PACKAGE_VERSION` constant until the
   package ships real exports (Phase 1+). Two-line MIT header at the top

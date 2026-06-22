@@ -20,7 +20,7 @@
  * @since 0.1
  * @stable
  * @example
- *     import { SEAM_IDS } from "create-chartlang";
+ *     import { SEAM_IDS } from "@invinite-org/create-chartlang";
  *     for (const id of SEAM_IDS) void id;
  */
 export const SEAM_IDS = ["canvas2d", "lightweight-charts", "uplot", "echarts", "konva"] as const;
@@ -32,7 +32,7 @@ export const SEAM_IDS = ["canvas2d", "lightweight-charts", "uplot", "echarts", "
  * @since 0.1
  * @stable
  * @example
- *     import type { SeamId } from "create-chartlang";
+ *     import type { SeamId } from "@invinite-org/create-chartlang";
  *     const id: SeamId = "echarts";
  *     void id;
  */
@@ -314,7 +314,7 @@ function exampleAdapterPkg(id: SeamId): string {
  * @since 0.1
  * @stable
  * @example
- *     import { isSeamId } from "create-chartlang";
+ *     import { isSeamId } from "@invinite-org/create-chartlang";
  *     if (isSeamId("echarts")) {
  *         // narrowed to SeamId
  *     }
@@ -333,7 +333,7 @@ export function isSeamId(value: string): value is SeamId {
  * @since 0.1
  * @stable
  * @example
- *     import { seamTemplateFor } from "create-chartlang";
+ *     import { seamTemplateFor } from "@invinite-org/create-chartlang";
  *     const body = seamTemplateFor("echarts", "@local/echarts-adapter");
  *     void body;
  */

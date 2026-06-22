@@ -1,6 +1,6 @@
 # packages/create-chartlang/
 
-`create-chartlang` — the `npm create chartlang@latest my-app` installer. It
+`@invinite-org/create-chartlang` — the `npm create @invinite-org/chartlang@latest my-app` installer. It
 clones `apps/react-starter` from GitHub, prompts for a chart library (default
 echarts), vendors the chosen adapter from the CLI's offline bundles, rewrites
 the single `activeAdapter.ts` seam + `package.json` workspace deps, writes
@@ -8,13 +8,15 @@ the single `activeAdapter.ts` seam + `package.json` workspace deps, writes
 
 ## Invariants
 
-- **Hand-authored, NOT scaffold-generated; published under the BARE name
-  `create-chartlang` with a `bin`.** This package is deliberately **absent**
-  from `scripts/scaffold.ts` `PACKAGE_DIRS`: the §22.4 library template
-  hardcodes a `@invinite-org/chartlang-<name>` scoped name with no `bin`
-  field, so re-running `pnpm scaffold` would emit a wrong, non-zero-diff
-  `package.json`. `bin` is `{ "create-chartlang": "./dist/index.js" }` (the
-  npm convention that makes `npm create chartlang` work). Mirror
+- **Hand-authored, NOT scaffold-generated; published as
+  `@invinite-org/create-chartlang` with a `bin`.** This package is
+  deliberately **absent** from `scripts/scaffold.ts` `PACKAGE_DIRS`: the
+  §22.4 library template hardcodes a `@invinite-org/chartlang-<name>` name
+  (note the `chartlang-` prefix) with no `bin` field, so re-running
+  `pnpm scaffold` would emit a wrong, non-zero-diff `package.json`. `bin` is
+  `{ "create-chartlang": "./dist/index.js" }` (the npm convention that makes
+  `npm create @invinite-org/chartlang` resolve `@invinite-org/create-chartlang`
+  and run it). Mirror
   `packages/cli`'s tsconfig/vitest shape, but edit the six "template" files
   by hand here — never via the scaffold.
 - **`index.ts` is the shebang `bin` entry (coverage-excluded), like the CLI's
