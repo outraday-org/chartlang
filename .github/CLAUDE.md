@@ -49,14 +49,21 @@ GitHub-specific configuration: CI workflow and pull-request template.
   push (where `test` is skipped) `e2e-site` is skipped too and the gate
   still passes. If you rename the job or its matrix legs, update the
   ruleset's required contexts to match.
-- The `detect` job emits `is_release_merge` by querying the PR(s)
-  associated with the pushed commit
-  (`/commits/{sha}/pulls`, robust across merge/squash/rebase) and checking
-  for `head.ref == 'changeset-release/main'`. `test` skips its matrix on a
-  push to `main` **only** when that is true — the merge of the "Version
-  Packages" PR, whose code was already tested on the PR that produced it.
-  Every other push (feature merges) still runs the matrix. The job needs
-  `pull-requests: read` and uses `GH_TOKEN: ${{ github.token }}`.
+- The `detect` job emits `is_release_merge` in two stages. **Fast path:**
+  it greps `github.event.head_commit.message` for `changeset-release/main`
+  — the standard merge-commit subject names the branch and is available with
+  zero API lag. **Fallback:** if the message doesn't match (squash/rebase
+  merges drop the branch name), it queries the PR(s) associated with the
+  pushed commit (`/commits/{sha}/pulls`) for `head.ref ==
+  'changeset-release/main'`. That endpoint is **eventually-consistent** — for
+  a few seconds after a merge it returns an empty array — so the fallback
+  **polls (5 attempts × 5s)** instead of asking once; querying once at +3s
+  lost the race and ran the full matrix on a release merge (observed
+  2026-06-22). `test` skips its matrix on a push to `main` **only** when
+  `is_release_merge` is true — the merge of the "Version Packages" PR, whose
+  code was already tested on the PR that produced it. Every other push
+  (feature merges) still runs the matrix. The job needs `pull-requests: read`
+  and uses `GH_TOKEN: ${{ github.token }}`.
 - The `release:` job at the bottom of `ci.yml` is live and runs only on
   `push` events to `main`. It is `needs: [test, e2e-site]`, and its `if`
   uses `always()` plus `needs.test.result` **and** `needs.e2e-site.result`
