@@ -80,6 +80,16 @@ describe("plotKindFromCallsite", () => {
         expect(kindOf(wrap("hline(70);"), "hline")).toBe("horizontal-line");
     });
 
+    it("bgcolor ⇒ bg-color (kind is the callee, no opts scan)", () => {
+        // The aliases return directly from the callee name — the opts arg is
+        // never read, so any value (here `undefined`) yields the same kind.
+        expect(plotKindFromCallsite("bgcolor", undefined)).toBe("bg-color");
+    });
+
+    it("barcolor ⇒ bar-color (kind is the callee, no opts scan)", () => {
+        expect(plotKindFromCallsite("barcolor", undefined)).toBe("bar-color");
+    });
+
     it("dynamic style object ⇒ undefined (caller falls back to line)", () => {
         expect(kindOf(wrap("plot(v, { style: sty });"), "plot")).toBeUndefined();
     });

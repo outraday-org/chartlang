@@ -358,6 +358,27 @@
   re-leak class appears. Any NEW `draw.*` impl MUST construct its state
   via `createDrawingHandle` — never emit a hand-built `DrawingState`
   carrying a folded-in `z`.
+- **`colorValue` is `plotImpl`'s per-bar dynamic-color channel, passed as an
+  internal 5th arg (NOT on `PlotOpts`) and omitted on the static `plot`
+  path.** Only the `bgcolor` / `barcolor` aliases pass `dynamicColor` to
+  `plotImpl` (their whole purpose is per-bar color, and they emit
+  `value: null` so they never touch the numeric channel); they STILL set the
+  static `bg-color` / `bar-color` `style.color` (older-adapter fallback). The
+  live color rides the wire as `PlotEmission.colorValue`, appended LAST with
+  the same omit-when-absent conditional spread as `xShift` / `z`. `plot`
+  passes no `dynamicColor`, so its emission omits the `colorValue` own-key
+  entirely — byte-identical to the pre-Deliverable-2 wire, every plot golden /
+  conformance `plot-hash` (`{ bar, value }` only) untouched. `colorValue`
+  rides the same `(slotId, bar)` last-write-wins dedup as `value`.
+  `validateEmission` accepts a non-empty color string OR `null` (sibling to
+  the `value` finite-or-`null` check); a malformed `colorValue` drops the
+  emission with `malformed-emission`, never a throw. The aliases mirror the
+  color onto BOTH `colorValue` and the static `style.color`, so an empty
+  (malformed) color trips the STYLE validator and drops the whole emission —
+  the `colorValue: null` validator arm is the wire contract for an explicit
+  gap a future producer may emit, not something the aliases manufacture.
+  Render-time precedence (`colorValue` over `style.color`) is the adapters'
+  job (Task 6).
 - **`pushPlot` / `pushAlert` validate via Task 4's
   `validateEmission`; `pushDiagnostic` does not.** Diagnostics are
   the failure sink — recursively validating them would loop. A

@@ -834,8 +834,17 @@ declare module "@invinite-org/chartlang-core" {
         lineStyle?: LineStyle;
         pane?: "overlay" | "new" | string;
     }>;
+    export type BgColorOpts = Readonly<{
+        transp?: number;
+        title?: string;
+    }>;
+    export type BarColorOpts = Readonly<{
+        title?: string;
+    }>;
     export function plot(value: number | Series<number>, opts?: PlotOpts): void;
     export function hline(price: number, opts?: HLineOpts): void;
+    export function bgcolor(color: Color, opts?: BgColorOpts): void;
+    export function barcolor(color: Color, opts?: BarColorOpts): void;
     export type JsonValue =
         | null
         | boolean
@@ -1370,6 +1379,8 @@ declare module "@invinite-org/chartlang-core" {
         readonly ta: TaNamespace;
         readonly plot: typeof plot;
         readonly hline: typeof hline;
+        readonly bgcolor: typeof bgcolor;
+        readonly barcolor: typeof barcolor;
         readonly alert: typeof alert;
         readonly draw: DrawNamespace;
         readonly state: StateNamespace;

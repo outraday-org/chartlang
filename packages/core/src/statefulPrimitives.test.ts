@@ -104,6 +104,8 @@ const EXPECTED_SLOT_TRUE = [
     "ta.volatilityStop",
     "plot",
     "hline",
+    "bgcolor",
+    "barcolor",
     "alert",
     "draw.line",
     "draw.horizontalLine",
@@ -213,6 +215,8 @@ const EXPECTED_ALL_NAMES = [...EXPECTED_SLOT_TRUE, ...EXPECTED_SLOT_FALSE];
 // See docs/spec/versioning.md.
 const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
     "alert",
+    "barcolor",
+    "bgcolor",
     "defineAlertCondition.signal",
     "draw.abcdPattern",
     "draw.arc",
@@ -392,11 +396,11 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
 ];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 177 entries after the state.array addition", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(177);
+    it("contains exactly 179 entries after the bgcolor/barcolor addition", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(179);
     });
 
-    it("locks the apiVersion-1 registry to the exact 177-entry name set", () => {
+    it("locks the apiVersion-1 registry to the exact 179-entry name set", () => {
         const names = [...STATEFUL_PRIMITIVES].map((e) => e.name).sort();
         expect(names).toEqual(FROZEN_API_V1_NAMES);
     });
@@ -415,14 +419,14 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 173 slot: true entries and exactly 4 slot: false entries", () => {
+    it("has exactly 175 slot: true entries and exactly 4 slot: false entries", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
             if (entry.slot) trueCount += 1;
             else falseCount += 1;
         }
-        expect(trueCount).toBe(173);
+        expect(trueCount).toBe(175);
         expect(falseCount).toBe(4);
     });
 

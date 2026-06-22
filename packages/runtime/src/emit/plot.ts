@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { PlotEmission, PlotStyle } from "@invinite-org/chartlang-adapter-kit";
-import type { PlotOpts, Series } from "@invinite-org/chartlang-core";
+import type { Color, PlotOpts, Series } from "@invinite-org/chartlang-core";
 
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
 import { seriesOffsetOf } from "../seriesView.js";
@@ -85,11 +85,32 @@ function buildStyle(opts: PlotOpts): PlotStyle {
     }
 }
 
-function plotImpl(
+/**
+ * Shared emission core for `plot` and its Pine-ergonomic aliases
+ * (`bgcolor` / `barcolor`). Builds the {@link PlotStyle} from `opts.style`,
+ * capability-gates, resolves the pane + `xShift` + `z`, and pushes the
+ * deduped, override-applied {@link PlotEmission}.
+ *
+ * `dynamicColor` is the per-bar dynamic-color channel: when supplied (only
+ * the `bgcolor` / `barcolor` aliases do — `plot` never does) it resolves to
+ * {@link PlotEmission.colorValue} (a non-empty color string, or `null` for an
+ * empty-string gap) and rides the same `(slotId, bar)` last-write-wins dedup
+ * as `value`. When omitted, no `colorValue` own-key is emitted, so the
+ * static-color `plot` wire stays byte-identical to the pre-Deliverable-2
+ * baseline (every pinned plot golden / conformance hash holds).
+ *
+ * @since 1.4
+ * @example
+ *     // Internal — `bgcolor` / `barcolor` reuse this; scripts call `plot`.
+ *     // const fn: typeof plotImpl = plotImpl;
+ *     // void fn;
+ */
+export function plotImpl(
     ctx: RuntimeContext,
     slotId: string,
     value: number | Series<number>,
     opts: PlotOpts,
+    dynamicColor?: Color,
 ): void {
     const style: PlotStyle = buildStyle(opts);
 
@@ -119,6 +140,17 @@ function plotImpl(
     // no-`z` plot stays byte-identical to the pre-feature baseline.
     const z = opts.z ?? 0;
 
+    // The per-bar dynamic color (only `bgcolor` / `barcolor` pass it) rides the
+    // wire as `colorValue`, appended LAST so an omitted-`colorValue` emission
+    // is byte-identical to the pre-Deliverable-2 wire. `plot` passes nothing,
+    // so its static-color wire is untouched and its goldens / hashes do not
+    // move. The color flows through unchanged: the alias mirrors it onto the
+    // static `style.color` too, so a malformed (empty) color trips the style
+    // validator and `pushPlot` drops the whole emission — the validator's
+    // `colorValue: null` arm is the wire contract for an explicit gap a future
+    // producer may emit, not something the aliases manufacture.
+    const colorValue = dynamicColor;
+
     const emission: PlotEmission = {
         kind: "plot",
         slotId,
@@ -132,6 +164,7 @@ function plotImpl(
         pane,
         ...(xShift === 0 ? {} : { xShift }),
         ...(z === 0 ? {} : { z }),
+        ...(colorValue === undefined ? {} : { colorValue }),
     };
 
     pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));

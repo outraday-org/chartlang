@@ -1121,6 +1121,22 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   callee) has no representable chartlang offset target (chartlang has no plot-
   level offset — deferred follow-up), so the offset is DROPPED with
   `plot-offset-needs-ta-call` (warning).
+- **`bgcolor`/`barcolor` lower to the chartlang Pine-ergonomic SUGAR
+  (`plotFamily.ts` `emitBackground`), NOT `plot(NaN, { style })`.** Since
+  Deliverable 2 of the `bgcolor`/`barcolor` ergonomics feature, `emitBackground`
+  emits `bgcolor(<color>)` / `barcolor(<color>)` carrying the REAL per-bar color
+  expression — including a per-bar conditional (`close > open ? color.green :
+  color.red`), so the dynamic-color semantics survive (the runtime routes it
+  through `PlotEmission.colorValue`). `styleValue` resolves `color.*` enum leaves
+  recursively through paren/ternary nodes (so each branch of a conditional color
+  becomes a hex literal while the condition flows through the normal emitter).
+  bgcolor's `transp` (named or `pos[1]`) and both aliases' named `title` thread
+  onto the `{ … }` opts bag; a bare call with no color is a no-op → `null`. The
+  emitted aliases drive the codegen `usage`/`import`/destructure flags
+  (`codegen/usage.ts` `bgcolor`/`barcolor`), so the generated script imports +
+  destructures `bgcolor`/`barcolor` exactly like `plot`. Before Deliverable 2 the
+  emit was a static `plot(NaN, { style: { kind, color } })`, which LOST the
+  per-bar color — do not revert to that shape.
 - **New codes (APPENDED to `diagnostics/codes.ts`, no reorder):**
   `plot-offset-needs-ta-call`, `plot-offset-overrides-ta-offset` (warnings),
   `ta-signature-divergence`, `ta-not-mapped`, `math-not-mapped`,

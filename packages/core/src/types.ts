@@ -776,6 +776,10 @@ export type ComputeContext = {
     readonly ta: TaNamespace;
     readonly plot: typeof import("./plot/plot.js").plot;
     readonly hline: typeof import("./plot/plot.js").hline;
+    /** Pane-background band alias (`bg-color` plot style). @since 1.4 */
+    readonly bgcolor: typeof import("./plot/plot.js").bgcolor;
+    /** Candle/bar tint alias (`bar-color` plot style). @since 1.4 */
+    readonly barcolor: typeof import("./plot/plot.js").barcolor;
     readonly alert: typeof import("./alert/alert.js").alert;
     /** Pine `var` / `varip` state slots. @since 0.4 */
     readonly state: StateNamespace;

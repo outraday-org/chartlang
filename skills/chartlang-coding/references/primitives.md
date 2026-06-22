@@ -3,11 +3,15 @@
 # chartlang primitive reference
 
 Generated from source JSDoc. Authoritative — do not hand-edit. Run
-`pnpm skills:generate` after changing a `ta.*` / `draw.*` primitive.
+`pnpm skills:generate` after changing a `ta.*` / `draw.*` / plot-family
+primitive.
 
 The chartlang compiler injects a leading `slotId: string` argument at
 every callsite, so script authors call `ta.<id>(...)` / `draw.<id>(...)`
-without it — the signatures below show the runtime form including `slotId`.
+without it — the `ta.*` / `draw.*` signatures below show the runtime form
+including `slotId`. The plot-family holes (`plot` / `hline` / `bgcolor` /
+`barcolor`) are shown in the **author** form (no `slotId`) — that is how
+they are written; the compiler injects the slot id at the callsite.
 
 ## ta.*
 
@@ -3196,3 +3200,57 @@ shape.
 
 **Anchors:** `anchors` — `[X, A, B, C, D]` quint of world points
 **Since:** 0.3 · stable
+
+## plot family
+
+### plot
+
+```ts
+function plot(_value: number | Series<number>, _opts?: PlotOpts): void;
+```
+
+Compile-time callable hole for `plot(value, opts?)`. The compiler rewrites
+every callsite to dispatch to the runtime's `plot` implementation;
+calling this outside a compiled runtime throws the sentinel.
+
+Accepts `number | Series<number>` — scalars emit a single bar value;
+series emissions pull from `series.current`.
+
+**Since:** 0.1 · stable
+
+### hline
+
+```ts
+function hline(_price: number, _opts?: HLineOpts): void;
+```
+
+Compile-time callable hole for `hline(price, opts?)`. Same semantics as
+`plot` but pinned to a fixed price across all bars.
+
+**Since:** 0.1 · stable
+
+### bgcolor
+
+```ts
+function bgcolor(_color: Color, _opts?: BgColorOpts): void;
+```
+
+Paint the pane background for the current bar — the Pine-ergonomic alias
+for `plot(NaN, { style: { kind: "bg-color", color, transp } })`. Pass a
+`Color` (a CSS / hex string, or a per-bar color expression like
+`close > open ? "#16a34a" : "#dc2626"`). Sugar over the existing
+`bg-color` plot style — same wire emission, same capability gate.
+
+**Since:** 1.4 · stable
+
+### barcolor
+
+```ts
+function barcolor(_color: Color, _opts?: BarColorOpts): void;
+```
+
+Tint the candle / bar for the current bar — the Pine-ergonomic alias for
+`plot(NaN, { style: { kind: "bar-color", color } })`. Sugar over the
+existing `bar-color` plot style.
+
+**Since:** 1.4 · stable

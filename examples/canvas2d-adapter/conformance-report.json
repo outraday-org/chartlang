@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.2.0",
-    "passed": 246,
+    "passed": 247,
     "failed": 0,
     "scenarios": [
         {
@@ -709,6 +709,12 @@
         {
             "id": "plot-kind-bg-color",
             "title": "PlotKind bg color",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-bg-color-dynamic",
+            "title": "PlotKind bg color dynamic",
             "status": "pass",
             "failures": []
         },

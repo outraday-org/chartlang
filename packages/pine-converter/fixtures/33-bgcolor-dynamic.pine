@@ -1,0 +1,4 @@
+//@version=6
+indicator("Bgcolor dynamic", overlay=true)
+bgcolor(close > open ? color.green : color.red, transp=80)
+barcolor(close > open ? color.green : color.red)

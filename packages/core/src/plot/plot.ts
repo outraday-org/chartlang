@@ -288,6 +288,38 @@ export type HLineOpts = Readonly<{
 }>;
 
 /**
+ * Styling options accepted by `bgcolor(...)` — the Pine-ergonomic alias for
+ * a `bg-color` pane-background band. `transp` is the 0–100 transparency
+ * (0 opaque … 100 fully transparent), mirroring {@link PlotOptsStyle}'s
+ * `bg-color` arm. `title` labels the slot for host overrides.
+ *
+ * @since 1.4
+ * @stable
+ * @example
+ *     const opts: BgColorOpts = { transp: 80, title: "RSI heat" };
+ *     void opts;
+ */
+export type BgColorOpts = Readonly<{
+    transp?: number;
+    title?: string;
+}>;
+
+/**
+ * Styling options accepted by `barcolor(...)` — the Pine-ergonomic alias for
+ * a `bar-color` candle/bar tint. The `bar-color` style carries no
+ * transparency, so this bag only labels the slot.
+ *
+ * @since 1.4
+ * @stable
+ * @example
+ *     const opts: BarColorOpts = { title: "trend tint" };
+ *     void opts;
+ */
+export type BarColorOpts = Readonly<{
+    title?: string;
+}>;
+
+/**
  * Compile-time callable hole for `plot(value, opts?)`. The compiler rewrites
  * every callsite to dispatch to the runtime's `plot` implementation;
  * calling this outside a compiled runtime throws the sentinel.
@@ -321,4 +353,40 @@ export function plot(_value: number | Series<number>, _opts?: PlotOpts): void {
  */
 export function hline(_price: number, _opts?: HLineOpts): void {
     throw new Error("hline called outside compiled runtime");
+}
+
+/**
+ * Paint the pane background for the current bar — the Pine-ergonomic alias
+ * for `plot(NaN, { style: { kind: "bg-color", color, transp } })`. Pass a
+ * `Color` (a CSS / hex string, or a per-bar color expression like
+ * `close > open ? "#16a34a" : "#dc2626"`). Sugar over the existing
+ * `bg-color` plot style — same wire emission, same capability gate.
+ *
+ * @since 1.4
+ * @stable
+ * @example
+ *     // Inside a compiled `compute`:
+ *     //   bgcolor(bar.close > bar.open ? "#16a34a" : "#dc2626", { transp: 80 });
+ *     import { bgcolor } from "@invinite-org/chartlang-core";
+ *     try { bgcolor("#1d4ed8"); } catch {}
+ */
+export function bgcolor(_color: Color, _opts?: BgColorOpts): void {
+    throw new Error("bgcolor called outside compiled runtime");
+}
+
+/**
+ * Tint the candle / bar for the current bar — the Pine-ergonomic alias for
+ * `plot(NaN, { style: { kind: "bar-color", color } })`. Sugar over the
+ * existing `bar-color` plot style.
+ *
+ * @since 1.4
+ * @stable
+ * @example
+ *     // Inside a compiled `compute`:
+ *     //   barcolor(bar.close > bar.open ? "#16a34a" : "#dc2626");
+ *     import { barcolor } from "@invinite-org/chartlang-core";
+ *     try { barcolor("#a855f7"); } catch {}
+ */
+export function barcolor(_color: Color, _opts?: BarColorOpts): void {
+    throw new Error("barcolor called outside compiled runtime");
 }

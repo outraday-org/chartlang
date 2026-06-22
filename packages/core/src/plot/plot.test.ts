@@ -3,8 +3,15 @@
 
 import { describe, expect, it } from "vitest";
 
-import { hline, plot } from "./plot.js";
-import type { HLineOpts, PlotKind, PlotOpts, PlotOptsStyle } from "./plot.js";
+import { barcolor, bgcolor, hline, plot } from "./plot.js";
+import type {
+    BarColorOpts,
+    BgColorOpts,
+    HLineOpts,
+    PlotKind,
+    PlotOpts,
+    PlotOptsStyle,
+} from "./plot.js";
 
 describe("plot callable hole", () => {
     it("plot throws outside-runtime sentinel for scalar input", () => {
@@ -21,6 +28,48 @@ describe("plot callable hole", () => {
         expect(() => hline(70, { color: "#ef4444", lineStyle: "dashed" })).toThrow(
             "hline called outside compiled runtime",
         );
+    });
+
+    it("bgcolor throws outside-runtime sentinel", () => {
+        expect(() => bgcolor("#000")).toThrow("bgcolor called outside compiled runtime");
+        expect(() => bgcolor("#1d4ed8", { transp: 80, title: "heat" })).toThrow(
+            "bgcolor called outside compiled runtime",
+        );
+    });
+
+    it("barcolor throws outside-runtime sentinel", () => {
+        expect(() => barcolor("#000")).toThrow("barcolor called outside compiled runtime");
+        expect(() => barcolor("#a855f7", { title: "trend tint" })).toThrow(
+            "barcolor called outside compiled runtime",
+        );
+    });
+});
+
+describe("BgColorOpts and BarColorOpts types", () => {
+    it("bgcolor accepts a color and an optional transp/title opts bag", () => {
+        const callShape: (color: string, opts?: BgColorOpts) => void = bgcolor;
+        const withTransp: BgColorOpts = { transp: 80 };
+        const withTitle: BgColorOpts = { title: "RSI heat" };
+        const empty: BgColorOpts = {};
+        // @ts-expect-error transp is a number, not a string
+        const bad: BgColorOpts = { transp: "x" };
+        void callShape;
+        void withTransp;
+        void withTitle;
+        void empty;
+        void bad;
+    });
+
+    it("barcolor accepts a color and a title-only opts bag (no transp)", () => {
+        const callShape: (color: string, opts?: BarColorOpts) => void = barcolor;
+        const withTitle: BarColorOpts = { title: "trend tint" };
+        const empty: BarColorOpts = {};
+        // @ts-expect-error bar-color carries no transparency
+        const bad: BarColorOpts = { transp: 80 };
+        void callShape;
+        void withTitle;
+        void empty;
+        void bad;
     });
 });
 

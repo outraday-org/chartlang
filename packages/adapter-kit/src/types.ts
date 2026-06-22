@@ -502,7 +502,9 @@ export type PlotStyle =
  * A `plot()` / `hline()` emission the runtime sends to the adapter.
  * Numeric `value: null` is the wire-level "skip this bar" — NaN/Infinity
  * are forbidden in `value` and anywhere in `meta` (PLAN §7.3 universal
- * payload rules).
+ * payload rules). The optional {@link PlotEmission.colorValue} carries a
+ * per-bar dynamic color that overrides the static `color` / `style.color`
+ * when present; omit it for the static-color baseline.
  *
  * @since 0.1
  * @stable
@@ -577,6 +579,43 @@ export type PlotEmission = {
      *     void behind;
      */
     readonly z?: number;
+    /**
+     * Per-bar dynamic color for this emission. **Omitted ⇒** the adapter uses
+     * the static color (the style's `color` for `bg-color`/`bar-color`, or the
+     * top-level {@link PlotEmission.color} for line-family plots), so a
+     * no-dynamic-color emission is byte-identical to the pre-feature wire and
+     * every pinned `plot-hash` (which hashes only `{ bar, value }`) is
+     * untouched. **Present ⇒** it OVERRIDES the static color for this
+     * `(slotId, bar)` at render time. Adapters MUST prefer `colorValue` over
+     * the static color when present (`colorValue` wins over `style.color` for
+     * `bg-color`/`bar-color`, and over the top-level `color` for line-family
+     * plots) — this is the normative precedence contract binding every
+     * conformant adapter. **`null` ⇒** an explicit "no color this bar" gap,
+     * which is DISTINCT from omitted (omitted falls back to the static color;
+     * `null` paints nothing). This
+     * channel is orthogonal to the numeric {@link PlotEmission.value}: a
+     * `bg-color` emission still carries `value: null` and rides its per-bar
+     * color here. Like {@link PlotEmission.xShift} / {@link PlotEmission.z} it
+     * is appended and omitted-when-absent, so the wire order stays additive.
+     *
+     * Rejected alternatives (recorded for future maintainers): (1) overloading
+     * `value` to `number | string | null` — `value` is load-bearing for alerts,
+     * y-scale inclusion, the NaN-forbidden rule, and the `plot-hash` tuple, so
+     * widening it poisons every numeric consumer and rebreaks every hash;
+     * (2) a new per-bar-color `PlotStyle` arm — color-per-bar is orthogonal to
+     * *style*, so encoding it as a style splits one concept across N arms and
+     * still cannot recolor a `line` plot per bar. The parallel optional channel
+     * avoids both.
+     *
+     * @since 1.5
+     * @stable
+     * @example
+     *     const dyn: PlotEmission["colorValue"] = "#16a34a";
+     *     const gap: PlotEmission["colorValue"] = null;
+     *     void dyn;
+     *     void gap;
+     */
+    readonly colorValue?: Color | null;
 };
 
 /**

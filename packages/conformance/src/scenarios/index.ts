@@ -116,6 +116,7 @@ import { PLOT_KIND_BAR_COLOR_GATED_SCENARIO } from "./plotKindBarColorGated.scen
 import { PLOT_KIND_BAR_OVERRIDE_SCENARIO } from "./plotKindBarOverride.scenario.js";
 import { PLOT_KIND_BAR_OVERRIDE_GATED_SCENARIO } from "./plotKindBarOverrideGated.scenario.js";
 import { PLOT_KIND_BG_COLOR_SCENARIO } from "./plotKindBgColor.scenario.js";
+import { PLOT_KIND_BG_COLOR_DYNAMIC_SCENARIO } from "./plotKindBgColorDynamic.scenario.js";
 import { PLOT_KIND_BG_COLOR_GATED_SCENARIO } from "./plotKindBgColorGated.scenario.js";
 import { PLOT_KIND_CANDLE_OVERRIDE_SCENARIO } from "./plotKindCandleOverride.scenario.js";
 import { PLOT_KIND_CANDLE_OVERRIDE_GATED_SCENARIO } from "./plotKindCandleOverrideGated.scenario.js";
@@ -365,6 +366,7 @@ export { PLOT_KIND_BAR_COLOR_GATED_SCENARIO } from "./plotKindBarColorGated.scen
 export { PLOT_KIND_BAR_OVERRIDE_SCENARIO } from "./plotKindBarOverride.scenario.js";
 export { PLOT_KIND_BAR_OVERRIDE_GATED_SCENARIO } from "./plotKindBarOverrideGated.scenario.js";
 export { PLOT_KIND_BG_COLOR_SCENARIO } from "./plotKindBgColor.scenario.js";
+export { PLOT_KIND_BG_COLOR_DYNAMIC_SCENARIO } from "./plotKindBgColorDynamic.scenario.js";
 export { PLOT_KIND_BG_COLOR_GATED_SCENARIO } from "./plotKindBgColorGated.scenario.js";
 export { PLOT_KIND_CANDLE_OVERRIDE_SCENARIO } from "./plotKindCandleOverride.scenario.js";
 export { PLOT_KIND_CANDLE_OVERRIDE_GATED_SCENARIO } from "./plotKindCandleOverrideGated.scenario.js";
@@ -543,6 +545,7 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     PLOT_KIND_BAR_OVERRIDE_SCENARIO,
     PLOT_KIND_BAR_OVERRIDE_GATED_SCENARIO,
     PLOT_KIND_BG_COLOR_SCENARIO,
+    PLOT_KIND_BG_COLOR_DYNAMIC_SCENARIO,
     PLOT_KIND_BG_COLOR_GATED_SCENARIO,
     PLOT_KIND_BAR_COLOR_SCENARIO,
     PLOT_KIND_BAR_COLOR_GATED_SCENARIO,

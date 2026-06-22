@@ -4,7 +4,13 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
-import { defineIndicator, type isCompiledScriptBundle, ta } from "./index.js";
+import {
+    type barcolor,
+    type bgcolor,
+    defineIndicator,
+    type isCompiledScriptBundle,
+    ta,
+} from "./index.js";
 import type {
     AlertConditionDefinition,
     Bar,
@@ -90,6 +96,14 @@ describe("public type surface", () => {
 
     it("ComputeContext.bar is the indexable BarSeries", () => {
         expectTypeOf<ComputeContext["bar"]>().toEqualTypeOf<BarSeries>();
+    });
+
+    it("ComputeContext exposes the bgcolor/barcolor aliases by hole identity", () => {
+        // The runtime binds these on the context; the type must match the
+        // standalone core holes so a destructured `{ bgcolor }` call-shape
+        // and the imported `bgcolor(...)` are interchangeable.
+        expectTypeOf<ComputeContext["bgcolor"]>().toEqualTypeOf<typeof bgcolor>();
+        expectTypeOf<ComputeContext["barcolor"]>().toEqualTypeOf<typeof barcolor>();
     });
 
     it("NumberSeriesSlot is both a writable scalar slot and an indexable series", () => {

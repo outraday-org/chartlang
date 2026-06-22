@@ -26,4 +26,24 @@ describe("drawBgColor", () => {
         drawBgColor(ctx, { time: 5, color: "#00f", barCount: 10 }, VIEWPORT);
         expect(ctx.calls[0]).toEqual({ kind: "set", prop: "globalAlpha", value: 1 });
     });
+
+    it("prefers the per-bar colorValue over the static color", () => {
+        const ctx = new MockCanvas2DContext();
+        drawBgColor(
+            ctx,
+            { time: 5, color: "#00f", colorValue: "#16a34a", transp: 75, barCount: 10 },
+            VIEWPORT,
+        );
+        expect(ctx.calls[1]).toEqual({ kind: "set", prop: "fillStyle", value: "#16a34a" });
+    });
+
+    it("skips the fill entirely for an explicit colorValue gap (null)", () => {
+        const ctx = new MockCanvas2DContext();
+        drawBgColor(
+            ctx,
+            { time: 5, color: "#00f", colorValue: null, transp: 75, barCount: 10 },
+            VIEWPORT,
+        );
+        expect(ctx.calls).toEqual([]);
+    });
 });

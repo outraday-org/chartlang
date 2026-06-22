@@ -288,6 +288,31 @@ export default defineIndicator({
         expect(codes).not.toContain("dep-output-not-titled");
     });
 
+    it("counts a bgcolor-only producer as producing plots (dep-output-not-titled)", () => {
+        // bgcolor/barcolor are plot-producing callees: a binding that only
+        // paints a background still "produces plots", so a consumer that
+        // references a `.output()` on it trips dep-output-not-titled.
+        const graph = runDep(`
+import { defineIndicator, bgcolor } from "@invinite-org/chartlang-core";
+const base = defineIndicator({
+    name: "Base",
+    apiVersion: 1,
+    compute: ({ bar }) => { bgcolor(bar.close > bar.open ? "#16a34a" : "#dc2626", { title: "Heat" }); },
+});
+export default defineIndicator({
+    name: "Main",
+    apiVersion: 1,
+    compute: () => { void base.output("Heat"); },
+});
+`);
+        const codes = graph.diagnostics.map((d) => d.code);
+        // The bgcolor `title` opt is a plot label, NOT a series-number output,
+        // so `.output("Heat")` is unresolved → dep-output-not-titled, and the
+        // title never registers as a referenceable output.
+        expect(codes).toContain("dep-output-not-titled");
+        expect(codes).not.toContain("duplicate-output-title");
+    });
+
     it("raises dep-dynamic for non-literal withInputs argument", () => {
         const graph = runDep(
             `

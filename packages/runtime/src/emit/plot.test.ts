@@ -435,6 +435,20 @@ describe("plot — style selection (opts.style)", () => {
             { kind: "candle-override", bull: "#0f0", bear: "#f00", doji: "#999" },
         ]);
     });
+
+    it("omits colorValue on the static plot path (no dynamic-color channel)", () => {
+        // `plot` never passes a dynamic color, so the per-bar `colorValue` own
+        // key is absent — the wire stays byte-identical to the pre-Deliverable-2
+        // baseline (every pinned plot golden / conformance hash holds).
+        const caps = makeCaps({ plots: new Set(["line", "bg-color"]) });
+        const { ctx, emissions } = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42, { color: "#3b82f6" });
+        plot("a:1:1#1", Number.NaN, { style: { kind: "bg-color", color: "#111" } });
+        expect(emissions.plots).toHaveLength(2);
+        expect("colorValue" in emissions.plots[0]).toBe(false);
+        expect("colorValue" in emissions.plots[1]).toBe(false);
+    });
 });
 
 describe("plot — NaN handling", () => {

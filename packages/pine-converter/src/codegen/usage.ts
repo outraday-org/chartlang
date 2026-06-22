@@ -20,6 +20,8 @@ import { BAR_INDEX_SENTINEL } from "./emitHelpers.js";
  *         ta: false,
  *         plot: false,
  *         hline: false,
+ *         bgcolor: false,
+ *         barcolor: false,
  *         alert: false,
  *         input: false,
  *         request: false,
@@ -35,6 +37,8 @@ export type UsageFlags = Readonly<{
     ta: boolean;
     plot: boolean;
     hline: boolean;
+    bgcolor: boolean;
+    barcolor: boolean;
     alert: boolean;
     input: boolean;
     request: boolean;
@@ -86,6 +90,8 @@ export function scanUsage(scaffold: ScriptScaffold): UsageFlags {
         ta: corpus.includes("ta."),
         plot: /\bplot\b/.test(corpus),
         hline: /\bhline\b/.test(corpus),
+        bgcolor: /\bbgcolor\b/.test(corpus),
+        barcolor: /\bbarcolor\b/.test(corpus),
         alert: /\balert\b/.test(corpus),
         input: corpus.includes("input."),
         request: corpus.includes("request."),

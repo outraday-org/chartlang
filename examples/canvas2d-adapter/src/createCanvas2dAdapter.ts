@@ -412,12 +412,16 @@ function renderHistogramSeries(
 function renderBackgroundOverlays(state: AdapterState, viewport: Viewport): void {
     for (const plot of state.plotOverlays.values()) {
         if (plot.style.kind !== "bg-color") continue;
+        // The per-bar `colorValue` (when present) wins over the static
+        // `style.color`; `null` is the explicit "no fill" gap. `drawBgColor`
+        // resolves the precedence — thread the field through when present.
         drawBgColor(
             state.ctx,
             {
                 time: plot.time,
                 color: plot.style.color,
                 ...(plot.style.transp === undefined ? {} : { transp: plot.style.transp }),
+                ...(plot.colorValue === undefined ? {} : { colorValue: plot.colorValue }),
                 barCount: state.bars.length,
             },
             viewport,
@@ -450,13 +454,18 @@ function renderBarOverlays(state: AdapterState, viewport: Viewport): void {
                     viewport,
                 );
                 break;
-            case "bar-color":
+            case "bar-color": {
+                // Prefer the per-bar `colorValue` over the static `style.color`;
+                // a `null` gap paints nothing this bar (the precedence contract).
+                const paint = plot.colorValue === undefined ? plot.style.color : plot.colorValue;
+                if (paint === null) break;
                 drawBarColor(
                     state.ctx,
-                    { bar, color: plot.style.color, barCount: state.bars.length },
+                    { bar, color: paint, barCount: state.bars.length },
                     viewport,
                 );
                 break;
+            }
             default:
                 break;
         }

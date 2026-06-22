@@ -269,6 +269,25 @@ Highlights of the surface:
   pitchforks, harmonic patterns, Elliott waves, cycles.
 - `plot(value, opts?)` and `hline(level, opts?)` for per-bar value plots
   and horizontal lines.
+- `bgcolor(color, opts?)` and `barcolor(color, opts?)` — Pine-ergonomic
+  aliases for the `bg-color` (pane background) and `bar-color` (candle/bar
+  tint) plot styles. `bgcolor` takes a `transp` (0–100, 0 opaque … 100
+  fully transparent) in its opts; `barcolor` carries no transparency.
+  One call replaces the verbose
+  `plot(NaN, { style: { kind: "bg-color", color, transp } })` form — both
+  compile to the same emission. The color expression is evaluated each
+  bar, so a per-bar conditional recolors as the condition flips:
+
+  ```ts
+  bgcolor(bar.close > bar.open ? "#16a34a" : "#dc2626", { transp: 80 });
+  barcolor(bar.close > bar.open ? "#16a34a" : "#dc2626");
+  ```
+
+  (Passing a pre-computed `Series<Color>` as a single dynamic-color channel
+  is not yet supported — feed a per-bar color expression as above.)
+  Adapters render these only when their `Capabilities.plots` include the
+  `bg-color` / `bar-color` kinds; on adapters that don't, the call is a
+  silent no-op.
 - `alert(message, opts?)` with `severity: "info" | "warning" | "critical"`.
 - `request.security({ interval })` and `request.lowerTf({ interval })`
   for higher- and lower-timeframe data. The interval must be a

@@ -137,8 +137,15 @@ export function injectCallsiteIds(
                     slotsSeen.set(slotId, node);
                     if (
                         plotSlots !== undefined &&
-                        (calleeName === "plot" || calleeName === "hline")
+                        (calleeName === "plot" ||
+                            calleeName === "hline" ||
+                            calleeName === "bgcolor" ||
+                            calleeName === "barcolor")
                     ) {
+                        // `bgcolor`/`barcolor`'s opts is `arguments[1]` (color
+                        // is `arguments[0]`) — the same index as `plot`'s opts,
+                        // so `plotKindFromCallsite` / `readLiteralTitle` read
+                        // the right node without a callee-specific offset.
                         const optsArg = node.arguments[1];
                         // best-effort dynamic-kind fallback: a callsite whose
                         // `style` is non-literal is still listed as "line".

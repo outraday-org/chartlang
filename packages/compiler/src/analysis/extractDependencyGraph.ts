@@ -228,7 +228,14 @@ function extractBindingOutputs(
     const visit = (node: ts.Node): void => {
         if (ts.isCallExpression(node)) {
             const callee = resolveCalleeName(node, checker);
-            if (callee === "plot") {
+            // `bgcolor`/`barcolor` are plot-producing callees, so a binding
+            // that only paints a background still counts as "produces plots"
+            // (drives the `dep-output-not-titled` guard). Their `title` opt is
+            // a plot label, NOT a `.output()`-referenceable series-number, so
+            // they never add a titled output nor trip `duplicate-output-title`.
+            if (callee === "bgcolor" || callee === "barcolor") {
+                hasUntitledPlot = true;
+            } else if (callee === "plot") {
                 const optsArg = node.arguments[1];
                 let title: string | undefined;
                 if (optsArg !== undefined && ts.isObjectLiteralExpression(optsArg)) {

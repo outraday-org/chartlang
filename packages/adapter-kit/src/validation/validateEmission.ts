@@ -458,6 +458,14 @@ function validatePlotEmission(e: Record<string, unknown>): ValidationResult {
     if (value !== null && !isFiniteNumber(value)) {
         return bad("plot.value: must be a finite number or null");
     }
+    // The per-bar dynamic-color channel (sibling to `value`): omitted ⇒ static
+    // color, `null` ⇒ an explicit "no color this bar" gap, present ⇒ a
+    // non-empty color string that overrides the static color at render time.
+    const colorValue = e.colorValue;
+    if (colorValue !== undefined && colorValue !== null) {
+        const cv = validateColor(colorValue, "plot.colorValue");
+        if (!cv.ok) return cv;
+    }
     const color = e.color;
     if (color !== null && typeof color !== "string") {
         return bad("plot.color: must be a string or null");

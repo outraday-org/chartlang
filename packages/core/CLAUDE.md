@@ -2,7 +2,7 @@
 
 `@invinite-org/chartlang-core` — types + script-facing primitive holes
 (`defineIndicator`/`defineAlert`/`defineDrawing`, `input.*`, `state.*`,
-`ta.*`, `draw.*`, `plot`/`hline`/`alert`, `request.*`, views) plus the
+`ta.*`, `draw.*`, `plot`/`hline`/`bgcolor`/`barcolor`/`alert`, `request.*`, views) plus the
 `STATEFUL_PRIMITIVES` registry the compiler and runtime share.
 
 ## Invariants

@@ -4,6 +4,8 @@
 export { alert } from "./alert.js";
 export { emitAlertCondition } from "./alertConditionEmission.js";
 export { applyPlotOverride } from "./applyPlotOverride.js";
+export { barcolor } from "./barcolor.js";
+export { bgcolor } from "./bgcolor.js";
 export {
     createDrawingHandle,
     draw,

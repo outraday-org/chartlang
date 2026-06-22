@@ -9,6 +9,7 @@ import type { PrimitiveDocInput } from "../packages/cli/src/commands/genDocs";
 import {
     AUTO_HEADER,
     OUT_OF_DATE_MESSAGE,
+    type PlotDocInput,
     crossCheckTa,
     renderReference,
 } from "./generate-skills-reference";
@@ -42,14 +43,22 @@ const DRAW_FIXTURE: DrawingDocInput = {
     sourceUrl: "https://example.invalid/line.ts",
 };
 
+const PLOT_FIXTURE: PlotDocInput = {
+    name: "bgcolor",
+    signature: "function bgcolor(_color: Color, _opts?: BgColorOpts): void;",
+    description: "Paint the pane background for the current bar.",
+    since: "1.4",
+    stability: "stable",
+};
+
 describe("renderReference", () => {
     it("emits the auto-header as the first line", () => {
-        const md = renderReference([TA_FIXTURE], [DRAW_FIXTURE]);
+        const md = renderReference([TA_FIXTURE], [DRAW_FIXTURE], [PLOT_FIXTURE]);
         expect(md.split("\n")[0]).toBe(AUTO_HEADER);
     });
 
     it("renders a ta.* block with signature, formula, warmup, since/stability", () => {
-        const md = renderReference([TA_FIXTURE], []);
+        const md = renderReference([TA_FIXTURE], [], []);
         expect(md).toContain("### ta.ema");
         expect(md).toContain(TA_FIXTURE.signature);
         expect(md).toContain("Exponential moving average.");
@@ -59,11 +68,20 @@ describe("renderReference", () => {
     });
 
     it("renders a draw.* block with signature, anchors, since/stability", () => {
-        const md = renderReference([], [DRAW_FIXTURE]);
+        const md = renderReference([], [DRAW_FIXTURE], []);
         expect(md).toContain("### draw.line");
         expect(md).toContain(DRAW_FIXTURE.signature);
         expect(md).toContain("**Anchors:** `a`, `b` — two `WorldPoint`s");
         expect(md).toContain("**Since:** 0.3 · stable");
+    });
+
+    it("renders a plot-family block under a ## plot family section", () => {
+        const md = renderReference([], [], [PLOT_FIXTURE]);
+        expect(md).toContain("## plot family");
+        expect(md).toContain("### bgcolor");
+        expect(md).toContain(PLOT_FIXTURE.signature);
+        expect(md).toContain("Paint the pane background for the current bar.");
+        expect(md).toContain("**Since:** 1.4 · stable");
     });
 });
 

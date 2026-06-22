@@ -54,6 +54,28 @@ describe("type assertions", () => {
         expectTypeOf<PlotEmission["xShift"]>().toEqualTypeOf<number | undefined>();
     });
 
+    it("PlotEmission.colorValue is an optional Color | null", () => {
+        expectTypeOf<PlotEmission["colorValue"]>().toEqualTypeOf<string | null | undefined>();
+    });
+
+    it("PlotEmission omitting colorValue still satisfies the type (byte-identity)", () => {
+        // A no-dynamic-color emission carries no `colorValue` key — byte-
+        // identical to the pre-feature wire, so existing plot-hashes hold.
+        const e: PlotEmission = {
+            kind: "plot",
+            slotId: "x.ts:1:1#0",
+            title: "X",
+            style: { kind: "line", lineWidth: 1, lineStyle: "solid" },
+            bar: 0,
+            time: 0,
+            value: null,
+            color: null,
+            meta: {},
+            pane: "overlay",
+        };
+        expect(Object.hasOwn(e, "colorValue")).toBe(false);
+    });
+
     it("PlotStyle is keyed by adapter PlotKind", () => {
         expectTypeOf<PlotStyle["kind"]>().toEqualTypeOf<PlotKind>();
     });

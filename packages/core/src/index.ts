@@ -230,8 +230,15 @@ export { runtime } from "./runtime/index.js";
 export type { LogLevel, RuntimeNamespace } from "./runtime/index.js";
 export { color, fromGradient, hsl, rgb, withAlpha } from "./color/index.js";
 export type { GradientStop } from "./color/index.js";
-export { hline, plot } from "./plot/index.js";
-export type { HLineOpts, PlotKind, PlotOpts, PlotOptsStyle } from "./plot/plot.js";
+export { barcolor, bgcolor, hline, plot } from "./plot/index.js";
+export type {
+    BarColorOpts,
+    BgColorOpts,
+    HLineOpts,
+    PlotKind,
+    PlotOpts,
+    PlotOptsStyle,
+} from "./plot/plot.js";
 export { alert } from "./alert/index.js";
 export type { AlertOpts } from "./alert/alert.js";
 export { STATEFUL_PRIMITIVES, STATEFUL_PRIMITIVES_BY_NAME } from "./statefulPrimitives.js";

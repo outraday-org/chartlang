@@ -238,6 +238,18 @@ export default defineIndicator({
 });
 `;
 
+const COLOR_ALIASES_SOURCE = `
+import { defineIndicator, bgcolor, barcolor } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "ColorAliases",
+    apiVersion: 1,
+    compute: ({ bar }) => {
+        bgcolor(bar.close > bar.open ? "#16a34a" : "#dc2626", { transp: 80, title: "Heat" });
+        barcolor("#a855f7");
+    },
+});
+`;
+
 describe("manifest.plots (compiled)", () => {
     it("lists one entry per plot/hline callsite in source order with kind + literal title", async () => {
         const { manifest, moduleSource } = await compile(PLOTS_SOURCE, {
@@ -261,6 +273,28 @@ describe("manifest.plots (compiled)", () => {
         // Source order: ascending by line number.
         const lines = (manifest.plots ?? []).map((s) => Number(s.slotId.split(":")[1]));
         expect(lines).toEqual([...lines].sort((a, b) => a - b));
+    });
+
+    it("lists bgcolor/barcolor callsites with bg-color/bar-color kind + literal title", async () => {
+        const { manifest, moduleSource } = await compile(COLOR_ALIASES_SOURCE, {
+            apiVersion: 1,
+            sourcePath: "aliases.chart.ts",
+        });
+        expect(manifest.plots).toHaveLength(2);
+        // bgcolor → bg-color, with its literal `title` opt surfaced exactly
+        // like a styled plot(); the dynamic color expr does not block it.
+        expect(manifest.plots?.[0].kind).toBe("bg-color");
+        expect(manifest.plots?.[0].title).toBe("Heat");
+        // barcolor → bar-color; no title opt ⇒ field omitted.
+        expect(manifest.plots?.[1].kind).toBe("bar-color");
+        expect(manifest.plots?.[1].title).toBeUndefined();
+
+        // The injected leading slot-id literal equals manifest.plots[*].slotId
+        // (the runtime echoes it as PlotEmission.slotId for host overrides).
+        for (const slot of manifest.plots ?? []) {
+            expect(slot.slotId).toMatch(/^aliases\.chart\.ts:\d+:\d+#0$/);
+            expect(moduleSource).toContain(JSON.stringify(slot.slotId));
+        }
     });
 
     it("freezes the compiled plots array and each entry", async () => {

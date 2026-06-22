@@ -217,24 +217,46 @@ Use `style.kind: "character"` for Pine `plotchar`, and
 
 ### 8. Visual Overrides - `bgcolor` and `barcolor`
 
-Pine's global visual overrides map to plot styles. Adapters render them only
-when their `Capabilities.plots` include the corresponding plot kind.
+Pine's global `bgcolor()` / `barcolor()` map to the one-call chartlang
+aliases of the same name — the Pine-ergonomic form. They sugar the
+`bg-color` / `bar-color` plot styles: one call instead of the verbose
+`plot(NaN, { style })`. Adapters render them only when their
+`Capabilities.plots` include the corresponding plot kind.
+
+The converter emits these aliases directly, carrying the **real per-bar
+color expression** — including a conditional like `close > open ?
+color.green : color.red`. That dynamic color rides the wire as
+`PlotEmission.colorValue` (the per-bar dynamic-color channel), so a single
+`bgcolor(...)` recolors every bar by that bar's condition; the per-bar
+semantics survive the conversion (no more static `plot(NaN, …)`).
 
 ```ts
-import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+import { barcolor, bgcolor, defineIndicator, ta } from "@invinite-org/chartlang-core";
 
 export default defineIndicator({
     name: "RSI Heat",
     apiVersion: 1,
     compute({ bar }) {
         const rsi = ta.rsi(bar.close, 14).current;
-        if (rsi > 70) {
-            plot(bar.close, { style: { kind: "bg-color", color: "#ef4444", transp: 85 } });
-            plot(bar.close, { style: { kind: "bar-color", color: "#ef4444" } });
-        }
+        bgcolor(rsi > 70 ? "#ef4444" : "#22c55e", { transp: 85 });
+        barcolor(rsi > 70 ? "#ef4444" : "#22c55e");
     },
 });
 ```
+
+The verbose `plot(NaN, { style })` form is the explicit equivalent — both
+compile to the same emission:
+
+```ts
+plot(Number.NaN, { style: { kind: "bg-color", color: "#ef4444", transp: 85 } });
+plot(Number.NaN, { style: { kind: "bar-color", color: "#ef4444" } });
+```
+
+The verbose `plot(NaN, { style })` form bakes a single **static** color into
+the style. To recolor every bar by a per-bar condition, use the
+`bgcolor` / `barcolor` alias (above) — the per-bar color rides the wire as
+`PlotEmission.colorValue` and the converter emits the alias for exactly this
+reason.
 
 ### 9. Multi-Output Indicators - Several `plot` Calls
 

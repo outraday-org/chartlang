@@ -399,6 +399,40 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.1",
         "stability": "stable"
     },
+    "barcolor": {
+        "fqn": "barcolor",
+        "kind": "function",
+        "title": "barcolor(_color, _opts?)",
+        "summary": "Tint the candle / bar for the current bar — the Pine-ergonomic alias for\n`plot(NaN, { style: { kind: \"bar-color\", color } })`. Sugar over the\nexisting `bar-color` plot style.",
+        "paramTable": [
+            {
+                "name": "_color",
+                "type": "Color",
+                "doc": ""
+            },
+            {
+                "name": "_opts",
+                "type": "BarColorOpts",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "// Inside a compiled `compute`:\n//   barcolor(bar.close > bar.open ? \"#16a34a\" : \"#dc2626\");\nimport { barcolor } from \"@invinite-org/chartlang-core\";\ntry { barcolor(\"#a855f7\"); } catch {}"
+        ],
+        "since": "1.4",
+        "stability": "stable"
+    },
+    "BarColorOpts": {
+        "fqn": "BarColorOpts",
+        "kind": "type",
+        "title": "BarColorOpts",
+        "summary": "Styling options accepted by `barcolor(...)` — the Pine-ergonomic alias for\na `bar-color` candle/bar tint. The `bar-color` style carries no\ntransparency, so this bag only labels the slot.",
+        "examples": [
+            "const opts: BarColorOpts = { title: \"trend tint\" };\nvoid opts;"
+        ],
+        "since": "1.4",
+        "stability": "stable"
+    },
     "BarSeries": {
         "fqn": "BarSeries",
         "kind": "type",
@@ -496,6 +530,40 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: BbwOpts = { multiplier: 2 };"
         ],
         "since": "0.2",
+        "stability": "stable"
+    },
+    "bgcolor": {
+        "fqn": "bgcolor",
+        "kind": "function",
+        "title": "bgcolor(_color, _opts?)",
+        "summary": "Paint the pane background for the current bar — the Pine-ergonomic alias\nfor `plot(NaN, { style: { kind: \"bg-color\", color, transp } })`. Pass a\n`Color` (a CSS / hex string, or a per-bar color expression like\n`close > open ? \"#16a34a\" : \"#dc2626\"`). Sugar over the existing\n`bg-color` plot style — same wire emission, same capability gate.",
+        "paramTable": [
+            {
+                "name": "_color",
+                "type": "Color",
+                "doc": ""
+            },
+            {
+                "name": "_opts",
+                "type": "BgColorOpts",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "// Inside a compiled `compute`:\n//   bgcolor(bar.close > bar.open ? \"#16a34a\" : \"#dc2626\", { transp: 80 });\nimport { bgcolor } from \"@invinite-org/chartlang-core\";\ntry { bgcolor(\"#1d4ed8\"); } catch {}"
+        ],
+        "since": "1.4",
+        "stability": "stable"
+    },
+    "BgColorOpts": {
+        "fqn": "BgColorOpts",
+        "kind": "type",
+        "title": "BgColorOpts",
+        "summary": "/**\nStyling options accepted by `bgcolor(...)` — the Pine-ergonomic alias for\na `bg-color` pane-background band. `transp` is the 0–100 transparency\n(0 opaque … 100 fully transparent), mirroring  {@link PlotOptsStyle} 's\n`bg-color` arm. `title` labels the slot for host overrides.",
+        "examples": [
+            "const opts: BgColorOpts = { transp: 80, title: \"RSI heat\" };\nvoid opts;"
+        ],
+        "since": "1.4",
         "stability": "stable"
     },
     "BoolDescriptor": {
@@ -2697,6 +2765,29 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "feedKey": {
+        "fqn": "feedKey",
+        "kind": "function",
+        "title": "feedKey(symbol, interval)",
+        "summary": "Build the composite secondary-feed key from a `(symbol, interval)` pair —\nthe **single** source of the stream-key format shared by the runtime's\nstream/cache maps and the host wire (`CandleEvent.streamKey`). Like a slot\nid, this string is load-bearing: producer (adapter/host) and consumer\n(runtime) must agree byte-for-byte, so never re-derive it inline.",
+        "paramTable": [
+            {
+                "name": "symbol",
+                "type": "string | undefined",
+                "doc": ""
+            },
+            {
+                "name": "interval",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "feedKey(undefined, \"1D\"); // \"1D\"  (chart symbol, back-compat)\nfeedKey(\"AMEX:SPY\", \"1D\"); // \"AMEX:SPY@1D\""
+        ],
+        "since": "1.2",
+        "stability": "stable"
+    },
     "FibChannelState": {
         "fqn": "FibChannelState",
         "kind": "type",
@@ -4607,9 +4698,21 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         ],
         "examples": [
             "// weekly EMA(20) — computed over weekly bars, drawn on the chart\nconst trend = request.security({ interval: \"1W\" }, (bar) => ta.ema(bar.close, 20));\nplot(trend, { title: \"Weekly EMA(20)\" });",
-            "// data form — aligned weekly close\nconst weekly = request.security({ interval: \"1W\" });\nplot(weekly.close, { title: \"Weekly close\" });"
+            "// data form — aligned weekly close\nconst weekly = request.security({ interval: \"1W\" });\nplot(weekly.close, { title: \"Weekly close\" });",
+            "// different symbol — a ratio against another instrument (needs multiSymbol)\nconst spy = request.security({ symbol: \"AMEX:SPY\", interval: \"1D\" });\nconst qqq = request.security({ symbol: \"NASDAQ:QQQ\", interval: \"1D\" });\nplot(spy.close.current / qqq.close.current, { title: \"SPY/QQQ\" });"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "RequestedFeed": {
+        "fqn": "RequestedFeed",
+        "kind": "type",
+        "title": "RequestedFeed",
+        "summary": "One requested secondary feed — a `(symbol, interval)` pair the script's\n`request.security` calls ask for. `symbol` omitted ⇒ the chart's own\nsymbol (the higher-timeframe-only case). The compiler emits one entry per\ndistinct** feed; the runtime creates one secondary `StreamState` per\nentry, keyed by the shared `feedKey(symbol, interval)` composite.",
+        "examples": [
+            "const f: RequestedFeed = { symbol: \"AMEX:SPY\", interval: \"1D\" };\nvoid f;"
+        ],
+        "since": "1.2",
         "stability": "stable"
     },
     "RequestLowerTfOpts": {
@@ -4640,7 +4743,8 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "title": "RequestSecurityOpts",
         "summary": "/**\nArgument to  {@link request.security} . The `interval` must be a string\nliteral or an `input.enum` value; the compiler's literal-only pass rejects\ndynamic expressions with `request-security-interval-not-literal`.",
         "examples": [
-            "const opts: RequestSecurityOpts = { interval: \"1D\" };\nvoid opts;"
+            "const opts: RequestSecurityOpts = { interval: \"1D\" };\nvoid opts;",
+            "// read a different instrument (requires Capabilities.multiSymbol)\nconst spy: RequestSecurityOpts = { symbol: \"AMEX:SPY\", interval: \"1D\" };\nvoid spy;"
         ],
         "since": "0.4",
         "stability": "stable"
@@ -4849,7 +4953,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "title": "SecurityExpressionDescriptor",
         "summary": "One higher-timeframe expression unit in `ScriptManifest.securityExpressions`.\nThe compiler emits one entry per `request.security({ interval }, (bar) => …)`\ncallsite so the runtime knows which `slotId` is an HTF expression, on which\n`interval` to clock it, and the callback's single parameter name. The\ncallback body stays inline in the compiled module — this descriptor is only\nthe registry pointing at it.",
         "examples": [
-            "const unit: SecurityExpressionDescriptor = {\nslotId: \"trend.ts:8:21#0\",\ninterval: \"1W\",\nparamName: \"bar\",\n};\nvoid unit;"
+            "// symbol omitted ⇒ the chart's own symbol (the HTF-only back-compat case)\nconst unit: SecurityExpressionDescriptor = {\nslotId: \"trend.ts:8:21#0\",\ninterval: \"1W\",\nparamName: \"bar\",\n};\nvoid unit;"
         ],
         "since": "0.7",
         "stability": "stable"
@@ -5153,7 +5257,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "STATEFUL_PRIMITIVES_BY_NAME",
         "kind": "property",
         "title": "STATEFUL_PRIMITIVES_BY_NAME",
-        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 176-entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
+        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 179-entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
         "examples": [
             "import { STATEFUL_PRIMITIVES_BY_NAME } from \"@invinite-org/chartlang-core\";\nconst entry = STATEFUL_PRIMITIVES_BY_NAME.get(\"ta.ema\");\n// entry is { name: \"ta.ema\", slot: true } | undefined"
         ],

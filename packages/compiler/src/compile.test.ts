@@ -269,6 +269,56 @@ export default defineIndicator({
         expect(Object.isFrozen(result)).toBe(true);
     });
 
+    it("type-checks the bgcolor/barcolor aliases through the ambient shim", async () => {
+        // `bgcolor(color, opts?)` / `barcolor(color, opts?)` are top-level
+        // Pine-ergonomic holes (`packages/core/src/plot/plot.ts`) that the
+        // shim must mirror in lockstep — a per-bar color expression plus the
+        // `{ transp }` opts on `bgcolor` and a bare color on `barcolor`.
+        // `transformAndAnalyse` (analysis-only) does not type-check, so this
+        // guard — proving the shim's `bgcolor`/`barcolor` signatures and the
+        // `BgColorOpts`/`BarColorOpts` aliases match core — must go through
+        // `compile`. A successful return already proves zero type diagnostics.
+        const ALIASES = `
+import { barcolor, bgcolor, defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "aliases",
+    apiVersion: 1,
+    compute({ bar }) {
+        bgcolor(bar.close > bar.open ? "#16a34a" : "#dc2626", { transp: 80 });
+        barcolor(bar.close > bar.open ? "#16a34a" : "#dc2626");
+    },
+});
+`;
+        const result = await compile(ALIASES, {
+            apiVersion: 1,
+            sourcePath: "aliases.chart.ts",
+        });
+        expect(Object.isFrozen(result)).toBe(true);
+    });
+
+    it("type-checks the destructured ctx.bgcolor/ctx.barcolor through the shim ComputeContext", async () => {
+        // The runtime binds bgcolor/barcolor on ComputeContext, so the shim's
+        // ComputeContext must carry both fields (in lockstep with core). This
+        // proves the destructured `compute({ bgcolor, barcolor })` form type-
+        // checks — distinct from the imported-symbol form above.
+        const ALIASES = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "ctx-aliases",
+    apiVersion: 1,
+    compute({ bar, bgcolor, barcolor }) {
+        bgcolor(bar.close > bar.open ? "#16a34a" : "#dc2626", { transp: 80 });
+        barcolor("#a855f7", { title: "tint" });
+    },
+});
+`;
+        const result = await compile(ALIASES, {
+            apiVersion: 1,
+            sourcePath: "ctx-aliases.chart.ts",
+        });
+        expect(Object.isFrozen(result)).toBe(true);
+    });
+
     it("throws CompileError for a non-literal state.array capacity", async () => {
         // End-to-end guard: a runtime-valued capacity breaks the
         // bounded-snapshot invariant and must error at the compiler boundary

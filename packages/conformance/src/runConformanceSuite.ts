@@ -217,7 +217,7 @@ export type ScenarioEventStream =
  *
  * The `plot-field` variant inspects a single override-baked or
  * presentation field (`visible` / `color` / `style.lineWidth` /
- * `xShift` / `z`) on the emission for a `(slotIndex, bar)` pair —
+ * `xShift` / `z` / `colorValue`) on the emission for a `(slotIndex, bar)` pair —
  * `slotIndex` is the ordinal into the compiled `manifest.plots`. It
  * exists because `plot-hash` deliberately hashes only `{ bar, value }`
  * and cannot see presentation fields. `expected: undefined` asserts an
@@ -227,7 +227,12 @@ export type ScenarioEventStream =
  * / future, `−n` left / past) the runtime threads from a plotted offset
  * `ta.*` series. `z` is the presentation-only render-order key the
  * runtime threads from `plot(value, { z })`, omitted from the wire when
- * `0` for byte-identity. `@since 0.8` (`z`: `@since 1.4`).
+ * `0` for byte-identity. `colorValue` is the per-bar dynamic-color channel
+ * the runtime threads from `bgcolor`/`barcolor` (and value-plot) per-bar
+ * color expressions; it is excluded from the `plot-hash` tuple, so a
+ * `plot-field: colorValue` assertion pins the per-bar color while the
+ * numeric hash stays byte-identical. `@since 0.8` (`z`: `@since 1.4`;
+ * `colorValue`: `@since 1.5`).
  *
  * The `all-plots-on-pane` variant asserts every emitted
  * `PlotEmission.pane` equals a single expected pane key — it pins the
@@ -256,7 +261,7 @@ export type ScenarioAssertion =
           readonly kind: "plot-field";
           readonly slotIndex: number;
           readonly bar: number;
-          readonly field: "visible" | "color" | "lineWidth" | "xShift" | "z";
+          readonly field: "visible" | "color" | "lineWidth" | "xShift" | "z" | "colorValue";
           readonly expected: string | number | boolean | undefined;
       }
     | { readonly kind: "alert-count"; readonly count: number }
@@ -533,6 +538,13 @@ function evalAssertion(
                     break;
                 case "z":
                     actual = emission.z;
+                    break;
+                case "colorValue":
+                    // The per-bar dynamic-color channel. `expected: undefined`
+                    // asserts an omitted field (a static-color emission carries
+                    // no `colorValue`); a string asserts the per-bar color. The
+                    // explicit `null` gap reads back as `null`.
+                    actual = emission.colorValue ?? undefined;
                     break;
                 default:
                     actual = emission.visible;

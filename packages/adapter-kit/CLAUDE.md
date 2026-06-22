@@ -143,6 +143,26 @@ layer** every adapter shares.
 
 ## Wire + capability invariants
 
+- **`PlotEmission.colorValue?: Color | null` is the per-bar dynamic-color
+  channel and is APPENDED (the last field), so an omitted emission is
+  byte-identical to the pre-feature wire and every pinned `plot-hash`
+  (`{ bar, value }` only) is untouched.** Three states, all DISTINCT:
+  **omitted** ⇒ adapter uses the static color (`style.color` for
+  `bg-color`/`bar-color`, the top-level `color` for line-family); **present**
+  ⇒ it OVERRIDES the static color for this `(slotId, bar)` at render time
+  (the precedence contract: `colorValue` wins over `style.color`); **`null`**
+  ⇒ an explicit "no color this bar" gap (paint nothing), NOT the static
+  fallback. It is orthogonal to numeric `value` (a `bg-color` emission still
+  carries `value: null`) — do NOT widen `value` to carry color, and do NOT
+  add a per-bar-color `PlotStyle` arm; both were rejected (see the field
+  JSDoc rationale). Task 4 landed the TYPE; the runtime resolve + the
+  `colorValue` finite-color-or-null validation (`validation/validateEmission
+  .ts`) landed in Task 5; the render-time precedence (`colorValue` wins over
+  the static color, `null` ⇒ paint-nothing gap) is the **normative adapter
+  contract** stated on the `PlotEmission.colorValue` JSDoc and implemented in
+  the canvas2d reference adapter (Task 6 — `render/bgColor.ts` +
+  `createCanvas2dAdapter.ts`'s bg/bar overlays). Other adapters bind to the
+  same contract as they port it.
 - **`CandleEvent.streamKey` IS the composite feed key — the same string
   `feedKey(symbol, interval)` produces, byte-for-byte.** Omit it for the main
   stream; a bare interval (`"1D"`) tags a higher-timeframe stream of the

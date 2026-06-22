@@ -114,6 +114,8 @@ describe("buildComputeContext", () => {
         expect(ctx).toHaveProperty("ta");
         expect(ctx).toHaveProperty("plot");
         expect(ctx).toHaveProperty("hline");
+        expect(ctx).toHaveProperty("bgcolor");
+        expect(ctx).toHaveProperty("barcolor");
         expect(ctx).toHaveProperty("alert");
         expect(ctx).toHaveProperty("draw");
         expect(ctx).toHaveProperty("state");
@@ -164,6 +166,20 @@ describe("buildComputeContext", () => {
         expect(() => ctx.plot(0)).toThrow("plot called outside an active script step");
         expect(() => ctx.hline(0)).toThrow("hline called outside an active script step");
         expect(() => ctx.alert("hi")).toThrow("alert called outside an active script step");
+    });
+
+    it("bgcolor / barcolor are the emit re-exports and throw the outside-ctx sentinel when called directly", () => {
+        // The Pine-ergonomic aliases are wired on the ComputeContext like
+        // plot/hline; a direct script-facing call (no compiler-injected slot
+        // id) throws the active-step sentinel.
+        const state = freshState();
+        const ctx = buildComputeContext(state);
+        expect(() => ctx.bgcolor("#000")).toThrow(
+            "bgcolor called outside an active script step",
+        );
+        expect(() => ctx.barcolor("#000")).toThrow(
+            "barcolor called outside an active script step",
+        );
     });
 
     it("state is the Task-9 runtime namespace and throws outside the active context", () => {

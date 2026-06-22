@@ -51,6 +51,9 @@ function findProperty(
  * `buildStyle`). Returns:
  *
  * - `"horizontal-line"` for `hline`.
+ * - `"bg-color"` for `bgcolor` / `"bar-color"` for `barcolor` — the
+ *   Pine-ergonomic aliases whose kind IS the callee name (no `style`
+ *   object to read, like `hline`).
  * - `"line"` for a bare `plot` with no `style` (no opts, opts without
  *   `style`, or a non-object opts).
  * - the literal `style.kind` value for `plot(x, { style: { kind: "<lit>" } })`
@@ -73,6 +76,8 @@ export function plotKindFromCallsite(
     optsArg: ts.Expression | undefined,
 ): PlotKind | undefined {
     if (calleeName === "hline") return "horizontal-line";
+    if (calleeName === "bgcolor") return "bg-color";
+    if (calleeName === "barcolor") return "bar-color";
     if (calleeName !== "plot") return undefined;
     if (optsArg === undefined || !ts.isObjectLiteralExpression(optsArg)) return "line";
     const styleProp = findProperty(optsArg, "style");

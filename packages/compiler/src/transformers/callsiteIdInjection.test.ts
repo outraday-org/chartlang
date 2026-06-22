@@ -67,7 +67,7 @@ plot(1);
 
     it("rewrites every slot: true primitive in STATEFUL_PRIMITIVES (and skips ta.nz)", () => {
         const source = `
-import { ta, plot, hline, alert, draw, request, state } from "@invinite-org/chartlang-core";
+import { ta, plot, hline, bgcolor, barcolor, alert, draw, request, state } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;
 declare const flag: import("@invinite-org/chartlang-core").Series<boolean>;
 ta.sma(close, 14);
@@ -168,6 +168,8 @@ ta.ulcerIndex(close, 14);
 ta.nz(Number.NaN, 0);
 plot(1);
 hline(1);
+bgcolor("#000");
+barcolor("#000");
 alert("msg");
 state.float(0);
 state.int(0);
@@ -200,8 +202,9 @@ draw.trendAngle({ time: 0, price: 0 }, { time: 1, price: 1 });
         // Phase-3 ports add draw.* entries to STATEFUL_PRIMITIVES per
         // category. Task 5 wires the 6 line-family kinds; the remaining
         // 55 draw.* kinds land in Tasks 6–18. The test exercises every
-        // shipped slot:true callsite (93 ta + plot + hline + alert + 10
-        // state (incl. state.series + state.array) + 6 line-family draw) —
+        // shipped slot:true callsite (93 ta + plot + hline + bgcolor +
+        // barcolor + alert + 10 state (incl. state.series + state.array) +
+        // 6 line-family draw) —
         // entries without a call here are excluded from the expected count.
         const unwiredDrawEntries = new Set<string>();
         for (const entry of STATEFUL_PRIMITIVES) {
@@ -428,5 +431,36 @@ ta.ema(close, 20);
         // the printed output retains the original two-argument shape.
         const text = printSourceFile(result.transformed);
         expect(text).toMatch(/ta\.ema\(close, 20\)/);
+    });
+
+    it("emits callsite-id-conflict for a bgcolor sharing an issued slot id", () => {
+        // bgcolor is `slot: true` like plot, so the registry-driven conflict
+        // guard fires for it identically — the colliding call keeps its
+        // original one-argument shape (no slot-id literal injected).
+        const source = `
+import { bgcolor } from "@invinite-org/chartlang-core";
+bgcolor("#000");
+`;
+        const { sourceFile, checker } = createProgramForSource(source, {
+            sourcePath: "demo.chart.ts",
+        });
+        const seededSlotId = "demo.chart.ts:3:1#0";
+        const preexisting: ts.CallExpression = ts.factory.createCallExpression(
+            ts.factory.createIdentifier("noop"),
+            undefined,
+            [],
+        );
+        const slotsSeen = new Map<string, ts.CallExpression>([[seededSlotId, preexisting]]);
+        const result = injectCallsiteIds(sourceFile, checker, {
+            sourcePath: "demo.chart.ts",
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
+            slotsSeen,
+        });
+        expect(result.diagnostics).toHaveLength(1);
+        const diagnostic = result.diagnostics[0];
+        if (!diagnostic) throw new Error("expected diagnostic");
+        expect(diagnostic.code).toBe("callsite-id-conflict");
+        const text = printSourceFile(result.transformed);
+        expect(text).toMatch(/bgcolor\("#000"\)/);
     });
 });

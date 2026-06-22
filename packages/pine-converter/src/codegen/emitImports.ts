@@ -28,6 +28,8 @@ export function emitImports(scaffold: ScriptScaffold): string {
     if (usage.ta) specifiers.push("ta");
     if (usage.plot) specifiers.push("plot");
     if (usage.hline) specifiers.push("hline");
+    if (usage.bgcolor) specifiers.push("bgcolor");
+    if (usage.barcolor) specifiers.push("barcolor");
     if (usage.alert) specifiers.push("alert");
     if (usage.draw) specifiers.push("draw");
     if (usage.input) specifiers.push("input");

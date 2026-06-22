@@ -40,6 +40,7 @@ function plotEmission(overrides: Partial<PlotEmission> & { slotId: string }): Pl
         ...(overrides.visible === undefined ? {} : { visible: overrides.visible }),
         ...(overrides.xShift === undefined ? {} : { xShift: overrides.xShift }),
         ...(overrides.z === undefined ? {} : { z: overrides.z }),
+        ...("colorValue" in overrides ? { colorValue: overrides.colorValue } : {}),
     };
 }
 
@@ -585,6 +586,77 @@ describe("onEmissions dispatch", () => {
         expect(ctx.calls.some((c) => c.kind === "fillText" && c.text === "A")).toBe(true);
         expect(ctx.calls.some((c) => c.kind === "fillRect")).toBe(true);
         expect(ctx.calls.some((c) => c.kind === "stroke")).toBe(true);
+    });
+
+    it("prefers the per-bar colorValue over the static bar-color / bg-color", async () => {
+        const host = stubHost([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bg",
+                        style: { kind: "bg-color", color: "#123456", transp: 50 },
+                        colorValue: "#16a34a",
+                    }),
+                    plotEmission({
+                        slotId: "bar-color",
+                        style: { kind: "bar-color", color: "#a855f7" },
+                        colorValue: "#dc2626",
+                    }),
+                ],
+            }),
+        ]);
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            host,
+            candles: candleStream([{ kind: "close", bar: SAMPLE_BARS[0] }]),
+        });
+        await runRendererLoop(adapter);
+        // The dynamic colors win over the static style colors.
+        const fillStyles = ctx.calls
+            .filter((c) => c.kind === "set" && c.prop === "fillStyle")
+            .map((c) => (c.kind === "set" ? c.value : undefined));
+        const strokeStyles = ctx.calls
+            .filter((c) => c.kind === "set" && c.prop === "strokeStyle")
+            .map((c) => (c.kind === "set" ? c.value : undefined));
+        expect(fillStyles).toContain("#16a34a");
+        expect(fillStyles).not.toContain("#123456");
+        // bar-color tints the OHLC outline (a stroke), so the dynamic color
+        // surfaces as the stroke style.
+        expect(strokeStyles).toContain("#dc2626");
+        expect(strokeStyles).not.toContain("#a855f7");
+    });
+
+    it("skips the bg-color and bar-color fill on an explicit colorValue gap (null)", async () => {
+        const host = stubHost([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bg",
+                        style: { kind: "bg-color", color: "#123456", transp: 50 },
+                        colorValue: null,
+                    }),
+                    plotEmission({
+                        slotId: "bar-color",
+                        style: { kind: "bar-color", color: "#a855f7" },
+                        colorValue: null,
+                    }),
+                ],
+            }),
+        ]);
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            host,
+            candles: candleStream([{ kind: "close", bar: SAMPLE_BARS[0] }]),
+        });
+        await runRendererLoop(adapter);
+        const styleValues = ctx.calls
+            .filter((c) => c.kind === "set" && (c.prop === "fillStyle" || c.prop === "strokeStyle"))
+            .map((c) => (c.kind === "set" ? c.value : undefined));
+        // Neither the static nor a dynamic color was painted for the gapped bars.
+        expect(styleValues).not.toContain("#123456");
+        expect(styleValues).not.toContain("#a855f7");
     });
 
     it("histogram with a null gap is skipped (no fillRect for that point)", () => {

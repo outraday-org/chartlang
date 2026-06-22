@@ -73,6 +73,17 @@ const STATE_SERIES_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; sl
 const STATE_ARRAY_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
     Object.freeze([{ name: "state.array", slot: true }] as const);
 
+// `bgcolor` / `barcolor` — the Pine-ergonomic top-level aliases for the
+// `bg-color` / `bar-color` plot styles. Each callsite is slot-injected (a
+// stable slotId + a `manifest.plots` entry), so both are STATEFUL_PRIMITIVES
+// entries alongside `plot` / `hline`.
+const BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS: ReadonlyArray<
+    Readonly<{ name: string; slot: boolean }>
+> = Object.freeze([
+    { name: "bgcolor", slot: true },
+    { name: "barcolor", slot: true },
+] as const);
+
 const PHASE_2_TA_CARDINALITY = PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length;
 const PHASE_4_STATEFUL_CARDINALITY = 163;
 
@@ -109,7 +120,8 @@ describe("Phase 2 surface", () => {
                 HIGHEST_LOWEST_BARS_STATEFUL_ADDITIONS.length +
                 FILL_BETWEEN_STATEFUL_ADDITIONS.length +
                 STATE_SERIES_STATEFUL_ADDITIONS.length +
-                STATE_ARRAY_STATEFUL_ADDITIONS.length,
+                STATE_ARRAY_STATEFUL_ADDITIONS.length +
+                BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS.length,
         );
         for (const expected of [
             ...PHASE_5_STATEFUL_ADDITIONS,
@@ -118,6 +130,7 @@ describe("Phase 2 surface", () => {
             ...FILL_BETWEEN_STATEFUL_ADDITIONS,
             ...STATE_SERIES_STATEFUL_ADDITIONS,
             ...STATE_ARRAY_STATEFUL_ADDITIONS,
+            ...BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS,
         ]) {
             expect(STATEFUL_PRIMITIVES).toContainEqual(expected);
         }

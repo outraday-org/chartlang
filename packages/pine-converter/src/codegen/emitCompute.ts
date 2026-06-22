@@ -23,6 +23,8 @@ function destructureFields(scaffold: ScriptScaffold): string[] {
     if (usage.ta) fields.push("ta");
     if (usage.plot) fields.push("plot");
     if (usage.hline) fields.push("hline");
+    if (usage.bgcolor) fields.push("bgcolor");
+    if (usage.barcolor) fields.push("barcolor");
     if (usage.alert) fields.push("alert");
     if (usage.draw) fields.push("draw");
     if (usage.input) fields.push("inputs");

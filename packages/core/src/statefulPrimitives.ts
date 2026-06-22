@@ -114,6 +114,11 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "ta.nz", slot: false },
     { name: "plot", slot: true },
     { name: "hline", slot: true },
+    // Pine-ergonomic aliases lowering to the `bg-color` / `bar-color` plot
+    // styles. Slot-injected like `plot`/`hline` so each callsite gets a
+    // stable slot id and is listed in `manifest.plots` with its kind.
+    { name: "bgcolor", slot: true },
+    { name: "barcolor", slot: true },
     { name: "alert", slot: true },
     // Phase 3 — draw.* namespace. One entry per kind in DRAWING_KINDS
     // order. Names are camelCase (`draw.<kindCamelCase>`); the wire
@@ -221,7 +226,7 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
  * logging/error as stateless loop-diagnostic entries plus `draw.table`
  * as a slot-backed viewport drawing.
  *
- * Additive within `apiVersion: 1` (currently 177 entries): new entries MAY
+ * Additive within `apiVersion: 1` (currently 179 entries): new entries MAY
  * be appended in a `1.x` release (a new call name is additive — new callsites
  * only, no change to any existing script). Removing or renaming an entry, or
  * flipping its `slot`, is a language change and requires `apiVersion: 2` — see
@@ -245,11 +250,11 @@ export const STATEFUL_PRIMITIVES: ReadonlySet<StatefulPrimitiveEntry> = Object.f
  * Name → entry index of {@link STATEFUL_PRIMITIVES}. The compiler's
  * `callsiteIdInjection` and `statefulCallInLoop` passes consult this map
  * by callee name once per call site — O(1) lookup instead of an O(n) scan
- * over the 176-entry set on every visited call. The map is derived from
+ * over the 179-entry set on every visited call. The map is derived from
  * the same canonical entry list as {@link STATEFUL_PRIMITIVES} so adding
  * a primitive to the set adds it here automatically.
  *
- * Additive within `apiVersion: 1` (currently 177 entries): new entries MAY
+ * Additive within `apiVersion: 1` (currently 179 entries): new entries MAY
  * be appended in a `1.x` release (a new call name is additive — new callsites
  * only, no change to any existing script). Removing or renaming an entry, or
  * flipping its `slot`, is a language change and requires `apiVersion: 2` — see

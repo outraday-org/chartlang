@@ -34,6 +34,7 @@ import {
     MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO,
     MULTI_SYMBOL_NOT_SUPPORTED_SCENARIO,
     MULTI_SYMBOL_RATIO_SCENARIO,
+    PLOT_KIND_BG_COLOR_DYNAMIC_SCENARIO,
     PLOT_OFFSET_XSHIFT_SCENARIO,
     PLOT_STYLE_OVERRIDES_SCENARIO,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
@@ -316,6 +317,19 @@ describe("runConformanceSuite", () => {
         expect(report.failures).toEqual([]);
     }, 30_000);
 
+    it("runs the bg-color-dynamic scenario end-to-end (per-bar colorValue + all-null value hash)", async () => {
+        // Exercises the `plot-field: "colorValue"` evaluator arm (the per-bar
+        // dynamic color the `bgcolor(...)` conditional resolves to) plus the
+        // all-null numeric value `plot-hash` — proving the colorValue channel
+        // rides the wire WITHOUT entering the `{ bar, value }` hash tuple.
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [PLOT_KIND_BG_COLOR_DYNAMIC_SCENARIO],
+            candles: SMALL_BARS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.failures).toEqual([]);
+    }, 30_000);
+
     it("plot-field reports a missing slot ordinal, a missing emission, and a value mismatch", async () => {
         const scenario: Scenario = Object.freeze({
             id: "plot-field-failures",
@@ -350,6 +364,16 @@ describe("runConformanceSuite", () => {
                     slotIndex: 1,
                     bar: 0,
                     field: "lineWidth",
+                    expected: undefined,
+                },
+                // slot 0 is a static line plot — it carries no `colorValue`, so
+                // the dynamic-color reader's `?? undefined` fallback yields
+                // undefined (matches expected here; exercises the omitted arm).
+                {
+                    kind: "plot-field",
+                    slotIndex: 0,
+                    bar: 0,
+                    field: "colorValue",
                     expected: undefined,
                 },
             ] as ReadonlyArray<ScenarioAssertion>),

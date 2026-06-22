@@ -162,12 +162,31 @@ describe("emitPlotFamily", () => {
         expect(emit("hline()").source).toBeNull();
     });
 
-    it("lowers bgcolor and barcolor to background styles", () => {
-        expect(emit("bgcolor(color.red)").source).toBe(
-            'plot(Number.NaN, { style: { kind: "bg-color", color: "#FF5252" } });',
+    it("lowers bgcolor and barcolor to the Pine-ergonomic sugar aliases", () => {
+        expect(emit("bgcolor(color.red)").source).toBe('bgcolor("#FF5252");');
+        expect(emit("barcolor(color.green)").source).toBe('barcolor("#4CAF50");');
+    });
+
+    it("carries a per-bar conditional color through bgcolor unchanged", () => {
+        expect(emit("bgcolor(close > open ? color.green : color.red)").source).toBe(
+            'bgcolor(bar.close > bar.open ? "#4CAF50" : "#FF5252");',
         );
-        expect(emit("barcolor(color.green)").source).toBe(
-            'plot(Number.NaN, { style: { kind: "bar-color", color: "#4CAF50" } });',
+        expect(emit("barcolor(close > open ? color.green : color.red)").source).toBe(
+            'barcolor(bar.close > bar.open ? "#4CAF50" : "#FF5252");',
+        );
+    });
+
+    it("resolves color enum leaves through paren grouping", () => {
+        expect(emit("bgcolor((color.red))").source).toBe('bgcolor(("#FF5252"));');
+    });
+
+    it("threads bgcolor transp and title onto the opts bag", () => {
+        expect(emit("bgcolor(color.red, 80)").source).toBe('bgcolor("#FF5252", { transp: 80 });');
+        expect(emit('bgcolor(color.red, title = "Heat")').source).toBe(
+            'bgcolor("#FF5252", { title: "Heat" });',
+        );
+        expect(emit('barcolor(color.green, title = "Tint")').source).toBe(
+            'barcolor("#4CAF50", { title: "Tint" });',
         );
     });
 

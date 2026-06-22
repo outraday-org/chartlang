@@ -297,6 +297,37 @@ describe("validateEmission — plot", () => {
         expect("z" in validPlot).toBe(false);
         expect(validateEmission(validPlot)).toEqual({ ok: true });
     });
+
+    it("accepts a non-empty colorValue (the dynamic-color channel)", () => {
+        expect(validateEmission({ ...validPlot, colorValue: "#16a34a" })).toEqual({ ok: true });
+    });
+
+    it("accepts colorValue: null (explicit no-color-this-bar gap)", () => {
+        expect(validateEmission({ ...validPlot, colorValue: null })).toEqual({ ok: true });
+    });
+
+    it("a no-colorValue plot carries no colorValue own-key (byte-identity)", () => {
+        // Omitted ⇒ static-color baseline, byte-identical to the pre-feature
+        // wire; the plot-hash (`{ bar, value }`) is untouched.
+        expect("colorValue" in validPlot).toBe(false);
+        expect(validateEmission(validPlot)).toEqual({ ok: true });
+    });
+
+    it("rejects an empty-string colorValue", () => {
+        expect(validateEmission({ ...validPlot, colorValue: "" })).toMatchObject({
+            ok: false,
+            code: "malformed-emission",
+            message: expect.stringContaining("colorValue"),
+        });
+    });
+
+    it("rejects a non-string colorValue", () => {
+        expect(validateEmission({ ...validPlot, colorValue: 42 })).toMatchObject({
+            ok: false,
+            code: "malformed-emission",
+            message: expect.stringContaining("colorValue"),
+        });
+    });
 });
 
 describe("validateEmission — alert condition", () => {

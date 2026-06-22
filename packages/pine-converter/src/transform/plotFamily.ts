@@ -10,13 +10,26 @@ import { emitWithContext } from "./emitContext.js";
 
 // Lower a styling value: a bare-rooted `color.*`/enum member routes through
 // `enumLookup` (so `color.red` → `"#FF5252"`), everything else through the
-// input-aware expression emitter.
+// input-aware expression emitter. A per-bar conditional color
+// (`close > open ? color.green : color.red`) recurses through the ternary
+// branches (and paren grouping) so each color leaf resolves while the
+// condition flows through the normal emitter — the dynamic-color expression
+// `bgcolor`/`barcolor` carry through to the `colorValue` channel.
 function styleValue(node: ExpressionNode, ctx: EmitContext): string {
     if (node.kind === "member-access-expression" && node.head === null) {
         const mapping = enumLookup(node.chain.join("."));
         if (mapping !== null && typeof mapping.chartlang === "string") {
             return JSON.stringify(mapping.chartlang);
         }
+    }
+    if (node.kind === "paren-expression") {
+        return `(${styleValue(node.expression, ctx)})`;
+    }
+    if (node.kind === "ternary-expression") {
+        const cond = emitWithContext(node.condition, ctx);
+        const yes = styleValue(node.consequent, ctx);
+        const no = styleValue(node.alternate, ctx);
+        return `${cond} ? ${yes} : ${no}`;
     }
     return emitWithContext(node, ctx);
 }
@@ -113,8 +126,10 @@ function commonOptions(
  * statement string, or push a reject diagnostic. `plot` maps title/color/
  * linewidth onto a `{ ... }` options object; `plotshape`/`plotchar`/
  * `plotarrow` gate the value behind their condition (`cond ? value : NaN`)
- * and select a `style.kind`; `bgcolor`/`barcolor` emit a `plot(NaN, { style
- * })` background; `hline` maps to chartlang `hline(price, { ... })`. `fill`
+ * and select a `style.kind`; `bgcolor`/`barcolor` emit the Pine-ergonomic
+ * `bgcolor(<color>)` / `barcolor(<color>)` sugar carrying the real per-bar
+ * color expression (Deliverable-2 dynamic-color channel); `hline` maps to
+ * chartlang `hline(price, { ... })`. `fill`
  * has no chartlang analogue and pushes `fill-not-mapped`. Returns `null` for
  * a non-plot-family call.
  *
@@ -175,9 +190,9 @@ export function emitPlotFamily(
         case "hline":
             return emitHline(call.args, pos, ctx);
         case "bgcolor":
-            return emitBackground("bg-color", pos, ctx);
+            return emitBackground("bgcolor", call.args, pos, ctx);
         case "barcolor":
-            return emitBackground("bar-color", pos, ctx);
+            return emitBackground("barcolor", call.args, pos, ctx);
         default:
             diagnostics.pushCode("fill-not-mapped", call.span);
             return null;
@@ -346,8 +361,17 @@ function emitHline(
     return opts === "" ? `hline(${priceSource});` : `hline(${priceSource}, ${opts});`;
 }
 
+// Lower Pine `bgcolor(color, transp?, …, title?)` / `barcolor(color, …,
+// title?)` to the chartlang Pine-ergonomic sugar `bgcolor(<color>, opts?)` /
+// `barcolor(<color>, opts?)`. The color expression — including a per-bar
+// conditional (`close > open ? color.green : color.red`) — rides through
+// `styleValue`, so the per-bar dynamic-color semantics (Deliverable 2's
+// `colorValue` channel) survive the conversion. `transp` (bgcolor only) and
+// `title` (both) map onto the `BgColorOpts` / `BarColorOpts` bag. A bare call
+// with no color is a no-op → `null` (unchanged).
 function emitBackground(
-    kind: "bg-color" | "bar-color",
+    callee: "bgcolor" | "barcolor",
+    args: readonly CallArgument[],
     pos: readonly ExpressionNode[],
     ctx: EmitContext,
 ): string | null {
@@ -355,5 +379,12 @@ function emitBackground(
     if (color === undefined) {
         return null;
     }
-    return `plot(Number.NaN, { style: { kind: "${kind}", color: ${styleValue(color, ctx)} } });`;
+    const transpNode = callee === "bgcolor" ? (named(args, "transp") ?? pos[1] ?? null) : null;
+    const titleNode = named(args, "title") ?? null;
+    const opts = options([
+        ["transp", transpNode === null ? null : emitWithContext(transpNode, ctx)],
+        ["title", titleNode === null ? null : emitWithContext(titleNode, ctx)],
+    ]);
+    const colorSource = styleValue(color, ctx);
+    return opts === "" ? `${callee}(${colorSource});` : `${callee}(${colorSource}, ${opts});`;
 }

@@ -26,4 +26,4 @@ import { TA_REGISTRY } from "./ta/index.js";
  */
 export const ta: TaNamespace = TA_REGISTRY as unknown as TaNamespace;
 
-export { alert, draw, hline, plot } from "./emit/index.js";
+export { alert, barcolor, bgcolor, draw, hline, plot } from "./emit/index.js";
