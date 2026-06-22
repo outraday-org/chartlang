@@ -30,6 +30,7 @@ import {
     createWorkerHost,
 } from "@invinite-org/chartlang-host-worker";
 
+import { formatTick, niceTicks, tickStep } from "./axis.js";
 import { KONVA_CAPABILITIES, KONVA_SYM_INFO } from "./capabilities.js";
 import { DEFAULT_PALETTE, type KonvaPalette } from "./palette.js";
 import { type PaneLayoutEntry, computePaneLayout } from "./paneLayout.js";
@@ -43,6 +44,11 @@ const Y_AXIS_PADDING = 0.05;
 // scale) lines up with canvas2d. Konva paints no axis labels into it — this
 // is scale parity, not a label reservation.
 const Y_AXIS_GUTTER_PX = 52;
+// Price-axis labels: ~5 nice ticks, an 11px sans label sitting 6px into the
+// right gutter `Y_AXIS_GUTTER_PX` reserves.
+const AXIS_TICK_COUNT = 5;
+const AXIS_LABEL_FONT_SIZE = 11;
+const AXIS_LABEL_GAP_PX = 6;
 const BODY_WIDTH_RATIO = 0.6;
 const HISTOGRAM_BAR_WIDTH_PX = 4;
 const GLYPH_FONT_FAMILY = "sans-serif";
@@ -143,6 +149,9 @@ type AdapterState = {
     // Rebuilt every drain from `drawings` via `decomposeDrawing` +
     // `primitiveToNode`; lives on its own layer above the series layer.
     readonly drawingsLayer: KonvaLayer;
+    // Price-axis labels painted into each pane's right gutter, rebuilt every
+    // drain on its own top layer (`rebuildAxisLayer`).
+    readonly axisLayer: KonvaLayer;
     readonly stageSize: { readonly width: number; readonly height: number };
     readonly bars: Bar[];
     // `bar.time → bar` index kept in sync with `bars` in `applyCandleEvent`,
@@ -823,6 +832,44 @@ function rebuildDrawingsLayer(state: AdapterState): void {
     state.drawingsLayer.batchDraw();
 }
 
+// Rebuild the price-axis layer: one column of "nice" tick labels per pane,
+// painted as `Text` nodes in the right gutter `computePaneViewport` already
+// reserves (`Y_AXIS_GUTTER_PX`). Labels sit on the RIGHT — the house
+// convention shared with canvas2d / echarts / lightweight-charts. Like the
+// series layer this is a stateless redraw (`destroyChildren` → rebuild →
+// `batchDraw`); it rides its own top layer so the series/drawings node trees
+// (and their structural assertions) are untouched. A degenerate y range
+// yields no ticks (`niceTicks` returns `[]`), so an empty/flat pane paints no
+// labels rather than dividing by zero.
+function rebuildAxisLayer(state: AdapterState): void {
+    state.axisLayer.destroyChildren();
+    const layout = computePaneLayout(state.paneOrder, state.stageSize);
+    for (const entry of layout) {
+        const viewport = computePaneViewport(state, entry);
+        const ticks = niceTicks(viewport.yMin, viewport.yMax, AXIS_TICK_COUNT);
+        const step = tickStep(ticks);
+        const group = new state.konva.Group({ x: entry.rect.x, y: entry.rect.y });
+        for (const tick of ticks) {
+            group.add(
+                new state.konva.Text({
+                    x: viewport.pxWidth + AXIS_LABEL_GAP_PX,
+                    // Nudge up by half the cap height so the label centres on
+                    // its price line.
+                    y: priceToY(tick, viewport) - AXIS_LABEL_FONT_SIZE / 2,
+                    text: formatTick(tick, step),
+                    fontSize: AXIS_LABEL_FONT_SIZE,
+                    fontFamily: GLYPH_FONT_FAMILY,
+                    fill: state.palette.axisLabel,
+                    align: "left",
+                    verticalAlign: "top",
+                }),
+            );
+        }
+        state.axisLayer.add(group);
+    }
+    state.axisLayer.batchDraw();
+}
+
 function buildPaneSeries(
     state: AdapterState,
     group: KonvaGroup,
@@ -909,13 +956,18 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
     );
     const seriesLayer = new opts.konva.Layer();
     const drawingsLayer = new opts.konva.Layer();
+    // Axis layer is added LAST so its right-gutter labels sit on top; the
+    // series/drawings layers keep their `roots[1]`/`roots[2]` indices.
+    const axisLayer = new opts.konva.Layer();
     stage.add(seriesLayer);
     stage.add(drawingsLayer);
+    stage.add(axisLayer);
     const state: AdapterState = {
         konva: opts.konva,
         stage,
         seriesLayer,
         drawingsLayer,
+        axisLayer,
         stageSize: { width: opts.stage.width, height: opts.stage.height },
         bars: [],
         barsByTime: new Map(),
@@ -961,6 +1013,7 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
             requestRender: () => {
                 rebuildSeriesLayer(state);
                 rebuildDrawingsLayer(state);
+                rebuildAxisLayer(state);
             },
         };
         state.detachInteraction = attachInteraction(container as HTMLElement, handlers);
@@ -998,6 +1051,7 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
             ingest(state, emissions);
             rebuildSeriesLayer(state);
             rebuildDrawingsLayer(state);
+            rebuildAxisLayer(state);
         },
         dispose: () => {
             state.bars.length = 0;
@@ -1047,6 +1101,7 @@ export function redraw(handle: KonvaAdapterHandle): void {
     }
     rebuildSeriesLayer(state);
     rebuildDrawingsLayer(state);
+    rebuildAxisLayer(state);
 }
 
 /**
@@ -1072,8 +1127,10 @@ export function feedCandleEvent(handle: KonvaAdapterHandle, event: CandleEvent):
     applyCandleEvent(state, event);
     rebuildSeriesLayer(state);
     // A new bar shifts the overlay `Viewport` (x/y range), so the drawings
-    // must repaint against the updated scale to stay aligned with candles.
+    // AND the axis labels must repaint against the updated scale to stay
+    // aligned with candles.
     rebuildDrawingsLayer(state);
+    rebuildAxisLayer(state);
 }
 
 /**

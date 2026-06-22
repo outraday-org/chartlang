@@ -31,6 +31,7 @@ export type KonvaPalette = {
     readonly plotDefault: string;
     readonly hlineDefault: string;
     readonly glyphText: string;
+    readonly axisLabel: string;
 };
 
 /**
@@ -57,4 +58,6 @@ export const DEFAULT_PALETTE: KonvaPalette = Object.freeze({
     plotDefault: "#90caf9",
     hlineDefault: "#ef4444",
     glyphText: "#e2e8f0",
+    // Muted grey for the right-gutter price-axis labels.
+    axisLabel: "#9ca3af",
 });

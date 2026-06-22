@@ -216,4 +216,4 @@ describe("konva adapter integration (worker host)", () => {
 
 // Pinned by the integration test; update only when a deliberate change
 // re-shapes the emitted node tree.
-const PINNED_HASH = "e3fb6b9a4792498356e004cdeac1db416b0b09a3516be5002899466c2998c79a";
+const PINNED_HASH = "b87e26f828127b926faf1f90379f0600870ca3dcb88c279184f7233fd8542a95";

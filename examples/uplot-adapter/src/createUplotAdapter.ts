@@ -277,6 +277,24 @@ function defaultUplotFactory(
             width: opts.width,
             height: opts.height,
             series: [{}, ...opts.series.map((s) => ({ label: s.label, stroke: s.stroke }))],
+            // Price axis on the RIGHT (uPlot's default y axis is `side: 3`
+            // = left), matching the house convention — canvas2d, echarts,
+            // and lightweight-charts all carry the price scale on the right.
+            // This also aligns the real axis with the `Y_AXIS_GUTTER_PX`
+            // right gutter the data viewport already reserves. uPlot recomputes
+            // its plotting-area bbox for the moved axis, and the ctx pass reads
+            // that real bbox via `buildViewport`, so candles/hlines/drawings
+            // stay aligned with no further change. Styled for the dark surface
+            // (muted grid + label stroke) so the labels read on the demo.
+            axes: [
+                { stroke: "#9ca3af", grid: { stroke: "rgba(148, 163, 184, 0.15)" } },
+                {
+                    side: 1,
+                    scale: "y",
+                    stroke: "#9ca3af",
+                    grid: { stroke: "rgba(148, 163, 184, 0.15)" },
+                },
+            ],
             // Disable uPlot's native drag-to-zoom-select; ALL pan/zoom flows
             // through the adapter's `attachInteraction` listeners (wired in
             // the `ready` hook) so drag pans and the wheel zooms BOTH ways.

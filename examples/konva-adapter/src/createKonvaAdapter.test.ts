@@ -143,12 +143,13 @@ function groupChildren(konva: MockKonva): RecordedNode[][] {
 // ---- tests ----
 
 describe("createKonvaAdapter — construction", () => {
-    it("builds a stage with a series layer and a drawings layer", () => {
+    it("builds a stage with a series layer, a drawings layer, and an axis layer", () => {
         const { konva } = build();
         expect(konva.roots[0].type).toBe("Stage");
         expect(konva.roots[1].type).toBe("Layer");
         expect(konva.roots[2].type).toBe("Layer");
-        expect(konva.ops.filter((o) => o.op === "add" && o.on === "Stage")).toHaveLength(2);
+        expect(konva.roots[3].type).toBe("Layer");
+        expect(konva.ops.filter((o) => o.op === "add" && o.on === "Stage")).toHaveLength(3);
     });
 
     it("constructs the stage WITHOUT a container by default", () => {
@@ -1283,8 +1284,9 @@ describe("runKonvaLoop", () => {
         const { adapter, konva } = build({ candleSource: candleStream([event]), host });
         await runKonvaLoop(adapter, { signal: controller.signal });
         expect(base.drains).toBe(1);
-        // feedCandleEvent rebuilt both layers (2 `destroyChildren`); the
-        // skipped onEmissions added no further rebuild, so the count stays 2.
-        expect(konva.ops.filter((o) => o.op === "destroyChildren")).toHaveLength(2);
+        // feedCandleEvent rebuilt all three layers (3 `destroyChildren` —
+        // series, drawings, axis); the skipped onEmissions added no further
+        // rebuild, so the count stays 3.
+        expect(konva.ops.filter((o) => o.op === "destroyChildren")).toHaveLength(3);
     });
 });

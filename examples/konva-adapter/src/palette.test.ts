@@ -18,6 +18,7 @@ describe("DEFAULT_PALETTE", () => {
         expect(DEFAULT_PALETTE.plotDefault).toBeTruthy();
         expect(DEFAULT_PALETTE.hlineDefault).toBeTruthy();
         expect(DEFAULT_PALETTE.glyphText).toBeTruthy();
+        expect(DEFAULT_PALETTE.axisLabel).toBeTruthy();
     });
 
     it("is frozen", () => {

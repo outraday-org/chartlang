@@ -28,10 +28,22 @@ capabilities-only conformance default export).
 
 - **`computePaneViewport` reserves a 52px `Y_AXIS_GUTTER_PX`
   (`pxWidth = rect.w - gutter`) so konva's candle x-extent matches
-  canvas2d.** Konva paints NO axis labels into the gutter — it is scale
-  parity with canvas2d, not a label reservation. This changed geometry, so
-  the integration `PINNED_HASH` (`hashKonvaScene`) was re-snapped for it;
-  re-snap again on any deliberate mapping change.
+  canvas2d.** The gutter is on the RIGHT and now carries the price-axis
+  labels (`rebuildAxisLayer`); the candle x-extent is still `rect.w -
+  gutter`, so the scale parity with canvas2d is unchanged. A geometry change
+  here re-snaps the integration `PINNED_HASH` (`hashKonvaScene`).
+
+- **A dedicated `axisLayer` (the stage's THIRD layer) paints the
+  right-gutter price axis.** `rebuildAxisLayer` emits one column of "nice"
+  tick labels per pane (`niceTicks`/`formatTick` in `src/axis.ts`,
+  pure + unit-tested) as `Text` nodes at `viewport.pxWidth +
+  AXIS_LABEL_GAP_PX`, coloured `palette.axisLabel`. Labels on the RIGHT match
+  the house convention (canvas2d / echarts / lightweight-charts). It is a
+  stateless redraw rebuilt alongside the series + drawings layers at every
+  call site, and rides its OWN top layer so `roots[1]`/`roots[2]` (series /
+  drawings) — and their structural leaf-count assertions — are untouched; only
+  `hashKonvaScene` (all roots) re-pins. A degenerate y range yields no ticks
+  (`niceTicks` returns `[]`), so a flat/empty pane paints no labels.
 
 - **Zoom / pan / auto-fit via the shared adapter-kit `ViewController`** (same
   wiring as canvas2d). `state.view.resolveXWindow` picks the per-frame

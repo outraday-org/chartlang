@@ -179,6 +179,19 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
         const container = containerRef.current;
         if (container === null || artifact === null || bars.length === 0) return;
 
+        // Size the renderer to the container's ACTUAL laid-out box, not the
+        // nominal 800×480: `.chart-surface` is `width:800px; max-width:100%`,
+        // so in the two-column demo (or any pane narrower than 800px) it
+        // shrinks to the pane width. canvas2d (CSS `max-width:100%`) and the
+        // container-measuring libs (echarts/lightweight-charts) fit either
+        // way, but uPlot/konva render at the explicit width they are handed —
+        // pass 800 and their canvas overflows the narrower container to the
+        // right (the clipped-right-edge symptom). Measuring keeps every
+        // adapter inside the box. Fallback to the nominal size if the box has
+        // not been laid out yet (clientWidth/Height === 0).
+        const mountWidth = container.clientWidth || CANVAS_WIDTH;
+        const mountHeight = container.clientHeight || CANVAS_HEIGHT;
+
         // Tear down the previous driver cleanly before spinning up a
         // fresh one. `dispose()` clears the renderer state, terminates the
         // underlying worker, and empties the mount element.
@@ -255,8 +268,8 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
                 const driver = await factory(container, {
                     candleSource,
                     ...(mainInterval !== undefined ? { interval: mainInterval } : {}),
-                    width: CANVAS_WIDTH,
-                    height: CANVAS_HEIGHT,
+                    width: mountWidth,
+                    height: mountHeight,
                     onAlert: (alert) => {
                         // Chart bubbles mark every alert at its bar (history
                         // included); the React feed only carries live alerts

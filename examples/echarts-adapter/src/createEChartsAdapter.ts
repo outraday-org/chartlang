@@ -389,7 +389,10 @@ function buildOption(state: AdapterState): EChartsOption {
     const barCount = state.bars.length;
     const categories = state.bars.map((bar) => bar.time);
     const grids = state.paneOrder.map((_paneKey, i) => ({
-        left: 48,
+        // Price axis sits on the RIGHT (the house convention — canvas2d, the
+        // reference adapter, and lightweight-charts both do), so the label
+        // gutter is reserved on the right and the left margin is minimal.
+        left: 16,
         right: 56,
         // Stack panes vertically; overlay (index 0) takes the top, larger band.
         top: `${8 + (i / Math.max(1, state.paneOrder.length)) * 84}%`,
@@ -408,6 +411,8 @@ function buildOption(state: AdapterState): EChartsOption {
         type: "value" as const,
         gridIndex: i,
         scale: true,
+        // Price labels on the RIGHT edge, matching canvas2d / lightweight-charts.
+        position: "right" as const,
         // No horizontal grid lines across the plot; keep the price labels.
         splitLine: { show: false },
     }));
