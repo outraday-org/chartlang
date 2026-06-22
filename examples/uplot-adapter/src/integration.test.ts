@@ -181,5 +181,9 @@ describe("uplot adapter integration — plots + drawings draw-hook pass", () => 
     });
 });
 
-// Pinned by the integration test (see the note above).
-const PINNED_HASH = "64a1fd37565c054045b9aad07722873f51a18e4a0c500852d49b29bc48e24a57";
+// Pinned by the integration test (see the note above). Re-pinned when the
+// candle + hline pass moved onto uPlot's real device-px plotting-area
+// viewport (`buildViewport`) — the Retina mis-scale fix shifted the
+// candle/hline coordinates (plot width now uPlot's actual bbox, not a
+// hand-rolled `state.width − gutter`).
+const PINNED_HASH = "4066994af1abde90bba82d66151d9eb81aeb355384adb080b75d8ca6e41ca072";

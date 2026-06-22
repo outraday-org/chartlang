@@ -16,11 +16,20 @@ import {
 import { STARTER_CLONE_REF } from "./chartlangVersions.js";
 import { rewriteStarterPackageJson } from "./rewritePackageJson.js";
 import { type SeamId, isSeamId, seamTemplateFor } from "./seamTemplates.js";
+import { writeStandaloneTsconfig } from "./starterTsconfig.js";
 
 const PKG_NAME_PLACEHOLDER = "__PKG_NAME__";
 const CHARTLANG_SCOPE = "@invinite-org/chartlang-";
 const PACKAGE_MANAGERS = ["npm", "pnpm", "yarn", "bun"] as const;
 type PackageManager = (typeof PACKAGE_MANAGERS)[number];
+
+const NPMRC_FILE = ".npmrc";
+// Published `@invinite-org/chartlang-compiler` depends on `esbuild@^0.24`, but
+// `vite@8`'s optional peer wants `esbuild@^0.27 || ^0.28`. The app builds + runs
+// fine on esbuild 0.24 — npm's strict optional-peer check is the only blocker —
+// so the clone opts into `legacy-peer-deps` instead of bumping any esbuild.
+const NPMRC_CONTENTS =
+    "# vite@8's optional esbuild peer (^0.27||^0.28) conflicts with the\n# chartlang-compiler esbuild dep (^0.24); the app runs fine on 0.24.\nlegacy-peer-deps=true\n";
 
 const DEFAULT_TARGET = "./chartlang-starter";
 const DEFAULT_LIBRARY: SeamId = "echarts";
@@ -231,6 +240,69 @@ export function bundleChartlangVersions(
     return out;
 }
 
+/**
+ * Repoint a single `main`/`types`/`exports` entry string from the bundle's
+ * unbuilt `./dist/*.{js,d.ts}` to the vendored TypeScript source `./src/*.ts`.
+ * The vendored bundle ships only `src/` (create-chartlang never builds it), so
+ * Vite + tsc resolve the adapter directly from source with NO build step. A
+ * non-`./dist/` value is returned unchanged.
+ */
+function repointDistToSrc(value: string): string {
+    if (!value.startsWith("./dist/")) {
+        return value;
+    }
+    return value
+        .replace(/^\.\/dist\//, "./src/")
+        .replace(/\.d\.ts$/, ".ts")
+        .replace(/\.js$/, ".ts");
+}
+
+type VendoredExportEntry = { types?: string; import?: string };
+type VendoredAdapterPkg = {
+    main?: string;
+    types?: string;
+    exports?: Record<string, VendoredExportEntry>;
+    [key: string]: unknown;
+};
+
+/**
+ * Rewrite the vendored adapter `package.json`: substitute the `__PKG_NAME__`
+ * placeholder, then repoint `main`/`types` and every `exports` entry's
+ * `types`/`import` from `./dist/*` to the vendored `./src/*.ts` source. This is
+ * an intentional DIVERGENCE from `cli add-adapter`, which keeps the
+ * dist-pointing bundle (it expects a build); create-chartlang vendors source
+ * only and never builds, so the manifest must resolve straight from `src/`.
+ * Absent fields are left untouched.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     import { repointVendoredPackageJson } from "create-chartlang";
+ *     const next = repointVendoredPackageJson('{"main":"./dist/index.js"}', "@local/x-adapter");
+ *     void next;
+ */
+export function repointVendoredPackageJson(contents: string, localName: string): string {
+    const named = contents.split(PKG_NAME_PLACEHOLDER).join(localName);
+    const pkg = JSON.parse(named) as VendoredAdapterPkg;
+    if (pkg.main !== undefined) {
+        pkg.main = repointDistToSrc(pkg.main);
+    }
+    if (pkg.types !== undefined) {
+        pkg.types = repointDistToSrc(pkg.types);
+    }
+    if (pkg.exports !== undefined) {
+        for (const entry of Object.values(pkg.exports)) {
+            if (entry.types !== undefined) {
+                entry.types = repointDistToSrc(entry.types);
+            }
+            if (entry.import !== undefined) {
+                entry.import = repointDistToSrc(entry.import);
+            }
+        }
+    }
+    return `${JSON.stringify(pkg, null, 4)}\n`;
+}
+
 /** Write a vendored adapter bundle, substituting the local name (Windows-safe paths). */
 async function writeVendoredAdapter(
     bundle: GeneratedAdapterBundle,
@@ -241,9 +313,7 @@ async function writeVendoredAdapter(
         const dest = join(dir, ...relPath.split("/"));
         await mkdir(dirname(dest), { recursive: true });
         const out =
-            relPath === "package.json"
-                ? contents.split(PKG_NAME_PLACEHOLDER).join(localName)
-                : contents;
+            relPath === "package.json" ? repointVendoredPackageJson(contents, localName) : contents;
         await writeFile(dest, out, "utf8");
     }
 }
@@ -264,6 +334,10 @@ function defaultEnv(): string {
         "EODDATA_API_KEY=",
         "",
     ].join("\n");
+}
+
+async function writeNpmrc(dir: string): Promise<void> {
+    await writeFile(join(dir, NPMRC_FILE), NPMRC_CONTENTS, "utf8");
 }
 
 async function writeEnv(dir: string): Promise<void> {
@@ -459,6 +533,12 @@ export async function runCreateChartlang(
         dir: targetDir,
     });
     await stripRepoArtefacts(targetDir);
+
+    // Make the clone standalone: bake the monorepo tsconfig base + repoint
+    // `extends`, and opt into legacy-peer-deps so `npm install` resolves the
+    // vite8/esbuild optional-peer conflict.
+    await writeStandaloneTsconfig(targetDir);
+    await writeNpmrc(targetDir);
 
     const vendorRel = `vendor/${library}-adapter`;
     const vendoredAdapterName = `@local/${library}-adapter`;

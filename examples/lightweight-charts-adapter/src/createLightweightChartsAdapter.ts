@@ -56,6 +56,7 @@ import {
 import {
     AreaSeries,
     CandlestickSeries,
+    ColorType,
     HistogramSeries,
     type IPriceLine,
     type ISeriesPrimitive,
@@ -202,8 +203,34 @@ function toMarker(time: number): SeriesMarker<Time> {
     };
 }
 
+// A dark chart theme so the native chart blends into the surrounding (dark)
+// card instead of rendering lightweight-charts' default white-on-light theme,
+// matching the dark palette the other reference adapters carry (echarts'
+// `#0b0e11`). A TRANSPARENT background lets whatever card sits behind the
+// chart-surface show through, so it blends regardless of the exact card
+// colour. Colours are rgb / hex (NOT the brand `oklch` tokens): the library's
+// own colour parser throws on `oklch(...)`, so feeding it the resolved CSS
+// custom properties — which serialise back as `oklch` — would crash the chart.
+const DARK_CHART_THEME = {
+    background: "transparent",
+    text: "#94a3b8",
+    grid: "rgba(148, 163, 184, 0.12)",
+    border: "rgba(148, 163, 184, 0.2)",
+} as const;
+
 function defaultCreateChart(container: HTMLElement): LwcChart {
-    const chart = createChart(container);
+    const chart = createChart(container, {
+        layout: {
+            background: { type: ColorType.Solid, color: DARK_CHART_THEME.background },
+            textColor: DARK_CHART_THEME.text,
+        },
+        grid: {
+            vertLines: { color: DARK_CHART_THEME.grid },
+            horzLines: { color: DARK_CHART_THEME.grid },
+        },
+        rightPriceScale: { borderColor: DARK_CHART_THEME.border },
+        timeScale: { borderColor: DARK_CHART_THEME.border },
+    });
     const wrap = (seriesType: string, paneIndex: number): LwcSeries => {
         const series = chart.addSeries(SERIES_DEFINITION[seriesType], {}, paneIndex);
         const isCandlestick = seriesType === "Candlestick";

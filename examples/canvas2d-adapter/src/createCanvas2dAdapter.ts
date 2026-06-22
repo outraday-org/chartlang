@@ -8,13 +8,20 @@ import {
     type CandleEvent,
     type Capabilities,
     type DrawingEmission,
+    type InteractionHandlers,
     type LogEmission,
     type PlotEmission,
     type PlotStyle,
     type RunnerEmissions,
+    type ViewController,
+    type WindowYInput,
+    type XWindow,
+    attachInteraction,
+    createViewController,
     decomposeDrawing,
     defineAdapter,
     validateEmission,
+    yRangeInWindow,
 } from "@invinite-org/chartlang-adapter-kit";
 import { paintPrimitive } from "@invinite-org/chartlang-adapter-kit/canvas";
 import type { Bar } from "@invinite-org/chartlang-core";
@@ -163,6 +170,14 @@ type AdapterState = {
     readonly overlaySeq: Map<string, number>;
     readonly drawingSeq: Map<string, number>;
     readonly palette: Palette;
+    // Pan/zoom controller (adapter-kit). `resolveXWindow` decides the
+    // per-frame x window: the full data range until the user wheels/drags,
+    // then the held window. `lastOverlayViewport` is captured each frame so
+    // the DOM interaction handlers can map pixels → world x against the
+    // current scale; `detachInteraction` removes the listeners on dispose.
+    readonly view: ViewController;
+    lastOverlayViewport?: Viewport;
+    detachInteraction?: () => void;
 };
 
 function paneSlotKey(paneKey: string, slotId: string): string {
@@ -195,18 +210,23 @@ function resolveCtx(opts: CreateCanvas2dAdapterOpts): RenderCtx {
     return ctx;
 }
 
-// Collect the y-range a single pane should span. The overlay pane sees
-// bars ∪ overlay-keyed series ∪ overlay-keyed hlines; a subpane sees
-// only its own series + hlines (so an RSI band in 0-100 never stretches
-// the price scale). Returns `+Inf` / `-Inf` if no finite candidate was
-// observed — the caller maps that to the (0, 1) fallback.
-function computeYRange(state: AdapterState, paneKey: string): { yMin: number; yMax: number } {
-    let yMin = Number.POSITIVE_INFINITY;
-    let yMax = Number.NEGATIVE_INFINITY;
+// Collect the y-range a single pane should span, auto-fit to the VISIBLE x
+// window (so a zoomed-in view re-scales the price axis to what's on screen,
+// matching lightweight-charts' auto price scale). The overlay pane sees
+// bars ∪ overlay-keyed series; a subpane sees only its own series (so an RSI
+// band in 0-100 never stretches the price scale). Horizontal lines span the
+// whole chart, so they fold in unconditionally (not x-window filtered).
+// Returns `+Inf` / `-Inf` if no finite candidate was observed — the caller
+// maps that to the (0, 1) fallback.
+function computeYRange(
+    state: AdapterState,
+    paneKey: string,
+    win: XWindow,
+): { yMin: number; yMax: number } {
+    const candidates: WindowYInput[] = [];
     if (paneKey === "overlay") {
         for (const bar of state.bars) {
-            if (bar.low < yMin) yMin = bar.low;
-            if (bar.high > yMax) yMax = bar.high;
+            candidates.push({ x: bar.time, lo: bar.low, hi: bar.high });
         }
     }
     const prefix = paneKeyPrefix(paneKey);
@@ -214,10 +234,12 @@ function computeYRange(state: AdapterState, paneKey: string): { yMin: number; yM
         if (!key.startsWith(prefix)) continue;
         for (const point of series) {
             if (point.value === null) continue;
-            if (point.value < yMin) yMin = point.value;
-            if (point.value > yMax) yMax = point.value;
+            candidates.push({ x: point.time, lo: point.value, hi: point.value });
         }
     }
+    const windowed = yRangeInWindow(candidates, win);
+    let yMin = windowed?.yMin ?? Number.POSITIVE_INFINITY;
+    let yMax = windowed?.yMax ?? Number.NEGATIVE_INFINITY;
     for (const hline of state.hlines.values()) {
         if (hline.paneKey !== paneKey) continue;
         if (hline.price < yMin) yMin = hline.price;
@@ -324,14 +346,18 @@ function computePaneViewport(
             pxHeight: rect.h,
         };
     }
-    let xMin = Number.POSITIVE_INFINITY;
-    let xMax = Number.NEGATIVE_INFINITY;
+    let dataXMin = Number.POSITIVE_INFINITY;
+    let dataXMax = Number.NEGATIVE_INFINITY;
     for (const bar of bars) {
-        if (bar.time < xMin) xMin = bar.time;
-        if (bar.time > xMax) xMax = bar.time;
+        if (bar.time < dataXMin) dataXMin = bar.time;
+        if (bar.time > dataXMax) dataXMax = bar.time;
     }
-    xMax = extendXMaxForShifts(state, paneKey, spacing, xMax);
-    let { yMin, yMax } = computeYRange(state, paneKey);
+    dataXMax = extendXMaxForShifts(state, paneKey, spacing, dataXMax);
+    // The controller returns the full data range until the user zooms/pans,
+    // then the held window — so live frames auto-follow new bars until the
+    // first interaction, then hold the view (lightweight-charts parity).
+    const win = state.view.resolveXWindow(dataXMin, dataXMax);
+    let { yMin, yMax } = computeYRange(state, paneKey, win);
     if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
         yMin = 0;
         yMax = 1;
@@ -341,8 +367,8 @@ function computePaneViewport(
     }
     const yPad = (yMax - yMin) * Y_AXIS_PADDING;
     return {
-        xMin,
-        xMax: xMax === xMin ? xMin + 1 : xMax,
+        xMin: win.xMin,
+        xMax: win.xMax === win.xMin ? win.xMin + 1 : win.xMax,
         yMin: yMin - yPad,
         yMax: yMax + yPad,
         pxWidth: plotWidth,
@@ -679,6 +705,8 @@ function renderFrame(state: AdapterState): void {
         if (entry.paneKey === "overlay") {
             overlayViewport = viewport;
             overlayRectY = entry.rect.y;
+            // Cached for the DOM interaction handlers' pixel↔world mapping.
+            state.lastOverlayViewport = viewport;
         }
         clearPaneRect(state.ctx, entry.rect, state.palette);
         state.ctx.save();
@@ -917,7 +945,48 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         overlaySeq: new Map(),
         drawingSeq: new Map(),
         palette,
+        view: createViewController(),
     };
+    // Wire wheel-zoom / drag-pan / dblclick-reset when mounted on a real
+    // canvas (production). Headless tests pass `opts.ctx` + a bare
+    // `{ width, height }` canvas with no `addEventListener`, so the guard is
+    // false and no listeners attach — keeping the pinned render hash and
+    // coverage unaffected. `requestRender` re-renders on interaction because
+    // the drive loop only renders on candle events.
+    /* v8 ignore start -- DOM interaction wiring; only runs against a real canvas */
+    const canvasEl = opts.canvas as Partial<HTMLElement>;
+    if (typeof canvasEl.addEventListener === "function") {
+        const handlers: InteractionHandlers = {
+            controller: state.view,
+            pxToWorldX: (px) => {
+                const v = state.lastOverlayViewport;
+                if (v === undefined) return 0;
+                return v.xMin + (px / v.pxWidth) * (v.xMax - v.xMin);
+            },
+            worldXPerPx: () => {
+                const v = state.lastOverlayViewport;
+                if (v === undefined) return 1;
+                return (v.xMax - v.xMin) / v.pxWidth;
+            },
+            dataBounds: () => {
+                const { bars } = state;
+                if (bars.length === 0) return { xMin: 0, xMax: 1 };
+                let xMin = Number.POSITIVE_INFINITY;
+                let xMax = Number.NEGATIVE_INFINITY;
+                for (const bar of bars) {
+                    if (bar.time < xMin) xMin = bar.time;
+                    if (bar.time > xMax) xMax = bar.time;
+                }
+                return {
+                    xMin,
+                    xMax: extendXMaxForShifts(state, "overlay", medianBarSpacing(bars), xMax),
+                };
+            },
+            requestRender: () => renderFrame(state),
+        };
+        state.detachInteraction = attachInteraction(canvasEl as HTMLElement, handlers);
+    }
+    /* v8 ignore stop */
     const host =
         opts.host ??
         createWorkerHost(
@@ -964,6 +1033,8 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
             state.seq = 0;
             state.overlaySeq.clear();
             state.drawingSeq.clear();
+            /* v8 ignore next -- only set on the real-canvas interaction path */
+            state.detachInteraction?.();
             host.dispose();
         },
     });
@@ -972,6 +1043,33 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
     HANDLE_STATE.set(handle, state);
     HANDLE_INTERVAL.set(handle, opts.interval ?? DEFAULT_INTERVAL);
     return handle;
+}
+
+/**
+ * Re-render the current frame without a new candle event. The drive loop
+ * only repaints on incoming candles, so the DOM interaction handlers
+ * (wheel-zoom / drag-pan / dblclick-reset) call this to reflect a changed
+ * view window immediately. Throws the documented sentinel on a foreign
+ * handle (mirrors {@link runRendererLoop}).
+ *
+ * @since 1.6
+ * @stable
+ * @example
+ *     import { createCanvas2dAdapter, redraw } from "chartlang-example-canvas2d-adapter";
+ *     import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
+ *     const adapter = createCanvas2dAdapter({
+ *         canvas: { width: 10, height: 10 },
+ *         ctx: { clearRect() {} } as unknown as never,
+ *         candleSource: mockCandleSource([]),
+ *     });
+ *     redraw(adapter);
+ */
+export function redraw(handle: Canvas2dAdapterHandle): void {
+    const state = HANDLE_STATE.get(handle);
+    if (state === undefined) {
+        throw new Error("redraw: handle was not produced by createCanvas2dAdapter");
+    }
+    renderFrame(state);
 }
 
 /**

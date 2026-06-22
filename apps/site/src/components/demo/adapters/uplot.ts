@@ -1,6 +1,14 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+// uPlot ships its layout in a stylesheet: it sizes the canvas + positions
+// `.u-wrap`/`.u-over`/`.u-axis` via these rules. Without it the canvas
+// renders at its device-px backing size (2× on Retina) and overflows the
+// mount, so the chart appears tiny in a clipped corner. This rides the lazy
+// per-adapter uplot chunk (the driver module is only ever dynamic-imported),
+// so it never enters the SSR or initial client graph.
+import "uplot/dist/uPlot.min.css";
+
 import type { DemoAdapterFactory } from "./types";
 
 /**

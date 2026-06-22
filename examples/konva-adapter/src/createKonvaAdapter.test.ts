@@ -17,6 +17,7 @@ import {
     createKonvaAdapter,
     feedCandleEvent,
     handleInterval,
+    redraw,
     runKonvaLoop,
 } from "./createKonvaAdapter.js";
 import type { RecordedNode, RecordedNodeType } from "./testing.js";
@@ -735,15 +736,16 @@ describe("createKonvaAdapter — glyph / override / style kinds", () => {
         ).toBe(true);
     });
 
-    it("renders a bg-color spanning the full width when there are no bars", () => {
+    it("renders a bg-color spanning the full plot width when there are no bars", () => {
         // bg-color emitted before any candles → colWidth falls back to the
-        // full plot width (the `bars.length > 0` else branch).
+        // full plot width (the `bars.length > 0` else branch). The plot width
+        // is the stage width minus the 52px price-axis gutter (canvas2d parity).
         const { adapter, konva } = build();
         adapter.onEmissions(
             emissions([plot("g", { kind: "bg-color", color: "#333" }, { time: 0 })]),
         );
         const bg = groupChildren(konva)[0].find((n) => n.config.fill === "#333");
-        expect(bg?.config.width).toBe(800);
+        expect(bg?.config.width).toBe(748);
     });
 
     it("renders a horizontal-histogram as per-bucket Rects", () => {
@@ -1118,6 +1120,38 @@ function recordingHost(drainResults: RunnerEmissions[] = []): ScriptHost & {
 async function* candleStream(events: ReadonlyArray<CandleEvent>): AsyncIterable<CandleEvent> {
     for (const event of events) yield event;
 }
+
+describe("redraw", () => {
+    it("rebuilds the series + drawings layers on demand", () => {
+        const { adapter, konva } = build();
+        feedCandleEvent(adapter, { kind: "history", bars: [bar(0, 10, 12, 8, 11)] });
+        redraw(adapter);
+        // A repaint rebuilt the series layer with the candle wick + body.
+        expect(leafTypes(konva)).toContain("Rect");
+    });
+
+    it("throws when handed a handle not produced by createKonvaAdapter", () => {
+        const foreign = Object.freeze({}) as unknown as KonvaAdapterHandle;
+        expect(() => redraw(foreign)).toThrow(/not produced by createKonvaAdapter/);
+    });
+});
+
+describe("computePaneViewport gutter", () => {
+    it("reserves the 52px price-axis gutter so the plot width matches canvas2d", () => {
+        // With one bar, the candle body width is pxWidth / bars * BODY_WIDTH_RATIO.
+        // pxWidth = stageWidth(800) - gutter(52) = 748, body = 748 * 0.6 = 448.8.
+        const { adapter, konva } = build();
+        feedCandleEvent(adapter, { kind: "history", bars: [bar(0, 10, 12, 8, 11)] });
+        redraw(adapter);
+        const rects: RecordedNode[] = [];
+        const walk = (n: RecordedNode): void => {
+            if (n.type === "Rect") rects.push(n);
+            for (const c of n.children) walk(c);
+        };
+        for (const c of konva.roots[1].children) walk(c);
+        expect(rects[0]?.config.width).toBeCloseTo(748 * 0.6, 5);
+    });
+});
 
 describe("runKonvaLoop", () => {
     it("iterates the candle source, repaints, pushes every event, drains, and re-renders", async () => {

@@ -22,7 +22,7 @@ type AlignedData = ReadonlyArray<ReadonlyArray<number | null>>;
  */
 export type UplotRecord =
     | { readonly kind: "new"; readonly opts: UplotOptions; readonly data: AlignedData }
-    | { readonly kind: "setData"; readonly data: AlignedData }
+    | { readonly kind: "setData"; readonly data: AlignedData; readonly resetScales?: boolean }
     | {
           readonly kind: "setScale";
           readonly scaleKey: string;
@@ -30,6 +30,37 @@ export type UplotRecord =
           readonly max: number;
       }
     | { readonly kind: "destroy" };
+
+// A minimal dispatchable stand-in for uPlot's `over` element, so the
+// adapter's `attachInteraction` listeners can be exercised headlessly:
+// `addEventListener` registers, `dispatch` fires the registered listeners
+// for a type, and the pointer-capture / bounding-rect methods are no-op
+// stubs the interaction handlers call. Cast to `HTMLElement` at the
+// `MockUplot.over` seam — only the touched subset is implemented.
+class MockOverEl {
+    private readonly listeners = new Map<string, Set<(e: unknown) => void>>();
+
+    addEventListener(type: string, listener: (e: unknown) => void): void {
+        const set = this.listeners.get(type) ?? new Set();
+        set.add(listener);
+        this.listeners.set(type, set);
+    }
+
+    removeEventListener(type: string, listener: (e: unknown) => void): void {
+        this.listeners.get(type)?.delete(listener);
+    }
+
+    setPointerCapture(_id: number): void {}
+    releasePointerCapture(_id: number): void {}
+    hasPointerCapture(_id: number): boolean {
+        return true;
+    }
+
+    /** Fire every listener registered for `type` with the given event. */
+    dispatch(type: string, event: unknown): void {
+        for (const listener of this.listeners.get(type) ?? []) listener(event);
+    }
+}
 
 /**
  * A headless stand-in for a uPlot instance satisfying {@link UplotLike}.
@@ -57,6 +88,7 @@ export class MockUplot implements UplotLike {
     // px == CSS px and `valToPos` is the plotting-area-relative projection
     // `buildViewport` reproduces.
     readonly bbox: { left: number; top: number; width: number; height: number };
+    private readonly _over: MockOverEl;
     private readonly drawHooks: ReadonlyArray<(u: UplotLike) => void>;
     // Linear `valToPos` mapping for the `y` scale: a value in
     // `[scaleMin, scaleMax]` maps across `[0, plotHeight]`, y-flipped.
@@ -75,7 +107,45 @@ export class MockUplot implements UplotLike {
         this.plotHeight = opts.height;
         this.plotWidth = opts.width;
         this.bbox = { left: 0, top: 0, width: opts.width, height: opts.height };
+        this._over = new MockOverEl();
         this.rangeXFrom(data);
+        // A real uPlot fires `hooks.ready` once the instance is mounted; the
+        // adapter wires its pan/zoom listeners there, so run them now that
+        // `over` / `scales` are live.
+        for (const hook of opts.hooks.ready ?? []) hook(this);
+    }
+
+    // uPlot's plotting-area element; cast to `HTMLElement` for the
+    // structural `UplotLike.over` seam (only the touched subset exists).
+    get over(): HTMLElement {
+        return this._over as unknown as HTMLElement;
+    }
+
+    /**
+     * Fire a synthetic DOM event at the `over` element so the wired pan/zoom
+     * listeners run headlessly. `type` is `"wheel"` / `"pointerdown"` /
+     * `"pointermove"` / `"pointerup"` / `"dblclick"`.
+     *
+     * @since 1.6
+     * @stable
+     * @example
+     *     import { MockUplot } from "chartlang-example-uplot-adapter/testing";
+     *     declare const u: MockUplot;
+     *     u.dispatch("wheel", { offsetX: 10, deltaY: -100, preventDefault() {} });
+     */
+    dispatch(type: string, event: unknown): void {
+        this._over.dispatch(type, event);
+    }
+
+    // Inverse of `valToPos` for the `x` scale: a plotting-area pixel back to
+    // a world time (the wheel handler's cursor pivot).
+    posToVal(pos: number, scaleKey: string): number {
+        if (scaleKey === "x") {
+            const span = this.xMax - this.xMin;
+            return this.xMin + (pos / this.plotWidth) * span;
+        }
+        const span = this.scaleMax - this.scaleMin;
+        return this.scaleMax - (pos / this.plotHeight) * span;
     }
 
     // The scale ranges `buildViewport` reads. `x`/`y` carry the current
@@ -102,9 +172,15 @@ export class MockUplot implements UplotLike {
         }
     }
 
-    setData(data: AlignedData): void {
-        this.records.push({ kind: "setData", data });
-        this.rangeXFrom(data);
+    setData(data: AlignedData, resetScales?: boolean): void {
+        this.records.push(
+            resetScales === undefined
+                ? { kind: "setData", data }
+                : { kind: "setData", data, resetScales },
+        );
+        // `resetScales: false` keeps the current x window (the user's held
+        // pan/zoom); otherwise uPlot re-ranges x from the new data.
+        if (resetScales !== false) this.rangeXFrom(data);
     }
 
     setScale(scaleKey: string, limits: { min: number; max: number }): void {

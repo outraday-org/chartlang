@@ -23,6 +23,9 @@ const STARTER = JSON.stringify({
         "@invinite-org/chartlang-compiler": "workspace:*",
         "@playwright/test": "^1.45.0",
         "chartlang-example-konva-adapter": "workspace:*",
+        konva: "^9",
+        "lightweight-charts": "^5",
+        uplot: "^1",
         vite: "^8",
     },
 });
@@ -82,6 +85,33 @@ describe("rewriteStarterPackageJson", () => {
         expect(pkg.dependencies.echarts).toBe("^5");
         expect(pkg.dependencies.react).toBe("^19");
         expect(pkg.devDependencies?.vite).toBe("^8");
+    });
+
+    it("drops every unused matrix chart lib and re-adds only the chosen one once", () => {
+        const pkg = parse(rewriteStarterPackageJson(baseOpts()));
+        // Non-chosen matrix libs (devDeps) are dropped entirely.
+        expect(pkg.devDependencies?.konva).toBeUndefined();
+        expect(pkg.devDependencies?.["lightweight-charts"]).toBeUndefined();
+        expect(pkg.devDependencies?.uplot).toBeUndefined();
+        // The chosen lib (echarts) is present exactly once, at its registry range.
+        expect(pkg.dependencies.echarts).toBe("^5");
+        expect(pkg.devDependencies?.echarts).toBeUndefined();
+    });
+
+    it("drops all matrix chart libs for the no-library (canvas2d) case", () => {
+        const pkg = parse(
+            rewriteStarterPackageJson(
+                baseOpts({
+                    libraryId: "canvas2d",
+                    chartLibrary: "",
+                    chartLibraryRange: "(built-in)",
+                }),
+            ),
+        );
+        expect(pkg.dependencies.echarts).toBeUndefined();
+        expect(pkg.devDependencies?.konva).toBeUndefined();
+        expect(pkg.devDependencies?.["lightweight-charts"]).toBeUndefined();
+        expect(pkg.devDependencies?.uplot).toBeUndefined();
     });
 
     it("drops the e2e scripts + Playwright runner (stripped with tests/)", () => {

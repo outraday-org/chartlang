@@ -15,6 +15,7 @@ import {
     bundleChartlangVersions,
     defaultDeps,
     renderLibraryChoices,
+    repointVendoredPackageJson,
     resolveAdapter,
     runCreateChartlang,
 } from "./createApp.js";
@@ -52,6 +53,11 @@ function fixtureClone(envExample = "DATABASE_URL=file:./data/starter.db\nEODDATA
     return async ({ dir }: CloneRequest): Promise<void> => {
         await mkdir(join(dir, "src", "lib", "chart"), { recursive: true });
         await writeFile(join(dir, "package.json"), STARTER_PKG, "utf8");
+        await writeFile(
+            join(dir, "tsconfig.json"),
+            JSON.stringify({ extends: "../../tsconfig.base.json", include: ["src"] }, null, 4),
+            "utf8",
+        );
         await writeFile(
             join(dir, "src", "lib", "chart", "activeAdapter.ts"),
             "// placeholder echarts seam\n",
@@ -150,11 +156,31 @@ describe("runCreateChartlang", () => {
             await runCreateChartlang([dir, "--library", id, "--no-install"], deps);
             expect(process.exitCode).toBeUndefined();
 
-            // Vendored adapter present + named locally.
+            // Vendored adapter present + named locally, resolving from source
+            // (no build step) — main/types/exports repointed to `./src/*.ts`.
             const vendoredPkg = JSON.parse(
                 await readFile(join(dir, "vendor", `${id}-adapter`, "package.json"), "utf8"),
-            ) as { name: string };
+            ) as {
+                name: string;
+                main?: string;
+                types?: string;
+                exports?: Record<string, { types?: string; import?: string }>;
+            };
             expect(vendoredPkg.name).toBe(`@local/${id}-adapter`);
+            expect(vendoredPkg.main).toBe("./src/index.ts");
+            expect(vendoredPkg.types).toBe("./src/index.ts");
+            const dot = vendoredPkg.exports?.["."];
+            expect(dot?.types).toBe("./src/index.ts");
+            expect(dot?.import).toBe("./src/index.ts");
+            for (const entry of Object.values(vendoredPkg.exports ?? {})) {
+                expect(entry.types?.startsWith("./src/")).toBe(true);
+                expect(entry.types?.endsWith(".ts")).toBe(true);
+                expect(entry.import?.startsWith("./src/")).toBe(true);
+                expect(entry.import?.endsWith(".ts")).toBe(true);
+            }
+            expect(await exists(join(dir, "vendor", `${id}-adapter`, "src", "index.ts"))).toBe(
+                true,
+            );
 
             // Seam rewritten to import the vendored adapter.
             const seam = await readFile(
@@ -212,6 +238,40 @@ describe("runCreateChartlang", () => {
         const env = await readFile(join(dir, ".env"), "utf8");
         expect(env).toContain("EODDATA_API_KEY=");
         expect(env).toContain("eoddata.com");
+    });
+
+    it("bakes a standalone tsconfig.base.json and repoints tsconfig extends", async () => {
+        const dir = join(root, "tsconfig-app");
+        const { deps } = makeDeps();
+        await runCreateChartlang([dir, "--library", "echarts", "--no-install"], deps);
+
+        expect(await exists(join(dir, "tsconfig.base.json"))).toBe(true);
+        const tsconfig = JSON.parse(await readFile(join(dir, "tsconfig.json"), "utf8")) as {
+            extends: string;
+        };
+        expect(tsconfig.extends).toBe("./tsconfig.base.json");
+    });
+
+    it("still bakes tsconfig.base.json when the clone has no tsconfig.json", async () => {
+        const dir = join(root, "no-tsconfig-app");
+        const { deps } = makeDeps({
+            cloneStarter: async (req) => {
+                await fixtureClone()(req);
+                await rm(join(req.dir, "tsconfig.json"), { force: true });
+            },
+        });
+        await runCreateChartlang([dir, "--library", "echarts", "--no-install"], deps);
+
+        expect(await exists(join(dir, "tsconfig.base.json"))).toBe(true);
+        expect(await exists(join(dir, "tsconfig.json"))).toBe(false);
+    });
+
+    it("writes an .npmrc with legacy-peer-deps for the vite8/esbuild peer", async () => {
+        const dir = join(root, "npmrc-app");
+        const { deps } = makeDeps();
+        await runCreateChartlang([dir, "--library", "echarts", "--no-install"], deps);
+        const npmrc = await readFile(join(dir, ".npmrc"), "utf8");
+        expect(npmrc).toContain("legacy-peer-deps=true");
     });
 
     it("defaults to echarts with --yes and no --library", async () => {
@@ -335,6 +395,62 @@ describe("runCreateChartlang", () => {
         const { deps } = makeDeps();
         await runCreateChartlang([dir, "--yes", "--no-install"], deps);
         expect(await exists(join(dir, "package.json"))).toBe(true);
+    });
+});
+
+describe("repointVendoredPackageJson", () => {
+    it("substitutes the name and repoints dist→src across main/types/exports", () => {
+        const pkg = JSON.parse(
+            repointVendoredPackageJson(
+                JSON.stringify({
+                    name: "__PKG_NAME__",
+                    main: "./dist/index.js",
+                    types: "./dist/index.d.ts",
+                    exports: {
+                        ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
+                        "./testing": { types: "./dist/testing.d.ts", import: "./dist/testing.js" },
+                    },
+                }),
+                "@local/x-adapter",
+            ),
+        ) as {
+            name: string;
+            main: string;
+            types: string;
+            exports: Record<string, { types: string; import: string }>;
+        };
+        expect(pkg.name).toBe("@local/x-adapter");
+        expect(pkg.main).toBe("./src/index.ts");
+        expect(pkg.types).toBe("./src/index.ts");
+        expect(pkg.exports["."]).toEqual({ types: "./src/index.ts", import: "./src/index.ts" });
+        expect(pkg.exports["./testing"]).toEqual({
+            types: "./src/testing.ts",
+            import: "./src/testing.ts",
+        });
+    });
+
+    it("leaves a non-dist value unchanged", () => {
+        const pkg = JSON.parse(
+            repointVendoredPackageJson(
+                JSON.stringify({ main: "./other/index.js", exports: { ".": {} } }),
+                "@local/x-adapter",
+            ),
+        ) as { main: string; exports: Record<string, { types?: string; import?: string }> };
+        expect(pkg.main).toBe("./other/index.js");
+        expect(pkg.exports["."]).toEqual({});
+    });
+
+    it("tolerates absent main/types/exports fields", () => {
+        const pkg = JSON.parse(
+            repointVendoredPackageJson(
+                JSON.stringify({ name: "__PKG_NAME__" }),
+                "@local/x-adapter",
+            ),
+        ) as { name: string; main?: string; types?: string; exports?: unknown };
+        expect(pkg.name).toBe("@local/x-adapter");
+        expect(pkg.main).toBeUndefined();
+        expect(pkg.types).toBeUndefined();
+        expect(pkg.exports).toBeUndefined();
     });
 });
 

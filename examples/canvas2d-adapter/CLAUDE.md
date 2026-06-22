@@ -48,6 +48,30 @@ Reference adapter package — **not published to npm**.
   structural forecast-line / anchored-line drawing assertions hold. Re-pin
   only on a deliberate visual change, as before.
 
+## Interaction (zoom / pan / auto-fit)
+
+- **`state.view` is an adapter-kit `ViewController`; `computePaneViewport`
+  resolves the x-window through it.** Per frame it calls
+  `state.view.resolveXWindow(dataXMin, dataXMaxExtended)` — the FULL data
+  range (auto-follow) until the user wheels/drags, then the held window. y
+  auto-fits the VISIBLE window via `computeYRange(..., win)` →
+  `yRangeInWindow` (bars + series filtered to the window; hlines folded in
+  unconditionally), matching lightweight-charts' auto price scale.
+- **DOM listeners attach ONLY to a real canvas.** The interaction-wiring
+  block (`attachInteraction(opts.canvas, …)`) is guarded by
+  `typeof opts.canvas.addEventListener === "function"` and `/* v8 ignore */`d
+  — headless tests pass `opts.ctx` + a bare `{ width, height }` canvas, so no
+  listeners attach. `requestRender` is `renderFrame(state)` (the loop only
+  repaints on candle events); the detach fn is stored on state and called in
+  `dispose`.
+- **`redraw(handle)` is the exported interaction re-render entry** (retrieves
+  state via the `HANDLE_STATE` WeakMap; throws the sentinel on a foreign
+  handle). The DOM handlers call `renderFrame` directly; `redraw` is the
+  public seam for the same.
+- **The pinned `hashCallLog` is UNCHANGED.** A no-interaction frame resolves
+  to the full data range and `yRangeInWindow` over the full window equals the
+  old all-data y-range, so the default render is byte-identical.
+
 ## Conventions
 
 - `package.json` carries `"private": true` and the unscoped name

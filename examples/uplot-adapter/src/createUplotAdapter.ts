@@ -8,11 +8,15 @@ import {
     type CandleEvent,
     type Capabilities,
     type DrawingEmission,
+    type InteractionHandlers,
     type LogEmission,
     type PlotEmission,
     type PlotStyle,
     type RunnerEmissions,
+    type ViewController,
     type Viewport,
+    attachInteraction,
+    createViewController,
     decomposeDrawing,
     defineAdapter,
     priceToY,
@@ -35,8 +39,11 @@ import { buildViewport, offsetForViewport } from "./viewport.js";
 const DEFAULT_INTERVAL = "1D";
 const MAX_RECENT_ALERTS = 256;
 const MAX_RECENT_LOGS = 5;
-// Reserved right gutter for uPlot's price axis, so series stop short of
-// the labels (mirrors canvas2d's `Y_AXIS_GUTTER_PX`).
+// Nominal right gutter for the price axis. Only feeds `computePaneViewportFor`'s
+// `pxWidth`, which now reaches just `renderFrame`'s `setScale("y", …)` (a y-range
+// consumer that ignores width) — the ctx pass projects candles/hlines through
+// uPlot's REAL plotting-area bbox via `buildViewport`, so the actual axis inset
+// is uPlot's, not this constant. Kept so the data viewport stays a full Viewport.
 const Y_AXIS_GUTTER_PX = 52;
 const Y_AXIS_PADDING = 0.05;
 const CANDLE_BODY_WIDTH_PX = 6;
@@ -67,6 +74,14 @@ export type UplotLike = {
     setScale(scaleKey: string, limits: { min: number; max: number }): void;
     destroy(): void;
     valToPos(val: number, scaleKey: string, canvasPixels?: boolean): number;
+    // Inverse of `valToPos` for the cursor pivot: a plotting-area pixel x
+    // back to a world time. uPlot exposes this natively; the wheel handler
+    // reads it to zoom about the cursor.
+    posToVal(pos: number, scaleKey: string): number;
+    // uPlot's plotting-area overlay element — the event target the
+    // pan/zoom listeners attach to (`attachInteraction`). A real uPlot
+    // hands its `u.over` div; `MockUplot` hands a dispatchable stub.
+    readonly over: HTMLElement;
     readonly ctx: RenderCtx;
     // The scale ranges (`x` = time, `y` = price) drawings project off,
     // and the plotting-area bbox (canvas px) the drawing-pass viewport is
@@ -115,7 +130,13 @@ export type UplotOptions = {
     readonly height: number;
     readonly paneKey: string;
     readonly series: ReadonlyArray<UplotSeriesSpec>;
-    readonly hooks: { readonly draw: ReadonlyArray<(u: UplotLike) => void> };
+    // `draw` paints candles/hlines/drawings each redraw; `ready` runs once
+    // after the instance mounts — the adapter wires pan/zoom listeners onto
+    // `u.over` there (what a real uPlot does post-construct).
+    readonly hooks: {
+        readonly draw: ReadonlyArray<(u: UplotLike) => void>;
+        readonly ready?: ReadonlyArray<(u: UplotLike) => void>;
+    };
 };
 
 /**
@@ -222,6 +243,16 @@ type AdapterState = {
     readonly recentAlerts: AlertEmission[];
     readonly currentAlertConditions: AlertConditionEmission[];
     readonly recentLogs: LogEmission[];
+    // Shared pan/zoom controller. uPlot owns the live scales, so the
+    // interaction handlers drive `setScale("x", …)` directly off the
+    // controller window across EVERY pane instance (x stays synced). Once
+    // `userInteracted` flips, `renderFrame` stops re-pinning y and switches
+    // `setData` to `resetScales:false` so live bars don't snap the view back.
+    readonly view: ViewController;
+    userInteracted: boolean;
+    // Detach functions returned by `attachInteraction`, one per wired pane
+    // instance; called on dispose to remove the pan/zoom listeners.
+    readonly interactionDetachers: Array<() => void>;
 };
 
 const HANDLE_STATE: WeakMap<UplotAdapterHandle, AdapterState> = new WeakMap();
@@ -246,8 +277,15 @@ function defaultUplotFactory(
             width: opts.width,
             height: opts.height,
             series: [{}, ...opts.series.map((s) => ({ label: s.label, stroke: s.stroke }))],
+            // Disable uPlot's native drag-to-zoom-select; ALL pan/zoom flows
+            // through the adapter's `attachInteraction` listeners (wired in
+            // the `ready` hook) so drag pans and the wheel zooms BOTH ways.
+            cursor: { drag: { x: false, y: false } },
             hooks: {
                 draw: opts.hooks.draw.map((fn) => (u: uPlot) => fn(u as unknown as UplotLike)),
+                ready: (opts.hooks.ready ?? []).map(
+                    (fn) => (u: uPlot) => fn(u as unknown as UplotLike),
+                ),
             },
         },
         mutableData,
@@ -389,14 +427,26 @@ function medianBarSpacing(bars: ReadonlyArray<Bar>): number {
     return gaps.length % 2 === 0 ? (gaps[mid - 1] + gaps[mid]) / 2 : gaps[mid];
 }
 
-// Project the candles for the overlay pane into pixel space.
-function projectCandles(bars: ReadonlyArray<Bar>, viewport: Viewport): ProjectedCandle[] {
+// Project the candles for the overlay pane into canvas (device) pixel
+// space. `viewport` is uPlot's plotting-area viewport (`buildViewport`), so
+// `timeToX`/`priceToY` land plotting-area-relative; `dx`/`dy` shift them to
+// the absolute canvas pixel uPlot's series occupy (the plotting-area offset
+// `offsetForViewport` returns). The candles paint directly to the device-px
+// `hooks.draw` ctx, so the offset is folded into the coords here rather than
+// via a ctx translate (the translate is reserved for the drawing pass, whose
+// presence/absence the renderer's tests assert by counting translates).
+function projectCandles(
+    bars: ReadonlyArray<Bar>,
+    viewport: Viewport,
+    dx: number,
+    dy: number,
+): ProjectedCandle[] {
     return bars.map((bar) => ({
-        x: timeToX(bar.time, viewport),
-        openY: priceToY(bar.open, viewport),
-        closeY: priceToY(bar.close, viewport),
-        highY: priceToY(bar.high, viewport),
-        lowY: priceToY(bar.low, viewport),
+        x: timeToX(bar.time, viewport) + dx,
+        openY: priceToY(bar.open, viewport) + dy,
+        closeY: priceToY(bar.close, viewport) + dy,
+        highY: priceToY(bar.high, viewport) + dy,
+        lowY: priceToY(bar.low, viewport) + dy,
     }));
 }
 
@@ -407,7 +457,12 @@ function projectCandles(bars: ReadonlyArray<Bar>, viewport: Viewport): Projected
 // paint drawings; Task 7 establishes it for hlines + candles.
 function paintPaneOverlay(state: AdapterState, paneKey: string, u: UplotLike): void {
     if (state.bars.length === 0) return;
-    const viewport = computePaneViewportFor(state, paneKey);
+    // uPlot's real plotting-area viewport (device px) + its canvas offset,
+    // so candles + hlines land exactly where uPlot's own series + axes do —
+    // not on a hand-rolled `state.width`-sized rect that ignored the axis
+    // inset and `devicePixelRatio` (the Retina mis-scale fix).
+    const viewport = buildViewport(u);
+    const { dx, dy } = offsetForViewport(u);
     const ctx = u.ctx;
     if (paneKey === "overlay") {
         const spacing = medianBarSpacing(state.bars);
@@ -420,21 +475,22 @@ function paintPaneOverlay(state: AdapterState, paneKey: string, u: UplotLike): v
             bull: DEFAULT_BULL,
             bear: DEFAULT_BEAR,
         };
-        drawCandlePaths(ctx, projectCandles(state.bars, viewport), style);
+        drawCandlePaths(ctx, projectCandles(state.bars, viewport, dx, dy), style);
     }
     for (const hline of state.hlines.values()) {
         if (hline.paneKey !== paneKey) continue;
         // uPlot owns the y scale, so the hline's pixel y comes from the
-        // instance's `valToPos` (canvas pixels) — the same coordinate
-        // bridge Task 8's drawings will use. The pane width caps the line.
+        // instance's `valToPos` (canvas/device pixels — already offset by
+        // `bbox.top`). The line spans the real plotting area: from the
+        // canvas-left offset across the plot width.
         const y = u.valToPos(hline.price, "y", true);
         if (!Number.isFinite(y)) continue;
         ctx.strokeStyle = hline.color;
         ctx.lineWidth = hline.lineWidth;
         ctx.setLineDash(dashPattern(hline.lineStyle));
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(viewport.pxWidth, y);
+        ctx.moveTo(dx, y);
+        ctx.lineTo(dx + viewport.pxWidth, y);
         ctx.stroke();
         // Restore solid 1px so the drawing pass + later hlines are not
         // contaminated by this line's width / dash (canvas2d convention).
@@ -521,8 +577,51 @@ function buildPaneOptions(state: AdapterState, paneKey: string): UplotOptions {
         height: state.height,
         paneKey,
         series: buildPaneSeries(state, paneKey),
-        hooks: { draw: [(u: UplotLike): void => paintPaneOverlay(state, paneKey, u)] },
+        hooks: {
+            draw: [(u: UplotLike): void => paintPaneOverlay(state, paneKey, u)],
+            ready: [(u: UplotLike): void => wireUplotInteraction(state, u)],
+        },
     };
+}
+
+// The world-x extent of the loaded bars — the data bounds the pan/zoom
+// controller clamps against (and the range a reset / auto-follow snaps to).
+function barsXBounds(state: AdapterState): { readonly xMin: number; readonly xMax: number } {
+    const { bars } = state;
+    if (bars.length === 0) return { xMin: 0, xMax: 1 };
+    let xMin = Number.POSITIVE_INFINITY;
+    let xMax = Number.NEGATIVE_INFINITY;
+    for (const bar of bars) {
+        if (bar.time < xMin) xMin = bar.time;
+        if (bar.time > xMax) xMax = bar.time;
+    }
+    return { xMin, xMax: xMax === xMin ? xMin + 1 : xMax };
+}
+
+// Wire wheel-zoom / drag-pan / dblclick-reset onto a pane instance's `over`
+// element (the `ready` hook calls this once per pane). All panes share
+// `state.view`, and a gesture pushes the resolved x-window onto EVERY
+// instance, so stacked panes stay x-synced. `attachInteraction`'s listener
+// plumbing lives in adapter-kit (DOM-bound); the bridge closures below are
+// covered by the headless `MockUplot` dispatch test.
+function wireUplotInteraction(state: AdapterState, u: UplotLike): void {
+    const handlers: InteractionHandlers = {
+        controller: state.view,
+        pxToWorldX: (px) => u.posToVal(px, "x"),
+        // World-x units per pixel = the world span of a 1px step, read
+        // straight off uPlot's inverse projection (no bbox math needed).
+        worldXPerPx: () => u.posToVal(1, "x") - u.posToVal(0, "x"),
+        dataBounds: () => barsXBounds(state),
+        requestRender: () => {
+            const { xMin, xMax } = barsXBounds(state);
+            const win = state.view.resolveXWindow(xMin, xMax);
+            for (const inst of state.instances.values()) {
+                inst.setScale("x", { min: win.xMin, max: win.xMax });
+            }
+            state.userInteracted = state.view.userInteracted;
+        },
+    };
+    state.interactionDetachers.push(attachInteraction(u.over, handlers));
 }
 
 // Lazily build, or update, the uPlot instance for each pane in pane
@@ -537,13 +636,17 @@ function renderFrame(state: AdapterState): void {
             instance = state.uplotFactory(buildPaneOptions(state, paneKey), data, state.target);
             state.instances.set(paneKey, instance);
         } else {
-            instance.setData(data);
+            // After the user pans/zooms, keep their x window (`resetScales:
+            // false`) so streaming bars don't snap the view back; until then
+            // re-range x to the data (auto-follow).
+            instance.setData(data, state.userInteracted ? false : undefined);
         }
         // Pin the y scale to the pane's range so `valToPos` (used by the
         // draw hook for hlines, and Task 8's drawings) is anchored to the
         // chartlang-computed window rather than uPlot's auto-range — the
-        // overlay pane must share the candle scale, a subpane its own.
-        if (state.bars.length > 0) {
+        // overlay pane must share the candle scale, a subpane its own. Once
+        // the user interacts, uPlot owns the y scale and the re-pin stops.
+        if (!state.userInteracted && state.bars.length > 0) {
             const viewport = computePaneViewportFor(state, paneKey);
             instance.setScale("y", { min: viewport.yMin, max: viewport.yMax });
         }
@@ -696,6 +799,9 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
         recentAlerts: [],
         currentAlertConditions: [],
         recentLogs: [],
+        view: createViewController(),
+        userInteracted: false,
+        interactionDetachers: [],
     };
     const host =
         opts.host ??
@@ -730,6 +836,8 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
             renderFrame(state);
         },
         dispose: () => {
+            for (const detach of state.interactionDetachers) detach();
+            state.interactionDetachers.length = 0;
             for (const instance of state.instances.values()) {
                 instance.destroy();
             }

@@ -106,6 +106,18 @@ lightweight-charts integration.
   and `setMarkers` → `createSeriesMarkers`, so the rest of the factory
   speaks only the structural `LwcChart` / `LwcSeries` shapes the mock
   also satisfies.
+- **`defaultCreateChart` applies a dark `ChartOptions` theme
+  (`DARK_CHART_THEME`) so the native chart blends into the (dark) host
+  card** instead of lightweight-charts' default white-on-light. The
+  background is **`transparent`** (the card behind `.chart-surface` shows
+  through, so it blends regardless of the exact card colour); text / grid /
+  axis-border use rgb / `rgba` slate values. Colours are **NOT the brand
+  `oklch` tokens** — lightweight-charts' own colour parser throws on
+  `oklch(...)`, so the resolved CSS custom properties (which serialise back
+  as `oklch`) crash the chart at construction. Mirrors the dark palette the
+  echarts adapter hardcodes (`#0b0e11`). This lives in the `v8 ignore`
+  block (DOM-only), so it is coverage-exempt and tests (driving `MockLwcApi`
+  via `opts.chartApi`) never see it.
 - **`MockLwcApi` records every native call into `LwcRecordedCall[]`;
   `hashLwcCallLog` canonicalises floats to 4 dp** — the same approach as
   the adapter-kit canvas `hashCallLog` (imported in tests over the public

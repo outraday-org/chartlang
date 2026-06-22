@@ -2,35 +2,35 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { priceToY, timeToX } from "@invinite-org/chartlang-adapter-kit";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { UplotLike } from "./createUplotAdapter.js";
 import { UPLOT_PRICE_SCALE, buildViewport, offsetForViewport } from "./viewport.js";
 
 // A minimal stand-in for a real uPlot instance exposing exactly the
 // `scales` / `bbox` / `valToPos` surface `buildViewport` reads, with a
-// real-uPlot-shaped `valToPos`: it folds the `bbox.left/top` offset in
-// and works in canvas px (× devicePixelRatio).
+// real-uPlot-shaped `valToPos`: it folds the `bbox.left/top` offset in and
+// works in canvas (device) px — `bbox` is already `× devicePixelRatio` and
+// `valToPos(.., true)` returns device px (uPlot's `getHPos`/`getVPos` use
+// the device-px `plotWid`/`plotLft`), the same space the `hooks.draw` ctx
+// draws in.
 function stubUplot(args: {
     xMin: number;
     xMax: number;
     yMin: number;
     yMax: number;
     bbox: { left: number; top: number; width: number; height: number };
-    dpr?: number;
 }): UplotLike {
-    const ratio = args.dpr ?? 1;
     const valToPos = (val: number, scaleKey: string): number => {
         if (scaleKey === "x") {
             const span = args.xMax - args.xMin;
-            const plotPx =
-                (span === 0 ? 0.5 : (val - args.xMin) / span) * (args.bbox.width / ratio);
-            return args.bbox.left / ratio + plotPx;
+            const plotPx = (span === 0 ? 0.5 : (val - args.xMin) / span) * args.bbox.width;
+            return args.bbox.left + plotPx;
         }
         const span = args.yMax - args.yMin;
         const norm = (val - args.yMin) / span;
-        const plotPx = args.bbox.height / ratio - norm * (args.bbox.height / ratio);
-        return args.bbox.top / ratio + plotPx;
+        const plotPx = args.bbox.height - norm * args.bbox.height;
+        return args.bbox.top + plotPx;
     };
     return {
         setData: () => {},
@@ -42,10 +42,6 @@ function stubUplot(args: {
         bbox: args.bbox,
     };
 }
-
-afterEach(() => {
-    vi.unstubAllGlobals();
-});
 
 describe("buildViewport", () => {
     it("reproduces u.valToPos (x and y) once the plotting-area offset is applied", () => {
@@ -59,6 +55,12 @@ describe("buildViewport", () => {
         const view = buildViewport(u);
         const { dx, dy } = offsetForViewport(u);
 
+        // The viewport carries uPlot's device-px plot dims + offset verbatim.
+        expect(view.pxWidth).toBe(600);
+        expect(view.pxHeight).toBe(300);
+        expect(dx).toBe(40);
+        expect(dy).toBe(10);
+
         // Sample several (time, price) pairs: the plotting-area projection
         // (timeToX/priceToY) plus the offset must equal uPlot's valToPos.
         for (const time of [1_000, 2_500, 5_000]) {
@@ -71,24 +73,24 @@ describe("buildViewport", () => {
         }
     });
 
-    it("reproduces valToPos under a devicePixelRatio > 1 (CSS-px viewport)", () => {
-        vi.stubGlobal("devicePixelRatio", 2);
+    it("reproduces valToPos on a Retina-shaped bbox (device px, offset > 0)", () => {
+        // bbox is already × devicePixelRatio (e.g. a 400×300 CSS plot at
+        // dpr 2 → 800×600 device px, inset 80×20 device px). The viewport
+        // stays in that device-px space, so the ctx-drawn marks land on the
+        // same canvas pixel uPlot's series do — the Retina fix.
         const u = stubUplot({
             xMin: 0,
             xMax: 10,
             yMin: 0,
             yMax: 50,
-            // bbox is canvas px (already × dpr); width 800 canvas px == 400 CSS px.
             bbox: { left: 80, top: 20, width: 800, height: 600 },
-            dpr: 2,
         });
         const view = buildViewport(u);
         const { dx, dy } = offsetForViewport(u);
-        // CSS-px viewport: 400 × 300, offset 40 × 10.
-        expect(view.pxWidth).toBe(400);
-        expect(view.pxHeight).toBe(300);
-        expect(dx).toBe(40);
-        expect(dy).toBe(10);
+        expect(view.pxWidth).toBe(800);
+        expect(view.pxHeight).toBe(600);
+        expect(dx).toBe(80);
+        expect(dy).toBe(20);
         expect(timeToX(5, view) + dx).toBeCloseTo(u.valToPos(5, "x", true), 6);
         expect(priceToY(25, view) + dy).toBeCloseTo(u.valToPos(25, "y", true), 6);
     });
@@ -105,23 +107,5 @@ describe("buildViewport", () => {
         };
         const view = buildViewport(u);
         expect(view).toMatchObject({ xMin: 0, xMax: 1, yMin: 0, yMax: 1 });
-    });
-
-    it("treats a zero / missing devicePixelRatio as 1", () => {
-        vi.stubGlobal("devicePixelRatio", 0);
-        const u = stubUplot({
-            xMin: 0,
-            xMax: 1,
-            yMin: 0,
-            yMax: 1,
-            bbox: { left: 5, top: 7, width: 200, height: 100 },
-        });
-        const view = buildViewport(u);
-        const { dx, dy } = offsetForViewport(u);
-        // dpr clamped to 1 ⇒ CSS px == canvas px.
-        expect(view.pxWidth).toBe(200);
-        expect(view.pxHeight).toBe(100);
-        expect(dx).toBe(5);
-        expect(dy).toBe(7);
     });
 });

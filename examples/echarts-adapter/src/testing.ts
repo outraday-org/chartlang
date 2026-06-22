@@ -69,6 +69,11 @@ export function mockValueToPixel(value: readonly [number, number]): readonly [nu
  */
 export class MockECharts implements EChartsSurface {
     readonly calls: RecordedOptionCall[] = [];
+    // The live `dataZoom` window, mirroring how a real ECharts instance
+    // tracks the user's inside-zoom across `setOption` rebuilds. Updated from
+    // each applied option's `dataZoom`, and overridable via
+    // {@link applyUserZoom} to simulate a wheel/drag interaction.
+    private currentZoom: { readonly start: number; readonly end: number } | undefined;
 
     setOption(option: EChartsOption, opts?: SetOptionOpts): void {
         this.calls.push(
@@ -76,6 +81,41 @@ export class MockECharts implements EChartsSurface {
                 ? { kind: "setOption", option }
                 : { kind: "setOption", option, opts },
         );
+        const zoom = readDataZoom(option);
+        if (zoom !== undefined) this.currentZoom = zoom;
+    }
+
+    /**
+     * Read the live option's `dataZoom` window — the slice the adapter reads
+     * back to preserve the user's zoom across its `notMerge:true` rebuild. A
+     * real ECharts `getOption()` returns far more; only `dataZoom` is modelled.
+     *
+     * @since 1.6
+     * @stable
+     * @example
+     *     import { MockECharts } from "chartlang-example-echarts-adapter/testing";
+     *     const m = new MockECharts();
+     *     m.getOption(); // {}
+     */
+    getOption(): {
+        readonly dataZoom?: ReadonlyArray<{ readonly start: number; readonly end: number }>;
+    } {
+        return this.currentZoom === undefined ? {} : { dataZoom: [this.currentZoom] };
+    }
+
+    /**
+     * Simulate a user inside-zoom / pan: set the live `dataZoom` window the
+     * next {@link getOption} returns, as a real ECharts does on a wheel/drag.
+     *
+     * @since 1.6
+     * @stable
+     * @example
+     *     import { MockECharts } from "chartlang-example-echarts-adapter/testing";
+     *     const m = new MockECharts();
+     *     m.applyUserZoom(20, 80);
+     */
+    applyUserZoom(start: number, end: number): void {
+        this.currentZoom = { start, end };
     }
 
     resize(): void {
@@ -104,6 +144,23 @@ export class MockECharts implements EChartsSurface {
         }
         return undefined;
     }
+}
+
+// Pull the first `dataZoom`'s numeric `start`/`end` out of an applied option,
+// or `undefined` when the option carries no inside-zoom window (ECharts' loose
+// `dataZoom` type → a guarded read).
+function readDataZoom(
+    option: EChartsOption,
+): { readonly start: number; readonly end: number } | undefined {
+    const dz = option.dataZoom as
+        | ReadonlyArray<{ start?: number; end?: number }>
+        | { start?: number; end?: number }
+        | undefined;
+    const first = Array.isArray(dz) ? dz[0] : undefined;
+    if (first !== undefined && typeof first.start === "number" && typeof first.end === "number") {
+        return { start: first.start, end: first.end };
+    }
+    return undefined;
 }
 
 const FLOAT_DECIMALS = 4;

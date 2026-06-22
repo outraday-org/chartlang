@@ -19,6 +19,21 @@ export type {
     StrokeStyle,
     Viewport,
 } from "./geometry/index.js";
+export {
+    attachInteraction,
+    createViewController,
+    onDblCore,
+    onDragCore,
+    onWheelCore,
+    yRangeInWindow,
+} from "./interaction/index.js";
+export type {
+    InteractionHandlers,
+    ViewController,
+    ViewControllerOpts,
+    WindowYInput,
+    XWindow,
+} from "./interaction/index.js";
 export type {
     Adapter,
     AdapterSymInfo,

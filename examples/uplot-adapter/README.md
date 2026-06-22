@@ -65,6 +65,13 @@ await adapter.host.load({ moduleSource: compiled.moduleSource, manifest: compile
 await runUplotLoop(adapter);
 ```
 
+**Import uPlot's stylesheet once in your app** (`import "uplot/dist/uPlot.min.css"`).
+uPlot ships its canvas sizing + `.u-wrap`/`.u-over` layout in CSS; without it the
+canvas renders at its device-px backing size (2× on Retina) and overflows the
+mount, so the chart appears tiny in a clipped corner. The adapter source does not
+import it (a `.css` import would break the headless test + SSR graph) — it is the
+consuming app's responsibility.
+
 ## Docs
 
 See the [adapter gallery](../../docs/adapters/gallery.md) for a comparison of

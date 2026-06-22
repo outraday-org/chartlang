@@ -38,4 +38,16 @@ export type EChartsSurface = {
         finder: { readonly gridIndex: number },
         value: readonly [number, number],
     ): readonly [number, number] | undefined;
+    /**
+     * Optional reader for the live option tree. The adapter rebuilds the
+     * whole option every drain with `notMerge: true`, which would reset any
+     * user `dataZoom` window; before each rebuild it reads the current
+     * `dataZoom[0].start`/`.end` back through this and re-applies them, so an
+     * inside-zoom/pan survives the rebuild. The real `echarts.init(...)`
+     * instance implements `getOption()`; the headless default omits it (no
+     * zoom to preserve). Only the `dataZoom` slice is consumed.
+     */
+    getOption?(): {
+        readonly dataZoom?: ReadonlyArray<{ readonly start: number; readonly end: number }>;
+    };
 };

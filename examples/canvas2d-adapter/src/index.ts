@@ -3,7 +3,7 @@
 
 import { DEFAULT_ADAPTER } from "./defaultAdapter.js";
 
-export { createCanvas2dAdapter, runRendererLoop } from "./createCanvas2dAdapter.js";
+export { createCanvas2dAdapter, redraw, runRendererLoop } from "./createCanvas2dAdapter.js";
 export type {
     Canvas2dAdapterHandle,
     CreateCanvas2dAdapterOpts,
