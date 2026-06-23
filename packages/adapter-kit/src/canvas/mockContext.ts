@@ -31,6 +31,14 @@ export type RecordedCall =
     | { readonly kind: "lineTo"; readonly x: number; readonly y: number }
     | { readonly kind: "stroke" }
     | {
+          readonly kind: "rect";
+          readonly x: number;
+          readonly y: number;
+          readonly w: number;
+          readonly h: number;
+      }
+    | { readonly kind: "clip" }
+    | {
           readonly kind: "fillRect";
           readonly x: number;
           readonly y: number;
@@ -117,6 +125,14 @@ export class MockCanvasContext {
 
     stroke(): void {
         this.calls.push({ kind: "stroke" });
+    }
+
+    rect(x: number, y: number, w: number, h: number): void {
+        this.calls.push({ kind: "rect", x, y, w, h });
+    }
+
+    clip(): void {
+        this.calls.push({ kind: "clip" });
     }
 
     fillRect(x: number, y: number, w: number, h: number): void {
@@ -218,6 +234,7 @@ function canonicalise(call: RecordedCall): Record<string, unknown> {
     switch (call.kind) {
         case "clearRect":
         case "fillRect":
+        case "rect":
             return {
                 kind: call.kind,
                 x: roundFloat(call.x),
@@ -257,6 +274,7 @@ function canonicalise(call: RecordedCall): Record<string, unknown> {
         case "stroke":
         case "fill":
         case "closePath":
+        case "clip":
             return { kind: call.kind };
     }
 }

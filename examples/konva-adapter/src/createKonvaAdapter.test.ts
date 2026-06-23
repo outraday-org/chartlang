@@ -645,6 +645,105 @@ describe("createKonvaAdapter — plots", () => {
     });
 });
 
+describe("createKonvaAdapter — plot x-shift (universal offset)", () => {
+    const LINE: PlotStyle = { kind: "line", lineWidth: 1, lineStyle: "solid" };
+
+    // Three bars at times 0 / 10 / 20 (median spacing 10) so a `+k` past the
+    // data edge extrapolates from bar 2's time + k·spacing and a `−k` before
+    // bar 0 extrapolates left into a negative x.
+    function withThreeBars(): { adapter: KonvaAdapterHandle; konva: MockKonva } {
+        const ctx = build();
+        feedCandleEvent(ctx.adapter, {
+            kind: "history",
+            bars: [bar(0, 10, 12, 8, 11), bar(10, 11, 13, 10, 12), bar(20, 12, 14, 11, 13)],
+        });
+        return { adapter: ctx.adapter, konva: ctx.konva };
+    }
+
+    // The last-point x of the line series whose stroke matches `color`. Each
+    // series carries two points (`[x0,y0,x1,y1]`), so the bar-2 point's x is
+    // `points[2]`.
+    function lastX(konva: MockKonva, color: string): number {
+        const line = groupChildren(konva)[0].find(
+            (n) => n.type === "Line" && n.config.stroke === color,
+        );
+        expect(line).toBeDefined();
+        const points = (line as RecordedNode).config.points;
+        expect(Array.isArray(points)).toBe(true);
+        return (points as number[])[2];
+    }
+
+    // Emit one two-point line series (bar 0 + bar 2) at `color`, optionally
+    // displaced by `xShift`, into the SAME drain so all copies share one
+    // (widened) viewport and their bar-2 x-coords are directly comparable.
+    function shiftedSeries(
+        slotId: string,
+        color: string,
+        over: Partial<PlotEmission>,
+    ): ReadonlyArray<PlotEmission> {
+        return [
+            plot(slotId, LINE, { bar: 0, time: 0, value: 11, color, ...over }),
+            plot(slotId, LINE, { bar: 2, time: 20, value: 13, color, ...over }),
+        ];
+    }
+
+    it("projects a +5 point to a greater x and a −5 point to a smaller x than its own bar", () => {
+        const { adapter, konva } = withThreeBars();
+        // All three copies in one frame → one shared, +5-widened viewport.
+        adapter.onEmissions(
+            emissions([
+                ...shiftedSeries("base", "#000001", {}),
+                ...shiftedSeries("right", "#000002", { xShift: 5 }),
+                ...shiftedSeries("left", "#000003", { xShift: -5 }),
+            ]),
+        );
+        const baseX = lastX(konva, "#000001");
+        // +5: bar 2 → index 7, extrapolated to time 70 (the widened xMax), so
+        // bar 2's own point sits left of it.
+        const rightX = lastX(konva, "#000002");
+        // −5: bar 2 → index −3, extrapolated to time −30, a negative
+        // (canvas-clipped) x left of bar 2.
+        const leftX = lastX(konva, "#000003");
+
+        expect(rightX).toBeGreaterThan(baseX);
+        expect(leftX).toBeLessThan(baseX);
+        expect(leftX).toBeLessThan(0);
+    });
+
+    it("treats xShift 0 as the no-shift projection (omitted on the stored point)", () => {
+        const { adapter, konva } = withThreeBars();
+        adapter.onEmissions(
+            emissions([
+                ...shiftedSeries("base", "#000004", {}),
+                ...shiftedSeries("zero", "#000005", { xShift: 0 }),
+            ]),
+        );
+        // No `+k` shift fires, so neither series widens `xMax`; a `0` shift is
+        // omitted on the stored point and projects identically to no shift.
+        expect(lastX(konva, "#000005")).toBe(lastX(konva, "#000004"));
+    });
+
+    it("shifts a glyph (shape) copy right via the same offset funnel", () => {
+        const { adapter, konva } = withThreeBars();
+        adapter.onEmissions(
+            emissions([
+                plot(
+                    "g",
+                    { kind: "shape", shape: "circle", size: 6 },
+                    { bar: 2, time: 20, value: 13, xShift: 5 },
+                ),
+            ]),
+        );
+        // The shifted glyph Rect lands at a greater x than the last bar's own
+        // candle column (its bar-2 anchor without the shift would sit at the
+        // data edge before widening).
+        const glyph = groupChildren(konva)[0].find(
+            (n) => n.type === "Rect" && typeof n.config.fill === "string" && n.config.width === 6,
+        );
+        expect(glyph).toBeDefined();
+    });
+});
+
 describe("createKonvaAdapter — glyph / override / style kinds", () => {
     function emit(style: PlotStyle, over: Partial<PlotEmission> = {}): RecordedNode[] {
         const ctx = build();
@@ -729,12 +828,34 @@ describe("createKonvaAdapter — glyph / override / style kinds", () => {
         expect(co.some((n) => n.config.fill === "#0f0")).toBe(false);
     });
 
-    it("renders a bg-color background Rect", () => {
-        expect(
-            emit({ kind: "bg-color", color: "#222" }, { time: 0 }).some(
-                (n) => n.config.fill === "#222",
-            ),
-        ).toBe(true);
+    it("renders a bg-color background Rect at full opacity when transp is omitted", () => {
+        const bg = emit({ kind: "bg-color", color: "#222" }, { time: 0 }).find(
+            (n) => n.config.fill === "#222",
+        );
+        expect(bg).toBeDefined();
+        // transp omitted ⇒ opacity 1 (byte-identical to a transp-less band).
+        expect(bg?.config.opacity).toBe(1);
+    });
+
+    it("derives a bg-color Rect's opacity from transp (85 ⇒ 0.15)", () => {
+        const bg = emit({ kind: "bg-color", color: "#222", transp: 85 }, { time: 0 }).find(
+            (n) => n.config.fill === "#222",
+        );
+        expect(bg?.config.opacity).toBeCloseTo(0.15, 10);
+    });
+
+    it("lets a bg-color colorValue override the static color per bar", () => {
+        // present colorValue wins over style.color (the precedence contract).
+        const over = emit({ kind: "bg-color", color: "#222" }, { time: 0, colorValue: "#16a34a" });
+        expect(over.some((n) => n.config.fill === "#16a34a")).toBe(true);
+        expect(over.some((n) => n.config.fill === "#222")).toBe(false);
+    });
+
+    it("paints no bg-color band when colorValue is an explicit null gap", () => {
+        const gap = emit({ kind: "bg-color", color: "#222" }, { time: 0, colorValue: null });
+        // The background band is the only Rect built with `listening: false`;
+        // a null gap paints nothing, so no such Rect exists.
+        expect(gap.some((n) => n.type === "Rect" && n.config.listening === false)).toBe(false);
     });
 
     it("renders a bg-color spanning the full plot width when there are no bars", () => {

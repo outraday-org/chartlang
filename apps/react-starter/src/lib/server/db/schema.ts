@@ -2,10 +2,13 @@
 // See the LICENSE file in the repo root for full license text.
 //
 // Drizzle schema for the starter's single-file SQLite DB. One migration
-// set covers the whole app, so the two tables Task 4 (EODData) owns are
-// declared here alongside the saved-script table — Task 4 fills in the
-// read/write logic over `eodCache` + `apiUsage`; this task only uses
-// `scripts`.
+// set covers the whole app: the saved-script table plus the `eodCache`
+// table that backs the daily-bar read-through cache.
+//
+// NOTE: the baseline migration also created a legacy `api_usage` table for an
+// earlier metered data source; the app no longer reads or writes it (the Yahoo
+// source is unmetered), so it is intentionally absent from this schema. The
+// table is harmlessly left in any existing DB.
 
 import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core"
 
@@ -20,29 +23,20 @@ export const scripts = sqliteTable("scripts", {
 })
 
 /**
- * Cached EODData daily bars, keyed by symbol (one row per symbol+range).
- * Owned by Task 4 — declared here so the migration set is whole. `bars`
- * holds a serialized `Bar[]` (`@invinite-org/chartlang-core`).
+ * Cached daily bars, keyed by symbol (one row per symbol+range). `bars` holds
+ * a serialized `Bar[]` (`@invinite-org/chartlang-core`); the read-through cache
+ * (`src/lib/server/eod/cache.ts`) refreshes each symbol once a day.
  */
 export const eodCache = sqliteTable(
   "eod_cache",
   {
     symbol: text("symbol").notNull(),
-    rangeKey: text("range_key").notNull(), // e.g. "daily:max", "symbols:US"
+    rangeKey: text("range_key").notNull(), // e.g. "daily:max"
     bars: text("bars", { mode: "json" }).notNull(),
     fetchedAt: integer("fetched_at", { mode: "timestamp_ms" }).notNull(),
   },
   (t) => [primaryKey({ columns: [t.symbol, t.rangeKey] })],
 )
-
-/**
- * Per-UTC-day API-call counter protecting the EODData free tier's 100/day
- * quota. Owned by Task 4. `day` is the UTC `YYYY-MM-DD` key.
- */
-export const apiUsage = sqliteTable("api_usage", {
-  day: text("day").primaryKey(), // "2026-06-21" (UTC)
-  calls: integer("calls").notNull().default(0),
-})
 
 /** A persisted script row (all columns). */
 export type ScriptRow = typeof scripts.$inferSelect

@@ -15,7 +15,9 @@ import {
     type Viewport,
     decomposeDrawing,
     defineAdapter,
+    medianBarSpacing,
     priceToY,
+    shiftedBarIndex,
     validateEmission,
 } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, LineStyle } from "@invinite-org/chartlang-core";
@@ -48,6 +50,13 @@ const MAX_RECENT_ALERTS = 256;
 const GAP = "-";
 const DEFAULT_BG_COLOR = "#0b0e11";
 const DEFAULT_LINE_COLOR = "#3b82f6";
+// Candle body colours, pinned to the canvas2d reference palette so the two
+// adapters look like one product (bull green / bear red). ECharts' candlestick
+// `itemStyle` keys the UP body on `color`/`borderColor` and the DOWN body on
+// `color0`/`borderColor0`; relying on the library default would tint candles
+// with ECharts' stock red/green instead.
+const CANDLE_BULL_COLOR = "#26a69a";
+const CANDLE_BEAR_COLOR = "#ef5350";
 // A volume-profile (`horizontal-histogram`) bucket renders as a left-anchored
 // horizontal bar: the longest bucket spans `HHIST_MAX_WIDTH_PX` and each row is
 // `HHIST_ROW_HEIGHT_PX` tall. Mirrors the konva adapter's per-bucket geometry.
@@ -113,13 +122,18 @@ export type EChartsAdapterHandle = Adapter & { readonly host: ScriptHost };
 
 // A stored line/area/histogram series point, aligned to its bar index so the
 // option builder can scatter it into a per-bar data array (gaps become `GAP`).
-// `style` is captured only for `filled-band`, whose per-bar `upper`/`lower`
+// `xShift` is the universal `ta` `offset` (signed integer bars; `+n` displaces
+// the point right / future, `−n` left / past) — the point's VALUE is unchanged,
+// only the category column it occupies (`shiftedBarIndex(bar, xShift)`). Omitted
+// for an unshifted point so a no-offset frame is byte-identical to the pre-shift
+// data. `style` is captured only for `filled-band`, whose per-bar `upper`/`lower`
 // bounds ride the emission's style (not its `value`); other kinds leave it
 // undefined and the series-level style governs.
 type SeriesPoint = {
     readonly bar: number;
     readonly value: number | null;
     readonly color: string | null;
+    readonly xShift?: number;
     readonly style?: PlotStyle;
 };
 
@@ -149,6 +163,13 @@ type StoredHLine = {
 // bar-color), keyed by bar time. Last-write-wins per bar.
 type CandleStyle = { readonly color: string };
 
+// A per-bar `bg-color` vertical band, keyed by bar time. `color` is the
+// resolved per-bar paint (the `colorValue`/`style.color` precedence is settled
+// at ingest); `transp` is the IR transparency (0 opaque … 100 fully
+// transparent). Last-write-wins per bar; an explicit `colorValue: null` deletes
+// the bar's entry (paint nothing this bar).
+type BgBand = { readonly color: string; readonly transp: number | undefined };
+
 type AdapterState = {
     readonly chart: EChartsSurface;
     readonly backgroundColor: string;
@@ -163,8 +184,11 @@ type AdapterState = {
     readonly hlines: Map<string, StoredHLine>;
     // Per-bar candlestick body colour override, keyed by bar time.
     readonly candleStyles: Map<number, CandleStyle>;
-    // Last background colour an emission requested (bg-color), or undefined.
-    bgColor: string | undefined;
+    // Per-bar `bg-color` vertical bands, keyed by bar time. Rendered as a
+    // candlestick `markArea` (one xAxis-interval item per band) — NOT the
+    // whole-chart background. Adjacent bars with different colours produce
+    // adjacent translucent stripes.
+    readonly bgBands: Map<number, BgBand>;
     readonly recentAlerts: AlertEmission[];
     readonly currentAlertConditions: AlertConditionEmission[];
     readonly recentLogs: LogEmission[];
@@ -197,13 +221,19 @@ function gridIndexOf(state: AdapterState, paneKey: string): number {
 }
 
 // Map a stored series' aligned points onto a full per-bar data array, with
-// `GAP` for missing / non-finite bars so ECharts breaks the line.
+// `GAP` for missing / non-finite bars so ECharts breaks the line. The value is
+// written at the point's SHIFTED category column (`shiftedBarIndex(bar,
+// xShift)`) — `+k` lands in one of the synthetic future slots the caller
+// appended (so `barCount` is already extended by the max positive shift), and a
+// negative index is clipped (no negative category). `xShift` omitted / `0`
+// resolves to the bar's own index, byte-identical to the pre-offset data.
 function seriesData(points: ReadonlyArray<SeriesPoint>, barCount: number): Array<number | string> {
     const data: Array<number | string> = new Array(barCount).fill(GAP);
     for (const point of points) {
-        if (point.bar < 0 || point.bar >= barCount) continue;
+        const index = shiftedBarIndex(point.bar, point.xShift);
+        if (index < 0 || index >= barCount) continue;
         if (point.value === null || !Number.isFinite(point.value)) continue;
-        data[point.bar] = point.value;
+        data[index] = point.value;
     }
     return data;
 }
@@ -289,12 +319,13 @@ function bandData(
 ): Array<number | string> {
     const data: Array<number | string> = new Array(barCount).fill(GAP);
     for (const point of points) {
-        if (point.bar < 0 || point.bar >= barCount) continue;
+        const index = shiftedBarIndex(point.bar, point.xShift);
+        if (index < 0 || index >= barCount) continue;
         const style = point.style;
         if (style === undefined || style.kind !== "filled-band") continue;
         const bound = pick(style);
         if (bound === null || !Number.isFinite(bound)) continue;
-        data[point.bar] = bound;
+        data[index] = bound;
     }
     return data;
 }
@@ -385,9 +416,92 @@ function syncUserZoom(state: AdapterState): void {
     state.zoomEnd = zoom.end;
 }
 
+// Reset the inside-`dataZoom` window to the full range and re-apply the option
+// tree, for parity with the canvas2d reference adapter's double-click reset.
+// `buildOption` reads `zoomStart`/`zoomEnd` straight back into the dataZoom, so
+// resetting them and re-applying snaps the window to the whole category axis.
+function resetZoom(state: AdapterState): void {
+    state.zoomStart = 0;
+    state.zoomEnd = 100;
+    state.chart.setOption(buildOption(state), { notMerge: true });
+}
+
+// Map the IR transparency (0 opaque … 100 fully transparent) onto an ECharts
+// `itemStyle.opacity` (1 opaque … 0 fully transparent). An omitted `transp`
+// is fully opaque (`alpha === 1`), matching the canvas2d reference adapter.
+function bgBandOpacity(transp: number | undefined): number {
+    return 1 - (transp ?? 0) / 100;
+}
+
+// Build the candlestick `markArea` for the per-bar `bg-color` bands. Each live
+// band becomes ONE x-axis-interval `markArea` item spanning that bar's category
+// (`xAxis: barIndex` start → end), full-height (the y bounds are omitted so the
+// area spans the whole grid), tinted with the per-bar colour at `1 - transp/100`
+// opacity. A bar with no band (or a `colorValue: null` gap) contributes no item,
+// so adjacent differently-coloured bars render as adjacent stripes and an
+// unwashed bar stays clear. Returns `undefined` when no band is live so the
+// candlestick series carries no empty `markArea`.
+// ECharts' `markArea.data` 2D item is a MUTABLE `[start, end]` tuple, so this
+// mirrors that shape (start carries the per-band tint; end only the interval).
+type BgMarkAreaItem = [
+    { xAxis: number; itemStyle: { color: string; opacity: number } },
+    { xAxis: number },
+];
+
+function buildBgMarkAreaData(state: AdapterState): BgMarkAreaItem[] | undefined {
+    if (state.bgBands.size === 0) return undefined;
+    const items: BgMarkAreaItem[] = [];
+    state.bars.forEach((bar, index) => {
+        const band = state.bgBands.get(bar.time);
+        if (band === undefined) return;
+        items.push([
+            { xAxis: index, itemStyle: { color: band.color, opacity: bgBandOpacity(band.transp) } },
+            { xAxis: index },
+        ]);
+    });
+    return items.length === 0 ? undefined : items;
+}
+
+// The largest POSITIVE category shift any stored series point reaches, across
+// EVERY series. A category/index axis has no slot past its last bar, so a `+k`
+// shifted point needs `k` synthetic future columns appended to the axis (and to
+// the per-series data length) or it would be clipped off the right edge. A
+// far-past (`−k`) point is clipped at a negative index instead and never widens
+// the axis; an omitted / `0` shift contributes nothing, so a no-offset frame
+// returns `0` and the axis is unchanged.
+function maxPositiveShift(state: AdapterState): number {
+    let max = 0;
+    for (const stored of state.series.values()) {
+        for (const point of stored.points) {
+            const shift = point.xShift ?? 0;
+            if (shift > max) max = shift;
+        }
+    }
+    return max;
+}
+
 function buildOption(state: AdapterState): EChartsOption {
     const barCount = state.bars.length;
+    // Extend the category axis by the max positive shift so a `+k` displaced
+    // series point has a real column. The synthetic future bar-times extrapolate
+    // from the last real bar at the run's median spacing. With no offset
+    // (`maxShift === 0`) `categories` and `barCount` are unchanged, so a
+    // no-offset frame is byte-identical to the pre-offset build. The candlestick
+    // + bg/bar markArea keep their REAL bar indices — only the shifted series
+    // address the extended columns.
+    // A shift past the data edge is only meaningful when there are real bars to
+    // extend from (no bars ⇒ no candlestick + no last-bar time to extrapolate),
+    // so gate the extension on `barCount > 0`.
+    const maxShift = barCount > 0 ? maxPositiveShift(state) : 0;
+    const extendedBarCount = barCount + maxShift;
     const categories = state.bars.map((bar) => bar.time);
+    if (maxShift > 0) {
+        const spacing = medianBarSpacing(state.bars);
+        const lastTime = state.bars[barCount - 1].time;
+        for (let k = 1; k <= maxShift; k += 1) {
+            categories.push(lastTime + k * spacing);
+        }
+    }
     const grids = state.paneOrder.map((_paneKey, i) => ({
         // Price axis sits on the RIGHT (the house convention — canvas2d, the
         // reference adapter, and lightweight-charts both do), so the label
@@ -420,13 +534,24 @@ function buildOption(state: AdapterState): EChartsOption {
     const series: SeriesOption[] = [];
 
     // Candlestick on the overlay grid (index 0). Per-bar itemStyle overrides
-    // (candle-override / bar-override / bar-color) tint individual bodies.
+    // (candle-override / bar-override / bar-color) tint individual bodies; the
+    // per-bar `bg-color` bands ride this series' `markArea` (one full-height
+    // category-interval stripe per band).
     if (barCount > 0) {
+        const bgMarkArea = buildBgMarkAreaData(state);
         series.push({
             type: "candlestick",
             name: "candles",
             xAxisIndex: 0,
             yAxisIndex: 0,
+            // Explicit bull/bear body colours (canvas2d parity) — without these
+            // ECharts paints its own default red/green.
+            itemStyle: {
+                color: CANDLE_BULL_COLOR,
+                color0: CANDLE_BEAR_COLOR,
+                borderColor: CANDLE_BULL_COLOR,
+                borderColor0: CANDLE_BEAR_COLOR,
+            },
             data: state.bars.map((bar) => {
                 const override = state.candleStyles.get(bar.time);
                 const value = [bar.open, bar.close, bar.low, bar.high];
@@ -434,6 +559,7 @@ function buildOption(state: AdapterState): EChartsOption {
                     ? value
                     : { value, itemStyle: { color: override.color, color0: override.color } };
             }),
+            ...(bgMarkArea === undefined ? {} : { markArea: { data: bgMarkArea } }),
         });
     }
 
@@ -445,20 +571,20 @@ function buildOption(state: AdapterState): EChartsOption {
             case "line":
             case "step-line":
                 series.push(
-                    lineSeries(name, stored, stored.style, barCount, grid, {
+                    lineSeries(name, stored, stored.style, extendedBarCount, grid, {
                         ...(stored.style.kind === "step-line" ? { step: "end" } : {}),
                     }),
                 );
                 break;
             case "area":
                 series.push(
-                    lineSeries(name, stored, stored.style, barCount, grid, {
+                    lineSeries(name, stored, stored.style, extendedBarCount, grid, {
                         areaStyle: { opacity: stored.style.fillAlpha },
                     }),
                 );
                 break;
             case "histogram":
-                series.push(barSeries(name, stored, barCount, grid));
+                series.push(barSeries(name, stored, extendedBarCount, grid));
                 break;
             case "horizontal-histogram":
                 // A volume-profile series is NOT a per-bar bar: its geometry
@@ -477,7 +603,7 @@ function buildOption(state: AdapterState): EChartsOption {
                     stack,
                     showSymbol: false,
                     lineStyle: { opacity: 0 },
-                    data: bandData(stored.points, barCount, (s) => s.lower),
+                    data: bandData(stored.points, extendedBarCount, (s) => s.lower),
                     z: stored.z,
                 });
                 series.push({
@@ -492,7 +618,7 @@ function buildOption(state: AdapterState): EChartsOption {
                     // Stacked on `lower`, so the upper edge carries the band
                     // THICKNESS (`upper - lower`) and the stack sum lands at
                     // the true upper price.
-                    data: bandData(stored.points, barCount, (s) =>
+                    data: bandData(stored.points, extendedBarCount, (s) =>
                         s.upper === null || s.lower === null ? null : s.upper - s.lower,
                     ),
                     z: stored.z,
@@ -504,7 +630,7 @@ function buildOption(state: AdapterState): EChartsOption {
             case "shape":
             case "character":
             case "arrow":
-                series.push(glyphSeries(name, stored, grid));
+                series.push(glyphSeries(name, stored, grid, extendedBarCount));
                 break;
             // No default: `SeriesStyle` excludes the candle-state / hline kinds
             // (handled in `applyPlot`), so the arms above cover every stored
@@ -534,7 +660,9 @@ function buildOption(state: AdapterState): EChartsOption {
     }
 
     return {
-        backgroundColor: state.bgColor ?? state.backgroundColor,
+        // The chart's own theme background. The Pine `bgcolor` per-bar bands
+        // are NOT a whole-pane wash — they ride the candlestick `markArea`.
+        backgroundColor: state.backgroundColor,
         grid: grids,
         xAxis: xAxes,
         yAxis: yAxes,
@@ -560,11 +688,22 @@ function buildOption(state: AdapterState): EChartsOption {
 // Glyph plot kinds (label / marker / shape / character / arrow) render as a
 // `scatter` series carrying a `markPoint`-style symbol at each anchor. Glyph
 // kinds ECharts cannot express natively defer to Task 10's `graphic` path.
-function glyphSeries(name: string, series: StoredSeries, grid: number): ScatterSeriesOption {
+function glyphSeries(
+    name: string,
+    series: StoredSeries,
+    grid: number,
+    extendedBarCount: number,
+): ScatterSeriesOption {
     const data: Array<[number, number]> = [];
     for (const point of series.points) {
         if (point.value === null || !Number.isFinite(point.value)) continue;
-        data.push([point.bar, point.value]);
+        // Glyphs displace by the universal `offset` too — render at the shifted
+        // category column. A `bar + xShift` outside the (extended) category
+        // range is clipped — no negative category, no slot past the appended
+        // future columns — mirroring `seriesData` / `bandData`.
+        const index = shiftedBarIndex(point.bar, point.xShift);
+        if (index < 0 || index >= extendedBarCount) continue;
+        data.push([index, point.value]);
     }
     return {
         type: "scatter",
@@ -606,6 +745,11 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
                 bar: plot.bar,
                 value: plot.value,
                 color: plot.color,
+                // Carry the universal `ta` `offset` so the point renders at its
+                // shifted category column. Omit a no-shift `xShift` so an
+                // unshifted frame's stored point — and therefore the option
+                // tree + its hash — is byte-identical to the pre-offset build.
+                ...(plot.xShift === undefined || plot.xShift === 0 ? {} : { xShift: plot.xShift }),
                 // Capture the style per point only for `filled-band`, whose
                 // per-bar bounds ride the emission's style; other kinds rely
                 // on the series-level (last-write) style.
@@ -630,14 +774,36 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             state.candleStyles.set(plot.time, { color: plot.style.bull });
             return;
         case "bar-override":
-        case "bar-color":
             state.candleStyles.set(plot.time, { color: plot.style.color });
             return;
-        case "bg-color":
-            // Pine `bgcolor` band → chart background (last-write-wins). A true
-            // per-bar background band needs the Task-10 `graphic` path.
-            state.bgColor = plot.style.color;
+        case "bar-color": {
+            // Per-bar `colorValue` wins over the static `style.color`; an
+            // explicit `null` is the "no tint this bar" gap (drop any prior
+            // override); omitted falls back to `style.color`. (The precedence
+            // contract — see `PlotEmission.colorValue`.)
+            const paint = plot.colorValue === undefined ? plot.style.color : plot.colorValue;
+            if (paint === null) {
+                state.candleStyles.delete(plot.time);
+                return;
+            }
+            state.candleStyles.set(plot.time, { color: paint });
             return;
+        }
+        case "bg-color": {
+            // Pine `bgcolor` is a PER-BAR vertical band, not a whole-pane
+            // wash: each bar carries its own resolved colour. `colorValue`
+            // (present) wins over the static `style.color`; an explicit `null`
+            // paints nothing this bar (drop the band); omitted falls back to
+            // `style.color`. The band renders as a candlestick `markArea`
+            // interval keyed on the bar's category — translucent via `transp`.
+            const paint = plot.colorValue === undefined ? plot.style.color : plot.colorValue;
+            if (paint === null) {
+                state.bgBands.delete(plot.time);
+                return;
+            }
+            state.bgBands.set(plot.time, { color: paint, transp: plot.style.transp });
+            return;
+        }
         // No default: exhaustive over `PlotStyle["kind"]`.
     }
 }
@@ -748,7 +914,7 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
         series: new Map(),
         hlines: new Map(),
         candleStyles: new Map(),
-        bgColor: undefined,
+        bgBands: new Map(),
         recentAlerts: [],
         currentAlertConditions: [],
         recentLogs: [],
@@ -756,6 +922,11 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
         zoomStart: 0,
         zoomEnd: 100,
     };
+    // Wire a double-click reset to snap the inside-zoom/pan window back to the
+    // full range, matching the canvas2d reference adapter's dblclick reset. The
+    // headless default surface omits `on` (no interaction to wire); the real
+    // `echarts.init(...)` instance + the mock both implement it.
+    chart.on?.("dblclick", () => resetZoom(state));
     const host =
         opts.host ??
         createWorkerHost(
@@ -797,7 +968,7 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
             state.series.clear();
             state.hlines.clear();
             state.candleStyles.clear();
-            state.bgColor = undefined;
+            state.bgBands.clear();
             state.recentAlerts.length = 0;
             state.currentAlertConditions.length = 0;
             state.recentLogs.length = 0;

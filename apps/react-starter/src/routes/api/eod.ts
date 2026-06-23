@@ -1,30 +1,25 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 //
-// TanStack Start server route — EODData symbol search + daily EOD fetch + quota
-// usage. Declared with `server.handlers` (the same pattern as
-// routes/api/{compile,scripts}.ts; `createServerFileRoute` is not exported by
-// the installed @tanstack/react-start). This file is the ONLY importer of the
-// server-only EODData layer (`src/lib/server/eod/*`), which is what keeps both
-// the native db driver AND the `EODDATA_API_KEY` out of the client bundle.
-// Components call the typed wrappers in src/lib/eodClient.ts, never this route.
+// TanStack Start server route — daily EOD bar fetch. Declared with
+// `server.handlers` (the same pattern as routes/api/{compile,scripts}.ts;
+// `createServerFileRoute` is not exported by the installed @tanstack/react-start).
+// This file is the ONLY importer of the server-only daily-bar layer
+// (`src/lib/server/eod/*`), which keeps the native db driver out of the client
+// bundle. Components call the typed wrappers in src/lib/eodClient.ts, never this
+// route. The data source is Yahoo Finance (free, no API key, no quota).
 
 import { createFileRoute } from "@tanstack/react-router"
 
-import { getDailyBars, getUsage, searchSymbols } from "@/lib/server/eod/cache"
-import {
-  EodDataError,
-  InvalidSymbolError,
-  MissingApiKeyError,
-  QuotaExceededError,
-} from "@/lib/server/eod/types"
+import { getDailyBars } from "@/lib/server/eod/cache"
+import { InvalidSymbolError, MarketDataError } from "@/lib/server/eod/types"
 
 function asString(value: unknown): string | null {
   return typeof value === "string" ? value : null
 }
 
-// POST body is `{ op, ...args }`; one route serves all three ops so the client
-// needs a single endpoint (mirrors /api/scripts).
+// POST body is `{ op, ...args }`; one route serves the load op (mirrors
+// /api/scripts' single-endpoint shape so the client needs one URL).
 async function handlePost(request: Request): Promise<Response> {
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
   if (body === null || typeof body !== "object") {
@@ -33,31 +28,21 @@ async function handlePost(request: Request): Promise<Response> {
   const op = asString(body.op)
 
   switch (op) {
-    case "search": {
-      const query = asString(body.query) ?? ""
-      return Response.json({ hits: await searchSymbols(query) })
-    }
     case "load": {
       const symbol = asString(body.symbol)
       if (symbol === null) return Response.json({ error: "symbol is required" }, { status: 400 })
       return Response.json(await getDailyBars(symbol))
-    }
-    case "usage": {
-      return Response.json({ usage: getUsage() })
     }
     default:
       return Response.json({ error: `unknown op: ${String(op)}` }, { status: 400 })
   }
 }
 
-// Map each typed error to a friendly status. Validation + missing-key failures
-// are deliberately 4xx (the UI shows them inline); a spent quota is 429; an
-// upstream EODData failure is 502.
+// Map each typed error to a friendly status. A bad symbol is a 400 (the UI shows
+// it inline); an upstream data-source failure is a 502.
 function errorResponse(err: unknown): Response {
   if (err instanceof InvalidSymbolError) return Response.json({ error: err.message }, { status: 400 })
-  if (err instanceof MissingApiKeyError) return Response.json({ error: err.message }, { status: 400 })
-  if (err instanceof QuotaExceededError) return Response.json({ error: err.message }, { status: 429 })
-  if (err instanceof EodDataError) return Response.json({ error: err.message }, { status: 502 })
+  if (err instanceof MarketDataError) return Response.json({ error: err.message }, { status: 502 })
   const message = err instanceof Error ? err.message : String(err)
   return Response.json({ error: message }, { status: 500 })
 }

@@ -1,6 +1,8 @@
 # Task 6 — Adapters + conformance + converter emits dynamic color
 
-> **Status: TODO** — **GATED on Deliverable 2 (see Task 4).**
+> **Status: SHIPPED** — Deliverable 2 (Task 4) was ratified and built; this
+> task landed alongside it (adapters consume `colorValue`, conformance pins
+> `plotKindBgColorDynamic`, the converter emits the per-bar color expression).
 
 > **Deliverable 2** (Series<Color> tier).
 

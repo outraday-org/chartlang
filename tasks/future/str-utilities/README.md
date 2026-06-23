@@ -41,6 +41,23 @@ the same shape as the existing `color` namespace
   `str.lower` onto the chartlang surface.
 - A docs reference page + author-skill reference entry + one runnable example
   (a formatted `draw.table` HUD).
+- A conformance scenario asserting the formatted-table text payload is
+  byte-stable across **all** adapters.
+
+## Cross-surface coverage
+
+This is a pure-compute namespace — `str.*` outputs are plain `string`s consumed
+by already-shipped `draw.*`/`alert` holes. All six surfaces are covered by
+Task 2:
+
+| Surface | How |
+|---------|-----|
+| examples/demos | `examples/scripts/str-formatted-hud.chart.ts` + `DEMO_SCRIPTS` entry + CLI e2e. |
+| docs | `str` reference page + nav. |
+| skills | `references/translating-from-pine.md` mapping + `SKILL.md` inventory. |
+| converter | Pine `str.*` member-call mapping + diagnostics. |
+| adapters | **No new capability** — rides existing `draw.text`/`draw.table`/`alert` holes; `pnpm conformance` proves byte-stability across canvas2d/echarts/konva/lightweight-charts/uplot. Verified, not re-implemented (assumes `tasks/adapter-feature-parity/` landed). |
+| react-starter | **No seam change** — feature flows through the compiler; verified by a `tests/compile.spec.ts` case + the existing `adapter-matrix.spec.ts`. |
 
 ## Architecture Decisions
 

@@ -187,6 +187,14 @@ describe("echarts adapter integration (worker host)", () => {
         const candles = seriesByName(option, "candles") as CandlestickSeriesOption;
         expect(candles.type).toBe("candlestick");
         expect(candles.data?.length).toBe(HISTORY_BARS.length);
+        // Explicit bull/bear body colours (canvas2d parity) — not ECharts'
+        // library defaults. This deliberately re-pinned `PINNED_HASH` below.
+        expect(candles.itemStyle).toEqual({
+            color: "#26a69a",
+            color0: "#ef5350",
+            borderColor: "#26a69a",
+            borderColor0: "#ef5350",
+        });
 
         const fast = seriesByName(option, "overlay|ema.chart.ts:3:1#0") as LineSeriesOption;
         const slow = seriesByName(option, "overlay|ema.chart.ts:4:1#0") as LineSeriesOption;
@@ -226,4 +234,4 @@ describe("echarts adapter integration (worker host)", () => {
 // Pinned by the integration test; update only when a deliberate change
 // re-shapes the emitted option tree. `hashOptionLog` rounds finite floats to
 // 4 dp and sorts object keys, so microscopic drift does not re-hash.
-const PINNED_HASH = "1d08e56d49c1601c9a00bde6590173ffc9e1cb6ccb44be8987cefc2e8182d7d1";
+const PINNED_HASH = "35ff70c6fa1ed9640e3b08f99b5eb111b19646c0ff039707bfa1f181ae036f00";

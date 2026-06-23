@@ -68,7 +68,15 @@ layer** every adapter shares.
   the canvas-family adapters (canvas2d, lightweight-charts, uplot).
   ECharts / Konva do NOT import it. `hashCallLog(mock.calls)` takes the
   recorded-call array and rounds floats to 4 dp before hashing, so
-  microscopic drift does not re-hash. The canvas2d adapter re-exports
+  microscopic drift does not re-hash. `RenderCtx` carries path-`rect` +
+  `clip` (distinct from `fillRect`) so a canvas adapter can confine a
+  hand-rolled draw pass to a plotting-area box via the standard
+  `beginPath()` → `rect()` → `clip()` idiom (the uplot adapter clips its
+  candle/band/hline/drawing overlay to uPlot's plot bbox); production
+  `CanvasRenderingContext2D` already has both, and `MockCanvasContext`
+  records them as `{kind:"rect"|"clip"}` (adding a draw call means
+  extending the mock, the `RecordedCall` union, and `canonicalise`
+  together). The canvas2d adapter re-exports
   `MockCanvasContext` as `MockCanvas2DContext` (Task 4) — implementation
   shared, its public `./testing` name unchanged.
 - **`StrokeStyle.alpha` is the one IR field Task 2 added, and an omitted
@@ -101,10 +109,21 @@ layer** every adapter shares.
   `_lib/fibLevels.ts` (no parallel level array); an empty `levels` override
   yields no level primitives. Fib labels are emitted only when
   `showLabels === true`.
-- **`worldPointToPixel` does NOT do bar-shift projection.** It composes
-  `timeToX` / `priceToY` only. The shifted-series helpers
-  (`projectShiftedX`, `shiftedBarTime`, `medianBarSpacing`) stay in the
-  canvas2d adapter's `render/coords.ts` for plot rendering.
+- **`worldPointToPixel` does NOT do bar-shift projection** — it composes
+  `timeToX` / `priceToY` only. **The shifted-series helpers live in
+  `src/geometry/shift.ts`** (`medianBarSpacing`, `shiftedBarTime`,
+  `projectShiftedX`, `maxShiftedTime`, `shiftedBarIndex`), shared by EVERY
+  adapter so a `PlotEmission.xShift` (the universal `ta` `offset`; `+n`
+  right/future, `−n` left/past) projects identically across the three
+  rendering models — self-scaled time (canvas2d, konva: `projectShiftedX` +
+  `maxShiftedTime` to widen `xMax`), category/index (echarts:
+  `shiftedBarIndex` + category extension), and aligned/native-time (uplot
+  `AlignedData`, lightweight-charts native time: `shiftedBarTime`). These
+  were promoted out of canvas2d's `render/coords.ts` (which now re-exports
+  them) — four hand-ports were exactly how the offset-collapse bug arose.
+  Pure (no `ctx` / DOM / library types), 100%-covered. `xShift` omitted / `0`
+  reproduces the unshifted `timeToX(time)` byte-for-byte, so no-offset
+  goldens are untouched.
 
 ## Interaction-layer invariants (`src/interaction/`)
 

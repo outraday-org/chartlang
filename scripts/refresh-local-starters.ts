@@ -24,8 +24,10 @@
 //     adapters before publishing.
 //
 // Each starter's `node_modules` + SQLite `data/` are preserved across a refresh
-// (published mode) for fast re-runs; secrets live ONCE in the git-ignored
-// `local-starters/.env.shared` and are overlaid onto each `.env` every refresh.
+// (published mode) for fast re-runs; shared env overrides live ONCE in the
+// git-ignored `local-starters/.env.shared` and are overlaid onto each `.env`
+// every refresh (market data needs no key, so there's nothing to share today —
+// the mechanism is kept for any future shared var).
 // Pass a single library id to refresh just one: `pnpm starters:local uplot`.
 
 import { spawn } from "node:child_process";
@@ -59,17 +61,15 @@ const PRESERVE = new Set(["node_modules", ".env", "data"]);
 // the transforms (or PRESERVE) own.
 const SKIP_COPY = new Set(["node_modules", "dist", "data", ".vite", "vendor"]);
 
-const SHARED_ENV_TEMPLATE = (apiKey: string): string =>
+const SHARED_ENV_TEMPLATE = (): string =>
     [
-        "# Shared env for local-starters — set your secrets ONCE here and every",
+        "# Shared env for local-starters — set a value ONCE here and every",
         "# `pnpm starters:local` refresh applies the non-empty keys to ALL five",
         "# starters' .env. This file is git-ignored (local-starters/ is ignored).",
-        "",
-        "# EODData API key (free tier). Register at https://eoddata.com/myaccount/api.aspx",
-        `EODDATA_API_KEY=${apiKey}`,
-        "",
-        "# Optional global overrides (uncomment to apply to every starter):",
-        "# EODDATA_DAILY_LIMIT=100",
+        "#",
+        "# Market data needs no API key (loaded from Yahoo Finance), so there is",
+        "# nothing to set here today. Add a `KEY=value` line for any future shared",
+        "# var and it will be overlaid onto every starter's .env on the next refresh.",
         "",
     ].join("\n");
 
@@ -185,30 +185,15 @@ async function packWorkspacePackages(): Promise<Map<string, string>> {
 }
 
 /**
- * Ensure `local-starters/.env.shared` exists, seeding `EODDATA_API_KEY` from a
- * key already present in any starter so the user never re-enters it. Returns
- * the shared overrides (non-empty keys only — an empty key never clobbers a
- * preserved per-folder value).
+ * Ensure `local-starters/.env.shared` exists. Returns the shared overrides
+ * (non-empty keys only — an empty key never clobbers a preserved per-folder
+ * value). Market data needs no key today, so the template seeds nothing; the
+ * generic overlay mechanism is kept for any future shared var.
  */
 async function loadSharedOverrides(): Promise<Map<string, string>> {
     if (!(await exists(sharedEnvPath))) {
         await mkdir(outRoot, { recursive: true });
-        let migrated = "";
-        for (const lib of LIBS) {
-            const envPath = join(outRoot, lib, ".env");
-            if (!(await exists(envPath))) continue;
-            const key = parseEnv(await readFile(envPath, "utf8")).get("EODDATA_API_KEY");
-            if (key !== undefined && key !== "") {
-                migrated = key;
-                break;
-            }
-        }
-        await writeFile(sharedEnvPath, SHARED_ENV_TEMPLATE(migrated), "utf8");
-        process.stdout.write(
-            migrated === ""
-                ? `\nℹ created ${sharedEnvPath} — set EODDATA_API_KEY there once; it applies to all starters.\n`
-                : `\nℹ created ${sharedEnvPath} and migrated your existing EODDATA_API_KEY into it.\n`,
-        );
+        await writeFile(sharedEnvPath, SHARED_ENV_TEMPLATE(), "utf8");
     }
     const overrides = new Map<string, string>();
     for (const [key, value] of parseEnv(await readFile(sharedEnvPath, "utf8"))) {
@@ -233,7 +218,7 @@ async function refresh(
     await runCreateChartlang([target, "--library", lib, "--yes", "--no-install"], deps());
 
     // Base the final .env on any preserved per-folder edits (else the template
-    // the installer wrote), then overlay the shared secrets on top.
+    // the installer wrote), then overlay the shared env overrides on top.
     const base = prevEnv ?? (await readFile(envPath, "utf8"));
     await writeFile(envPath, applyOverrides(base, envOverrides), "utf8");
 

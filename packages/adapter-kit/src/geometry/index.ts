@@ -3,4 +3,11 @@
 
 export { decomposeDrawing } from "./decompose.js";
 export { priceToY, timeToX, worldPointToPixel } from "./project.js";
+export {
+    maxShiftedTime,
+    medianBarSpacing,
+    projectShiftedX,
+    shiftedBarIndex,
+    shiftedBarTime,
+} from "./shift.js";
 export type { DrawPrimitive, FillStyle, Point2, StrokeStyle, Viewport } from "./types.js";

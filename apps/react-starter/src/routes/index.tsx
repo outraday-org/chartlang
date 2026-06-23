@@ -6,11 +6,10 @@
 //   SymbolPicker ─loadSymbol→ /api/eod (Task 4) ─bars→ ChartPane
 //   ScriptsSidebar ─CRUD→ /api/scripts (Task 3)
 //
-// Two flows are kept independent so typing never burns EOD quota: editing
-// updates `artifact` (re-compile only), picking a symbol updates `bars` (the
-// only EOD fetch). The last good artifact is retained on a failing compile so
-// the chart never blanks. No concrete chart adapter is named here — ChartPane
-// drives the swappable `activeAdapter` seam.
+// Two flows are kept independent: editing updates `artifact` (re-compile only),
+// picking a symbol updates `bars` (the only EOD fetch). The last good artifact
+// is retained on a failing compile so the chart never blanks. No concrete chart
+// adapter is named here — ChartPane drives the swappable `activeAdapter` seam.
 
 import type { Bar } from "@invinite-org/chartlang-core"
 import type { LspDiagnostic } from "@invinite-org/chartlang-language-service"
@@ -27,7 +26,6 @@ import {
   type CompileStatus,
   createHybridLanguageService,
 } from "@/components/workspace/hybridLanguageService"
-import { QuotaBadge } from "@/components/workspace/QuotaBadge"
 import { ScriptsSidebar } from "@/components/workspace/ScriptsSidebar"
 import { SymbolPicker } from "@/components/workspace/SymbolPicker"
 import { Badge } from "@/components/ui/badge"
@@ -102,7 +100,6 @@ function Workspace(): ReactElement {
   const [currentScriptId, setCurrentScriptId] = useState<string | null>(null)
   const [currentName, setCurrentName] = useState("")
   const [alertCount, setAlertCount] = useState(0)
-  const [usageRefresh, setUsageRefresh] = useState(0)
   const [reloadKey, setReloadKey] = useState(0)
   const [editorKey, setEditorKey] = useState(0)
   const [pendingLoadId, setPendingLoadId] = useState<string | null>(null)
@@ -132,18 +129,14 @@ function Workspace(): ReactElement {
 
   const dirty = source !== loadedSource
 
-  // Load a symbol's daily bars (the only EOD fetch). Cache hits cost no quota;
-  // quotaExceeded keeps the stale bars and warns; a hard error toasts.
+  // Load a symbol's daily bars (the only EOD fetch). A first load fetches from
+  // Yahoo + caches; later loads serve from the SQLite cache. A failure toasts.
   const pickSymbol = (next: string): void => {
     void (async (): Promise<void> => {
       try {
         const result = await loadSymbol(next)
         setBars(result.bars)
         setSymbol(next)
-        setUsageRefresh((n) => n + 1)
-        if (result.quotaExceeded) {
-          toast.warning("Daily EOD quota spent — showing the last cached bars for this symbol.")
-        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to load symbol")
       }
@@ -283,7 +276,6 @@ export default defineIndicator({
         <div className="flex h-full flex-col">
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border p-2">
             <SymbolPicker onPick={pickSymbol} symbol={symbol} />
-            <QuotaBadge refreshKey={usageRefresh} />
             <span className={`ml-auto text-xs ${statusTone}`} data-testid="compile-status">
               {label.text}
             </span>

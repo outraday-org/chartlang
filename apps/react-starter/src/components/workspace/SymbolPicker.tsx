@@ -2,13 +2,10 @@
 // See the LICENSE file in the repo root for full license text.
 //
 // US-symbol entry — a plain ticker input (type AAPL → Enter / Load). The page
-// owns the `loadSymbol` call + quota accounting via `onPick`. We deliberately
-// do NOT search-as-you-type: the EODData free tier is rate-limited (10/min,
-// 100/day), and a per-keystroke search burns that budget fast (and tripped the
-// per-minute limit). The server resolves the symbol's home exchange from the
-// entered ticker on load (one `Symbol/Search` call), so the user only needs to
-// know the ticker — no exchange picker. Submitting goes through a `<form>` with
-// `preventDefault` so Enter never reloads the page.
+// owns the `loadSymbol` call via `onPick`. The server loads the symbol's daily
+// history from Yahoo Finance (free, no API key) on load, so the user only needs
+// to know the ticker. Submitting goes through a `<form>` with `preventDefault`
+// so Enter never reloads the page.
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +15,7 @@ import { type FormEvent, type ReactElement, useEffect, useState } from "react"
 /**
  * Props for {@link SymbolPicker}. `symbol` is the currently-loaded ticker (or
  * null when none is loaded); `onPick` fires with the entered ticker so the page
- * owns the `loadSymbol` call + quota accounting.
+ * owns the `loadSymbol` call.
  */
 export type SymbolPickerProps = Readonly<{
   symbol: string | null

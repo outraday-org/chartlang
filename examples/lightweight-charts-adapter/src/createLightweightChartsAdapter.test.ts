@@ -240,6 +240,7 @@ describe("createLightweightChartsAdapter — candle ingestion", () => {
             seriesId: "s0",
             seriesType: "Candlestick",
             paneIndex: 0,
+            options: {},
         });
         expect(chart.calls).toContainEqual({ kind: "setData", seriesId: "s0", points: 2 });
     });
@@ -364,6 +365,24 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
         expect(chart.calls.some((c) => c.kind === "addSeries" && c.seriesType === "Line")).toBe(
             true,
         );
+    });
+
+    // Regression: the plot's `color` MUST be forwarded as a series-creation
+    // option, otherwise the native line falls back to lightweight-charts'
+    // default series colour (every plotted line drew the same blue, ignoring
+    // the script's `plot(..., { color })`). The colour lives ONLY at
+    // `addSeries` (the factory never re-`applyOptions`es it), so assert it
+    // there.
+    it("forwards the plot color to the line series creation options", async () => {
+        const chart = await runWithPlots([plot(LINE_STYLE, { slotId: "c", color: "#26a69a" })]);
+        const line = chart.calls.find((c) => c.kind === "addSeries" && c.seriesType === "Line");
+        expect(line?.kind === "addSeries" && line.options).toEqual({ color: "#26a69a" });
+    });
+
+    it("a null plot color carries no color in the line series options", async () => {
+        const chart = await runWithPlots([plot(LINE_STYLE, { slotId: "nco", color: null })]);
+        const line = chart.calls.find((c) => c.kind === "addSeries" && c.seriesType === "Line");
+        expect(line?.kind === "addSeries" && line.options).toEqual({});
     });
 
     it("filled-band creates two line series and updates both edges", async () => {
@@ -554,16 +573,128 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
         expect(chart.calls.some((c) => c.kind === "setMarkers")).toBe(false);
     });
 
-    it("candle-override / bar-override / bar-color tint the candle series", async () => {
+    it("candle-override applies a whole-series up/down tint", async () => {
         const chart = await runWithPlots([
-            plot({ kind: "candle-override", bull: "#0f0", bear: "#f00" }, { slotId: "co" }),
-            plot({ kind: "bar-override", color: "#00f" }, { slotId: "bo" }),
-            plot({ kind: "bar-color", color: "#0ff" }, { slotId: "bc" }),
+            plot(
+                { kind: "candle-override", bull: "#0f0", bear: "#f00" },
+                { slotId: "co", time: 1 },
+            ),
         ]);
         const tints = chart.calls.filter(
             (c) => c.kind === "applyOptions" && "upColor" in c.options,
         );
-        expect(tints).toHaveLength(3);
+        expect(tints).toHaveLength(1);
+        expect(tints[0].kind === "applyOptions" && tints[0].options).toEqual({
+            upColor: "#0f0",
+            downColor: "#f00",
+        });
+    });
+
+    it("bar-color recolours the candle DATA POINT body + border + wick for that bar", async () => {
+        const chart = await runWithPlots([
+            plot({ kind: "bar-color", color: "#2962ff" }, { slotId: "bc", time: 1 }),
+        ]);
+        // No whole-series tint — the colour rides the per-bar data point.
+        expect(chart.calls.some((c) => c.kind === "applyOptions" && "upColor" in c.options)).toBe(
+            false,
+        );
+        // The candle was re-`update`d with body + border + wick all set.
+        const tinted = chart.calls.find(
+            (c) => c.kind === "update" && c.color !== undefined && c.open !== undefined,
+        );
+        expect(tinted?.kind === "update" && tinted).toMatchObject({
+            color: "#2962ff",
+            borderColor: "#2962ff",
+            wickColor: "#2962ff",
+        });
+    });
+
+    it("bar-override recolours the candle DATA POINT body + border + wick for that bar", async () => {
+        const chart = await runWithPlots([
+            plot({ kind: "bar-override", color: "#ff6d00" }, { slotId: "bo", time: 1 }),
+        ]);
+        const tinted = chart.calls.find(
+            (c) => c.kind === "update" && c.color !== undefined && c.open !== undefined,
+        );
+        expect(tinted?.kind === "update" && tinted).toMatchObject({
+            color: "#ff6d00",
+            borderColor: "#ff6d00",
+            wickColor: "#ff6d00",
+        });
+    });
+
+    it("bar-color colorValue overrides the static style.color", async () => {
+        const chart = await runWithPlots([
+            plot(
+                { kind: "bar-color", color: "#2962ff" },
+                { slotId: "bc", time: 1, colorValue: "#ff6d00" },
+            ),
+        ]);
+        const tinted = chart.calls.find(
+            (c) => c.kind === "update" && c.color !== undefined && c.open !== undefined,
+        );
+        expect(tinted?.kind === "update" && tinted.color).toBe("#ff6d00");
+    });
+
+    it("bar-color colorValue null clears the override (no colour this bar)", async () => {
+        const chart = await runWithPlots([
+            plot(
+                { kind: "bar-color", color: "#2962ff" },
+                { slotId: "bc", time: 1, colorValue: null },
+            ),
+        ]);
+        // No candle update carries a colour — the override was cleared.
+        expect(chart.calls.some((c) => c.kind === "update" && c.color !== undefined)).toBe(false);
+    });
+
+    it("per-bar bar-color colours differ across bars (genuinely per-bar)", async () => {
+        // Two bars, each emitting its own bar-color: bar @1 blue, bar @2 orange.
+        // A whole-series tint could only show ONE colour; per-bar data points
+        // carry both, so the candle stays blue at @1 and orange at @2.
+        const chart = new MockLwcApi();
+        const host = stubHost();
+        const drain = host.drain as ReturnType<typeof vi.fn>;
+        drain
+            .mockResolvedValueOnce(
+                emissions({
+                    plots: [
+                        plot({ kind: "bar-color", color: "#2962ff" }, { slotId: "bc", time: 1 }),
+                    ],
+                }),
+            )
+            .mockResolvedValueOnce(
+                emissions({
+                    plots: [
+                        plot({ kind: "bar-color", color: "#ff6d00" }, { slotId: "bc", time: 2 }),
+                    ],
+                }),
+            );
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([
+                { kind: "close", bar: bar(1) },
+                { kind: "close", bar: bar(2) },
+            ]),
+            host,
+        });
+        await runRendererLoop(handle);
+        const colours = chart.calls
+            .filter((c) => c.kind === "update" && c.color !== undefined)
+            .map((c) => (c.kind === "update" ? { time: c.time, color: c.color } : undefined));
+        expect(colours).toEqual([
+            { time: 1, color: "#2962ff" },
+            { time: 2, color: "#ff6d00" },
+        ]);
+    });
+
+    it("a bar-color whose time matches no known bar records nothing on the candle", async () => {
+        // The candle series exists (a bar @1 was drawn) but the emission's time
+        // (the builder default 1_000) matches no bar, so there is nothing to
+        // re-stamp this frame.
+        const chart = await runWithPlots([
+            plot({ kind: "bar-color", color: "#2962ff" }, { slotId: "bc" }),
+        ]);
+        expect(chart.calls.some((c) => c.kind === "update" && c.color !== undefined)).toBe(false);
     });
 
     it("bg-color and horizontal-histogram are documented no-ops", async () => {
@@ -584,7 +715,19 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
         expect(chart.calls.some((c) => c.kind === "setMarkers")).toBe(false);
     });
 
-    it("a candle tint before any candle series is a no-op", () => {
+    it("a candle-override tint before any candle series is a no-op", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(
+            emissions({
+                plots: [
+                    plot({ kind: "candle-override", bull: "#0f0", bear: "#f00" }, { slotId: "t" }),
+                ],
+            }),
+        );
+        expect(chart.calls).toEqual([]);
+    });
+
+    it("a bar-color before any candle series is a no-op", () => {
         const { handle, chart } = build();
         handle.onEmissions(
             emissions({ plots: [plot({ kind: "bar-color", color: "#0ff" }, { slotId: "t" })] }),
@@ -605,6 +748,133 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
             }),
         );
         expect(chart.calls).toEqual([]);
+    });
+});
+
+describe("createLightweightChartsAdapter — plot x-shift (universal offset)", () => {
+    const DAY = 86_400_000;
+    // 10 history bars at one-day spacing so `medianBarSpacing` is a stable DAY.
+    const HISTORY: ReadonlyArray<Bar> = Array.from({ length: 10 }, (_, i) => bar(i * DAY));
+
+    // Drive the 10-bar history, then drain three line plots for the SAME bar
+    // index (the last bar) — unshifted, +5, −5 — and read back the native
+    // `update` time recorded for each slot's series.
+    async function shiftedUpdateTimes(): Promise<{
+        base: number;
+        right: number;
+        left: number;
+    }> {
+        const chart = new MockLwcApi();
+        const host = stubHost();
+        const lastBar = HISTORY.length - 1;
+        (host.drain as ReturnType<typeof vi.fn>).mockResolvedValue(
+            emissions({
+                plots: [
+                    plot(LINE_STYLE, { slotId: "base", bar: lastBar, time: HISTORY[lastBar].time }),
+                    plot(LINE_STYLE, {
+                        slotId: "right",
+                        bar: lastBar,
+                        time: HISTORY[lastBar].time,
+                        xShift: 5,
+                    }),
+                    plot(LINE_STYLE, {
+                        slotId: "left",
+                        bar: lastBar,
+                        time: HISTORY[lastBar].time,
+                        xShift: -5,
+                    }),
+                ],
+            }),
+        );
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([{ kind: "history", bars: HISTORY }]),
+            host,
+        });
+        await runRendererLoop(handle);
+        const timeFor = (slotSeriesId: string): number => {
+            const call = chart.calls.find(
+                (c) => c.kind === "update" && c.seriesId === slotSeriesId,
+            );
+            if (call === undefined || call.kind !== "update") throw new Error("no update");
+            return call.time;
+        };
+        // s0 is the candle series; the three line series are s1 (base), s2
+        // (right), s3 (left) in declaration order.
+        return { base: timeFor("s1"), right: timeFor("s2"), left: timeFor("s3") };
+    }
+
+    it("places a +5 copy ~5 spacings to the RIGHT of the unshifted point and −5 to the LEFT", async () => {
+        const { base, right, left } = await shiftedUpdateTimes();
+        // The unshifted point sits at the last bar's own time.
+        expect(base).toBe(HISTORY[HISTORY.length - 1].time);
+        // +5 is exactly five median spacings (one DAY each) into the future.
+        expect(right).toBe(base + 5 * DAY);
+        // −5 lands on a real prior bar (index last−5), strictly earlier.
+        expect(left).toBe(HISTORY[HISTORY.length - 1 - 5].time);
+        // Strictly monotonic across the three: left < base < right.
+        expect(left).toBeLessThan(base);
+        expect(base).toBeLessThan(right);
+        expect(right - base).toBe(base - left);
+    });
+
+    it("shifts a filled-band's BOTH edges by the same xShift", async () => {
+        const chart = new MockLwcApi();
+        const host = stubHost();
+        const lastBar = HISTORY.length - 1;
+        (host.drain as ReturnType<typeof vi.fn>).mockResolvedValue(
+            emissions({
+                plots: [
+                    plot(
+                        { kind: "filled-band", upper: 5, lower: 1, alpha: 0.2 },
+                        { slotId: "band", bar: lastBar, time: HISTORY[lastBar].time, xShift: 5 },
+                    ),
+                ],
+            }),
+        );
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([{ kind: "history", bars: HISTORY }]),
+            host,
+        });
+        await runRendererLoop(handle);
+        // The two band edges (s1 upper, s2 lower) both update at last + 5·DAY.
+        const expected = HISTORY[lastBar].time + 5 * DAY;
+        const edgeTimes = chart.calls
+            .filter((c) => c.kind === "update" && (c.seriesId === "s1" || c.seriesId === "s2"))
+            .map((c) => (c.kind === "update" ? c.time : -1));
+        expect(edgeTimes).toEqual([expected, expected]);
+    });
+
+    it("shifts a glyph marker by its xShift", async () => {
+        const chart = new MockLwcApi();
+        const host = stubHost();
+        const lastBar = HISTORY.length - 1;
+        (host.drain as ReturnType<typeof vi.fn>).mockResolvedValue(
+            emissions({
+                plots: [
+                    plot(
+                        { kind: "shape", shape: "flag", size: 1 },
+                        { slotId: "g", bar: lastBar, time: HISTORY[lastBar].time, xShift: -5 },
+                    ),
+                ],
+            }),
+        );
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([{ kind: "history", bars: HISTORY }]),
+            host,
+        });
+        await runRendererLoop(handle);
+        // The glyph anchors at bar last−5's own time, not the unshifted time.
+        expect(chart.calls.some((c) => c.kind === "setMarkers")).toBe(true);
+    });
+
+    it("a no-offset plot updates at the bar's own time (byte-identical to pre-shift)", async () => {
+        const chart = await runWithPlots([plot(LINE_STYLE, { slotId: "noshift", bar: 0 })]);
+        // One bar in state at time 1; bar 0 + no shift → time 1.
+        const lineUpdate = chart.calls.find((c) => c.kind === "update" && c.seriesId !== "s0");
+        expect(lineUpdate?.kind === "update" && lineUpdate.time).toBe(1);
     });
 });
 

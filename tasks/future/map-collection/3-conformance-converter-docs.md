@@ -56,7 +56,10 @@ reference / a runnable example.
 - `mapAccumulator.scenario.ts`: a script that accumulates per-rounded-price
   volume into `state.map<number, number>(N)` over a fixed bar series and
   `plot`s a derived scalar (e.g. the value at a fixed key each bar), asserting
-  byte-stability across adapters. Mirror an existing state scenario shape.
+  byte-stability across **all** adapters. `pnpm conformance` replays every
+  registered scenario through every adapter (canvas2d, echarts, konva,
+  lightweight-charts, uplot), so a registered scenario *is* the all-adapter
+  proof. Mirror an existing state scenario shape.
 - Register in the scenario index.
 
 ### 3. Docs (`docs/`)
@@ -88,6 +91,36 @@ Follow the example pipeline (`examples/CLAUDE.md`, `apps/CLAUDE.md`,
 4. **Generate + gate** — `pnpm examples:generate`; keep `pnpm examples:gate`
    green.
 
+### 6. Adapters — no new capability, verified across all (`examples/*-adapter/`)
+
+`state.map` is a pure-compute collection: the values an author derives from it
+flow into the existing `plot`/`draw` holes. It emits **no new wire primitive**
+and needs **no adapter code change** — given `tasks/adapter-feature-parity/` is
+implemented, every adapter (canvas2d, echarts, konva, lightweight-charts,
+uplot) already renders the resulting series. Coverage is by **verification, not
+re-implementation**:
+
+- The conformance scenario (§2) is the all-adapter proof — `pnpm conformance`
+  replays it through every adapter and asserts byte-stable output. Do not add
+  per-adapter code.
+- State this explicitly in the changeset/PR so a reviewer does not expect
+  adapter diffs.
+
+### 7. react-starter — compile-path verification (`apps/react-starter/`)
+
+The react-starter seam (`src/lib/chart/activeAdapter.ts`,
+`src/lib/chart/seamVariants.ts`) is library-agnostic: new language features flow
+through the compiler automatically, so **no seam change** is required. Verify
+the namespace is accepted end-to-end through the starter:
+
+- Add a minimal case to `apps/react-starter/tests/compile.spec.ts` that POSTs a
+  source declaring `state.map<number, number>(N)` and using `set`/`get` to
+  `/api/compile` and asserts a clean compile (also exercises the literal-capacity
+  guard path).
+- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all five
+  seam variants build — no change needed; reference it as the
+  all-adapter-bundles guarantee.
+
 ## Files to Create / Modify
 
 | File | Action | Purpose |
@@ -102,6 +135,7 @@ Follow the example pipeline (`examples/CLAUDE.md`, `apps/CLAUDE.md`,
 | `examples/scripts/volume-by-level.chart.ts` | Create | Example. |
 | `packages/cli/src/e2e.test.ts` | Modify | Add example to `EXAMPLE_SCRIPTS`. |
 | `apps/site/src/components/demo/scripts.ts` | Modify | `DEMO_SCRIPTS` entry (live demo + docs Examples). |
+| `apps/react-starter/tests/compile.spec.ts` | Modify | Compile-path case for `state.map` (proves the starter accepts the primitive). |
 | `.changeset/state-map-converter.md` | Create | patch (pine-converter, conformance). |
 
 ## Gates
@@ -109,11 +143,12 @@ Follow the example pipeline (`examples/CLAUDE.md`, `apps/CLAUDE.md`,
 - `pnpm typecheck`
 - `pnpm lint`
 - `pnpm test` (coverage 100% on pine-converter + conformance)
-- `pnpm conformance`
+- `pnpm conformance` (the scenario runs through every adapter)
 - `pnpm docs:check`
 - `pnpm readme:check`
 - `pnpm examples:gate` (after `pnpm examples:generate`)
 - `pnpm skills:gate`
+- `pnpm -F chartlang-react-starter e2e` (Playwright compile + adapter-matrix specs)
 
 ## Changeset
 
@@ -123,9 +158,13 @@ Follow the example pipeline (`examples/CLAUDE.md`, `apps/CLAUDE.md`,
 
 - `map.new` → `state.map` with synthesized capacity + diagnostic; member calls
   map; unsupported iterators emit diagnostics, never hard failures.
-- Conformance keyed-accumulation series byte-stable.
+- Conformance keyed-accumulation series byte-stable across **all** adapters
+  (canvas2d, echarts, konva, lightweight-charts, uplot) via `pnpm conformance`.
 - Docs page + skill mapping updated; example compiles in e2e
   (`EXAMPLE_SCRIPTS`) and appears in the live demo (`DEMO_SCRIPTS`);
   `examples:gate` green.
-- Coverage + conformance + docs + readme + skills gates green; changeset
-  committed.
+- No adapter code change required (documented in the changeset); react-starter
+  compile-path case green and the adapter-matrix spec proves all five seam
+  variants bundle.
+- Coverage + conformance + docs + readme + skills + react-starter gates green;
+  changeset committed.

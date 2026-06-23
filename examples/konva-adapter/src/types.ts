@@ -35,6 +35,12 @@ export type RectConfig = {
     readonly fill?: string;
     readonly stroke?: string;
     readonly strokeWidth?: number;
+    /**
+     * Node-level opacity (0–1). The Konva idiom for the canvas reference's
+     * `globalAlpha`; the `bg-color` overlay derives it from `transp`
+     * (`1 - transp/100`). Omitted ⇒ fully opaque.
+     */
+    readonly opacity?: number;
     readonly listening?: boolean;
 };
 

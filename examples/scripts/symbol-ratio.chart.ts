@@ -6,6 +6,11 @@ import { defineIndicator, plot, request } from "@invinite-org/chartlang-core";
 export default defineIndicator({
     name: "Symbol Ratio",
     apiVersion: 1,
+    // A price ratio (~0.35) is orders of magnitude below the chart's price
+    // scale, so it must render in its OWN sub-pane — on the price overlay it
+    // collapses to a flat line at the axis floor. `overlay: false` gives the
+    // ratio its own y-scale.
+    overlay: false,
     compute({ plot, request }) {
         // Read two DIFFERENT instruments at the chart interval via the
         // multi-symbol `request.security({ symbol, interval })` form. `symbol`

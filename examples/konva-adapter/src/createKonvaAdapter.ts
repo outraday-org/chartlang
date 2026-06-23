@@ -18,7 +18,10 @@ import {
     createViewController,
     decomposeDrawing,
     defineAdapter,
+    maxShiftedTime,
+    medianBarSpacing,
     priceToY,
+    projectShiftedX,
     timeToX,
     validateEmission,
     yRangeInWindow,
@@ -128,6 +131,11 @@ type SeriesPoint = {
     readonly value: number | null;
     readonly color: string | null;
     readonly bar: number;
+    // The universal `ta` `offset` (signed integer bars; `+n` right/future,
+    // `−n` left/past). Stored ONLY when non-zero (mirroring canvas2d), so a
+    // no-offset point's projected x is byte-identical to the pre-feature
+    // `timeToX(point.time)`.
+    readonly xShift?: number;
     readonly band?: {
         readonly upper: number | null;
         readonly lower: number | null;
@@ -241,7 +249,61 @@ function computeYRange(
     return { yMin, yMax };
 }
 
-function computePaneViewport(state: AdapterState, entry: PaneLayoutEntry): Viewport {
+// Widen `xMax` so any future-projected (`+k`) point in this pane stays on
+// screen instead of being clipped past the data edge. Walks the pane's
+// shifted series points and — for the overlay pane — the shifted glyph
+// overlays (shape / character / arrow / label), folding each through the
+// shared `maxShiftedTime`. Candle-state overrides (bg-color / bar-color /
+// candle-/bar-override / horizontal-histogram) keep their own bar anchor
+// and never widen the viewport, matching canvas2d. No-shift frames leave
+// `xMax` untouched.
+function extendXMaxForShifts(
+    state: AdapterState,
+    paneKey: string,
+    spacing: number,
+    xMax: number,
+): number {
+    const { bars } = state;
+    let extended = xMax;
+    const prefix = paneKeyPrefix(paneKey);
+    for (const [key, entry] of state.plotSeries) {
+        if (!key.startsWith(prefix)) continue;
+        const finite = entry.points.filter(
+            (point) => point.value !== null && Number.isFinite(point.value),
+        );
+        extended = maxShiftedTime(finite, bars, spacing, extended);
+    }
+    if (paneKey === "overlay") {
+        const glyphs: { bar: number; xShift?: number }[] = [];
+        for (const plot of state.plotOverlays.values()) {
+            if (!isFiniteValue(plot.value)) continue;
+            // Only shifted-series glyphs honour `xShift`; candle-state
+            // overrides keep their own anchor and must not widen the edge.
+            if (
+                plot.style.kind !== "shape" &&
+                plot.style.kind !== "marker" &&
+                plot.style.kind !== "character" &&
+                plot.style.kind !== "arrow" &&
+                plot.style.kind !== "label"
+            ) {
+                continue;
+            }
+            glyphs.push(
+                plot.xShift === undefined
+                    ? { bar: plot.bar }
+                    : { bar: plot.bar, xShift: plot.xShift },
+            );
+        }
+        extended = maxShiftedTime(glyphs, bars, spacing, extended);
+    }
+    return extended;
+}
+
+function computePaneViewport(
+    state: AdapterState,
+    entry: PaneLayoutEntry,
+    spacing: number,
+): Viewport {
     const { bars } = state;
     const { rect, paneKey } = entry;
     // Reserve the right gutter so konva's candle x-extent matches canvas2d.
@@ -255,6 +317,12 @@ function computePaneViewport(state: AdapterState, entry: PaneLayoutEntry): Viewp
         if (bar.time < dataXMin) dataXMin = bar.time;
         if (bar.time > dataXMax) dataXMax = bar.time;
     }
+    // Widen `xMax` for any `+k` future-shifted series point in this pane so it
+    // stays on-screen rather than clipped past the data edge (mirroring
+    // canvas2d's `extendXMaxForShifts`). Only `xShift > 0` extends the edge;
+    // no-offset frames leave `xMax` untouched, so the baseline render is
+    // byte-identical.
+    dataXMax = extendXMaxForShifts(state, paneKey, spacing, dataXMax);
     // Full data range until the user interacts, then the held window.
     const win = state.view.resolveXWindow(dataXMin, dataXMax);
     let { yMin, yMax } = computeYRange(state, paneKey, win);
@@ -339,9 +407,13 @@ function buildLineSeries(
     series: ReadonlyArray<SeriesPoint>,
     style: Extract<PlotStyle, { kind: "line" | "step-line" }>,
     viewport: Viewport,
+    spacing: number,
 ): void {
     const project = (point: SeriesPoint, value: number): { x: number; y: number } => ({
-        x: timeToX(point.time, viewport),
+        x: projectShiftedX(
+            { bars: state.bars, bar: point.bar, xShift: point.xShift, spacing },
+            viewport,
+        ),
         y: priceToY(value, viewport),
     });
     const dash = dashFor(style.lineStyle);
@@ -383,9 +455,13 @@ function buildAreaSeries(
     series: ReadonlyArray<SeriesPoint>,
     style: Extract<PlotStyle, { kind: "area" }>,
     viewport: Viewport,
+    spacing: number,
 ): void {
     const project = (point: SeriesPoint, value: number): { x: number; y: number } => ({
-        x: timeToX(point.time, viewport),
+        x: projectShiftedX(
+            { bars: state.bars, bar: point.bar, xShift: point.xShift, spacing },
+            viewport,
+        ),
         y: priceToY(value, viewport),
     });
     const baselineY = priceToY(viewport.yMin, viewport);
@@ -418,11 +494,15 @@ function buildHistogramSeries(
     series: ReadonlyArray<SeriesPoint>,
     style: Extract<PlotStyle, { kind: "histogram" }>,
     viewport: Viewport,
+    spacing: number,
 ): void {
     const baselineY = priceToY(style.baseline, viewport);
     for (const point of series) {
         if (point.value === null || !Number.isFinite(point.value)) continue;
-        const x = timeToX(point.time, viewport);
+        const x = projectShiftedX(
+            { bars: state.bars, bar: point.bar, xShift: point.xShift, spacing },
+            viewport,
+        );
         const y = priceToY(point.value, viewport);
         const top = Math.min(baselineY, y);
         const height = Math.max(1, Math.abs(y - baselineY));
@@ -446,6 +526,7 @@ function buildFilledBand(
     group: KonvaGroup,
     series: ReadonlyArray<SeriesPoint>,
     viewport: Viewport,
+    spacing: number,
 ): void {
     const upper: number[] = [];
     const lowerReversed: number[] = [];
@@ -457,7 +538,10 @@ function buildFilledBand(
         if (band === undefined) continue;
         alpha = band.alpha;
         color = point.color ?? color;
-        const x = timeToX(point.time, viewport);
+        const x = projectShiftedX(
+            { bars: state.bars, bar: point.bar, xShift: point.xShift, spacing },
+            viewport,
+        );
         const { upper: u, lower: l } = band;
         // A null bound on either edge marks a per-bar gap: flush the
         // current closed shape and start a fresh one.
@@ -521,13 +605,19 @@ function buildOverlay(
     group: KonvaGroup,
     plot: PlotEmission,
     viewport: Viewport,
+    spacing: number,
 ): void {
     const style = plot.style;
     switch (style.kind) {
         case "shape":
         case "marker": {
             if (!isFiniteValue(plot.value)) return;
-            const x = timeToX(plot.time, viewport);
+            // Glyph plots are shifted series visuals, so they project
+            // through the same bar-offset funnel as line / histogram.
+            const x = projectShiftedX(
+                { bars: state.bars, bar: plot.bar, xShift: plot.xShift, spacing },
+                viewport,
+            );
             const y = priceToY(plot.value, viewport);
             const size = style.size;
             group.add(
@@ -543,13 +633,15 @@ function buildOverlay(
         }
         case "character": {
             if (!isFiniteValue(plot.value)) return;
-            group.add(glyphText(state, style.char, plot, plot.value, style.size, viewport));
+            group.add(
+                glyphText(state, style.char, plot, plot.value, style.size, viewport, spacing),
+            );
             return;
         }
         case "arrow": {
             if (!isFiniteValue(plot.value)) return;
             const glyph = style.direction === "up" ? "▲" : "▼";
-            group.add(glyphText(state, glyph, plot, plot.value, style.size, viewport));
+            group.add(glyphText(state, glyph, plot, plot.value, style.size, viewport, spacing));
             return;
         }
         case "candle-override":
@@ -580,7 +672,16 @@ function buildOverlay(
             return;
         }
         case "bg-color": {
-            // Full-pane background tint anchored at the bar's x column.
+            // Per-bar background tint anchored at the bar's x column. The
+            // dynamic per-bar `colorValue` wins over the static `style.color`
+            // when present; an explicit `null` paints nothing this bar (the
+            // adapter precedence contract — see canvas2d's `render/bgColor.ts`).
+            const paint = plot.colorValue === undefined ? style.color : plot.colorValue;
+            if (paint === null) return;
+            // `transp` (0–100; 0 = opaque, 100 = fully transparent) maps to a
+            // node-level `opacity` of `1 - transp/100` — the Konva idiom for
+            // the canvas reference's `globalAlpha`. Omitted ⇒ opacity 1.
+            const opacity = 1 - (style.transp ?? 0) / 100;
             const x = timeToX(plot.time, viewport);
             const colWidth =
                 state.bars.length > 0 ? viewport.pxWidth / state.bars.length : viewport.pxWidth;
@@ -590,7 +691,8 @@ function buildOverlay(
                     y: 0,
                     width: colWidth,
                     height: viewport.pxHeight,
-                    fill: style.color,
+                    fill: paint,
+                    opacity,
                     listening: false,
                 }),
             );
@@ -617,7 +719,15 @@ function buildOverlay(
         case "label": {
             if (!isFiniteValue(plot.value)) return;
             group.add(
-                glyphText(state, style.text, plot, plot.value, GLYPH_LABEL_FONT_SIZE, viewport),
+                glyphText(
+                    state,
+                    style.text,
+                    plot,
+                    plot.value,
+                    GLYPH_LABEL_FONT_SIZE,
+                    viewport,
+                    spacing,
+                ),
             );
             return;
         }
@@ -633,8 +743,12 @@ function glyphText(
     value: number,
     size: number,
     viewport: Viewport,
+    spacing: number,
 ): KonvaNode {
-    const x = timeToX(plot.time, viewport);
+    const x = projectShiftedX(
+        { bars: state.bars, bar: plot.bar, xShift: plot.xShift, spacing },
+        viewport,
+    );
     const y = priceToY(value, viewport);
     return new state.konva.Text({
         x,
@@ -702,12 +816,17 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
         state.paneOrder.push(paneKey);
     }
     const style = plot.style;
+    // Omit a no-shift `xShift` so the stored point (and therefore the
+    // rendered x) is byte-identical to a pre-feature emission, mirroring
+    // canvas2d's `applyPlot`.
+    const shift = plot.xShift === undefined || plot.xShift === 0 ? {} : { xShift: plot.xShift };
     if (style.kind === "line" || style.kind === "step-line" || style.kind === "histogram") {
         pushSeriesPoint(state, paneSlotKey(paneKey, plot.slotId), style, {
             time: plot.time,
             value: plot.value,
             color: plot.color,
             bar: plot.bar,
+            ...shift,
         });
         return;
     }
@@ -721,6 +840,7 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             value: plot.value,
             color: plot.color,
             bar: plot.bar,
+            ...shift,
             ...(style.kind === "filled-band"
                 ? { band: { upper: style.upper, lower: style.lower, alpha: style.alpha } }
                 : {}),
@@ -769,9 +889,14 @@ function ingest(state: AdapterState, emissions: RunnerEmissions): void {
 function rebuildSeriesLayer(state: AdapterState): void {
     state.seriesLayer.destroyChildren();
     const layout = computePaneLayout(state.paneOrder, state.stageSize);
+    // Median adjacent-bar spacing of the run, computed once per rebuild and
+    // threaded into every shifted-series projection (and `computePaneViewport`'s
+    // `+k` xMax widening) so a shift past the data edge extrapolates a target
+    // time from a stable cadence — matching canvas2d's per-frame `spacing`.
+    const spacing = medianBarSpacing(state.bars);
     for (const entry of layout) {
         const group = new state.konva.Group({ x: entry.rect.x, y: entry.rect.y });
-        const viewport = computePaneViewport(state, entry);
+        const viewport = computePaneViewport(state, entry, spacing);
         if (entry.paneKey === "overlay") {
             // Cached for the DOM interaction handlers' pixel↔world mapping.
             state.lastOverlayViewport = viewport;
@@ -784,15 +909,15 @@ function rebuildSeriesLayer(state: AdapterState): void {
         for (const plot of state.plotOverlays.values()) {
             if (plot.pane !== entry.paneKey) continue;
             if (plot.style.kind !== "bg-color") continue;
-            buildOverlay(state, group, plot, viewport);
+            buildOverlay(state, group, plot, viewport, spacing);
         }
-        buildPaneSeries(state, group, entry.paneKey, viewport);
+        buildPaneSeries(state, group, entry.paneKey, viewport, spacing);
         for (const plot of state.plotOverlays.values()) {
             if (plot.pane !== entry.paneKey) continue;
             if (plot.style.kind === "bg-color") continue;
             /* v8 ignore next -- plotOverlays only ever holds overlay-style emissions (see applyPlot) */
             if (!isOverlayStyle(plot.style)) continue;
-            buildOverlay(state, group, plot, viewport);
+            buildOverlay(state, group, plot, viewport, spacing);
         }
         for (const hline of state.hlines.values()) {
             if (hline.paneKey !== entry.paneKey) continue;
@@ -819,7 +944,7 @@ function rebuildDrawingsLayer(state: AdapterState): void {
     // carries an overlay entry; the guard keeps `overlay` non-undefined.
     /* v8 ignore next -- overlay pane is always present (paneOrder[0] === "overlay") */
     if (overlay === undefined) return;
-    const viewport = computePaneViewport(state, overlay);
+    const viewport = computePaneViewport(state, overlay, medianBarSpacing(state.bars));
     const group = new state.konva.Group({ x: overlay.rect.x, y: overlay.rect.y });
     for (const drawing of state.drawings.values()) {
         for (const primitive of decomposeDrawing(drawing, viewport)) {
@@ -844,8 +969,9 @@ function rebuildDrawingsLayer(state: AdapterState): void {
 function rebuildAxisLayer(state: AdapterState): void {
     state.axisLayer.destroyChildren();
     const layout = computePaneLayout(state.paneOrder, state.stageSize);
+    const spacing = medianBarSpacing(state.bars);
     for (const entry of layout) {
-        const viewport = computePaneViewport(state, entry);
+        const viewport = computePaneViewport(state, entry, spacing);
         const ticks = niceTicks(viewport.yMin, viewport.yMax, AXIS_TICK_COUNT);
         const step = tickStep(ticks);
         const group = new state.konva.Group({ x: entry.rect.x, y: entry.rect.y });
@@ -875,19 +1001,20 @@ function buildPaneSeries(
     group: KonvaGroup,
     paneKey: string,
     viewport: Viewport,
+    spacing: number,
 ): void {
     const prefix = paneKeyPrefix(paneKey);
     for (const [key, entry] of state.plotSeries) {
         if (!key.startsWith(prefix)) continue;
         const { style, points } = entry;
         if (style.kind === "line" || style.kind === "step-line") {
-            buildLineSeries(state, group, points, style, viewport);
+            buildLineSeries(state, group, points, style, viewport, spacing);
         } else if (style.kind === "histogram") {
-            buildHistogramSeries(state, group, points, style, viewport);
+            buildHistogramSeries(state, group, points, style, viewport, spacing);
         } else if (style.kind === "area") {
-            buildAreaSeries(state, group, points, style, viewport);
+            buildAreaSeries(state, group, points, style, viewport, spacing);
         } else if (style.kind === "filled-band") {
-            buildFilledBand(state, group, points, viewport);
+            buildFilledBand(state, group, points, viewport, spacing);
         }
     }
 }

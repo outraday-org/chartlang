@@ -104,6 +104,20 @@ T5 after `multi-symbol-security`, and the core-spanning T8 + T12 last.
 - **Mapping decisions route through `src/mapping/` tables**, never inlined in a
   transform (repo invariant).
 
+## Cross-surface coverage
+
+This is a **converter capstone**, so the six chartlang surfaces map differently
+than they do for a new language primitive. How each TX covers them:
+
+| Surface | How this capstone covers it |
+|---------|-----------------------------|
+| **converter** | The whole point — every TX is converter implementation (lexer/parser/semantic/mapping/transform/codegen). Primary surface. |
+| **examples/demos** | The converter's "examples" are its **fixture triples** under `packages/pine-converter/fixtures/` (`NN-name.pine` + `.expected.chart.ts` + `.expected.diagnostics.json`), validated by the compile round-trip. The two reference scripts (`Trend_Wizard.md`, `MASM_Strat.md`) scope the corpus. Authored `examples/scripts/*.chart.ts` are **not** the converter's example surface — converted output is exercised via fixtures, not the demo catalogue. |
+| **docs** | Mandated by the shared invariant: every TX updates `docs/converter/supported.md`, `docs/converter/rejects.md`, and the generated `docs/converter/diagnostics.md` in the same PR. |
+| **skills** | Same shared invariant: each TX's mapping is reflected in the converter skill surface (`docs/converter/*` is the skill-facing reference; new Pine→chartlang rows land alongside the converter change). No `primitives.md` regeneration — the converter emits existing primitives. |
+| **adapters** | **Only T8** (`display=` / per-plot visibility) touches adapters, because it adds a new wire field. Every other TX emits **existing** primitives (`plot`/`draw`/`input`/`alert`/…) that all adapters already render post `tasks/adapter-feature-parity/` — no adapter change. T8's adapter task enumerates all five adapters (canvas2d, echarts, konva, lightweight-charts, uplot). |
+| **react-starter** | **N/A.** The converter is hosted in `apps/site` (the converter route / `CompilePreview`), not `apps/react-starter`. Converted chartlang output, when rendered, rides the same adapter parity as any other script — no react-starter wiring is specific to conversion. |
+
 ## Converter pipeline map (reference for all TX)
 
 ```

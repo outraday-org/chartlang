@@ -19,7 +19,10 @@ import {
     createViewController,
     decomposeDrawing,
     defineAdapter,
+    maxShiftedTime,
+    medianBarSpacing,
     priceToY,
+    shiftedBarTime,
     timeToX,
     validateEmission,
 } from "@invinite-org/chartlang-adapter-kit";
@@ -32,6 +35,7 @@ import {
 } from "@invinite-org/chartlang-host-worker";
 import uPlot from "uplot";
 
+import { type BgColorBand, drawBgColorBand } from "./bgColor.js";
 import { type CandlePathStyle, type ProjectedCandle, drawCandlePaths } from "./candlePaths.js";
 import { UPLOT_CAPABILITIES, UPLOT_SYM_INFO } from "./capabilities.js";
 import { buildViewport, offsetForViewport } from "./viewport.js";
@@ -50,6 +54,18 @@ const CANDLE_BODY_WIDTH_PX = 6;
 const DEFAULT_BULL = "#26a69a";
 const DEFAULT_BEAR = "#ef5350";
 const HLINE_COLOR = "#787b86";
+// Fallback stroke for a series carrying no per-point color (mirrors the
+// echarts / konva `seriesColor` fallback). The all-blue hardcode this
+// replaced was a BUG: every series read the same `#3b82f6`, so a multi-plot
+// script (or the `sma-offset` sample's three SMA copies) rendered as one
+// blue line.
+const DEFAULT_LINE_COLOR = "#3b82f6";
+// Half a bar spacing is padded onto each side of the x scale so the first /
+// last candle CENTRES sit inside the plotting area instead of spilling the
+// last body into the right price-axis gutter (uPlot auto-ranges x so the
+// last bar lands exactly at the plot-area right edge). Mirrors the feel of
+// canvas2d's reserved gutter.
+const X_PAD_BARS = 0.5;
 
 // uPlot's `AlignedData` is `[xValues, ...yValues]`; chartlang feeds the
 // bar times as x and per-series values as y (`null` ⇒ gap).
@@ -208,6 +224,16 @@ export type UplotAdapterHandle = Adapter & { readonly host: ScriptHost };
 type PlotPoint = {
     readonly time: number;
     readonly value: number | null;
+    // The per-bar emitted color (`null` ⇒ inherit the default). The series'
+    // stroke is the LAST non-null color (`seriesColor`); the all-blue
+    // hardcode this carries was a BUG.
+    readonly color: string | null;
+    // The bar index the point was computed at + the presentation-only
+    // `offset` (`xShift`; `+n` right/future, `−n` left/past). Together they
+    // resolve the column the value lands in via `shiftedBarTime`; an omitted
+    // / `0` `xShift` keeps the value on its own bar (aligned-data unchanged).
+    readonly bar: number;
+    readonly xShift?: number;
 };
 
 type PanedHLine = {
@@ -236,8 +262,18 @@ type AdapterState = {
     readonly hlines: Map<string, PanedHLine>;
     // Per-bar candle-state overrides (bg / bar / candle-override,
     // horizontal-histogram) keyed `${slotId}@${time}`. Buffered like
-    // canvas2d; painted in the overlay draw hook.
+    // canvas2d; the bg-color / bar-color subset is also projected into the
+    // dedicated per-bar maps below for the overlay draw hook.
     readonly overlays: Map<string, PlotEmission>;
+    // Resolved per-bar `bgcolor` bands, keyed by bar TIME (last-write-wins).
+    // The `colorValue` precedence is settled at ingest (`applyPlot`), so a
+    // `null` gap DELETES the bar's entry rather than enqueuing it. Painted
+    // first in the overlay draw hook (behind the candles).
+    readonly bgColors: Map<number, BgColorBand>;
+    // Resolved per-bar `barcolor` candle tints, keyed by bar TIME. Same
+    // precedence + `null`-deletes contract; threaded into the candle paint
+    // (body + wick) for the matching bar.
+    readonly barColors: Map<number, string>;
     // Drawings are buffered for Task 8 (not rendered here).
     readonly drawings: Map<string, DrawingEmission>;
     readonly recentAlerts: AlertEmission[];
@@ -299,6 +335,13 @@ function defaultUplotFactory(
             // through the adapter's `attachInteraction` listeners (wired in
             // the `ready` hook) so drag pans and the wheel zooms BOTH ways.
             cursor: { drag: { x: false, y: false } },
+            // Hide uPlot's built-in DOM legend. The adapter labels each series
+            // by its chartlang slotId (`demo.chart.ts:12:9#0`), which is noise
+            // to an end user, and the legend table renders BELOW the fixed-
+            // height chart container — overflowing into whatever sits under it
+            // (the demo's alert feed). No other rendering model in the example
+            // set shows a legend, so hiding it keeps the surface self-contained.
+            legend: { show: false },
             hooks: {
                 draw: opts.hooks.draw.map((fn) => (u: uPlot) => fn(u as unknown as UplotLike)),
                 ready: (opts.hooks.ready ?? []).map(
@@ -432,17 +475,17 @@ function computePaneViewportFor(state: AdapterState, paneKey: string): Viewport 
     };
 }
 
-// Median adjacent-bar spacing, used to size candle bodies. Mirrors the
-// shape canvas2d derives for shifted-series projection.
-function medianBarSpacing(bars: ReadonlyArray<Bar>): number {
-    if (bars.length < 2) return CANDLE_BODY_WIDTH_PX;
-    const gaps: number[] = [];
-    for (let i = 1; i < bars.length; i++) {
-        gaps.push(bars[i].time - bars[i - 1].time);
+// The series' stroke colour: the LAST non-null per-point color, falling
+// back to `DEFAULT_LINE_COLOR`. Mirrors the echarts / konva `seriesColor`
+// helper — every adapter resolves the per-series stroke the same way, so a
+// multi-plot script gets DISTINCT colours instead of the old all-blue
+// hardcode (which was a BUG).
+function seriesColor(points: ReadonlyArray<PlotPoint>, fallback: string): string {
+    for (let i = points.length - 1; i >= 0; i--) {
+        const color = points[i].color;
+        if (color !== null) return color;
     }
-    gaps.sort((a, b) => a - b);
-    const mid = Math.floor(gaps.length / 2);
-    return gaps.length % 2 === 0 ? (gaps[mid - 1] + gaps[mid]) / 2 : gaps[mid];
+    return fallback;
 }
 
 // Project the candles for the overlay pane into canvas (device) pixel
@@ -458,14 +501,34 @@ function projectCandles(
     viewport: Viewport,
     dx: number,
     dy: number,
+    barColors: ReadonlyMap<number, string>,
 ): ProjectedCandle[] {
-    return bars.map((bar) => ({
-        x: timeToX(bar.time, viewport) + dx,
-        openY: priceToY(bar.open, viewport) + dy,
-        closeY: priceToY(bar.close, viewport) + dy,
-        highY: priceToY(bar.high, viewport) + dy,
-        lowY: priceToY(bar.low, viewport) + dy,
-    }));
+    return bars.map((bar) => {
+        // A per-bar `barcolor` override tints both the body + wick; omitted
+        // ⇒ no `color` key, byte-identical to the bull/bear default render.
+        const color = barColors.get(bar.time);
+        return {
+            x: timeToX(bar.time, viewport) + dx,
+            openY: priceToY(bar.open, viewport) + dy,
+            closeY: priceToY(bar.close, viewport) + dy,
+            highY: priceToY(bar.high, viewport) + dy,
+            lowY: priceToY(bar.low, viewport) + dy,
+            ...(color === undefined ? {} : { color }),
+        };
+    });
+}
+
+// Paint every resolved `bgcolor` band into the overlay draw hook, behind
+// the candles. The `colorValue` precedence + `null` gap are settled at
+// ingest (the map only holds live bands), so each paints unconditionally.
+// An empty map early-returns with no ctx calls, so a band-free script keeps
+// the candle/hline/drawing hash byte-identical.
+function paintBgColors(state: AdapterState, viewport: Viewport, dx: number, ctx: RenderCtx): void {
+    if (state.bgColors.size === 0) return;
+    const barCount = state.bars.length;
+    for (const band of state.bgColors.values()) {
+        drawBgColorBand(ctx, band, viewport, dx, barCount);
+    }
 }
 
 // The draw-hook ctx pass for a pane: paint candles (overlay only) +
@@ -482,7 +545,25 @@ function paintPaneOverlay(state: AdapterState, paneKey: string, u: UplotLike): v
     const viewport = buildViewport(u);
     const { dx, dy } = offsetForViewport(u);
     const ctx = u.ctx;
+    // Confine the whole hand-rolled draw pass to uPlot's plotting-area box.
+    // uPlot clips its OWN series to this rect, but the `hooks.draw` ctx is the
+    // unclipped full canvas — so without this, any candle / bg-band / drawing
+    // whose bar falls OUTSIDE the visible x-window (a panned/zoomed view that
+    // still has bars to the left or right) paints straight into the price-axis
+    // gutter, on top of the axis labels (the reported "overreaches the axis"
+    // bug). Clipping to `(dx, dy, pxWidth, pxHeight)` — device px, the same
+    // space the marks are projected into — makes the candle pass honour the
+    // plot edges exactly as the native series already do, on both axes. The
+    // matching `restore()` at the end of the hook drops the clip.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(dx, dy, viewport.pxWidth, viewport.pxHeight);
+    ctx.clip();
     if (paneKey === "overlay") {
+        // `bgcolor` bands paint FIRST so they sit behind the candles — they
+        // are candle-state background, not a sub-pane series, so they only
+        // wash the overlay pane.
+        paintBgColors(state, viewport, dx, ctx);
         const spacing = medianBarSpacing(state.bars);
         const bodyWidth = Math.max(
             1,
@@ -493,7 +574,7 @@ function paintPaneOverlay(state: AdapterState, paneKey: string, u: UplotLike): v
             bull: DEFAULT_BULL,
             bear: DEFAULT_BEAR,
         };
-        drawCandlePaths(ctx, projectCandles(state.bars, viewport, dx, dy), style);
+        drawCandlePaths(ctx, projectCandles(state.bars, viewport, dx, dy, state.barColors), style);
     }
     for (const hline of state.hlines.values()) {
         if (hline.paneKey !== paneKey) continue;
@@ -516,6 +597,8 @@ function paintPaneOverlay(state: AdapterState, paneKey: string, u: UplotLike): v
         ctx.setLineDash([]);
     }
     paintDrawings(state, u, ctx);
+    // Drop the plotting-area clip established at the top of the hook.
+    ctx.restore();
 }
 
 // Paint every buffered drawing into the pane's draw hook via the shared
@@ -544,23 +627,70 @@ function paintDrawings(state: AdapterState, u: UplotLike, ctx: RenderCtx): void 
     ctx.restore();
 }
 
-// Build the aligned data table for a pane: row 0 is bar times; each
-// subsequent row is a series' values aligned to the bar window (missing
-// bars ⇒ `null` gap).
-function buildPaneData(state: AdapterState, paneKey: string): AlignedData {
+// The series points of one pane, flattened, for the `maxShiftedTime`
+// edge-extension pass (which only reads `bar` + `xShift`).
+function panePoints(state: AdapterState, paneKey: string): PlotPoint[] {
+    const prefix = paneKeyPrefix(paneKey);
+    const points: PlotPoint[] = [];
+    for (const [key, series] of state.plotSeries) {
+        if (!key.startsWith(prefix)) continue;
+        points.push(...series);
+    }
+    return points;
+}
+
+// Build the extended x (bar-time) row for a pane: the bar times, EXTENDED
+// with extrapolated future columns (`lastTime + k·spacing`) up to the
+// largest world time any `+k`-shifted point reaches (`maxShiftedTime`). A
+// no-offset pane appends nothing, so `xs` equals the bar times verbatim and
+// the aligned rows are byte-identical to the pre-offset path. A far-past
+// (`−k`) shift is NOT prepended — it is clipped at the first bar (canvas2d
+// parity: "−k clipped at negative x, xMin not extended").
+function buildPaneXs(state: AdapterState, paneKey: string, spacing: number): number[] {
     const xs = state.bars.map((bar) => bar.time);
+    const last = state.bars.length - 1;
+    if (last < 0 || spacing <= 0) return xs;
+    const lastTime = state.bars[last].time;
+    const xMax = maxShiftedTime(panePoints(state, paneKey), state.bars, spacing, lastTime);
+    for (let t = lastTime + spacing; t <= xMax; t += spacing) {
+        xs.push(t);
+    }
+    return xs;
+}
+
+// Build the aligned data table for a pane: row 0 is the (possibly
+// future-extended) bar-time row; each subsequent row is a series' values
+// placed at the column whose time === the point's SHIFTED time
+// (`shiftedBarTime`). A `−k` point whose shifted time precedes the first bar
+// is dropped (clipped, not prepended). A point that lands on no column (a
+// non-finite gap, or a defensively missing time) contributes nothing.
+function buildPaneData(state: AdapterState, paneKey: string): AlignedData {
+    const spacing = medianBarSpacing(state.bars);
+    const xs = buildPaneXs(state, paneKey, spacing);
+    const timeToCol = new Map<number, number>();
+    for (let i = 0; i < xs.length; i++) timeToCol.set(xs[i], i);
+    const firstTime = state.bars.length > 0 ? state.bars[0].time : 0;
     const rows: Array<ReadonlyArray<number | null>> = [xs];
     const prefix = paneKeyPrefix(paneKey);
     for (const [key, series] of state.plotSeries) {
         if (!key.startsWith(prefix)) continue;
-        const byTime = new Map<number, number | null>();
+        const row: Array<number | null> = xs.map(() => null);
         for (const point of series) {
-            byTime.set(
-                point.time,
-                point.value !== null && Number.isFinite(point.value) ? point.value : null,
-            );
+            if (point.value === null || !Number.isFinite(point.value)) continue;
+            const t = shiftedBarTime({
+                bars: state.bars,
+                bar: point.bar,
+                xShift: point.xShift,
+                spacing,
+            });
+            // A far-past shift lands before the first bar — clip it (no
+            // negative-time column is prepended).
+            if (t < firstTime) continue;
+            const col = timeToCol.get(t);
+            if (col === undefined) continue;
+            row[col] = point.value;
         }
-        rows.push(state.bars.map((bar) => byTime.get(bar.time) ?? null));
+        rows.push(row);
     }
     return rows;
 }
@@ -569,14 +699,16 @@ function buildPaneData(state: AdapterState, paneKey: string): AlignedData {
 function buildPaneSeries(state: AdapterState, paneKey: string): UplotSeriesSpec[] {
     const specs: UplotSeriesSpec[] = [];
     const prefix = paneKeyPrefix(paneKey);
-    for (const [key] of state.plotSeries) {
+    for (const [key, points] of state.plotSeries) {
         if (!key.startsWith(prefix)) continue;
         const style = state.plotSeriesStyle.get(key);
         // A stored series always has a style (set in lockstep in
         // `applyPlot`); the `??` is defensive only.
         /* v8 ignore next */
         const resolved: PlotStyle = style ?? { kind: "line", lineWidth: 1, lineStyle: "solid" };
-        const stroke = "#3b82f6";
+        // The stroke is the series' LAST non-null per-point color (was a
+        // hardcoded blue — a BUG that collapsed every series to one colour).
+        const stroke = seriesColor(points, DEFAULT_LINE_COLOR);
         const fill = fillFor(resolved, stroke);
         specs.push({
             label: key.slice(prefix.length),
@@ -616,6 +748,19 @@ function barsXBounds(state: AdapterState): { readonly xMin: number; readonly xMa
     return { xMin, xMax: xMax === xMin ? xMin + 1 : xMax };
 }
 
+// Pad an x-window by half a bar spacing on each side so the first / last
+// candle CENTRES sit inside the plotting area instead of the last body
+// spilling into the right price-axis gutter (uPlot auto-ranges x so the
+// last bar lands exactly at the plot-area right edge). A single-bar / empty
+// window has zero spacing, so the pad is a no-op there.
+function paddedXWindow(
+    state: AdapterState,
+    win: { readonly xMin: number; readonly xMax: number },
+): { readonly min: number; readonly max: number } {
+    const pad = X_PAD_BARS * medianBarSpacing(state.bars);
+    return { min: win.xMin - pad, max: win.xMax + pad };
+}
+
 // Wire wheel-zoom / drag-pan / dblclick-reset onto a pane instance's `over`
 // element (the `ready` hook calls this once per pane). All panes share
 // `state.view`, and a gesture pushes the resolved x-window onto EVERY
@@ -632,9 +777,9 @@ function wireUplotInteraction(state: AdapterState, u: UplotLike): void {
         dataBounds: () => barsXBounds(state),
         requestRender: () => {
             const { xMin, xMax } = barsXBounds(state);
-            const win = state.view.resolveXWindow(xMin, xMax);
+            const win = paddedXWindow(state, state.view.resolveXWindow(xMin, xMax));
             for (const inst of state.instances.values()) {
-                inst.setScale("x", { min: win.xMin, max: win.xMax });
+                inst.setScale("x", win);
             }
             state.userInteracted = state.view.userInteracted;
         },
@@ -664,9 +809,14 @@ function renderFrame(state: AdapterState): void {
         // chartlang-computed window rather than uPlot's auto-range — the
         // overlay pane must share the candle scale, a subpane its own. Once
         // the user interacts, uPlot owns the y scale and the re-pin stops.
+        // The x scale is pinned to the HALF-SPACING-PADDED data bounds (not
+        // left to uPlot's flush auto-range) so the first / last candle
+        // centres sit inside the plotting area instead of the last body
+        // spilling into the right price-axis gutter.
         if (!state.userInteracted && state.bars.length > 0) {
             const viewport = computePaneViewportFor(state, paneKey);
             instance.setScale("y", { min: viewport.yMin, max: viewport.yMax });
+            instance.setScale("x", paddedXWindow(state, barsXBounds(state)));
         }
     }
 }
@@ -680,7 +830,15 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
     if (isSeriesStyle(plot.style)) {
         const key = paneSlotKey(paneKey, plot.slotId);
         const series = state.plotSeries.get(key) ?? [];
-        series.push({ time: plot.time, value: plot.value });
+        series.push({
+            time: plot.time,
+            value: plot.value,
+            color: plot.color,
+            bar: plot.bar,
+            // Omit a `0` / undefined shift so the unshifted column mapping in
+            // `buildPaneData` stays byte-identical to the pre-offset path.
+            ...(plot.xShift !== undefined && plot.xShift !== 0 ? { xShift: plot.xShift } : {}),
+        });
         state.plotSeries.set(key, series);
         state.plotSeriesStyle.set(key, plot.style);
         return;
@@ -695,13 +853,57 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
         });
         return;
     }
+    // `bg-color` / `bar-color` additionally project into the dedicated
+    // per-bar maps the overlay draw hook paints from (resolving the
+    // `colorValue` precedence at ingest). Both also stay in `overlays` so
+    // the "all plot kinds" claim stays honest.
+    if (plot.style.kind === "bg-color") {
+        applyBgColor(state, plot, plot.style.color, plot.style.transp);
+    } else if (plot.style.kind === "bar-color") {
+        applyBarColor(state, plot, plot.style.color);
+    }
     // Glyph / label / candle-state overrides (shape, marker, character,
     // arrow, label, bg-color, bar-color, candle/bar-override,
-    // horizontal-histogram) are buffered per slot+bar. Task 7 keeps them
-    // for the draw hook / Task 8; the "all plot kinds" claim stays honest
-    // (declared in Capabilities, retained here) rather than silently
-    // dropping the emission.
+    // horizontal-histogram) are buffered per slot+bar; the "all plot kinds"
+    // claim stays honest (declared in Capabilities, retained here) rather
+    // than silently dropping the emission.
     state.overlays.set(`${plot.slotId}@${plot.time}`, plot);
+}
+
+// Resolve a `bg-color` emission's per-bar color via the precedence contract
+// (`colorValue` present ⇒ overrides `style.color`; `null` ⇒ paint nothing
+// this bar; `undefined` ⇒ the static `style.color`) and project it into the
+// per-bar band map keyed by bar time. A `null` gap DELETES the bar's band so
+// the draw hook never paints it.
+function applyBgColor(
+    state: AdapterState,
+    plot: PlotEmission,
+    staticColor: string,
+    transp: number | undefined,
+): void {
+    const paint = plot.colorValue === undefined ? staticColor : plot.colorValue;
+    if (paint === null) {
+        state.bgColors.delete(plot.time);
+        return;
+    }
+    state.bgColors.set(plot.time, {
+        time: plot.time,
+        color: paint,
+        ...(transp === undefined ? {} : { transp }),
+    });
+}
+
+// Resolve a `bar-color` emission's per-bar tint via the same precedence
+// contract and project it into the per-bar candle-tint map keyed by bar
+// time. A `null` gap DELETES the bar's tint (the candle falls back to its
+// bull/bear colour).
+function applyBarColor(state: AdapterState, plot: PlotEmission, staticColor: string): void {
+    const paint = plot.colorValue === undefined ? staticColor : plot.colorValue;
+    if (paint === null) {
+        state.barColors.delete(plot.time);
+        return;
+    }
+    state.barColors.set(plot.time, paint);
 }
 
 function applyAlert(
@@ -813,6 +1015,8 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
         plotSeriesStyle: new Map(),
         hlines: new Map(),
         overlays: new Map(),
+        bgColors: new Map(),
+        barColors: new Map(),
         drawings: new Map(),
         recentAlerts: [],
         currentAlertConditions: [],
@@ -866,6 +1070,8 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
             state.plotSeriesStyle.clear();
             state.hlines.clear();
             state.overlays.clear();
+            state.bgColors.clear();
+            state.barColors.clear();
             state.drawings.clear();
             state.recentAlerts.length = 0;
             state.currentAlertConditions.length = 0;

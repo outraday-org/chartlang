@@ -3,8 +3,8 @@
 //
 // SEAM VARIANTS — the single source of truth for the per-library
 // `activeAdapter.ts` body. One entry per bundled adapter id. The committed
-// `activeAdapter.ts` is the `echarts` variant rendered from this table
-// (byte-identical to `SEAM_VARIANTS.find(v => v.id === "echarts").seamSource`).
+// `activeAdapter.ts` is the `canvas2d` variant rendered from this table
+// (byte-identical to `SEAM_VARIANTS.find(v => v.id === "canvas2d").seamSource`).
 //
 // Two consumers depend on this being the SSOT:
 //   1. `tests/adapter-matrix.spec.ts` rewrites `activeAdapter.ts` to each
@@ -62,7 +62,8 @@ export type CreateAdapterOpts = Readonly<{
 /** Options forwarded to {@link runActiveLoop} (cancellation via \`signal\`). */
 export type RunActiveLoopOpts = Readonly<{ signal?: AbortSignal }>`
 
-// canvas2d: create a <canvas> inside the container; runRendererLoop drives it.
+// canvas2d (default): create a <canvas> inside the container; runRendererLoop
+// drives it. THIS body equals the committed activeAdapter.ts verbatim.
 const CANVAS2D_SEAM = `${HEADER}
 import {
   createCanvas2dAdapter,
@@ -164,9 +165,8 @@ export async function runActiveLoop(
 }
 `
 
-// echarts (default): created from echartsFactory: () => echarts.init(container);
-// runEChartsLoop re-setOptions on each host drain. THIS body equals the
-// committed activeAdapter.ts verbatim.
+// echarts: created from echartsFactory: () => echarts.init(container);
+// runEChartsLoop re-setOptions on each host drain.
 const ECHARTS_SEAM = `${HEADER}
 import * as echarts from "echarts"
 import {
@@ -295,7 +295,7 @@ export async function runActiveLoop(
 }
 `
 
-/** The five bundled adapter seam variants (echarts is the committed default). */
+/** The five bundled adapter seam variants (canvas2d is the committed default). */
 export const SEAM_VARIANTS: ReadonlyArray<SeamVariant> = [
   {
     id: "canvas2d",

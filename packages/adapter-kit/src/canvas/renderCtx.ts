@@ -26,6 +26,14 @@ export type RenderCtx = {
     moveTo(x: number, y: number): void;
     lineTo(x: number, y: number): void;
     stroke(): void;
+    // Path-`rect` (adds a rectangle to the current path) + `clip` (intersects
+    // the clip region with the current path). Distinct from `fillRect` — these
+    // two compose into the standard `beginPath()` → `rect()` → `clip()` idiom
+    // an adapter uses to confine a hand-rolled draw pass to a plotting-area
+    // box (the uplot candle/hline/drawing overlay clips to uPlot's plot bbox
+    // so off-window marks do not spill into the axis gutters).
+    rect(x: number, y: number, w: number, h: number): void;
+    clip(): void;
     fillRect(x: number, y: number, w: number, h: number): void;
     fill(): void;
     arc(x: number, y: number, radius: number, start: number, end: number): void;

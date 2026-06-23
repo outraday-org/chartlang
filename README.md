@@ -46,7 +46,7 @@ Four ways to exercise the full stack end-to-end:
   through the reference canvas2d adapter — nothing to install.
 - **Scaffold your own app** — `npm create @invinite-org/chartlang@latest my-app`
   clones the [react-starter](./apps/react-starter) (editor + live chart
-  + EODData + SQLite) with the chart library you pick wired in. See the
+  + market data + SQLite) with the chart library you pick wired in. See the
   [starter guide](./docs/getting-started/react-starter.md):
   ```bash
   npm create @invinite-org/chartlang@latest my-app

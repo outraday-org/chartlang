@@ -115,10 +115,12 @@ mirror the surface they describe).
 
 ### 5. Regenerate `primitives.md` + skills gate
 
-- Run `pnpm skills:generate` (`scripts/generate-skills-reference.ts`) so
-  `skills/chartlang-coding/references/primitives.md` picks up the widened
-  `request.security` JSDoc (the symbol examples from Task 1). Commit the
-  regenerated file.
+- Run `pnpm skills:generate` (`scripts/generate-skills-reference.ts`) — this is
+  a no-op for this feature: the generated
+  `skills/chartlang-coding/references/primitives.md` emits only `ta.*` /
+  `draw.*` / plot-family JSDoc, so `request.security` (and its widened symbol
+  examples) is **not** listed there. The multi-symbol form is taught in the
+  hand-authored `SKILL.md` + `translating-from-pine.md` instead.
 - Confirm `pnpm skills:gate` is green (it fails CI if `primitives.md` drifts).
 
 ### 6. Example script + demo

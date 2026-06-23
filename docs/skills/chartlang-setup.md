@@ -23,7 +23,8 @@ npm create @invinite-org/chartlang@latest my-app
 It clones a TanStack Start app with the full embed path wired — the compiler
 behind a `/api/compile` server route, a Worker host, and a chart adapter
 behind one swappable `src/lib/chart/activeAdapter.ts` module — plus a
-CodeMirror editor, an EODData symbol picker, and SQLite saved scripts. See
+CodeMirror editor, a Yahoo Finance symbol picker (free daily US bars, no
+API key), and SQLite saved scripts. See
 the [starter guide](../getting-started/react-starter). The hand-integration
 paths below are for embedding chartlang into an *existing* product.
 

@@ -188,6 +188,13 @@ export class MockUplot implements UplotLike {
         if (scaleKey === "y") {
             this.scaleMin = limits.min;
             this.scaleMax = limits.max;
+        } else if (scaleKey === "x") {
+            // The adapter pins the x scale to a half-spacing-padded data
+            // window (auto-follow) or the held pan/zoom window; honouring it
+            // keeps `valToPos("x")` consistent with the live scale, so the
+            // x-pad pushes the first / last candle centre inside the plot.
+            this.xMin = limits.min;
+            this.xMax = limits.max;
         }
     }
 

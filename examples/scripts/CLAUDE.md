@@ -127,14 +127,32 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   Compile-only in the CLI e2e gate; not in the integration render test. Mirrored
   by the `symbol-ratio` `DEMO_SCRIPTS` entry (which the demo drives against a
   synthetic second-symbol stream via `createMultiSymbolCandlePump`).
-- `session-day-filter.chart.ts` demonstrates the calendar/session accessors
-  `time.*` / `session.*` plus the `input.session` kind: it plots `bar.close`
-  only when `session.isOpen(bar.time, input.session("0930-1600"))` AND the bar
-  is a weekday (`time.dayofweek(bar.time) >= 2 && <= 6`, Pine's `1=Sun..7=Sat`),
-  else `NaN`. Calendar fields come from `bar.time` (UTC ms epoch) through the
-  host-owned accessors — never `Date`/`Intl` (forbidden on the author path).
-  Compile-only in the CLI e2e gate; not in the integration render test. Mirrored
-  by the `session-day-filter` `DEMO_SCRIPTS` entry.
+- `weekday-close-filter.chart.ts` demonstrates the calendar accessor
+  `time.dayofweek`: it plots `bar.close` only on weekdays
+  (`time.dayofweek(bar.time) >= 2 && <= 6`, Pine's `1=Sun..7=Sat`), else `NaN`,
+  so the line breaks across each weekend. Calendar fields come from `bar.time`
+  (UTC ms epoch) through the host-owned accessors — never `Date`/`Intl`
+  (forbidden on the author path). It deliberately does **not** use
+  `session.isOpen` / `input.session`: the demo's `bars.json` fixture is daily
+  candles all timestamped ~22:13 UTC (one time-of-day), so any session window
+  is trivially all-open or all-closed and could not discriminate bar-to-bar.
+  The session accessors from the same X-task are exercised instead by the
+  conformance scenarios (`calendarSession`, `taSessionVolumeProfile`), which
+  use intraday fixtures. Compile-only in the CLI e2e gate; not in the
+  integration render test. Mirrored by the `weekday-close-filter`
+  `DEMO_SCRIPTS` entry.
+- `bgcolor-barcolor.chart.ts` demonstrates the Pine-ergonomic `barcolor` /
+  `bgcolor` color emitters: `barcolor(bar.close.current > bar.open.current ? … : …)`
+  tints each candle by its own up/down direction, and
+  `bgcolor(bar.close.current > trend.current ? … : …, { transp: 85 })` washes the
+  pane background by trend regime (price vs `ta.ema(bar.close, 50)`). Both
+  evaluate their color expression per bar and lower to the same emission as the
+  verbose `plot(NaN, { style: { kind: "bar-color" | "bg-color", color, transp } })`
+  form; `bgcolor` carries the `transp` (0 opaque … 100 transparent) opt, `barcolor`
+  has none. Adapters render them only when their `Capabilities.plots` include the
+  `bar-color` / `bg-color` kinds (a silent no-op otherwise). Compile-only in the
+  CLI e2e gate; not in the integration render test. Mirrored by the
+  `bgcolor-barcolor` `DEMO_SCRIPTS` entry.
 
 ## Conventions
 

@@ -40,7 +40,13 @@ published to npm**.
   `z-layering.chart.ts` sample demonstrates the presentation-only `z`
   render-order key: a `draw.fillBetween` band given `z: -1` so it renders
   **behind** the price `plot` (a drawing beneath a plot, which the default
-  group stack forbids), plus an SMA at `z: 1` on top.
+  group stack forbids), plus an SMA at `z: 1` on top. The
+  `bgcolor-barcolor.chart.ts` sample demonstrates the Pine-ergonomic
+  `barcolor` / `bgcolor` emitters: `barcolor` tints each candle by its own
+  up/down direction and `bgcolor` washes the pane background by trend regime
+  (price vs `ta.ema(bar.close, 50)`) with a `transp` transparency — both lower
+  to the same emission as the verbose
+  `plot(NaN, { style: { kind: "bar-color" | "bg-color" } })` form.
 
 ## Phase-1 scope
 

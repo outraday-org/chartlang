@@ -32,7 +32,7 @@ const NPMRC_CONTENTS =
     "# vite@8's optional esbuild peer (^0.27||^0.28) conflicts with the\n# chartlang-compiler esbuild dep (^0.24); the app runs fine on 0.24.\nlegacy-peer-deps=true\n";
 
 const DEFAULT_TARGET = "./chartlang-starter";
-const DEFAULT_LIBRARY: SeamId = "echarts";
+const DEFAULT_LIBRARY: SeamId = "canvas2d";
 const SEAM_PATH = ["src", "lib", "chart", "activeAdapter.ts"];
 const ENV_EXAMPLE = ".env.example";
 const ENV_FILE = ".env";
@@ -178,7 +178,7 @@ async function isNonEmptyDir(path: string): Promise<boolean> {
 }
 
 /**
- * Render the library-choice prompt list from the registry, echarts first
+ * Render the library-choice prompt list from the registry, canvas2d first
  * (the default) then the rest in registry order. Pure: no IO.
  *
  * @since 0.1
@@ -326,12 +326,15 @@ async function stripRepoArtefacts(dir: string): Promise<void> {
 
 function defaultEnv(): string {
     return [
-        "# chartlang starter environment. `.env` is git-ignored.",
+        "# Copy to `.env` and fill in. `.env` is git-ignored; this sample is committed.",
+        "",
+        "# Local SQLite file (saved scripts + cached daily bars). The DB auto-creates,",
+        "# migrates, and seeds on first boot — no manual step.",
         "DATABASE_URL=file:./data/starter.db",
         "",
-        "# EODData API key — free tier: 100 calls/day, daily EOD, US symbols.",
-        "# Register at https://eoddata.com/myaccount/api.aspx",
-        "EODDATA_API_KEY=",
+        "# Market data needs NO API key: the starter loads daily US bars from Yahoo",
+        "# Finance (free, unmetered) and caches each symbol in SQLite, so a re-open /",
+        "# re-compile costs zero network calls.",
         "",
     ].join("\n");
 }
@@ -357,7 +360,7 @@ function renderNextSteps(dir: string, pm: PackageManager, installed: boolean): s
         lines.push(`  ${pm} install`);
     }
     lines.push(
-        "  # add your free EODData key to .env (EODDATA_API_KEY=)",
+        "  # market data comes from Yahoo Finance — no API key needed",
         `  ${pm} run dev`,
         "",
         "Switch chart libraries later:",

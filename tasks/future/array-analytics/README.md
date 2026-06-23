@@ -31,7 +31,22 @@ as **canonical methods on the `MutableArraySlot` handle** (`win.avg()`,
 - A frozen `array` namespace (pure, core) whose members delegate to the
   handle methods 1:1: `array.sum(a)`, `array.avg(a)`, … — Pine naming parity.
 - Pine `array.*` reductions map onto either form via the converter.
-- Conformance scenario asserting a rolling stdev/median series is byte-stable.
+- Conformance scenario asserting a rolling stdev/median series is byte-stable
+  across **all** adapters.
+
+## Cross-surface coverage
+
+This is a pure-compute namespace — reductions return a `number` that flows into
+the existing `plot` hole. All six surfaces are covered by Task 3:
+
+| Surface | How |
+|---------|-----|
+| examples/demos | `examples/scripts/rolling-zscore.chart.ts` + `DEMO_SCRIPTS` entry + CLI e2e. |
+| docs | `state.array`/`array` reduction reference page + nav. |
+| skills | `references/translating-from-pine.md` mapping (both call styles). |
+| converter | Pine `array.*` reduction family mapping + diagnostics. |
+| adapters | **No new capability** — rides existing `plot` hole; `pnpm conformance` proves byte-stability across canvas2d/echarts/konva/lightweight-charts/uplot. Verified, not re-implemented (assumes `tasks/adapter-feature-parity/` landed). |
+| react-starter | **No seam change** — feature flows through the compiler; verified by a `tests/compile.spec.ts` case + the existing `adapter-matrix.spec.ts`. |
 
 ## Architecture Decisions
 

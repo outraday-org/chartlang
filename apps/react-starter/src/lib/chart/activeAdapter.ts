@@ -8,17 +8,15 @@
 // + `runActiveLoop` exported here.
 
 import type { AlertEmission, CandleEvent } from "@invinite-org/chartlang-adapter-kit"
-import * as echarts from "echarts"
 import {
-  createEChartsAdapter,
-  type EChartsAdapterHandle,
-  type EChartsSurface,
-  runEChartsLoop,
-} from "chartlang-example-echarts-adapter"
+  createCanvas2dAdapter,
+  type Canvas2dAdapterHandle,
+  runRendererLoop,
+} from "chartlang-example-canvas2d-adapter"
 
-export type ActiveAdapterHandle = EChartsAdapterHandle
+export type ActiveAdapterHandle = Canvas2dAdapterHandle
 
-export const ACTIVE_ADAPTER_ID = "echarts"
+export const ACTIVE_ADAPTER_ID = "canvas2d"
 
 /** Library-agnostic options ChartPane passes to {@link createActiveAdapter}. */
 export type CreateAdapterOpts = Readonly<{
@@ -31,35 +29,15 @@ export type CreateAdapterOpts = Readonly<{
 /** Options forwarded to {@link runActiveLoop} (cancellation via `signal`). */
 export type RunActiveLoopOpts = Readonly<{ signal?: AbortSignal }>
 
-// echarts needs a DOM container + sizing it does not own, so the factory —
-// not a raw container — is the seam: this module owns the echarts.init call.
-//
-// The adapter's `buildViewport` treats `convertToPixel` as "returns undefined
-// when the chart isn't laid out yet"; the real echarts instance instead THROWS
-// before its first laid-out `setOption` (reading `queryComponents` of an
-// undefined coordinate system). Wrap it so a pre-layout call returns undefined,
-// honouring the adapter contract and letting it fall back to a deterministic
-// viewport instead of killing the render loop.
-function makeEchartsSurface(container: HTMLElement): EChartsSurface {
-  const chart = echarts.init(container)
-  return {
-    setOption: (option, setOpts) => chart.setOption(option, setOpts),
-    resize: () => chart.resize(),
-    dispose: () => chart.dispose(),
-    convertToPixel: (finder, value) => {
-      try {
-        const px = chart.convertToPixel(finder, value as unknown as number[])
-        return Array.isArray(px) ? ([px[0], px[1]] as const) : undefined
-      } catch {
-        return undefined
-      }
-    },
-  }
-}
-
+// canvas2d paints onto a <canvas>; the seam creates one inside the generic
+// container so ChartPane only ever provides a DOM node.
 export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandle {
-  return createEChartsAdapter({
-    echartsFactory: () => makeEchartsSurface(opts.container),
+  const canvas = opts.container.ownerDocument.createElement("canvas")
+  canvas.width = opts.container.clientWidth || 800
+  canvas.height = opts.container.clientHeight || 480
+  opts.container.replaceChildren(canvas)
+  return createCanvas2dAdapter({
+    canvas,
     candleSource: opts.candleSource,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
@@ -70,5 +48,5 @@ export async function runActiveLoop(
   handle: ActiveAdapterHandle,
   opts: RunActiveLoopOpts = {},
 ): Promise<void> {
-  await runEChartsLoop(handle, opts)
+  await runRendererLoop(handle, opts)
 }

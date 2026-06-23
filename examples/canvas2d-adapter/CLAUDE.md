@@ -27,12 +27,15 @@ Reference adapter package — **not published to npm**.
   alert renderers under `src/render/` stay local** (they map to native
   facilities per the architecture decision and are NOT part of
   `decomposeDrawing`).
-- **`Viewport` / `timeToX` / `priceToY` are re-exported from adapter-kit**
-  by `src/render/coords.ts` (no parallel copy). The layout-specific
-  bar-shift helpers (`projectShiftedX` / `shiftedBarTime` /
-  `medianBarSpacing` / `yToPrice`) and the adapter-layer render types
-  (`PlotPoint` / `HLine`) stay defined locally in `coords.ts` — they were
-  not ported.
+- **`Viewport` / `timeToX` / `priceToY` AND the bar-shift helpers
+  (`projectShiftedX` / `shiftedBarTime` / `medianBarSpacing`) are
+  re-exported from adapter-kit** by `src/render/coords.ts` (no parallel
+  copy). The shift helpers were promoted to adapter-kit's
+  `geometry/shift.ts` so all five adapters share one xShift contract; the
+  re-export keeps every `./render` import site unchanged and `extendXMaxForShifts`
+  (still local — it also walks glyph overlays + drawing anchors) calls the
+  shared `shiftedBarTime`. Only `yToPrice` and the adapter-layer render
+  types (`PlotPoint` / `HLine`) stay defined locally in `coords.ts`.
 - **`RenderCtx` is re-exported from `@invinite-org/chartlang-adapter-kit/canvas`**
   by `src/render/clear.ts` (the structural type lives once in the shared
   canvas sink). `clear()`/`clearFrame` helpers stay local.

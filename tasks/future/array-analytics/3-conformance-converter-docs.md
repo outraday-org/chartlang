@@ -40,8 +40,11 @@ and publish the author-facing docs / skill reference / example.
 - `arrayRollingStats.scenario.ts`: a script that pushes a fixed OHLC close
   series into `state.array(14)` and `plot`s `array.stdev(win)` +
   `array.median(win)`, asserting the emitted plot series are byte-stable across
-  adapters (mirror an existing rolling-series scenario shape, e.g. the
-  state-array `rolling-window` conformance from `../state-array/` task 4).
+  **all** adapters — `pnpm conformance` runs every registered scenario through
+  every adapter (canvas2d, echarts, konva, lightweight-charts, uplot), so a
+  registered scenario *is* the all-adapter proof (mirror an existing
+  rolling-series scenario shape, e.g. the state-array `rolling-window`
+  conformance from `../state-array/` task 4).
 - Register in the scenario index.
 
 ### 2. Pine converter (`packages/pine-converter/src/transform/`)
@@ -91,11 +94,42 @@ Follow the example pipeline (`examples/CLAUDE.md`, `apps/CLAUDE.md`,
 4. **Generate + gate** — `pnpm examples:generate`; keep `pnpm examples:gate`
    green.
 
+### 6. Adapters — no new capability, verified across all (`examples/*-adapter/`)
+
+`array.*` reductions are pure compute: a reduction produces a `number` that
+flows into the existing `plot` hole. It emits **no new wire primitive** and
+needs **no adapter code change** — given `tasks/adapter-feature-parity/` is
+implemented, every adapter (canvas2d, echarts, konva, lightweight-charts,
+uplot) already renders the resulting plot series. Coverage is by
+**verification, not re-implementation**:
+
+- The conformance scenario (§1) is the all-adapter proof — `pnpm conformance`
+  replays it through every adapter and asserts byte-stable output. Do not add
+  per-adapter code.
+- State this explicitly in the changeset/PR so a reviewer does not expect
+  adapter diffs.
+
+### 7. react-starter — compile-path verification (`apps/react-starter/`)
+
+The react-starter seam (`src/lib/chart/activeAdapter.ts`,
+`src/lib/chart/seamVariants.ts`) is library-agnostic: new language features
+flow through the compiler automatically, so **no seam change** is required.
+Verify the new namespace is accepted end-to-end through the starter:
+
+- Add a minimal case to `apps/react-starter/tests/compile.spec.ts` that POSTs a
+  source using `state.array(...).avg()` / `array.*` to `/api/compile` and
+  asserts a clean compile (proves the compiler + server route accept the
+  namespace).
+- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all five
+  seam variants build — no change needed there; reference it as the
+  all-adapter-bundles guarantee.
+
 ## Files to Create / Modify
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `packages/conformance/src/scenarios/arrayRollingStats.scenario.ts` | Create | Rolling stdev/median byte-stability. |
+| `packages/conformance/src/scenarios/arrayRollingStats.scenario.ts` | Create | Rolling stdev/median byte-stability across all adapters. |
+| `apps/react-starter/tests/compile.spec.ts` | Modify | Compile-path case for `array.*` (proves the starter accepts the namespace). |
 | `packages/conformance/src/scenarios/index.ts` (registry) | Modify | Register scenario. |
 | `packages/pine-converter/src/transform/<array family>.ts` | Modify | Map `array.*` reductions. |
 | `packages/pine-converter/src/transform/<array family>.test.ts` | Modify/Create | Converter unit tests. |
@@ -112,11 +146,12 @@ Follow the example pipeline (`examples/CLAUDE.md`, `apps/CLAUDE.md`,
 - `pnpm typecheck`
 - `pnpm lint`
 - `pnpm test` (coverage 100% on pine-converter + conformance)
-- `pnpm conformance`
+- `pnpm conformance` (the scenario runs through every adapter)
 - `pnpm docs:check`
 - `pnpm readme:check`
 - `pnpm examples:gate` (after `pnpm examples:generate`)
 - `pnpm skills:gate`
+- `pnpm -F chartlang-react-starter e2e` (Playwright compile + adapter-matrix specs)
 
 ## Changeset
 
@@ -125,10 +160,14 @@ conformance).
 
 ## Acceptance Criteria
 
-- Conformance rolling-stat series byte-stable on the reference adapter.
+- Conformance rolling-stat series byte-stable across **all** adapters
+  (canvas2d, echarts, konva, lightweight-charts, uplot) via `pnpm conformance`.
 - Every mapped Pine `array.*` name converts; nearest-rank + in-place-sort
   reliance emit diagnostics, never hard failures.
 - Docs + skill mapping updated; example compiles in e2e (`EXAMPLE_SCRIPTS`)
   and appears in the live demo (`DEMO_SCRIPTS`); `examples:gate` green.
-- Coverage + conformance + docs + readme + skills gates green; changeset
-  committed.
+- No adapter code change required (documented in the changeset); react-starter
+  compile-path case green and the adapter-matrix spec proves all five seam
+  variants bundle.
+- Coverage + conformance + docs + readme + skills + react-starter gates green;
+  changeset committed.

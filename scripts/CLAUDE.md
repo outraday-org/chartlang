@@ -56,6 +56,22 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
   `scripts/**`. Gate scripts are CLI tools whose entire job is to print
   status / failure lists to stdout; suppressing here keeps the lint
   output noise-free without weakening the rule package-wide.
+- `cross-adapter-offset.test.ts` (+ its `cross-adapter-offset.fixture.ts`)
+  is the ONE cross-adapter guardrail: it drives a single multi-plot +
+  universal-`offset` (`xShift`) `sma-offset` scenario through ALL FIVE
+  example adapters' headless mocks (via each adapter's public `.` factory +
+  `./testing` mock) and asserts each renders exactly three
+  distinctly-positioned, distinctly-coloured line series — the
+  offset-collapse + colour-collapse regression net. It is the reason the
+  five `chartlang-example-*-adapter` packages (plus `adapter-kit`, `core`,
+  `host-worker`) are root `devDependencies`: a `scripts/` test resolves
+  package specifiers from root `node_modules`, so the example adapters must
+  be linked there. The compute is inlined (the worker `data:` URL can't
+  resolve workspace specifiers), mirroring each adapter's
+  `integration.test.ts`. Fixture input bars are method-less `WireBar`s
+  (`Omit<Bar, "point">`) because they cross the worker `MessageChannel` via
+  `postMessage` (a method can't be structured-cloned; the runtime installs
+  its own `bar.point`).
 - `run-conformance.ts` iterates the `CONFORMANCE_ADAPTERS` registry —
   the canvas2d reference adapter plus the four full-surface library
   adapters (lightweight-charts / uplot / echarts / konva). Each is imported
@@ -128,4 +144,4 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
 | `run-conformance.ts` | `pnpm conformance` | §16.5 / §15.3 conformance harness wrapper. Iterates ALL FIVE example adapters (`CONFORMANCE_ADAPTERS`: canvas2d + lightweight-charts + uplot + echarts + konva). |
 | `coverage-merge.ts` | `pnpm coverage:report` | §16.5 per-package → root LCOV + summary. |
 | `vitest.config.ts` | `pnpm test:scripts` | Per-folder vitest config — discovers `scripts/**/*.test.ts`. |
-| `refresh-local-starters.ts` | `pnpm starters:local [lib]` / `pnpm starters:local:linked [lib]` | Dev preview only (not a gate). Recreates the git-ignored `local-starters/<lib>/` apps from the LOCAL `apps/react-starter` tree via create-chartlang's real transforms (injected `cloneStarter` clones from disk, not GitHub), so uncommitted starter / `seamTemplates` changes are previewable across every chart library with no publish + no push. **Two dep modes:** `starters:local` installs the **published** `@invinite-org/chartlang-*` (tests the real release path — but BREAKS when the repo uses unreleased package APIs the published versions lack, e.g. an `adapter-kit` capability the example adapters already call); `starters:local:linked` (`--local`) builds + `pnpm pack`s every workspace `@invinite-org/chartlang-*` package (pack resolves `workspace:*` → versions so the tarballs install under npm) and forces them into each clone — direct deps rewritten to `file:` (npm EOVERRIDEs an `overrides` entry that differs from a direct dep), transitive-only ones via `overrides` — so the clones run on CURRENT repo code. The `pnpm` scripts build first (create-chartlang for published; all packages for linked), then refresh all five (or one, by id arg). Published mode preserves each starter's `node_modules` + `data/` (fast re-runs); linked mode drops the lockfile + `node_modules/@invinite-org`/`@local` to re-resolve from fresh tarballs. Secrets live ONCE in the git-ignored `local-starters/.env.shared`: every refresh overlays its non-empty keys (e.g. `EODDATA_API_KEY`) onto each starter's `.env`; the shared file is auto-created on first run, seeded by migrating any key already in a starter. Per-folder `.env` edits are preserved as the base; shared wins for the keys it defines. |
+| `refresh-local-starters.ts` | `pnpm starters:local [lib]` / `pnpm starters:local:linked [lib]` | Dev preview only (not a gate). Recreates the git-ignored `local-starters/<lib>/` apps from the LOCAL `apps/react-starter` tree via create-chartlang's real transforms (injected `cloneStarter` clones from disk, not GitHub), so uncommitted starter / `seamTemplates` changes are previewable across every chart library with no publish + no push. **Two dep modes:** `starters:local` installs the **published** `@invinite-org/chartlang-*` (tests the real release path — but BREAKS when the repo uses unreleased package APIs the published versions lack, e.g. an `adapter-kit` capability the example adapters already call); `starters:local:linked` (`--local`) builds + `pnpm pack`s every workspace `@invinite-org/chartlang-*` package (pack resolves `workspace:*` → versions so the tarballs install under npm) and forces them into each clone — direct deps rewritten to `file:` (npm EOVERRIDEs an `overrides` entry that differs from a direct dep), transitive-only ones via `overrides` — so the clones run on CURRENT repo code. The `pnpm` scripts build first (create-chartlang for published; all packages for linked), then refresh all five (or one, by id arg). Published mode preserves each starter's `node_modules` + `data/` (fast re-runs); linked mode drops the lockfile + `node_modules/@invinite-org`/`@local` to re-resolve from fresh tarballs. Shared env overrides live ONCE in the git-ignored `local-starters/.env.shared`: every refresh overlays its non-empty keys onto each starter's `.env` (market data needs no key — it loads from Yahoo Finance — so there's nothing to share today; the generic overlay mechanism is kept for any future shared var). The shared file is auto-created on first run. Per-folder `.env` edits are preserved as the base; shared wins for the keys it defines. |

@@ -51,6 +51,24 @@ describe("MockECharts", () => {
         chart.dispose();
         expect(chart.lastOption()).toEqual({ backgroundColor: "#000" });
     });
+
+    it("fires a bound event handler via on/fire", () => {
+        const chart = new MockECharts();
+        let fired = 0;
+        chart.on("dblclick", () => {
+            fired += 1;
+        });
+        chart.fire("dblclick");
+        chart.fire("dblclick");
+        expect(fired).toBe(2);
+    });
+
+    it("fire is a no-op when nothing is bound for the event", () => {
+        const chart = new MockECharts();
+        // No throw, no recorded call.
+        chart.fire("dblclick");
+        expect(chart.calls).toEqual([]);
+    });
 });
 
 describe("hashOptionLog", () => {

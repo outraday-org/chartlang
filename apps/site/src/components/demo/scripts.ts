@@ -39,6 +39,12 @@
 // the presentation-only `z` render-order key: a draw.fillBetween band given
 // `z: -1` so it renders BEHIND the price plot (a drawing beneath a plot, which
 // the fixed group stack alone forbids), plus an SMA at `z: 1` on top.
+// "Bg + Bar Color" mirrors examples/scripts/bgcolor-barcolor.chart.ts and
+// shows the Pine-ergonomic `barcolor` / `bgcolor` emitters: barcolor tints
+// each candle by its own up/down direction and bgcolor washes the pane
+// background by trend regime (price vs EMA(50)) with a `transp` transparency.
+// Both evaluate their color expression per bar and lower to the same emission
+// as the verbose `plot(NaN, { style: { kind: "bar-color" | "bg-color" } })`.
 // Inlined as strings so the demo does not need a build-time file read.
 
 export type DemoScript = Readonly<{
@@ -566,6 +572,11 @@ import { defineIndicator, plot, request } from "@invinite-org/chartlang-core";
 export default defineIndicator({
     name: "Symbol Ratio",
     apiVersion: 1,
+    // A price ratio (~0.35) is orders of magnitude below the chart's price
+    // scale, so it must render in its OWN sub-pane — on the price overlay it
+    // collapses to a flat line at the axis floor. \`overlay: false\` gives the
+    // ratio its own y-scale.
+    overlay: false,
     compute({ plot, request }) {
         // Read two DIFFERENT instruments at the chart interval via the
         // multi-symbol \`request.security({ symbol, interval })\` form. \`symbol\`
@@ -639,28 +650,70 @@ export default defineIndicator({
 });
 `;
 
-const SESSION_DAY_FILTER = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+const BGCOLOR_BARCOLOR = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
-//
-// Calendar + session demo: plot the close only during a configurable
-// intraday session window on weekdays (Mon–Fri), else NaN. Exercises the
-// \`time.*\` / \`session.*\` accessors and the \`input.session\` kind — calendar
-// fields come from \`bar.time\` (UTC ms epoch), never \`Date\`/\`Intl\`.
 
-import { defineIndicator, input, plot, session, time } from "@invinite-org/chartlang-core";
+import { barcolor, bgcolor, defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
 
 export default defineIndicator({
-    name: "Session Day Filter",
+    name: "Bg + Bar Color",
     apiVersion: 1,
     overlay: true,
-    inputs: {
-        window: input.session("0930-1600", { title: "Session window" }),
+    compute({ bar, ta, plot, bgcolor, barcolor }) {
+        // \`barcolor\` tints each CANDLE by its own direction — blue on an
+        // up-close, orange on a down-close. Deliberately NOT the usual
+        // green/red candle colors, so the recolor is plainly visible. The
+        // Pine-ergonomic alias replaces the verbose
+        // \`plot(NaN, { style: { kind: "bar-color", color } })\` form; the
+        // color expression is evaluated every bar, so the tint flips as the
+        // condition does, and \`barcolor\` carries no transparency.
+        barcolor(bar.close.current > bar.open.current ? "#2962ff" : "#ff6d00");
+
+        // \`bgcolor\` washes the whole PANE BACKGROUND by trend regime: a
+        // faint green while price holds above its EMA(50), a faint red
+        // below. \`transp\` (0 opaque … 100 fully transparent) keeps the wash
+        // subtle so the candles stay readable on top of it.
+        const trend = ta.ema(bar.close, 50);
+        plot(trend, { color: "#90caf9", title: "EMA(50)" });
+        bgcolor(bar.close.current > trend.current ? "#26a69a" : "#ef5350", { transp: 85 });
     },
-    compute({ bar, time, session, inputs, plot }) {
+});
+`;
+
+const WEEKDAY_CLOSE_FILTER = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+//
+// Calendar accessor demo: plot the close only on weekdays (Mon–Fri),
+// else NaN, so the line breaks across every weekend. Exercises the
+// \`time.*\` calendar accessors — \`time.dayofweek(bar.time)\` (Pine's
+// \`1=Sun..7=Sat\` convention) — derived from \`bar.time\` (UTC ms epoch),
+// never \`Date\`/\`Intl\` (both forbidden on the author path).
+//
+// The sibling \`session.isOpen\` / \`input.session\` accessors live in the
+// same namespace but need INTRADAY bars to discriminate: this demo's
+// daily candles all share one time-of-day, so any session window is
+// trivially all-open or all-closed. Those are exercised by the
+// conformance scenarios (\`calendarSession\`, \`taSessionVolumeProfile\`),
+// not here.
+
+import { defineIndicator, plot, time } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Weekday Close Filter",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, time, plot }) {
         const dow = time.dayofweek(bar.time); // 1=Sun .. 7=Sat (Pine convention)
         const isWeekday = dow >= 2 && dow <= 6;
-        const inSession = session.isOpen(bar.time, inputs.window as string);
-        plot(isWeekday && inSession ? bar.close : Number.NaN, { title: "RTH close" });
+        // A bright, thick line so the weekday segments — and the 2-bar break
+        // across every weekend (the NaN gaps) — read clearly on top of the
+        // green/red candles, which the plotted close value would otherwise
+        // blend into.
+        plot(isWeekday ? bar.close : Number.NaN, {
+            color: "#f59e0b",
+            lineWidth: 2,
+            title: "Weekday close",
+        });
     },
 });
 `;
@@ -786,10 +839,17 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         source: Z_LAYERING,
     },
     {
-        id: "session-day-filter",
-        label: "Session Day Filter",
+        id: "weekday-close-filter",
+        label: "Weekday Close Filter",
         description:
-            "Calendar + session accessors: plot the close only during a configurable intraday session window (input.session) on weekdays (Mon–Fri via time.dayofweek), else NaN. Calendar fields come from bar.time (UTC ms epoch) through the time.* / session.* namespaces — never Date/Intl.",
-        source: SESSION_DAY_FILTER,
+            "Calendar accessor demo: plot the close only on weekdays (Mon–Fri via time.dayofweek), else NaN, so the line breaks across each weekend. Calendar fields come from bar.time (UTC ms epoch) through the time.* namespace — never Date/Intl. The sibling session.isOpen / input.session accessors need intraday bars to vary, so they are covered by the conformance scenarios rather than this daily-data demo.",
+        source: WEEKDAY_CLOSE_FILTER,
+    },
+    {
+        id: "bgcolor-barcolor",
+        label: "Bg + Bar Color",
+        description:
+            "Pine-ergonomic color emitters: barcolor tints each candle by its own direction (blue up / orange down — deliberately not the default green/red, so the recolor is visible) and bgcolor washes the pane background by trend regime (price vs EMA(50)) with a transp transparency. Both evaluate their color expression every bar and replace the verbose plot(NaN, { style: { kind: \"bar-color\" | \"bg-color\" } }) form; adapters render them only when their plots capability includes those kinds.",
+        source: BGCOLOR_BARCOLOR,
     },
 ];

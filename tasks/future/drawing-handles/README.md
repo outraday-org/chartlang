@@ -51,6 +51,8 @@ accepted.
 | **Z-order interaction** | Handles must slot into the global render order from `../../plot-draw-z-order/` (`z`, group band, declaration order). The RFC states how a long-lived object's `z` is sourced. |
 | **Converter mapping** | Pine `line.new`/`label.new`/`box.new` + their `set_*`/`delete` → the chosen chartlang shape. Feasibility note, not implementation. |
 | **Sandbox / serialization** | Handles cross the host transferable boundary; the RFC confirms the object store is structurally cloneable (numbers/strings only), mirroring `state.map`'s key/value constraint. |
+| **Skills surface** | How handles are taught in `skills/chartlang-coding` (`SKILL.md` prose + whether the generated `primitives.md` gains a handle section) and the `translating-from-pine.md` mapping. |
+| **react-starter surface** | Whether the library-agnostic seam (`apps/react-starter/src/lib/chart/`) needs any change, or the feature flows through the compiler unchanged (verified via `compile.spec.ts` + `adapter-matrix.spec.ts`). |
 
 ## Task Summary Table
 
@@ -75,7 +77,8 @@ N/A — design only.
 ## Deferred / Follow-Up Work
 
 - **The implementation folder** (`future/drawing-handles-impl/` or similar):
-  authored only after this RFC is accepted, with the usual core → runtime →
-  adapter-kit → conformance → converter task split.
+  authored only after this RFC is accepted, with the usual task split spanning
+  **all six surfaces** — core → runtime → adapter-kit/adapters → conformance →
+  converter → docs → skills → examples/demos → react-starter (verification).
 - Decision on whether `table` (already a `draw.table`) folds into the same
   handle model or stays declarative.

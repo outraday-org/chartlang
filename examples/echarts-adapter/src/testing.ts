@@ -74,6 +74,10 @@ export class MockECharts implements EChartsSurface {
     // each applied option's `dataZoom`, and overridable via
     // {@link applyUserZoom} to simulate a wheel/drag interaction.
     private currentZoom: { readonly start: number; readonly end: number } | undefined;
+    // Event handlers bound via {@link on}, keyed by event name. The adapter
+    // binds a `"dblclick"` reset; {@link fire} replays it headlessly so the
+    // double-click reset path is exercised without a DOM.
+    private readonly handlers: Map<string, () => void> = new Map();
 
     setOption(option: EChartsOption, opts?: SetOptionOpts): void {
         this.calls.push(
@@ -116,6 +120,40 @@ export class MockECharts implements EChartsSurface {
      */
     applyUserZoom(start: number, end: number): void {
         this.currentZoom = { start, end };
+    }
+
+    /**
+     * Subscribe to a chart event, mirroring the real ECharts `on(eventName,
+     * handler)`. The adapter binds a `"dblclick"` reset; the mock records the
+     * handler so {@link fire} can replay it headlessly. Last binding per event
+     * name wins (the adapter binds once).
+     *
+     * @since 1.8
+     * @stable
+     * @example
+     *     import { MockECharts } from "chartlang-example-echarts-adapter/testing";
+     *     const m = new MockECharts();
+     *     m.on("dblclick", () => {});
+     */
+    on(eventName: string, handler: () => void): void {
+        this.handlers.set(eventName, handler);
+    }
+
+    /**
+     * Replay a bound event handler (e.g. simulate a user double-click), so the
+     * adapter's interaction path runs without a DOM. A no-op when nothing is
+     * bound for `eventName`.
+     *
+     * @since 1.8
+     * @stable
+     * @example
+     *     import { MockECharts } from "chartlang-example-echarts-adapter/testing";
+     *     const m = new MockECharts();
+     *     m.on("dblclick", () => {});
+     *     m.fire("dblclick");
+     */
+    fire(eventName: string): void {
+        this.handlers.get(eventName)?.();
     }
 
     resize(): void {

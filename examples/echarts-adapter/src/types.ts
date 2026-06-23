@@ -50,4 +50,15 @@ export type EChartsSurface = {
     getOption?(): {
         readonly dataZoom?: ReadonlyArray<{ readonly start: number; readonly end: number }>;
     };
+    /**
+     * Optional event subscription. The adapter binds a `"dblclick"` handler to
+     * reset the inside-`dataZoom` window to the full range (`0`/`100`), for
+     * parity with the canvas2d reference adapter's double-click reset. The real
+     * `echarts.init(...)` instance implements the wide ECharts `on(eventName,
+     * handler)` overload, which is assignable to this narrow slice; the headless
+     * default omits it (no interaction to wire) and the mock implements it so
+     * the reset path is exercised without a DOM. Only the bare `(eventName,
+     * handler)` form is consumed.
+     */
+    on?(eventName: string, handler: () => void): void;
 };

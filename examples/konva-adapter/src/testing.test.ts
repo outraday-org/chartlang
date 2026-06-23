@@ -138,6 +138,26 @@ describe("toRecordedCallLog / hashKonvaScene", () => {
         ]);
     });
 
+    it("brackets a translucent Rect's fill in globalAlpha set calls", () => {
+        const k = new MockKonva();
+        new k.Rect({ x: 1, y: 2, width: 3, height: 4, fill: "#abc", opacity: 0.15 });
+        expect(k.toRecordedCallLog()).toEqual([
+            { kind: "set", prop: "globalAlpha", value: 0.15 },
+            { kind: "set", prop: "fillStyle", value: "#abc" },
+            { kind: "fillRect", x: 1, y: 2, w: 3, h: 4 },
+            { kind: "set", prop: "globalAlpha", value: 1 },
+        ]);
+    });
+
+    it("omits globalAlpha for a fully-opaque Rect (byte-identical projection)", () => {
+        const k = new MockKonva();
+        new k.Rect({ x: 1, y: 2, width: 3, height: 4, fill: "#abc", opacity: 1 });
+        expect(k.toRecordedCallLog()).toEqual([
+            { kind: "set", prop: "fillStyle", value: "#abc" },
+            { kind: "fillRect", x: 1, y: 2, w: 3, h: 4 },
+        ]);
+    });
+
     it("projects a stroked open Line into moveTo/lineTo + stroke", () => {
         const k = new MockKonva();
         new k.Line({ points: [0, 0, 10, 10], stroke: "#000", strokeWidth: 2 });

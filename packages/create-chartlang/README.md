@@ -3,8 +3,8 @@
 > **Stability: experimental.**
 
 The `npm create @invinite-org/chartlang` installer — scaffold a runnable chartlang starter
-app (TanStack Start editor + live chart + EODData + SQLite) with your chosen
-chart library wired in.
+app (TanStack Start editor + live chart + Yahoo Finance market data + SQLite)
+with your chosen chart library wired in. Market data needs no API key.
 
 ## Usage
 

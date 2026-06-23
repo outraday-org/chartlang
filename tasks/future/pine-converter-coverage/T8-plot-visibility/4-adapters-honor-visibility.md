@@ -67,11 +67,21 @@ it also fires for the authoring-driven `visible: false` (same field). Only add
 code if a kind bypasses the guard. Ensure a hidden line leaves no dangling
 segment (since v1 hides the whole series, this is naturally satisfied).
 
-### 3. Any other in-repo adapters
+### 3. Every other in-repo adapter
 
-Apply the same skip to every adapter under `examples/` / `packages/` that
-implements `onEmissions` (mirror the canvas2d change). If a multi-library
-adapter set exists, thread the skip through each.
+Apply the same skip to **all five** in-repo adapters that implement
+`onEmissions` (mirror the canvas2d change), threading the guard through each:
+
+- `examples/canvas2d-adapter/` (reference — already implemented; verify per §2)
+- `examples/echarts-adapter/`
+- `examples/konva-adapter/`
+- `examples/lightweight-charts-adapter/`
+- `examples/uplot-adapter/`
+
+Given `tasks/adapter-feature-parity/` is implemented, each already renders every
+plot kind; this only adds the `visible === false` short-circuit. Re-run
+`pnpm adapters:generate` + `pnpm adapters:gate` if any adapter's embedded CLI
+copy changes.
 
 ### 4. Tests
 
@@ -95,14 +105,16 @@ adapter set exists, thread the skip through each.
 | `packages/adapter-kit/src/types.ts` | Modify | Document the `visible` render obligation. |
 | `packages/adapter-kit/CLAUDE.md` | Modify | Adapter contract for `visible`. |
 | `examples/canvas2d-adapter/src/createCanvas2dAdapter.ts` + per-kind renderers | Modify | Skip render when `visible === false`. |
-| other in-repo adapters' `onEmissions` | Modify | Same skip. |
-| `examples/canvas2d-adapter/src/*.test.ts` | Modify | Hidden-plot = zero draw calls; visible-absent regression. |
+| `examples/{echarts,konva,lightweight-charts,uplot}-adapter/src/` `onEmissions` | Modify | Same skip in each of the other four adapters. |
+| `examples/canvas2d-adapter/src/*.test.ts` (+ per-adapter tests) | Modify | Hidden-plot = zero draw calls; visible-absent regression. |
 
 ## Gates
 
 - `pnpm typecheck`, `pnpm lint`
 - `pnpm -F @invinite-org/chartlang-adapter-kit test`
-- adapter package test(s) (canvas2d + any others)
+- adapter package test(s) — canvas2d + echarts + konva + lightweight-charts + uplot
+- `pnpm adapters:generate` + `pnpm adapters:gate` (if any embedded CLI copy changed)
+- `pnpm conformance` (the T8 visibility scenario runs through every adapter)
 - `pnpm docs:check`
 
 ## Changeset

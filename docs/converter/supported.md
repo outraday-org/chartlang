@@ -253,24 +253,31 @@ v1. For a drawing-level band, `draw.fillBetween` fills the ribbon between
 two anchor lists (the same primitive `linefill.new` lowers to); a
 `plot`-level series fill is a planned follow-up.
 
-## Multi-timeframe
+## Multi-timeframe and multi-symbol
 
-`request.security(syminfo.tickerid, "<timeframe>", <source>)` with a
-**same-symbol** string-literal timeframe converts to a chartlang MTF read. The
-third argument decides the chartlang form:
+`request.security(<symbol>, "<timeframe>", <source>)` with a string-literal
+timeframe converts to a chartlang security read. The **first** argument decides
+the symbol and the **third** decides the chartlang form:
 
+- **Symbol.** `syminfo.tickerid` (the chart's own symbol) omits `symbol`,
+  lowering byte-identically to the single-symbol form
+  `request.security({ interval })`. A **string-literal** ticker (e.g.
+  `"AMEX:SPY"`) lowers to the multi-symbol form
+  `request.security({ symbol: "AMEX:SPY", interval })` and emits the
+  `request-security-different-symbol` **info** — the chart adapter must
+  advertise the `multiSymbol` capability or that series degrades to NaN.
 - A bare OHLCV source (`close`, `high`, `hl2`, …) lowers to the **data** form
-  `request.security({ interval }).<field>`.
+  `request.security({ … }).<field>`.
 - A `ta.*` / expression source lowers to the **callback** form
-  `request.security({ interval }, (bar) => …)`, which runs the expression on
+  `request.security({ … }, (bar) => …)`, which runs the expression on
   the higher-timeframe clock the way Pine does — the source's OHLCV reads are
   rewritten to `bar.close` / `bar.hl2` / … inside the callback. For example
   `request.security(syminfo.tickerid, "D", ta.ema(close, 9))` becomes
   `request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9))`.
 
-A cross-symbol request, a non-literal timeframe, or a `lookahead` argument is
-outside the v1 subset and warns/rejects (`request-security-different-symbol`,
-`request-security-not-mapped`, `request-security-lookahead-not-supported`).
+A **computed** (non-literal) symbol, a non-literal timeframe, or an otherwise
+unmapped form rejects (`request-security-not-mapped`); a `lookahead` argument
+rejects (`request-security-lookahead-not-supported`).
 
 ## Calendar and sessions
 

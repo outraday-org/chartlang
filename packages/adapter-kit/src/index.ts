@@ -12,6 +12,13 @@ export { mockCandleSource } from "./mocks/index.js";
 export type { MockCandleSourceMode, MockCandleSourceOpts } from "./mocks/index.js";
 export { BufferingAdapter, PassThroughAdapter } from "./base/index.js";
 export { decomposeDrawing, priceToY, timeToX, worldPointToPixel } from "./geometry/index.js";
+export {
+    maxShiftedTime,
+    medianBarSpacing,
+    projectShiftedX,
+    shiftedBarIndex,
+    shiftedBarTime,
+} from "./geometry/index.js";
 export type {
     DrawPrimitive,
     FillStyle,

@@ -18,7 +18,7 @@ import { createHash } from "node:crypto";
  * @since 1.4
  * @stable
  * @example
- *     const call: LwcRecordedCall = { kind: "addSeries", seriesId: "s0", seriesType: "Line", paneIndex: 0 };
+ *     const call: LwcRecordedCall = { kind: "addSeries", seriesId: "s0", seriesType: "Line", paneIndex: 0, options: { color: "#26a69a" } };
  *     void call;
  */
 export type LwcRecordedCall =
@@ -27,6 +27,11 @@ export type LwcRecordedCall =
           readonly seriesId: string;
           readonly seriesType: string;
           readonly paneIndex: number;
+          // The whole-series options the factory passed at creation — e.g.
+          // `{ color }` for a `plot(..., { color })` line, `{ lineType }` for a
+          // step-line. Recorded so the colour-forwarding path (which only lives
+          // at `addSeries`, never re-`applyOptions`d) is assertable.
+          readonly options: Readonly<Record<string, unknown>>;
       }
     | { readonly kind: "addPane"; readonly paneIndex: number }
     | { readonly kind: "remove" }
@@ -46,6 +51,13 @@ export type LwcRecordedCall =
           readonly high?: number;
           readonly low?: number;
           readonly close?: number;
+          // Per-bar candle colours (a `bar-color` / `bar-override` emission
+          // stamps body / border / wick on the candlestick data point itself —
+          // LC's native per-point colour API, recolouring body AND border AND
+          // wick for exactly that bar).
+          readonly color?: string;
+          readonly borderColor?: string;
+          readonly wickColor?: string;
       }
     | {
           readonly kind: "applyOptions";
@@ -105,11 +117,17 @@ type RecordedPriceLine = LwcPriceLine & { readonly priceLineId: string };
  *
  * @since 1.4
  * @stable
+ * A candlestick point may additionally carry per-point `color` / `borderColor`
+ * / `wickColor` — lightweight-charts' native per-bar candle colouring, which a
+ * `bar-color` / `bar-override` emission stamps so the body AND border AND wick
+ * all take the override colour for that single bar.
+ *
  * @example
  *     const linePoint: LwcDataPoint = { time: 1, value: 42 };
  *     const candlePoint: LwcDataPoint = { time: 1, open: 10, high: 12, low: 9, close: 11 };
+ *     const tinted: LwcDataPoint = { time: 1, open: 10, high: 12, low: 9, close: 11, color: "#2962ff", borderColor: "#2962ff", wickColor: "#2962ff" };
  *     const gapPoint: LwcDataPoint = { time: 1 };
- *     void linePoint; void candlePoint; void gapPoint;
+ *     void linePoint; void candlePoint; void tinted; void gapPoint;
  */
 export type LwcDataPoint = {
     readonly time: number;
@@ -118,6 +136,9 @@ export type LwcDataPoint = {
     readonly high?: number;
     readonly low?: number;
     readonly close?: number;
+    readonly color?: string;
+    readonly borderColor?: string;
+    readonly wickColor?: string;
 };
 
 /**
@@ -193,11 +214,11 @@ export class MockLwcApi implements LwcChart {
 
     addSeries(
         seriesType: string,
-        _options: Readonly<Record<string, unknown>>,
+        options: Readonly<Record<string, unknown>>,
         paneIndex = 0,
     ): LwcSeries {
         const seriesId = `s${this.seriesCount++}`;
-        this.calls.push({ kind: "addSeries", seriesId, seriesType, paneIndex });
+        this.calls.push({ kind: "addSeries", seriesId, seriesType, paneIndex, options });
         const calls = this.calls;
         // Each recorded price line carries its deterministic ordinal (`pl0`,
         // `pl1`, …) on the handle itself, so re-pricing
@@ -218,6 +239,9 @@ export class MockLwcApi implements LwcChart {
                     ...(point.high !== undefined ? { high: point.high } : {}),
                     ...(point.low !== undefined ? { low: point.low } : {}),
                     ...(point.close !== undefined ? { close: point.close } : {}),
+                    ...(point.color !== undefined ? { color: point.color } : {}),
+                    ...(point.borderColor !== undefined ? { borderColor: point.borderColor } : {}),
+                    ...(point.wickColor !== undefined ? { wickColor: point.wickColor } : {}),
                 });
             },
             applyOptions(options): void {
@@ -301,6 +325,7 @@ function canonicalise(call: LwcRecordedCall): Record<string, unknown> {
                 seriesId: call.seriesId,
                 seriesType: call.seriesType,
                 paneIndex: call.paneIndex,
+                options: call.options,
             };
         case "addPane":
             return { kind: call.kind, paneIndex: call.paneIndex };
@@ -318,6 +343,9 @@ function canonicalise(call: LwcRecordedCall): Record<string, unknown> {
                 ...(call.high !== undefined ? { high: roundFloat(call.high) } : {}),
                 ...(call.low !== undefined ? { low: roundFloat(call.low) } : {}),
                 ...(call.close !== undefined ? { close: roundFloat(call.close) } : {}),
+                ...(call.color !== undefined ? { color: call.color } : {}),
+                ...(call.borderColor !== undefined ? { borderColor: call.borderColor } : {}),
+                ...(call.wickColor !== undefined ? { wickColor: call.wickColor } : {}),
             };
         case "applyOptions":
             return { kind: call.kind, seriesId: call.seriesId, options: call.options };

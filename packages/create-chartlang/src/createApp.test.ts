@@ -49,7 +49,7 @@ const STARTER_PKG = JSON.stringify(
 );
 
 /** A clone that writes the fixture starter tree (incl. repo artefacts to strip). */
-function fixtureClone(envExample = "DATABASE_URL=file:./data/starter.db\nEODDATA_API_KEY=\n") {
+function fixtureClone(envExample = "DATABASE_URL=file:./data/starter.db\n") {
     return async ({ dir }: CloneRequest): Promise<void> => {
         await mkdir(join(dir, "src", "lib", "chart"), { recursive: true });
         await writeFile(join(dir, "package.json"), STARTER_PKG, "utf8");
@@ -127,22 +127,22 @@ async function exists(path: string): Promise<boolean> {
 }
 
 describe("renderLibraryChoices", () => {
-    it("lists echarts first and marks the default", () => {
+    it("lists canvas2d first and marks the default", () => {
         const text = renderLibraryChoices([
-            {
-                id: "canvas2d",
-                displayName: "Canvas 2D",
-                library: "(none)",
-            } as unknown as GeneratedAdapterMeta,
             {
                 id: "echarts",
                 displayName: "ECharts",
                 library: "echarts",
             } as unknown as GeneratedAdapterMeta,
+            {
+                id: "canvas2d",
+                displayName: "Canvas 2D",
+                library: "(none)",
+            } as unknown as GeneratedAdapterMeta,
         ]);
-        const echartsLine = text.indexOf("echarts");
         const canvasLine = text.indexOf("canvas2d");
-        expect(echartsLine).toBeLessThan(canvasLine);
+        const echartsLine = text.indexOf("echarts");
+        expect(canvasLine).toBeLessThan(echartsLine);
         expect(text).toContain("(default)");
         expect(text).toContain("no runtime dep");
     });
@@ -227,8 +227,8 @@ describe("runCreateChartlang", () => {
         const { deps } = makeDeps();
         await runCreateChartlang([dir, "--library", "echarts", "--no-install"], deps);
         const env = await readFile(join(dir, ".env"), "utf8");
-        expect(env).toContain("EODDATA_API_KEY=");
         expect(env).toContain("DATABASE_URL=file:./data/starter.db");
+        expect(env).not.toContain("EODDATA");
     });
 
     it("falls back to a baked .env when the clone has no .env.example", async () => {
@@ -236,8 +236,9 @@ describe("runCreateChartlang", () => {
         const { deps } = makeDeps({ cloneStarter: fixtureClone("") });
         await runCreateChartlang([dir, "--library", "echarts", "--no-install"], deps);
         const env = await readFile(join(dir, ".env"), "utf8");
-        expect(env).toContain("EODDATA_API_KEY=");
-        expect(env).toContain("eoddata.com");
+        expect(env).toContain("DATABASE_URL=file:./data/starter.db");
+        expect(env).not.toContain("EODDATA");
+        expect(env).toContain("Yahoo");
     });
 
     it("bakes a standalone tsconfig.base.json and repoints tsconfig extends", async () => {
@@ -274,13 +275,13 @@ describe("runCreateChartlang", () => {
         expect(npmrc).toContain("legacy-peer-deps=true");
     });
 
-    it("defaults to echarts with --yes and no --library", async () => {
+    it("defaults to canvas2d with --yes and no --library", async () => {
         const dir = join(root, "default-app");
         const { deps } = makeDeps();
         await runCreateChartlang([dir, "--yes", "--no-install"], deps);
         const seam = await readFile(join(dir, "src", "lib", "chart", "activeAdapter.ts"), "utf8");
-        expect(seam).toContain('ACTIVE_ADAPTER_ID = "echarts"');
-        expect(await exists(join(dir, "vendor", "echarts-adapter"))).toBe(true);
+        expect(seam).toContain('ACTIVE_ADAPTER_ID = "canvas2d"');
+        expect(await exists(join(dir, "vendor", "canvas2d-adapter"))).toBe(true);
     });
 
     it("clones from the pinned github source", async () => {
@@ -306,12 +307,12 @@ describe("runCreateChartlang", () => {
         expect(seam).toContain('ACTIVE_ADAPTER_ID = "uplot"');
     });
 
-    it("prompts on a TTY and defaults to echarts on an empty answer", async () => {
+    it("prompts on a TTY and defaults to canvas2d on an empty answer", async () => {
         const dir = join(root, "prompt-default-app");
         const { deps } = makeDeps({ isTTY: true, answer: "" });
         await runCreateChartlang([dir, "--no-install"], deps);
         const seam = await readFile(join(dir, "src", "lib", "chart", "activeAdapter.ts"), "utf8");
-        expect(seam).toContain('ACTIVE_ADAPTER_ID = "echarts"');
+        expect(seam).toContain('ACTIVE_ADAPTER_ID = "canvas2d"');
     });
 
     it("errors + exits 1 on an unknown --library", async () => {

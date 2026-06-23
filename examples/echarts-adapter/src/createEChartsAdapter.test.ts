@@ -104,6 +104,10 @@ function plot(over: Partial<PlotEmission> & { style: PlotStyle; bar: number }): 
         pane: over.pane ?? "overlay",
         ...(over.visible === undefined ? {} : { visible: over.visible }),
         ...(over.z === undefined ? {} : { z: over.z }),
+        ...(over.xShift === undefined ? {} : { xShift: over.xShift }),
+        // `colorValue` is the per-bar dynamic-color channel; distinguish an
+        // explicit `null` gap from "not provided" via the key presence.
+        ...("colorValue" in over ? { colorValue: over.colorValue ?? null } : {}),
     };
 }
 
@@ -124,6 +128,24 @@ async function drive(
         candleSource: mockCandleSource(bars, { interval: "1D", mode: "stream" }),
         host: stubHost(frames),
         ...(extra.onAlert !== undefined ? { onAlert: extra.onAlert } : {}),
+    });
+    await runEChartsLoop(adapter);
+    return chart;
+}
+
+// Like `drive`, but pins an explicit theme `backgroundColor` so a test can
+// assert the bg-color bands never overwrite the chart's own background.
+async function driveWithBackground(
+    bars: ReadonlyArray<Bar>,
+    frames: ReadonlyArray<RunnerEmissions>,
+    backgroundColor: string,
+): Promise<MockECharts> {
+    const chart = new MockECharts();
+    const adapter = createEChartsAdapter({
+        echartsFactory: () => chart,
+        candleSource: mockCandleSource(bars, { interval: "1D", mode: "stream" }),
+        host: stubHost(frames),
+        backgroundColor,
     });
     await runEChartsLoop(adapter);
     return chart;
@@ -251,6 +273,13 @@ describe("createEChartsAdapter — base option tree", () => {
             [99.5, 100, 99, 101],
             [100.5, 101, 100, 102],
         ]);
+        // Explicit bull/bear body colours (canvas2d parity), not ECharts' default.
+        expect(candles.itemStyle).toEqual({
+            color: "#26a69a",
+            color0: "#ef5350",
+            borderColor: "#26a69a",
+            borderColor0: "#ef5350",
+        });
     });
 
     it("emits an inside dataZoom spanning every pane grid, full window by default", async () => {
@@ -653,15 +682,236 @@ describe("createEChartsAdapter — candle-state overrides and background", () =>
         expect(candles.data?.[1]).toMatchObject({ itemStyle: { color: "#222222" } });
     });
 
-    it("maps bg-color to the chart backgroundColor (last-write-wins)", async () => {
+    it("bar-color prefers per-bar colorValue over the static style.color", async () => {
+        const bars = [bar(0, 100), bar(1, 101)];
+        const frames = [
+            frameWith([
+                // colorValue present → overrides style.color.
+                plot({
+                    style: { kind: "bar-color", color: "#222222" },
+                    colorValue: "#0000ff",
+                    bar: 0,
+                    slotId: "bc",
+                    time: bars[0].time,
+                }),
+                // colorValue null → drop the tint (no override this bar).
+                plot({
+                    style: { kind: "bar-color", color: "#222222" },
+                    colorValue: null,
+                    bar: 1,
+                    slotId: "bc",
+                    time: bars[1].time,
+                }),
+            ]),
+        ];
+        const candles = findSeries(
+            lastOption(await drive(bars, frames)),
+            "candles",
+        ) as CandlestickSeriesOption;
+        expect(candles.data?.[0]).toMatchObject({ itemStyle: { color: "#0000ff" } });
+        // The null bar carries no itemStyle override → a bare OHLC tuple.
+        expect(candles.data?.[1]).toEqual([100.5, 101, 100, 102]);
+    });
+});
+
+// Pull the candlestick series' `markArea.data` (the per-bar `bg-color` bands)
+// off an option tree. Each item is a `[startItem, endItem]` interval; the start
+// carries the band's `xAxis` index + `itemStyle` (colour + opacity).
+type BgBandItem = readonly [
+    {
+        readonly xAxis?: number;
+        readonly itemStyle?: { readonly color?: unknown; readonly opacity?: unknown };
+    },
+    { readonly xAxis?: number },
+];
+
+function bgBands(option: EChartsOption): BgBandItem[] {
+    const candles = findSeries(option, "candles") as CandlestickSeriesOption;
+    const data = candles.markArea?.data;
+    return data === undefined ? [] : (data as unknown as BgBandItem[]);
+}
+
+describe("createEChartsAdapter — per-bar bg-color bands (markArea)", () => {
+    it("renders one full-height band per bar, each carrying its own colour", async () => {
+        const bars = [bar(0, 100), bar(1, 101), bar(2, 99)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "bg-color", color: "#26a69a" },
+                    bar: 0,
+                    slotId: "bg",
+                    time: bars[0].time,
+                }),
+                plot({
+                    style: { kind: "bg-color", color: "#ef5350" },
+                    bar: 1,
+                    slotId: "bg",
+                    time: bars[1].time,
+                }),
+            ]),
+        ];
+        const bands = bgBands(lastOption(await drive(bars, frames)));
+        expect(bands.length).toBe(2);
+        // Adjacent bars carry distinct colours → adjacent stripes.
+        expect(bands[0][0].xAxis).toBe(0);
+        expect(bands[0][1].xAxis).toBe(0);
+        expect(bands[0][0].itemStyle?.color).toBe("#26a69a");
+        expect(bands[1][0].xAxis).toBe(1);
+        expect(bands[1][0].itemStyle?.color).toBe("#ef5350");
+    });
+
+    it("maps transp 0-100 to opacity 1 - transp/100", async () => {
+        const bars = [bar(0, 100), bar(1, 101)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "bg-color", color: "#26a69a", transp: 85 },
+                    bar: 0,
+                    slotId: "bg",
+                    time: bars[0].time,
+                }),
+                // Omitted transp → fully opaque (alpha 1).
+                plot({
+                    style: { kind: "bg-color", color: "#26a69a" },
+                    bar: 1,
+                    slotId: "bg2",
+                    time: bars[1].time,
+                }),
+            ]),
+        ];
+        const bands = bgBands(lastOption(await drive(bars, frames)));
+        expect(bands[0][0].itemStyle?.opacity).toBeCloseTo(0.15, 10);
+        expect(bands[1][0].itemStyle?.opacity).toBe(1);
+    });
+
+    it("prefers per-bar colorValue over the static style.color", async () => {
         const bars = [bar(0, 100)];
         const frames = [
             frameWith([
-                plot({ style: { kind: "bg-color", color: "#123456" }, bar: 0, slotId: "bg" }),
-                plot({ style: { kind: "bg-color", color: "#654321" }, bar: 0, slotId: "bg2" }),
+                plot({
+                    style: { kind: "bg-color", color: "#26a69a", transp: 85 },
+                    colorValue: "#ff00ff",
+                    bar: 0,
+                    slotId: "bg",
+                    time: bars[0].time,
+                }),
             ]),
         ];
-        expect(lastOption(await drive(bars, frames)).backgroundColor).toBe("#654321");
+        const bands = bgBands(lastOption(await drive(bars, frames)));
+        expect(bands[0][0].itemStyle?.color).toBe("#ff00ff");
+    });
+
+    it("paints no band when colorValue is null (explicit per-bar gap)", async () => {
+        const bars = [bar(0, 100), bar(1, 101)];
+        const frames = [
+            // Bar 0 gets a band, bar 1 is an explicit null gap.
+            frameWith([
+                plot({
+                    style: { kind: "bg-color", color: "#26a69a" },
+                    bar: 0,
+                    slotId: "bg",
+                    time: bars[0].time,
+                }),
+                plot({
+                    style: { kind: "bg-color", color: "#26a69a" },
+                    colorValue: null,
+                    bar: 1,
+                    slotId: "bg2",
+                    time: bars[1].time,
+                }),
+            ]),
+        ];
+        const bands = bgBands(lastOption(await drive(bars, frames)));
+        expect(bands.length).toBe(1);
+        expect(bands[0][0].xAxis).toBe(0);
+    });
+
+    it("clears a bar's band when a later colorValue:null arrives for it", async () => {
+        // Two bars → two drains, so both frames are consumed; the second frame
+        // re-targets bar 0's time with a `null` gap to drop its band.
+        const bars = [bar(0, 100), bar(1, 101)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "bg-color", color: "#26a69a" },
+                    bar: 0,
+                    slotId: "bg",
+                    time: bars[0].time,
+                }),
+            ]),
+            frameWith([
+                plot({
+                    style: { kind: "bg-color", color: "#26a69a" },
+                    colorValue: null,
+                    bar: 0,
+                    slotId: "bg",
+                    time: bars[0].time,
+                }),
+            ]),
+        ];
+        // After the second frame the band is dropped → no markArea at all.
+        expect(bgBands(lastOption(await drive(bars, frames))).length).toBe(0);
+    });
+
+    it("does NOT flood the whole pane background (theme background stays)", async () => {
+        const bars = [bar(0, 100)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "bg-color", color: "#123456" },
+                    bar: 0,
+                    slotId: "bg",
+                    time: bars[0].time,
+                }),
+            ]),
+        ];
+        const option = lastOption(await driveWithBackground(bars, frames, "#0b0e11"));
+        // The whole-chart background is the THEME colour, not the bg-color.
+        expect(option.backgroundColor).toBe("#0b0e11");
+        expect(option.backgroundColor).not.toBe("#123456");
+        // The bg-color shows up only as a per-bar band.
+        expect(bgBands(option)[0][0].itemStyle?.color).toBe("#123456");
+    });
+
+    it("emits no markArea when a buffered band matches no bar in the window", async () => {
+        // A band keyed to a time outside the current bar window (e.g. scrolled
+        // off) leaves `bgBands` non-empty but produces zero interval items, so
+        // the candlestick carries no `markArea`.
+        const bars = [bar(0, 100)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "bg-color", color: "#26a69a" },
+                    bar: 0,
+                    slotId: "bg",
+                    time: START_TIME - MS_PER_DAY,
+                }),
+            ]),
+        ];
+        const candles = findSeries(
+            lastOption(await drive(bars, frames)),
+            "candles",
+        ) as CandlestickSeriesOption;
+        expect(candles.markArea).toBeUndefined();
+    });
+
+    it("emits no markArea when no bg-color band is live", async () => {
+        const bars = [bar(0, 100)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                    bar: 0,
+                    slotId: "l",
+                    value: 100,
+                }),
+            ]),
+        ];
+        const candles = findSeries(
+            lastOption(await drive(bars, frames)),
+            "candles",
+        ) as CandlestickSeriesOption;
+        expect(candles.markArea).toBeUndefined();
     });
 });
 
@@ -987,6 +1237,193 @@ describe("createEChartsAdapter — alerts, logs, drawings, diagnostics", () => {
         };
         await drive(bars, [frame]);
         expect(warn).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("createEChartsAdapter — universal plot offset (xShift)", () => {
+    it("writes a +5 series at baseline+5, grows the category axis, and clips a -5 below 0", async () => {
+        // Five bars. A baseline (unshifted) SMA, a +5 copy displaced right into
+        // the future, and a -5 copy displaced left. The +5 series' last bar
+        // (index 4) lands at column 9 — outside the real 5-bar window — so the
+        // axis must grow by the max positive shift (5) to give it a slot. The
+        // -5 series' early bars project to negative columns and clip.
+        const bars = [bar(0, 100), bar(1, 101), bar(2, 102), bar(3, 103), bar(4, 104)];
+        const base = (slotId: string, shift: number | undefined) =>
+            Array.from({ length: 5 }, (_, i) =>
+                plot({
+                    style: { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                    bar: i,
+                    slotId,
+                    value: 50 + i,
+                    ...(shift === undefined ? {} : { xShift: shift }),
+                }),
+            );
+        const frames = [
+            frameWith([...base("flat", undefined), ...base("right", 5), ...base("left", -5)]),
+        ];
+        const option = lastOption(await drive(bars, frames));
+
+        // The category axis grew by the max positive shift (5): 5 real bars + 5
+        // synthetic future columns = 10 categories.
+        const xAxes = option.xAxis;
+        const firstX = Array.isArray(xAxes) ? xAxes[0] : xAxes;
+        const categoryData = (firstX as { data?: ReadonlyArray<unknown> }).data;
+        expect(categoryData?.length).toBe(10);
+
+        // Baseline series: each bar i at its own column i.
+        const flat = findSeries(option, "overlay|flat") as LineSeriesOption;
+        expect(flat.data).toEqual([50, 51, 52, 53, 54, "-", "-", "-", "-", "-"]);
+
+        // +5 series: every datum is shifted right by 5 (bar 0 → column 5, …),
+        // i.e. the baseline index + 5. Columns 0-4 are gaps.
+        const right = findSeries(option, "overlay|right") as LineSeriesOption;
+        expect(right.data).toEqual(["-", "-", "-", "-", "-", 50, 51, 52, 53, 54]);
+        // Concretely: the value computed at bar 1 (baseline column 1) renders at
+        // column 1 + 5 = 6.
+        expect((right.data as Array<number | string>)[6]).toBe(51);
+
+        // -5 series: bars 0-4 project to columns -5..-1, all clipped (negative
+        // category, no slot) → every column is a gap.
+        const left = findSeries(option, "overlay|left") as LineSeriesOption;
+        expect(left.data).toEqual(["-", "-", "-", "-", "-", "-", "-", "-", "-", "-"]);
+    });
+
+    it("a -5 shift that lands in range writes at baseline-5 (no clip)", async () => {
+        // Eight bars; a single point computed at bar 6 shifted -5 lands at
+        // column 1 (in range, not clipped) — the index analogue of a left shift.
+        const bars = Array.from({ length: 8 }, (_, i) => bar(i, 100 + i));
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                    bar: 6,
+                    slotId: "back",
+                    value: 77,
+                    xShift: -5,
+                }),
+            ]),
+        ];
+        const back = findSeries(
+            lastOption(await drive(bars, frames)),
+            "overlay|back",
+        ) as LineSeriesOption;
+        // No positive shift anywhere → the axis is NOT extended (8 columns).
+        expect(back.data?.length).toBe(8);
+        // Value written at bar 6 - 5 = column 1; everything else is a gap.
+        expect(back.data).toEqual(["-", 77, "-", "-", "-", "-", "-", "-"]);
+    });
+
+    it("keeps the category axis + data unchanged when no point carries an offset", async () => {
+        // A no-offset frame must be byte-identical to the pre-offset build: the
+        // axis stays at the real bar count and the data is unshifted.
+        const bars = [bar(0, 100), bar(1, 101)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                    bar: 0,
+                    slotId: "ln",
+                    value: 10,
+                }),
+                plot({
+                    style: { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                    bar: 1,
+                    slotId: "ln",
+                    value: 11,
+                }),
+            ]),
+        ];
+        const option = lastOption(await drive(bars, frames));
+        const xAxes = option.xAxis;
+        const firstX = Array.isArray(xAxes) ? xAxes[0] : xAxes;
+        expect((firstX as { data?: ReadonlyArray<unknown> }).data?.length).toBe(2);
+        const ln = findSeries(option, "overlay|ln") as LineSeriesOption;
+        expect(ln.data).toEqual([10, 11]);
+    });
+
+    it("shifts a glyph and a filled-band point by the same offset", async () => {
+        const bars = [bar(0, 100), bar(1, 101), bar(2, 102)];
+        // Only the first drain emits; the later drains are empty so the +1
+        // glyph / band point is stored exactly once.
+        const frames = [
+            frameWith([
+                // A +1 glyph: bar 0 renders at column 1.
+                plot({
+                    style: { kind: "shape", shape: "circle", size: 1 },
+                    bar: 0,
+                    slotId: "g",
+                    value: 50,
+                    xShift: 1,
+                }),
+                // A +1 filled-band point: bar 0's bounds land at column 1.
+                plot({
+                    style: { kind: "filled-band", upper: 12, lower: 8, alpha: 0.2 },
+                    bar: 0,
+                    slotId: "band",
+                    value: 10,
+                    xShift: 1,
+                }),
+            ]),
+            frameWith([]),
+            frameWith([]),
+        ];
+        const option = lastOption(await drive(bars, frames));
+        const glyph = findSeries(option, "overlay|g") as ScatterSeriesOption;
+        // The scatter datum's x is the shifted category column (0 + 1 = 1).
+        expect(glyph.data).toEqual([[1, 50]]);
+        const lower = findSeries(option, "overlay|band:lower") as LineSeriesOption;
+        // Lower bound written at column 1, not 0.
+        expect(lower.data).toEqual(["-", 8, "-", "-"]);
+    });
+
+    it("clips a glyph shifted past the left edge to no scatter datum", async () => {
+        const bars = [bar(0, 100), bar(1, 101), bar(2, 102)];
+        // A -1 glyph on bar 0 resolves to category index -1 — there is no
+        // negative category, so the datum is dropped (parity with the
+        // `seriesData` / `bandData` clip).
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "shape", shape: "circle", size: 1 },
+                    bar: 0,
+                    slotId: "g",
+                    value: 50,
+                    xShift: -1,
+                }),
+            ]),
+            frameWith([]),
+            frameWith([]),
+        ];
+        const option = lastOption(await drive(bars, frames));
+        const glyph = findSeries(option, "overlay|g") as ScatterSeriesOption;
+        expect(glyph.data).toEqual([]);
+    });
+});
+
+describe("createEChartsAdapter — dblclick zoom reset", () => {
+    it("resets the user's zoom window to the full range on a double-click", async () => {
+        const chart = new MockECharts();
+        const adapter = createEChartsAdapter({
+            echartsFactory: () => chart,
+            candleSource: mockCandleSource([]),
+            host: stubHost([]),
+        });
+        // Seed a frame, then the user zooms in; the next rebuild restores it.
+        adapter.onEmissions(emptyEmissions());
+        chart.applyUserZoom(20, 80);
+        adapter.onEmissions(emptyEmissions());
+        const zoomed = lastOption(chart).dataZoom;
+        const zoomedFirst = Array.isArray(zoomed) ? zoomed[0] : zoomed;
+        expect(zoomedFirst?.start).toBe(20);
+        expect(zoomedFirst?.end).toBe(80);
+
+        // A double-click resets the window to 0/100 and re-applies the option.
+        chart.fire("dblclick");
+        const reset = lastOption(chart).dataZoom;
+        const resetFirst = Array.isArray(reset) ? reset[0] : reset;
+        expect(resetFirst?.start).toBe(0);
+        expect(resetFirst?.end).toBe(100);
+        adapter.dispose();
     });
 });
 

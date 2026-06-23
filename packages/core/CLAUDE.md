@@ -30,8 +30,11 @@
   Both forms route through the single `{ name: "request.security", slot: true }`
   registry entry — the slot id is injected as the first argument regardless
   of the optional second (callback) argument. The full primitive JSDoc block
-  (both `@example`s) lives on the `security` declaration so
-  `pnpm skills:generate` captures both forms.
+  (both `@example`s) lives on the `security` declaration so the generated
+  `docs/primitives/request/security.md` page (via `genDocs`) and the
+  `hover:check` registry capture both forms. (`pnpm skills:generate` does NOT
+  emit `request.*` — the skills `primitives.md` covers only `ta.*` / `draw.*` /
+  plot-family; `request.security` is taught in the hand-authored `SKILL.md`.)
 
 - **`SecurityExpr` is exported from three places in lockstep.**
   `request/request.ts` (source), `request/index.ts` (request barrel), and

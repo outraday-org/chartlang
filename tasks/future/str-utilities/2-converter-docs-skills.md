@@ -60,7 +60,10 @@ author-skill reference entry, one runnable example).
 - Add `strFormattedTable.scenario.ts` mirroring the existing
   `plotKind*`/table scenario shape: a tiny script that builds a `draw.table`
   whose cell text comes from `str.format` / `str.tostring`, asserting the
-  emitted `DrawingEmission` text payload is byte-stable across adapters.
+  emitted `DrawingEmission` text payload is byte-stable across **all** adapters.
+  `pnpm conformance` replays every registered scenario through every adapter
+  (canvas2d, echarts, konva, lightweight-charts, uplot), so a registered
+  scenario *is* the all-adapter proof.
 - Register it in the scenario index the conformance runner enumerates.
 
 ### 3. Docs (`docs/`)
@@ -104,6 +107,35 @@ Follow the established example pipeline (see `examples/CLAUDE.md`,
 > them — but they must still appear in `DEMO_SCRIPTS` so the live demo + docs
 > Examples list them.
 
+### 6. Adapters — no new capability, verified across all (`examples/*-adapter/`)
+
+`str.*` is pure compute: its outputs are plain `string`s consumed by the
+already-shipped `draw.text` / `draw.table` / `draw.marker` / `alert` holes. It
+emits **no new wire primitive** and needs **no adapter code change** — given
+`tasks/adapter-feature-parity/` is implemented, every adapter (canvas2d,
+echarts, konva, lightweight-charts, uplot) already renders the resulting text
+payloads. Coverage is by **verification, not re-implementation**:
+
+- The conformance scenario (§2) is the all-adapter proof — `pnpm conformance`
+  replays it through every adapter and asserts byte-stable text payloads. Do
+  not add per-adapter code.
+- State this explicitly in the changeset/PR so a reviewer does not expect
+  adapter diffs.
+
+### 7. react-starter — compile-path verification (`apps/react-starter/`)
+
+The react-starter seam (`src/lib/chart/activeAdapter.ts`,
+`src/lib/chart/seamVariants.ts`) is library-agnostic: new language features flow
+through the compiler automatically, so **no seam change** is required. Verify
+the namespace is accepted end-to-end through the starter:
+
+- Add a minimal case to `apps/react-starter/tests/compile.spec.ts` that POSTs a
+  source using `str.format`/`str.tostring` in a `draw.table` to `/api/compile`
+  and asserts a clean compile.
+- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all five
+  seam variants build — no change needed; reference it as the
+  all-adapter-bundles guarantee.
+
 ## Files to Create / Modify
 
 | File | Action | Purpose |
@@ -118,6 +150,7 @@ Follow the established example pipeline (see `examples/CLAUDE.md`,
 | `examples/scripts/str-formatted-hud.chart.ts` | Create | Runnable example. |
 | `packages/cli/src/e2e.test.ts` | Modify | Add example to `EXAMPLE_SCRIPTS`. |
 | `apps/site/src/components/demo/scripts.ts` | Modify | `DEMO_SCRIPTS` entry (live demo + docs Examples). |
+| `apps/react-starter/tests/compile.spec.ts` | Modify | Compile-path case for `str.*` (proves the starter accepts the namespace). |
 | `.changeset/str-converter.md` | Create | patch (pine-converter, conformance). |
 
 ## Gates
@@ -125,11 +158,12 @@ Follow the established example pipeline (see `examples/CLAUDE.md`,
 - `pnpm typecheck`
 - `pnpm lint`
 - `pnpm test` (coverage 100% on pine-converter + conformance)
-- `pnpm conformance`
+- `pnpm conformance` (the scenario runs through every adapter)
 - `pnpm docs:check`
 - `pnpm readme:check`
 - `pnpm examples:gate` (after `pnpm examples:generate`)
 - `pnpm skills:gate` (if skill references change)
+- `pnpm -F chartlang-react-starter e2e` (Playwright compile + adapter-matrix specs)
 
 ## Changeset
 
@@ -139,10 +173,14 @@ Follow the established example pipeline (see `examples/CLAUDE.md`,
 
 - Every Pine `str.*` name in the table converts; unsupported `mintick` form
   emits a diagnostic + `// TODO`, never a hard failure.
-- Conformance scenario passes on the reference adapter; text payload is
+- Conformance scenario passes across **all** adapters (canvas2d, echarts,
+  konva, lightweight-charts, uplot) via `pnpm conformance`; text payload is
   byte-stable.
 - Docs page renders and is in the nav; skill mapping table updated.
 - Example compiles in e2e (`EXAMPLE_SCRIPTS`) and appears in the live demo
   (`DEMO_SCRIPTS`); `examples:gate` green.
-- Coverage + docs + readme + conformance + skills gates green; changeset
-  committed.
+- No adapter code change required (documented in the changeset); react-starter
+  compile-path case green and the adapter-matrix spec proves all five seam
+  variants bundle.
+- Coverage + docs + readme + conformance + skills + react-starter gates green;
+  changeset committed.

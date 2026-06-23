@@ -22,8 +22,9 @@ The app shell only: TanStack Start routing, a neutral root layout with a
 sonner `<Toaster/>`, the shadcn Base UI primitives later tasks need
 (`src/components/ui/`), and a resizable two-pane workspace
 (`src/routes/index.tsx`) with "Editor" / "Chart" placeholder cards. The
-compiler route, SQLite store, EODData source, and the real editor/chart
-panes land in later tasks (see `tasks/react-starter/`).
+compiler route, SQLite store, market-data source (Yahoo Finance daily
+bars), and the real editor/chart panes land in later tasks (see
+`tasks/react-starter/`).
 
 ## Theming — it's yours, re-theme freely
 
@@ -54,17 +55,18 @@ pnpm --filter chartlang-react-starter build
 
 Produces a Vite client + SSR build under `apps/react-starter/dist/`.
 
-## Environment (later tasks)
+## Environment
 
-A future `.env` (added in Task 4) will hold the EODData API key and the
-SQLite path, e.g.:
+Market data comes from Yahoo Finance's free public chart endpoint — **no
+API key and no quota**, so a fresh clone loads real US daily bars with
+zero setup. The only env var is the SQLite path:
 
 ```
-EODDATA_API_KEY=your-key
+# .env
 DATABASE_URL=file:./data/starter.db
 ```
 
-`.env*` is gitignored. None of this is wired yet in Task 1.
+`.env*` is gitignored.
 
 ## Typecheck
 

@@ -8,10 +8,10 @@ const PORT = 3101
 const BASE_URL = `http://localhost:${PORT}`
 
 // The eod suite cannot intercept the app's SERVER-side fetch from the browser,
-// so it runs a mock EODData server (tests/eodMockServer.ts) and points the app
-// at it via EODDATA_BASE_URL. A dedicated e2e DB keeps the quota counter clean
-// across `vite build` runs, and a low EODDATA_DAILY_LIMIT lets the quota-
-// refusal path be exercised without 100 real fetches.
+// so it runs a mock Yahoo Finance server (tests/eodMockServer.ts) and points
+// the app at it via YAHOO_BASE_URL. A dedicated e2e DB keeps the bars cache
+// clean across `vite build` runs, so the source:"network"→"cache" assertions
+// stay deterministic.
 const EOD_MOCK_PORT = 4599
 const EOD_MOCK_URL = `http://localhost:${EOD_MOCK_PORT}`
 
@@ -20,8 +20,8 @@ const EOD_MOCK_URL = `http://localhost:${EOD_MOCK_PORT}`
 // gates the built output rather than the dev server.
 export default defineConfig({
   testDir: "./tests",
-  // Wipe the dedicated e2e DB before the run so the EODData quota + cache start
-  // clean (deterministic source:"network"→"cache"→refusal assertions).
+  // Wipe the dedicated e2e DB before the run so the daily-bars cache starts
+  // clean (deterministic source:"network"→"cache" assertions).
   globalSetup: "./tests/eodGlobalSetup.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -34,9 +34,9 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      // Mock EODData API the app's server-side fetch talks to (tsx runs the .ts
-      // directly). An unauthenticated GET to `/` returns 401 — any response
-      // tells Playwright the server is up.
+      // Mock Yahoo Finance chart API the app's server-side fetch talks to (tsx
+      // runs the .ts directly). A GET to `/` returns 404 — any response tells
+      // Playwright the server is up.
       command: `tsx tests/eodMockServer.ts`,
       url: `${EOD_MOCK_URL}/`,
       reuseExistingServer: !process.env.CI,
@@ -49,9 +49,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
       env: {
-        EODDATA_BASE_URL: EOD_MOCK_URL,
-        EODDATA_API_KEY: "test-key",
-        EODDATA_DAILY_LIMIT: "2",
+        YAHOO_BASE_URL: EOD_MOCK_URL,
         DATABASE_URL: "file:./data/e2e.db",
       },
     },

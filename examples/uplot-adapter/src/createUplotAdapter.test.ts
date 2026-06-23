@@ -47,18 +47,26 @@ const BARS: ReadonlyArray<Bar> = [
 
 function plotEmission(overrides: Partial<PlotEmission> & { slotId: string }): PlotEmission {
     const style: PlotStyle = overrides.style ?? { kind: "line", lineWidth: 1, lineStyle: "solid" };
+    const time = overrides.time ?? BARS[0].time;
+    // Default `bar` to the index whose time matches (real runtime keeps the
+    // two consistent), so the aligned-data column mapping — which resolves
+    // the column from `bar` via `shiftedBarTime` — lands the value on the
+    // matching bar even when a fixture only sets `time`.
+    const barFromTime = BARS.findIndex((b) => b.time === time);
     return {
         kind: "plot",
         slotId: overrides.slotId,
         title: overrides.title ?? "",
         style,
-        bar: overrides.bar ?? 0,
-        time: overrides.time ?? BARS[0].time,
+        bar: overrides.bar ?? (barFromTime >= 0 ? barFromTime : 0),
+        time,
         value: "value" in overrides ? (overrides.value as number | null) : 100,
         color: overrides.color ?? null,
         meta: overrides.meta ?? {},
         pane: overrides.pane ?? "overlay",
         ...(overrides.visible === undefined ? {} : { visible: overrides.visible }),
+        ...("colorValue" in overrides ? { colorValue: overrides.colorValue } : {}),
+        ...(overrides.xShift === undefined ? {} : { xShift: overrides.xShift }),
     };
 }
 
@@ -595,6 +603,170 @@ describe("createUplotAdapter — plot kinds", () => {
         }
     });
 
+    it("gives each series its own last-non-null stroke (color fix, not all-blue)", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    // Two distinct slots with DISTINCT per-point colours must
+                    // produce DISTINCT strokes — the all-blue hardcode was a BUG.
+                    plotEmission({ slotId: "a", color: "#ff0000", time: BARS[0].time }),
+                    plotEmission({ slotId: "b", color: "#00ff00", time: BARS[0].time }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            const byLabel = new Map(newRecord.opts.series.map((s) => [s.label, s.stroke]));
+            expect(byLabel.get("a")).toBe("#ff0000");
+            expect(byLabel.get("b")).toBe("#00ff00");
+            // Two strokes, two distinct colours.
+            expect(new Set(newRecord.opts.series.map((s) => s.stroke)).size).toBe(2);
+        }
+    });
+
+    it("uses the LAST non-null per-point colour as the series stroke", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    // An early null-colour point then a later coloured one: the
+                    // stroke tracks the last non-null colour (#abcdef).
+                    plotEmission({ slotId: "c", color: null, time: BARS[0].time }),
+                    plotEmission({ slotId: "c", color: "#abcdef", time: BARS[1].time }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            expect(newRecord.opts.series[0].stroke).toBe("#abcdef");
+        }
+    });
+
+    it("falls back to the default stroke for an all-null-colour series", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({ slotId: "d", color: null, time: BARS[0].time }),
+                    plotEmission({ slotId: "d", color: null, time: BARS[1].time }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            // No per-point colour ⇒ the default fallback stroke.
+            expect(newRecord.opts.series[0].stroke).toBe("#3b82f6");
+        }
+    });
+
+    it("places a +offset point in an extrapolated future column (distinct from unshifted)", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    // Unshifted SMA at every bar.
+                    plotEmission({ slotId: "base", value: 100, time: BARS[0].time, bar: 0 }),
+                    plotEmission({ slotId: "base", value: 101, time: BARS[1].time, bar: 1 }),
+                    plotEmission({ slotId: "base", value: 102, time: BARS[2].time, bar: 2 }),
+                    // A +1 copy of the last bar's value: lands one spacing past
+                    // the last bar in an extrapolated FUTURE column.
+                    plotEmission({
+                        slotId: "shift",
+                        value: 102,
+                        time: BARS[2].time,
+                        bar: 2,
+                        xShift: 1,
+                    }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            const spacing = MS_PER_DAY;
+            const xs = newRecord.data[0];
+            // The x row is the 3 bar times + 1 extrapolated future column.
+            expect(xs).toEqual([BARS[0].time, BARS[1].time, BARS[2].time, BARS[2].time + spacing]);
+            // The base series fills cols 0..2; the shifted series puts 102 in
+            // col 3 (the future column) and nothing in the unshifted columns —
+            // a DISTINCT column from the unshifted point.
+            const base = newRecord.data[1];
+            const shifted = newRecord.data[2];
+            expect(base).toEqual([100, 101, 102, null]);
+            expect(shifted).toEqual([null, null, null, 102]);
+        }
+    });
+
+    it("clips a -offset point that lands before the first bar (no negative column)", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({ slotId: "base", value: 100, time: BARS[0].time, bar: 0 }),
+                    plotEmission({ slotId: "base", value: 101, time: BARS[1].time, bar: 1 }),
+                    // A -2 copy of bar 0: shifted time precedes the first bar →
+                    // dropped (no negative-time column is prepended).
+                    plotEmission({
+                        slotId: "past",
+                        value: 100,
+                        time: BARS[0].time,
+                        bar: 0,
+                        xShift: -2,
+                    }),
+                    // A -1 copy of bar 1: lands on bar 0's column (in range).
+                    plotEmission({
+                        slotId: "past",
+                        value: 101,
+                        time: BARS[1].time,
+                        bar: 1,
+                        xShift: -1,
+                    }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            // No future column appended (only -k shifts present).
+            expect(newRecord.data[0]).toEqual([BARS[0].time, BARS[1].time, BARS[2].time]);
+            const past = newRecord.data[2];
+            // The -2 point is clipped; the -1 point lands on col 0.
+            expect(past).toEqual([101, null, null]);
+        }
+    });
+
+    it("drops a point whose resolved column does not exist (defensive guard)", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({ slotId: "base", value: 100, time: BARS[0].time, bar: 0 }),
+                    // A point anchored at a bar index PAST the data with no
+                    // positive shift: `shiftedBarTime` extrapolates a future
+                    // time that no column covers (only `+k` shifts extend xs),
+                    // so it is silently dropped — no row column to write.
+                    plotEmission({ slotId: "base", value: 999, time: BARS[0].time, bar: 9 }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            // Only the 3 bar columns; the out-of-range point contributed
+            // nothing (its future time has no column).
+            expect(newRecord.data[0]).toEqual([BARS[0].time, BARS[1].time, BARS[2].time]);
+            expect(newRecord.data[1]).toEqual([100, null, null]);
+        }
+    });
+
+    it("pads the x scale so the first / last candle centres sit inside the plot area", async () => {
+        const { instances } = await drive([emissions()]);
+        const overlay = instances[0];
+        const width = overlay.bbox.width;
+        // The x scale was pinned to the half-spacing-padded data window, so a
+        // candle at the first / last bar time projects strictly INSIDE the
+        // plotting area (not flush at 0 / width as uPlot's auto-range would).
+        const firstX = overlay.valToPos(BARS[0].time, "x", true);
+        const lastX = overlay.valToPos(BARS[BARS.length - 1].time, "x", true);
+        expect(firstX).toBeGreaterThan(0);
+        expect(lastX).toBeLessThan(width);
+        // Both centres are inside the [0, width] plotting area.
+        expect(firstX).toBeLessThan(width);
+        expect(lastX).toBeGreaterThan(0);
+    });
+
     it("selects step vs line paths per PlotStyle", async () => {
         const { instances } = await drive([
             emissions({
@@ -834,6 +1006,245 @@ describe("createUplotAdapter — horizontal lines", () => {
         );
         expect(overlayHline).toBe(false);
         expect(rsiHline).toBe(true);
+    });
+});
+
+describe("createUplotAdapter — bg-color / bar-color draw-hook rendering", () => {
+    it("paints a per-bar bg-color band per bar, behind the candles", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bg",
+                        style: { kind: "bg-color", color: "#26a69a", transp: 85 },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                    plotEmission({
+                        slotId: "bg",
+                        style: { kind: "bg-color", color: "#ef5350", transp: 85 },
+                        value: null,
+                        time: BARS[1].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        // Two distinct bars ⇒ two bands ⇒ two extra fillRects (BARS.length
+        // candle bodies + 2 bands) and matching alpha brackets.
+        const fillRects = overlay.ctx.calls.filter((c) => c.kind === "fillRect");
+        expect(fillRects).toHaveLength(BARS.length + 2);
+        const alphaSets = overlay.ctx.calls.filter(
+            (c) => c.kind === "set" && c.prop === "globalAlpha",
+        );
+        // alpha = 1 - 85/100 = 0.15 then reset to 1, per band.
+        const dimmed = alphaSets.filter((c) => c.kind === "set" && c.value === 1 - 85 / 100);
+        expect(dimmed).toHaveLength(2);
+    });
+
+    it("carries per-bar colours on adjacent bg-color bands", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bg",
+                        style: { kind: "bg-color", color: "#26a69a" },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                    plotEmission({
+                        slotId: "bg",
+                        style: { kind: "bg-color", color: "#ef5350" },
+                        value: null,
+                        time: BARS[1].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        const bandFills = overlay.ctx.calls.filter(
+            (c) => c.kind === "set" && c.prop === "fillStyle" && typeof c.value === "string",
+        );
+        const fillValues = bandFills.map((c) => (c.kind === "set" ? c.value : undefined));
+        expect(fillValues).toContain("#26a69a");
+        expect(fillValues).toContain("#ef5350");
+    });
+
+    it("prefers a per-bar colorValue over the static bg-color (precedence)", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bg",
+                        // A static colour distinct from any candle bull/bear
+                        // default so its absence proves the dynamic override won.
+                        style: { kind: "bg-color", color: "#aabbcc", transp: 50 },
+                        colorValue: "#123456",
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        const fills = overlay.ctx.calls.filter((c) => c.kind === "set" && c.prop === "fillStyle");
+        const fillValues = fills.map((c) => (c.kind === "set" ? c.value : undefined));
+        expect(fillValues).toContain("#123456");
+        expect(fillValues).not.toContain("#aabbcc");
+    });
+
+    it("treats a null colorValue as a no-fill gap (no band painted)", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bg",
+                        style: { kind: "bg-color", color: "#26a69a" },
+                        colorValue: null,
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        // No band ⇒ no globalAlpha bracket ⇒ only the candle fillRects.
+        const alphaSets = overlay.ctx.calls.filter(
+            (c) => c.kind === "set" && c.prop === "globalAlpha",
+        );
+        expect(alphaSets).toHaveLength(0);
+        const fillRects = overlay.ctx.calls.filter((c) => c.kind === "fillRect");
+        expect(fillRects).toHaveLength(BARS.length);
+    });
+
+    it("re-paints a previously null bg-color band once its colorValue returns", async () => {
+        // First frame: a null gap deletes nothing (no prior band); second
+        // frame: a present colour re-establishes the band; third: a null
+        // gap removes it again, exercising the delete branch.
+        const host = stubHost([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bg",
+                        style: { kind: "bg-color", color: "#26a69a" },
+                        colorValue: "#abcdef",
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bg",
+                        style: { kind: "bg-color", color: "#26a69a" },
+                        colorValue: null,
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const { adapter, instances } = build({
+            host,
+            candles: candleStream([
+                { kind: "close", bar: BARS[0] },
+                { kind: "close", bar: BARS[0] },
+            ]),
+        });
+        await runUplotLoop(adapter);
+        instances[0].runDraw();
+        // After the second frame's null gap, the band is gone.
+        const alphaSets = instances[0].ctx.calls.filter(
+            (c) => c.kind === "set" && c.prop === "globalAlpha",
+        );
+        expect(alphaSets).toHaveLength(0);
+    });
+
+    it("tints a bar's candle body + wick with bar-color", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bc",
+                        style: { kind: "bar-color", color: "#2962ff" },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        // The first candle's wick stroke + body fill take the tint.
+        const strokeTinted = overlay.ctx.calls.some(
+            (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === "#2962ff",
+        );
+        const fillTinted = overlay.ctx.calls.some(
+            (c) => c.kind === "set" && c.prop === "fillStyle" && c.value === "#2962ff",
+        );
+        expect(strokeTinted).toBe(true);
+        expect(fillTinted).toBe(true);
+    });
+
+    it("prefers a per-bar colorValue over the static bar-color, and null clears it", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    // Bar 0: dynamic colour wins over the static red.
+                    plotEmission({
+                        slotId: "bc",
+                        style: { kind: "bar-color", color: "#ff0000" },
+                        colorValue: "#00ff00",
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                    // Bar 1: null gap ⇒ falls back to the bull/bear colour.
+                    plotEmission({
+                        slotId: "bc",
+                        style: { kind: "bar-color", color: "#ff0000" },
+                        colorValue: null,
+                        value: null,
+                        time: BARS[1].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        const fills = overlay.ctx.calls.filter((c) => c.kind === "set" && c.prop === "fillStyle");
+        const fillValues = fills.map((c) => (c.kind === "set" ? c.value : undefined));
+        expect(fillValues).toContain("#00ff00");
+        // The static red is never used (colorValue wins), and bar 1's null
+        // falls back to the bull/bear default (never red).
+        expect(fillValues).not.toContain("#ff0000");
+    });
+
+    it("leaves the candle render byte-identical when no bg/bar overrides exist", async () => {
+        // The pinned candle hash must hold when no bg/bar-color is emitted.
+        const plain = await drive([emissions()]);
+        plain.instances[0].runDraw();
+        const baseline = hashCallLog(plain.instances[0].ctx.calls);
+        // A frame that emits an UNRELATED override kind (candle-override is
+        // still only buffered) must not perturb the candle hash either.
+        const withBuffered = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "co",
+                        style: { kind: "candle-override", bull: "#0f0", bear: "#f00" },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        withBuffered.instances[0].runDraw();
+        expect(hashCallLog(withBuffered.instances[0].ctx.calls)).toBe(baseline);
     });
 });
 

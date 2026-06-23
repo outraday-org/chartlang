@@ -45,6 +45,22 @@ as `color` / `str`.
 - Pine `math.round_to_mintick` / `na` / `nz` / `math.avg` / `math.sum` /
   `math.sign` map onto the namespace via the converter.
 - Docs page + skill reference entry + example.
+- Conformance scenario asserting a tick-snapped-levels drawing is byte-stable
+  across **all** adapters.
+
+## Cross-surface coverage
+
+`math.*` is a pure scalar namespace — outputs flow into the existing
+`plot`/`draw` holes. All six surfaces are covered by Task 2:
+
+| Surface | How |
+|---------|-----|
+| examples/demos | `examples/scripts/tick-snapped-levels.chart.ts` + `DEMO_SCRIPTS` entry + CLI e2e. |
+| docs | `math` reference page (states bare `Math` is available) + nav. |
+| skills | `references/translating-from-pine.md` mapping + `nz` scalar/series note. |
+| converter | Pine `math.*` subset mapping + `nz` routing + arity guards + diagnostics. |
+| adapters | **No new capability** — rides existing `plot`/`draw` holes; `pnpm conformance` (new `mathRoundToMintick` scenario) proves byte-stability across canvas2d/echarts/konva/lightweight-charts/uplot. Verified, not re-implemented (assumes `tasks/adapter-feature-parity/` landed). |
+| react-starter | **No seam change** — feature flows through the compiler; verified by a `tests/compile.spec.ts` case + the existing `adapter-matrix.spec.ts`. |
 
 ## Architecture Decisions
 
@@ -62,7 +78,7 @@ as `color` / `str`.
 Task 1 (core math namespace + impl + unit/property tests + ambient shim)
   |
   v
-Task 2 (pine-converter mapping + docs/skills/example)
+Task 2 (pine-converter mapping + conformance + docs/skills/example + react-starter verify)
 ```
 
 ## Task Summary Table
@@ -70,7 +86,7 @@ Task 2 (pine-converter mapping + docs/skills/example)
 | # | Title | Package | Dependencies | Est. Complexity |
 |---|-------|---------|--------------|-----------------|
 | 1 | [Core `math` namespace](./1-core-math-namespace.md) | core, compiler | None | Medium |
-| 2 | [Converter + docs/skills/example](./2-converter-docs-skills.md) | pine-converter, docs | 1 | Low |
+| 2 | [Converter + conformance + docs/skills/example](./2-converter-docs-skills.md) | pine-converter, conformance, docs | 1 | Medium |
 
 ## Code Reuse
 
@@ -80,6 +96,7 @@ Task 2 (pine-converter mapping + docs/skills/example)
 | `ta.nz` semantics | `packages/core/src/ta/` + runtime | Match the replacement convention (`?? 0`) in the scalar twin; cross-link JSDoc. |
 | `syminfo.mintick` | `packages/core/src/views/syminfo.ts` | Author-supplied step for `roundToMintick`. |
 | Converter family transforms | `packages/pine-converter/src/transform/` | Add `math.*` subset mapping. |
+| Existing drawing conformance scenario | `packages/conformance/src/scenarios/` | Template for `mathRoundToMintick.scenario.ts` (all-adapter byte-stability). |
 
 ## Provenance
 

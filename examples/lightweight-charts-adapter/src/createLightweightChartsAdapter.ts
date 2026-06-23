@@ -20,9 +20,18 @@
 //                          `decomposeDrawing` through the shared canvas sink;
 //                          NOT native (LC has no drawing facility). Anchored on
 //                          the overlay candle series via `attachPrimitive`.
-//   candle-override/      → candleSeries.applyOptions(...) — closest native
-//     bar-override/          facility (whole-series tint; LC has no per-bar
-//     bar-color              colour API on the base candlestick series).
+//   candle-override       → candleSeries.applyOptions(...) — whole-series
+//                          up/down tint (LC has no per-bar candle-override).
+//   bar-override/         → per-bar candle colour stamped onto the candlestick
+//     bar-color              DATA POINT (`color` + `borderColor` + `wickColor`)
+//                          — LC's NATIVE per-point colour API, so body AND
+//                          border AND wick recolour for exactly that bar. The
+//                          per-bar colour resolves `colorValue ?? style.color`
+//                          (the dynamic-colour precedence: `colorValue` present
+//                          overrides; `null` clears the override; omitted uses
+//                          the static `style.color`). Tracked in
+//                          `state.barColors` (keyed by bar time) so a re-emit
+//                          re-stamps the same bar.
 //   bg-color              → NO-OP. LC's background is a single chart-layout
 //                          option, not a per-bar band; declared in the
 //                          capability surface, deferred to a Task-6 primitive.
@@ -45,6 +54,8 @@ import {
     type PlotEmission,
     type RunnerEmissions,
     defineAdapter,
+    medianBarSpacing,
+    shiftedBarTime,
     validateEmission,
 } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
@@ -146,6 +157,12 @@ type AdapterState = {
     // The candlestick series of the overlay pane, lazily created on the first
     // candle event — the anchor for overlay-pane price lines.
     candleSeries: LwcSeries | undefined;
+    // Per-bar candle colour overrides keyed by bar time. A `bar-color` /
+    // `bar-override` emission stamps the resolved colour here; `candleData`
+    // merges it onto the candlestick point (body + border + wick) so the
+    // override is genuinely per-bar (LC's native per-point colour API), not a
+    // whole-series tint that flickers to the last bar's colour.
+    readonly barColors: Map<number, string>;
     readonly recentAlerts: AlertEmission[];
     readonly currentAlertConditions: AlertConditionEmission[];
     readonly recentLogs: LogEmission[];
@@ -216,6 +233,15 @@ const DARK_CHART_THEME = {
     text: "#94a3b8",
     grid: "rgba(148, 163, 184, 0.12)",
     border: "rgba(148, 163, 184, 0.2)",
+    // The bull / bear candle palette, matching the canvas2d reference adapter
+    // (`palette.candleBullBody` / `candleBearBody`) so the two reference
+    // adapters render the same green-up / red-down candles. Applied as
+    // whole-series options on the Candlestick series (NOT per-point data), so
+    // they live in this DOM-only block and never enter the recorded native-call
+    // log — the pinned `MockLwcApi` goldens are untouched. A per-bar
+    // `bar-color` / `bar-override` still overrides these on its own data point.
+    candleBull: "#26a69a",
+    candleBear: "#ef5350",
 } as const;
 
 function defaultCreateChart(container: HTMLElement): LwcChart {
@@ -231,9 +257,39 @@ function defaultCreateChart(container: HTMLElement): LwcChart {
         rightPriceScale: { borderColor: DARK_CHART_THEME.border },
         timeScale: { borderColor: DARK_CHART_THEME.border },
     });
-    const wrap = (seriesType: string, paneIndex: number): LwcSeries => {
-        const series = chart.addSeries(SERIES_DEFINITION[seriesType], {}, paneIndex);
+    // dblclick resets the time scale to fit all data, matching canvas2d's
+    // dblclick-reset. DOM-bound (this whole block is `v8 ignore`d) so the
+    // headless tests, which drive `opts.chartApi` directly, never reach it.
+    container.addEventListener("dblclick", () => {
+        chart.timeScale().resetTimeScale();
+    });
+    const wrap = (
+        seriesType: string,
+        options: Readonly<Record<string, unknown>>,
+        paneIndex: number,
+    ): LwcSeries => {
         const isCandlestick = seriesType === "Candlestick";
+        // Default green-up / red-down candle colours (body + border + wick),
+        // matching the canvas2d reference. A per-bar `bar-color` data point
+        // overrides these for its own bar.
+        const candleOptions = isCandlestick
+            ? {
+                  upColor: DARK_CHART_THEME.candleBull,
+                  downColor: DARK_CHART_THEME.candleBear,
+                  borderUpColor: DARK_CHART_THEME.candleBull,
+                  borderDownColor: DARK_CHART_THEME.candleBear,
+                  wickUpColor: DARK_CHART_THEME.candleBull,
+                  wickDownColor: DARK_CHART_THEME.candleBear,
+              }
+            : {};
+        // The caller's `options` (e.g. `{ color: plot.color }` from
+        // `applyLineLikePlot`, `lineType` for step-lines) MUST flow through to
+        // the real series — otherwise every line falls back to LC's default
+        // series colour and the script's `plot(..., { color })` is ignored.
+        // Caller options win over the candle defaults so an explicit override
+        // still applies.
+        const seriesOptions = { ...candleOptions, ...options };
+        const series = chart.addSeries(SERIES_DEFINITION[seriesType], seriesOptions, paneIndex);
         return {
             setData: (data) =>
                 isCandlestick
@@ -244,6 +300,16 @@ function defaultCreateChart(container: HTMLElement): LwcChart {
                               high: p.high ?? 0,
                               low: p.low ?? 0,
                               close: p.close ?? 0,
+                              // Per-bar `bar-color` recolours body + border +
+                              // wick; `borderVisible: true` so the border shows.
+                              ...(p.color !== undefined
+                                  ? {
+                                        color: p.color,
+                                        borderColor: p.borderColor,
+                                        wickColor: p.wickColor,
+                                        borderVisible: true,
+                                    }
+                                  : {}),
                           })),
                       )
                     : series.setData(data.map((p) => ({ time: toTime(p.time), value: p.value }))),
@@ -255,6 +321,14 @@ function defaultCreateChart(container: HTMLElement): LwcChart {
                           high: point.high ?? 0,
                           low: point.low ?? 0,
                           close: point.close ?? 0,
+                          ...(point.color !== undefined
+                              ? {
+                                    color: point.color,
+                                    borderColor: point.borderColor,
+                                    wickColor: point.wickColor,
+                                    borderVisible: true,
+                                }
+                              : {}),
                       })
                     : series.update({ time: toTime(point.time), value: point.value }),
             applyOptions: (options) => series.applyOptions(options),
@@ -270,7 +344,7 @@ function defaultCreateChart(container: HTMLElement): LwcChart {
         };
     };
     return {
-        addSeries: (seriesType, _options, paneIndex = 0) => wrap(seriesType, paneIndex),
+        addSeries: (seriesType, options, paneIndex = 0) => wrap(seriesType, options, paneIndex),
         addPane: () => {
             chart.addPane();
             // The new pane is the last one; its index is the prior count.
@@ -313,6 +387,22 @@ function dataPoint(time: number, value: number | null): { time: number; value?: 
     return { time, value };
 }
 
+// The native time a plot point draws at once its universal `ta` `offset`
+// (`plot.xShift`; `+n` right / future, `−n` left / past) is applied. LC is a
+// native-time model: a `+5` copy renders five bar-spacings to the right of the
+// unshifted point. Routes through the shared `shiftedBarTime` contract so the
+// bar-offset math is defined once across every adapter. With `xShift` 0 /
+// undefined `shiftedBarTime` returns the bar's own time, so a no-offset plot is
+// byte-identical to `plot.time` (today's behaviour, untouched goldens).
+function shiftedPlotTime(state: AdapterState, plot: PlotEmission): number {
+    return shiftedBarTime({
+        bars: state.bars,
+        bar: plot.bar,
+        xShift: plot.xShift,
+        spacing: medianBarSpacing(state.bars),
+    });
+}
+
 function getOrCreateSeries(
     state: AdapterState,
     plot: PlotEmission,
@@ -340,7 +430,7 @@ function applyLineLikePlot(state: AdapterState, plot: PlotEmission, seriesType: 
         series.applyOptions({ visible: false });
         return;
     }
-    series.update(dataPoint(plot.time, plot.value));
+    series.update(dataPoint(shiftedPlotTime(state, plot), plot.value));
 }
 
 // `style` is passed already narrowed by the caller so the upper / lower edge
@@ -366,8 +456,9 @@ function applyFilledBand(
         entry.lower?.applyOptions({ visible: false });
         return;
     }
-    entry.series.update(dataPoint(plot.time, style.upper));
-    entry.lower?.update(dataPoint(plot.time, style.lower));
+    const shiftedTime = shiftedPlotTime(state, plot);
+    entry.series.update(dataPoint(shiftedTime, style.upper));
+    entry.lower?.update(dataPoint(shiftedTime, style.lower));
 }
 
 function removePriceLine(state: AdapterState, key: string): void {
@@ -413,19 +504,40 @@ function firstSeriesInPane(state: AdapterState, pane: string): LwcSeries | undef
 
 // Markers (shape / character / arrow / marker / label) attach to the overlay
 // candle series via the v5 markers plugin. With no candle series yet (empty
-// stream) there is nothing to anchor on — a no-op for this frame.
+// stream) there is nothing to anchor on — a no-op for this frame. The glyph
+// shifts at its `xShift` for parity with canvas2d (which shifts glyphs too).
 function applyMarker(state: AdapterState, plot: PlotEmission): void {
     if (state.candleSeries === undefined) return;
     if (plot.value === null) return;
-    state.candleSeries.setMarkers([{ time: plot.time }]);
+    state.candleSeries.setMarkers([{ time: shiftedPlotTime(state, plot) }]);
 }
 
-// Whole-series candle tint — the closest native facility to Pine's per-bar
-// candle / bar colour overrides (LC has no per-bar colour API on the base
-// candlestick series). No candle series yet → nothing to tint.
+// Whole-series candle tint — the closest native facility to Pine's
+// `candle-override` (LC has no per-bar candle-override on the base series). No
+// candle series yet → nothing to tint.
 function applyCandleTint(state: AdapterState, options: Readonly<Record<string, unknown>>): void {
     if (state.candleSeries === undefined) return;
     state.candleSeries.applyOptions(options);
+}
+
+// Per-bar `bar-color` / `bar-override`: stamp the resolved colour onto the
+// candlestick DATA POINT for this bar (body + border + wick recolour via LC's
+// native per-point colour fields). The colour resolves `colorValue ?? color`
+// (the dynamic-colour precedence): `colorValue` present overrides the static
+// `color`; `colorValue === null` CLEARS the override (no colour this bar);
+// `colorValue` omitted uses the static `color`. The candle for `plot.time` was
+// already drawn this frame (before the drain), so we re-`update` it to apply.
+function applyBarColor(state: AdapterState, plot: PlotEmission, color: string): void {
+    if (state.candleSeries === undefined) return;
+    const resolved = plot.colorValue === undefined ? color : plot.colorValue;
+    if (resolved === null) {
+        state.barColors.delete(plot.time);
+    } else {
+        state.barColors.set(plot.time, resolved);
+    }
+    const target = state.bars.find((b) => b.time === plot.time);
+    if (target === undefined) return;
+    state.candleSeries.update(candleData(state, target));
 }
 
 function applyPlot(state: AdapterState, plot: PlotEmission): void {
@@ -456,10 +568,7 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             return;
         case "bar-override":
         case "bar-color":
-            applyCandleTint(state, {
-                upColor: plot.style.color,
-                downColor: plot.style.color,
-            });
+            applyBarColor(state, plot, plot.style.color);
             return;
         case "bg-color":
         case "horizontal-histogram":
@@ -535,17 +644,37 @@ function ensureCandleSeries(state: AdapterState): LwcSeries {
     return series;
 }
 
-function candleData(bar: Bar): {
+type CandlePoint = {
     time: number;
     open: number;
     high: number;
     low: number;
     close: number;
-} {
+    color?: string;
+    borderColor?: string;
+    wickColor?: string;
+};
+
+function candleData(state: AdapterState, bar: Bar): CandlePoint {
     // A lightweight-charts Candlestick series requires all four OHLC fields.
     // IMPORTANT: passing only `value` (the old behaviour) caused LC to read
     // `open` as undefined and throw "Value is undefined" at runtime.
-    return { time: bar.time, open: bar.open, high: bar.high, low: bar.low, close: bar.close };
+    const point: CandlePoint = {
+        time: bar.time,
+        open: bar.open,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close,
+    };
+    // A `bar-color` / `bar-override` emission for this bar recolours the body
+    // AND border AND wick — LC's native per-point colour fields.
+    const override = state.barColors.get(bar.time);
+    if (override !== undefined) {
+        point.color = override;
+        point.borderColor = override;
+        point.wickColor = override;
+    }
+    return point;
 }
 
 function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
@@ -553,12 +682,12 @@ function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
     const series = ensureCandleSeries(state);
     if (event.kind === "history") {
         state.bars.push(...event.bars);
-        series.setData(event.bars.map(candleData));
+        series.setData(event.bars.map((b) => candleData(state, b)));
         return;
     }
     if (event.kind === "close") {
         state.bars.push(event.bar);
-        series.update(candleData(event.bar));
+        series.update(candleData(state, event.bar));
         return;
     }
     if (state.bars.length === 0) {
@@ -566,7 +695,7 @@ function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
     } else {
         state.bars[state.bars.length - 1] = event.bar;
     }
-    series.update(candleData(event.bar));
+    series.update(candleData(state, event.bar));
 }
 
 /**
@@ -605,6 +734,7 @@ export function createLightweightChartsAdapter(
         series: new Map(),
         priceLines: new Map(),
         candleSeries: undefined,
+        barColors: new Map(),
         recentAlerts: [],
         currentAlertConditions: [],
         recentLogs: [],
@@ -647,6 +777,7 @@ export function createLightweightChartsAdapter(
             // dropping our references is enough (no per-line removePriceLine).
             state.priceLines.clear();
             state.candleSeries = undefined;
+            state.barColors.clear();
             state.recentAlerts.length = 0;
             state.currentAlertConditions.length = 0;
             state.recentLogs.length = 0;

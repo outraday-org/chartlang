@@ -27,11 +27,44 @@ lightweight-charts integration.
   `lineType` step; `area` → `Area`; `histogram` → `Histogram`;
   `horizontal-line` → `series.createPriceLine`; glyph kinds (`shape` /
   `character` / `arrow` / `marker` / `label`) → the v5
-  `createSeriesMarkers` plugin (`series.setMarkers`); candle / bar
-  overrides → `candleSeries.applyOptions` (whole-series tint, the closest
-  native facility). `bg-color` and `horizontal-histogram` have **no**
+  `createSeriesMarkers` plugin (`series.setMarkers`); `candle-override`
+  → `candleSeries.applyOptions` (whole-series up/down tint, the closest
+  native facility for a per-bull/bear override); `bar-color` /
+  `bar-override` → **per-bar candle DATA-POINT colour** (NOT a whole-series
+  tint — see below). `bg-color` and `horizontal-histogram` have **no**
   native facility and are documented **no-ops** in v1 (still declared in
   the capability surface, deferred to the Task-6 primitive path).
+- **`bar-color` / `bar-override` colour the candle PER BAR via the native
+  data-point colour fields, recolouring body AND border AND wick.**
+  lightweight-charts candlestick data points natively carry `color`,
+  `borderColor`, and `wickColor`; `applyBarColor` resolves the per-bar
+  colour and `candleData(state, bar)` stamps all three (so the border /
+  wick recolour, not just the body — the prior whole-series `applyOptions`
+  tint left borders/wicks at their defaults and could only show ONE
+  colour). The colour resolves `colorValue ?? style.color` (the
+  dynamic-colour precedence contract): `colorValue` present OVERRIDES the
+  static `style.color`; `colorValue === null` CLEARS the override (no
+  colour that bar); `colorValue` omitted uses the static `style.color`.
+  Overrides live in `state.barColors` keyed by bar time. Because the
+  candle for a bar is drawn (in `applyCandleEvent`) BEFORE that bar's
+  emissions drain, `applyBarColor` re-`update`s the candle point in place
+  to apply the colour the same frame; a bar-color whose `time` matches no
+  known bar is a no-op for that frame. `defaultCreateChart` passes the
+  three colour fields through (with `borderVisible: true`) to the real LC
+  series.
+- **A plot's `color` is forwarded as a SERIES-CREATION option, not a data
+  field.** `applyLineLikePlot` builds `{ color: plot.color }` (plus
+  `lineType` for a step-line) and passes it to `getOrCreateSeries` →
+  `chart.addSeries(seriesType, options, paneIndex)`; the colour lives ONLY
+  at creation (the factory never re-`applyOptions`es it). The production
+  bridge's `addSeries` (`defaultCreateChart`) MUST thread these options
+  through to the real LC series — it merges them OVER the default candle
+  palette (`{ ...candleOptions, ...options }`, caller wins). Dropping the
+  options (the original `_options` discard) made every line fall back to
+  lightweight-charts' default series colour, ignoring the script's
+  `plot(..., { color })`. `MockLwcApi` records the creation `options` on the
+  `addSeries` `LwcRecordedCall` (+ `canonicalise`) so the forwarding is
+  assertable headlessly; a `null` plot colour records `{}` (no colour key).
 - **The production bridge maps OHLC onto the candlestick series' data.**
   `candleData(bar)` returns `{ time, open, high, low, close }`; passing
   only `{ time, value }` to a Candlestick series causes lightweight-charts
@@ -40,7 +73,29 @@ lightweight-charts integration.
   accommodate both line (uses `value`) and candlestick (uses OHLC)
   series through the same `LwcSeries.setData` / `update` interface.
   `MockLwcApi.update` records the OHLC fields when present so candle
-  ingestion remains assertable without a DOM chart.
+  ingestion remains assertable without a DOM chart. It ALSO records the
+  per-bar candle colour fields (`color` / `borderColor` / `wickColor`)
+  when present — the `bar-color` / `bar-override` per-bar tint (above) —
+  added to the `LwcRecordedCall` `update` arm + `canonicalise` in lockstep
+  with `LwcDataPoint`.
+- **Universal `ta` `offset` (`PlotEmission.xShift`) shifts WHERE a series
+  point draws, never its value.** LC is a native-time model: line / step-line
+  / area / histogram (`applyLineLikePlot`) and BOTH filled-band edges
+  (`applyFilledBand`) `.update` at `shiftedPlotTime(state, plot)` — the shared
+  `shiftedBarTime({ bars, bar, xShift, spacing })` (`spacing =
+  medianBarSpacing(state.bars)`) imported from
+  `@invinite-org/chartlang-adapter-kit`, the ONE bar-offset contract every
+  adapter shares (no hand-port). `+n` projects right / future (extrapolated
+  past the data edge from the last bar's time + spacing), `−n` left / past.
+  Glyphs (`applyMarker` — shape / character / arrow / marker / label) shift
+  too, for parity with canvas2d. `horizontal-line` is price-only and is NOT
+  shifted (no `time` axis position). With `xShift` 0 / undefined
+  `shiftedBarTime` returns the bar's own time, so a no-offset plot is
+  byte-identical to the pre-shift `plot.time` — the pinned native-call /
+  drawing goldens are untouched. Each plot slot is its own native series, so a
+  `+5` copy's times are each ~5·spacing beyond the unshifted times and stay
+  strictly monotonic WITHIN that series (LC requires strictly increasing,
+  unique times per series).
 - **`filled-band` maps to two native line series; the fill BETWEEN them
   is a Task-6 drawing** (lightweight-charts has no native band kind).
   Null `upper` / `lower` become whitespace points. This seam is the one
@@ -118,11 +173,28 @@ lightweight-charts integration.
   echarts adapter hardcodes (`#0b0e11`). This lives in the `v8 ignore`
   block (DOM-only), so it is coverage-exempt and tests (driving `MockLwcApi`
   via `opts.chartApi`) never see it.
+- **Default candle colours + dblclick-reset live in `defaultCreateChart`
+  (the same DOM-only `v8 ignore` block).** The Candlestick series is created
+  with `upColor` / `downColor` / `borderUpColor` / `borderDownColor` /
+  `wickUpColor` / `wickDownColor` = bull `#26a69a` / bear `#ef5350`
+  (`DARK_CHART_THEME.candleBull` / `candleBear`), matching the canvas2d
+  reference palette so the two adapters render the same green-up / red-down
+  candles. These are WHOLE-SERIES options on `addSeries` (NOT per-point data),
+  so they stay inside the DOM-only block and NEVER enter the recorded
+  `MockLwcApi` native-call log — the pinned native-call / drawing goldens are
+  untouched (no re-pin). The per-bar `bar-color` / `bar-override` data-point
+  colour path (above) still overrides them on its own bar. The container also
+  gets a `dblclick` listener that calls `chart.timeScale().resetTimeScale()`
+  (fit-all-data), matching canvas2d's dblclick-reset; it is DOM-bound and so
+  coverage-exempt under the same seam.
 - **`MockLwcApi` records every native call into `LwcRecordedCall[]`;
   `hashLwcCallLog` canonicalises floats to 4 dp** — the same approach as
   the adapter-kit canvas `hashCallLog` (imported in tests over the public
   `@invinite-org/chartlang-adapter-kit/canvas` boundary), specialised to
-  the native-call vocabulary. Exposed via the `./testing` sub-path.
+  the native-call vocabulary. Exposed via the `./testing` sub-path. The
+  `addSeries` recorded call carries the whole-series creation `options`
+  (e.g. `{ color }`) so the plot-colour forwarding path — which lives ONLY
+  at `addSeries`, never re-`applyOptions`d — is assertable.
 
 ## Default export = capabilities-only
 

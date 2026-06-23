@@ -24,7 +24,22 @@ capabilities-only conformance default export).
   adapter computes its own `Viewport` from bars + stage size and projects
   with the SHARED `timeToX` / `priceToY` from
   `@invinite-org/chartlang-adapter-kit` — no local projection copy. It is
-  the second "self-scaled" adapter after canvas2d.
+  the second "self-scaled" adapter after canvas2d. The universal `ta`
+  `offset` (`PlotEmission.xShift`; `+n` right/future, `−n` left/past) is
+  honoured exactly like canvas2d: every shifted-series render path
+  (line / step-line / histogram / area / filled-band + shape / marker /
+  character / arrow / label glyphs) projects through the SHARED
+  `projectShiftedX({ bars, bar, xShift, spacing })` (one
+  `medianBarSpacing(bars)` computed per rebuild, threaded in), and
+  `computePaneViewport` widens `dataXMax` via a local `extendXMaxForShifts`
+  → `maxShiftedTime` so a `+k` future point stays on-screen. `xShift` is
+  stored on `SeriesPoint` ONLY when non-zero (omitted for `0`/undefined),
+  and `extendXMaxForShifts` only fires on `xShift > 0`, so a no-offset
+  frame is byte-identical to the pre-feature render (the EMA-cross
+  integration `PINNED_HASH` has no offset and is unchanged). Candle-state
+  overrides (bg-color / bar-color / candle-override / bar-override /
+  horizontal-histogram) KEEP their own bar anchor and never shift or widen
+  the viewport — explicit, matching canvas2d's documented invariant.
 
 - **`computePaneViewport` reserves a 52px `Y_AXIS_GUTTER_PX`
   (`pxWidth = rect.w - gutter`) so konva's candle x-extent matches
@@ -107,9 +122,19 @@ capabilities-only conformance default export).
   the band reads them straight off the series — no emission re-read);
   horizontal-line → a `Line` across the pane; shape / marker → a `Rect`
   glyph; character / arrow / label → a `Text` glyph; candle-override /
-  bar-override / bar-color → a per-bar tint `Rect`; bg-color → a background
-  `Rect`; horizontal-histogram → per-bucket `Rect`s. A `null` / non-finite
-  value skips the point / segment / glyph.
+  bar-override / bar-color → a per-bar tint `Rect`; bg-color → a per-bar
+  background `Rect` whose node-level `opacity` is `1 - (style.transp ?? 0)/100`
+  (the Konva idiom for canvas2d's `globalAlpha`; `transp` omitted ⇒ opacity 1,
+  byte-identical to a transp-less band) and whose fill honours the `colorValue`
+  precedence (present `colorValue` overrides `style.color`, `null` ⇒ paint
+  nothing this bar); horizontal-histogram → per-bucket `Rect`s. A `null` /
+  non-finite value skips the point / segment / glyph. Series + glyph x come
+  from the shared `projectShiftedX` (honouring `SeriesPoint.xShift` /
+  `PlotEmission.xShift`); only the candle-state overrides above stay on
+  `timeToX(bar.time)`. `projectRect`
+  (`src/testing.ts`) brackets a translucent Rect's fill in `globalAlpha`
+  set/reset `RecordedCall`s so the hash reflects the wash; an absent / unity
+  opacity contributes no `globalAlpha` calls (pinned hashes untouched).
 
 - **The series + drawings layers are rebuilt every drain (stateless
   redraw).** `onEmissions` ingests + `rebuildSeriesLayer`

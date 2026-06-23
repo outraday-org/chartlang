@@ -71,11 +71,75 @@ test seam + capabilities-only conformance default export).
   where `type` is `"solid"|"dashed"|"dotted"` — byte-identical to the IR
   `LineStyle`, no translation table). Candle-state overrides
   (`candle-override` / `bar-override` / `bar-color`) become per-bar
-  candlestick `itemStyle`; `bg-color` becomes the chart `backgroundColor`.
-  None of these create a series — they are applied during `applyPlot` and
-  `StoredSeries.style` is narrowed (`SeriesStyle`) to EXCLUDE them, keeping
-  `buildOption`'s series switch exhaustive over exactly the series-producing
-  kinds.
+  candlestick `itemStyle`; `bg-color` becomes a per-bar candlestick
+  `markArea` band (see the dedicated invariant below). None of these create
+  a series — they are applied during `applyPlot` and `StoredSeries.style` is
+  narrowed (`SeriesStyle`) to EXCLUDE them, keeping `buildOption`'s series
+  switch exhaustive over exactly the series-producing kinds.
+
+- **The candlestick body colours are EXPLICIT (canvas2d parity), not the
+  ECharts default.** The candlestick series carries an
+  `itemStyle: { color, color0, borderColor, borderColor0 }` pinned to the
+  reference palette — bull `#26a69a` (`color`/`borderColor`, the UP body) /
+  bear `#ef5350` (`color0`/`borderColor0`, the DOWN body) — so the echarts and
+  canvas2d adapters read as one product. Without it ECharts paints its own
+  stock red/green. Per-bar overrides (candle-override / bar-override /
+  bar-color) still tint individual bodies on top via each datum's `itemStyle`.
+  Setting these series-level colours re-pinned `integration.test.ts`'s
+  `PINNED_HASH` (the only structural change to the EMA-cross option tree).
+
+- **The universal `ta` `offset` (`PlotEmission.xShift`) displaces a series
+  point's CATEGORY COLUMN, not its value — echarts is the category/index
+  model.** Each stored `SeriesPoint` carries `xShift` (omitted when `0`/absent,
+  so a no-offset frame is byte-identical to the pre-offset build).
+  `seriesData` / `bandData` write the value at `shiftedBarIndex(point.bar,
+  point.xShift)` (`bar + (xShift ?? 0)`) and `glyphSeries` pushes the scatter
+  datum at that column. Because a category axis has no slot past its last bar,
+  `buildOption` computes `maxPositiveShift(state)` over EVERY stored point and
+  appends that many SYNTHETIC future categories (`lastTime + k ·
+  medianBarSpacing(bars)`), passing the extended `barCount` to every
+  `seriesData` / `bandData` call so all shifted series + the candlestick align
+  on one axis. A `bar + xShift < 0` index is CLIPPED (no negative category); an
+  in-range negative shift writes at `bar − k`. The candlestick + bg/bar
+  `markArea` keep their REAL bar indices (candle-state is not a shifted series).
+  With `maxShift === 0` `categories` / `barCount` are unchanged — so the
+  no-offset EMA-cross golden is untouched by this path. (Both helpers from
+  `@invinite-org/chartlang-adapter-kit` — `shiftedBarIndex` / `medianBarSpacing`
+  — never a hand-port.)
+
+- **Zoom/pan ride the native inside-`dataZoom`; a `chart.on("dblclick", …)`
+  resets it to the full window (canvas2d parity).** The factory binds a
+  `"dblclick"` handler that sets `state.zoomStart`/`zoomEnd` back to `0`/`100`
+  and re-applies the rebuilt option (whose `dataZoom` reads those back), snapping
+  the window to the whole category axis — mirroring canvas2d's dblclick reset.
+  `EChartsSurface` gained an OPTIONAL `on?(eventName, handler)`: the headless
+  default omits it (no interaction to wire), the real `echarts.init(...)`
+  instance + `MockECharts` implement it. `MockECharts` records the handler and
+  exposes `fire(eventName)` to replay it headlessly (the reset path is exercised
+  with no DOM), parallel to how `getOption`/`applyUserZoom` were added.
+
+- **`bg-color` is a PER-BAR vertical band on the candlestick `markArea`, NOT
+  the whole-chart `backgroundColor`.** `applyPlot`'s `bg-color` arm buffers a
+  resolved per-bar band in `state.bgBands` (a `Map<barTime, { color, transp }>`,
+  last-write-wins) instead of the old single `state.bgColor` scalar. The
+  colour follows the `PlotEmission.colorValue` precedence contract:
+  `colorValue` present ⇒ overrides `style.color`; `colorValue === null` ⇒
+  drop the bar's band (paint nothing this bar); `colorValue === undefined` ⇒
+  use the static `style.color`. `buildBgMarkAreaData` then maps each live
+  band to ONE `markArea` interval item `[{ xAxis: barIndex, itemStyle:
+  { color, opacity } }, { xAxis: barIndex }]` keyed on the CATEGORY x-axis, so
+  the stripe is one bar-slot wide, full grid height, and survives zoom/pan.
+  `opacity = 1 - (transp ?? 0)/100` (IR `transp` 0 opaque … 100 fully
+  transparent; an omitted `transp` is fully opaque). The `markArea` rides the
+  candlestick series and is OMITTED entirely when no band is live (no empty
+  `markArea`). Adjacent bars with different colours render as adjacent
+  stripes (e.g. green above `ta.ema(50)`, red below). The chart's own
+  `backgroundColor` is now ALWAYS the theme `state.backgroundColor` — a
+  `bg-color` emission never washes the pane. `bar-color` follows the SAME
+  `colorValue` precedence (per-bar `itemStyle`; `colorValue === null` drops
+  the bar's tint). A change here re-pins `integration.test.ts`'s
+  `hashOptionLog` ONLY if the pinned bundle emits a `bg-color`/`bar-color`
+  with a band — the EMA-cross bundle emits neither, so its hash is unaffected.
 
 - **`horizontal-histogram` (volume profile) renders as `graphic`
   rectangles, NOT a per-bar bar series.** Its geometry lives in

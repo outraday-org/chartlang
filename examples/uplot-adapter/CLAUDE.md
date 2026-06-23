@@ -55,7 +55,26 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   re-emitting `"new"` every bar reuses its first-allocated pane — the key
   is slot-derived, not a running counter, so there is no runaway
   pane-per-frame (the runtime re-emits each slot on every bar close).
-- **Candles + horizontal lines + drawings paint in a `hooks.draw` ctx
+- **The whole `hooks.draw` ctx pass is CLIPPED to uPlot's plotting-area
+  box.** `paintPaneOverlay` brackets everything it paints in `ctx.save()` →
+  `ctx.beginPath()` → `ctx.rect(dx, dy, viewport.pxWidth, viewport.pxHeight)`
+  → `ctx.clip()` … `ctx.restore()` (device px, the same space the marks are
+  projected into via `buildViewport` / `offsetForViewport`). uPlot clips its
+  OWN native series to this rect, but the draw-hook ctx is the unclipped full
+  canvas — so without the clip, any candle / `bg-color` band / drawing whose
+  bar falls OUTSIDE the visible x-window (a panned/zoomed view that still has
+  bars to either side) paints straight into the price-axis gutter, on top of
+  the axis labels (the "overreaches the axis" bug). The clip confines the
+  hand-rolled pass to the plot edges on BOTH axes, exactly as the native
+  series already behave. `MockUplot`'s bbox is the full canvas, so the clip is
+  a headless no-op on in-bounds marks — it only adds the `save`/`rect`/`clip`/
+  `restore` calls to the log (the `integration.test.ts` `PINNED_HASH` was
+  re-pinned for them). The early `bars.length === 0` return precedes the clip,
+  so a stale empty redraw still emits zero ctx calls. `rect` + `clip` are
+  shared `RenderCtx` members (adapter-kit's `./canvas` sink) — production
+  `CanvasRenderingContext2D` already has them; `MockCanvasContext` records
+  them.
+- **Candles + horizontal lines + drawings paint in that `hooks.draw` ctx
   pass, to the instance's OWN `u.ctx`.** `paintPaneOverlay(state, paneKey,
   u)` reads `u.ctx` (a real `CanvasRenderingContext2D` in production, a
   `MockCanvasContext` under test) and maps hline y via `u.valToPos(price,
@@ -79,15 +98,83 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   `../invinite/` port, so it carries a one-line attribution comment, not
   the 4-line relicense header. A non-finite projected candle is a
   per-candle skip (gap); a doji clamps to a 1px body.
-- **Plots map to native uPlot series; glyph / override kinds are
+- **Plots map to native uPlot series; glyph / remaining override kinds are
   buffered, not dropped.** `line`/`step-line` → line/stepped paths,
   `area`/`filled-band` → series `fill`, `histogram` → bars; `null`/NaN →
   uPlot `null` gap. `shape`/`character`/`arrow`/`label`/`marker` and the
-  candle-state overrides (`candle-override`/`bar-override`/`bg-color`/
-  `bar-color`/`horizontal-histogram`) are declared in Capabilities and
-  buffered in `state.overlays`/`state.hlines`; they are NOT silently
-  dropped, keeping the "all plot kinds" claim honest. Their draw-hook
-  rendering is follow-up work.
+  candle-state overrides (`candle-override`/`bar-override`/
+  `horizontal-histogram`) are declared in Capabilities and buffered in
+  `state.overlays`/`state.hlines`; they are NOT silently dropped, keeping
+  the "all plot kinds" claim honest. Their draw-hook rendering is follow-up
+  work. **`bg-color` and `bar-color` are now PAINTED in the draw hook (see
+  the next invariant), not just buffered.** **Each series carries per-point
+  `color` + `bar` + (non-zero) `xShift` on its `PlotPoint`s, and its stroke
+  is the LAST non-null per-point color (`seriesColor(points,
+  DEFAULT_LINE_COLOR)`, mirroring echarts / konva), falling back to
+  `#3b82f6` only for an all-null-colour series.** The previous
+  `const stroke = "#3b82f6"` hardcode was a **BUG**: every series read the
+  same blue, so a multi-plot script (or the `sma-offset` sample's three SMA
+  copies) collapsed to one blue line. Do NOT reintroduce a hardcoded
+  stroke — the per-series colour is the contract.
+- **The universal `ta` `offset` (`PlotEmission.xShift`; `+n` right/future,
+  `−n` left/past) is honoured in the aligned-data table, NOT dropped.**
+  uPlot is the aligned-time model (c): `AlignedData = [xs, ...valueRows]`.
+  `buildPaneData` builds `xs` from the bar times EXTENDED with extrapolated
+  future columns (`lastTime + k·spacing`) up to
+  `maxShiftedTime(panePoints, bars, spacing, lastTime)` (one
+  `medianBarSpacing(bars)` per pane), then places each point's value at the
+  column whose time === `shiftedBarTime({ bars, bar, xShift, spacing })`
+  (a `time → columnIndex` map over the extended `xs`). A far-past (`−k`)
+  point whose shifted time precedes the first bar is **clipped** (dropped,
+  not prepended as a negative-time column) — canvas2d parity ("−k clipped at
+  negative x, xMin not extended"). `xShift` is stored on `PlotPoint` ONLY
+  when non-zero, and `maxShiftedTime` only extends for `xShift > 0`, so a
+  no-offset frame produces `xs` + rows BYTE-IDENTICAL to the pre-offset
+  path. The shift helpers (`medianBarSpacing`, `shiftedBarTime`,
+  `maxShiftedTime`) come from `@invinite-org/chartlang-adapter-kit` (the
+  shared contract) — never hand-port them. A point whose resolved column
+  does not exist (an out-of-range `bar` with no positive shift) is silently
+  dropped (the defensive `col === undefined` guard).
+- **The x scale is pinned to a HALF-SPACING-PADDED data window so the
+  first / last candle CENTRES sit inside the plotting area (axis-overflow
+  fix).** uPlot auto-ranges x so the last bar lands exactly at the
+  plot-area right edge, spilling the last candle's half-body into the right
+  price-axis gutter. `paddedXWindow(state, win)` widens the resolved window
+  by `X_PAD_BARS (0.5) × medianBarSpacing(bars)` on each side; it is folded
+  into BOTH the auto-follow branch of `renderFrame`
+  (`instance.setScale("x", paddedXWindow(state, barsXBounds(state)))`,
+  REPLACING uPlot's flush auto-range) AND `wireUplotInteraction`'s
+  `requestRender` (the held pan/zoom window is padded too). A single-bar /
+  empty window has zero spacing, so the pad is a no-op there. `MockUplot`
+  now honours `setScale("x")` (updates `xMin`/`xMax`) so `valToPos("x")`
+  reflects the pad under test. dblclick → `reset()` → `userInteracted`
+  false → auto-follow (padded) resumes.
+- **`bg-color` / `bar-color` paint in the overlay draw-hook ctx pass.**
+  `applyPlot` projects each `bg-color` / `bar-color` emission into a
+  dedicated per-bar map keyed by bar TIME — `state.bgColors`
+  (`Map<number, BgColorBand>`) and `state.barColors` (`Map<number, string>`)
+  — in addition to the `state.overlays` buffer (which keeps the "all plot
+  kinds" claim honest). The `colorValue` precedence is resolved AT INGEST,
+  mirroring canvas2d exactly: `colorValue` present ⇒ it OVERRIDES
+  `style.color`; `colorValue === null` ⇒ the bar's entry is DELETED (a
+  no-fill gap, distinct from omitted); `colorValue === undefined` ⇒ the
+  static `style.color`. So both maps only ever hold live, resolved colours —
+  the paint loops carry no precedence/`null` guard. **`bg-color` bands paint
+  FIRST in `paintPaneOverlay` (overlay pane ONLY, before the candles), so
+  they sit behind everything**: `paintBgColors` walks `state.bgColors` and,
+  per band, `drawBgColorBand` (`src/bgColor.ts`) fills a full-pane-height
+  vertical strip ≈`pxWidth / barCount` wide, centred on the bar's x
+  (`timeToX(time, viewport) + dx`), at `globalAlpha = 1 - (transp ?? 0)/100`,
+  resetting alpha to `1`. An EMPTY `state.bgColors` early-returns with NO
+  ctx calls, so a band-free script keeps the candle/hline/drawing hash
+  byte-identical (the `integration.test.ts` `PINNED_HASH` bundle emits no
+  bg/bar-color and is UNCHANGED). **`bar-color` threads into the candle
+  paint**: `projectCandles` looks each bar's time up in `state.barColors`
+  and, when present, sets the optional `ProjectedCandle.color`;
+  `drawCandlePaths` uses it for BOTH the wick stroke and the body fill,
+  overriding the bull/bear tint (an omitted `color` is byte-identical to the
+  default render). `bg-color` bands are overlay-only candle-state background,
+  NOT a sub-pane series, so sub-panes never paint them.
 - **Drawings paint in the draw hook via the shared geometry layer.**
   `applyDrawing` keeps live `DrawingEmission`s in `state.drawings` keyed by
   `handleId` (last-write-wins; `op: "remove"` drops the key at ingest, so
@@ -162,6 +249,21 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   The bundle is a literal compute (not `compileFile`) because the Phase-1
   worker `data:` URL import cannot resolve workspace specifiers — same as
   canvas2d's integration test. Re-pin only on a deliberate visual change.
+  **`PINNED_HASH` was DELIBERATELY re-pinned for the x-pad axis-overflow
+  fix** (`paddedXWindow` pins the x scale to a half-spacing-padded data
+  window, shifting every candle x + the time-anchored drawing coords). The
+  fixture's SMA plot color is `#3b82f6` (the default stroke), so the
+  per-series colour fix leaves THIS hash unchanged on its own — only the
+  x-pad moved it; the change is the intended candle/x-pad effect only.
+- **uPlot's built-in DOM legend is DISABLED (`legend: { show: false }`).**
+  The adapter labels each series by its chartlang slotId
+  (`demo.chart.ts:12:9#0`) — noise to an end user — and uPlot renders the
+  legend table BELOW the chart, so inside a fixed-height host container it
+  overflows onto whatever sits under it (the demo's alert feed). No other
+  rendering model in the example set shows a legend, so hiding it keeps the
+  surface self-contained. The flag lives in `defaultUplotFactory`'s real-uPlot
+  options literal (DOM-only, under the v8 exemption); `MockUplot` has no
+  legend, so nothing test-side changes.
 - **The real-uPlot constructor is the only DOM-bound line and carries a
   v8 exemption.** `defaultUplotFactory` (the default `opts.uplotFactory`)
   is `/* v8 ignore */`d because `new uPlot(...)` needs a live DOM canvas;

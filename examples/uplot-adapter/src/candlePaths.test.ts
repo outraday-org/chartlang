@@ -47,6 +47,26 @@ describe("drawCandlePaths", () => {
         expect(stroke).toEqual({ kind: "set", prop: "strokeStyle", value: "#26a69a" });
     });
 
+    it("tints the wick + body with a per-bar barcolor override", () => {
+        const ctx = new MockCanvasContext();
+        // A bear candle (closeY > openY) but with a per-bar override colour:
+        // BOTH the wick stroke and the body fill must use the override, not
+        // the bear colour.
+        const candle: ProjectedCandle = {
+            x: 50,
+            openY: 40,
+            closeY: 80,
+            highY: 20,
+            lowY: 100,
+            color: "#2962ff",
+        };
+        drawCandlePaths(ctx, [candle], STYLE);
+        const stroke = ctx.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
+        const fill = ctx.calls.find((c) => c.kind === "set" && c.prop === "fillStyle");
+        expect(stroke).toEqual({ kind: "set", prop: "strokeStyle", value: "#2962ff" });
+        expect(fill).toEqual({ kind: "set", prop: "fillStyle", value: "#2962ff" });
+    });
+
     it("skips a candle with non-finite geometry (a gap)", () => {
         const ctx = new MockCanvasContext();
         const candles: ReadonlyArray<ProjectedCandle> = [

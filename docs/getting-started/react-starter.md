@@ -24,39 +24,30 @@ worker host on the client) but ships a full app around it:
 
 - **A CodeMirror editor + live chart**, two resizable panes. Editing
   debounce-compiles through `/api/compile` and re-renders the chart.
-- **A symbol picker fed by [EODData](https://eoddata.com)** — free tier,
-  daily end-of-day bars, US symbols.
+- **A symbol picker fed by [Yahoo Finance](https://finance.yahoo.com)** —
+  free daily bars, US symbols, **no API key and no quota**. Each symbol
+  ships ~5 years of daily history, so long-warmup indicators (a 30-bar SMA,
+  say) have a full window out of the box.
 - **SQLite saved scripts** (Drizzle + better-sqlite3, one file DB) — save,
-  rename, and reload your scripts from a sidebar. The same DB caches EOD
-  data and counts your daily API usage.
+  rename, and reload your scripts from a sidebar. The same DB caches the
+  fetched daily bars so re-opening a symbol costs no network call.
 - **The stock shadcn Base UI default (neutral) theme** — deliberately
   unbranded so you re-theme it freely. It does **not** import the chartlang
   brand tokens.
 - **Choose-your-adapter** — the chart renders through one swappable module
-  (`src/lib/chart/activeAdapter.ts`), default **echarts**.
+  (`src/lib/chart/activeAdapter.ts`), default **canvas2d**.
 
 ## Quickstart
 
-1. **Scaffold.** Pick a library when prompted (default **echarts**, or
-   `lightweight-charts` · `uplot` · `konva` · `canvas2d`):
+1. **Scaffold.** Pick a library when prompted (default **canvas2d**, or
+   `echarts` · `lightweight-charts` · `uplot` · `konva`):
 
    ```bash
    npm create @invinite-org/chartlang@latest my-app
    # pnpm create @invinite-org/chartlang my-app · npx @invinite-org/create-chartlang my-app
    ```
 
-2. **Get a free EODData key.** Sign up at
-   [eoddata.com](https://eoddata.com) and copy your API key.
-
-3. **Set the key.** The installer writes a `.env`; fill in the key:
-
-   ```bash
-   # my-app/.env
-   EODDATA_API_KEY=your-key
-   DATABASE_URL=file:./data/starter.db
-   ```
-
-4. **Run it.** From the project directory:
+2. **Run it.** From the project directory:
 
    ```bash
    pnpm install   # if you used --no-install
@@ -64,8 +55,11 @@ worker host on the client) but ships a full app around it:
    # then open http://localhost:3100
    ```
 
-   The SQLite database auto-migrates and seeds one starter script on first
-   open — no manual migration step.
+   Market data works out of the box — it comes from Yahoo Finance's free
+   public endpoint, with **no API key to set up and no quota to manage**.
+   The installer writes a `.env` holding only the SQLite path
+   (`DATABASE_URL=file:./data/starter.db`); the database auto-migrates and
+   seeds one starter script on first open — no manual migration step.
 
 ### Installer flags
 
@@ -76,7 +70,7 @@ create-chartlang [dir] [--library <id>] [--pm <npm|pnpm|yarn|bun>] [--no-install
 | Flag | Effect |
 |---|---|
 | `dir` | Target directory (default `./chartlang-starter`). |
-| `--library <id>` | `echarts` (default) · `lightweight-charts` · `uplot` · `konva` · `canvas2d`. Skips the prompt. |
+| `--library <id>` | `canvas2d` (default) · `echarts` · `lightweight-charts` · `uplot` · `konva`. Skips the prompt. |
 | `--pm <name>` | Package manager for the install + printed next steps. |
 | `--no-install` | Skip the dependency install. |
 | `--yes` | Accept defaults and overwrite a non-empty target dir. |
@@ -84,24 +78,21 @@ create-chartlang [dir] [--library <id>] [--pm <npm|pnpm|yarn|bun>] [--no-install
 Only the GitHub clone and the optional install touch the network; the
 adapter is vendored from an offline, version-pinned bundle.
 
-## EODData free-tier limits
+## Market-data scope
 
-The starter is built around the EODData **free tier**, and its data layer
-is designed so a casual user never blows the quota:
+Data comes from Yahoo Finance's free public chart endpoint — **no API key,
+no quota, no rate-limit budget to manage**. A few things to know:
 
-- **100 calls/day.** A per-UTC-day counter (`api_usage`) increments only on
-  a real network call — cache hits cost zero. At the limit the app serves
-  stale cache or returns a `429`; an in-app **quota badge** shows how many
-  calls remain.
-- **Daily EOD only.** No intraday data. Multi-timeframe scripts resample
+- **Daily bars only.** No intraday data. Multi-timeframe scripts resample
   the daily bars, so the daily interval is the resample floor —
   sub-daily requested intervals yield `NaN`.
 - **US symbols only.** A non-US symbol fails fast (before any fetch).
+- **~5 years of history per symbol**, so long-warmup indicators have a
+  full window.
 
-Every fetched `(symbol, range)` is cached in SQLite (`eod_cache`), so
-re-opening a symbol or re-compiling a script costs **zero** API calls. The
-counter is conservative — it may refuse slightly early but never
-over-spends — so a refresh won't exhaust your daily quota.
+Every fetched symbol is cached in SQLite (`eod_cache`, refreshed once a
+day), so re-opening a symbol or re-compiling a script costs **zero**
+network calls.
 
 ## Switch chart libraries later
 

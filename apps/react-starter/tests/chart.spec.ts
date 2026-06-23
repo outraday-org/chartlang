@@ -1,11 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 //
-// Chart render e2e for the DEFAULT (echarts) adapter path. Drives the
+// Chart render e2e for the DEFAULT (canvas2d) adapter path. Drives the
 // test-only /test/chart harness route (src/routes/test.chart.tsx), which
 // compiles a seed SMA-cross-with-alert script through the real /api/compile
 // route and mounts ChartPane over a deterministic daily series. Asserts the
-// echarts chart container renders (a <canvas> appears inside the mount node)
+// canvas2d chart container renders (a <canvas> appears inside the mount node)
 // and that the alert-emitting script surfaces a sonner toast.
 //
 // Heavy adapter-render correctness lives in multi-library-adapters
@@ -13,7 +13,7 @@
 
 import { expect, test } from "@playwright/test"
 
-test("renders the echarts chart for a compiled script over daily bars", async ({ page }) => {
+test("renders the canvas2d chart for a compiled script over daily bars", async ({ page }) => {
   await page.goto("/test/chart")
 
   // The mount container is always present; the adapter paints a <canvas>

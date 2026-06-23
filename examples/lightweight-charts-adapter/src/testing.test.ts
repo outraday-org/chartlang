@@ -7,13 +7,19 @@ import { describe, expect, it } from "vitest";
 import { MockLwcApi, createMockChart, hashLwcCallLog } from "./testing.js";
 
 describe("MockLwcApi", () => {
-    it("records addSeries with a deterministic series id and pane index", () => {
+    it("records addSeries with a deterministic series id, pane index, and creation options", () => {
         const chart = new MockLwcApi();
         chart.addSeries("Line", { color: "#fff" }, 0);
         chart.addSeries("Area", {}, 2);
         expect(chart.calls).toEqual([
-            { kind: "addSeries", seriesId: "s0", seriesType: "Line", paneIndex: 0 },
-            { kind: "addSeries", seriesId: "s1", seriesType: "Area", paneIndex: 2 },
+            {
+                kind: "addSeries",
+                seriesId: "s0",
+                seriesType: "Line",
+                paneIndex: 0,
+                options: { color: "#fff" },
+            },
+            { kind: "addSeries", seriesId: "s1", seriesType: "Area", paneIndex: 2, options: {} },
         ]);
     });
 
@@ -68,6 +74,36 @@ describe("MockLwcApi", () => {
                 high: 13,
                 low: 10,
                 close: 12,
+            },
+        ]);
+    });
+
+    it("records per-bar candle colour fields on a candlestick update point", () => {
+        const chart = new MockLwcApi();
+        const series = chart.addSeries("Candlestick", {}, 0);
+        series.update({
+            time: 2,
+            open: 11,
+            high: 13,
+            low: 10,
+            close: 12,
+            color: "#2962ff",
+            borderColor: "#2962ff",
+            wickColor: "#2962ff",
+        });
+        expect(chart.calls.slice(1)).toEqual([
+            {
+                kind: "update",
+                seriesId: "s0",
+                time: 2,
+                value: null,
+                open: 11,
+                high: 13,
+                low: 10,
+                close: 12,
+                color: "#2962ff",
+                borderColor: "#2962ff",
+                wickColor: "#2962ff",
             },
         ]);
     });
@@ -166,6 +202,34 @@ describe("hashLwcCallLog", () => {
             close: 99,
         });
         expect(hashLwcCallLog(c.calls)).not.toBe(hashLwcCallLog(a.calls));
+    });
+
+    it("canonicalises per-bar candle colour fields on a candlestick update", () => {
+        const base = new MockLwcApi();
+        base.addSeries("Candlestick", {}, 0).update({
+            time: 1,
+            open: 10,
+            high: 12,
+            low: 9,
+            close: 11,
+            color: "#2962ff",
+            borderColor: "#2962ff",
+            wickColor: "#2962ff",
+        });
+        // A different per-bar colour re-hashes the log.
+        const other = new MockLwcApi();
+        other.addSeries("Candlestick", {}, 0).update({
+            time: 1,
+            open: 10,
+            high: 12,
+            low: 9,
+            close: 11,
+            color: "#ff6d00",
+            borderColor: "#ff6d00",
+            wickColor: "#ff6d00",
+        });
+        expect(hashLwcCallLog(base.calls)).toMatch(/^[0-9a-f]{64}$/);
+        expect(hashLwcCallLog(other.calls)).not.toBe(hashLwcCallLog(base.calls));
     });
 });
 

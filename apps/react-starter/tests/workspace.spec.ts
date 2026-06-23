@@ -4,10 +4,10 @@
 // Full workspace happy-path e2e for the index route (Task 6). It drives the
 // real editor + ChartPane + scripts sidebar in the built server bundle, but
 // mocks `/api/eod` at the BROWSER level. Why browser-mock here (vs the eod
-// suite's server mock)? The symbol picker + quota badge call `/api/eod` from
-// the browser via `eodClient`, so the route IS interceptable; mocking it keeps
-// this spec off the shared `data/e2e.db` quota counter (EODDATA_DAILY_LIMIT=2)
-// that `eod.spec.ts` asserts exact counts against while running in parallel.
+// suite's server mock)? The symbol picker calls `/api/eod` from the browser via
+// `eodClient`, so the route IS interceptable; mocking it keeps this spec off the
+// shared `data/e2e.db` bars cache that `eod.spec.ts` asserts source ordering
+// against while running in parallel.
 //
 // `/api/compile` (real compiler) and `/api/scripts` (real SQLite) are NOT
 // mocked — this exercises the genuine compile→chart and persistence flows. The
@@ -42,28 +42,20 @@ function mockBars(symbol: string): unknown[] {
 }
 
 // Install the browser-level /api/eod mock and return a counter of how many
-// `load` ops were served (to prove edits trigger no EOD fetch).
+// `load` ops were served (to prove edits trigger no EOD fetch). The only op the
+// UI issues is `load` (a plain ticker input → `{ bars, source }`).
 async function mockEod(page: Page): Promise<{ loads: () => number }> {
   let loads = 0
-  let calls = 0
   await page.route("**/api/eod", async (route) => {
-    const body = route.request().postDataJSON() as { op: string; query?: string; symbol?: string }
-    if (body.op === "search") {
-      await route.fulfill({
-        json: { hits: [{ code: "MSFT", name: "Microsoft Corp.", exchange: "NASDAQ" }] },
-      })
-      return
-    }
+    const body = route.request().postDataJSON() as { op: string; symbol?: string }
     if (body.op === "load") {
       loads += 1
-      calls += 1
       await route.fulfill({
         json: { bars: mockBars(body.symbol ?? "MSFT"), source: "network" },
       })
       return
     }
-    // usage
-    await route.fulfill({ json: { usage: { day: "2026-06-21", calls, remaining: 100 - calls } } })
+    await route.fulfill({ status: 400, json: { error: `unknown op: ${String(body.op)}` } })
   })
   return { loads: () => loads }
 }
@@ -80,8 +72,8 @@ test("workspace boots, compiles the seed, charts a picked symbol, and saves", as
   // Seed has no symbol → chart prompts for one (no bars yet).
   await expect(page.getByTestId("chart-pane")).toContainText(/pick a symbol/i)
 
-  // Enter a ticker → ChartPane paints a <canvas> over the bars, and the quota
-  // badge reflects the mocked usage. (Manual entry: type + Load, no search.)
+  // Enter a ticker → ChartPane paints a <canvas> over the bars.
+  // (Manual entry: type + Load.)
   await page.getByLabel(/ticker symbol/i).fill("MSFT")
   await page.getByRole("button", { name: /load/i }).click()
   await expect(page.getByTestId("chart-container").locator("canvas").first()).toBeVisible({

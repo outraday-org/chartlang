@@ -83,9 +83,10 @@ npm create @invinite-org/chartlang@latest my-app
 It clones a private TanStack Start app that already wires the full embed
 path: the **compiler behind a `POST /api/compile` server route**, a Worker
 host on the client, and a chart adapter — rendered through one swappable
-module, `src/lib/chart/activeAdapter.ts` (default echarts; the installer
-prompts you to pick a library). It adds a CodeMirror editor, an EODData
-symbol picker (free tier, daily US EOD), and SQLite saved scripts. Re-theme
+module, `src/lib/chart/activeAdapter.ts` (default canvas2d; the installer
+prompts you to pick a library). It adds a CodeMirror editor, a symbol
+picker backed by Yahoo Finance (free daily US bars, no API key), and
+SQLite saved scripts. Re-theme
 it freely (stock shadcn neutral theme) and switch libraries later with
 `npx @invinite-org/chartlang-cli add-adapter <id>` + editing the
 `activeAdapter.ts` seam. See the

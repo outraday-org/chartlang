@@ -83,9 +83,10 @@ reproducibility guarantees.
 
 ### 3. Skill regeneration (chartlang-coding)
 
-- Run `pnpm skills:generate` and commit the updated
-  `skills/chartlang-coding/references/primitives.md` (now listing `time.*` /
-  `session.*` / `input.session`).
+- Run `pnpm skills:generate` (a no-op for this feature: the generated
+  `skills/chartlang-coding/references/primitives.md` intentionally covers only
+  `ta.*` / `draw.*` / plot-family JSDoc, so `time.*` / `session.*` /
+  `input.session` are **not** emitted there). `skills:gate` stays green.
 - If the skill's hand-authored surface (`SKILL.md` or a references page)
   enumerates the available namespaces, add a one-liner for `time` / `session` /
   `input.session` and the UTC-first caveat (the repo-root `CLAUDE.md`
@@ -160,7 +161,7 @@ reproducibility guarantees.
 | `docs/language/time-and-sessions.md` (or a semantics section) | Create | UTC-first determinism contract. |
 | `docs/.vitepress/config.ts` | Modify | Sidebar entries. |
 | `scripts/gen-examples-docs.ts` (if a fixed export list) | Modify | Include new exports. |
-| `skills/chartlang-coding/references/primitives.md` | Modify (generated) | Regenerated reference. |
+| `skills/chartlang-coding/references/primitives.md` | No change (generated) | `skills:generate` is a no-op here — it emits only `ta.*`/`draw.*`/plot-family. |
 | `skills/chartlang-coding/SKILL.md` (or references) | Modify | One-liner + UTC caveat. |
 | `examples/scripts/session-day-filter.chart.ts` | Create | Runnable example. |
 | `apps/site/src/components/demo/scripts.ts` | Modify | Demo entry. |

@@ -181,9 +181,15 @@ describe("uplot adapter integration — plots + drawings draw-hook pass", () => 
     });
 });
 
-// Pinned by the integration test (see the note above). Re-pinned when the
-// candle + hline pass moved onto uPlot's real device-px plotting-area
-// viewport (`buildViewport`) — the Retina mis-scale fix shifted the
-// candle/hline coordinates (plot width now uPlot's actual bbox, not a
-// hand-rolled `state.width − gutter`).
-const PINNED_HASH = "4066994af1abde90bba82d66151d9eb81aeb355384adb080b75d8ca6e41ca072";
+// Pinned by the integration test (see the note above). DELIBERATELY re-pinned
+// for the plotting-area CLIP: the draw hook now brackets the whole hand-rolled
+// pass (candles + bg bands + hlines + drawings) in a `save()` → `beginPath()`
+// → `rect(dx, dy, pxWidth, pxHeight)` → `clip()` … `restore()`, so any mark
+// whose bar falls outside the visible x-window stops spilling into the
+// price-axis gutter (the "overreaches the axis" fix). The added clip calls
+// extend the call log, so it re-hashes; the candle / drawing GEOMETRY is
+// unchanged (the MockUplot bbox is the full canvas, so the clip is a no-op on
+// these in-bounds marks — only the extra ctx calls move the hash). (Previously
+// re-pinned for the `paddedXWindow` x-pad, and before that for the device-px
+// `buildViewport` Retina fix.)
+const PINNED_HASH = "8691bff516b917c454f0fcec6642d2c3e129d6cb142b2deb6defdcd2f26dfc95";

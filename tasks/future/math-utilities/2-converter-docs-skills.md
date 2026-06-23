@@ -93,33 +93,81 @@ Follow the example pipeline (`examples/CLAUDE.md`, `apps/CLAUDE.md`,
 4. **Generate + gate** — `pnpm examples:generate`; keep `pnpm examples:gate`
    green.
 
+### 5. Conformance scenario (`packages/conformance/src/scenarios/`)
+
+`math.*` feeds chart output (e.g. `math.roundToMintick(level, syminfo.mintick)`
+→ `draw.horizontalLine`), so it gets the same byte-stability proof as the other
+namespace tasks (`array`/`str`/`map`).
+
+- Add `mathRoundToMintick.scenario.ts`: a tiny script that computes a couple of
+  price levels, snaps them with `math.roundToMintick(level, syminfo.mintick)`,
+  and draws `draw.horizontalLine`s, asserting the emitted drawing payload is
+  byte-stable across **all** adapters. `pnpm conformance` replays every
+  registered scenario through every adapter (canvas2d, echarts, konva,
+  lightweight-charts, uplot), so a registered scenario *is* the all-adapter
+  proof. Mirror an existing drawing scenario shape.
+- Register it in the scenario index the conformance runner enumerates.
+
+### 6. Adapters — no new capability, verified across all (`examples/*-adapter/`)
+
+`math.*` is pure scalar compute: its outputs are `number`s that flow into the
+existing `plot`/`draw` holes. It emits **no new wire primitive** and needs **no
+adapter code change** — given `tasks/adapter-feature-parity/` is implemented,
+every adapter already renders the resulting marks. Coverage is by
+**verification, not re-implementation**:
+
+- The conformance scenario (§5) is the all-adapter proof — `pnpm conformance`
+  replays it through every adapter and asserts byte-stable output. Do not add
+  per-adapter code.
+- State this explicitly in the changeset/PR so a reviewer does not expect
+  adapter diffs.
+
+### 7. react-starter — compile-path verification (`apps/react-starter/`)
+
+The react-starter seam (`src/lib/chart/activeAdapter.ts`,
+`src/lib/chart/seamVariants.ts`) is library-agnostic: new language features flow
+through the compiler automatically, so **no seam change** is required. Verify
+the namespace is accepted end-to-end through the starter:
+
+- Add a minimal case to `apps/react-starter/tests/compile.spec.ts` that POSTs a
+  source using `math.roundToMintick(...)` to `/api/compile` and asserts a clean
+  compile.
+- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all five
+  seam variants build — no change needed; reference it as the
+  all-adapter-bundles guarantee.
+
 ## Files to Create / Modify
 
 | File | Action | Purpose |
 |------|--------|---------|
 | `packages/pine-converter/src/transform/<math/global family>.ts` | Modify | Map the `math.*` subset + `na`/`nz` routing. |
 | `packages/pine-converter/src/transform/<…>.test.ts` | Modify/Create | Converter unit tests. |
+| `packages/conformance/src/scenarios/mathRoundToMintick.scenario.ts` | Create | Tick-snapped-levels byte-stability across all adapters. |
+| `packages/conformance/src/scenarios/index.ts` (registry) | Modify | Register scenario. |
 | `docs/language/math.md` | Create | Reference page. |
 | `docs/.vitepress/config.*` | Modify | Nav entry. |
 | `skills/chartlang-coding/references/translating-from-pine.md` | Modify | Mapping table + notes. |
 | `examples/scripts/tick-snapped-levels.chart.ts` | Create | Example. |
 | `packages/cli/src/e2e.test.ts` | Modify | Add example to `EXAMPLE_SCRIPTS`. |
 | `apps/site/src/components/demo/scripts.ts` | Modify | `DEMO_SCRIPTS` entry (live demo + docs Examples). |
-| `.changeset/math-converter.md` | Create | patch (pine-converter). |
+| `apps/react-starter/tests/compile.spec.ts` | Modify | Compile-path case for `math.*` (proves the starter accepts the namespace). |
+| `.changeset/math-converter.md` | Create | patch (pine-converter, conformance). |
 
 ## Gates
 
 - `pnpm typecheck`
 - `pnpm lint`
-- `pnpm test` (coverage 100% on pine-converter)
+- `pnpm test` (coverage 100% on pine-converter + conformance)
+- `pnpm conformance` (the scenario runs through every adapter)
 - `pnpm docs:check`
 - `pnpm readme:check`
 - `pnpm examples:gate` (after `pnpm examples:generate`)
 - `pnpm skills:gate`
+- `pnpm -F chartlang-react-starter e2e` (Playwright compile + adapter-matrix specs)
 
 ## Changeset
 
-`.changeset/math-converter.md` — **patch** (pine-converter).
+`.changeset/math-converter.md` — **patch** (pine-converter, conformance).
 
 ## Acceptance Criteria
 
@@ -127,6 +175,12 @@ Follow the example pipeline (`examples/CLAUDE.md`, `apps/CLAUDE.md`,
   route scalar→`math`, series→`ta`; rolling `math.sum`/`avg` is not collapsed
   to the scalar form; bare `Math.*` untouched.
 - Docs page clearly states bare `Math` is available; skill mapping updated.
+- Conformance tick-snapped-levels series byte-stable across **all** adapters
+  (canvas2d, echarts, konva, lightweight-charts, uplot) via `pnpm conformance`.
 - Example compiles in e2e (`EXAMPLE_SCRIPTS`) and appears in the live demo
   (`DEMO_SCRIPTS`); `examples:gate` green.
-- Coverage + docs + readme + skills gates green; changeset committed.
+- No adapter code change required (documented in the changeset); react-starter
+  compile-path case green and the adapter-matrix spec proves all five seam
+  variants bundle.
+- Coverage + conformance + docs + readme + skills + react-starter gates green;
+  changeset committed.

@@ -1,57 +1,39 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 //
-// server-only — the read-through SQLite cache + per-UTC-day quota guard over
-// the Task 3 db layer (`getDb()` + `schema.eodCache` / `schema.apiUsage`). It
-// MUST NOT enter the client graph: reached only through the
+// server-only — the read-through SQLite cache over the daily-bar source
+// (`yahoo.ts`). It MUST NOT enter the client graph: reached only through the
 // `src/routes/api/eod.ts` server-route handlers. Do NOT import from any
 // `src/components/*` file. The browser uses `src/lib/eodClient.ts`.
 //
-// Cache keys (one `eod_cache` row each):
-//   ("*",     "symbols:US")  → the merged US symbol index (TTL 7d). "*" is not
-//                              a valid ticker, so the synthetic key never
-//                              collides with a real symbol's bars row.
-//   (SYMBOL,  "daily:max")   → that symbol's full daily `Bar[]` (TTL 24h).
+// Cache: one `eod_cache` row per `(SYMBOL, "daily:max")` holds that symbol's
+// full daily `Bar[]` (TTL 24h). Yahoo is free + unmetered, so there is no API
+// key and no per-day quota — the cache exists purely to avoid re-fetching the
+// same multi-year history on every page load.
 //
-// Quota: `api_usage.calls` is a per-UTC-day counter. It is incremented ONLY on
-// a real network call (cache hits + pre-fetch validation cost nothing) and is a
-// CONSERVATIVE guard — EODData resets on its own schedule, not local/UTC
-// midnight, so the counter may refuse slightly early but never over-spends.
+// Source chain (real usage): Nasdaq (`nasdaq.ts`) leads because it still answers
+// a plain server fetch; Yahoo (`yahoo.ts`) and Stooq (`stooq.ts`) follow as
+// fallbacks (both now WAF / bot-wall many IPs with 429s). We try each in order,
+// returning the first that yields bars; a source's `MarketDataError` (429 / WAF
+// / malformed) advances to the next, while an authoritative `InvalidSymbolError`
+// short-circuits to a 400. If every source fails we serve a stale cache when one
+// exists, else throw a `MarketDataError` aggregating each source's failure. In
+// the mocked-Yahoo e2e (`YAHOO_BASE_URL` set) the chain is the Yahoo mock ALONE,
+// so the suite stays hermetic (no real-network call).
 
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
 import type { Bar } from "@invinite-org/chartlang-core"
 
 import { getDb, schema } from "../db/index"
-import {
-  fetchDailyQuotes,
-  mapQuotesToBars,
-  normalizeTicker,
-  searchSymbolApi,
-} from "./client"
-import {
-  InvalidSymbolError,
-  QuotaExceededError,
-  type LoadSymbolResult,
-  type SymbolHit,
-  type UsageInfo,
-} from "./types"
+import { fetchDailyBarsNasdaq } from "./nasdaq"
+import { fetchDailyBarsStooq } from "./stooq"
+import { InvalidSymbolError, MarketDataError, type LoadSymbolResult } from "./types"
+import { fetchDailyBars, normalizeTicker } from "./yahoo"
 
-/** Free-tier default; override with `EODDATA_DAILY_LIMIT` (e2e sets it low). */
-const DEFAULT_DAILY_LIMIT = 100
 const BARS_TTL_MS = 24 * 60 * 60 * 1000 // daily bars refresh once a day
 
 const BARS_RANGE = "daily:max"
-
-function dailyLimit(): number {
-  const raw = Number.parseInt(process.env.EODDATA_DAILY_LIMIT ?? "", 10)
-  return Number.isFinite(raw) && raw >= 1 ? raw : DEFAULT_DAILY_LIMIT
-}
-
-/** UTC `YYYY-MM-DD` for the quota key. */
-function utcDay(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 // --- Cache row helpers ------------------------------------------------------
 
@@ -79,66 +61,34 @@ function isFresh(fetchedAt: Date, ttlMs: number): boolean {
   return Date.now() - fetchedAt.getTime() < ttlMs
 }
 
-// --- Quota ------------------------------------------------------------------
+/** One daily-bar provider: a display name + its `(ticker) => Bar[]` fetcher. */
+type DailySource = { name: string; fetch: (ticker: string) => Promise<Bar[]> }
 
-/** Current per-UTC-day usage for the UI badge. */
-export function getUsage(): UsageInfo {
-  const day = utcDay()
-  const [row] = getDb()
-    .select({ calls: schema.apiUsage.calls })
-    .from(schema.apiUsage)
-    .where(eq(schema.apiUsage.day, day))
-    .all()
-  const calls = row?.calls ?? 0
-  return { day, calls, remaining: Math.max(0, dailyLimit() - calls) }
-}
-
-/** True if at least one network call remains for today. */
-function hasQuota(): boolean {
-  return getUsage().calls < dailyLimit()
-}
-
-// Atomically `calls = calls + 1` for today (insert-or-bump). Run inside a
-// better-sqlite3 transaction so concurrent route calls can't double-spend.
-function consumeQuota(): void {
-  const db = getDb()
-  db.insert(schema.apiUsage)
-    .values({ day: utcDay(), calls: 1 })
-    .onConflictDoUpdate({
-      target: schema.apiUsage.day,
-      set: { calls: sql`${schema.apiUsage.calls} + 1` },
-    })
-    .run()
-}
-
-// --- Symbol search ----------------------------------------------------------
-
-/**
- * Search US symbols via EODData's `Symbol/Search` (one quota call per query).
- * Returns matches WITH their home exchange. Empty query or a spent quota
- * yields an empty list rather than throwing — the picker stays usable.
- */
-export async function searchSymbols(query: string): Promise<SymbolHit[]> {
-  const q = query.trim()
-  if (q.length === 0 || !hasQuota()) return []
-  consumeQuota()
-  return searchSymbolApi(q)
+/** The ordered source chain. In the mocked-Yahoo e2e (`YAHOO_BASE_URL` set) the
+ * mock owns the only data source, so the real-network providers are dropped to
+ * keep the suite hermetic and deterministic. */
+function dailySources(): DailySource[] {
+  if (process.env.YAHOO_BASE_URL != null) {
+    return [{ name: "Yahoo", fetch: fetchDailyBars }]
+  }
+  return [
+    { name: "Nasdaq", fetch: fetchDailyBarsNasdaq },
+    { name: "Yahoo", fetch: fetchDailyBars },
+    { name: "Stooq", fetch: fetchDailyBarsStooq },
+  ]
 }
 
 // --- Daily bars -------------------------------------------------------------
 
-/** Resolve a symbol's home exchange via `Symbol/Search` (one quota call). */
-async function resolveHit(symbol: string): Promise<SymbolHit | null> {
-  const hits = await searchSymbols(symbol)
-  return hits.find((h) => h.code === symbol) ?? hits[0] ?? null
-}
-
 /**
- * Read-through daily bars for a symbol. Fresh cache → `{source:"cache"}` with
- * NO API call. Otherwise: if the quota is spent, return the stale cache (if
- * any) flagged `quotaExceeded`, else throw `QuotaExceededError`; if quota
- * remains, consume one call, fetch, store, and return `{source:"network"}`.
- * Validates the ticker first (no quota cost on a bad symbol).
+ * Read-through daily bars for a symbol. Fresh cache → `{source:"cache"}` with no
+ * network call. Otherwise walk the source chain (Nasdaq → Yahoo → Stooq; see the
+ * file header) and return `{source:"network"}` for the first that yields bars,
+ * caching it. A source's `MarketDataError` (429 / WAF / malformed) advances to
+ * the next source; an authoritative `InvalidSymbolError` short-circuits (surfaced
+ * as a 400). If every source fails, serve a stale cache when one exists, else
+ * throw a `MarketDataError` whose message aggregates each source's failure.
+ * Validates the ticker first, so a malformed symbol never reaches the network.
  */
 export async function getDailyBars(symbol: string): Promise<LoadSymbolResult> {
   const ticker = normalizeTicker(symbol) // throws InvalidSymbolError pre-fetch
@@ -148,29 +98,26 @@ export async function getDailyBars(symbol: string): Promise<LoadSymbolResult> {
     return { bars: cached.bars as Bar[], source: "cache" }
   }
 
-  if (!hasQuota()) {
-    if (cached) return { bars: cached.bars as Bar[], source: "cache", quotaExceeded: true }
-    throw new QuotaExceededError(dailyLimit())
+  // Try each source in turn, collecting why each failed. The aggregated message
+  // is surfaced to the user (and logged) so a multi-source failure reveals what
+  // every provider did — not just the first one.
+  const failures: string[] = []
+  for (const source of dailySources()) {
+    try {
+      const bars = await source.fetch(ticker)
+      writeCache(ticker, BARS_RANGE, bars)
+      return { bars, source: "network" }
+    } catch (err) {
+      // An authoritative "this symbol does not exist" stops the chain → 400.
+      if (err instanceof InvalidSymbolError) throw err
+      failures.push(err instanceof Error ? err.message : String(err))
+    }
   }
 
-  const hit = await resolveHit(ticker)
-  if (!hit) {
-    // Unknown US symbol: surface as a stale cache if we have one, else throw a
-    // friendly invalid-symbol error (no fetch attempted → no quota burn).
-    if (cached) return { bars: cached.bars as Bar[], source: "cache" }
-    throw new InvalidSymbolError(symbol)
-  }
-
-  // resolveHit may have spent the last remaining call building a cold symbol
-  // index; re-check before the bars fetch so we never over-spend the daily
-  // budget (the conservative-guard invariant — see this file's CLAUDE.md).
-  if (!hasQuota()) {
-    if (cached) return { bars: cached.bars as Bar[], source: "cache", quotaExceeded: true }
-    throw new QuotaExceededError(dailyLimit())
-  }
-
-  consumeQuota()
-  const bars = mapQuotesToBars(await fetchDailyQuotes(hit), ticker)
-  writeCache(ticker, BARS_RANGE, bars)
-  return { bars, source: "network" }
+  // A transient upstream blip should not blow away a usable history: serve the
+  // stale cache if we have one, else surface every source's failure together.
+  if (cached) return { bars: cached.bars as Bar[], source: "cache" }
+  const detail = failures.join("; ")
+  console.warn(`[eod] all market-data sources failed for ${ticker}: ${detail}`)
+  throw new MarketDataError(`No market data for ${ticker} — ${detail}`)
 }

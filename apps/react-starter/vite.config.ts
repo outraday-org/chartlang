@@ -149,9 +149,9 @@ function chartlangCoreBundles(): Plugin {
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
   optimizeDeps: { exclude: ["esbuild"] },
-  // The SQLite DB (saved scripts + EODData cache + daily quota) lives under
-  // `data/` and is written on boot (seed), symbol search, symbol load, and
-  // save. `data/` sits inside the project, so without this Vite's file watcher
+  // The SQLite DB (saved scripts + daily-bars cache) lives under `data/` and is
+  // written on boot (seed), symbol load, and save. `data/` sits inside the
+  // project, so without this Vite's file watcher
   // sees every DB write and triggers a FULL PAGE RELOAD — which, mid-search,
   // closes the symbol dialog and looks like the page refreshing on each
   // keystroke. Never watch the DB (or any stray .db files).

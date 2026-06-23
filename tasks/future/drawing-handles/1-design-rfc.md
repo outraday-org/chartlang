@@ -84,12 +84,35 @@ The RFC must contain, in order:
 - Sketch the Pine `line.new`/`set_*`/`delete` → chartlang mapping under the
   recommended option. Feasibility + diagnostics strategy, not implementation.
 
-### 10. Implementation plan outline & risks
-- The follow-up task folder's anticipated split (core → runtime → adapter-kit →
-  conformance → converter), rough sizing, and the top risks (adapter-contract
-  break, snapshot correctness, conformance surface growth).
+### 10. Skills surface impact
+- How mutable handles would be taught in `skills/chartlang-coding`: the
+  `SKILL.md` prose (a new "mutable drawing handles" section vs folding into the
+  `draw.*` prose), and whether the generated
+  `skills/chartlang-coding/references/primitives.md` generator
+  (`scripts/generate-skills-reference.ts`) must gain a handle/`draw.*.new`
+  section or whether handles are documented by hand. State the
+  `references/translating-from-pine.md` mapping rows the feature adds.
+- Confirm whether `skills:generate` / `skills:gate` need a generator change or
+  stay untouched.
 
-### 11. Decision section
+### 11. react-starter surface impact
+- State whether the react-starter seam (`apps/react-starter/src/lib/chart/`
+  `activeAdapter.ts` + `seamVariants.ts`) needs any change. If the chosen wire
+  stays emission-compatible (full-set-per-bar), the seam is unaffected and the
+  feature flows through the compiler automatically — confirm this and note the
+  verification (a `tests/compile.spec.ts` case + the existing
+  `adapter-matrix.spec.ts`). If the wire gains incremental mutation messages,
+  document the seam/host migration the five variants need.
+
+### 12. Implementation plan outline & risks
+- The follow-up task folder's anticipated split, enumerating **all six
+  surfaces** explicitly: core → runtime → adapter-kit/adapters → conformance →
+  converter → docs → skills → examples/demos → react-starter (verification).
+  Note which surfaces need real code vs verification-only under the recommended
+  wire choice. Rough sizing, and the top risks (adapter-contract break,
+  snapshot correctness, conformance surface growth).
+
+### 13. Decision section
 - Accept / reject / revise checkboxes; open questions left for the maintainer.
 
 ## Files to Create / Modify
@@ -112,11 +135,14 @@ None — design document only.
 
 ## Acceptance Criteria
 
-- RFC committed with all eleven sections; at least three options analysed with
-  trade-offs across ergonomics, adapter contract, lifecycle correctness,
+- RFC committed with all thirteen sections; at least three options analysed
+  with trade-offs across ergonomics, adapter contract, lifecycle correctness,
   conformance, converter, and z-order.
 - A single recommendation with explicit v1 scope + deferrals.
 - Adapter-contract impact and sandbox/serialization correctness explicitly
   addressed.
+- **All six surfaces explicitly analysed** — examples/demos, docs, skills,
+  converter, adapters, and react-starter — with a clear per-surface
+  code-vs-verification split in the implementation outline.
 - Ends with a maintainer accept/reject decision section.
 - No package source changed; docs gate green.

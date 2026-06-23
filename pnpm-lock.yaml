@@ -20,15 +20,39 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.0.0
         version: 5.2.8
+      '@invinite-org/chartlang-adapter-kit':
+        specifier: workspace:*
+        version: link:packages/adapter-kit
       '@invinite-org/chartlang-cli':
         specifier: workspace:*
         version: link:packages/cli
       '@invinite-org/chartlang-compiler':
         specifier: workspace:*
         version: link:packages/compiler
+      '@invinite-org/chartlang-core':
+        specifier: workspace:*
+        version: link:packages/core
+      '@invinite-org/chartlang-host-worker':
+        specifier: workspace:*
+        version: link:packages/host-worker
       '@vitest/coverage-v8':
         specifier: ^2.1.0
         version: 2.1.9(vitest@2.1.9(@types/node@22.19.21)(happy-dom@20.10.2)(jsdom@28.1.0)(lightningcss@1.32.0))
+      chartlang-example-canvas2d-adapter:
+        specifier: workspace:*
+        version: link:examples/canvas2d-adapter
+      chartlang-example-echarts-adapter:
+        specifier: workspace:*
+        version: link:examples/echarts-adapter
+      chartlang-example-konva-adapter:
+        specifier: workspace:*
+        version: link:examples/konva-adapter
+      chartlang-example-lightweight-charts-adapter:
+        specifier: workspace:*
+        version: link:examples/lightweight-charts-adapter
+      chartlang-example-uplot-adapter:
+        specifier: workspace:*
+        version: link:examples/uplot-adapter
       expect-type:
         specifier: ^1.0.0
         version: 1.3.0
@@ -110,9 +134,9 @@ importers:
       better-sqlite3:
         specifier: ^12.11.1
         version: 12.11.1
-      chartlang-example-echarts-adapter:
+      chartlang-example-canvas2d-adapter:
         specifier: workspace:*
-        version: link:../../examples/echarts-adapter
+        version: link:../../examples/canvas2d-adapter
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -125,9 +149,6 @@ importers:
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@electric-sql/pglite@0.3.16)(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.11.1)
-      echarts:
-        specifier: ^5
-        version: 5.6.0
       lucide-react:
         specifier: ^1.18.0
         version: 1.18.0(react@19.2.7)
@@ -186,9 +207,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6
         version: 6.0.2(vite@8.0.16(@types/node@22.19.21)(esbuild@0.24.2)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
-      chartlang-example-canvas2d-adapter:
+      chartlang-example-echarts-adapter:
         specifier: workspace:*
-        version: link:../../examples/canvas2d-adapter
+        version: link:../../examples/echarts-adapter
       chartlang-example-konva-adapter:
         specifier: workspace:*
         version: link:../../examples/konva-adapter
@@ -201,6 +222,9 @@ importers:
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
+      echarts:
+        specifier: ^5
+        version: 5.6.0
       esbuild:
         specifier: ^0.24.0
         version: 0.24.2

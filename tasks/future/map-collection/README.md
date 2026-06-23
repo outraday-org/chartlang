@@ -48,7 +48,22 @@ compute({ bar }) {
 - Committed/tentative semantics: writes during a tick are tentative; on bar
   close they commit; a replaced head bar restores the prior committed map.
 - Pine `map.*` maps onto `state.map` + member calls via the converter.
-- Conformance scenario, docs page, skill reference, runnable example.
+- Conformance scenario (byte-stable across **all** adapters), docs page, skill
+  reference, runnable example.
+
+## Cross-surface coverage
+
+`state.map` is a pure-compute collection — derived values flow into the existing
+`plot`/`draw` holes. All six surfaces are covered by Task 3:
+
+| Surface | How |
+|---------|-----|
+| examples/demos | `examples/scripts/volume-by-level.chart.ts` + `DEMO_SCRIPTS` entry + CLI e2e. |
+| docs | `state.map` reference page + nav. |
+| skills | `references/translating-from-pine.md` mapping (capacity + `na`/`undefined` caveats). |
+| converter | Pine `map.*` family mapping + capacity synthesis + diagnostics. |
+| adapters | **No new capability** — rides existing `plot`/`draw` holes; `pnpm conformance` proves byte-stability across canvas2d/echarts/konva/lightweight-charts/uplot. Verified, not re-implemented (assumes `tasks/adapter-feature-parity/` landed). |
+| react-starter | **No seam change** — feature flows through the compiler; verified by a `tests/compile.spec.ts` case + the existing `adapter-matrix.spec.ts`. |
 
 ## Architecture Decisions
 

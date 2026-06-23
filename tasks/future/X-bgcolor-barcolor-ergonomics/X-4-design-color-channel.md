@@ -1,10 +1,10 @@
 # Task 4 — Design + core/adapter-kit: per-bar `colorValue` channel
 
-> **Status: TODO** — **GATED on a product decision (see README "Deliverable
-> boundary").**
+> **Status: SHIPPED** — the `colorValue`-vs-alternatives product decision was
+> **ratified** and Deliverable 2 was built (core hole + `PlotEmission.colorValue`
+> wire field + runtime resolve + canvas2d adapter + conformance scenario).
 
-> **Deliverable 2** (Series<Color> tier — do NOT start until the
-> `colorValue`-vs-alternatives decision is ratified).
+> **Deliverable 2** (Series<Color> tier).
 
 ## Goal
 

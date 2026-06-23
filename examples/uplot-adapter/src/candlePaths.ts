@@ -15,9 +15,13 @@ import type { RenderCtx } from "@invinite-org/chartlang-adapter-kit/canvas";
 /**
  * One candle already projected into pixel space. `x` is the bar centre;
  * `openY` / `closeY` / `highY` / `lowY` are pixel y for the four prices
- * (canvas y grows downward, so a higher price is a smaller y).
+ * (canvas y grows downward, so a higher price is a smaller y). The optional
+ * `color` is a Pine `barcolor` per-bar tint: present ⇒ it OVERRIDES the
+ * bull/bear colour for BOTH the body rect and the wick; omitted ⇒ the
+ * close-vs-open bull/bear tint is used (byte-identical to the no-override
+ * render).
  *
- * @since 1.4
+ * @since 1.7
  * @stable
  * @example
  *     const c: ProjectedCandle = { x: 50, openY: 80, closeY: 40, highY: 20, lowY: 100 };
@@ -29,6 +33,7 @@ export type ProjectedCandle = {
     readonly closeY: number;
     readonly highY: number;
     readonly lowY: number;
+    readonly color?: string;
 };
 
 /**
@@ -54,10 +59,11 @@ const MIN_BODY_HEIGHT_PX = 1;
 
 /**
  * Paint a candlestick series to a {@link RenderCtx}, one wick line + one
- * body rect per candle, bull/bear-tinted by close-vs-open. Non-finite
- * geometry (a `null`/NaN bar that projected to `NaN`) is a per-candle
- * skip — no spurious wick or body — so a gappy series leaves a gap. The
- * call sequence is canonical so adapters can pin a `hashCallLog`.
+ * body rect per candle, bull/bear-tinted by close-vs-open (a per-candle
+ * {@link ProjectedCandle.color} overrides that tint for both marks).
+ * Non-finite geometry (a `null`/NaN bar that projected to `NaN`) is a
+ * per-candle skip — no spurious wick or body — so a gappy series leaves a
+ * gap. The call sequence is canonical so adapters can pin a `hashCallLog`.
  *
  * @since 1.4
  * @stable
@@ -88,9 +94,11 @@ export function drawCandlePaths(
             continue;
         }
         // Smaller y is a higher price, so a bull candle (close above
-        // open) has `closeY < openY`. A doji (equal) tints bull.
+        // open) has `closeY < openY`. A doji (equal) tints bull. A per-bar
+        // `barcolor` override (when present) wins over the bull/bear tint
+        // for BOTH the wick and the body.
         const isBull = candle.closeY <= candle.openY;
-        const color = isBull ? style.bull : style.bear;
+        const color = candle.color ?? (isBull ? style.bull : style.bear);
         // Wick: a single vertical line high → low at the bar centre.
         ctx.strokeStyle = color;
         ctx.beginPath();

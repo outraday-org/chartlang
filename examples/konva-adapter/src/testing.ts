@@ -139,16 +139,29 @@ function numberArray(value: unknown): ReadonlyArray<number> {
 }
 
 function projectRect(config: Readonly<Record<string, unknown>>): RecordedCall[] {
-    return [
-        { kind: "set", prop: "fillStyle", value: str(config, "fill") },
-        {
-            kind: "fillRect",
-            x: num(config, "x"),
-            y: num(config, "y"),
-            w: num(config, "width"),
-            h: num(config, "height"),
-        },
-    ];
+    const fillRect: RecordedCall = {
+        kind: "fillRect",
+        x: num(config, "x"),
+        y: num(config, "y"),
+        w: num(config, "width"),
+        h: num(config, "height"),
+    };
+    const fillStyle: RecordedCall = { kind: "set", prop: "fillStyle", value: str(config, "fill") };
+    // A node-level `opacity` < 1 maps to the canvas reference's
+    // `globalAlpha` brackets around the fill (matching `render/bgColor.ts`),
+    // so the projected hash reflects the translucent wash. A missing /
+    // unity opacity contributes no `globalAlpha` calls — byte-identical to
+    // the pre-opacity projection so every pinned hash is untouched.
+    const opacity = config.opacity;
+    if (typeof opacity === "number" && opacity !== 1) {
+        return [
+            { kind: "set", prop: "globalAlpha", value: opacity },
+            fillStyle,
+            fillRect,
+            { kind: "set", prop: "globalAlpha", value: 1 },
+        ];
+    }
+    return [fillStyle, fillRect];
 }
 
 function projectLine(config: Readonly<Record<string, unknown>>): RecordedCall[] {

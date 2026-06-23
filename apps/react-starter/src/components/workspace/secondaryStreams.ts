@@ -9,10 +9,10 @@
 // adapter-kit / core types, and it does NOT touch a concrete
 // `chartlang-example-*-adapter`, so the adapter seam stays clean.
 //
-// NOTE: the starter's free EODData tier is daily-EOD only, so daily is the
-// finest interval. Resampling daily into weekly / monthly works; a script
-// that requests a SUB-daily interval (e.g. "1h") cannot be resampled from
-// daily bars and yields NaN for that stream — daily is the floor.
+// NOTE: the starter's data source (Yahoo Finance) is daily-EOD only, so daily
+// is the finest interval. Resampling daily into weekly / monthly works; a
+// script that requests a SUB-daily interval (e.g. "1h") cannot be resampled
+// from daily bars and yields NaN for that stream — daily is the floor.
 
 import type { CandleEvent } from "@invinite-org/chartlang-adapter-kit"
 import type { Bar } from "@invinite-org/chartlang-core"
@@ -114,7 +114,7 @@ type BucketState = { key: number; bars: Bar[] }
  * each requested higher-timeframe stream **live** and weaves the secondary
  * `close` events into the output.
  *
- * The starter has no real higher-timeframe feed (free tier is daily-EOD),
+ * The starter has no real higher-timeframe feed (the data source is daily-EOD),
  * so this buckets the main bars (`Math.floor(time / bucketMs)`) and emits
  * one aggregated secondary `close` (tagged with `streamKey = interval`)
  * each time a bucket rolls over. Doing this on the live stream keeps the

@@ -14,6 +14,8 @@ function exerciseEveryCall(ctx: MockCanvasContext): void {
     ctx.moveTo(3, 4);
     ctx.lineTo(5, 6);
     ctx.stroke();
+    ctx.rect(0, 0, 4, 4);
+    ctx.clip();
     ctx.fillRect(0, 0, 2, 2);
     ctx.fill();
     ctx.arc(1, 2, 3, 0, Math.PI);
@@ -42,6 +44,8 @@ describe("MockCanvasContext", () => {
             "moveTo",
             "lineTo",
             "stroke",
+            "rect",
+            "clip",
             "fillRect",
             "fill",
             "arc",
