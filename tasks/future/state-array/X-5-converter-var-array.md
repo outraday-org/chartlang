@@ -7,8 +7,10 @@
 Lower a bounded **numeric** Pine `var array<float>` / `var array<int>` (a
 Camp B FIFO ring of values, not drawing handles) to
 `const a = state.array<number>(K)`, mapping `array.push` → `a.push`,
-`array.get(coll, n)` → `a.get(n)`, `array.size(coll)` → `a.size`,
-`array.last(coll)` → `a.last()`, `array.clear(coll)` → `a.clear()`, and
+`array.get(coll, n)` → `a.get(a.size - 1 - n)` (**index inverted** — Pine
+indexes from the oldest, chartlang `get(0)` is the newest; see §Desired
+Behavior), `array.size(coll)` → `a.size`, `array.last(coll)` → `a.last()`,
+`array.clear(coll)` → `a.clear()`, and
 eliding the FIFO-eviction block (the ring rotates internally). This gives the
 **numeric** Camp B ring a lowering target — today only **drawing-handle** Camp
 B rings convert (`transform/campB.ts`, which synthesizes `draw.*` handle
@@ -49,12 +51,18 @@ Camp B cap detection already guarantees (the cap is a literal `K`).
   `array.shift(coll)`, NO `*.delete` because there is no handle to delete)
   lowers to `const <name> = state.array<number>(K);`:
   - `array.push(coll, v)` → `<name>.push(v)`
-  - `array.get(coll, n)` → `<name>.get(n)`
+  - `array.get(coll, n)` → `<name>.get(<name>.size - 1 - (n))` — **the index
+    MUST be inverted.** Pine `array.get(coll, n)` indexes from the OLDEST
+    element (index `0` = first pushed; `array.shift` evicts index `0`), but
+    chartlang `state.array.get(n)` indexes from the NEWEST (`n = 0` newest).
+    Emitting `<name>.get(n)` verbatim is a silent miscompile (it reads the
+    n-th newest instead of Pine's n-th oldest). `array.last`/`array.first`
+    below already account for this; `get` must too.
   - `array.size(coll)` → `<name>.size`
-  - `array.last(coll)` → `<name>.last()`
-  - `array.first(coll)` → `<name>.get(<name>.size - 1)` (oldest; document the
-    mapping) — or push a "not supported" info if `first` is rare; prefer the
-    mapping.
+  - `array.last(coll)` → `<name>.last()` (newest — matches Pine `array.last`)
+  - `array.first(coll)` → `<name>.get(<name>.size - 1)` (oldest — matches Pine
+    `array.first`; document the mapping) — or push a "not supported" info if
+    `first` is rare; prefer the mapping.
   - `array.clear(coll)` → `<name>.clear()`
   - the eviction block (`if array.size > K` → `array.shift`) is **elided**
     (the ring rotates internally) + an info notes the elision (reuse the
@@ -104,7 +112,8 @@ shape). Detect the element type from the `array.new<float>()` /
   `<name>.<method>` form (§Desired Behavior mapping). Thread the
   numeric-array-slot set into `EmitContext` (e.g. `arraySlots: ReadonlySet
   <string>`) so `exprEmit.ts` knows to rewrite `array.get(coll, n)` →
-  `coll.get(n)` rather than the unsupported-`array.*` path.
+  `coll.get(coll.size - 1 - (n))` (index inverted, per §Desired Behavior)
+  rather than the unsupported-`array.*` path.
 - Elide the eviction `if` block; push the elision info.
 
 ### 3. Diagnostics (`diagnostics/codes.ts`)
@@ -142,8 +151,9 @@ plot(sum / array.size(win))
 
 Add `30-var-array-window.expected.chart.ts` (the converted output — `win`
 becomes `const win = state.array<number>(20); … win.push(bar.close...);` the
-eviction block elided; the `for` loop rewritten to `win.get(i)` /
-`win.size`) and `30-var-array-window.expected.diagnostics.json` (the emitted
+eviction block elided; the `for` loop rewritten to
+`win.get(win.size - 1 - (i))` / `win.size`) and
+`30-var-array-window.expected.diagnostics.json` (the emitted
 diagnostics, e.g. the eviction-elision info). The golden corpus +
 `fixtures-compile.test.ts` round-trip guard it compiles.
 
@@ -157,8 +167,8 @@ Keep `30-var-array-window.pine` **OUT** of `KNOWN_NON_COMPILING`
   operation rewrites + eviction elision; a non-numeric collection emits
   `array-collection-non-numeric`; a no-cap numeric ring hard-rejects.
 - `exprEmit` / `emitContext` tests: `array.get(coll, n)` on a collection in
-  `arraySlots` emits `coll.get(n)`; `array.size` emits `.size`; `array.last`
-  emits `.last()`.
+  `arraySlots` emits `coll.get(coll.size - 1 - (n))` (index inverted);
+  `array.size` emits `.size`; `array.last` emits `.last()`.
 - Defensive arms unreachable from real parser output covered by synthetic-AST
   tests (the established `*.synthetic.test.ts` precedent in `campB.synthetic
   .test.ts` / `campC.synthetic.test.ts`).
