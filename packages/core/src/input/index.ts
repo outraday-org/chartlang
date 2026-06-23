@@ -14,6 +14,7 @@ export type {
     IntervalDescriptorInput,
     PriceDescriptor,
     Schema,
+    SessionDescriptor,
     SourceDescriptor,
     SourceField,
     StringDescriptor,

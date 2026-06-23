@@ -1,7 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { feedKey, type RequestedFeed, type SecurityExpressionDescriptor } from "@invinite-org/chartlang-core";
+import {
+    feedKey,
+    type RequestedFeed,
+    type SecurityExpressionDescriptor,
+} from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";

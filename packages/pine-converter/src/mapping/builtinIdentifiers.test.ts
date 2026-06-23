@@ -21,6 +21,11 @@ describe("BUILTIN_IDENTIFIER_MAP", () => {
         expect(BUILTIN_IDENTIFIER_MAP.get("time")).toBe("bar.time");
     });
 
+    it("maps the bare calendar reads to their no-arg accessor calls", () => {
+        expect(BUILTIN_IDENTIFIER_MAP.get("dayofweek")).toBe("time.dayofweek(bar.time)");
+        expect(BUILTIN_IDENTIFIER_MAP.get("time_close")).toBe("time.timeClose(bar.time)");
+    });
+
     it("maps bar_index to the converter-emitted helper call", () => {
         expect(BUILTIN_IDENTIFIER_MAP.get("bar_index")).toBe("__barIndexBridge()");
     });

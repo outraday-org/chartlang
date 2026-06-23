@@ -30,6 +30,7 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/rolling-window-mean.chart.ts",
     "examples/scripts/symbol-ratio.chart.ts",
     "examples/scripts/z-layering.chart.ts",
+    "examples/scripts/session-day-filter.chart.ts",
 ] as const;
 
 const COMPILE_TIMEOUT_MS = 15_000;

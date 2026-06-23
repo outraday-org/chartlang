@@ -8,8 +8,9 @@ import { scanUsage } from "./usage.js";
  * Emit the minimized `@invinite-org/chartlang-core` import line for a
  * converted scaffold. The `defineIndicator` / `defineDrawing` constructor is
  * always present; every other named import (`draw`, `state`, `ta`, `plot`,
- * `hline`, `alert`, `input`, `request`) is included only when the scaffold's
- * generated source references it, and `type DrawingHandle` is added only when
+ * `hline`, `alert`, `input`, `request`, `time`, `session`) is included only
+ * when the scaffold's generated source references it, and `type DrawingHandle`
+ * is added only when
  * a NON-compact handle slot or a ring is emitted (the codegen helper signatures
  * name it; a compact handle slot's bare `const` carries no type annotation).
  * Determinism: the import list is emitted in a fixed order, never sorted by a
@@ -35,6 +36,8 @@ export function emitImports(scaffold: ScriptScaffold): string {
     if (usage.input) specifiers.push("input");
     if (usage.state) specifiers.push("state");
     if (usage.request) specifiers.push("request");
+    if (usage.time) specifiers.push("time");
+    if (usage.session) specifiers.push("session");
     if (usage.drawingHandle) specifiers.push("type DrawingHandle");
 
     return `import { ${specifiers.join(", ")} } from "@invinite-org/chartlang-core";`;

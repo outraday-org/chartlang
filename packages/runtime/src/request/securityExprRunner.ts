@@ -135,6 +135,7 @@ function buildExprContext(
         requestSecurityAscendingBars: new Map(),
         requestLowerTfViews: new Map(),
         diagnosedRequestKeys: new Set(),
+        diagnosedTzKeys: new Set(),
         logBudget: 0,
         logBudgetExceededDiagnosed: false,
         resolvedInputs: parent.resolvedInputs,

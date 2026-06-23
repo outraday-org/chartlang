@@ -66,6 +66,10 @@ describe("transformInputs — per-kind mapping", () => {
         expect(single("col = input.color(#ff0000)").code).toBe('input.color("#ff0000")');
     });
 
+    it("maps input.session straight through (string spec)", () => {
+        expect(single('sess = input.session("0930-1600")').code).toBe('input.session("0930-1600")');
+    });
+
     it("maps input.source close to a SourceField literal", () => {
         expect(single('src = input.source(close, title="Source")').code).toBe(
             'input.source("close", { title: "Source" })',

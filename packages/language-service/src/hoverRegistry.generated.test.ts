@@ -7,7 +7,7 @@ import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 
 describe("HOVER_REGISTRY", () => {
     it("contains the apiVersion 1 language-service symbol set", () => {
-        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(534);
+        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(555);
     });
 
     it("contains the render-order ZOrdered mixin type entry (1.4)", () => {
@@ -43,6 +43,29 @@ describe("HOVER_REGISTRY", () => {
         expect(HOVER_REGISTRY["state.array"]).toMatchObject({
             fqn: "state.array",
             kind: "function",
+        });
+    });
+
+    it("contains the calendar / session accessor entries (1.5)", () => {
+        expect(HOVER_REGISTRY["time.dayofweek"]).toMatchObject({
+            fqn: "time.dayofweek",
+            kind: "function",
+            since: "1.5",
+        });
+        expect(HOVER_REGISTRY["time.timeClose"]).toMatchObject({
+            fqn: "time.timeClose",
+            kind: "function",
+            since: "1.5",
+        });
+        expect(HOVER_REGISTRY["session.isOpen"]).toMatchObject({
+            fqn: "session.isOpen",
+            kind: "function",
+            since: "1.5",
+        });
+        expect(HOVER_REGISTRY["input.session"]).toMatchObject({
+            fqn: "input.session",
+            kind: "function",
+            since: "1.5",
         });
     });
 

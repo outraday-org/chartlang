@@ -88,6 +88,7 @@ function FieldView({ field }: Readonly<{ field: InputsFormField }>): ReactElemen
                 <TextField field={field} type="text" />
             );
         case "symbol":
+        case "session":
             return <TextField field={field} type="text" />;
         case "external-series":
             return <TextField field={field} disabled={true} type="text" />;

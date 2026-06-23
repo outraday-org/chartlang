@@ -78,12 +78,10 @@ describe("emitRequestSecurity", () => {
     });
 
     it("rejects a computed (non-literal) symbol as request-security-not-mapped", () => {
-        const { source, codes } = emit("request.security(sym, \"D\", close)");
+        const { source, codes } = emit('request.security(sym, "D", close)');
         expect(source).toBeNull();
         expect(codes).toContain("pine-converter/transform/request-security-not-mapped");
-        expect(codes).not.toContain(
-            "pine-converter/transform/request-security-different-symbol",
-        );
+        expect(codes).not.toContain("pine-converter/transform/request-security-different-symbol");
     });
 
     it("warns request-security-lookahead-not-supported", () => {

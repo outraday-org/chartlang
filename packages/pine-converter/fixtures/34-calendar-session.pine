@@ -1,0 +1,11 @@
+//@version=6
+indicator("Calendar session", overlay=true)
+sess = input.session("0930-1600", "Session")
+dow = dayofweek(time)
+openTime = time()
+closeTime = time_close()
+isWeekday = dow >= 2 and dow <= 6
+plot(isWeekday ? close : na, "Weekday close", color=color.blue)
+plot(openTime, "Bar open time")
+plot(closeTime, "Bar close time")
+plot(dow, "Day of week")

@@ -47,14 +47,18 @@ describe("emitCompute destructure minimization", () => {
                         'alert("x");',
                         "draw.line({}, {});",
                         'const r = request.security({ interval: "1h" });',
+                        "const dow = time.dayofweek(bar.time);",
+                        'const open = session.isOpen(bar.time, "0930-1600");',
                         "if (barstate.islast) {}",
                         "void r;",
+                        "void dow;",
+                        "void open;",
                     ],
                 },
             }),
         )[0];
         expect(head).toBe(
-            "compute({ bar, ta, plot, hline, alert, draw, inputs, state, request, barstate }) {",
+            "compute({ bar, ta, plot, hline, alert, draw, inputs, state, request, time, session, barstate }) {",
         );
     });
 

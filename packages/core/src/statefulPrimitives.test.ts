@@ -201,6 +201,16 @@ const EXPECTED_REQUEST_SLOT_TRUE = ["request.security", "request.lowerTf"] as co
 
 const EXPECTED_SLOT_FALSE = [
     "ta.nz",
+    "time.year",
+    "time.month",
+    "time.dayofmonth",
+    "time.dayofweek",
+    "time.hour",
+    "time.minute",
+    "time.second",
+    "time.timestamp",
+    "time.timeClose",
+    "session.isOpen",
     "defineAlertCondition.signal",
     "runtime.log",
     "runtime.error",
@@ -287,6 +297,7 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
     "request.security",
     "runtime.error",
     "runtime.log",
+    "session.isOpen",
     "state.array",
     "state.bool",
     "state.float",
@@ -393,14 +404,23 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
     "ta.williamsR",
     "ta.wma",
     "ta.zigZag",
+    "time.dayofmonth",
+    "time.dayofweek",
+    "time.hour",
+    "time.minute",
+    "time.month",
+    "time.second",
+    "time.timeClose",
+    "time.timestamp",
+    "time.year",
 ];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 179 entries after the bgcolor/barcolor addition", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(179);
+    it("contains exactly 189 entries after the time.*/session.* addition", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(189);
     });
 
-    it("locks the apiVersion-1 registry to the exact 179-entry name set", () => {
+    it("locks the apiVersion-1 registry to the exact 189-entry name set", () => {
         const names = [...STATEFUL_PRIMITIVES].map((e) => e.name).sort();
         expect(names).toEqual(FROZEN_API_V1_NAMES);
     });
@@ -419,7 +439,7 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 175 slot: true entries and exactly 4 slot: false entries", () => {
+    it("has exactly 175 slot: true entries and exactly 14 slot: false entries", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
@@ -427,7 +447,7 @@ describe("STATEFUL_PRIMITIVES", () => {
             else falseCount += 1;
         }
         expect(trueCount).toBe(175);
-        expect(falseCount).toBe(4);
+        expect(falseCount).toBe(14);
     });
 
     it("is frozen", () => {

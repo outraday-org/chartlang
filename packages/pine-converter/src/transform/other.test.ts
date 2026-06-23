@@ -175,6 +175,41 @@ describe("transformOther — control flow", () => {
     });
 });
 
+describe("transformOther — calendar built-in calls", () => {
+    it("lowers a top-level time()/time_close()/dayofweek() call to the time.* accessor", () => {
+        expect(stmts("openT = time()\nplot(openT)")).toEqual([
+            "let openT = bar.time;",
+            "plot(openT);",
+        ]);
+        expect(stmts("closeT = time_close()\nplot(closeT)")).toEqual([
+            "let closeT = time.timeClose(bar.time);",
+            "plot(closeT);",
+        ]);
+        expect(stmts("dow = dayofweek(time)\nplot(dow)")).toEqual([
+            "let dow = time.dayofweek(bar.time);",
+            "plot(dow);",
+        ]);
+    });
+
+    it("threads the timezone arg through dayofweek(t, tz)", () => {
+        expect(stmts('dow = dayofweek(time, "America/New_York")\nplot(dow)')).toEqual([
+            'let dow = time.dayofweek(bar.time, "America/New_York");',
+            "plot(dow);",
+        ]);
+    });
+
+    it("warns time-builtin-not-mapped for an unsupported time(timeframe) shape", () => {
+        const src = "t = time(timeframe.period)\nplot(t)";
+        expect(codes(src)).toContain("pine-converter/transform/time-builtin-not-mapped");
+        expect(stmts(src)[0]).toContain("/* TODO unmapped */");
+    });
+
+    it("lowers a bare dayofweek/time_close value read to the no-arg accessor", () => {
+        expect(stmts("dow = dayofweek\nplot(dow)")[0]).toBe("let dow = time.dayofweek(bar.time);");
+        expect(stmts("ct = time_close\nplot(ct)")[0]).toBe("let ct = time.timeClose(bar.time);");
+    });
+});
+
 describe("transformOther — scalars", () => {
     it("lowers a var int scalar to a state.int slot and reassignment to .value", () => {
         const { scaffold } = run("var n = 0\nn := n + 1\nplot(n)");

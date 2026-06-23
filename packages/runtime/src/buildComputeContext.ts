@@ -9,6 +9,7 @@ import { emitAlertCondition } from "./emit/alertConditionEmission.js";
 import { buildRuntimeNamespace } from "./emit/logEmission.js";
 import { buildRequestNamespace } from "./request/index.js";
 import { buildStateNamespace } from "./state/index.js";
+import { buildSessionNamespace, buildTimeNamespace } from "./time-accessors/index.js";
 
 /**
  * Build the `ComputeContext` the runner hands the compiled script on
@@ -42,6 +43,8 @@ export function buildComputeContext(state: RunnerState): ComputeContext {
         barstate: state.runtimeContext.views.barstate,
         syminfo: state.runtimeContext.views.syminfo,
         timeframe: state.runtimeContext.views.timeframe,
+        time: buildTimeNamespace(state.runtimeContext),
+        session: buildSessionNamespace(state.runtimeContext),
         request: buildRequestNamespace(),
         runtime: buildRuntimeNamespace(state.runtimeContext),
     };

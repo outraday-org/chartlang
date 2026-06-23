@@ -41,6 +41,7 @@ describe("extractInputs", () => {
             level: input.price(101.25, { title: "Level" }),
             sym: input.symbol("AAPL", { title: "Symbol" }),
             tf: input.interval("chart", { title: "Timeframe" }),
+            sess: input.session("0930-1600", { title: "Session" }),
             ext: input.externalSeries({ name: "earnings", schema, title: "Earnings" }),
         `);
 
@@ -109,6 +110,11 @@ describe("extractInputs", () => {
             kind: "interval",
             defaultValue: "chart",
             title: "Timeframe",
+        });
+        expect(result.inputs.sess).toEqual({
+            kind: "session",
+            defaultValue: "0930-1600",
+            title: "Session",
         });
         expect(result.inputs.ext).toEqual({
             kind: "external-series",

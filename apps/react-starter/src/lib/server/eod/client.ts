@@ -37,9 +37,20 @@ const DAILY_INTERVAL = "d"
 /** chartlang interval literal for a daily bar. */
 const DAILY_BAR_INTERVAL = "1D"
 
-/** Defensive spacing for the 10-calls/min free-tier limit (the cache is the
- * real protection — this just keeps a burst of cold loads polite). */
-const MIN_INTERVAL_MS = 6_000
+/** Defensive spacing for the free-tier rate limit (the cache is the real
+ * protection — this just keeps a burst of cold loads polite). */
+const MIN_INTERVAL_MS = 7_000
+
+/** The free tier rate-limits bursts harder than the nominal 10/min: a second
+ * call seconds after the first can still 429. Retry a 429 a couple of times,
+ * honouring `Retry-After` when present, so a cold load (resolve exchange +
+ * fetch bars = two calls) succeeds instead of surfacing a transient error. */
+const MAX_429_RETRIES = 3
+const RETRY_BACKOFF_MS = 8_000
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 function baseUrl(): string {
   return process.env.EODDATA_BASE_URL ?? DEFAULT_BASE_URL
@@ -77,25 +88,37 @@ function throttle(): Promise<void> {
   return chain
 }
 
-/** Typed GET against the EODData API; appends `ApiKey`, maps non-2xx → error. */
+/** Typed GET against the EODData API; appends `ApiKey`, retries 429s with
+ * backoff, maps other non-2xx → error. */
 export async function eodFetch<T>(path: string, query?: Record<string, string>): Promise<T> {
   const key = apiKey() // throws MissingApiKeyError before any network work
-  await throttle()
 
   const url = new URL(`${baseUrl()}${path}`)
   for (const [k, v] of Object.entries(query ?? {})) url.searchParams.set(k, v)
   url.searchParams.set("ApiKey", key)
 
-  let res: Response
-  try {
-    res = await fetch(url, { headers: { accept: "application/json" } })
-  } catch (err) {
-    throw new EodDataError(`EODData request failed: ${err instanceof Error ? err.message : String(err)}`)
+  for (let attempt = 0; ; attempt++) {
+    await throttle()
+    let res: Response
+    try {
+      res = await fetch(url, { headers: { accept: "application/json" } })
+    } catch (err) {
+      throw new EodDataError(
+        `EODData request failed: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+    if (res.status === 429 && attempt < MAX_429_RETRIES) {
+      // Honour `Retry-After` (seconds) when present, else a fixed backoff.
+      const retryAfter = Number(res.headers.get("retry-after"))
+      const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : RETRY_BACKOFF_MS
+      await sleep(waitMs)
+      continue
+    }
+    if (!res.ok) {
+      throw new EodDataError(`EODData responded ${res.status} for ${path}`)
+    }
+    return (await res.json()) as T
   }
-  if (!res.ok) {
-    throw new EodDataError(`EODData responded ${res.status} for ${path}`)
-  }
-  return (await res.json()) as T
 }
 
 // --- Symbol search ----------------------------------------------------------

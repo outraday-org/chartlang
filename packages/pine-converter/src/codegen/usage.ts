@@ -26,6 +26,8 @@ import { BAR_INDEX_SENTINEL } from "./emitHelpers.js";
  *         input: false,
  *         request: false,
  *         barstate: true,
+ *         time: false,
+ *         session: false,
  *         drawingHandle: true,
  *         barIndex: false,
  *     };
@@ -43,6 +45,8 @@ export type UsageFlags = Readonly<{
     input: boolean;
     request: boolean;
     barstate: boolean;
+    time: boolean;
+    session: boolean;
     drawingHandle: boolean;
     barIndex: boolean;
 }>;
@@ -96,6 +100,11 @@ export function scanUsage(scaffold: ScriptScaffold): UsageFlags {
         input: corpus.includes("input."),
         request: corpus.includes("request."),
         barstate: corpus.includes("barstate."),
+        // `time.` / `session.` only match the calendar/session accessor
+        // namespaces — `bar.time` is a trailing-dot-free scalar and a `{ time:
+        // … }` object key reads `time:`, so neither false-positives here.
+        time: corpus.includes("time."),
+        session: corpus.includes("session."),
         drawingHandle: hasNonCompactHandle || hasRings,
         barIndex: corpus.includes(`${BAR_INDEX_SENTINEL}(`),
     };

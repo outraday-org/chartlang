@@ -89,6 +89,7 @@ function freshState(): RunnerState {
             requestSecurityAlignments: new Map(),
             requestSecurityAscendingBars: new Map(),
             diagnosedRequestKeys: new Set(),
+            diagnosedTzKeys: new Set(),
             alertConditions: new Map(),
             diagnosedAlertConditionKeys: new Set(),
             logBudget: 0,
@@ -106,7 +107,7 @@ function freshState(): RunnerState {
 }
 
 describe("buildComputeContext", () => {
-    it("returns an object with bar / inputs / ta / plot / hline / alert / draw / state / request / runtime / views", () => {
+    it("returns an object with bar / inputs / ta / plot / hline / alert / draw / state / time / session / request / runtime / views", () => {
         const state = freshState();
         const ctx = buildComputeContext(state);
         expect(ctx).toHaveProperty("bar");
@@ -124,6 +125,16 @@ describe("buildComputeContext", () => {
         expect(ctx).toHaveProperty("barstate");
         expect(ctx).toHaveProperty("syminfo");
         expect(ctx).toHaveProperty("timeframe");
+        expect(ctx).toHaveProperty("time");
+        expect(ctx).toHaveProperty("session");
+    });
+
+    it("installs the real session namespace (not the throwing core hole)", () => {
+        const ctx = buildComputeContext(freshState());
+        // The core hole would throw "session.isOpen called outside an active
+        // script step"; the real impl returns a boolean.
+        expect(ctx.session.isOpen(Date.UTC(2024, 0, 2, 10, 0), "0930-1600")).toBe(true);
+        expect(ctx.session.isOpen(Date.UTC(2024, 0, 2, 8, 0), "0930-1600")).toBe(false);
     });
 
     it("bar field shares identity with state.mainStream.bar", () => {
@@ -174,12 +185,8 @@ describe("buildComputeContext", () => {
         // id) throws the active-step sentinel.
         const state = freshState();
         const ctx = buildComputeContext(state);
-        expect(() => ctx.bgcolor("#000")).toThrow(
-            "bgcolor called outside an active script step",
-        );
-        expect(() => ctx.barcolor("#000")).toThrow(
-            "barcolor called outside an active script step",
-        );
+        expect(() => ctx.bgcolor("#000")).toThrow("bgcolor called outside an active script step");
+        expect(() => ctx.barcolor("#000")).toThrow("barcolor called outside an active script step");
     });
 
     it("state is the Task-9 runtime namespace and throws outside the active context", () => {

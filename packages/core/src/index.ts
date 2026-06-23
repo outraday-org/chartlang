@@ -202,6 +202,7 @@ export type {
     IntervalDescriptorInput,
     PriceDescriptor,
     Schema,
+    SessionDescriptor,
     SourceDescriptor,
     SourceField,
     StringDescriptor,
@@ -216,6 +217,8 @@ export type {
     StateStoreKey,
     StreamSnapshot,
 } from "./state/index.js";
+export { session, time } from "./time-accessors/index.js";
+export type { SessionNamespace, TimeNamespace } from "./time-accessors/index.js";
 export { barstate, syminfo, timeframe } from "./views/index.js";
 export type { BarStateView, SymbolType, SymInfoView, TimeframeView } from "./views/index.js";
 export { feedKey, request } from "./request/index.js";

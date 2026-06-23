@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.2.0",
-    "passed": 247,
+    "passed": 248,
     "failed": 0,
     "scenarios": [
         {
@@ -25,6 +25,12 @@
         {
             "id": "bollinger-bands",
             "title": "Bollinger Bands — upper/middle/lower line plots",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "calendar-session",
+            "title": "time.* calendar fields + session.isOpen emit a stable finite series",
             "status": "pass",
             "failures": []
         },

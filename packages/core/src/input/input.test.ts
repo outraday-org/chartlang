@@ -113,6 +113,14 @@ describe("input builders", () => {
         });
     });
 
+    it("builds a session descriptor", () => {
+        expect(input.session("0930-1600", { title: "Session" })).toEqual({
+            kind: "session",
+            defaultValue: "0930-1600",
+            title: "Session",
+        });
+    });
+
     it("builds an external-series descriptor", () => {
         const schema = Object.freeze({ kind: "external-series-schema" as const });
 

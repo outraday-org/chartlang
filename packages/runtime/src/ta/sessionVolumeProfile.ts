@@ -12,6 +12,7 @@ import type {
 import { pushDiagnostic } from "../emit/index.js";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
 import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
+import { parseSessionWindowMinutes } from "../time-accessors/sessionWindow.js";
 import {
     type VolumeProfileBar,
     type VolumeProfileCore,
@@ -80,23 +81,6 @@ function resultForOffset(
 
 function utcDayStart(time: number): number {
     return Math.floor(time / DAY_MS) * DAY_MS;
-}
-
-function parseSessionWindowMinutes(
-    session: string,
-): { startMinutes: number; endMinutes: number } | null {
-    const match = /^(\d{1,2})(?::?(\d{2}))?\s*-\s*(\d{1,2})(?::?(\d{2}))?$/.exec(session.trim());
-    if (match === null) return null;
-    const startHour = Number(match[1]);
-    const startMinute = match[2] === undefined ? 0 : Number(match[2]);
-    const endHour = Number(match[3]);
-    const endMinute = match[4] === undefined ? 0 : Number(match[4]);
-    if (startHour < 0 || startHour > 23 || startMinute < 0 || startMinute > 59) return null;
-    if (endHour < 0 || endHour > 23 || endMinute < 0 || endMinute > 59) return null;
-    return {
-        startMinutes: startHour * 60 + startMinute,
-        endMinutes: endHour * 60 + endMinute,
-    };
 }
 
 function sessionBoundaryFromDescriptor(time: number, session: string): number | null {

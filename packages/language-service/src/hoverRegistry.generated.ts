@@ -2785,7 +2785,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "examples": [
             "feedKey(undefined, \"1D\"); // \"1D\"  (chart symbol, back-compat)\nfeedKey(\"AMEX:SPY\", \"1D\"); // \"AMEX:SPY@1D\""
         ],
-        "since": "1.2",
+        "since": "1.3",
         "stability": "stable"
     },
     "FibChannelState": {
@@ -3523,6 +3523,29 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const level = input.price(101.25);\nvoid level;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "input.session": {
+        "fqn": "input.session",
+        "kind": "function",
+        "title": "input.session(defaultValue, opts?)",
+        "summary": "Build a session-window input descriptor (`\"HH:MM-HH:MM\"`). The value is\na free string in v1 (the grammar is parsed at runtime by\n`session.isOpen`), mirroring `input.string`.",
+        "paramTable": [
+            {
+                "name": "defaultValue",
+                "type": "string",
+                "doc": ""
+            },
+            {
+                "name": "opts",
+                "type": "{ readonly title?: string }",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const sess = input.session(\"0930-1600\", { title: \"Session\" });\nvoid sess;"
+        ],
+        "since": "1.5",
         "stability": "stable"
     },
     "input.source": {
@@ -4712,7 +4735,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "examples": [
             "const f: RequestedFeed = { symbol: \"AMEX:SPY\", interval: \"1D\" };\nvoid f;"
         ],
-        "since": "1.2",
+        "since": "1.3",
         "stability": "stable"
     },
     "RequestLowerTfOpts": {
@@ -4980,6 +5003,34 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.6",
         "stability": "stable"
     },
+    "session.isOpen": {
+        "fqn": "session.isOpen",
+        "kind": "function",
+        "title": "session.isOpen(_t, _spec, _tz?)",
+        "summary": "`true` when `t` falls inside the daily session window `spec`. `spec` is\nan `\"HH:MM-HH:MM\"` (or `\"HHMM-HHMM\"`) intraday window, e.g.\n`\"0930-1600\"`. The window is interpreted in `tz` (default\n`syminfo.timezone`, fallback `\"UTC\"`).",
+        "paramTable": [
+            {
+                "name": "_t",
+                "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "_spec",
+                "type": "string",
+                "doc": ""
+            },
+            {
+                "name": "_tz",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof session.isOpen = session.isOpen;\nvoid fn;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
     "SessionBounds": {
         "fqn": "SessionBounds",
         "kind": "type",
@@ -4989,6 +5040,28 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const bounds: SessionBounds = { startMs: 0, endMs: 1 };\nvoid bounds;"
         ],
         "since": "0.6",
+        "stability": "stable"
+    },
+    "SessionDescriptor": {
+        "fqn": "SessionDescriptor",
+        "kind": "type",
+        "title": "SessionDescriptor",
+        "summary": "Descriptor for `input.session(...)`. The value is an `\"HH:MM-HH:MM\"`\n(or `\"HHMM-HHMM\"`) session-window spec consumed by `session.isOpen`.\nStructurally a constrained string; v1 does not validate the grammar at\ncompile time.",
+        "examples": [
+            "const d: SessionDescriptor = { kind: \"session\", defaultValue: \"0930-1600\" };\nvoid d;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
+    "SessionNamespace": {
+        "fqn": "SessionNamespace",
+        "kind": "type",
+        "title": "SessionNamespace",
+        "summary": "Static type of the `session` namespace. Runtime implementations satisfy this\nshape structurally when installed on `ComputeContext.session`.",
+        "examples": [
+            "const ns: SessionNamespace = session;\nvoid ns;"
+        ],
+        "since": "1.5",
         "stability": "stable"
     },
     "SessionType": {
@@ -7504,6 +7577,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.3",
         "stability": "stable"
     },
+    "time": {
+        "fqn": "time",
+        "kind": "namespace",
+        "title": "time",
+        "summary": "Calendar accessors over a `Time` epoch (UTC ms since epoch). Each accessor\nis a pure function of an explicit `Time` plus an optional IANA timezone\nstring; the default `tz` is the active mount's `syminfo.timezone`, falling\nback to `\"UTC\"` when that is empty. Authors never touch `Date`/`Intl` (both\nare banned on the script path) — the runtime owns the epoch math.",
+        "examples": [
+            "const ns: typeof time = time;\nvoid ns;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
     "Time": {
         "fqn": "Time",
         "kind": "type",
@@ -7513,6 +7597,238 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const t: Time = 1_700_000_000_000;"
         ],
         "since": "0.1",
+        "stability": "stable"
+    },
+    "time.dayofmonth": {
+        "fqn": "time.dayofmonth",
+        "kind": "function",
+        "title": "time.dayofmonth(_t, _tz?)",
+        "summary": "Day of the month of `t`, `1..31`.",
+        "paramTable": [
+            {
+                "name": "_t",
+                "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "_tz",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof time.dayofmonth = time.dayofmonth;\nvoid fn;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
+    "time.dayofweek": {
+        "fqn": "time.dayofweek",
+        "kind": "function",
+        "title": "time.dayofweek(_t, _tz?)",
+        "summary": "Day of the week of `t`, following Pine's convention `1=Sunday .. 7=Saturday`\n(note: NOT the ISO `1=Monday` convention).",
+        "paramTable": [
+            {
+                "name": "_t",
+                "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "_tz",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof time.dayofweek = time.dayofweek;\nvoid fn;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
+    "time.hour": {
+        "fqn": "time.hour",
+        "kind": "function",
+        "title": "time.hour(_t, _tz?)",
+        "summary": "Hour-of-day of `t`, `0..23`.",
+        "paramTable": [
+            {
+                "name": "_t",
+                "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "_tz",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof time.hour = time.hour;\nvoid fn;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
+    "time.minute": {
+        "fqn": "time.minute",
+        "kind": "function",
+        "title": "time.minute(_t, _tz?)",
+        "summary": "Minute-of-hour of `t`, `0..59`.",
+        "paramTable": [
+            {
+                "name": "_t",
+                "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "_tz",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof time.minute = time.minute;\nvoid fn;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
+    "time.month": {
+        "fqn": "time.month",
+        "kind": "function",
+        "title": "time.month(_t, _tz?)",
+        "summary": "Calendar month of `t`, `1..12`.",
+        "paramTable": [
+            {
+                "name": "_t",
+                "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "_tz",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof time.month = time.month;\nvoid fn;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
+    "time.second": {
+        "fqn": "time.second",
+        "kind": "function",
+        "title": "time.second(_t, _tz?)",
+        "summary": "Second-of-minute of `t`, `0..59`.",
+        "paramTable": [
+            {
+                "name": "_t",
+                "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "_tz",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof time.second = time.second;\nvoid fn;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
+    "time.timeClose": {
+        "fqn": "time.timeClose",
+        "kind": "function",
+        "title": "time.timeClose(_t, _tz?)",
+        "summary": "Close timestamp of the bar that starts at `t` — Pine's no-arg\n`time_close()`. Equals `t + interval`, where the interval is the active\nbar's `timeframe.inSeconds` the runtime reads internally (so this mirrors\nPine's \"current bar's interval\" without an explicit interval argument).\n`tz` is accepted for surface symmetry with the other `time.*` accessors.",
+        "paramTable": [
+            {
+                "name": "_t",
+                "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "_tz",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof time.timeClose = time.timeClose;\nvoid fn;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
+    "time.timestamp": {
+        "fqn": "time.timestamp",
+        "kind": "function",
+        "title": "time.timestamp(_year, _month, _day, _hour?, _minute?, _second?, _tz?)",
+        "summary": "Build a `Time` (UTC ms epoch) from calendar fields. `month` is `1..12`\nand `day` is `1..31`; `hour`/`minute`/`second` default to `0`. The\nfields are interpreted in `tz` (default `syminfo.timezone`, fallback\n`\"UTC\"`).",
+        "paramTable": [
+            {
+                "name": "_year",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "_month",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "_day",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "_hour",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "_minute",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "_second",
+                "type": "number",
+                "doc": ""
+            },
+            {
+                "name": "_tz",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof time.timestamp = time.timestamp;\nvoid fn;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
+    "time.year": {
+        "fqn": "time.year",
+        "kind": "function",
+        "title": "time.year(_t, _tz?)",
+        "summary": "Calendar year of `t` (e.g. `2024`).",
+        "paramTable": [
+            {
+                "name": "_t",
+                "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "_tz",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof time.year = time.year;\nvoid fn;"
+        ],
+        "since": "1.5",
         "stability": "stable"
     },
     "TimeCyclesState": {
@@ -7557,6 +7873,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const view: TimeframeView = timeframe;\nvoid view;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "TimeNamespace": {
+        "fqn": "TimeNamespace",
+        "kind": "type",
+        "title": "TimeNamespace",
+        "summary": "Static type of the `time` namespace. Runtime implementations satisfy this\nshape structurally when installed on `ComputeContext.time`.",
+        "examples": [
+            "const ns: TimeNamespace = time;\nvoid ns;"
+        ],
+        "since": "1.5",
         "stability": "stable"
     },
     "TrendAngleState": {

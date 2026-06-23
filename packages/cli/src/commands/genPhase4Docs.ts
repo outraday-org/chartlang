@@ -83,6 +83,7 @@ export const PHASE4_DOC_ENTRIES: ReadonlyArray<Phase4DocEntry> = Object.freeze([
         "source",
         "time",
         "price",
+        "session",
         "symbol",
         "interval",
         "externalSeries",
@@ -145,6 +146,20 @@ export const PHASE4_DOC_ENTRIES: ReadonlyArray<Phase4DocEntry> = Object.freeze([
         symbolPath: ["timeframe"],
         outRelPath: "docs/primitives/timeframe.md",
         seeAlso: "`timeframe.*` view",
+    }),
+    Object.freeze({
+        title: "time",
+        sourceRelPath: `${CORE}/time-accessors/timeAccessors.ts`,
+        symbolPath: ["time"],
+        outRelPath: "docs/primitives/time.md",
+        seeAlso: "`time.*` accessors — [Time and sessions](/language/time-and-sessions)",
+    }),
+    Object.freeze({
+        title: "session",
+        sourceRelPath: `${CORE}/time-accessors/sessionAccessors.ts`,
+        symbolPath: ["session"],
+        outRelPath: "docs/primitives/session.md",
+        seeAlso: "`session.*` accessors — [Time and sessions](/language/time-and-sessions)",
     }),
     Object.freeze({
         title: "request.security",

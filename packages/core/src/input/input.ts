@@ -12,6 +12,7 @@ import type {
     IntervalDescriptorInput,
     PriceDescriptor,
     Schema,
+    SessionDescriptor,
     SourceDescriptor,
     SourceField,
     StringDescriptor,
@@ -204,6 +205,21 @@ export const input = Object.freeze({
      */
     interval(defaultValue: string, opts?: { readonly title?: string }): IntervalDescriptorInput {
         return Object.freeze({ kind: "interval" as const, defaultValue, ...opts });
+    },
+
+    /**
+     * Build a session-window input descriptor (`"HH:MM-HH:MM"`). The value is
+     * a free string in v1 (the grammar is parsed at runtime by
+     * `session.isOpen`), mirroring `input.string`.
+     *
+     * @since 1.5
+     * @stable
+     * @example
+     *     const sess = input.session("0930-1600", { title: "Session" });
+     *     void sess;
+     */
+    session(defaultValue: string, opts?: { readonly title?: string }): SessionDescriptor {
+        return Object.freeze({ kind: "session" as const, defaultValue, ...opts });
     },
 
     /**

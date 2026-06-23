@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { ExpressionNode, HistoryAccessExpression } from "../ast/index.js";
-import { remapIdentifier } from "../mapping/index.js";
+import { lowerBuiltinCall, remapIdentifier } from "../mapping/index.js";
 import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
 
 /**
@@ -122,9 +122,18 @@ export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): s
                         : `!Number.isFinite(${arg})`;
                 }
             }
+            const emittedArgs = node.args.map((arg) => emitExpr(arg.value, annotations));
+            // A bare-rooted calendar built-in call (`time()`, `time_close()`,
+            // `dayofweek(t)`) lowers via the call-form table BEFORE the generic
+            // path — its callee would otherwise remap as a value fragment
+            // (`dayofweek` → `time.dayofweek(bar.time)`, `time` → `bar.time`)
+            // and compose into `time.dayofweek(bar.time)(t)` / `bar.time()`.
+            if (node.callee.kind === "identifier-expression") {
+                const lowered = lowerBuiltinCall(node.callee.name, emittedArgs);
+                if (lowered !== null) return lowered;
+            }
             const callee = emitExpr(node.callee, annotations);
-            const args = node.args.map((arg) => emitExpr(arg.value, annotations)).join(", ");
-            return `${callee}(${args})`;
+            return `${callee}(${emittedArgs.join(", ")})`;
         }
         case "member-access-expression":
             return emitMemberChain(

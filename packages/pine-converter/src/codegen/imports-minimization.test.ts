@@ -73,6 +73,40 @@ describe("import minimization", () => {
         }
     });
 
+    it("includes time and session when the body references the accessor namespaces", () => {
+        const line = emitImports(
+            scaffold({
+                computeBody: {
+                    statements: [
+                        "const d = time.dayofweek(bar.time);",
+                        'const open = session.isOpen(bar.time, "0930-1600");',
+                        "void d;",
+                        "void open;",
+                    ],
+                },
+            }),
+        );
+        expect(line).toContain("time");
+        expect(line).toContain("session");
+    });
+
+    it("scanUsage flags time and session accessor references", () => {
+        const flags = scanUsage(
+            scaffold({
+                computeBody: {
+                    statements: [
+                        "const d = time.timeClose(bar.time);",
+                        'const open = session.isOpen(bar.time, "0930-1600");',
+                        "void d;",
+                        "void open;",
+                    ],
+                },
+            }),
+        );
+        expect(flags.time).toBe(true);
+        expect(flags.session).toBe(true);
+    });
+
     it("scanUsage flags barstate and bar-index references", () => {
         const flags = scanUsage(
             scaffold({

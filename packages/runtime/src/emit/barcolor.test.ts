@@ -161,9 +161,7 @@ describe("barcolor — overload seam", () => {
     it("throws the sentinel for a non-string first argument", () => {
         // Covers the `typeof arg1 !== "string"` branch — unreachable through
         // the typed surface (color is a string), reachable from malformed JS.
-        expect(() => barcolor(0 as never)).toThrow(
-            "barcolor called outside an active script step",
-        );
+        expect(() => barcolor(0 as never)).toThrow("barcolor called outside an active script step");
     });
 
     it("throws the sentinel for the bare call with an opts bag", () => {

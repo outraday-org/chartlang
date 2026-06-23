@@ -60,9 +60,7 @@ describe("request namespace type surface", () => {
             Series<number>
         >();
         // both overloads also accept a different-symbol opts object
-        expectTypeOf(
-            security({ symbol: "AMEX:SPY", interval: "1D" }),
-        ).toEqualTypeOf<SecurityBar>();
+        expectTypeOf(security({ symbol: "AMEX:SPY", interval: "1D" })).toEqualTypeOf<SecurityBar>();
         expectTypeOf(
             security({ symbol: "AMEX:SPY", interval: "1D" }, (bar) => bar.close),
         ).toEqualTypeOf<Series<number>>();

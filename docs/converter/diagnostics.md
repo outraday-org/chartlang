@@ -626,6 +626,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** A `table` variable is initialised by more than one `table.new(...)`; the first wins.
 - **Suggested fix:** Create the table once; mutate its cells rather than re-creating it.
 
+### time-builtin-not-mapped
+
+- **Code:** `pine-converter/transform/time-builtin-not-mapped`
+- **Severity:** warning
+- **Message:** This calendar built-in call shape is not mapped (only `time()`, `time_close()`, and `dayofweek(t[, tz])` lower in v1).
+- **Suggested fix:** Use the bare epoch (`bar.time`) with the `time.*` / `session.*` accessors — e.g. `session.isOpen(bar.time, "0930-1600")` instead of the `time(timeframe, session)` form.
+
 ### unbounded-array-collection
 
 - **Code:** `pine-converter/transform/unbounded-array-collection`

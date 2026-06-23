@@ -9,3 +9,4 @@ export * from "./taPassthrough.js";
 export * from "./multiReturnTa.js";
 export * from "./mathPassthrough.js";
 export * from "./builtinIdentifiers.js";
+export * from "./builtinCalls.js";

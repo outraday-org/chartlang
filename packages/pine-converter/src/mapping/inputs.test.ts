@@ -23,6 +23,10 @@ describe("INPUT_MAP", () => {
         expect(m?.notes).toContain("multiline");
     });
 
+    it("passes input.session straight through (string-valued spec)", () => {
+        expect(INPUT_MAP.get("input.session")?.chartlang).toBe("input.session");
+    });
+
     it("flags input.enum as a REJECT", () => {
         expect(INPUT_MAP.get("input.enum")?.chartlang).toBeNull();
     });

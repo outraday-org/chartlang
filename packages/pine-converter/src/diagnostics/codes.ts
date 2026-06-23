@@ -687,6 +687,14 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             "Add a FIFO eviction guard (`if array.size(coll) > K` → `array.shift(coll)`) or size the array via `array.new<float>(K)` so the capacity is a literal.",
     },
+    "time-builtin-not-mapped": {
+        code: "pine-converter/transform/time-builtin-not-mapped",
+        severity: "warning",
+        defaultMessage:
+            "This calendar built-in call shape is not mapped (only `time()`, `time_close()`, and `dayofweek(t[, tz])` lower in v1).",
+        defaultSuggestion:
+            'Use the bare epoch (`bar.time`) with the `time.*` / `session.*` accessors — e.g. `session.isOpen(bar.time, "0930-1600")` instead of the `time(timeframe, session)` form.',
+    },
     "codegen-output-invalid": {
         code: "pine-converter/codegen/codegen-output-invalid",
         severity: "error",

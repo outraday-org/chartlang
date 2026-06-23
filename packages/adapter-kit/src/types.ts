@@ -790,6 +790,11 @@ export type DrawingEmission = {
  * `multi-timeframe-not-supported`), and the symbol gate precedes the timeframe
  * gate so a both-different request emits only this code.
  *
+ * `tz-dst-unsupported` — a `time.*` / `session.*` accessor was passed a
+ * DST-bearing IANA timezone (e.g. `"America/New_York"`). The v1 calendar
+ * runtime resolves UTC + fixed offsets only (byte-reproducible, no `Intl`), so
+ * a DST zone falls back to UTC and warns once per distinct tz per mount.
+ *
  * @since 0.1
  * @stable
  * @example
@@ -820,6 +825,7 @@ export type DiagnosticCode =
     | "malformed-log-meta"
     | "runtime-error-thrown"
     | "session-info-missing"
+    | "tz-dst-unsupported"
     | "fixed-range-inverted"
     | "state-snapshot-restored"
     | "state-snapshot-future-dated"

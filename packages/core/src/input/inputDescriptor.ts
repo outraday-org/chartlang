@@ -25,6 +25,7 @@ export type InputKind =
     | "price"
     | "symbol"
     | "interval"
+    | "session"
     | "external-series";
 
 /**
@@ -80,6 +81,7 @@ export type InputDescriptor<T> =
     | PriceDescriptor
     | SymbolDescriptor
     | IntervalDescriptorInput
+    | SessionDescriptor
     | ExternalSeriesDescriptor<T>;
 
 type Common<K extends InputKind, T> = Readonly<{
@@ -213,6 +215,20 @@ export type SymbolDescriptor = Common<"symbol", string>;
  *     void d;
  */
 export type IntervalDescriptorInput = Common<"interval", string>;
+
+/**
+ * Descriptor for `input.session(...)`. The value is an `"HH:MM-HH:MM"`
+ * (or `"HHMM-HHMM"`) session-window spec consumed by `session.isOpen`.
+ * Structurally a constrained string; v1 does not validate the grammar at
+ * compile time.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     const d: SessionDescriptor = { kind: "session", defaultValue: "0930-1600" };
+ *     void d;
+ */
+export type SessionDescriptor = Common<"session", string>;
 
 /**
  * Descriptor for `input.externalSeries(...)`.

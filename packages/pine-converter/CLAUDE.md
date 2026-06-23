@@ -103,6 +103,24 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   destructuring — `ta.macd`/`bb`/`kc`/`dmi`/`supertrend`) are immutable
   `ReadonlyMap`s; Tasks 7–15 consume them. Add a Pine-version symbol = add one
   row, never branch in a transform.
+- **Calendar built-in CALLS route through `BUILTIN_CALL_MAP`
+  (`builtinCalls.ts`), distinct from the bare-value `BUILTIN_IDENTIFIER_MAP`.**
+  The bare value reads `dayofweek` / `time_close` lower to the no-arg accessor
+  via `BUILTIN_IDENTIFIER_MAP` (`time.dayofweek(bar.time)` /
+  `time.timeClose(bar.time)`); `time` stays `bar.time`. Their explicit CALL
+  forms (`dayofweek(t)`, `time()`, `time_close()`) MUST be intercepted by
+  `lowerBuiltinCall(name, emittedArgs)` BEFORE the generic `callee(args)` path
+  — both in `emitExpr`'s `call-expression` case (the pure, nested path) and in
+  `other.ts`'s `emitSpecialCall` (the top-level path, which additionally pushes
+  `time-builtin-not-mapped` for an unmapped argument shape like
+  `time(timeframe)`). Without the interception the value-fragment remap would
+  compose into `time.dayofweek(bar.time)(t)` / `bar.time()`. The mapped forms:
+  `time()` → `bar.time`; `time_close()` → `time.timeClose(bar.time)`;
+  `dayofweek(t[, tz])` → `time.dayofweek(t[, tz])`. `input.session` is a plain
+  `INPUT_MAP` passthrough row (string default via `literalDefault`). When the
+  generated source names `time.*` / `session.*`, codegen's `scanUsage`
+  (`usage.ts`) force-includes `time` / `session` in BOTH the import list AND
+  the `compute` destructure (`emitImports.ts` / `emitCompute.ts`).
 - **`chartlang: null` is the REJECT marker, and `lookup(map, key)`
   collapses both "absent key" and "REJECT entry" to `null`.** Callers get
   a single "no usable target" signal; the diagnostics layer reads the

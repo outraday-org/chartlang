@@ -16,6 +16,7 @@ import type {
     IntervalDescriptorInput,
     PriceDescriptor,
     Schema,
+    SessionDescriptor,
     SourceDescriptor,
     StringDescriptor,
     SymbolDescriptor,
@@ -34,6 +35,7 @@ describe("input builder type surface", () => {
         expectTypeOf(input.price(101.25)).toEqualTypeOf<PriceDescriptor>();
         expectTypeOf(input.symbol("AAPL")).toEqualTypeOf<SymbolDescriptor>();
         expectTypeOf(input.interval("1D")).toEqualTypeOf<IntervalDescriptorInput>();
+        expectTypeOf(input.session("0930-1600")).toEqualTypeOf<SessionDescriptor>();
     });
 
     it("preserves enum literal unions", () => {

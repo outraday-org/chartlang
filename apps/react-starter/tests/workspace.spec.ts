@@ -80,11 +80,10 @@ test("workspace boots, compiles the seed, charts a picked symbol, and saves", as
   // Seed has no symbol → chart prompts for one (no bars yet).
   await expect(page.getByTestId("chart-pane")).toContainText(/pick a symbol/i)
 
-  // Pick the mocked symbol → ChartPane paints a <canvas> over the bars, and
-  // the quota badge reflects the mocked usage.
-  await page.getByRole("button", { name: /pick symbol/i }).click()
-  await page.getByPlaceholder(/search us symbols/i).fill("MS")
-  await page.getByText("Microsoft Corp.").click()
+  // Enter a ticker → ChartPane paints a <canvas> over the bars, and the quota
+  // badge reflects the mocked usage. (Manual entry: type + Load, no search.)
+  await page.getByLabel(/ticker symbol/i).fill("MSFT")
+  await page.getByRole("button", { name: /load/i }).click()
   await expect(page.getByTestId("chart-container").locator("canvas").first()).toBeVisible({
     timeout: 30_000,
   })

@@ -106,6 +106,7 @@ function makeContext(multiTimeframe = true, multiSymbol = true): RuntimeContext 
         requestSecurityAscendingBars: new Map(),
         requestLowerTfViews: new Map(),
         diagnosedRequestKeys: new Set(),
+        diagnosedTzKeys: new Set(),
         resolvedInputs: Object.freeze({}),
         diagnosedInputKeys: new Set(),
         views: createRuntimeViews(),

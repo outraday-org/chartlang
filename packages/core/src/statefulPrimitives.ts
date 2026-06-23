@@ -202,6 +202,20 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     // of the optional second (callback) argument.
     { name: "request.security", slot: true },
     { name: "request.lowerTf", slot: true },
+    // Calendar / session accessors — stateless (slot: false). Like `ta.nz`,
+    // they ride the registry for the `stateful-call-inside-loop` diagnostic
+    // (Pine-parity) but take NO injected slot id: the runtime function
+    // receives the author's arguments directly.
+    { name: "time.year", slot: false },
+    { name: "time.month", slot: false },
+    { name: "time.dayofmonth", slot: false },
+    { name: "time.dayofweek", slot: false },
+    { name: "time.hour", slot: false },
+    { name: "time.minute", slot: false },
+    { name: "time.second", slot: false },
+    { name: "time.timestamp", slot: false },
+    { name: "time.timeClose", slot: false },
+    { name: "session.isOpen", slot: false },
     { name: "defineAlertCondition.signal", slot: false },
     { name: "runtime.log", slot: false },
     { name: "runtime.error", slot: false },
@@ -226,7 +240,7 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
  * logging/error as stateless loop-diagnostic entries plus `draw.table`
  * as a slot-backed viewport drawing.
  *
- * Additive within `apiVersion: 1` (currently 179 entries): new entries MAY
+ * Additive within `apiVersion: 1` (currently 189 entries): new entries MAY
  * be appended in a `1.x` release (a new call name is additive — new callsites
  * only, no change to any existing script). Removing or renaming an entry, or
  * flipping its `slot`, is a language change and requires `apiVersion: 2` — see
@@ -254,7 +268,7 @@ export const STATEFUL_PRIMITIVES: ReadonlySet<StatefulPrimitiveEntry> = Object.f
  * the same canonical entry list as {@link STATEFUL_PRIMITIVES} so adding
  * a primitive to the set adds it here automatically.
  *
- * Additive within `apiVersion: 1` (currently 179 entries): new entries MAY
+ * Additive within `apiVersion: 1` (currently 189 entries): new entries MAY
  * be appended in a `1.x` release (a new call name is additive — new callsites
  * only, no change to any existing script). Removing or renaming an entry, or
  * flipping its `slot`, is a language change and requires `apiVersion: 2` — see

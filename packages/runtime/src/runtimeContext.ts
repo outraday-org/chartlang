@@ -281,6 +281,14 @@ export type RuntimeContext = {
      */
     readonly diagnosedRequestKeys: Set<string>;
     /**
+     * Runtime diagnostic dedupe for `time.*` / `session.*` DST-zone
+     * fallbacks, keyed by `tz-dst-unsupported|<tz>`. The calendar accessors
+     * are `slot: false` (no slotId to key on), so they dedupe on the
+     * timezone string here — a DST zone warns at most once per distinct tz
+     * per mount. Cleared on `dispose`. @since 1.5
+     */
+    readonly diagnosedTzKeys: Set<string>;
+    /**
      * Manifest-declared alert conditions keyed by condition id. Used by
      * `signal(conditionId, fired)` to reject unknown ids without
      * re-reading the manifest each bar. @since 0.5

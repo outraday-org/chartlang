@@ -72,6 +72,7 @@ function matchesDescriptor(descriptor: InputDescriptor<unknown>, value: unknown)
         case "color":
         case "symbol":
         case "interval":
+        case "session":
             return typeof value === "string";
         case "enum":
             return typeof value === "string" && descriptor.options.includes(value);

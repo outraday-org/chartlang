@@ -1,32 +1,23 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 //
-// US-symbol picker — a shadcn `CommandDialog` combobox over Task 4's
-// browser-safe `eodClient.searchSymbols`. Selecting a hit calls back to the
-// page, which runs `loadSymbol` and feeds the bars to the chart. Search is
-// server-side (cache-first; no quota cost when warm), so cmdk's local filter
-// is disabled (`shouldFilter={false}`) and the query is debounced here.
+// US-symbol entry — a plain ticker input (type AAPL → Enter / Load). The page
+// owns the `loadSymbol` call + quota accounting via `onPick`. We deliberately
+// do NOT search-as-you-type: the EODData free tier is rate-limited (10/min,
+// 100/day), and a per-keystroke search burns that budget fast (and tripped the
+// per-minute limit). The server resolves the symbol's home exchange from the
+// entered ticker on load (one `Symbol/Search` call), so the user only needs to
+// know the ticker — no exchange picker. Submitting goes through a `<form>` with
+// `preventDefault` so Enter never reloads the page.
 
-import { searchSymbols, type SymbolHit } from "@/lib/eodClient"
 import { Button } from "@/components/ui/button"
-import {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
+import { Input } from "@/components/ui/input"
 import { SearchIcon } from "lucide-react"
-import { type ReactElement, useEffect, useRef, useState } from "react"
-import { toast } from "sonner"
-
-const SEARCH_DEBOUNCE_MS = 250
+import { type FormEvent, type ReactElement, useEffect, useState } from "react"
 
 /**
  * Props for {@link SymbolPicker}. `symbol` is the currently-loaded ticker (or
- * null when none is loaded); `onPick` fires with the chosen ticker so the page
+ * null when none is loaded); `onPick` fires with the entered ticker so the page
  * owns the `loadSymbol` call + quota accounting.
  */
 export type SymbolPickerProps = Readonly<{
@@ -36,96 +27,41 @@ export type SymbolPickerProps = Readonly<{
 }>
 
 export function SymbolPicker(props: SymbolPickerProps): ReactElement {
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState("")
-  const [hits, setHits] = useState<ReadonlyArray<SymbolHit>>([])
-  const [loading, setLoading] = useState(false)
-  const reqIdRef = useRef(0)
+  const [value, setValue] = useState(props.symbol ?? "")
 
-  // Debounced server search. Each keystroke supersedes the prior in-flight
-  // request via a monotonic request id, so a slow response can't clobber a
-  // newer one. An empty query clears the list (no fetch).
+  // Reflect an externally-loaded symbol (e.g. opening a saved script that
+  // carries one) in the input so it shows what the chart is rendering.
   useEffect(() => {
-    if (!open) return
-    const trimmed = query.trim()
-    if (trimmed === "") {
-      setHits([])
-      setLoading(false)
-      return
-    }
-    const id = ++reqIdRef.current
-    setLoading(true)
-    const timer = setTimeout(() => {
-      void (async (): Promise<void> => {
-        try {
-          const result = await searchSymbols(trimmed)
-          if (reqIdRef.current === id) setHits(result)
-        } catch (err) {
-          if (reqIdRef.current === id) {
-            setHits([])
-            toast.error(err instanceof Error ? err.message : "Symbol search failed")
-          }
-        } finally {
-          if (reqIdRef.current === id) setLoading(false)
-        }
-      })()
-    }, SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-  }, [query, open])
+    setValue(props.symbol ?? "")
+  }, [props.symbol])
 
-  const pick = (code: string): void => {
-    setOpen(false)
-    setQuery("")
-    setHits([])
-    props.onPick(code)
+  const submit = (event: FormEvent): void => {
+    event.preventDefault()
+    const ticker = value.trim().toUpperCase()
+    if (ticker !== "") props.onPick(ticker)
   }
 
   return (
-    <>
-      <Button
+    <form className="flex items-center gap-1.5" onSubmit={submit}>
+      <Input
+        aria-label="Ticker symbol"
+        autoCapitalize="characters"
+        className="h-8 w-36 font-mono uppercase"
         disabled={props.disabled}
-        onClick={() => setOpen(true)}
+        onChange={(event) => setValue(event.target.value)}
+        placeholder="Ticker e.g. AAPL"
+        spellCheck={false}
+        value={value}
+      />
+      <Button
+        disabled={props.disabled || value.trim() === ""}
         size="sm"
-        type="button"
+        type="submit"
         variant="outline"
       >
         <SearchIcon />
-        {props.symbol ?? "Pick symbol"}
+        Load
       </Button>
-      <CommandDialog
-        description="Search US daily symbols"
-        onOpenChange={setOpen}
-        open={open}
-        title="Pick a symbol"
-      >
-        <Command shouldFilter={false}>
-          <CommandInput
-            onValueChange={setQuery}
-            placeholder="Search US symbols (e.g. AAPL)…"
-            value={query}
-          />
-          <CommandList>
-            <CommandEmpty>
-              {query.trim() === ""
-                ? "Type to search US symbols (free tier: daily EOD, US only)."
-                : loading
-                  ? "Searching…"
-                  : "No US symbols match — the free tier covers AMEX / NASDAQ / NYSE / OTCBB."}
-            </CommandEmpty>
-            {hits.length > 0 ? (
-              <CommandGroup heading="US symbols">
-                {hits.map((hit) => (
-                  <CommandItem key={`${hit.exchange}:${hit.code}`} onSelect={() => pick(hit.code)} value={hit.code}>
-                    <span className="font-mono">{hit.code}</span>
-                    <span className="truncate text-muted-foreground">{hit.name}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{hit.exchange}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            ) : null}
-          </CommandList>
-        </Command>
-      </CommandDialog>
-    </>
+    </form>
   )
 }

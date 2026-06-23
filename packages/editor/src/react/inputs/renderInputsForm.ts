@@ -121,6 +121,7 @@ function buildField(
         case "bool":
         case "color":
         case "symbol":
+        case "session":
             return Object.freeze(common);
         case "string":
             return Object.freeze({

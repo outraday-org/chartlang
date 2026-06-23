@@ -3,9 +3,14 @@
 
 /**
  * Pine built-in identifier → chartlang expression fragment. Maps the OHLCV
- * series, the synthetic-price aggregates, `time`, and `bar_index` to their
- * chartlang `bar.*` / helper-call forms, plus the two `xloc.*` string
- * sentinels the coordinate resolver keys on.
+ * series, the synthetic-price aggregates, `time`, `bar_index`, and the bare
+ * calendar reads (`dayofweek` / `time_close`) to their chartlang `bar.*` /
+ * `time.*` / helper-call forms, plus the two `xloc.*` string sentinels the
+ * coordinate resolver keys on. Bare `dayofweek` / `time_close` lower to the
+ * no-arg accessor call (`time.dayofweek(bar.time)` /
+ * `time.timeClose(bar.time)`); their explicit CALL forms are intercepted
+ * earlier by `BUILTIN_CALL_MAP` ({@link lowerBuiltinCall}) so they never
+ * compose with these value fragments.
  *
  * `bar_index` lowers to the internal `__barIndexBridge()` sentinel — a
  * converter-emitted helper (codegen) that reads a per-mount monotonic bar
@@ -36,6 +41,12 @@ export const BUILTIN_IDENTIFIER_MAP: ReadonlyMap<string, string> = new Map<strin
     ["hlc3", "bar.hlc3"],
     ["ohlc4", "bar.ohlc4"],
     ["time", "bar.time"],
+    // Bare value reads of the calendar built-ins (Pine exposes `dayofweek` /
+    // `time_close` as series, equivalent to the no-arg call). The CALL forms
+    // (`dayofweek(t)`, `time_close()`) are intercepted earlier via
+    // `BUILTIN_CALL_MAP` so they never compose with these value fragments.
+    ["dayofweek", "time.dayofweek(bar.time)"],
+    ["time_close", "time.timeClose(bar.time)"],
     ["bar_index", "__barIndexBridge()"],
     // String sentinels the coordinate resolver reads when an `xloc` argument
     // resolves to one of these built-ins; they never reach output verbatim.

@@ -63,6 +63,7 @@ function context(): RuntimeContext {
         stateSlots: new Map(),
         requestSecurityBars: new Map(),
         diagnosedRequestKeys: new Set(),
+        diagnosedTzKeys: new Set(),
         resolvedInputs: Object.freeze({}),
         diagnosedInputKeys: new Set(),
         views: createRuntimeViews(),
@@ -98,6 +99,7 @@ describe("resolveInputs", () => {
         ["price", input.price(1.25), 2.5],
         ["symbol", input.symbol("AAPL"), "MSFT"],
         ["interval", input.interval("1D"), "1m"],
+        ["session", input.session("0930-1600"), "0800-1700"],
         [
             "external-series",
             input.externalSeries({ name: "earnings", schema: { kind: "external-series-schema" } }),
@@ -123,6 +125,7 @@ describe("resolveInputs", () => {
         ["price", input.price(1.25), Number.NaN, 1.25],
         ["symbol", input.symbol("AAPL"), 123, "AAPL"],
         ["interval", input.interval("1D"), 60, "1D"],
+        ["session", input.session("0930-1600"), 930, "0930-1600"],
         [
             "external-series",
             input.externalSeries({ name: "earnings", schema: { kind: "external-series-schema" } }),

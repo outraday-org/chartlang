@@ -92,6 +92,19 @@
   compiler's `program.ts` shim mirrors `MutableArraySlot` + the
   `StateNamespace.array` signature in lockstep. v1 element type is `number`.
 
+- **`time.*` / `session.*` are stateless `slot: false` accessor namespaces
+  installed on `ComputeContext` (like `ta`), NOT per-bar views.** They live in
+  `src/time-accessors/` (deliberately separate from the host-only `Intl` folder
+  `src/time/`, which stays unexported). Each accessor is a pure function of an
+  explicit `Time` + optional `tz` (default `syminfo.timezone`, fallback
+  `"UTC"`); `time.dayofweek` follows Pine's `1=Sun..7=Sat` (not ISO). Their
+  registry entries are `slot: false` like `ta.nz` — no callsite-id injection,
+  but still flagged by `stateful-call-inside-loop`. `time.timeClose(t, tz?)`
+  (Pine's no-arg `time_close()`) is the one accessor that closes over per-bar
+  mount data: it returns `t + timeframe.inSeconds` (the runtime reads the
+  current bar's interval internally). The `program.ts` shim mirrors both
+  namespaces in lockstep.
+
 - **`STATEFUL_PRIMITIVES` is additive within `apiVersion: 1`.** Appending an
   entry is additive (new callsites only). Removing/renaming an entry or
   flipping its `slot` is an `apiVersion: 2` language change — see

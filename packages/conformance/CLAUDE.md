@@ -296,3 +296,43 @@ plot hashes, alert counts, and diagnostic codes.
   (`packages/compiler/src/program.ts`), so a STALE compiler `dist` (missing
   `RequestSecurityOpts.symbol`) makes these scenarios compile-fail — rebuild
   core + compiler first if that happens.
+
+## Calendar / session UTC-determinism invariants
+
+- **`calendar-session` pins `time.*` calendar fields + `session.isOpen`
+  membership over the FIXED UTC fixture, and that fixture's
+  fixed-time-of-day is load-bearing.** The golden bars are daily candles
+  spaced exactly `MS_PER_DAY` from `START_TIME = 1_700_000_000_000`, so EVERY
+  bar shares one time-of-day (`1_700_000_000_000 % 86_400_000 = 80_000_000`
+  ms = **22:13:20 UTC**). Consequence: `time.hour`/`minute`/`second` are
+  CONSTANT across the stream while `time.year`/`month`/`dayofmonth`/`dayofweek`
+  advance one civil day per bar, and `session.isOpen` membership is constant
+  per window (no intra-fixture transitions are possible on a fixed-time-of-day
+  fixture). The scenario deliberately picks `"2000-2300"` (half-open
+  `[1200, 1380)` minutes), which CONTAINS minute 1333 (22:13:20), so
+  `session.isOpen(t, "2000-2300", "UTC")` is `true` every bar — the open
+  branch (which folds the per-bar-varying `dayofweek` into the close) is the
+  one that emits, the stronger proof. A 0/1-membership second scenario is
+  intentionally NOT added: it would be a constant series (no transition
+  coverage). Both `tz` args are the explicit `"UTC"` so the script never
+  touches the deferred DST path; `tz-dst-unsupported` + `lookback-exceeded`
+  are asserted absent (UTC + no accessor buffering).
+- **The two `plot-hash`es are byte-identical across all five conformance
+  adapters** (`CALENDAR_HASH` `2dac8fb7…`, `MONTH_HASH` `79a9fd0c…`). This is
+  the determinism contract for `time.*` / `session.*`: pure integer UTC epoch
+  math (Howard Hinnant `civil_from_days`), no `Date`/`Intl` on the runtime
+  author path, so the same numbers reproduce on every host/adapter. Re-pin via
+  the runner's "expected vs actual" message ONLY if the golden bars change —
+  a hash that diverges between adapters means the UTC determinism regressed
+  (fix the runtime, do not re-pin per adapter).
+- **The slot ids are line `12`/`13` (`#0`), not the README's example `11`/`12`.**
+  The inline `SOURCE` template begins with the `import` line, so the two `plot`
+  callsites land at `<inline:calendar-session>.chart.ts:12:9#0` (Calendar) and
+  `:13:9#0` (Month). When editing the SOURCE, re-derive slot ids from
+  `compile(...).manifest.plots` rather than hand-counting.
+- **`phase2Coverage.test.ts` tracks the calendar/session registry additions
+  via `CALENDAR_SESSION_STATEFUL_ADDITIONS` (ten `slot: false` entries).** The
+  `time.*` accessors (incl. `time.timeClose`) + `session.isOpen` are stateless
+  `slot: false` like `ta.nz`, so they extend BOTH the
+  `STATEFUL_PRIMITIVES.size` sum AND the `slot:false` expected set. Adding a
+  new calendar/session accessor means appending to that constant.

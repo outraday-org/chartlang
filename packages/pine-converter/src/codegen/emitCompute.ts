@@ -30,6 +30,8 @@ function destructureFields(scaffold: ScriptScaffold): string[] {
     if (usage.input) fields.push("inputs");
     if (usage.state) fields.push("state");
     if (usage.request) fields.push("request");
+    if (usage.time) fields.push("time");
+    if (usage.session) fields.push("session");
     if (usage.barstate || usage.barIndex) fields.push("barstate");
     return fields;
 }

@@ -76,6 +76,8 @@ const MINIMAL_PHASE4_INPUT = `export const input = Object.freeze({
     interval(): unknown { return {}; },
     /** Build an external series input descriptor. @since 0.4 @stable @example const v = input.externalSeries({}); */
     externalSeries(): unknown { return {}; },
+    /** Build a session input descriptor. @since 1.5 @stable @example const v = input.session("0930-1600"); */
+    session(): unknown { return {}; },
 });`;
 
 const MINIMAL_PHASE4_STATE = `export const state = Object.freeze({
@@ -106,6 +108,10 @@ const MINIMAL_PHASE4_SYMINFO = `/** Symbol view. @since 0.4 @stable @example voi
 export const syminfo = Object.freeze({});`;
 const MINIMAL_PHASE4_TIMEFRAME = `/** Timeframe view. @since 0.4 @stable @example void timeframe; */
 export const timeframe = Object.freeze({});`;
+const MINIMAL_PHASE4_TIME = `/** Calendar accessors. @since 1.5 @stable @example void time; */
+export const time = Object.freeze({});`;
+const MINIMAL_PHASE4_SESSION = `/** Session helpers. @since 1.5 @stable @example void session; */
+export const session = Object.freeze({});`;
 const MINIMAL_PHASE4_REQUEST = `export const request = Object.freeze({
     /** Read a secondary stream. @since 0.4 @stable @example const v = request.security({ interval: "1D" }); */
     security(): unknown { return {}; },
@@ -174,6 +180,7 @@ describe("runDocsCommand", () => {
         await mkdir(join(repoRoot, "packages/core/src/state"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/views"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/request"), { recursive: true });
+        await mkdir(join(repoRoot, "packages/core/src/time-accessors"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/define"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/plot"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/alert"), { recursive: true });
@@ -205,6 +212,16 @@ describe("runDocsCommand", () => {
         await writeFile(
             join(repoRoot, "packages/core/src/request/request.ts"),
             MINIMAL_PHASE4_REQUEST,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/time-accessors/timeAccessors.ts"),
+            MINIMAL_PHASE4_TIME,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/time-accessors/sessionAccessors.ts"),
+            MINIMAL_PHASE4_SESSION,
             "utf8",
         );
         await writeFile(

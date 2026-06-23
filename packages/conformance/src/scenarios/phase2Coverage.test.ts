@@ -84,6 +84,26 @@ const BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS: ReadonlyArray<
     { name: "barcolor", slot: true },
 ] as const);
 
+// `time.*` calendar accessors + `session.isOpen` — stateless `slot: false`
+// namespaces (like `ta.nz`): pure functions of an explicit `Time` + optional
+// `tz`, so no callsite-id injection. `time.timeClose` is the one that closes
+// over per-bar mount data (`t + timeframe.inSeconds`) but is still a
+// no-slot registry entry. All ten are stateless.
+const CALENDAR_SESSION_STATEFUL_ADDITIONS: ReadonlyArray<
+    Readonly<{ name: string; slot: boolean }>
+> = Object.freeze([
+    { name: "time.year", slot: false },
+    { name: "time.month", slot: false },
+    { name: "time.dayofmonth", slot: false },
+    { name: "time.dayofweek", slot: false },
+    { name: "time.hour", slot: false },
+    { name: "time.minute", slot: false },
+    { name: "time.second", slot: false },
+    { name: "time.timestamp", slot: false },
+    { name: "time.timeClose", slot: false },
+    { name: "session.isOpen", slot: false },
+] as const);
+
 const PHASE_2_TA_CARDINALITY = PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length;
 const PHASE_4_STATEFUL_CARDINALITY = 163;
 
@@ -121,7 +141,8 @@ describe("Phase 2 surface", () => {
                 FILL_BETWEEN_STATEFUL_ADDITIONS.length +
                 STATE_SERIES_STATEFUL_ADDITIONS.length +
                 STATE_ARRAY_STATEFUL_ADDITIONS.length +
-                BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS.length,
+                BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS.length +
+                CALENDAR_SESSION_STATEFUL_ADDITIONS.length,
         );
         for (const expected of [
             ...PHASE_5_STATEFUL_ADDITIONS,
@@ -131,18 +152,25 @@ describe("Phase 2 surface", () => {
             ...STATE_SERIES_STATEFUL_ADDITIONS,
             ...STATE_ARRAY_STATEFUL_ADDITIONS,
             ...BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS,
+            ...CALENDAR_SESSION_STATEFUL_ADDITIONS,
         ]) {
             expect(STATEFUL_PRIMITIVES).toContainEqual(expected);
         }
     });
 
-    it("slot:false entries are only ta.nz plus Phase-5 diagnostics primitives", () => {
+    it("slot:false entries are ta.nz, the Phase-5 diagnostics primitives, and the calendar/session accessors", () => {
         const stateless = [...STATEFUL_PRIMITIVES]
             .filter((e) => e.slot === false)
             .map((e) => e.name)
             .sort();
         expect(stateless).toEqual(
-            ["defineAlertCondition.signal", "runtime.error", "runtime.log", "ta.nz"].sort(),
+            [
+                "defineAlertCondition.signal",
+                "runtime.error",
+                "runtime.log",
+                "ta.nz",
+                ...CALENDAR_SESSION_STATEFUL_ADDITIONS.map((e) => e.name),
+            ].sort(),
         );
     });
 

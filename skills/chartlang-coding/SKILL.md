@@ -184,11 +184,13 @@ export default defineIndicator({
 });
 ```
 
-Twelve input kinds ship in `apiVersion: 1`: `int`, `float`, `bool`,
+Thirteen input kinds ship in `apiVersion: 1`: `int`, `float`, `bool`,
 `string`, `enum`, `color`, `source`, `time`, `price`, `symbol`,
-`interval`, `externalSeries`. `inputs.X` arrives at `compute` as a JSON
-value; the script narrows with `as number`/`as string`/`as boolean`.
-Only one `input.interval` per script (the user-pickable main timeframe).
+`interval`, `externalSeries`, and `session` (an `"HH:MM-HH:MM"` window
+spec for `session.isOpen`, e.g. `input.session("0930-1600")`). `inputs.X`
+arrives at `compute` as a JSON value; the script narrows with `as
+number`/`as string`/`as boolean`. Only one `input.interval` per script
+(the user-pickable main timeframe).
 
 ## 5. Indicator composition
 
@@ -288,6 +290,18 @@ Highlights of the surface:
   Adapters render these only when their `Capabilities.plots` include the
   `bg-color` / `bar-color` kinds; on adapters that don't, the call is a
   silent no-op.
+- `time.*` / `session.*` — calendar accessors over a `Time` epoch (pass
+  `bar.time`, the UTC ms epoch). `time.year/month/dayofmonth/dayofweek/
+  hour/minute/second(t, tz?)` return the calendar field; `time.timestamp(
+  y, mo, d, hh?, mm?, ss?, tz?)` builds an epoch; `time.timeClose(t, tz?)`
+  is the bar-close instant (Pine `time_close()` = bar start + interval);
+  `session.isOpen(t, spec, tz?)` tests membership in an `"HH:MM-HH:MM"`
+  window. **`dayofweek` is Pine's `1=Sun .. 7=Sat`** (Mon–Fri is `dow >= 2
+  && dow <= 6`), NOT ISO. The optional `tz` defaults to `syminfo.timezone`
+  (fallback `"UTC"`); **v1 resolves UTC + fixed-offset only** — a real
+  DST zone falls back to UTC with a one-time `tz-dst-unsupported` warning
+  (the host has no tz database and `Intl` is banned for determinism). Use
+  these instead of `Date`/`Intl`, which are forbidden.
 - `alert(message, opts?)` with `severity: "info" | "warning" | "critical"`.
 - `request.security({ interval })` and `request.lowerTf({ interval })`
   for higher- and lower-timeframe data. The interval must be a

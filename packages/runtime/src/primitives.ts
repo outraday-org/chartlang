@@ -27,3 +27,9 @@ import { TA_REGISTRY } from "./ta/index.js";
 export const ta: TaNamespace = TA_REGISTRY as unknown as TaNamespace;
 
 export { alert, barcolor, bgcolor, draw, hline, plot } from "./emit/index.js";
+// `time` and `session` are the real UTC/fixed-offset calendar namespaces, built
+// per-mount by `buildComputeContext.ts` via `buildTimeNamespace(ctx)` /
+// `buildSessionNamespace(ctx)` — neither can be a module-level constant like
+// `ta` because both close over the mount's `ctx` (default tz from
+// `syminfo.timezone` + the shared `tz-dst-unsupported` dedup). The core
+// `session` sentinel hole is no longer re-exported here.

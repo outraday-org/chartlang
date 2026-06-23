@@ -940,6 +940,7 @@ declare module "@invinite-org/chartlang-core" {
         | "price"
         | "symbol"
         | "interval"
+        | "session"
         | "external-series";
     export type SourceField =
         | "open"
@@ -968,6 +969,7 @@ declare module "@invinite-org/chartlang-core" {
     export type PriceDescriptor = CommonInputDescriptor<"price", number>;
     export type SymbolDescriptor = CommonInputDescriptor<"symbol", string>;
     export type IntervalDescriptorInput = CommonInputDescriptor<"interval", string>;
+    export type SessionDescriptor = CommonInputDescriptor<"session", string>;
     export type ExternalSeriesDescriptor<T> = Readonly<{
         kind: "external-series";
         name: string;
@@ -986,6 +988,7 @@ declare module "@invinite-org/chartlang-core" {
         | PriceDescriptor
         | SymbolDescriptor
         | IntervalDescriptorInput
+        | SessionDescriptor
         | ExternalSeriesDescriptor<T>;
     export const input: Readonly<{
         int(defaultValue: number, opts?: NumericInputOpts & Readonly<{ title?: string }>): IntDescriptor;
@@ -1003,6 +1006,7 @@ declare module "@invinite-org/chartlang-core" {
         price(defaultValue: Price, opts?: Readonly<{ title?: string }>): PriceDescriptor;
         symbol(defaultValue: string, opts?: Readonly<{ title?: string }>): SymbolDescriptor;
         interval(defaultValue: string, opts?: Readonly<{ title?: string }>): IntervalDescriptorInput;
+        session(defaultValue: string, opts?: Readonly<{ title?: string }>): SessionDescriptor;
         externalSeries<T>(args: Readonly<{ name: string; schema: Schema<T>; title?: string }>): ExternalSeriesDescriptor<T>;
     }>;
     export type InputSchema = Readonly<Record<string, InputDescriptor<unknown>>>;
@@ -1072,6 +1076,30 @@ declare module "@invinite-org/chartlang-core" {
         readonly inSeconds: number;
     };
     export const timeframe: TimeframeView;
+    export type TimeNamespace = Readonly<{
+        year(t: Time, tz?: string): number;
+        month(t: Time, tz?: string): number;
+        dayofmonth(t: Time, tz?: string): number;
+        dayofweek(t: Time, tz?: string): number;
+        hour(t: Time, tz?: string): number;
+        minute(t: Time, tz?: string): number;
+        second(t: Time, tz?: string): number;
+        timestamp(
+            year: number,
+            month: number,
+            day: number,
+            hour?: number,
+            minute?: number,
+            second?: number,
+            tz?: string,
+        ): Time;
+        timeClose(t: Time, tz?: string): Time;
+    }>;
+    export const time: TimeNamespace;
+    export type SessionNamespace = Readonly<{
+        isOpen(t: Time, spec: string, tz?: string): boolean;
+    }>;
+    export const session: SessionNamespace;
     export type RequestSecurityOpts = Readonly<{ symbol?: string; interval: string }>;
     export type RequestLowerTfOpts = Readonly<{ interval: string }>;
     export type SecurityBar = Readonly<{
@@ -1387,6 +1415,8 @@ declare module "@invinite-org/chartlang-core" {
         readonly barstate: BarStateView;
         readonly syminfo: SymInfoView;
         readonly timeframe: TimeframeView;
+        readonly time: TimeNamespace;
+        readonly session: SessionNamespace;
         readonly request: RequestNamespace;
         readonly runtime: RuntimeNamespace;
         readonly signal?: (conditionId: string, fired: boolean) => void;

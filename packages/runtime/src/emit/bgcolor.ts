@@ -81,7 +81,11 @@ export function bgcolor(slotId: string, color: Color, opts?: BgColorOpts): void;
  *     // const fn: typeof bgcolor = bgcolor;
  *     // void fn;
  */
-export function bgcolor(arg1: string | Color, arg2?: Color | BgColorOpts, arg3?: BgColorOpts): void {
+export function bgcolor(
+    arg1: string | Color,
+    arg2?: Color | BgColorOpts,
+    arg3?: BgColorOpts,
+): void {
     if (typeof arg1 !== "string" || typeof arg2 !== "string") {
         throw new Error(OUTSIDE_CTX_MESSAGE);
     }

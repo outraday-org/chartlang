@@ -40,6 +40,29 @@
   `onBarTick` reset it to `null` in `finally` so a throwing
   compute body cannot leak the slot. `onBarTick` additionally
   resets `state.runtimeContext.isTick = false` in `finally`.
+- **`time` and `session` are frozen namespaces bound to the mount's
+  `RuntimeContext`, built in `buildComputeContext.ts`, NOT module-level
+  constants like `ta`.**
+  Both close over the mount's `RuntimeContext` (default tz from
+  `syminfo.timezone`, the shared `tz-dst-unsupported` dedup), so
+  `buildTimeNamespace(ctx)` / `buildSessionNamespace(ctx)`
+  (`time-accessors/`) are rebuilt PER BAR by `buildComputeContext` (like
+  the `state` / `request` / `runtime` namespaces). Each is a pure view
+  over the stable `RuntimeContext`, so the per-bar rebuild is cheap and
+  identity-stability across bars is NOT relied upon (the compiled script
+  receives a fresh `ctx` each bar). They are NOT re-exported from
+  `primitives.ts` (the core sentinel `session` hole is no longer
+  re-exported there). The `tz-dst-unsupported` diagnostic is deduped
+  on `ctx.diagnosedTzKeys` via the SINGLE shared reporter
+  `buildTzDstReporter(ctx)` (`time-accessors/tzDiagnostic.ts`), so a
+  script using BOTH `time.*` and `session.isOpen` on one DST zone warns
+  once total. The `"HH:MM-HH:MM"` session-window grammar has ONE source
+  of truth — `time-accessors/sessionWindow.ts:parseSessionWindowMinutes`
+  — consumed by both `session.isOpen` AND `ta/sessionVolumeProfile.ts`
+  (never fork the regex). `session.isOpen` membership is half-open
+  `[start, end)`, wrap-aware (`end <= start` ⇒ `[start, 1440) ∪ [0, end)`);
+  unlike `ta.sessionVolumeProfile` it takes `spec` explicitly and never
+  reads `syminfo.session`.
 - **`bar.point(offset, price)` is offset-anchoring sugar that resolves
   to a time-based `WorldPoint` — it adds NO new anchor shape.** The
   method is attached to the mutable `BarView` at `createStreamState`

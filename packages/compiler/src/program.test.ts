@@ -158,8 +158,8 @@ void key;
         expect(diagnostics.map((diagnostic) => diagnostic.messageText)).toEqual([]);
     });
 
-    it("keeps the runtime stateful primitive registry at the bgcolor/barcolor cardinality", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(179);
+    it("keeps the runtime stateful primitive registry at the time.*/session.* cardinality", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(189);
     });
 
     it("resolves the stateful primitive registry exports from the ambient shim", () => {

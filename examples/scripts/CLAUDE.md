@@ -127,6 +127,14 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   Compile-only in the CLI e2e gate; not in the integration render test. Mirrored
   by the `symbol-ratio` `DEMO_SCRIPTS` entry (which the demo drives against a
   synthetic second-symbol stream via `createMultiSymbolCandlePump`).
+- `session-day-filter.chart.ts` demonstrates the calendar/session accessors
+  `time.*` / `session.*` plus the `input.session` kind: it plots `bar.close`
+  only when `session.isOpen(bar.time, input.session("0930-1600"))` AND the bar
+  is a weekday (`time.dayofweek(bar.time) >= 2 && <= 6`, Pine's `1=Sun..7=Sat`),
+  else `NaN`. Calendar fields come from `bar.time` (UTC ms epoch) through the
+  host-owned accessors — never `Date`/`Intl` (forbidden on the author path).
+  Compile-only in the CLI e2e gate; not in the integration render test. Mirrored
+  by the `session-day-filter` `DEMO_SCRIPTS` entry.
 
 ## Conventions
 

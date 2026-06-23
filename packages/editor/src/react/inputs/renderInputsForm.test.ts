@@ -24,6 +24,7 @@ describe("renderInputsForm", () => {
             ["symbol", "symbol", "AAPL"],
             ["interval", "interval", "1D"],
             ["earnings", "external-series", undefined],
+            ["window", "session", "0930-1600"],
         ]);
         expect(vm.fields[0]).toMatchObject({ title: "Length", min: 1, max: 200, step: 1 });
         expect(vm.fields[3]).toMatchObject({ multiline: true });

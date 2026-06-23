@@ -164,6 +164,7 @@ function buildSubRunnerState(
             requestSecurityAscendingBars: new Map(),
             requestLowerTfViews: new Map(),
             diagnosedRequestKeys: new Set(),
+            diagnosedTzKeys: new Set(),
             alertConditions,
             diagnosedAlertConditionKeys: new Set(),
             logBudget: 0,

@@ -6,6 +6,49 @@ hard dependencies and file-contention hotspots are. Each folder keeps its own
 `README.md` with the **intra-folder** task DAG (`1-*.md`, `2-*.md`, …) — follow
 that once a folder is in flight.
 
+## Execution status — RESUME POINT (updated 2026-06-23)
+
+A `/execute-tasklist tasks/future/` run is **in progress**, scoped to **folder
+wave 1 (A) only** — the 7 independent folders. Folder waves B and C are
+deliberately **NOT** being run yet.
+
+**Completed** (every task file is `X-`-prefixed, so `/execute-tasklist`
+auto-skips these folders on resume — all graded Complete/Ship, changes
+**uncommitted in the working tree**):
+
+- ✅ `state-array`
+- ✅ `multi-symbol-security`
+- ✅ `bgcolor-barcolor-ergonomics` — **Deliverable 2 (the per-bar
+  `colorValue` channel) was RATIFIED and built; do NOT re-ask the product
+  gate.**
+- ✅ `calendar-session-helpers` — `time_close` was **folded in here** (shipped
+  as `time.timeClose`), per this plan's note.
+
+**Remaining in folder wave 1 — RESUME HERE, in this order:**
+
+1. `math-utilities`
+2. `str-utilities`
+3. `drawing-handles` — **RFC only, no code**
+
+**Then STOP.** Do not start folder wave B (`array-analytics`, `map-collection`)
+or wave C (`pine-converter-coverage`) without explicit instruction.
+
+**Notes for the resuming agent:**
+
+- Per-task implementation + the per-folder quality pass both run on **opus**.
+- Build dist may be stale: run `pnpm -F @invinite-org/chartlang-core build`
+  (and `adapter-kit`/`compiler`/`runtime`) before downstream typecheck if
+  exports appear missing.
+- A new `input.*` kind has **6** lockstep consumers (incl. the `editor`
+  package), not 5. Editing `examples/*-adapter/src` requires
+  `pnpm adapters:generate` (the CLI embeds a byte-copy).
+- Conformance `plot-hash` is **adapter-independent** — pin it once; a
+  per-adapter divergence is a mis-minted hash, not an adapter difference.
+- Open low-priority item: `packages/compiler/src/compile.test.ts >
+  request.security expression overload` can time out under heavy parallel
+  load (passes in isolation) — pre-existing test-infra flakiness, not a
+  correctness bug.
+
 ## TL;DR
 
 ```

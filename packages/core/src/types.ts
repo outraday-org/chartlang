@@ -12,6 +12,7 @@ import type { RuntimeNamespace } from "./runtime/index.js";
 import type { MutableSlot } from "./state/mutableSlot.js";
 import type { StateNamespace } from "./state/state.js";
 import type { TaNamespace } from "./ta/ta.js";
+import type { SessionNamespace, TimeNamespace } from "./time-accessors/index.js";
 import type { BarStateView, SymInfoView, TimeframeView } from "./views/index.js";
 
 /**
@@ -789,6 +790,10 @@ export type ComputeContext = {
     readonly syminfo: SymInfoView;
     /** Timeframe helper view derived for the active step. @since 0.4 */
     readonly timeframe: TimeframeView;
+    /** Calendar accessors over a `Time` epoch (UTC-first). @since 1.5 */
+    readonly time: TimeNamespace;
+    /** Session-window membership helpers. @since 1.5 */
+    readonly session: SessionNamespace;
     /** Secondary timeframe request namespace. @since 0.4 */
     readonly request: RequestNamespace;
     /** Runtime logging and fatal halt namespace. @since 0.5 */

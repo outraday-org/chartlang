@@ -7,6 +7,7 @@ import { BAR_CLOSE_DIRECT_INDEX_SCENARIO } from "./barCloseDirectIndex.scenario.
 import { BAR_POINT_TRACKING_LINE_SCENARIO } from "./barPointTrackingLine.scenario.js";
 import { BARSTATE_CONFIRMED_SCENARIO } from "./barstateConfirmed.scenario.js";
 import { BOLLINGER_BANDS_SCENARIO } from "./bollingerBands.scenario.js";
+import { CALENDAR_SESSION_SCENARIO } from "./calendarSession.scenario.js";
 import { DEFINE_ALERT_CONDITION_FIRES_SCENARIO } from "./defineAlertConditionFires.scenario.js";
 import { DEFINE_ALERT_CONDITION_GATED_SCENARIO } from "./defineAlertConditionGated.scenario.js";
 import { DEFINE_ALERT_CONDITION_UNKNOWN_SCENARIO } from "./defineAlertConditionUnknown.scenario.js";
@@ -255,6 +256,7 @@ export { BAR_CLOSE_DIRECT_INDEX_SCENARIO } from "./barCloseDirectIndex.scenario.
 export { BAR_POINT_TRACKING_LINE_SCENARIO } from "./barPointTrackingLine.scenario.js";
 export { BARSTATE_CONFIRMED_SCENARIO } from "./barstateConfirmed.scenario.js";
 export { BOLLINGER_BANDS_SCENARIO } from "./bollingerBands.scenario.js";
+export { CALENDAR_SESSION_SCENARIO } from "./calendarSession.scenario.js";
 export { DEFINE_ALERT_CONDITION_FIRES_SCENARIO } from "./defineAlertConditionFires.scenario.js";
 export { DEFINE_ALERT_CONDITION_GATED_SCENARIO } from "./defineAlertConditionGated.scenario.js";
 export { DEFINE_ALERT_CONDITION_UNKNOWN_SCENARIO } from "./defineAlertConditionUnknown.scenario.js";
@@ -531,6 +533,12 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     // the last five pushed closes (each plot pins to its own hash; the window
     // mean is finite from bar 0 while ta.sma(5) has a NaN warmup).
     STATE_ARRAY_ROLLING_WINDOW_SCENARIO,
+    // Calendar accessors + session membership — `time.*` / `session.isOpen`
+    // over the fixed UTC fixture. Each bar shares one time-of-day, so the
+    // open branch folds the per-bar `dayofweek` into the close (always in
+    // session); both plots pin to their own hash, with `tz-dst-unsupported`
+    // + `lookback-exceeded` asserted absent (UTC + no buffering).
+    CALENDAR_SESSION_SCENARIO,
     BAR_POINT_TRACKING_LINE_SCENARIO,
     RSI_DIVERGENCE_SCENARIO,
     PLOT_KIND_COVERAGE_SCENARIO,

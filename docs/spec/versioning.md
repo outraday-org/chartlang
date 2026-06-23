@@ -54,6 +54,14 @@ do not change existing semantics. Removing an export, renaming an export,
 changing a parameter meaning, changing return semantics, or changing which
 calls allocate state requires `apiVersion: 2`.
 
+The `time.*` / `session.*` calendar accessors carry a **determinism
+sub-contract**: v1 resolves UTC and fixed-offset zones only, and a real
+DST zone resolves to UTC plus a one-time `tz-dst-unsupported` diagnostic so
+output stays byte-reproducible across hosts. Widening this to full IANA / DST
+resolution is an additive follow-up (it would pin an ICU/tz-data version or
+bundle a vetted offset table), not a breaking change. See
+[Time and sessions](../language/time-and-sessions.md).
+
 ### `STATEFUL_PRIMITIVES`
 
 The v1 stateful primitive registry is name-set-locked for the entries that

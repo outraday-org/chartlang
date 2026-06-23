@@ -157,6 +157,7 @@ non-literal series-slot offset rejects with
 | `input.symbol` | `input.symbol` |
 | `input.time` | `input.time` |
 | `input.price` | `input.price` |
+| `input.session` | `input.session` (an `"HH:MM-HH:MM"` spec, fed to `session.isOpen`) |
 | `input.timeframe` | `input.interval` |
 | `input.enum` | **rejected** (`input-enum-rejected`) — Pine v6 enums are UDT-backed |
 
@@ -270,3 +271,25 @@ third argument decides the chartlang form:
 A cross-symbol request, a non-literal timeframe, or a `lookahead` argument is
 outside the v1 subset and warns/rejects (`request-security-different-symbol`,
 `request-security-not-mapped`, `request-security-lookahead-not-supported`).
+
+## Calendar and sessions
+
+Pine's calendar built-ins lower onto chartlang's
+[`time.*`](../primitives/time.md) accessor namespace — pure functions of a
+`Time` epoch, so the script never touches `Date`/`Intl`:
+
+| Pine | chartlang |
+|---|---|
+| `dayofweek` (bare) | `time.dayofweek(bar.time)` |
+| `dayofweek(t)` / `dayofweek(t, tz)` | `time.dayofweek(t)` / `time.dayofweek(t, tz)` |
+| `time()` | `bar.time` (the no-arg current-bar open epoch) |
+| `time_close()` | `time.timeClose(bar.time)` (bar start + the current bar's interval) |
+
+`dayofweek` follows Pine's `1=Sunday .. 7=Saturday` convention. The
+timezone-resolved `time(timeframe)` and `time(timeframe, session)` membership
+forms are **not** mapped in v1 — they warn
+[`time-builtin-not-mapped`](./diagnostics.md#time-builtin-not-mapped); use the
+bare epoch with [`session.isOpen`](../primitives/session.md) /
+[`time.*`](../primitives/time.md) directly. Determinism is UTC + fixed-offset
+only — a real DST zone resolves to UTC plus a one-time `tz-dst-unsupported`
+diagnostic (see [Time and sessions](../language/time-and-sessions.md)).

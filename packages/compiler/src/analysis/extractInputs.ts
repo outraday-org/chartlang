@@ -26,6 +26,7 @@ const INPUT_KINDS = new Set([
     "price",
     "symbol",
     "interval",
+    "session",
     "externalSeries",
 ]);
 
@@ -42,6 +43,7 @@ const KIND_TO_WIRE: Readonly<Record<string, string>> = Object.freeze({
     price: "price",
     symbol: "symbol",
     interval: "interval",
+    session: "session",
     externalSeries: "external-series",
 });
 

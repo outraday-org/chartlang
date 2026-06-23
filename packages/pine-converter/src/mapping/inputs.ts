@@ -60,6 +60,8 @@ export const INPUT_MAP: ReadonlyMap<string, InputMapping> = new Map<string, Inpu
     ["input.time", { pine: "input.time", chartlang: "input.time" }],
     // docs: https://www.tradingview.com/pine-script-reference/v6/#fun_input.price
     ["input.price", { pine: "input.price", chartlang: "input.price" }],
+    // docs: https://www.tradingview.com/pine-script-reference/v6/#fun_input.session
+    ["input.session", { pine: "input.session", chartlang: "input.session" }],
     // docs: https://www.tradingview.com/pine-script-reference/v6/#fun_input.text_area
     [
         "input.text_area",

@@ -17,7 +17,9 @@
         "lint": "biome lint .",
         "format": "biome format --write .",
         "format:check": "biome format .",
-        "check": "pnpm build && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm coverage:report && pnpm conformance && pnpm conformance:check && pnpm site:typecheck && pnpm site:build && pnpm bench:ci && pnpm docs:check && pnpm docs:gate && pnpm docs:committed:check && pnpm examples:gate && pnpm examples:sync && pnpm adapters:gate && pnpm docs:snippets && pnpm docs:build && pnpm hover:check && pnpm skills:gate && pnpm converter:docs:check && pnpm readme:check",
+        "check": "pnpm check:content && pnpm check:committed",
+        "check:content": "pnpm build && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm coverage:report && pnpm conformance && pnpm conformance:check && pnpm site:typecheck && pnpm site:build && pnpm bench:ci && pnpm docs:check && pnpm docs:gate && pnpm examples:gate && pnpm examples:sync && pnpm adapters:gate && pnpm docs:snippets && pnpm docs:build && pnpm hover:check && pnpm skills:gate && pnpm converter:docs:check && pnpm readme:check",
+        "check:committed": "pnpm docs:committed:check",
         "check:all": "pnpm check && pnpm site:e2e",
         "adapters:generate": "pnpm tsx scripts/gen-adapters.ts",
         "adapters:gate": "pnpm tsx scripts/gen-adapters.ts --check",
@@ -56,7 +58,8 @@
         "brand:sync": "pnpm tsx scripts/sync-brand-assets.ts",
         "docs:dev": "pnpm brand:sync && vitepress dev docs",
         "docs:build": "pnpm brand:sync && vitepress build docs",
-        "starters:local": "pnpm --filter @invinite-org/create-chartlang build && pnpm tsx scripts/refresh-local-starters.ts"
+        "starters:local": "pnpm --filter @invinite-org/create-chartlang build && pnpm tsx scripts/refresh-local-starters.ts",
+        "starters:local:linked": "pnpm --filter \"./packages/*\" build && pnpm tsx scripts/refresh-local-starters.ts --local"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.0",

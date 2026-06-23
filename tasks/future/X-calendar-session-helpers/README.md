@@ -210,9 +210,14 @@ the existing in-repo `sessionVolumeProfile` port.
   ICU/tz-data version** (so `Intl` output is reproducible across hosts) or a
   **bundled, vetted offset/transition table**. Until then a DST zone resolves
   to UTC + a `tz-dst-unsupported` diagnostic.
-- **`time_close()`** — the bar-CLOSE timestamp (start + interval). Needs the
+- ~~**`time_close()`** — the bar-CLOSE timestamp (start + interval). Needs the
   interval-aware close instant; deferred until a clear use case beyond
-  `bar.time + intervalToSeconds(...) * 1000`.
+  `bar.time + intervalToSeconds(...) * 1000`.~~ **UN-DEFERRED** — the aggregate
+  `tasks/future/README.md` and `tasks/future/pine-converter-coverage/README.md`
+  fold `time_close` into this folder (the pine-converter capstone depends on
+  it). Shipped as `time.timeClose(t, tz?)` (= bar start + the current bar's
+  `timeframe.inSeconds`): core hole + registry entry + shim in Task 1, runtime
+  impl in Task 2, converter mapping in Task 6.
 - **Calendar-based `input` pickers** — a real date/time/session picker UI hint
   (`pickFromChart`-style) for `input.session`. v1 ships the string descriptor
   only.

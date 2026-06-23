@@ -9,7 +9,14 @@ import type {
     VariableDeclaration,
 } from "../ast/statements.js";
 import type { SourceSpan } from "../index.js";
-import { DRAWING_KIND_MAP, mathLookup, multiReturnTaLookup, taLookup } from "../mapping/index.js";
+import {
+    BUILTIN_CALL_MAP,
+    DRAWING_KIND_MAP,
+    lowerBuiltinCall,
+    mathLookup,
+    multiReturnTaLookup,
+    taLookup,
+} from "../mapping/index.js";
 import type { MultiReturnTaMapping, PineDrawingConstructor } from "../mapping/index.js";
 import type { SemanticResult } from "../semantic/index.js";
 import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js";
@@ -1007,7 +1014,33 @@ function emitSpecialCall(call: CallExpression, ctx: EmitContext, walk: Walk): st
     if (name.startsWith("math.")) {
         return emitMath(name, call, ctx, walk);
     }
+    if (BUILTIN_CALL_MAP.has(name)) {
+        return emitBuiltinCall(name, call, ctx, walk);
+    }
     return null;
+}
+
+// Lower a bare-rooted calendar built-in call (`time()` / `time_close()` /
+// `dayofweek(...)`) onto its chartlang accessor form. A mapped shape returns
+// the chartlang source; an unmapped argument shape (e.g. `time(timeframe)`)
+// pushes `time-builtin-not-mapped` and falls back to a best-effort emit. The
+// mapped forms also lower through `emitExpr` directly (so a NESTED occurrence
+// converts), but routing the TOP-LEVEL call here is where the unmapped
+// diagnostic can be raised.
+function emitBuiltinCall(name: string, call: CallExpression, ctx: EmitContext, walk: Walk): string {
+    const args = call.args.map((arg) => emitWithContext(arg.value, ctx));
+    const lowered = lowerBuiltinCall(name, args);
+    if (lowered === null) {
+        walk.diagnostics.pushCode("time-builtin-not-mapped", call.span);
+        // Preserve the CALL shape with the bare Pine callee name. Routing
+        // through the generic emitter would value-remap the callee
+        // (`time` → `bar.time`, `time_close` → `time.timeClose(bar.time)`)
+        // and emit a number invoked as a function (`bar.time(...)`); keeping
+        // the original name keeps the marker honest and matches the `ta.*` /
+        // `math.*` unmapped fallbacks, which leave their callee intact.
+        return `${name}(${args.join(", ")}) /* TODO unmapped */`;
+    }
+    return lowered;
 }
 
 // `ta.pivothigh`/`ta.pivotlow` project a field of `ta.pivotsHighLow`'s result,

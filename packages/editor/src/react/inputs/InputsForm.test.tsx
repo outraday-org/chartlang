@@ -36,6 +36,7 @@ describe("InputsForm", () => {
         expect(screen.getByLabelText("symbol").getAttribute("type")).toBe("text");
         expect(screen.getByLabelText("interval").tagName).toBe("SELECT");
         expect(isDisabledInput(screen.getByLabelText("earnings"))).toBe(true);
+        expect(screen.getByLabelText("window").getAttribute("type")).toBe("text");
         expect(container.querySelector("form")?.classList.contains("chartlang-inputs-form")).toBe(
             true,
         );

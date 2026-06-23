@@ -84,6 +84,34 @@ describe("emitExpr", () => {
         expect(emitExpr(noArgCall, noAnnotations)).toBe("Number.NaN()");
     });
 
+    it("lowers a bare-rooted calendar built-in call via the call-form table", () => {
+        const dayofweekCall: ExpressionNode = {
+            kind: "call-expression",
+            callee: ident("dayofweek"),
+            args: [{ name: null, value: ident("time"), span: SPAN }],
+            span: SPAN,
+        };
+        // `time` would remap to `bar.time` as an arg, and the callee interception
+        // fires before the generic `callee(args)` path.
+        expect(emitExpr(dayofweekCall, noAnnotations)).toBe("time.dayofweek(bar.time)");
+    });
+
+    it("falls through to the generic call path for a non-calendar identifier call", () => {
+        const userCall: ExpressionNode = {
+            kind: "call-expression",
+            callee: ident("myFn"),
+            args: [
+                { name: null, value: int("1") },
+                { name: null, value: ident("x") },
+            ].map((a) => ({
+                ...a,
+                span: SPAN,
+            })),
+            span: SPAN,
+        };
+        expect(emitExpr(userCall, noAnnotations)).toBe("myFn(1, x)");
+    });
+
     it("emits unary `not` as `!` and arithmetic unary verbatim", () => {
         expect(
             emitExpr(

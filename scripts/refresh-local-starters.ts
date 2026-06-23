@@ -10,21 +10,26 @@
 // installer normally clones the starter from GitHub `main`; here we clone it
 // from disk instead.
 //
-// Each starter's `node_modules` + SQLite `data/` are preserved, so re-runs only
-// re-install what the new source actually changed (fast). Env handling: set
-// your secrets ONCE in the git-ignored `local-starters/.env.shared`, and every
-// refresh applies its non-empty keys (e.g. `EODDATA_API_KEY=...`) to all five
-// starters' `.env` — so you never re-enter the key per folder or after a
-// recreate. Any per-folder `.env` edits are preserved too; the shared file
-// wins for the keys it defines. On first run the shared file is created and
-// seeded from any key already present in an existing starter (no re-entry).
+// TWO dependency modes:
+//   • published (default, `pnpm starters:local`) — the clones install the
+//     PUBLISHED `@invinite-org/chartlang-*` packages. This tests the real
+//     `npm create` release path, but breaks when the repo has UNRELEASED API
+//     changes the example adapters/starter already use (e.g. a new adapter-kit
+//     capability) — the published packages don't have them yet.
+//   • linked (`pnpm starters:local:linked`, this script's `--local` flag) —
+//     each workspace `@invinite-org/chartlang-*` package is `pnpm pack`ed (which
+//     resolves `workspace:*` → real versions so the tarballs install under npm)
+//     and forced into every clone via npm `overrides`. The clones then run on
+//     the CURRENT repo code, so you can preview unreleased work across all five
+//     adapters before publishing.
 //
-// Run via `pnpm starters:local` (which rebuilds the installer first so
-// seamTemplates edits are picked up). Pass a single library id to refresh just
-// one: `pnpm starters:local uplot`.
+// Each starter's `node_modules` + SQLite `data/` are preserved across a refresh
+// (published mode) for fast re-runs; secrets live ONCE in the git-ignored
+// `local-starters/.env.shared` and are overlaid onto each `.env` every refresh.
+// Pass a single library id to refresh just one: `pnpm starters:local uplot`.
 
 import { spawn } from "node:child_process";
-import { cp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,8 +42,10 @@ import {
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const starterSrc = join(repoRoot, "apps", "react-starter");
+const packagesDir = join(repoRoot, "packages");
 const outRoot = join(repoRoot, "local-starters");
 const sharedEnvPath = join(outRoot, ".env.shared");
+const localPkgsDir = join(outRoot, ".local-pkgs");
 
 // Mirrors create-chartlang's bundled library ids (the seam variants).
 const LIBS = ["echarts", "canvas2d", "konva", "lightweight-charts", "uplot"] as const;
@@ -99,6 +106,27 @@ function applyOverrides(envText: string, overrides: ReadonlyMap<string, string>)
     return out;
 }
 
+/** Spawn a command, inheriting stdio, rejecting on non-zero exit. */
+function run(cmd: string, args: string[], cwd: string = repoRoot): Promise<void> {
+    return new Promise((resolvePromise, reject) => {
+        const child = spawn(cmd, args, { cwd, stdio: "inherit", shell: true });
+        child.on("error", reject);
+        child.on("exit", (code) =>
+            code === 0
+                ? resolvePromise()
+                : reject(new Error(`${cmd} ${args.join(" ")} exited ${code}`)),
+        );
+    });
+}
+
+function runInstall(pm: string, dir: string): Promise<void> {
+    return run(pm, ["install"], dir);
+}
+
+function deps(): CreateChartlangDeps {
+    return defaultDeps({ cloneStarter: cloneFromLocal, runInstall });
+}
+
 /** Copy the local starter tree into `dir`, keeping the PRESERVE entries. */
 async function cloneFromLocal({ dir }: CloneRequest): Promise<void> {
     if (await exists(dir)) {
@@ -121,18 +149,39 @@ async function cloneFromLocal({ dir }: CloneRequest): Promise<void> {
     });
 }
 
-function runInstall(pm: string, dir: string): Promise<void> {
-    return new Promise((resolvePromise, reject) => {
-        const child = spawn(pm, ["install"], { cwd: dir, stdio: "inherit", shell: true });
-        child.on("error", reject);
-        child.on("exit", (code) =>
-            code === 0 ? resolvePromise() : reject(new Error(`${pm} install exited ${code}`)),
-        );
-    });
-}
-
-function deps(): CreateChartlangDeps {
-    return defaultDeps({ cloneStarter: cloneFromLocal, runInstall });
+/**
+ * `pnpm pack` every workspace `@invinite-org/chartlang-*` package into
+ * `.local-pkgs/` and return a `{ name → file:<tarball> }` map for npm
+ * `overrides`. `pnpm pack` rewrites `workspace:*` deps to concrete versions, so
+ * the tarballs install cleanly under npm. Assumes the packages are already
+ * built (the `starters:local:linked` script runs the workspace build first).
+ */
+async function packWorkspacePackages(): Promise<Map<string, string>> {
+    await rm(localPkgsDir, { recursive: true, force: true });
+    await mkdir(localPkgsDir, { recursive: true });
+    const overrides = new Map<string, string>();
+    for (const entry of await readdir(packagesDir)) {
+        const pkgJsonPath = join(packagesDir, entry, "package.json");
+        let pkg: { name?: string; version?: string };
+        try {
+            pkg = JSON.parse(await readFile(pkgJsonPath, "utf8"));
+        } catch {
+            continue;
+        }
+        const name = pkg.name;
+        const version = pkg.version;
+        if (typeof name !== "string" || !name.startsWith("@invinite-org/chartlang-")) continue;
+        // `pnpm pack` must run IN the package dir — `pnpm --filter X pack` is
+        // rejected (it implies recursive, which pack does not support).
+        await run("pnpm", ["pack", "--pack-destination", localPkgsDir], join(packagesDir, entry));
+        // npm/pnpm pack name a scoped tarball `<scope>-<name>-<version>.tgz`.
+        const tarball = join(localPkgsDir, `${name.slice(1).replace(/\//g, "-")}-${version}.tgz`);
+        if (!(await exists(tarball))) {
+            throw new Error(`pnpm pack did not produce expected tarball: ${tarball}`);
+        }
+        overrides.set(name, `file:${tarball}`);
+    }
+    return overrides;
 }
 
 /**
@@ -143,6 +192,7 @@ function deps(): CreateChartlangDeps {
  */
 async function loadSharedOverrides(): Promise<Map<string, string>> {
     if (!(await exists(sharedEnvPath))) {
+        await mkdir(outRoot, { recursive: true });
         let migrated = "";
         for (const lib of LIBS) {
             const envPath = join(outRoot, lib, ".env");
@@ -167,31 +217,82 @@ async function loadSharedOverrides(): Promise<Map<string, string>> {
     return overrides;
 }
 
-async function refresh(lib: Lib, overrides: ReadonlyMap<string, string>): Promise<void> {
+async function refresh(
+    lib: Lib,
+    envOverrides: ReadonlyMap<string, string>,
+    pkgOverrides: ReadonlyMap<string, string> | null,
+): Promise<void> {
     const target = join(outRoot, lib);
-    process.stdout.write(`\n▸ refreshing local-starters/${lib} from local apps/react-starter\n`);
-    // Base the final .env on any preserved per-folder edits (else the template
-    // the installer writes), then overlay the shared secrets on top.
+    const mode = pkgOverrides ? "linked → local packages" : "published packages";
+    process.stdout.write(`\n▸ refreshing local-starters/${lib} (${mode})\n`);
+
+    // Scaffold everything EXCEPT install (we install after wiring env + any
+    // local-package overrides).
     const envPath = join(target, ".env");
     const prevEnv = (await exists(envPath)) ? await readFile(envPath, "utf8") : null;
-    await runCreateChartlang([target, "--library", lib, "--yes"], deps());
+    await runCreateChartlang([target, "--library", lib, "--yes", "--no-install"], deps());
+
+    // Base the final .env on any preserved per-folder edits (else the template
+    // the installer wrote), then overlay the shared secrets on top.
     const base = prevEnv ?? (await readFile(envPath, "utf8"));
-    await writeFile(envPath, applyOverrides(base, overrides), "utf8");
+    await writeFile(envPath, applyOverrides(base, envOverrides), "utf8");
+
+    // Linked mode: point every chartlang dep at the local tarball. A DIRECT
+    // dep is rewritten in place (npm rejects an `overrides` entry that differs
+    // from a direct dependency's spec — EOVERRIDE); transitive-only chartlang
+    // deps (pulled by the vendored adapter / other packages, e.g. runtime,
+    // conformance) go through `overrides`. Then drop the lockfile + installed
+    // chartlang/vendored trees so npm re-resolves from the fresh tarballs.
+    if (pkgOverrides) {
+        const pkgPath = join(target, "package.json");
+        const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as {
+            dependencies?: Record<string, string>;
+            devDependencies?: Record<string, string>;
+            overrides?: Record<string, string>;
+        };
+        const overrides: Record<string, string> = { ...(pkg.overrides ?? {}) };
+        for (const [name, spec] of pkgOverrides) {
+            if (pkg.dependencies?.[name] !== undefined) pkg.dependencies[name] = spec;
+            else if (pkg.devDependencies?.[name] !== undefined) pkg.devDependencies[name] = spec;
+            else overrides[name] = spec;
+        }
+        pkg.overrides = overrides;
+        await writeFile(pkgPath, `${JSON.stringify(pkg, null, 4)}\n`, "utf8");
+        await rm(join(target, "package-lock.json"), { force: true });
+        await rm(join(target, "node_modules", "@invinite-org"), { recursive: true, force: true });
+        await rm(join(target, "node_modules", "@local"), { recursive: true, force: true });
+    }
+
+    await runInstall("npm", target);
 }
 
 async function main(): Promise<void> {
-    const only = process.argv[2];
+    const argv = process.argv.slice(2);
+    const localMode = argv.includes("--local");
+    const only = argv.find((a) => !a.startsWith("--"));
     if (only !== undefined && !LIBS.includes(only as Lib)) {
         process.stderr.write(`error: unknown library "${only}" — valid: ${LIBS.join(", ")}\n`);
         process.exitCode = 1;
         return;
     }
-    const overrides = await loadSharedOverrides();
+
+    const envOverrides = await loadSharedOverrides();
+    let pkgOverrides: Map<string, string> | null = null;
+    if (localMode) {
+        process.stdout.write(
+            "\n▸ packing workspace @invinite-org/chartlang-* packages (linked mode)\n",
+        );
+        pkgOverrides = await packWorkspacePackages();
+        process.stdout.write(`  linked ${pkgOverrides.size} packages from the workspace\n`);
+    }
+
     const libs = only !== undefined ? [only as Lib] : [...LIBS];
     for (const lib of libs) {
-        await refresh(lib, overrides);
+        await refresh(lib, envOverrides, pkgOverrides);
     }
-    process.stdout.write(`\n✓ refreshed ${libs.length} starter(s) in local-starters/\n`);
+    process.stdout.write(
+        `\n✓ refreshed ${libs.length} starter(s) in local-starters/${localMode ? " (linked to local packages)" : ""}\n`,
+    );
 }
 
 await main();

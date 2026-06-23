@@ -66,6 +66,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         requestSecurityAlignments: new Map(),
         requestSecurityAscendingBars: new Map(),
         diagnosedRequestKeys: new Set(),
+        diagnosedTzKeys: new Set(),
         diagnosedAlertConditionKeys: new Set(),
         logBudget: 0,
         logBudgetExceededDiagnosed: false,

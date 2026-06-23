@@ -24,6 +24,7 @@ export const inputsFormTestManifest: ScriptManifest = {
             name: "earnings",
             schema: { kind: "external-series-schema" },
         },
+        window: { kind: "session", defaultValue: "0930-1600" },
     },
     capabilities: ["indicators"],
     requestedIntervals: [],

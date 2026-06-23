@@ -79,6 +79,7 @@ function freshContext(): RuntimeContext {
         requestSecurityAscendingBars: new Map(),
         requestLowerTfViews: new Map(),
         diagnosedRequestKeys: new Set(),
+        diagnosedTzKeys: new Set(),
         logBudget: 0,
         logBudgetExceededDiagnosed: false,
         resolvedInputs: Object.freeze({}),
