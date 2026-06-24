@@ -12,6 +12,8 @@ import {
     type LogEmission,
     type PlotEmission,
     type PlotStyle,
+    RENDER_BAND,
+    type RenderOrderKey,
     type RunnerEmissions,
     type ViewController,
     type Viewport,
@@ -23,10 +25,19 @@ import {
     medianBarSpacing,
     priceToY,
     shiftedBarTime,
+    sortByRenderOrder,
     timeToX,
     validateEmission,
 } from "@invinite-org/chartlang-adapter-kit";
-import { type RenderCtx, paintPrimitive } from "@invinite-org/chartlang-adapter-kit/canvas";
+import {
+    type RenderCtx,
+    drawArrow,
+    drawCharacter,
+    drawLabel,
+    drawMarker,
+    drawShape,
+    paintPrimitive,
+} from "@invinite-org/chartlang-adapter-kit/canvas";
 import type { Bar, LineStyle } from "@invinite-org/chartlang-core";
 import {
     type ScriptHost,
@@ -36,6 +47,7 @@ import {
 import uPlot from "uplot";
 
 import { type BgColorBand, drawBgColorBand } from "./bgColor.js";
+import { type CandleOverridePalette, resolveCandleOverrideColor } from "./candleOverrides.js";
 import { type CandlePathStyle, type ProjectedCandle, drawCandlePaths } from "./candlePaths.js";
 import { UPLOT_CAPABILITIES, UPLOT_SYM_INFO } from "./capabilities.js";
 import { buildViewport, offsetForViewport } from "./viewport.js";
@@ -66,10 +78,41 @@ const DEFAULT_LINE_COLOR = "#3b82f6";
 // last bar lands exactly at the plot-area right edge). Mirrors the feel of
 // canvas2d's reserved gutter.
 const X_PAD_BARS = 0.5;
+// Default volume-profile palette + the maximum bucket bar width (the longest
+// bucket spans this many px from the right edge; shorter buckets scale by
+// `volume / maxVolume`). Mirrors the canvas2d reference adapter's
+// `HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX` / `*_ROW_HEIGHT_PX` feel.
+const HORIZONTAL_HISTOGRAM_COLOR = "#3b82f6";
+const HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX = 80;
+const HORIZONTAL_HISTOGRAM_ROW_HEIGHT_PX = 4;
+// Fallback colour for a glyph (shape / character / arrow / marker / label)
+// whose emission carries a `null` top-level `color`. The shared glyph helpers
+// take this as a plain string (they are model-free — no palette type).
+const GLYPH_DEFAULT_COLOR = "#90caf9";
+// Always-on-top alert-condition + log overlay text styling, mirroring the
+// canvas2d reference (`render/alertConditions.ts` + `render/logPane.ts`).
+// The colour is the demo plot default (canvas2d's `palette.plotDefault`); the
+// uplot adapter is palette-free, so the few constants are mirrored locally
+// (cross-importing another example's `src/` is forbidden).
+const OVERLAY_TEXT_COLOR = "#e2e8f0";
+const OVERLAY_FONT = "11px sans-serif";
+const ALERT_PANEL_X_PAD = 12;
+const ALERT_PANEL_Y = 18;
+const ALERT_ROW_HEIGHT = 14;
+const ALERT_PANEL_RIGHT_INSET = 180;
+const LOG_PANE_PADDING = 8;
+const LOG_ROW_HEIGHT = 13;
 
 // uPlot's `AlignedData` is `[xValues, ...yValues]`; chartlang feeds the
 // bar times as x and per-series values as y (`null` ⇒ gap).
 type AlignedData = ReadonlyArray<ReadonlyArray<number | null>>;
+
+// The `buckets` payload of a `horizontal-histogram` plot style (the
+// volume-profile rows the overlay hook paints). Extracted from the wire
+// `PlotStyle` arm so the buffered map stays exactly the wire shape.
+type HorizontalHistogramBuckets = ReadonlyArray<
+    Readonly<{ readonly price: number; readonly volume: number; readonly color?: string }>
+>;
 
 /**
  * The subset of a uPlot instance the factory calls. Declared
@@ -131,6 +174,24 @@ export type UplotSeriesSpec = {
 };
 
 /**
+ * One native uPlot band: the fill between two adjacent series, identified by
+ * their indices into {@link UplotOptions.series}. The uPlot adapter emits one
+ * per `filled-band` plot slot — `series` is `[upperIdx, lowerIdx]` and `fill`
+ * is the band colour (alpha already folded in). uPlot paints the region
+ * between the two edges, honouring `null` per-bar gaps on either edge.
+ *
+ * @since 1.7
+ * @stable
+ * @example
+ *     const band: UplotBandSpec = { series: [1, 2], fill: "rgba(38,166,154,0.2)" };
+ *     void band;
+ */
+export type UplotBandSpec = {
+    readonly series: readonly [number, number];
+    readonly fill: string;
+};
+
+/**
  * The options object the factory hands to {@link UplotFactory} per pane.
  * A subset of uPlot's `Options`; `hooks.draw` is the ctx pass for
  * horizontal lines (extended for drawings in Task 8).
@@ -146,6 +207,10 @@ export type UplotOptions = {
     readonly height: number;
     readonly paneKey: string;
     readonly series: ReadonlyArray<UplotSeriesSpec>;
+    // Native uPlot bands — one per `filled-band` slot, linking its upper +
+    // lower edge series so uPlot fills the region between them. Omitted when
+    // the pane has no filled-band (byte-identical to the pre-band path).
+    readonly bands?: ReadonlyArray<UplotBandSpec>;
     // `draw` paints candles/hlines/drawings each redraw; `ready` runs once
     // after the instance mounts — the adapter wires pan/zoom listeners onto
     // `u.over` there (what a real uPlot does post-construct).
@@ -240,6 +305,21 @@ type PlotPoint = {
     // / `0` `xShift` keeps the value on its own bar (aligned-data unchanged).
     readonly bar: number;
     readonly xShift?: number;
+    // For a `filled-band` slot only: the LOWER edge value (`value` carries the
+    // UPPER edge). Both feed a native two-row uPlot band; `null` on either
+    // edge is a per-bar gap. Absent for every other series kind.
+    readonly lower?: number | null;
+    // Per-bar dynamic colour (`PlotEmission.colorValue`). Omitted when absent
+    // so a no-`colorValue` point is byte-identical to the pre-feature shape;
+    // `resolveSeriesStroke` resolves the 3-state precedence into the series'
+    // (whole-series) stroke. `null` ⇒ "no colour this bar" (skips that bar's
+    // stroke-colour vote).
+    readonly colorValue?: string | null;
+    // Presentation `z` (default 0) + the global declaration `seq` the z-sort
+    // pass orders the SERIES mark by. A series mark uses its LAST point's
+    // `z`/`seq` (last-write-wins, like its stroke), matching canvas2d.
+    readonly z: number;
+    readonly seq: number;
 };
 
 type PanedHLine = {
@@ -248,6 +328,10 @@ type PanedHLine = {
     readonly lineWidth: number;
     readonly lineStyle: LineStyle;
     readonly paneKey: string;
+    // Presentation `z` (default 0) + the global declaration `seq` the z-sort
+    // pass orders this hline mark by.
+    readonly z: number;
+    readonly seq: number;
 };
 
 type AdapterState = {
@@ -280,8 +364,33 @@ type AdapterState = {
     // precedence + `null`-deletes contract; threaded into the candle paint
     // (body + wick) for the matching bar.
     readonly barColors: Map<number, string>;
-    // Drawings are buffered for Task 8 (not rendered here).
+    // Per-bar `candle-override` palettes (Pine `plotcandle`), keyed by bar
+    // TIME (last-write-wins). The bull/bear/doji colour is direction-resolved
+    // per candle AT PAINT (`resolveCandleOverrideColor`) and threaded into the
+    // candle tint (body + wick), overriding the bull/bear default.
+    readonly candleOverrides: Map<number, CandleOverridePalette>;
+    // Per-bar `bar-override` colours (Pine `plotbar`), keyed by bar TIME. A
+    // single colour threaded into the candle tint for the matching bar.
+    readonly barOverrides: Map<number, string>;
+    // Buffered `horizontal-histogram` profiles (Pine volume profile), keyed
+    // `${slotId}@${time}` (multiple profiles may coexist), each painted in the
+    // overlay draw hook anchored at the right edge by price.
+    readonly horizontalHistograms: Map<string, HorizontalHistogramBuckets>;
+    // Drawings, painted in the draw hook via the shared geometry layer.
     readonly drawings: Map<string, DrawingEmission>;
+    // Global declaration-order counter, bumped once per ingested sortable mark
+    // (plot / hline / glyph / h-histogram / drawing). The z-sort pass breaks
+    // `z`/`band` ties on this so the paint order stays total + deterministic,
+    // never relying on Map iteration once `z` is in play (mirrors canvas2d).
+    seq: number;
+    // Declaration sequence for each glyph overlay (keyed `${slotId}@${time}`),
+    // horizontal-histogram profile (keyed `${slotId}@${time}`), and drawing
+    // (keyed `handleId`). The raw emissions in `overlays` /
+    // `horizontalHistograms` / `drawings` carry `z` but not `seq`, so the
+    // sequence lives beside them, written in lockstep (last-write-wins).
+    readonly overlaySeq: Map<string, number>;
+    readonly hhistSeq: Map<string, number>;
+    readonly drawingSeq: Map<string, number>;
     readonly recentAlerts: AlertEmission[];
     readonly currentAlertConditions: AlertConditionEmission[];
     readonly recentLogs: LogEmission[];
@@ -354,6 +463,18 @@ function defaultUplotFactory(
                     grid: { stroke: "rgba(148, 163, 184, 0.15)" },
                 },
             ],
+            // Native bands fill the region between a `filled-band` slot's
+            // upper + lower edge series (two adjacent rows). uPlot indexes
+            // `series` from 0 (the x row), so the adapter's spec indices
+            // already account for the leading `{}` x series.
+            ...(opts.bands && opts.bands.length > 0
+                ? {
+                      bands: opts.bands.map((b) => ({
+                          series: [b.series[0], b.series[1]] as [number, number],
+                          fill: b.fill,
+                      })),
+                  }
+                : {}),
             // Disable uPlot's native drag-to-zoom-select; ALL pan/zoom flows
             // through the adapter's `attachInteraction` listeners (wired in
             // the `ready` hook) so drag pans and the wheel zooms BOTH ways.
@@ -412,17 +533,20 @@ function dashPattern(style: LineStyle): readonly number[] {
 }
 
 // Map a chartlang `PlotStyle` to the uPlot path family the series uses.
-// Override / candle-state kinds don't become series at all (they paint in
-// the draw hook), so they never reach here.
+// `filled-band` is handled by `buildPaneSeries` directly (a two-edge native
+// band), so it never reaches here; override / candle-state kinds don't become
+// series at all (they paint in the draw hook), so they are excluded too.
 function pathsFor(style: PlotStyle): UplotSeriesSpec["paths"] {
     if (style.kind === "step-line") return "step";
     if (style.kind === "histogram") return "bars";
-    if (style.kind === "filled-band") return "band";
     return "line";
 }
 
+// `area` is the only series kind that carries a uPlot `fill` here —
+// `filled-band` is rendered as a native band by `buildPaneSeries`, not a
+// single filled series, so it never reaches this helper.
 function fillFor(style: PlotStyle, color: string): string | undefined {
-    if (style.kind === "area" || style.kind === "filled-band") return color;
+    if (style.kind === "area") return color;
     return undefined;
 }
 
@@ -498,14 +622,31 @@ function computePaneViewportFor(state: AdapterState, paneKey: string): Viewport 
     };
 }
 
-// The series' stroke colour: the LAST non-null per-point color, falling
-// back to `DEFAULT_LINE_COLOR`. Mirrors the echarts / konva `seriesColor`
-// helper — every adapter resolves the per-series stroke the same way, so a
-// multi-plot script gets DISTINCT colours instead of the old all-blue
-// hardcode (which was a BUG).
+// Resolve one point's PAINT colour via the 3-state `colorValue` precedence
+// (the canvas2d `resolvePaintColor` contract): `colorValue` omitted ⇒ the
+// static per-point `color`; present ⇒ it OVERRIDES `color`; `null` ⇒ `null`
+// (no colour this bar). Returns `null` for the suppress case so the
+// whole-series stroke vote can skip it.
+function resolvePointColor(point: PlotPoint): string | null {
+    if (point.colorValue === undefined) return point.color;
+    return point.colorValue;
+}
+
+// The series' (whole-series) stroke colour: the LAST per-point colour the
+// 3-state `colorValue` precedence resolves to a real colour, falling back to
+// `DEFAULT_LINE_COLOR`. Mirrors the echarts / konva `seriesColor` helper plus
+// the canvas2d line-family `colorValue` contract — a present `colorValue`
+// OVERRIDES the static per-point colour, a `null` `colorValue` skips that
+// bar's vote (the per-bar GAP is already governed by the `value:null` aligned-
+// data gap), and an omitted `colorValue` is byte-identical to the pre-feature
+// `seriesColor`. uPlot paints each series from one `stroke`, so per-bar recolor
+// folds into a whole-series decision here (the documented uplot structural
+// bound — see CLAUDE.md); a synthetic emission carrying `colorValue` is still
+// wire-honest (the override is visible). The last real colour wins so a
+// crossover script's final colour reads on the line.
 function seriesColor(points: ReadonlyArray<PlotPoint>, fallback: string): string {
     for (let i = points.length - 1; i >= 0; i--) {
-        const color = points[i].color;
+        const color = resolvePointColor(points[i]);
         if (color !== null) return color;
     }
     return fallback;
@@ -519,17 +660,33 @@ function seriesColor(points: ReadonlyArray<PlotPoint>, fallback: string): string
 // `hooks.draw` ctx, so the offset is folded into the coords here rather than
 // via a ctx translate (the translate is reserved for the drawing pass, whose
 // presence/absence the renderer's tests assert by counting translates).
+// The single per-candle tint for a bar (body + wick), or `undefined` for the
+// bull/bear default. Precedence (highest first): `candle-override`
+// (direction-resolved), then `bar-override`, then `barcolor` — candle/bar
+// overrides paint ON TOP of the candle in canvas2d, so they win over the
+// `barcolor` tint that paints with it.
+function resolveCandleTint(state: AdapterState, bar: Bar): string | undefined {
+    const candleOverride = state.candleOverrides.get(bar.time);
+    if (candleOverride !== undefined) return resolveCandleOverrideColor(bar, candleOverride);
+    const barOverride = state.barOverrides.get(bar.time);
+    if (barOverride !== undefined) return barOverride;
+    return state.barColors.get(bar.time);
+}
+
 function projectCandles(
     bars: ReadonlyArray<Bar>,
     viewport: Viewport,
     dx: number,
     dy: number,
-    barColors: ReadonlyMap<number, string>,
+    state: AdapterState,
 ): ProjectedCandle[] {
     return bars.map((bar) => {
-        // A per-bar `barcolor` override tints both the body + wick; omitted
-        // ⇒ no `color` key, byte-identical to the bull/bear default render.
-        const color = barColors.get(bar.time);
+        // Resolve the single per-candle tint for this bar (body + wick),
+        // omitted ⇒ no `color` key (byte-identical to the bull/bear default).
+        // Precedence mirrors canvas2d, where the bar/candle overrides paint
+        // ON TOP of the candle and `barcolor` paints with it: `candle-override`
+        // (direction-resolved) wins, then `bar-override`, then `barcolor`.
+        const color = resolveCandleTint(state, bar);
         return {
             x: timeToX(bar.time, viewport) + dx,
             openY: priceToY(bar.open, viewport) + dy,
@@ -554,11 +711,344 @@ function paintBgColors(state: AdapterState, viewport: Viewport, dx: number, ctx:
     }
 }
 
-// The draw-hook ctx pass for a pane: paint candles (overlay only) +
-// horizontal lines via the pane's viewport, to the instance's own canvas
-// ctx (`u.ctx` — a real `CanvasRenderingContext2D` in production, a
-// `MockCanvasContext` under test). This is the seam Task 8 extends to
-// paint drawings; Task 7 establishes it for hlines + candles.
+// Paint ONE `horizontal-histogram` profile (Pine volume profile) into the
+// overlay draw hook: each bucket is a right-anchored bar whose width scales by
+// `volume / maxVolume` up to `HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX`, at the bucket
+// price's pixel y (`u.valToPos`, already device-px and bbox-offset). Mirrors the
+// canvas2d reference's `drawHorizontalHistogram` intent; uPlot owns the y scale,
+// so the price→y comes from the instance's projection. A profile whose buckets
+// are all zero-volume contributes nothing. The per-profile painter the z-sort
+// pass dispatches to (folded into the glyph band, after the candles).
+function paintHorizontalHistogram(
+    buckets: HorizontalHistogramBuckets,
+    u: UplotLike,
+    dx: number,
+    viewport: Viewport,
+    ctx: RenderCtx,
+): void {
+    const rightEdge = dx + viewport.pxWidth;
+    let maxVolume = 0;
+    for (const bucket of buckets) {
+        if (bucket.volume > maxVolume) maxVolume = bucket.volume;
+    }
+    if (maxVolume <= 0) return;
+    for (const bucket of buckets) {
+        const y = u.valToPos(bucket.price, "y", true);
+        if (!Number.isFinite(y)) continue;
+        const width = (bucket.volume / maxVolume) * HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX;
+        ctx.fillStyle = bucket.color ?? HORIZONTAL_HISTOGRAM_COLOR;
+        ctx.fillRect(
+            rightEdge - width,
+            y - HORIZONTAL_HISTOGRAM_ROW_HEIGHT_PX / 2,
+            width,
+            HORIZONTAL_HISTOGRAM_ROW_HEIGHT_PX,
+        );
+    }
+}
+
+// A buffered overlay is a paintable GLYPH iff its style is one of the five
+// shifted-series glyph kinds (shape / character / arrow / marker / label). The
+// substrate overlays (bg-color / bar-color / candle-/bar-override) and the
+// horizontal-histogram profile are kept in `state.overlays` for the "all plot
+// kinds" claim but paint through their own dedicated maps, so they are excluded
+// here.
+function isGlyphOverlay(plot: PlotEmission): boolean {
+    return (
+        plot.style.kind === "shape" ||
+        plot.style.kind === "character" ||
+        plot.style.kind === "arrow" ||
+        plot.style.kind === "marker" ||
+        plot.style.kind === "label"
+    );
+}
+
+// Paint ONE buffered glyph (shape / character / arrow / marker / label) in the
+// overlay draw hook via the SHARED adapter-kit glyph geometry (`drawShape` /
+// `drawCharacter` / `drawArrow` / `drawMarker` / `drawLabel`), consuming the one
+// promoted source instead of re-deriving the geometry (the bug class the
+// `shift.ts` / `renderOrder.ts` promotions exist to kill). The glyph anchors at
+// its plot's SHIFTED x (`timeToX(shiftedBarTime(...))` — the same xShift funnel
+// the series use — folded with the `dx` plotting-area offset) and `value` → y
+// (`priceToY` + `dy`); a non-finite `value` is a per-glyph skip (no ctx calls,
+// so the band-free hash stays byte-identical). The per-glyph painter the z-sort
+// pass dispatches to.
+function paintGlyphMark(
+    state: AdapterState,
+    plot: PlotEmission,
+    viewport: Viewport,
+    dx: number,
+    dy: number,
+    spacing: number,
+    ctx: RenderCtx,
+): void {
+    if (plot.value === null || !Number.isFinite(plot.value)) return;
+    const x =
+        timeToX(
+            shiftedBarTime({ bars: state.bars, bar: plot.bar, xShift: plot.xShift, spacing }),
+            viewport,
+        ) + dx;
+    const y = priceToY(plot.value, viewport) + dy;
+    paintGlyph(plot, x, y, ctx);
+}
+
+// Dispatch one glyph emission to its shared renderer. `plot.color` (the
+// top-level emission colour) is the glyph colour; a `null` falls back to
+// `GLYPH_DEFAULT_COLOR` inside the helper.
+function paintGlyph(plot: PlotEmission, x: number, y: number, ctx: RenderCtx): void {
+    switch (plot.style.kind) {
+        case "shape":
+            drawShape(
+                ctx,
+                {
+                    x,
+                    y,
+                    shape: plot.style.shape,
+                    size: plot.style.size,
+                    ...(plot.style.location === undefined ? {} : { location: plot.style.location }),
+                    color: plot.color,
+                },
+                GLYPH_DEFAULT_COLOR,
+            );
+            return;
+        case "character":
+            drawCharacter(
+                ctx,
+                {
+                    x,
+                    y,
+                    char: plot.style.char,
+                    size: plot.style.size,
+                    ...(plot.style.location === undefined ? {} : { location: plot.style.location }),
+                    color: plot.color,
+                },
+                GLYPH_DEFAULT_COLOR,
+            );
+            return;
+        case "arrow":
+            drawArrow(
+                ctx,
+                { x, y, direction: plot.style.direction, size: plot.style.size, color: plot.color },
+                GLYPH_DEFAULT_COLOR,
+            );
+            return;
+        case "marker":
+            drawMarker(
+                ctx,
+                { x, y, shape: plot.style.shape, size: plot.style.size, color: plot.color },
+                GLYPH_DEFAULT_COLOR,
+            );
+            return;
+        case "label":
+            drawLabel(
+                ctx,
+                { x, y, text: plot.style.text, position: plot.style.position, color: plot.color },
+                GLYPH_DEFAULT_COLOR,
+            );
+            return;
+        // No default: `paintGlyphs` only forwards the shape / character /
+        // arrow / marker / label subset (`isGlyphOverlay`), so no other
+        // `plot.style.kind` reaches here.
+    }
+}
+
+// Paint ONE horizontal line into the pane's draw hook. uPlot owns the y scale,
+// so the pixel y comes from the instance's `valToPos` (canvas/device pixels —
+// already offset by `bbox.top`); a non-finite y (scale not yet ranged) skips it.
+// The line spans the real plotting area (`dx → dx + pxWidth`) and resets to
+// solid 1px after so a later mark is not contaminated by its width / dash.
+function paintHLineMark(
+    hline: PanedHLine,
+    u: UplotLike,
+    dx: number,
+    viewport: Viewport,
+    ctx: RenderCtx,
+): void {
+    const y = u.valToPos(hline.price, "y", true);
+    if (!Number.isFinite(y)) return;
+    ctx.strokeStyle = hline.color;
+    ctx.lineWidth = hline.lineWidth;
+    ctx.setLineDash(dashPattern(hline.lineStyle));
+    ctx.beginPath();
+    ctx.moveTo(dx, y);
+    ctx.lineTo(dx + viewport.pxWidth, y);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+}
+
+// Paint ONE buffered drawing into the pane's draw hook via the shared
+// adapter-kit geometry layer: `decomposeDrawing(state, view)` →
+// `paintPrimitive(ctx, prim)`. The plotting-area offset is applied via a ctx
+// translate bracketing THIS drawing's prims (one save/translate/restore per
+// drawing — the z-sort can interleave a glyph / hline between two drawings, so a
+// single shared bracket would be wrong). `op: "remove"` drawings are dropped at
+// ingest by `applyDrawing`, so `state.drawings` only ever holds live drawings.
+// Drawings decompose against THIS pane's scales, so a sub-pane drawing projects
+// against the sub-pane's price range.
+function paintDrawingMark(
+    drawing: DrawingEmission,
+    view: Viewport,
+    dx: number,
+    dy: number,
+    ctx: RenderCtx,
+): void {
+    ctx.save();
+    ctx.translate(dx, dy);
+    for (const prim of decomposeDrawing(drawing, view)) {
+        paintPrimitive(ctx, prim);
+    }
+    ctx.restore();
+}
+
+// A z-sortable draw-hook mark for one pane. Native uPlot series (line / step /
+// area / histogram / band) are NOT here — uPlot paints them itself, beneath the
+// draw hook. The marks the hook owns (glyphs / hlines / horizontal-histograms /
+// drawings) ARE fully z-sorted among themselves; their `band` reproduces the
+// pre-`z` phase order (glyph + h-histogram → hline → drawing) at `z = 0`.
+type PaneMark = RenderOrderKey &
+    (
+        | { readonly kind: "glyph"; readonly plot: PlotEmission }
+        | { readonly kind: "hhist"; readonly buckets: HorizontalHistogramBuckets }
+        | { readonly kind: "hline"; readonly hline: PanedHLine }
+        | { readonly kind: "drawing"; readonly drawing: DrawingEmission }
+    );
+
+// Collect every z-sortable draw-hook mark for one pane, tagged with `(z, band,
+// seq)`, then stable-sort by the SHARED comparator. Glyphs + horizontal-
+// histograms (overlay pane only) ride the `glyph` band (they painted after the
+// candles before `z`); hlines ride the `hline` band; drawings (overlay pane
+// only) ride the `drawing` band. At the default `z = 0` the key reduces to
+// `(band, seq)` — byte-identical to the pre-`z` paint order. Native series are
+// excluded (uPlot owns them); the residual native-vs-hook bound is documented
+// in CLAUDE.md.
+function collectPaneMarks(state: AdapterState, paneKey: string): PaneMark[] {
+    const marks: PaneMark[] = [];
+    if (paneKey === "overlay") {
+        for (const [overlayKey, plot] of state.overlays) {
+            if (!isGlyphOverlay(plot)) continue;
+            // `overlaySeq` is written in lockstep with `overlays` (`applyPlot`),
+            // so the sequence is always present.
+            /* v8 ignore next -- lockstep with overlays; ?? never taken */
+            const seq = state.overlaySeq.get(overlayKey) ?? 0;
+            marks.push({ kind: "glyph", z: plot.z ?? 0, band: RENDER_BAND.glyph, seq, plot });
+        }
+        for (const [hhistKey, buckets] of state.horizontalHistograms) {
+            // The buffered emission carries `z` on `state.overlays` (same key);
+            // read it there so a `z`-bearing volume profile sorts correctly.
+            const z = state.overlays.get(hhistKey)?.z ?? 0;
+            /* v8 ignore next -- lockstep with horizontalHistograms; ?? never taken */
+            const seq = state.hhistSeq.get(hhistKey) ?? 0;
+            marks.push({ kind: "hhist", z, band: RENDER_BAND.glyph, seq, buckets });
+        }
+    }
+    for (const hline of state.hlines.values()) {
+        if (hline.paneKey !== paneKey) continue;
+        marks.push({ kind: "hline", z: hline.z, band: RENDER_BAND.hline, seq: hline.seq, hline });
+    }
+    // Drawings render in EVERY pane (not overlay-only): each decomposes against
+    // THIS pane's own scales, so a sub-pane drawing projects into the sub-pane's
+    // price range (the Task-8 behaviour — uplot paints drawings per pane).
+    for (const [handleId, drawing] of state.drawings) {
+        // `drawingSeq` is written in lockstep with `drawings` (`applyDrawing`),
+        // so the sequence is always present.
+        /* v8 ignore next -- lockstep with drawings; ?? never taken */
+        const seq = state.drawingSeq.get(handleId) ?? 0;
+        marks.push({ kind: "drawing", z: drawing.z ?? 0, band: RENDER_BAND.drawing, seq, drawing });
+    }
+    return sortByRenderOrder(marks);
+}
+
+// Paint one sortable mark by routing it to its per-kind renderer. Order — not
+// per-mark drawing — is what the z-sort changed.
+function paintPaneMark(
+    state: AdapterState,
+    mark: PaneMark,
+    u: UplotLike,
+    viewport: Viewport,
+    dx: number,
+    dy: number,
+    spacing: number,
+    ctx: RenderCtx,
+): void {
+    switch (mark.kind) {
+        case "glyph":
+            paintGlyphMark(state, mark.plot, viewport, dx, dy, spacing, ctx);
+            return;
+        case "hhist":
+            paintHorizontalHistogram(mark.buckets, u, dx, viewport, ctx);
+            return;
+        case "hline":
+            paintHLineMark(mark.hline, u, dx, viewport, ctx);
+            return;
+        case "drawing":
+            paintDrawingMark(mark.drawing, viewport, dx, dy, ctx);
+            return;
+    }
+}
+
+// Paint the always-on-top alert conditions (fired only) as a compact right-side
+// text panel, mirroring canvas2d's `render/alertConditions.ts` visual design at
+// the uPlot plotting-area box (device px, offset by `(dx, dy)`). Painted AFTER
+// the z-sorted pass (pinned on top, NOT z-sorted — canvas2d's v1 posture). An
+// empty / no-fired list adds NO ctx calls, so a condition-free script keeps the
+// hash byte-identical.
+function paintAlertConditions(
+    state: AdapterState,
+    viewport: Viewport,
+    dx: number,
+    dy: number,
+    ctx: RenderCtx,
+): void {
+    const fired = state.currentAlertConditions.filter((condition) => condition.fired);
+    if (fired.length === 0) return;
+    const x = dx + Math.max(ALERT_PANEL_X_PAD, viewport.pxWidth - ALERT_PANEL_RIGHT_INSET);
+    ctx.fillStyle = OVERLAY_TEXT_COLOR;
+    ctx.font = OVERLAY_FONT;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    for (let i = 0; i < fired.length; i++) {
+        const condition = fired[i];
+        const label = `${condition.conditionId}: ${condition.defaultMessage}`;
+        ctx.fillText(label, x, dy + ALERT_PANEL_Y + i * ALERT_ROW_HEIGHT);
+    }
+}
+
+// Paint the always-on-top latest-log pane (cap 5) at the bottom-left of the
+// plotting area, mirroring canvas2d's `render/logPane.ts`. Device px, offset by
+// `(dx, dy)`; painted after the z-sorted pass. Empty ⇒ no ctx calls.
+function paintLogs(
+    state: AdapterState,
+    viewport: Viewport,
+    dx: number,
+    dy: number,
+    ctx: RenderCtx,
+): void {
+    const visible = state.recentLogs.slice(-MAX_RECENT_LOGS);
+    if (visible.length === 0) return;
+    const x = dx + LOG_PANE_PADDING;
+    const y =
+        dy +
+        Math.max(
+            LOG_PANE_PADDING,
+            viewport.pxHeight - LOG_PANE_PADDING - visible.length * LOG_ROW_HEIGHT,
+        );
+    ctx.fillStyle = OVERLAY_TEXT_COLOR;
+    ctx.font = OVERLAY_FONT;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    for (let i = 0; i < visible.length; i++) {
+        const log = visible[i];
+        ctx.fillText(`[${log.level}] ${log.message}`, x, y + i * LOG_ROW_HEIGHT);
+    }
+}
+
+// The draw-hook ctx pass for a pane, to the instance's own canvas ctx (`u.ctx`
+// — a real `CanvasRenderingContext2D` in production, a `MockCanvasContext` under
+// test). Order: substrate (bg-color + candles, overlay only) paints FIRST and
+// is z-INDEPENDENT; then ONE z-sorted pass over the hook-owned marks (glyphs /
+// h-histograms / hlines / drawings) via the shared `sortByRenderOrder`; then the
+// always-on-top alert/log overlay (overlay only), also z-independent — matching
+// canvas2d's substrate-below / alerts-above v1 posture.
 function paintPaneOverlay(state: AdapterState, paneKey: string, u: UplotLike): void {
     if (state.bars.length === 0) return;
     // uPlot's real plotting-area viewport (device px) + its canvas offset,
@@ -568,6 +1058,7 @@ function paintPaneOverlay(state: AdapterState, paneKey: string, u: UplotLike): v
     const viewport = buildViewport(u);
     const { dx, dy } = offsetForViewport(u);
     const ctx = u.ctx;
+    const spacing = medianBarSpacing(state.bars);
     // Confine the whole hand-rolled draw pass to uPlot's plotting-area box.
     // uPlot clips its OWN series to this rect, but the `hooks.draw` ctx is the
     // unclipped full canvas — so without this, any candle / bg-band / drawing
@@ -587,7 +1078,6 @@ function paintPaneOverlay(state: AdapterState, paneKey: string, u: UplotLike): v
         // are candle-state background, not a sub-pane series, so they only
         // wash the overlay pane.
         paintBgColors(state, viewport, dx, ctx);
-        const spacing = medianBarSpacing(state.bars);
         const bodyWidth = Math.max(
             1,
             Math.min(CANDLE_BODY_WIDTH_PX, timeToX(state.bars[0].time + spacing, viewport) * 0.6),
@@ -597,56 +1087,23 @@ function paintPaneOverlay(state: AdapterState, paneKey: string, u: UplotLike): v
             bull: DEFAULT_BULL,
             bear: DEFAULT_BEAR,
         };
-        drawCandlePaths(ctx, projectCandles(state.bars, viewport, dx, dy, state.barColors), style);
+        drawCandlePaths(ctx, projectCandles(state.bars, viewport, dx, dy, state), style);
     }
-    for (const hline of state.hlines.values()) {
-        if (hline.paneKey !== paneKey) continue;
-        // uPlot owns the y scale, so the hline's pixel y comes from the
-        // instance's `valToPos` (canvas/device pixels — already offset by
-        // `bbox.top`). The line spans the real plotting area: from the
-        // canvas-left offset across the plot width.
-        const y = u.valToPos(hline.price, "y", true);
-        if (!Number.isFinite(y)) continue;
-        ctx.strokeStyle = hline.color;
-        ctx.lineWidth = hline.lineWidth;
-        ctx.setLineDash(dashPattern(hline.lineStyle));
-        ctx.beginPath();
-        ctx.moveTo(dx, y);
-        ctx.lineTo(dx + viewport.pxWidth, y);
-        ctx.stroke();
-        // Restore solid 1px so the drawing pass + later hlines are not
-        // contaminated by this line's width / dash (canvas2d convention).
-        ctx.lineWidth = 1;
-        ctx.setLineDash([]);
+    // One global z-ordered paint pass for this pane: glyphs / h-histograms /
+    // hlines / drawings, stable-sorted by `(z, band, seq)`, dispatched to their
+    // per-kind renderers. At the default `z = 0` the key reduces to `(band,
+    // seq)` — byte-identical to the pre-`z` paint order. Native series are
+    // painted by uPlot beneath this pass.
+    for (const mark of collectPaneMarks(state, paneKey)) {
+        paintPaneMark(state, mark, u, viewport, dx, dy, spacing, ctx);
     }
-    paintDrawings(state, u, ctx);
+    if (paneKey === "overlay") {
+        // Alert conditions + logs pin on top of the z-sorted pass (overlay
+        // pane only), matching canvas2d's always-on-top v1 posture.
+        paintAlertConditions(state, viewport, dx, dy, ctx);
+        paintLogs(state, viewport, dx, dy, ctx);
+    }
     // Drop the plotting-area clip established at the top of the hook.
-    ctx.restore();
-}
-
-// Paint every buffered drawing into the pane's draw hook via the shared
-// adapter-kit geometry layer: `decomposeDrawing(state, view)` →
-// `paintPrimitive(ctx, prim)`. The viewport is built from uPlot's OWN
-// scales + bbox (`buildViewport`) so the projected pixels match the
-// instance's series; the plotting-area offset is applied once via a ctx
-// translate (see `offsetForViewport`). `op: "remove"` drawings are dropped
-// at ingest by `applyDrawing`, so `state.drawings` only ever holds live
-// drawings here (mirrors the canvas2d adapter, which likewise carries no
-// redundant remove guard in its paint loop). Drawings decompose against
-// THIS pane's scales, so a sub-pane drawing projects against the sub-pane's
-// price range (matching the canvas2d overlay-tail behaviour where drawings
-// ride the resolved pane).
-function paintDrawings(state: AdapterState, u: UplotLike, ctx: RenderCtx): void {
-    if (state.drawings.size === 0) return;
-    const view = buildViewport(u);
-    const { dx, dy } = offsetForViewport(u);
-    ctx.save();
-    ctx.translate(dx, dy);
-    for (const drawing of state.drawings.values()) {
-        for (const prim of decomposeDrawing(drawing, view)) {
-            paintPrimitive(ctx, prim);
-        }
-    }
     ctx.restore();
 }
 
@@ -695,21 +1152,47 @@ function buildPaneData(state: AdapterState, paneKey: string): AlignedData {
     const firstTime = state.bars.length > 0 ? state.bars[0].time : 0;
     const rows: Array<ReadonlyArray<number | null>> = [xs];
     const prefix = paneKeyPrefix(paneKey);
+    // The shifted column a point lands in, or `undefined` when it is clipped
+    // (far-past) or falls on no existing column (defensive). Shared by the
+    // single-row series path and the filled-band two-row path.
+    const columnFor = (point: PlotPoint): number | undefined => {
+        const t = shiftedBarTime({
+            bars: state.bars,
+            bar: point.bar,
+            xShift: point.xShift,
+            spacing,
+        });
+        // A far-past shift lands before the first bar — clip it (no
+        // negative-time column is prepended).
+        if (t < firstTime) return undefined;
+        return timeToCol.get(t);
+    };
     for (const [key, series] of state.plotSeries) {
         if (!key.startsWith(prefix)) continue;
+        // A `filled-band` slot becomes TWO aligned rows (upper then lower) so
+        // uPlot's native band fills the region between them; `null` on either
+        // edge is a per-bar gap. Every other kind is one value row.
+        if (state.plotSeriesStyle.get(key)?.kind === "filled-band") {
+            const upperRow: Array<number | null> = xs.map(() => null);
+            const lowerRow: Array<number | null> = xs.map(() => null);
+            for (const point of series) {
+                const col = columnFor(point);
+                if (col === undefined) continue;
+                const upper = point.value;
+                if (upper !== null && Number.isFinite(upper)) upperRow[col] = upper;
+                // `lower` is always set for a filled-band point (it carries
+                // `style.lower`, a `number | null`); `!= null` folds the
+                // never-`undefined` case into the gap branch.
+                const lower = point.lower;
+                if (lower != null && Number.isFinite(lower)) lowerRow[col] = lower;
+            }
+            rows.push(upperRow, lowerRow);
+            continue;
+        }
         const row: Array<number | null> = xs.map(() => null);
         for (const point of series) {
             if (point.value === null || !Number.isFinite(point.value)) continue;
-            const t = shiftedBarTime({
-                bars: state.bars,
-                bar: point.bar,
-                xShift: point.xShift,
-                spacing,
-            });
-            // A far-past shift lands before the first bar — clip it (no
-            // negative-time column is prepended).
-            if (t < firstTime) continue;
-            const col = timeToCol.get(t);
+            const col = columnFor(point);
             if (col === undefined) continue;
             row[col] = point.value;
         }
@@ -718,9 +1201,31 @@ function buildPaneData(state: AdapterState, paneKey: string): AlignedData {
     return rows;
 }
 
-// Build the per-series specs for a pane, in stable key order.
-function buildPaneSeries(state: AdapterState, paneKey: string): UplotSeriesSpec[] {
+// Convert a `#rgb` / `#rrggbb` hex colour to an `rgba()` string at the given
+// alpha (the band fill). A non-hex colour (a named colour, an existing rgba) is
+// returned unchanged — the alpha can only be folded into a parseable hex.
+function hexToRgba(color: string, alpha: number): string {
+    const hex = color.startsWith("#") ? color.slice(1) : "";
+    const expand =
+        hex.length === 3 ? `${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}` : hex;
+    if (expand.length !== 6 || /[^0-9a-fA-F]/.test(expand)) return color;
+    const r = Number.parseInt(expand.slice(0, 2), 16);
+    const g = Number.parseInt(expand.slice(2, 4), 16);
+    const b = Number.parseInt(expand.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Build the per-series specs (and any native bands) for a pane, in stable key
+// order. A `filled-band` slot becomes TWO adjacent specs (upper edge carrying
+// the band `fill`, lower edge a plain stroke) plus a `UplotBandSpec` linking
+// their uPlot series indices — uPlot series index `i` is spec `i - 1` (the
+// leading `{}` x series is index 0). Every other kind is one spec, no band.
+function buildPaneSeries(
+    state: AdapterState,
+    paneKey: string,
+): { series: UplotSeriesSpec[]; bands: UplotBandSpec[] } {
     const specs: UplotSeriesSpec[] = [];
+    const bands: UplotBandSpec[] = [];
     const prefix = paneKeyPrefix(paneKey);
     for (const [key, points] of state.plotSeries) {
         if (!key.startsWith(prefix)) continue;
@@ -732,24 +1237,41 @@ function buildPaneSeries(state: AdapterState, paneKey: string): UplotSeriesSpec[
         // The stroke is the series' LAST non-null per-point color (was a
         // hardcoded blue — a BUG that collapsed every series to one colour).
         const stroke = seriesColor(points, DEFAULT_LINE_COLOR);
+        const label = key.slice(prefix.length);
+        if (resolved.kind === "filled-band") {
+            // The upper edge owns the band fill (the stroke colour at the
+            // band's alpha); the lower edge is a matching-stroke plain edge.
+            // uPlot series indices are 1-based after the x series, so the next
+            // two specs are series `specs.length + 1` (upper) + `+ 2` (lower).
+            const upperIdx = specs.length + 1;
+            specs.push({ label: `${label}:upper`, scale: "y", stroke, paths: "band" });
+            specs.push({ label: `${label}:lower`, scale: "y", stroke, paths: "band" });
+            bands.push({
+                series: [upperIdx, upperIdx + 1],
+                fill: hexToRgba(stroke, resolved.alpha),
+            });
+            continue;
+        }
         const fill = fillFor(resolved, stroke);
         specs.push({
-            label: key.slice(prefix.length),
+            label,
             scale: "y",
             stroke,
             ...(fill === undefined ? {} : { fill }),
             paths: pathsFor(resolved),
         });
     }
-    return specs;
+    return { series: specs, bands };
 }
 
 function buildPaneOptions(state: AdapterState, paneKey: string): UplotOptions {
+    const { series, bands } = buildPaneSeries(state, paneKey);
     return {
         width: state.width,
         height: state.height,
         paneKey,
-        series: buildPaneSeries(state, paneKey),
+        series,
+        ...(bands.length > 0 ? { bands } : {}),
         hooks: {
             draw: [(u: UplotLike): void => paintPaneOverlay(state, paneKey, u)],
             ready: [(u: UplotLike): void => wireUplotInteraction(state, u)],
@@ -869,27 +1391,49 @@ function renderFrame(state: AdapterState): void {
 }
 
 function applyPlot(state: AdapterState, plot: PlotEmission): void {
-    if (plot.visible === false) return;
     const paneKey = resolvePaneKey(plot.pane, plot.slotId);
     if (paneKey !== "overlay" && !state.paneOrder.includes(paneKey)) {
         state.paneOrder.push(paneKey);
     }
+    // `visible: false` KEEPS the slot listed but paints nothing and never
+    // stretches the y-scale — mirroring canvas2d's "hidden but declared"
+    // semantics. A hidden SERIES still registers its key + style (so
+    // `buildPaneSeries` lists the spec) with no points (an all-null row, no
+    // y candidate); a hidden non-series kind registers nothing painted.
+    const hidden = plot.visible === false;
+    // One declaration-sequence number per ingested mark (ingest order = script
+    // declaration order; the runtime drains in script order). `z` defaults to
+    // `0`, omitted-on-the-wire ⇒ byte-identical band+declaration order.
+    const seq = state.seq++;
+    const z = plot.z ?? 0;
     if (isSeriesStyle(plot.style)) {
         const key = paneSlotKey(paneKey, plot.slotId);
         const series = state.plotSeries.get(key) ?? [];
-        series.push({
-            time: plot.time,
-            value: plot.value,
-            color: plot.color,
-            bar: plot.bar,
-            // Omit a `0` / undefined shift so the unshifted column mapping in
-            // `buildPaneData` stays byte-identical to the pre-offset path.
-            ...(plot.xShift !== undefined && plot.xShift !== 0 ? { xShift: plot.xShift } : {}),
-        });
+        if (!hidden) {
+            series.push({
+                time: plot.time,
+                value: plot.value,
+                color: plot.color,
+                bar: plot.bar,
+                // Omit a `0` / undefined shift so the unshifted column mapping
+                // in `buildPaneData` stays byte-identical to the pre-offset path.
+                ...(plot.xShift !== undefined && plot.xShift !== 0 ? { xShift: plot.xShift } : {}),
+                // A `filled-band` carries its LOWER edge alongside `value`
+                // (the upper edge) so the two-row native band can be built.
+                ...(plot.style.kind === "filled-band" ? { lower: plot.style.lower } : {}),
+                // Per-bar dynamic colour. Omit when absent so a no-`colorValue`
+                // point is byte-identical to the pre-feature shape;
+                // `seriesColor` resolves the 3-state into the whole-series stroke.
+                ...(plot.colorValue === undefined ? {} : { colorValue: plot.colorValue }),
+                z,
+                seq,
+            });
+        }
         state.plotSeries.set(key, series);
         state.plotSeriesStyle.set(key, plot.style);
         return;
     }
+    if (hidden) return;
     if (plot.style.kind === "horizontal-line") {
         state.hlines.set(plot.slotId, {
             price: plot.value ?? 0,
@@ -897,24 +1441,45 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             lineWidth: plot.style.lineWidth,
             lineStyle: plot.style.lineStyle,
             paneKey,
+            z,
+            seq,
         });
         return;
     }
-    // `bg-color` / `bar-color` additionally project into the dedicated
-    // per-bar maps the overlay draw hook paints from (resolving the
-    // `colorValue` precedence at ingest). Both also stay in `overlays` so
+    // `bg-color` / `bar-color` / `candle-override` / `bar-override` /
+    // `horizontal-histogram` additionally project into the dedicated per-bar
+    // maps the overlay draw hook paints from (resolving the `colorValue`
+    // precedence at ingest where applicable). All also stay in `overlays` so
     // the "all plot kinds" claim stays honest.
     if (plot.style.kind === "bg-color") {
         applyBgColor(state, plot, plot.style.color, plot.style.transp);
     } else if (plot.style.kind === "bar-color") {
         applyBarColor(state, plot, plot.style.color);
+    } else if (plot.style.kind === "candle-override") {
+        state.candleOverrides.set(plot.time, {
+            bull: plot.style.bull,
+            bear: plot.style.bear,
+            ...(plot.style.doji === undefined ? {} : { doji: plot.style.doji }),
+        });
+    } else if (plot.style.kind === "bar-override") {
+        state.barOverrides.set(plot.time, plot.style.color);
+    } else if (plot.style.kind === "horizontal-histogram") {
+        const hhistKey = `${plot.slotId}@${plot.time}`;
+        state.horizontalHistograms.set(hhistKey, plot.style.buckets);
+        // The volume profile's declaration sequence beside the emission (which
+        // carries `z` in `overlays`), so the z-sort pass orders it.
+        state.hhistSeq.set(hhistKey, seq);
     }
-    // Glyph / label / candle-state overrides (shape, marker, character,
-    // arrow, label, bg-color, bar-color, candle/bar-override,
-    // horizontal-histogram) are buffered per slot+bar; the "all plot kinds"
-    // claim stays honest (declared in Capabilities, retained here) rather
-    // than silently dropping the emission.
-    state.overlays.set(`${plot.slotId}@${plot.time}`, plot);
+    // Glyph / label kinds (shape, marker, character, arrow, label) are
+    // buffered per slot+bar; the "all plot kinds" claim stays honest
+    // (declared in Capabilities, retained here) rather than silently
+    // dropping the emission. They paint via the shared glyph geometry in the
+    // z-sorted draw-hook pass (`collectPaneMarks`). Substrate overlays
+    // (bg-color / bar overrides) land here harmlessly — the z-sort only reads
+    // the glyph subset's `overlaySeq`.
+    const overlayKey = `${plot.slotId}@${plot.time}`;
+    state.overlays.set(overlayKey, plot);
+    state.overlaySeq.set(overlayKey, seq);
 }
 
 // Resolve a `bg-color` emission's per-bar color via the precedence contract
@@ -975,9 +1540,13 @@ function applyLog(state: AdapterState, log: LogEmission): void {
 function applyDrawing(state: AdapterState, drawing: DrawingEmission): void {
     if (drawing.op === "remove") {
         state.drawings.delete(drawing.handleId);
+        state.drawingSeq.delete(drawing.handleId);
         return;
     }
     state.drawings.set(drawing.handleId, drawing);
+    // Declaration sequence beside the emission (which carries `z`).
+    // Last-write-wins per handle, matching the drawing's own dedup.
+    state.drawingSeq.set(drawing.handleId, state.seq++);
 }
 
 function applyValidated<T>(items: ReadonlyArray<T>, apply: (item: T) => void): void {
@@ -1064,7 +1633,14 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
         overlays: new Map(),
         bgColors: new Map(),
         barColors: new Map(),
+        candleOverrides: new Map(),
+        barOverrides: new Map(),
+        horizontalHistograms: new Map(),
         drawings: new Map(),
+        seq: 0,
+        overlaySeq: new Map(),
+        hhistSeq: new Map(),
+        drawingSeq: new Map(),
         recentAlerts: [],
         currentAlertConditions: [],
         recentLogs: [],
@@ -1122,7 +1698,14 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
             state.overlays.clear();
             state.bgColors.clear();
             state.barColors.clear();
+            state.candleOverrides.clear();
+            state.barOverrides.clear();
+            state.horizontalHistograms.clear();
             state.drawings.clear();
+            state.seq = 0;
+            state.overlaySeq.clear();
+            state.hhistSeq.clear();
+            state.drawingSeq.clear();
             state.recentAlerts.length = 0;
             state.currentAlertConditions.length = 0;
             state.recentLogs.length = 0;

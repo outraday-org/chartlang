@@ -49,6 +49,42 @@ export function withAlpha(color: string, alpha: number): string {
     return `${color}${byte.toString(16).padStart(2, "0")}`;
 }
 
+/**
+ * Resolve the per-bar paint colour for a line-family plot point under the
+ * normative `PlotEmission.colorValue` 3-state precedence contract (see
+ * `@invinite-org/chartlang-adapter-kit` `PlotEmission.colorValue`), mirroring
+ * the canvas2d reference's `render/colorValue.ts`:
+ *
+ * - **`colorValue` omitted (`undefined`)** ⇒ the static colour — the point's
+ *   `staticColor` (the top-level `PlotEmission.color`) falling back to
+ *   `plotDefault` when that is `null`. Byte-identical to the pre-feature render.
+ * - **`colorValue` present (a string)** ⇒ it OVERRIDES the static colour for
+ *   this bar's segment.
+ * - **`colorValue === null`** ⇒ an explicit "no colour this bar" gap; the
+ *   caller paints nothing for that bar (distinct from omitted).
+ *
+ * Konva is forbidden from importing another example's `src/`, so this is the
+ * konva-local copy of the shared contract (the precedence is shared, the code
+ * is not — same posture as {@link withAlpha}). It is the ONE 3-state helper
+ * the line / step-line / area / histogram builders reuse — do NOT re-inline.
+ *
+ * @since 1.7
+ * @stable
+ * @example
+ *     resolvePaintColor(undefined, "#26a69a", "#888"); // ⇒ "#26a69a"
+ *     resolvePaintColor(undefined, null, "#888"); // ⇒ "#888"
+ *     resolvePaintColor("#ef5350", "#26a69a", "#888"); // ⇒ "#ef5350"
+ *     resolvePaintColor(null, "#26a69a", "#888"); // ⇒ null (gap)
+ */
+export function resolvePaintColor(
+    colorValue: string | null | undefined,
+    staticColor: string | null,
+    plotDefault: string,
+): string | null {
+    if (colorValue === undefined) return staticColor ?? plotDefault;
+    return colorValue;
+}
+
 // Resolve a stroke's colour with its optional alpha baked in.
 function strokeColor(stroke: StrokeStyle): string {
     return stroke.alpha === undefined ? stroke.color : withAlpha(stroke.color, stroke.alpha);
@@ -188,24 +224,84 @@ function textNodes(K: KonvaNamespace, p: Extract<DrawPrimitive, { kind: "text" }
     return nodes;
 }
 
-function markerNodes(
-    K: KonvaNamespace,
-    p: Extract<DrawPrimitive, { kind: "marker" }>,
-): KonvaNode[] {
-    if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.size)) return [];
-    const half = p.size / 2;
-    const stroke =
-        p.stroke !== undefined
-            ? { stroke: strokeColor(p.stroke), strokeWidth: p.stroke.width }
-            : {};
-    const fill = p.fill !== undefined ? { fill: fillColor(p.fill) } : {};
-    switch (p.shape) {
+/**
+ * The full glyph inventory a Phase-5 `shape` plot can request — a
+ * superset of the IR {@link DrawPrimitive} `marker` shape union: the
+ * five filled marker shapes plus the three stroked glyphs
+ * (`cross` / `xcross` / `flag`).
+ *
+ * @since 1.8
+ * @stable
+ * @example
+ *     const glyph: ShapeGlyph = "cross";
+ *     void glyph;
+ */
+export type ShapeGlyph =
+    | "circle"
+    | "square"
+    | "diamond"
+    | "triangle-up"
+    | "triangle-down"
+    | "cross"
+    | "xcross"
+    | "flag";
+
+/**
+ * Konva attr fragments + geometry inputs for {@link shapeGlyphNodes}. The
+ * caller pre-resolves the `stroke` / `fill` Konva config fragments (alpha
+ * already baked into the colour string) so the helper stays agnostic to
+ * where the colour came from — a drawing primitive's
+ * {@link StrokeStyle} / {@link FillStyle} or a plot's single `color`.
+ *
+ * @since 1.8
+ * @stable
+ * @example
+ *     const args: ShapeGlyphArgs = { x: 10, y: 20, size: 8, shape: "square", fill: { fill: "#3b82f6" } };
+ *     void args;
+ */
+export type ShapeGlyphArgs = {
+    readonly x: number;
+    readonly y: number;
+    readonly size: number;
+    readonly shape: ShapeGlyph;
+    readonly stroke?: { stroke: string; strokeWidth: number };
+    readonly fill?: { fill: string };
+};
+
+/**
+ * Build the Konva node(s) for one glyph, shared by the `marker` drawing
+ * primitive AND the `marker` / `shape` plot kinds so all eight shapes
+ * have ONE geometry source. The five filled shapes
+ * (`circle` / `square` / `diamond` / `triangle-up` / `triangle-down`)
+ * map to a ring `Arc` / `Rect` / closed `Line`; the three stroked glyphs
+ * (`cross` / `xcross` / `flag`) map to open stroked `Line`s, matching the
+ * canvas2d reference (`render/shape.ts`). Non-finite anchor or size ⇒ no
+ * node.
+ *
+ * @since 1.8
+ * @stable
+ * @example
+ *     import { MockKonva } from "chartlang-example-konva-adapter/testing";
+ *     const K = new MockKonva();
+ *     const nodes = shapeGlyphNodes(K, { x: 0, y: 0, size: 6, shape: "circle", fill: { fill: "#fff" } });
+ *     // nodes.length === 1
+ *     void nodes;
+ */
+export function shapeGlyphNodes(K: KonvaNamespace, args: ShapeGlyphArgs): KonvaNode[] {
+    if (!Number.isFinite(args.x) || !Number.isFinite(args.y) || !Number.isFinite(args.size)) {
+        return [];
+    }
+    const { x, y, size } = args;
+    const half = size / 2;
+    const stroke = args.stroke ?? {};
+    const fill = args.fill ?? {};
+    switch (args.shape) {
         case "circle":
             // A circle glyph is a full Konva ring centred on the anchor.
             return [
                 new K.Arc({
-                    x: p.x,
-                    y: p.y,
+                    x,
+                    y,
                     innerRadius: half,
                     outerRadius: half,
                     angle: 360,
@@ -217,10 +313,10 @@ function markerNodes(
         case "square":
             return [
                 new K.Rect({
-                    x: p.x - half,
-                    y: p.y - half,
-                    width: p.size,
-                    height: p.size,
+                    x: x - half,
+                    y: y - half,
+                    width: size,
+                    height: size,
                     ...stroke,
                     ...fill,
                 }),
@@ -228,7 +324,7 @@ function markerNodes(
         case "diamond":
             return [
                 new K.Line({
-                    points: [p.x, p.y - half, p.x + half, p.y, p.x, p.y + half, p.x - half, p.y],
+                    points: [x, y - half, x + half, y, x, y + half, x - half, y],
                     closed: true,
                     ...stroke,
                     ...fill,
@@ -237,7 +333,7 @@ function markerNodes(
         case "triangle-up":
             return [
                 new K.Line({
-                    points: [p.x, p.y - half, p.x + half, p.y + half, p.x - half, p.y + half],
+                    points: [x, y - half, x + half, y + half, x - half, y + half],
                     closed: true,
                     ...stroke,
                     ...fill,
@@ -246,13 +342,63 @@ function markerNodes(
         case "triangle-down":
             return [
                 new K.Line({
-                    points: [p.x, p.y + half, p.x + half, p.y - half, p.x - half, p.y - half],
+                    points: [x, y + half, x + half, y - half, x - half, y - half],
                     closed: true,
                     ...stroke,
                     ...fill,
                 }),
             ];
+        case "cross":
+            // A plus sign: one horizontal + one vertical stroke. Two open
+            // `Line`s (a single `Line` would join the strokes' endpoints).
+            return [
+                new K.Line({ points: [x - half, y, x + half, y], ...stroke }),
+                new K.Line({ points: [x, y - half, x, y + half], ...stroke }),
+            ];
+        case "xcross":
+            // An X: two diagonal strokes.
+            return [
+                new K.Line({ points: [x - half, y - half, x + half, y + half], ...stroke }),
+                new K.Line({ points: [x + half, y - half, x - half, y + half], ...stroke }),
+            ];
+        case "flag":
+            // A pennant: a vertical staff with a triangular flag, one open
+            // stroked polyline (mirrors canvas2d's `drawShape` "flag").
+            return [
+                new K.Line({
+                    points: [
+                        x - half,
+                        y + half,
+                        x - half,
+                        y - half,
+                        x + half,
+                        y - half / 2,
+                        x - half,
+                        y,
+                    ],
+                    ...stroke,
+                }),
+            ];
     }
+}
+
+function markerNodes(
+    K: KonvaNamespace,
+    p: Extract<DrawPrimitive, { kind: "marker" }>,
+): KonvaNode[] {
+    // The IR `marker` primitive's 5-shape union is a subset of
+    // `ShapeGlyph`, so delegate to the shared helper after resolving the
+    // primitive's `StrokeStyle` / `FillStyle` into Konva config fragments.
+    return shapeGlyphNodes(K, {
+        x: p.x,
+        y: p.y,
+        size: p.size,
+        shape: p.shape,
+        ...(p.stroke !== undefined
+            ? { stroke: { stroke: strokeColor(p.stroke), strokeWidth: p.stroke.width } }
+            : {}),
+        ...(p.fill !== undefined ? { fill: { fill: fillColor(p.fill) } } : {}),
+    });
 }
 
 /**

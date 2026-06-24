@@ -12,8 +12,13 @@ export type {
 export type { EChartsSurface } from "./types.js";
 export { ECHARTS_CAPABILITIES, ECHARTS_SYM_INFO } from "./capabilities.js";
 export { DEFAULT_ADAPTER } from "./defaultAdapter.js";
-export { primitiveIsFinite, primitiveToGraphic } from "./primitiveToGraphic.js";
-export type { EChartsGraphicElement } from "./primitiveToGraphic.js";
+export { glyphMarkerGraphic, primitiveIsFinite, primitiveToGraphic } from "./primitiveToGraphic.js";
+export type {
+    EChartsGraphicElement,
+    GlyphMarkerArgs,
+    GlyphMarkerShape,
+    GraphicPathStyle,
+} from "./primitiveToGraphic.js";
 export { buildViewport, computeViewport } from "./viewport.js";
 
 /**

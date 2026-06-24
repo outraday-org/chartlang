@@ -18,7 +18,6 @@ import type {
     EChartsOption,
     GridOption,
     LineSeriesOption,
-    ScatterSeriesOption,
     SeriesOption,
 } from "echarts/types/dist/echarts";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -182,6 +181,50 @@ function graphicArray(option: EChartsOption): GraphicEl[] {
     const graphic: unknown = option.graphic;
     if (!Array.isArray(graphic)) throw new Error("expected a graphic array");
     return graphic as GraphicEl[];
+}
+
+// A broader read of a `graphic` element covering the glyph kinds: a path
+// (polygon/polyline/circle) with a `shape` + path `style`, or a `text` element
+// with a text `style`. Used by the glyph tests, which assert across element
+// types (circle / polygon / polyline / text) rather than just polygons.
+type AnyGraphicEl = {
+    readonly type?: string;
+    readonly zlevel?: number;
+    readonly shape?: {
+        readonly points?: ReadonlyArray<readonly [number, number]>;
+        readonly cx?: number;
+        readonly cy?: number;
+        readonly r?: number;
+    };
+    readonly style?: {
+        readonly fill?: string;
+        readonly stroke?: string;
+        readonly text?: string;
+        readonly verticalAlign?: string;
+    };
+};
+
+function anyGraphicArray(option: EChartsOption): AnyGraphicEl[] {
+    const graphic: unknown = option.graphic;
+    if (!Array.isArray(graphic)) throw new Error("expected a graphic array");
+    return graphic as AnyGraphicEl[];
+}
+
+// The text bodies of every `graphic.text` element, in option order — used by
+// the alert-condition + log overlay-panel tests.
+function graphicTexts(option: EChartsOption): string[] {
+    return anyGraphicArray(option)
+        .filter((g) => g?.type === "text")
+        .map((g) => g.style?.text ?? "");
+}
+
+// Every line-family series whose name shares `${prefix}` (a single un-split
+// series keeps the bare prefix; colorValue splits append `#run${i}`).
+function runSeries(option: EChartsOption, prefix: string): LineSeriesOption[] {
+    return seriesArray(option).filter(
+        (s): s is LineSeriesOption =>
+            s.type === "line" && typeof s.name === "string" && s.name.startsWith(prefix),
+    );
 }
 
 afterEach(() => {
@@ -626,45 +669,209 @@ describe("createEChartsAdapter — plot kinds", () => {
         expect(lower.data).toEqual(["-", 8]);
     });
 
-    it("maps glyph plot kinds (shape/marker/character/arrow/label) to scatter series", async () => {
+    it("renders the five glyph kinds as DISTINCT graphic elements (no uniform dot)", async () => {
         const bars = [bar(0, 100)];
         const glyphs: ReadonlyArray<PlotStyle> = [
-            { kind: "shape", shape: "circle", size: 1 },
-            { kind: "marker", shape: "circle", size: 1 },
-            { kind: "character", char: "x", size: 1 },
-            { kind: "arrow", direction: "up", size: 1 },
+            { kind: "shape", shape: "diamond", size: 8 },
+            { kind: "marker", shape: "circle", size: 8 },
+            { kind: "character", char: "x", size: 12 },
+            { kind: "arrow", direction: "up", size: 10 },
             { kind: "label", text: "hi", position: "above" },
         ];
         const frames = [
             frameWith(
-                glyphs.map((style, i) => plot({ style, bar: 0, slotId: `g${i}`, value: 50 + i })),
+                glyphs.map((style, i) =>
+                    plot({ style, bar: 0, slotId: `g${i}`, value: 50 + i, color: "#abcdef" }),
+                ),
             ),
         ];
-        const option = lastOption(await drive(bars, frames));
-        for (let i = 0; i < glyphs.length; i += 1) {
-            const s = findSeries(option, `overlay|g${i}`) as ScatterSeriesOption;
-            expect(s.type).toBe("scatter");
-            expect(s.data).toEqual([[0, 50 + i]]);
+        const graphic = anyGraphicArray(lastOption(await drive(bars, frames)));
+        // A diamond shape → polygon; a circle marker → circle; a character →
+        // text with the char; an up arrow → polygon (triangle); a label → text
+        // with its body. No two kinds collapse to the same element.
+        const types = graphic.map((g) => g?.type);
+        expect(types).toContain("circle"); // marker circle
+        expect(types.filter((t) => t === "polygon").length).toBeGreaterThanOrEqual(2); // diamond + arrow
+        const texts = graphic.filter((g) => g?.type === "text").map((g) => g.style?.text);
+        expect(texts).toContain("x"); // character
+        expect(texts).toContain("hi"); // label
+        // Every glyph carries the plot color as its fill / stroke / text fill.
+        for (const g of graphic) {
+            const fill = g.style?.fill ?? g.style?.stroke;
+            expect(fill).toBe("#abcdef");
         }
     });
 
-    it("drops a glyph point whose value is null (no scatter datum)", async () => {
+    it("renders an up arrow and a down arrow as different triangles", async () => {
         const bars = [bar(0, 100)];
         const frames = [
             frameWith([
                 plot({
-                    style: { kind: "shape", shape: "circle", size: 1 },
+                    style: { kind: "arrow", direction: "up", size: 10 },
+                    bar: 0,
+                    slotId: "up",
+                    value: 50,
+                }),
+                plot({
+                    style: { kind: "arrow", direction: "down", size: 10 },
+                    bar: 0,
+                    slotId: "dn",
+                    value: 60,
+                }),
+            ]),
+        ];
+        const polys = anyGraphicArray(lastOption(await drive(bars, frames))).filter(
+            (g) => g?.type === "polygon",
+        );
+        expect(polys).toHaveLength(2);
+        // The up arrow's apex is its TOPMOST vertex (smallest y); the down
+        // arrow's apex is its BOTTOMMOST (largest y) — so the two triangles
+        // differ structurally, not just in position.
+        const apexY = (g: AnyGraphicEl): number => {
+            const ys = (g.shape?.points ?? []).map((p) => p[1]);
+            return ys[0] ?? 0;
+        };
+        const upApex = apexY(polys[0]);
+        const downApex = apexY(polys[1]);
+        const upYs = (polys[0].shape?.points ?? []).map((p) => p[1]);
+        const downYs = (polys[1].shape?.points ?? []).map((p) => p[1]);
+        // Up arrow: apex is the min y; down arrow: apex is the max y.
+        expect(upApex).toBe(Math.min(...upYs));
+        expect(downApex).toBe(Math.max(...downYs));
+    });
+
+    it("renders a cross shape as two crossing polylines", async () => {
+        const bars = [bar(0, 100)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "shape", shape: "cross", size: 8 },
+                    bar: 0,
+                    slotId: "c",
+                    value: 50,
+                }),
+            ]),
+        ];
+        const lines = anyGraphicArray(lastOption(await drive(bars, frames))).filter(
+            (g) => g?.type === "polyline",
+        );
+        expect(lines).toHaveLength(2);
+    });
+
+    it("renders xcross / flag stroke shapes and the triangle marker shapes", async () => {
+        const bars = [bar(0, 100)];
+        const styles: ReadonlyArray<PlotStyle> = [
+            { kind: "shape", shape: "xcross", size: 8 },
+            { kind: "shape", shape: "flag", size: 8 },
+            { kind: "shape", shape: "triangle-up", size: 8 },
+            { kind: "shape", shape: "triangle-down", size: 8 },
+            { kind: "marker", shape: "square", size: 8 },
+            { kind: "marker", shape: "diamond", size: 8 },
+            { kind: "marker", shape: "triangle-up", size: 8 },
+            { kind: "marker", shape: "triangle-down", size: 8 },
+        ];
+        const frames = [
+            frameWith(
+                styles.map((style, i) => plot({ style, bar: 0, slotId: `g${i}`, value: 50 + i })),
+            ),
+        ];
+        const graphic = anyGraphicArray(lastOption(await drive(bars, frames)));
+        // xcross → 2 polylines, flag → 1 polyline = 3 polylines total.
+        expect(graphic.filter((g) => g?.type === "polyline")).toHaveLength(3);
+        // 2 shape triangles + 4 markers (square/diamond/2 triangles) = 6 polygons.
+        expect(graphic.filter((g) => g?.type === "polygon")).toHaveLength(6);
+    });
+
+    it("anchors character / label text by location (above / below / anchor)", async () => {
+        const bars = [bar(0, 100)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "character", char: "a", size: 12, location: "above" },
+                    bar: 0,
+                    slotId: "ca",
+                    value: 50,
+                }),
+                plot({
+                    style: { kind: "character", char: "b", size: 12, location: "below" },
+                    bar: 0,
+                    slotId: "cb",
+                    value: 51,
+                }),
+                plot({
+                    style: { kind: "character", char: "c", size: 12, location: "absolute" },
+                    bar: 0,
+                    slotId: "cc",
+                    value: 52,
+                }),
+                plot({
+                    style: { kind: "label", text: "L1", position: "below" },
+                    bar: 0,
+                    slotId: "l1",
+                    value: 53,
+                }),
+                plot({
+                    style: { kind: "label", text: "L2", position: "anchor" },
+                    bar: 0,
+                    slotId: "l2",
+                    value: 54,
+                }),
+            ]),
+        ];
+        const texts = anyGraphicArray(lastOption(await drive(bars, frames))).filter(
+            (g) => g?.type === "text",
+        );
+        const alignOf = (t: string): string | undefined =>
+            texts.find((g) => g.style?.text === t)?.style?.verticalAlign;
+        expect(alignOf("a")).toBe("bottom"); // character above
+        expect(alignOf("b")).toBe("top"); // character below
+        expect(alignOf("c")).toBe("middle"); // character absolute
+        expect(alignOf("L1")).toBe("top"); // label below
+        expect(alignOf("L2")).toBe("middle"); // label anchor
+    });
+
+    it("anchors a shape glyph above / below its value via location", async () => {
+        const bars = [bar(0, 100), bar(1, 101)];
+        const makeFrame = (location: "above" | "below" | "absolute"): RunnerEmissions =>
+            frameWith([
+                plot({
+                    style: { kind: "shape", shape: "square", size: 8, location },
+                    bar: 0,
+                    slotId: "s",
+                    value: 50,
+                }),
+            ]);
+        // Same value, three locations → three different centre y's: above is
+        // the smallest pixel y (higher on screen), below the largest.
+        const centreY = async (location: "above" | "below" | "absolute"): Promise<number> => {
+            const g = anyGraphicArray(lastOption(await drive(bars, [makeFrame(location)]))).find(
+                (el) => el?.type === "polygon",
+            );
+            const ys = (g?.shape?.points ?? []).map((p) => p[1]);
+            return (Math.min(...ys) + Math.max(...ys)) / 2;
+        };
+        const above = await centreY("above");
+        const absolute = await centreY("absolute");
+        const below = await centreY("below");
+        expect(above).toBeLessThan(absolute);
+        expect(below).toBeGreaterThan(absolute);
+    });
+
+    it("drops a glyph point whose value is null (no graphic element)", async () => {
+        const bars = [bar(0, 100)];
+        const frames = [
+            frameWith([
+                plot({
+                    style: { kind: "shape", shape: "circle", size: 8 },
                     bar: 0,
                     slotId: "g",
                     value: null,
                 }),
             ]),
         ];
-        const s = findSeries(
-            lastOption(await drive(bars, frames)),
-            "overlay|g",
-        ) as ScatterSeriesOption;
-        expect(s.data).toEqual([]);
+        // The only thing that would have been projected is the null glyph, so
+        // the whole graphic layer is empty (no spurious viewport sampling).
+        expect(lastOption(await drive(bars, frames)).graphic).toEqual([]);
     });
 
     it("maps horizontal-line to a markLine on a carrier series", async () => {
@@ -715,23 +922,68 @@ describe("createEChartsAdapter — plot kinds", () => {
 });
 
 describe("createEChartsAdapter — candle-state overrides and background", () => {
-    it("tints a candlestick body via candle-override (bull colour)", async () => {
-        const bars = [bar(0, 100)];
+    it("colours a candle-override body by bar direction (bull / bear / doji)", async () => {
+        // Three explicit bars: a bullish (close > open), a bearish (close <
+        // open), and a doji (close === open) — one candle-override frame per
+        // bar, asserting the resolved body colour follows the bar's own
+        // direction (canvas2d `candleOverride.ts` parity).
+        const at = (i: number, open: number, close: number): Bar => ({
+            ...bar(i, close),
+            open,
+            close,
+            high: Math.max(open, close) + 1,
+            low: Math.min(open, close) - 1,
+        });
+        const bars = [at(0, 99, 101), at(1, 101, 99), at(2, 100, 100)];
+        const ov = (i: number): PlotEmission =>
+            plot({
+                style: {
+                    kind: "candle-override",
+                    bull: "#00ff00",
+                    bear: "#ff0000",
+                    doji: "#0000ff",
+                },
+                bar: i,
+                slotId: "co",
+                time: bars[i].time,
+            });
+        const frames = [frameWith([ov(0)]), frameWith([ov(1)]), frameWith([ov(2)])];
+        const candles = findSeries(
+            lastOption(await drive(bars, frames)),
+            "candles",
+        ) as CandlestickSeriesOption;
+        expect(candles.data?.[0]).toMatchObject({
+            itemStyle: { color: "#00ff00", color0: "#00ff00" },
+        });
+        expect(candles.data?.[1]).toMatchObject({
+            itemStyle: { color: "#ff0000", color0: "#ff0000" },
+        });
+        expect(candles.data?.[2]).toMatchObject({
+            itemStyle: { color: "#0000ff", color0: "#0000ff" },
+        });
+    });
+
+    it("falls back a doji candle-override to the bull colour when no doji is set", async () => {
+        const doji: Bar = (() => {
+            const b = bar(0, 100);
+            return { ...b, open: 100, close: 100, high: 101, low: 99 };
+        })();
         const frames = [
             frameWith([
                 plot({
                     style: { kind: "candle-override", bull: "#00ff00", bear: "#ff0000" },
                     bar: 0,
                     slotId: "co",
+                    time: doji.time,
                 }),
             ]),
         ];
         const candles = findSeries(
-            lastOption(await drive(bars, frames)),
+            lastOption(await drive([doji], frames)),
             "candles",
         ) as CandlestickSeriesOption;
-        expect(candles.data?.[0]).toEqual({
-            value: [99.5, 100, 99, 101],
+        // No `doji` colour ⇒ the bull colour is the fallback.
+        expect(candles.data?.[0]).toMatchObject({
             itemStyle: { color: "#00ff00", color0: "#00ff00" },
         });
     });
@@ -1322,6 +1574,395 @@ describe("createEChartsAdapter — alerts, logs, drawings, diagnostics", () => {
     });
 });
 
+describe("createEChartsAdapter — alert-condition + log overlay panels", () => {
+    function condition(
+        over: Partial<RunnerEmissions["alertConditions"][number]> & { conditionId: string },
+    ): RunnerEmissions["alertConditions"][number] {
+        return {
+            kind: "alert-condition",
+            conditionId: over.conditionId,
+            title: over.title ?? "t",
+            description: over.description ?? "d",
+            defaultMessage: over.defaultMessage ?? "m",
+            fired: over.fired ?? true,
+            bar: over.bar ?? 0,
+            time: over.time ?? START_TIME,
+        };
+    }
+
+    function log(over: {
+        level?: "info" | "warn" | "error";
+        message: string;
+    }): RunnerEmissions["logs"][number] {
+        return {
+            kind: "log",
+            level: over.level ?? "info",
+            message: over.message,
+            bar: 0,
+            time: START_TIME,
+        };
+    }
+
+    it("renders one graphic.text row per FIRED alert condition", async () => {
+        const bars = [bar(0, 100)];
+        const frame: RunnerEmissions = {
+            ...emptyEmissions(),
+            alertConditions: [
+                condition({ conditionId: "bullCross", defaultMessage: "crossed up" }),
+                condition({ conditionId: "bearCross", defaultMessage: "crossed down" }),
+            ],
+        };
+        const texts = graphicTexts(lastOption(await drive(bars, [frame])));
+        expect(texts).toEqual(["bullCross: crossed up", "bearCross: crossed down"]);
+    });
+
+    it("ignores non-fired conditions (they travel the wire but do not paint)", async () => {
+        const bars = [bar(0, 100)];
+        const frame: RunnerEmissions = {
+            ...emptyEmissions(),
+            alertConditions: [
+                condition({ conditionId: "fired", fired: true, defaultMessage: "yes" }),
+                condition({ conditionId: "armed", fired: false, defaultMessage: "no" }),
+            ],
+        };
+        const texts = graphicTexts(lastOption(await drive(bars, [frame])));
+        expect(texts).toEqual(["fired: yes"]);
+    });
+
+    it("emits no condition graphics for an all-unfired / empty frame", async () => {
+        const bars = [bar(0, 100)];
+        const frame: RunnerEmissions = {
+            ...emptyEmissions(),
+            alertConditions: [condition({ conditionId: "armed", fired: false })],
+        };
+        // Only an unfired condition (and no logs) ⇒ the whole graphic layer is
+        // empty (no spurious viewport sample either).
+        expect(lastOption(await drive(bars, [frame])).graphic).toEqual([]);
+    });
+
+    it("renders the latest logs as graphic.text rows", async () => {
+        const bars = [bar(0, 100)];
+        const frame: RunnerEmissions = {
+            ...emptyEmissions(),
+            logs: [log({ message: "a" }), log({ level: "warn", message: "b" })],
+        };
+        const texts = graphicTexts(lastOption(await drive(bars, [frame])));
+        expect(texts).toEqual(["[info] a", "[warn] b"]);
+    });
+
+    it("caps the rendered log pane at the last five entries", async () => {
+        const bars = [bar(0, 100)];
+        const frame: RunnerEmissions = {
+            ...emptyEmissions(),
+            logs: Array.from({ length: 8 }, (_, i) => log({ message: `m${i}` })),
+        };
+        // The ingest ring keeps the last five; the pane renders exactly five.
+        const texts = graphicTexts(lastOption(await drive(bars, [frame])));
+        expect(texts).toEqual(["[info] m3", "[info] m4", "[info] m5", "[info] m6", "[info] m7"]);
+    });
+
+    it("appends overlay panels ON TOP of the z-sorted graphic layer", async () => {
+        const bars = [bar(0, 100)];
+        // A drawing (z-sorted layer) plus a fired condition + a log (always-on
+        // -top overlay). The drawing's polyline comes first, then the overlay
+        // text rows. One bar ⇒ the stub frame is ingested exactly once.
+        const drawing: DrawingEmission = {
+            kind: "drawing",
+            handleId: "d.ts:1:1#0",
+            drawingKind: "line",
+            op: "create",
+            state: {
+                kind: "line",
+                anchors: [
+                    { time: bars[0].time, price: 100 },
+                    { time: bars[0].time + MS_PER_DAY, price: 101 },
+                ],
+                style: {},
+            },
+            bar: 0,
+            time: bars[0].time,
+        };
+        const frame: RunnerEmissions = {
+            ...emptyEmissions(),
+            drawings: [drawing],
+            alertConditions: [condition({ conditionId: "c", defaultMessage: "m" })],
+            logs: [log({ message: "l" })],
+        };
+        const option = lastOption(await drive(bars, [frame]));
+        const types = anyGraphicArray(option).map((g) => g?.type);
+        // The drawing polyline precedes the two appended overlay text rows.
+        expect(types).toEqual(["polyline", "text", "text"]);
+        expect(graphicTexts(option)).toEqual(["c: m", "[info] l"]);
+    });
+});
+
+describe("createEChartsAdapter — line-family colorValue (segment runs)", () => {
+    const LINE: PlotStyle = { kind: "line", lineWidth: 1, lineStyle: "solid" };
+
+    it("omitted colorValue ⇒ a single byte-identical series (no split)", async () => {
+        const bars = [bar(0, 100), bar(1, 101), bar(2, 102)];
+        const frames = [0, 1, 2].map((b) =>
+            frameWith([
+                plot({ style: LINE, bar: b, slotId: "ln", value: 10 + b, color: "#26a69a" }),
+            ]),
+        );
+        const option = lastOption(await drive(bars, frames));
+        const runs = runSeries(option, "overlay|ln");
+        expect(runs).toHaveLength(1);
+        expect(runs[0].name).toBe("overlay|ln");
+        expect(runs[0].data).toEqual([10, 11, 12]);
+        expect(runs[0].lineStyle?.color).toBe("#26a69a");
+    });
+
+    it("present colorValue subset ⇒ per-run series, each its own colour", async () => {
+        const bars = [bar(0, 100), bar(1, 101), bar(2, 102)];
+        // Bars 0,1 green (static), bar 2 explicit red override → two runs.
+        const frames = [
+            frameWith([plot({ style: LINE, bar: 0, slotId: "ln", value: 10, color: "#26a69a" })]),
+            frameWith([plot({ style: LINE, bar: 1, slotId: "ln", value: 11, color: "#26a69a" })]),
+            frameWith([
+                plot({
+                    style: LINE,
+                    bar: 2,
+                    slotId: "ln",
+                    value: 12,
+                    color: "#26a69a",
+                    colorValue: "#ff0000",
+                }),
+            ]),
+        ];
+        const runs = runSeries(lastOption(await drive(bars, frames)), "overlay|ln");
+        expect(runs).toHaveLength(2);
+        // First run: the static green span (bars 0,1); second: the red bar 2.
+        expect(runs[0].name).toBe("overlay|ln");
+        expect(runs[0].lineStyle?.color).toBe("#26a69a");
+        expect(runs[0].data).toEqual([10, 11, "-"]);
+        expect(runs[1].name).toBe("overlay|ln#run1");
+        expect(runs[1].lineStyle?.color).toBe("#ff0000");
+        expect(runs[1].data).toEqual(["-", "-", 12]);
+    });
+
+    it("colorValue:null ⇒ a paint-nothing gap that breaks the run", async () => {
+        const bars = [bar(0, 100), bar(1, 101), bar(2, 102)];
+        // Bar 1 carries a finite value but colorValue:null → it folds into the
+        // y-scale yet paints in NO run, splitting bars 0 and 2 into two runs.
+        const frames = [
+            frameWith([plot({ style: LINE, bar: 0, slotId: "ln", value: 10, color: "#26a69a" })]),
+            frameWith([
+                plot({
+                    style: LINE,
+                    bar: 1,
+                    slotId: "ln",
+                    value: 11,
+                    color: "#26a69a",
+                    colorValue: null,
+                }),
+            ]),
+            frameWith([plot({ style: LINE, bar: 2, slotId: "ln", value: 12, color: "#26a69a" })]),
+        ];
+        const runs = runSeries(lastOption(await drive(bars, frames)), "overlay|ln");
+        expect(runs).toHaveLength(2);
+        // Bar 1's value is painted by neither run (the gap).
+        expect(runs[0].data).toEqual([10, "-", "-"]);
+        expect(runs[1].data).toEqual(["-", "-", 12]);
+        expect(runs[1].name).toBe("overlay|ln#run1");
+    });
+
+    it("a fully-gapped line still emits its single placeholder series", async () => {
+        const bars = [bar(0, 100)];
+        // value:null everywhere ⇒ no run paints, but the single series with an
+        // all-gap data array is still emitted (the pre-feature placeholder).
+        const frames = [
+            frameWith([plot({ style: LINE, bar: 0, slotId: "ln", value: null, color: "#26a69a" })]),
+        ];
+        const runs = runSeries(lastOption(await drive(bars, frames)), "overlay|ln");
+        expect(runs).toHaveLength(1);
+        expect(runs[0].name).toBe("overlay|ln");
+        expect(runs[0].data).toEqual(["-"]);
+    });
+
+    it("splits an AREA series into per-colour runs that each keep areaStyle", async () => {
+        const bars = [bar(0, 100), bar(1, 101)];
+        const AREA: PlotStyle = { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: 0.3 };
+        const frames = [
+            frameWith([plot({ style: AREA, bar: 0, slotId: "ar", value: 5, color: "#26a69a" })]),
+            frameWith([
+                plot({
+                    style: AREA,
+                    bar: 1,
+                    slotId: "ar",
+                    value: 6,
+                    color: "#26a69a",
+                    colorValue: "#0000ff",
+                }),
+            ]),
+        ];
+        const runs = runSeries(lastOption(await drive(bars, frames)), "overlay|ar");
+        expect(runs).toHaveLength(2);
+        expect(runs[0].areaStyle).toEqual({ opacity: 0.3 });
+        expect(runs[1].areaStyle).toEqual({ opacity: 0.3 });
+        expect(runs[1].lineStyle?.color).toBe("#0000ff");
+    });
+});
+
+describe("createEChartsAdapter — drawing z render order", () => {
+    function lineDrawing(handleId: string, z: number | undefined): DrawingEmission {
+        return {
+            kind: "drawing",
+            handleId,
+            drawingKind: "line",
+            op: "create",
+            state: {
+                kind: "line",
+                anchors: [
+                    { time: START_TIME, price: 100 },
+                    { time: START_TIME + MS_PER_DAY, price: 101 },
+                ],
+                style: {},
+            },
+            bar: 0,
+            time: START_TIME,
+            ...(z === undefined ? {} : { z }),
+        };
+    }
+
+    it("sinks a z:-1 drawing to zlevel:-1 (beneath the z:0 series default)", async () => {
+        const bars = [bar(0, 100), bar(1, 101)];
+        const frames = [
+            {
+                ...emptyEmissions(),
+                plots: [
+                    plot({
+                        style: { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                        bar: 0,
+                        slotId: "p",
+                        value: 100,
+                    }),
+                ],
+                drawings: [lineDrawing("d#0", -1)],
+            },
+        ];
+        const option = lastOption(await drive(bars, frames));
+        // The drawing's graphic element carries zlevel -1 (painted underneath the
+        // default-zlevel series); the z:0 line series carries NO zlevel.
+        const drawingEl = anyGraphicArray(option).find((g) => g?.type === "polyline");
+        expect(drawingEl?.zlevel).toBe(-1);
+        const line = findSeries(option, "overlay|p") as LineSeriesOption;
+        expect(line.zlevel).toBeUndefined();
+    });
+
+    it("lifts a z>0 plot series to zlevel:1 (above the default-zlevel graphics)", async () => {
+        const bars = [bar(0, 100), bar(1, 101)];
+        const frames = [
+            {
+                ...emptyEmissions(),
+                plots: [
+                    plot({
+                        style: { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                        bar: 0,
+                        slotId: "p",
+                        value: 100,
+                        z: 2,
+                    }),
+                ],
+                drawings: [lineDrawing("d#0", undefined)],
+            },
+        ];
+        const option = lastOption(await drive(bars, frames));
+        const line = findSeries(option, "overlay|p") as LineSeriesOption;
+        expect(line.zlevel).toBe(1);
+        // The default-z drawing stays at zlevel 0 (omitted).
+        const drawingEl = anyGraphicArray(option).find((g) => g?.type === "polyline");
+        expect(drawingEl?.zlevel).toBeUndefined();
+    });
+
+    it("orders a z:-1 drawing below a z:0 glyph in the resolved graphic array", async () => {
+        const bars = [bar(0, 100), bar(1, 101)];
+        const frames = [
+            {
+                ...emptyEmissions(),
+                plots: [
+                    plot({
+                        style: { kind: "marker", shape: "circle", size: 8 },
+                        bar: 0,
+                        slotId: "g",
+                        value: 100,
+                    }),
+                ],
+                drawings: [lineDrawing("d#0", -1)],
+            },
+        ];
+        const graphic = anyGraphicArray(lastOption(await drive(bars, frames)));
+        // The shared `sortByRenderOrder` resolves the z:-1 drawing BEFORE the
+        // z:0 glyph, so the drawing's polyline precedes the glyph's circle in
+        // the array (earlier = painted first = underneath).
+        const drawingIdx = graphic.findIndex((g) => g?.type === "polyline");
+        const glyphIdx = graphic.findIndex((g) => g?.type === "circle");
+        expect(drawingIdx).toBeGreaterThanOrEqual(0);
+        expect(glyphIdx).toBeGreaterThanOrEqual(0);
+        expect(drawingIdx).toBeLessThan(glyphIdx);
+    });
+
+    it("skips a drawing that decomposes to zero graphic elements", async () => {
+        const bars = [bar(0, 100), bar(1, 101)];
+        // A `group` drawing is a metadata-only container — `decomposeGroup`
+        // returns `[]`, so its mark contributes no graphic element (the
+        // empty-elements `continue` in `drawingMarks`). A coexisting glyph keeps
+        // the layer non-empty so the skip is observable as the group's absence.
+        const group: DrawingEmission = {
+            kind: "drawing",
+            handleId: "grp#0",
+            drawingKind: "group",
+            op: "create",
+            state: { kind: "group", childHandleIds: [] },
+            bar: 0,
+            time: START_TIME,
+        };
+        const frames = [
+            {
+                ...emptyEmissions(),
+                plots: [
+                    plot({
+                        style: { kind: "marker", shape: "circle", size: 8 },
+                        bar: 0,
+                        slotId: "g",
+                        value: 100,
+                    }),
+                ],
+                drawings: [group],
+            },
+            // Second drain emits nothing so the marker is stored exactly once.
+            emptyEmissions(),
+        ];
+        const graphic = anyGraphicArray(lastOption(await drive(bars, frames)));
+        // Only the glyph circle is present — the group contributed nothing.
+        expect(graphic.filter((g) => g?.type === "circle")).toHaveLength(1);
+        expect(graphic.filter((g) => g?.type === "polyline" || g?.type === "polygon")).toHaveLength(
+            0,
+        );
+    });
+
+    it("re-emitting a live drawing keeps its ingest seq (stable render order)", async () => {
+        const bars = [bar(0, 100), bar(1, 101)];
+        // Two drawings: A ingested first, then B. Re-emitting A on a later frame
+        // must NOT push it after B in the resolved order (same z, so seq breaks
+        // the tie and A's seq is preserved across the upsert).
+        const a = lineDrawing("a#0", undefined);
+        const b: DrawingEmission = {
+            ...lineDrawing("b#0", undefined),
+            time: START_TIME + MS_PER_DAY,
+        };
+        const frames = [
+            { ...emptyEmissions(), drawings: [a, b] },
+            { ...emptyEmissions(), drawings: [a] },
+        ];
+        const graphic = anyGraphicArray(lastOption(await drive(bars, frames)));
+        // Both polylines present, A still before B (A's seq < B's seq, unchanged
+        // by the re-emit).
+        expect(graphic.filter((g) => g?.type === "polyline")).toHaveLength(2);
+    });
+});
+
 describe("createEChartsAdapter — universal plot offset (xShift)", () => {
     it("writes a +5 series at baseline+5, grows the category axis, and clips a -5 below 0", async () => {
         // Five bars. A baseline (unshifted) SMA, a +5 copy displaced right into
@@ -1423,62 +2064,58 @@ describe("createEChartsAdapter — universal plot offset (xShift)", () => {
         expect(ln.data).toEqual([10, 11]);
     });
 
-    it("shifts a glyph and a filled-band point by the same offset", async () => {
+    it("shifts a glyph graphic by the offset (bar-time anchored, like a drawing)", async () => {
         const bars = [bar(0, 100), bar(1, 101), bar(2, 102)];
-        // Only the first drain emits; the later drains are empty so the +1
-        // glyph / band point is stored exactly once.
-        const frames = [
-            frameWith([
-                // A +1 glyph: bar 0 renders at column 1.
-                plot({
-                    style: { kind: "shape", shape: "circle", size: 1 },
-                    bar: 0,
-                    slotId: "g",
-                    value: 50,
-                    xShift: 1,
-                }),
-                // A +1 filled-band point: bar 0's bounds land at column 1.
-                plot({
-                    style: { kind: "filled-band", upper: 12, lower: 8, alpha: 0.2 },
-                    bar: 0,
-                    slotId: "band",
-                    value: 10,
-                    xShift: 1,
-                }),
-            ]),
-            frameWith([]),
-            frameWith([]),
-        ];
-        const option = lastOption(await drive(bars, frames));
-        const glyph = findSeries(option, "overlay|g") as ScatterSeriesOption;
-        // The scatter datum's x is the shifted category column (0 + 1 = 1).
-        expect(glyph.data).toEqual([[1, 50]]);
-        const lower = findSeries(option, "overlay|band:lower") as LineSeriesOption;
-        // Lower bound written at column 1, not 0.
-        expect(lower.data).toEqual(["-", 8, "-", "-"]);
-    });
+        // A glyph at bar 0 with xShift +1 renders at bar 1's pixel x — glyphs
+        // are bar-TIME anchored (via `shiftedBarTime` → `timeToX`), not
+        // category-index anchored like the line/band series, so a `+1` glyph
+        // lands at the same x as an unshifted glyph on bar 1.
+        const shiftedFrame = frameWith([
+            plot({
+                style: { kind: "shape", shape: "square", size: 8 },
+                bar: 0,
+                slotId: "g",
+                value: 50,
+                xShift: 1,
+            }),
+        ]);
+        const refFrame = frameWith([
+            plot({
+                style: { kind: "shape", shape: "square", size: 8 },
+                bar: 1,
+                slotId: "g",
+                value: 50,
+            }),
+        ]);
+        const centreX = (option: EChartsOption): number => {
+            const g = anyGraphicArray(option).find((el) => el?.type === "polygon");
+            const xs = (g?.shape?.points ?? []).map((p) => p[0]);
+            return (Math.min(...xs) + Math.max(...xs)) / 2;
+        };
+        const shifted = centreX(
+            lastOption(await drive(bars, [shiftedFrame, frameWith([]), frameWith([])])),
+        );
+        const reference = centreX(
+            lastOption(await drive(bars, [refFrame, frameWith([]), frameWith([])])),
+        );
+        expect(shifted).toBeCloseTo(reference, 6);
 
-    it("clips a glyph shifted past the left edge to no scatter datum", async () => {
-        const bars = [bar(0, 100), bar(1, 101), bar(2, 102)];
-        // A -1 glyph on bar 0 resolves to category index -1 — there is no
-        // negative category, so the datum is dropped (parity with the
-        // `seriesData` / `bandData` clip).
-        const frames = [
-            frameWith([
-                plot({
-                    style: { kind: "shape", shape: "circle", size: 1 },
-                    bar: 0,
-                    slotId: "g",
-                    value: 50,
-                    xShift: -1,
-                }),
-            ]),
-            frameWith([]),
-            frameWith([]),
-        ];
-        const option = lastOption(await drive(bars, frames));
-        const glyph = findSeries(option, "overlay|g") as ScatterSeriesOption;
-        expect(glyph.data).toEqual([]);
+        // The filled-band series still uses the category column (the +1 band
+        // point lands at column 1) — only glyphs moved to the pixel path.
+        const bandFrame = frameWith([
+            plot({
+                style: { kind: "filled-band", upper: 12, lower: 8, alpha: 0.2 },
+                bar: 0,
+                slotId: "band",
+                value: 10,
+                xShift: 1,
+            }),
+        ]);
+        const lower = findSeries(
+            lastOption(await drive(bars, [bandFrame, frameWith([]), frameWith([])])),
+            "overlay|band:lower",
+        ) as LineSeriesOption;
+        expect(lower.data).toEqual(["-", 8, "-", "-"]);
     });
 });
 

@@ -15,8 +15,11 @@ export type {
 } from "./createLightweightChartsAdapter.js";
 export { DrawingPrimitive } from "./drawingPrimitive.js";
 export type {
+    BgBand,
     BitmapDrawTarget,
     DrawingPrimitiveAttach,
+    GlyphMark,
+    OverlayBuffers,
     PaintScope,
 } from "./drawingPrimitive.js";
 export { buildViewport } from "./viewport.js";

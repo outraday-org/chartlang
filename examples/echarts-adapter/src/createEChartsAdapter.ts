@@ -11,13 +11,18 @@ import {
     type LogEmission,
     type PlotEmission,
     type PlotStyle,
+    type RenderOrderKey,
     type RunnerEmissions,
     type Viewport,
+    RENDER_BAND,
     decomposeDrawing,
     defineAdapter,
     medianBarSpacing,
     priceToY,
     shiftedBarIndex,
+    shiftedBarTime,
+    sortByRenderOrder,
+    timeToX,
     validateEmission,
 } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, LineStyle } from "@invinite-org/chartlang-core";
@@ -30,13 +35,15 @@ import type {
     BarSeriesOption,
     EChartsOption,
     LineSeriesOption,
-    ScatterSeriesOption,
     SeriesOption,
 } from "echarts/types/dist/echarts";
 
 import { ECHARTS_CAPABILITIES, ECHARTS_SYM_INFO } from "./capabilities.js";
 import {
     type EChartsGraphicElement,
+    type GlyphMarkerShape,
+    type GraphicPathStyle,
+    glyphMarkerGraphic,
     primitiveIsFinite,
     primitiveToGraphic,
 } from "./primitiveToGraphic.js";
@@ -141,22 +148,62 @@ type SeriesPoint = {
     readonly color: string | null;
     readonly xShift?: number;
     readonly style?: PlotStyle;
+    // The per-bar dynamic-color channel for the line family (`line` /
+    // `step-line` / `area`), under the normative `PlotEmission.colorValue`
+    // 3-state contract: omitted ⇒ the series static colour; a string ⇒ that
+    // bar's segment override; `null` ⇒ an explicit paint-nothing gap. Omitted
+    // for a no-`colorValue` point so an unshifted/uncoloured frame's stored
+    // point — and the option tree + its hash — is byte-identical to before.
+    readonly colorValue?: string | null;
 };
 
-// The plot-style subset that becomes a `state.series` entry. `horizontal-line`
-// (a `markLine`), the candle-state overrides (`candle-override` /
-// `bar-override` / `bar-color` → per-bar `itemStyle`), and `bg-color` (chart
-// background) are handled in `applyPlot` and never stored as a series, so the
-// `buildOption` series switch stays exhaustive over exactly these kinds.
+// The plot-style subset that becomes a native `series` entry in `buildOption`.
+// EXCLUDED kinds are handled elsewhere: `horizontal-line` (a `markLine`), the
+// candle-state overrides (`candle-override` / `bar-override` / `bar-color` →
+// per-bar `itemStyle`) and `bg-color` (a `markArea` band) in `applyPlot`; the
+// five glyph kinds (`label` / `marker` / `shape` / `character` / `arrow`) render
+// as native `graphic` elements (`buildGlyphGraphics`), NOT a series. So the
+// `buildOption` series switch stays exhaustive over exactly the series-producing
+// kinds. Glyph + horizontal-histogram kinds are still BUFFERED in `state.series`
+// (so xShift / last-write style / z carry through) — they just don't emit a
+// series in the switch; their renderers read `state.series` directly.
 type SeriesStyle = Exclude<
     PlotStyle,
-    { kind: "horizontal-line" | "candle-override" | "bar-override" | "bg-color" | "bar-color" }
+    {
+        kind:
+            | "horizontal-line"
+            | "candle-override"
+            | "bar-override"
+            | "bg-color"
+            | "bar-color"
+            | "label"
+            | "marker"
+            | "shape"
+            | "character"
+            | "arrow";
+    }
 >;
 
+// The glyph plot styles, rendered as native `graphic` elements. Buffered in
+// `state.series` like a series, but read by `buildGlyphGraphics` instead of the
+// `buildOption` series switch.
+type GlyphStyle = Extract<
+    PlotStyle,
+    { kind: "label" | "marker" | "shape" | "character" | "arrow" }
+>;
+
+// A stored series carries either a series-producing style or a glyph style. The
+// store is keyed by `${pane}|${slotId}`; `buildOption` (series) reads only the
+// series-producing styles, `buildGlyphGraphics` only the glyph styles.
+type StoredStyle = SeriesStyle | GlyphStyle;
+
 type StoredSeries = {
-    readonly style: SeriesStyle;
+    readonly style: StoredStyle;
     points: SeriesPoint[];
     z: number;
+    // Global ingest order (declaration order) of the LAST point — the z-sort's
+    // tiebreaker after `(z, band)`. Last-write-wins, like `style` / `z`.
+    seq: number;
 };
 
 type StoredHLine = {
@@ -165,9 +212,20 @@ type StoredHLine = {
     readonly paneKey: string;
 };
 
-// A candlestick per-bar style override (candle-override / bar-override /
-// bar-color), keyed by bar time. Last-write-wins per bar.
-type CandleStyle = { readonly color: string };
+// A candlestick per-bar style override, keyed by bar time. Last-write-wins per
+// bar. `bar-override` / `bar-color` resolve to a FLAT colour at ingest (they are
+// direction-independent). `candle-override` is DIRECTION-resolved at render time
+// (`buildOption`) — the bar's own up/down/doji decides bull/bear/doji — so it
+// stores the whole palette, not a single colour (the bar's OHLC may not yet be
+// in `state.bars` at ingest).
+type CandleStyle =
+    | { readonly kind: "flat"; readonly color: string }
+    | {
+          readonly kind: "direction";
+          readonly bull: string;
+          readonly bear: string;
+          readonly doji?: string;
+      };
 
 // A per-bar `bg-color` vertical band, keyed by bar time. `color` is the
 // resolved per-bar paint (the `colorValue`/`style.color` precedence is settled
@@ -198,9 +256,17 @@ type AdapterState = {
     readonly recentAlerts: AlertEmission[];
     readonly currentAlertConditions: AlertConditionEmission[];
     readonly recentLogs: LogEmission[];
-    // Drawings are buffered here for Task 10's `graphic`-path renderer; this
-    // task does not paint them.
+    // Drawings are buffered here for the `graphic`-path renderer.
     readonly drawings: Map<string, DrawingEmission>;
+    // Global declaration order (ingest order) of each live drawing, keyed by
+    // `handleId` — the z-sort's `(z, band, seq)` tiebreaker. Drawings keep the
+    // raw emission (which carries `z` but not `seq`), so the seq rides this
+    // parallel map, written in lockstep with `drawings`.
+    readonly drawingSeq: Map<string, number>;
+    // Monotonic ingest counter: each stored plot series / live drawing takes the
+    // next value as its `seq` so the shared z-sort's `(z, band, seq)` order is
+    // total and deterministic (declaration order = script order).
+    seq: number;
     // The user's `dataZoom` window in percent (0–100). Carried across the
     // per-drain `setOption(notMerge:true)` rebuild — which would otherwise
     // reset zoom to 0/100 — by reading the live values back before each
@@ -253,6 +319,28 @@ function seriesData(points: ReadonlyArray<SeriesPoint>, barCount: number): Array
     return data;
 }
 
+// Map a presentation `z` (emission `z ?? 0`) onto an ECharts `zlevel` band.
+// ECharts paints all `series` first, then all `graphic` on top (separate render
+// systems); numeric `z` only orders WITHIN a system, so to push a drawing's
+// `graphic` BELOW a series — or lift a series ABOVE a drawing's graphic — the
+// cross-system `zlevel` is the only lever (lower zlevel renders underneath). A
+// `z < 0` mark sinks to `zlevel: -1`, a `z > 0` mark rises to `zlevel: +1`, and
+// the default `z === 0` stays at `zlevel: 0` (the spread below OMITS it, so a
+// no-z frame is byte-identical to the pre-z option tree). This is a 3-band
+// granularity: within ONE zlevel echarts still can't interleave graphic &
+// series arbitrarily, but it satisfies the wire contract's `z < 0 ⇒ beneath
+// plots` / `z > 0 ⇒ above drawings` levers (see the adapter `CLAUDE.md`).
+function zlevelFor(z: number): number {
+    return z < 0 ? -1 : z > 0 ? 1 : 0;
+}
+
+// Spread the `zlevel` key onto an option element ONLY when it is non-default,
+// keeping the default-z option tree (and its pinned hash) untouched.
+function zlevelSpread(z: number): { readonly zlevel?: number } {
+    const level = zlevelFor(z);
+    return level === 0 ? {} : { zlevel: level };
+}
+
 // The series' colour is its most-recent point's colour, falling back to the
 // adapter default — mirroring canvas2d's last-write-wins style resolution.
 function seriesColor(series: StoredSeries): string {
@@ -288,15 +376,20 @@ function echartsLineStyle(
     return { color, width: style.lineWidth, type: style.lineStyle, cap: "round", join: "round" };
 }
 
+// Build one line-family `LineSeriesOption`. `color` is the run's resolved paint
+// (the static series colour for a no-`colorValue` series, or the per-run colour
+// when `colorValue` split the series); `data` is the run's per-bar array. The
+// caller (`lineSeriesRuns`) owns the run split + the byte-identical single-run
+// fast path; this stays a pure shape builder.
 function lineSeries(
     name: string,
     series: StoredSeries,
     style: LineFamilyStyle,
-    barCount: number,
     grid: number,
     extra: Partial<LineSeriesOption>,
+    color: string,
+    data: Array<number | string>,
 ): LineSeriesOption {
-    const color = seriesColor(series);
     return {
         type: "line",
         name,
@@ -310,10 +403,109 @@ function lineSeries(
         smooth: style.kind === "line",
         lineStyle: echartsLineStyle(style, color),
         itemStyle: { color },
-        data: seriesData(series.points, barCount),
+        data,
         z: series.z,
+        ...zlevelSpread(series.z),
         ...extra,
     };
+}
+
+// Resolve a line-family point's per-bar paint under the normative
+// `PlotEmission.colorValue` 3-state contract (mirrors the canvas2d Task-3
+// reference `resolvePaintColor` — the same precedence `applyPlot` already
+// inlines for `bg-color` / `bar-color`, kept local because echarts uses native
+// series, not a `/canvas` sink): omitted ⇒ the series static colour; a string ⇒
+// that bar's segment override; `null` ⇒ a paint-nothing gap. A finite `value`
+// with a `null` colorValue is still a gap for PAINT only — the value already
+// folded into the series `data` for the y-scale via `seriesData`.
+function resolveLinePointColor(point: SeriesPoint, staticColor: string): string | null {
+    return point.colorValue === undefined ? staticColor : point.colorValue;
+}
+
+// One consecutive same-paint RUN of a line-family series: the colour every
+// point in the run paints with, and the per-bar data array (only this run's
+// bars finite, the rest `GAP`) so the run's `LineSeriesOption` strokes exactly
+// its own span. A `null`-colorValue bar (paint-nothing gap) or an explicit
+// colour change breaks the run.
+type LineRun = { readonly color: string; readonly data: Array<number | string> };
+
+// Split a line-family series' points into consecutive same-paint runs, honouring
+// the per-bar `colorValue` 3-state. With NO `colorValue` on any point every bar
+// resolves to the uniform `staticColor`, yielding a SINGLE run whose data equals
+// `seriesData(points, barCount)` — byte-identical to the pre-feature single
+// series. A run breaks on a paint-nothing gap (`null`) or an explicit colour
+// change; a finite value still folds into whichever run paints its bar.
+function lineRuns(
+    points: ReadonlyArray<SeriesPoint>,
+    barCount: number,
+    staticColor: string,
+): LineRun[] {
+    const runs: LineRun[] = [];
+    let current: { color: string; data: Array<number | string> } | undefined;
+    for (const point of points) {
+        const index = shiftedBarIndex(point.bar, point.xShift);
+        if (index < 0 || index >= barCount) continue;
+        if (point.value === null || !Number.isFinite(point.value)) continue;
+        const color = resolveLinePointColor(point, staticColor);
+        // A `null` colorValue is a paint-nothing gap: the value already folded
+        // into the y-scale (`seriesData`), but no run paints it — close the run.
+        if (color === null) {
+            current = undefined;
+            continue;
+        }
+        if (current === undefined || current.color !== color) {
+            current = { color, data: new Array<number | string>(barCount).fill(GAP) };
+            runs.push(current);
+        }
+        current.data[index] = point.value;
+    }
+    return runs;
+}
+
+// Emit one `LineSeriesOption` per same-paint run of a line-family series. A
+// series with no per-bar `colorValue` collapses to a single run named exactly
+// `name` with `data === seriesData(...)`, byte-identical to the pre-feature
+// single series. When colorValue splits the series, each run after the first
+// takes a `#run${i}` name suffix so the option tree's series names stay unique.
+// `area` keeps its `areaStyle`, `step-line` its `step:"end"` (via `extra`), and
+// each run carries its own resolved colour in `lineStyle`/`itemStyle`.
+function lineSeriesRuns(
+    name: string,
+    series: StoredSeries,
+    style: LineFamilyStyle,
+    barCount: number,
+    grid: number,
+    extra: Partial<LineSeriesOption>,
+): LineSeriesOption[] {
+    const staticColor = seriesColor(series);
+    const runs = lineRuns(series.points, barCount, staticColor);
+    // No finite points at all (every bar a gap): emit the single empty-data
+    // series the pre-feature path produced (so a fully-gapped series still
+    // contributes its placeholder, matching `seriesData`'s all-`GAP` array).
+    if (runs.length === 0) {
+        return [
+            lineSeries(
+                name,
+                series,
+                style,
+                grid,
+                extra,
+                staticColor,
+                seriesData(series.points, barCount),
+            ),
+        ];
+    }
+    return runs.map((run, i) =>
+        lineSeries(
+            i === 0 ? name : `${name}#run${i}`,
+            series,
+            style,
+            grid,
+            extra,
+            run.color,
+            run.data,
+        ),
+    );
 }
 
 function barSeries(
@@ -330,6 +522,7 @@ function barSeries(
         itemStyle: { color: seriesColor(series) },
         data: seriesData(series.points, barCount),
         z: series.z,
+        ...zlevelSpread(series.z),
     };
 }
 
@@ -356,24 +549,39 @@ function bandData(
     return data;
 }
 
-// Decompose every live drawing against the chart's viewport into ECharts
-// `graphic` elements. `op:"remove"` drawings are already dropped from
+// One render-order-tagged batch of `graphic` elements: a single drawing, a
+// single glyph point, or a single horizontal-histogram series' buckets. The
+// `(z, band, seq)` key drives the shared z-sort; `zlevel` (derived from `z`)
+// lifts/sinks the whole batch across the series/graphic boundary.
+type GraphicMark = RenderOrderKey & { readonly elements: ReadonlyArray<EChartsGraphicElement> };
+
+// A `graphic` element that may also carry an ECharts `zlevel`. The narrow
+// element union has no `zlevel`; widening it here (still structurally assignable
+// to ECharts' loose graphic option) lets a z-bearing batch sink/rise across the
+// series boundary.
+type EChartsGraphicElementZ = EChartsGraphicElement & { readonly zlevel?: number };
+
+// Decompose every live drawing against the chart's viewport into render-ordered
+// `graphic` batches. `op:"remove"` drawings are already dropped from
 // `state.drawings` by `applyDrawing`, so only live drawings are seen here.
-// Non-finite primitives are filtered out (see `primitiveIsFinite`).
-function buildGraphics(state: AdapterState): EChartsGraphicElement[] {
-    // No drawings means no viewport sampling — sampling `convertToPixel`
-    // would otherwise hit the live chart on every frame (real ECharts
-    // throws when sampled before its first layout), so skip it entirely
-    // when there is nothing to project.
-    if (state.drawings.size === 0) return [];
-    const view = buildViewport(state.chart, state.bars);
-    const graphics: EChartsGraphicElement[] = [];
-    for (const drawing of state.drawings.values()) {
+// Non-finite primitives are filtered out (see `primitiveIsFinite`). Each drawing
+// is ONE mark in the shared z-sort (band `drawing`), keyed by its emission `z`
+// and ingest `seq`.
+function drawingMarks(state: AdapterState, view: Viewport): GraphicMark[] {
+    const marks: GraphicMark[] = [];
+    for (const [handleId, drawing] of state.drawings) {
+        const elements: EChartsGraphicElement[] = [];
         for (const prim of decomposeDrawing(drawing, view)) {
-            if (primitiveIsFinite(prim)) graphics.push(primitiveToGraphic(prim));
+            if (primitiveIsFinite(prim)) elements.push(primitiveToGraphic(prim));
         }
+        if (elements.length === 0) continue;
+        // `drawingSeq` is written in lockstep with `drawings` (`applyDrawing`),
+        // so a live drawing always has a seq — the `?? 0` is defensive only.
+        const seq = state.drawingSeq.get(handleId);
+        /* v8 ignore next -- lockstep with applyDrawing's drawingSeq set */
+        marks.push({ z: drawing.z ?? 0, band: RENDER_BAND.drawing, seq: seq ?? 0, elements });
     }
-    return graphics;
+    return marks;
 }
 
 // A volume-profile (`horizontal-histogram`) bucket → a left-anchored horizontal
@@ -417,17 +625,443 @@ function horizontalHistogramGraphics(
 }
 
 // Render every stored `horizontal-histogram` series' buckets into per-bucket
-// `polygon` graphics, projected against the series' OWN pane grid (overlay = 0)
-// so a subpane volume profile uses that pane's price scale.
-function buildHorizontalHistograms(state: AdapterState): EChartsGraphicElement[] {
-    const graphics: EChartsGraphicElement[] = [];
+// `polygon` graphic marks, projected against the series' OWN pane grid
+// (overlay = 0) so a subpane volume profile uses that pane's price scale. Each
+// histogram series is ONE mark in the shared z-sort (band `series`, since it is
+// a per-bar series kind), keyed by its stored `z` / `seq`.
+function horizontalHistogramMarks(state: AdapterState): GraphicMark[] {
+    const marks: GraphicMark[] = [];
     for (const [key, stored] of state.series) {
         if (stored.style.kind !== "horizontal-histogram") continue;
         const paneKey = key.slice(0, key.indexOf("|"));
         const view = buildViewport(state.chart, state.bars, gridIndexOf(state, paneKey));
-        graphics.push(...horizontalHistogramGraphics(stored.style, view));
+        const elements = horizontalHistogramGraphics(stored.style, view);
+        if (elements.length === 0) continue;
+        marks.push({ z: stored.z, band: RENDER_BAND.series, seq: stored.seq, elements });
+    }
+    return marks;
+}
+
+// The half-extent offset (in CSS px) a glyph is nudged for an `above` / `below`
+// anchor `location`, mirroring the canvas2d `OFFSET_RATIO` (`size * 1.25`).
+const GLYPH_LOCATION_OFFSET_RATIO = 1.25;
+
+// The default font size (px) for a `label` glyph (which carries no `size`),
+// mirroring the canvas2d `DEFAULT_FONT` ("10px sans-serif").
+const LABEL_FONT_SIZE_PX = 10;
+
+// Apply a glyph `location` (`above` / `below` / `absolute`) as a vertical pixel
+// nudge from the anchored value, matching the canvas2d `shape` / `character`
+// anchoring. `above` lifts the glyph (smaller pixel y), `below` drops it.
+function locationOffset(
+    location: "above" | "below" | "absolute" | undefined,
+    size: number,
+): number {
+    switch (location ?? "absolute") {
+        case "above":
+            return -size * GLYPH_LOCATION_OFFSET_RATIO;
+        case "below":
+            return size * GLYPH_LOCATION_OFFSET_RATIO;
+        case "absolute":
+            return 0;
+    }
+}
+
+// A text glyph (`character` / `label`) → an ECharts `graphic.text` anchored at
+// (`x`, `y`), centred horizontally, with a `verticalAlign` derived from the
+// anchor. `absolute` / `anchor` centres on the value; `above` sits the text
+// above (`verticalAlign: "bottom"`), `below` below (`"top"`).
+function textGlyphGraphic(args: {
+    readonly x: number;
+    readonly y: number;
+    readonly text: string;
+    readonly fontSizePx: number;
+    readonly color: string;
+    readonly verticalAlign: "top" | "middle" | "bottom";
+}): EChartsGraphicElement {
+    return {
+        type: "text",
+        x: args.x,
+        y: args.y,
+        style: {
+            text: args.text,
+            fill: args.color,
+            font: `${args.fontSizePx}px sans-serif`,
+            align: "center",
+            verticalAlign: args.verticalAlign,
+        },
+    };
+}
+
+// The `verticalAlign` an `above` / `below` / `absolute` glyph location maps to.
+function verticalAlignFor(location: "above" | "below" | "absolute"): "top" | "middle" | "bottom" {
+    switch (location) {
+        case "above":
+            return "bottom";
+        case "below":
+            return "top";
+        case "absolute":
+            return "middle";
+    }
+}
+
+// The arrow glyph triangle vertices (canvas2d `arrow.ts` geometry): an `up`
+// arrow points up, a `down` arrow points down, both `size` tall/wide.
+function arrowGraphic(
+    x: number,
+    y: number,
+    size: number,
+    direction: "up" | "down",
+    style: GraphicPathStyle,
+): EChartsGraphicElement {
+    const h = size / 2;
+    const points: ReadonlyArray<readonly [number, number]> =
+        direction === "up"
+            ? [
+                  [x, y - h],
+                  [x + h, y + h],
+                  [x - h, y + h],
+              ]
+            : [
+                  [x, y + h],
+                  [x + h, y - h],
+                  [x - h, y - h],
+              ];
+    return { type: "polygon", shape: { points }, style };
+}
+
+// Open-stroke `shape` glyphs (`cross` / `xcross` / `flag`) → `polyline` graphic
+// elements (canvas2d `shape.ts` geometry). `cross` / `xcross` are TWO crossing
+// strokes (two polylines); `flag` is one open polyline.
+function strokeShapeGraphics(
+    shape: "cross" | "xcross" | "flag",
+    x: number,
+    y: number,
+    size: number,
+    color: string,
+): EChartsGraphicElement[] {
+    const half = size / 2;
+    const stroke: GraphicPathStyle = { stroke: color, lineWidth: 1 };
+    if (shape === "cross") {
+        return [
+            {
+                type: "polyline",
+                shape: {
+                    points: [
+                        [x - half, y],
+                        [x + half, y],
+                    ],
+                },
+                style: stroke,
+            },
+            {
+                type: "polyline",
+                shape: {
+                    points: [
+                        [x, y - half],
+                        [x, y + half],
+                    ],
+                },
+                style: stroke,
+            },
+        ];
+    }
+    if (shape === "xcross") {
+        return [
+            {
+                type: "polyline",
+                shape: {
+                    points: [
+                        [x - half, y - half],
+                        [x + half, y + half],
+                    ],
+                },
+                style: stroke,
+            },
+            {
+                type: "polyline",
+                shape: {
+                    points: [
+                        [x + half, y - half],
+                        [x - half, y + half],
+                    ],
+                },
+                style: stroke,
+            },
+        ];
+    }
+    return [
+        {
+            type: "polyline",
+            shape: {
+                points: [
+                    [x - half, y + half],
+                    [x - half, y - half],
+                    [x + half, y - half / 2],
+                    [x - half, y],
+                ],
+            },
+            style: stroke,
+        },
+    ];
+}
+
+// Build the `graphic` elements for one glyph point, dispatching on its style
+// kind. `x` / `y` are the pixel anchor; `color` is the resolved paint. Returns
+// the per-point elements (a marker is one; a `cross`/`xcross` shape is two).
+function glyphPointGraphics(
+    style: GlyphStyle,
+    x: number,
+    y: number,
+    color: string,
+): EChartsGraphicElement[] {
+    switch (style.kind) {
+        case "marker":
+            return [
+                glyphMarkerGraphic({
+                    x,
+                    y,
+                    size: style.size,
+                    shape: style.shape,
+                    style: { fill: color },
+                }),
+            ];
+        case "shape": {
+            const yy = y + locationOffset(style.location, style.size);
+            if (
+                style.shape === "circle" ||
+                style.shape === "triangle-up" ||
+                style.shape === "triangle-down" ||
+                style.shape === "square" ||
+                style.shape === "diamond"
+            ) {
+                const fillShape: GlyphMarkerShape = style.shape;
+                return [
+                    glyphMarkerGraphic({
+                        x,
+                        y: yy,
+                        size: style.size,
+                        shape: fillShape,
+                        style: { fill: color },
+                    }),
+                ];
+            }
+            return strokeShapeGraphics(style.shape, x, yy, style.size, color);
+        }
+        case "arrow":
+            return [arrowGraphic(x, y, style.size, style.direction, { fill: color })];
+        case "character": {
+            const yy = y + locationOffset(style.location, style.size);
+            return [
+                textGlyphGraphic({
+                    x,
+                    y: yy,
+                    text: style.char,
+                    fontSizePx: style.size,
+                    color,
+                    verticalAlign: verticalAlignFor(style.location ?? "absolute"),
+                }),
+            ];
+        }
+        case "label":
+            return [
+                textGlyphGraphic({
+                    x,
+                    y,
+                    text: style.text,
+                    fontSizePx: LABEL_FONT_SIZE_PX,
+                    color,
+                    verticalAlign: verticalAlignFor(
+                        style.position === "anchor" ? "absolute" : style.position,
+                    ),
+                }),
+            ];
+    }
+}
+
+// Whether a stored style is a glyph kind (`label` / `marker` / `shape` /
+// `character` / `arrow`). Narrows `StoredStyle` to `GlyphStyle`.
+function isGlyphStyle(style: StoredStyle): style is GlyphStyle {
+    return (
+        style.kind === "label" ||
+        style.kind === "marker" ||
+        style.kind === "shape" ||
+        style.kind === "character" ||
+        style.kind === "arrow"
+    );
+}
+
+// Render every stored glyph series' points into `graphic` marks. Each glyph
+// point is anchored at its SHIFTED bar time (`shiftedBarTime`, the universal
+// `offset`) → `timeToX`, and its `value` → `priceToY` — the same time/price
+// projection drawings use (the viewport's x is bar TIME, not the category
+// index). A non-finite `value`, or a glyph whose projected pixel is non-finite,
+// is skipped. Each point is ONE mark (band `glyph`) keyed by the series' `z`
+// and `seq`.
+function glyphMarks(state: AdapterState, spacing: number): GraphicMark[] {
+    const marks: GraphicMark[] = [];
+    for (const [key, stored] of state.series) {
+        if (!isGlyphStyle(stored.style)) continue;
+        const paneKey = key.slice(0, key.indexOf("|"));
+        const view = buildViewport(state.chart, state.bars, gridIndexOf(state, paneKey));
+        const color = seriesColor(stored);
+        for (const point of stored.points) {
+            // A non-finite `value` is the only non-finite source: the bar time is
+            // always finite (real or extrapolated) and the viewport projection is
+            // linear, so a finite `value` always yields finite pixels. Skipping
+            // here mirrors the line/band `GAP` and the drawing NaN filter.
+            if (point.value === null || !Number.isFinite(point.value)) continue;
+            const time = shiftedBarTime({
+                bars: state.bars,
+                bar: point.bar,
+                xShift: point.xShift,
+                spacing,
+            });
+            const x = timeToX(time, view);
+            const y = priceToY(point.value, view);
+            const elements = glyphPointGraphics(stored.style, x, y, color);
+            marks.push({ z: stored.z, band: RENDER_BAND.glyph, seq: stored.seq, elements });
+        }
+    }
+    return marks;
+}
+
+// Whether any glyph point, drawing, or horizontal-histogram bucket is present —
+// the cue to sample the viewport. A frame with NONE of these (e.g. the EMA-cross
+// bundle's line-only frames) skips `convertToPixel` entirely (real ECharts
+// throws when sampled before its first layout), preserving the no-spurious-sample
+// invariant.
+function hasGraphicMarks(state: AdapterState): boolean {
+    if (state.drawings.size > 0) return true;
+    for (const stored of state.series.values()) {
+        if (isGlyphStyle(stored.style) || stored.style.kind === "horizontal-histogram") return true;
+    }
+    return false;
+}
+
+// Build the full `option.graphic` array: glyph + drawing + horizontal-histogram
+// marks, z-sorted by the SHARED `sortByRenderOrder` (`(z, band, seq)`), each
+// element carrying its batch's `zlevel` (derived from the same `z`) so a
+// negative-z drawing sinks beneath the series and a positive-z plot rises above
+// the default-zlevel graphics. The within-array order is the resolved sort, so
+// same-zlevel marks keep their `(band, seq)` order. An empty layer (no glyphs /
+// drawings / histograms) returns `[]` WITHOUT sampling the viewport.
+function buildGraphicLayer(state: AdapterState): EChartsGraphicElementZ[] {
+    if (!hasGraphicMarks(state)) return [];
+    const spacing = medianBarSpacing(state.bars);
+    const drawingView = buildViewport(state.chart, state.bars);
+    const marks: GraphicMark[] = [
+        ...horizontalHistogramMarks(state),
+        ...glyphMarks(state, spacing),
+        ...drawingMarks(state, drawingView),
+    ];
+    sortByRenderOrder(marks);
+    const graphics: EChartsGraphicElementZ[] = [];
+    for (const mark of marks) {
+        const zl = zlevelSpread(mark.z);
+        for (const element of mark.elements) {
+            graphics.push({ ...element, ...zl });
+        }
     }
     return graphics;
+}
+
+// The alert-condition + log overlay panels mirror the canvas2d reference
+// (`render/{alertConditions,logPane}.ts`): a right-anchored fired-conditions
+// panel and a bottom-left latest-log pane, both painted ALWAYS-ON-TOP (NOT in
+// the z-sort — the v1 deferral). The text rows render as ECharts `graphic.text`
+// elements over the overlay pane.
+const OVERLAY_TEXT_COLOR = "#90caf9";
+const OVERLAY_FONT = "11px sans-serif";
+// Alert-condition panel: rows stack from `PANEL_Y`, the panel's left edge sits
+// `PANEL_RIGHT_INSET` px in from the overlay's right edge (clamped to
+// `PANEL_X_PAD` so a narrow chart never pushes the panel off-screen left).
+const PANEL_X_PAD = 12;
+const PANEL_Y = 18;
+const PANEL_RIGHT_INSET = 180;
+const CONDITION_ROW_HEIGHT = 14;
+// Log pane: rows stack up from the bottom-left, `LOG_PADDING` in from each edge.
+const LOG_PADDING = 8;
+const LOG_ROW_HEIGHT = 13;
+const MAX_VISIBLE_LOGS = 5;
+
+// A left-aligned `graphic.text` overlay row (top-anchored), used by both panels.
+function overlayTextRow(x: number, y: number, text: string): EChartsGraphicElement {
+    return {
+        type: "text",
+        x,
+        y,
+        style: {
+            text,
+            fill: OVERLAY_TEXT_COLOR,
+            font: OVERLAY_FONT,
+            align: "left",
+            verticalAlign: "top",
+        },
+    };
+}
+
+// Build the right-anchored fired-alert-condition panel (mirrors the canvas2d
+// `drawAlertConditions` layout): one `${conditionId}: ${defaultMessage}` row per
+// FIRED condition, stacked from `PANEL_Y`. Non-fired conditions are ignored (they
+// still travel the wire for host state modelling). Returns `[]` when nothing is
+// fired, so a clean frame appends no overlay graphics.
+function alertConditionGraphics(
+    conditions: ReadonlyArray<AlertConditionEmission>,
+    view: Viewport,
+): EChartsGraphicElement[] {
+    const fired = conditions.filter((condition) => condition.fired);
+    if (fired.length === 0) return [];
+    const x = Math.max(PANEL_X_PAD, view.pxWidth - PANEL_RIGHT_INSET);
+    return fired.map((condition, i) =>
+        overlayTextRow(
+            x,
+            PANEL_Y + i * CONDITION_ROW_HEIGHT,
+            `${condition.conditionId}: ${condition.defaultMessage}`,
+        ),
+    );
+}
+
+// Build the bottom-left latest-log pane (mirrors the canvas2d `drawLogPane`
+// layout): the last `MAX_VISIBLE_LOGS` entries as `[${level}] ${message}` rows,
+// stacked up from the overlay's bottom edge. The ingest ring already caps the
+// buffer at five, so the slice is defensive parity with the reference. Returns
+// `[]` when there are no logs.
+function logPaneGraphics(
+    logs: ReadonlyArray<LogEmission>,
+    view: Viewport,
+): EChartsGraphicElement[] {
+    const visible = logs.slice(-MAX_VISIBLE_LOGS);
+    if (visible.length === 0) return [];
+    const x = LOG_PADDING;
+    const y = Math.max(LOG_PADDING, view.pxHeight - LOG_PADDING - visible.length * LOG_ROW_HEIGHT);
+    return visible.map((log, i) =>
+        overlayTextRow(x, y + i * LOG_ROW_HEIGHT, `[${log.level}] ${log.message}`),
+    );
+}
+
+// Whether any alert-condition fired or any log is buffered — the cue to project
+// the overlay panels. A frame with neither skips the viewport sample entirely
+// (real ECharts throws when sampled before its first layout), preserving the
+// no-spurious-sample invariant, and appends no overlay graphics so the default
+// option tree (and its pinned hash) is byte-identical.
+function hasOverlayPanels(state: AdapterState): boolean {
+    if (state.recentLogs.length > 0) return true;
+    return state.currentAlertConditions.some((condition) => condition.fired);
+}
+
+// Build the always-on-top alert-condition + log overlay graphics, projected
+// against the OVERLAY pane viewport. These APPEND after the z-sorted glyph /
+// drawing / histogram layer (they are z-INDEPENDENT — the v1 deferral keeps
+// alert/log panes pinned on top). Returns `[]` (without sampling the viewport)
+// when nothing is fired / logged.
+function overlayPanelGraphics(state: AdapterState): EChartsGraphicElement[] {
+    if (!hasOverlayPanels(state)) return [];
+    const view = buildViewport(state.chart, state.bars);
+    return [
+        ...alertConditionGraphics(state.currentAlertConditions, view),
+        ...logPaneGraphics(state.recentLogs, view),
+    ];
 }
 
 // Capture the user's live `dataZoom` window before the next rebuild. ECharts
@@ -492,6 +1126,22 @@ type BgMarkAreaItem = [
     { xAxis: number; itemStyle: { color: string; opacity: number } },
     { xAxis: number },
 ];
+
+// Resolve a per-bar candlestick body colour from its stored override. A `flat`
+// override (bar-override / bar-color) is direction-independent — its colour is
+// used as-is. A `direction` override (candle-override) picks the colour by the
+// bar's OWN up/down/doji direction: `close > open ? bull : close < open ? bear :
+// (doji ?? bull)` — copied from the canvas2d reference (`render/candleOverride
+// .ts:51`), so a bullish bar gets `bull`, a bearish bar `bear`, and a flat
+// (doji) bar `doji` or the `bull` fallback.
+function resolveCandleColor(override: CandleStyle, bar: Bar): string {
+    if (override.kind === "flat") return override.color;
+    return bar.close > bar.open
+        ? override.bull
+        : bar.close < bar.open
+          ? override.bear
+          : (override.doji ?? override.bull);
+}
 
 function buildBgMarkAreaData(state: AdapterState): BgMarkAreaItem[] | undefined {
     if (state.bgBands.size === 0) return undefined;
@@ -600,9 +1250,9 @@ function buildOption(state: AdapterState): EChartsOption {
             data: state.bars.map((bar) => {
                 const override = state.candleStyles.get(bar.time);
                 const value = [bar.open, bar.close, bar.low, bar.high];
-                return override === undefined
-                    ? value
-                    : { value, itemStyle: { color: override.color, color0: override.color } };
+                if (override === undefined) return value;
+                const color = resolveCandleColor(override, bar);
+                return { value, itemStyle: { color, color0: color } };
             }),
             ...(bgMarkArea === undefined ? {} : { markArea: { data: bgMarkArea } }),
         });
@@ -615,15 +1265,18 @@ function buildOption(state: AdapterState): EChartsOption {
         switch (stored.style.kind) {
             case "line":
             case "step-line":
+                // Per-bar `colorValue` splits the series into same-paint runs
+                // (one `LineSeriesOption` each); a no-`colorValue` series
+                // collapses to the single byte-identical series.
                 series.push(
-                    lineSeries(name, stored, stored.style, extendedBarCount, grid, {
+                    ...lineSeriesRuns(name, stored, stored.style, extendedBarCount, grid, {
                         ...(stored.style.kind === "step-line" ? { step: "end" } : {}),
                     }),
                 );
                 break;
             case "area":
                 series.push(
-                    lineSeries(name, stored, stored.style, extendedBarCount, grid, {
+                    ...lineSeriesRuns(name, stored, stored.style, extendedBarCount, grid, {
                         areaStyle: { opacity: stored.style.fillAlpha },
                     }),
                 );
@@ -650,6 +1303,7 @@ function buildOption(state: AdapterState): EChartsOption {
                     lineStyle: { opacity: 0 },
                     data: bandData(stored.points, extendedBarCount, (s) => s.lower),
                     z: stored.z,
+                    ...zlevelSpread(stored.z),
                 });
                 series.push({
                     type: "line",
@@ -667,6 +1321,7 @@ function buildOption(state: AdapterState): EChartsOption {
                         s.upper === null || s.lower === null ? null : s.upper - s.lower,
                     ),
                     z: stored.z,
+                    ...zlevelSpread(stored.z),
                 });
                 break;
             }
@@ -675,12 +1330,15 @@ function buildOption(state: AdapterState): EChartsOption {
             case "shape":
             case "character":
             case "arrow":
-                series.push(glyphSeries(name, stored, grid, extendedBarCount));
+                // Glyph kinds render as native `graphic` elements
+                // (`buildGlyphGraphics`), NOT a series — so this arm emits
+                // nothing here. The arm is kept (not excluded from the switch)
+                // because glyph styles ARE buffered in `state.series`.
                 break;
-            // No default: `SeriesStyle` excludes the candle-state / hline kinds
-            // (handled in `applyPlot`), so the arms above cover every stored
-            // series style. `applyPlot`'s switch holds the `PlotStyle`
-            // exhaustiveness guard for the whole kind set.
+            // No default: the arms above cover every stored style kind
+            // (`StoredStyle` = the series-producing kinds + the glyph kinds).
+            // `applyPlot`'s switch holds the `PlotStyle` exhaustiveness guard
+            // for the candle-state / hline kinds handled there.
         }
     }
 
@@ -726,39 +1384,10 @@ function buildOption(state: AdapterState): EChartsOption {
                 end: state.zoomEnd,
             },
         ],
-        graphic: [...buildHorizontalHistograms(state), ...buildGraphics(state)],
-    };
-}
-
-// Glyph plot kinds (label / marker / shape / character / arrow) render as a
-// `scatter` series carrying a `markPoint`-style symbol at each anchor. Glyph
-// kinds ECharts cannot express natively defer to Task 10's `graphic` path.
-function glyphSeries(
-    name: string,
-    series: StoredSeries,
-    grid: number,
-    extendedBarCount: number,
-): ScatterSeriesOption {
-    const data: Array<[number, number]> = [];
-    for (const point of series.points) {
-        if (point.value === null || !Number.isFinite(point.value)) continue;
-        // Glyphs displace by the universal `offset` too — render at the shifted
-        // category column. A `bar + xShift` outside the (extended) category
-        // range is clipped — no negative category, no slot past the appended
-        // future columns — mirroring `seriesData` / `bandData`.
-        const index = shiftedBarIndex(point.bar, point.xShift);
-        if (index < 0 || index >= extendedBarCount) continue;
-        data.push([index, point.value]);
-    }
-    return {
-        type: "scatter",
-        name,
-        xAxisIndex: grid,
-        yAxisIndex: grid,
-        symbolSize: 8,
-        itemStyle: { color: seriesColor(series) },
-        data,
-        z: series.z,
+        // The z-sorted glyph / drawing / histogram layer, with the always-on-top
+        // alert-condition + log overlay panels appended last (z-independent — the
+        // v1 deferral). A frame with neither graphics nor panels stays `[]`.
+        graphic: [...buildGraphicLayer(state), ...overlayPanelGraphics(state)],
     };
 }
 
@@ -799,11 +1428,17 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
                 // per-bar bounds ride the emission's style; other kinds rely
                 // on the series-level (last-write) style.
                 ...(plot.style.kind === "filled-band" ? { style: plot.style } : {}),
+                // Thread the per-bar `colorValue` (line family) via the
+                // conditional-spread idiom, so a no-`colorValue` point is
+                // byte-identical to the pre-feature stored shape.
+                ...(plot.colorValue === undefined ? {} : { colorValue: plot.colorValue }),
             });
-            // The latest style + z win (matching canvas2d's last-write style),
-            // so re-set the stored entry to keep the freshest discriminant
-            // while preserving the accumulated points.
-            state.series.set(key, { style: plot.style, points, z });
+            // The latest style + z + seq win (matching canvas2d's last-write
+            // style), so re-set the stored entry to keep the freshest
+            // discriminant while preserving the accumulated points. `seq` is the
+            // mark's ingest order (declaration order) — the z-sort's tiebreaker.
+            state.series.set(key, { style: plot.style, points, z, seq: state.seq });
+            state.seq += 1;
             return;
         }
         case "horizontal-line":
@@ -814,24 +1449,32 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             });
             return;
         case "candle-override":
-            // Tint the bar's candlestick body. Pine `plotcandle` colours the
-            // bull/bear/doji body; we map the bull colour onto the bar's body.
-            state.candleStyles.set(plot.time, { color: plot.style.bull });
+            // Pine `plotcandle` colours the bull/bear/doji body BY the bar's own
+            // direction. The bar's OHLC may not be in `state.bars` yet at ingest,
+            // so store the whole palette and resolve the direction at render time
+            // (`resolveCandleColor` in `buildOption`).
+            state.candleStyles.set(plot.time, {
+                kind: "direction",
+                bull: plot.style.bull,
+                bear: plot.style.bear,
+                ...(plot.style.doji === undefined ? {} : { doji: plot.style.doji }),
+            });
             return;
         case "bar-override":
-            state.candleStyles.set(plot.time, { color: plot.style.color });
+            // Pine `plotbar` is a single direction-independent tint.
+            state.candleStyles.set(plot.time, { kind: "flat", color: plot.style.color });
             return;
         case "bar-color": {
             // Per-bar `colorValue` wins over the static `style.color`; an
             // explicit `null` is the "no tint this bar" gap (drop any prior
             // override); omitted falls back to `style.color`. (The precedence
-            // contract — see `PlotEmission.colorValue`.)
+            // contract — see `PlotEmission.colorValue`.) A single flat tint.
             const paint = plot.colorValue === undefined ? plot.style.color : plot.colorValue;
             if (paint === null) {
                 state.candleStyles.delete(plot.time);
                 return;
             }
-            state.candleStyles.set(plot.time, { color: paint });
+            state.candleStyles.set(plot.time, { kind: "flat", color: paint });
             return;
         }
         case "bg-color": {
@@ -875,9 +1518,17 @@ function applyLog(state: AdapterState, log: LogEmission): void {
 function applyDrawing(state: AdapterState, drawing: DrawingEmission): void {
     if (drawing.op === "remove") {
         state.drawings.delete(drawing.handleId);
+        state.drawingSeq.delete(drawing.handleId);
         return;
     }
     state.drawings.set(drawing.handleId, drawing);
+    // Assign an ingest `seq` for the z-sort tiebreaker (declaration order). A
+    // re-emit (`upsert`) of an existing handle keeps its original seq so a live
+    // drawing does not jump render order each frame.
+    if (!state.drawingSeq.has(drawing.handleId)) {
+        state.drawingSeq.set(drawing.handleId, state.seq);
+        state.seq += 1;
+    }
 }
 
 function applyValidated<T>(items: ReadonlyArray<T>, apply: (item: T) => void): void {
@@ -964,6 +1615,8 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
         currentAlertConditions: [],
         recentLogs: [],
         drawings: new Map(),
+        drawingSeq: new Map(),
+        seq: 0,
         zoomStart: 0,
         zoomEnd: 100,
         ...(opts.initialVisibleBars === undefined
@@ -1027,6 +1680,8 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
             state.currentAlertConditions.length = 0;
             state.recentLogs.length = 0;
             state.drawings.clear();
+            state.drawingSeq.clear();
+            state.seq = 0;
             state.hasSeededZoom = false;
             state.chart.dispose();
             host.dispose();

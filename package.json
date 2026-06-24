@@ -18,7 +18,7 @@
         "format": "biome format --write .",
         "format:check": "biome format .",
         "check": "pnpm check:content && pnpm check:committed",
-        "check:content": "pnpm build && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm coverage:report && pnpm conformance && pnpm conformance:check && pnpm site:typecheck && pnpm site:build && pnpm bench:ci && pnpm docs:check && pnpm docs:gate && pnpm examples:gate && pnpm examples:sync && pnpm adapters:gate && pnpm docs:snippets && pnpm docs:build && pnpm hover:check && pnpm skills:gate && pnpm converter:docs:check && pnpm readme:check",
+        "check:content": "pnpm build && pnpm typecheck && pnpm lint && pnpm format && pnpm test && pnpm coverage:report && pnpm conformance && pnpm conformance:check && pnpm site:typecheck && pnpm site:build && pnpm bench:ci && pnpm docs:check && pnpm docs:gate && pnpm examples:gate && pnpm examples:sync && pnpm adapters:gate && pnpm docs:snippets && pnpm docs:build && pnpm hover:check && pnpm skills:gate && pnpm converter:docs:check && pnpm readme:check",
         "check:committed": "pnpm docs:committed:check",
         "check:all": "pnpm check && pnpm site:e2e",
         "adapters:generate": "pnpm tsx scripts/gen-adapters.ts",

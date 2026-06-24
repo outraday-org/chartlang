@@ -35,7 +35,7 @@ function point(
 describe("drawLine", () => {
     it("returns early on empty series", () => {
         const ctx = new MockCanvas2DContext();
-        drawLine(ctx, [], world, viewport, DEFAULT_PALETTE, 1, true);
+        drawLine(ctx, [], world, viewport, DEFAULT_PALETTE, 1, true, false);
         expect(ctx.calls).toEqual([]);
     });
 
@@ -53,11 +53,12 @@ describe("drawLine", () => {
             DEFAULT_PALETTE,
             1,
             true,
+            false,
         );
         expect(ctx.calls).toEqual([]);
     });
 
-    it("emits N-1 straight lineTo for an N-point series when smooth is false (step-line)", () => {
+    it("emits N-1 straight lineTo for an N-point series when neither smooth nor step", () => {
         const ctx = new MockCanvas2DContext();
         const series: PlotPoint[] = [
             point({ time: 0, value: 10, color: null, bar: 0 }),
@@ -66,12 +67,31 @@ describe("drawLine", () => {
             point({ time: 75, value: 20, color: null, bar: 3 }),
             point({ time: 100, value: 10, color: null, bar: 4 }),
         ];
-        drawLine(ctx, series, world, viewport, DEFAULT_PALETTE, 1, false);
+        drawLine(ctx, series, world, viewport, DEFAULT_PALETTE, 1, false, false);
         expect(ctx.calls.filter((c) => c.kind === "beginPath").length).toBe(1);
         expect(ctx.calls.filter((c) => c.kind === "moveTo").length).toBe(1);
         expect(ctx.calls.filter((c) => c.kind === "lineTo").length).toBe(series.length - 1);
         expect(ctx.calls.filter((c) => c.kind === "bezierCurveTo").length).toBe(0);
         expect(ctx.calls.filter((c) => c.kind === "stroke").length).toBe(1);
+    });
+
+    it("step paints a horizontal knee then a vertical jump per segment (WithSteps)", () => {
+        const ctx = new MockCanvas2DContext();
+        const series: PlotPoint[] = [
+            point({ time: 0, value: 10, color: null, bar: 0 }),
+            point({ time: 25, value: 20, color: null, bar: 1 }),
+            point({ time: 50, value: 30, color: null, bar: 2 }),
+        ];
+        // step takes precedence over smooth, so smooth=true is ignored here.
+        drawLine(ctx, series, world, viewport, DEFAULT_PALETTE, 1, true, true);
+        // moveTo(x0,y0); then per segment: lineTo(xNext, yPrev), lineTo(xNext, yNext).
+        const lineTos = ctx.calls.filter((c) => c.kind === "lineTo");
+        expect(ctx.calls.filter((c) => c.kind === "bezierCurveTo").length).toBe(0);
+        expect(lineTos.length).toBe((series.length - 1) * 2);
+        // bar 0 → x0 (time 0 → x 0, value 10 → y 90); bar 1 → x1 (time 25 → x 25,
+        // value 20 → y 80). First knee holds y at the previous point's y.
+        expect(lineTos[0]).toEqual({ kind: "lineTo", x: timeToX(25, viewport), y: 90 });
+        expect(lineTos[1]).toEqual({ kind: "lineTo", x: timeToX(25, viewport), y: 80 });
     });
 
     it("emits N-1 monotone bezierCurveTo (no straight lineTo) for an N-point series when smooth", () => {
@@ -83,7 +103,7 @@ describe("drawLine", () => {
             point({ time: 75, value: 20, color: null, bar: 3 }),
             point({ time: 100, value: 10, color: null, bar: 4 }),
         ];
-        drawLine(ctx, series, world, viewport, DEFAULT_PALETTE, 1, true);
+        drawLine(ctx, series, world, viewport, DEFAULT_PALETTE, 1, true, false);
         expect(ctx.calls.filter((c) => c.kind === "beginPath").length).toBe(1);
         expect(ctx.calls.filter((c) => c.kind === "moveTo").length).toBe(1);
         expect(ctx.calls.filter((c) => c.kind === "bezierCurveTo").length).toBe(series.length - 1);
@@ -104,6 +124,7 @@ describe("drawLine", () => {
             DEFAULT_PALETTE,
             1,
             true,
+            false,
         );
         expect(ctx.calls.filter((c) => c.kind === "lineTo").length).toBe(1);
         expect(ctx.calls.filter((c) => c.kind === "bezierCurveTo").length).toBe(0);
@@ -122,6 +143,7 @@ describe("drawLine", () => {
             DEFAULT_PALETTE,
             2,
             true,
+            false,
         );
         expect(ctx.calls).toContainEqual({ kind: "set", prop: "lineWidth", value: 2 });
         expect(ctx.calls).toContainEqual({ kind: "set", prop: "lineJoin", value: "round" });
@@ -138,7 +160,7 @@ describe("drawLine", () => {
             point({ time: 100, value: Number.NaN, color: null, bar: 4 }),
             point({ time: 100, value: 40, color: null, bar: 4 }),
         ];
-        drawLine(ctx, series, world, viewport, DEFAULT_PALETTE, 1, true);
+        drawLine(ctx, series, world, viewport, DEFAULT_PALETTE, 1, true, false);
         const beginPaths = ctx.calls.filter((c) => c.kind === "beginPath").length;
         const strokes = ctx.calls.filter((c) => c.kind === "stroke").length;
         expect(beginPaths).toBe(3);
@@ -159,6 +181,7 @@ describe("drawLine", () => {
             DEFAULT_PALETTE,
             1,
             true,
+            false,
         );
         const setStrokeA = ctxA.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         expect(setStrokeA).toEqual({ kind: "set", prop: "strokeStyle", value: "#123456" });
@@ -175,6 +198,7 @@ describe("drawLine", () => {
             DEFAULT_PALETTE,
             1,
             true,
+            false,
         );
         const setStrokeB = ctxB.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         expect(setStrokeB).toEqual({
@@ -197,6 +221,7 @@ describe("drawLine", () => {
             DEFAULT_PALETTE,
             1,
             true,
+            false,
         );
         expect(ctx.calls.filter((c) => c.kind === "stroke").length).toBe(0);
     });
@@ -211,6 +236,7 @@ describe("drawLine", () => {
             DEFAULT_PALETTE,
             1,
             true,
+            false,
         );
         const move = ctx.calls.find((c) => c.kind === "moveTo");
         expect(move).toEqual({ kind: "moveTo", x: timeToX(50, viewport), y: 60 });
@@ -227,6 +253,7 @@ describe("drawLine", () => {
             DEFAULT_PALETTE,
             1,
             true,
+            false,
         );
         const move = ctx.calls.find((c) => c.kind === "moveTo");
         expect(move).toEqual({ kind: "moveTo", x: timeToX(25, viewport), y: 60 });
@@ -243,8 +270,154 @@ describe("drawLine", () => {
             DEFAULT_PALETTE,
             1,
             true,
+            false,
         );
         const move = ctx.calls.find((c) => c.kind === "moveTo");
         expect(move).toEqual({ kind: "moveTo", x: timeToX(75, viewport), y: 60 });
+    });
+
+    describe("colorValue (per-bar dynamic color)", () => {
+        // A 5-point straight (non-smooth) series so run boundaries read off the
+        // beginPath / stroke counts directly.
+        const straight = (overrides: Array<Partial<PlotPoint>>): PlotPoint[] =>
+            [10, 20, 30, 20, 10].map((value, bar) =>
+                point({
+                    time: bar * 25,
+                    value,
+                    color: "#26a69a",
+                    bar,
+                    ...overrides[bar],
+                }),
+            );
+
+        it("omitted colorValue is byte-identical to the static-color call log", () => {
+            const withField = new MockCanvas2DContext();
+            const withoutField = new MockCanvas2DContext();
+            // The same series, once with `colorValue` everywhere omitted and
+            // once never carrying the field at all — identical call logs.
+            drawLine(
+                withoutField,
+                straight([{}, {}, {}, {}, {}]),
+                world,
+                viewport,
+                DEFAULT_PALETTE,
+                1,
+                false,
+                false,
+            );
+            drawLine(
+                withField,
+                straight([
+                    { colorValue: undefined },
+                    { colorValue: undefined },
+                    { colorValue: undefined },
+                    { colorValue: undefined },
+                    { colorValue: undefined },
+                ]),
+                world,
+                viewport,
+                DEFAULT_PALETTE,
+                1,
+                false,
+                false,
+            );
+            expect(withField.calls).toEqual(withoutField.calls);
+            // One run: one beginPath, one stroke, exactly one strokeStyle set.
+            expect(withField.calls.filter((c) => c.kind === "beginPath").length).toBe(1);
+            expect(
+                withField.calls.filter((c) => c.kind === "set" && c.prop === "strokeStyle").length,
+            ).toBe(1);
+        });
+
+        it("present colorValue on a subset of bars splits into per-run sub-paths", () => {
+            const ctx = new MockCanvas2DContext();
+            // bars 0,1 paint the static color; bars 2,3,4 override to red.
+            drawLine(
+                ctx,
+                straight([
+                    {},
+                    {},
+                    { colorValue: "#ef5350" },
+                    { colorValue: "#ef5350" },
+                    { colorValue: "#ef5350" },
+                ]),
+                world,
+                viewport,
+                DEFAULT_PALETTE,
+                1,
+                false,
+                false,
+            );
+            // Two runs ⇒ two beginPath / two stroke.
+            expect(ctx.calls.filter((c) => c.kind === "beginPath").length).toBe(2);
+            expect(ctx.calls.filter((c) => c.kind === "stroke").length).toBe(2);
+            const strokes = ctx.calls
+                .filter((c) => c.kind === "set" && c.prop === "strokeStyle")
+                .map((c) => c.value);
+            // First run keeps the static color; the second run is the override.
+            expect(strokes).toEqual(["#26a69a", "#ef5350"]);
+        });
+
+        it("colorValue:null on a mid-series bar is a paint-nothing gap (sub-path break)", () => {
+            const ctx = new MockCanvas2DContext();
+            // bar 2 is an explicit no-color gap; bars 0,1 and 3,4 are two runs.
+            drawLine(
+                ctx,
+                straight([{}, {}, { colorValue: null }, {}, {}]),
+                world,
+                viewport,
+                DEFAULT_PALETTE,
+                1,
+                false,
+                false,
+            );
+            expect(ctx.calls.filter((c) => c.kind === "beginPath").length).toBe(2);
+            expect(ctx.calls.filter((c) => c.kind === "stroke").length).toBe(2);
+            // The gap bar (time 50) never reaches the path: no lineTo to its x.
+            const xs = ctx.calls.flatMap((c) =>
+                c.kind === "lineTo" || c.kind === "moveTo" ? [c.x] : [],
+            );
+            expect(xs).not.toContain(timeToX(50, viewport));
+        });
+
+        it("a colorValue equal to the static color coalesces (no spurious split)", () => {
+            const ctx = new MockCanvas2DContext();
+            // bar 2 carries colorValue equal to the static color ⇒ one run.
+            drawLine(
+                ctx,
+                straight([{}, {}, { colorValue: "#26a69a" }, {}, {}]),
+                world,
+                viewport,
+                DEFAULT_PALETTE,
+                1,
+                false,
+                false,
+            );
+            expect(ctx.calls.filter((c) => c.kind === "beginPath").length).toBe(1);
+            expect(
+                ctx.calls.filter((c) => c.kind === "set" && c.prop === "strokeStyle").length,
+            ).toBe(1);
+        });
+
+        it("returns early when every point is a colorValue:null gap", () => {
+            const ctx = new MockCanvas2DContext();
+            drawLine(
+                ctx,
+                straight([
+                    { colorValue: null },
+                    { colorValue: null },
+                    { colorValue: null },
+                    { colorValue: null },
+                    { colorValue: null },
+                ]),
+                world,
+                viewport,
+                DEFAULT_PALETTE,
+                1,
+                false,
+                false,
+            );
+            expect(ctx.calls).toEqual([]);
+        });
     });
 });

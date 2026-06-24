@@ -156,10 +156,12 @@ describe("uplot adapter integration — plots + drawings draw-hook pass", () => 
     it("drives a compiled bundle through the worker shim and paints plots + drawings", async () => {
         const { overlay } = await runFixture();
 
-        // Candles paint one body (fillRect) per bar, then the drawing pass
-        // brackets its prims in a single save/translate/restore.
+        // Candles paint one body (fillRect) per bar, then the z-sorted pass
+        // paints each drawing in its OWN save/translate/restore (the z-sort can
+        // interleave another mark between two drawings, so each brackets itself).
+        // The fixture emits two drawings (a line + a rectangle) ⇒ two translates.
         expect(overlay.ctx.calls.filter((c) => c.kind === "fillRect").length).toBe(BARS.length);
-        expect(overlay.ctx.calls.filter((c) => c.kind === "translate")).toHaveLength(1);
+        expect(overlay.ctx.calls.filter((c) => c.kind === "translate")).toHaveLength(2);
         // The purple trend line strokes; the green rectangle fills + closes.
         const purpleStroke = overlay.ctx.calls.some(
             (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === "#ab47bc",
@@ -182,14 +184,12 @@ describe("uplot adapter integration — plots + drawings draw-hook pass", () => 
 });
 
 // Pinned by the integration test (see the note above). DELIBERATELY re-pinned
-// for the plotting-area CLIP: the draw hook now brackets the whole hand-rolled
-// pass (candles + bg bands + hlines + drawings) in a `save()` → `beginPath()`
-// → `rect(dx, dy, pxWidth, pxHeight)` → `clip()` … `restore()`, so any mark
-// whose bar falls outside the visible x-window stops spilling into the
-// price-axis gutter (the "overreaches the axis" fix). The added clip calls
-// extend the call log, so it re-hashes; the candle / drawing GEOMETRY is
-// unchanged (the MockUplot bbox is the full canvas, so the clip is a no-op on
-// these in-bounds marks — only the extra ctx calls move the hash). (Previously
-// re-pinned for the `paddedXWindow` x-pad, and before that for the device-px
+// for the Task-10 z-sort draw pass: the draw hook now paints glyphs / hlines /
+// drawings through ONE shared `sortByRenderOrder` pass, and EACH drawing
+// brackets its OWN save/translate/restore (so the z-sort can interleave another
+// mark between two drawings). The fixture's two drawings therefore emit two
+// translate brackets instead of one shared bracket, reshaping the call log; the
+// drawing GEOMETRY is unchanged (same prims, same coords). (Previously re-pinned
+// for the plotting-area clip, the `paddedXWindow` x-pad, and the device-px
 // `buildViewport` Retina fix.)
-const PINNED_HASH = "8691bff516b917c454f0fcec6642d2c3e129d6cb142b2deb6defdcd2f26dfc95";
+const PINNED_HASH = "3fc5cf998bb743735e46f52746f1f6d5838dd56202ce6a2d9017188ca38bc5e9";

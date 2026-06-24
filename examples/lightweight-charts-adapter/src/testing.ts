@@ -21,6 +21,37 @@ import { createHash } from "node:crypto";
  *     const call: LwcRecordedCall = { kind: "addSeries", seriesId: "s0", seriesType: "Line", paneIndex: 0, options: { color: "#26a69a" } };
  *     void call;
  */
+
+/**
+ * One native lightweight-charts series marker the factory hands to
+ * `series.setMarkers([...])` (the v5 `createSeriesMarkers` plugin). Carries
+ * the full glyph payload — `shape` / `position` / `text` / `color` / `size` —
+ * so a glyph kind renders distinctly instead of collapsing to a uniform dot.
+ * Only the glyphs LC can natively express reach here; the rest take the
+ * canvas-overlay path.
+ *
+ * @since 1.8
+ * @stable
+ * @example
+ *     const m: LwcMarker = { time: 1, shape: "arrowUp", position: "belowBar", color: "#26a69a" };
+ *     void m;
+ */
+export type LwcMarker = {
+    readonly time: number;
+    // Native LC v5 marker shape (`"circle" | "square" | "arrowUp" |
+    // "arrowDown"`). Glyphs LC's markers plugin cannot express (triangle /
+    // diamond / cross / xcross / flag) take the canvas-overlay path instead
+    // and never reach `setMarkers`.
+    readonly shape: "circle" | "square" | "arrowUp" | "arrowDown";
+    readonly position: "aboveBar" | "belowBar" | "inBar";
+    readonly color: string;
+    // `character` → the glyph char; `label` → the label text; absent for a
+    // pure shape / arrow marker.
+    readonly text?: string;
+    // The glyph's pixel size (`PlotStyle.size`); LC scales the native marker.
+    readonly size?: number;
+};
+
 export type LwcRecordedCall =
     | {
           readonly kind: "addSeries";
@@ -83,7 +114,11 @@ export type LwcRecordedCall =
     | {
           readonly kind: "setMarkers";
           readonly seriesId: string;
-          readonly markers: number;
+          // The full marker payload (shape / position / text / color / size),
+          // not just the count — so the glyph-fidelity tests can assert that
+          // each native glyph kind produces a DISTINCT marker (arrow up vs
+          // down differ; character / label carry text).
+          readonly markers: ReadonlyArray<LwcMarker>;
       }
     | { readonly kind: "attachPrimitive"; readonly seriesId: string }
     | {
@@ -164,7 +199,7 @@ export type LwcSeries = {
     applyOptions(options: Readonly<Record<string, unknown>>): void;
     createPriceLine(options: { price: number }): LwcPriceLine;
     removePriceLine(line: LwcPriceLine): void;
-    setMarkers(markers: ReadonlyArray<{ time: number }>): void;
+    setMarkers(markers: ReadonlyArray<LwcMarker>): void;
     // Task 6: the drawing series-primitive overlay attaches here. `primitive`
     // is structurally an `ISeriesPrimitive`; the factory anchors one instance
     // on the overlay candle series.
@@ -283,7 +318,18 @@ export class MockLwcApi implements LwcChart {
                 calls.push({ kind: "removePriceLine", seriesId, priceLineId });
             },
             setMarkers(markers): void {
-                calls.push({ kind: "setMarkers", seriesId, markers: markers.length });
+                calls.push({
+                    kind: "setMarkers",
+                    seriesId,
+                    markers: markers.map((m) => ({
+                        time: m.time,
+                        shape: m.shape,
+                        position: m.position,
+                        color: m.color,
+                        ...(m.text !== undefined ? { text: m.text } : {}),
+                        ...(m.size !== undefined ? { size: m.size } : {}),
+                    })),
+                });
             },
             attachPrimitive(_primitive): void {
                 calls.push({ kind: "attachPrimitive", seriesId });
@@ -384,7 +430,18 @@ function canonicalise(call: LwcRecordedCall): Record<string, unknown> {
                 priceLineId: call.priceLineId,
             };
         case "setMarkers":
-            return { kind: call.kind, seriesId: call.seriesId, markers: call.markers };
+            return {
+                kind: call.kind,
+                seriesId: call.seriesId,
+                markers: call.markers.map((m) => ({
+                    time: roundFloat(m.time),
+                    shape: m.shape,
+                    position: m.position,
+                    color: m.color,
+                    ...(m.text !== undefined ? { text: m.text } : {}),
+                    ...(m.size !== undefined ? { size: roundFloat(m.size) } : {}),
+                })),
+            };
         case "attachPrimitive":
             return { kind: call.kind, seriesId: call.seriesId };
         case "setVisibleLogicalRange":

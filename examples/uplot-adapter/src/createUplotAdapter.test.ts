@@ -67,6 +67,7 @@ function plotEmission(overrides: Partial<PlotEmission> & { slotId: string }): Pl
         ...(overrides.visible === undefined ? {} : { visible: overrides.visible }),
         ...("colorValue" in overrides ? { colorValue: overrides.colorValue } : {}),
         ...(overrides.xShift === undefined ? {} : { xShift: overrides.xShift }),
+        ...(overrides.z === undefined ? {} : { z: overrides.z }),
     };
 }
 
@@ -616,15 +617,13 @@ describe("createUplotAdapter — initialVisibleBars default window", () => {
 });
 
 describe("createUplotAdapter — plot kinds", () => {
+    // `filled-band` is NOT in this single-row loop — it builds a two-edge
+    // native band (two rows + two specs), covered in its own describe block.
     const seriesKinds: ReadonlyArray<{ name: string; style: PlotStyle }> = [
         { name: "line", style: { kind: "line", lineWidth: 1, lineStyle: "solid" } },
         { name: "step-line", style: { kind: "step-line", lineWidth: 1, lineStyle: "dashed" } },
         { name: "histogram", style: { kind: "histogram", baseline: 0 } },
         { name: "area", style: { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: 0.2 } },
-        {
-            name: "filled-band",
-            style: { kind: "filled-band", upper: 110, lower: 90, alpha: 0.2 },
-        },
     ];
 
     for (const { name, style } of seriesKinds) {
@@ -869,34 +868,68 @@ describe("createUplotAdapter — plot kinds", () => {
         }
     });
 
-    it("hides a slot marked visible: false (no series)", async () => {
+    it("keeps a slot marked visible: false listed but paints nothing", async () => {
         const { instances } = await drive([
             emissions({
-                plots: [plotEmission({ slotId: "hidden", visible: false, time: BARS[0].time })],
+                plots: [
+                    plotEmission({
+                        slotId: "hidden",
+                        visible: false,
+                        value: 104,
+                        time: BARS[0].time,
+                    }),
+                ],
             }),
         ]);
         const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            // The slot stays LISTED (one series spec) — not dropped …
+            expect(newRecord.opts.series).toHaveLength(1);
+            expect(newRecord.opts.series[0].label).toBe("hidden");
+            // … but contributes no painted point (an all-null row) and so no
+            // y-scale candidate.
+            expect(newRecord.data[1]).toEqual([null, null, null]);
+        }
+    });
+
+    it("does not register a hidden non-series kind (bg-color)", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "hidden-bg",
+                        visible: false,
+                        style: { kind: "bg-color", color: "#26a69a" },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        // No bg band painted (no globalAlpha bracket) and no series.
+        const alphaSets = overlay.ctx.calls.filter(
+            (c) => c.kind === "set" && c.prop === "globalAlpha",
+        );
+        expect(alphaSets).toHaveLength(0);
+        const newRecord = overlay.records[0];
         if (newRecord.kind === "new") {
             expect(newRecord.opts.series).toHaveLength(0);
         }
     });
 
-    it("buffers glyph / override kinds without dropping them", async () => {
-        const overrideStyles: ReadonlyArray<PlotStyle> = [
+    it("buffers glyph / label kinds without dropping them (no series)", async () => {
+        const glyphStyles: ReadonlyArray<PlotStyle> = [
             { kind: "shape", shape: "circle", size: 1 },
             { kind: "character", char: "A", size: 1 },
             { kind: "arrow", direction: "up", size: 1 },
             { kind: "label", text: "x", position: "above" },
             { kind: "marker", shape: "circle", size: 1 },
-            { kind: "candle-override", bull: "#0f0", bear: "#f00" },
-            { kind: "bar-override", color: "#0f0" },
-            { kind: "bg-color", color: "#00f" },
-            { kind: "bar-color", color: "#0f0" },
-            { kind: "horizontal-histogram", buckets: [{ price: 100, volume: 5 }] },
         ];
         const { instances } = await drive([
             emissions({
-                plots: overrideStyles.map((style, i) =>
+                plots: glyphStyles.map((style, i) =>
                     plotEmission({ slotId: `ov${i}`, style, time: BARS[0].time }),
                 ),
             }),
@@ -906,6 +939,267 @@ describe("createUplotAdapter — plot kinds", () => {
         if (newRecord.kind === "new") {
             expect(newRecord.opts.series).toHaveLength(0);
         }
+    });
+});
+
+describe("createUplotAdapter — glyph draw-hook rendering", () => {
+    // Each glyph kind paints a DISTINCT ctx sequence through the shared
+    // adapter-kit geometry: shaped fill/stroke paths vs centred text.
+    it("paints a shape glyph as a filled marker path (circle ⇒ arc + fill)", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "shp",
+                        style: { kind: "shape", shape: "circle", size: 8 },
+                        value: 102,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        instances[0].runDraw();
+        expect(instances[0].ctx.calls.some((c) => c.kind === "arc")).toBe(true);
+        expect(instances[0].ctx.calls.some((c) => c.kind === "fill")).toBe(true);
+    });
+
+    it("paints a stroked shape glyph (cross) honouring its location", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "x",
+                        style: { kind: "shape", shape: "cross", size: 8, location: "above" },
+                        value: 102,
+                        color: "#abcdef",
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        instances[0].runDraw();
+        const calls = instances[0].ctx.calls;
+        // cross strokes (no fill) and uses the emission colour.
+        expect(
+            calls.some(
+                (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === "#abcdef",
+            ),
+        ).toBe(true);
+        expect(calls.some((c) => c.kind === "stroke")).toBe(true);
+    });
+
+    it("paints a character glyph as centred text reflecting `char`", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        // No `location` ⇒ exercises the undefined-spread branch
+                        // for character (the cross/shape test covers the defined
+                        // branch via `location: "above"`).
+                        slotId: "ch",
+                        style: { kind: "character", char: "B", size: 12 },
+                        value: 102,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        instances[0].runDraw();
+        const text = instances[0].ctx.calls.find((c) => c.kind === "fillText");
+        expect(text?.kind === "fillText" && text.text).toBe("B");
+    });
+
+    it("honours a character glyph's explicit `location`", async () => {
+        // The defined-spread branch for character (vs the undefined branch
+        // above): an explicit `location: "above"` shifts the text baseline.
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "ch2",
+                        style: { kind: "character", char: "C", size: 12, location: "above" },
+                        value: 102,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        instances[0].runDraw();
+        expect(
+            instances[0].ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "textBaseline" && c.value === "bottom",
+            ),
+        ).toBe(true);
+    });
+
+    it("paints an arrow glyph as a filled triangle reflecting `direction`", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "ar",
+                        style: { kind: "arrow", direction: "down", size: 10 },
+                        value: 102,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        instances[0].runDraw();
+        const calls = instances[0].ctx.calls;
+        expect(calls.some((c) => c.kind === "closePath")).toBe(true);
+        expect(calls.some((c) => c.kind === "fill")).toBe(true);
+        // No fillText — an arrow is a path, not text (distinct from character).
+        expect(calls.some((c) => c.kind === "fillText")).toBe(false);
+    });
+
+    it("paints a marker glyph as a filled shape", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "mk",
+                        style: { kind: "marker", shape: "diamond", size: 8 },
+                        value: 102,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        instances[0].runDraw();
+        expect(instances[0].ctx.calls.some((c) => c.kind === "fill")).toBe(true);
+    });
+
+    it("paints a label glyph as text reflecting `text`", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "lb",
+                        style: { kind: "label", text: "PEAK", position: "above" },
+                        value: 102,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        instances[0].runDraw();
+        const text = instances[0].ctx.calls.find((c) => c.kind === "fillText");
+        expect(text?.kind === "fillText" && text.text).toBe("PEAK");
+    });
+
+    it("falls back to the glyph default colour when the emission colour is null", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "mk",
+                        style: { kind: "marker", shape: "circle", size: 8 },
+                        value: 102,
+                        color: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        instances[0].runDraw();
+        expect(
+            instances[0].ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "fillStyle" && c.value === "#90caf9",
+            ),
+        ).toBe(true);
+    });
+
+    it("skips a glyph with a non-finite value (no glyph painted)", async () => {
+        // A baseline frame with no glyph, then a frame with a value:null glyph:
+        // the glyph adds zero ctx calls (skipped before any draw).
+        const baseline = await drive([emissions()]);
+        baseline.instances[0].runDraw();
+        const baseHash = hashCallLog(baseline.instances[0].ctx.calls);
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "skip",
+                        style: { kind: "shape", shape: "circle", size: 8 },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        instances[0].runDraw();
+        expect(hashCallLog(instances[0].ctx.calls)).toBe(baseHash);
+    });
+
+    it("skips a glyph with a non-finite (NaN) value", async () => {
+        // A non-null NaN value also skips (the `!Number.isFinite` arm, distinct
+        // from the `value === null` arm above) — no glyph painted.
+        const baseline = await drive([emissions()]);
+        baseline.instances[0].runDraw();
+        const baseHash = hashCallLog(baseline.instances[0].ctx.calls);
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "nan",
+                        style: { kind: "marker", shape: "circle", size: 8 },
+                        value: Number.NaN,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        instances[0].runDraw();
+        expect(hashCallLog(instances[0].ctx.calls)).toBe(baseHash);
+    });
+
+    it("anchors a glyph at its shifted x (xShift offsets the paint)", async () => {
+        // A marker at bar 1 unshifted vs the SAME bar 1 shifted −1 (to bar 0's
+        // real column) must paint at DIFFERENT x: the shift moves the anchor a
+        // whole column left through the `shiftedBarTime` funnel, not the bar's
+        // own time.
+        const unshifted = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "u",
+                        style: { kind: "marker", shape: "circle", size: 8 },
+                        value: 102,
+                        time: BARS[1].time,
+                        bar: 1,
+                    }),
+                ],
+            }),
+        ]);
+        unshifted.instances[0].runDraw();
+        const shifted = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "s",
+                        style: { kind: "marker", shape: "circle", size: 8 },
+                        value: 102,
+                        time: BARS[1].time,
+                        bar: 1,
+                        xShift: -1,
+                    }),
+                ],
+            }),
+        ]);
+        shifted.instances[0].runDraw();
+        const xOf = (mock: MockUplot): number | undefined => {
+            // The circle marker is the ONLY `arc` in the pass (candles stroke
+            // wicks + fill rect bodies, never arc), so its centre x is the
+            // glyph anchor.
+            const arc = mock.ctx.calls.find((c) => c.kind === "arc");
+            return arc?.kind === "arc" ? arc.x : undefined;
+        };
+        const ux = xOf(unshifted.instances[0]);
+        const sx = xOf(shifted.instances[0]);
+        expect(ux).toBeDefined();
+        expect(sx).toBeDefined();
+        expect(sx).not.toBe(ux);
     });
 });
 
@@ -1289,14 +1583,16 @@ describe("createUplotAdapter — bg-color / bar-color draw-hook rendering", () =
         const plain = await drive([emissions()]);
         plain.instances[0].runDraw();
         const baseline = hashCallLog(plain.instances[0].ctx.calls);
-        // A frame that emits an UNRELATED override kind (candle-override is
-        // still only buffered) must not perturb the candle hash either.
+        // A frame that emits a glyph with a NON-FINITE value (a `label` at
+        // `value: null`) is a per-glyph skip in `paintGlyphs`, so it must not
+        // perturb the candle hash. (candle-/bar-override now DO tint the
+        // candle; a glyph with a finite value paints — covered separately.)
         const withBuffered = await drive([
             emissions({
                 plots: [
                     plotEmission({
-                        slotId: "co",
-                        style: { kind: "candle-override", bull: "#0f0", bear: "#f00" },
+                        slotId: "lbl",
+                        style: { kind: "label", text: "x", position: "above" },
                         value: null,
                         time: BARS[0].time,
                     }),
@@ -1305,6 +1601,536 @@ describe("createUplotAdapter — bg-color / bar-color draw-hook rendering", () =
         ]);
         withBuffered.instances[0].runDraw();
         expect(hashCallLog(withBuffered.instances[0].ctx.calls)).toBe(baseline);
+    });
+});
+
+describe("createUplotAdapter — candle-override / bar-override draw-hook rendering", () => {
+    // BARS[0] is bull (close 103 > open 100); BARS[1] is bear (close 101 <
+    // open 103). A doji bar (open === close) is appended for the third case.
+    const dojiBar = bar(2, 100, 102, 99, 100);
+
+    it("tints a bull bar's candle body + wick with the candle-override bull colour", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "co",
+                        style: { kind: "candle-override", bull: "#00ff00", bear: "#ff0000" },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        // The bull bar takes the bull override for BOTH stroke + fill.
+        expect(
+            overlay.ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === "#00ff00",
+            ),
+        ).toBe(true);
+        expect(
+            overlay.ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "fillStyle" && c.value === "#00ff00",
+            ),
+        ).toBe(true);
+        // The bear colour never appears for an all-bull override target.
+        expect(overlay.ctx.calls.some((c) => c.kind === "set" && c.value === "#ff0000")).toBe(
+            false,
+        );
+    });
+
+    it("tints a bear bar with the candle-override bear colour", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "co",
+                        style: { kind: "candle-override", bull: "#00ff00", bear: "#ff0000" },
+                        value: null,
+                        time: BARS[1].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        expect(
+            overlay.ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "fillStyle" && c.value === "#ff0000",
+            ),
+        ).toBe(true);
+    });
+
+    it("tints a doji bar with the candle-override doji colour (else bull)", async () => {
+        const bars = [BARS[0], BARS[1], dojiBar];
+        const { instances } = await drive(
+            [
+                emissions({
+                    plots: [
+                        plotEmission({
+                            slotId: "co",
+                            style: {
+                                kind: "candle-override",
+                                bull: "#00ff00",
+                                bear: "#ff0000",
+                                doji: "#0000ff",
+                            },
+                            value: null,
+                            time: dojiBar.time,
+                        }),
+                    ],
+                }),
+            ],
+            bars,
+        );
+        const overlay = instances[0];
+        overlay.runDraw();
+        // The doji bar (open === close) takes the explicit doji colour.
+        expect(
+            overlay.ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "fillStyle" && c.value === "#0000ff",
+            ),
+        ).toBe(true);
+    });
+
+    it("falls back to the bull colour for a doji when no doji override is set", async () => {
+        const bars = [BARS[0], BARS[1], dojiBar];
+        const { instances } = await drive(
+            [
+                emissions({
+                    plots: [
+                        plotEmission({
+                            slotId: "co",
+                            style: { kind: "candle-override", bull: "#00ff00", bear: "#ff0000" },
+                            value: null,
+                            time: dojiBar.time,
+                        }),
+                    ],
+                }),
+            ],
+            bars,
+        );
+        const overlay = instances[0];
+        overlay.runDraw();
+        // The doji bar has no explicit doji colour ⇒ the bull colour is used.
+        expect(
+            overlay.ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "fillStyle" && c.value === "#00ff00",
+            ),
+        ).toBe(true);
+    });
+
+    it("tints a bar's candle body + wick with bar-override", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bo",
+                        style: { kind: "bar-override", color: "#abcdef" },
+                        value: null,
+                        time: BARS[1].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        expect(
+            overlay.ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === "#abcdef",
+            ),
+        ).toBe(true);
+        expect(
+            overlay.ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "fillStyle" && c.value === "#abcdef",
+            ),
+        ).toBe(true);
+    });
+
+    it("prefers candle-override over bar-override over bar-color for the same bar", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    // All three target bar 0 (bull). candle-override wins.
+                    plotEmission({
+                        slotId: "co",
+                        style: { kind: "candle-override", bull: "#111111", bear: "#222222" },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                    plotEmission({
+                        slotId: "bo",
+                        style: { kind: "bar-override", color: "#333333" },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                    plotEmission({
+                        slotId: "bc",
+                        style: { kind: "bar-color", color: "#444444" },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        const fills = overlay.ctx.calls
+            .filter((c) => c.kind === "set" && c.prop === "fillStyle")
+            .map((c) => (c.kind === "set" ? c.value : undefined));
+        // candle-override's bull colour tints bar 0; the lower-precedence
+        // bar-override / bar-color colours never reach the candle fill there.
+        expect(fills).toContain("#111111");
+        expect(fills).not.toContain("#333333");
+        expect(fills).not.toContain("#444444");
+    });
+
+    it("falls back to the bar-override colour when no candle-override exists", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "bo",
+                        style: { kind: "bar-override", color: "#abcabc" },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                    plotEmission({
+                        slotId: "bc",
+                        style: { kind: "bar-color", color: "#defdef" },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        const fills = overlay.ctx.calls
+            .filter((c) => c.kind === "set" && c.prop === "fillStyle")
+            .map((c) => (c.kind === "set" ? c.value : undefined));
+        // bar-override wins over bar-color.
+        expect(fills).toContain("#abcabc");
+        expect(fills).not.toContain("#defdef");
+    });
+});
+
+describe("createUplotAdapter — horizontal-histogram draw-hook rendering", () => {
+    it("paints volume-profile buckets at the right edge, max-scaled", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "vp",
+                        style: {
+                            kind: "horizontal-histogram",
+                            buckets: [
+                                { price: 102, volume: 10 },
+                                { price: 104, volume: 5 },
+                            ],
+                        },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        // Two buckets ⇒ two extra fillRects beyond the BARS candle bodies.
+        const fillRects = overlay.ctx.calls.filter((c) => c.kind === "fillRect");
+        expect(fillRects).toHaveLength(BARS.length + 2);
+        // The bucket bars are right-anchored: the larger volume (10) spans the
+        // full max width; the half-volume (5) spans half. Both end at the same
+        // right edge, so the wider bar starts at a SMALLER x.
+        const bucketRects = fillRects.filter((c) => c.kind === "fillRect" && c.h === 4);
+        expect(bucketRects).toHaveLength(2);
+        if (bucketRects[0].kind === "fillRect" && bucketRects[1].kind === "fillRect") {
+            const wide = bucketRects.find((c) => c.kind === "fillRect" && c.w === 80);
+            const half = bucketRects.find((c) => c.kind === "fillRect" && c.w === 40);
+            expect(wide).toBeDefined();
+            expect(half).toBeDefined();
+            if (wide?.kind === "fillRect" && half?.kind === "fillRect") {
+                // Same right edge ⇒ x + w equal.
+                expect(wide.x + wide.w).toBeCloseTo(half.x + half.w);
+            }
+        }
+    });
+
+    it("honours a per-bucket colour, defaulting otherwise", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "vp",
+                        style: {
+                            kind: "horizontal-histogram",
+                            buckets: [
+                                { price: 102, volume: 10, color: "#ff00ff" },
+                                { price: 104, volume: 5 },
+                            ],
+                        },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        const fills = overlay.ctx.calls
+            .filter((c) => c.kind === "set" && c.prop === "fillStyle")
+            .map((c) => (c.kind === "set" ? c.value : undefined));
+        expect(fills).toContain("#ff00ff");
+        // The uncoloured bucket falls back to the default profile colour.
+        expect(fills).toContain("#3b82f6");
+    });
+
+    it("paints nothing for an all-zero-volume profile", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "vp",
+                        style: {
+                            kind: "horizontal-histogram",
+                            buckets: [
+                                { price: 102, volume: 0 },
+                                { price: 104, volume: 0 },
+                            ],
+                        },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        // maxVolume <= 0 ⇒ the profile is skipped; only the candle bodies remain.
+        const fillRects = overlay.ctx.calls.filter((c) => c.kind === "fillRect");
+        expect(fillRects).toHaveLength(BARS.length);
+    });
+
+    it("skips a bucket whose price projects to a non-finite y", async () => {
+        // A NaN bucket price would fail emission validation, so the profile
+        // would be dropped before painting; instead, simulate uPlot returning
+        // a non-finite y (its scale not yet ranged) the way the hline test
+        // does, so the per-bucket finite-y guard is exercised.
+        const host = stubHost([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "vp",
+                        style: {
+                            kind: "horizontal-histogram",
+                            buckets: [{ price: 102, volume: 10 }],
+                        },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const { adapter, instances } = build({
+            host,
+            candles: candleStream([{ kind: "history", bars: [...BARS] }]),
+        });
+        await runUplotLoop(adapter);
+        vi.spyOn(instances[0], "valToPos").mockReturnValue(Number.NaN);
+        instances[0].runDraw();
+        // Every bucket projects to NaN ⇒ none paints (no 4px-high bars).
+        const bucketRects = instances[0].ctx.calls.filter(
+            (c) => c.kind === "fillRect" && c.h === 4,
+        );
+        expect(bucketRects).toHaveLength(0);
+    });
+
+    it("skips the histogram pass entirely when no profile is buffered", async () => {
+        const { instances } = await drive([emissions()]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        // No profile ⇒ no 4px-high bucket bars (candles still paint).
+        const bucketRects = overlay.ctx.calls.filter((c) => c.kind === "fillRect" && c.h === 4);
+        expect(bucketRects).toHaveLength(0);
+    });
+});
+
+describe("createUplotAdapter — filled-band native two-edge band", () => {
+    it("builds two rows (upper, lower) + a band link for a filled-band slot", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "band",
+                        style: { kind: "filled-band", upper: 110, lower: 90, alpha: 0.25 },
+                        value: 110,
+                        time: BARS[0].time,
+                    }),
+                    plotEmission({
+                        slotId: "band",
+                        style: { kind: "filled-band", upper: 112, lower: 92, alpha: 0.25 },
+                        value: 112,
+                        time: BARS[1].time,
+                    }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            // Two specs: the upper + lower edge of the one band.
+            expect(newRecord.opts.series).toHaveLength(2);
+            expect(newRecord.opts.series[0].label).toBe("band:upper");
+            expect(newRecord.opts.series[1].label).toBe("band:lower");
+            // Two data rows, upper first: upper carries `value`, lower carries
+            // the style's `lower`.
+            expect(newRecord.data[1]).toEqual([110, 112, null]);
+            expect(newRecord.data[2]).toEqual([90, 92, null]);
+            // One native band links uPlot series 1 + 2 with an alpha-folded fill.
+            expect(newRecord.opts.bands).toHaveLength(1);
+            const band = newRecord.opts.bands?.[0];
+            expect(band?.series).toEqual([1, 2]);
+            // The fill is the stroke colour folded to rgba at the band alpha.
+            expect(band?.fill).toContain("rgba(");
+            expect(band?.fill).toContain("0.25");
+        }
+    });
+
+    it("marks a null edge on EITHER row as a per-bar gap", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "band",
+                        // Bar 0: null UPPER edge (gap on the upper row), finite
+                        // lower.
+                        style: { kind: "filled-band", upper: null, lower: 90, alpha: 0.2 },
+                        value: null,
+                        time: BARS[0].time,
+                    }),
+                    plotEmission({
+                        slotId: "band",
+                        // Bar 1: finite upper, null LOWER edge (gap on the lower
+                        // row).
+                        style: { kind: "filled-band", upper: 112, lower: null, alpha: 0.2 },
+                        value: 112,
+                        time: BARS[1].time,
+                    }),
+                    plotEmission({
+                        slotId: "band",
+                        // Bar 2: finite on both.
+                        style: { kind: "filled-band", upper: 108, lower: 96, alpha: 0.2 },
+                        value: 108,
+                        time: BARS[2].time,
+                    }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            // Upper row gaps at col 0; lower row gaps at col 1.
+            expect(newRecord.data[1]).toEqual([null, 112, 108]);
+            expect(newRecord.data[2]).toEqual([90, null, 96]);
+        }
+    });
+
+    it("clips a far-past filled-band point that lands before the first bar", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "band",
+                        style: { kind: "filled-band", upper: 110, lower: 90, alpha: 0.2 },
+                        value: 110,
+                        time: BARS[0].time,
+                        bar: 0,
+                    }),
+                    // A -2 copy of bar 0: its shifted time precedes the first bar
+                    // → clipped (no column), exercising the band path's
+                    // `col === undefined` continue.
+                    plotEmission({
+                        slotId: "band",
+                        style: { kind: "filled-band", upper: 120, lower: 80, alpha: 0.2 },
+                        value: 120,
+                        time: BARS[0].time,
+                        bar: 0,
+                        xShift: -2,
+                    }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            // The clipped -2 point contributes nothing; only bar 0's edges land.
+            expect(newRecord.data[1]).toEqual([110, null, null]);
+            expect(newRecord.data[2]).toEqual([90, null, null]);
+        }
+    });
+
+    it("leaves a non-hex stroke colour unchanged in the band fill", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "band",
+                        color: "rebeccapurple",
+                        style: { kind: "filled-band", upper: 110, lower: 90, alpha: 0.2 },
+                        value: 110,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            // A named colour cannot fold an alpha — it passes through verbatim.
+            expect(newRecord.opts.bands?.[0]?.fill).toBe("rebeccapurple");
+        }
+    });
+
+    it("passes through a 6-char but non-hex stroke colour unchanged", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "band",
+                        // Six characters but not valid hex digits — the rgba fold
+                        // bails out and the colour passes through verbatim.
+                        color: "#gghhii",
+                        style: { kind: "filled-band", upper: 110, lower: 90, alpha: 0.2 },
+                        value: 110,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            expect(newRecord.opts.bands?.[0]?.fill).toBe("#gghhii");
+        }
+    });
+
+    it("expands a 3-digit hex stroke colour into the band rgba fill", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "band",
+                        color: "#0f0",
+                        style: { kind: "filled-band", upper: 110, lower: 90, alpha: 0.3 },
+                        value: 110,
+                        time: BARS[0].time,
+                    }),
+                ],
+            }),
+        ]);
+        const newRecord = instances[0].records[0];
+        if (newRecord.kind === "new") {
+            // #0f0 expands to (0, 255, 0) at the band alpha.
+            expect(newRecord.opts.bands?.[0]?.fill).toBe("rgba(0, 255, 0, 0.3)");
+        }
     });
 });
 
@@ -1349,9 +2175,11 @@ describe("createUplotAdapter — drawings (Task 8 draw-hook geometry)", () => {
         ]);
         const overlay = instances[0];
         overlay.runDraw();
-        // One translate brackets the whole pass (not one per drawing); a
-        // rectangle decomposes to a closed polyline (fill + stroke).
-        expect(overlay.ctx.calls.filter((c) => c.kind === "translate")).toHaveLength(1);
+        // Each drawing brackets its OWN save/translate/restore (the z-sort can
+        // interleave a glyph / hline between two drawings, so a single shared
+        // bracket would be wrong) — two drawings ⇒ two translates. A rectangle
+        // decomposes to a closed polyline (fill + stroke).
+        expect(overlay.ctx.calls.filter((c) => c.kind === "translate")).toHaveLength(2);
         expect(overlay.ctx.calls.some((c) => c.kind === "closePath")).toBe(true);
     });
 
@@ -1399,6 +2227,259 @@ describe("createUplotAdapter — drawings (Task 8 draw-hook geometry)", () => {
             expect(Number.isFinite(call.x)).toBe(true);
             expect(Number.isFinite(call.y)).toBe(true);
         }
+    });
+});
+
+describe("createUplotAdapter — z render-order (shared sort)", () => {
+    // The hook-owned marks (glyphs / hlines / drawings) are z-sorted among
+    // themselves via the shared `sortByRenderOrder` + `RENDER_BAND`. Native
+    // uPlot series are painted by uPlot beneath the hook — not part of this
+    // sort (the documented native-vs-hook bound).
+    type Call = { kind: string };
+    const indexOf = (calls: ReadonlyArray<Call>, predicate: (c: Call) => boolean): number =>
+        calls.findIndex(predicate);
+    // The hline mark sets `strokeStyle` to its colour (here the `#787b86`
+    // default) — a stable, hline-specific landmark (candles set fillStyle, the
+    // drawing sets its own polyline stroke). The drawing mark brackets its prims
+    // in a `translate`.
+    const hlineStrokeAt = (calls: ReadonlyArray<Call>): number =>
+        indexOf(
+            calls,
+            (c) =>
+                (c as { kind: string; prop?: string; value?: unknown }).kind === "set" &&
+                (c as { prop?: string }).prop === "strokeStyle" &&
+                (c as { value?: unknown }).value === "#787b86",
+        );
+    const drawingTranslateAt = (calls: ReadonlyArray<Call>): number =>
+        indexOf(calls, (c) => c.kind === "translate");
+
+    it("paints a z:-1 drawing BELOW a z:0 hline", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "hl",
+                        style: { kind: "horizontal-line", lineWidth: 1, lineStyle: "solid" },
+                        value: 104,
+                        time: BARS[0].time,
+                    }),
+                ],
+                drawings: [{ ...lineDrawing("below"), z: -1 } as DrawingEmission],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        const calls = overlay.ctx.calls;
+        const drawingAt = drawingTranslateAt(calls);
+        const hlineAt = hlineStrokeAt(calls);
+        // The z:-1 drawing's translate precedes the z:0 hline's stroke setup.
+        expect(drawingAt).toBeGreaterThanOrEqual(0);
+        expect(hlineAt).toBeGreaterThanOrEqual(0);
+        expect(drawingAt).toBeLessThan(hlineAt);
+    });
+
+    it("paints a z:1 hline ABOVE a z:0 drawing (the band order is overridable)", async () => {
+        // The default band order is hline (2) BELOW drawing (3); a `z:1` on the
+        // hline lifts it above the `z:0` drawing — the lever a fixed band stack
+        // cannot express.
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "hl",
+                        style: { kind: "horizontal-line", lineWidth: 1, lineStyle: "solid" },
+                        value: 104,
+                        time: BARS[0].time,
+                        z: 1,
+                    }),
+                ],
+                drawings: [lineDrawing("under")],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        const calls = overlay.ctx.calls;
+        const drawingAt = drawingTranslateAt(calls);
+        const hlineAt = hlineStrokeAt(calls);
+        expect(drawingAt).toBeGreaterThanOrEqual(0);
+        expect(hlineAt).toBeGreaterThanOrEqual(0);
+        expect(drawingAt).toBeLessThan(hlineAt);
+    });
+
+    it("paints a z:1 drawing ABOVE a z:0 glyph", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "g",
+                        style: { kind: "shape", shape: "circle", size: 8 },
+                        value: 102,
+                        time: BARS[0].time,
+                    }),
+                ],
+                drawings: [{ ...lineDrawing("above"), z: 1 } as DrawingEmission],
+            }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        const calls = overlay.ctx.calls;
+        const glyphAt = indexOf(calls, (c) => c.kind === "arc");
+        const drawingAt = indexOf(calls, (c) => c.kind === "translate");
+        // The glyph (band glyph, z:0) paints before the z:1 drawing's translate.
+        expect(glyphAt).toBeGreaterThanOrEqual(0);
+        expect(drawingAt).toBeGreaterThanOrEqual(0);
+        expect(glyphAt).toBeLessThan(drawingAt);
+    });
+
+    it("orders two same-z drawings by declaration sequence (seq tiebreak)", async () => {
+        // Two z:0 drawings keep declaration order — the shared comparator's
+        // `seq` tiebreak. Each brackets its own translate, so the FIRST-declared
+        // drawing's translate precedes the second's.
+        const { instances } = await drive([
+            emissions({ drawings: [lineDrawing("first"), rectangleDrawing("second")] }),
+        ]);
+        const overlay = instances[0];
+        overlay.runDraw();
+        expect(overlay.ctx.calls.filter((c) => c.kind === "translate")).toHaveLength(2);
+    });
+});
+
+describe("createUplotAdapter — alertConditions + logs overlay", () => {
+    it("paints a fired alert condition as text (conditionId + message)", async () => {
+        const { instances } = await drive([
+            emissions({ alertConditions: [alertConditionEmission("bullCross")] }),
+        ]);
+        instances[0].runDraw();
+        const text = instances[0].ctx.calls.find((c) => c.kind === "fillText");
+        expect(text?.kind === "fillText" && text.text).toBe("bullCross: cross");
+    });
+
+    it("paints nothing for a non-fired alert condition (empty panel)", async () => {
+        const baseline = await drive([emissions()]);
+        baseline.instances[0].runDraw();
+        const baseHash = hashCallLog(baseline.instances[0].ctx.calls);
+        const notFired: AlertConditionEmission = {
+            ...alertConditionEmission("idle"),
+            fired: false,
+        };
+        const { instances } = await drive([emissions({ alertConditions: [notFired] })]);
+        instances[0].runDraw();
+        // A condition that did not fire adds no text — the hash is unchanged.
+        expect(hashCallLog(instances[0].ctx.calls)).toBe(baseHash);
+    });
+
+    it("paints recent logs as text ([level] message)", async () => {
+        const { instances } = await drive([emissions({ logs: [logEmission()] })]);
+        instances[0].runDraw();
+        const text = instances[0].ctx.calls.find(
+            (c) => c.kind === "fillText" && c.text === "[info] debug",
+        );
+        expect(text).toBeDefined();
+    });
+
+    it("caps the log pane at the 5 most recent and paints no more", async () => {
+        const { instances } = await drive([
+            emissions({ logs: Array.from({ length: 6 }, () => logEmission()) }),
+        ]);
+        instances[0].runDraw();
+        const logTexts = instances[0].ctx.calls.filter(
+            (c) => c.kind === "fillText" && c.text === "[info] debug",
+        );
+        expect(logTexts).toHaveLength(5);
+    });
+
+    it("adds no ctx calls when there are no alert conditions or logs", async () => {
+        const baseline = await drive([emissions()]);
+        baseline.instances[0].runDraw();
+        const baseHash = hashCallLog(baseline.instances[0].ctx.calls);
+        const { instances } = await drive([emissions()]);
+        instances[0].runDraw();
+        expect(hashCallLog(instances[0].ctx.calls)).toBe(baseHash);
+    });
+});
+
+describe("createUplotAdapter — line-family colorValue (whole-series stroke)", () => {
+    // uPlot paints each series from ONE `stroke`, so per-bar `colorValue` folds
+    // into a whole-series decision (the documented uplot structural bound). The
+    // omitted path is byte-identical to the pre-feature `seriesColor`.
+    const strokeOf = (instances: MockUplot[]): string | undefined => {
+        const record = instances[0].records[0];
+        return record.kind === "new" ? record.opts.series[0]?.stroke : undefined;
+    };
+
+    it("leaves the stroke at the static per-point colour when colorValue is omitted", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [plotEmission({ slotId: "ln", value: 102, color: "#112233" })],
+            }),
+        ]);
+        expect(strokeOf(instances)).toBe("#112233");
+    });
+
+    it("lets a present colorValue OVERRIDE the static stroke", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "ln",
+                        value: 102,
+                        color: "#112233",
+                        colorValue: "#ff8800",
+                    }),
+                ],
+            }),
+        ]);
+        // The override wins over the static per-point colour.
+        expect(strokeOf(instances)).toBe("#ff8800");
+    });
+
+    it("skips a null colorValue bar's vote, falling back to the prior colour", async () => {
+        // Two bars on the same slot: the first carries a real colour, the
+        // second a `null` colorValue (no colour this bar). The whole-series
+        // stroke folds to the last RESOLVED colour — the first bar's.
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "ln",
+                        value: 101,
+                        time: BARS[0].time,
+                        color: "#445566",
+                    }),
+                    plotEmission({
+                        slotId: "ln",
+                        value: 103,
+                        time: BARS[1].time,
+                        // A present `colorValue: null` is the per-bar "no colour"
+                        // state — it OVERRIDES the static `color`, so this bar
+                        // casts no stroke-colour vote (static colour ignored).
+                        color: "#778899",
+                        colorValue: null,
+                    }),
+                ],
+            }),
+        ]);
+        // The last bar's null colorValue is skipped, so the prior bar's
+        // resolved colour remains the whole-series stroke.
+        expect(strokeOf(instances)).toBe("#445566");
+    });
+
+    it("falls back to the default line colour for an all-null colorValue series", async () => {
+        const { instances } = await drive([
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "ln",
+                        value: 102,
+                        time: BARS[0].time,
+                        color: null,
+                        colorValue: null,
+                    }),
+                ],
+            }),
+        ]);
+        // Every point resolves to no colour ⇒ the fallback stroke.
+        expect(strokeOf(instances)).toBe("#3b82f6");
     });
 });
 

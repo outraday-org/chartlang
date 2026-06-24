@@ -79,6 +79,23 @@ layer** every adapter shares.
   together). The canvas2d adapter re-exports
   `MockCanvasContext` as `MockCanvas2DContext` (Task 4) — implementation
   shared, its public `./testing` name unchanged.
+- **The shared glyph geometry (`canvas/glyphs.ts`) is the ONE source for the
+  canvas-family adapters — they consume it, never hand-port.** `drawShape` /
+  `drawCharacter` / `drawArrow` / `drawMarker` / `drawLabel` paint the
+  `shape` / `character` / `arrow` / `marker` / `label` glyphs onto a
+  `RenderCtx`, taking a plain `fallbackColor: string` (the null-color default)
+  so they stay model-free — no palette / library / model types. The five
+  filled-marker `shape` glyphs delegate to `drawMarker`; `cross` / `xcross` /
+  `flag` stroke directly. Promoted out of the canvas2d reference adapter's
+  `render/{shape,character,arrow,marker,label}.ts` (the same bug class the
+  `shift.ts` / `renderOrder.ts` promotions kill — geometry hand-ported per
+  consumer drifts), it rides the `./canvas` sub-path so uplot (the draw-hook)
+  and lightweight-charts (the overlay) import ONE copy. ECharts / Konva map
+  glyph intent to their native primitives and do NOT import it. **canvas2d
+  keeps its own `Palette`-taking local renderers (re-consume DEFERRED)** — the
+  promotion only needs to EXIST in adapter-kit for the canvas-sink consumers.
+  Pure, 100%-covered, every export carrying `@since 1.7` + `@stable` +
+  `@example` (the `docs:check` gate).
 - **`StrokeStyle.alpha` is the one IR field Task 2 added, and an omitted
   `alpha` is byte-identical to a Task-1 stroke.** `paintPrimitive`'s
   `strokeWithAlpha` brackets the `stroke()` in `globalAlpha = alpha` /
@@ -124,6 +141,22 @@ layer** every adapter shares.
   Pure (no `ctx` / DOM / library types), 100%-covered. `xShift` omitted / `0`
   reproduces the unshifted `timeToX(time)` byte-for-byte, so no-offset
   goldens are untouched.
+- **The z-order comparator lives in `src/geometry/renderOrder.ts`; adapters
+  MUST import it, never re-port it** — same rationale as `shift.ts` (four
+  hand-ports were exactly how the offset-collapse bug arose). It exposes
+  `sortByRenderOrder<T extends RenderOrderKey>(marks)` (the model-agnostic
+  `a.z - b.z || a.band - b.band || a.seq - b.seq` total order, sorted in place,
+  same array returned), `RENDER_BAND` (`{ series:0, glyph:1, hline:2,
+  drawing:3 }`, the pre-`z` phase order), and `RenderOrderKey` (the structural
+  `{ readonly z; band; seq: number }` a mark must carry). Pure, 100%-covered,
+  on the ROOT `.` barrel (NOT `./canvas`, so konva can import it), each carrying
+  `@since 1.7` + `@stable` + `@example`. The comparator is generic over the
+  payload: each adapter keeps its OWN mark union local (canvas2d's
+  `SortableMark` stays in `render/renderOrder.ts`) and shares only the
+  comparator + bands; canvas2d re-exports `sortByRenderOrder` and aliases
+  `BAND = RENDER_BAND` so its call sites are untouched. Promoted out of
+  canvas2d's `render/renderOrder.ts`; behaviour-preserving (the EMA-cross
+  `PINNED_HASH` has no drawings, so the comparator path is not re-hashed).
 
 ## Interaction-layer invariants (`src/interaction/`)
 

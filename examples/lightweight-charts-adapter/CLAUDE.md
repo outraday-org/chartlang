@@ -24,16 +24,20 @@ lightweight-charts integration.
   authoritative per-kind table lives in the file header of
   `src/createLightweightChartsAdapter.ts`. Summary: candles →
   `addSeries(Candlestick)`; `line` → `Line`; `step-line` → `Line` with
-  `lineType` step; `area` → `Area`; `histogram` → `Histogram`;
+  `lineType` step; `area` → `Area` (`lineColor` + `fillAlpha`-folded
+  `topColor`/`bottomColor` gradient); `histogram` → `Histogram`;
   `horizontal-line` → `series.createPriceLine`; glyph kinds (`shape` /
-  `character` / `arrow` / `marker` / `label`) → the v5
-  `createSeriesMarkers` plugin (`series.setMarkers`); `candle-override`
-  → `candleSeries.applyOptions` (whole-series up/down tint, the closest
-  native facility for a per-bull/bear override); `bar-color` /
-  `bar-override` → **per-bar candle DATA-POINT colour** (NOT a whole-series
-  tint — see below). `bg-color` and `horizontal-histogram` have **no**
-  native facility and are documented **no-ops** in v1 (still declared in
-  the capability surface, deferred to the Task-6 primitive path).
+  `character` / `arrow` / `marker` / `label`) → **SPLIT** between the v5
+  `createSeriesMarkers` plugin and the canvas overlay (see the glyph-routing
+  invariant below); `candle-override` → **per-bar candle DATA-POINT colour
+  resolved by bar direction** (NOT a whole-series tint — see below);
+  `bar-color` / `bar-override` → **per-bar candle DATA-POINT colour** (NOT a
+  whole-series tint — see below). `bg-color` → **per-bar background BAND painted
+  by the `DrawingPrimitive` overlay** (Task 12 — LC's background is a single
+  chart-layout option, not a per-bar band; see the Task-12 invariants below).
+  `horizontal-histogram` has **no** native facility and stays a documented
+  **no-op** in v1 (still declared in the capability surface, deferred to the
+  Task-6 primitive path).
 - **`bar-color` / `bar-override` colour the candle PER BAR via the native
   data-point colour fields, recolouring body AND border AND wick.**
   lightweight-charts candlestick data points natively carry `color`,
@@ -52,6 +56,68 @@ lightweight-charts integration.
   known bar is a no-op for that frame. `defaultCreateChart` passes the
   three colour fields through (with `borderVisible: true`) to the real LC
   series.
+- **`candle-override` recolours each bar's candle PER BAR by its own
+  direction — NOT a whole-series tint.** LC's native `SeriesMarkerShape` /
+  candle base series has no per-bar candle-override, but the candlestick DATA
+  POINT carries `color`/`borderColor`/`wickColor` (the same path `bar-color`
+  uses). `applyCandleOverride` stamps the emission's `{ bull, bear, doji? }`
+  palette into `state.candleOverrides` keyed by bar time and re-`update`s the
+  bar's candle; `candleData` → `resolveCandleColor` picks the colour by
+  direction (`close > open ⇒ bull`, `< ⇒ bear`, else `doji ?? bull` — the
+  canvas2d `render/candleOverride.ts` direction logic, a first-party
+  translation, NOT an `../invinite/` port). **Precedence: a `bar-color` /
+  `bar-override` on the same bar (in `state.barColors`) WINS** — the
+  bar/candle override paints on top of the candle, the candle-override is the
+  candle's own body colour (mirrors canvas2d / uplot). The prior whole-series
+  `applyOptions({ upColor, downColor })` tint is GONE.
+- **Glyph kinds are ROUTED: native LC marker where the v5 plugin can express
+  it, the canvas overlay (shared helper) where it cannot.** LC v5's
+  `SeriesMarkerShape` is ONLY `circle | square | arrowUp | arrowDown`.
+  `nativeGlyphMarker` builds a native `setMarkers` payload (shape / position /
+  text / colour / size) for: `arrow` (up→`arrowUp`+`belowBar`,
+  down→`arrowDown`+`aboveBar`); `marker`/`shape` when `shape ∈ {circle,
+  square}`; `character` (a `circle` carrier with `text: char`); `label` (a
+  `circle` carrier with `text`). Position resolves from the glyph's vertical
+  `location` (`shape`/`character`) or `position` (`label`):
+  `above`→`aboveBar`, `below`→`belowBar`, else `inBar`. Colour is the
+  EMISSION's top-level `plot.color` (per the Task-9 glyph contract), defaulting
+  to `#3b82f6` on `null`. **Everything else** (`triangle-up`/`triangle-down`/
+  `diamond` markers + `shape`'s `cross`/`xcross`/`flag`) → the canvas overlay:
+  `applyGlyph` buffers a `GlyphMark` (already-shifted `time`, `value`, `color`,
+  `style`) into `state.glyphs` keyed `${pane}|${slotId}` (last-write-wins), and
+  the attached `DrawingPrimitive` paints it via the SHARED adapter-kit glyph
+  helper (`drawShape`/`drawMarker` from `@invinite-org/chartlang-adapter-kit/
+  canvas`) — NEVER a hand-port. A `null`/non-finite glyph value is skipped
+  before either path. A native glyph needs the candle series to anchor (no
+  candle yet ⇒ no-op); an overlay glyph buffers even before the candle exists
+  (painted once the primitive is attached). The old single-blue-circle
+  `toMarker` hardcode is GONE; `toMarker(LwcMarker)` now narrows the full
+  payload to a real `SeriesMarker`.
+- **The `DrawingPrimitive` paints the overlay-routed glyphs through the SAME
+  `Viewport` as drawings.** Its constructor takes an optional second `glyphs:
+  ReadonlyMap<string, GlyphMark>` (default empty); `paintInto` projects each
+  glyph through `timeToX` / `priceToY` (adapter-kit) and dispatches
+  `drawShape` / `drawMarker`. An empty glyph buffer adds NO ctx calls
+  (drawing-only goldens untouched). **Task 12 reordered the overlay pass: it is
+  now a single z-sorted pass (glyphs, drawings, bg-color bands) — NOT a fixed
+  "drawings then glyphs" sequence.** At the default `z`, the shared
+  `RENDER_BAND` order (`glyph:1 < drawing:3`) means glyphs paint BEFORE drawings
+  (drawings on top), matching the canvas2d reference band order — see the
+  Task-12 z invariants below. The factory attaches
+  `new DrawingPrimitive(state.drawings, state.glyphs, overlay)` in
+  `ensureCandleSeries` (the third `OverlayBuffers` arg carries the bg-bands +
+  alert/log + the parallel z-keys; the two-arg form is the drawing/glyph-only
+  overlay used by the unit tests).
+- **`filled-band` edges carry `plot.color`; `area` carries `fillAlpha`.**
+  `applyFilledBand` forwards `{ color: plot.color }` to BOTH edge `Line`
+  series (mirroring the line-colour fix; a `null` colour records `{}`) — the
+  same drop the line path had. The inter-edge FILL is the Task-6 drawing
+  (carrying the band `alpha`); the edges themselves only carry colour. `area`
+  (via `applyLineLikePlot`) folds `plot.color` into the Area series'
+  `lineColor` and `fillAlpha` into a `topColor` (colour at `fillAlpha`) →
+  `bottomColor` (colour at `0`) gradient via the local `hexToRgba` (a few-line
+  convention copied — NOT cross-imported — from the uplot adapter; a non-hex
+  colour passes through verbatim). A `null` colour records only `lineWidth`.
 - **A plot's `color` AND line width are forwarded as SERIES-CREATION
   options, not data fields.** `applyLineLikePlot` builds `{ color: plot.color
   }` (plus `lineType` — `1`/WithSteps for a step-line, `2`/Curved for a plain
@@ -175,6 +241,124 @@ lightweight-charts integration.
   `LwcSeries.attachPrimitive`. The integration test pins a separate drawings
   `hashCallLog` (over the `MockCanvasContext` paint log) — distinct from the
   native-call `hashLwcCallLog`.
+
+## bg-color + alert/log overlay + z (Task 12)
+
+- **`bg-color` RENDERS (no longer a no-op): a per-bar background BAND painted
+  by the `DrawingPrimitive` overlay.** LC's background is a single chart-layout
+  option, not a per-bar band, so `applyBgColor` buffers a `BgBand` per
+  `${pane}|${slotId}|${time}` (one stripe per bar) into `state.bgBands`; the
+  overlay paints each as a full-pane-height vertical stripe centred on the bar's
+  projected x (`paintBgBand`). The stripe width is the run's **median bar
+  spacing** projected to px (`timeToX(time + spacing) − timeToX(time)`), with a
+  1px hairline floor for a degenerate (zero / non-finite) width. The 3-state
+  `colorValue` resolves the colour AT INGEST (`colorValue` present OVERRIDES the
+  static `style.color`; `colorValue === null` deletes the band — the explicit
+  "no band this bar" gap; omitted uses `style.color`), so a buffered band always
+  carries a concrete colour. `transp` (0–100) folds into the stripe opacity
+  (`globalAlpha = 1 − transp/100`, reset to 1 after the fill). This mirrors the
+  canvas2d / uplot `bgColor` painting intent. The file-header / capability no-op
+  note for `bg-color` is GONE (`horizontal-histogram` stays a documented no-op).
+- **`alertConditions` + `logs` RENDER via the overlay, ALWAYS-ON-TOP (NOT
+  z-sorted).** `paintAlertConditions` paints the FIRED conditions for the
+  current bar as a compact top-right side panel (`${conditionId}:
+  ${defaultMessage}`), `paintLogs` the latest logs (cap 5, already trimmed in
+  `applyLog`) as a bottom-left pane (`[${level}] ${message}`) — both mirroring
+  canvas2d's `render/alertConditions.ts` + `render/logPane.ts` visual design,
+  via the shared `RenderCtx` text surface. They paint AFTER the sorted overlay
+  pass (the v1 deferral: alert/log panels are pinned on top, never participate
+  in the `z` sort — consistent with the canvas2d `renderOverlayTail` posture).
+  An empty fired-list / log-list adds NO ctx calls. The primitive reads
+  `state.currentAlertConditions` (rebuilt each drain) + `state.recentLogs` LIVE.
+- **The overlay paints ONE z-sorted pass over drawings + bg-color bands +
+  overlay glyphs, via the SHARED `sortByRenderOrder` + `RENDER_BAND` (no
+  hand-port).** `collectSortedMarks` tags each mark with its `(z, band, seq)`
+  key and `sortByRenderOrder` (imported from `@invinite-org/chartlang-adapter-
+  kit`) stable-sorts ascending by `z`, then `band`, then `seq`. Bands: glyphs
+  `RENDER_BAND.glyph` (1); drawings + bg-color bands `RENDER_BAND.drawing` (3).
+  So at the default `z` glyphs paint BEFORE drawings/bands (drawings on top) —
+  the canvas2d-reference band order, NOT the old "drawings then glyphs". A
+  `z:-1` drawing sorts BELOW a `z:0` band; a `z:1` glyph sorts above. `z` / `seq`
+  are assigned AT INGEST: `applyDrawing` / `applyGlyph` / `applyBgColor` read
+  `emission.z ?? 0` and a global `state.seq++` (ingest order = declaration
+  order). Drawings + glyphs keep their key in parallel `state.drawingKeys` /
+  `state.glyphKeys` maps (written in lockstep — the raw `DrawingEmission` carries
+  `z` but no `seq`, a `GlyphMark` carries neither); bg-bands carry the key inline
+  (`BgBand extends RenderOrderKey`). A mark whose parallel key is missing
+  (defensive) falls back to band/seq 0.
+- **Native LC series stacking is LC-MANAGED — the shared sort governs the
+  OVERLAY layer only.** LC owns the paint order of its native series (lines /
+  candles / price lines) and offers no draw-hook to repaint them, so their `z`
+  is best-effort via series-creation order only. This is the deliberate
+  "implement where the model allows, document the rest" reality for a
+  native-time library: the overlay-painted marks (drawings + bg-color bands +
+  overlay glyphs) order precisely by the shared key; a native LINE plot's `z`
+  relative to a native CANDLE cannot be honoured (LC paints both itself). Line-
+  family per-bar `colorValue` (the per-color-run segment-series rework) is
+  Task 13, NOT here.
+- **`OverlayBuffers` is the third `DrawingPrimitive` ctor argument** — the
+  live bundle the factory owns (`drawings` / `glyphs` / `drawingKeys` /
+  `glyphKeys` / `bgBands` / `alertConditions` / `logs`), all default-empty so
+  the two-arg `new DrawingPrimitive(drawings, glyphs)` form (the drawing/glyph
+  unit tests) is byte-identical to the pre-Task-12 overlay. `dispose` clears
+  `bgBands` / `drawingKeys` / `glyphKeys` and resets `state.seq`.
+
+## Line-family `colorValue` = per-color-run segment series (Task 13)
+
+- **A line / step-line / area slot whose emission carries a per-bar
+  `colorValue` is SPLIT into consecutive same-colour RUNS, each its own native
+  series** (`applyRunPlot`). LC line / area series hold a SINGLE creation-time
+  colour with no per-point field, so per-bar colour is impossible on one
+  series; the run split is the LC-specific realisation of the universal 3-state
+  `colorValue` contract (mechanism differs from canvas2d's per-segment canvas
+  recolor — SAME semantics). The 3-state precedence (`PlotEmission.colorValue`,
+  mirrored from the canvas2d `render/colorValue.ts` reference, NOT
+  cross-imported): present string ⇒ the run colour; `null` ⇒ a whitespace gap
+  (the run ends, no series spans the bar); omitted ⇒ the single-series path
+  (see below).
+- **Per-emission routing is the byte-identity anchor.** `applyLineLikePlot`
+  branches on `plot.colorValue !== undefined`: omitted ⇒ the EXISTING
+  single-series path (ONE native series, byte-identical to the pre-feature
+  wire — existing call-log goldens / the conformance `plot-hash` are
+  untouched); present (string OR `null`) ⇒ the per-colour-run path
+  (line/step/area) or per-point colour (histogram). A slot that never carries
+  `colorValue` NEVER lands in `state.runSlots` — it stays one series. The
+  static top-level `plot.color` NEVER splits a run; only an explicit
+  `colorValue` does.
+- **Run bookkeeping lives in `state.runSlots` (`Map<${pane}|${slotId},
+  RunSlotState>`), a SEPARATE store from `state.series`** so the single-series
+  and run paths never collide. `RunSlotState = { series: LwcSeries[];
+  activeColor: string | null; lastPoint }`. On a colour change `applyRunPlot`
+  opens a new native series (`addSeries(seriesType, runSeriesOptions(plot,
+  runColor), pane)`) and DUPLICATES the prior bar's `lastPoint` into it as the
+  shared boundary so the segments visually join (LC needs ≥2 points to draw a
+  segment). A `null` / non-finite bar clears `activeColor` + `lastPoint` so the
+  next finite bar opens a fresh run and does NOT bridge a boundary across the
+  gap. Strictly-increasing unique time per series holds because the boundary
+  duplicate uses the PRIOR (smaller) bar's time. `visible:false` calls
+  `applyOptions({ visible:false })` on EVERY run series of the slot; `dispose`
+  clears `runSlots`.
+- **`runSeriesOptions` folds the run colour into the creation options** —
+  `area` → `lineColor` + `topColor`/`bottomColor` `fillAlpha` gradient (reusing
+  `hexToRgba`); line / step-line → plain `color`. The shared `baseLineOptions`
+  (step/curve `lineType` + forwarded `lineWidth`) is extracted so the
+  single-series and run paths build identical base options.
+- **`histogram` is per-point colour, NOT run-split** (`applyHistogramPlot`). LC
+  histogram points carry their own `color` (like candlesticks), so a
+  `colorValue` histogram stays ONE series and stamps the resolved colour on the
+  data point (`dataPoint(time, value, color)`); `colorValue:null` ⇒ a
+  whitespace point (no column). This reuses the existing mock `update` arm,
+  which already records a non-candle point's `color` — no `testing.ts` change
+  was needed.
+- **y-scale caveat (LC-managed scaling).** LC owns the auto price scale
+  per-series; there is no shared y-range the adapter controls. So a
+  `colorValue:null` GAP bar — which opens no run series and writes no point —
+  does NOT stretch the scale even though its `value` is finite. This diverges
+  from the canvas2d reference (which folds a `colorValue:null` finite value
+  into its shared `computeYRange`): in LC the contract's "colour orthogonal to
+  the y-scale" holds only for bars that ARE painted; a pure-gap bar's value is
+  not folded. This is the deliberate "implement where the model allows" reality
+  for a native-time library (same posture as native series `z` stacking).
 
 ## Headless test seam
 

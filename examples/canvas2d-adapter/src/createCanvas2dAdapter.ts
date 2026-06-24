@@ -45,6 +45,7 @@ import {
     computePaneLayout,
     drawAlertBadge,
     drawAlertConditions,
+    drawArea,
     drawArrow,
     drawBarColor,
     drawBarOverride,
@@ -52,17 +53,21 @@ import {
     drawCandleOverride,
     drawCandles,
     drawCharacter,
+    drawFilledBand,
     drawHistogram,
     drawHorizontalHistogram,
     drawHorizontalLine,
+    drawLabel,
     drawLine,
     drawLogPane,
+    drawMarker,
     drawPaneSeparator,
     drawShape,
     drawYAxis,
     medianBarSpacing,
     priceToY,
     projectShiftedX,
+    resolvePaintColor,
     shiftedBarTime,
     sortByRenderOrder,
     timeToX,
@@ -270,8 +275,18 @@ function computeYRange(
     for (const [key, series] of state.plotSeries) {
         if (!key.startsWith(prefix)) continue;
         for (const point of series) {
-            if (point.value === null) continue;
-            candidates.push({ x: point.time, lo: point.value, hi: point.value });
+            if (point.value !== null) {
+                candidates.push({ x: point.time, lo: point.value, hi: point.value });
+            }
+            // A `filled-band` point carries its edges instead of `value`;
+            // fold each finite edge into the scale so the band stretches
+            // the auto price axis like any other series.
+            if (point.upper != null) {
+                candidates.push({ x: point.time, lo: point.upper, hi: point.upper });
+            }
+            if (point.lower != null) {
+                candidates.push({ x: point.time, lo: point.lower, hi: point.lower });
+            }
         }
     }
     const windowed = yRangeInWindow(candidates, win);
@@ -337,14 +352,16 @@ function extendXMaxForShifts(
     if (paneKey === "overlay") {
         for (const plot of state.plotOverlays.values()) {
             if (plot.value === null) continue;
-            // Only the shifted-series glyphs (shape / character / arrow)
-            // honour `xShift`; candle-state overrides
+            // Only the shifted-series glyphs (shape / character / arrow /
+            // marker / label) honour `xShift`; candle-state overrides
             // (bg / bar / candle-override, horizontal-histogram) keep their
             // own anchor and must not widen the viewport.
             if (
                 plot.style.kind !== "shape" &&
                 plot.style.kind !== "character" &&
-                plot.style.kind !== "arrow"
+                plot.style.kind !== "arrow" &&
+                plot.style.kind !== "marker" &&
+                plot.style.kind !== "label"
             ) {
                 continue;
             }
@@ -430,6 +447,11 @@ function renderHistogramSeries(
     const baselineY = priceToY(baseline, viewport);
     for (const point of series) {
         if (point.value === null || !Number.isFinite(point.value)) continue;
+        // Resolve the per-bar `colorValue` 3-state: omitted ⇒ static color,
+        // present ⇒ override, `null` ⇒ paint no column this bar. Each column
+        // is already independent, so a `null` bar simply paints nothing.
+        const color = resolvePaintColor(point.colorValue, point.color, palette.plotDefault);
+        if (color === null) continue;
         drawHistogram(
             ctx,
             {
@@ -444,12 +466,114 @@ function renderHistogramSeries(
                 ),
                 y: priceToY(point.value, viewport),
                 baseline: baselineY,
-                color: point.color,
+                color,
                 width: HISTOGRAM_BAR_WIDTH_PX,
             },
             palette,
         );
     }
+}
+
+// Map an accumulated `area` series to `drawArea`'s pixel arg bag and paint
+// it. The fill closes against the pane floor (`pxHeight` = the bottom of the
+// visible y-range) — the natural "area under the line". Null / non-finite
+// values break the polyline into independent runs (matching `drawLine`'s
+// gap handling); a single-point run has no polygon and is skipped by
+// `drawArea`. The per-bar `colorValue` 3-state ({@link resolvePaintColor})
+// follows the same runs: a `null` resolved color breaks the run (paint
+// nothing) and a color change starts a new run filled in that run's color.
+function renderAreaSeries(
+    ctx: RenderCtx,
+    series: ReadonlyArray<PlotPoint>,
+    style: Extract<PlotStyle, { kind: "area" }>,
+    world: { readonly bars: ReadonlyArray<Bar>; readonly spacing: number },
+    viewport: Viewport,
+    palette: Palette,
+): void {
+    const baselineY = viewport.pxHeight;
+    let run: { x: number; y: number }[] = [];
+    let runColor: string | null = null;
+    const flush = (): void => {
+        if (run.length > 0 && runColor !== null) {
+            drawArea(
+                ctx,
+                {
+                    points: run,
+                    lineWidth: style.lineWidth,
+                    lineStyle: style.lineStyle,
+                    color: runColor,
+                    fillAlpha: style.fillAlpha,
+                    baselineY,
+                },
+                palette,
+            );
+        }
+        run = [];
+        runColor = null;
+    };
+    for (const point of series) {
+        if (point.value === null || !Number.isFinite(point.value)) {
+            flush();
+            continue;
+        }
+        // `colorValue:null` ⇒ paint nothing this bar (break the run).
+        if (point.colorValue === null) {
+            flush();
+            continue;
+        }
+        // A run splits only on an EXPLICIT per-bar `colorValue` that differs
+        // from the run's color; the static `color` is a per-series property
+        // that never splits, so a no-`colorValue` area is byte-identical to
+        // the pre-feature render. An empty run adopts the point's color.
+        const color = resolvePaintColor(point.colorValue, point.color, palette.plotDefault);
+        if (run.length === 0) {
+            runColor = color;
+        } else if (point.colorValue !== undefined && color !== runColor) {
+            flush();
+            runColor = color;
+        }
+        run.push({
+            x: projectShiftedX(
+                { bars: world.bars, bar: point.bar, xShift: point.xShift, spacing: world.spacing },
+                viewport,
+            ),
+            y: priceToY(point.value, viewport),
+        });
+    }
+    flush();
+}
+
+// Map an accumulated `filled-band` series to `drawFilledBand`'s pixel arg
+// bag and paint it. Each point carries its bar's `upper` / `lower` edge
+// (either `null` for a per-bar gap; both-`null` is rejected upstream by
+// `validateEmission`). `drawFilledBand` skips the non-finite edge points,
+// so the band closes across the finite span.
+function renderFilledBandSeries(
+    ctx: RenderCtx,
+    series: ReadonlyArray<PlotPoint>,
+    style: Extract<PlotStyle, { kind: "filled-band" }>,
+    world: { readonly bars: ReadonlyArray<Bar>; readonly spacing: number },
+    viewport: Viewport,
+    palette: Palette,
+): void {
+    const upper: { x: number; y: number | null }[] = [];
+    const lower: { x: number; y: number | null }[] = [];
+    let color: string | null = null;
+    for (const point of series) {
+        const x = projectShiftedX(
+            { bars: world.bars, bar: point.bar, xShift: point.xShift, spacing: world.spacing },
+            viewport,
+        );
+        if (upper.length === 0) color = point.color;
+        // A band series always carries both edges (`applyPlot` writes them
+        // from `style.upper` / `style.lower`, each `number | null`), so a
+        // missing edge here only ever means the `null` per-bar gap.
+        const top = point.upper;
+        const bottom = point.lower;
+        upper.push({ x, y: top == null ? null : priceToY(top, viewport) });
+        lower.push({ x, y: bottom == null ? null : priceToY(bottom, viewport) });
+    }
+    drawFilledBand(ctx, { upper, lower, color, alpha: style.alpha }, palette);
 }
 
 function renderBackgroundOverlays(state: AdapterState, viewport: Viewport): void {
@@ -520,15 +644,17 @@ function withLocation<L>(location: L | undefined): { location?: L } {
 }
 
 // A `plotOverlays` entry joins the z-sorted glyph band iff its style is a
-// shifted-series glyph (shape / character / arrow) or a horizontal
-// histogram — the subset `paintGlyph` renders. Substrate overlays
-// (bg-color / bar-color / candle-/bar-override) paint with the candles
-// and are excluded here.
+// shifted-series glyph (shape / character / arrow / marker / label) or a
+// horizontal histogram — the subset `paintGlyph` renders. Substrate
+// overlays (bg-color / bar-color / candle-/bar-override) paint with the
+// candles and are excluded here.
 function isGlyphOverlay(plot: PlotEmission): boolean {
     return (
         plot.style.kind === "shape" ||
         plot.style.kind === "character" ||
         plot.style.kind === "arrow" ||
+        plot.style.kind === "marker" ||
+        plot.style.kind === "label" ||
         plot.style.kind === "horizontal-histogram"
     );
 }
@@ -554,7 +680,7 @@ function paintGlyph(
         );
         return;
     }
-    if (plot.value === null) return;
+    if (plot.value === null || !Number.isFinite(plot.value)) return;
     // Glyph plots (shape / character / arrow) are shifted series
     // visuals, so they route through the same bar-offset projection as
     // line / histogram instead of `timeToX(plot.time)`.
@@ -605,9 +731,36 @@ function paintGlyph(
                 state.palette,
             );
             break;
+        case "marker":
+            drawMarker(
+                state.ctx,
+                {
+                    x,
+                    y,
+                    shape: plot.style.shape,
+                    size: plot.style.size,
+                    color: plot.color,
+                },
+                state.palette,
+            );
+            break;
+        case "label":
+            drawLabel(
+                state.ctx,
+                {
+                    x,
+                    y,
+                    text: plot.style.text,
+                    position: plot.style.position,
+                    color: plot.color,
+                },
+                state.palette,
+            );
+            break;
         // No default: `collectSortableMarks` only emits glyph marks for
-        // the shape / character / arrow / horizontal-histogram subset
-        // (`isGlyphOverlay`), so no other `plot.style.kind` reaches here.
+        // the shape / character / arrow / marker / label /
+        // horizontal-histogram subset (`isGlyphOverlay`), so no other
+        // `plot.style.kind` reaches here.
     }
 }
 
@@ -656,10 +809,20 @@ function paintSeries(
         renderHistogramSeries(state.ctx, series, style.baseline, world, viewport, state.palette);
         return;
     }
+    if (style !== undefined && style.kind === "area") {
+        renderAreaSeries(state.ctx, series, style, world, viewport, state.palette);
+        return;
+    }
+    if (style !== undefined && style.kind === "filled-band") {
+        renderFilledBandSeries(state.ctx, series, style, world, viewport, state.palette);
+        return;
+    }
     // Plain `line` plots (and the default, undefined style) render as a smooth
-    // monotone-cubic curve; step-lines / area edges keep straight segments.
+    // monotone-cubic curve; `step-line` paints a horizontal-then-vertical
+    // staircase; neither flag set keeps straight segments.
     const smooth = style === undefined || style.kind === "line";
-    drawLine(state.ctx, series, world, viewport, state.palette, PLOT_LINE_WIDTH_PX, smooth);
+    const step = style !== undefined && style.kind === "step-line";
+    drawLine(state.ctx, series, world, viewport, state.palette, PLOT_LINE_WIDTH_PX, smooth, step);
 }
 
 // Collect every sortable mark for one pane — plot series, glyph overlays
@@ -836,7 +999,9 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
     if (
         plot.style.kind === "line" ||
         plot.style.kind === "step-line" ||
-        plot.style.kind === "histogram"
+        plot.style.kind === "histogram" ||
+        plot.style.kind === "area" ||
+        plot.style.kind === "filled-band"
     ) {
         const key = paneSlotKey(paneKey, plot.slotId);
         const series = state.plotSeries.get(key) ?? [];
@@ -850,6 +1015,17 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             ...(plot.xShift === undefined || plot.xShift === 0 ? {} : { xShift: plot.xShift }),
             z,
             seq,
+            // A `filled-band` carries its per-bar edges on the point (the
+            // band geometry IS the series); every other series style omits
+            // them and reads `value` only.
+            ...(plot.style.kind === "filled-band"
+                ? { upper: plot.style.upper, lower: plot.style.lower }
+                : {}),
+            // Per-bar dynamic color (`PlotEmission.colorValue`). Omit it when
+            // absent so a no-`colorValue` point is byte-identical to the
+            // pre-feature shape; the line / step / area / histogram renderers
+            // resolve the 3-state precedence via `resolvePaintColor`.
+            ...(plot.colorValue === undefined ? {} : { colorValue: plot.colorValue }),
         });
         state.plotSeries.set(key, series);
         state.plotSeriesStyle.set(key, plot.style);

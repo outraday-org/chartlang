@@ -223,23 +223,55 @@ Reference adapter package — **not published to npm**.
   layer" above). The behavioural contract (closed filled polygon, edge
   fill + optional outline, degenerate-edge no-op) is preserved in the
   decomposer.
-- **`createCanvas2dAdapter.ts` does NOT dispatch to the Phase-2
-  renderers in this task.** The runtime's `plot` impl
-  (`packages/runtime/src/emit/plot.ts`) still hardcodes `kind:
-  "line"`, so no Phase-2 `PlotStyle` reaches `applyPlot`. Per-port
-  Phase-2 tasks (Tasks 21+) wire each new kind into both the runtime
-  emit path and the adapter dispatch when they introduce the
-  matching primitive. Task 1 ships the renderers in pure-helper form
-  so wiring lands one-line later.
+- **`createCanvas2dAdapter.ts` DISPATCHES every wire-level `PlotStyle`
+  kind** (adapter-feature-parity Task 2). The Phase-2 renderers
+  (`marker` / `step-line` step geometry / `area` / `filled-band` /
+  `label`) are now wired into `applyPlot` + the paint pass, so the
+  declared `CANVAS2D_PLOT_KINDS` capability is honest down the wire:
+  - **`marker` + `label` are glyph overlays.** `isGlyphOverlay` selects
+    them alongside shape / character / arrow; `paintGlyph` dispatches
+    `drawMarker` / `drawLabel` at the plot's shifted x
+    (`projectShiftedX`) and `priceToY(value)`. A non-finite `value` is a
+    no-op (the shared glyph guard before the switch). Both shift at
+    `xShift` like shape/character (see the Plot x-shift invariant).
+  - **`step-line` reuses `drawLine`** via a new `step: boolean` 8th arg
+    (single entry point — no duplicate sub-path / gap logic): each
+    segment is a horizontal `lineTo(xNext, yPrev)` knee then a vertical
+    `lineTo(xNext, yNext)` jump (Pine/LWC `WithSteps` parity). `step`
+    takes precedence over `smooth`; the `value:null` gap split + per-run
+    color are preserved. `paintSeries` sets `step` from the stored style.
+  - **`area` + `filled-band` are series-shaped.** `applyPlot` routes
+    both into `plotSeries` (so they join the per-pane z-sorted pass and
+    honour `visible:false` + z/seq). `area` accumulates `value`;
+    `filled-band` accumulates its per-bar `upper` / `lower` ON THE
+    `PlotPoint` (the band geometry IS the series — a parallel store was
+    rejected). `paintSeries` dispatches `renderAreaSeries` /
+    `renderFilledBandSeries`, which map the accumulated points to
+    `drawArea` / `drawFilledBand`'s arg bags verbatim. `area` fills to
+    the pane floor (`viewport.pxHeight`) and splits its polyline on a
+    null gap; `filled-band` treats a single-`null` edge as a per-bar gap
+    (both-`null` is rejected upstream by `validateEmission`, never
+    reaching `applyPlot`). Band edges fold into `computeYRange` so a
+    band stretches the auto price scale like any series.
+
+  The runtime's `plot` impl (`packages/runtime/src/emit/plot.ts`) only
+  authors `line` / glyph kinds today, so `area` / `filled-band` / `label`
+  remain wire-honest (reachable by a synthetic emission, not yet by a
+  script) — exposing them in the authoring surface is deferred (see the
+  feature README's Deferred section). The pure render helpers stay
+  byte-stable; the EMA-cross `PINNED_HASH` (line plots only) is
+  untouched.
 
 ## Plot x-shift invariants
 
 - **Shifted-series plot styles render through `projectShiftedX`
   (`render/coords.ts`).** A `PlotEmission.xShift` (signed integer bars;
   `+n` right / future, `−n` left / past) displaces where a series draws,
-  not its value. Line / step-line / histogram store `bar` + `xShift` on
-  each `PlotPoint`; shape / character / arrow glyphs read `bar` + `xShift`
-  off the stored `PlotEmission` in `plotOverlays`. Every shifted-series
+  not its value. Line / step-line / histogram / area / filled-band store
+  `bar` + `xShift` on each `PlotPoint`; shape / character / arrow / marker
+  / label glyphs read `bar` + `xShift` off the stored `PlotEmission` in
+  `plotOverlays` (marker + label shift like shape/character for parity —
+  `extendXMaxForShifts` widens `xMax` for a `+k` marker/label too). Every shifted-series
   render path funnels through `projectShiftedX`, which resolves the
   displaced world time via `shiftedBarTime(bars, bar, xShift, spacing)`
   then `timeToX`. There is exactly one bar-offset → x funnel; do not map a
@@ -353,3 +385,51 @@ Reference adapter package — **not published to npm**.
   each pane's marks are collected and sorted independently. A subpane
   mark's `z` cannot reorder it into the overlay pane — `z` orders within
   the resolved pane only (per the README's per-pane scope).
+
+## Line-family `colorValue` invariant (adapter-feature-parity Task 3 — reference pattern)
+
+This is the **reference per-segment-recolor contract** the echarts (T5),
+konva (T7), uplot (T10), and lightweight-charts (T13) line-family
+`colorValue` tasks mirror. It realises the normative 3-state
+`PlotEmission.colorValue` contract (`packages/adapter-kit/CLAUDE.md`
+"Wire + capability invariants") for the line family.
+
+- **`PlotPoint.colorValue?: string | null` (`render/coords.ts`) is the
+  per-bar dynamic-color channel for line / step-line / area / histogram.**
+  `applyPlot` threads it via the conditional-spread idiom
+  (`...(plot.colorValue === undefined ? {} : { colorValue: plot.colorValue })`),
+  so a no-`colorValue` point is byte-identical to the pre-feature shape
+  and every existing golden / pinned hash holds.
+- **`render/colorValue.ts`'s `resolvePaintColor(colorValue, staticColor,
+  plotDefault)` is the ONE 3-state precedence helper** — reused by
+  `drawLine`, `renderHistogramSeries`, and `renderAreaSeries`. Omitted ⇒
+  `staticColor ?? plotDefault`; present ⇒ the override string; `null` ⇒
+  `null` (paint-nothing gap). It mirrors `render/bgColor.ts`'s bg/bar
+  precedence; do NOT re-inline the precedence a fourth time.
+- **Line / step-line / area paint as consecutive same-color RUNS.** A
+  `colorValue:null` bar breaks the run like a `value:null` gap (paint
+  nothing), and an EXPLICIT per-bar `colorValue` that differs from the
+  run's color starts a new sub-path. **The static top-level `color` is a
+  per-series property that NEVER splits a run** — only an explicit
+  `colorValue` does. This is the byte-identity anchor: a no-`colorValue`
+  series whose points carry varying static `color` stays one run (matching
+  the pre-feature renderer, which took the run color from the first point
+  only), so existing area/line goldens are untouched. `drawLine` sets
+  `strokeStyle` once up front (the seed color) and re-sets it per run only
+  when the run color changes — a single-color series emits exactly one
+  `strokeStyle` set, byte-identical to before.
+- **Histogram resolves per bar (each column is independent):** a `null`
+  bar paints no column; a present `colorValue` overrides that column's
+  color. No run logic — columns never join.
+- **`colorValue` is orthogonal to `value` for the y-scale.** A finite
+  `value` with `colorValue:null` is still pushed into `plotSeries`, so
+  `computeYRange` includes it — only the PAINT is suppressed, not the
+  scale contribution. A non-finite `value` is a gap regardless of
+  `colorValue`.
+- **Wire-level honesty only — no conformance scenario.** Line-family
+  `colorValue` is NOT reachable from the authoring surface today
+  (`plot()` passes `colorValue: undefined`; only `bgcolor()`/`barcolor()`
+  pass a `dynamicColor` — see `runtime/src/emit/plot.ts`). The renderer
+  paints a synthetic arriving emission correctly, but no script can emit
+  one, so the `plot-hash` conformance is unaffected and coverage comes
+  from adapter unit + integration tests with synthetic emissions.

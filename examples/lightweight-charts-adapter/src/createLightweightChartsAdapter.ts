@@ -9,19 +9,35 @@
 //
 //   line                 → addSeries("Line")
 //   step-line            → addSeries("Line", { lineType: WithSteps })  (native)
-//   area                 → addSeries("Area")
+//   area                 → addSeries("Area", { lineColor, topColor,
+//                          bottomColor }) — `fillAlpha` folds into the
+//                          top/bottom gradient colours.
 //   histogram            → addSeries("Histogram")
 //   horizontal-line      → series.createPriceLine() on the pane anchor series
-//   filled-band          → two Line series (upper / lower); the FILL between
-//                          them is a Task-6 drawing (LC has no native band).
-//   shape/character/      → createSeriesMarkers via series.setMarkers([...])
-//     arrow/marker/label    (the v5 markers plugin); label text → marker text.
+//   filled-band          → two Line series (upper / lower), BOTH carrying
+//                          `plot.color`; the FILL between them is a Task-6
+//                          drawing (LC has no native band).
+//   shape/character/      → SPLIT. Glyphs LC's v5 markers plugin can express
+//     arrow/marker/label    (`arrow` up/down, `marker`/`shape` circle/square,
+//                          `character`/`label` as text markers) → native
+//                          `series.setMarkers([...])` with real shape /
+//                          position / text / colour / size. Glyphs it cannot
+//                          (triangle / diamond / cross / xcross / flag) → the
+//                          canvas overlay via the SHARED adapter-kit glyph
+//                          helper (`drawShape` / `drawMarker`), painted by the
+//                          same `DrawingPrimitive` that paints drawings.
 //   drawings (63 kinds)   → a series-primitive overlay (Task 6) that paints
 //                          `decomposeDrawing` through the shared canvas sink;
 //                          NOT native (LC has no drawing facility). Anchored on
 //                          the overlay candle series via `attachPrimitive`.
-//   candle-override       → candleSeries.applyOptions(...) — whole-series
-//                          up/down tint (LC has no per-bar candle-override).
+//                          The same overlay also paints the overlay-routed
+//                          glyphs above.
+//   candle-override       → per-bar candle DATA-POINT colour resolved by the
+//                          bar's own direction (`close > open ⇒ bull`,
+//                          `< ⇒ bear`, else `doji ?? bull`), stamped onto the
+//                          candlestick point (body + border + wick) like
+//                          `bar-color` — NOT a whole-series tint. A
+//                          `bar-color` / `bar-override` on the same bar wins.
 //   bar-override/         → per-bar candle colour stamped onto the candlestick
 //     bar-color              DATA POINT (`color` + `borderColor` + `wickColor`)
 //                          — LC's NATIVE per-point colour API, so body AND
@@ -32,9 +48,14 @@
 //                          the static `style.color`). Tracked in
 //                          `state.barColors` (keyed by bar time) so a re-emit
 //                          re-stamps the same bar.
-//   bg-color              → NO-OP. LC's background is a single chart-layout
-//                          option, not a per-bar band; declared in the
-//                          capability surface, deferred to a Task-6 primitive.
+//   bg-color              → per-bar background BAND painted by the
+//                          `DrawingPrimitive` overlay (LC's background is a
+//                          single chart-layout option, NOT a per-bar band). The
+//                          per-bar colour resolves the 3-state `colorValue`
+//                          (omitted ⇒ `style.color`; present ⇒ override; `null`
+//                          ⇒ no band that bar) and `transp` (0–100) folds into
+//                          the stripe opacity. Buffered in `state.bgBands` keyed
+//                          `${pane}|${slotId}|${time}` (one stripe per bar).
 //   horizontal-histogram  → NO-OP. No native facility; Task-6 primitive path.
 //
 //   visible:false         → series.applyOptions({ visible: false }) (hidden,
@@ -52,7 +73,9 @@ import {
     type DrawingEmission,
     type LogEmission,
     type PlotEmission,
+    type RenderOrderKey,
     type RunnerEmissions,
+    RENDER_BAND,
     defineAdapter,
     medianBarSpacing,
     shiftedBarTime,
@@ -82,8 +105,13 @@ import {
 } from "lightweight-charts";
 
 import { LWC_CAPABILITIES, LWC_SYM_INFO } from "./capabilities.js";
-import { DrawingPrimitive } from "./drawingPrimitive.js";
-import type { LwcChart, LwcPriceLine, LwcSeries } from "./testing.js";
+import {
+    type BgBand,
+    DrawingPrimitive,
+    type GlyphMark,
+    type OverlayBuffers,
+} from "./drawingPrimitive.js";
+import type { LwcChart, LwcMarker, LwcPriceLine, LwcSeries } from "./testing.js";
 
 const DEFAULT_INTERVAL = "1D";
 const MAX_RECENT_ALERTS = 256;
@@ -145,6 +173,31 @@ type PaneSeries = {
     readonly lower?: LwcSeries;
 };
 
+// The per-colour-run bookkeeping for a line / step-line / area slot whose
+// emissions carry a per-bar `colorValue` (see `applyRunPlot`). LC line/area
+// series hold a single creation-time colour, so a colour change splits the
+// slot into consecutive same-colour RUNS, each its own native series.
+type RunSlotState = {
+    // Every run series of the slot, in creation order. `visible:false` hides
+    // them all; `dispose` drops the map.
+    readonly series: LwcSeries[];
+    // The colour of the run currently being extended; `null` when the active
+    // run ended on a gap (the next finite bar opens a fresh series).
+    activeColor: string | null;
+    // The last finite point written, duplicated into the next run as the shared
+    // boundary so the segments visually join. `undefined` after a gap (no
+    // boundary should bridge a gap) or before the first point.
+    lastPoint: { readonly time: number; readonly value: number } | undefined;
+};
+
+// The bull / bear / doji palette a `candle-override` emission carries; the
+// per-bar colour is picked from it by the bar's own direction.
+type CandleOverridePalette = {
+    readonly bull: string;
+    readonly bear: string;
+    readonly doji?: string;
+};
+
 type AdapterState = {
     readonly chart: LwcChart;
     readonly bars: Bar[];
@@ -154,6 +207,12 @@ type AdapterState = {
     // Keyed by `${paneKey}|${slotId}` so one callsite can land in distinct
     // panes and each gets its own native series.
     readonly series: Map<string, PaneSeries>;
+    // Per-colour-run series for line / step-line / area slots carrying a per-bar
+    // `colorValue`, keyed `${pane}|${slotId}` (a SEPARATE store from `series` so
+    // the single-series and run paths never collide). A slot that never carries
+    // `colorValue` never lands here — it stays one native series, byte-identical
+    // to the pre-feature wire.
+    readonly runSlots: Map<string, RunSlotState>;
     // The native price line a `horizontal-line` slot owns, keyed by the same
     // `${paneKey}|${slotId}`. The runtime re-emits the slot every bar; we
     // re-price the SAME line instead of stacking a new one each frame (LC has
@@ -169,12 +228,43 @@ type AdapterState = {
     // override is genuinely per-bar (LC's native per-point colour API), not a
     // whole-series tint that flickers to the last bar's colour.
     readonly barColors: Map<number, string>;
+    // Per-bar `candle-override` palettes keyed by bar time. Resolved by the
+    // bar's own direction in `candleData` (bull / bear / doji) and stamped onto
+    // the candlestick point through the SAME per-point colour path `bar-color`
+    // uses. A `bar-color` / `bar-override` on the same bar (in `barColors`)
+    // wins — the override paints on top of the candle, the candle-override is
+    // the candle's own body colour.
+    readonly candleOverrides: Map<number, CandleOverridePalette>;
+    // Overlay-routed glyphs (the kinds LC's markers plugin can NOT express:
+    // triangle / diamond / cross / xcross / flag) keyed by `${pane}|${slotId}`
+    // (last-write-wins, mirroring how a glyph slot re-emits each bar). The
+    // attached `DrawingPrimitive` paints them via the shared adapter-kit glyph
+    // helper each frame; the rest go native through `setMarkers`. The shifted
+    // bar time is resolved at ingest so the primitive needs no `state.bars`.
+    readonly glyphs: Map<string, GlyphMark>;
     readonly recentAlerts: AlertEmission[];
     readonly currentAlertConditions: AlertConditionEmission[];
     readonly recentLogs: LogEmission[];
     // Live drawing buffer the attached `DrawingPrimitive` overlay paints each
     // frame (last-write-wins; `op: "remove"` drops the key).
     readonly drawings: Map<string, DrawingEmission>;
+    // Per-bar `bg-color` background bands the same `DrawingPrimitive` overlay
+    // paints (Task 12) — keyed `${pane}|${slotId}|${time}` so a multi-bar
+    // bg-color slot keeps one stripe per bar. The 3-state `colorValue` is
+    // resolved at ingest, so a buffered band always carries a concrete colour
+    // (a `null` gap bar deletes its key rather than buffering).
+    readonly bgBands: Map<string, BgBand>;
+    // Parallel `(z, band, seq)` ingest keys for the z-sorted overlay marks: the
+    // raw `DrawingEmission` carries `z` but no `seq`, and a `GlyphMark` carries
+    // neither, so the factory writes the key in lockstep with the buffer it
+    // tags (drawings → `drawingKeys`, overlay glyphs → `glyphKeys`). bg-color
+    // bands carry their key inline (a `BgBand` is a `RenderOrderKey`).
+    readonly drawingKeys: Map<string, RenderOrderKey>;
+    readonly glyphKeys: Map<string, RenderOrderKey>;
+    // Monotonic declaration sequence (ingest order = script order) stamped onto
+    // every overlay mark so the shared `(z, band, seq)` sort is total +
+    // deterministic. Bumped once per tagged emission.
+    seq: number;
     // Default visible window: frame the time scale onto the most recent N bars
     // on the FIRST frame data is present. Omitted = fit all data (the library's
     // auto-fit, unchanged behaviour).
@@ -224,12 +314,18 @@ function toTime(epoch: number): Time {
     return epoch as UTCTimestamp;
 }
 
-function toMarker(time: number): SeriesMarker<Time> {
+// Map the structural {@link LwcMarker} (the factory's vocabulary, which the
+// mock also speaks) onto a real lightweight-charts `SeriesMarker`, branding the
+// epoch time. The factory builds the full payload (shape / position / text /
+// colour / size); this is the single library-boundary narrowing.
+function toMarker(marker: LwcMarker): SeriesMarker<Time> {
     return {
-        time: toTime(time),
-        position: "aboveBar",
-        shape: "circle",
-        color: "#3b82f6",
+        time: toTime(marker.time),
+        position: marker.position,
+        shape: marker.shape,
+        color: marker.color,
+        ...(marker.text !== undefined ? { text: marker.text } : {}),
+        ...(marker.size !== undefined ? { size: marker.size } : {}),
     };
 }
 
@@ -347,11 +443,7 @@ function defaultCreateChart(container: HTMLElement): LwcChart {
             applyOptions: (options) => series.applyOptions(options),
             createPriceLine: (options) => series.createPriceLine({ price: options.price }),
             removePriceLine: (line) => series.removePriceLine(line as IPriceLine),
-            setMarkers: (markers) =>
-                createSeriesMarkers(
-                    series,
-                    markers.map((m) => toMarker(m.time)),
-                ),
+            setMarkers: (markers) => createSeriesMarkers(series, markers.map(toMarker)),
             attachPrimitive: (primitive) =>
                 series.attachPrimitive(primitive as ISeriesPrimitive<Time>),
         };
@@ -393,12 +485,74 @@ const SERIES_TYPE_FOR_KIND: Readonly<Record<string, string>> = {
     histogram: "Histogram",
 };
 
+// Convert a `#rgb` / `#rrggbb` hex colour to an `rgba()` string at the given
+// alpha (the `area` fill gradient). A non-hex colour (a named colour, an
+// existing rgba) is returned unchanged — the alpha can only fold into a
+// parseable hex. A few-line convention copied (NOT cross-imported) from the
+// uplot adapter's band fill, since cross-importing another example's `src/` is
+// forbidden.
+function hexToRgba(color: string, alpha: number): string {
+    const hex = color.startsWith("#") ? color.slice(1) : "";
+    const expand =
+        hex.length === 3 ? `${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}` : hex;
+    if (expand.length !== 6 || /[^0-9a-fA-F]/.test(expand)) return color;
+    const r = Number.parseInt(expand.slice(0, 2), 16);
+    const g = Number.parseInt(expand.slice(2, 4), 16);
+    const b = Number.parseInt(expand.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 // One numeric data point for a native line / area / histogram series. A
 // non-finite value becomes a whitespace point (`{ time }` only) so the
-// native series leaves a gap instead of drawing a break.
-function dataPoint(time: number, value: number | null): { time: number; value?: number } {
+// native series leaves a gap instead of drawing a break. An optional `color`
+// is the per-point colour a `histogram` `colorValue` stamps (LC histogram
+// points carry per-point colour, unlike line/area — see `applyHistogramPlot`).
+function dataPoint(
+    time: number,
+    value: number | null,
+    color?: string,
+): { time: number; value?: number; color?: string } {
     if (value === null || !Number.isFinite(value)) return { time };
-    return { time, value };
+    return { time, value, ...(color !== undefined ? { color } : {}) };
+}
+
+// The base creation options shared by the single-series line path and the
+// per-colour-run path: native step / curve `lineType` and the forwarded
+// emission `lineWidth`. Extracted so the two paths build identical options
+// (the run path only adds the per-run colour on top).
+function baseLineOptions(plot: PlotEmission): Record<string, unknown> {
+    const options: Record<string, unknown> = {};
+    if (plot.style.kind === "step-line") {
+        // Native step rendering: LineType.WithSteps === 1.
+        options.lineType = 1;
+    } else if (plot.style.kind === "line") {
+        // Plain `line` plots render as a smooth curve (LineType.Curved === 2)
+        // so an MA line reads as a curve rather than a faceted polyline; area
+        // edges keep the default straight LineType.Simple.
+        options.lineType = 2;
+    }
+    // Forward the emission's line width. lightweight-charts' default line width
+    // is 3 (too thick vs the other adapters); the compiler default is 1, which
+    // renders thin and consistent. Only the line-family styles (line / area /
+    // step-line) carry `lineWidth` AND accept it as a series-creation option.
+    if ("lineWidth" in plot.style) options.lineWidth = plot.style.lineWidth;
+    return options;
+}
+
+// Fold a concrete run colour into the creation options for a line/area run
+// series. `area` carries its colour as `lineColor` + a `topColor`→`bottomColor`
+// `fillAlpha` gradient (reusing `hexToRgba`); line / step-line carry plain
+// `color`. The base step/curve `lineType` + `lineWidth` ride along.
+function runSeriesOptions(plot: PlotEmission, runColor: string): Record<string, unknown> {
+    const options = baseLineOptions(plot);
+    if (plot.style.kind === "area") {
+        options.lineColor = runColor;
+        options.topColor = hexToRgba(runColor, plot.style.fillAlpha);
+        options.bottomColor = hexToRgba(runColor, 0);
+    } else {
+        options.color = runColor;
+    }
+    return options;
 }
 
 // The native time a plot point draws at once its universal `ta` `offset`
@@ -433,28 +587,127 @@ function getOrCreateSeries(
 }
 
 function applyLineLikePlot(state: AdapterState, plot: PlotEmission, seriesType: string): void {
-    const options: Record<string, unknown> = {};
-    if (plot.style.kind === "step-line") {
-        // Native step rendering: LineType.WithSteps === 1.
-        options.lineType = 1;
-    } else if (plot.style.kind === "line") {
-        // Plain `line` plots render as a smooth curve (LineType.Curved === 2)
-        // so an MA line reads as a curve rather than a faceted polyline; area
-        // edges keep the default straight LineType.Simple.
-        options.lineType = 2;
+    // A `histogram` carries a per-point `colorValue` natively (LC histogram
+    // points hold their own `color`), so it stays a SINGLE series and stamps
+    // the resolved colour onto the data point — no run-splitting (each column
+    // is independent). Line / step-line / area have no per-point colour, so a
+    // `colorValue`-bearing emission takes the per-colour-run path instead.
+    if (plot.colorValue !== undefined) {
+        // Narrowed to `string | null` here — the 3-state per-bar dynamic colour.
+        const colorValue = plot.colorValue;
+        if (plot.style.kind === "histogram") {
+            applyHistogramPlot(state, plot, seriesType, colorValue);
+            return;
+        }
+        applyRunPlot(state, plot, seriesType, colorValue);
+        return;
     }
-    // Forward the emission's line width. lightweight-charts' default line width
-    // is 3 (too thick vs the other adapters); the compiler default is 1, which
-    // renders thin and consistent. Only the line-family styles (line / area /
-    // step-line) carry `lineWidth` AND accept it as a series-creation option.
-    if ("lineWidth" in plot.style) options.lineWidth = plot.style.lineWidth;
-    if (plot.color !== null) options.color = plot.color;
+    const options = baseLineOptions(plot);
+    if (plot.style.kind === "area") {
+        // The Area series carries its colour as `lineColor` (NOT `color`) and
+        // its fill opacity as a top→bottom gradient: `fillAlpha` folds into
+        // `topColor` / `bottomColor` (LC's gradient fill) so a translucent
+        // `area` fill arrives instead of being dropped.
+        if (plot.color !== null) {
+            options.lineColor = plot.color;
+            options.topColor = hexToRgba(plot.color, plot.style.fillAlpha);
+            options.bottomColor = hexToRgba(plot.color, 0);
+        }
+    } else if (plot.color !== null) {
+        options.color = plot.color;
+    }
     const series = getOrCreateSeries(state, plot, seriesType, options);
     if (plot.visible === false) {
         series.applyOptions({ visible: false });
         return;
     }
     series.update(dataPoint(shiftedPlotTime(state, plot), plot.value));
+}
+
+// A `histogram` with a per-bar `colorValue`: a SINGLE native Histogram series
+// whose data points carry their own `color` (LC's native per-point histogram
+// colour, like candlesticks). The 3-state `colorValue` is `string | null` here
+// (the caller only routes a `colorValue`-bearing emission in): `null` ⇒ a
+// whitespace point (no column — the paint-nothing gap), a string ⇒ the column
+// colour. The static `plot.color` rides at creation so the resting / default
+// column colour is the script's static colour.
+function applyHistogramPlot(
+    state: AdapterState,
+    plot: PlotEmission,
+    seriesType: string,
+    colorValue: string | null,
+): void {
+    const options = baseLineOptions(plot);
+    if (plot.color !== null) options.color = plot.color;
+    const series = getOrCreateSeries(state, plot, seriesType, options);
+    if (plot.visible === false) {
+        series.applyOptions({ visible: false });
+        return;
+    }
+    const time = shiftedPlotTime(state, plot);
+    if (colorValue === null) {
+        series.update(dataPoint(time, null));
+        return;
+    }
+    series.update(dataPoint(time, plot.value, colorValue));
+}
+
+// The per-colour-run path for line / step-line / area carrying a per-bar
+// `colorValue`. LC line/area series hold a single creation-time colour with no
+// per-point field, so a slot whose colour varies bar-to-bar is split into
+// maximal same-colour RUNS, each its OWN native series. A run boundary
+// duplicates the prior bar's point into the new series so the segments visually
+// join (LC needs ≥2 points to draw a segment); a `colorValue:null` bar is a
+// whitespace gap (the active run ends, no new series spans it). Strictly-
+// increasing unique time per series holds because the boundary duplicate uses
+// the PRIOR bar's (smaller) time.
+function applyRunPlot(
+    state: AdapterState,
+    plot: PlotEmission,
+    seriesType: string,
+    colorValue: string | null,
+): void {
+    const key = paneSlotKey(plot.pane, plot.slotId);
+    let slot = state.runSlots.get(key);
+    if (slot === undefined) {
+        slot = { series: [], activeColor: null, lastPoint: undefined };
+        state.runSlots.set(key, slot);
+    }
+    if (plot.visible === false) {
+        for (const s of slot.series) s.applyOptions({ visible: false });
+        return;
+    }
+    const time = shiftedPlotTime(state, plot);
+    if (colorValue === null) {
+        // A gap bar: end the active run and span nothing. Clear `lastPoint` so
+        // the next run does NOT duplicate a boundary across the gap, and reset
+        // `activeColor` so the next finite bar always opens a fresh run series.
+        slot.activeColor = null;
+        slot.lastPoint = undefined;
+        return;
+    }
+    let active = slot.series[slot.series.length - 1];
+    if (active === undefined || colorValue !== slot.activeColor) {
+        // Open a new run series at the resolved colour. Duplicate the prior
+        // bar's point (if any, and not across a gap) so the segment joins.
+        active = state.chart.addSeries(
+            seriesType,
+            runSeriesOptions(plot, colorValue),
+            resolvePaneIndex(state, plot.pane),
+        );
+        slot.series.push(active);
+        slot.activeColor = colorValue;
+        if (slot.lastPoint !== undefined) {
+            active.update(dataPoint(slot.lastPoint.time, slot.lastPoint.value));
+        }
+    }
+    active.update(dataPoint(time, plot.value));
+    // Track the boundary point only when finite — a non-finite value is itself
+    // a whitespace gap and must not be duplicated into a later run.
+    slot.lastPoint =
+        plot.value === null || !Number.isFinite(plot.value)
+            ? undefined
+            : { time, value: plot.value };
 }
 
 // `style` is passed already narrowed by the caller so the upper / lower edge
@@ -468,10 +721,14 @@ function applyFilledBand(
     let entry = state.series.get(key);
     if (entry === undefined) {
         const paneIndex = resolvePaneIndex(state, plot.pane);
-        // Two native line series (upper + lower). The fill BETWEEN them is a
-        // Task-6 drawing — LC has no native band kind.
-        const upper = state.chart.addSeries("Line", {}, paneIndex);
-        const lower = state.chart.addSeries("Line", {}, paneIndex);
+        // Two native line series (upper + lower), BOTH carrying the emission's
+        // `plot.color` (mirrors `applyLineLikePlot` — the same colour-drop the
+        // line path had). The fill BETWEEN them is a Task-6 drawing carrying
+        // the band `alpha` (LC line series have no fill of their own).
+        const edgeOptions: Record<string, unknown> = {};
+        if (plot.color !== null) edgeOptions.color = plot.color;
+        const upper = state.chart.addSeries("Line", edgeOptions, paneIndex);
+        const lower = state.chart.addSeries("Line", edgeOptions, paneIndex);
         entry = { series: upper, lower };
         state.series.set(key, entry);
     }
@@ -526,22 +783,139 @@ function firstSeriesInPane(state: AdapterState, pane: string): LwcSeries | undef
     return undefined;
 }
 
-// Markers (shape / character / arrow / marker / label) attach to the overlay
-// candle series via the v5 markers plugin. With no candle series yet (empty
-// stream) there is nothing to anchor on — a no-op for this frame. The glyph
-// shifts at its `xShift` for parity with canvas2d (which shifts glyphs too).
-function applyMarker(state: AdapterState, plot: PlotEmission): void {
-    if (state.candleSeries === undefined) return;
-    if (plot.value === null) return;
-    state.candleSeries.setMarkers([{ time: shiftedPlotTime(state, plot) }]);
+// The glyph's top-level emission colour (`plot.color`); a `null` falls back to
+// the default glyph blue (parity with the canvas-family glyph helper's
+// fallback). Native markers require a concrete `string` colour.
+const GLYPH_DEFAULT_COLOR = "#3b82f6";
+
+// The five glyph plot styles `applyGlyph` dispatches.
+type GlyphStyle = Extract<
+    PlotEmission["style"],
+    { kind: "shape" | "character" | "arrow" | "marker" | "label" }
+>;
+
+// Resolve a glyph's `location` (`shape` / `character`) or `position` (`label`)
+// to a native marker position. `above`→`aboveBar`, `below`→`belowBar`, else
+// `inBar` (the `absolute` / `anchor` / omitted default). `arrow` / `marker`
+// carry no vertical anchor and never reach here.
+function glyphPosition(style: GlyphStyle): "aboveBar" | "belowBar" | "inBar" {
+    const anchor =
+        style.kind === "label"
+            ? style.position
+            : style.kind === "shape" || style.kind === "character"
+              ? style.location
+              : undefined;
+    if (anchor === "above") return "aboveBar";
+    if (anchor === "below") return "belowBar";
+    return "inBar";
 }
 
-// Whole-series candle tint — the closest native facility to Pine's
-// `candle-override` (LC has no per-bar candle-override on the base series). No
-// candle series yet → nothing to tint.
-function applyCandleTint(state: AdapterState, options: Readonly<Record<string, unknown>>): void {
+// Build the native {@link LwcMarker} for a glyph LC's plugin CAN express
+// (`circle` / `square` shapes carrying the `character` char / `label` text as
+// marker text, `arrow` → `arrowUp` / `arrowDown`). Only the native-routed
+// glyphs reach here (the caller diverts the overlay shapes first), so the
+// `shape` / `marker` arm's shape is always `circle` / `square`.
+function buildNativeMarker(style: GlyphStyle, color: string, time: number): LwcMarker {
+    switch (style.kind) {
+        case "arrow":
+            return {
+                time,
+                shape: style.direction === "up" ? "arrowUp" : "arrowDown",
+                position: style.direction === "up" ? "belowBar" : "aboveBar",
+                color,
+                size: style.size,
+            };
+        case "marker":
+        case "shape":
+            return {
+                time,
+                // The caller only routes circle / square here; any other shape
+                // would have taken the overlay path. Fall back to `circle`
+                // defensively so the type stays the native vocabulary.
+                shape: style.shape === "square" ? "square" : "circle",
+                position: glyphPosition(style),
+                color,
+                size: style.size,
+            };
+        case "character":
+            return {
+                time,
+                shape: "circle",
+                position: glyphPosition(style),
+                color,
+                text: style.char,
+                size: style.size,
+            };
+        case "label":
+            return {
+                time,
+                shape: "circle",
+                position: glyphPosition(style),
+                color,
+                text: style.text,
+            };
+    }
+}
+
+// A `shape` / `marker` glyph whose shape LC's native plugin cannot express
+// (triangle / diamond / cross / xcross / flag) takes the canvas overlay. The
+// type guard narrows the style to the overlay-routable `GlyphMark` shape.
+function isOverlayGlyph(style: GlyphStyle): style is GlyphMark["style"] {
+    return (
+        (style.kind === "shape" || style.kind === "marker") &&
+        style.shape !== "circle" &&
+        style.shape !== "square"
+    );
+}
+
+// Route a glyph emission (shape / character / arrow / marker / label): the
+// canvas overlay via the shared adapter-kit glyph helper where LC's v5 markers
+// plugin cannot express the shape, else a native LC marker. With no candle
+// series yet (empty stream) there is nothing to anchor a native marker on — a
+// no-op for this frame (the overlay buffers regardless). The glyph shifts at
+// its `xShift` for parity with the other adapters.
+function applyGlyph(state: AdapterState, plot: PlotEmission, style: GlyphStyle): void {
+    if (plot.value === null || !Number.isFinite(plot.value)) return;
+    const time = shiftedPlotTime(state, plot);
+    if (isOverlayGlyph(style)) {
+        // Buffer the resolved mark (last-write-wins per slot) for the attached
+        // `DrawingPrimitive` to paint via the shared helper next frame, and
+        // stamp its z-sort key (glyph band; `z` off the emission; fresh `seq`).
+        const slotKey = paneSlotKey(plot.pane, plot.slotId);
+        state.glyphs.set(slotKey, {
+            time,
+            value: plot.value,
+            color: plot.color,
+            style,
+        });
+        state.glyphKeys.set(slotKey, {
+            z: plot.z ?? 0,
+            band: RENDER_BAND.glyph,
+            seq: state.seq++,
+        });
+        return;
+    }
     if (state.candleSeries === undefined) return;
-    state.candleSeries.applyOptions(options);
+    state.candleSeries.setMarkers([
+        buildNativeMarker(style, plot.color ?? GLYPH_DEFAULT_COLOR, time),
+    ]);
+}
+
+// Per-bar `candle-override`: stamp the bull / bear / doji palette keyed by bar
+// time, resolved to a single colour by the bar's own direction in `candleData`
+// (the SAME per-point colour path `bar-color` uses). No candle series yet →
+// nothing to stamp; the candle for `plot.time` was already drawn this frame
+// (before the drain), so re-`update` it to apply.
+function applyCandleOverride(
+    state: AdapterState,
+    plot: PlotEmission,
+    palette: CandleOverridePalette,
+): void {
+    if (state.candleSeries === undefined) return;
+    state.candleOverrides.set(plot.time, palette);
+    const target = state.bars.find((b) => b.time === plot.time);
+    if (target === undefined) return;
+    state.candleSeries.update(candleData(state, target));
 }
 
 // Per-bar `bar-color` / `bar-override`: stamp the resolved colour onto the
@@ -582,12 +956,13 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
         case "arrow":
         case "marker":
         case "label":
-            applyMarker(state, plot);
+            applyGlyph(state, plot, plot.style);
             return;
         case "candle-override":
-            applyCandleTint(state, {
-                upColor: plot.style.bull,
-                downColor: plot.style.bear,
+            applyCandleOverride(state, plot, {
+                bull: plot.style.bull,
+                bear: plot.style.bear,
+                ...(plot.style.doji !== undefined ? { doji: plot.style.doji } : {}),
             });
             return;
         case "bar-override":
@@ -595,11 +970,44 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             applyBarColor(state, plot, plot.style.color);
             return;
         case "bg-color":
+            applyBgColor(state, plot, plot.style.color, plot.style.transp);
+            return;
         case "horizontal-histogram":
             // No native facility — deferred to a Task-6 primitive. Declared in
             // the capability surface; a documented no-op here.
             return;
     }
+}
+
+// Per-bar `bg-color`: buffer a background band (a full-pane-height stripe the
+// `DrawingPrimitive` overlay paints) keyed `${pane}|${slotId}|${time}` so a
+// multi-bar bg-color slot keeps one stripe per bar. The 3-state `colorValue`
+// resolves the colour: `colorValue` present OVERRIDES the static `style.color`;
+// `colorValue === null` is the explicit "no band this bar" gap (delete the
+// key); omitted uses the static `style.color`. `transp` (0–100) is carried
+// through and folds into the stripe opacity at paint. The band's stripe width
+// is the run's median bar spacing (so it scales with the data), resolved here.
+function applyBgColor(
+    state: AdapterState,
+    plot: PlotEmission,
+    color: string,
+    transp: number | undefined,
+): void {
+    const key = `${paneSlotKey(plot.pane, plot.slotId)}|${plot.time}`;
+    const resolved = plot.colorValue === undefined ? color : plot.colorValue;
+    if (resolved === null) {
+        state.bgBands.delete(key);
+        return;
+    }
+    state.bgBands.set(key, {
+        time: plot.time,
+        color: resolved,
+        ...(transp === undefined ? {} : { transp }),
+        spacing: medianBarSpacing(state.bars),
+        z: plot.z ?? 0,
+        band: RENDER_BAND.drawing,
+        seq: state.seq++,
+    });
 }
 
 function applyAlert(
@@ -619,9 +1027,17 @@ function applyDrawing(state: AdapterState, drawing: DrawingEmission): void {
     // each frame. `op: "remove"` drops the key so it vanishes next paint.
     if (drawing.op === "remove") {
         state.drawings.delete(drawing.handleId);
+        state.drawingKeys.delete(drawing.handleId);
         return;
     }
     state.drawings.set(drawing.handleId, drawing);
+    // Stamp the z-sort key (drawing band; `z` off the emission; a fresh `seq`)
+    // in lockstep so the overlay z-pass orders this drawing deterministically.
+    state.drawingKeys.set(drawing.handleId, {
+        z: drawing.z ?? 0,
+        band: RENDER_BAND.drawing,
+        seq: state.seq++,
+    });
 }
 
 function applyValidated<T>(items: ReadonlyArray<T>, apply: (item: T) => void): void {
@@ -662,9 +1078,20 @@ function ensureCandleSeries(state: AdapterState): LwcSeries {
     const series = state.chart.addSeries("Candlestick", {}, 0);
     state.candleSeries = series;
     // Anchor the drawing overlay on the overlay candle series the first time it
-    // exists. The primitive reads the live `state.drawings` buffer each frame,
-    // so later emissions need no re-attach. Structurally an `ISeriesPrimitive`.
-    series.attachPrimitive(new DrawingPrimitive(state.drawings));
+    // exists. The primitive reads the live overlay buffers each frame — drawings
+    // + bg-color bands + overlay glyphs (z-sorted), then the always-on-top alert
+    // + log panels — so later emissions need no re-attach. Structurally an
+    // `ISeriesPrimitive`.
+    const overlay: OverlayBuffers = {
+        drawings: state.drawings,
+        glyphs: state.glyphs,
+        drawingKeys: state.drawingKeys,
+        glyphKeys: state.glyphKeys,
+        bgBands: state.bgBands,
+        alertConditions: state.currentAlertConditions,
+        logs: state.recentLogs,
+    };
+    series.attachPrimitive(new DrawingPrimitive(state.drawings, state.glyphs, overlay));
     return series;
 }
 
@@ -690,15 +1117,33 @@ function candleData(state: AdapterState, bar: Bar): CandlePoint {
         low: bar.low,
         close: bar.close,
     };
-    // A `bar-color` / `bar-override` emission for this bar recolours the body
+    // Resolve the per-bar colour: a `bar-color` / `bar-override` override wins
+    // (it paints ON TOP of the candle), else a `candle-override` palette
+    // resolved by the bar's own direction. Whichever wins recolours the body
     // AND border AND wick — LC's native per-point colour fields.
-    const override = state.barColors.get(bar.time);
-    if (override !== undefined) {
-        point.color = override;
-        point.borderColor = override;
-        point.wickColor = override;
+    const resolved = resolveCandleColor(state, bar);
+    if (resolved !== undefined) {
+        point.color = resolved;
+        point.borderColor = resolved;
+        point.wickColor = resolved;
     }
     return point;
+}
+
+// The single per-bar candle colour, with precedence `bar-color` /
+// `bar-override` > `candle-override`. A `bar-color` override paints on top of
+// the candle, so it wins; a `candle-override` is the candle's own body colour,
+// picked from its bull / bear / doji palette by the bar's direction
+// (`close > open ⇒ bull`, `< ⇒ bear`, else `doji ?? bull`). `undefined` ⇒ the
+// default bull / bear theme (no per-point colour).
+function resolveCandleColor(state: AdapterState, bar: Bar): string | undefined {
+    const barOverride = state.barColors.get(bar.time);
+    if (barOverride !== undefined) return barOverride;
+    const palette = state.candleOverrides.get(bar.time);
+    if (palette === undefined) return undefined;
+    if (bar.close > bar.open) return palette.bull;
+    if (bar.close < bar.open) return palette.bear;
+    return palette.doji ?? palette.bull;
 }
 
 // Frame the time scale onto the most recent `initialVisibleBars` bars the
@@ -776,13 +1221,20 @@ export function createLightweightChartsAdapter(
         bars: [],
         paneIndex: new Map(),
         series: new Map(),
+        runSlots: new Map(),
         priceLines: new Map(),
         candleSeries: undefined,
         barColors: new Map(),
+        candleOverrides: new Map(),
+        glyphs: new Map(),
         recentAlerts: [],
         currentAlertConditions: [],
         recentLogs: [],
         drawings: new Map(),
+        bgBands: new Map(),
+        drawingKeys: new Map(),
+        glyphKeys: new Map(),
+        seq: 0,
         ...(opts.initialVisibleBars !== undefined
             ? { initialVisibleBars: opts.initialVisibleBars }
             : {}),
@@ -821,15 +1273,22 @@ export function createLightweightChartsAdapter(
             state.bars.length = 0;
             state.paneIndex.clear();
             state.series.clear();
+            state.runSlots.clear();
             // The chart's `remove()` below tears down its series + price lines;
             // dropping our references is enough (no per-line removePriceLine).
             state.priceLines.clear();
             state.candleSeries = undefined;
             state.barColors.clear();
+            state.candleOverrides.clear();
+            state.glyphs.clear();
             state.recentAlerts.length = 0;
             state.currentAlertConditions.length = 0;
             state.recentLogs.length = 0;
             state.drawings.clear();
+            state.bgBands.clear();
+            state.drawingKeys.clear();
+            state.glyphKeys.clear();
+            state.seq = 0;
             state.hasFramedInitial = false;
             state.chart.remove();
             host.dispose();
