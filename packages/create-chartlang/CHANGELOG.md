@@ -1,5 +1,28 @@
 # create-chartlang
 
+## 0.1.2
+
+### Patch Changes
+
+- ab8b218: Change the default chart library from `echarts` to `canvas2d`. When you run
+  `npm create @invinite-org/chartlang@latest` without `--library` (or accept the
+  prompt default / pass `--yes`), the installer now scaffolds the dependency-free
+  `canvas2d` adapter instead of `echarts`. The other four libraries
+  (`echarts`, `lightweight-charts`, `uplot`, `konva`) are still available via the
+  prompt or `--library <id>`.
+- a66b28d: Fix the lightweight-charts starter rendering blank ("Assertion failed" in
+  lightweight-charts 5.x `addSeriesImpl`). The lightweight-charts seam overrode
+  the adapter's `createChart` with the raw `IChartApi` (force-cast through
+  `unknown`), bypassing the adapter's internal wrapper that maps its string-keyed
+  `addSeries("Candlestick" | "Line", …)` calls onto v5's series-definition API.
+  The seam now omits the override so the adapter uses its own (correct) default
+  `createChart`, matching how the site demo driver mounts it. The chosen library
+  is still installed (the adapter imports `lightweight-charts` internally).
+- Updated dependencies [08cba38]
+- Updated dependencies [1efb49c]
+- Updated dependencies [1efb49c]
+  - @invinite-org/chartlang-cli@1.3.1
+
 ## 0.1.1
 
 ### Patch Changes

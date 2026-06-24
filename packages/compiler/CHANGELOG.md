@@ -1,5 +1,69 @@
 # @invinite-org/chartlang-compiler
 
+## 1.4.0
+
+### Minor Changes
+
+- e620ba8: Add `bgcolor(color, opts?)` and `barcolor(color, opts?)` — Pine-ergonomic
+  top-level aliases for the `bg-color` / `bar-color` plot styles. One call
+  (`bgcolor(close > open ? "#16a34a" : "#dc2626", { transp: 80 })`) replaces
+  the verbose `plot(NaN, { style: { kind: "bg-color", … } })`. Surfaced in the
+  generated primitive reference and taught in the chartlang-coding skill.
+
+  Deliverable 2 (per-bar dynamic color): `PlotEmission` gains an optional
+  `colorValue: Color | null` channel; the runtime resolves the `bgcolor` /
+  `barcolor` per-bar color into it (omitted on the static `plot` path → wire
+  byte-identical, every pinned `plot-hash` untouched), validates it
+  (non-empty color string or `null`), and dedups it last-write-wins per
+  `(slotId, bar)` like `value`. Adapters prefer `colorValue` over the static
+  `style.color` at render time — this precedence is now the normative
+  adapter-kit contract (`PlotEmission.colorValue` JSDoc) and is implemented in
+  the canvas2d reference renderer (`null` ⇒ paint-nothing gap; omitted ⇒ static
+  fallback). The Pine converter emits the real per-bar dynamic color
+  (`bgcolor(close > open ? "#16a34a" : "#dc2626")`) instead of a static
+  `plot(NaN, …)`, so `bgcolor`/`barcolor` round-trip with per-bar semantics
+  intact.
+
+- 08cba38: Add `time.*` calendar accessors (`time.year/month/dayofmonth/dayofweek/hour/
+minute/second/timestamp`), a `time.timeClose(t, tz?)` bar-close accessor
+  (Pine's `time_close()` = bar start + interval), a `session.isOpen(t, spec, tz?)`
+  helper, and an `input.session` kind. Calendar fields are derived from a `Time`
+  epoch via the host (authors stay sandboxed — `Date`/`Intl` remain banned). v1
+  is UTC + fixed-offset only; exchange-tz/DST is a scoped follow-up. The Pine
+  converter lowers `dayofweek` / `time()` / `time_close()` / `input.session`.
+- 1efb49c: Add multi-symbol support to `request.security`. `request.security({ symbol,
+interval })` now reads a **different instrument** (not just a higher
+  timeframe), e.g. `request.security({ symbol: "AMEX:SPY", interval: "1D" })`.
+  `symbol` is optional (defaults to the chart symbol) and must be a compile-time
+  literal (`input.symbol` / `input.enum` resolved). A new `multiSymbol` adapter
+  capability gates non-chart-symbol requests: a different-symbol request against
+  an adapter declaring `multiSymbol: false` degrades to an all-NaN
+  bar/series with a single deduped `multi-symbol-not-supported` diagnostic,
+  mirroring `multi-timeframe-not-supported` (the symbol gate precedes the
+  timeframe gate, so a both-different request emits only the symbol diagnostic).
+  The Pine converter now lowers `request.security("OTHER", tf, expr)`, and the
+  `chartlang scaffold-adapter` template advertises `multiSymbol`.
+- 1efb49c: Add `state.array<T>(capacity)` — a persistent, bounded FIFO collection. Push
+  many values across bars (`a.push(v)`) into a fixed-capacity ring and read
+  them back by element (`a.get(0)` = newest, `a.last()`, `a.size`,
+  `a.capacity`, `a.clear()`). Bounded literal capacity keeps it
+  serialization-clean. The Pine converter lowers a bounded numeric
+  `var array<…>` Camp B ring to it.
+
+  The compiler guards the capacity: it must be a compile-time numeric literal
+  (a `const` numeric binding is accepted) that is a positive integer within
+  `MAX_STATE_ARRAY_CAPACITY` (100_000). A non-literal capacity errors
+  `state-array-capacity-not-literal`; an out-of-range / non-integer literal
+  errors `state-array-capacity-exceeds-max`.
+
+### Patch Changes
+
+- Updated dependencies [e620ba8]
+- Updated dependencies [08cba38]
+- Updated dependencies [1efb49c]
+- Updated dependencies [1efb49c]
+  - @invinite-org/chartlang-core@1.3.0
+
 ## 1.3.0
 
 ### Minor Changes

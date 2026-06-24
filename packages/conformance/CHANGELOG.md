@@ -1,5 +1,44 @@
 # @invinite-org/chartlang-conformance
 
+## 1.2.1
+
+### Patch Changes
+
+- 08cba38: Add `time.*` calendar accessors (`time.year/month/dayofmonth/dayofweek/hour/
+minute/second/timestamp`), a `time.timeClose(t, tz?)` bar-close accessor
+  (Pine's `time_close()` = bar start + interval), a `session.isOpen(t, spec, tz?)`
+  helper, and an `input.session` kind. Calendar fields are derived from a `Time`
+  epoch via the host (authors stay sandboxed — `Date`/`Intl` remain banned). v1
+  is UTC + fixed-offset only; exchange-tz/DST is a scoped follow-up. The Pine
+  converter lowers `dayofweek` / `time()` / `time_close()` / `input.session`.
+- 1efb49c: Add multi-symbol support to `request.security`. `request.security({ symbol,
+interval })` now reads a **different instrument** (not just a higher
+  timeframe), e.g. `request.security({ symbol: "AMEX:SPY", interval: "1D" })`.
+  `symbol` is optional (defaults to the chart symbol) and must be a compile-time
+  literal (`input.symbol` / `input.enum` resolved). A new `multiSymbol` adapter
+  capability gates non-chart-symbol requests: a different-symbol request against
+  an adapter declaring `multiSymbol: false` degrades to an all-NaN
+  bar/series with a single deduped `multi-symbol-not-supported` diagnostic,
+  mirroring `multi-timeframe-not-supported` (the symbol gate precedes the
+  timeframe gate, so a both-different request emits only the symbol diagnostic).
+  The Pine converter now lowers `request.security("OTHER", tf, expr)`, and the
+  `chartlang scaffold-adapter` template advertises `multiSymbol`.
+- Updated dependencies [189493a]
+- Updated dependencies [8bc628e]
+- Updated dependencies [ab8b218]
+- Updated dependencies [8bc628e]
+- Updated dependencies [ab8b218]
+- Updated dependencies [189493a]
+- Updated dependencies [e620ba8]
+- Updated dependencies [08cba38]
+- Updated dependencies [1efb49c]
+- Updated dependencies [1efb49c]
+  - @invinite-org/chartlang-adapter-kit@1.6.0
+  - @invinite-org/chartlang-core@1.3.0
+  - @invinite-org/chartlang-compiler@1.4.0
+  - @invinite-org/chartlang-runtime@1.3.0
+  - @invinite-org/chartlang-pine-converter@0.2.0
+
 ## 1.2.0
 
 ### Minor Changes

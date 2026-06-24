@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/create-chartlang",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "module",
     "license": "MIT",
     "description": "npm create @invinite-org/chartlang — scaffold a runnable chartlang starter app (TanStack Start + your chosen chart library).",
