@@ -234,4 +234,4 @@ describe("echarts adapter integration (worker host)", () => {
 // Pinned by the integration test; update only when a deliberate change
 // re-shapes the emitted option tree. `hashOptionLog` rounds finite floats to
 // 4 dp and sorts object keys, so microscopic drift does not re-hash.
-const PINNED_HASH = "35ff70c6fa1ed9640e3b08f99b5eb111b19646c0ff039707bfa1f181ae036f00";
+const PINNED_HASH = "9f885859994d3a33203b78e480376688833c4af12e1a4d6f0b3d56ee84db9c61";

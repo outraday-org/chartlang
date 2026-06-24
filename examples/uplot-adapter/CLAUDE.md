@@ -149,6 +149,24 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   now honours `setScale("x")` (updates `xMin`/`xMax`) so `valToPos("x")`
   reflects the pad under test. dblclick → `reset()` → `userInteracted`
   false → auto-follow (padded) resumes.
+- **`opts.initialVisibleBars` frames a DEFAULT visible window without
+  dropping history.** When set (and `> 0` and fewer than the loaded bar
+  count), the auto-follow branch frames only the most recent N bars: the
+  helper `autoFollowXMin(state)` returns `bars[bars.length - N].time` and is
+  threaded as the 3rd arg of `state.view.resolveXWindow(xMin, xMax,
+  autoFollowXMin)` in BOTH `renderFrame`'s auto-follow path AND
+  `wireUplotInteraction`'s `requestRender`; the result is `paddedXWindow`ed
+  as before. All bars stay loaded (`setData` carries the full `AlignedData`)
+  and remain scrollable via pan/zoom. The option is stored on `AdapterState`
+  via the conditional-spread idiom, so an UNSET (or `0`, or `N ≥ bar count`)
+  option yields `autoFollowXMin === undefined` and `resolveXWindow` returns
+  the full data span — byte-identical to the pre-feature `barsXBounds`
+  auto-range (the `integration.test.ts` `PINNED_HASH` is UNCHANGED; that
+  bundle sets no `initialVisibleBars`). Once the user interacts the held
+  window wins and `autoFollowXMin` is ignored (the controller drops it once
+  `userInteracted` is true); a dblclick `reset()` restores the framed
+  default. The adapter never DEFAULTS the option — undefined means fit-all,
+  unchanged.
 - **`bg-color` / `bar-color` paint in the overlay draw-hook ctx pass.**
   `applyPlot` projects each `bg-color` / `bar-color` emission into a
   dedicated per-bar map keyed by bar TIME — `state.bgColors`

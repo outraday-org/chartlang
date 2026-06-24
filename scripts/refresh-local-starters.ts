@@ -123,6 +123,29 @@ function runInstall(pm: string, dir: string): Promise<void> {
     return run(pm, ["install"], dir);
 }
 
+/**
+ * Drop the market-data cache (`eod_cache`) from a refreshed starter, keeping
+ * saved `scripts`. The SQLite `data/` dir is PRESERVED across a refresh (see
+ * PRESERVE) for fast re-runs, but a cache row written by a SUPERSEDED data
+ * source — the legacy EODData free tier returned only ~20 daily bars — would
+ * shadow the current Nasdaq/Yahoo/Stooq ~5y fetch for its 24h TTL, surfacing as
+ * "not enough history" on the chart. Clearing it forces a fresh fetch on the
+ * next symbol load. Best-effort and silent: a brand-new clone has no db yet (it
+ * is created on first boot), and `better-sqlite3` / the table being absent is a
+ * skip, never a refresh failure. Runs in the starter dir so its own installed
+ * `better-sqlite3` resolves.
+ */
+async function clearEodCache(target: string): Promise<void> {
+    const dbPath = join(target, "data", "starter.db");
+    if (!(await exists(dbPath))) return;
+    const inline =
+        "try{const D=require('better-sqlite3');const db=new D(process.argv[1]);" +
+        "db.prepare('DELETE FROM eod_cache').run();db.close()}catch{}";
+    // `run` spawns with `shell: true`, so both the inline script and the db
+    // path must be shell-quoted (the path can contain spaces).
+    await run("node", ["-e", `"${inline}"`, `"${dbPath}"`], target).catch(() => {});
+}
+
 function deps(): CreateChartlangDeps {
     return defaultDeps({ cloneStarter: cloneFromLocal, runInstall });
 }
@@ -249,6 +272,11 @@ async function refresh(
     }
 
     await runInstall("npm", target);
+
+    // Drop any stale market-data cache preserved with `data/` so the refreshed
+    // starter re-fetches fresh ~5y history instead of shadowing it with a row
+    // from a superseded source (the "not enough history" symptom).
+    await clearEodCache(target);
 }
 
 async function main(): Promise<void> {

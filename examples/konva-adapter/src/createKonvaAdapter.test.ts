@@ -334,6 +334,29 @@ describe("createKonvaAdapter — plots", () => {
         expect(lineSeries).toHaveLength(3);
     });
 
+    it("renders the series line with round joins and caps", () => {
+        const { adapter, konva } = withBars();
+        emit(adapter, [
+            plot(
+                "l",
+                { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                { bar: 0, time: 0, value: 11, color: "#abcdef" },
+            ),
+            plot(
+                "l",
+                { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                { bar: 1, time: 10, value: 12, color: "#abcdef" },
+            ),
+        ]);
+        const series = groupChildren(konva)[0].find(
+            (n) => n.type === "Line" && n.config.stroke === "#abcdef",
+        );
+        expect(series?.config.lineJoin).toBe("round");
+        expect(series?.config.lineCap).toBe("round");
+        // strokeWidth stays the requested lineWidth (not widened).
+        expect(series?.config.strokeWidth).toBe(1);
+    });
+
     it("applies a dashed line's dash array", () => {
         const { adapter, konva } = withBars();
         emit(adapter, [
@@ -741,6 +764,44 @@ describe("createKonvaAdapter — plot x-shift (universal offset)", () => {
             (n) => n.type === "Rect" && typeof n.config.fill === "string" && n.config.width === 6,
         );
         expect(glyph).toBeDefined();
+    });
+});
+
+describe("createKonvaAdapter — initialVisibleBars", () => {
+    // Ten bars at times 0..90 (spacing 10). With a 3-bar window the
+    // auto-follow window starts at bar 7's time, so bars 0–6 project to large
+    // negative x (scrolled off the left edge) instead of being squashed in.
+    const TEN_BARS: Bar[] = Array.from({ length: 10 }, (_, i) => bar(i * 10, 10, 12, 8, 11));
+
+    // Does any candle body / wick Line sit far off the left edge? A framed
+    // window pushes the early bars to a large negative x.
+    function hasFarNegativeX(konva: MockKonva): boolean {
+        return groupChildren(konva)[0].some((n) => {
+            if (n.type === "Rect") return typeof n.config.x === "number" && n.config.x < -100;
+            if (n.type === "Line") {
+                const pts = n.config.points;
+                return Array.isArray(pts) && pts.some((p) => typeof p === "number" && p < -100);
+            }
+            return false;
+        });
+    }
+
+    it("frames only the most recent bars (early bars scroll off-screen left)", () => {
+        const { adapter, konva } = build({ initialVisibleBars: 3 });
+        feedCandleEvent(adapter, { kind: "history", bars: TEN_BARS });
+        expect(hasFarNegativeX(konva)).toBe(true);
+    });
+
+    it("a window >= bar count falls back to fitting all data", () => {
+        const { adapter, konva } = build({ initialVisibleBars: 50 });
+        feedCandleEvent(adapter, { kind: "history", bars: TEN_BARS });
+        expect(hasFarNegativeX(konva)).toBe(false);
+    });
+
+    it("a window of 0 fits all data (no window)", () => {
+        const { adapter, konva } = build({ initialVisibleBars: 0 });
+        feedCandleEvent(adapter, { kind: "history", bars: TEN_BARS });
+        expect(hasFarNegativeX(konva)).toBe(false);
     });
 });
 

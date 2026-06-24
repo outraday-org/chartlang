@@ -23,6 +23,10 @@ function isFiniteValue(p: PlotPoint): boolean {
  * x. `bars` / `spacing` are world inputs — the renderer stays pure on
  * `ctx`.
  *
+ * The stroke is `lineWidth` px wide (the emission's resolved width; the
+ * compiler defaults plots to `1`) with round joins/caps so the polyline
+ * reads as a smooth curve rather than a mitred sawtooth.
+ *
  * @since 0.1
  * @stable
  * @example
@@ -31,7 +35,7 @@ function isFiniteValue(p: PlotPoint): boolean {
  *     declare const bars: ReadonlyArray<{ time: number }>;
  *     declare const vp: Viewport;
  *     declare const p: Palette;
- *     drawLine(ctx, series, { bars, spacing: 0 }, vp, p);
+ *     drawLine(ctx, series, { bars, spacing: 0 }, vp, p, 1);
  *     void drawLine;
  */
 export function drawLine(
@@ -40,11 +44,15 @@ export function drawLine(
     world: { readonly bars: ReadonlyArray<{ readonly time: number }>; readonly spacing: number },
     viewport: Viewport,
     palette: Palette,
+    lineWidth: number,
 ): void {
     if (series.length === 0) return;
     const firstFinite = series.find(isFiniteValue);
     if (firstFinite === undefined) return;
     ctx.strokeStyle = firstFinite.color ?? palette.plotDefault;
+    ctx.lineWidth = lineWidth;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
 
     let inPath = false;
     for (const point of series) {

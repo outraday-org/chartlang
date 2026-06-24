@@ -85,7 +85,12 @@ export type LwcRecordedCall =
           readonly seriesId: string;
           readonly markers: number;
       }
-    | { readonly kind: "attachPrimitive"; readonly seriesId: string };
+    | { readonly kind: "attachPrimitive"; readonly seriesId: string }
+    | {
+          readonly kind: "setVisibleLogicalRange";
+          readonly from: number;
+          readonly to: number;
+      };
 
 /**
  * Structural shape the factory uses for a single native price line. Both
@@ -184,6 +189,12 @@ export type LwcChart = {
         paneIndex?: number,
     ): LwcSeries;
     addPane(): { paneIndex: number };
+    // Frame the time scale onto a logical bar-index window. The factory calls
+    // this ONCE (the first time data is present, when `initialVisibleBars` is
+    // set) to open framed on the most recent N bars; later live-bar updates
+    // and any user pan/zoom are not re-framed. Bridges to the real
+    // `chart.timeScale().setVisibleLogicalRange(...)`.
+    setVisibleLogicalRange(range: { from: number; to: number }): void;
     remove(): void;
 };
 
@@ -286,6 +297,10 @@ export class MockLwcApi implements LwcChart {
         return { paneIndex };
     }
 
+    setVisibleLogicalRange(range: { from: number; to: number }): void {
+        this.calls.push({ kind: "setVisibleLogicalRange", from: range.from, to: range.to });
+    }
+
     remove(): void {
         this.calls.push({ kind: "remove" });
     }
@@ -372,6 +387,8 @@ function canonicalise(call: LwcRecordedCall): Record<string, unknown> {
             return { kind: call.kind, seriesId: call.seriesId, markers: call.markers };
         case "attachPrimitive":
             return { kind: call.kind, seriesId: call.seriesId };
+        case "setVisibleLogicalRange":
+            return { kind: call.kind, from: roundFloat(call.from), to: roundFloat(call.to) };
     }
 }
 

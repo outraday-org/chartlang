@@ -174,6 +174,7 @@ function buildAdapter(args: {
     resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     onAlert?: (a: AlertEmission) => void;
     alertBadgeFilter?: (a: AlertEmission) => boolean;
+    initialVisibleBars?: number;
 }): { adapter: Canvas2dAdapterHandle; ctx: MockCanvas2DContext; host: StubHost } {
     const ctx = args.ctx ?? new MockCanvas2DContext();
     const host = (args.host as StubHost | undefined) ?? stubHost();
@@ -186,6 +187,9 @@ function buildAdapter(args: {
         ...(args.resolveInputs !== undefined ? { resolveInputs: args.resolveInputs } : {}),
         ...(args.onAlert !== undefined ? { onAlert: args.onAlert } : {}),
         ...(args.alertBadgeFilter !== undefined ? { alertBadgeFilter: args.alertBadgeFilter } : {}),
+        ...(args.initialVisibleBars !== undefined
+            ? { initialVisibleBars: args.initialVisibleBars }
+            : {}),
     });
     return { adapter, ctx, host };
 }
@@ -473,6 +477,45 @@ describe("onEmissions dispatch", () => {
         });
         await runRendererLoop(adapter);
         expect(ctx.calls.some((c) => c.kind === "stroke")).toBe(true);
+    });
+
+    it("initialVisibleBars frames only the most recent bars (early bars scroll off-screen left)", async () => {
+        // With a 3-bar window over 10 bars, the auto-follow window starts at
+        // bar 7's time, so bars 0–6 project to large negative x (off the left
+        // edge) instead of being squashed into the pane. A far-negative body
+        // fillRect is the observable signal.
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            initialVisibleBars: 3,
+            candles: candleStream([{ kind: "history", bars: SAMPLE_BARS }]),
+        });
+        await runRendererLoop(adapter);
+        expect(ctx.calls.some((c) => c.kind === "fillRect" && c.x < -100)).toBe(true);
+    });
+
+    it("initialVisibleBars >= bar count falls back to fitting all data", async () => {
+        // 50-bar window over 10 bars ⇒ no windowing (autoFollowXMin undefined),
+        // so every bar stays on-screen (no far-negative body).
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            initialVisibleBars: 50,
+            candles: candleStream([{ kind: "history", bars: SAMPLE_BARS }]),
+        });
+        await runRendererLoop(adapter);
+        expect(ctx.calls.some((c) => c.kind === "fillRect" && c.x < -100)).toBe(false);
+    });
+
+    it("initialVisibleBars of 0 fits all data (no window)", async () => {
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            initialVisibleBars: 0,
+            candles: candleStream([{ kind: "history", bars: SAMPLE_BARS }]),
+        });
+        await runRendererLoop(adapter);
+        expect(ctx.calls.some((c) => c.kind === "fillRect" && c.x < -100)).toBe(false);
     });
 
     it("dispatches a histogram plot through drawHistogram (fillRect-per-bar)", () => {

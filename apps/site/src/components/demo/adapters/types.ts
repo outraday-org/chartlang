@@ -11,6 +11,9 @@ export type DriverMountOpts = Readonly<{
     width: number;
     height: number;
     onAlert?: (alert: AlertEmission) => void;
+    /** Default visible window (most-recent bars shown on load); forwarded to
+     * each adapter's `initialVisibleBars`. Omit to fit all data. */
+    initialVisibleBars?: number;
 }>;
 
 /**

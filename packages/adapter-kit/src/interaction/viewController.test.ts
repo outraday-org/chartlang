@@ -14,6 +14,20 @@ describe("createViewController", () => {
         expect(view.resolveXWindow(0, 200)).toEqual({ xMin: 0, xMax: 200 });
     });
 
+    it("frames a windowed left edge while auto-following, then ignores it once interacted", () => {
+        const view = createViewController();
+        // autoFollowXMin narrows the default window to the most recent bars,
+        // but xMax keeps tracking the growing data extent.
+        expect(view.resolveXWindow(0, 100, 60)).toEqual({ xMin: 60, xMax: 100 });
+        expect(view.resolveXWindow(0, 200, 60)).toEqual({ xMin: 60, xMax: 200 });
+        // Out-of-range autoFollowXMin is clamped into [dataMin, dataMax].
+        expect(view.resolveXWindow(0, 100, -50)).toEqual({ xMin: 0, xMax: 100 });
+        expect(view.resolveXWindow(0, 100, 150)).toEqual({ xMin: 100, xMax: 100 });
+        // After interaction the held window wins; autoFollowXMin is ignored.
+        view.zoomAt(50, 0.5, 0, 100);
+        expect(view.resolveXWindow(0, 100, 60)).toEqual({ xMin: 25, xMax: 75 });
+    });
+
     it("zooms in about the pivot and marks interacted", () => {
         const view = createViewController();
         view.zoomAt(50, 0.5, 0, 100); // halve the span about x=50

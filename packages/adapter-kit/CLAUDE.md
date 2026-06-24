@@ -129,9 +129,15 @@ layer** every adapter shares.
 
 - **`createViewController()` is the shared pan/zoom MATH; it is pure and
   DOM-free.** It holds a user x-window (world time) + a `userInteracted`
-  flag. `resolveXWindow(dataXMin, dataXMax)` returns the FULL data range
-  until the user interacts (auto-follow live bars), then the held window
-  re-clamped into the current data bounds. `zoomAt` / `panBy` / `reset` are
+  flag. `resolveXWindow(dataXMin, dataXMax, autoFollowXMin?)` returns the
+  auto-follow window `[autoFollowXMin ?? dataXMin, dataXMax]` until the user
+  interacts (live bars keep extending `xMax`), then the held window
+  re-clamped into the current data bounds (`autoFollowXMin` ignored once
+  interacted). The optional `autoFollowXMin` (clamped into the data range)
+  lets a self-scaled adapter frame only the most recent N bars by default
+  (`initialVisibleBars`) while keeping the full history scrollable; omit it
+  to fit all data (byte-identical to the pre-feature behaviour). `zoomAt` /
+  `panBy` / `reset` are
   the transforms; `zoomAt` seeds the held window from the data bounds on the
   first call, guards a `minSpan` floor, and clamps the span to
   `dataSpan * maxSpanFactor` (default `1` ⇒ cannot zoom out past all-data).

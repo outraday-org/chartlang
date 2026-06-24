@@ -8,6 +8,9 @@ import type { RenderCtx } from "./clear.js";
 import { priceToY, timeToX, type Viewport } from "./coords.js";
 
 const BODY_WIDTH_RATIO = 0.6;
+// Floor so a body never collapses below a visible pixel when many bars are
+// packed into the pane (otherwise the chart degrades to wicks-only).
+const MIN_BODY_WIDTH_PX = 1;
 
 /**
  * Draw OHLC candles for every bar in `bars`. Each bar emits a single
@@ -32,7 +35,10 @@ export function drawCandles(
     palette: Palette,
 ): void {
     if (bars.length === 0) return;
-    const bodyWidth = (viewport.pxWidth / bars.length) * BODY_WIDTH_RATIO;
+    const bodyWidth = Math.max(
+        MIN_BODY_WIDTH_PX,
+        (viewport.pxWidth / bars.length) * BODY_WIDTH_RATIO,
+    );
     const half = bodyWidth / 2;
 
     for (const bar of bars) {

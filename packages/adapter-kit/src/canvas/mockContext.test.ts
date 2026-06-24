@@ -25,6 +25,8 @@ function exerciseEveryCall(ctx: MockCanvasContext): void {
     ctx.strokeStyle = "#111";
     ctx.fillStyle = "#222";
     ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
     ctx.globalAlpha = 0.5;
     ctx.font = "12px sans-serif";
     ctx.textAlign = "center";
@@ -59,11 +61,15 @@ describe("MockCanvasContext", () => {
             "set",
             "set",
             "set",
+            "set",
+            "set",
         ]);
         // Setters are readable after assignment.
         expect(ctx.strokeStyle).toBe("#111");
         expect(ctx.fillStyle).toBe("#222");
         expect(ctx.lineWidth).toBe(2);
+        expect(ctx.lineJoin).toBe("round");
+        expect(ctx.lineCap).toBe("round");
         expect(ctx.globalAlpha).toBe(0.5);
         expect(ctx.font).toBe("12px sans-serif");
         expect(ctx.textAlign).toBe("center");

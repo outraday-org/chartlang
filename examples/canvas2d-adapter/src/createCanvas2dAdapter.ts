@@ -77,6 +77,9 @@ const Y_AXIS_PADDING = 0.05;
 // The plot area (`viewport.pxWidth`) is the pane width minus this gutter,
 // so candles / series / hlines stop short of the labels.
 const Y_AXIS_GUTTER_PX = 52;
+// Default plot line width (px). Thin like TradingView; the smoothness comes
+// from the round joins/caps `drawLine` applies, not from thickness.
+const PLOT_LINE_WIDTH_PX = 1;
 const HISTOGRAM_BAR_WIDTH_PX = 4;
 const HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX = 96;
 const HORIZONTAL_HISTOGRAM_ROW_HEIGHT_PX = 6;
@@ -114,6 +117,28 @@ export type CreateCanvas2dAdapterOpts = {
      * alerts from the chart without losing its own feed.
      */
     readonly alertBadgeFilter?: (a: AlertEmission) => boolean;
+    /**
+     * Device-pixel ratio of the canvas the caller mounted (default `1`).
+     * The adapter draws into the canvas's full backing-store resolution —
+     * so a caller that backs the canvas at `cssWidth * dpr` (the HiDPI /
+     * retina crispness idiom) and lays it out at `cssWidth` via CSS gets a
+     * sharp chart for free, since every projection is already in
+     * backing-pixel space. This value only re-scales the DOM pan/zoom
+     * pointer math (mouse events arrive in CSS pixels, the viewport is in
+     * backing pixels), so the render path — and every pinned hash — is
+     * byte-identical whether or not it is set.
+     */
+    readonly devicePixelRatio?: number;
+    /**
+     * Default visible window: when set, the chart opens framed on only the
+     * most recent `initialVisibleBars` bars (the rest stay in memory and
+     * scrollable via pan/zoom-out), instead of compressing the entire
+     * history into the viewport. Once the user wheels/drags, their held
+     * window takes over and this is ignored. Omit (or `0`) to fit all data —
+     * byte-identical to the pre-feature render, so every pinned hash is
+     * untouched unless a caller opts in.
+     */
+    readonly initialVisibleBars?: number;
     readonly host?: ScriptHost;
     readonly workerLike?: WorkerLike;
 };
@@ -176,6 +201,9 @@ type AdapterState = {
     // the DOM interaction handlers can map pixels → world x against the
     // current scale; `detachInteraction` removes the listeners on dispose.
     readonly view: ViewController;
+    // Default visible-window size (most-recent bars shown on load); undefined
+    // ⇒ fit all data. Resolved into `autoFollowXMin` each frame.
+    readonly initialVisibleBars?: number;
     lastOverlayViewport?: Viewport;
     detachInteraction?: () => void;
 };
@@ -353,10 +381,16 @@ function computePaneViewport(
         if (bar.time > dataXMax) dataXMax = bar.time;
     }
     dataXMax = extendXMaxForShifts(state, paneKey, spacing, dataXMax);
-    // The controller returns the full data range until the user zooms/pans,
+    // The controller returns the auto-follow window until the user zooms/pans,
     // then the held window — so live frames auto-follow new bars until the
-    // first interaction, then hold the view (lightweight-charts parity).
-    const win = state.view.resolveXWindow(dataXMin, dataXMax);
+    // first interaction, then hold the view (lightweight-charts parity). When
+    // `initialVisibleBars` is set, the auto-follow window starts at the Nth-
+    // from-last bar so the default view frames the most recent bars (the rest
+    // stay scrollable) instead of squashing the whole history into the pane.
+    const n = state.initialVisibleBars;
+    const autoFollowXMin =
+        n !== undefined && n > 0 && bars.length > n ? bars[bars.length - n]?.time : undefined;
+    const win = state.view.resolveXWindow(dataXMin, dataXMax, autoFollowXMin);
     let { yMin, yMax } = computeYRange(state, paneKey, win);
     if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
         yMin = 0;
@@ -613,7 +647,7 @@ function paintSeries(
         renderHistogramSeries(state.ctx, series, style.baseline, world, viewport, state.palette);
         return;
     }
-    drawLine(state.ctx, series, world, viewport, state.palette);
+    drawLine(state.ctx, series, world, viewport, state.palette, PLOT_LINE_WIDTH_PX);
 }
 
 // Collect every sortable mark for one pane — plot series, glyph overlays
@@ -955,6 +989,9 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         drawingSeq: new Map(),
         palette,
         view: createViewController(),
+        ...(opts.initialVisibleBars !== undefined
+            ? { initialVisibleBars: opts.initialVisibleBars }
+            : {}),
     };
     // Wire wheel-zoom / drag-pan / dblclick-reset when mounted on a real
     // canvas (production). Headless tests pass `opts.ctx` + a bare
@@ -964,18 +1001,23 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
     // the drive loop only renders on candle events.
     /* v8 ignore start -- DOM interaction wiring; only runs against a real canvas */
     const canvasEl = opts.canvas as Partial<HTMLElement>;
+    // Pointer events arrive in CSS pixels but the viewport is sized in
+    // backing pixels (`cssWidth * dpr` when the caller backs a HiDPI canvas),
+    // so scale incoming pointer x by the ratio to keep zoom/pan anchored under
+    // the cursor. Defaults to 1 (CSS == backing), leaving the math unchanged.
+    const dpr = opts.devicePixelRatio ?? 1;
     if (typeof canvasEl.addEventListener === "function") {
         const handlers: InteractionHandlers = {
             controller: state.view,
             pxToWorldX: (px) => {
                 const v = state.lastOverlayViewport;
                 if (v === undefined) return 0;
-                return v.xMin + (px / v.pxWidth) * (v.xMax - v.xMin);
+                return v.xMin + ((px * dpr) / v.pxWidth) * (v.xMax - v.xMin);
             },
             worldXPerPx: () => {
                 const v = state.lastOverlayViewport;
                 if (v === undefined) return 1;
-                return (v.xMax - v.xMin) / v.pxWidth;
+                return ((v.xMax - v.xMin) / v.pxWidth) * dpr;
             },
             dataBounds: () => {
                 const { bars } = state;

@@ -25,6 +25,9 @@ const factory: DemoAdapterFactory = async (mountEl, opts) => {
         width: opts.width,
         height: opts.height,
         candleSource: opts.candleSource,
+        ...(opts.initialVisibleBars !== undefined
+            ? { initialVisibleBars: opts.initialVisibleBars }
+            : {}),
         ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
         ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
     });

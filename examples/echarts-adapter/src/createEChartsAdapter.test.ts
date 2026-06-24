@@ -311,6 +311,75 @@ describe("createEChartsAdapter — base option tree", () => {
     });
 });
 
+describe("createEChartsAdapter — initialVisibleBars default window", () => {
+    const dataZoomStart = (option: EChartsOption): number | undefined => {
+        const dataZoom = option.dataZoom;
+        const first = Array.isArray(dataZoom) ? dataZoom[0] : dataZoom;
+        return first?.start;
+    };
+
+    // Drive `bars` through a fresh adapter framed on the most recent N bars,
+    // returning the adapter + its mock so a test can keep driving frames after
+    // the initial seed (e.g. to assert a later user zoom wins).
+    async function driveWindowed(
+        bars: ReadonlyArray<Bar>,
+        n: number,
+    ): Promise<{ chart: MockECharts; adapter: ReturnType<typeof createEChartsAdapter> }> {
+        const chart = new MockECharts();
+        const adapter = createEChartsAdapter({
+            echartsFactory: () => chart,
+            // A single history batch so all bars are present on the first
+            // (and only) frame the seed fires on — mirrors production where the
+            // warm-up history loads before the live stream begins.
+            candleSource: mockCandleSource(bars, { interval: "1D", mode: "history" }),
+            host: stubHost([]),
+            initialVisibleBars: n,
+        });
+        await runEChartsLoop(adapter);
+        return { chart, adapter };
+    }
+
+    it("frames the most recent N bars on the initial window when set", async () => {
+        // 10 bars, initialVisibleBars 2 → the seed positions start at
+        // 100 - (2/10)*100 = 80, so only the last 2 bars are framed; end stays 100.
+        const bars = Array.from({ length: 10 }, (_, i) => bar(i, 100 + i));
+        const { chart, adapter } = await driveWindowed(bars, 2);
+        const dataZoom = lastOption(chart).dataZoom;
+        const first = Array.isArray(dataZoom) ? dataZoom[0] : dataZoom;
+        expect(first?.start).toBe(80);
+        expect(first?.end).toBe(100);
+        adapter.dispose();
+    });
+
+    it("clamps the seeded start to 0 when initialVisibleBars exceeds the bar count", async () => {
+        // initialVisibleBars 5 > 3 bars → start clamps to 0 (fit all), end 100.
+        const { chart, adapter } = await driveWindowed([bar(0, 100), bar(1, 101), bar(2, 102)], 5);
+        expect(dataZoomStart(lastOption(chart))).toBe(0);
+        adapter.dispose();
+    });
+
+    it("leaves the window full (0/100) when initialVisibleBars is omitted", async () => {
+        const chart = await drive([bar(0, 100), bar(1, 101)], []);
+        expect(dataZoomStart(lastOption(chart))).toBe(0);
+    });
+
+    it("seeds only once: a later user zoom wins and is not re-seeded", async () => {
+        // After the streamed run seeds the windowed start (80), the user zooms
+        // in to 33–66. The next destructive rebuild must restore THEIR window —
+        // `hasSeededZoom` is already set, so the initial seed never re-applies.
+        const bars = Array.from({ length: 10 }, (_, i) => bar(i, 100 + i));
+        const { chart, adapter } = await driveWindowed(bars, 2);
+        expect(dataZoomStart(lastOption(chart))).toBe(80);
+        chart.applyUserZoom(33, 66);
+        adapter.onEmissions(emptyEmissions());
+        const dataZoom = lastOption(chart).dataZoom;
+        const first = Array.isArray(dataZoom) ? dataZoom[0] : dataZoom;
+        expect(first?.start).toBe(33);
+        expect(first?.end).toBe(66);
+        adapter.dispose();
+    });
+});
+
 describe("createEChartsAdapter — plot kinds", () => {
     it("maps line + step-line to line series (step:'end' for step)", async () => {
         const bars = [bar(0, 100), bar(1, 101)];
@@ -371,10 +440,23 @@ describe("createEChartsAdapter — plot kinds", () => {
         ];
         const option = lastOption(await drive(bars, frames));
         const line = findSeries(option, "overlay|ln") as LineSeriesOption;
-        expect(line.lineStyle).toEqual({ color: "#00ff00", width: 3, type: "dashed" });
+        // Round caps/joins are pinned for smooth strokes (canvas2d parity).
+        expect(line.lineStyle).toEqual({
+            color: "#00ff00",
+            width: 3,
+            type: "dashed",
+            cap: "round",
+            join: "round",
+        });
         const area = findSeries(option, "overlay|ar") as LineSeriesOption;
         // The area's line carries the width + dash too, alongside its areaStyle.
-        expect(area.lineStyle).toEqual({ color: "#0000ff", width: 2, type: "dotted" });
+        expect(area.lineStyle).toEqual({
+            color: "#0000ff",
+            width: 2,
+            type: "dotted",
+            cap: "round",
+            join: "round",
+        });
         expect(area.areaStyle).toEqual({ opacity: 0.4 });
     });
 

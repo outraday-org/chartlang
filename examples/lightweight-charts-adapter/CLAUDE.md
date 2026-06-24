@@ -52,9 +52,11 @@ lightweight-charts integration.
   known bar is a no-op for that frame. `defaultCreateChart` passes the
   three colour fields through (with `borderVisible: true`) to the real LC
   series.
-- **A plot's `color` is forwarded as a SERIES-CREATION option, not a data
-  field.** `applyLineLikePlot` builds `{ color: plot.color }` (plus
-  `lineType` for a step-line) and passes it to `getOrCreateSeries` →
+- **A plot's `color` AND line width are forwarded as SERIES-CREATION
+  options, not data fields.** `applyLineLikePlot` builds `{ color: plot.color
+  }` (plus `lineType` for a step-line, plus `lineWidth: plot.style.lineWidth`
+  for the line-family styles that carry it) and passes it to
+  `getOrCreateSeries` →
   `chart.addSeries(seriesType, options, paneIndex)`; the colour lives ONLY
   at creation (the factory never re-`applyOptions`es it). The production
   bridge's `addSeries` (`defaultCreateChart`) MUST thread these options
@@ -64,7 +66,12 @@ lightweight-charts integration.
   lightweight-charts' default series colour, ignoring the script's
   `plot(..., { color })`. `MockLwcApi` records the creation `options` on the
   `addSeries` `LwcRecordedCall` (+ `canonicalise`) so the forwarding is
-  assertable headlessly; a `null` plot colour records `{}` (no colour key).
+  assertable headlessly; a `null` plot colour records `{ lineWidth }` only
+  (no colour key). The `lineWidth` is forwarded ONLY for line / area /
+  step-line (guarded by `"lineWidth" in plot.style`); LC's default line width
+  is `3` (too thick vs the other adapters) so threading the emission's width
+  (compiler default `1`) keeps the native line thin / consistent. `histogram`
+  carries no `lineWidth` and LC histograms accept none, so the guard skips it.
 - **The production bridge maps OHLC onto the candlestick series' data.**
   `candleData(bar)` returns `{ time, open, high, low, close }`; passing
   only `{ time, value }` to a Candlestick series causes lightweight-charts
@@ -108,6 +115,23 @@ lightweight-charts integration.
   `chart.addPane()` each sight; a named pane string → a stable index
   allocated on first sight and reused (the `state.paneIndex` map). One
   native series per `${pane}|${slotId}`, reused across frames.
+- **`opts.initialVisibleBars` frames the default visible window ONCE.**
+  This adapter is library-scaled — lightweight-charts owns pan/zoom + the
+  time scale (auto-fits all data by default) and does NOT use the shared
+  `ViewController`. When `initialVisibleBars` is set, `frameInitialWindow`
+  fires on the FIRST frame data is present (`state.bars.length > 0`, after
+  the history `setData` / close / leading-tick `update`) and calls
+  `chart.setVisibleLogicalRange({ from: max(0, len - N), to: len - 1 })`.
+  It is guarded by the one-shot `state.hasFramedInitial` flag so later
+  live-bar updates and any user pan/zoom are NOT re-framed. Omitted ⇒ a
+  no-op (the library's default `fitContent` auto-fit stands, byte-identical
+  to the pre-feature behaviour). An empty (zero-bar) `history` batch defers
+  framing to the first real bar. `LwcChart` carries
+  `setVisibleLogicalRange`; `defaultCreateChart` bridges it to the real
+  `chart.timeScale().setVisibleLogicalRange(...)` inside the DOM-only `v8
+  ignore` block, and `MockLwcApi` records it as a `setVisibleLogicalRange`
+  `LwcRecordedCall` (+ `canonicalise`, floats to 4 dp) so the framing is
+  assertable headlessly.
 
 ## Drawings via a series primitive (Task 6)
 

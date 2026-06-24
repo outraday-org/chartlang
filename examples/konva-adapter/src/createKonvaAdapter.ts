@@ -53,6 +53,9 @@ const AXIS_TICK_COUNT = 5;
 const AXIS_LABEL_FONT_SIZE = 11;
 const AXIS_LABEL_GAP_PX = 6;
 const BODY_WIDTH_RATIO = 0.6;
+// Candle bodies never collapse below this width, so a densely-packed (or
+// initially-framed) view still shows a visible body per bar.
+const MIN_BODY_WIDTH_PX = 1;
 const HISTOGRAM_BAR_WIDTH_PX = 4;
 const GLYPH_FONT_FAMILY = "sans-serif";
 const GLYPH_LABEL_FONT_SIZE = 11;
@@ -102,6 +105,12 @@ export type CreateKonvaAdapterOpts = {
     readonly interval?: string;
     readonly palette?: KonvaPalette;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    /**
+     * Default visible window: when set, the chart opens framed on only the
+     * most recent N bars (rest stay scrollable); omit/0 = fit all data,
+     * byte-identical to before.
+     */
+    readonly initialVisibleBars?: number;
     readonly host?: ScriptHost;
     readonly workerLike?: WorkerLike;
 };
@@ -186,6 +195,9 @@ type AdapterState = {
     // `lastOverlayViewport` feeds the DOM handlers' pixel↔world mapping;
     // `detachInteraction` removes the listeners on dispose.
     readonly view: ViewController;
+    // Default visible-window size (most-recent bars shown on load); undefined
+    // ⇒ fit all data. Resolved into `autoFollowXMin` each frame.
+    readonly initialVisibleBars?: number;
     lastOverlayViewport?: Viewport;
     detachInteraction?: () => void;
 };
@@ -323,8 +335,14 @@ function computePaneViewport(
     // no-offset frames leave `xMax` untouched, so the baseline render is
     // byte-identical.
     dataXMax = extendXMaxForShifts(state, paneKey, spacing, dataXMax);
-    // Full data range until the user interacts, then the held window.
-    const win = state.view.resolveXWindow(dataXMin, dataXMax);
+    // Full data range until the user interacts, then the held window. When
+    // `initialVisibleBars` is set, the auto-follow window starts at the Nth-
+    // from-last bar so the default view frames the most recent bars (the rest
+    // stay scrollable) instead of squashing the whole history into the pane.
+    const n = state.initialVisibleBars;
+    const autoFollowXMin =
+        n !== undefined && n > 0 && bars.length > n ? bars[bars.length - n]?.time : undefined;
+    const win = state.view.resolveXWindow(dataXMin, dataXMax, autoFollowXMin);
     let { yMin, yMax } = computeYRange(state, paneKey, win);
     if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
         yMin = 0;
@@ -347,7 +365,10 @@ function computePaneViewport(
 // ---- node builders (one per visual; each appends to the pane group) ----
 
 function buildCandles(state: AdapterState, group: KonvaGroup, viewport: Viewport): void {
-    const bodyWidth = (viewport.pxWidth / state.bars.length) * BODY_WIDTH_RATIO;
+    const bodyWidth = Math.max(
+        MIN_BODY_WIDTH_PX,
+        (viewport.pxWidth / state.bars.length) * BODY_WIDTH_RATIO,
+    );
     const half = bodyWidth / 2;
     for (const bar of state.bars) {
         const x = timeToX(bar.time, viewport);
@@ -429,6 +450,8 @@ function buildLineSeries(
                 points,
                 stroke: seriesColor(series, state.palette.plotDefault),
                 strokeWidth: style.lineWidth,
+                lineJoin: "round",
+                lineCap: "round",
                 ...(dash === undefined ? {} : { dash }),
             }),
         );
@@ -1105,6 +1128,9 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
         drawings: new Map(),
         palette,
         view: createViewController(),
+        ...(opts.initialVisibleBars !== undefined
+            ? { initialVisibleBars: opts.initialVisibleBars }
+            : {}),
     };
     // Wire wheel-zoom / drag-pan / dblclick-reset on the mount element when
     // running against a real DOM (production passes `opts.container`).

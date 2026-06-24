@@ -42,6 +42,20 @@ test seam + capabilities-only conformance default export).
   gesture) and tracks the live window from each applied option. Adding
   `dataZoom` to the tree re-pinned `integration.test.ts`'s `PINNED_HASH`.
 
+- **`opts.initialVisibleBars` seeds the INITIAL window ONCE, then the user
+  wins forever.** When set, the chart opens framed on only the most recent N
+  bars — `seedInitialZoom(state)` sets `state.zoomStart = Math.max(0, 100 −
+  (N/barCount)·100)` (clamped at 0 = fit all) / `zoomEnd = 100` the FIRST
+  frame bars become available, gated by `state.hasSeededZoom`. After the seed
+  flips the flag, `syncUserZoom` (which runs BEFORE the seed each frame) owns
+  the window — a user pan/zoom is read back and the seed never re-applies, so
+  live bars during Play keep auto-following and a user window is never reset.
+  `onEmissions` order is `ingest → syncUserZoom → seedInitialZoom → setOption`.
+  Omitting `initialVisibleBars` leaves the window at `0/100` (unchanged); the
+  flag still flips on the first windowed frame (a no-op). `dispose` resets
+  `hasSeededZoom = false`. The EMA-cross golden omits `initialVisibleBars`, so
+  `PINNED_HASH` is unaffected.
+
 - **`opts.echartsFactory` is the mandatory instance seam.** Production
   passes `() => echarts.init(container)`; tests pass `() => new
   MockECharts()`. Unlike canvas2d's `opts.ctx` (which has a `getContext`
@@ -67,9 +81,11 @@ test seam + capabilities-only conformance default export).
   bar (histogram) / stacked line-pair (filled-band) / `markLine`
   (horizontal-line) / `scatter` (shape/marker/character/arrow/label). The
   `line` / `step-line` / `area` series forward the IR stroke `lineWidth` +
-  `LineStyle` dash into the ECharts `lineStyle` (`{ color, width, type }`,
-  where `type` is `"solid"|"dashed"|"dotted"` — byte-identical to the IR
-  `LineStyle`, no translation table). Candle-state overrides
+  `LineStyle` dash into the ECharts `lineStyle` (`{ color, width, type, cap,
+  join }`, where `type` is `"solid"|"dashed"|"dotted"` — byte-identical to the
+  IR `LineStyle`, no translation table — and `cap`/`join` are pinned to
+  `"round"` so plotted lines render with smooth, rounded joins/caps).
+  Candle-state overrides
   (`candle-override` / `bar-override` / `bar-color`) become per-bar
   candlestick `itemStyle`; `bg-color` becomes a per-bar candlestick
   `markArea` band (see the dedicated invariant below). None of these create

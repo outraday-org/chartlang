@@ -919,7 +919,7 @@ describe("canvas2d adapter integration", () => {
 // Re-pinned again for the price y-axis: every populated pane now draws
 // `drawYAxis` (faint gridlines + gutter tick labels) and the plot area
 // is inset by the axis gutter, which re-shapes the candle/EMA x-mapping.
-const PINNED_HASH = "525d24edee590d06dda151de1533da37a8a08c936b98aceb5190b9f80563c944";
+const PINNED_HASH = "507ccdbcba4a0ebbe3114f626cce19dcc63317cd9d400a3573202dfcaa71f7f7";
 
 // §22.10 indicator-composition: a hand-crafted multi-export bundle
 // equivalent to a `MULTI_EXPORT_COMPOSITION`-shaped `.chart.ts` file

@@ -52,6 +52,40 @@ function clientBrowserStubs(): Plugin {
   }
 }
 
+const KONVA_SERVER_STUB = fileURLToPath(
+  new URL("./src/lib/browser-stubs/konvaServerStub.ts", import.meta.url),
+)
+
+/**
+ * Konva SSR fix — redirect bare `konva` to a harmless stub in every NON-client
+ * environment (i.e. the SSR graph).
+ *
+ * The konva seam (`activeAdapter.ts`, konva variant) does
+ * `import Konva from "konva"` at module scope, so the specifier is evaluated on
+ * the server during SSR even though the chart only mounts client-side
+ * (`createActiveAdapter` runs inside ChartPane's `useEffect`). Konva's real
+ * entry resolves — under SSR's `node` conditions — to `lib/index-node.js`,
+ * whose first line is `require("canvas")` (a native addon the starter does not
+ * install), throwing `Cannot find module 'canvas'`; its CommonJS browser build
+ * trips `exports is not defined` once bundled into the ESM server graph. Konva
+ * is never CALLED on the server, so the import only needs to succeed — this
+ * redirects it to `konvaServerStub.ts` (`export default {}`). Gated to the
+ * non-`client` environment (the same mechanism `clientBrowserStubs` uses, but
+ * inverted) so the browser keeps the real konva via its `browser` field;
+ * `resolveId` only fires for the bare `konva` specifier, which only the konva
+ * seam variant imports (a no-op for the other four bundled adapters).
+ */
+function konvaServerStub(): Plugin {
+  return {
+    name: "chartlang-konva-server-stub",
+    applyToEnvironment: (environment) => environment.name !== "client",
+    enforce: "pre",
+    resolveId(id) {
+      return id === "konva" ? KONVA_SERVER_STUB : null
+    },
+  }
+}
+
 const TS_DEFAULT_LIBS_ID = "virtual:ts-default-libs"
 
 /**
@@ -173,10 +207,23 @@ const config = defineConfig({
           external: ["esbuild"],
         },
       },
+      // Keep `konva` IN the SSR graph so the `konvaServerStub` plugin's
+      // `resolveId` redirect fires: Vite externalises a bare node_modules
+      // specifier (→ a raw Node `import "konva"` that bypasses the plugin
+      // pipeline) BEFORE `resolveId` unless it is marked non-external. Paired
+      // with the stub redirect, the konva seam's server-side
+      // `import Konva from "konva"` resolves to `export default {}` instead of
+      // `lib/index-node.js` (native `canvas`). A no-op for the four non-konva
+      // adapter variants (they never import konva); SSR-scoped, so the client
+      // keeps the real konva via its `browser` field.
+      resolve: {
+        noExternal: ["konva"],
+      },
     },
   },
   plugins: [
     clientBrowserStubs(),
+    konvaServerStub(),
     tsDefaultLibs(),
     chartlangCoreBundles(),
     devtools(),

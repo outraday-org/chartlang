@@ -24,6 +24,9 @@ const factory: DemoAdapterFactory = async (mountEl, opts) => {
         // under `exactOptionalPropertyTypes` — narrow it at this one seam.
         echartsFactory: () => echarts.init(mountEl) as unknown as EChartsSurface,
         candleSource: opts.candleSource,
+        ...(opts.initialVisibleBars !== undefined
+            ? { initialVisibleBars: opts.initialVisibleBars }
+            : {}),
         ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
         ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
     });

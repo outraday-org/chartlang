@@ -35,7 +35,7 @@ function point(
 describe("drawLine", () => {
     it("returns early on empty series", () => {
         const ctx = new MockCanvas2DContext();
-        drawLine(ctx, [], world, viewport, DEFAULT_PALETTE);
+        drawLine(ctx, [], world, viewport, DEFAULT_PALETTE, 1);
         expect(ctx.calls).toEqual([]);
     });
 
@@ -51,6 +51,7 @@ describe("drawLine", () => {
             world,
             viewport,
             DEFAULT_PALETTE,
+            1,
         );
         expect(ctx.calls).toEqual([]);
     });
@@ -64,7 +65,7 @@ describe("drawLine", () => {
             point({ time: 75, value: 20, color: null, bar: 3 }),
             point({ time: 100, value: 10, color: null, bar: 4 }),
         ];
-        drawLine(ctx, series, world, viewport, DEFAULT_PALETTE);
+        drawLine(ctx, series, world, viewport, DEFAULT_PALETTE, 1);
         const beginPaths = ctx.calls.filter((c) => c.kind === "beginPath").length;
         const moveTos = ctx.calls.filter((c) => c.kind === "moveTo").length;
         const lineTos = ctx.calls.filter((c) => c.kind === "lineTo").length;
@@ -73,6 +74,24 @@ describe("drawLine", () => {
         expect(moveTos).toBe(1);
         expect(lineTos).toBe(series.length - 1);
         expect(strokes).toBe(1);
+    });
+
+    it("applies the given line width with round joins/caps", () => {
+        const ctx = new MockCanvas2DContext();
+        drawLine(
+            ctx,
+            [
+                point({ time: 0, value: 10, color: null, bar: 0 }),
+                point({ time: 25, value: 20, color: null, bar: 1 }),
+            ],
+            world,
+            viewport,
+            DEFAULT_PALETTE,
+            2,
+        );
+        expect(ctx.calls).toContainEqual({ kind: "set", prop: "lineWidth", value: 2 });
+        expect(ctx.calls).toContainEqual({ kind: "set", prop: "lineJoin", value: "round" });
+        expect(ctx.calls).toContainEqual({ kind: "set", prop: "lineCap", value: "round" });
     });
 
     it("breaks the line into sub-paths on null / non-finite gaps", () => {
@@ -85,7 +104,7 @@ describe("drawLine", () => {
             point({ time: 100, value: Number.NaN, color: null, bar: 4 }),
             point({ time: 100, value: 40, color: null, bar: 4 }),
         ];
-        drawLine(ctx, series, world, viewport, DEFAULT_PALETTE);
+        drawLine(ctx, series, world, viewport, DEFAULT_PALETTE, 1);
         const beginPaths = ctx.calls.filter((c) => c.kind === "beginPath").length;
         const strokes = ctx.calls.filter((c) => c.kind === "stroke").length;
         expect(beginPaths).toBe(3);
@@ -104,6 +123,7 @@ describe("drawLine", () => {
             world,
             viewport,
             DEFAULT_PALETTE,
+            1,
         );
         const setStrokeA = ctxA.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         expect(setStrokeA).toEqual({ kind: "set", prop: "strokeStyle", value: "#123456" });
@@ -118,6 +138,7 @@ describe("drawLine", () => {
             world,
             viewport,
             DEFAULT_PALETTE,
+            1,
         );
         const setStrokeB = ctxB.calls.find((c) => c.kind === "set" && c.prop === "strokeStyle");
         expect(setStrokeB).toEqual({
@@ -138,6 +159,7 @@ describe("drawLine", () => {
             world,
             viewport,
             DEFAULT_PALETTE,
+            1,
         );
         expect(ctx.calls.filter((c) => c.kind === "stroke").length).toBe(0);
     });
@@ -150,6 +172,7 @@ describe("drawLine", () => {
             world,
             viewport,
             DEFAULT_PALETTE,
+            1,
         );
         const move = ctx.calls.find((c) => c.kind === "moveTo");
         expect(move).toEqual({ kind: "moveTo", x: timeToX(50, viewport), y: 60 });
@@ -164,6 +187,7 @@ describe("drawLine", () => {
             world,
             viewport,
             DEFAULT_PALETTE,
+            1,
         );
         const move = ctx.calls.find((c) => c.kind === "moveTo");
         expect(move).toEqual({ kind: "moveTo", x: timeToX(25, viewport), y: 60 });
@@ -178,6 +202,7 @@ describe("drawLine", () => {
             world,
             viewport,
             DEFAULT_PALETTE,
+            1,
         );
         const move = ctx.calls.find((c) => c.kind === "moveTo");
         expect(move).toEqual({ kind: "moveTo", x: timeToX(75, viewport), y: 60 });

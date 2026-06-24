@@ -60,6 +60,8 @@ export type RecordedCall =
     | { readonly kind: "set"; readonly prop: "strokeStyle"; readonly value: string }
     | { readonly kind: "set"; readonly prop: "fillStyle"; readonly value: string }
     | { readonly kind: "set"; readonly prop: "lineWidth"; readonly value: number }
+    | { readonly kind: "set"; readonly prop: "lineJoin"; readonly value: string }
+    | { readonly kind: "set"; readonly prop: "lineCap"; readonly value: string }
     | { readonly kind: "set"; readonly prop: "globalAlpha"; readonly value: number }
     | { readonly kind: "set"; readonly prop: "font"; readonly value: string }
     | { readonly kind: "set"; readonly prop: "textAlign"; readonly value: string }
@@ -90,6 +92,8 @@ export class MockCanvasContext {
     private _strokeStyle = "#000000";
     private _fillStyle = "#000000";
     private _lineWidth = 1;
+    private _lineJoin: "round" | "bevel" | "miter" = "miter";
+    private _lineCap: "butt" | "round" | "square" = "butt";
     private _globalAlpha = 1;
     private _font = "10px sans-serif";
     private _textAlign: "start" | "center" | "end" | "left" | "right" = "start";
@@ -184,6 +188,24 @@ export class MockCanvasContext {
     set lineWidth(value: number) {
         this._lineWidth = value;
         this.calls.push({ kind: "set", prop: "lineWidth", value });
+    }
+
+    get lineJoin(): "round" | "bevel" | "miter" {
+        return this._lineJoin;
+    }
+
+    set lineJoin(value: "round" | "bevel" | "miter") {
+        this._lineJoin = value;
+        this.calls.push({ kind: "set", prop: "lineJoin", value });
+    }
+
+    get lineCap(): "butt" | "round" | "square" {
+        return this._lineCap;
+    }
+
+    set lineCap(value: "butt" | "round" | "square") {
+        this._lineCap = value;
+        this.calls.push({ kind: "set", prop: "lineCap", value });
     }
 
     get globalAlpha(): number {

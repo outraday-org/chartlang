@@ -98,6 +98,12 @@ export type CreateEChartsAdapterOpts = {
     readonly candleSource: AsyncIterable<CandleEvent>;
     readonly capabilities?: Capabilities;
     readonly interval?: string;
+    /**
+     * Default visible window: when set, the chart opens framed on only the most
+     * recent N bars (rest stay scrollable via the dataZoom); omit = fit all
+     * data, unchanged.
+     */
+    readonly initialVisibleBars?: number;
     readonly backgroundColor?: string;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     readonly onAlert?: (a: AlertEmission) => void;
@@ -201,6 +207,15 @@ type AdapterState = {
     // rebuild. Stay 0/100 (full, auto-follow) until the user zooms/pans.
     zoomStart: number;
     zoomEnd: number;
+    // When set, the INITIAL `dataZoom` window frames only the most recent N
+    // bars instead of the full range. Applied exactly ONCE (gated by
+    // `hasSeededZoom`) when bars first become available; thereafter the user's
+    // live window wins and is never reset by the seed.
+    readonly initialVisibleBars?: number;
+    // Has the initial windowed zoom already been seeded? Stays `false` until
+    // the first frame WITH bars applies the `initialVisibleBars` window, then
+    // flips so later frames track the user's window untouched.
+    hasSeededZoom: boolean;
 };
 
 function paneSlotKey(paneKey: string, slotId: string): string {
@@ -258,12 +273,19 @@ type LineFamilyStyle = Extract<SeriesStyle, { kind: "line" | "step-line" | "area
 // Map the IR stroke (`lineWidth` + `LineStyle` dash, both shared with the canvas
 // adapters) onto the ECharts `lineStyle` bag. `LineStyle` ("solid"/"dashed"/
 // "dotted") is byte-identical to ECharts' `lineStyle.type`, so it forwards
-// directly — no translation table.
+// directly — no translation table. `cap`/`join` are pinned to `"round"` so
+// plotted lines render with smooth, rounded segment joins and end caps.
 function echartsLineStyle(
     style: LineFamilyStyle,
     color: string,
-): { readonly color: string; readonly width: number; readonly type: LineStyle } {
-    return { color, width: style.lineWidth, type: style.lineStyle };
+): {
+    readonly color: string;
+    readonly width: number;
+    readonly type: LineStyle;
+    readonly cap: "round";
+    readonly join: "round";
+} {
+    return { color, width: style.lineWidth, type: style.lineStyle, cap: "round", join: "round" };
 }
 
 function lineSeries(
@@ -414,6 +436,25 @@ function syncUserZoom(state: AdapterState): void {
     if (zoom === undefined) return;
     state.zoomStart = zoom.start;
     state.zoomEnd = zoom.end;
+}
+
+// Seed the INITIAL `dataZoom` window from `initialVisibleBars` exactly once,
+// the first frame bars become available. The start percent is positioned so the
+// last N bars fill the window (`100 - N/barCount*100`, clamped at 0 = fit all),
+// end is always 100 (right edge). Gated by `hasSeededZoom` so a user pan/zoom
+// (read back by `syncUserZoom`) is NEVER overwritten on a later frame, and live
+// bars during Play keep auto-following past the seed. A no-op when
+// `initialVisibleBars` is unset (window stays 0/100, unchanged) or there are no
+// bars yet (deferred until the first windowed frame).
+function seedInitialZoom(state: AdapterState): void {
+    if (state.hasSeededZoom) return;
+    const barCount = state.bars.length;
+    if (barCount === 0) return;
+    state.hasSeededZoom = true;
+    const visible = state.initialVisibleBars;
+    if (visible === undefined) return;
+    state.zoomStart = Math.max(0, 100 - (visible / barCount) * 100);
+    state.zoomEnd = 100;
 }
 
 // Reset the inside-`dataZoom` window to the full range and re-apply the option
@@ -921,6 +962,10 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
         drawings: new Map(),
         zoomStart: 0,
         zoomEnd: 100,
+        ...(opts.initialVisibleBars === undefined
+            ? {}
+            : { initialVisibleBars: opts.initialVisibleBars }),
+        hasSeededZoom: false,
     };
     // Wire a double-click reset to snap the inside-zoom/pan window back to the
     // full range, matching the canvas2d reference adapter's dblclick reset. The
@@ -960,6 +1005,11 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
             // Read the user's live zoom back before the destructive rebuild,
             // so an inside-zoom/pan survives `notMerge:true`.
             syncUserZoom(state);
+            // Then seed the initial windowed view (last N bars) ONCE, the first
+            // frame bars exist — only if the user has not already zoomed (the
+            // `hasSeededZoom` gate). After this, user-zoom tracking owns the
+            // window and live bars keep auto-following.
+            seedInitialZoom(state);
             state.chart.setOption(buildOption(state), { notMerge: true });
         },
         dispose: () => {
@@ -973,6 +1023,7 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
             state.currentAlertConditions.length = 0;
             state.recentLogs.length = 0;
             state.drawings.clear();
+            state.hasSeededZoom = false;
             state.chart.dispose();
             host.dispose();
         },

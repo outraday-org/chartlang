@@ -43,6 +43,8 @@ export type RenderCtx = {
     strokeStyle: string;
     fillStyle: string;
     lineWidth: number;
+    lineJoin: "round" | "bevel" | "miter";
+    lineCap: "butt" | "round" | "square";
     globalAlpha: number;
     font: string;
     textAlign: "start" | "center" | "end" | "left" | "right";

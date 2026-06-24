@@ -118,6 +118,12 @@ describe("MockLwcApi", () => {
         ]);
     });
 
+    it("records setVisibleLogicalRange with its from / to bounds", () => {
+        const chart = new MockLwcApi();
+        chart.setVisibleLogicalRange({ from: 90, to: 99 });
+        expect(chart.calls).toEqual([{ kind: "setVisibleLogicalRange", from: 90, to: 99 }]);
+    });
+
     it("records remove", () => {
         const chart = new MockLwcApi();
         chart.remove();
@@ -150,6 +156,7 @@ describe("hashLwcCallLog", () => {
             s.setMarkers([{ time: 4 }]);
             s.attachPrimitive({ paneViews: () => [] });
             chart.addPane();
+            chart.setVisibleLogicalRange({ from: 5.123456789, to: 14.987654321 });
             chart.remove();
         }
         expect(hashLwcCallLog(a.calls)).toBe(hashLwcCallLog(b.calls));
@@ -202,6 +209,17 @@ describe("hashLwcCallLog", () => {
             close: 99,
         });
         expect(hashLwcCallLog(c.calls)).not.toBe(hashLwcCallLog(a.calls));
+    });
+
+    it("canonicalises setVisibleLogicalRange bounds to 4 dp", () => {
+        const within = new MockLwcApi();
+        within.setVisibleLogicalRange({ from: 0, to: 9.000004 });
+        const base = new MockLwcApi();
+        base.setVisibleLogicalRange({ from: 0, to: 9 });
+        const beyond = new MockLwcApi();
+        beyond.setVisibleLogicalRange({ from: 0, to: 9.5 });
+        expect(hashLwcCallLog(within.calls)).toBe(hashLwcCallLog(base.calls));
+        expect(hashLwcCallLog(beyond.calls)).not.toBe(hashLwcCallLog(base.calls));
     });
 
     it("canonicalises per-bar candle colour fields on a candlestick update", () => {

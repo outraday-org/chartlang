@@ -282,6 +282,9 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
                 if (controller.signal.aborted) return;
                 const driver = await factory(container, {
                     candleSource,
+                    // Frame the most recent ~120 bars by default (TradingView-style);
+                    // the full history stays scrollable via pan / zoom-out.
+                    initialVisibleBars: 120,
                     ...(mainInterval !== undefined ? { interval: mainInterval } : {}),
                     width: mountWidth,
                     height: mountHeight,

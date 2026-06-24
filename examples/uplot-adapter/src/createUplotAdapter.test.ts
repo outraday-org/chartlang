@@ -171,6 +171,7 @@ function build(args: {
     candles?: AsyncIterable<CandleEvent>;
     resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     onAlert?: (a: AlertEmission) => void;
+    initialVisibleBars?: number;
 }): { adapter: UplotAdapterHandle; instances: MockUplot[]; host: StubHost } {
     const { factory, instances } = makeMockUplotFactory();
     const host = (args.host as StubHost | undefined) ?? stubHost();
@@ -183,6 +184,9 @@ function build(args: {
         host,
         ...(args.resolveInputs !== undefined ? { resolveInputs: args.resolveInputs } : {}),
         ...(args.onAlert !== undefined ? { onAlert: args.onAlert } : {}),
+        ...(args.initialVisibleBars !== undefined
+            ? { initialVisibleBars: args.initialVisibleBars }
+            : {}),
     });
     return { adapter, instances, host };
 }
@@ -191,11 +195,13 @@ function build(args: {
 async function drive(
     drains: RunnerEmissions[],
     bars: ReadonlyArray<Bar> = BARS,
+    initialVisibleBars?: number,
 ): Promise<{ instances: MockUplot[]; adapter: UplotAdapterHandle }> {
     const host = stubHost(drains);
     const { adapter, instances } = build({
         host,
         candles: candleStream([{ kind: "history", bars: [...bars] }]),
+        ...(initialVisibleBars !== undefined ? { initialVisibleBars } : {}),
     });
     await runUplotLoop(adapter);
     return { instances, adapter };
@@ -552,6 +558,60 @@ describe("createUplotAdapter — candles + panes", () => {
         if (last?.kind === "setData") {
             expect(last.data[0]).toHaveLength(1);
         }
+    });
+});
+
+describe("createUplotAdapter — initialVisibleBars default window", () => {
+    // The auto-follow x window pins to a HALF-SPACING-PADDED data window;
+    // BARS is 3 uniform daily bars, so the pad is MS_PER_DAY / 2.
+    const X_PAD = MS_PER_DAY / 2;
+
+    function lastXScale(overlay: MockUplot): { min: number; max: number } | undefined {
+        const x = overlay.records.filter((r) => r.kind === "setScale" && r.scaleKey === "x").at(-1);
+        return x?.kind === "setScale" ? { min: x.min, max: x.max } : undefined;
+    }
+
+    it("frames only the most recent N bars on load when set", async () => {
+        // N = 2 with 3 bars ⇒ autoFollowXMin = bars[1].time; the padded
+        // window starts there rather than at the first bar.
+        const { instances } = await drive([emissions()], BARS, 2);
+        const win = lastXScale(instances[0]);
+        expect(win?.min).toBeCloseTo(BARS[1].time - X_PAD);
+        expect(win?.max).toBeCloseTo(BARS[2].time + X_PAD);
+    });
+
+    it("still fits all bars when N exceeds the loaded bar count", async () => {
+        // N = 10 > 3 bars ⇒ autoFollowXMin undefined ⇒ full-data window,
+        // byte-identical to the no-option auto-follow.
+        const { instances } = await drive([emissions()], BARS, 10);
+        const win = lastXScale(instances[0]);
+        expect(win?.min).toBeCloseTo(BARS[0].time - X_PAD);
+        expect(win?.max).toBeCloseTo(BARS[2].time + X_PAD);
+    });
+
+    it("fits all bars when N is 0 (explicit opt-out)", async () => {
+        // N = 0 ⇒ the `n > 0` guard fails ⇒ full-data window.
+        const { instances } = await drive([emissions()], BARS, 0);
+        const win = lastXScale(instances[0]);
+        expect(win?.min).toBeCloseTo(BARS[0].time - X_PAD);
+        expect(win?.max).toBeCloseTo(BARS[2].time + X_PAD);
+    });
+
+    it("frames the recent window through a pan/zoom requestRender too", async () => {
+        // The interaction handler resolves the SAME framed window while the
+        // user has not committed a held window; a wheel gesture flips
+        // userInteracted true and the held window then wins (autoFollowXMin
+        // ignored), so the framed start no longer applies.
+        const { instances } = await drive([emissions(), emissions()], BARS, 2);
+        const overlay = instances[0];
+        const before = overlay.records.length;
+        overlay.dispatch("wheel", { offsetX: 100, deltaY: -200, preventDefault: () => {} });
+        const win = lastXScale(overlay);
+        // A held window after a zoom-in sits strictly inside the data range,
+        // distinct from the framed auto-follow window — proving the gesture
+        // path took over.
+        expect(win?.min).toBeGreaterThan(BARS[0].time - X_PAD);
+        expect(overlay.records.length).toBeGreaterThan(before);
     });
 });
 

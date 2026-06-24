@@ -206,6 +206,12 @@ export type CreateUplotAdapterOpts = {
     readonly onAlert?: (a: AlertEmission) => void;
     readonly host?: ScriptHost;
     readonly workerLike?: WorkerLike;
+    /**
+     * Default visible window: when set, the chart opens framed on only the
+     * most recent N bars (rest stay scrollable via pan/zoom); omit/0 = fit
+     * all data, byte-identical to before. Ignored once the user interacts.
+     */
+    readonly initialVisibleBars?: number;
 };
 
 /**
@@ -289,6 +295,10 @@ type AdapterState = {
     // Detach functions returned by `attachInteraction`, one per wired pane
     // instance; called on dispose to remove the pan/zoom listeners.
     readonly interactionDetachers: Array<() => void>;
+    // Default visible window: when set, the auto-follow view frames only the
+    // most recent N bars (rest stay scrollable). Undefined ⇒ fit all data,
+    // byte-identical to the pre-feature path. Ignored once the user interacts.
+    readonly initialVisibleBars?: number;
 };
 
 const HANDLE_STATE: WeakMap<UplotAdapterHandle, AdapterState> = new WeakMap();
@@ -748,6 +758,20 @@ function barsXBounds(state: AdapterState): { readonly xMin: number; readonly xMa
     return { xMin, xMax: xMax === xMin ? xMin + 1 : xMax };
 }
 
+// The auto-follow left edge implied by `state.initialVisibleBars` — the time
+// of the bar `N` back from the last, so the default view frames only the most
+// recent N bars (the rest stay scrollable). `undefined` (no N, N ≤ 0, or
+// fewer bars than N) ⇒ fit all data, byte-identical to the pre-feature path.
+// `resolveXWindow` clamps the value into the data range and ignores it once
+// the user has interacted, so the "auto-follow until interacted" semantics
+// hold for free.
+function autoFollowXMin(state: AdapterState): number | undefined {
+    const n = state.initialVisibleBars;
+    return n !== undefined && n > 0 && state.bars.length > n
+        ? state.bars[state.bars.length - n]?.time
+        : undefined;
+}
+
 // Pad an x-window by half a bar spacing on each side so the first / last
 // candle CENTRES sit inside the plotting area instead of the last body
 // spilling into the right price-axis gutter (uPlot auto-ranges x so the
@@ -777,7 +801,10 @@ function wireUplotInteraction(state: AdapterState, u: UplotLike): void {
         dataBounds: () => barsXBounds(state),
         requestRender: () => {
             const { xMin, xMax } = barsXBounds(state);
-            const win = paddedXWindow(state, state.view.resolveXWindow(xMin, xMax));
+            const win = paddedXWindow(
+                state,
+                state.view.resolveXWindow(xMin, xMax, autoFollowXMin(state)),
+            );
             for (const inst of state.instances.values()) {
                 inst.setScale("x", win);
             }
@@ -816,7 +843,14 @@ function renderFrame(state: AdapterState): void {
         if (!state.userInteracted && state.bars.length > 0) {
             const viewport = computePaneViewportFor(state, paneKey);
             instance.setScale("y", { min: viewport.yMin, max: viewport.yMax });
-            instance.setScale("x", paddedXWindow(state, barsXBounds(state)));
+            // Frame only the most recent `initialVisibleBars` (if set) while
+            // the user has not interacted; the rest of the bars stay loaded
+            // and scrollable. `resolveXWindow` returns the full data span when
+            // `autoFollowXMin` is undefined, so an unset option is
+            // byte-identical to the prior `barsXBounds(state)` auto-range.
+            const { xMin, xMax } = barsXBounds(state);
+            const win = state.view.resolveXWindow(xMin, xMax, autoFollowXMin(state));
+            instance.setScale("x", paddedXWindow(state, win));
         }
     }
 }
@@ -1024,6 +1058,9 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
         view: createViewController(),
         userInteracted: false,
         interactionDetachers: [],
+        ...(opts.initialVisibleBars !== undefined
+            ? { initialVisibleBars: opts.initialVisibleBars }
+            : {}),
     };
     const host =
         opts.host ??

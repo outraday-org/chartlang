@@ -22,6 +22,9 @@ const factory: DemoAdapterFactory = async (mountEl, opts) => {
     const adapter = createCanvas2dAdapter({
         canvas,
         candleSource: opts.candleSource,
+        ...(opts.initialVisibleBars !== undefined
+            ? { initialVisibleBars: opts.initialVisibleBars }
+            : {}),
         ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
         ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
     });

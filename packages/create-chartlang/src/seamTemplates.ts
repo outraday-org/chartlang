@@ -76,13 +76,26 @@ ${OPTS_TYPES}
 // canvas2d paints onto a <canvas>; the seam creates one inside the generic
 // container so ChartPane only ever provides a DOM node.
 export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandle {
+  const cssWidth = opts.container.clientWidth || 800
+  const cssHeight = opts.container.clientHeight || 480
+  // Back the canvas at device-pixel resolution so the chart stays crisp on
+  // HiDPI / retina screens; CSS keeps it laid out at the container's CSS size.
+  // The adapter draws into the full backing store and only re-scales its
+  // pan/zoom pointer math by \`devicePixelRatio\`, so the render is unchanged.
+  const dpr = opts.container.ownerDocument.defaultView?.devicePixelRatio ?? 1
   const canvas = opts.container.ownerDocument.createElement("canvas")
-  canvas.width = opts.container.clientWidth || 800
-  canvas.height = opts.container.clientHeight || 480
+  canvas.width = Math.round(cssWidth * dpr)
+  canvas.height = Math.round(cssHeight * dpr)
+  canvas.style.width = \`\${cssWidth}px\`
+  canvas.style.height = \`\${cssHeight}px\`
   opts.container.replaceChildren(canvas)
   return createCanvas2dAdapter({
     canvas,
     candleSource: opts.candleSource,
+    devicePixelRatio: dpr,
+    // Frame the most recent ~120 bars by default (TradingView-style); the
+    // full history stays in memory and scrollable via pan / zoom-out.
+    initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
   })
@@ -113,6 +126,9 @@ export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandl
   return createLightweightChartsAdapter({
     container: opts.container,
     candleSource: opts.candleSource,
+    // Frame the most recent ~120 bars by default (TradingView-style); the
+    // full history stays in memory and scrollable via pan / zoom-out.
+    initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
   })
@@ -146,6 +162,9 @@ export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandl
     width: opts.container.clientWidth || 800,
     height: opts.container.clientHeight || 480,
     candleSource: opts.candleSource,
+    // Frame the most recent ~120 bars by default (TradingView-style); the
+    // full history stays in memory and scrollable via pan / zoom-out.
+    initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
   })
@@ -204,6 +223,9 @@ export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandl
   return createEChartsAdapter({
     echartsFactory: () => makeEchartsSurface(opts.container),
     candleSource: opts.candleSource,
+    // Frame the most recent ~120 bars by default (TradingView-style); the
+    // full history stays in memory and scrollable via pan / zoom-out.
+    initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
   })
@@ -234,39 +256,43 @@ export const ACTIVE_ADAPTER_ID = "konva"
 
 ${OPTS_TYPES}
 
+// The Konva adapter renders alerts as part of its declared capability surface
+// but paints no alert UI, and its factory carries no onAlert hook — so the seam
+// forwards alerts itself from the drain loop. onAlert is captured per handle
+// here and invoked in runActiveLoop (which, unlike the factory, sees emissions).
+const KONVA_ON_ALERT = new WeakMap<ActiveAdapterHandle, (a: AlertEmission) => void>()
+
 export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandle {
   const width = opts.container.clientWidth || 800
   const height = opts.container.clientHeight || 480
-  // The Konva adapter's StageConfig omits \`container\` (it renders headlessly
-  // and lets the caller wire the DOM node), but the real Konva.Stage requires
-  // one. Inject the seam's container by subclassing Stage so the adapter's
-  // \`new konva.Stage({ width, height })\` mounts onto our DOM node. The real
-  // Konva namespace is wider than the slice the adapter consumes, so cast it
-  // to the adapter's own \`konva\` field type.
-  const konva = {
-    ...Konva,
-    Stage: class extends Konva.Stage {
-      constructor(config: { width: number; height: number }) {
-        super({ ...config, container: opts.container as HTMLDivElement })
-      }
-    },
-  } as unknown as CreateKonvaAdapterOpts["konva"]
-  return createKonvaAdapter({
+  // The real Konva namespace is wider than the structural slice the adapter
+  // consumes, so cast it to the adapter's own \`konva\` field type. Passing
+  // \`container\` lets the adapter mount the stage on our DOM node AND attach
+  // its wheel-zoom / drag-pan / dblclick-reset interaction to it.
+  const konva = Konva as unknown as CreateKonvaAdapterOpts["konva"]
+  const handle = createKonvaAdapter({
     konva,
+    container: opts.container,
     stage: { width, height },
     candleSource: opts.candleSource,
+    // Frame the most recent ~120 bars by default (TradingView-style); the
+    // full history stays in memory and scrollable via pan / zoom-out.
+    initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
   })
+  if (opts.onAlert !== undefined) KONVA_ON_ALERT.set(handle, opts.onAlert)
+  return handle
 }
 
-// konva has no exported async loop; mirror the shared loop shape locally over
-// feedCandleEvent / handleInterval and forward alerts from each drain (its
-// factory carries no onAlert hook).
+// konva has no exported async loop that forwards alerts; mirror the shared loop
+// shape locally over feedCandleEvent / handleInterval and forward each drain's
+// alerts to the seam-captured onAlert (its factory carries no hook).
 export async function runActiveLoop(
   handle: ActiveAdapterHandle,
   opts: RunActiveLoopOpts = {},
 ): Promise<void> {
   const signal = opts.signal
+  const onAlert = KONVA_ON_ALERT.get(handle)
   const aborted = (): boolean => signal?.aborted ?? false
   if (aborted()) return
   for await (const event of handle.candles({ interval: handleInterval(handle) })) {
@@ -279,6 +305,7 @@ export async function runActiveLoop(
     const emissions: RunnerEmissions = await handle.host.drain()
     if (aborted()) return
     handle.onEmissions(emissions)
+    if (onAlert !== undefined) for (const alert of emissions.alerts) onAlert(alert)
   }
 }
 `;

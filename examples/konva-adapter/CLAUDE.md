@@ -67,7 +67,29 @@ capabilities-only conformance default export).
   `yRangeInWindow`. `attachInteraction` binds wheel/drag/dblclick to
   `opts.container` (the real mount el; guarded + `/* v8 ignore */`d, omitted
   under `MockKonva`); `requestRender` rebuilds both layers. `redraw(handle)`
-  is the exported re-render entry; the detach fn runs in `dispose`.
+  is the exported re-render entry; the detach fn runs in `dispose`. When
+  `opts.initialVisibleBars` (stored on `state.initialVisibleBars`) is set,
+  `computePaneViewport` derives an `autoFollowXMin` (`bars[bars.length - n].time`
+  when `n > 0 && bars.length > n`) and passes it as the 3rd arg to
+  `resolveXWindow`, so the default view frames the most recent N bars (the
+  rest stay scrollable) instead of squashing all history into the pane. The
+  field is conditionally spread onto state (exactOptionalPropertyTypes) and is
+  **never defaulted** — `undefined`/`0` ⇒ fit all data, byte-identical to the
+  pre-feature render, mirroring canvas2d.
+
+- **Candle bodies clamp to `MIN_BODY_WIDTH_PX` (1px).** `buildCandles`
+  computes `Math.max(MIN_BODY_WIDTH_PX, (pxWidth / bars.length) *
+  BODY_WIDTH_RATIO)` so a densely-packed or initially-framed view still shows
+  a visible body per bar. (The `candle-override` / `bar-override` tint `Rect`
+  in `buildOverlay` keeps the unclamped width.)
+
+- **Plot lines render with round joins + caps.** `buildLineSeries` sets
+  `lineJoin: "round"` and `lineCap: "round"` on the series `Line` (the Konva
+  idiom for canvas2d's round-join `drawLine`); `strokeWidth` stays
+  `style.lineWidth`. These are stroke-style only — `projectLine` (`testing.ts`)
+  does not project them into the canvas `RecordedCall` log, so `hashKonvaScene`
+  / the integration `PINNED_HASH` are unaffected. `LineConfig` (`types.ts`)
+  declares the optional `lineJoin`/`lineCap` fields.
 
 - **Pane layout is ported locally; sharing it is a deferred follow-up.**
   `src/paneLayout.ts` (`computePaneLayout`, overlay top 80% + uniform

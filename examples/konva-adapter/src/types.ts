@@ -62,6 +62,14 @@ export type LineConfig = {
     readonly closed?: boolean;
     readonly fill?: string;
     readonly dash?: ReadonlyArray<number>;
+    /**
+     * Corner / end-cap rendering. Plot lines set `"round"` for both so a
+     * polyline's joints and ends read smooth (the Konva idiom for the
+     * canvas2d reference's round join/cap on `drawLine`). Omitted ⇒ Konva's
+     * default `"miter"` join / `"butt"` cap.
+     */
+    readonly lineJoin?: "round" | "bevel" | "miter";
+    readonly lineCap?: "round" | "square" | "butt";
     readonly listening?: boolean;
 };
 

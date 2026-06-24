@@ -114,6 +114,12 @@ export type CreateLightweightChartsAdapterOpts = {
     readonly candleSource: AsyncIterable<CandleEvent>;
     readonly capabilities?: Capabilities;
     readonly interval?: string;
+    /**
+     * Default visible window: when set, the chart opens framed on only the
+     * most recent N bars (rest stay scrollable via lightweight-charts' native
+     * pan/zoom); omit = fit all data (fitContent), unchanged behavior.
+     */
+    readonly initialVisibleBars?: number;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     readonly onAlert?: (a: AlertEmission) => void;
     readonly host?: ScriptHost;
@@ -169,6 +175,13 @@ type AdapterState = {
     // Live drawing buffer the attached `DrawingPrimitive` overlay paints each
     // frame (last-write-wins; `op: "remove"` drops the key).
     readonly drawings: Map<string, DrawingEmission>;
+    // Default visible window: frame the time scale onto the most recent N bars
+    // on the FIRST frame data is present. Omitted = fit all data (the library's
+    // auto-fit, unchanged behaviour).
+    readonly initialVisibleBars?: number;
+    // Guards the one-shot initial framing so live-bar updates and any user
+    // pan/zoom are not overridden after the first time data is present.
+    hasFramedInitial: boolean;
 };
 
 const HANDLE_STATE: WeakMap<LwcAdapterHandle, AdapterState> = new WeakMap();
@@ -350,6 +363,7 @@ function defaultCreateChart(container: HTMLElement): LwcChart {
             // The new pane is the last one; its index is the prior count.
             return { paneIndex: chart.panes().length - 1 };
         },
+        setVisibleLogicalRange: (range) => chart.timeScale().setVisibleLogicalRange(range),
         remove: () => chart.remove(),
     };
 }
@@ -424,6 +438,11 @@ function applyLineLikePlot(state: AdapterState, plot: PlotEmission, seriesType: 
         // Native step rendering: LineType.WithSteps === 1.
         options.lineType = 1;
     }
+    // Forward the emission's line width. lightweight-charts' default line width
+    // is 3 (too thick vs the other adapters); the compiler default is 1, which
+    // renders thin and consistent. Only the line-family styles (line / area /
+    // step-line) carry `lineWidth` AND accept it as a series-creation option.
+    if ("lineWidth" in plot.style) options.lineWidth = plot.style.lineWidth;
     if (plot.color !== null) options.color = plot.color;
     const series = getOrCreateSeries(state, plot, seriesType, options);
     if (plot.visible === false) {
@@ -677,17 +696,36 @@ function candleData(state: AdapterState, bar: Bar): CandlePoint {
     return point;
 }
 
+// Frame the time scale onto the most recent `initialVisibleBars` bars the
+// FIRST time data is present. Guarded by `state.hasFramedInitial` so it fires
+// exactly once — later live-bar updates and any user pan/zoom are never
+// re-framed. With `initialVisibleBars` undefined this is a no-op (the library's
+// default auto-fit / `fitContent` stands, unchanged behaviour).
+function frameInitialWindow(state: AdapterState): void {
+    if (state.hasFramedInitial) return;
+    const len = state.bars.length;
+    if (len === 0) return;
+    state.hasFramedInitial = true;
+    const visible = state.initialVisibleBars;
+    if (visible === undefined) return;
+    const from = Math.max(0, len - visible);
+    const to = len - 1;
+    state.chart.setVisibleLogicalRange({ from, to });
+}
+
 function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
     if (event.streamKey !== undefined) return;
     const series = ensureCandleSeries(state);
     if (event.kind === "history") {
         state.bars.push(...event.bars);
         series.setData(event.bars.map((b) => candleData(state, b)));
+        frameInitialWindow(state);
         return;
     }
     if (event.kind === "close") {
         state.bars.push(event.bar);
         series.update(candleData(state, event.bar));
+        frameInitialWindow(state);
         return;
     }
     if (state.bars.length === 0) {
@@ -696,6 +734,7 @@ function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
         state.bars[state.bars.length - 1] = event.bar;
     }
     series.update(candleData(state, event.bar));
+    frameInitialWindow(state);
 }
 
 /**
@@ -739,6 +778,10 @@ export function createLightweightChartsAdapter(
         currentAlertConditions: [],
         recentLogs: [],
         drawings: new Map(),
+        ...(opts.initialVisibleBars !== undefined
+            ? { initialVisibleBars: opts.initialVisibleBars }
+            : {}),
+        hasFramedInitial: false,
     };
     const host =
         opts.host ??
@@ -782,6 +825,7 @@ export function createLightweightChartsAdapter(
             state.currentAlertConditions.length = 0;
             state.recentLogs.length = 0;
             state.drawings.clear();
+            state.hasFramedInitial = false;
             state.chart.remove();
             host.dispose();
         },

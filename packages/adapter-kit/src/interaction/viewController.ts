@@ -58,11 +58,14 @@ export type ViewController = {
     /** `true` once the user has zoomed or panned (auto-follow is paused). */
     readonly userInteracted: boolean;
     /**
-     * The x-window to render this frame: `[dataXMin, dataXMax]` while not
-     * interacted (auto-follow), else the held window clamped into the
-     * current data bounds.
+     * The x-window to render this frame. While not interacted (auto-follow),
+     * returns `[autoFollowXMin ?? dataXMin, dataXMax]` — pass `autoFollowXMin`
+     * (e.g. the time of the Nth-from-last bar) to frame only the most recent
+     * bars by default while keeping the full history scrollable; omit it to
+     * fit all data. After the first interaction it returns the held window
+     * clamped into the current data bounds (`autoFollowXMin` is then ignored).
      */
-    resolveXWindow(dataXMin: number, dataXMax: number): XWindow;
+    resolveXWindow(dataXMin: number, dataXMax: number, autoFollowXMin?: number): XWindow;
     /** Zoom by `factor` (`<1` in, `>1` out) about a world-x pivot. */
     zoomAt(pivotX: number, factor: number, dataXMin: number, dataXMax: number): void;
     /** Pan the window by a signed world-x delta. */
@@ -132,8 +135,17 @@ export function createViewController(opts?: ViewControllerOpts): ViewController 
         get userInteracted(): boolean {
             return interacted;
         },
-        resolveXWindow(dataMin: number, dataMax: number): XWindow {
-            if (!interacted || held === undefined) return { xMin: dataMin, xMax: dataMax };
+        resolveXWindow(dataMin: number, dataMax: number, autoFollowXMin?: number): XWindow {
+            if (!interacted || held === undefined) {
+                // Auto-follow: optionally start the window at a windowed left
+                // edge (clamped into the data range) so the default view frames
+                // the most recent bars; new bars keep extending xMax.
+                const xMin =
+                    autoFollowXMin === undefined
+                        ? dataMin
+                        : Math.min(Math.max(autoFollowXMin, dataMin), dataMax);
+                return { xMin, xMax: dataMax };
+            }
             return clampWindow(held, dataMin, dataMax, minSpan, maxSpanFactor);
         },
         zoomAt(pivotX: number, factor: number, dataMin: number, dataMax: number): void {

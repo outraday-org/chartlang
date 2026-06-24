@@ -55,11 +55,21 @@ Reference adapter package — **not published to npm**.
 
 - **`state.view` is an adapter-kit `ViewController`; `computePaneViewport`
   resolves the x-window through it.** Per frame it calls
-  `state.view.resolveXWindow(dataXMin, dataXMaxExtended)` — the FULL data
-  range (auto-follow) until the user wheels/drags, then the held window. y
+  `state.view.resolveXWindow(dataXMin, dataXMaxExtended, autoFollowXMin)` —
+  the auto-follow range until the user wheels/drags, then the held window. y
   auto-fits the VISIBLE window via `computeYRange(..., win)` →
   `yRangeInWindow` (bars + series filtered to the window; hlines folded in
   unconditionally), matching lightweight-charts' auto price scale.
+- **`opts.initialVisibleBars` frames the default view on the most recent N
+  bars.** `computePaneViewport` derives `autoFollowXMin = bars[len - N].time`
+  (only when `N` is set, `> 0`, and `len > N`; else `undefined`) and threads
+  it as the 3rd `resolveXWindow` arg, so the chart opens showing the last N
+  bars while the rest stay scrollable (pan / zoom-out). Once the user
+  interacts the held window wins and `autoFollowXMin` is ignored. The option
+  is **never defaulted** in the adapter — `undefined` ⇒ fit all data,
+  byte-identical to the pre-feature render (so a caller that does not opt in
+  keeps every pinned hash). It is stored on state via the conditional-spread
+  idiom (`exactOptionalPropertyTypes`).
 - **DOM listeners attach ONLY to a real canvas.** The interaction-wiring
   block (`attachInteraction(opts.canvas, …)`) is guarded by
   `typeof opts.canvas.addEventListener === "function"` and `/* v8 ignore */`d
@@ -71,9 +81,30 @@ Reference adapter package — **not published to npm**.
   state via the `HANDLE_STATE` WeakMap; throws the sentinel on a foreign
   handle). The DOM handlers call `renderFrame` directly; `redraw` is the
   public seam for the same.
-- **The pinned `hashCallLog` is UNCHANGED.** A no-interaction frame resolves
-  to the full data range and `yRangeInWindow` over the full window equals the
-  old all-data y-range, so the default render is byte-identical.
+- **The pinned `hashCallLog` was re-snapped for the line-style change.**
+  `drawLine` now emits `lineWidth` (`PLOT_LINE_WIDTH_PX = 1`) + round
+  `lineJoin`/`lineCap` before stroking each plot series (thin like
+  TradingView; the smoothness is the round joins, not thickness), so the
+  default frame's call log changed and `integration.test.ts`'s `PINNED_HASH`
+  was updated once. `lineJoin`/`lineCap` were added to the shared adapter-kit
+  `RenderCtx` + `MockCanvasContext` (type, mock, `RecordedCall` union — the
+  generic `set` `canonicalise` arm needed no change). Candle bodies now floor
+  at `MIN_BODY_WIDTH_PX = 1` (`render/candles.ts`) so they never collapse to
+  wicks-only when many bars are packed in; with few bars the body is already
+  wider than 1px so existing candle hashes/tests are untouched. The
+  auto-follow no-interaction frame (no `initialVisibleBars`) still resolves to
+  the full data range, so only the line-style setters moved the hash.
+- **`opts.devicePixelRatio` (default 1) ONLY re-scales the DOM pointer math,
+  never the render.** The adapter draws into `opts.canvas`'s full backing-store
+  resolution, so a caller that backs the canvas at `cssWidth * dpr` and lays it
+  out at `cssWidth` (the retina-crispness idiom the react-starter seam uses)
+  gets a sharp chart with no adapter change — every projection is already in
+  backing-pixel space. Because pointer events arrive in CSS pixels but the
+  viewport is in backing pixels, the wheel/drag handlers multiply incoming
+  pointer x by `dpr` (`pxToWorldX` / `worldXPerPx`) so zoom/pan stay anchored
+  under the cursor. The whole use lives inside the `/* v8 ignore */` DOM-wiring
+  block; `dpr === 1` reproduces the old math exactly, so every pinned hash and
+  the headless tests are untouched.
 
 ## Conventions
 
@@ -144,7 +175,9 @@ Reference adapter package — **not published to npm**.
   `CanvasRenderingContext2D` subset every renderer + `MockCanvas2DContext`
   satisfies lives once in `packages/adapter-kit/src/canvas/renderCtx.ts`.
   It covers the line + arc + setter surface plus `fillText`,
-  `globalAlpha`, `font`, `textAlign`, `textBaseline`. Extensions are made
+  `globalAlpha`, `font`, `textAlign`, `textBaseline`, and the line-style
+  setters `lineWidth` / `lineJoin` / `lineCap` (the latter two added for the
+  round-joined plot line). Extensions are made
   in adapter-kit — the type, the mock (`MockCanvasContext`), and its
   `canonicalise` rule grow in lockstep there so `hashCallLog` stays
   stable; canvas2d picks the change up through the re-export.

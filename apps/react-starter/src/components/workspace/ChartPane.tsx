@@ -3,7 +3,10 @@
 //
 // The right pane: loads a compiled chartlang artifact into the active
 // adapter's worker host, feeds it the symbol's real daily bars, drives the
-// render loop, and surfaces alerts as toasts + a small footer feed.
+// render loop, and surfaces alerts in a small footer feed (every alert) +
+// toasts (LIVE alerts only — see `onAlert` below; historical alerts replayed
+// from the `history` batch never toast, so loading a script doesn't spam a
+// toast for every past crossover).
 //
 // Adapter-agnostic by construction — it drives charts ONLY through the
 // `src/lib/chart/activeAdapter.ts` seam (`createActiveAdapter` +
@@ -45,7 +48,9 @@ export type CompiledArtifact = Readonly<{
 /**
  * Props for {@link ChartPane}. The pane disposes + re-mounts the adapter
  * whenever `artifact` or `bars` change. `onAlert` lets the host (Task 6's
- * status bar) observe live alerts; toasts + the footer feed fire regardless.
+ * status bar) observe every alert; the footer feed lists them all, while
+ * toasts fire ONLY for live alerts (those on bars newer than the loaded
+ * history) so a freshly-loaded script doesn't toast its whole past.
  */
 export type ChartPaneProps = Readonly<{
   bars: ReadonlyArray<Bar>
@@ -75,6 +80,14 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
     const controller = new AbortController()
     const pushSource = createPushCandleSource(bars)
 
+    // The full dataset is replayed through one `history` batch (see
+    // streamPump.ts), so any alert on a bar at or before the newest loaded
+    // bar is HISTORICAL — it already happened and shouldn't pop a toast.
+    // Only alerts on bars newer than this (pushed live via `push`) are
+    // "future" and worth toasting. Falls back to +Infinity (treat all as
+    // historical → no toast) if the time is somehow unknown.
+    const lastHistoryTime = bars[bars.length - 1]?.time ?? Number.POSITIVE_INFINITY
+
     // Multi-timeframe scripts request higher-timeframe streams in their
     // manifest. The free EOD tier is daily-only, so resample the daily bars
     // into each requested interval live and weave the secondary closes in;
@@ -92,9 +105,13 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
       interval: bars[0]?.interval ?? FALLBACK_INTERVAL,
       onAlert: (alert) => {
         onAlertRef.current?.(alert)
-        toast(alert.message, {
-          ...(alert.severity === "info" ? {} : { description: `severity: ${alert.severity}` }),
-        })
+        // Toast only LIVE alerts; historical ones (from the replayed
+        // history) just populate the footer feed.
+        if (alert.time > lastHistoryTime) {
+          toast(alert.message, {
+            ...(alert.severity === "info" ? {} : { description: `severity: ${alert.severity}` }),
+          })
+        }
         setFeed((prev) => [alert, ...prev].slice(0, MAX_FEED_ALERTS))
       },
     })
@@ -134,7 +151,12 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
 
   return (
     <div className="flex h-full flex-col" data-testid="chart-pane">
-      <div className="relative min-h-0 flex-1">
+      {/* `overflow-hidden` clips the fixed-size canvas to its box: the
+          adapter sizes the canvas once at mount, so without this any later
+          shrink of this flex child (e.g. the alerts panel appearing) would
+          let the canvas paint over the panel below. The panel is reserved
+          up-front (below) so the adapter measures the correct height. */}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         {ready ? null : (
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted-foreground">
             {artifact === null
@@ -149,20 +171,26 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
           ref={containerRef}
         />
       </div>
-      {feed.length > 0 ? (
+      {ready ? (
         <div className="shrink-0 border-t border-border" data-testid="alerts-feed">
           <ScrollArea className="h-28">
-            <ul className="divide-y divide-border text-xs">
-              {feed.map((alert, i) => (
-                <li
-                  className="flex items-center gap-2 px-3 py-1.5"
-                  key={`${alert.dedupeKey}-${alert.bar}-${i}`}
-                >
-                  <span className="font-mono text-muted-foreground">[{alert.severity}]</span>
-                  <span className="truncate text-foreground">{alert.message}</span>
-                </li>
-              ))}
-            </ul>
+            {feed.length > 0 ? (
+              <ul className="divide-y divide-border text-xs">
+                {feed.map((alert, i) => (
+                  <li
+                    className="flex items-center gap-2 px-3 py-1.5"
+                    key={`${alert.dedupeKey}-${alert.bar}-${i}`}
+                  >
+                    <span className="font-mono text-muted-foreground">[{alert.severity}]</span>
+                    <span className="truncate text-foreground">{alert.message}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex h-28 items-center justify-center text-xs text-muted-foreground">
+                No alerts yet.
+              </div>
+            )}
           </ScrollArea>
         </div>
       ) : null}

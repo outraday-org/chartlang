@@ -32,13 +32,26 @@ export type RunActiveLoopOpts = Readonly<{ signal?: AbortSignal }>
 // canvas2d paints onto a <canvas>; the seam creates one inside the generic
 // container so ChartPane only ever provides a DOM node.
 export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandle {
+  const cssWidth = opts.container.clientWidth || 800
+  const cssHeight = opts.container.clientHeight || 480
+  // Back the canvas at device-pixel resolution so the chart stays crisp on
+  // HiDPI / retina screens; CSS keeps it laid out at the container's CSS size.
+  // The adapter draws into the full backing store and only re-scales its
+  // pan/zoom pointer math by `devicePixelRatio`, so the render is unchanged.
+  const dpr = opts.container.ownerDocument.defaultView?.devicePixelRatio ?? 1
   const canvas = opts.container.ownerDocument.createElement("canvas")
-  canvas.width = opts.container.clientWidth || 800
-  canvas.height = opts.container.clientHeight || 480
+  canvas.width = Math.round(cssWidth * dpr)
+  canvas.height = Math.round(cssHeight * dpr)
+  canvas.style.width = `${cssWidth}px`
+  canvas.style.height = `${cssHeight}px`
   opts.container.replaceChildren(canvas)
   return createCanvas2dAdapter({
     canvas,
     candleSource: opts.candleSource,
+    devicePixelRatio: dpr,
+    // Frame the most recent ~120 bars by default (TradingView-style); the
+    // full history stays in memory and scrollable via pan / zoom-out.
+    initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
   })

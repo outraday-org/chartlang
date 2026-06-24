@@ -376,13 +376,50 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
     it("forwards the plot color to the line series creation options", async () => {
         const chart = await runWithPlots([plot(LINE_STYLE, { slotId: "c", color: "#26a69a" })]);
         const line = chart.calls.find((c) => c.kind === "addSeries" && c.seriesType === "Line");
-        expect(line?.kind === "addSeries" && line.options).toEqual({ color: "#26a69a" });
+        // The emission's line width (compiler default 1) rides alongside the
+        // colour so the native line is thin/consistent, not LC's default-3.
+        expect(line?.kind === "addSeries" && line.options).toEqual({
+            color: "#26a69a",
+            lineWidth: 1,
+        });
     });
 
-    it("a null plot color carries no color in the line series options", async () => {
+    it("a null plot color carries only the line width in the series options", async () => {
         const chart = await runWithPlots([plot(LINE_STYLE, { slotId: "nco", color: null })]);
         const line = chart.calls.find((c) => c.kind === "addSeries" && c.seriesType === "Line");
-        expect(line?.kind === "addSeries" && line.options).toEqual({});
+        expect(line?.kind === "addSeries" && line.options).toEqual({ lineWidth: 1 });
+    });
+
+    it("forwards the emission's line width to line / area / step-line series", async () => {
+        const chart = await runWithPlots([
+            plot({ kind: "line", lineWidth: 2, lineStyle: "solid" }, { slotId: "l", color: null }),
+            plot(
+                { kind: "step-line", lineWidth: 4, lineStyle: "solid" },
+                { slotId: "s", color: null },
+            ),
+            plot(
+                { kind: "area", lineWidth: 5, lineStyle: "solid", fillAlpha: 0.2 },
+                { slotId: "a", color: null },
+            ),
+        ]);
+        const widthFor = (seriesType: string): unknown => {
+            const call = chart.calls.find(
+                (c) => c.kind === "addSeries" && c.seriesType === seriesType,
+            );
+            return call?.kind === "addSeries" ? call.options.lineWidth : undefined;
+        };
+        expect(widthFor("Line")).toBe(2);
+        expect(widthFor("Area")).toBe(5);
+    });
+
+    it("a histogram series carries no line width (LC histograms have none)", async () => {
+        const chart = await runWithPlots([
+            plot({ kind: "histogram", baseline: 0 }, { slotId: "h", color: null }),
+        ]);
+        const hist = chart.calls.find(
+            (c) => c.kind === "addSeries" && c.seriesType === "Histogram",
+        );
+        expect(hist?.kind === "addSeries" && "lineWidth" in hist.options).toBe(false);
     });
 
     it("filled-band creates two line series and updates both edges", async () => {
@@ -875,6 +912,105 @@ describe("createLightweightChartsAdapter — plot x-shift (universal offset)", (
         // One bar in state at time 1; bar 0 + no shift → time 1.
         const lineUpdate = chart.calls.find((c) => c.kind === "update" && c.seriesId !== "s0");
         expect(lineUpdate?.kind === "update" && lineUpdate.time).toBe(1);
+    });
+});
+
+describe("createLightweightChartsAdapter — initial visible window", () => {
+    const rangeCalls = (chart: MockLwcApi): ReadonlyArray<{ from: number; to: number }> =>
+        chart.calls
+            .filter((c) => c.kind === "setVisibleLogicalRange")
+            .map((c) => (c.kind === "setVisibleLogicalRange" ? { from: c.from, to: c.to } : null))
+            .filter((r): r is { from: number; to: number } => r !== null);
+
+    it("frames the most recent N bars once a history batch lands", async () => {
+        const chart = new MockLwcApi();
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([
+                { kind: "history", bars: Array.from({ length: 100 }, (_, i) => bar(i)) },
+            ]),
+            host: stubHost(),
+            initialVisibleBars: 30,
+        });
+        await runRendererLoop(handle);
+        // from = max(0, 100 - 30) = 70; to = 100 - 1 = 99.
+        expect(rangeCalls(chart)).toEqual([{ from: 70, to: 99 }]);
+    });
+
+    it("clamps `from` to 0 when fewer bars than the window exist", async () => {
+        const chart = new MockLwcApi();
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([{ kind: "close", bar: bar(1) }]),
+            host: stubHost(),
+            initialVisibleBars: 50,
+        });
+        await runRendererLoop(handle);
+        // Only 1 bar: from = max(0, 1 - 50) = 0; to = 0.
+        expect(rangeCalls(chart)).toEqual([{ from: 0, to: 0 }]);
+    });
+
+    it("frames on the first tick when the first event is a leading tick", async () => {
+        const chart = new MockLwcApi();
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([
+                { kind: "tick", bar: bar(1, 9) },
+                { kind: "tick", bar: bar(1, 10) },
+            ]),
+            host: stubHost(),
+            initialVisibleBars: 5,
+        });
+        await runRendererLoop(handle);
+        // Framed exactly once on the first tick (1 bar): from 0, to 0.
+        expect(rangeCalls(chart)).toEqual([{ from: 0, to: 0 }]);
+    });
+
+    it("frames exactly once — later live bars and ticks do not re-frame", async () => {
+        const chart = new MockLwcApi();
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([
+                { kind: "history", bars: Array.from({ length: 10 }, (_, i) => bar(i)) },
+                { kind: "close", bar: bar(10) },
+                { kind: "tick", bar: bar(11, 12) },
+            ]),
+            host: stubHost(),
+            initialVisibleBars: 4,
+        });
+        await runRendererLoop(handle);
+        // Only the first history frame fires (from = max(0, 10 - 4) = 6, to = 9).
+        expect(rangeCalls(chart)).toEqual([{ from: 6, to: 9 }]);
+    });
+
+    it("never frames when initialVisibleBars is omitted (auto-fit unchanged)", async () => {
+        const chart = new MockLwcApi();
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([
+                { kind: "history", bars: Array.from({ length: 20 }, (_, i) => bar(i)) },
+                { kind: "close", bar: bar(20) },
+            ]),
+            host: stubHost(),
+        });
+        await runRendererLoop(handle);
+        expect(rangeCalls(chart)).toEqual([]);
+    });
+
+    it("does not frame on an empty (zero-bar) history batch", async () => {
+        const chart = new MockLwcApi();
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([
+                { kind: "history", bars: [] },
+                { kind: "close", bar: bar(1) },
+            ]),
+            host: stubHost(),
+            initialVisibleBars: 5,
+        });
+        await runRendererLoop(handle);
+        // The empty batch has no bars, so framing defers to the first close.
+        expect(rangeCalls(chart)).toEqual([{ from: 0, to: 0 }]);
     });
 });
 
