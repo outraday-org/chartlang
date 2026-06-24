@@ -79,7 +79,8 @@ test seam + capabilities-only conformance default export).
 - **Plot kinds map to NATIVE ECharts facilities** (per `buildOption`):
   candlestick / line (`step:'end'` for step-line) / area (`areaStyle`) /
   bar (histogram) / stacked line-pair (filled-band) / `markLine`
-  (horizontal-line) / `scatter` (shape/marker/character/arrow/label). The
+  (horizontal-line) / `graphic` (shape/marker/character/arrow/label — see the
+  glyph-graphic invariant below). The
   `line` / `step-line` / `area` series forward the IR stroke `lineWidth` +
   `LineStyle` dash into the ECharts `lineStyle` (`{ color, width, type, cap,
   join }`, where `type` is `"solid"|"dashed"|"dotted"` — byte-identical to the
@@ -96,6 +97,51 @@ test seam + capabilities-only conformance default export).
   narrowed (`SeriesStyle`) to EXCLUDE them, keeping `buildOption`'s series
   switch exhaustive over exactly the series-producing kinds.
 
+- **Line-family `colorValue` splits a series into same-paint RUNS (Task 5).**
+  Each line / step-line / area `SeriesPoint` carries an optional
+  `colorValue?: string | null` (threaded via the conditional-spread idiom, so
+  a no-`colorValue` point is byte-identical to the pre-feature stored shape).
+  `lineSeriesRuns` resolves each point's paint through `resolveLinePointColor`
+  (the normative `PlotEmission.colorValue` 3-state contract, mirroring
+  canvas2d's Task-3 `resolvePaintColor` — kept LOCAL because echarts paints
+  native `series`, not a `/canvas` sink; do NOT import the canvas2d helper
+  cross-example) and splits the points into consecutive same-colour runs:
+  **omitted ⇒ the series' static `seriesColor`** (never splits a run — the
+  byte-identity anchor), **a string ⇒ that bar's override** (a differing colour
+  starts a new run), **`null` ⇒ a paint-nothing gap** (breaks the run; the
+  finite value still folds into the y-scale via `seriesData`, only the PAINT is
+  suppressed). Each run is ONE `LineSeriesOption`: the first keeps the bare
+  `${pane}|${slotId}` name, later runs take a `#run${i}` suffix so series names
+  stay unique; every run carries its own colour in `lineStyle`/`itemStyle` and
+  a gap-filled `data` array (only its bars finite). A series with NO per-bar
+  `colorValue` collapses to ONE run whose `data === seriesData(...)` and name
+  `=== key` — byte-identical to the pre-feature single series, so every pinned
+  hash and the EMA-cross golden (static colours only) are untouched. A
+  fully-gapped series (every value `null`) still emits its single all-`GAP`
+  placeholder series. `histogram` / `filled-band` are NOT run-split (histogram
+  stays on the static series colour; the band is a stacked pair) — §3's
+  "line family" is line / step-line / area only.
+
+- **`alertConditions` + `logs` render as ALWAYS-ON-TOP `graphic.text`
+  overlays (Task 5).** `buildOption`'s `graphic` array is
+  `[...buildGraphicLayer(state), ...overlayPanelGraphics(state)]` — the
+  z-sorted glyph / drawing / horizontal-histogram layer FIRST, then the
+  alert-condition + log panels appended LAST (z-INDEPENDENT, the v1 deferral —
+  alert/log panes stay pinned on top, NOT in the `sortByRenderOrder` pass).
+  `alertConditionGraphics` mirrors the canvas2d `drawAlertConditions` layout
+  (one right-anchored `${conditionId}: ${defaultMessage}` row per FIRED
+  condition, stacked from `PANEL_Y`; non-fired conditions paint nothing);
+  `logPaneGraphics` mirrors `drawLogPane` (the last 5 `[${level}] ${message}`
+  rows, bottom-left). Both project against the OVERLAY pane viewport.
+  `overlayPanelGraphics` returns `[]` WITHOUT sampling `convertToPixel` when
+  nothing is fired / logged (`hasOverlayPanels` gate), so a clean frame's
+  graphic layer stays byte-identical and the no-spurious-sample invariant
+  holds. The EMA-cross integration bundle emits alerts but NO alert-conditions
+  / logs, so `PINNED_HASH` is unaffected. Alert BADGES (the canvas2d
+  per-fired-alert circle) are NOT rendered here — only the two declared
+  capability flags (`alertConditions` / `logs`) are made honest; badges stay
+  deferred.
+
 - **The candlestick body colours are EXPLICIT (canvas2d parity), not the
   ECharts default.** The candlestick series carries an
   `itemStyle: { color, color0, borderColor, borderColor0 }` pinned to the
@@ -106,6 +152,75 @@ test seam + capabilities-only conformance default export).
   bar-color) still tint individual bodies on top via each datum's `itemStyle`.
   Setting these series-level colours re-pinned `integration.test.ts`'s
   `PINNED_HASH` (the only structural change to the EMA-cross option tree).
+
+- **The five GLYPH kinds render as native `graphic` ELEMENTS, not a
+  `scatter` series (adapter-feature-parity Task 4).** `shape` / `character` /
+  `arrow` / `marker` / `label` are still BUFFERED in `state.series` (so
+  xShift / last-write style / z / seq carry through), but `SeriesStyle`
+  EXCLUDES them and the `buildOption` series switch's glyph arm emits nothing
+  — `buildGlyphGraphics` (via `buildGraphicLayer`) maps each glyph POINT to one
+  or more `graphic` elements instead:
+  - `marker` → the shared `glyphMarkerGraphic` (`primitiveToGraphic.ts`,
+    factored out of the marker-drawing mapper so the discrete-shape vertex
+    geometry is authored ONCE): `circle` → `circle`, the rest → a `polygon` of
+    the canvas2d `drawMarker` vertices.
+  - `shape` → the same marker helper for circle/triangle-up/triangle-down/
+    square/diamond; `cross` / `xcross` → TWO crossing `polyline`s; `flag` → one
+    open `polyline` (canvas2d `shape.ts` geometry). Honors `location`
+    (`above`/`below`/`absolute`) as a vertical pixel nudge
+    (`size · GLYPH_LOCATION_OFFSET_RATIO`, the canvas2d `OFFSET_RATIO`).
+  - `arrow` → a filled triangle `polygon` per `direction` (canvas2d `arrow.ts`
+    vertices) — an up arrow's apex is its top vertex, a down arrow's its bottom.
+  - `character` → a `graphic.text` (`text = char`, `font = "${size}px
+    sans-serif"`, `align: "center"`, `verticalAlign` from `location`).
+  - `label` → a `graphic.text` (`text`, default `10px sans-serif`
+    `LABEL_FONT_SIZE_PX`, `verticalAlign` from `position`, `anchor` ⇒ middle).
+  Glyphs are anchored by BAR TIME, not the category index: the glyph's
+  `shiftedBarTime(bars, bar, xShift, spacing)` → `timeToX` + `value` →
+  `priceToY` against the pane's `buildViewport` — the SAME projection drawings
+  use (the viewport's x is bar time). This DIVERGES from the line/band series
+  (still category-index via `seriesData`/`bandData`), so a glyph's `xShift`
+  lands at the SAME pixel as an unshifted glyph one bar over (and a far-past
+  `−k` glyph renders at an extrapolated negative-x pixel rather than being
+  category-clipped). A non-finite `value` skips the glyph (the only non-finite
+  source — bar time + the linear projection are always finite). Each glyph
+  carries `point.color ?? DEFAULT_LINE_COLOR`. The EMA-cross bundle emits no
+  glyphs, so `PINNED_HASH` is unaffected.
+
+- **`candle-override` colours each body BY THE BAR'S DIRECTION (bull / bear /
+  doji), resolved at render time.** `applyPlot` stores the whole palette as a
+  `{ kind: "direction", bull, bear, doji? }` `CandleStyle` (the bar's OHLC may
+  not be in `state.bars` yet at ingest); `buildOption`'s `resolveCandleColor`
+  then picks `close > open ? bull : close < open ? bear : (doji ?? bull)` per
+  bar — the canvas2d `candleOverride.ts:51` expression. `bar-override` /
+  `bar-color` are direction-INDEPENDENT and store a flat
+  `{ kind: "flat", color }` resolved at ingest (`bar-color` keeps the
+  `colorValue` precedence + `null`-drops-the-tint). All three still apply as the
+  candlestick datum's `itemStyle` (`color` === `color0`).
+
+- **Drawing / plot `z` participates via a `zlevel` band (Task 4).** Every plot
+  `series`, glyph, drawing, and horizontal-histogram carries a `(z ?? 0, band,
+  seq)` key (`band` from the shared `RENDER_BAND`, `seq` a per-state monotonic
+  ingest counter — `state.seq`, written in `applyPlot` per stored series and
+  `applyDrawing` per drawing handle; a drawing re-emit KEEPS its first seq so
+  live render order is stable). `buildGraphicLayer` collects the glyph +
+  drawing + horizontal-histogram batches, `sortByRenderOrder`s them (the SHARED
+  `adapter-kit` comparator — never re-ported), and flattens them in that order.
+  Because ECharts paints all `series` first then all `graphic` on top (separate
+  render systems, where numeric `z` only orders WITHIN a system), the
+  cross-system lever is `zlevel`: `zlevelFor(z)` sinks a `z < 0` mark to
+  `zlevel: -1` (painted under the default-`zlevel: 0` series) and lifts a
+  `z > 0` mark to `zlevel: +1` (above the default-`zlevel: 0` graphics);
+  `z === 0` OMITS `zlevel` (`zlevelSpread`), so the default-z option tree — and
+  `integration.test.ts`'s `PINNED_HASH` — is byte-identical. A `z:-1` drawing
+  thus renders beneath a `z:0` price line, and a `z>0` plot above drawings.
+  **Residual constraint:** ordering is achieved at this 3-band `zlevel`
+  granularity (`-1`/`0`/`+1`). Within ONE zlevel ECharts still cannot interleave
+  `graphic` and `series` arbitrarily (graphics paint above series at the same
+  zlevel), so fractional / multi-level interleaving of plots and drawings at the
+  same sign-of-z is not expressible — only the wire contract's `z < 0 ⇒ beneath
+  plots` / `z > 0 ⇒ above drawings` levers are. Alert badges / log panes stay
+  always-on-top, z-independent (the deferred-in-v1 posture).
 
 - **The universal `ta` `offset` (`PlotEmission.xShift`) displaces a series
   point's CATEGORY COLUMN, not its value — echarts is the category/index

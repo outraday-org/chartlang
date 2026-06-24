@@ -48,17 +48,18 @@ capabilities-only conformance default export).
   gutter`, so the scale parity with canvas2d is unchanged. A geometry change
   here re-snaps the integration `PINNED_HASH` (`hashKonvaScene`).
 
-- **A dedicated `axisLayer` (the stage's THIRD layer) paints the
+- **A dedicated `axisLayer` (the stage's SECOND / top layer) paints the
   right-gutter price axis.** `rebuildAxisLayer` emits one column of "nice"
   tick labels per pane (`niceTicks`/`formatTick` in `src/axis.ts`,
   pure + unit-tested) as `Text` nodes at `viewport.pxWidth +
   AXIS_LABEL_GAP_PX`, coloured `palette.axisLabel`. Labels on the RIGHT match
   the house convention (canvas2d / echarts / lightweight-charts). It is a
-  stateless redraw rebuilt alongside the series + drawings layers at every
-  call site, and rides its OWN top layer so `roots[1]`/`roots[2]` (series /
-  drawings) — and their structural leaf-count assertions — are untouched; only
-  `hashKonvaScene` (all roots) re-pins. A degenerate y range yields no ticks
-  (`niceTicks` returns `[]`), so a flat/empty pane paints no labels.
+  stateless redraw rebuilt alongside the series layer at every call site, and
+  rides its OWN top layer so `roots[1]` (the series layer, now carrying the
+  z-sorted drawings too) — and its structural leaf-count assertions — are
+  untouched; only `hashKonvaScene` (all roots) re-pins. A degenerate y range
+  yields no ticks (`niceTicks` returns `[]`), so a flat/empty pane paints no
+  labels.
 
 - **Zoom / pan / auto-fit via the shared adapter-kit `ViewController`** (same
   wiring as canvas2d). `state.view.resolveXWindow` picks the per-frame
@@ -145,9 +146,22 @@ capabilities-only conformance default export).
   closed filled `Line`; histogram → per-bar `Rect`; filled-band → closed
   `Line` (per-bar bounds ride `SeriesPoint.band`, set in `applyPlot`, so
   the band reads them straight off the series — no emission re-read);
-  horizontal-line → a `Line` across the pane; shape / marker → a `Rect`
-  glyph; character / arrow / label → a `Text` glyph; candle-override /
-  bar-override / bar-color → a per-bar tint `Rect`; bg-color → a per-bar
+  horizontal-line → a `Line` across the pane; shape / marker → their REAL
+  per-shape glyph geometry via the shared `shapeGlyphNodes`
+  (`primitiveToNode.ts`) — the five filled shapes
+  (circle → ring `Arc`, square → `Rect`, diamond / triangle → closed `Line`)
+  carry a `fill`, the three stroked glyphs (cross / xcross / flag) carry a
+  1px `stroke` of open `Line`s, matching canvas2d's `drawShape`; `shape`
+  honours its `location` (above lifts / below drops / absolute pins via
+  `anchoredGlyphY`, `size * 1.25`), `marker` carries no `location` and pins
+  at the value; character / arrow / label → a `Text` glyph;
+  **candle-override** picks bull / bear / doji by the bar's direction
+  (`close > open ? bull : close < open ? bear : doji ?? bull`, copying
+  canvas2d's `drawCandleOverride`); **bar-color** honours the `colorValue`
+  3-state precedence (omitted ⇒ `style.color`, present ⇒ override, `null` ⇒
+  no tint this bar — mirroring bg-color), **bar-override** keeps its static
+  colour — all three a per-bar tint `Rect` (resolved by `overrideColor`);
+  bg-color → a per-bar
   background `Rect` whose node-level `opacity` is `1 - (style.transp ?? 0)/100`
   (the Konva idiom for canvas2d's `globalAlpha`; `transp` omitted ⇒ opacity 1,
   byte-identical to a transp-less band) and whose fill honours the `colorValue`
@@ -161,32 +175,111 @@ capabilities-only conformance default export).
   set/reset `RecordedCall`s so the hash reflects the wash; an absent / unity
   opacity contributes no `globalAlpha` calls (pinned hashes untouched).
 
-- **The series + drawings layers are rebuilt every drain (stateless
-  redraw).** `onEmissions` ingests + `rebuildSeriesLayer`
+- **The stage has TWO layers: a series layer (roots[1]) and an axis layer
+  (roots[2]); both rebuilt every drain (stateless redraw).** The series
+  layer carries plots / glyphs / hlines AND drawings — there is no separate
+  drawings layer, because Konva layers paint in a FIXED stage order, so a
+  dedicated drawings layer (always above the series layer) could not let a
+  `z:1` plot paint above a drawing or a `z:-1` drawing sink below a plot.
+  `onEmissions` ingests + `rebuildSeriesLayer`
   (`seriesLayer.destroyChildren()` → one `Group` per pane → `batchDraw()`)
-  + `rebuildDrawingsLayer` (`drawingsLayer.destroyChildren()` → one overlay
-  `Group` of decomposed drawing nodes → `batchDraw()`). Matches canvas2d's
-  stateless per-frame redraw. `feedCandleEvent` rebuilds BOTH layers too,
-  because a new bar shifts the overlay `Viewport` the drawings project
-  against.
+  + `rebuildAxisLayer`. `feedCandleEvent` rebuilds both layers too, because a
+  new bar shifts the overlay `Viewport` the series + drawings project against.
+
+- **`rebuildSeriesLayer` paints substrate BELOW one per-pane z-sorted pass.**
+  Per pane: bg-color tints, then candles, then candle / bar / bar-color
+  overrides paint FIRST (substrate, `z`-independent, matching canvas2d).
+  Then `collectSortableMarks` gathers every sortable mark — plot **series**,
+  **glyph** overlays (shape / marker / character / arrow / label /
+  horizontal-histogram, overlay pane only, selected by `isGlyphOverlay`),
+  horizontal **lines**, and **drawings** (overlay pane only) — tags each
+  `(z, band, seq)`, and the SHARED `sortByRenderOrder` /
+  `RENDER_BAND` (`@invinite-org/chartlang-adapter-kit`, imported NOT
+  re-ported) stable-sorts ascending by `z`, then `band`, then `seq`.
+  `paintSortableMark` then dispatches each to its existing builder
+  (`buildSeriesEntry` / `buildOverlay` / `buildHLine` / `decomposeDrawing` +
+  `primitiveToNode`). At the default `z = 0` the key reduces to
+  `(band, declarationSeq)` = series → glyphs → hlines → drawings, the
+  pre-`z` phase order. A `z:-1` drawing sinks below `z:0` plots; a `z:1`
+  plot lifts above a `z:0` drawing. `z` / `seq` are assigned at ingest
+  (`applyPlot` / `applyDrawing`: `emission.z ?? 0` + a global `state.seq++`);
+  `SeriesPoint` / `PanedHLine` carry `z`/`seq` inline (a series mark uses its
+  LAST point's, last-write-wins like its style), while glyph overlays and
+  drawings keep their `seq` in the parallel `overlaySeq` / `drawingSeq` maps
+  (the stores hold the raw emission, which has no `seq` field). The
+  alert-condition strip + log pane paint as a `z`-independent always-on-top
+  tail AFTER this pass (see below), like canvas2d. Sorting is per-pane, never
+  cross-pane.
+
+- **`buildAlertConditions` + `buildLogPane` paint the always-on-top tail in
+  the OVERLAY pane group, AFTER the z-sorted marks — NOT sortable by `z` in
+  v1.** A deliberate deferral mirroring canvas2d's `renderOverlayTail`: the
+  condition strip (`buildAlertConditions`, fired-only, top-right) and the log
+  pane (`buildLogPane`, latest N, bottom-left) emit one `Text` node per row
+  (coloured `palette.plotDefault`, layout constants mirroring canvas2d's
+  `render/alertConditions.ts` + `render/logPane.ts`). They ride `roots[1]`
+  (the series layer's overlay group — sharing its coordinate space), NOT the
+  axis layer (`roots[2]`), so they sit above plots / glyphs / hlines /
+  drawings within the chart. An empty fired-set / empty log buffer paints
+  nothing. Because they are the LAST nodes appended to the overlay group, a
+  test that asserted the overlay group's full leaf order (e.g. the
+  drawings create+remove case) now sees the trailing `Text` tail.
+
+- **Line-family `colorValue` is honoured 3-state via per-run konva `Line`
+  segments — `resolvePaintColor` (`primitiveToNode.ts`) is the ONE precedence
+  helper.** Konva is forbidden from importing canvas2d's
+  `render/colorValue.ts` (no cross-example `src/` imports) and the helper was
+  NOT promoted to adapter-kit, so `resolvePaintColor(colorValue, staticColor,
+  plotDefault)` is the konva-LOCAL copy of the shared contract — sited beside
+  `withAlpha` (the same "konva-local shared colour helper" home), reused by
+  line / step-line / area / histogram. Omitted ⇒ `staticColor ?? plotDefault`;
+  present ⇒ override; `null` ⇒ `null` (paint-nothing gap). `SeriesPoint`
+  carries an optional `colorValue?: string | null`, threaded in `applyPlot`
+  via the conditional-spread idiom (a no-`colorValue` point is byte-identical
+  to the pre-feature shape, so existing goldens / the integration
+  `PINNED_HASH` hold). `colorRuns(series, staticColor, plotDefault, project)`
+  splits line / step-line / area into consecutive same-colour RUNS: a run
+  breaks on a `null`/non-finite `value` (the existing gap), on a `null`
+  `colorValue` (paint-nothing gap), AND when the resolved colour CHANGES —
+  but the static top-level `color` NEVER splits a run (only an explicit
+  `colorValue` does). `staticColor = seriesColor(series, plotDefault)` (the
+  last non-null static colour) seeds the run, so a no-`colorValue` series is
+  exactly ONE run, byte-identical. A single-point run (< 4 coords) is not a
+  drawable polyline and is skipped (like canvas2d), so an isolated value
+  between two gaps paints nothing. Histogram resolves per column (no run
+  logic): `resolvePaintColor(point.colorValue, point.color, plotDefault)`,
+  `null` ⇒ skip the column. `colorValue` is orthogonal to the y-scale — a
+  finite `value` with `colorValue:null` still entered `computeYRange`, so
+  only the PAINT is suppressed, never the scale contribution. Wire-level
+  honesty only: `plot()` emits `colorValue:undefined` today, so no
+  conformance scenario exercises it (coverage is synthetic-emission unit
+  tests). `filled-band` is unaffected — its colour is band-level, outside the
+  4-kind line-family scope.
 
 - **`onEmissions` ingests the FULL emission surface without throwing.**
   Plots are validated + accumulated; drawings are validated + buffered in
-  `state.drawings` (`op:"remove"` drops the key) and rendered on the
-  drawings layer; alerts / alertConditions / logs / diagnostics are
-  validated-and-ignored (no alert badge, log pane, or condition strip in
-  v1 — a deferred follow-up, like canvas2d's tail pass). The capabilities
-  declare them, so the adapter must accept them gracefully.
+  `state.drawings` (`op:"remove"` drops the key, also from `drawingSeq`) and
+  rendered in the series layer's overlay-pane z-sorted pass.
+  **`alertConditions` + `logs` now RENDER** (see the always-on-top tail
+  invariant below): `alertConditions` are CURRENT-drain state —
+  `ingest` clears `state.currentAlertConditions` then re-collects the
+  validated set each drain (the renderer paints only the `fired` ones),
+  mirroring canvas2d; `logs` accumulate into `state.recentLogs` capped at
+  `MAX_VISIBLE_LOGS` (5, matching canvas2d). `alerts` (the alert-BADGE
+  renderer) and `diagnostics` stay validated-and-ignored — alert badges are
+  a separate deferral (the `alerts: log,toast` capability is about delivery
+  channels, not a badge), diagnostics carry no visual. The capabilities
+  declare every channel, so the adapter accepts the full surface gracefully.
 
 - **Drawings render through the shared geometry layer, not local
-  per-kind code.** `rebuildDrawingsLayer` decomposes each live drawing
-  ONCE via `decomposeDrawing` (from `@invinite-org/chartlang-adapter-kit`,
-  exhaustive over all 63 kinds) against the OVERLAY pane's `Viewport`, then
-  maps each `DrawPrimitive` to its Konva node(s) with `primitiveToNode`
-  (`src/primitiveToNode.ts`). Drawings render in the overlay pane only
-  (matching canvas2d), riding a `Group` translated to the overlay pane
-  origin. To change drawing geometry, edit the adapter-kit decomposers —
-  never fork them here.
+  per-kind code.** `paintSortableMark`'s `drawing` arm decomposes each live
+  drawing ONCE via `decomposeDrawing` (from
+  `@invinite-org/chartlang-adapter-kit`, exhaustive over all 63 kinds)
+  against the OVERLAY pane's `Viewport`, then maps each `DrawPrimitive` to
+  its Konva node(s) with `primitiveToNode` (`src/primitiveToNode.ts`).
+  Drawings render in the overlay pane only (matching canvas2d), into the
+  overlay pane's `Group` in z-sort order. To change drawing geometry, edit
+  the adapter-kit decomposers — never fork them here.
 
 - **`primitiveToNode` is the Konva sink (the scene-graph analogue of
   `paintPrimitive`).** `polyline` → one `Line` (open/closed, dash, fill);
@@ -196,12 +289,25 @@ capabilities-only conformance default export).
   canvas `arc() + closePath()`, which `Arc`'s wedge cannot); `text` → one
   `Text` (IR `align`/`baseline` → Konva `align`/`verticalAlign`; the
   `"<px>px <family>"` font split by `parseFont`) PRECEDED by a backing
-  `Rect` when `bgColor` is set; `marker` → a per-shape glyph (circle →
-  `Arc`, square → `Rect`, diamond/triangle → closed `Line`). Stroke/fill
+  `Rect` when `bgColor` is set; `marker` → a per-shape glyph through the
+  SHARED `shapeGlyphNodes` (the IR `marker` primitive's 5-shape union is a
+  subset of `shapeGlyphNodes`' 8-shape `ShapeGlyph`). Stroke/fill
   `alpha` is baked into the `#rrggbbaa` colour (not a node-level `opacity`)
   so the hash projection reads it. A primitive whose anchors are all
   non-finite yields no node — a documented divergence from the canvas
   painter's `NaN` no-op.
+
+- **`shapeGlyphNodes` is the ONE glyph-geometry source for all 8 shapes,
+  shared by the `marker` drawing primitive AND the `marker` / `shape`
+  plot kinds** (`primitiveToNode.ts`). Five filled shapes (circle → ring
+  `Arc`, square → `Rect`, diamond / triangle-up / triangle-down → closed
+  `Line`) take a `fill`; three stroked glyphs (cross → two open `Line`s,
+  xcross → two crossing `Line`s, flag → one open polyline) take a `stroke`,
+  matching canvas2d's `drawShape`. `markerNodes` (the 5-shape IR `marker`
+  primitive) delegates after resolving its `StrokeStyle` / `FillStyle` into
+  Konva fragments; the plot path resolves `plot.color` → fill (filled
+  shapes) / stroke (cross family). Non-finite anchor or size ⇒ no node. Do
+  NOT add a parallel per-shape switch — extend this one helper.
 
 - **`withAlpha` is the SINGLE guarded colour helper, exported from
   `primitiveToNode.ts` and reused by the series builders.** It bakes an
@@ -266,10 +372,15 @@ capabilities-only conformance default export).
   `setTimeout(0)` yield, reusing `feedCandleEvent` for the per-event
   repaint), so the integration test MAY drive via it; it currently hand-rolls
   the equivalent `feedCandleEvent` + `host.push`/`drain` + `onEmissions` per
-  event. It asserts the series + drawings node trees structurally AND a
-  pinned `PINNED_HASH` — re-snap from the failure message on a deliberate
-  mapping change. Driving via `runKonvaLoop` must keep the same hash (the
-  EMA-cross bundle emits no new geometry).
+  event. The drawings now ride the SERIES layer (`roots[1]`) in the z-sorted
+  pass — there is no longer a separate drawings layer — so the test asserts
+  candles + EMA series + drawings on `roots[1]` structurally AND a pinned
+  `PINNED_HASH`. The hash was UNCHANGED by the z-sort move: the EMA-cross
+  bundle's drawings all default to `z = 0`, so they still paint after the
+  candles + series within the overlay group (the same projected call-log
+  order `hashKonvaScene` reads). Re-snap from the failure message on a
+  deliberate mapping change. Driving via `runKonvaLoop` must keep the same
+  hash.
 
 - **`src/conformance.test.ts` runs `runConformanceSuite(DEFAULT_ADAPTER)`
   → `failed === 0`.** This adds `@invinite-org/chartlang-conformance` as a

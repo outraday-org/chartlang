@@ -432,6 +432,78 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
         expect(lines).toHaveLength(2);
     });
 
+    it("filled-band forwards plot.color to BOTH edge series", async () => {
+        const chart = await runWithPlots([
+            plot(
+                { kind: "filled-band", upper: 5, lower: 1, alpha: 0.2 },
+                { slotId: "band", color: "#26a69a" },
+            ),
+        ]);
+        const lines = chart.calls.filter((c) => c.kind === "addSeries" && c.seriesType === "Line");
+        expect(lines).toHaveLength(2);
+        for (const line of lines) {
+            expect(line.kind === "addSeries" && line.options).toEqual({ color: "#26a69a" });
+        }
+    });
+
+    it("filled-band with a null color records no colour on its edges", async () => {
+        const chart = await runWithPlots([
+            plot(
+                { kind: "filled-band", upper: 5, lower: 1, alpha: 0.2 },
+                { slotId: "band", color: null },
+            ),
+        ]);
+        const lines = chart.calls.filter((c) => c.kind === "addSeries" && c.seriesType === "Line");
+        for (const line of lines) {
+            expect(line.kind === "addSeries" && line.options).toEqual({});
+        }
+    });
+
+    it("area folds fillAlpha into lineColor + top/bottom gradient", async () => {
+        const chart = await runWithPlots([
+            plot(
+                { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: 0.3 },
+                { slotId: "ar", color: "#26a69a" },
+            ),
+        ]);
+        const area = chart.calls.find((c) => c.kind === "addSeries" && c.seriesType === "Area");
+        expect(area?.kind === "addSeries" && area.options).toMatchObject({
+            lineColor: "#26a69a",
+            topColor: "rgba(38, 166, 154, 0.3)",
+            bottomColor: "rgba(38, 166, 154, 0)",
+        });
+    });
+
+    it("area with a null color records no colour fields", async () => {
+        const chart = await runWithPlots([
+            plot(
+                { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: 0.3 },
+                { slotId: "ar", color: null },
+            ),
+        ]);
+        const area = chart.calls.find((c) => c.kind === "addSeries" && c.seriesType === "Area");
+        expect(area?.kind === "addSeries" && Object.keys(area.options)).toEqual(["lineWidth"]);
+    });
+
+    it("area folds a 3-digit hex and passes a non-hex colour through verbatim", async () => {
+        const chart = await runWithPlots([
+            plot(
+                { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: 0.5 },
+                { slotId: "ar1", color: "#0f0" },
+            ),
+            plot(
+                { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: 0.5 },
+                { slotId: "ar2", color: "tomato" },
+            ),
+        ]);
+        const areas = chart.calls.filter((c) => c.kind === "addSeries" && c.seriesType === "Area");
+        expect(areas[0]?.kind === "addSeries" && areas[0].options.topColor).toBe(
+            "rgba(0, 255, 0, 0.5)",
+        );
+        // A non-hex colour can't fold an alpha — `hexToRgba` returns it verbatim.
+        expect(areas[1]?.kind === "addSeries" && areas[1].options.topColor).toBe("tomato");
+    });
+
     it("filled-band visible:false hides both edges", async () => {
         const chart = await runWithPlots([
             plot(
@@ -594,39 +666,174 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
         expect(chart.calls.some((c) => c.kind === "removePriceLine")).toBe(false);
     });
 
-    it("shape / character / arrow / marker / label set markers on the candle series", async () => {
+    it("native-expressible glyphs set distinct markers on the candle series", async () => {
         const chart = await runWithPlots([
-            plot({ kind: "shape", shape: "flag", size: 1 }, { slotId: "sh" }),
-            plot({ kind: "character", char: "X", size: 1 }, { slotId: "ch" }),
-            plot({ kind: "arrow", direction: "up", size: 1 }, { slotId: "ar" }),
-            plot({ kind: "marker", shape: "circle", size: 1 }, { slotId: "mk" }),
+            plot({ kind: "arrow", direction: "up", size: 1 }, { slotId: "au" }),
+            plot({ kind: "arrow", direction: "down", size: 1 }, { slotId: "ad" }),
+            plot({ kind: "character", char: "X", size: 2 }, { slotId: "ch" }),
+            plot({ kind: "marker", shape: "circle", size: 3 }, { slotId: "mk" }),
             plot({ kind: "label", text: "hi", position: "above" }, { slotId: "lb" }),
         ]);
-        expect(chart.calls.filter((c) => c.kind === "setMarkers")).toHaveLength(5);
+        const markers = chart.calls
+            .filter((c) => c.kind === "setMarkers")
+            .flatMap((c) => (c.kind === "setMarkers" ? c.markers : []));
+        // Arrow up vs down differ in shape AND position.
+        const up = markers.find((m) => m.shape === "arrowUp");
+        const down = markers.find((m) => m.shape === "arrowDown");
+        expect(up).toMatchObject({ shape: "arrowUp", position: "belowBar", color: "#3b82f6" });
+        expect(down).toMatchObject({ shape: "arrowDown", position: "aboveBar" });
+        // character carries its char as marker text; label carries its text.
+        expect(markers.find((m) => m.text === "X")).toMatchObject({
+            shape: "circle",
+            position: "inBar",
+            size: 2,
+        });
+        expect(markers.find((m) => m.text === "hi")).toMatchObject({ position: "aboveBar" });
+        // The circle marker is native (no text), size forwarded.
+        expect(markers.find((m) => m.shape === "circle" && m.text === undefined)).toMatchObject({
+            size: 3,
+            position: "inBar",
+        });
     });
 
-    it("a marker with a null value is skipped", async () => {
+    it("a native glyph forwards plot.color and falls back to the default on null", async () => {
         const chart = await runWithPlots([
+            plot({ kind: "marker", shape: "square", size: 1 }, { slotId: "m1", color: "#26a69a" }),
+            plot({ kind: "marker", shape: "square", size: 1 }, { slotId: "m2", color: null }),
+        ]);
+        const markers = chart.calls
+            .filter((c) => c.kind === "setMarkers")
+            .flatMap((c) => (c.kind === "setMarkers" ? c.markers : []));
+        expect(markers.map((m) => m.color)).toEqual(["#26a69a", "#3b82f6"]);
+    });
+
+    it("a shape glyph resolves location to a native marker position", async () => {
+        const chart = await runWithPlots([
+            plot({ kind: "shape", shape: "circle", size: 1, location: "below" }, { slotId: "s1" }),
+            plot(
+                { kind: "shape", shape: "square", size: 1, location: "absolute" },
+                { slotId: "s2" },
+            ),
+            plot({ kind: "shape", shape: "circle", size: 1 }, { slotId: "s3" }),
+        ]);
+        const markers = chart.calls
+            .filter((c) => c.kind === "setMarkers")
+            .flatMap((c) => (c.kind === "setMarkers" ? c.markers : []));
+        expect(markers.map((m) => m.position)).toEqual(["belowBar", "inBar", "inBar"]);
+    });
+
+    it("overlay-routed glyphs do NOT go native (no setMarkers)", async () => {
+        const chart = await runWithPlots([
+            plot({ kind: "shape", shape: "flag", size: 1 }, { slotId: "sh" }),
+            plot({ kind: "shape", shape: "cross", size: 1 }, { slotId: "cr" }),
+            plot({ kind: "marker", shape: "diamond", size: 1 }, { slotId: "di" }),
+            plot({ kind: "marker", shape: "triangle-up", size: 1 }, { slotId: "tu" }),
+        ]);
+        expect(chart.calls.some((c) => c.kind === "setMarkers")).toBe(false);
+    });
+
+    it("a glyph with a null value is skipped (neither native nor buffered)", async () => {
+        const chart = await runWithPlots([
+            plot({ kind: "arrow", direction: "up", size: 1 }, { slotId: "ar", value: null }),
             plot({ kind: "shape", shape: "flag", size: 1 }, { slotId: "sh", value: null }),
         ]);
         expect(chart.calls.some((c) => c.kind === "setMarkers")).toBe(false);
     });
 
-    it("candle-override applies a whole-series up/down tint", async () => {
-        const chart = await runWithPlots([
-            plot(
-                { kind: "candle-override", bull: "#0f0", bear: "#f00" },
-                { slotId: "co", time: 1 },
-            ),
-        ]);
-        const tints = chart.calls.filter(
-            (c) => c.kind === "applyOptions" && "upColor" in c.options,
-        );
-        expect(tints).toHaveLength(1);
-        expect(tints[0].kind === "applyOptions" && tints[0].options).toEqual({
-            upColor: "#0f0",
-            downColor: "#f00",
+    it("candle-override recolours each bar's body+border+wick by direction", async () => {
+        // Bull bar (close>open) → bull; bear bar (close<open) → bear; doji
+        // (close===open) → doji. Each bar carries its own candle-override.
+        const bull: Bar = { ...bar(1, 10), open: 9, close: 11 };
+        const bear: Bar = { ...bar(2, 10), open: 11, close: 9 };
+        const doji: Bar = { ...bar(3, 10), open: 10, close: 10 };
+        const chart = new MockLwcApi();
+        const host = stubHost();
+        let frame = 0;
+        (host.drain as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+            frame += 1;
+            const t = frame;
+            return emissions({
+                plots: [
+                    plot(
+                        { kind: "candle-override", bull: "#0f0", bear: "#f00", doji: "#888" },
+                        { slotId: "co", time: t },
+                    ),
+                ],
+            });
         });
+        const handle = createLightweightChartsAdapter({
+            chartApi: chart,
+            candleSource: eventSource([
+                { kind: "close", bar: bull },
+                { kind: "close", bar: bear },
+                { kind: "close", bar: doji },
+            ]),
+            host,
+        });
+        await runRendererLoop(handle);
+        // No whole-series tint — the colour rides per-bar data points.
+        expect(chart.calls.some((c) => c.kind === "applyOptions" && "upColor" in c.options)).toBe(
+            false,
+        );
+        const colorAt = (time: number): string | undefined => {
+            const tinted = [...chart.calls]
+                .reverse()
+                .find((c) => c.kind === "update" && c.time === time && c.color !== undefined);
+            return tinted?.kind === "update" ? tinted.color : undefined;
+        };
+        expect(colorAt(1)).toBe("#0f0");
+        expect(colorAt(2)).toBe("#f00");
+        expect(colorAt(3)).toBe("#888");
+    });
+
+    it("candle-override doji falls back to bull when no doji colour is given", async () => {
+        const doji: Bar = { ...bar(1, 10), open: 10, close: 10 };
+        const chart = await runWithPlots(
+            [
+                plot(
+                    { kind: "candle-override", bull: "#0f0", bear: "#f00" },
+                    { slotId: "co", time: 1 },
+                ),
+            ],
+            [{ kind: "close", bar: doji }],
+        );
+        const tinted = chart.calls.find(
+            (c) => c.kind === "update" && c.color !== undefined && c.open !== undefined,
+        );
+        expect(tinted?.kind === "update" && tinted.color).toBe("#0f0");
+    });
+
+    it("a candle-override whose time matches no known bar is a no-op for that frame", async () => {
+        // The bar in state is time 1; the override targets time 99 → no candle
+        // re-update, no per-point colour.
+        const chart = await runWithPlots(
+            [
+                plot(
+                    { kind: "candle-override", bull: "#0f0", bear: "#f00" },
+                    { slotId: "co", time: 99 },
+                ),
+            ],
+            [{ kind: "close", bar: bar(1) }],
+        );
+        expect(chart.calls.some((c) => c.kind === "update" && c.color !== undefined)).toBe(false);
+    });
+
+    it("bar-color wins over candle-override on the same bar", async () => {
+        const bull: Bar = { ...bar(1, 10), open: 9, close: 11 };
+        const chart = await runWithPlots(
+            [
+                plot(
+                    { kind: "candle-override", bull: "#0f0", bear: "#f00" },
+                    { slotId: "co", time: 1 },
+                ),
+                plot({ kind: "bar-color", color: "#2962ff" }, { slotId: "bc", time: 1 }),
+            ],
+            [{ kind: "close", bar: bull }],
+        );
+        const tinted = [...chart.calls]
+            .reverse()
+            .find((c) => c.kind === "update" && c.color !== undefined);
+        expect(tinted?.kind === "update" && tinted.color).toBe("#2962ff");
     });
 
     it("bar-color recolours the candle DATA POINT body + border + wick for that bar", async () => {
@@ -736,7 +943,7 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
         expect(chart.calls.some((c) => c.kind === "update" && c.color !== undefined)).toBe(false);
     });
 
-    it("bg-color and horizontal-histogram are documented no-ops", async () => {
+    it("bg-color buffers an overlay band (no native series) and horizontal-histogram stays a no-op", async () => {
         const chart = await runWithPlots([
             plot({ kind: "bg-color", color: "#222" }, { slotId: "bg" }),
             plot(
@@ -744,17 +951,29 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
                 { slotId: "hh" },
             ),
         ]);
+        // bg-color paints through the overlay, not a native series — only the
+        // candle series is created. horizontal-histogram remains a no-op.
         expect(chart.calls.filter((c) => c.kind === "addSeries")).toHaveLength(1);
         expect(chart.calls.some((c) => c.kind === "setMarkers")).toBe(false);
     });
 
-    it("a marker before any candle series is a no-op", () => {
+    it("a native glyph before any candle series is a no-op", () => {
         const { handle, chart } = build();
-        handle.onEmissions(emissions({ plots: [plot({ kind: "shape", shape: "flag", size: 1 })] }));
+        handle.onEmissions(
+            emissions({ plots: [plot({ kind: "marker", shape: "circle", size: 1 })] }),
+        );
         expect(chart.calls.some((c) => c.kind === "setMarkers")).toBe(false);
     });
 
-    it("a candle-override tint before any candle series is a no-op", () => {
+    it("an overlay-routed glyph before any candle series buffers, painting no native call", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(emissions({ plots: [plot({ kind: "shape", shape: "flag", size: 1 })] }));
+        // No native marker; the glyph is buffered for the overlay (painted once
+        // the candle series + primitive exist).
+        expect(chart.calls).toEqual([]);
+    });
+
+    it("a candle-override before any candle series is a no-op", () => {
         const { handle, chart } = build();
         handle.onEmissions(
             emissions({
@@ -787,6 +1006,245 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
             }),
         );
         expect(chart.calls).toEqual([]);
+    });
+});
+
+describe("createLightweightChartsAdapter — line-family colorValue (Task 13)", () => {
+    const lineCv = (overrides: Partial<PlotEmission>): PlotEmission =>
+        plot(LINE_STYLE, { slotId: "cv", ...overrides });
+
+    // The native series the run path created, in creation order, with their
+    // creation `options` (each run carries its run colour).
+    const runSeries = (chart: MockLwcApi): ReadonlyArray<Record<string, unknown>> =>
+        chart.calls
+            .filter((c) => c.kind === "addSeries")
+            .map((c) => (c.kind === "addSeries" ? c.options : {}));
+
+    // Every `update` recorded against a given series id, in order.
+    const updatesFor = (chart: MockLwcApi, seriesId: string): ReadonlyArray<number | null> =>
+        chart.calls.flatMap((c) =>
+            c.kind === "update" && c.seriesId === seriesId ? [c.value] : [],
+        );
+
+    it("omitted colorValue stays one native series (byte-identical path)", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(emissions({ plots: [lineCv({ value: 1 })] }));
+        handle.onEmissions(emissions({ plots: [lineCv({ value: 2 })] }));
+        const series = chart.calls.filter((c) => c.kind === "addSeries");
+        expect(series).toHaveLength(1);
+        // No run colour folded in — the single-series path forwards the static
+        // colour exactly as before.
+        expect(series[0]?.kind === "addSeries" && series[0].options).toEqual({
+            color: "#3b82f6",
+            lineWidth: 1,
+            lineType: 2,
+        });
+    });
+
+    it("a mid-series color change opens a second run series with the boundary bar duplicated", () => {
+        const { handle, chart } = build();
+        // Two bars in the run colour #aaa, then a bar in #bbb → a second series.
+        handle.onEmissions(
+            emissions({ plots: [lineCv({ time: 1, value: 1, colorValue: "#aaa" })] }),
+        );
+        handle.onEmissions(
+            emissions({ plots: [lineCv({ time: 2, value: 2, colorValue: "#aaa" })] }),
+        );
+        handle.onEmissions(
+            emissions({ plots: [lineCv({ time: 3, value: 3, colorValue: "#bbb" })] }),
+        );
+        const series = runSeries(chart);
+        expect(series).toHaveLength(2);
+        expect(series[0]).toMatchObject({ color: "#aaa" });
+        expect(series[1]).toMatchObject({ color: "#bbb" });
+        // The first run holds bars 1 & 2; the second run duplicates bar 2's
+        // value (the boundary) then draws bar 3 — so it joins visually.
+        expect(updatesFor(chart, "s0")).toEqual([1, 2]);
+        expect(updatesFor(chart, "s1")).toEqual([2, 3]);
+    });
+
+    it("a colorValue:null bar is a gap — the run ends and no series spans it", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(
+            emissions({ plots: [lineCv({ time: 1, value: 1, colorValue: "#aaa" })] }),
+        );
+        handle.onEmissions(emissions({ plots: [lineCv({ time: 2, value: 2, colorValue: null })] }));
+        handle.onEmissions(
+            emissions({ plots: [lineCv({ time: 3, value: 3, colorValue: "#aaa" })] }),
+        );
+        const series = runSeries(chart);
+        // Two runs (#aaa before the gap, #aaa after) — but the post-gap run does
+        // NOT duplicate a boundary across the gap.
+        expect(series).toHaveLength(2);
+        expect(updatesFor(chart, "s0")).toEqual([1]);
+        expect(updatesFor(chart, "s1")).toEqual([3]);
+    });
+
+    it("a non-finite value mid-run is a gap that is not bridged into the next run", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(
+            emissions({ plots: [lineCv({ time: 1, value: 1, colorValue: "#aaa" })] }),
+        );
+        handle.onEmissions(
+            emissions({ plots: [lineCv({ time: 2, value: null, colorValue: "#aaa" })] }),
+        );
+        handle.onEmissions(
+            emissions({ plots: [lineCv({ time: 3, value: 3, colorValue: "#bbb" })] }),
+        );
+        // Same #aaa run absorbs the whitespace point (no colour change), then
+        // #bbb opens a new run — but bar 2 was a gap so it is NOT duplicated.
+        expect(updatesFor(chart, "s0")).toEqual([1, null]);
+        expect(updatesFor(chart, "s1")).toEqual([3]);
+    });
+
+    it("the explicit colorValue is the run colour regardless of the static color", () => {
+        // The run colour is the per-bar `colorValue`, NOT the static `plot.color`
+        // — even a null static color yields a concrete run colour.
+        const { handle, chart } = build();
+        handle.onEmissions(
+            emissions({ plots: [lineCv({ value: 1, color: null, colorValue: "#0f0" })] }),
+        );
+        expect(runSeries(chart)[0]).toMatchObject({ color: "#0f0" });
+    });
+
+    it("step-line run-split carries the native step lineType per run", () => {
+        const { handle, chart } = build();
+        const step = (o: Partial<PlotEmission>): PlotEmission =>
+            plot({ kind: "step-line", lineWidth: 1, lineStyle: "solid" }, { slotId: "st", ...o });
+        handle.onEmissions(emissions({ plots: [step({ time: 1, value: 1, colorValue: "#aaa" })] }));
+        handle.onEmissions(emissions({ plots: [step({ time: 2, value: 2, colorValue: "#bbb" })] }));
+        const series = runSeries(chart);
+        expect(series).toHaveLength(2);
+        for (const s of series) expect(s).toMatchObject({ lineType: 1, color: expect.any(String) });
+    });
+
+    it("area run-split folds the run colour into lineColor + gradient", () => {
+        const { handle, chart } = build();
+        const area = (o: Partial<PlotEmission>): PlotEmission =>
+            plot(
+                { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: 0.4 },
+                { slotId: "ar", ...o },
+            );
+        handle.onEmissions(
+            emissions({ plots: [area({ time: 1, value: 1, colorValue: "#112233" })] }),
+        );
+        const series = chart.calls.filter((c) => c.kind === "addSeries" && c.seriesType === "Area");
+        expect(series).toHaveLength(1);
+        expect(series[0]?.kind === "addSeries" && series[0].options).toMatchObject({
+            lineColor: "#112233",
+            topColor: "rgba(17, 34, 51, 0.4)",
+            bottomColor: "rgba(17, 34, 51, 0)",
+        });
+    });
+
+    it("visible:false hides every run series of the slot", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(
+            emissions({ plots: [lineCv({ time: 1, value: 1, colorValue: "#aaa" })] }),
+        );
+        handle.onEmissions(
+            emissions({ plots: [lineCv({ time: 2, value: 2, colorValue: "#bbb" })] }),
+        );
+        // Two runs exist; a visible:false re-emit hides both.
+        handle.onEmissions(
+            emissions({
+                plots: [lineCv({ time: 3, value: 3, colorValue: "#bbb", visible: false })],
+            }),
+        );
+        const hidden = chart.calls.filter(
+            (c) => c.kind === "applyOptions" && c.options.visible === false,
+        );
+        expect(hidden).toHaveLength(2);
+    });
+
+    it("histogram with colorValue stays one series and stamps per-point colour", () => {
+        const { handle, chart } = build();
+        const hist = (o: Partial<PlotEmission>): PlotEmission =>
+            plot({ kind: "histogram", baseline: 0 }, { slotId: "h", ...o });
+        handle.onEmissions(emissions({ plots: [hist({ time: 1, value: 1, colorValue: "#aaa" })] }));
+        handle.onEmissions(emissions({ plots: [hist({ time: 2, value: 2, colorValue: "#bbb" })] }));
+        const series = chart.calls.filter((c) => c.kind === "addSeries");
+        expect(series).toHaveLength(1);
+        const colors = chart.calls.flatMap((c) => (c.kind === "update" ? [c.color] : []));
+        expect(colors).toEqual(["#aaa", "#bbb"]);
+    });
+
+    it("histogram colorValue:null is a whitespace column (no colour)", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(
+            emissions({
+                plots: [
+                    plot(
+                        { kind: "histogram", baseline: 0 },
+                        { slotId: "h", time: 1, value: 5, colorValue: null },
+                    ),
+                ],
+            }),
+        );
+        const update = chart.calls.find((c) => c.kind === "update");
+        expect(update?.kind === "update" && update.value).toBeNull();
+        expect(update?.kind === "update" && "color" in update).toBe(false);
+    });
+
+    it("histogram colorValue forwards the static colour at creation", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(
+            emissions({
+                plots: [
+                    plot(
+                        { kind: "histogram", baseline: 0 },
+                        { slotId: "h", value: 1, color: "#777", colorValue: "#aaa" },
+                    ),
+                ],
+            }),
+        );
+        const series = chart.calls.find((c) => c.kind === "addSeries");
+        expect(series?.kind === "addSeries" && series.options).toEqual({ color: "#777" });
+    });
+
+    it("histogram colorValue with a null static color creates the series cleanly", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(
+            emissions({
+                plots: [
+                    plot(
+                        { kind: "histogram", baseline: 0 },
+                        { slotId: "h", value: 1, color: null, colorValue: "#aaa" },
+                    ),
+                ],
+            }),
+        );
+        const series = chart.calls.find((c) => c.kind === "addSeries");
+        expect(series?.kind === "addSeries" && series.options).toEqual({});
+    });
+
+    it("histogram colorValue honours visible:false", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(
+            emissions({
+                plots: [
+                    plot(
+                        { kind: "histogram", baseline: 0 },
+                        { slotId: "h", value: 1, colorValue: "#aaa", visible: false },
+                    ),
+                ],
+            }),
+        );
+        expect(
+            chart.calls.some((c) => c.kind === "applyOptions" && c.options.visible === false),
+        ).toBe(true);
+    });
+
+    it("run series are disposed so a re-driven slot starts fresh", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(emissions({ plots: [lineCv({ value: 1, colorValue: "#aaa" })] }));
+        handle.dispose();
+        // After dispose the runSlots map is cleared; a fresh emission opens a new
+        // run series rather than extending a stale (removed) one.
+        handle.onEmissions(emissions({ plots: [lineCv({ value: 2, colorValue: "#aaa" })] }));
+        // s0 (pre-dispose), remove, s1 (post-dispose) — two distinct series.
+        const series = chart.calls.filter((c) => c.kind === "addSeries");
+        expect(series).toHaveLength(2);
     });
 });
 
@@ -885,7 +1343,7 @@ describe("createLightweightChartsAdapter — plot x-shift (universal offset)", (
         expect(edgeTimes).toEqual([expected, expected]);
     });
 
-    it("shifts a glyph marker by its xShift", async () => {
+    it("shifts a native glyph marker by its xShift", async () => {
         const chart = new MockLwcApi();
         const host = stubHost();
         const lastBar = HISTORY.length - 1;
@@ -893,7 +1351,7 @@ describe("createLightweightChartsAdapter — plot x-shift (universal offset)", (
             emissions({
                 plots: [
                     plot(
-                        { kind: "shape", shape: "flag", size: 1 },
+                        { kind: "marker", shape: "circle", size: 1 },
                         { slotId: "g", bar: lastBar, time: HISTORY[lastBar].time, xShift: -5 },
                     ),
                 ],
@@ -906,7 +1364,10 @@ describe("createLightweightChartsAdapter — plot x-shift (universal offset)", (
         });
         await runRendererLoop(handle);
         // The glyph anchors at bar last−5's own time, not the unshifted time.
-        expect(chart.calls.some((c) => c.kind === "setMarkers")).toBe(true);
+        const markerCall = chart.calls.find((c) => c.kind === "setMarkers");
+        expect(markerCall?.kind === "setMarkers" && markerCall.markers[0]?.time).toBe(
+            HISTORY[lastBar - 5].time,
+        );
     });
 
     it("a no-offset plot updates at the bar's own time (byte-identical to pre-shift)", async () => {
@@ -1067,6 +1528,49 @@ describe("createLightweightChartsAdapter — drawings buffer (Task 6 seam)", () 
         handle.onEmissions(emissions({ drawings: [drawing("create", "d1")] }));
         handle.onEmissions(emissions({ drawings: [drawing("remove", "d1")] }));
         expect(chart.calls).toEqual([]);
+    });
+});
+
+describe("createLightweightChartsAdapter — bg-color overlay band (Task 12)", () => {
+    // A bg-color emission rides `value: null` and its per-bar colour; it paints
+    // through the overlay, never a native series — so no native call is made.
+    const bgPlot = (overrides: Partial<PlotEmission> = {}): PlotEmission =>
+        plot(
+            { kind: "bg-color", color: "#222", transp: 50 },
+            { slotId: "bg", value: null, ...overrides },
+        );
+
+    it("ingests a static bg-color band (no native series / marker)", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(emissions({ plots: [bgPlot()] }));
+        expect(chart.calls).toEqual([]);
+    });
+
+    it("ingests a per-bar colorValue override band", () => {
+        const { handle, chart } = build();
+        handle.onEmissions(emissions({ plots: [bgPlot({ colorValue: "#0f0" })] }));
+        expect(chart.calls).toEqual([]);
+    });
+
+    it("a colorValue:null gap deletes any band for that bar", () => {
+        const { handle, chart } = build();
+        // Buffer a band, then clear it with an explicit null gap on the same bar.
+        handle.onEmissions(emissions({ plots: [bgPlot({ colorValue: "#0f0" })] }));
+        handle.onEmissions(emissions({ plots: [bgPlot({ colorValue: null })] }));
+        expect(chart.calls).toEqual([]);
+    });
+
+    it("threads bg-color / glyph / drawing through the attached overlay primitive", async () => {
+        // Drive a real candle so the primitive attaches, then a frame carrying a
+        // bg-color band, an overlay glyph, and a drawing — exercising every
+        // ingest branch (band key, glyph key, drawing key) end-to-end.
+        const chart = await runWithPlots(
+            [bgPlot(), plot({ kind: "shape", shape: "diamond", size: 8 }, { slotId: "g", z: -1 })],
+            [{ kind: "close", bar: bar(1) }],
+        );
+        // Only the candle series is native; the overlay paints the rest.
+        expect(chart.calls.filter((c) => c.kind === "addSeries")).toHaveLength(1);
+        expect(chart.calls.some((c) => c.kind === "attachPrimitive")).toBe(true);
     });
 });
 

@@ -4,7 +4,13 @@
 import type { DrawPrimitive } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expect, it } from "vitest";
 
-import { parseFont, primitiveToNode } from "./primitiveToNode.js";
+import {
+    type ShapeGlyphArgs,
+    parseFont,
+    primitiveToNode,
+    resolvePaintColor,
+    shapeGlyphNodes,
+} from "./primitiveToNode.js";
 import { MockKonva } from "./testing.js";
 
 // Build a mock namespace and return the recorded nodes produced for one
@@ -378,6 +384,64 @@ describe("primitiveToNode — marker", () => {
     });
 });
 
+describe("shapeGlyphNodes — the three stroked glyphs (cross / xcross / flag)", () => {
+    const base: Omit<ShapeGlyphArgs, "shape"> = {
+        x: 30,
+        y: 40,
+        size: 8,
+        stroke: { stroke: "#f0f", strokeWidth: 1 },
+    };
+    function glyph(shape: ShapeGlyphArgs["shape"]): MockKonva["roots"] {
+        const konva = new MockKonva();
+        shapeGlyphNodes(konva, { ...base, shape });
+        return konva.roots;
+    }
+
+    it("maps a cross to two open stroked Lines (plus + bar, never joined)", () => {
+        const nodes = glyph("cross");
+        expect(nodes).toHaveLength(2);
+        // Horizontal then vertical stroke through the anchor; both OPEN
+        // (`closed` unset) so the strokes do not join into a box.
+        expect(nodes[0].config).toMatchObject({ points: [26, 40, 34, 40], stroke: "#f0f" });
+        expect(nodes[1].config).toMatchObject({ points: [30, 36, 30, 44], stroke: "#f0f" });
+        expect(nodes[0].config.closed).toBeUndefined();
+    });
+
+    it("maps an xcross to two crossing diagonal Lines", () => {
+        const nodes = glyph("xcross");
+        expect(nodes).toHaveLength(2);
+        expect(nodes[0].config.points).toEqual([26, 36, 34, 44]);
+        expect(nodes[1].config.points).toEqual([34, 36, 26, 44]);
+    });
+
+    it("maps a flag to one open stroked polyline (staff + pennant)", () => {
+        const nodes = glyph("flag");
+        expect(nodes).toHaveLength(1);
+        expect(nodes[0].config).toMatchObject({
+            points: [26, 44, 26, 36, 34, 38, 26, 40],
+            stroke: "#f0f",
+        });
+        expect(nodes[0].config.closed).toBeUndefined();
+    });
+
+    it("skips any glyph with a non-finite anchor or size", () => {
+        const konva = new MockKonva();
+        expect(shapeGlyphNodes(konva, { ...base, x: Number.NaN, shape: "cross" })).toHaveLength(0);
+        expect(shapeGlyphNodes(konva, { ...base, size: Number.NaN, shape: "flag" })).toHaveLength(
+            0,
+        );
+    });
+
+    it("defaults the stroke / fill fragments to empty when omitted", () => {
+        // No stroke + no fill ⇒ the node carries neither colour value (the
+        // `?? {}` defaults), so the helper never throws on a bare args bag.
+        const konva = new MockKonva();
+        shapeGlyphNodes(konva, { x: 0, y: 0, size: 4, shape: "square" });
+        expect(konva.roots[0].config.stroke).toBeUndefined();
+        expect(konva.roots[0].config.fill).toBeUndefined();
+    });
+});
+
 describe("primitiveToNode — alpha baking edge cases", () => {
     it("leaves a non-#rrggbb fill colour unchanged", () => {
         const { nodes } = build({
@@ -404,5 +468,23 @@ describe("primitiveToNode — alpha baking edge cases", () => {
         });
         // alpha > 1 clamps to 1 → "ff".
         expect(nodes[0].config.fill).toBe("#101010ff");
+    });
+});
+
+describe("resolvePaintColor — line-family colorValue 3-state", () => {
+    it("falls back to the static color when colorValue is omitted", () => {
+        expect(resolvePaintColor(undefined, "#26a69a", "#888")).toBe("#26a69a");
+    });
+
+    it("falls back to plotDefault when the static color is null", () => {
+        expect(resolvePaintColor(undefined, null, "#888")).toBe("#888");
+    });
+
+    it("overrides with a present colorValue", () => {
+        expect(resolvePaintColor("#ef5350", "#26a69a", "#888")).toBe("#ef5350");
+    });
+
+    it("returns null for an explicit colorValue:null gap", () => {
+        expect(resolvePaintColor(null, "#26a69a", "#888")).toBeNull();
     });
 });

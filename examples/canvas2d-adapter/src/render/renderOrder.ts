@@ -2,14 +2,23 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { DrawingEmission, PlotEmission } from "@invinite-org/chartlang-adapter-kit";
+import { RENDER_BAND } from "@invinite-org/chartlang-adapter-kit";
 import type { HLine, PlotPoint } from "./coords.js";
+
+// The z-order comparator + band map now live in adapter-kit
+// (`geometry/renderOrder.ts`), shared by every adapter — mirroring the
+// `shift.ts` promotion. We re-export the comparator and alias the band
+// const so the local `BAND.*` call sites are untouched, while keeping the
+// canvas2d-specific `SortableMark` payload union local.
+export { sortByRenderOrder } from "@invinite-org/chartlang-adapter-kit";
 
 /**
  * The default group bands the reference adapter paints in, bottom→top,
- * **within a single pane**. The render pass sorts every sortable mark by
- * `(z, band, seq)`, so at the default `z = 0` the key reduces to
- * `(band, declarationOrder)` — reproducing the pre-`z` phase order
- * (series → glyphs → hlines → drawings) exactly.
+ * **within a single pane**. Aliases the shared `RENDER_BAND` so existing
+ * `BAND.series` call sites are unchanged. The render pass sorts every
+ * sortable mark by `(z, band, seq)`, so at the default `z = 0` the key
+ * reduces to `(band, declarationOrder)` — reproducing the pre-`z` phase
+ * order (series → glyphs → hlines → drawings) exactly.
  *
  * Bands are an adapter-internal detail: they keep the sane default
  * (drawings above plots) when `z` ties, but never leak onto the wire. A
@@ -24,7 +33,7 @@ import type { HLine, PlotPoint } from "./coords.js";
  *     const seriesBeforeDrawing = BAND.series < BAND.drawing;
  *     void seriesBeforeDrawing;
  */
-export const BAND = { series: 0, glyph: 1, hline: 2, drawing: 3 } as const;
+export const BAND = RENDER_BAND;
 
 /**
  * One sortable mark collected for a pane's single z-ordered paint pass.
@@ -77,25 +86,3 @@ export type SortableMark =
           readonly seq: number;
           readonly drawing: DrawingEmission;
       };
-
-/**
- * Stable total order for the z-ordered paint pass: ascending by `z`,
- * then `band`, then `seq`. `seq` (a global, monotonically increasing
- * declaration counter) makes the comparator total, so the result is
- * deterministic regardless of the host engine's `Array.prototype.sort`
- * stability and never falls back to Map iteration order once `z` is in
- * play.
- *
- * Sorts in place and returns the same array for chaining.
- *
- * @since 1.4
- * @stable
- * @example
- *     const marks: SortableMark[] = [];
- *     sortByRenderOrder(marks);
- *     void marks;
- */
-export function sortByRenderOrder(marks: SortableMark[]): SortableMark[] {
-    marks.sort((a, b) => a.z - b.z || a.band - b.band || a.seq - b.seq);
-    return marks;
-}

@@ -1,6 +1,6 @@
 ---
 name: fix-errors
-description: Fix Biome and TypeScript errors/warnings — from pasted output or by running pnpm lint + pnpm typecheck.
+description: Fix all chartlang gate failures via pnpm run check:content, then commit and run pnpm run check:committed.
 metadata:
   internal: true
 ---

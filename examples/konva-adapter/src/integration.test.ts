@@ -186,24 +186,25 @@ describe("konva adapter integration (worker host)", () => {
             adapter.onEmissions(emissions);
         }
 
-        // roots: [Stage, seriesLayer, drawingsLayer, … rebuilt groups].
+        // roots: [Stage, seriesLayer, axisLayer]. Drawings now ride the
+        // series layer's overlay group, z-sorted with the plots, so there is
+        // no longer a dedicated drawings layer.
         const seriesLayer = konva.roots[1];
-        const drawingsLayer = konva.roots[2];
 
-        // The series layer carries candles (Line wick + Rect body per bar)
-        // plus the two EMA Line series.
+        // The series layer carries candles (Line wick + Rect body per bar),
+        // the two EMA Line series, AND the z-sorted drawings: line → 1 Line;
+        // rectangle → 1 closed Line; fib-retracement → multiple Lines (level
+        // rails) + Texts (labels); marker → 1 Text.
         const seriesLeaves = leafTypes(seriesLayer);
+        // One body Rect per bar (the candles); the drawings emit no Rect.
         expect(seriesLeaves.filter((t) => t === "Rect").length).toBe(HISTORY_BARS.length);
+        // Candle wicks (one Line per bar) + 2 EMA series Lines + ≥ 3 drawing
+        // Lines (line + rectangle + fib rails).
         expect(seriesLeaves.filter((t) => t === "Line").length).toBeGreaterThanOrEqual(
-            HISTORY_BARS.length + 2,
+            HISTORY_BARS.length + 2 + 3,
         );
-
-        // The drawings layer carries: line → 1 Line; rectangle → 1 closed
-        // Line; fib-retracement → multiple Lines (level rails) + Texts
-        // (labels); marker → 1 Text. So Lines ≥ 3 and at least one Text.
-        const drawLeaves = leafTypes(drawingsLayer);
-        expect(drawLeaves.filter((t) => t === "Line").length).toBeGreaterThanOrEqual(3);
-        expect(drawLeaves.filter((t) => t === "Text").length).toBeGreaterThanOrEqual(1);
+        // fib labels + the marker text.
+        expect(seriesLeaves.filter((t) => t === "Text").length).toBeGreaterThanOrEqual(1);
 
         // Pinned hash — re-snap after a deliberate mapping change by reading
         // the new value off this assertion's failure message. `hashKonvaScene`

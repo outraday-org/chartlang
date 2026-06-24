@@ -264,9 +264,7 @@ describe("HiDPI (devicePixelRatio)", () => {
         const { adapter } = buildAdapter({ ctx, devicePixelRatio: 0 });
         redraw(adapter);
         expect(ctx.calls.some((c) => c.kind === "setTransform")).toBe(false);
-        expect(
-            ctx.calls.every((c) => c.kind !== "fillRect" || Number.isFinite(c.h)),
-        ).toBe(true);
+        expect(ctx.calls.every((c) => c.kind !== "fillRect" || Number.isFinite(c.h))).toBe(true);
     });
 });
 
@@ -466,6 +464,30 @@ describe("onEmissions dispatch", () => {
         );
         const marks = ctx.calls.filter((c) => c.kind === "fillText" && c.text === "X");
         expect(marks.length).toBe(2);
+    });
+
+    it("a glyph with a non-finite value is a no-op (the shared glyph guard)", () => {
+        // The CLAUDE.md glyph invariant: a non-finite `value` is a no-op
+        // before the style switch, so no glyph drawing call leaks NaN
+        // coordinates into the log (parity with the four sibling adapters,
+        // whose glyph paths guard `!Number.isFinite` too).
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    {
+                        ...plotEmission({
+                            slotId: "nan-glyph",
+                            style: { kind: "marker", shape: "circle", size: 6 },
+                        }),
+                        value: Number.NaN,
+                    },
+                ],
+            }),
+        );
+        // No marker arc was drawn, and nothing recorded a NaN coordinate.
+        expect(ctx.calls.some((c) => c.kind === "arc")).toBe(false);
+        expect(ctx.calls.every((c) => !("x" in c) || Number.isFinite(c.x))).toBe(true);
     });
 
     it("plotSeries that contain null gap values are skipped by viewport computation", async () => {
@@ -1136,15 +1158,453 @@ describe("onEmissions dispatch", () => {
         expect(text.some((entry) => entry.includes("kept-log-5"))).toBe(true);
     });
 
-    it("ignores a plot whose style.kind is not in the Phase-1 union", () => {
+    it("dispatches an area plot: fills the polygon then strokes the top polyline", () => {
         const { adapter, ctx } = buildAdapter({});
-        const bizarre = {
-            ...plotEmission({ slotId: "x" }),
-            style: { kind: "area", lineWidth: 1, lineStyle: "solid" },
-        } as unknown as PlotEmission;
-        adapter.onEmissions(emissions({ plots: [bizarre] }));
-        // No throw; the frame still draws the background.
-        expect(ctx.calls.some((c) => c.kind === "fillRect")).toBe(true);
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "a",
+                        value: 100,
+                        color: "#26a69a",
+                        style: { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: 0.2 },
+                    }),
+                    plotEmission({
+                        slotId: "a",
+                        value: 101,
+                        time: SAMPLE_BARS[1].time,
+                        bar: 1,
+                        style: { kind: "area", lineWidth: 1, lineStyle: "solid", fillAlpha: 0.2 },
+                    }),
+                ],
+            }),
+        );
+        // The fill uses the area's globalAlpha; the polyline is stroked on top.
+        expect(ctx.calls).toContainEqual({ kind: "set", prop: "globalAlpha", value: 0.2 });
+        expect(ctx.calls.filter((c) => c.kind === "fill").length).toBeGreaterThan(0);
+        expect(ctx.calls.filter((c) => c.kind === "stroke").length).toBeGreaterThan(0);
+    });
+
+    it("area: a null gap value splits the polyline into independent filled runs", () => {
+        const { adapter, ctx } = buildAdapter({});
+        const areaStyle = {
+            kind: "area",
+            lineWidth: 1,
+            lineStyle: "solid",
+            fillAlpha: 0.2,
+        } as const;
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({ slotId: "a", value: 100, bar: 0, style: areaStyle }),
+                    plotEmission({
+                        slotId: "a",
+                        value: 101,
+                        time: SAMPLE_BARS[1].time,
+                        bar: 1,
+                        style: areaStyle,
+                    }),
+                    // Gap — flushes the first run before the next.
+                    plotEmission({
+                        slotId: "a",
+                        value: null,
+                        time: SAMPLE_BARS[2].time,
+                        bar: 2,
+                        style: areaStyle,
+                    }),
+                    plotEmission({
+                        slotId: "a",
+                        value: 103,
+                        time: SAMPLE_BARS[3].time,
+                        bar: 3,
+                        style: areaStyle,
+                    }),
+                    plotEmission({
+                        slotId: "a",
+                        value: 104,
+                        time: SAMPLE_BARS[4].time,
+                        bar: 4,
+                        style: areaStyle,
+                    }),
+                ],
+            }),
+        );
+        // Two finite runs of ≥2 points each → two filled polygons.
+        expect(ctx.calls.filter((c) => c.kind === "fill").length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("histogram: a present colorValue overrides the static column color per bar", () => {
+        const { adapter, ctx } = buildAdapter({});
+        const histStyle = { kind: "histogram", baseline: 0 } as const;
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "h",
+                        value: 50,
+                        color: "#26a69a",
+                        bar: 0,
+                        style: histStyle,
+                    }),
+                    plotEmission({
+                        slotId: "h",
+                        value: 60,
+                        color: "#26a69a",
+                        colorValue: "#ef5350",
+                        time: SAMPLE_BARS[1].time,
+                        bar: 1,
+                        style: histStyle,
+                    }),
+                ],
+            }),
+        );
+        const fills = ctx.calls
+            .filter((c) => c.kind === "set" && c.prop === "fillStyle")
+            .map((c) => c.value);
+        // bar 0 keeps the static color; bar 1 paints the per-bar override.
+        expect(fills).toContain("#26a69a");
+        expect(fills).toContain("#ef5350");
+    });
+
+    it("histogram: a colorValue:null bar paints no column", () => {
+        const { adapter, ctx } = buildAdapter({});
+        const histStyle = { kind: "histogram", baseline: 0 } as const;
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "h",
+                        value: 50,
+                        color: "#26a69a",
+                        bar: 0,
+                        style: histStyle,
+                    }),
+                    plotEmission({
+                        slotId: "h",
+                        value: 60,
+                        color: "#26a69a",
+                        colorValue: null,
+                        time: SAMPLE_BARS[1].time,
+                        bar: 1,
+                        style: histStyle,
+                    }),
+                ],
+            }),
+        );
+        // Only the non-gap bar paints a histogram column. Histogram columns
+        // are the `HISTOGRAM_BAR_WIDTH_PX = 4`-wide fillRects (candles / axis
+        // fills use other widths), so exactly one survives the null gap.
+        expect(ctx.calls.filter((c) => c.kind === "fillRect" && c.w === 4).length).toBe(1);
+    });
+
+    it("area: a present colorValue splits the fill into a per-run override color", () => {
+        const { adapter, ctx } = buildAdapter({});
+        const areaStyle = {
+            kind: "area",
+            lineWidth: 1,
+            lineStyle: "solid",
+            fillAlpha: 0.2,
+        } as const;
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "a",
+                        value: 100,
+                        color: "#26a69a",
+                        bar: 0,
+                        style: areaStyle,
+                    }),
+                    plotEmission({
+                        slotId: "a",
+                        value: 101,
+                        color: "#26a69a",
+                        time: SAMPLE_BARS[1].time,
+                        bar: 1,
+                        style: areaStyle,
+                    }),
+                    // Override starts a new filled run in red.
+                    plotEmission({
+                        slotId: "a",
+                        value: 103,
+                        color: "#26a69a",
+                        colorValue: "#ef5350",
+                        time: SAMPLE_BARS[2].time,
+                        bar: 2,
+                        style: areaStyle,
+                    }),
+                    plotEmission({
+                        slotId: "a",
+                        value: 104,
+                        color: "#26a69a",
+                        colorValue: "#ef5350",
+                        time: SAMPLE_BARS[3].time,
+                        bar: 3,
+                        style: areaStyle,
+                    }),
+                ],
+            }),
+        );
+        const fills = ctx.calls
+            .filter((c) => c.kind === "set" && c.prop === "fillStyle")
+            .map((c) => c.value);
+        expect(fills).toContain("#26a69a");
+        expect(fills).toContain("#ef5350");
+        // Two filled runs ⇒ two fills.
+        expect(ctx.calls.filter((c) => c.kind === "fill").length).toBe(2);
+    });
+
+    it("area: a colorValue:null bar breaks the filled run (paint-nothing gap)", () => {
+        const { adapter, ctx } = buildAdapter({});
+        const areaStyle = {
+            kind: "area",
+            lineWidth: 1,
+            lineStyle: "solid",
+            fillAlpha: 0.2,
+        } as const;
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "a",
+                        value: 100,
+                        color: "#26a69a",
+                        bar: 0,
+                        style: areaStyle,
+                    }),
+                    plotEmission({
+                        slotId: "a",
+                        value: 101,
+                        color: "#26a69a",
+                        time: SAMPLE_BARS[1].time,
+                        bar: 1,
+                        style: areaStyle,
+                    }),
+                    // Explicit no-color gap flushes the first run.
+                    plotEmission({
+                        slotId: "a",
+                        value: 102,
+                        color: "#26a69a",
+                        colorValue: null,
+                        time: SAMPLE_BARS[2].time,
+                        bar: 2,
+                        style: areaStyle,
+                    }),
+                    plotEmission({
+                        slotId: "a",
+                        value: 103,
+                        color: "#26a69a",
+                        time: SAMPLE_BARS[3].time,
+                        bar: 3,
+                        style: areaStyle,
+                    }),
+                    plotEmission({
+                        slotId: "a",
+                        value: 104,
+                        color: "#26a69a",
+                        time: SAMPLE_BARS[4].time,
+                        bar: 4,
+                        style: areaStyle,
+                    }),
+                ],
+            }),
+        );
+        // Two runs of ≥2 finite points (bars 0-1 and bars 3-4); the gap bar 2
+        // paints nothing, so exactly two filled polygons.
+        expect(ctx.calls.filter((c) => c.kind === "fill").length).toBe(2);
+    });
+
+    it("dispatches a filled-band plot: fills one closed band polygon across the edges", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "band",
+                        value: null,
+                        color: "#26a69a",
+                        style: { kind: "filled-band", upper: 110, lower: 90, alpha: 0.2 },
+                    }),
+                    plotEmission({
+                        slotId: "band",
+                        value: null,
+                        time: SAMPLE_BARS[1].time,
+                        bar: 1,
+                        style: { kind: "filled-band", upper: 112, lower: 92, alpha: 0.2 },
+                    }),
+                ],
+            }),
+        );
+        expect(ctx.calls).toContainEqual({ kind: "set", prop: "globalAlpha", value: 0.2 });
+        expect(ctx.calls.filter((c) => c.kind === "fill").length).toBeGreaterThan(0);
+    });
+
+    it("filled-band: a single-null edge on either side is a per-bar gap", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    // Lower edge missing this bar.
+                    plotEmission({
+                        slotId: "band",
+                        value: null,
+                        style: { kind: "filled-band", upper: 110, lower: null, alpha: 0.2 },
+                    }),
+                    // Upper edge missing this bar.
+                    plotEmission({
+                        slotId: "band",
+                        value: null,
+                        time: SAMPLE_BARS[1].time,
+                        bar: 1,
+                        style: { kind: "filled-band", upper: null, lower: 92, alpha: 0.2 },
+                    }),
+                    // Both edges finite — the band closes across this span.
+                    plotEmission({
+                        slotId: "band",
+                        value: null,
+                        time: SAMPLE_BARS[2].time,
+                        bar: 2,
+                        style: { kind: "filled-band", upper: 112, lower: 90, alpha: 0.2 },
+                    }),
+                ],
+            }),
+        );
+        // A finite point exists on both edges, so the band still fills.
+        expect(ctx.calls.filter((c) => c.kind === "fill").length).toBeGreaterThan(0);
+    });
+
+    it("dispatches a marker plot via the glyph band (fill at the value anchor)", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "m",
+                        value: 100,
+                        color: "#26a69a",
+                        style: { kind: "marker", shape: "circle", size: 6 },
+                    }),
+                ],
+            }),
+        );
+        // A circle marker arcs then fills at the anchor.
+        expect(ctx.calls.filter((c) => c.kind === "arc").length).toBeGreaterThan(0);
+        expect(ctx.calls.filter((c) => c.kind === "fill").length).toBeGreaterThan(0);
+    });
+
+    it("a non-finite marker value is a no-op (matches the glyph guard)", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "m",
+                        value: null,
+                        style: { kind: "marker", shape: "square", size: 6 },
+                    }),
+                ],
+            }),
+        );
+        // No marker geometry painted (no arc / fillRect from drawMarker).
+        expect(ctx.calls.some((c) => c.kind === "arc")).toBe(false);
+    });
+
+    it("dispatches a label plot via the glyph band (fillText at the value anchor)", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "l",
+                        value: 100,
+                        color: "#26a69a",
+                        style: { kind: "label", text: "PEAK", position: "above" },
+                    }),
+                ],
+            }),
+        );
+        const labels = ctx.calls.filter((c) => c.kind === "fillText" && c.text === "PEAK");
+        expect(labels.length).toBe(1);
+    });
+
+    it("a non-finite label value is a no-op", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "l",
+                        value: null,
+                        style: { kind: "label", text: "GAP", position: "below" },
+                    }),
+                ],
+            }),
+        );
+        expect(ctx.calls.some((c) => c.kind === "fillText" && c.text === "GAP")).toBe(false);
+    });
+
+    it("dispatches a step-line plot with stepped geometry (knees, not a straight slope)", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "s",
+                        value: 100,
+                        style: { kind: "step-line", lineWidth: 1, lineStyle: "solid" },
+                    }),
+                    plotEmission({
+                        slotId: "s",
+                        value: 105,
+                        time: SAMPLE_BARS[1].time,
+                        bar: 1,
+                        style: { kind: "step-line", lineWidth: 1, lineStyle: "solid" },
+                    }),
+                    plotEmission({
+                        slotId: "s",
+                        value: 102,
+                        time: SAMPLE_BARS[2].time,
+                        bar: 2,
+                        style: { kind: "step-line", lineWidth: 1, lineStyle: "solid" },
+                    }),
+                ],
+            }),
+        );
+        // A stepped 3-point run emits 2 lineTo per segment = 4 (vs 2 for a
+        // straight polyline), and no bezier curve.
+        expect(ctx.calls.filter((c) => c.kind === "lineTo").length).toBe(4);
+        expect(ctx.calls.filter((c) => c.kind === "bezierCurveTo").length).toBe(0);
+    });
+
+    it("folds filled-band edges into the auto price scale", async () => {
+        // Drive through runRendererLoop so bars exist, then emit a band whose
+        // edges (carried on the points, value:null) must stretch the y-range —
+        // exercises the computeYRange upper/lower fold.
+        const host = stubHost([
+            emissions(),
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "band",
+                        value: null,
+                        bar: 0,
+                        style: { kind: "filled-band", upper: 1000, lower: 0, alpha: 0.2 },
+                    }),
+                ],
+            }),
+        ]);
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            host,
+            candles: candleStream([
+                { kind: "history", bars: SAMPLE_BARS.slice(0, 1) },
+                { kind: "close", bar: SAMPLE_BARS[1] },
+            ]),
+        });
+        // No throw; the wide band participates in the scale and the frame paints.
+        await runRendererLoop(adapter);
+        expect(ctx.calls.filter((c) => c.kind === "fill").length).toBeGreaterThan(0);
     });
 
     it("logs warning + error diagnostics through console.warn; ignores info", () => {

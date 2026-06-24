@@ -16,13 +16,16 @@ export {
     maxShiftedTime,
     medianBarSpacing,
     projectShiftedX,
+    RENDER_BAND,
     shiftedBarIndex,
     shiftedBarTime,
+    sortByRenderOrder,
 } from "./geometry/index.js";
 export type {
     DrawPrimitive,
     FillStyle,
     Point2,
+    RenderOrderKey,
     StrokeStyle,
     Viewport,
 } from "./geometry/index.js";

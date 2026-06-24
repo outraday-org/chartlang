@@ -3,6 +3,8 @@
 
 export { decomposeDrawing } from "./decompose.js";
 export { priceToY, timeToX, worldPointToPixel } from "./project.js";
+export { RENDER_BAND, sortByRenderOrder } from "./renderOrder.js";
+export type { RenderOrderKey } from "./renderOrder.js";
 export {
     maxShiftedTime,
     medianBarSpacing,

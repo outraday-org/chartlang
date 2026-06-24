@@ -104,15 +104,16 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   polyline. This lives in the DOM-only `/* v8 ignore */` real-uPlot factory and
   `MockUplot` does not render native paths, so the draw-pass `PINNED_HASH` and
   coverage are UNCHANGED.
-- **Plots map to native uPlot series; glyph / remaining override kinds are
-  buffered, not dropped.** `line`/`step-line` → line/stepped paths,
-  `area`/`filled-band` → series `fill`, `histogram` → bars; `null`/NaN →
-  uPlot `null` gap. `shape`/`character`/`arrow`/`label`/`marker` and the
-  candle-state overrides (`candle-override`/`bar-override`/
-  `horizontal-histogram`) are declared in Capabilities and buffered in
-  `state.overlays`/`state.hlines`; they are NOT silently dropped, keeping
-  the "all plot kinds" claim honest. Their draw-hook rendering is follow-up
-  work. **`bg-color` and `bar-color` are now PAINTED in the draw hook (see
+- **Plots map to native uPlot series; the glyph kinds paint in the draw
+  hook.** `line`/`step-line` → line/stepped paths, `area` → series `fill`,
+  `histogram` → bars; `null`/NaN → uPlot `null` gap. The candle-state
+  overrides (`candle-override`/`bar-override`) and `horizontal-histogram`
+  PAINT (see the candle-override / horizontal-histogram invariants
+  below); `filled-band` renders as a native two-edge uPlot band (see the
+  filled-band invariant). `shape`/`character`/`arrow`/`marker`/`label` are
+  still buffered in `state.overlays` (declared in Capabilities, NOT silently
+  dropped — the "all plot kinds" claim stays honest) AND now PAINT via the
+  shared glyph geometry (see the glyph invariant below). **`bg-color` and `bar-color` are now PAINTED in the draw hook (see
   the next invariant), not just buffered.** **Each series carries per-point
   `color` + `bar` + (non-zero) `xShift` on its `PlotPoint`s, and its stroke
   is the LAST non-null per-point color (`seriesColor(points,
@@ -122,6 +123,68 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   same blue, so a multi-plot script (or the `sma-offset` sample's three SMA
   copies) collapsed to one blue line. Do NOT reintroduce a hardcoded
   stroke — the per-series colour is the contract.
+- **z render-order: the draw-hook marks are z-sorted via the SHARED
+  `sortByRenderOrder` + `RENDER_BAND`; native uPlot series are NOT (the
+  documented native-vs-hook bound).** `collectPaneMarks(state, paneKey)`
+  gathers the hook-owned marks for a pane — glyph overlays + horizontal-
+  histograms (overlay pane only, `RENDER_BAND.glyph`), horizontal lines (this
+  pane, `RENDER_BAND.hline`), and drawings (EVERY pane, `RENDER_BAND.drawing`)
+  — tags each `{z, band, seq}`, and `sortByRenderOrder`
+  (`@invinite-org/chartlang-adapter-kit`, NOT a hand-port) stable-sorts
+  ascending by `z`, then `band`, then `seq`. `paintPaneMark` dispatches each to
+  its per-kind renderer. At the default `z = 0` the key reduces to `(band,
+  seq)` = the pre-`z` paint order (glyphs/profiles → hlines → drawings), so a
+  no-`z` frame is byte-identical. **uPlot draws line/step/area/histogram/band
+  as NATIVE series itself, BENEATH the `hooks.draw` pass — they cannot be
+  repainted in the hook (the task's explicit "do NOT repaint native series"
+  decision), so a `z:-1` drawing CANNOT sit below a `z:0` native line series.**
+  The achievable z lever: the hook-painted family (glyphs / profiles / hlines /
+  drawings) is FULLY z-sorted among itself — a `z:-1` drawing sorts beneath a
+  `z:0` glyph/hline/drawing, a `z:1` hline lifts above a `z:0` drawing (the
+  default band order hline < drawing inverted by `z`). `z`/`seq` are assigned at
+  ingest (`applyPlot`/`applyDrawing`: `emission.z ?? 0` + a global
+  `state.seq++`); `PlotPoint`/`PanedHLine` carry them inline (a series mark
+  uses its LAST point's `z`/`seq`), glyph/profile/drawing keep their `seq` in
+  the parallel `overlaySeq`/`hhistSeq`/`drawingSeq` maps (the raw emissions
+  carry `z` but not `seq`). The h-histogram reads its `z` off the same-keyed
+  `state.overlays` entry. Sorting is per-pane, never cross-pane.
+- **Each drawing brackets its OWN `save`/`translate`/`restore` (one per
+  drawing, NOT one shared bracket).** Because the z-sort can interleave a glyph
+  / hline between two drawings, `paintDrawingMark` translates by `(dx, dy)`
+  around THIS drawing's prims only. The Task-8 "one translate per pass" shape is
+  gone — a 2-drawing pass emits 2 translates (the `integration.test.ts`
+  `PINNED_HASH` was DELIBERATELY re-pinned for this; the drawing geometry is
+  unchanged, only the bracket count). Drawings still render in every pane
+  (`collectPaneMarks` adds them for all panes), each against that pane's scales.
+- **alertConditions + logs PAINT in the draw hook, always-on-top (NOT
+  z-sorted).** After the z-sorted pass (overlay pane only),
+  `paintAlertConditions` walks `state.currentAlertConditions` (filter `fired`)
+  as a compact right-side text panel and `paintLogs` walks `state.recentLogs`
+  (cap `MAX_RECENT_LOGS = 5`) as a bottom-left pane, mirroring canvas2d's
+  `render/alertConditions.ts` + `render/logPane.ts` visual design but in uPlot's
+  device-px space (offset by `(dx, dy)`, inside the bbox clip). They are pinned
+  on top, NOT sortable by `z` in v1 (canvas2d's deliberate deferral). The few
+  layout constants (`OVERLAY_TEXT_COLOR`/`OVERLAY_FONT`/`ALERT_*`/`LOG_*`) are
+  mirrored LOCALLY — the uplot adapter is palette-free and cross-importing
+  another example's `src/` is forbidden. An empty fired-list / empty log buffer
+  early-returns with NO ctx calls, so a condition-/log-free script keeps the
+  hash byte-identical. This makes the `alertConditions(true)` + `logs(true)`
+  capability flags honest (backed by real rendering, not just buffered).
+- **Line-family `colorValue` folds into a WHOLE-SERIES stroke decision (the
+  uplot structural bound), not a per-segment recolor.** uPlot paints each series
+  from ONE `stroke`, so per-bar `colorValue` cannot recolor sub-segments the way
+  the canvas2d reference's per-run pass does (and the task FORBIDS a hand-rolled
+  per-run line pass — it would double-paint over uPlot's native series).
+  `PlotPoint.colorValue?: string | null` is stored (conditional-spread, so an
+  omitted-`colorValue` point is byte-identical), and `seriesColor` resolves the
+  3-state per point via `resolvePointColor` (omitted ⇒ static `color`; present ⇒
+  OVERRIDES `color`; `null` ⇒ no colour this bar, skips the vote), returning the
+  LAST resolved non-null colour (fallback `DEFAULT_LINE_COLOR` for an all-null
+  series). So a present `colorValue` visibly overrides the stroke (wire-honest),
+  an omitted one is the pre-feature `seriesColor`, and the per-bar GAP is the
+  `value:null` aligned-data gap uPlot already honours. Wire-level honesty only —
+  no script emits line-family `colorValue` today (`plot()` passes
+  `colorValue: undefined`), so no conformance scenario exercises it.
 - **The universal `ta` `offset` (`PlotEmission.xShift`; `+n` right/future,
   `−n` left/past) is honoured in the aligned-data table, NOT dropped.**
   uPlot is the aligned-time model (c): `AlignedData = [xs, ...valueRows]`.
@@ -193,12 +256,62 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   ctx calls, so a band-free script keeps the candle/hline/drawing hash
   byte-identical (the `integration.test.ts` `PINNED_HASH` bundle emits no
   bg/bar-color and is UNCHANGED). **`bar-color` threads into the candle
-  paint**: `projectCandles` looks each bar's time up in `state.barColors`
-  and, when present, sets the optional `ProjectedCandle.color`;
-  `drawCandlePaths` uses it for BOTH the wick stroke and the body fill,
-  overriding the bull/bear tint (an omitted `color` is byte-identical to the
-  default render). `bg-color` bands are overlay-only candle-state background,
-  NOT a sub-pane series, so sub-panes never paint them.
+  paint via the shared tint resolver** (see the candle-override invariant):
+  `projectCandles` calls `resolveCandleTint(state, bar)` and, when it returns
+  a colour, sets the optional `ProjectedCandle.color`; `drawCandlePaths` uses
+  it for BOTH the wick stroke and the body fill, overriding the bull/bear tint
+  (an omitted `color` is byte-identical to the default render). `bg-color`
+  bands are overlay-only candle-state background, NOT a sub-pane series, so
+  sub-panes never paint them.
+- **`candle-override` / `bar-override` recolour candles through ONE shared
+  per-bar tint resolver.** `applyPlot` projects each into a dedicated per-bar
+  map keyed by bar TIME (`state.candleOverrides: Map<number,
+  CandleOverridePalette>`, `state.barOverrides: Map<number, string>`), in
+  addition to the `state.overlays` buffer. At paint, `resolveCandleTint(state,
+  bar)` resolves a SINGLE tint per candle with precedence **candle-override
+  (direction-resolved) > bar-override > bar-color** — mirroring canvas2d,
+  where the bar/candle overrides paint ON TOP of the candle and `barcolor`
+  paints with it. `candle-override`'s bull/bear/doji colour is resolved by the
+  bar's own direction in `src/candleOverrides.ts`
+  (`resolveCandleOverrideColor`: `close > open ⇒ bull`, `close < open ⇒ bear`,
+  else `doji ?? bull`) — a first-party translation of canvas2d's
+  `render/candleOverride.ts` direction logic (NOT an `../invinite/` port, so no
+  relicense header). The resolved tint threads into `ProjectedCandle.color`
+  (body + wick), so `drawCandlePaths` paints it with no parallel pass. An empty
+  set of overrides leaves the candle render byte-identical.
+- **`horizontal-histogram` paints volume-profile buckets in the overlay draw
+  hook, anchored at the plot's right edge.** `applyPlot` buffers each profile
+  in `state.horizontalHistograms` keyed `${slotId}@${time}` (multiple profiles
+  may coexist). `paintHorizontalHistograms` runs after the candles (overlay
+  pane only, inside the bbox clip): per profile it finds `maxVolume`, skips a
+  profile whose `maxVolume <= 0`, then per bucket draws a right-anchored
+  `fillRect` whose width is `volume / maxVolume × HORIZONTAL_HISTOGRAM_MAX_
+  WIDTH_PX` at `y = u.valToPos(price, "y", true)` (a non-finite y — the scale
+  not yet ranged — skips that bucket, like the hline guard). The bucket colour
+  is `bucket.color ?? HORIZONTAL_HISTOGRAM_COLOR`. An empty map early-returns
+  with no ctx calls (the band-free candle/hline/drawing hash is byte-identical).
+- **`filled-band` renders as a NATIVE two-edge uPlot band, not a single
+  series.** `applyPlot`'s series branch stores the band slot with `value =
+  style.upper` AND the optional `lower = style.lower` on its `PlotPoint`.
+  `buildPaneData` emits TWO aligned rows for a `filled-band` slot (upper then
+  lower; a `null` edge is a per-bar `null` gap on its row), and
+  `buildPaneSeries` emits TWO adjacent specs (`<slot>:upper` / `<slot>:lower`,
+  both `paths: "band"`) plus a `UplotBandSpec` linking their uPlot series
+  indices (`series[i]` is uPlot series `i + 1` — the leading `{}` x series is
+  index 0). The band `fill` is the series stroke folded to `rgba()` at the
+  style's `alpha` (`hexToRgba`; a non-hex / unparseable colour passes through
+  verbatim — the alpha can only fold into a parseable `#rgb`/`#rrggbb`). The
+  `bands` array rides `UplotOptions.bands` into `defaultUplotFactory`'s uPlot
+  `bands` option (DOM-only, v8-exempt); an omitted `bands` (no filled-band) is
+  byte-identical to the pre-band path. `pathsFor` / `fillFor` no longer handle
+  `filled-band` — it is fully owned by `buildPaneSeries`.
+- **`visible: false` KEEPS the slot listed but paints nothing.** `applyPlot`
+  no longer early-returns on `plot.visible === false`. A hidden SERIES still
+  registers its key + style (so `buildPaneSeries` lists the spec) but pushes NO
+  point — an all-`null` data row, so it never stretches the y-scale. A hidden
+  non-series kind (hline / bg-color / overrides / glyphs) registers nothing
+  painted. Mirrors canvas2d's "hidden but declared" semantics; the prior drop
+  (slot vanished entirely) was the divergence Task 8 fixed.
 - **Drawings paint in the draw hook via the shared geometry layer.**
   `applyDrawing` keeps live `DrawingEmission`s in `state.drawings` keyed by
   `handleId` (last-write-wins; `op: "remove"` drops the key at ingest, so

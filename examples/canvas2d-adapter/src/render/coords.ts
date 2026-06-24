@@ -35,6 +35,21 @@ export type { Viewport } from "@invinite-org/chartlang-adapter-kit";
  * pass sorts every sortable mark by `(z, band, seq)`, so a `PlotPoint`
  * carries them on each accumulated point.
  *
+ * `upper` / `lower` are the per-bar band edges of a `filled-band` series
+ * (each `null` for a per-bar gap). They are omitted for every other plot
+ * style — line / step-line / histogram / area read `value` only and
+ * ignore them, so a non-band point is byte-identical to the pre-feature
+ * shape.
+ *
+ * `colorValue` is the per-bar dynamic-color channel
+ * (`PlotEmission.colorValue`) for line-family plots: **omitted** ⇒ paint
+ * the static `color`; **present** ⇒ it OVERRIDES `color` for this bar's
+ * segment; **`null`** ⇒ an explicit "no color this bar" gap (paint
+ * nothing). It is omitted on the stored point when the emission carries
+ * no `colorValue`, so a no-`colorValue` frame is byte-identical to the
+ * pre-feature shape. The `resolvePaintColor` helper applies the
+ * precedence at render time.
+ *
  * @since 0.1
  * @stable
  * @example
@@ -52,6 +67,9 @@ export type PlotPoint = {
     readonly xShift?: number;
     readonly z: number;
     readonly seq: number;
+    readonly upper?: number | null;
+    readonly lower?: number | null;
+    readonly colorValue?: string | null;
 };
 
 /**

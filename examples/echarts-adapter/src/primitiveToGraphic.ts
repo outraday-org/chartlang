@@ -8,12 +8,21 @@ import type {
     StrokeStyle,
 } from "@invinite-org/chartlang-adapter-kit";
 
-// The ECharts `graphic` style subset the IR maps onto. `lineDash`/`fill`/
-// `strokeOpacity`/`fillOpacity` are omitted (not set to a sentinel) when the
-// IR carries no value, so the emitted option tree — and its pinned hash — stays
-// minimal. `PathStyleProps` (the real ECharts type) is wider; this narrow
-// shape is structurally assignable to it.
-type GraphicPathStyle = {
+/**
+ * The ECharts `graphic` path-style subset the IR maps onto. `lineDash` / `fill`
+ * / `strokeOpacity` / `fillOpacity` are omitted (not set to a sentinel) when the
+ * IR carries no value, so the emitted option tree — and its pinned hash — stays
+ * minimal. `PathStyleProps` (the real ECharts type) is wider; this narrow shape
+ * is structurally assignable to it.
+ *
+ * @since 1.4
+ * @stable
+ * @example
+ *     import type { GraphicPathStyle } from "chartlang-example-echarts-adapter";
+ *     const style: GraphicPathStyle = { fill: "#26a69a", lineWidth: 1 };
+ *     void style;
+ */
+export type GraphicPathStyle = {
     readonly stroke?: string;
     readonly lineWidth?: number;
     readonly lineDash?: ReadonlyArray<number>;
@@ -153,43 +162,105 @@ export function primitiveIsFinite(prim: DrawPrimitive): boolean {
     }
 }
 
-// A marker glyph maps to a small ECharts graphic: `circle` for the round
-// marker, a `polygon` of the shape's vertices for the rest. The IR `size` is
-// the glyph's full extent, so the half-extent `h` is the centre-to-vertex
-// distance.
-function markerGraphic(p: Extract<DrawPrimitive, { kind: "marker" }>): EChartsGraphicElement {
-    const style = pathStyle(p.stroke, p.fill);
-    const h = p.size / 2;
-    if (p.shape === "circle") {
-        return { type: "circle", shape: { cx: p.x, cy: p.y, r: h }, style };
+/**
+ * The five discrete marker shapes shared by the `marker` drawing primitive and
+ * the `marker` / `shape` plot glyphs. Matches the canvas2d `MarkerShape` set
+ * and the `marker` `PlotStyle.shape` union.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     import type { GlyphMarkerShape } from "chartlang-example-echarts-adapter";
+ *     const s: GlyphMarkerShape = "triangle-up";
+ *     void s;
+ */
+export type GlyphMarkerShape = "circle" | "triangle-up" | "triangle-down" | "square" | "diamond";
+
+/**
+ * Inputs for {@link glyphMarkerGraphic}: a centre (`x`, `y`), the glyph's full
+ * extent `size` (so the centre-to-vertex distance is `size / 2`), the discrete
+ * `shape`, and a resolved fill `style`.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     import type { GlyphMarkerArgs } from "chartlang-example-echarts-adapter";
+ *     const args: GlyphMarkerArgs = {
+ *         x: 10, y: 20, size: 8, shape: "circle", style: { fill: "#26a69a" },
+ *     };
+ *     void args;
+ */
+export type GlyphMarkerArgs = {
+    readonly x: number;
+    readonly y: number;
+    readonly size: number;
+    readonly shape: GlyphMarkerShape;
+    readonly style: GraphicPathStyle;
+};
+
+/**
+ * Build the ECharts `graphic` element for a discrete marker shape — a `circle`
+ * for the round marker, a `polygon` of the shape's vertices for the rest. The
+ * vertex geometry mirrors the canvas2d `drawMarker` reference so the echarts and
+ * canvas adapters read as one product. Shared by the `marker` drawing primitive
+ * ({@link primitiveToGraphic}) and the `marker` / `shape` plot glyphs, so the
+ * geometry is authored once.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     import { glyphMarkerGraphic } from "chartlang-example-echarts-adapter";
+ *     const el = glyphMarkerGraphic({
+ *         x: 10, y: 20, size: 8, shape: "diamond", style: { fill: "#26a69a" },
+ *     });
+ *     // el.type === "polygon"
+ *     void el;
+ */
+export function glyphMarkerGraphic(args: GlyphMarkerArgs): EChartsGraphicElement {
+    const { x, y, style } = args;
+    const h = args.size / 2;
+    if (args.shape === "circle") {
+        return { type: "circle", shape: { cx: x, cy: y, r: h }, style };
     }
     const points: ReadonlyArray<readonly [number, number]> =
-        p.shape === "square"
+        args.shape === "square"
             ? [
-                  [p.x - h, p.y - h],
-                  [p.x + h, p.y - h],
-                  [p.x + h, p.y + h],
-                  [p.x - h, p.y + h],
+                  [x - h, y - h],
+                  [x + h, y - h],
+                  [x + h, y + h],
+                  [x - h, y + h],
               ]
-            : p.shape === "diamond"
+            : args.shape === "diamond"
               ? [
-                    [p.x, p.y - h],
-                    [p.x + h, p.y],
-                    [p.x, p.y + h],
-                    [p.x - h, p.y],
+                    [x, y - h],
+                    [x + h, y],
+                    [x, y + h],
+                    [x - h, y],
                 ]
-              : p.shape === "triangle-up"
+              : args.shape === "triangle-up"
                 ? [
-                      [p.x, p.y - h],
-                      [p.x + h, p.y + h],
-                      [p.x - h, p.y + h],
+                      [x, y - h],
+                      [x + h, y + h],
+                      [x - h, y + h],
                   ]
                 : [
-                      [p.x, p.y + h],
-                      [p.x + h, p.y - h],
-                      [p.x - h, p.y - h],
+                      [x, y + h],
+                      [x + h, y - h],
+                      [x - h, y - h],
                   ];
     return { type: "polygon", shape: { points }, style };
+}
+
+// A marker IR primitive maps to the shared discrete-marker geometry, carrying
+// the primitive's stroke + fill as the path style.
+function markerGraphic(p: Extract<DrawPrimitive, { kind: "marker" }>): EChartsGraphicElement {
+    return glyphMarkerGraphic({
+        x: p.x,
+        y: p.y,
+        size: p.size,
+        shape: p.shape,
+        style: pathStyle(p.stroke, p.fill),
+    });
 }
 
 /**

@@ -42,7 +42,10 @@ describe("MockLwcApi", () => {
         const priceLine = series.createPriceLine({ price: 42 });
         priceLine.applyOptions({ price: 43 });
         series.removePriceLine(priceLine);
-        series.setMarkers([{ time: 5 }, { time: 6 }]);
+        series.setMarkers([
+            { time: 5, shape: "arrowUp", position: "belowBar", color: "#0f0", size: 2 },
+            { time: 6, shape: "circle", position: "aboveBar", color: "#f00", text: "hi" },
+        ]);
         series.attachPrimitive({ paneViews: () => [] });
         expect(chart.calls.slice(1)).toEqual([
             { kind: "setData", seriesId: "s0", points: 2 },
@@ -52,7 +55,14 @@ describe("MockLwcApi", () => {
             { kind: "createPriceLine", seriesId: "s0", priceLineId: "pl0", price: 42 },
             { kind: "applyPriceLineOptions", priceLineId: "pl0", price: 43 },
             { kind: "removePriceLine", seriesId: "s0", priceLineId: "pl0" },
-            { kind: "setMarkers", seriesId: "s0", markers: 2 },
+            {
+                kind: "setMarkers",
+                seriesId: "s0",
+                markers: [
+                    { time: 5, shape: "arrowUp", position: "belowBar", color: "#0f0", size: 2 },
+                    { time: 6, shape: "circle", position: "aboveBar", color: "#f00", text: "hi" },
+                ],
+            },
             { kind: "attachPrimitive", seriesId: "s0" },
         ]);
     });
@@ -153,7 +163,12 @@ describe("hashLwcCallLog", () => {
             const pl = s.createPriceLine({ price: 9.87654321 });
             pl.applyOptions({ price: 8.12345678 });
             s.removePriceLine(pl);
-            s.setMarkers([{ time: 4 }]);
+            s.setMarkers([
+                { time: 4, shape: "circle", position: "aboveBar", color: "#3b82f6", size: 1 },
+                // A text marker with no size — exercises the text-present /
+                // size-absent canonicalise arms.
+                { time: 5, shape: "circle", position: "inBar", color: "#fff", text: "hi" },
+            ]);
             s.attachPrimitive({ paneViews: () => [] });
             chart.addPane();
             chart.setVisibleLogicalRange({ from: 5.123456789, to: 14.987654321 });

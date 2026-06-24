@@ -2,7 +2,10 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type {
+    AlertConditionEmission,
     CandleEvent,
+    DrawingEmission,
+    LogEmission,
     PlotEmission,
     PlotStyle,
     RunnerEmissions,
@@ -122,18 +125,13 @@ function leafTypes(konva: MockKonva): RecordedNodeType[] {
     return out;
 }
 
-// Flatten the leaf-node types under the DRAWINGS layer (roots[2]) — the
-// dedicated layer `rebuildDrawingsLayer` populates from `decomposeDrawing`.
-function drawingLeafTypes(konva: MockKonva): RecordedNodeType[] {
-    const out: RecordedNodeType[] = [];
-    const walk = (node: RecordedNode): void => {
-        if (node.type !== "Stage" && node.type !== "Layer" && node.type !== "Group") {
-            out.push(node.type);
-        }
-        for (const child of node.children) walk(child);
-    };
-    for (const child of konva.roots[2].children) walk(child);
-    return out;
+// Drawings now ride the SERIES layer (roots[1]) overlay group, z-sorted
+// with plots, so the candles precede them. `drawingLeafTypes` returns the
+// series-layer leaves AFTER the candle nodes (2 per bar: wick Line + body
+// Rect) so a test asserts only on the decomposed-drawing nodes.
+function drawingLeafTypes(konva: MockKonva, barCount: number): RecordedNodeType[] {
+    const all = leafTypes(konva);
+    return all.slice(barCount * 2);
 }
 
 function groupChildren(konva: MockKonva): RecordedNode[][] {
@@ -143,13 +141,16 @@ function groupChildren(konva: MockKonva): RecordedNode[][] {
 // ---- tests ----
 
 describe("createKonvaAdapter — construction", () => {
-    it("builds a stage with a series layer, a drawings layer, and an axis layer", () => {
+    it("builds a stage with a series layer and an axis layer", () => {
         const { konva } = build();
         expect(konva.roots[0].type).toBe("Stage");
+        // roots[1] = series layer (plots / glyphs / hlines / z-sorted
+        // drawings), roots[2] = axis layer. The former dedicated drawings
+        // layer was folded into the series layer so the z-sort can interleave
+        // drawings with plots.
         expect(konva.roots[1].type).toBe("Layer");
         expect(konva.roots[2].type).toBe("Layer");
-        expect(konva.roots[3].type).toBe("Layer");
-        expect(konva.ops.filter((o) => o.op === "add" && o.on === "Stage")).toHaveLength(3);
+        expect(konva.ops.filter((o) => o.op === "add" && o.on === "Stage")).toHaveLength(2);
     });
 
     it("constructs the stage WITHOUT a container by default", () => {
@@ -757,13 +758,18 @@ describe("createKonvaAdapter — plot x-shift (universal offset)", () => {
                 ),
             ]),
         );
-        // The shifted glyph Rect lands at a greater x than the last bar's own
-        // candle column (its bar-2 anchor without the shift would sit at the
-        // data edge before widening).
+        // A `circle` shape renders as a ring Arc (the shared glyph geometry);
+        // the +5 shift lands its centre x past the last bar's candle column
+        // (the data edge before widening).
         const glyph = groupChildren(konva)[0].find(
-            (n) => n.type === "Rect" && typeof n.config.fill === "string" && n.config.width === 6,
+            (n) => n.type === "Arc" && n.config.innerRadius === 3,
         );
         expect(glyph).toBeDefined();
+        const lastCandle = groupChildren(konva)[0].find((n) => n.type === "Rect");
+        expect(lastCandle).toBeDefined();
+        expect((glyph as RecordedNode).config.x).toBeGreaterThan(
+            (lastCandle as RecordedNode).config.x as number,
+        );
     });
 });
 
@@ -813,26 +819,86 @@ describe("createKonvaAdapter — glyph / override / style kinds", () => {
         return groupChildren(ctx.konva)[0];
     }
 
-    it("renders shape and marker as a Rect glyph, honouring an explicit color", () => {
-        // null color → palette glyphText default.
+    it("renders each filled shape via its real per-shape geometry", () => {
+        // circle → ring Arc; square → Rect; diamond / triangle → closed Line.
+        // The five filled shapes carry a `fill` (null color ⇒ palette default).
+        const circle = emit({ kind: "shape", shape: "circle", size: 6 });
+        expect(circle.some((n) => n.type === "Arc" && n.config.fill === "#e2e8f0")).toBe(true);
         expect(
-            emit({ kind: "shape", shape: "circle", size: 6 }).some(
-                (n) => n.type === "Rect" && n.config.fill === "#e2e8f0",
+            emit({ kind: "shape", shape: "square", size: 6 }, { color: "#123" }).some(
+                (n) => n.type === "Rect" && n.config.fill === "#123" && n.config.width === 6,
             ),
         ).toBe(true);
-        // explicit color → that color.
         expect(
-            emit({ kind: "marker", shape: "square", size: 6 }, { color: "#123" }).some(
-                (n) => n.type === "Rect" && n.config.fill === "#123",
+            emit({ kind: "marker", shape: "diamond", size: 6 }).some(
+                (n) => n.type === "Line" && n.config.closed === true && n.config.fill === "#e2e8f0",
             ),
         ).toBe(true);
+        const triUp = emit({ kind: "marker", shape: "triangle-up", size: 6 });
+        expect(triUp.some((n) => n.type === "Line" && n.config.closed === true)).toBe(true);
+        const triDown = emit({ kind: "marker", shape: "triangle-down", size: 6 });
+        expect(triDown.some((n) => n.type === "Line" && n.config.closed === true)).toBe(true);
+    });
+
+    it("renders the stroked shape glyphs (cross / xcross / flag) as open Lines", () => {
+        // cross → two open stroked Lines (a single closed Line would join the
+        // strokes); the colour lands on `stroke`, not `fill`.
+        const cross = emit({ kind: "shape", shape: "cross", size: 8 }, { color: "#f0f" }).filter(
+            (n) => n.type === "Line" && n.config.stroke === "#f0f",
+        );
+        expect(cross).toHaveLength(2);
+        expect(
+            cross.every((n) => n.config.closed === undefined && n.config.fill === undefined),
+        ).toBe(true);
+        const xcross = emit({ kind: "shape", shape: "xcross", size: 8 }).filter(
+            (n) => n.type === "Line" && n.config.stroke === "#e2e8f0",
+        );
+        expect(xcross).toHaveLength(2);
+        // flag → one open stroked polyline.
+        const flag = emit({ kind: "shape", shape: "flag", size: 8 }).filter(
+            (n) => n.type === "Line" && n.config.stroke === "#e2e8f0",
+        );
+        expect(flag).toHaveLength(1);
+    });
+
+    it("honours a shape glyph's location (above lifts, below drops, absolute pins)", () => {
+        // `value: 11` projects to one y; above lifts it (smaller y), below
+        // drops it (larger y), absolute pins it. The square Rect's y is its
+        // top edge, so the ordering still holds across all three.
+        const yOf = (location: "above" | "below" | "absolute"): number => {
+            const rect = emit({ kind: "shape", shape: "square", size: 6, location }).find(
+                (n) => n.type === "Rect" && n.config.width === 6,
+            );
+            expect(rect).toBeDefined();
+            return (rect as RecordedNode).config.y as number;
+        };
+        expect(yOf("above")).toBeLessThan(yOf("absolute"));
+        expect(yOf("below")).toBeGreaterThan(yOf("absolute"));
+    });
+
+    it("a marker glyph pins at the value (no location offset)", () => {
+        // `marker` has no `location` field, so it always anchors at the value —
+        // the same y a shape with `absolute` would use.
+        const markerSquare = emit({ kind: "marker", shape: "square", size: 6 }).find(
+            (n) => n.type === "Rect" && n.config.width === 6,
+        );
+        const shapeAbs = emit({
+            kind: "shape",
+            shape: "square",
+            size: 6,
+            location: "absolute",
+        }).find((n) => n.type === "Rect" && n.config.width === 6);
+        expect(markerSquare).toBeDefined();
+        expect(shapeAbs).toBeDefined();
+        expect((markerSquare as RecordedNode).config.y).toBe((shapeAbs as RecordedNode).config.y);
     });
 
     it("skips a shape/marker with a non-finite or null value", () => {
         const nan = emit({ kind: "shape", shape: "circle", size: 6 }, { value: Number.NaN });
-        // only candle wick (Line) + candle body (Rect) — no glyph Rect added.
-        expect(nan.filter((n) => n.type === "Rect")).toHaveLength(1);
+        // only candle wick (Line) + candle body (Rect) — no glyph node added.
+        expect(nan.filter((n) => n.type === "Arc")).toHaveLength(0);
         const nul = emit({ kind: "marker", shape: "square", size: 6 }, { value: null });
+        // only the candle body Rect — no glyph square.
         expect(nul.filter((n) => n.type === "Rect")).toHaveLength(1);
     });
 
@@ -876,12 +942,67 @@ describe("createKonvaAdapter — glyph / override / style kinds", () => {
     });
 
     it("re-tints the bar for candle-override / bar-override / bar-color", () => {
+        // The fixture bar (open 10, close 11) is bullish → candle-override
+        // picks `bull`.
         const co = emit({ kind: "candle-override", bull: "#0f0", bear: "#f00" }, { time: 0 });
         expect(co.some((n) => n.type === "Rect" && n.config.fill === "#0f0")).toBe(true);
         const bo = emit({ kind: "bar-override", color: "#abc" }, { time: 0 });
         expect(bo.some((n) => n.type === "Rect" && n.config.fill === "#abc")).toBe(true);
         const bc = emit({ kind: "bar-color", color: "#def" }, { time: 0 });
         expect(bc.some((n) => n.type === "Rect" && n.config.fill === "#def")).toBe(true);
+    });
+
+    it("candle-override resolves bull / bear / doji by the bar's direction", () => {
+        // The `emit` helper's fixture bar is (open 10, close 11) → bullish.
+        // Build bespoke bars to cover all three directions.
+        const tint = (b: Bar): RecordedNode[] => {
+            const ctx = build();
+            feedCandleEvent(ctx.adapter, { kind: "history", bars: [b] });
+            ctx.adapter.onEmissions(
+                emissions([
+                    plot(
+                        "g",
+                        { kind: "candle-override", bull: "#0f0", bear: "#f00", doji: "#00f" },
+                        { value: 11, time: b.time },
+                    ),
+                ]),
+            );
+            return groupChildren(ctx.konva)[0];
+        };
+        // close > open → bull.
+        expect(tint(bar(0, 10, 12, 8, 11)).some((n) => n.config.fill === "#0f0")).toBe(true);
+        // close < open → bear.
+        expect(tint(bar(0, 11, 12, 8, 10)).some((n) => n.config.fill === "#f00")).toBe(true);
+        // close === open → doji.
+        expect(tint(bar(0, 10, 12, 8, 10)).some((n) => n.config.fill === "#00f")).toBe(true);
+    });
+
+    it("candle-override falls back to bull for a doji when no doji color is given", () => {
+        const ctx = build();
+        feedCandleEvent(ctx.adapter, { kind: "history", bars: [bar(0, 10, 12, 8, 10)] });
+        ctx.adapter.onEmissions(
+            emissions([
+                plot("g", { kind: "candle-override", bull: "#0f0", bear: "#f00" }, { value: 11 }),
+            ]),
+        );
+        expect(groupChildren(ctx.konva)[0].some((n) => n.config.fill === "#0f0")).toBe(true);
+    });
+
+    it("bar-color honours colorValue (omitted ⇒ static, present ⇒ override, null ⇒ no tint)", () => {
+        // omitted ⇒ the static style.color.
+        expect(
+            emit({ kind: "bar-color", color: "#def" }, { time: 0 }).some(
+                (n) => n.type === "Rect" && n.config.fill === "#def",
+            ),
+        ).toBe(true);
+        // present ⇒ the dynamic colorValue wins over style.color.
+        const over = emit({ kind: "bar-color", color: "#def" }, { time: 0, colorValue: "#abc123" });
+        expect(over.some((n) => n.config.fill === "#abc123")).toBe(true);
+        expect(over.some((n) => n.config.fill === "#def")).toBe(false);
+        // null ⇒ no tint this bar (only the candle body Rect remains).
+        const gap = emit({ kind: "bar-color", color: "#def" }, { time: 0, colorValue: null });
+        expect(gap.filter((n) => n.type === "Rect")).toHaveLength(1);
+        expect(gap.some((n) => n.config.fill === "#def")).toBe(false);
     });
 
     it("skips an override when no bar matches its time", () => {
@@ -1054,7 +1175,7 @@ describe("createKonvaAdapter — panes", () => {
 });
 
 describe("createKonvaAdapter — drawings + non-rendered emissions", () => {
-    it("drops a create+remove of the same handle, leaving the drawings layer empty, and ingests alerts/logs/conditions/diagnostics without throwing", () => {
+    it("drops a create+remove of the same handle, renders the fired condition + log tail, and ingests alerts/diagnostics without throwing", () => {
         const { adapter, konva } = build();
         feedCandleEvent(adapter, { kind: "history", bars: [bar(0, 10, 12, 8, 11)] });
         expect(() =>
@@ -1134,13 +1255,16 @@ describe("createKonvaAdapter — drawings + non-rendered emissions", () => {
                 toBar: 0,
             }),
         ).not.toThrow();
-        // The series layer holds only candles (drawings live on their own
-        // layer); the create+remove of `d1` nets to an empty drawings layer.
-        expect(leafTypes(konva)).toEqual(["Line", "Rect"]);
-        expect(drawingLeafTypes(konva)).toEqual([]);
+        // One bar → candles are one wick Line + one body Rect; the
+        // create+remove of `d1` nets to no drawing nodes after them. The
+        // fired alert-condition + the log paint as the always-on-top tail,
+        // so two `Text` nodes follow the candle nodes.
+        expect(leafTypes(konva)).toEqual(["Line", "Rect", "Text", "Text"]);
+        // No drawing nodes between the candles and the tail — only the tail.
+        expect(drawingLeafTypes(konva, 1)).toEqual(["Text", "Text"]);
     });
 
-    it("renders a live line drawing as a Konva Line on the drawings layer", () => {
+    it("renders a live line drawing as a Konva Line in the z-sorted series pass", () => {
         const { adapter, konva } = build();
         feedCandleEvent(adapter, {
             kind: "history",
@@ -1167,8 +1291,9 @@ describe("createKonvaAdapter — drawings + non-rendered emissions", () => {
                 },
             ],
         });
-        expect(drawingLeafTypes(konva)).toEqual(["Line"]);
-        // The drawings layer is rebuilt + batchDraw'd like the series layer.
+        // Two bars → 4 candle nodes precede the single drawing Line.
+        expect(drawingLeafTypes(konva, 2)).toEqual(["Line"]);
+        // The series layer is rebuilt + batchDraw'd each drain.
         expect(konva.ops).toContainEqual({ op: "destroyChildren", on: "Layer" });
     });
 
@@ -1229,13 +1354,90 @@ describe("createKonvaAdapter — drawings + non-rendered emissions", () => {
                 },
             ],
         });
-        const leaves = drawingLeafTypes(konva);
+        const leaves = drawingLeafTypes(konva, 2);
         // rectangle → closed Line; circle → full-circle Arc; text+bgColor →
         // backing Rect + Text.
         expect(leaves).toContain("Line");
         expect(leaves).toContain("Arc");
         expect(leaves).toContain("Rect");
         expect(leaves).toContain("Text");
+    });
+});
+
+describe("createKonvaAdapter — z render-order", () => {
+    // A line drawing whose stroke is `color`, anchored across two bars.
+    function lineDrawing(handleId: string, color: string, z: number): DrawingEmission {
+        return {
+            kind: "drawing",
+            handleId,
+            drawingKind: "line",
+            op: "create",
+            state: {
+                kind: "line",
+                anchors: [
+                    { time: 0, price: 10 },
+                    { time: 10, price: 12 },
+                ],
+                style: { color },
+            },
+            bar: 0,
+            time: 0,
+            z,
+        };
+    }
+
+    // Index of the first overlay-group child that is a `Line` with the given
+    // stroke (drawings + plot series both render as stroked `Line`s).
+    function lineIndex(konva: MockKonva, stroke: string): number {
+        return groupChildren(konva)[0].findIndex(
+            (n) => n.type === "Line" && n.config.stroke === stroke,
+        );
+    }
+
+    it("sinks a z:-1 drawing below a z:0 plot and lifts a z:1 plot above a drawing", () => {
+        const { adapter, konva } = build();
+        feedCandleEvent(adapter, {
+            kind: "history",
+            bars: [bar(0, 10, 12, 8, 11), bar(10, 11, 13, 10, 12)],
+        });
+        adapter.onEmissions({
+            ...emissions([
+                // A z:0 plot series (default z) and a z:1 plot series.
+                plot(
+                    "p0",
+                    { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                    { bar: 0, time: 0, value: 10, color: "#aaaaaa" },
+                ),
+                plot(
+                    "p0",
+                    { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                    { bar: 1, time: 10, value: 11, color: "#aaaaaa" },
+                ),
+                plot(
+                    "p1",
+                    { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                    { bar: 0, time: 0, value: 10, color: "#bbbbbb", z: 1 },
+                ),
+                plot(
+                    "p1",
+                    { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                    { bar: 1, time: 10, value: 11, color: "#bbbbbb", z: 1 },
+                ),
+            ]),
+            // A z:-1 drawing (below the z:0 plot) and a z:0 drawing (default).
+            drawings: [lineDrawing("dBelow", "#111111", -1), lineDrawing("dMid", "#222222", 0)],
+        });
+        const below = lineIndex(konva, "#111111");
+        const plot0 = lineIndex(konva, "#aaaaaa");
+        const mid = lineIndex(konva, "#222222");
+        const plot1 = lineIndex(konva, "#bbbbbb");
+        // z:-1 drawing paints before (under) the z:0 plot.
+        expect(below).toBeLessThan(plot0);
+        // The z:0 plot paints before the z:0 drawing (default band order:
+        // series < drawing at a z tie).
+        expect(plot0).toBeLessThan(mid);
+        // The z:1 plot paints after (over) the z:0 drawing.
+        expect(plot1).toBeGreaterThan(mid);
     });
 });
 
@@ -1466,9 +1668,322 @@ describe("runKonvaLoop", () => {
         const { adapter, konva } = build({ candleSource: candleStream([event]), host });
         await runKonvaLoop(adapter, { signal: controller.signal });
         expect(base.drains).toBe(1);
-        // feedCandleEvent rebuilt all three layers (3 `destroyChildren` —
-        // series, drawings, axis); the skipped onEmissions added no further
-        // rebuild, so the count stays 3.
-        expect(konva.ops.filter((o) => o.op === "destroyChildren")).toHaveLength(3);
+        // feedCandleEvent rebuilt both layers (2 `destroyChildren` — series
+        // and axis; drawings now ride the series layer); the skipped
+        // onEmissions added no further rebuild, so the count stays 2.
+        expect(konva.ops.filter((o) => o.op === "destroyChildren")).toHaveLength(2);
+    });
+});
+
+describe("createKonvaAdapter — alert conditions + log tail (always-on-top)", () => {
+    function emitTail(over: Partial<RunnerEmissions>): {
+        konva: MockKonva;
+        overlay: RecordedNode[];
+    } {
+        const { adapter, konva } = build();
+        feedCandleEvent(adapter, { kind: "history", bars: [bar(0, 10, 12, 8, 11)] });
+        adapter.onEmissions({ ...emissions([]), ...over });
+        return { konva, overlay: groupChildren(konva)[0] };
+    }
+
+    function condition(
+        conditionId: string,
+        fired: boolean,
+        defaultMessage: string,
+    ): AlertConditionEmission {
+        return {
+            kind: "alert-condition",
+            conditionId,
+            title: conditionId,
+            description: "d",
+            defaultMessage,
+            fired,
+            bar: 0,
+            time: 0,
+        };
+    }
+
+    function log(message: string): LogEmission {
+        return { kind: "log", level: "info", message, bar: 0, time: 0, meta: {} };
+    }
+
+    it("renders one Text row per fired alert condition", () => {
+        const { overlay } = emitTail({
+            alertConditions: [
+                condition("c1", true, "fired one"),
+                condition("c2", true, "fired two"),
+            ],
+        });
+        const conditionTexts = overlay.filter(
+            (n) => n.type === "Text" && typeof n.config.text === "string",
+        );
+        expect(conditionTexts.map((n) => n.config.text)).toEqual([
+            "c1: fired one",
+            "c2: fired two",
+        ]);
+    });
+
+    it("ignores non-fired conditions", () => {
+        const { overlay } = emitTail({
+            alertConditions: [condition("c1", false, "not fired"), condition("c2", true, "fired")],
+        });
+        const texts = overlay.filter((n) => n.type === "Text").map((n) => n.config.text);
+        expect(texts).toEqual(["c2: fired"]);
+    });
+
+    it("paints no condition Text when none fired (empty case)", () => {
+        const { overlay } = emitTail({ alertConditions: [condition("c1", false, "x")] });
+        expect(overlay.some((n) => n.type === "Text")).toBe(false);
+    });
+
+    it("renders the latest logs as bottom-left Text rows", () => {
+        const { overlay } = emitTail({ logs: [log("first"), log("second")] });
+        const texts = overlay.filter((n) => n.type === "Text").map((n) => n.config.text);
+        expect(texts).toEqual(["[info] first", "[info] second"]);
+    });
+
+    it("caps the log pane at the last 5 rows", () => {
+        const { adapter, konva } = build();
+        feedCandleEvent(adapter, { kind: "history", bars: [bar(0, 10, 12, 8, 11)] });
+        // Seven logs across two drains; only the last five survive the cap.
+        adapter.onEmissions({ ...emissions([]), logs: [log("L1"), log("L2"), log("L3")] });
+        adapter.onEmissions({
+            ...emissions([]),
+            logs: [log("L4"), log("L5"), log("L6"), log("L7")],
+        });
+        const texts = groupChildren(konva)[0]
+            .filter((n) => n.type === "Text")
+            .map((n) => n.config.text);
+        expect(texts).toEqual(["[info] L3", "[info] L4", "[info] L5", "[info] L6", "[info] L7"]);
+    });
+
+    it("clears the condition + log tail on dispose", () => {
+        const { adapter, konva } = build();
+        feedCandleEvent(adapter, { kind: "history", bars: [bar(0, 10, 12, 8, 11)] });
+        adapter.onEmissions({
+            ...emissions([]),
+            alertConditions: [condition("c1", true, "x")],
+            logs: [log("y")],
+        });
+        adapter.dispose();
+        // After dispose the stage is destroyed; rebuild via a fresh adapter to
+        // confirm the buffers reset rather than leaking into the next session.
+        const next = build();
+        feedCandleEvent(next.adapter, { kind: "history", bars: [bar(0, 10, 12, 8, 11)] });
+        next.adapter.onEmissions(emissions([]));
+        expect(groupChildren(next.konva)[0].some((n) => n.type === "Text")).toBe(false);
+        // `konva` (the disposed adapter's mock) saw the tail before dispose.
+        void konva;
+    });
+
+    it("clears fired conditions between drains but keeps logs", () => {
+        const { adapter, konva } = build();
+        feedCandleEvent(adapter, { kind: "history", bars: [bar(0, 10, 12, 8, 11)] });
+        adapter.onEmissions({
+            ...emissions([]),
+            alertConditions: [condition("c1", true, "first")],
+            logs: [log("persisted")],
+        });
+        // A drain with no conditions clears the strip; the log persists.
+        adapter.onEmissions(emissions([]));
+        const texts = groupChildren(konva)[0]
+            .filter((n) => n.type === "Text")
+            .map((n) => n.config.text);
+        expect(texts).toEqual(["[info] persisted"]);
+    });
+});
+
+describe("createKonvaAdapter — line-family colorValue (3-state per-run)", () => {
+    const LINE: PlotStyle = { kind: "line", lineWidth: 1, lineStyle: "solid" };
+
+    function withBars(): ReturnType<typeof build> {
+        const ctx = build();
+        // Four bars so a per-colour run can hold ≥ 2 points (a single-point
+        // run is not a drawable polyline and is skipped, like canvas2d).
+        feedCandleEvent(ctx.adapter, {
+            kind: "history",
+            bars: [
+                bar(0, 10, 12, 8, 11),
+                bar(10, 11, 13, 10, 12),
+                bar(20, 12, 14, 11, 13),
+                bar(30, 13, 15, 12, 14),
+            ],
+        });
+        return ctx;
+    }
+
+    // Series `Line`s carry a `tension` (plain line plots); candle wicks do
+    // not, so filtering on `tension` isolates the colorValue runs.
+    function lineRuns(konva: MockKonva): RecordedNode[] {
+        return groupChildren(konva)[0].filter((n) => n.type === "Line" && n.config.tension === 0.5);
+    }
+
+    it("keeps a no-colorValue series as ONE run (byte-identical)", () => {
+        const { adapter, konva } = withBars();
+        adapter.onEmissions(
+            emissions([
+                plot("l", LINE, { bar: 0, time: 0, value: 11, color: "#abcdef" }),
+                plot("l", LINE, { bar: 1, time: 10, value: 12, color: "#abcdef" }),
+                plot("l", LINE, { bar: 2, time: 20, value: 13, color: "#abcdef" }),
+            ]),
+        );
+        const runs = lineRuns(konva);
+        expect(runs).toHaveLength(1);
+        expect(runs[0].config.stroke).toBe("#abcdef");
+    });
+
+    it("never splits a run on a varying static color (only colorValue splits)", () => {
+        const { adapter, konva } = withBars();
+        // Static color varies per bar but no colorValue ⇒ still one run, seeded
+        // from the LAST non-null static color (matches the byte-identity anchor).
+        adapter.onEmissions(
+            emissions([
+                plot("l", LINE, { bar: 0, time: 0, value: 11, color: "#111111" }),
+                plot("l", LINE, { bar: 1, time: 10, value: 12, color: "#222222" }),
+                plot("l", LINE, { bar: 2, time: 20, value: 13, color: "#333333" }),
+            ]),
+        );
+        const runs = lineRuns(konva);
+        expect(runs).toHaveLength(1);
+        expect(runs[0].config.stroke).toBe("#333333");
+    });
+
+    it("splits into per-color runs on an explicit colorValue subset", () => {
+        const { adapter, konva } = withBars();
+        adapter.onEmissions(
+            emissions([
+                // Bars 0-1 resolve to the static #abcdef (no colorValue); bars
+                // 2-3 to the #ff0000 override — two drawable runs (≥ 2 pts each).
+                plot("l", LINE, { bar: 0, time: 0, value: 11, color: "#abcdef" }),
+                plot("l", LINE, { bar: 1, time: 10, value: 12, color: "#abcdef" }),
+                plot("l", LINE, {
+                    bar: 2,
+                    time: 20,
+                    value: 13,
+                    color: "#abcdef",
+                    colorValue: "#ff0000",
+                }),
+                plot("l", LINE, {
+                    bar: 3,
+                    time: 30,
+                    value: 14,
+                    color: "#abcdef",
+                    colorValue: "#ff0000",
+                }),
+            ]),
+        );
+        const runs = lineRuns(konva);
+        // Two runs, split at the colour change between bar 1 and bar 2.
+        expect(runs.map((n) => n.config.stroke)).toEqual(["#abcdef", "#ff0000"]);
+    });
+
+    it("breaks the run on a colorValue:null gap (paints nothing that bar)", () => {
+        const { adapter, konva } = withBars();
+        adapter.onEmissions(
+            emissions([
+                plot("l", LINE, { bar: 0, time: 0, value: 11, color: "#abcdef" }),
+                plot("l", LINE, {
+                    bar: 1,
+                    time: 10,
+                    value: 12,
+                    color: "#abcdef",
+                    colorValue: null,
+                }),
+                plot("l", LINE, { bar: 2, time: 20, value: 13, color: "#abcdef" }),
+            ]),
+        );
+        // The null-colorValue bar is a gap; bars 0 and 2 are isolated
+        // single-point runs (length < 4) ⇒ no drawable polyline survives.
+        expect(lineRuns(konva)).toHaveLength(0);
+    });
+});
+
+describe("createKonvaAdapter — area + histogram colorValue", () => {
+    const AREA: PlotStyle = {
+        kind: "area",
+        lineWidth: 1,
+        lineStyle: "solid",
+        fillAlpha: 0.2,
+    };
+    const HISTO: PlotStyle = { kind: "histogram", baseline: 0 };
+
+    function withBars(): ReturnType<typeof build> {
+        const ctx = build();
+        // Four bars so an area colour run can hold ≥ 2 points (a single-point
+        // run is not a drawable closed shape).
+        feedCandleEvent(ctx.adapter, {
+            kind: "history",
+            bars: [
+                bar(0, 10, 12, 8, 11),
+                bar(10, 11, 13, 10, 12),
+                bar(20, 12, 14, 11, 13),
+                bar(30, 13, 15, 12, 14),
+            ],
+        });
+        return ctx;
+    }
+
+    it("splits an area into per-color closed runs", () => {
+        const { adapter, konva } = withBars();
+        adapter.onEmissions(
+            emissions([
+                // Bars 0-1 static #abcdef; bars 2-3 the #00ff00 override.
+                plot("a", AREA, { bar: 0, time: 0, value: 11, color: "#abcdef" }),
+                plot("a", AREA, { bar: 1, time: 10, value: 12, color: "#abcdef" }),
+                plot("a", AREA, {
+                    bar: 2,
+                    time: 20,
+                    value: 13,
+                    color: "#abcdef",
+                    colorValue: "#00ff00",
+                }),
+                plot("a", AREA, {
+                    bar: 3,
+                    time: 30,
+                    value: 14,
+                    color: "#abcdef",
+                    colorValue: "#00ff00",
+                }),
+            ]),
+        );
+        // Closed filled Lines (area runs) carry `closed: true`; candle bodies
+        // are Rects, so this isolates the area runs.
+        const areaRuns = groupChildren(konva)[0].filter(
+            (n) => n.type === "Line" && n.config.closed === true,
+        );
+        expect(areaRuns.map((n) => n.config.stroke)).toEqual(["#abcdef", "#00ff00"]);
+        // The override run's fill bakes the fillAlpha (0.2 → "33") into #00ff00.
+        expect(areaRuns[1].config.fill).toBe("#00ff0033");
+    });
+
+    it("resolves histogram columns per bar and skips a colorValue:null column", () => {
+        const { adapter, konva } = withBars();
+        adapter.onEmissions(
+            emissions([
+                plot("h", HISTO, { bar: 0, time: 0, value: 5, color: "#abcdef" }),
+                plot("h", HISTO, {
+                    bar: 1,
+                    time: 10,
+                    value: 6,
+                    color: "#abcdef",
+                    colorValue: "#ff8800",
+                }),
+                plot("h", HISTO, {
+                    bar: 2,
+                    time: 20,
+                    value: 7,
+                    color: "#abcdef",
+                    colorValue: null,
+                }),
+            ]),
+        );
+        // Histogram bars are Rects with no candle-body fill colours; the
+        // null-colorValue column is skipped, so two Rect columns survive with
+        // the static then override colours.
+        const columns = groupChildren(konva)[0].filter(
+            (n) =>
+                n.type === "Rect" && (n.config.fill === "#abcdef" || n.config.fill === "#ff8800"),
+        );
+        expect(columns.map((n) => n.config.fill)).toEqual(["#abcdef", "#ff8800"]);
     });
 });

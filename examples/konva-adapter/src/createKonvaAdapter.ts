@@ -3,12 +3,15 @@
 
 import {
     type Adapter,
+    type AlertConditionEmission,
     type CandleEvent,
     type Capabilities,
     type DrawingEmission,
     type InteractionHandlers,
+    type LogEmission,
     type PlotEmission,
     type PlotStyle,
+    RENDER_BAND,
     type RunnerEmissions,
     type ViewController,
     type Viewport,
@@ -22,6 +25,7 @@ import {
     medianBarSpacing,
     priceToY,
     projectShiftedX,
+    sortByRenderOrder,
     timeToX,
     validateEmission,
     yRangeInWindow,
@@ -37,7 +41,13 @@ import { formatTick, niceTicks, tickStep } from "./axis.js";
 import { KONVA_CAPABILITIES, KONVA_SYM_INFO } from "./capabilities.js";
 import { DEFAULT_PALETTE, type KonvaPalette } from "./palette.js";
 import { type PaneLayoutEntry, computePaneLayout } from "./paneLayout.js";
-import { primitiveToNode, withAlpha } from "./primitiveToNode.js";
+import {
+    type ShapeGlyph,
+    primitiveToNode,
+    resolvePaintColor,
+    shapeGlyphNodes,
+    withAlpha,
+} from "./primitiveToNode.js";
 import type { KonvaGroup, KonvaLayer, KonvaNamespace, KonvaNode, KonvaStage } from "./types.js";
 
 const DEFAULT_INTERVAL = "1D";
@@ -61,6 +71,36 @@ const GLYPH_FONT_FAMILY = "sans-serif";
 const GLYPH_LABEL_FONT_SIZE = 11;
 const HORIZONTAL_HISTOGRAM_MAX_WIDTH_PX = 96;
 const HORIZONTAL_HISTOGRAM_ROW_HEIGHT_PX = 6;
+// `shape` plots offset their glyph above / below the plot value by
+// `size * GLYPH_LOCATION_OFFSET_RATIO`, matching the canvas2d reference
+// (`render/shape.ts`'s `OFFSET_RATIO`). `absolute` pins it at the value.
+const GLYPH_LOCATION_OFFSET_RATIO = 1.25;
+
+// Always-on-top alert-condition strip (top-right) + log pane (bottom-left),
+// mirroring the canvas2d reference's `render/alertConditions.ts` +
+// `render/logPane.ts` layout constants in the konva node model.
+const TAIL_FONT_SIZE = 11;
+const ALERT_CONDITION_PANEL_X_PAD = 12;
+const ALERT_CONDITION_PANEL_Y = 18;
+const ALERT_CONDITION_ROW_HEIGHT = 14;
+const ALERT_CONDITION_STRIP_WIDTH = 180;
+const LOG_PANE_PADDING = 8;
+const LOG_PANE_ROW_HEIGHT = 13;
+// Latest-N logs shown in the bottom-left pane (matches canvas2d's
+// `MAX_VISIBLE_LOGS`); the buffer is capped at the same count at ingest.
+const MAX_VISIBLE_LOGS = 5;
+
+// Resolve a `shape` glyph's anchored y from its plot location: `above`
+// lifts it, `below` drops it, `absolute` (the default) pins it.
+function anchoredGlyphY(
+    y: number,
+    size: number,
+    location: "above" | "below" | "absolute" | undefined,
+): number {
+    if (location === "above") return y - size * GLYPH_LOCATION_OFFSET_RATIO;
+    if (location === "below") return y + size * GLYPH_LOCATION_OFFSET_RATIO;
+    return y;
+}
 
 // A plot value is renderable when it is a finite number — a `null` "skip
 // this bar" gap or a non-finite value is not drawn.
@@ -140,11 +180,24 @@ type SeriesPoint = {
     readonly value: number | null;
     readonly color: string | null;
     readonly bar: number;
+    // Presentation `z` (default 0) + global declaration `seq` (ingest
+    // order = script order), assigned in `applyPlot`. The series mark uses
+    // its LAST point's `z`/`seq` (last-write-wins, like its style) in the
+    // z-sort pass.
+    readonly z: number;
+    readonly seq: number;
     // The universal `ta` `offset` (signed integer bars; `+n` right/future,
     // `−n` left/past). Stored ONLY when non-zero (mirroring canvas2d), so a
     // no-offset point's projected x is byte-identical to the pre-feature
     // `timeToX(point.time)`.
     readonly xShift?: number;
+    // The per-bar dynamic-color channel for line / step-line / area /
+    // histogram (the normative `PlotEmission.colorValue` 3-state). Stored
+    // ONLY when present on the wire (conditional-spread in `applyPlot`), so a
+    // no-`colorValue` point is byte-identical to the pre-feature shape and
+    // every existing golden / pinned hash holds. `null` ⇒ paint-nothing gap;
+    // a string ⇒ overrides the static color for this bar's segment.
+    readonly colorValue?: string | null;
     readonly band?: {
         readonly upper: number | null;
         readonly lower: number | null;
@@ -152,20 +205,59 @@ type SeriesPoint = {
     };
 };
 
-// Horizontal line keyed by slot id (last-write-wins), carrying its pane.
+// Horizontal line keyed by slot id (last-write-wins), carrying its pane
+// plus its presentation `z` / declaration `seq` for the z-sort pass.
 type PanedHLine = {
     readonly price: number;
     readonly color: string | null;
     readonly paneKey: string;
+    readonly z: number;
+    readonly seq: number;
 };
+
+// One sortable mark collected for a pane's single z-ordered paint pass.
+// The tagged union routes each mark to its existing per-kind builder after
+// the stable sort. `z` is the presentation layer key (default 0), `band`
+// the default phase (`RENDER_BAND.*`), `seq` the global declaration-order
+// tiebreak — the structural key the shared `sortByRenderOrder` reads.
+type SortableMark =
+    | {
+          readonly kind: "series";
+          readonly z: number;
+          readonly band: number;
+          readonly seq: number;
+          readonly entry: { style: PlotStyle; points: SeriesPoint[] };
+      }
+    | {
+          readonly kind: "glyph";
+          readonly z: number;
+          readonly band: number;
+          readonly seq: number;
+          readonly plot: PlotEmission;
+      }
+    | {
+          readonly kind: "hline";
+          readonly z: number;
+          readonly band: number;
+          readonly seq: number;
+          readonly hline: PanedHLine;
+      }
+    | {
+          readonly kind: "drawing";
+          readonly z: number;
+          readonly band: number;
+          readonly seq: number;
+          readonly drawing: DrawingEmission;
+      };
 
 type AdapterState = {
     readonly konva: KonvaNamespace;
     readonly stage: KonvaStage;
+    // Plots, glyphs, hlines AND drawings paint into ONE layer's per-pane
+    // groups so the z-sort can interleave them (a `z:-1` drawing below a
+    // `z:0` plot, a `z:1` plot above a drawing) — Konva layers paint in a
+    // fixed stage order, so a separate drawings layer could not interleave.
     readonly seriesLayer: KonvaLayer;
-    // Rebuilt every drain from `drawings` via `decomposeDrawing` +
-    // `primitiveToNode`; lives on its own layer above the series layer.
-    readonly drawingsLayer: KonvaLayer;
     // Price-axis labels painted into each pane's right gutter, rebuilt every
     // drain on its own top layer (`rebuildAxisLayer`).
     readonly axisLayer: KonvaLayer;
@@ -187,8 +279,23 @@ type AdapterState = {
     readonly hlines: Map<string, PanedHLine>;
     // Live drawing emissions keyed by `handleId` (last-write-wins;
     // `op:"remove"` drops the key in `applyDrawing`). Rendered every drain
-    // by `rebuildDrawingsLayer` through the shared `decomposeDrawing` IR.
+    // in the overlay pane's z-sorted pass through the shared
+    // `decomposeDrawing` IR + `primitiveToNode`.
     readonly drawings: Map<string, DrawingEmission>;
+    // Fired alert conditions for the CURRENT drain, rebuilt each drain
+    // (cleared then re-pushed in `ingest`) — the always-on-top condition
+    // strip reads them. Latest runtime logs, capped at `MAX_VISIBLE_LOGS`,
+    // for the always-on-top bottom-left log pane. Both mirror canvas2d's
+    // `currentAlertConditions` / `recentLogs`.
+    readonly currentAlertConditions: AlertConditionEmission[];
+    readonly recentLogs: LogEmission[];
+    // Global monotonic declaration sequence (ingest order = script order)
+    // assigned at every ingested mark; the z-sort tiebreak. `overlaySeq` /
+    // `drawingSeq` carry the `seq` for the stores that hold the raw
+    // emission (which has no `seq` field), written in lockstep.
+    seq: number;
+    readonly overlaySeq: Map<string, number>;
+    readonly drawingSeq: Map<string, number>;
     readonly palette: KonvaPalette;
     // Pan/zoom controller (adapter-kit); see the canvas2d adapter for the
     // identical wiring. `resolveXWindow` picks the per-frame x window;
@@ -398,27 +505,51 @@ function buildCandles(state: AdapterState, group: KonvaGroup, viewport: Viewport
     }
 }
 
-// Flatten a series of finite points into a Konva polyline `points` array,
-// breaking on `null`/non-finite values so a gap is rendered as separate
-// segments. Returns one flat array per contiguous finite run.
-function lineSegments(
+// One contiguous same-colour run of a line-family series: a flat
+// `[x0,y0,x1,y1,…]` polyline + the resolved colour to paint it with.
+type ColorRun = { points: number[]; color: string };
+
+// Split a line-family series into consecutive same-colour RUNS, mirroring
+// the canvas2d reference contract. A run breaks on a `null`/non-finite
+// `value` (the existing gap), on a `null` `colorValue` (an explicit
+// paint-nothing gap), AND when the resolved per-bar colour DIFFERS from the
+// current run's colour. The static top-level `color` (carried into
+// `staticColor`) NEVER splits a run — only an explicit `colorValue` does —
+// so a no-`colorValue` series resolves to `staticColor` for every bar and
+// stays exactly ONE run (byte-identical to the pre-feature render). The
+// resolved colour is `resolvePaintColor(point.colorValue, staticColor,
+// plotDefault)` (`null` ⇒ gap). Returns one `ColorRun` per run.
+function colorRuns(
     series: ReadonlyArray<SeriesPoint>,
+    staticColor: string,
+    plotDefault: string,
     project: (point: SeriesPoint, value: number) => { x: number; y: number },
-): number[][] {
-    const runs: number[][] = [];
-    let current: number[] = [];
+): ColorRun[] {
+    const runs: ColorRun[] = [];
+    let current: ColorRun | undefined;
+    const flush = (): void => {
+        if (current !== undefined && current.points.length > 0) runs.push(current);
+        current = undefined;
+    };
     for (const point of series) {
         if (point.value === null || !Number.isFinite(point.value)) {
-            if (current.length > 0) {
-                runs.push(current);
-                current = [];
-            }
+            flush();
             continue;
         }
+        const color = resolvePaintColor(point.colorValue, staticColor, plotDefault);
+        if (color === null) {
+            // Explicit `colorValue:null` ⇒ paint-nothing gap, breaks the run.
+            flush();
+            continue;
+        }
+        if (current === undefined || current.color !== color) {
+            flush();
+            current = { points: [], color };
+        }
         const { x, y } = project(point, point.value);
-        current.push(x, y);
+        current.points.push(x, y);
     }
-    if (current.length > 0) runs.push(current);
+    flush();
     return runs;
 }
 
@@ -438,17 +569,21 @@ function buildLineSeries(
         y: priceToY(value, viewport),
     });
     const dash = dashFor(style.lineStyle);
-    for (const run of lineSegments(series, project)) {
+    const staticColor = seriesColor(series, state.palette.plotDefault);
+    // Per-bar `colorValue` splits the polyline into same-colour runs; a
+    // no-`colorValue` series resolves to `staticColor` everywhere and is one
+    // run, byte-identical to before.
+    for (const run of colorRuns(series, staticColor, state.palette.plotDefault, project)) {
         // A single-point run (e.g. an isolated value between two gaps) is
         // not a drawable polyline — skip it.
-        if (run.length < 4) continue;
+        if (run.points.length < 4) continue;
         // step-line: insert a horizontal then vertical knee between points
         // by duplicating x of the next point at the prior y.
-        const points = style.kind === "step-line" ? toStepPoints(run) : run;
+        const points = style.kind === "step-line" ? toStepPoints(run.points) : run.points;
         group.add(
             new state.konva.Line({
                 points,
-                stroke: seriesColor(series, state.palette.plotDefault),
+                stroke: run.color,
                 strokeWidth: style.lineWidth,
                 lineJoin: "round",
                 lineCap: "round",
@@ -493,12 +628,15 @@ function buildAreaSeries(
     });
     const baselineY = priceToY(viewport.yMin, viewport);
     const dash = dashFor(style.lineStyle);
-    const color = seriesColor(series, state.palette.plotDefault);
-    for (const run of lineSegments(series, project)) {
-        if (run.length < 4) continue;
-        const closed = run.slice();
-        const lastX = run[run.length - 2];
-        const firstX = run[0];
+    const staticColor = seriesColor(series, state.palette.plotDefault);
+    // Per-bar `colorValue` splits the area into same-colour runs (each its
+    // own closed filled shape), like the line family; a no-`colorValue`
+    // series is one run, byte-identical to before.
+    for (const run of colorRuns(series, staticColor, state.palette.plotDefault, project)) {
+        if (run.points.length < 4) continue;
+        const closed = run.points.slice();
+        const lastX = run.points[run.points.length - 2];
+        const firstX = run.points[0];
         closed.push(lastX, baselineY, firstX, baselineY);
         group.add(
             new state.konva.Line({
@@ -506,8 +644,8 @@ function buildAreaSeries(
                 closed: true,
                 // The fill carries the requested `fillAlpha` (baked into the
                 // `#rrggbbaa` colour); the stroke stays fully opaque.
-                fill: withAlpha(color, style.fillAlpha),
-                stroke: color,
+                fill: withAlpha(run.color, style.fillAlpha),
+                stroke: run.color,
                 strokeWidth: style.lineWidth,
                 ...(dash === undefined ? {} : { dash }),
             }),
@@ -526,6 +664,13 @@ function buildHistogramSeries(
     const baselineY = priceToY(style.baseline, viewport);
     for (const point of series) {
         if (point.value === null || !Number.isFinite(point.value)) continue;
+        // Each column resolves its colour independently (no run logic): the
+        // per-bar `colorValue` 3-state wins over the static `point.color`;
+        // a `null` colorValue ⇒ paint no column this bar. The finite value
+        // still entered `computeYRange` upstream, so suppressing the paint
+        // does not narrow the y-scale (colorValue orthogonal to value).
+        const fill = resolvePaintColor(point.colorValue, point.color, state.palette.plotDefault);
+        if (fill === null) continue;
         const x = projectShiftedX(
             { bars: state.bars, bar: point.bar, xShift: point.xShift, spacing },
             viewport,
@@ -539,7 +684,7 @@ function buildHistogramSeries(
                 y: top,
                 width: HISTOGRAM_BAR_WIDTH_PX,
                 height,
-                fill: point.color ?? state.palette.plotDefault,
+                fill,
             }),
         );
     }
@@ -620,12 +765,35 @@ function buildHLine(
     );
 }
 
+// Resolve the per-bar tint colour for a candle / bar override or a
+// bar-color emission. `candle-override` picks bull / bear / doji by the
+// bar's direction (`close > open ? bull : close < open ? bear : doji ??
+// bull`, copying canvas2d's `drawCandleOverride`). `bar-color` honours the
+// dynamic `colorValue` 3-state precedence — omitted ⇒ `style.color`,
+// present ⇒ override, `null` ⇒ no tint this bar (returns `null` so the
+// caller paints nothing). `bar-override` keeps its static colour.
+function overrideColor(
+    style: Extract<PlotStyle, { kind: "candle-override" | "bar-override" | "bar-color" }>,
+    bar: Bar,
+    colorValue: string | null | undefined,
+): string | null {
+    if (style.kind === "candle-override") {
+        if (bar.close > bar.open) return style.bull;
+        if (bar.close < bar.open) return style.bear;
+        return style.doji ?? style.bull;
+    }
+    if (style.kind === "bar-color") {
+        return colorValue === undefined ? style.color : colorValue;
+    }
+    return style.color;
+}
+
 // Glyph / override / style plot kinds → the closest Konva facility. Each
-// `case` documents the mapping. `marker` and `shape` render a small `Rect`
-// (square glyph) since the per-shape glyph geometry is owned by the
-// drawings layer (`primitiveToNode`); `character` renders a `Text`;
-// `arrow` a `Text` arrow glyph; overrides re-tint the bar via a `Rect`;
-// `bg-color` a full-pane background `Rect`; `horizontal-histogram`
+// `case` documents the mapping. `marker` and `shape` render their real
+// per-shape glyph geometry through the shared `shapeGlyphNodes` helper (the
+// same source the `marker` drawing primitive uses); `character` renders a
+// `Text`; `arrow` a `Text` arrow glyph; overrides re-tint the bar via a
+// `Rect`; `bg-color` a full-pane background `Rect`; `horizontal-histogram`
 // per-bucket `Rect`s.
 function buildOverlay(
     state: AdapterState,
@@ -645,17 +813,30 @@ function buildOverlay(
                 { bars: state.bars, bar: plot.bar, xShift: plot.xShift, spacing },
                 viewport,
             );
-            const y = priceToY(plot.value, viewport);
-            const size = style.size;
-            group.add(
-                new state.konva.Rect({
-                    x: x - size / 2,
-                    y: y - size / 2,
-                    width: size,
-                    height: size,
-                    fill: plot.color ?? state.palette.glyphText,
-                }),
-            );
+            // `shape` honours its `location` anchor (above / below / absolute);
+            // `marker` carries no `location`, so it always pins at the value.
+            const y =
+                style.kind === "shape"
+                    ? anchoredGlyphY(priceToY(plot.value, viewport), style.size, style.location)
+                    : priceToY(plot.value, viewport);
+            const shape: ShapeGlyph = style.shape;
+            const color = plot.color ?? state.palette.glyphText;
+            // The five filled shapes take a `fill`; the three stroked glyphs
+            // (cross / xcross / flag) take a 1px `stroke` (parity with
+            // canvas2d's `drawShape`).
+            const isStrokedGlyph = shape === "cross" || shape === "xcross" || shape === "flag";
+            const attrs = isStrokedGlyph
+                ? { stroke: { stroke: color, strokeWidth: 1 } }
+                : { fill: { fill: color } };
+            for (const node of shapeGlyphNodes(state.konva, {
+                x,
+                y,
+                size: style.size,
+                shape,
+                ...attrs,
+            })) {
+                group.add(node);
+            }
             return;
         }
         case "character": {
@@ -679,7 +860,13 @@ function buildOverlay(
             // Konva node tree expresses the same per-bar tint.
             const bar = state.barsByTime.get(plot.time);
             if (bar === undefined) return;
-            const color = style.kind === "candle-override" ? style.bull : style.color;
+            // candle-override resolves bull / bear / doji by the bar's
+            // direction (copying canvas2d's `drawCandleOverride`). bar-color
+            // honours the per-bar dynamic `colorValue` 3-state, mirroring the
+            // `bg-color` branch (omitted ⇒ `style.color`; present ⇒ override;
+            // `null` ⇒ no tint this bar). bar-override keeps its static colour.
+            const color = overrideColor(style, bar, plot.colorValue);
+            if (color === null) return;
             const x = timeToX(bar.time, viewport);
             const bodyWidth = (viewport.pxWidth / state.bars.length) * BODY_WIDTH_RATIO;
             const top = priceToY(Math.max(bar.open, bar.close), viewport);
@@ -758,8 +945,12 @@ function buildOverlay(
             );
             return;
         }
-        // No default: `isOverlayStyle` gates which styles reach this
-        // builder, so every overlay kind is handled above.
+        // No default: only overlay-style emissions reach this builder —
+        // glyph kinds via the z-sorted pass (`collectSortableMarks` filters
+        // through `isGlyphOverlay`) and the bg-color / override substrate via
+        // `rebuildSeriesLayer`'s pre-pass — so every kind is handled above.
+        // Series styles (line / step-line / histogram / area / filled-band /
+        // horizontal-line) never enter `plotOverlays` (see `applyPlot`).
     }
 }
 
@@ -797,25 +988,6 @@ function seriesColor(series: ReadonlyArray<SeriesPoint>, fallback: string): stri
     return fallback;
 }
 
-// A `plotOverlays` entry is a non-series visual the overlay/subpane group
-// paints directly (glyph, override, background, histogram, label). Series
-// styles (line / step-line / histogram / area / horizontal-line /
-// filled-band) are accumulated separately and excluded here.
-function isOverlayStyle(style: PlotStyle): boolean {
-    return (
-        style.kind === "shape" ||
-        style.kind === "marker" ||
-        style.kind === "character" ||
-        style.kind === "arrow" ||
-        style.kind === "candle-override" ||
-        style.kind === "bar-override" ||
-        style.kind === "bar-color" ||
-        style.kind === "bg-color" ||
-        style.kind === "horizontal-histogram" ||
-        style.kind === "label"
-    );
-}
-
 // ---- ingest (mirrors canvas2d's apply* + ingest split) ----
 
 // Append a point to a series, creating the entry (with its style) on
@@ -843,17 +1015,30 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
         state.paneOrder.push(paneKey);
     }
     const style = plot.style;
+    // One declaration-sequence number per ingested mark (ingest order =
+    // script order, since the runtime drains in script order). `z` defaults
+    // to `0`, omitted-on-the-wire ⇒ byte-identical band + declaration order.
+    const seq = state.seq++;
+    const z = plot.z ?? 0;
     // Omit a no-shift `xShift` so the stored point (and therefore the
     // rendered x) is byte-identical to a pre-feature emission, mirroring
     // canvas2d's `applyPlot`.
     const shift = plot.xShift === undefined || plot.xShift === 0 ? {} : { xShift: plot.xShift };
+    // Thread the per-bar dynamic `colorValue` onto the point only when present
+    // on the wire, so a no-`colorValue` point is byte-identical to a
+    // pre-feature emission (`plot()` always passes `undefined` today — this is
+    // wire-level honesty). `null` ⇒ paint-nothing gap; a string ⇒ override.
+    const dyn = plot.colorValue === undefined ? {} : { colorValue: plot.colorValue };
     if (style.kind === "line" || style.kind === "step-line" || style.kind === "histogram") {
         pushSeriesPoint(state, paneSlotKey(paneKey, plot.slotId), style, {
             time: plot.time,
             value: plot.value,
             color: plot.color,
             bar: plot.bar,
+            z,
+            seq,
             ...shift,
+            ...dyn,
         });
         return;
     }
@@ -867,7 +1052,10 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             value: plot.value,
             color: plot.color,
             bar: plot.bar,
+            z,
+            seq,
             ...shift,
+            ...dyn,
             ...(style.kind === "filled-band"
                 ? { band: { upper: style.upper, lower: style.lower, alpha: style.alpha } }
                 : {}),
@@ -879,19 +1067,28 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             price: plot.value ?? 0,
             color: plot.color,
             paneKey,
+            z,
+            seq,
         });
         return;
     }
     const overlayKey = `${plot.slotId}@${plot.time}`;
     state.plotOverlays.set(overlayKey, plot);
+    // `overlaySeq` carries the glyph overlay's declaration `seq` (the store
+    // holds the raw emission, which has no `seq` field); written in lockstep.
+    state.overlaySeq.set(overlayKey, seq);
 }
 
 function applyDrawing(state: AdapterState, drawing: DrawingEmission): void {
     if (drawing.op === "remove") {
         state.drawings.delete(drawing.handleId);
+        state.drawingSeq.delete(drawing.handleId);
         return;
     }
     state.drawings.set(drawing.handleId, drawing);
+    // `drawingSeq` carries the drawing's declaration `seq` (the store holds
+    // the raw emission, which has no `seq` field); written in lockstep.
+    state.drawingSeq.set(drawing.handleId, state.seq++);
 }
 
 function applyValidated<T>(items: ReadonlyArray<T>, apply: (item: T) => void): void {
@@ -900,15 +1097,83 @@ function applyValidated<T>(items: ReadonlyArray<T>, apply: (item: T) => void): v
     }
 }
 
+function applyLog(state: AdapterState, log: LogEmission): void {
+    state.recentLogs.push(log);
+    // Cap the buffer at the last N rows (matching canvas2d's `MAX_VISIBLE_LOGS`)
+    // so the log pane never grows unbounded.
+    while (state.recentLogs.length > MAX_VISIBLE_LOGS) {
+        state.recentLogs.shift();
+    }
+}
+
 function ingest(state: AdapterState, emissions: RunnerEmissions): void {
     applyValidated(emissions.plots, (plot) => applyPlot(state, plot));
     applyValidated(emissions.drawings, (drawing) => applyDrawing(state, drawing));
-    // alerts / alertConditions / logs / diagnostics are part of the
-    // declared capability surface but NOT rendered by this adapter (no
-    // alert badge, log pane, or condition strip in the Konva series
-    // layer). They are validated-and-ignored — never thrown on — so the
-    // adapter ingests the full emission surface without crashing. Alert /
-    // log rendering is a deferred follow-up, like canvas2d's tail pass.
+    // alertConditions are CURRENT-drain state: clear, then re-collect the
+    // fired-or-not set this drain (the renderer paints only the fired ones),
+    // mirroring canvas2d. Logs accumulate (capped). alerts (badge rendering)
+    // and diagnostics remain validated-and-ignored — alert badges are a
+    // separate deferral, diagnostics are not a visual.
+    state.currentAlertConditions.length = 0;
+    applyValidated(emissions.alertConditions, (condition) =>
+        state.currentAlertConditions.push(condition),
+    );
+    applyValidated(emissions.logs, (log) => applyLog(state, log));
+}
+
+// ---- always-on-top tail (alert conditions + log pane) ----
+
+// Draw the fired alert conditions as a compact top-right strip of `Text`
+// rows, mirroring canvas2d's `render/alertConditions.ts`. Non-fired
+// conditions are ignored (they still travel on the wire so hosts can model
+// state transitions); an empty fired set paints nothing.
+function buildAlertConditions(state: AdapterState, group: KonvaGroup, viewport: Viewport): void {
+    const fired = state.currentAlertConditions.filter((condition) => condition.fired);
+    if (fired.length === 0) return;
+    const x = Math.max(ALERT_CONDITION_PANEL_X_PAD, viewport.pxWidth - ALERT_CONDITION_STRIP_WIDTH);
+    for (let i = 0; i < fired.length; i++) {
+        const condition = fired[i];
+        group.add(
+            new state.konva.Text({
+                x,
+                y: ALERT_CONDITION_PANEL_Y + i * ALERT_CONDITION_ROW_HEIGHT,
+                text: `${condition.conditionId}: ${condition.defaultMessage}`,
+                fontSize: TAIL_FONT_SIZE,
+                fontFamily: GLYPH_FONT_FAMILY,
+                fill: state.palette.plotDefault,
+                align: "left",
+                verticalAlign: "top",
+            }),
+        );
+    }
+}
+
+// Draw the latest logs as a bottom-left pane of `Text` rows, mirroring
+// canvas2d's `render/logPane.ts`. The buffer is already capped at
+// `MAX_VISIBLE_LOGS` in `applyLog`, so this paints every row it holds.
+function buildLogPane(state: AdapterState, group: KonvaGroup, viewport: Viewport): void {
+    const visible = state.recentLogs;
+    if (visible.length === 0) return;
+    const x = LOG_PANE_PADDING;
+    const y = Math.max(
+        LOG_PANE_PADDING,
+        viewport.pxHeight - LOG_PANE_PADDING - visible.length * LOG_PANE_ROW_HEIGHT,
+    );
+    for (let i = 0; i < visible.length; i++) {
+        const log = visible[i];
+        group.add(
+            new state.konva.Text({
+                x,
+                y: y + i * LOG_PANE_ROW_HEIGHT,
+                text: `[${log.level}] ${log.message}`,
+                fontSize: TAIL_FONT_SIZE,
+                fontFamily: GLYPH_FONT_FAMILY,
+                fill: state.palette.plotDefault,
+                align: "left",
+                verticalAlign: "top",
+            }),
+        );
+    }
 }
 
 // ---- render (rebuild the whole series layer each drain) ----
@@ -928,60 +1193,47 @@ function rebuildSeriesLayer(state: AdapterState): void {
             // Cached for the DOM interaction handlers' pixel↔world mapping.
             state.lastOverlayViewport = viewport;
         }
-        if (entry.paneKey === "overlay" && state.bars.length > 0) {
-            buildCandles(state, group, viewport);
-        }
-        // Background overlays first (behind series), then series, then
-        // glyph/override overlays, then hlines.
+        // Substrate paints BELOW the z-sorted pass and is `z`-independent
+        // (matching canvas2d): background bg-color tints, then candles, then
+        // candle / bar / bar-color overrides. Then ONE z-sorted pass paints
+        // series / glyphs / hlines / drawings interleaved by `(z, band, seq)`.
         for (const plot of state.plotOverlays.values()) {
             if (plot.pane !== entry.paneKey) continue;
             if (plot.style.kind !== "bg-color") continue;
             buildOverlay(state, group, plot, viewport, spacing);
         }
-        buildPaneSeries(state, group, entry.paneKey, viewport, spacing);
+        if (entry.paneKey === "overlay" && state.bars.length > 0) {
+            buildCandles(state, group, viewport);
+        }
         for (const plot of state.plotOverlays.values()) {
             if (plot.pane !== entry.paneKey) continue;
-            if (plot.style.kind === "bg-color") continue;
-            /* v8 ignore next -- plotOverlays only ever holds overlay-style emissions (see applyPlot) */
-            if (!isOverlayStyle(plot.style)) continue;
+            // Candle / bar / bar-color overrides re-tint a bar with the
+            // candles, below the sorted pass; glyph overlays and bg-color are
+            // excluded here (glyphs join the sorted pass; bg-color above).
+            if (
+                plot.style.kind !== "candle-override" &&
+                plot.style.kind !== "bar-override" &&
+                plot.style.kind !== "bar-color"
+            ) {
+                continue;
+            }
             buildOverlay(state, group, plot, viewport, spacing);
         }
-        for (const hline of state.hlines.values()) {
-            if (hline.paneKey !== entry.paneKey) continue;
-            buildHLine(state, group, hline, viewport);
+        for (const mark of collectSortableMarks(state, entry.paneKey)) {
+            paintSortableMark(state, group, mark, viewport, spacing);
+        }
+        // The alert-condition strip + log pane paint LAST in the overlay
+        // pane's group — always-on-top, ABOVE the z-sorted marks and NOT
+        // sortable by `z` in v1 (a deliberate deferral, mirroring canvas2d's
+        // `renderOverlayTail`). They ride `roots[1]` (not the axis layer),
+        // sharing the overlay pane's coordinate space.
+        if (entry.paneKey === "overlay") {
+            buildAlertConditions(state, group, viewport);
+            buildLogPane(state, group, viewport);
         }
         state.seriesLayer.add(group);
     }
     state.seriesLayer.batchDraw();
-}
-
-// Rebuild the dedicated drawings layer from the buffered drawing state.
-// Drawings render only in the OVERLAY pane (matching the canvas2d
-// reference adapter), so each live drawing is decomposed against the
-// overlay pane's `Viewport` into the shared `DrawPrimitive` IR, then each
-// primitive is mapped to its Konva node(s) by `primitiveToNode`. The
-// nodes ride a `Group` translated to the overlay pane origin (the IR is
-// pane-local pixel space). The whole layer is torn down and rebuilt every
-// drain — the same stateless redraw the series layer uses.
-function rebuildDrawingsLayer(state: AdapterState): void {
-    state.drawingsLayer.destroyChildren();
-    const layout = computePaneLayout(state.paneOrder, state.stageSize);
-    const overlay = layout.find((entry) => entry.paneKey === "overlay");
-    // `paneOrder` always starts with "overlay", so the layout always
-    // carries an overlay entry; the guard keeps `overlay` non-undefined.
-    /* v8 ignore next -- overlay pane is always present (paneOrder[0] === "overlay") */
-    if (overlay === undefined) return;
-    const viewport = computePaneViewport(state, overlay, medianBarSpacing(state.bars));
-    const group = new state.konva.Group({ x: overlay.rect.x, y: overlay.rect.y });
-    for (const drawing of state.drawings.values()) {
-        for (const primitive of decomposeDrawing(drawing, viewport)) {
-            for (const node of primitiveToNode(state.konva, primitive)) {
-                group.add(node);
-            }
-        }
-    }
-    state.drawingsLayer.add(group);
-    state.drawingsLayer.batchDraw();
 }
 
 // Rebuild the price-axis layer: one column of "nice" tick labels per pane,
@@ -1023,26 +1275,121 @@ function rebuildAxisLayer(state: AdapterState): void {
     state.axisLayer.batchDraw();
 }
 
-function buildPaneSeries(
+// Build one accumulated plot series into its pane group, dispatching on
+// the (last-write-wins) style. The per-series painter the z-sorted pass
+// dispatches to.
+function buildSeriesEntry(
     state: AdapterState,
     group: KonvaGroup,
-    paneKey: string,
+    entry: { style: PlotStyle; points: SeriesPoint[] },
     viewport: Viewport,
     spacing: number,
 ): void {
+    const { style, points } = entry;
+    if (style.kind === "line" || style.kind === "step-line") {
+        buildLineSeries(state, group, points, style, viewport, spacing);
+    } else if (style.kind === "histogram") {
+        buildHistogramSeries(state, group, points, style, viewport, spacing);
+    } else if (style.kind === "area") {
+        buildAreaSeries(state, group, points, style, viewport, spacing);
+    } else if (style.kind === "filled-band") {
+        buildFilledBand(state, group, points, viewport, spacing);
+    }
+}
+
+// A `plotOverlays` entry joins the z-sorted glyph band iff its style is a
+// shifted-series glyph (shape / marker / character / arrow / label) or a
+// horizontal histogram — the subset `buildOverlay`'s glyph arms render.
+// Substrate overlays (bg-color / bar-color / candle-/bar-override) paint
+// with the candles before the sorted pass, so they are excluded here.
+function isGlyphOverlay(style: PlotStyle): boolean {
+    return (
+        style.kind === "shape" ||
+        style.kind === "marker" ||
+        style.kind === "character" ||
+        style.kind === "arrow" ||
+        style.kind === "label" ||
+        style.kind === "horizontal-histogram"
+    );
+}
+
+// Collect every sortable mark for one pane — plot series, glyph overlays
+// (overlay pane only), horizontal lines, and drawings (overlay pane only)
+// — tagged `(z, band, seq)`, then stable-sort via the shared
+// `sortByRenderOrder`. At the default `z = 0` the key reduces to
+// `(band, declarationSeq)` = series → glyphs → hlines → drawings, the
+// pre-`z` phase order; `z` reorders globally within the pane. A series
+// mark's `z`/`seq` come from its LAST point (last-write-wins, like style).
+function collectSortableMarks(state: AdapterState, paneKey: string): SortableMark[] {
+    const marks: SortableMark[] = [];
     const prefix = paneKeyPrefix(paneKey);
     for (const [key, entry] of state.plotSeries) {
         if (!key.startsWith(prefix)) continue;
-        const { style, points } = entry;
-        if (style.kind === "line" || style.kind === "step-line") {
-            buildLineSeries(state, group, points, style, viewport, spacing);
-        } else if (style.kind === "histogram") {
-            buildHistogramSeries(state, group, points, style, viewport, spacing);
-        } else if (style.kind === "area") {
-            buildAreaSeries(state, group, points, style, viewport, spacing);
-        } else if (style.kind === "filled-band") {
-            buildFilledBand(state, group, points, viewport, spacing);
+        // A stored series always holds ≥ 1 point (`pushSeriesPoint` only
+        // ever creates with one), so the last point — carrying the series'
+        // most-recent `z`/`seq` — is always present.
+        const last = entry.points[entry.points.length - 1];
+        marks.push({ kind: "series", z: last.z, band: RENDER_BAND.series, seq: last.seq, entry });
+    }
+    if (paneKey === "overlay") {
+        for (const [overlayKey, plot] of state.plotOverlays) {
+            if (!isGlyphOverlay(plot.style)) continue;
+            // `overlaySeq` is written in lockstep with `plotOverlays`.
+            /* v8 ignore next -- lockstep with plotOverlays; ?? never taken */
+            const seq = state.overlaySeq.get(overlayKey) ?? 0;
+            marks.push({ kind: "glyph", z: plot.z ?? 0, band: RENDER_BAND.glyph, seq, plot });
         }
+    }
+    for (const hline of state.hlines.values()) {
+        if (hline.paneKey !== paneKey) continue;
+        marks.push({ kind: "hline", z: hline.z, band: RENDER_BAND.hline, seq: hline.seq, hline });
+    }
+    if (paneKey === "overlay") {
+        for (const [handleId, drawing] of state.drawings) {
+            // `drawingSeq` is written in lockstep with `drawings`.
+            /* v8 ignore next -- lockstep with drawings; ?? never taken */
+            const seq = state.drawingSeq.get(handleId) ?? 0;
+            marks.push({
+                kind: "drawing",
+                z: drawing.z ?? 0,
+                band: RENDER_BAND.drawing,
+                seq,
+                drawing,
+            });
+        }
+    }
+    return sortByRenderOrder(marks);
+}
+
+// Paint one sortable mark into its pane group by routing it to its existing
+// per-kind builder. Order — not per-mark drawing — is what the sort changed.
+// Drawings decompose to the shared `DrawPrimitive` IR (overlay-pane only,
+// matching canvas2d) and map to Konva nodes via `primitiveToNode`;
+// `op:"remove"` drawings never reach here (`applyDrawing` drops them).
+function paintSortableMark(
+    state: AdapterState,
+    group: KonvaGroup,
+    mark: SortableMark,
+    viewport: Viewport,
+    spacing: number,
+): void {
+    switch (mark.kind) {
+        case "series":
+            buildSeriesEntry(state, group, mark.entry, viewport, spacing);
+            return;
+        case "glyph":
+            buildOverlay(state, group, mark.plot, viewport, spacing);
+            return;
+        case "hline":
+            buildHLine(state, group, mark.hline, viewport);
+            return;
+        case "drawing":
+            for (const primitive of decomposeDrawing(mark.drawing, viewport)) {
+                for (const node of primitiveToNode(state.konva, primitive)) {
+                    group.add(node);
+                }
+            }
+            return;
     }
 }
 
@@ -1077,11 +1424,12 @@ function applyCandleEvent(state: AdapterState, event: CandleEvent): void {
 /**
  * Create a Konva rendering adapter wired to a worker host. The handle's
  * `onEmissions` callback validates every emission, accumulates plot /
- * horizontal-line state, buffers drawings, and rebuilds the series +
- * drawings layers + `batchDraw`s on every drain — a stateless redraw
- * matching the canvas2d reference adapter. Drawings render through the
- * shared `decomposeDrawing` IR + `primitiveToNode`. Candle events feed
- * the bar buffer via `feedCandleEvent`.
+ * horizontal-line state, buffers drawings, and rebuilds the series layer
+ * (which carries plots / glyphs / hlines AND the z-sorted drawings) +
+ * `batchDraw`s on every drain — a stateless redraw matching the canvas2d
+ * reference adapter. Drawings render through the shared `decomposeDrawing`
+ * IR + `primitiveToNode`, interleaved with plots by `(z, band, seq)`.
+ * Candle events feed the bar buffer via `feedCandleEvent`.
  *
  * @since 1.4
  * @stable
@@ -1108,19 +1456,18 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
             ? { container: opts.container, width: opts.stage.width, height: opts.stage.height }
             : { width: opts.stage.width, height: opts.stage.height },
     );
+    // ONE series layer carries plots / glyphs / hlines AND drawings so the
+    // per-pane z-sort can interleave them. The axis layer is added LAST so
+    // its right-gutter labels sit on top; the series layer keeps its
+    // `roots[1]` index.
     const seriesLayer = new opts.konva.Layer();
-    const drawingsLayer = new opts.konva.Layer();
-    // Axis layer is added LAST so its right-gutter labels sit on top; the
-    // series/drawings layers keep their `roots[1]`/`roots[2]` indices.
     const axisLayer = new opts.konva.Layer();
     stage.add(seriesLayer);
-    stage.add(drawingsLayer);
     stage.add(axisLayer);
     const state: AdapterState = {
         konva: opts.konva,
         stage,
         seriesLayer,
-        drawingsLayer,
         axisLayer,
         stageSize: { width: opts.stage.width, height: opts.stage.height },
         bars: [],
@@ -1130,6 +1477,11 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
         plotOverlays: new Map(),
         hlines: new Map(),
         drawings: new Map(),
+        currentAlertConditions: [],
+        recentLogs: [],
+        seq: 0,
+        overlaySeq: new Map(),
+        drawingSeq: new Map(),
         palette,
         view: createViewController(),
         ...(opts.initialVisibleBars !== undefined
@@ -1140,7 +1492,8 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
     // running against a real DOM (production passes `opts.container`).
     // Headless tests omit it + use `MockKonva`, so no listeners attach and
     // the pinned scene hash / coverage are unaffected. `requestRender`
-    // rebuilds both layers because the drive loop only repaints on candles.
+    // rebuilds the series + axis layers because the drive loop only repaints
+    // on candles.
     /* v8 ignore start -- DOM interaction wiring; only runs against a real container */
     const container = opts.container as Partial<HTMLElement> | undefined;
     if (container !== undefined && typeof container.addEventListener === "function") {
@@ -1169,7 +1522,6 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
             },
             requestRender: () => {
                 rebuildSeriesLayer(state);
-                rebuildDrawingsLayer(state);
                 rebuildAxisLayer(state);
             },
         };
@@ -1207,7 +1559,6 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
         onEmissions: (emissions) => {
             ingest(state, emissions);
             rebuildSeriesLayer(state);
-            rebuildDrawingsLayer(state);
             rebuildAxisLayer(state);
         },
         dispose: () => {
@@ -1218,6 +1569,11 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
             state.plotOverlays.clear();
             state.hlines.clear();
             state.drawings.clear();
+            state.currentAlertConditions.length = 0;
+            state.recentLogs.length = 0;
+            state.seq = 0;
+            state.overlaySeq.clear();
+            state.drawingSeq.clear();
             /* v8 ignore next -- only set on the real-container interaction path */
             state.detachInteraction?.();
             state.stage.destroy();
@@ -1232,7 +1588,7 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
 }
 
 /**
- * Rebuild the series + drawings layers without a new candle event — the
+ * Rebuild the series + axis layers without a new candle event — the
  * repaint the DOM interaction handlers (wheel-zoom / drag-pan /
  * dblclick-reset) call after a gesture changes the view window. Retrieves
  * the handle's `AdapterState` through the module-local `WeakMap` and throws
@@ -1257,7 +1613,6 @@ export function redraw(handle: KonvaAdapterHandle): void {
         throw new Error("redraw: handle was not produced by createKonvaAdapter");
     }
     rebuildSeriesLayer(state);
-    rebuildDrawingsLayer(state);
     rebuildAxisLayer(state);
 }
 
@@ -1282,11 +1637,10 @@ export function feedCandleEvent(handle: KonvaAdapterHandle, event: CandleEvent):
         throw new Error("feedCandleEvent: handle was not produced by createKonvaAdapter");
     }
     applyCandleEvent(state, event);
+    // A new bar shifts the overlay `Viewport` (x/y range), so the series
+    // layer (now carrying the z-sorted drawings too) AND the axis labels
+    // repaint against the updated scale to stay aligned with candles.
     rebuildSeriesLayer(state);
-    // A new bar shifts the overlay `Viewport` (x/y range), so the drawings
-    // AND the axis labels must repaint against the updated scale to stay
-    // aligned with candles.
-    rebuildDrawingsLayer(state);
     rebuildAxisLayer(state);
 }
 
@@ -1331,7 +1685,7 @@ export type RunKonvaLoopOpts = Readonly<{ signal?: AbortSignal }>;
 /**
  * Drive a built Konva adapter through one full pass of its candle source:
  * iterate the events, repaint each via {@link feedCandleEvent} (which feeds
- * the bar buffer and rebuilds both layers), `await host.push(event)`, then
+ * the bar buffer and rebuilds the series + axis layers), `await host.push(event)`, then
  * `host.drain()` + `handle.onEmissions(...)` between events. Returns when
  * the source completes; throws whatever the source / host throws. This is
  * the uniform live drive loop — the Konva analogue of the canvas2d
