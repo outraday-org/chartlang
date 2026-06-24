@@ -81,12 +81,32 @@ Reference adapter package — **not published to npm**.
   state via the `HANDLE_STATE` WeakMap; throws the sentinel on a foreign
   handle). The DOM handlers call `renderFrame` directly; `redraw` is the
   public seam for the same.
+- **Plain `line` plots stroke as a monotone-cubic curve by default.**
+  `paintSeries` passes `smooth = style === undefined || style.kind === "line"`
+  to `drawLine`; a smoothed run of ≥3 finite points is emitted as
+  `bezierCurveTo` segments from `render/monotoneSpline.ts`
+  (`monotoneCubicSegments`, Fritsch–Carlson tangents — passes THROUGH every
+  point with NO overshoot, so the curve never invents a peak the data lacks).
+  Step-lines, area edges, and 2-point runs stay straight (`lineTo`); NaN gaps
+  still split into independent runs. `bezierCurveTo` was added to the shared
+  adapter-kit `RenderCtx` + `MockCanvasContext` (type, mock, `RecordedCall`
+  union, `canonicalise`). The non-smooth (`smooth = false`) path is
+  byte-identical to the old straight polyline, so step-line/area goldens hold;
+  `integration.test.ts`'s `PINNED_HASH` was re-pinned once for the EMA-cross
+  bundle's now-curved plot lines. The library adapters smooth via their native
+  options (konva `tension`, echarts `smooth`, uplot spline paths, LC
+  `lineType: Curved`) for cross-adapter parity.
 - **The pinned `hashCallLog` was re-snapped for the line-style change.**
   `drawLine` now emits `lineWidth` (`PLOT_LINE_WIDTH_PX = 1`) + round
   `lineJoin`/`lineCap` before stroking each plot series (thin like
-  TradingView; the smoothness is the round joins, not thickness), so the
-  default frame's call log changed and `integration.test.ts`'s `PINNED_HASH`
-  was updated once. `lineJoin`/`lineCap` were added to the shared adapter-kit
+  TradingView; the smoothness is the round joins + the monotone curve above),
+  so the default frame's call log changed and `integration.test.ts`'s
+  `PINNED_HASH` was updated. `lineJoin`/`lineCap` were added to the shared adapter-kit
+  `RenderCtx` + `MockCanvasContext` (type, mock, `RecordedCall` union — the
+  generic `set` `canonicalise` arm needed no change). Candle bodies now floor
+  at `MIN_BODY_WIDTH_PX = 1` (`render/candles.ts`) so they never collapse to
+  wicks-only when many bars are packed in; with few bars the body is already
+  wider than 1px so existing candle hashes/tests are untouched. The `lineJoin`/`lineCap` were added to the shared adapter-kit
   `RenderCtx` + `MockCanvasContext` (type, mock, `RecordedCall` union — the
   generic `set` `canonicalise` arm needed no change). Candle bodies now floor
   at `MIN_BODY_WIDTH_PX = 1` (`render/candles.ts`) so they never collapse to
@@ -94,17 +114,23 @@ Reference adapter package — **not published to npm**.
   wider than 1px so existing candle hashes/tests are untouched. The
   auto-follow no-interaction frame (no `initialVisibleBars`) still resolves to
   the full data range, so only the line-style setters moved the hash.
-- **`opts.devicePixelRatio` (default 1) ONLY re-scales the DOM pointer math,
-  never the render.** The adapter draws into `opts.canvas`'s full backing-store
-  resolution, so a caller that backs the canvas at `cssWidth * dpr` and lays it
-  out at `cssWidth` (the retina-crispness idiom the react-starter seam uses)
-  gets a sharp chart with no adapter change — every projection is already in
-  backing-pixel space. Because pointer events arrive in CSS pixels but the
-  viewport is in backing pixels, the wheel/drag handlers multiply incoming
-  pointer x by `dpr` (`pxToWorldX` / `worldXPerPx`) so zoom/pan stay anchored
-  under the cursor. The whole use lives inside the `/* v8 ignore */` DOM-wiring
-  block; `dpr === 1` reproduces the old math exactly, so every pinned hash and
-  the headless tests are untouched.
+- **`opts.devicePixelRatio` (default 1) scales the RENDER via one ambient
+  transform so HiDPI strokes are full-thickness, not half-thick hairlines.**
+  When the caller backs the canvas at `cssWidth * dpr` and lays it out at
+  `cssWidth` (the retina-crispness idiom the react-starter seam uses),
+  `renderFrame` applies `ctx.setTransform(dpr, 0, 0, dpr, 0, 0)` once and lays
+  the panes out in **CSS px** (`canvas.{width,height} / dpr`), so every absolute
+  size — `ctx.lineWidth` (the `1`px plot line / `1`px wick), `MIN_BODY_WIDTH_PX`,
+  the `*px` fonts, `Y_AXIS_GUTTER_PX` — renders at its intended CSS thickness and
+  the GPU upsamples to the backing store. WITHOUT this, a `lineWidth = 1` on a 2×
+  backing store is `0.5` CSS px — the thin / edgy hairline bug. Because the
+  viewport (`pxWidth`) is now CSS px and pointer events are CSS px, the wheel/drag
+  handlers do NOT multiply by `dpr` (`pxToWorldX` / `worldXPerPx` map CSS→world
+  directly). **`dpr === 1` skips `setTransform` and lays out in backing px exactly
+  as before — byte-identical, so every pinned hash and the headless tests are
+  untouched** (the `dpr !== 1` branch is covered by a dedicated HiDPI render test).
+  `setTransform` was added to the shared adapter-kit `RenderCtx` + `MockCanvasContext`
+  (type, mock, `RecordedCall` union, `canonicalise`) in lockstep.
 
 ## Conventions
 

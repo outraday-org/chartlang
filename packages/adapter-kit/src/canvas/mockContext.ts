@@ -29,6 +29,15 @@ export type RecordedCall =
     | { readonly kind: "beginPath" }
     | { readonly kind: "moveTo"; readonly x: number; readonly y: number }
     | { readonly kind: "lineTo"; readonly x: number; readonly y: number }
+    | {
+          readonly kind: "bezierCurveTo";
+          readonly c1x: number;
+          readonly c1y: number;
+          readonly c2x: number;
+          readonly c2y: number;
+          readonly x: number;
+          readonly y: number;
+      }
     | { readonly kind: "stroke" }
     | {
           readonly kind: "rect";
@@ -38,6 +47,15 @@ export type RecordedCall =
           readonly h: number;
       }
     | { readonly kind: "clip" }
+    | {
+          readonly kind: "setTransform";
+          readonly a: number;
+          readonly b: number;
+          readonly c: number;
+          readonly d: number;
+          readonly e: number;
+          readonly f: number;
+      }
     | {
           readonly kind: "fillRect";
           readonly x: number;
@@ -127,6 +145,10 @@ export class MockCanvasContext {
         this.calls.push({ kind: "lineTo", x, y });
     }
 
+    bezierCurveTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void {
+        this.calls.push({ kind: "bezierCurveTo", c1x, c1y, c2x, c2y, x, y });
+    }
+
     stroke(): void {
         this.calls.push({ kind: "stroke" });
     }
@@ -137,6 +159,10 @@ export class MockCanvasContext {
 
     clip(): void {
         this.calls.push({ kind: "clip" });
+    }
+
+    setTransform(a: number, b: number, c: number, d: number, e: number, f: number): void {
+        this.calls.push({ kind: "setTransform", a, b, c, d, e, f });
     }
 
     fillRect(x: number, y: number, w: number, h: number): void {
@@ -268,6 +294,16 @@ function canonicalise(call: RecordedCall): Record<string, unknown> {
         case "lineTo":
         case "translate":
             return { kind: call.kind, x: roundFloat(call.x), y: roundFloat(call.y) };
+        case "bezierCurveTo":
+            return {
+                kind: call.kind,
+                c1x: roundFloat(call.c1x),
+                c1y: roundFloat(call.c1y),
+                c2x: roundFloat(call.c2x),
+                c2y: roundFloat(call.c2y),
+                x: roundFloat(call.x),
+                y: roundFloat(call.y),
+            };
         case "arc":
             return {
                 kind: call.kind,
@@ -276,6 +312,16 @@ function canonicalise(call: RecordedCall): Record<string, unknown> {
                 radius: roundFloat(call.radius),
                 start: roundFloat(call.start),
                 end: roundFloat(call.end),
+            };
+        case "setTransform":
+            return {
+                kind: call.kind,
+                a: roundFloat(call.a),
+                b: roundFloat(call.b),
+                c: roundFloat(call.c),
+                d: roundFloat(call.d),
+                e: roundFloat(call.e),
+                f: roundFloat(call.f),
             };
         case "setLineDash":
             return { kind: call.kind, segments: call.segments.map((s) => roundFloat(s)) };

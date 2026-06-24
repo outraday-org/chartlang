@@ -175,6 +175,7 @@ function buildAdapter(args: {
     onAlert?: (a: AlertEmission) => void;
     alertBadgeFilter?: (a: AlertEmission) => boolean;
     initialVisibleBars?: number;
+    devicePixelRatio?: number;
 }): { adapter: Canvas2dAdapterHandle; ctx: MockCanvas2DContext; host: StubHost } {
     const ctx = args.ctx ?? new MockCanvas2DContext();
     const host = (args.host as StubHost | undefined) ?? stubHost();
@@ -190,6 +191,7 @@ function buildAdapter(args: {
         ...(args.initialVisibleBars !== undefined
             ? { initialVisibleBars: args.initialVisibleBars }
             : {}),
+        ...(args.devicePixelRatio !== undefined ? { devicePixelRatio: args.devicePixelRatio } : {}),
     });
     return { adapter, ctx, host };
 }
@@ -216,6 +218,55 @@ describe("redraw", () => {
         expect(() => redraw(foreign)).toThrow(
             "redraw: handle was not produced by createCanvas2dAdapter",
         );
+    });
+});
+
+describe("HiDPI (devicePixelRatio)", () => {
+    it("applies an ambient dpr transform and lays panes out in CSS px", async () => {
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            devicePixelRatio: 2,
+            candles: candleStream([{ kind: "history", bars: SAMPLE_BARS }]),
+        });
+        await runRendererLoop(adapter);
+        // The frame scales the draw by 2× so a 1px line is a full CSS pixel on
+        // the 2× backing store (the fix for the thin / edgy HiDPI hairline).
+        const transforms = ctx.calls.filter((c) => c.kind === "setTransform");
+        expect(transforms[0]).toEqual({
+            kind: "setTransform",
+            a: 2,
+            b: 0,
+            c: 0,
+            d: 2,
+            e: 0,
+            f: 0,
+        });
+        // Panes are laid out in CSS px (320×240 backing ÷ 2 = 160×120 CSS), so
+        // the overlay pane clear fills the full 120 CSS height — proof the
+        // layout is CSS px, not backing px (which would clear 240 tall).
+        const fills = ctx.calls.filter((c) => c.kind === "fillRect");
+        expect(fills.some((c) => c.kind === "fillRect" && c.h === 120)).toBe(true);
+        expect(fills.every((c) => c.kind === "fillRect" && c.h <= 120)).toBe(true);
+    });
+
+    it("omits the ambient transform at dpr 1 (byte-identical 1× path)", () => {
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({ ctx });
+        redraw(adapter);
+        expect(ctx.calls.some((c) => c.kind === "setTransform")).toBe(false);
+    });
+
+    it("clamps a non-positive dpr back to 1 (no divide-by-zero layout)", () => {
+        const ctx = new MockCanvas2DContext();
+        // dpr 0 would divide the pane layout by zero; the guard falls back to 1
+        // so no ambient transform is emitted and the layout stays finite.
+        const { adapter } = buildAdapter({ ctx, devicePixelRatio: 0 });
+        redraw(adapter);
+        expect(ctx.calls.some((c) => c.kind === "setTransform")).toBe(false);
+        expect(
+            ctx.calls.every((c) => c.kind !== "fillRect" || Number.isFinite(c.h)),
+        ).toBe(true);
     });
 });
 

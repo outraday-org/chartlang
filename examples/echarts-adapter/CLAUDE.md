@@ -84,7 +84,10 @@ test seam + capabilities-only conformance default export).
   `LineStyle` dash into the ECharts `lineStyle` (`{ color, width, type, cap,
   join }`, where `type` is `"solid"|"dashed"|"dotted"` — byte-identical to the
   IR `LineStyle`, no translation table — and `cap`/`join` are pinned to
-  `"round"` so plotted lines render with smooth, rounded joins/caps).
+  `"round"` so plotted lines render with smooth, rounded joins/caps). Plain
+  `line` series additionally carry `smooth: true` (step-lines `smooth: false`)
+  so an MA line renders as a curve, not a faceted polyline — this re-pinned the
+  EMA-cross integration `PINNED_HASH`.
   Candle-state overrides
   (`candle-override` / `bar-override` / `bar-color`) become per-bar
   candlestick `itemStyle`; `bg-color` becomes a per-bar candlestick

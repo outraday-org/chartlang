@@ -322,7 +322,20 @@ function defaultUplotFactory(
         {
             width: opts.width,
             height: opts.height,
-            series: [{}, ...opts.series.map((s) => ({ label: s.label, stroke: s.stroke }))],
+            // Plain `line` plots render as a smooth spline (uPlot's native
+            // spline path builder) so an MA line reads as a curve rather than a
+            // faceted polyline; step/bars/band keep uPlot's default builders.
+            series: [
+                {},
+                ...opts.series.map((s) => {
+                    const spline = s.paths === "line" ? uPlot.paths.spline?.() : undefined;
+                    return {
+                        label: s.label,
+                        stroke: s.stroke,
+                        ...(spline ? { paths: spline } : {}),
+                    };
+                }),
+            ],
             // Price axis on the RIGHT (uPlot's default y axis is `side: 3`
             // = left), matching the house convention — canvas2d, echarts,
             // and lightweight-charts all carry the price scale on the right.

@@ -62,7 +62,7 @@ compute({ bar }) {
 | docs | `state.map` reference page + nav. |
 | skills | `references/translating-from-pine.md` mapping (capacity + `na`/`undefined` caveats). |
 | converter | Pine `map.*` family mapping + capacity synthesis + diagnostics. |
-| adapters | **No new capability** — rides existing `plot`/`draw` holes; `pnpm conformance` proves byte-stability across canvas2d/echarts/konva/lightweight-charts/uplot. Verified, not re-implemented (assumes `tasks/adapter-feature-parity/` landed). |
+| adapters | **No new capability** — rides existing `plot`/`draw` holes; `pnpm conformance` proves byte-stability across canvas2d/echarts/konva/lightweight-charts/uplot/webgl (six once `tasks/webgl-adapter/` lands). Verified, not re-implemented (assumes `tasks/adapter-feature-parity/` landed). |
 | react-starter | **No seam change** — feature flows through the compiler; verified by a `tests/compile.spec.ts` case + the existing `adapter-matrix.spec.ts`. |
 
 ## Architecture Decisions

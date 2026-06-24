@@ -36,9 +36,14 @@ export type ViewControllerOpts = {
  * Stateful, library-agnostic pan/zoom controller for an adapter that
  * computes its own x scale every frame. It holds a user x-window plus a
  * `userInteracted` flag: until the user wheels or drags, {@link
- * ViewController.resolveXWindow} returns the full data range (auto-follow
- * live bars); after the first interaction it returns the held window
- * (re-clamped as data grows), so live frames stop snapping the view back.
+ * ViewController.resolveXWindow} returns the auto-follow window (the full
+ * data range, or the framed `autoFollowXMin` window); after the first
+ * interaction it returns the held window (re-clamped as data grows), so
+ * live frames stop snapping the view back. The first {@link
+ * ViewController.zoomAt}/{@link ViewController.panBy} seeds the held window
+ * from the window last returned by {@link ViewController.resolveXWindow}
+ * (what the user is currently looking at), so leaving auto-follow keeps the
+ * framed view rather than jumping to the full data range.
  *
  * All transforms are pure functions of the current state + the supplied
  * data bounds — there is no DOM or library coupling. The example adapters
@@ -66,7 +71,11 @@ export type ViewController = {
      * clamped into the current data bounds (`autoFollowXMin` is then ignored).
      */
     resolveXWindow(dataXMin: number, dataXMax: number, autoFollowXMin?: number): XWindow;
-    /** Zoom by `factor` (`<1` in, `>1` out) about a world-x pivot. */
+    /**
+     * Zoom by `factor` (`<1` in, `>1` out) about a world-x pivot. The first
+     * call seeds the held window from the last resolved window (the current
+     * view), falling back to the full data range if nothing has rendered yet.
+     */
     zoomAt(pivotX: number, factor: number, dataXMin: number, dataXMax: number): void;
     /** Pan the window by a signed world-x delta. */
     panBy(deltaWorldX: number, dataXMin: number, dataXMax: number): void;
@@ -127,15 +136,21 @@ export function createViewController(opts?: ViewControllerOpts): ViewController 
     const maxSpanFactor = opts?.maxSpanFactor ?? DEFAULT_MAX_SPAN_FACTOR;
     let held: XWindow | undefined;
     let interacted = false;
+    // The window most recently returned by `resolveXWindow` — i.e. what the
+    // user is currently looking at. The first `zoomAt`/`panBy` seeds from this
+    // so the transition out of auto-follow keeps the framed (`autoFollowXMin`)
+    // view instead of snapping to the full data range.
+    let lastResolved: XWindow | undefined;
 
     const base = (dataMin: number, dataMax: number): XWindow =>
-        held ?? { xMin: dataMin, xMax: dataMax };
+        held ?? lastResolved ?? { xMin: dataMin, xMax: dataMax };
 
     return {
         get userInteracted(): boolean {
             return interacted;
         },
         resolveXWindow(dataMin: number, dataMax: number, autoFollowXMin?: number): XWindow {
+            let win: XWindow;
             if (!interacted || held === undefined) {
                 // Auto-follow: optionally start the window at a windowed left
                 // edge (clamped into the data range) so the default view frames
@@ -144,9 +159,12 @@ export function createViewController(opts?: ViewControllerOpts): ViewController 
                     autoFollowXMin === undefined
                         ? dataMin
                         : Math.min(Math.max(autoFollowXMin, dataMin), dataMax);
-                return { xMin, xMax: dataMax };
+                win = { xMin, xMax: dataMax };
+            } else {
+                win = clampWindow(held, dataMin, dataMax, minSpan, maxSpanFactor);
             }
-            return clampWindow(held, dataMin, dataMax, minSpan, maxSpanFactor);
+            lastResolved = win;
+            return win;
         },
         zoomAt(pivotX: number, factor: number, dataMin: number, dataMax: number): void {
             interacted = true;
@@ -177,6 +195,10 @@ export function createViewController(opts?: ViewControllerOpts): ViewController 
         reset(): void {
             held = undefined;
             interacted = false;
+            // Drop the remembered framed window too, so an immediate post-reset
+            // zoom/pan (before the next `resolveXWindow`) seeds from the data
+            // bounds rather than a stale pre-reset view.
+            lastResolved = undefined;
         },
     };
 }

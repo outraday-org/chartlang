@@ -6,7 +6,7 @@
     "license": "MIT",
     "description": "chartlang landing site — TanStack Start + shadcn (Base UI preset).",
     "scripts": {
-        "dev": "vite dev --port 3000",
+        "dev": "vite dev --port 3200",
         "build": "vite build",
         "preview": "vite preview",
         "test": "vitest run",

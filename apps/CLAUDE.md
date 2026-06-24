@@ -21,7 +21,7 @@ artefacts that ship alongside the published packages).
   shadcn Base UI _default_ (neutral) theme** —
   `pnpm dlx shadcn@latest init --base base --template start --preset nova`
   (NOT the site's `--preset b0`). Dev on port **3100** so it can run
-  alongside the site (3000).
+  alongside the site (3200).
   **Brand-relaxation exception:** this is the one tree where the repo
   `brand/` single-source-of-truth contract is deliberately relaxed — it
   must **NOT** `@import "../../../brand/brand.css"`, must **NOT** use the

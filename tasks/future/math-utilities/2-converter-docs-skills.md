@@ -104,8 +104,8 @@ namespace tasks (`array`/`str`/`map`).
   and draws `draw.horizontalLine`s, asserting the emitted drawing payload is
   byte-stable across **all** adapters. `pnpm conformance` replays every
   registered scenario through every adapter (canvas2d, echarts, konva,
-  lightweight-charts, uplot), so a registered scenario *is* the all-adapter
-  proof. Mirror an existing drawing scenario shape.
+  lightweight-charts, uplot, + webgl once landed), so a registered scenario
+  *is* the all-adapter proof. Mirror an existing drawing scenario shape.
 - Register it in the scenario index the conformance runner enumerates.
 
 ### 6. Adapters — no new capability, verified across all (`examples/*-adapter/`)
@@ -113,7 +113,9 @@ namespace tasks (`array`/`str`/`map`).
 `math.*` is pure scalar compute: its outputs are `number`s that flow into the
 existing `plot`/`draw` holes. It emits **no new wire primitive** and needs **no
 adapter code change** — given `tasks/adapter-feature-parity/` is implemented,
-every adapter already renders the resulting marks. Coverage is by
+every adapter (canvas2d, echarts, konva, lightweight-charts, uplot, + webgl
+if `tasks/webgl-adapter/` landed) already renders the resulting marks.
+Coverage is by
 **verification, not re-implementation**:
 
 - The conformance scenario (§5) is the all-adapter proof — `pnpm conformance`
@@ -132,8 +134,9 @@ the namespace is accepted end-to-end through the starter:
 - Add a minimal case to `apps/react-starter/tests/compile.spec.ts` that POSTs a
   source using `math.roundToMintick(...)` to `/api/compile` and asserts a clean
   compile.
-- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all five
-  seam variants build — no change needed; reference it as the
+- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all
+  seam variants build (five, or six once `tasks/webgl-adapter/` adds its
+  seam) — no change needed; reference it as the
   all-adapter-bundles guarantee.
 
 ## Files to Create / Modify
@@ -176,11 +179,12 @@ the namespace is accepted end-to-end through the starter:
   to the scalar form; bare `Math.*` untouched.
 - Docs page clearly states bare `Math` is available; skill mapping updated.
 - Conformance tick-snapped-levels series byte-stable across **all** adapters
-  (canvas2d, echarts, konva, lightweight-charts, uplot) via `pnpm conformance`.
+  (canvas2d, echarts, konva, lightweight-charts, uplot, + webgl if landed)
+  via `pnpm conformance`.
 - Example compiles in e2e (`EXAMPLE_SCRIPTS`) and appears in the live demo
   (`DEMO_SCRIPTS`); `examples:gate` green.
 - No adapter code change required (documented in the changeset); react-starter
-  compile-path case green and the adapter-matrix spec proves all five seam
-  variants bundle.
+  compile-path case green and the adapter-matrix spec proves all seam
+  variants bundle (five, or six with webgl).
 - Coverage + conformance + docs + readme + skills + react-starter gates green;
   changeset committed.

@@ -120,10 +120,14 @@ async function runCanvas2d(): Promise<SeriesXByColor> {
     return polylineXByColor(ctx.calls);
 }
 
-// Walk a canvas call log, grouping each polyline's `moveTo`/`lineTo` x's by
-// the strokeStyle in force when the polyline was drawn. Used by canvas2d AND
-// uplot (both paint to a `MockCanvasContext`). The final frame's polylines
-// win — a `Map` keyed by colour keeps only the last (fully-warmed) series.
+// Walk a canvas call log, grouping each polyline's positioned x's by the
+// strokeStyle in force when the polyline was drawn. Used by canvas2d AND uplot
+// (both paint to a `MockCanvasContext`). Plain `line` plots now stroke as a
+// monotone-cubic curve, so a segment endpoint arrives as `bezierCurveTo`
+// (whose `x` is the data point the curve passes through) rather than `lineTo`;
+// both are captured so the smoothed and straight paths read identically. The
+// final frame's polylines win — a `Map` keyed by colour keeps only the last
+// (fully-warmed) series.
 function polylineXByColor(
     calls: ReadonlyArray<MockCanvas2DContext["calls"][number]>,
 ): SeriesXByColor {
@@ -143,7 +147,9 @@ function polylineXByColor(
             out.set(stroke, current);
             continue;
         }
-        if (call.kind === "lineTo" && current) current.push(call.x);
+        if ((call.kind === "lineTo" || call.kind === "bezierCurveTo") && current) {
+            current.push(call.x);
+        }
     }
     return out;
 }

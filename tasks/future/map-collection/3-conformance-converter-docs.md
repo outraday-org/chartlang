@@ -58,7 +58,7 @@ reference / a runnable example.
   `plot`s a derived scalar (e.g. the value at a fixed key each bar), asserting
   byte-stability across **all** adapters. `pnpm conformance` replays every
   registered scenario through every adapter (canvas2d, echarts, konva,
-  lightweight-charts, uplot), so a registered scenario *is* the all-adapter
+  lightweight-charts, uplot, + webgl once landed), so a registered scenario *is* the all-adapter
   proof. Mirror an existing state scenario shape.
 - Register in the scenario index.
 
@@ -97,7 +97,8 @@ Follow the example pipeline (`examples/CLAUDE.md`, `apps/CLAUDE.md`,
 flow into the existing `plot`/`draw` holes. It emits **no new wire primitive**
 and needs **no adapter code change** — given `tasks/adapter-feature-parity/` is
 implemented, every adapter (canvas2d, echarts, konva, lightweight-charts,
-uplot) already renders the resulting series. Coverage is by **verification, not
+uplot, + webgl if `tasks/webgl-adapter/` landed) already renders the resulting
+series. Coverage is by **verification, not
 re-implementation**:
 
 - The conformance scenario (§2) is the all-adapter proof — `pnpm conformance`
@@ -117,8 +118,9 @@ the namespace is accepted end-to-end through the starter:
   source declaring `state.map<number, number>(N)` and using `set`/`get` to
   `/api/compile` and asserts a clean compile (also exercises the literal-capacity
   guard path).
-- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all five
-  seam variants build — no change needed; reference it as the
+- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all
+  seam variants build (five, or six once `tasks/webgl-adapter/` adds its
+  seam) — no change needed; reference it as the
   all-adapter-bundles guarantee.
 
 ## Files to Create / Modify
@@ -159,12 +161,13 @@ the namespace is accepted end-to-end through the starter:
 - `map.new` → `state.map` with synthesized capacity + diagnostic; member calls
   map; unsupported iterators emit diagnostics, never hard failures.
 - Conformance keyed-accumulation series byte-stable across **all** adapters
-  (canvas2d, echarts, konva, lightweight-charts, uplot) via `pnpm conformance`.
+  (canvas2d, echarts, konva, lightweight-charts, uplot, + webgl if landed)
+  via `pnpm conformance`.
 - Docs page + skill mapping updated; example compiles in e2e
   (`EXAMPLE_SCRIPTS`) and appears in the live demo (`DEMO_SCRIPTS`);
   `examples:gate` green.
 - No adapter code change required (documented in the changeset); react-starter
-  compile-path case green and the adapter-matrix spec proves all five seam
-  variants bundle.
+  compile-path case green and the adapter-matrix spec proves all seam
+  variants bundle (five, or six with webgl).
 - Coverage + conformance + docs + readme + skills + react-starter gates green;
   changeset committed.

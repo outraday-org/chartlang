@@ -49,7 +49,7 @@ pnpm install
 pnpm site:dev
 ```
 
-Then open `http://localhost:3000`.
+Then open `http://localhost:3200`.
 
 ## Build
 

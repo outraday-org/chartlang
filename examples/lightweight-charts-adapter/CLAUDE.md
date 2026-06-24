@@ -54,7 +54,9 @@ lightweight-charts integration.
   series.
 - **A plot's `color` AND line width are forwarded as SERIES-CREATION
   options, not data fields.** `applyLineLikePlot` builds `{ color: plot.color
-  }` (plus `lineType` for a step-line, plus `lineWidth: plot.style.lineWidth`
+  }` (plus `lineType` — `1`/WithSteps for a step-line, `2`/Curved for a plain
+  `line` so an MA line renders as a smooth curve; area keeps the default
+  straight Simple — plus `lineWidth: plot.style.lineWidth`
   for the line-family styles that carry it) and passes it to
   `getOrCreateSeries` →
   `chart.addSeries(seriesType, options, paneIndex)`; the colour lives ONLY

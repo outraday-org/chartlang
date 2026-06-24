@@ -4,9 +4,24 @@
 import type { Palette } from "../palette.js";
 import type { RenderCtx } from "./clear.js";
 import { priceToY, projectShiftedX, type PlotPoint, type Viewport } from "./coords.js";
+import { monotoneCubicSegments } from "./monotoneSpline.js";
 
 function isFiniteValue(p: PlotPoint): boolean {
     return p.value !== null && Number.isFinite(p.value);
+}
+
+// Stroke one contiguous run of pixel points. With `smooth` and ≥3 points the
+// run is a monotone-cubic curve (smooth MA line, no overshoot); otherwise a
+// straight polyline (step-lines, 2-point runs, and pre-smoothing goldens).
+function strokeRun(ctx: RenderCtx, run: ReadonlyArray<{ x: number; y: number }>, smooth: boolean): void {
+    ctx.beginPath();
+    ctx.moveTo(run[0].x, run[0].y);
+    if (smooth && run.length >= 3) {
+        for (const s of monotoneCubicSegments(run)) ctx.bezierCurveTo(s.c1x, s.c1y, s.c2x, s.c2y, s.x, s.y);
+    } else {
+        for (let i = 1; i < run.length; i += 1) ctx.lineTo(run[i].x, run[i].y);
+    }
+    ctx.stroke();
 }
 
 /**
@@ -24,8 +39,12 @@ function isFiniteValue(p: PlotPoint): boolean {
  * `ctx`.
  *
  * The stroke is `lineWidth` px wide (the emission's resolved width; the
- * compiler defaults plots to `1`) with round joins/caps so the polyline
- * reads as a smooth curve rather than a mitred sawtooth.
+ * compiler defaults plots to `1`) with round joins/caps. When `smooth` is
+ * set (the default for plain `line` plots) each contiguous run of ≥3 finite
+ * points is stroked as a monotone-cubic curve so the line reads as a smooth
+ * curve at any bar density; `smooth = false` (step-lines, area edges) keeps
+ * straight segments. Null / non-finite values still break the line into
+ * independent runs.
  *
  * @since 0.1
  * @stable
@@ -35,7 +54,7 @@ function isFiniteValue(p: PlotPoint): boolean {
  *     declare const bars: ReadonlyArray<{ time: number }>;
  *     declare const vp: Viewport;
  *     declare const p: Palette;
- *     drawLine(ctx, series, { bars, spacing: 0 }, vp, p, 1);
+ *     drawLine(ctx, series, { bars, spacing: 0 }, vp, p, 1, true);
  *     void drawLine;
  */
 export function drawLine(
@@ -45,6 +64,7 @@ export function drawLine(
     viewport: Viewport,
     palette: Palette,
     lineWidth: number,
+    smooth: boolean,
 ): void {
     if (series.length === 0) return;
     const firstFinite = series.find(isFiniteValue);
@@ -54,27 +74,23 @@ export function drawLine(
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
 
-    let inPath = false;
+    let run: { x: number; y: number }[] = [];
+    const flush = (): void => {
+        if (run.length > 0) {
+            strokeRun(ctx, run, smooth);
+            run = [];
+        }
+    };
     for (const point of series) {
         if (point.value === null || !Number.isFinite(point.value)) {
-            if (inPath) {
-                ctx.stroke();
-                inPath = false;
-            }
+            flush();
             continue;
         }
         const x = projectShiftedX(
             { bars: world.bars, bar: point.bar, xShift: point.xShift, spacing: world.spacing },
             viewport,
         );
-        const y = priceToY(point.value, viewport);
-        if (!inPath) {
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            inPath = true;
-        } else {
-            ctx.lineTo(x, y);
-        }
+        run.push({ x, y: priceToY(point.value, viewport) });
     }
-    if (inPath) ctx.stroke();
+    flush();
 }

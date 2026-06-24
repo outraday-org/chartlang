@@ -56,7 +56,7 @@ Task 2:
 | docs | `str` reference page + nav. |
 | skills | `references/translating-from-pine.md` mapping + `SKILL.md` inventory. |
 | converter | Pine `str.*` member-call mapping + diagnostics. |
-| adapters | **No new capability** — rides existing `draw.text`/`draw.table`/`alert` holes; `pnpm conformance` proves byte-stability across canvas2d/echarts/konva/lightweight-charts/uplot. Verified, not re-implemented (assumes `tasks/adapter-feature-parity/` landed). |
+| adapters | **No new capability** — rides existing `draw.text`/`draw.table`/`alert` holes; `pnpm conformance` proves byte-stability across canvas2d/echarts/konva/lightweight-charts/uplot/webgl (six once `tasks/webgl-adapter/` lands). Verified, not re-implemented (assumes `tasks/adapter-feature-parity/` landed). |
 | react-starter | **No seam change** — feature flows through the compiler; verified by a `tests/compile.spec.ts` case + the existing `adapter-matrix.spec.ts`. |
 
 ## Architecture Decisions

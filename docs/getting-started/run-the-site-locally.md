@@ -15,7 +15,7 @@ From the repo root:
 ```bash
 pnpm install
 pnpm site:dev
-# then open http://localhost:3000
+# then open http://localhost:3200
 ```
 
 `pnpm site:dev` is shorthand for `pnpm --filter chartlang-site dev`. The

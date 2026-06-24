@@ -83,13 +83,16 @@ capabilities-only conformance default export).
   a visible body per bar. (The `candle-override` / `bar-override` tint `Rect`
   in `buildOverlay` keeps the unclamped width.)
 
-- **Plot lines render with round joins + caps.** `buildLineSeries` sets
-  `lineJoin: "round"` and `lineCap: "round"` on the series `Line` (the Konva
-  idiom for canvas2d's round-join `drawLine`); `strokeWidth` stays
-  `style.lineWidth`. These are stroke-style only — `projectLine` (`testing.ts`)
-  does not project them into the canvas `RecordedCall` log, so `hashKonvaScene`
-  / the integration `PINNED_HASH` are unaffected. `LineConfig` (`types.ts`)
-  declares the optional `lineJoin`/`lineCap` fields.
+- **Plot lines render with round joins + caps, and plain `line` plots are
+  smoothed.** `buildLineSeries` sets `lineJoin: "round"` and `lineCap: "round"`
+  on the series `Line` (the Konva idiom for canvas2d's round-join `drawLine`);
+  `strokeWidth` stays `style.lineWidth`. Plain `line` plots additionally set
+  `tension: 0.5` (Konva's spline analogue of the canvas2d reference's
+  monotone-cubic line, so an MA line reads as a curve); step-lines omit it and
+  keep their hard knees. These are stroke-style/node-attr only — `projectLine`
+  (`testing.ts`) projects neither into the canvas `RecordedCall` log, so
+  `hashKonvaScene` / the integration `PINNED_HASH` are unaffected. `LineConfig`
+  (`types.ts`) declares the optional `lineJoin`/`lineCap`/`tension` fields.
 
 - **Pane layout is ported locally; sharing it is a deferred follow-up.**
   `src/paneLayout.ts` (`computePaneLayout`, overlay top 80% + uniform

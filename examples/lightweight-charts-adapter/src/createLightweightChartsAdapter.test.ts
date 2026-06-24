@@ -378,16 +378,18 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
         const line = chart.calls.find((c) => c.kind === "addSeries" && c.seriesType === "Line");
         // The emission's line width (compiler default 1) rides alongside the
         // colour so the native line is thin/consistent, not LC's default-3.
+        // Plain `line` plots also carry `lineType: 2` (Curved) for smoothing.
         expect(line?.kind === "addSeries" && line.options).toEqual({
             color: "#26a69a",
             lineWidth: 1,
+            lineType: 2,
         });
     });
 
     it("a null plot color carries only the line width in the series options", async () => {
         const chart = await runWithPlots([plot(LINE_STYLE, { slotId: "nco", color: null })]);
         const line = chart.calls.find((c) => c.kind === "addSeries" && c.seriesType === "Line");
-        expect(line?.kind === "addSeries" && line.options).toEqual({ lineWidth: 1 });
+        expect(line?.kind === "addSeries" && line.options).toEqual({ lineWidth: 1, lineType: 2 });
     });
 
     it("forwards the emission's line width to line / area / step-line series", async () => {

@@ -41,8 +41,8 @@ and publish the author-facing docs / skill reference / example.
   series into `state.array(14)` and `plot`s `array.stdev(win)` +
   `array.median(win)`, asserting the emitted plot series are byte-stable across
   **all** adapters — `pnpm conformance` runs every registered scenario through
-  every adapter (canvas2d, echarts, konva, lightweight-charts, uplot), so a
-  registered scenario *is* the all-adapter proof (mirror an existing
+  every adapter (canvas2d, echarts, konva, lightweight-charts, uplot, + webgl
+  once landed), so a registered scenario *is* the all-adapter proof (mirror an existing
   rolling-series scenario shape, e.g. the state-array `rolling-window`
   conformance from `../state-array/` task 4).
 - Register in the scenario index.
@@ -100,7 +100,8 @@ Follow the example pipeline (`examples/CLAUDE.md`, `apps/CLAUDE.md`,
 flows into the existing `plot` hole. It emits **no new wire primitive** and
 needs **no adapter code change** — given `tasks/adapter-feature-parity/` is
 implemented, every adapter (canvas2d, echarts, konva, lightweight-charts,
-uplot) already renders the resulting plot series. Coverage is by
+uplot — and webgl as a sixth, if `tasks/webgl-adapter/` landed) already
+renders the resulting plot series. Coverage is by
 **verification, not re-implementation**:
 
 - The conformance scenario (§1) is the all-adapter proof — `pnpm conformance`
@@ -120,9 +121,10 @@ Verify the new namespace is accepted end-to-end through the starter:
   source using `state.array(...).avg()` / `array.*` to `/api/compile` and
   asserts a clean compile (proves the compiler + server route accept the
   namespace).
-- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all five
-  seam variants build — no change needed there; reference it as the
-  all-adapter-bundles guarantee.
+- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all
+  seam variants build (five, or six once `tasks/webgl-adapter/` adds its
+  seam) — no change needed there; reference it as the all-adapter-bundles
+  guarantee.
 
 ## Files to Create / Modify
 
@@ -161,13 +163,14 @@ conformance).
 ## Acceptance Criteria
 
 - Conformance rolling-stat series byte-stable across **all** adapters
-  (canvas2d, echarts, konva, lightweight-charts, uplot) via `pnpm conformance`.
+  (canvas2d, echarts, konva, lightweight-charts, uplot, + webgl if landed)
+  via `pnpm conformance`.
 - Every mapped Pine `array.*` name converts; nearest-rank + in-place-sort
   reliance emit diagnostics, never hard failures.
 - Docs + skill mapping updated; example compiles in e2e (`EXAMPLE_SCRIPTS`)
   and appears in the live demo (`DEMO_SCRIPTS`); `examples:gate` green.
 - No adapter code change required (documented in the changeset); react-starter
-  compile-path case green and the adapter-matrix spec proves all five seam
-  variants bundle.
+  compile-path case green and the adapter-matrix spec proves all seam
+  variants bundle (five, or six with webgl).
 - Coverage + conformance + docs + readme + skills + react-starter gates green;
   changeset committed.

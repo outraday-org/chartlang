@@ -119,14 +119,18 @@ export type CreateCanvas2dAdapterOpts = {
     readonly alertBadgeFilter?: (a: AlertEmission) => boolean;
     /**
      * Device-pixel ratio of the canvas the caller mounted (default `1`).
-     * The adapter draws into the canvas's full backing-store resolution —
-     * so a caller that backs the canvas at `cssWidth * dpr` (the HiDPI /
-     * retina crispness idiom) and lays it out at `cssWidth` via CSS gets a
-     * sharp chart for free, since every projection is already in
-     * backing-pixel space. This value only re-scales the DOM pan/zoom
-     * pointer math (mouse events arrive in CSS pixels, the viewport is in
-     * backing pixels), so the render path — and every pinned hash — is
-     * byte-identical whether or not it is set.
+     * When `> 1`, `renderFrame` applies an ambient
+     * `setTransform(dpr, 0, 0, dpr, 0, 0)` once per frame and lays panes out
+     * in CSS px (`canvas.{width,height} / dpr`), so a caller that backs the
+     * canvas at `cssWidth * dpr` (the HiDPI / retina crispness idiom) and
+     * lays it out at `cssWidth` via CSS gets full-thickness strokes — every
+     * absolute size (`lineWidth`, fonts, axis gutters) renders at its intended
+     * CSS thickness and the GPU upsamples to the backing store, instead of a
+     * half-thick, edgy hairline. Because the viewport is then CSS px (matching
+     * the CSS-px pointer events), the pan/zoom math does not re-scale by `dpr`.
+     * A non-finite or non-positive value falls back to `1`. `dpr === 1` skips
+     * the transform and is byte-identical to the pre-HiDPI render — every
+     * pinned hash is untouched unless a caller opts in.
      */
     readonly devicePixelRatio?: number;
     /**
@@ -164,7 +168,12 @@ type PanedHLine = HLine & { readonly paneKey: string };
 
 type AdapterState = {
     readonly ctx: RenderCtx;
+    // Backing-store dimensions (`cssSize * dpr` for a HiDPI canvas).
     readonly canvas: { width: number; height: number };
+    // Device-pixel ratio the canvas is backed at (default 1). When `> 1`,
+    // `renderFrame` applies an ambient `setTransform(dpr, …)` and lays panes
+    // out in CSS px so line widths / fonts render at their intended thickness.
+    readonly dpr: number;
     readonly bars: Bar[];
     // Distinct pane keys in first-emit order; `"overlay"` is always at
     // index 0. Mutable — `applyPlot` pushes a new key on first sight and
@@ -647,7 +656,10 @@ function paintSeries(
         renderHistogramSeries(state.ctx, series, style.baseline, world, viewport, state.palette);
         return;
     }
-    drawLine(state.ctx, series, world, viewport, state.palette, PLOT_LINE_WIDTH_PX);
+    // Plain `line` plots (and the default, undefined style) render as a smooth
+    // monotone-cubic curve; step-lines / area edges keep straight segments.
+    const smooth = style === undefined || style.kind === "line";
+    drawLine(state.ctx, series, world, viewport, state.palette, PLOT_LINE_WIDTH_PX, smooth);
 }
 
 // Collect every sortable mark for one pane — plot series, glyph overlays
@@ -731,7 +743,19 @@ function paintSortableMark(
 }
 
 function renderFrame(state: AdapterState): void {
-    const layout = computePaneLayout(state.paneOrder, state.canvas);
+    const { dpr } = state;
+    // On a HiDPI canvas, draw in CSS-pixel space: an ambient transform scales
+    // every absolute size (line widths, fonts, wick/body widths, axis gutters)
+    // up to the backing store, so strokes render at their intended CSS
+    // thickness on retina instead of a half-thick, edgy hairline. The pane
+    // layout is computed in CSS px to match. `dpr === 1` skips the transform
+    // and lays out in backing px exactly as before — byte-identical (so every
+    // pinned hash + headless test is untouched).
+    if (dpr !== 1) state.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const layout = computePaneLayout(state.paneOrder, {
+        width: state.canvas.width / dpr,
+        height: state.canvas.height / dpr,
+    });
     // Median adjacent-bar spacing of the run, computed once per frame and
     // threaded into every shifted-series projection so a `+k` shift past
     // the data edge extrapolates a target time from a stable cadence.
@@ -971,9 +995,15 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
     const capabilities = opts.capabilities ?? CANVAS2D_CAPABILITIES;
     const palette = opts.palette ?? DEFAULT_PALETTE;
     const ctx = resolveCtx(opts);
+    // A non-finite or non-positive dpr would divide the pane layout by zero /
+    // flip the canvas (`canvas.{width,height} / dpr` in `renderFrame`), so
+    // clamp anything other than a finite positive ratio back to `1`.
+    const dprRaw = opts.devicePixelRatio ?? 1;
+    const dpr = Number.isFinite(dprRaw) && dprRaw > 0 ? dprRaw : 1;
     const state: AdapterState = {
         ctx,
         canvas: { width: opts.canvas.width, height: opts.canvas.height },
+        dpr,
         bars: [],
         paneOrder: ["overlay"],
         plotSeries: new Map(),
@@ -1001,23 +1031,22 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
     // the drive loop only renders on candle events.
     /* v8 ignore start -- DOM interaction wiring; only runs against a real canvas */
     const canvasEl = opts.canvas as Partial<HTMLElement>;
-    // Pointer events arrive in CSS pixels but the viewport is sized in
-    // backing pixels (`cssWidth * dpr` when the caller backs a HiDPI canvas),
-    // so scale incoming pointer x by the ratio to keep zoom/pan anchored under
-    // the cursor. Defaults to 1 (CSS == backing), leaving the math unchanged.
-    const dpr = opts.devicePixelRatio ?? 1;
+    // Pointer events arrive in CSS pixels and `renderFrame` now sizes the
+    // viewport (`pxWidth`) in CSS pixels too (the ambient `setTransform(dpr)`
+    // scales the draw to the backing store), so the pixel→world mapping needs
+    // no `dpr` factor — at dpr 1 this is identical to the pre-HiDPI math.
     if (typeof canvasEl.addEventListener === "function") {
         const handlers: InteractionHandlers = {
             controller: state.view,
             pxToWorldX: (px) => {
                 const v = state.lastOverlayViewport;
                 if (v === undefined) return 0;
-                return v.xMin + ((px * dpr) / v.pxWidth) * (v.xMax - v.xMin);
+                return v.xMin + (px / v.pxWidth) * (v.xMax - v.xMin);
             },
             worldXPerPx: () => {
                 const v = state.lastOverlayViewport;
                 if (v === undefined) return 1;
-                return ((v.xMax - v.xMin) / v.pxWidth) * dpr;
+                return (v.xMax - v.xMin) / v.pxWidth;
             },
             dataBounds: () => {
                 const { bars } = state;

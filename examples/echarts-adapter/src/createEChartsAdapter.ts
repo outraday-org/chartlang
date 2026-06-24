@@ -304,6 +304,10 @@ function lineSeries(
         yAxisIndex: grid,
         showSymbol: false,
         connectNulls: false,
+        // Plain `line` plots render as a smooth curve so an MA line reads as a
+        // curve rather than a faceted polyline; step-lines (which set
+        // `step: "end"` via `extra`) keep their hard knees.
+        smooth: style.kind === "line",
         lineStyle: echartsLineStyle(style, color),
         itemStyle: { color },
         data: seriesData(series.points, barCount),

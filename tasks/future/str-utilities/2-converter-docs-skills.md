@@ -62,8 +62,8 @@ author-skill reference entry, one runnable example).
   whose cell text comes from `str.format` / `str.tostring`, asserting the
   emitted `DrawingEmission` text payload is byte-stable across **all** adapters.
   `pnpm conformance` replays every registered scenario through every adapter
-  (canvas2d, echarts, konva, lightweight-charts, uplot), so a registered
-  scenario *is* the all-adapter proof.
+  (canvas2d, echarts, konva, lightweight-charts, uplot, + webgl once landed),
+  so a registered scenario *is* the all-adapter proof.
 - Register it in the scenario index the conformance runner enumerates.
 
 ### 3. Docs (`docs/`)
@@ -113,7 +113,8 @@ Follow the established example pipeline (see `examples/CLAUDE.md`,
 already-shipped `draw.text` / `draw.table` / `draw.marker` / `alert` holes. It
 emits **no new wire primitive** and needs **no adapter code change** — given
 `tasks/adapter-feature-parity/` is implemented, every adapter (canvas2d,
-echarts, konva, lightweight-charts, uplot) already renders the resulting text
+echarts, konva, lightweight-charts, uplot, + webgl if `tasks/webgl-adapter/`
+landed) already renders the resulting text
 payloads. Coverage is by **verification, not re-implementation**:
 
 - The conformance scenario (§2) is the all-adapter proof — `pnpm conformance`
@@ -132,8 +133,9 @@ the namespace is accepted end-to-end through the starter:
 - Add a minimal case to `apps/react-starter/tests/compile.spec.ts` that POSTs a
   source using `str.format`/`str.tostring` in a `draw.table` to `/api/compile`
   and asserts a clean compile.
-- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all five
-  seam variants build — no change needed; reference it as the
+- `apps/react-starter/tests/adapter-matrix.spec.ts` already proves all
+  seam variants build (five, or six once `tasks/webgl-adapter/` adds its
+  seam) — no change needed; reference it as the
   all-adapter-bundles guarantee.
 
 ## Files to Create / Modify
@@ -174,13 +176,13 @@ the namespace is accepted end-to-end through the starter:
 - Every Pine `str.*` name in the table converts; unsupported `mintick` form
   emits a diagnostic + `// TODO`, never a hard failure.
 - Conformance scenario passes across **all** adapters (canvas2d, echarts,
-  konva, lightweight-charts, uplot) via `pnpm conformance`; text payload is
-  byte-stable.
+  konva, lightweight-charts, uplot, + webgl if landed) via `pnpm conformance`;
+  text payload is byte-stable.
 - Docs page renders and is in the nav; skill mapping table updated.
 - Example compiles in e2e (`EXAMPLE_SCRIPTS`) and appears in the live demo
   (`DEMO_SCRIPTS`); `examples:gate` green.
 - No adapter code change required (documented in the changeset); react-starter
-  compile-path case green and the adapter-matrix spec proves all five seam
-  variants bundle.
+  compile-path case green and the adapter-matrix spec proves all seam
+  variants bundle (five, or six with webgl).
 - Coverage + docs + readme + conformance + skills + react-starter gates green;
   changeset committed.

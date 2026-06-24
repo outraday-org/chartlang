@@ -195,6 +195,26 @@ There are **two integration strategies** for the mapping step:
    tests. `canvas2d`, `lightweight-charts` (series-primitive overlay), and
    `uplot` (draw hook) all paint through `paintPrimitive`.
 
+   **HiDPI trap (self-scaled canvas only).** If you back the canvas at
+   `cssWidth * devicePixelRatio` for retina crispness, also apply one ambient
+   `ctx.setTransform(dpr, 0, 0, dpr, 0, 0)` per frame and project in **CSS
+   pixels** — otherwise a `lineWidth = 1` is `1` *backing* px = `0.5` CSS px on
+   a 2× display, i.e. a thin, edgy hairline. The transform scales every absolute
+   size (line widths, fonts) to the backing store automatically. With the
+   transform on, the viewport is CSS-px, so your pointer→world mapping needs no
+   `dpr` factor. (`RenderCtx` exposes `setTransform`; `dpr === 1` can skip it for
+   a byte-identical 1× path. This is exactly how the `canvas2d` reference adapter
+   does it.)
+
+   **Smooth plain `line` plots.** The reference adapters render a plain `line`
+   plot (e.g. a moving average) as a smooth curve so it doesn't read as a
+   faceted polyline at dense bar spacing — keep `step-line` and area edges
+   straight. A self-scaled canvas adapter strokes a monotone-cubic curve
+   (`RenderCtx.bezierCurveTo`; the canvas2d reference's `monotoneCubicSegments`
+   passes through every point with no overshoot). Library adapters use their
+   native smoothing — konva `tension`, echarts `smooth`, uPlot `paths.spline()`,
+   lightweight-charts `lineType: Curved`.
+
 2. **Scene-graph / declarative adapters map the IR to nodes/options.** If
    your library has no `ctx` — Konva (a retained scene graph) and ECharts (a
    declarative option tree) — write a small `primitive → node/element`

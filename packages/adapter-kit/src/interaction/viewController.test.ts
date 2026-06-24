@@ -23,9 +23,29 @@ describe("createViewController", () => {
         // Out-of-range autoFollowXMin is clamped into [dataMin, dataMax].
         expect(view.resolveXWindow(0, 100, -50)).toEqual({ xMin: 0, xMax: 100 });
         expect(view.resolveXWindow(0, 100, 150)).toEqual({ xMin: 100, xMax: 100 });
+        // Re-establish the framed window so the seed is well-defined.
+        expect(view.resolveXWindow(0, 100, 60)).toEqual({ xMin: 60, xMax: 100 });
         // After interaction the held window wins; autoFollowXMin is ignored.
-        view.zoomAt(50, 0.5, 0, 100);
-        expect(view.resolveXWindow(0, 100, 60)).toEqual({ xMin: 25, xMax: 75 });
+        // The first zoom seeds from the framed [60,100], not the full range.
+        view.zoomAt(80, 0.5, 0, 100);
+        expect(view.resolveXWindow(0, 100, 60)).toEqual({ xMin: 70, xMax: 90 });
+    });
+
+    it("seeds the first zoom from the framed auto-follow window, not the full data range", () => {
+        const view = createViewController();
+        // Frame the most recent 120 of 1000 bars (the initialVisibleBars idiom).
+        expect(view.resolveXWindow(0, 1000, 880)).toEqual({ xMin: 880, xMax: 1000 });
+        // The first wheel-zoom must stay near the framed window, NOT snap to
+        // the full [0,1000] data range (the snap-back regression).
+        view.zoomAt(940, 0.5, 0, 1000);
+        expect(view.resolveXWindow(0, 1000, 880)).toEqual({ xMin: 910, xMax: 970 });
+    });
+
+    it("seeds the first pan from the framed auto-follow window, not the full data range", () => {
+        const view = createViewController();
+        expect(view.resolveXWindow(0, 1000, 880)).toEqual({ xMin: 880, xMax: 1000 });
+        view.panBy(-50, 0, 1000); // pan left from the framed [880,1000]
+        expect(view.resolveXWindow(0, 1000, 880)).toEqual({ xMin: 830, xMax: 950 });
     });
 
     it("zooms in about the pivot and marks interacted", () => {

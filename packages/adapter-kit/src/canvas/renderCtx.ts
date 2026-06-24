@@ -25,6 +25,12 @@ export type RenderCtx = {
     beginPath(): void;
     moveTo(x: number, y: number): void;
     lineTo(x: number, y: number): void;
+    // Append a cubic Bézier from the current point to `(x, y)` with control
+    // points `(c1x, c1y)` / `(c2x, c2y)`. A self-scaled adapter uses this to
+    // stroke a monotone-cubic curve through a plot series' points instead of
+    // straight segments, so an MA line reads as a smooth curve at any bar
+    // density rather than a faceted polyline.
+    bezierCurveTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void;
     stroke(): void;
     // Path-`rect` (adds a rectangle to the current path) + `clip` (intersects
     // the clip region with the current path). Distinct from `fillRect` — these
@@ -34,6 +40,11 @@ export type RenderCtx = {
     // so off-window marks do not spill into the axis gutters).
     rect(x: number, y: number, w: number, h: number): void;
     clip(): void;
+    // Replace the current transform with the matrix `[a, b, c, d, e, f]`. A
+    // self-scaled canvas adapter uses `setTransform(dpr, 0, 0, dpr, 0, 0)` to
+    // draw in CSS-pixel space while backing a HiDPI canvas, so absolute sizes
+    // (line widths, fonts) render at the right thickness on retina displays.
+    setTransform(a: number, b: number, c: number, d: number, e: number, f: number): void;
     fillRect(x: number, y: number, w: number, h: number): void;
     fill(): void;
     arc(x: number, y: number, radius: number, start: number, end: number): void;

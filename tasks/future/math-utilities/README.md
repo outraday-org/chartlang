@@ -59,7 +59,7 @@ as `color` / `str`.
 | docs | `math` reference page (states bare `Math` is available) + nav. |
 | skills | `references/translating-from-pine.md` mapping + `nz` scalar/series note. |
 | converter | Pine `math.*` subset mapping + `nz` routing + arity guards + diagnostics. |
-| adapters | **No new capability** — rides existing `plot`/`draw` holes; `pnpm conformance` (new `mathRoundToMintick` scenario) proves byte-stability across canvas2d/echarts/konva/lightweight-charts/uplot. Verified, not re-implemented (assumes `tasks/adapter-feature-parity/` landed). |
+| adapters | **No new capability** — rides existing `plot`/`draw` holes; `pnpm conformance` (new `mathRoundToMintick` scenario) proves byte-stability across canvas2d/echarts/konva/lightweight-charts/uplot/webgl (six once `tasks/webgl-adapter/` lands). Verified, not re-implemented (assumes `tasks/adapter-feature-parity/` landed). |
 | react-starter | **No seam change** — feature flows through the compiler; verified by a `tests/compile.spec.ts` case + the existing `adapter-matrix.spec.ts`. |
 
 ## Architecture Decisions

@@ -138,10 +138,14 @@ layer** every adapter shares.
   (`initialVisibleBars`) while keeping the full history scrollable; omit it
   to fit all data (byte-identical to the pre-feature behaviour). `zoomAt` /
   `panBy` / `reset` are
-  the transforms; `zoomAt` seeds the held window from the data bounds on the
-  first call, guards a `minSpan` floor, and clamps the span to
-  `dataSpan * maxSpanFactor` (default `1` ⇒ cannot zoom out past all-data).
-  All branches are unit-tested to 100% — no DOM, no library types.
+  the transforms; the FIRST `zoomAt`/`panBy` seeds the held window from the
+  window **last returned by `resolveXWindow`** (what the user is currently
+  looking at — the framed `autoFollowXMin` view, NOT the full data range), so
+  leaving auto-follow does not snap the view back to all-data; it falls back to
+  the data bounds only when nothing has rendered yet. `zoomAt` guards a `minSpan`
+  floor, and clamps the span to `dataSpan * maxSpanFactor` (default `1` ⇒ cannot
+  zoom out past all-data). All branches are unit-tested to 100% — no DOM, no
+  library types.
 - **`yRangeInWindow(candidates, win)` is the shared "auto-fit the price
   scale to the VISIBLE window" helper** (lightweight-charts parity). The two
   self-scaled adapters feed bars `{x:time, lo:low, hi:high}` + series points

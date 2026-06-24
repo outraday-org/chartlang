@@ -45,7 +45,7 @@ pnpm --filter chartlang-react-starter dev
 ```
 
 Then open `http://localhost:3100` (port 3100 so it can run alongside the
-site, which uses 3000).
+site, which uses 3200).
 
 ## Build
 

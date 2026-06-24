@@ -7,7 +7,9 @@
 Finish full parity: render the candle/background override emissions
 (`bg-color`, `bar-color`, `candle-override`, `bar-override`,
 `horizontal-histogram`), implement the global per-pane **z-order render
-pass** (mirroring canvas2d's `collectSortableMarks` + `sortByRenderOrder`),
+pass** (collecting per-pane marks like canvas2d's `collectSortableMarks`,
+then sorting via the **shared** `adapter-kit` `sortByRenderOrder` +
+`RENDER_BAND` promoted by `tasks/adapter-feature-parity`),
 add the docs example page, write the changeset (if applicable), and prove
 the whole adapter green across every gate.
 
@@ -31,19 +33,28 @@ the adapter passes the full conformance suite and all repo gates.
      color overrides feeding the candle/vertical-bars programs (override
      the static bull/bear color for that bar, per the
      `colorValue`/override precedence contract in adapter-kit's wire
-     invariants). Mirror canvas2d's `renderBackgroundOverlays` /
-     `renderBarOverlays`.
+     invariants). `candle-override` resolves **bull/bear/doji by bar
+     direction** (the post-parity behavior all five adapters now share —
+     mirror canvas2d's `drawCandleOverride`), not a whole-series tint.
+     Mirror canvas2d's `renderBackgroundOverlays` / `renderBarOverlays`.
    - `horizontal-histogram` → the horizontal-volume-bars program (Task
      10) at the bar's anchor.
    Pure override-resolution (which color wins per bar) unit-tested.
 
-2. **z-order render pass** — port canvas2d's approach: a per-pane
-   `collectSortableMarks` (plot series, glyph overlays, hlines, drawings)
-   tagged `(z, band, seq)` + a stable `sortByRenderOrder`
-   (z → band → seq), then dispatch each in order. `BAND = { series:0,
-   glyph:1, hline:2, drawing:3 }` so default `z=0` reproduces the legacy
-   order. Substrate (bg/candles/axis) before; alerts after. Pure sort
-   logic unit-tested. Keep it per-pane (never cross-pane).
+2. **z-order render pass** — **consume the shared
+   `sortByRenderOrder` + `RENDER_BAND`** that
+   `tasks/adapter-feature-parity` Task 1 promoted into `adapter-kit`
+   (the canonical copy canvas2d/echarts/konva/uplot/lwc now all import —
+   do NOT re-derive the `z → band → seq` comparator locally; that bug
+   class is exactly why it was promoted). webgl supplies only its own
+   per-pane mark payload: collect plot series, glyph overlays, hlines,
+   and drawings tagged `(z, band, seq)` using `RENDER_BAND`
+   (`series → glyph → hline → drawing`), pass them through the shared
+   `sortByRenderOrder`, then dispatch each in order. Default `z=0`
+   reproduces the canonical band order. Substrate (bg/candles/axis)
+   before; alerts after. The collection/application is webgl-specific
+   and unit-tested; the comparator itself is the shared helper. Keep it
+   per-pane (never cross-pane).
 
 3. **Docs** — if the adapter warrants a docs page or the
    `DEMO_SCRIPTS`/examples gates touch it, run `pnpm examples:generate` /
@@ -71,7 +82,7 @@ the adapter passes the full conformance suite and all repo gates.
 | File | Action | Purpose |
 |------|--------|---------|
 | `examples/webgl-adapter/src/webgl/programs/*` | Create/Modify | bg/override fill program |
-| `examples/webgl-adapter/src/renderOrder.ts` | Create | Pure z-order sort |
+| `examples/webgl-adapter/src/renderOrder.ts` | Create | Per-pane mark **collection + application** that calls the shared `sortByRenderOrder`/`RENDER_BAND` (no local comparator) |
 | `examples/webgl-adapter/src/buildFrame.ts` | Modify | Overrides + sorted descriptor order |
 | `examples/webgl-adapter/src/ingest.ts` | Modify | Per-bar override precedence |
 | `examples/webgl-adapter/{README.md,CLAUDE.md}` | Modify | Final docs |
@@ -94,8 +105,9 @@ it; none for the private example adapter.
 
 - bg/bar/candle overrides + horizontal-histogram render with correct
   per-bar precedence (unit-tested).
-- Per-pane z-order pass implemented + unit-tested; default `z=0`
-  reproduces the canonical band order.
+- Per-pane z-order pass implemented via the **shared**
+  `sortByRenderOrder`/`RENDER_BAND` (no forked comparator) + unit-tested;
+  default `z=0` reproduces the canonical band order.
 - Full conformance (248 scenarios) + every repo gate green; docs/CLAUDE.md
   final; changeset committed if required. **WebGL adapter at full
   parity.**

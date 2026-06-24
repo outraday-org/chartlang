@@ -437,6 +437,11 @@ function applyLineLikePlot(state: AdapterState, plot: PlotEmission, seriesType: 
     if (plot.style.kind === "step-line") {
         // Native step rendering: LineType.WithSteps === 1.
         options.lineType = 1;
+    } else if (plot.style.kind === "line") {
+        // Plain `line` plots render as a smooth curve (LineType.Curved === 2)
+        // so an MA line reads as a curve rather than a faceted polyline; area
+        // edges keep the default straight LineType.Simple.
+        options.lineType = 2;
     }
     // Forward the emission's line width. lightweight-charts' default line width
     // is 3 (too thick vs the other adapters); the compiler default is 1, which

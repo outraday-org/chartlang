@@ -452,6 +452,10 @@ function buildLineSeries(
                 strokeWidth: style.lineWidth,
                 lineJoin: "round",
                 lineCap: "round",
+                // Plain `line` plots render as a smooth spline (Konva `tension`)
+                // so an MA line reads as a curve, not a faceted polyline;
+                // step-lines keep their hard knees.
+                ...(style.kind === "line" ? { tension: 0.5 } : {}),
                 ...(dash === undefined ? {} : { dash }),
             }),
         );

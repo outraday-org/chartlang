@@ -98,6 +98,12 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   `../invinite/` port, so it carries a one-line attribution comment, not
   the 4-line relicense header. A non-finite projected candle is a
   per-candle skip (gap); a doji clamps to a 1px body.
+- **Plain `line` plots render as a smooth spline.** `defaultUplotFactory`
+  passes `paths: uPlot.paths.spline()` for a `line` series (step/bars/band keep
+  uPlot's default builders) so an MA line reads as a curve, not a faceted
+  polyline. This lives in the DOM-only `/* v8 ignore */` real-uPlot factory and
+  `MockUplot` does not render native paths, so the draw-pass `PINNED_HASH` and
+  coverage are UNCHANGED.
 - **Plots map to native uPlot series; glyph / remaining override kinds are
   buffered, not dropped.** `line`/`step-line` → line/stepped paths,
   `area`/`filled-band` → series `fill`, `histogram` → bars; `null`/NaN →

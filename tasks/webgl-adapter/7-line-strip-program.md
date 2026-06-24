@@ -9,6 +9,14 @@ them so plot series (`line`, `step-line`, area edges) render as
 miter-joined, anti-aliased, configurable-width polylines with dash + NaN
 support — the smooth indicator line that motivated this whole effort.
 
+Plain `line` plots additionally render as a **monotone-cubic curve by
+default** (parity: the other five adapters now smooth `line` plots — canvas2d
+via `monotoneCubicSegments`, konva `tension`, echarts `smooth`, uPlot
+`paths.spline()`, lightweight-charts `lineType: Curved`). WebGL has no native
+curve, so it **samples** the shared monotone-cubic spline into denser
+line-strip points before packing — keeping `step-line` and area edges straight.
+Skipping this leaves WebGL the lone faceted adapter.
+
 ## Prerequisites
 
 Task 5 (Renderer + descriptors). Complements Task 6 (candles).
@@ -44,6 +52,17 @@ NaN gaps (warmup) collapsing cleanly, and `xShift` offsets applied.
    + miter joins) and color (per-series `color` ?? palette default).
    Map `lineStyle` (`solid`/`dashed`/`dotted`) → dash on/off px.
 
+   **Line-family `colorValue` (parity, wire-honest)** — when a slot
+   carries per-bar `colorValue` (the 3-state contract from
+   `tasks/adapter-feature-parity` Task 3: omitted ⇒ static, present ⇒
+   override, `null` ⇒ gap), split the polyline into consecutive
+   same-color **runs** and emit one line-strip descriptor per run, with a
+   `null` run opening a NaN gap (no segment). Mirror the per-color-run
+   approach feature-parity adopted; the run-splitter is **pure →
+   unit-test** (uniform color = one run, alternating = N runs, `null` =
+   gap). No script emits line-family `colorValue` today, so this is
+   wire-honesty (a synthetic emission paints), not a conformance path.
+
 4. **Area / step** — render area as its boundary line via this program
    for now (filled area body is the `filled-band` program, Task 11 — note
    the deferral in CLAUDE.md); `step-line` uses the stair packer variant.
@@ -51,6 +70,19 @@ NaN gaps (warmup) collapsing cleanly, and `xShift` offsets applied.
 5. **Renderer dispatch** — add the `line-strip` arm to `dispatchLayer`,
    resolving from `program-cache` (one shared program instance reused
    across all line descriptors).
+
+6. **Default line smoothing (parity)** — for a plain `line` style, densify
+   the world points through a monotone-cubic spline (Fritsch–Carlson, passes
+   through every point, no overshoot) BEFORE the packer, so the line-strip
+   draws a smooth curve. **Reuse the shared helper, do not fork**: promote
+   canvas2d's `render/monotoneSpline.ts` (`monotoneCubicSegments`) into
+   `packages/adapter-kit` as a pure curve-sampler (returns sampled world
+   points) and import it here — same "never fork the shared layer" rule as the
+   geometry/interaction layers. `step-line` and area edges stay straight (no
+   sampling). Sampling cadence: a few points per gap is enough for visual
+   smoothness; keep it pure + unit-tested. NaN gaps still split runs (sample
+   each contiguous run independently); `xShift` applies to the source points
+   before sampling.
 
 ## Files to Create / Modify
 
@@ -60,6 +92,8 @@ NaN gaps (warmup) collapsing cleanly, and `xShift` offsets applied.
 | `examples/webgl-adapter/src/webgl/programs/line-strip-program.ts` | Create | Miter/AA/dash line program |
 | `examples/webgl-adapter/src/webgl/Renderer.ts` | Modify | Dispatch `line-strip` |
 | `examples/webgl-adapter/src/webgl/programs/line-strip-pack.test.ts` | Create | Packer unit tests |
+| `packages/adapter-kit/src/geometry/monotoneSpline.ts` (+ test) | Create | Promote canvas2d's `monotoneCubicSegments` to a shared pure curve-sampler |
+| `examples/canvas2d-adapter/src/render/monotoneSpline.ts` | Modify | Re-export from adapter-kit (drop the local copy) |
 
 ## Gates
 
@@ -68,7 +102,9 @@ NaN gaps (warmup) collapsing cleanly, and `xShift` offsets applied.
 
 ## Changeset
 
-None.
+`@invinite-org/chartlang-adapter-kit` (minor) — promotes `monotoneCubicSegments`
+to a shared public curve-sampler. (The webgl example adapter itself is private,
+no changeset.)
 
 ## Acceptance Criteria
 
@@ -77,3 +113,8 @@ None.
 - Program ported with provenance: miter joins, `lineWidth`, dashes, NaN
   skip, shared scratch buffer.
 - Renderer dispatches `line-strip`; build/typecheck/lint green.
+- Plain `line` plots render as a smooth monotone-cubic curve (sampled into
+  line-strip points); `step-line` / area edges stay straight. The spline
+  sampler lives in adapter-kit (shared, pure, unit-tested) — canvas2d imports
+  it too (no fork). Visually matches the smooth lines the other five adapters
+  now render by default.

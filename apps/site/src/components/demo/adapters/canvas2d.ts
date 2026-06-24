@@ -13,15 +13,22 @@ const factory: DemoAdapterFactory = async (mountEl, opts) => {
         "chartlang-example-canvas2d-adapter"
     );
 
+    // Back the canvas at the device-pixel ratio (retina) and lay it out at the
+    // CSS size, then hand the dpr to the adapter so its ambient transform draws
+    // full-thickness, crisp lines instead of half-thick HiDPI hairlines.
+    const dpr = mountEl.ownerDocument.defaultView?.devicePixelRatio ?? 1;
     const canvas = document.createElement("canvas");
     canvas.className = "chart-canvas";
-    canvas.width = opts.width;
-    canvas.height = opts.height;
+    canvas.width = Math.round(opts.width * dpr);
+    canvas.height = Math.round(opts.height * dpr);
+    canvas.style.width = `${opts.width}px`;
+    canvas.style.height = `${opts.height}px`;
     mountEl.replaceChildren(canvas);
 
     const adapter = createCanvas2dAdapter({
         canvas,
         candleSource: opts.candleSource,
+        devicePixelRatio: dpr,
         ...(opts.initialVisibleBars !== undefined
             ? { initialVisibleBars: opts.initialVisibleBars }
             : {}),

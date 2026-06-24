@@ -40,11 +40,17 @@ etc.) ready for the GPU — all without touching `gl`.
    `initialVisibleBars?`). Construct `view` via `createViewController()`.
 
 2. **`src/ingest.ts`** — `applyEmissions(state, emissions)`: port the
-   canvas2d ingestion (applyPlot / applyDrawing / candle accumulation /
-   alert+log ring buffers / z+seq assignment). **Reuse, do not fork**,
-   the emission shapes from adapter-kit. Handle `bg-color` / `bar-color`
-   / `candle-override` / `bar-override` / `horizontal-histogram` into the
-   override stores (rendered in Task 14). Pure → unit-test thoroughly.
+   **post-parity** canvas2d ingestion (applyPlot / applyDrawing / candle
+   accumulation / alert+log ring buffers / z+seq assignment). **Reuse, do
+   not fork**, the emission shapes from adapter-kit. Handle `bg-color` /
+   `bar-color` / `candle-override` / `bar-override` /
+   `horizontal-histogram` into the override stores (rendered in Task 14).
+   Retain per-bar `colorValue` for **line-family** slots (line / step /
+   area / histogram), not just bg/bar-color — the 3-state contract
+   (omitted ⇒ static, present ⇒ override, `null` ⇒ gap) that
+   `tasks/adapter-feature-parity` Task 3 established as the cross-adapter
+   reference; the per-segment recolor is applied in Task 7. Pure →
+   unit-test thoroughly.
 
 3. **`src/layer-descriptor.ts`** — port invinite's `layer-descriptor.ts`
    (adapted) + `colors.ts` (bull/bear/palette color resolution). Define
@@ -93,8 +99,9 @@ None.
 
 ## Acceptance Criteria
 
-- `applyEmissions` reproduces canvas2d's accumulation semantics
-  (last-write-wins, pane keys, z/seq, override stores), unit-tested.
+- `applyEmissions` reproduces the post-parity canvas2d accumulation
+  semantics (last-write-wins, pane keys, z/seq, override stores,
+  line-family `colorValue` retained per bar), unit-tested.
 - `buildFrame` is pure and unit-tested: window math matches the
   `initialVisibleBars` contract; y-autofit uses `yRangeInWindow`; xShift
   via the shared helpers; descriptors carry plain data only.

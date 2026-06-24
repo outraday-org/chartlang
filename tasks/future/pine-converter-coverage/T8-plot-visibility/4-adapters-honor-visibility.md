@@ -5,7 +5,8 @@
 ## Goal
 
 Define the adapter contract for `PlotEmission.visible` and implement it in the
-reference canvas2d adapter (and any other in-repo adapters): when
+reference canvas2d adapter (and all other in-repo adapters — six total
+once `tasks/webgl-adapter/` has landed): when
 `visible === false`, the adapter **does not render** that plot's mark for that
 bar, and does so **without** introducing a series-gap artifact (it is not the
 same as a `value: null` hole). Visibility is universally supported — there is
@@ -69,7 +70,7 @@ segment (since v1 hides the whole series, this is naturally satisfied).
 
 ### 3. Every other in-repo adapter
 
-Apply the same skip to **all five** in-repo adapters that implement
+Apply the same skip to **all six** in-repo adapters that implement
 `onEmissions` (mirror the canvas2d change), threading the guard through each:
 
 - `examples/canvas2d-adapter/` (reference — already implemented; verify per §2)
@@ -77,6 +78,9 @@ Apply the same skip to **all five** in-repo adapters that implement
 - `examples/konva-adapter/`
 - `examples/lightweight-charts-adapter/`
 - `examples/uplot-adapter/`
+- `examples/webgl-adapter/` (the sixth adapter, assuming
+  `tasks/webgl-adapter/` landed — skip the descriptor in `buildFrame`
+  ingest so the hidden plot produces no GL/overlay draw; same wire field)
 
 Given `tasks/adapter-feature-parity/` is implemented, each already renders every
 plot kind; this only adds the `visible === false` short-circuit. Re-run
@@ -105,14 +109,14 @@ copy changes.
 | `packages/adapter-kit/src/types.ts` | Modify | Document the `visible` render obligation. |
 | `packages/adapter-kit/CLAUDE.md` | Modify | Adapter contract for `visible`. |
 | `examples/canvas2d-adapter/src/createCanvas2dAdapter.ts` + per-kind renderers | Modify | Skip render when `visible === false`. |
-| `examples/{echarts,konva,lightweight-charts,uplot}-adapter/src/` `onEmissions` | Modify | Same skip in each of the other four adapters. |
+| `examples/{echarts,konva,lightweight-charts,uplot,webgl}-adapter/src/` `onEmissions`/ingest | Modify | Same skip in each of the other five adapters (webgl skips the descriptor in `buildFrame`). |
 | `examples/canvas2d-adapter/src/*.test.ts` (+ per-adapter tests) | Modify | Hidden-plot = zero draw calls; visible-absent regression. |
 
 ## Gates
 
 - `pnpm typecheck`, `pnpm lint`
 - `pnpm -F @invinite-org/chartlang-adapter-kit test`
-- adapter package test(s) — canvas2d + echarts + konva + lightweight-charts + uplot
+- adapter package test(s) — canvas2d + echarts + konva + lightweight-charts + uplot + webgl
 - `pnpm adapters:generate` + `pnpm adapters:gate` (if any embedded CLI copy changed)
 - `pnpm conformance` (the T8 visibility scenario runs through every adapter)
 - `pnpm docs:check`

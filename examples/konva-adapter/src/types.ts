@@ -70,6 +70,13 @@ export type LineConfig = {
      */
     readonly lineJoin?: "round" | "bevel" | "miter";
     readonly lineCap?: "round" | "square" | "butt";
+    /**
+     * Spline tension. Plain `line` plots set `0.5` so the polyline renders as
+     * a smooth curve through its points (Konva's spline analogue of the
+     * canvas2d reference's monotone-cubic line); omitted (step-lines, fills) ⇒
+     * Konva's default `0` (straight segments).
+     */
+    readonly tension?: number;
     readonly listening?: boolean;
 };
 
