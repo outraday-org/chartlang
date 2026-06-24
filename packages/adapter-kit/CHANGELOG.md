@@ -1,5 +1,147 @@
 # @invinite-org/chartlang-adapter-kit
 
+## 1.6.0
+
+### Minor Changes
+
+- 189493a: Add `bezierCurveTo` to the canvas sink's `RenderCtx` (and the shared
+  `MockCanvasContext` / `RecordedCall` / `canonicalise`). A self-scaled canvas
+  adapter uses it to stroke a smooth curve through a plot series' points instead
+  of straight segments. Production `CanvasRenderingContext2D` /
+  `OffscreenCanvasRenderingContext2D` already satisfy the new member, so this is
+  additive — every existing canvas-family caller keeps compiling, and an adapter
+  that never calls it paints byte-for-byte as before (the method is absent from
+  all existing `hashCallLog` pins).
+
+  This backs default plot-line smoothing in the reference adapters: plain `line`
+  plots now render as a smooth curve (monotone-cubic in the canvas2d reference;
+  each library adapter uses its native smoothing — konva `tension`, echarts
+  `smooth`, uPlot spline paths, lightweight-charts `lineType: Curved`) so a
+  moving-average line reads as a curve rather than a faceted polyline at dense bar
+  spacing. Step-lines and area edges stay straight.
+
+- 8bc628e: Promote the canvas glyph geometry into the shared `./canvas` sink so the
+  canvas-family adapters (uplot draw-hook, lightweight-charts overlay) consume one
+  source instead of hand-porting it (the bug class the `shift.ts` /
+  `renderOrder.ts` promotions exist to kill). New `./canvas` exports:
+  `drawShape` / `drawCharacter` / `drawArrow` / `drawMarker` / `drawLabel`
+  (`shape` / `character` / `arrow` / `marker` / `label` geometry on a
+  `RenderCtx`) plus their arg + enum types (`ShapeArgs` / `ShapeGlyph` /
+  `CharacterArgs` / `ArrowArgs` / `MarkerArgs` / `MarkerShape` / `LabelArgs` /
+  `LabelPosition` / `GlyphLocation`). Each helper is model-free — it draws onto a
+  `RenderCtx` and takes a plain `fallbackColor: string` (the null-color default),
+  so it carries no palette / library / model types. The five filled-marker `shape`
+  glyphs delegate to `drawMarker`; `cross` / `xcross` / `flag` stroke directly.
+  Promoted out of the canvas2d reference adapter (which keeps its own
+  `Palette`-taking local renderers — re-consume deferred). Pure, fully covered.
+- ab8b218: Add `rect` + `clip` to the canvas sink's `RenderCtx` (and the shared
+  `MockCanvasContext` / `RecordedCall` / `hashCallLog`). Together they compose the
+  standard `beginPath()` → `rect()` → `clip()` idiom an adapter uses to confine a
+  hand-rolled `ctx` draw pass to its plotting-area box. Production
+  `CanvasRenderingContext2D` / `OffscreenCanvasRenderingContext2D` already satisfy
+  the two new members, so this is additive — every existing canvas-family caller
+  keeps compiling, and an adapter that never calls them paints byte-for-byte as
+  before (the methods are absent from all existing `hashCallLog` pins). The uPlot
+  reference adapter is the first consumer: it clips its candle/band/hline/drawing
+  overlay so off-window marks stop spilling into the axis gutters.
+- 8bc628e: Add the shared z-order render comparator (`geometry/renderOrder.ts`) so every
+  adapter sorts its paint pass identically instead of hand-porting the math. New
+  public exports on the root barrel: `sortByRenderOrder<T extends RenderOrderKey>`
+  (the model-agnostic `a.z - b.z || a.band - b.band || a.seq - b.seq` total order,
+  sorted in place and the same array returned), `RENDER_BAND` (`{ series, glyph,
+hline, drawing }`, the pre-`z` phase order), and the `RenderOrderKey` structural
+  key (`{ z, band, seq }`). Promoted out of the canvas2d reference adapter
+  (which now re-exports the comparator and aliases `BAND = RENDER_BAND`),
+  mirroring the earlier `shift.ts` promotion — the z-comparator is identical
+  across rendering models, so one generic helper replaces what would otherwise be
+  five divergent ports as Tasks 4/6/10/12 add `z` to the other adapters. The
+  comparator is generic over the mark payload, so each adapter keeps its own
+  mark union local. Pure, fully covered, behaviour-preserving (the canvas2d
+  integration hash has no drawings, so the comparator path is unchanged).
+- ab8b218: Add the shared bar-shift projection contract (`geometry/shift.ts`) so every
+  adapter honours the universal plot `offset` (`PlotEmission.xShift`) identically.
+  New public exports: `medianBarSpacing`, `shiftedBarTime`, `projectShiftedX`
+  (promoted out of the canvas2d reference adapter), plus `maxShiftedTime` (widen a
+  self-scaled adapter's `xMax` for a `+k` future-projected point) and
+  `shiftedBarIndex` (the category/index analogue for declarative adapters). The
+  three rendering models — self-scaled time (canvas2d, konva), category/index
+  (echarts), and aligned/native-time (uplot, lightweight-charts) — now share one
+  pure, fully-covered implementation instead of four divergent ports, which is
+  what let four of the five reference adapters silently drop the offset and
+  collapse multi-plot/offset scripts onto a single x-position. An omitted / `0`
+  `xShift` reproduces the unshifted projection byte-for-byte, so no rendering
+  goldens change from this addition.
+- 189493a: Two rendering fixes for the self-scaled adapters.
+
+  **Viewport no longer snaps to fit-all on the first interaction.** The shared
+  `createViewController` now seeds the held window from the window last returned by
+  `resolveXWindow` (what the user is currently looking at — the framed
+  `initialVisibleBars` view) on the first `zoomAt`/`panBy`, instead of from the full
+  data range. Previously the first wheel/drag discarded the framed window and
+  snapped the chart back to all bars; now leaving auto-follow zooms smoothly from
+  the current view. It falls back to the data bounds only when nothing has rendered
+  yet, so the interact-before-first-render path is unchanged.
+
+  **Add `setTransform` to the canvas sink's `RenderCtx`** (and the shared
+  `MockCanvasContext` / `RecordedCall` / `canonicalise`). This lets a self-scaled
+  canvas adapter apply an ambient `setTransform(dpr, 0, 0, dpr, 0, 0)` and draw in
+  CSS-pixel space, so absolute sizes (line widths, fonts) render at their intended
+  thickness on a HiDPI backing store instead of a half-thick, edgy hairline.
+  Production `CanvasRenderingContext2D` / `OffscreenCanvasRenderingContext2D`
+  already satisfy the new member, so this is additive — every existing
+  canvas-family caller keeps compiling, and an adapter that never calls it (e.g.
+  at `dpr === 1`) paints byte-for-byte as before (the method is absent from all
+  existing `hashCallLog` pins). The canvas2d reference adapter is the first
+  consumer.
+
+- e620ba8: Add `bgcolor(color, opts?)` and `barcolor(color, opts?)` — Pine-ergonomic
+  top-level aliases for the `bg-color` / `bar-color` plot styles. One call
+  (`bgcolor(close > open ? "#16a34a" : "#dc2626", { transp: 80 })`) replaces
+  the verbose `plot(NaN, { style: { kind: "bg-color", … } })`. Surfaced in the
+  generated primitive reference and taught in the chartlang-coding skill.
+
+  Deliverable 2 (per-bar dynamic color): `PlotEmission` gains an optional
+  `colorValue: Color | null` channel; the runtime resolves the `bgcolor` /
+  `barcolor` per-bar color into it (omitted on the static `plot` path → wire
+  byte-identical, every pinned `plot-hash` untouched), validates it
+  (non-empty color string or `null`), and dedups it last-write-wins per
+  `(slotId, bar)` like `value`. Adapters prefer `colorValue` over the static
+  `style.color` at render time — this precedence is now the normative
+  adapter-kit contract (`PlotEmission.colorValue` JSDoc) and is implemented in
+  the canvas2d reference renderer (`null` ⇒ paint-nothing gap; omitted ⇒ static
+  fallback). The Pine converter emits the real per-bar dynamic color
+  (`bgcolor(close > open ? "#16a34a" : "#dc2626")`) instead of a static
+  `plot(NaN, …)`, so `bgcolor`/`barcolor` round-trip with per-bar semantics
+  intact.
+
+- 08cba38: Add `time.*` calendar accessors (`time.year/month/dayofmonth/dayofweek/hour/
+minute/second/timestamp`), a `time.timeClose(t, tz?)` bar-close accessor
+  (Pine's `time_close()` = bar start + interval), a `session.isOpen(t, spec, tz?)`
+  helper, and an `input.session` kind. Calendar fields are derived from a `Time`
+  epoch via the host (authors stay sandboxed — `Date`/`Intl` remain banned). v1
+  is UTC + fixed-offset only; exchange-tz/DST is a scoped follow-up. The Pine
+  converter lowers `dayofweek` / `time()` / `time_close()` / `input.session`.
+- 1efb49c: Add multi-symbol support to `request.security`. `request.security({ symbol,
+interval })` now reads a **different instrument** (not just a higher
+  timeframe), e.g. `request.security({ symbol: "AMEX:SPY", interval: "1D" })`.
+  `symbol` is optional (defaults to the chart symbol) and must be a compile-time
+  literal (`input.symbol` / `input.enum` resolved). A new `multiSymbol` adapter
+  capability gates non-chart-symbol requests: a different-symbol request against
+  an adapter declaring `multiSymbol: false` degrades to an all-NaN
+  bar/series with a single deduped `multi-symbol-not-supported` diagnostic,
+  mirroring `multi-timeframe-not-supported` (the symbol gate precedes the
+  timeframe gate, so a both-different request emits only the symbol diagnostic).
+  The Pine converter now lowers `request.security("OTHER", tf, expr)`, and the
+  `chartlang scaffold-adapter` template advertises `multiSymbol`.
+
+### Patch Changes
+
+- Updated dependencies [e620ba8]
+- Updated dependencies [08cba38]
+- Updated dependencies [1efb49c]
+- Updated dependencies [1efb49c]
+  - @invinite-org/chartlang-core@1.3.0
+
 ## 1.5.0
 
 ### Minor Changes

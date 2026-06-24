@@ -1,5 +1,43 @@
 # @invinite-org/chartlang-language-service
 
+## 1.4.5
+
+### Patch Changes
+
+- 08cba38: Add `time.*` calendar accessors (`time.year/month/dayofmonth/dayofweek/hour/
+minute/second/timestamp`), a `time.timeClose(t, tz?)` bar-close accessor
+  (Pine's `time_close()` = bar start + interval), a `session.isOpen(t, spec, tz?)`
+  helper, and an `input.session` kind. Calendar fields are derived from a `Time`
+  epoch via the host (authors stay sandboxed — `Date`/`Intl` remain banned). v1
+  is UTC + fixed-offset only; exchange-tz/DST is a scoped follow-up. The Pine
+  converter lowers `dayofweek` / `time()` / `time_close()` / `input.session`.
+- 1efb49c: Add `state.array<T>(capacity)` — a persistent, bounded FIFO collection. Push
+  many values across bars (`a.push(v)`) into a fixed-capacity ring and read
+  them back by element (`a.get(0)` = newest, `a.last()`, `a.size`,
+  `a.capacity`, `a.clear()`). Bounded literal capacity keeps it
+  serialization-clean. The Pine converter lowers a bounded numeric
+  `var array<…>` Camp B ring to it.
+
+  The compiler guards the capacity: it must be a compile-time numeric literal
+  (a `const` numeric binding is accepted) that is a positive integer within
+  `MAX_STATE_ARRAY_CAPACITY` (100_000). A non-literal capacity errors
+  `state-array-capacity-not-literal`; an out-of-range / non-integer literal
+  errors `state-array-capacity-exceeds-max`.
+
+- Updated dependencies [189493a]
+- Updated dependencies [8bc628e]
+- Updated dependencies [ab8b218]
+- Updated dependencies [8bc628e]
+- Updated dependencies [ab8b218]
+- Updated dependencies [189493a]
+- Updated dependencies [e620ba8]
+- Updated dependencies [08cba38]
+- Updated dependencies [1efb49c]
+- Updated dependencies [1efb49c]
+  - @invinite-org/chartlang-adapter-kit@1.6.0
+  - @invinite-org/chartlang-core@1.3.0
+  - @invinite-org/chartlang-compiler@1.4.0
+
 ## 1.4.4
 
 ### Patch Changes

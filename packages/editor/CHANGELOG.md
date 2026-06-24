@@ -1,5 +1,33 @@
 # @invinite-org/chartlang-editor
 
+## 2.2.0
+
+### Minor Changes
+
+- 08cba38: Add `time.*` calendar accessors (`time.year/month/dayofmonth/dayofweek/hour/
+minute/second/timestamp`), a `time.timeClose(t, tz?)` bar-close accessor
+  (Pine's `time_close()` = bar start + interval), a `session.isOpen(t, spec, tz?)`
+  helper, and an `input.session` kind. Calendar fields are derived from a `Time`
+  epoch via the host (authors stay sandboxed — `Date`/`Intl` remain banned). v1
+  is UTC + fixed-offset only; exchange-tz/DST is a scoped follow-up. The Pine
+  converter lowers `dayofweek` / `time()` / `time_close()` / `input.session`.
+
+### Patch Changes
+
+- Updated dependencies [189493a]
+- Updated dependencies [8bc628e]
+- Updated dependencies [ab8b218]
+- Updated dependencies [8bc628e]
+- Updated dependencies [ab8b218]
+- Updated dependencies [189493a]
+- Updated dependencies [e620ba8]
+- Updated dependencies [08cba38]
+- Updated dependencies [1efb49c]
+- Updated dependencies [1efb49c]
+  - @invinite-org/chartlang-adapter-kit@1.6.0
+  - @invinite-org/chartlang-core@1.3.0
+  - @invinite-org/chartlang-language-service@1.4.5
+
 ## 2.1.5
 
 ### Patch Changes
