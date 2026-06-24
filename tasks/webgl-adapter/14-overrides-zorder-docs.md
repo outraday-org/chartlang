@@ -65,7 +65,8 @@ the adapter passes the full conformance suite and all repo gates.
 
 4. **Final gate sweep** — run the full content gate set and fix any
    drift: `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test`,
-   `pnpm adapters:gate`, `pnpm conformance` (webgl: all 248 scenarios),
+   `pnpm adapters:gate`, `pnpm conformance` (webgl: full scenario suite,
+   `failed === 0` / `passed > 0`),
    `pnpm build` (apps bundle webgl), react-starter `adapter-matrix`,
    create-chartlang `seamTemplates` parity, `pnpm readme:check`,
    `pnpm docs:check`/`docs:gate` (if docs changed), `pnpm skills:gate`
@@ -108,6 +109,7 @@ it; none for the private example adapter.
 - Per-pane z-order pass implemented via the **shared**
   `sortByRenderOrder`/`RENDER_BAND` (no forked comparator) + unit-tested;
   default `z=0` reproduces the canonical band order.
-- Full conformance (248 scenarios) + every repo gate green; docs/CLAUDE.md
+- Full conformance suite (`failed === 0`, `passed > 0`) + every repo gate
+  green; docs/CLAUDE.md
   final; changeset committed if required. **WebGL adapter at full
   parity.**

@@ -47,11 +47,17 @@ the registry + generated CLI bundle, and passes `pnpm conformance`.
 
 3. **`src/index.ts`** — export, with JSDoc on each:
    - `type CreateWebglAdapterOpts` — mirror `CreateCanvas2dAdapterOpts`:
-     `canvas` (HTMLCanvasElement | {width,height}), optional `gl` test
-     seam (a `WebGL2RenderingContext` injected for browser tests),
-     `candleSource`, `capabilities?`, `interval?`, `onAlert?`,
-     `initialVisibleBars?: number`, `host?`, `workerLike?`,
-     `devicePixelRatio?`.
+     `canvas` (HTMLCanvasElement | OffscreenCanvas | {width,height} —
+     include `OffscreenCanvas`, which WebGL2 supports and canvas2d's opts
+     already accept), optional `gl` test seam (a `WebGL2RenderingContext`
+     injected for browser tests), `candleSource`, `capabilities?`,
+     `interval?`, `onAlert?`, `alertBadgeFilter?` (filters which alerts
+     populate the on-canvas badge buffer — canvas2d exposes it and Task 12
+     references it as "the Task 1 opt"; omit it here and Task 12 has
+     nothing to read), `initialVisibleBars?: number`, `host?`,
+     `workerLike?`, `devicePixelRatio?`. (A `palette?: Palette` opt is
+     optional; if omitted, the bull/bear/series palette comes from the
+     default in the ported `colors.ts` — Task 4.)
    - `type WebglAdapterHandle = Adapter & { readonly host: ScriptHost }`.
    - `createWebglAdapter(opts): WebglAdapterHandle` — for THIS task a
      minimal factory: build the host (`createWorkerHost` or the provided
@@ -64,32 +70,71 @@ the registry + generated CLI bundle, and passes `pnpm conformance`.
      `candles({interval})` → `host.push` → yield → `host.drain` →
      `onEmissions`; respect `opts.signal`).
    - `WEBGL_CAPABILITIES` re-export; `default` export = a capabilities-only
-     object `{ id:"webgl", name, capabilities: WEBGL_CAPABILITIES, ... }`
-     (the conformance test surface, exactly like canvas2d's default).
+     object `{ id:"webgl-reference-default", name, capabilities:
+     WEBGL_CAPABILITIES, ... }` (the conformance test surface, exactly like
+     canvas2d's `DEFAULT_ADAPTER`, whose `Adapter.id` is
+     `"canvas2d-reference-default"` — distinct from the registry id
+     `"webgl"`). `Adapter.symInfo` / `resolveInputs` are optional on the
+     contract, so the capabilities-only triple is sufficient; mirror
+     canvas2d's `defaultAdapter.ts` no-op `candles`/`onEmissions`/`dispose`.
 
-4. **Registry entry** — add to `scripts/adapters/registry.ts` `ADAPTERS`:
+4. **Registry entry** — append to `scripts/adapters/registry.ts` `ADAPTERS`
+   **last** (canvas2d must stay `ADAPTERS[0]`, the conformance reference
+   `run-conformance.ts` pins; webgl is also last alphabetically):
    ```ts
    { id: "webgl", exampleDir: "examples/webgl-adapter", displayName: "WebGL",
-     library: "", libraryRange: "", license: "MIT",
+     library: "(none)", libraryRange: "(built-in)", license: "MIT",
      renderTech: "WebGL2 (raw, GPU-instanced)", strategy: "gl",
      fullSurface: true, approxBundleKb: 45,
      bestFor: "GPU-accelerated, TradingView-grade rendering at scale" }
    ```
-   If `strategy`/other fields are a closed union, extend the type to
-   admit `"gl"`. Keep `approxBundleKb` deterministic (refine after Task 5).
+   Use the `"(none)"` / `"(built-in)"` sentinels (NOT empty strings, like
+   canvas2d) — `gen-adapters.ts` special-cases `entry.library === "(none)"`
+   to render "none (zero external dependencies)"; an empty string falls
+   through and renders an empty `` `` `` cell. `strategy` is a CLOSED union
+   (`AdapterStrategy = "ctx" | "nodes" | "graphic" | "native-ctx"`), so you
+   MUST also:
+   - add `| "gl"` to the `AdapterStrategy` union + a `` - `gl` — `` bullet
+     to its doc-comment in `scripts/adapters/registry.ts`, and
+   - add a `gl:` entry to the **exhaustive** `STRATEGY_BLURB`
+     `Record<AdapterStrategy, string>` in `scripts/gen-adapters.ts`
+     (e.g. `gl: "uploads the decomposed geometry to GPU programs and paints
+     text through a 2D-canvas overlay"`). Without it, `gen-adapters.ts`
+     fails `pnpm typecheck` and the gallery card renders `undefined`.
+
+   Keep `approxBundleKb` deterministic (refine after Task 5).
 
 5. **Generate + conformance** — run `pnpm adapters:generate` (bakes
-   `packages/cli/src/generated/adapters/webgl.ts` + updates `index.ts` /
-   `registry.ts`). Add `src/conformance.test.ts` mirroring
+   `packages/cli/src/generated/adapters/webgl.ts` + updates the generated
+   `index.ts` / `registry.ts`, AND regenerates `docs/adapters/gallery.md`,
+   whose committed copy `gen-adapters.test.ts` re-derives from `ADAPTERS`).
+   Add `src/conformance.test.ts` mirroring
    `examples/echarts-adapter/src/conformance.test.ts`:
    `runConformanceSuite(defaultAdapter)`, assert `failed === 0`,
    `passed > 0`, 300 000 ms timeout.
 
-6. **`src/index.test.ts`** — unit-test the factory: constructs from
+6. **Update the registry test + generator count prose (else `pnpm test`
+   fails / docs go stale).**
+   - `scripts/adapters/registry.test.ts` hard-asserts the EXACT 5-id list
+     (`["canvas2d","echarts","konva","lightweight-charts","uplot"]`) and
+     is titled "declares the five full-surface example adapters". It runs
+     under the root `pnpm test` (root vitest collects
+     `scripts/**/*.test.ts`) **and** `pnpm test:scripts`, so it will FAIL
+     once `webgl` is appended. Add `"webgl"` (last) to the expected list
+     and change "five" → "six" in the title.
+   - `scripts/gen-adapters.ts` carries **hard-coded** adapter-count prose
+     it emits into `docs/adapters/gallery.md` — `adapters:gate` will NOT
+     catch a stale count because the generated and committed copies match.
+     Update: "All five share one renderer-agnostic geometry layer" → "All
+     six …"; "the other four are run pass/fail" → "the other five …"
+     (and the matching `(none)` doc-comment that says "the other four").
+     Re-run `pnpm adapters:generate` afterward so `gallery.md` reflects it.
+
+7. **`src/index.test.ts`** — unit-test the factory: constructs from
    `{width,height}` headlessly, exposes `host` + `capabilities`,
    `dispose()` is idempotent, `runWebglLoop` drains a `mockCandleSource`.
 
-7. **README.md** (≤100 lines, §17.1) + **CLAUDE.md** (new, scaffolded
+8. **README.md** (≤100 lines, §17.1) + **CLAUDE.md** (new, scaffolded
    stub describing the adapter is WebGL2/zero-dep, capabilities-only
    default, GL filled in by later tasks).
 
@@ -104,8 +149,11 @@ the registry + generated CLI bundle, and passes `pnpm conformance`.
 | `examples/webgl-adapter/src/index.test.ts` | Create | Factory unit tests |
 | `examples/webgl-adapter/src/conformance.test.ts` | Create | Shared suite |
 | `examples/webgl-adapter/CLAUDE.md` | Create | Adapter invariants stub |
-| `scripts/adapters/registry.ts` | Modify | Add `webgl` entry |
+| `scripts/adapters/registry.ts` | Modify | Add `webgl` entry + extend `AdapterStrategy` union/doc with `"gl"` |
+| `scripts/gen-adapters.ts` | Modify | Add `gl` `STRATEGY_BLURB` entry; bump hard-coded "five"/"other four" count prose |
+| `scripts/adapters/registry.test.ts` | Modify | Add `"webgl"` to the expected id list; "five" → "six" |
 | `packages/cli/src/generated/adapters/*` | Regenerate | `pnpm adapters:generate` |
+| `docs/adapters/gallery.md` | Regenerate | `pnpm adapters:generate` (gallery includes webgl) |
 
 ## Gates
 
@@ -130,7 +178,13 @@ is generated, not hand-authored.)
   no chart-lib dependency.
 - `WEBGL_CAPABILITIES` matches the canvas2d surface; default export is
   capabilities-only and headless-constructible.
-- Registry entry present; `pnpm adapters:generate` + `pnpm adapters:gate`
-  green; CLI bundle includes `webgl`.
+- Registry entry present (appended last; canvas2d stays `ADAPTERS[0]`);
+  `AdapterStrategy` union + `STRATEGY_BLURB` extended with `"gl"`;
+  `library`/`libraryRange` use the `(none)`/`(built-in)` sentinels.
+- `pnpm adapters:generate` + `pnpm adapters:gate` green; CLI bundle +
+  regenerated `docs/adapters/gallery.md` include `webgl` (gallery shows
+  "Library: none").
+- `scripts/adapters/registry.test.ts` updated (lists six ids) and green
+  under `pnpm test`; `gen-adapters.ts` count prose bumped to six/five.
 - `pnpm conformance` passes for `webgl`; `index.test.ts` green.
 - JSDoc + README + CLAUDE.md present; typecheck/lint/format green.

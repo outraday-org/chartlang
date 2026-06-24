@@ -38,6 +38,10 @@ etc.) ready for the GPU — all without touching `gl`.
    `recentAlerts`, `currentAlertConditions`, `recentLogs`, `seq`,
    `overlaySeq`/`drawingSeq`, `palette`, `view: ViewController`,
    `initialVisibleBars?`). Construct `view` via `createViewController()`.
+   `Palette` is NOT in adapter-kit (it is canvas2d-local), so define the
+   webgl `Palette` type + default in the ported `colors.ts` (requirement 3)
+   and seed `state.palette` from `opts.palette ?? DEFAULT_PALETTE`; the
+   candle/line programs (Tasks 6–7) read `state.palette`.
 
 2. **`src/ingest.ts`** — `applyEmissions(state, emissions)`: port the
    **post-parity** canvas2d ingestion (applyPlot / applyDrawing / candle

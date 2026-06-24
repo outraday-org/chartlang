@@ -111,7 +111,7 @@ layers), §22.10 (landing contract).
 
 | Decision | Rationale |
 |----------|-----------|
-| **Raw WebGL2, zero npm dep** | Faithful to invinite; no peer lib (like canvas2d). `library: ""`, `libraryRange: ""` in the registry. |
+| **Raw WebGL2, zero npm dep** | Faithful to invinite; no peer lib (like canvas2d). `library: "(none)"`, `libraryRange: "(built-in)"` in the registry (the same sentinels canvas2d uses — NOT empty strings, which break the gallery's `library === "(none)"` special-case). |
 | **Pure packers + capabilities-only conformance; browser-only `gl.*`** | No native dep (mirrors canvas2d's "no node-canvas" rule). Conformance is emission-contract (renderer-independent), so the default export only needs valid `capabilities`. Geometry/projection packers are pure → unit-tested. |
 | **NOT in the 100% coverage gate** | `scripts/coverage-merge.ts` walks `packages/*` + `examples/canvas2d-adapter` only. The webgl example adapter follows the other library adapters (echarts/konva/uplot/lwc): tests exist but no 100% gate, so browser-only GL code is acceptable. |
 | **Reuse adapter-kit interaction + geometry; port only GPU layers** | `ViewController` / `yRangeInWindow` / `decomposeDrawing` / shift helpers are the shared cross-adapter contracts. Port invinite's `ortho2d`/`viewport`/programs/shaders; convert the resolved world window → ortho matrix. Never fork the shared layer. |

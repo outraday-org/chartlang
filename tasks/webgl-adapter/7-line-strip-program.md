@@ -84,6 +84,19 @@ NaN gaps (warmup) collapsing cleanly, and `xShift` offsets applied.
    each contiguous run independently); `xShift` applies to the source points
    before sampling.
 
+   The promoted `monotoneCubicSegments` is a **new public adapter-kit
+   export** (adapter-kit is docs-gated): carry `@since 1.7` + `@stable` +
+   `@example` JSDoc on it (and on any exported helper type — reuse the
+   shared `Point2` rather than re-declaring a parallel `Point`), and export
+   it from BOTH the `packages/adapter-kit/src/geometry/index.ts` barrel and
+   the root `packages/adapter-kit/src/index.ts` barrel (webgl and canvas2d
+   import it via the package root `@invinite-org/chartlang-adapter-kit`).
+   canvas2d's `render/monotoneSpline.ts` becomes a bare
+   `export { monotoneCubicSegments } from "@invinite-org/chartlang-adapter-kit"`
+   re-export — the SAME promotion precedent as `render/coords.ts` (shift
+   helpers) and `render/renderOrder.ts` (z-order comparator), which pass
+   `docs:check` without re-stating JSDoc on the bare re-export.
+
 ## Files to Create / Modify
 
 | File | Action | Purpose |
@@ -92,12 +105,17 @@ NaN gaps (warmup) collapsing cleanly, and `xShift` offsets applied.
 | `examples/webgl-adapter/src/webgl/programs/line-strip-program.ts` | Create | Miter/AA/dash line program |
 | `examples/webgl-adapter/src/webgl/Renderer.ts` | Modify | Dispatch `line-strip` |
 | `examples/webgl-adapter/src/webgl/programs/line-strip-pack.test.ts` | Create | Packer unit tests |
-| `packages/adapter-kit/src/geometry/monotoneSpline.ts` (+ test) | Create | Promote canvas2d's `monotoneCubicSegments` to a shared pure curve-sampler |
-| `examples/canvas2d-adapter/src/render/monotoneSpline.ts` | Modify | Re-export from adapter-kit (drop the local copy) |
+| `packages/adapter-kit/src/geometry/monotoneSpline.ts` (+ test) | Create | Promote canvas2d's `monotoneCubicSegments` to a shared pure curve-sampler (JSDoc `@since 1.7`/`@stable`/`@example`) |
+| `packages/adapter-kit/src/geometry/index.ts` | Modify | Export `monotoneCubicSegments` (+ `BezierSegment`) from the geometry barrel |
+| `packages/adapter-kit/src/index.ts` | Modify | Re-export `monotoneCubicSegments` on the root barrel |
+| `examples/canvas2d-adapter/src/render/monotoneSpline.ts` | Modify | Bare re-export from adapter-kit (drop the local copy) |
 
 ## Gates
 
 - `pnpm typecheck` · `pnpm lint` · `pnpm format:check` · `pnpm test`
+- `pnpm docs:check` — the promoted adapter-kit export must carry `@since` +
+  `@example` + a stability marker (docs:check covers `packages/*` +
+  `examples/canvas2d-adapter/src`)
 - `pnpm conformance` (unchanged)
 
 ## Changeset
@@ -115,6 +133,8 @@ no changeset.)
 - Renderer dispatches `line-strip`; build/typecheck/lint green.
 - Plain `line` plots render as a smooth monotone-cubic curve (sampled into
   line-strip points); `step-line` / area edges stay straight. The spline
-  sampler lives in adapter-kit (shared, pure, unit-tested) — canvas2d imports
-  it too (no fork). Visually matches the smooth lines the other five adapters
-  now render by default.
+  sampler lives in adapter-kit (shared, pure, unit-tested), exported from
+  the geometry + root barrels with `@since`/`@stable`/`@example`
+  (`docs:check` green) — canvas2d imports it too via a bare re-export (no
+  fork). Visually matches the smooth lines the other five adapters now
+  render by default.
