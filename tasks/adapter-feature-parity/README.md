@@ -16,7 +16,15 @@ consistent everywhere, four feature areas diverge badly:
    `lightweight-charts`, and are not painted at all in `uplot`.
 3. **Per-bar dynamic color (`colorValue`)** — unhandled for
    line-family plots in *every* adapter (including the reference);
-   `konva` also ignores it for `bar-color`.
+   `konva` also ignores it for `bar-color`. Note: line-family
+   `colorValue` is **not reachable from the authoring surface today** —
+   only the `bgcolor()` / `barcolor()` aliases pass a `dynamicColor`
+   into `plotImpl`; the script-facing `plot()` always passes
+   `undefined`. Wiring line-family `colorValue` here is **wire-level
+   honesty** (an arriving emission paints correctly), exactly like the
+   `area` / `filled-band` / `label` plot styles below — not a fix for a
+   value currently being dropped. Exposing it from the authoring API is
+   separate feature work (see Deferred).
 4. **Capability honesty** — `alertConditions` / `logs` are declared
    `true` but never rendered in four adapters; `lightweight-charts`
    `bg-color` is a no-op; `candle-override` ignores bull/bear/doji
@@ -169,6 +177,15 @@ No provenance headers required.
   for rendering here but remain unreachable from a script until the
   authoring API is widened — a separate language-surface feature with
   its own §22.10-style docs.
+- **Expose line-family per-bar `colorValue` in the authoring surface.**
+  Tasks 3/5/7/10/13 wire line/step-line/area/histogram `colorValue`
+  rendering in all five adapters, but no script path emits it today
+  (only `bgcolor()` / `barcolor()` pass `dynamicColor`; `plot()` does
+  not — see `runtime/src/emit/plot.ts`). The rendering is **wire-level
+  honest** (a synthetic emission carrying `colorValue` paints), but
+  there is no conformance scenario exercising it (a script cannot
+  produce one). Adding a `plot(..., { colorValue })` / per-bar-color
+  authoring path is separate language-surface feature work.
 - **Alert badges / log panes participating in the `z` sort.** Per the
   `canvas2d` invariant they paint always-on-top in v1 (a deliberate
   deferral); this task set keeps that posture across all adapters.

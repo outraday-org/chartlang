@@ -109,9 +109,11 @@ set today. **Decision: `label` shifts at `xShift`** (matches
   renderers" is now obsolete — replace it with the dispatch wiring this
   task adds (marker/step/area/filled-band/label).
 - Add adapter unit tests per kind asserting the call sequence; the
-  existing test `createCanvas2dAdapter.test.ts:1045` ("ignores a plot
-  whose style.kind is not in the Phase-1 union", using `area`) MUST be
-  updated — `area` now renders.
+  existing test in `createCanvas2dAdapter.test.ts` (~`:1088`, "ignores
+  a plot whose style.kind is not in the Phase-1 union", using `area`)
+  MUST be updated — `area` now renders. (Line numbers in this task are
+  approximate after the recent plot-color/offset/candle commits; anchor
+  on the symbol/description, not the exact line.)
 
 ## Files to Create / Modify
 

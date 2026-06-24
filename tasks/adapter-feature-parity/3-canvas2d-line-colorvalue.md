@@ -18,15 +18,30 @@ Task 1. (Independent of Task 2, but both touch `applyPlot` — land Task
 
 ## Current Behavior
 
-`applyPlot` (`createCanvas2dAdapter.ts:784`) stores only
+`applyPlot` (`createCanvas2dAdapter.ts`, ~`:796`) stores only
 `color: plot.color` on each `PlotPoint`; `PlotPoint`
-(`render/coords.ts:47`) has no `colorValue` field. `drawLine`
-(`render/line.ts:47`) reads `firstFinite.color ?? plotDefault` — a
-single per-series color. The runtime DOES emit `colorValue` for line
-plots (`runtime/src/emit/plot.ts:144-167`), so a per-bar dynamic line/
-histogram color (and the `null` paint-nothing gap) is silently dropped.
-`bg-color` / `bar-color` already honor `colorValue` 3-state
-(`render/bgColor.ts:43`; `:457-467`) — the reference for the contract.
+(`render/coords.ts`, ~`:47`) has no `colorValue` field. `drawLine`
+(`render/line.ts`, ~`:41`) reads `firstFinite.color ?? plotDefault` — a
+single per-series color, so a line-family emission carrying
+`colorValue` would be silently dropped.
+
+**Reachability (important):** line-family `colorValue` is **not
+emitted by any script today** — `plotImpl`
+(`runtime/src/emit/plot.ts`, the `colorValue` block ~`:143-168`) only
+attaches `colorValue` when called with a `dynamicColor`, and only the
+`bgcolor()` / `barcolor()` aliases pass one; the script-facing
+`plot()` always passes `undefined`. So this task wires **wire-level
+honesty** (a synthetic emission carrying `colorValue` paints
+correctly), exactly like the deferred `area` / `filled-band` / `label`
+plot-style dispatch — NOT a fix for a value currently being dropped on
+real scripts. Consequence for testing: coverage comes from **adapter
+unit tests with synthetic `PlotEmission`s** that set `colorValue`;
+there is **no conformance scenario** for line-family `colorValue` (a
+script cannot produce one), and the existing `plot-hash` conformance is
+therefore unaffected. `bg-color` / `bar-color` already honor
+`colorValue` 3-state (`render/bgColor.ts`, ~`:42`; the `drawBgColor` /
+`drawBarColor` call sites ~`:452`, ~`:491`) — the reference for the
+contract.
 
 ## Desired Behavior
 

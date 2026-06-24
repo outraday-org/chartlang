@@ -19,8 +19,16 @@ Task 3 (line-family colorValue reference); Task 6 (same konva file).
 `logs: true` are declared (`capabilities.ts:59,85-86`) but nothing
 renders them (documented as a deferred no-op in the konva `CLAUDE.md`).
 Line-family plots use `seriesColor(series, …)` → `plot.color`
-(`:430,469,765`); `colorValue` is not applied (bg-color honors it,
-bar-color will after Task 6).
+(~`:451`, ~`:492`, ~`:538`); `colorValue` is not applied (bg-color
+honors it, bar-color will after Task 6).
+
+**Reachability (line-family colorValue):** no script emits line-family
+`colorValue` today — only `bgcolor()` / `barcolor()` pass a
+`dynamicColor` through `plotImpl`; `plot()` does not (see Task 3's
+Current Behavior). Requirement 2 is therefore **wire-level honesty**,
+tested via **synthetic `PlotEmission`s** in the konva unit tests; no
+conformance scenario exercises it and the `plot-hash` conformance is
+unaffected.
 
 ## Desired Behavior
 

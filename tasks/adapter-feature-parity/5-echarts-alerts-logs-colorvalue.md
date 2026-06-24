@@ -25,8 +25,16 @@ In `examples/echarts-adapter/src/createEChartsAdapter.ts`:
   `logs: true` are declared in `ECHARTS_CAPABILITIES` with no on-chart
   rendering.
 - Line-family plots set `series` color from `plot.color`
-  (`seriesColor` `:243-249`); `colorValue` is never read for them
+  (`seriesColor`, ~`:258`); `colorValue` is never read for them
   (bg-color / bar-color already honor it).
+
+**Reachability (line-family colorValue):** no script emits line-family
+`colorValue` today — only `bgcolor()` / `barcolor()` pass a
+`dynamicColor` through `plotImpl`; `plot()` does not (see Task 3's
+Current Behavior). Requirement 3 is therefore **wire-level honesty**,
+tested via **synthetic `PlotEmission`s** in the echarts unit tests; no
+conformance scenario exercises it and the `plot-hash` conformance is
+unaffected.
 
 ## Desired Behavior
 

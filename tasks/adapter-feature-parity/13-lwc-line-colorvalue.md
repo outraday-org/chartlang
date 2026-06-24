@@ -18,12 +18,23 @@ file — land sequentially).
 
 ## Current Behavior
 
-`applyLineLikePlot` (`:421-434`) forwards the static `plot.color` once
+`applyLineLikePlot` (~`:435`) forwards the static `plot.color` once
 at series creation and never reads `plot.colorValue`. LC line series
 have no per-point color, and the factory never re-`applyOptions`es the
 color — so even the static color is creation-only and per-bar dynamic
 color is impossible with a single series. The audit flagged this as the
-hardest gap (the runtime DOES emit `colorValue` for line plots).
+structurally hardest gap.
+
+**Reachability (important):** line-family `colorValue` is **not emitted
+by any script today** — only `bgcolor()` / `barcolor()` pass a
+`dynamicColor` through `plotImpl`; the script-facing `plot()` always
+passes `undefined` (see Task 3's Current Behavior). This task is
+therefore **wire-level honesty** (a synthetic emission carrying
+`colorValue` paints via the per-color-run series), NOT a fix for a
+value currently dropped on real scripts. Coverage comes from **adapter
+unit tests with synthetic `PlotEmission`s**; there is **no conformance
+scenario** for line-family `colorValue` (a script cannot produce one),
+so the `plot-hash` conformance stays unaffected.
 
 ## Desired Behavior
 

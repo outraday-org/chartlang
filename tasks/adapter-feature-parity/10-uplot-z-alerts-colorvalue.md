@@ -24,8 +24,16 @@ In `createUplotAdapter.ts`:
   buffers `recentLogs` (cap 5) and never renders. Both declared `true`
   (`capabilities.ts:87-88`).
 - Line-family plots take a single series stroke from `point.color`
-  (`seriesColor` `:483`); `colorValue` is not applied (bg/bar-color
+  (`seriesColor`, ~`:493`); `colorValue` is not applied (bg/bar-color
   honor it).
+
+**Reachability (line-family colorValue):** no script emits line-family
+`colorValue` today — only `bgcolor()` / `barcolor()` pass a
+`dynamicColor` through `plotImpl`; `plot()` does not (see Task 3's
+Current Behavior). Requirement 3 is therefore **wire-level honesty**,
+tested via **synthetic `PlotEmission`s** in the uplot unit tests (the
+draw-hook call-log); no conformance scenario exercises it and the
+`plot-hash` conformance is unaffected.
 
 ## Desired Behavior
 

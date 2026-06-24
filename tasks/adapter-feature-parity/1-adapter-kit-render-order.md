@@ -128,9 +128,14 @@ export const BAND = RENDER_BAND;
 Keep the local `SortableMark` union as-is (its payloads —
 `PlotPoint`, `HLine`, `PlotEmission`, `DrawingEmission` — stay local).
 `SortableMark` already satisfies `RenderOrderKey` structurally, so
-`sortByRenderOrder(marks: SortableMark[])` still type-checks. Update
-the local `renderOrder.test.ts` if it asserted the old local symbol
-identity; the BAND values and sort results are unchanged.
+`sortByRenderOrder(marks: SortableMark[])` still type-checks. NOTE:
+there is **no** local `examples/canvas2d-adapter/src/render/renderOrder.test.ts`
+today — the comparator's behavior is covered transitively through the
+integration `PINNED_HASH` and the renderers' own tests, so no canvas2d
+test file needs editing. After the refactor `renderOrder.ts` is a pure
+re-export (no branches), so it does not threaten canvas2d's 100%
+coverage. The comparator's direct unit coverage now lives in the new
+adapter-kit `renderOrder.test.ts` (requirement 3).
 
 ### 5. Edge cases
 
@@ -165,7 +170,6 @@ union stays local while the comparator is shared.
 | `packages/adapter-kit/src/geometry/renderOrder.test.ts` | Create | 100% coverage of the comparator |
 | `packages/adapter-kit/src/index.ts` | Modify | Re-export the three symbols on root barrel |
 | `examples/canvas2d-adapter/src/render/renderOrder.ts` | Modify | Re-export shared comparator + `BAND` alias |
-| `examples/canvas2d-adapter/src/render/renderOrder.test.ts` | Modify | Drop assertions on the moved comparator's local identity |
 | `packages/adapter-kit/CLAUDE.md` | Modify | Geometry-layer invariant for the shared `sortByRenderOrder` (mirrors the `shift.ts` invariant) |
 
 ## Gates
