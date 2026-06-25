@@ -15,7 +15,6 @@ import {
     type PlotStyle,
     type Viewport,
     priceToY,
-    shiftedBarTime,
     timeToX,
 } from "@invinite-org/chartlang-adapter-kit";
 import {
@@ -110,12 +109,11 @@ export function isGlyphOverlay(style: PlotStyle): boolean {
 
 /**
  * Project a glyph plot emission's SHIFTED bar point to a CSS-pixel anchor
- * inside the pane box. The world x is the shifted bar time
- * (`timeToX(shiftedBarTime(...))` — the same `xShift` funnel the series use),
- * the world y is the plot `value` (`priceToY`); the pane's `cssRect.{x,y}`
- * origin is added so a sub-pane's glyph lands in the right place. Returns
- * `null` for a non-finite `value` (a per-glyph skip, no paint), mirroring the
- * uplot `paintGlyphMark` guard.
+ * inside the pane box. The world x is the shifted compressed bar slot
+ * (`bar + xShift`, matching the series path), the world y is the plot `value`
+ * (`priceToY`); the pane's `cssRect.{x,y}` origin is added so a sub-pane's
+ * glyph lands in the right place. Returns `null` for a non-finite `value` (a
+ * per-glyph skip, no paint), mirroring the uplot `paintGlyphMark` guard.
  *
  * @since 0.1
  * @stable
@@ -132,9 +130,11 @@ export function glyphAnchor(
     bars: ReadonlyArray<Bar>,
     spacing: number,
 ): PixelAnchor | null {
+    void bars;
+    void spacing;
     if (emission.value === null || !Number.isFinite(emission.value)) return null;
     const viewport = paneViewportFromInfo(info);
-    const worldX = shiftedBarTime({ bars, bar: emission.bar, xShift: emission.xShift, spacing });
+    const worldX = emission.bar + (emission.xShift ?? 0);
     const x = info.cssRect.x + timeToX(worldX, viewport);
     const y = info.cssRect.y + priceToY(emission.value, viewport);
     return { x, y };
@@ -248,9 +248,10 @@ export function alertBadgeAnchor(
     bars: ReadonlyArray<Bar>,
 ): PixelAnchor | null {
     if (bars.length === 0) return null;
-    const anchorBar = bars[alert.bar] ?? bars[bars.length - 1];
+    const anchorIndex = bars[alert.bar] === undefined ? bars.length - 1 : alert.bar;
+    const anchorBar = bars[anchorIndex];
     const viewport = paneViewportFromInfo(info);
-    const x = info.cssRect.x + timeToX(anchorBar.time, viewport);
+    const x = info.cssRect.x + timeToX(anchorIndex, viewport);
     const y = info.cssRect.y + priceToY(anchorBar.high, viewport);
     return { x, y };
 }

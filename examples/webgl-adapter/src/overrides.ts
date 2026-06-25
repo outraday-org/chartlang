@@ -171,7 +171,7 @@ export function resolveOverridePaint(state: AdapterState, info: AxisRenderInfo):
         if (style.kind === "bg-color") {
             const paint = plot.colorValue === undefined ? style.color : plot.colorValue;
             if (paint === null) continue;
-            const x = timeToX(plot.time, viewport) - slot / 2;
+            const x = timeToX(plot.bar, viewport) - slot / 2;
             const alpha = 1 - (style.transp ?? 0) / 100;
             backgrounds.push({ x, width: slot, height: viewport.pxHeight, color: paint, alpha });
             continue;
@@ -193,7 +193,7 @@ export function resolveOverridePaint(state: AdapterState, info: AxisRenderInfo):
             }
             bars.push({
                 kind: "candle",
-                x: timeToX(bar.time, viewport),
+                x: timeToX(plot.bar, viewport),
                 bodyWidth: slot * BODY_WIDTH_RATIO,
                 top,
                 height: Math.max(1, bottom - top),
@@ -212,7 +212,7 @@ export function resolveOverridePaint(state: AdapterState, info: AxisRenderInfo):
             if (paint === null) continue;
             bars.push({
                 kind: "bar",
-                x: timeToX(bar.time, viewport),
+                x: timeToX(plot.bar, viewport),
                 half: (slot * BODY_WIDTH_RATIO) / 2,
                 highY: priceToY(bar.high, viewport),
                 lowY: priceToY(bar.low, viewport),

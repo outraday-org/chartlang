@@ -377,22 +377,30 @@ pure packers are node-unit-tested.
 
 - **Descriptor shape is the contract — both programs DIVERGE from invinite's:**
   - **Bodies:** our `rows = [x, open, high, low, close, isBull]` (6-float stride)
-    matches invinite, so the port is faithful. BUT our `bodyWidthPx` is a concrete
-    CSS-px constant (not invinite's `Infinity` ceiling + `computeBarWidthPx`
-    pitch formula — that module is NOT in this adapter). So the shader feeds
-    `uBodyWidthPx` straight through and **floors the body at 1 device-px**
-    (`max(1.0, uBodyWidthPx * uDpr)`, canvas2d `MIN_BODY_WIDTH_PX` parity) +
-    inflates dojis to 1 device-px via `dojiInflateNdcY()`. 1 instance/bar.
+    matches invinite, so the port is faithful. The body width is the shared
+    TradingView `computeBarWidthPx(barPitchPx, …)` formula
+    (`src/webgl/lib/bar-width-formula.ts`, ported from invinite) — but we run it
+    UPSTREAM in `buildFrame` (where the visible window + pane CSS width are known)
+    rather than in-shader, so the descriptor's `bodyWidthPx` is already the
+    pitch-resolved CSS-px width: bodies **shrink to avoid overlap when zoomed out**
+    and cap at `CANDLE_BODY_MAX_WIDTH_PX = 6` (the ceiling fed as `maxWidthPx`,
+    `wickClearancePx: 1`) when zoomed in. So the shader feeds `uBodyWidthPx`
+    straight through and **floors the body at 1 device-px** (`max(1.0,
+    uBodyWidthPx * uDpr)`, canvas2d `MIN_BODY_WIDTH_PX` parity) + inflates dojis
+    to 1 device-px via `dojiInflateNdcY()`. 1 instance/bar.
   - **Wicks:** our `CandleWicksDescriptor` is a SINGLE quad per bar spanning
-    `low→high` (`rows = [x, low, high, isBull]`, 4-float stride, ONE static
-    `wickColor`) — NOT invinite's 2-stub upper/lower model with a separate
+    `low→high` (`rows = [x, low, high, isBull]`, 4-float stride, `bullColor` +
+    `bearColor`) — NOT invinite's 2-stub upper/lower model with a separate
     `bullFlags` Uint8 stream + `bodyBottom`/`bodyTop`. So the wicks program runs
     the CANONICAL `BaseProgram` flow (`drawArraysInstanced(…, rowCount)`, 1/bar);
     invinite's `drawOverride`/`prunePaneOverride`/bull-flags machinery is NOT
     ported. The edge-aligned X snap (left-edge to integer device-px, NOT a center
     snap) IS kept — a thin 1-CSS-px wick stays fully covered (crisp) at any DPR.
-    `isBull` is packed but unbound (the wick is a single static color;
-    forward-compatible for a future per-bar wick recolor).
+    The per-bar `isBull` flag is BOUND (`aIsBull`): the shader colours each wick
+    via `mix(bear, bull, aIsBull)` so it matches its candle body's direction
+    (`buildFrame` feeds the wick the SAME `candleBullBody`/`candleBearBody`
+    palette colours as the bodies). The `palette.candleWick` token is now used
+    only for axis-label text (`overlay.ts`), not the wick fill.
 
 - **`program-cache.ts` gained `evictProgram(gl, key)`** — the surgical
   single-key evict (remove the stale instance WITHOUT disposing; the program's
@@ -573,12 +581,15 @@ the pure packer + the layout math + the histogram routing are node-unit-tested.
   4-color value-area `HorizontalVolumeBarsDescriptor` our descriptor union does
   not carry, and `applyEmissions` routes it to the overlay store for Task 14.
 
-- **`VerticalBarsProgram` diverges from invinite the same way the candle
-  programs do:** our descriptor carries a concrete `barWidthPx` (CSS-px), not
-  invinite's `Infinity` ceiling + `computeBarWidthPx(barPitchPx, …)` pitch
-  formula (that module is not in this adapter) + `pxToWorldX`, so the shader
-  feeds `uBarWidthPx` straight through and floors the bar at 1 device-px
-  (`max(1.0, uBarWidthPx * uDpr)`, canvas2d `MIN_BODY_WIDTH_PX` parity). The
+- **`VerticalBarsProgram` sizes its bars the same way the candle bodies do:**
+  the descriptor's `barWidthPx` is the shared `computeBarWidthPx(barPitchPx, …)`
+  formula resolved UPSTREAM in `buildFrame` (`wickClearancePx: 0` — bars have no
+  wick, so they fill the full pitch; capped at `HISTOGRAM_BAR_MAX_WIDTH_PX = 6`),
+  so columns track the on-screen pitch (no overlap zoomed out). invinite runs the
+  same formula in-program from `pxToWorldX`; we run it upstream where the visible
+  window + pane width are known. The shader feeds `uBarWidthPx` straight through
+  and floors the bar at 1 device-px (`max(1.0, uBarWidthPx * uDpr)`, canvas2d
+  `MIN_BODY_WIDTH_PX` parity). The
   bar grows from a `uBaseline` world-`y` anchor (the `Y_ZERO_QUAD`'s bottom
   edge sits there; the top reaches `baseline + height`) via the project32
   device-px X snap. One program serves volume bars (positive heights) + signed

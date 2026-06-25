@@ -69,16 +69,16 @@ describe("buildFrame — window resolution", () => {
         seedBars(state, [bar(0, 10), bar(10, 11), bar(20, 12)]);
         const [pane] = buildFrame(state, [OVERLAY]);
         expect(pane.window.xMin).toBe(0);
-        expect(pane.window.xMax).toBe(20);
+        expect(pane.window.xMax).toBe(2);
     });
 
     it("more-than-N bars ⇒ window framed on the most recent N", () => {
         const state = createAdapterState({ initialVisibleBars: 2 });
         seedBars(state, [bar(0, 10), bar(10, 11), bar(20, 12), bar(30, 13)]);
         const [pane] = buildFrame(state, [OVERLAY]);
-        // autoFollowXMin = bars[len-2].time = 20, xMax = 30.
-        expect(pane.window.xMin).toBe(20);
-        expect(pane.window.xMax).toBe(30);
+        // autoFollowXMin = len - 2 = 2, xMax = last slot = 3.
+        expect(pane.window.xMin).toBe(2);
+        expect(pane.window.xMax).toBe(3);
     });
 
     it("no initialVisibleBars ⇒ fit all data (auto-follow)", () => {
@@ -86,7 +86,21 @@ describe("buildFrame — window resolution", () => {
         seedBars(state, [bar(0, 10), bar(10, 11), bar(20, 12), bar(30, 13)]);
         const [pane] = buildFrame(state, [OVERLAY]);
         expect(pane.window.xMin).toBe(0);
-        expect(pane.window.xMax).toBe(30);
+        expect(pane.window.xMax).toBe(3);
+    });
+
+    it("compresses calendar gaps so adjacent market bars use adjacent slots", () => {
+        const state = createAdapterState();
+        const day = 86_400_000;
+        seedBars(state, [bar(0, 10), bar(day, 11), bar(4 * day, 12)]);
+        const [pane] = buildFrame(state, [OVERLAY]);
+        const bodies = pane.layers.find(
+            (l): l is CandleBodiesDescriptor => l.kind === "candle-bodies",
+        );
+        expect(pane.window.xMax).toBe(2);
+        expect(bodies?.rows[0]).toBe(0);
+        expect(bodies?.rows[6]).toBe(1);
+        expect(bodies?.rows[12]).toBe(2);
     });
 });
 
@@ -177,7 +191,7 @@ describe("buildFrame — line-strip descriptors", () => {
         const [pane] = buildFrame(state, [OVERLAY]);
         const strip = pane.layers.find((l): l is LineStripDescriptor => l.kind === "line-strip");
         expect(strip?.pointCount).toBe(2);
-        expect(Array.from(strip?.points ?? [])).toEqual([0, 10, 10, 11]);
+        expect(Array.from(strip?.points ?? [])).toEqual([0, 10, 1, 11]);
         expect(strip?.step).toBe(false);
     });
 
@@ -315,8 +329,8 @@ describe("buildFrame — xShift widening", () => {
             emissions([linePlot({ slotId: "ema", value: 12, time: 20, bar: 2, xShift: 2 })]),
         );
         const [pane] = buildFrame(state, [OVERLAY]);
-        // spacing = 10; bar 2 shifted +2 ⇒ world time 20 + 2*10 = 40.
-        expect(pane.window.xMax).toBe(40);
+        // bar 2 shifted +2 ⇒ slot 4.
+        expect(pane.window.xMax).toBe(4);
     });
 
     it("does not widen for an in-range or negative shift", () => {
@@ -327,7 +341,7 @@ describe("buildFrame — xShift widening", () => {
             emissions([linePlot({ slotId: "ema", value: 12, time: 20, bar: 2, xShift: -1 })]),
         );
         const [pane] = buildFrame(state, [OVERLAY]);
-        expect(pane.window.xMax).toBe(20);
+        expect(pane.window.xMax).toBe(2);
     });
 });
 
@@ -356,7 +370,7 @@ describe("buildFrame — histogram → vertical-bars descriptor", () => {
         );
         expect(bars?.rowCount).toBe(2);
         // rows = [x, height = value - baseline, isPositive] per bar (baseline 0).
-        expect(Array.from(bars?.rows ?? [])).toEqual([0, 1000, 1, 10, 500, 1]);
+        expect(Array.from(bars?.rows ?? [])).toEqual([0, 1000, 1, 1, 500, 1]);
         expect(bars?.baseline).toBe(0);
     });
 
@@ -374,7 +388,7 @@ describe("buildFrame — histogram → vertical-bars descriptor", () => {
             (l): l is VerticalBarsDescriptor => l.kind === "vertical-bars",
         );
         // bar 0: 40 - 50 = -10, isPositive 0; bar 1: 70 - 50 = 20, isPositive 1.
-        expect(Array.from(bars?.rows ?? [])).toEqual([0, -10, 0, 10, 20, 1]);
+        expect(Array.from(bars?.rows ?? [])).toEqual([0, -10, 0, 1, 20, 1]);
         expect(bars?.baseline).toBe(50);
     });
 
@@ -414,9 +428,9 @@ describe("buildFrame — filled-band → filled-band descriptor", () => {
         const [pane] = buildFrame(state, [OVERLAY]);
         const band = pane.layers.find((l): l is FilledBandDescriptor => l.kind === "filled-band");
         expect(band?.pointCount).toBe(2);
-        // upper/lower pack [x, y] per column; x is the bar's world time.
-        expect(Array.from(band?.upper ?? [])).toEqual([0, 12, 10, 13]);
-        expect(Array.from(band?.lower ?? [])).toEqual([0, 8, 10, 9]);
+        // upper/lower pack [x, y] per column; x is the compressed bar slot.
+        expect(Array.from(band?.upper ?? [])).toEqual([0, 12, 1, 13]);
+        expect(Array.from(band?.lower ?? [])).toEqual([0, 8, 1, 9]);
         // Alpha rides on the color (style.alpha = 0.2).
         expect(band?.color[3]).toBeCloseTo(0.2);
     });

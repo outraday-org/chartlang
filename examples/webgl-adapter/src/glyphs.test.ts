@@ -17,8 +17,8 @@ import {
 } from "./glyphs.js";
 import { DEFAULT_PALETTE } from "./layer-descriptor.js";
 
-// 3 bars at evenly-spaced times; the overlay window frames bars 0..2 (time
-// 0..200) over an 800×400 CSS box, so timeToX is linear (time 100 → x 400).
+// 3 bars at evenly-spaced times; the overlay window frames compressed bar slots
+// 0..2 over an 800×400 CSS box, so bar 1 projects to x 400.
 const BARS: Bar[] = [
     { time: 0, open: 10, high: 12, low: 9, close: 11 },
     { time: 100, open: 11, high: 14, low: 10, close: 13 },
@@ -28,7 +28,7 @@ const BARS: Bar[] = [
 const INFO: AxisRenderInfo = {
     paneKey: "overlay",
     cssRect: { x: 0, y: 0, width: 800, height: 400 },
-    window: { xMin: 0, xMax: 200, yMin: 10, yMax: 20 },
+    window: { xMin: 0, xMax: 2, yMin: 10, yMax: 20 },
     ticks: { priceTicks: [], timeTicks: [] },
 };
 
@@ -102,7 +102,7 @@ describe("paneViewportFromInfo", () => {
         const vp = paneViewportFromInfo(INFO);
         expect(vp).toEqual({
             xMin: 0,
-            xMax: 200,
+            xMax: 2,
             yMin: 10,
             yMax: 20,
             pxWidth: 800,
@@ -128,14 +128,14 @@ describe("isGlyphOverlay", () => {
 describe("glyphAnchor", () => {
     it("projects the shifted bar point to a CSS-pixel anchor", () => {
         const e = emission({ kind: "marker", shape: "circle", size: 6 });
-        // bar 1 → time 100 → x = 100/200 * 800 = 400; value 15 → y = (20-15)/(20-10)*400 = 200.
+        // bar 1 → x = 1/2 * 800 = 400; value 15 → y = (20-15)/(20-10)*400 = 200.
         const anchor = glyphAnchor(e, INFO, BARS, SPACING);
         expect(anchor).toEqual({ x: 400, y: 200 });
     });
 
     it("honours a +xShift (shifts the world x right by k bars)", () => {
         const e = emission({ kind: "marker", shape: "circle", size: 6 }, { bar: 1, xShift: 1 });
-        // bar 1 + 1 → time 200 → x = 800.
+        // bar 1 + 1 → slot 2 → x = 800.
         const anchor = glyphAnchor(e, INFO, BARS, SPACING);
         expect(anchor?.x).toBe(800);
     });
@@ -218,13 +218,13 @@ const ALERT: AlertEmission = {
 
 describe("alertBadgeAnchor", () => {
     it("anchors at the alert bar's (time, high)", () => {
-        // bar 1 → time 100 → x 400; high 14 → y = (20-14)/10*400 = 240.
+        // bar 1 → x 400; high 14 → y = (20-14)/10*400 = 240.
         expect(alertBadgeAnchor(ALERT, INFO, BARS)).toEqual({ x: 400, y: 240 });
     });
 
     it("falls back to the latest bar for an out-of-range bar index", () => {
         const anchor = alertBadgeAnchor({ ...ALERT, bar: 99 }, INFO, BARS);
-        // latest bar (index 2) → time 200 → x 800.
+        // latest bar (index 2) → x 800.
         expect(anchor?.x).toBe(800);
     });
 

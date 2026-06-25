@@ -70,7 +70,8 @@ function wicks(
         kind: "candle-wicks",
         rowCount: bars.length,
         rows,
-        wickColor: COLOR,
+        bullColor: COLOR,
+        bearColor: COLOR,
         wickWidthPx: 1,
     };
 }

@@ -5,12 +5,11 @@ import {
     type PlotStyle,
     type WindowYInput,
     type XWindow,
-    medianBarSpacing,
-    shiftedBarTime,
     yRangeInWindow,
 } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
 
+import { formatTime } from "./axes.js";
 import {
     type FilledBandDescriptor,
     type LayerDescriptor,
@@ -24,6 +23,7 @@ import {
     resolvePaintColor,
 } from "./layer-descriptor.js";
 import { BAND, type RenderOrderMark, applyRenderOrder } from "./renderOrder.js";
+import { computeBarWidthPx } from "./webgl/lib/bar-width-formula.js";
 import { sampleMonotoneRuns } from "./webgl/programs/line-strip-pack.js";
 
 import { type AdapterState, type HLine, type PlotPoint, paneKeyPrefix } from "./state.js";
@@ -37,14 +37,40 @@ const HLINE_DEFAULT_WIDTH_PX = 1;
 // ±5% headroom above / below the auto-fit price range, matching the canvas2d
 // reference's `Y_AXIS_PADDING`.
 const Y_AXIS_PADDING = 0.05;
-// CSS-px body / wick widths; DPR scaling happens inside the GPU program
-// (Tasks 6–7). Mirrors the canvas2d defaults' intent (thin, TradingView-like).
-const CANDLE_BODY_WIDTH_PX = 6;
+// CSS-px MAX ceiling for the candle body / vertical-bar width. The actual
+// width tracks the on-screen bar pitch via the shared TradingView
+// `computeBarWidthPx` formula (so bars shrink to avoid OVERLAP when zoomed out,
+// and never exceed this ceiling when zoomed in). DPR scaling happens inside the
+// GPU program (Tasks 6–7 / 10). `6` keeps the zoomed-in look thin + TradingView-
+// like, matching the canvas2d defaults' intent.
+const CANDLE_BODY_MAX_WIDTH_PX = 6;
 const CANDLE_WICK_WIDTH_PX = 1;
 const PLOT_LINE_WIDTH_PX = 1;
-// CSS-px width of a histogram / volume column (DPR scaling happens inside the
-// vertical-bars program, Task 10). Mirrors canvas2d's `HISTOGRAM_BAR_WIDTH_PX`.
-const HISTOGRAM_BAR_WIDTH_PX = 6;
+// CSS-px MAX ceiling for a histogram / volume column (same pitch-aware sizing).
+const HISTOGRAM_BAR_MAX_WIDTH_PX = 6;
+
+// Resolve the on-screen bar pitch (CSS px between adjacent bar centres) from
+// the world bar `spacing`, the pane's visible world x-window, and its CSS-px
+// width: pitch = (spacing / windowSpan) × paneWidthPx. Returns `Infinity` for a
+// degenerate window (the formula then floors the width to its ceiling).
+function barPitchCssPx(spacing: number, win: PaneWindow, paneWidthPx: number): number {
+    const span = win.xMax - win.xMin;
+    if (!(span > 0) || !(spacing > 0)) return Number.POSITIVE_INFINITY;
+    return (spacing / span) * paneWidthPx;
+}
+
+function barX(barIndex: number, xShift?: number): number {
+    return barIndex + (xShift ?? 0);
+}
+
+function barTimeFormatter(bars: ReadonlyArray<Bar>): (time: number, span: number) => string {
+    const last = bars.length - 1;
+    const spanMs = last > 0 ? bars[last].time - bars[0].time : 0;
+    return (time) => {
+        const index = Math.min(last, Math.max(0, Math.round(time)));
+        return formatTime(bars[index]?.time ?? time, spanMs);
+    };
+}
 
 /**
  * A pane's CSS-pixel rectangle, the layout input `buildFrame` is handed per
@@ -70,28 +96,17 @@ export type PaneLayoutRect = {
 // World data x-bounds over the bar run. Returns `[+Inf, -Inf]` for an empty
 // run (the caller maps that to the (0, 1) fallback window).
 function dataXBounds(bars: ReadonlyArray<Bar>): { min: number; max: number } {
-    let min = Number.POSITIVE_INFINITY;
-    let max = Number.NEGATIVE_INFINITY;
-    for (const bar of bars) {
-        if (bar.time < min) min = bar.time;
-        if (bar.time > max) max = bar.time;
-    }
-    return { min, max };
+    return bars.length === 0
+        ? { min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY }
+        : { min: 0, max: bars.length - 1 };
 }
 
 // Widen the world `xMax` so any future-projected (`+k`) series point in this
 // pane stays inside the window instead of being clipped past the data edge —
-// the world-space analogue of canvas2d's `extendXMaxForShifts`. Uses the
-// shared `shiftedBarTime` (world time out), NOT `projectShiftedX` (pixel out),
-// because `buildFrame` is world-space. Drawing / glyph future anchors widen in
-// Tasks 12–14 (their descriptors are not built here yet).
-function extendXMaxForShifts(
-    state: AdapterState,
-    paneKey: string,
-    spacing: number,
-    xMax: number,
-): number {
-    const { bars } = state;
+// the world-space analogue of canvas2d's `extendXMaxForShifts`. WebGL uses
+// compressed bar slots as world x values, so `+2` from bar 10 resolves to slot
+// 12 even when calendar days are missing from the source data.
+function extendXMaxForShifts(state: AdapterState, paneKey: string, xMax: number): number {
     let extended = xMax;
     const prefix = paneKeyPrefix(paneKey);
     for (const [key, series] of state.plotSeries) {
@@ -99,7 +114,7 @@ function extendXMaxForShifts(
         for (const point of series) {
             if (point.value === null || !Number.isFinite(point.value)) continue;
             if (point.xShift === undefined || point.xShift <= 0) continue;
-            const t = shiftedBarTime({ bars, bar: point.bar, xShift: point.xShift, spacing });
+            const t = barX(point.bar, point.xShift);
             if (t > extended) extended = t;
         }
     }
@@ -118,8 +133,9 @@ function computeYRange(
 ): { yMin: number; yMax: number } {
     const candidates: WindowYInput[] = [];
     if (paneKey === "overlay") {
-        for (const bar of state.bars) {
-            candidates.push({ x: bar.time, lo: bar.low, hi: bar.high });
+        for (let i = 0; i < state.bars.length; i++) {
+            const bar = state.bars[i];
+            candidates.push({ x: i, lo: bar.low, hi: bar.high });
         }
     }
     const prefix = paneKeyPrefix(paneKey);
@@ -127,14 +143,26 @@ function computeYRange(
         if (!key.startsWith(prefix)) continue;
         for (const point of series) {
             if (point.value !== null) {
-                candidates.push({ x: point.time, lo: point.value, hi: point.value });
+                candidates.push({
+                    x: barX(point.bar, point.xShift),
+                    lo: point.value,
+                    hi: point.value,
+                });
             }
             // A `filled-band` point carries its edges instead of `value`.
             if (point.upper != null) {
-                candidates.push({ x: point.time, lo: point.upper, hi: point.upper });
+                candidates.push({
+                    x: barX(point.bar, point.xShift),
+                    lo: point.upper,
+                    hi: point.upper,
+                });
             }
             if (point.lower != null) {
-                candidates.push({ x: point.time, lo: point.lower, hi: point.lower });
+                candidates.push({
+                    x: barX(point.bar, point.xShift),
+                    lo: point.lower,
+                    hi: point.lower,
+                });
             }
         }
     }
@@ -151,8 +179,9 @@ function computeYRange(
 
 // Build the candle bodies + wicks descriptors for the overlay pane. `rows`
 // pack world coordinates: bodies `[x, open, high, low, close, isBull]`, wicks
-// `[x, low, high, isBull]`. Empty bars ⇒ no candle descriptors.
-function buildCandleDescriptors(state: AdapterState): LayerDescriptor[] {
+// `[x, low, high, isBull]`. `bodyWidthPx` is the pitch-resolved body width (so
+// bodies never overlap when zoomed out). Empty bars ⇒ no candle descriptors.
+function buildCandleDescriptors(state: AdapterState, bodyWidthPx: number): LayerDescriptor[] {
     const { bars } = state;
     if (bars.length === 0) return [];
     const bodies = new Float32Array(bars.length * 6);
@@ -161,14 +190,14 @@ function buildCandleDescriptors(state: AdapterState): LayerDescriptor[] {
         const bar = bars[i];
         const bull = isBullish(bar) ? 1 : 0;
         const bo = i * 6;
-        bodies[bo] = bar.time;
+        bodies[bo] = i;
         bodies[bo + 1] = bar.open;
         bodies[bo + 2] = bar.high;
         bodies[bo + 3] = bar.low;
         bodies[bo + 4] = bar.close;
         bodies[bo + 5] = bull;
         const wo = i * 4;
-        wicks[wo] = bar.time;
+        wicks[wo] = i;
         wicks[wo + 1] = bar.low;
         wicks[wo + 2] = bar.high;
         wicks[wo + 3] = bull;
@@ -183,14 +212,17 @@ function buildCandleDescriptors(state: AdapterState): LayerDescriptor[] {
             rowCount: bars.length,
             bullColor,
             bearColor,
-            bodyWidthPx: CANDLE_BODY_WIDTH_PX,
+            bodyWidthPx,
         },
         {
             id: "overlay:candle-wicks",
             kind: "candle-wicks",
             rows: wicks,
             rowCount: bars.length,
-            wickColor: hexToRgbaUnit(state.palette.candleWick, 1),
+            // Wicks share the body's bull/bear colour so each wick matches its
+            // candle's direction (the per-bar `isBull` flag picks one in-shader).
+            bullColor,
+            bearColor,
             wickWidthPx: CANDLE_WICK_WIDTH_PX,
         },
     ];
@@ -209,21 +241,19 @@ function seriesColor(series: ReadonlyArray<PlotPoint>, fallback: string, alpha =
 }
 
 // Pack a line-family series into a world-space `line-strip` descriptor. Each
-// point's world x is its shifted bar time (`shiftedBarTime`); a `null` /
-// non-finite value OR a `colorValue:null` gap packs NaN y so the program
-// (Task 7) skips the segment.
+// point's world x is its shifted compressed bar slot; a `null` / non-finite
+// value OR a `colorValue:null` gap packs NaN y so the program (Task 7) skips
+// the segment.
 function buildLineStrip(
     state: AdapterState,
     key: string,
     series: ReadonlyArray<PlotPoint>,
     style: PlotStyle | undefined,
-    spacing: number,
 ): LineStripDescriptor {
-    const { bars } = state;
     const raw = new Float32Array(series.length * 2);
     for (let i = 0; i < series.length; i++) {
         const point = series[i];
-        const x = shiftedBarTime({ bars, bar: point.bar, xShift: point.xShift, spacing });
+        const x = barX(point.bar, point.xShift);
         const paint = resolvePaintColor(point.colorValue, point.color, state.palette.plotDefault);
         const gap = point.value === null || !Number.isFinite(point.value) || paint === null;
         raw[i * 2] = x;
@@ -253,20 +283,19 @@ function buildLineStrip(
 // `baseline` (the program anchors the quad's bottom edge there); `isPositive`
 // (`value >= baseline`) drives the bull / bear color. A `null` / non-finite
 // value OR a `colorValue:null` gap packs a NaN height so the GPU clips the
-// bar (no column that bar). Each point's world x is its shifted bar time
-// (`shiftedBarTime`). Mirrors canvas2d's `renderHistogramSeries` baseline math.
+// bar (no column that bar). Each point's world x is its shifted compressed bar
+// slot. Mirrors canvas2d's `renderHistogramSeries` baseline math.
 function buildVerticalBars(
     state: AdapterState,
     key: string,
     series: ReadonlyArray<PlotPoint>,
     baseline: number,
-    spacing: number,
+    barWidthPx: number,
 ): VerticalBarsDescriptor {
-    const { bars } = state;
     const rows = new Float32Array(series.length * 3);
     for (let i = 0; i < series.length; i++) {
         const point = series[i];
-        const x = shiftedBarTime({ bars, bar: point.bar, xShift: point.xShift, spacing });
+        const x = barX(point.bar, point.xShift);
         const paint = resolvePaintColor(point.colorValue, point.color, state.palette.plotDefault);
         const gap = point.value === null || !Number.isFinite(point.value) || paint === null;
         const value = point.value as number;
@@ -282,7 +311,7 @@ function buildVerticalBars(
         rowCount: series.length,
         positiveColor: hexToRgbaUnit(state.palette.candleBullBody, 1),
         negativeColor: hexToRgbaUnit(state.palette.candleBearBody, 1),
-        barWidthPx: HISTOGRAM_BAR_WIDTH_PX,
+        barWidthPx,
         baseline,
     };
 }
@@ -290,22 +319,20 @@ function buildVerticalBars(
 // Pack a `filled-band` series into a world-space `filled-band` descriptor.
 // Each point carries its per-bar `upper` / `lower` edges (the band geometry IS
 // the series); a single `null` edge marks a per-column gap (packed as NaN so
-// the GPU run-splitter skips it). Each point's world x is its shifted bar time
-// (`shiftedBarTime`). `alpha` is the descriptor's fill translucency. Mirrors
-// canvas2d's `renderFilledBandSeries`.
+// the GPU run-splitter skips it). Each point's world x is its shifted compressed
+// bar slot. `alpha` is the descriptor's fill translucency. Mirrors canvas2d's
+// `renderFilledBandSeries`.
 function buildFilledBand(
     state: AdapterState,
     key: string,
     series: ReadonlyArray<PlotPoint>,
     alpha: number,
-    spacing: number,
 ): FilledBandDescriptor {
-    const { bars } = state;
     const upper = new Float32Array(series.length * 2);
     const lower = new Float32Array(series.length * 2);
     for (let i = 0; i < series.length; i++) {
         const point = series[i];
-        const x = shiftedBarTime({ bars, bar: point.bar, xShift: point.xShift, spacing });
+        const x = barX(point.bar, point.xShift);
         const hi = point.upper;
         const lo = point.lower;
         const gap = hi == null || lo == null || !Number.isFinite(hi) || !Number.isFinite(lo);
@@ -336,14 +363,12 @@ function buildAreaFill(
     series: ReadonlyArray<PlotPoint>,
     fillAlpha: number,
     floorY: number,
-    spacing: number,
 ): FilledBandDescriptor {
-    const { bars } = state;
     const upper = new Float32Array(series.length * 2);
     const lower = new Float32Array(series.length * 2);
     for (let i = 0; i < series.length; i++) {
         const point = series[i];
-        const x = shiftedBarTime({ bars, bar: point.bar, xShift: point.xShift, spacing });
+        const x = barX(point.bar, point.xShift);
         const paint = resolvePaintColor(point.colorValue, point.color, state.palette.plotDefault);
         const gap = point.value === null || !Number.isFinite(point.value) || paint === null;
         upper[i * 2] = x;
@@ -403,9 +428,9 @@ function buildHLine(
 function buildPaneLayers(
     state: AdapterState,
     paneKey: string,
-    spacing: number,
     floorY: number,
     win: PaneWindow,
+    barWidthPx: number,
 ): LayerDescriptor[] {
     const prefix = paneKeyPrefix(paneKey);
     const marks: RenderOrderMark<LayerDescriptor>[] = [];
@@ -418,14 +443,14 @@ function buildPaneLayers(
         if (style !== undefined && style.kind === "histogram") {
             marks.push({
                 ...tag,
-                payload: buildVerticalBars(state, key, series, style.baseline, spacing),
+                payload: buildVerticalBars(state, key, series, style.baseline, barWidthPx),
             });
             continue;
         }
         if (style !== undefined && style.kind === "filled-band") {
             marks.push({
                 ...tag,
-                payload: buildFilledBand(state, key, series, style.alpha, spacing),
+                payload: buildFilledBand(state, key, series, style.alpha),
             });
             continue;
         }
@@ -435,16 +460,16 @@ function buildPaneLayers(
             // line on top.
             marks.push({
                 ...tag,
-                payload: buildAreaFill(state, key, series, style.fillAlpha, floorY, spacing),
+                payload: buildAreaFill(state, key, series, style.fillAlpha, floorY),
             });
-            marks.push({ ...tag, payload: buildLineStrip(state, key, series, style, spacing) });
+            marks.push({ ...tag, payload: buildLineStrip(state, key, series, style) });
             continue;
         }
         // The line family (line / step-line); any other style is skipped.
         if (style !== undefined && style.kind !== "line" && style.kind !== "step-line") {
             continue;
         }
-        marks.push({ ...tag, payload: buildLineStrip(state, key, series, style, spacing) });
+        marks.push({ ...tag, payload: buildLineStrip(state, key, series, style) });
     }
     // Horizontal lines ride the `hline` band — after series, before drawings —
     // at the default `z`. A per-hline `suffix` keeps descriptor ids unique.
@@ -471,14 +496,14 @@ function buildPaneLayers(
  * window via the shared `yRangeInWindow` (folding hlines + a ±5% pad), and
  * emit the {@link LayerDescriptor}s the state can express — candles (overlay)
  * + line / step-line / histogram / area / filled-band series — in `(z, seq)`
- * order. Everything stays in WORLD
- * (time, price); Task 5 feeds each pane's `window` to `ortho2d`. No `gl`.
+ * order. Everything stays in WORLD (compressed bar slot, price); Task 5 feeds
+ * each pane's `window` to `ortho2d`. No `gl`.
  *
  * Window contract (mirrors the canvas2d reference exactly):
  * - empty bars ⇒ `{xMin:0, xMax:1, yMin:0, yMax:1}`, no layers;
- * - `initialVisibleBars = N` with `len > N` ⇒ `autoFollowXMin =
- *   bars[len-N].time` (frame the most recent N bars; the rest stay
- *   scrollable); else `undefined` (fit all data);
+ * - `initialVisibleBars = N` with `len > N` ⇒ `autoFollowXMin = len - N`
+ *   (frame the most recent N bars; the rest stay scrollable); else
+ *   `undefined` (fit all data);
  * - a `+k` series shift past the data edge widens `xMax`;
  * - a degenerate y-range falls back to `(0, 1)`; `yMin === yMax` widens ±1.
  *
@@ -498,7 +523,7 @@ export function buildFrame(
     layoutRects: ReadonlyArray<PaneLayoutRect>,
 ): PaneRenderState[] {
     const { bars } = state;
-    const spacing = medianBarSpacing(bars);
+    const spacing = 1;
     const panes: PaneRenderState[] = [];
     for (const rect of layoutRects) {
         const { paneKey } = rect;
@@ -518,13 +543,13 @@ export function buildFrame(
             continue;
         }
         const { min: dataXMin, max: rawXMax } = dataXBounds(bars);
-        const dataXMax = extendXMaxForShifts(state, paneKey, spacing, rawXMax);
+        const dataXMax = extendXMaxForShifts(state, paneKey, rawXMax);
         // The controller returns the auto-follow window until the user
         // zooms/pans, then the held window. `initialVisibleBars` frames the
         // most recent N bars by default (the rest stay scrollable).
         const n = state.initialVisibleBars;
         const autoFollowXMin =
-            n !== undefined && n > 0 && bars.length > n ? bars[bars.length - n]?.time : undefined;
+            n !== undefined && n > 0 && bars.length > n ? bars.length - n : undefined;
         const win = state.view.resolveXWindow(dataXMin, dataXMax, autoFollowXMin);
         let { yMin, yMax } = computeYRange(state, paneKey, win);
         if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
@@ -548,15 +573,30 @@ export function buildFrame(
             yMin: yMin - yPad,
             yMax: yMax + yPad,
         };
+        // Resolve the bar pitch (CSS px) from the visible window + pane width,
+        // then size candle bodies / vertical bars to it via the shared
+        // TradingView formula — bars shrink to avoid OVERLAP when zoomed out and
+        // cap at their CSS-px ceiling when zoomed in (the wick keeps its own 1-px
+        // width). Mirrors invinite's `computeBarWidthPx(barPitchPx, …)`.
+        const pitchPx = barPitchCssPx(spacing, paneWindow, cssRect.width);
+        const bodyWidthPx = computeBarWidthPx(pitchPx, {
+            maxWidthPx: CANDLE_BODY_MAX_WIDTH_PX,
+            wickClearancePx: 1,
+        });
+        const barWidthPx = computeBarWidthPx(pitchPx, {
+            maxWidthPx: HISTOGRAM_BAR_MAX_WIDTH_PX,
+            wickClearancePx: 0,
+        });
         const layers: LayerDescriptor[] = [];
         if (paneKey === "overlay") {
-            layers.push(...buildCandleDescriptors(state));
+            layers.push(...buildCandleDescriptors(state, bodyWidthPx));
         }
-        layers.push(...buildPaneLayers(state, paneKey, spacing, floorY, paneWindow));
+        layers.push(...buildPaneLayers(state, paneKey, floorY, paneWindow, barWidthPx));
         panes.push({
             paneKey,
             window: paneWindow,
             cssRect,
+            timeFormatter: barTimeFormatter(bars),
             layers,
         });
     }

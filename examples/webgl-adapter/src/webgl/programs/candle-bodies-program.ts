@@ -6,10 +6,14 @@
 // "Translate, not transcribe": React/bus coupling dropped; world window
 // comes from the shared ViewController, not invinite's frame-state.
 //
-// Divergence: our descriptor carries a concrete `bodyWidthPx` (CSS-px), not
-// invinite's `Infinity` ceiling + `computeBarWidthPx(barPitchPx, …)` pitch
-// formula — so this program feeds `uBodyWidthPx` straight through and floors
-// it at 1 device-px in the shader (the canvas2d `MIN_BODY_WIDTH_PX` parity).
+// Divergence: invinite resolves the pitch-aware width IN this program
+// (`computeBarWidthPx(barPitchPx, …)` from the projection). We run the SAME
+// shared formula upstream in `buildFrame` (where the visible window + pane
+// width are known), so the descriptor's `bodyWidthPx` is already the
+// pitch-resolved CSS-px width — bodies shrink to avoid overlap when zoomed out,
+// cap at their ceiling when zoomed in. This program feeds `uBodyWidthPx`
+// straight through and floors it at 1 device-px in the shader (the canvas2d
+// `MIN_BODY_WIDTH_PX` parity).
 
 import type { CandleBodiesDescriptor } from "../../layer-descriptor.js";
 import type { PooledBuffer } from "../buffer-pool.js";

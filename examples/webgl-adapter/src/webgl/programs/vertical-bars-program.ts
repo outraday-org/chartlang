@@ -6,12 +6,13 @@
 // "Translate, not transcribe": React/bus coupling dropped; world window
 // comes from the shared ViewController, not invinite's frame-state.
 //
-// Divergence: our descriptor carries a concrete `barWidthPx` (CSS-px), not
-// invinite's `Infinity` ceiling + `computeBarWidthPx(barPitchPx, …)` pitch
-// formula (that module is not in this adapter) — so this program feeds
-// `uBarWidthPx` straight through and floors it at 1 device-px in the shader
-// (the candle-bodies `MIN_BODY_WIDTH_PX` parity). invinite's `tcLog` was
-// dropped.
+// Divergence: invinite resolves the pitch-aware width IN this program
+// (`computeBarWidthPx(barPitchPx, …)` from the projection). We run the SAME
+// shared formula upstream in `buildFrame`, so the descriptor's `barWidthPx` is
+// already the pitch-resolved CSS-px width (`wickClearancePx: 0` — bars have no
+// wick, so they fill the full pitch). This program feeds `uBarWidthPx` straight
+// through and floors it at 1 device-px in the shader (the candle-bodies
+// `MIN_BODY_WIDTH_PX` parity). invinite's `tcLog` was dropped.
 
 import type { VerticalBarsDescriptor } from "../../layer-descriptor.js";
 import type { PooledBuffer } from "../buffer-pool.js";

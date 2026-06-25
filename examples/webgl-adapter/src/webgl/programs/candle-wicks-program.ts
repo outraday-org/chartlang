@@ -7,7 +7,8 @@
 // comes from the shared ViewController, not invinite's frame-state.
 //
 // Divergence: our `CandleWicksDescriptor` is a single quad per bar spanning
-// low→high (`[x, low, high, isBull]`), with one static `wickColor` — NOT
+// low→high (`[x, low, high, isBull]`); the per-bar `isBull` flag picks the
+// bull/bear colour in-shader so each wick matches its candle body — NOT
 // invinite's 2-stub upper/lower model with a per-bar bull-flags Uint8 stream
 // and bodyBottom/bodyTop. So this program runs the canonical BaseProgram flow
 // (1 instance/bar, `drawArraysInstanced(…, rowCount)`) — invinite's
@@ -28,6 +29,7 @@ import type { DrawArgs } from "./base-program.js";
 import {
     CANDLE_WICKS_OFFSET_HIGH,
     CANDLE_WICKS_OFFSET_IDX,
+    CANDLE_WICKS_OFFSET_IS_BULL,
     CANDLE_WICKS_OFFSET_LOW,
     CANDLE_WICKS_STRIDE_BYTES,
     packCandleWicks,
@@ -51,12 +53,14 @@ const VERTEX_SOURCE = assembleVertexShader({
     body: `
 uniform mat3 uProj;
 uniform float uWickWidthPx;
-uniform vec4 uWickColor;
+uniform vec4 uBullColor;
+uniform vec4 uBearColor;
 
 in vec2 aCorner;
 in float aIdx;
 in float aLow;
 in float aHigh;
+in float aIsBull;
 
 out vec4 vColor;
 
@@ -89,7 +93,7 @@ void main() {
     vec2 halfSizeNdc = vec2(halfWickNdcX, halfSegmentNdcY);
 
     gl_Position = vec4(snappedNdc + aCorner * halfSizeNdc, 0.0, 1.0);
-    vColor = uWickColor;
+    vColor = mix(uBearColor, uBullColor, aIsBull);
 }
 `,
     modules: [PROJECT32_VS_GLSL],
@@ -106,9 +110,15 @@ void main() {
 }
 `;
 
-const ATTRIBUTE_NAMES = ["aCorner", "aHigh", "aIdx", "aLow"] as const;
+const ATTRIBUTE_NAMES = ["aCorner", "aHigh", "aIdx", "aIsBull", "aLow"] as const;
 
-const UNIFORM_NAMES = [...PROJECT32_UNIFORMS, "uProj", "uWickColor", "uWickWidthPx"] as const;
+const UNIFORM_NAMES = [
+    ...PROJECT32_UNIFORMS,
+    "uBearColor",
+    "uBullColor",
+    "uProj",
+    "uWickWidthPx",
+] as const;
 
 // Re-stamp a resolved attribute binding with the `size` the VAO layout needs
 // (the program resolves every attribute at size 1; `aCorner` is a vec2).
@@ -119,9 +129,10 @@ function rebindAttribute(source: AttributeBinding, size: 1 | 2): AttributeBindin
 /**
  * Instanced-quad GL program for {@link CandleWicksDescriptor}: one unit-quad
  * instance per bar spanning the bar's low→high world-y range, per-instance
- * attributes `aIdx/aLow/aHigh` read from the descriptor's `[x, low, high,
- * isBull]` `rows` (`isBull` is present in the buffer but unbound — our wick
- * uses one static `wickColor`). The vertex shader edge-snaps the wick X to
+ * attributes `aIdx/aLow/aHigh/aIsBull` read from the descriptor's `[x, low,
+ * high, isBull]` `rows`; the vertex shader colours each wick via
+ * `mix(bear, bull, aIsBull)` so it matches its candle body. It edge-snaps the
+ * wick X to
  * whole device-px columns (so a thin wick stays crisp), draws via
  * `drawArraysInstanced(TRIANGLE_STRIP, 0, 4, rowCount)`, and blends with
  * `SRC_ALPHA, ONE_MINUS_SRC_ALPHA`.
@@ -178,6 +189,7 @@ export class CandleWicksProgram extends BaseProgram<CandleWicksDescriptor> {
         const idxBinding = rebindAttribute(this.program.getAttribute("aIdx"), 1);
         const lowBinding = rebindAttribute(this.program.getAttribute("aLow"), 1);
         const highBinding = rebindAttribute(this.program.getAttribute("aHigh"), 1);
+        const isBullBinding = rebindAttribute(this.program.getAttribute("aIsBull"), 1);
 
         return new Vao(this.gl, [
             {
@@ -207,23 +219,36 @@ export class CandleWicksProgram extends BaseProgram<CandleWicksDescriptor> {
                 offset: CANDLE_WICKS_OFFSET_HIGH,
                 stride: CANDLE_WICKS_STRIDE_BYTES,
             },
+            {
+                attribute: isBullBinding,
+                buffer: pooled,
+                divisor: 1,
+                offset: CANDLE_WICKS_OFFSET_IS_BULL,
+                stride: CANDLE_WICKS_STRIDE_BYTES,
+            },
         ]);
     }
 
     protected setUniforms(args: CandleWicksDrawArgs): void {
         const { descriptor, projection, viewportWidthPx, viewportHeightPx, dpr } = args;
-        const { wickWidthPx, wickColor } = descriptor;
+        const { wickWidthPx, bullColor, bearColor } = descriptor;
 
         this.program.setUniformMatrix3fv("uProj", projection);
         this.program.setUniform2f("uViewportSize", viewportWidthPx, viewportHeightPx);
         this.program.setUniform1f("uDpr", dpr);
         this.program.setUniform1f("uWickWidthPx", wickWidthPx);
 
-        this.colorScratch[0] = wickColor[0];
-        this.colorScratch[1] = wickColor[1];
-        this.colorScratch[2] = wickColor[2];
-        this.colorScratch[3] = wickColor[3];
-        this.program.setUniform4fv("uWickColor", this.colorScratch);
+        this.colorScratch[0] = bullColor[0];
+        this.colorScratch[1] = bullColor[1];
+        this.colorScratch[2] = bullColor[2];
+        this.colorScratch[3] = bullColor[3];
+        this.program.setUniform4fv("uBullColor", this.colorScratch);
+
+        this.colorScratch[0] = bearColor[0];
+        this.colorScratch[1] = bearColor[1];
+        this.colorScratch[2] = bearColor[2];
+        this.colorScratch[3] = bearColor[3];
+        this.program.setUniform4fv("uBearColor", this.colorScratch);
     }
 
     protected override onBeforeDraw(): void {

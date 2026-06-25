@@ -217,7 +217,7 @@ export function axisLabelItems(info: AxisRenderInfo, labelColor: string): Overla
     for (const time of ticks.timeTicks) {
         const localX = timeToX(time, viewport);
         if (localX < 0 || localX > cssRect.width) continue;
-        const text = formatTime(time, spanMs);
+        const text = info.timeFormatter?.(time, spanMs) ?? formatTime(time, spanMs);
         if (text === "") continue;
         items.push({
             x: cssRect.x + localX,

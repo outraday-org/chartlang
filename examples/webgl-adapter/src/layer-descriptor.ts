@@ -170,9 +170,10 @@ export function resolvePaintColor(
 
 /**
  * The world-space x-window + y-range a single pane spans this frame. `xMin`/
- * `xMax` are world time, `yMin`/`yMax` are world price — the rectangle Task 5
- * feeds to {@link import("./webgl/projection.js").ortho2d}. Kept ignorant of
- * clip space: `buildFrame` resolves it in world units only.
+ * `xMax` are world x coordinates, `yMin`/`yMax` are world price — the rectangle
+ * Task 5 feeds to {@link import("./webgl/projection.js").ortho2d}. For market
+ * bars the WebGL adapter uses compressed bar slots as world x values so missing
+ * calendar days do not leave gaps.
  *
  * @since 0.1
  * @stable
@@ -219,7 +220,7 @@ export type LayerKind =
 /**
  * Candle bodies — one packed row per bar, body fill. `rows` packs
  * `[x, open, high, low, close, isBull]` per bar in **world** units (x is the
- * bar's world time; `isBull` is `1`/`0`), length `6 * rowCount`. The wicks
+ * bar's world x slot; `isBull` is `1`/`0`), length `6 * rowCount`. The wicks
  * live in {@link CandleWicksDescriptor} (different draw-call shape).
  * `bodyWidthPx` is CSS-px (DPR scaling happens in the program, Task 6).
  *
@@ -241,8 +242,9 @@ export type CandleBodiesDescriptor = DescriptorHeader & {
 
 /**
  * Candle wicks — one packed row per bar: `[x, low, high, isBull]` in
- * **world** units, length `4 * rowCount`. `isBull` selects bull / bear (or
- * the single wick color) per bar. `wickWidthPx` is CSS-px.
+ * **world** units, length `4 * rowCount`. The per-bar `isBull` flag selects
+ * `bullColor` / `bearColor` in the shader (`mix(bear, bull, isBull)`), so each
+ * wick matches its candle body's direction colour. `wickWidthPx` is CSS-px.
  *
  * @since 0.1
  * @stable
@@ -255,13 +257,14 @@ export type CandleWicksDescriptor = DescriptorHeader & {
     readonly kind: "candle-wicks";
     readonly rows: Float32Array;
     readonly rowCount: number;
-    readonly wickColor: RgbaUnit;
+    readonly bullColor: RgbaUnit;
+    readonly bearColor: RgbaUnit;
     readonly wickWidthPx: number;
 };
 
 /**
  * Generic poly-line — indicator lines, threshold lines, drawing strokes.
- * `points` packs `[x0, y0, x1, y1, …]` in **world** space (x = world time,
+ * `points` packs `[x0, y0, x1, y1, …]` in **world** space (x = world x slot,
  * y = world price), length `2 * pointCount`. A non-finite y (NaN gap) is
  * preserved so the program (Task 7) skips the segment. `dash` is `null` for a
  * solid line or `[on, off]` CSS-px.
@@ -468,5 +471,6 @@ export type PaneRenderState = {
     readonly paneKey: string;
     readonly window: PaneWindow;
     readonly cssRect?: PaneCssRect;
+    readonly timeFormatter?: (time: number, span: number) => string;
     readonly layers: ReadonlyArray<LayerDescriptor>;
 };

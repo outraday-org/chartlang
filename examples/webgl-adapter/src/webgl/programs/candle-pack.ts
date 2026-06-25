@@ -87,7 +87,7 @@ export function packCandleBodies(descriptor: CandleBodiesDescriptor): Float32Arr
  *     const rows = new Float32Array([0, 0.5, 2.5, 1]);
  *     const packed = packCandleWicks({
  *         id: "x", kind: "candle-wicks", rows, rowCount: 1,
- *         wickColor: [0, 0, 0, 1], wickWidthPx: 1,
+ *         bullColor: [0, 0, 0, 1], bearColor: [0, 0, 0, 1], wickWidthPx: 1,
  *     });
  *     packed.length === 4;
  *     void packed;

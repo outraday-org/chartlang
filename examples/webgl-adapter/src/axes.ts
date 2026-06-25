@@ -54,6 +54,7 @@ export type AxisRenderInfo = {
         readonly yMax: number;
     };
     readonly ticks: AxisTicks;
+    readonly timeFormatter?: (time: number, span: number) => string;
 };
 
 // Default number of axis ticks per axis (≈ TradingView density). The renderer

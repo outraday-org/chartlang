@@ -329,6 +329,7 @@ export class Renderer {
                     yMax: window.yMax,
                 },
                 ticks,
+                ...(pane.timeFormatter === undefined ? {} : { timeFormatter: pane.timeFormatter }),
             });
         }
     }

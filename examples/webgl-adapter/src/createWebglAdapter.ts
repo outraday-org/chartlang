@@ -231,13 +231,14 @@ function mountOverlay(glContext: GlContext): TextOverlay | undefined {
     overlayCanvas.style.left = "0";
     overlayCanvas.style.top = "0";
     overlayCanvas.style.pointerEvents = "none";
-    // Type `getContext` to return the structural `RenderCtx` directly (the
+    // Cast the RESULT of `getContext` to the structural `RenderCtx` (the
     // canvas2d pattern) — a real `CanvasRenderingContext2D`'s `strokeStyle` is
     // wider (`string | CanvasGradient | CanvasPattern`) than `RenderCtx`'s, so
     // the plain return type is not assignable; the overlay only touches the
-    // `RenderCtx` subset.
-    const getCtx = overlayCanvas.getContext as unknown as (id: "2d") => RenderCtx | null;
-    const ctx = getCtx("2d");
+    // `RenderCtx` subset. Keep the call ON `overlayCanvas` — destructuring the
+    // method off the element unbinds it (native `getContext` brand-checks its
+    // receiver and throws "Illegal invocation" when `this` is undefined).
+    const ctx = overlayCanvas.getContext("2d") as unknown as RenderCtx | null;
     if (ctx === null) return undefined;
     const parent = glCanvas.parentElement;
     if (parent !== null) parent.appendChild(overlayCanvas);
@@ -517,7 +518,7 @@ export function createWebglAdapter(opts: CreateWebglAdapterOpts): WebglAdapterHa
             dataBounds: () => {
                 const { bars } = state;
                 if (bars.length === 0) return { xMin: 0, xMax: 1 };
-                return { xMin: bars[0].time, xMax: bars[bars.length - 1].time };
+                return { xMin: 0, xMax: bars.length - 1 };
             },
             requestRender,
         });
