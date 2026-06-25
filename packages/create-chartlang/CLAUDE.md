@@ -44,7 +44,11 @@ the single `activeAdapter.ts` seam + `package.json` workspace deps, writes
   real `SEAM_VARIANTS` from the monorepo source and byte-diffs every id, so
   the installer can never emit a seam the starter's `adapter-matrix.spec.ts`
   never rendered. Edit a seam in `seamVariants.ts` first, then mirror it
-  here — the parity test fails until they agree.
+  here — the parity test fails until they agree. `SEAM_IDS` carries the **six**
+  bundled ids (`canvas2d`, `lightweight-charts`, `uplot`, `echarts`, `konva`,
+  `webgl`); the `webgl` seam template (the zero-dep raw WebGL2 example adapter)
+  was added alongside the webgl example adapter — a `<canvas>`-mounting body
+  like canvas2d's.
 - **`chartlangVersions.ts` is a BAKED version manifest — a maintenance
   point.** The starter's `package.json` references `@invinite-org/chartlang-*`
   packages that no adapter bundle lists (notably `editor` +

@@ -183,12 +183,14 @@ export function resolveOverridePaint(state: AdapterState, info: AxisRenderInfo):
             const closeY = priceToY(bar.close, viewport);
             const top = Math.min(openY, closeY);
             const bottom = Math.max(openY, closeY);
-            const color =
-                bar.close > bar.open
-                    ? style.bull
-                    : bar.close < bar.open
-                      ? style.bear
-                      : (style.doji ?? style.bull);
+            let color: string;
+            if (bar.close > bar.open) {
+                color = style.bull;
+            } else if (bar.close < bar.open) {
+                color = style.bear;
+            } else {
+                color = style.doji ?? style.bull;
+            }
             bars.push({
                 kind: "candle",
                 x: timeToX(bar.time, viewport),

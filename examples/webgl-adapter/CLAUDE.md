@@ -81,10 +81,19 @@ loop + capabilities-only conformance default export).
 
 ## Provenance (later tasks)
 
-- Every file ported from invinite's `src/components/trading-chart/webgl/`
-  (SHA `cd883292b4977362c9497de75af9d3ea8b5440b7`) carries the 4-line
-  provenance header. Task 1 ports nothing (capabilities-only), so no port
-  header yet.
+- **EVERY `.ts` file under `src/` carries the two-line MIT header first**
+  (`// Copyright (c) 2026 Invinite. Licensed under the MIT License.` / `// See
+  the LICENSE file in the repo root for full license text.`) — the repo-wide
+  convention, same as the canvas2d sibling and adapter-kit's own `_lib`
+  ports. A file ported from invinite's `src/components/trading-chart/webgl/`
+  (SHA `cd883292b4977362c9497de75af9d3ea8b5440b7`) ADDITIONALLY carries the
+  invinite provenance comment **below** the MIT header (the
+  `// Ported from invinite …` block — the relicense statement CONTRIBUTING §4
+  asks for; the code style is not the port, the behaviour is). The per-task
+  sections below describe a file as carrying "the 4-line invinite provenance
+  header" — read that as "MIT header + provenance comment", never "provenance
+  INSTEAD of the MIT header". Task 1 ports nothing (capabilities-only), so no
+  provenance comment yet.
 
 ## GL infra (Task 2) — `src/webgl/`
 
@@ -404,10 +413,11 @@ pure packers are node-unit-tested.
 ## Line-strip program (Task 7) — `src/webgl/programs/`
 
 The plot-line GPU arm behind the Task-5 dispatch seam. `line-strip-program.ts`
-carries the 4-line invinite provenance header (SHA `cd883292`);
-`line-strip-pack.ts` (+ its test) is a chartlang-native pure helper (2-line MIT
-header). The `gl.*` draw flow is browser-only (`/* v8 ignore */`); the pure
-packer + sampler are node-unit-tested.
+and `line-strip-pack.ts` (+ its test) both carry the MIT header + the invinite
+provenance comment (SHA `cd883292`): `line-strip-pack.ts` ports invinite's core
+polyline packer and adds the chartlang-native `sampleMonotoneRuns` shared-spline
+run sampler below the same header. The `gl.*` draw flow is browser-only
+(`/* v8 ignore */`); the pure packer + sampler are node-unit-tested.
 
 - **`line-strip-pack.ts` is pure: `packLineStrip` + `sampleMonotoneRuns`.**
   `packLineStrip` walks an N-point world polyline into the 12-float-stride

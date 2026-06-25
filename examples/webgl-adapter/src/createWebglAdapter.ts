@@ -36,7 +36,7 @@ import { resolveHorizontalHistogram, resolveOverridePaint } from "./overrides.js
 import { BAND, type RenderOrderMark, applyRenderOrder } from "./renderOrder.js";
 import { type AdapterState, createAdapterState, resetAdapterState } from "./state.js";
 import { Renderer } from "./webgl/Renderer.js";
-import { type GlContext, createGlContext } from "./webgl/gl-context.js";
+import { type GlContext, WebGl2UnsupportedError, createGlContext } from "./webgl/gl-context.js";
 
 const DEFAULT_INTERVAL = "1D";
 
@@ -186,7 +186,22 @@ function resolveGlContext(
     };
     /* v8 ignore start -- real-canvas GL resolution is browser-only (demo / build matrix) */
     if (typeof maybeEl.getContext === "function") {
-        const glContext = createGlContext(opts.canvas as HTMLCanvasElement);
+        let glContext: GlContext;
+        try {
+            glContext = createGlContext(opts.canvas as HTMLCanvasElement);
+        } catch (err) {
+            // A real canvas on a WebGL2-unavailable environment (hardware
+            // acceleration off, software rendering blocked, an old WebView)
+            // throws WebGl2UnsupportedError. Degrade to the headless no-op path
+            // rather than hard-crashing the host — the same "no usable GL ⇒ no
+            // Renderer, no-op draw" contract the bare { width, height } path
+            // already honours. createGlContext keeps throwing for direct
+            // callers; only the factory's own resolution absorbs it.
+            if (err instanceof WebGl2UnsupportedError) {
+                return { glContext: undefined, created: false };
+            }
+            throw err;
+        }
         const cssWidth = maybeEl.clientWidth ?? maybeEl.width;
         const cssHeight = maybeEl.clientHeight ?? maybeEl.height;
         glContext.resize(cssWidth, cssHeight, dpr);

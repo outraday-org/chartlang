@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
 // Ported from invinite src/components/trading-chart/webgl/programs/line-strip-pack.ts @ cd883292.
 // WebGL2 renderer adapted to the chartlang Adapter/emission contract.
 // "Translate, not transcribe": invinite's horizontal/vertical-threshold
@@ -193,11 +196,13 @@ export function sampleMonotoneRuns(points: Float32Array, pointCount: number): Fl
     for (let i = 0; i < pointCount; i += 1) {
         const x = points[i * 2];
         const y = points[i * 2 + 1];
-        if (Number.isFinite(y)) {
+        if (Number.isFinite(x) && Number.isFinite(y)) {
             run.push({ x, y });
         } else {
-            // Close the current finite run, then re-emit the NaN point so the
-            // program opens a gap between runs.
+            // Close the current finite run, then re-emit the gap point so the
+            // program opens a gap between runs. A non-finite x (not just y) is
+            // also a gap: feeding it into monotoneCubicSegments would compute a
+            // NaN gap width and emit NaN control points, poisoning the curve.
             flushRun();
             out.push(x, y);
         }

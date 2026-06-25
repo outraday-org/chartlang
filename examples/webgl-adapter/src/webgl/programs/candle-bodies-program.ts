@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
 // Ported from invinite src/components/trading-chart/webgl/programs/candle-bodies-program.ts @ cd883292.
 // WebGL2 renderer adapted to the chartlang Adapter/emission contract.
 // "Translate, not transcribe": React/bus coupling dropped; world window
