@@ -41,6 +41,7 @@ import {
     defaultDeps,
     runCreateChartlang,
 } from "../packages/create-chartlang/dist/createApp.js";
+import { type SeamId, SEAM_IDS } from "../packages/create-chartlang/dist/seamTemplates.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const starterSrc = join(repoRoot, "apps", "react-starter");
@@ -49,9 +50,11 @@ const outRoot = join(repoRoot, "local-starters");
 const sharedEnvPath = join(outRoot, ".env.shared");
 const localPkgsDir = join(outRoot, ".local-pkgs");
 
-// Mirrors create-chartlang's bundled library ids (the seam variants).
-const LIBS = ["echarts", "canvas2d", "konva", "lightweight-charts", "uplot"] as const;
-type Lib = (typeof LIBS)[number];
+// The bundled library ids (the seam variants) — derived from create-chartlang's
+// `SEAM_IDS` SSOT so a newly-bundled adapter (e.g. webgl) shows up here with no
+// second list to keep in sync.
+const LIBS = SEAM_IDS;
+type Lib = SeamId;
 
 // Kept across a refresh so a re-run is fast and never loses local state. The
 // installer rewrites everything else from the fresh source + transforms; `.env`
