@@ -6,3 +6,4 @@ packages:
     - "examples/konva-adapter"
     - "examples/lightweight-charts-adapter"
     - "examples/uplot-adapter"
+    - "examples/webgl-adapter"

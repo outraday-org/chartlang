@@ -12,6 +12,16 @@ published to npm**.
   for a consumer-repo adapter. Exposes a default export that the
   Task-12 conformance suite consumes (capabilities-only;
   `candles`/`onEmissions`/`dispose` are no-ops).
+- **Six bundled example adapters total** — `canvas2d-adapter` (the
+  coverage-gated reference), the four library adapters
+  (`lightweight-charts-adapter`, `uplot-adapter`, `echarts-adapter`,
+  `konva-adapter`), and `webgl-adapter`
+  (`chartlang-example-webgl-adapter`), a zero-dependency raw WebGL2 GPU
+  renderer like canvas2d. All six are baked into the CLI bundle
+  (`scripts/adapters/registry.ts` SSOT), wired into the react-starter
+  seam + create-chartlang installer + apps/site demo, and run through the
+  shared conformance suite. Only `canvas2d-adapter` is in the 100%
+  coverage gate; the other five have tests but no coverage gate.
 - `examples/scripts/` — author-style example `.chart.ts` files,
   compiled end-to-end by `packages/cli/src/e2e.test.ts` and driven
   through the runtime by `packages/conformance/src/scenarios/` and

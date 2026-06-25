@@ -25,6 +25,7 @@ export const DEMO_ADAPTERS: ReadonlyArray<DemoAdapterDescriptor> = [
     { id: "uplot", label: "uPlot", load: () => import("./uplot").then((m) => m.default) },
     { id: "echarts", label: "ECharts", load: () => import("./echarts").then((m) => m.default) },
     { id: "konva", label: "Konva", load: () => import("./konva").then((m) => m.default) },
+    { id: "webgl", label: "WebGL", load: () => import("./webgl").then((m) => m.default) },
 ];
 
 /** The default adapter id (mirrors the demo's historical canvas2d default). */

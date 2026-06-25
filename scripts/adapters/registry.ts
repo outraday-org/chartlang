@@ -17,8 +17,10 @@ export const REPO_URL = "https://github.com/outraday-org/chartlang";
  * - `graphic` — a declarative graphic component (descriptor objects).
  * - `native-ctx` — the library owns series/panes natively; drawings overlay
  *   through a context handed to a primitive plugin.
+ * - `gl` — the adapter uploads decomposed geometry to GPU programs and
+ *   paints text through a 2D-canvas overlay.
  */
-export type AdapterStrategy = "ctx" | "nodes" | "graphic" | "native-ctx";
+export type AdapterStrategy = "ctx" | "nodes" | "graphic" | "native-ctx" | "gl";
 
 /**
  * One hand-maintained adapter entry — the single source of truth for the
@@ -53,9 +55,10 @@ export type AdapterRegistryEntry = {
 };
 
 /**
- * The five full-surface example adapters, in installer-matrix order
- * (reference canvas2d first, then the four library adapters alphabetically
- * by id). Each `id` matches its `examples/<id>-adapter/` folder.
+ * The six full-surface example adapters, in installer-matrix order
+ * (reference canvas2d first, then the library adapters alphabetically
+ * by id, with the zero-dep webgl adapter last). Each `id` matches its
+ * `examples/<id>-adapter/` folder.
  *
  * @since 1.3
  * @example
@@ -127,6 +130,19 @@ export const ADAPTERS: ReadonlyArray<AdapterRegistryEntry> = [
         fullSurface: true,
         approxBundleKb: 56,
         bestFor: "Tiny + fast; immediate-mode draw hooks over raw context.",
+    },
+    {
+        id: "webgl",
+        exampleDir: "examples/webgl-adapter",
+        displayName: "WebGL",
+        library: "(none)",
+        libraryRange: "(built-in)",
+        license: "MIT",
+        renderTech: "WebGL2 (raw, GPU-instanced)",
+        strategy: "gl",
+        fullSurface: true,
+        approxBundleKb: 45,
+        bestFor: "GPU-accelerated, TradingView-grade rendering at scale",
     },
 ];
 

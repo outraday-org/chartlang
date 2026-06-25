@@ -28,6 +28,7 @@ const PACKAGE_DIRS = [
     "examples/konva-adapter",
     "examples/lightweight-charts-adapter",
     "examples/uplot-adapter",
+    "examples/webgl-adapter",
 ];
 
 const DESCRIPTIONS: Record<string, string> = {
@@ -51,6 +52,8 @@ const DESCRIPTIONS: Record<string, string> = {
     "examples/lightweight-charts-adapter":
         "Example adapter — renders chartlang to TradingView lightweight-charts",
     "examples/uplot-adapter": "Example adapter — renders chartlang to uPlot",
+    "examples/webgl-adapter":
+        "Example adapter — renders chartlang to a raw WebGL2 GPU renderer (zero dependencies)",
 };
 
 const PUBLIC_SURFACE: Record<string, string> = {
@@ -82,6 +85,8 @@ const PUBLIC_SURFACE: Record<string, string> = {
         "Example adapter rendering to TradingView lightweight-charts. Not exported as a package surface — copy from this folder when writing your own adapter.",
     "examples/uplot-adapter":
         "Example adapter rendering to uPlot. Not exported as a package surface — copy from this folder when writing your own adapter.",
+    "examples/webgl-adapter":
+        "Example adapter rendering to a raw WebGL2 GPU renderer (zero dependencies). Not exported as a package surface — copy from this folder when writing your own adapter.",
 };
 
 const DOCS_LINKS: Record<string, string> = {
@@ -101,6 +106,7 @@ const DOCS_LINKS: Record<string, string> = {
     "examples/konva-adapter": "docs/adapters/reference/konva.md",
     "examples/lightweight-charts-adapter": "docs/adapters/reference/lightweight-charts.md",
     "examples/uplot-adapter": "docs/adapters/reference/uplot.md",
+    "examples/webgl-adapter": "docs/adapters/reference/webgl.md",
 };
 
 // Per-package subpath exports appended after the "." entry. The scaffold is

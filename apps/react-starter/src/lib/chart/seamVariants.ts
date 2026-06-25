@@ -29,7 +29,7 @@
 
 /** One bundled-adapter seam descriptor. */
 export type SeamVariant = Readonly<{
-  id: "canvas2d" | "lightweight-charts" | "uplot" | "echarts" | "konva"
+  id: "canvas2d" | "lightweight-charts" | "uplot" | "echarts" | "konva" | "webgl"
   /** The `chartlang-example-<id>-adapter` package name. */
   pkg: string
   /** The npm chart library the seam imports (empty for canvas2d). */
@@ -323,7 +323,59 @@ export async function runActiveLoop(
 }
 `
 
-/** The five bundled adapter seam variants (canvas2d is the committed default). */
+// webgl (raw WebGL2, zero chart lib — like canvas2d): create a <canvas> inside
+// the container, back it at device-pixel resolution, and let createWebglAdapter
+// resolve the GL context from it; runWebglLoop drives the render loop.
+const WEBGL_SEAM = `${HEADER}
+import {
+  createWebglAdapter,
+  runWebglLoop,
+  type WebglAdapterHandle,
+} from "chartlang-example-webgl-adapter"
+
+export type ActiveAdapterHandle = WebglAdapterHandle
+
+export const ACTIVE_ADAPTER_ID = "webgl"
+
+${OPTS_TYPES}
+
+// webgl renders onto a <canvas> via a WebGL2 context; the seam creates one
+// inside the generic container so ChartPane only ever provides a DOM node.
+export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandle {
+  const cssWidth = opts.container.clientWidth || 800
+  const cssHeight = opts.container.clientHeight || 480
+  // Back the canvas at device-pixel resolution so the chart stays crisp on
+  // HiDPI / retina screens; CSS keeps it laid out at the container's CSS size.
+  // The adapter draws into the full backing store and only re-scales its
+  // pan/zoom pointer math by \`devicePixelRatio\`, so the render is unchanged.
+  const dpr = opts.container.ownerDocument.defaultView?.devicePixelRatio ?? 1
+  const canvas = opts.container.ownerDocument.createElement("canvas")
+  canvas.width = Math.round(cssWidth * dpr)
+  canvas.height = Math.round(cssHeight * dpr)
+  canvas.style.width = \`\${cssWidth}px\`
+  canvas.style.height = \`\${cssHeight}px\`
+  opts.container.replaceChildren(canvas)
+  return createWebglAdapter({
+    canvas,
+    candleSource: opts.candleSource,
+    devicePixelRatio: dpr,
+    // Frame the most recent ~120 bars by default (TradingView-style); the
+    // full history stays in memory and scrollable via pan / zoom-out.
+    initialVisibleBars: 120,
+    ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
+    ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
+  })
+}
+
+export async function runActiveLoop(
+  handle: ActiveAdapterHandle,
+  opts: RunActiveLoopOpts = {},
+): Promise<void> {
+  await runWebglLoop(handle, opts)
+}
+`
+
+/** The six bundled adapter seam variants (canvas2d is the committed default). */
 export const SEAM_VARIANTS: ReadonlyArray<SeamVariant> = [
   {
     id: "canvas2d",
@@ -359,5 +411,12 @@ export const SEAM_VARIANTS: ReadonlyArray<SeamVariant> = [
     lib: "konva",
     mount: "div",
     seamSource: KONVA_SEAM,
+  },
+  {
+    id: "webgl",
+    pkg: "chartlang-example-webgl-adapter",
+    lib: "",
+    mount: "canvas",
+    seamSource: WEBGL_SEAM,
   },
 ]

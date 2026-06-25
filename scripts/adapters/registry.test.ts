@@ -12,13 +12,14 @@ import { ADAPTERS, REPO_URL, githubFolder } from "./registry.js";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 describe("adapters registry", () => {
-    it("declares the five full-surface example adapters", () => {
+    it("declares the six full-surface example adapters", () => {
         expect(ADAPTERS.map((a) => a.id)).toEqual([
             "canvas2d",
             "echarts",
             "konva",
             "lightweight-charts",
             "uplot",
+            "webgl",
         ]);
     });
 

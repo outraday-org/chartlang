@@ -15,7 +15,7 @@
 // here — the parity test fails the build until they agree.
 
 /**
- * The five bundled adapter ids the installer can vendor + rewrite the seam for.
+ * The six bundled adapter ids the installer can vendor + rewrite the seam for.
  *
  * @since 0.1
  * @stable
@@ -23,7 +23,14 @@
  *     import { SEAM_IDS } from "@invinite-org/create-chartlang";
  *     for (const id of SEAM_IDS) void id;
  */
-export const SEAM_IDS = ["canvas2d", "lightweight-charts", "uplot", "echarts", "konva"] as const;
+export const SEAM_IDS = [
+    "canvas2d",
+    "lightweight-charts",
+    "uplot",
+    "echarts",
+    "konva",
+    "webgl",
+] as const;
 
 /**
  * A bundled-adapter id the installer can rewrite the seam for (one of
@@ -310,12 +317,62 @@ export async function runActiveLoop(
 }
 `;
 
+const WEBGL_SEAM = `${HEADER}
+import {
+  createWebglAdapter,
+  runWebglLoop,
+  type WebglAdapterHandle,
+} from "chartlang-example-webgl-adapter"
+
+export type ActiveAdapterHandle = WebglAdapterHandle
+
+export const ACTIVE_ADAPTER_ID = "webgl"
+
+${OPTS_TYPES}
+
+// webgl renders onto a <canvas> via a WebGL2 context; the seam creates one
+// inside the generic container so ChartPane only ever provides a DOM node.
+export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandle {
+  const cssWidth = opts.container.clientWidth || 800
+  const cssHeight = opts.container.clientHeight || 480
+  // Back the canvas at device-pixel resolution so the chart stays crisp on
+  // HiDPI / retina screens; CSS keeps it laid out at the container's CSS size.
+  // The adapter draws into the full backing store and only re-scales its
+  // pan/zoom pointer math by \`devicePixelRatio\`, so the render is unchanged.
+  const dpr = opts.container.ownerDocument.defaultView?.devicePixelRatio ?? 1
+  const canvas = opts.container.ownerDocument.createElement("canvas")
+  canvas.width = Math.round(cssWidth * dpr)
+  canvas.height = Math.round(cssHeight * dpr)
+  canvas.style.width = \`\${cssWidth}px\`
+  canvas.style.height = \`\${cssHeight}px\`
+  opts.container.replaceChildren(canvas)
+  return createWebglAdapter({
+    canvas,
+    candleSource: opts.candleSource,
+    devicePixelRatio: dpr,
+    // Frame the most recent ~120 bars by default (TradingView-style); the
+    // full history stays in memory and scrollable via pan / zoom-out.
+    initialVisibleBars: 120,
+    ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
+    ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
+  })
+}
+
+export async function runActiveLoop(
+  handle: ActiveAdapterHandle,
+  opts: RunActiveLoopOpts = {},
+): Promise<void> {
+  await runWebglLoop(handle, opts)
+}
+`;
+
 const SEAM_BODIES: Readonly<Record<SeamId, string>> = {
     canvas2d: CANVAS2D_SEAM,
     "lightweight-charts": LWC_SEAM,
     uplot: UPLOT_SEAM,
     echarts: ECHARTS_SEAM,
     konva: KONVA_SEAM,
+    webgl: WEBGL_SEAM,
 };
 
 /** The example-adapter package name for an id (the seam's import specifier). */
@@ -324,7 +381,7 @@ function exampleAdapterPkg(id: SeamId): string {
 }
 
 /**
- * Type guard: is `value` one of the five bundled-adapter ids the installer
+ * Type guard: is `value` one of the six bundled-adapter ids the installer
  * can rewrite the seam for?
  *
  * @since 0.1

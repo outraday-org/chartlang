@@ -141,6 +141,22 @@ layer** every adapter shares.
   Pure (no `ctx` / DOM / library types), 100%-covered. `xShift` omitted / `0`
   reproduces the unshifted `timeToX(time)` byte-for-byte, so no-offset
   goldens are untouched.
+- **`monotoneCubicSegments` (`src/geometry/monotoneSpline.ts`) is the ONE
+  monotone-cubic (Fritsch–Carlson) curve source; the smoothing adapters import
+  it, never re-port it** — same rationale as `shift.ts` / `renderOrder.ts` (a
+  hand-port per adapter drifts). It converts a `ReadonlyArray<Point2>` polyline
+  into `BezierSegment[]` (one per gap) that passes THROUGH every point with NO
+  overshoot (safe on indicator data); a zero/negative-width gap degrades to a
+  straight chord (no divide-by-zero). Consumers: canvas2d (direct
+  `bezierCurveTo` per segment — `render/monotoneSpline.ts` is now a bare
+  re-export) and the webgl example adapter (samples each segment into denser
+  line-strip points, since GPU has no native curve — `webgl/programs/
+  line-strip-pack.ts`'s `sampleMonotoneRuns`). On BOTH the `geometry/index.ts`
+  and root `.` barrels; `BezierSegment` reuses no parallel point type
+  (`monotoneCubicSegments` takes the shared `Point2`). Pure, 100%-covered, each
+  carrying `@since 1.7` + `@stable` + `@example`. Promoted out of canvas2d's
+  `render/monotoneSpline.ts` verbatim; behaviour-preserving (the EMA-cross
+  `PINNED_HASH`'s curved plot lines are byte-identical, so it is not re-hashed).
 - **The z-order comparator lives in `src/geometry/renderOrder.ts`; adapters
   MUST import it, never re-port it** — same rationale as `shift.ts` (four
   hand-ports were exactly how the offset-collapse bug arose). It exposes

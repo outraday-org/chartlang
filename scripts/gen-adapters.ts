@@ -308,11 +308,12 @@ const STRATEGY_BLURB: Readonly<Record<AdapterRegistryEntry["strategy"], string>>
     graphic: "maps each decomposed primitive to a declarative graphic element",
     "native-ctx":
         "renders series/panes natively and overlays drawings through a primitive's context",
+    gl: "uploads the decomposed geometry to GPU programs and paints text through a 2D-canvas overlay",
 };
 
 /**
  * The GitHub deep link to an adapter's committed conformance report. Only the
- * canvas2d reference adapter ships a committed `CONFORMANCE.md`; the other four
+ * canvas2d reference adapter ships a committed `CONFORMANCE.md`; the other five
  * are run pass/fail by `pnpm conformance` and own no committed report, so they
  * point at the conformance docs page instead (a resolvable link). Documented in
  * the gallery FAQ + `scripts/CLAUDE.md`.
@@ -420,7 +421,7 @@ function renderGalleryGuide(): string {
         "- **Interactive, custom, retained-mode scene-graph + hit-testing** → `konva`.",
         "- **Zero-dependency reference, full control over every pixel** → `canvas2d`.",
         "",
-        "All five share one renderer-agnostic geometry layer",
+        "All six share one renderer-agnostic geometry layer",
         "(`decomposeDrawing` in `@invinite-org/chartlang-adapter-kit`), so the drawing",
         "math is identical — the choice is about your library, not the drawing surface.",
         "",
@@ -450,7 +451,7 @@ function renderGalleryFaq(): string {
         "`/canvas` `paintPrimitive` sink.",
         "",
         "**Where's the committed conformance report?** Only the canvas2d reference",
-        "adapter ships a committed `CONFORMANCE.md`; the other four are run pass/fail by",
+        "adapter ships a committed `CONFORMANCE.md`; the other five are run pass/fail by",
         "`pnpm conformance` and link the [conformance docs](./conformance.md) instead.",
         "",
     ].join("\n");

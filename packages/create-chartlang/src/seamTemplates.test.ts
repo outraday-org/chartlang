@@ -42,7 +42,7 @@ describe("seamTemplateFor", () => {
         expect(body).not.toContain("chartlang-example-echarts-adapter");
     });
 
-    it("emits a body byte-identical to SEAM_VARIANTS after substitution (all 5)", async () => {
+    it("emits a body byte-identical to SEAM_VARIANTS after substitution (all 6)", async () => {
         const variants = await loadVariants();
         for (const id of SEAM_IDS) {
             const variant = variants.find((v) => v.id === id);

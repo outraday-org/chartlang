@@ -8,6 +8,7 @@ import { bundle as konvaBundle } from "./konva.js";
 import { bundle as lightweightChartsBundle } from "./lightweight-charts.js";
 import type { GeneratedAdapterBundle } from "./types.js";
 import { bundle as uplotBundle } from "./uplot.js";
+import { bundle as webglBundle } from "./webgl.js";
 
 export type { GeneratedAdapterBundle, GeneratedAdapterMeta } from "./types.js";
 export { ADAPTER_REGISTRY } from "./registry.js";
@@ -18,4 +19,5 @@ export const BUNDLED_ADAPTERS: ReadonlyArray<GeneratedAdapterBundle> = [
     konvaBundle,
     lightweightChartsBundle,
     uplotBundle,
+    webglBundle,
 ];

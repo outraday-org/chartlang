@@ -41,6 +41,7 @@
         "chartlang-example-konva-adapter": "workspace:*",
         "chartlang-example-lightweight-charts-adapter": "workspace:*",
         "chartlang-example-uplot-adapter": "workspace:*",
+        "chartlang-example-webgl-adapter": "workspace:*",
         "clsx": "^2.1.1",
         "codemirror": "^6",
         "echarts": "^5",

@@ -29,6 +29,7 @@ and is conformance-green.
 | [Konva](#konva) | `konva` | MIT | Scene-graph (Canvas) | Full (63 + all plots) | ~92 KB | [`examples/konva-adapter/`](https://github.com/outraday-org/chartlang/tree/main/examples/konva-adapter) |
 | [Lightweight Charts](#lightweight-charts) | `lightweight-charts` | Apache-2.0 | Native series + series-primitive overlay | Full (63 + all plots) | ~64 KB | [`examples/lightweight-charts-adapter/`](https://github.com/outraday-org/chartlang/tree/main/examples/lightweight-charts-adapter) |
 | [uPlot](#uplot) | `uplot` | MIT | Canvas draw-hooks | Full (63 + all plots) | ~56 KB | [`examples/uplot-adapter/`](https://github.com/outraday-org/chartlang/tree/main/examples/uplot-adapter) |
+| [WebGL](#webgl) | none | MIT | WebGL2 (raw, GPU-instanced) | Full (63 + all plots) | ~45 KB | [`examples/webgl-adapter/`](https://github.com/outraday-org/chartlang/tree/main/examples/webgl-adapter) |
 
 `~Bundle` is a hand-maintained estimate (see the [FAQ](#faq)).
 
@@ -127,6 +128,25 @@ Source:
 [README](https://github.com/outraday-org/chartlang/tree/main/examples/uplot-adapter#readme) ·
 [conformance](./conformance.md)
 
+## WebGL {#webgl}
+
+**Best for** — GPU-accelerated, TradingView-grade rendering at scale
+
+- **Library:** none (zero external dependencies) · MIT
+- **Render tech:** WebGL2 (raw, GPU-instanced) (~45 KB)
+- **Drawings:** uploads the decomposed geometry to GPU programs and paints text through a 2D-canvas overlay.
+
+Install:
+
+```bash
+npx @invinite-org/chartlang-cli add-adapter webgl
+```
+
+Source:
+[folder](https://github.com/outraday-org/chartlang/tree/main/examples/webgl-adapter) ·
+[README](https://github.com/outraday-org/chartlang/tree/main/examples/webgl-adapter#readme) ·
+[conformance](./conformance.md)
+
 ## Which should I choose?
 
 - **Financial-native candles / axes / panes for free** → `lightweight-charts`.
@@ -135,7 +155,7 @@ Source:
 - **Interactive, custom, retained-mode scene-graph + hit-testing** → `konva`.
 - **Zero-dependency reference, full control over every pixel** → `canvas2d`.
 
-All five share one renderer-agnostic geometry layer
+All six share one renderer-agnostic geometry layer
 (`decomposeDrawing` in `@invinite-org/chartlang-adapter-kit`), so the drawing
 math is identical — the choice is about your library, not the drawing surface.
 
@@ -160,5 +180,5 @@ log scale — a deferred follow-up). The shared geometry layer lives in
 `/canvas` `paintPrimitive` sink.
 
 **Where's the committed conformance report?** Only the canvas2d reference
-adapter ships a committed `CONFORMANCE.md`; the other four are run pass/fail by
+adapter ships a committed `CONFORMANCE.md`; the other five are run pass/fail by
 `pnpm conformance` and link the [conformance docs](./conformance.md) instead.

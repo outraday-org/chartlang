@@ -187,14 +187,15 @@ and the demo 500s, the client bundle fails to load, or the whole site
   `pnpm examples:generate`. Demo-only entries (e.g. `smoothed-rsi-cross`,
   `manual-sma`) have no file and are skipped by the gate.
 - **The demo adapter driver layer dynamic-imports EVERY heavy lib —
-  never statically.** `src/components/demo/adapters/` normalises the five
+  never statically.** `src/components/demo/adapters/` normalises the six
   example adapters behind one `DemoAdapterDriver` (`{ host, run(signal),
   dispose() }`) contract (`adapters/types.ts`); `adapters/registry.ts`'s
   `DEMO_ADAPTERS` lazily `import()`s each driver module, and each driver
   `import()`s its adapter package (and, for **echarts** + **konva**, the
   peer lib itself, because those adapters take an injected
-  `echartsFactory` / `konva` surface rather than importing the lib — the
-  other three import their lib internally). A STATIC `import` of
+  `echartsFactory` / `konva` surface rather than importing the lib —
+  lightweight-charts / uplot import their lib internally and canvas2d /
+  webgl are zero-dep raw renderers). A STATIC `import` of
   `echarts` / `konva` / `lightweight-charts` / `uplot` or any
   `chartlang-example-*-adapter` package anywhere in `src/` would bloat the
   client chunk AND pull DOM-only lib code into the `ssr` build (the demo
@@ -219,7 +220,7 @@ and the demo 500s, the client bundle fails to load, or the whole site
   the mount element.
 - **`DEMO_ADAPTERS` ids mirror `scripts/adapters/registry.ts`
   `ADAPTERS[].id`** (`canvas2d`, `echarts`, `konva`, `lightweight-charts`,
-  `uplot`). The list is deliberately NOT imported from `scripts/` (avoids
+  `uplot`, `webgl`). The list is deliberately NOT imported from `scripts/` (avoids
   an app→`scripts` bundling dependency); a maintenance comment in
   `adapters/registry.ts` records that adding/removing an adapter means
   updating BOTH lists.

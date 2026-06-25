@@ -219,7 +219,7 @@ default **canvas2d**. It is the **only** file in the app that names a concrete
   intervals yield NaN.
 - **`src/lib/chart/seamVariants.ts` is the seam SSOT.** `SEAM_VARIANTS` holds
   one entry per bundled id (`canvas2d`, `lightweight-charts`, `uplot`,
-  `echarts`, `konva`), each carrying the FULL `activeAdapter.ts` body for that
+  `echarts`, `konva`, `webgl`), each carrying the FULL `activeAdapter.ts` body for that
   library. The committed `activeAdapter.ts` **equals `SEAM_VARIANTS.canvas2d`'s
   `seamSource` verbatim** — `tests/adapter-matrix.spec.ts` asserts the
   byte-identity. The `create-chartlang` installer (Task 7) rewrites ONLY
@@ -228,10 +228,12 @@ default **canvas2d**. It is the **only** file in the app that names a concrete
   these (after the `workspace:*` → published-version substitution). Edit a
   library's seam **here**, never by forking a copy.
 - **Deps:** runtime dep is canvas2d-only (`chartlang-example-canvas2d-adapter`,
-  which needs no npm chart lib); the other four adapters + their npm libs
+  which needs no npm chart lib); the four library adapters + their npm libs
   (`echarts`, `lightweight-charts`, `uplot`, `konva`) are **devDependencies** so
-  the matrix runs in-monorepo with zero network. Adapters resolve to their built
-  `dist/`, so the five example adapters (and the workspace packages they depend
+  the matrix runs in-monorepo with zero network. (`webgl` is the sixth bundled
+  adapter — a zero-dep raw WebGL2 renderer like canvas2d, so it adds no npm
+  chart lib.) Adapters resolve to their built
+  `dist/`, so the six example adapters (and the workspace packages they depend
   on) must be built before the app typechecks/builds/e2e-tests against them.
 - **echarts mount quirk:** echarts takes `echartsFactory: () => echarts.init(
   container)`, NOT a raw container, so this seam owns the `echarts.init` call.

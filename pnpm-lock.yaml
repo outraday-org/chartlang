@@ -327,6 +327,9 @@ importers:
       chartlang-example-uplot-adapter:
         specifier: workspace:*
         version: link:../../examples/uplot-adapter
+      chartlang-example-webgl-adapter:
+        specifier: workspace:*
+        version: link:../../examples/webgl-adapter
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -534,6 +537,28 @@ importers:
       '@invinite-org/chartlang-conformance':
         specifier: workspace:^
         version: link:../../packages/conformance
+      '@invinite-org/chartlang-core':
+        specifier: workspace:^
+        version: link:../../packages/core
+      '@invinite-org/chartlang-runtime':
+        specifier: workspace:^
+        version: link:../../packages/runtime
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.41
+
+  examples/webgl-adapter:
+    dependencies:
+      '@invinite-org/chartlang-adapter-kit':
+        specifier: workspace:^
+        version: link:../../packages/adapter-kit
+      '@invinite-org/chartlang-host-worker':
+        specifier: workspace:^
+        version: link:../../packages/host-worker
+    devDependencies:
+      '@invinite-org/chartlang-compiler':
+        specifier: workspace:^
+        version: link:../../packages/compiler
       '@invinite-org/chartlang-core':
         specifier: workspace:^
         version: link:../../packages/core

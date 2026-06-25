@@ -64,5 +64,17 @@ export const ADAPTER_REGISTRY: ReadonlyArray<GeneratedAdapterMeta> = [
         "approxBundleKb": 56,
         "bestFor": "Tiny + fast; immediate-mode draw hooks over raw context.",
         "githubFolder": "https://github.com/outraday-org/chartlang/tree/main/examples/uplot-adapter"
+    },
+    {
+        "id": "webgl",
+        "displayName": "WebGL",
+        "library": "(none)",
+        "libraryRange": "(built-in)",
+        "license": "MIT",
+        "renderTech": "WebGL2 (raw, GPU-instanced)",
+        "strategy": "gl",
+        "approxBundleKb": 45,
+        "bestFor": "GPU-accelerated, TradingView-grade rendering at scale",
+        "githubFolder": "https://github.com/outraday-org/chartlang/tree/main/examples/webgl-adapter"
     }
 ];

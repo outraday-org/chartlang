@@ -73,17 +73,17 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
   `postMessage` (a method can't be structured-cloned; the runtime installs
   its own `bar.point`).
 - `run-conformance.ts` iterates the `CONFORMANCE_ADAPTERS` registry —
-  the canvas2d reference adapter plus the four full-surface library
-  adapters (lightweight-charts / uplot / echarts / konva). Each is imported
-  from `examples/<dir>/src/index.ts` (preferred, run under `tsx`) then its
-  built `dist/index.js`; a not-yet-built adapter is logged
+  the canvas2d reference adapter plus the five full-surface library / zero-dep
+  adapters (lightweight-charts / uplot / echarts / konva / webgl). Each is
+  imported from `examples/<dir>/src/index.ts` (preferred, run under `tsx`)
+  then its built `dist/index.js`; a not-yet-built adapter is logged
   (`skip <name>: not built`) and SKIPPED, never a hard failure (CI builds
-  all five before the run; local runs may not). The exit code is non-zero
+  all six before the run; local runs may not). The exit code is non-zero
   iff any adapter reports a scenario failure (or, under `--check`, the
   committed report drifts). **`--report` / `--check` render only the
   canvas2d report pair** (`examples/canvas2d-adapter/CONFORMANCE.md` +
   `conformance-report.json`) — the reference adapter is the single adapter
-  with a committed, diff-friendly report; the other four are run for
+  with a committed, diff-friendly report; the other five are run for
   pass/fail only and own no committed report. `CONFORMANCE_ADAPTERS` is
   **derived from `ADAPTERS` in `scripts/adapters/registry.ts`** (the same
   SSOT `gen-adapters` reads), so adding a new example adapter = append ONE
@@ -94,7 +94,7 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
   suite is never executed twice for one adapter.
 - `gen-adapters.ts` (`adapters:generate` / `adapters:gate`) bakes each
   example adapter declared in `scripts/adapters/registry.ts` (the SSOT —
-  five entries: canvas2d + echarts + konva + lightweight-charts + uplot)
+  six entries: canvas2d + echarts + konva + lightweight-charts + uplot + webgl)
   into the CLI as an offline, version-pinned string-template bundle under
   `packages/cli/src/generated/adapters/`. For each entry it collects
   `src/**/*.ts` (OMITTING `integration.test.ts` + `conformance.test.ts`,
@@ -130,7 +130,7 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
 | Script | `pnpm` alias | Purpose |
 |---|---|---|
 | `scaffold.ts` | `pnpm scaffold` | Idempotent per-package §22.4 generator. |
-| `adapters/registry.ts` | — | SSOT for the five example adapters (`ADAPTERS` + `githubFolder`); consumed by `gen-adapters.ts` (and Task 15's gallery). |
+| `adapters/registry.ts` | — | SSOT for the six example adapters (`ADAPTERS` + `githubFolder`); consumed by `gen-adapters.ts` (and Task 15's gallery). |
 | `gen-adapters.ts` | `pnpm adapters:generate` / `pnpm adapters:gate` | Bakes each example adapter into `packages/cli/src/generated/adapters/` as an offline version-pinned bundle for `chartlang add-adapter`; `--check` byte-diffs the committed tree. Never hand-edit the generated dir — re-run the generator. |
 | `docs-check.ts` | `pnpm docs:check` | §17.6 + §17.2 JSDoc gate (TS compiler API) + `@example` execution via the chartlang compiler. |
 | `docs-check.executor.ts` | — | Executor module imported by `docs-check.ts`; covered by `docs-check.executor.test.ts`. |
@@ -141,7 +141,7 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
 | `generate-skills-reference.ts` | `pnpm skills:generate` / `pnpm skills:gate` | Walks `ta.*`/`draw.*`/plot-family JSDoc → `skills/chartlang-coding/references/primitives.md`; `--check` byte-diffs against the committed file. Deep-imports `parsePrimitiveSource` / `parseDrawingSource` (source, not `dist/`) and mirrors their skip lists. The `## plot family` section is driven by `collectPlotFamily`, which reads the four core holes (`plot`/`hline`/`bgcolor`/`barcolor`) from `packages/core/src/plot/plot.ts` directly via the TS AST — those holes are author signatures with no `@formula`/`@warmup`, so they can't go through `parsePrimitiveSource`. Never hand-edit `primitives.md` — re-run `pnpm skills:generate`. |
 | `gen-converter-docs.ts` | `pnpm converter:docs:generate` / `pnpm converter:docs:check` | Renders `docs/converter/diagnostics.md` from `DIAGNOSTIC_CODE_ENTRIES` (deep-imported from `packages/pine-converter/src/diagnostics/codes.ts`, source not `dist/`) — one anchored `### <slug>` section per code, sorted by full code string. `--check` byte-diffs against the committed page (drift fails CI). Never hand-edit `docs/converter/diagnostics.md` — re-run the generator; the intro preamble is the `INTRO` generator constant. The per-code anchor (`#<slug>`) MUST match `shortCode` in `pine-converter`'s `diagnostics/format.ts` so the CLI's `= docs:` links resolve. |
 | `readme-check.ts` | `pnpm readme:check` | §17.6 + §17.1 README structure gate. |
-| `run-conformance.ts` | `pnpm conformance` | §16.5 / §15.3 conformance harness wrapper. Iterates ALL FIVE example adapters (`CONFORMANCE_ADAPTERS`: canvas2d + lightweight-charts + uplot + echarts + konva). |
+| `run-conformance.ts` | `pnpm conformance` | §16.5 / §15.3 conformance harness wrapper. Iterates ALL SIX example adapters (`CONFORMANCE_ADAPTERS`: canvas2d + lightweight-charts + uplot + echarts + konva + webgl). |
 | `coverage-merge.ts` | `pnpm coverage:report` | §16.5 per-package → root LCOV + summary. |
 | `vitest.config.ts` | `pnpm test:scripts` | Per-folder vitest config — discovers `scripts/**/*.test.ts`. |
 | `refresh-local-starters.ts` | `pnpm starters:local [lib]` / `pnpm starters:local:linked [lib]` | Dev preview only (not a gate). Recreates the git-ignored `local-starters/<lib>/` apps from the LOCAL `apps/react-starter` tree via create-chartlang's real transforms (injected `cloneStarter` clones from disk, not GitHub), so uncommitted starter / `seamTemplates` changes are previewable across every chart library with no publish + no push. **Two dep modes:** `starters:local` installs the **published** `@invinite-org/chartlang-*` (tests the real release path — but BREAKS when the repo uses unreleased package APIs the published versions lack, e.g. an `adapter-kit` capability the example adapters already call); `starters:local:linked` (`--local`) builds + `pnpm pack`s every workspace `@invinite-org/chartlang-*` package (pack resolves `workspace:*` → versions so the tarballs install under npm) and forces them into each clone — direct deps rewritten to `file:` (npm EOVERRIDEs an `overrides` entry that differs from a direct dep), transitive-only ones via `overrides` — so the clones run on CURRENT repo code. The `pnpm` scripts build first (create-chartlang for published; all packages for linked), then refresh all five (or one, by id arg). Published mode preserves each starter's `node_modules` + `data/` (fast re-runs); linked mode drops the lockfile + `node_modules/@invinite-org`/`@local` to re-resolve from fresh tarballs. Shared env overrides live ONCE in the git-ignored `local-starters/.env.shared`: every refresh overlays its non-empty keys onto each starter's `.env` (market data needs no key — it loads from Yahoo Finance — so there's nothing to share today; the generic overlay mechanism is kept for any future shared var). The shared file is auto-created on first run. Per-folder `.env` edits are preserved as the base; shared wins for the keys it defines. **The preserved `data/` keeps saved `scripts` but its `eod_cache` table is DROPPED on every refresh** (`clearEodCache`, best-effort via the starter's own `better-sqlite3`): a market-data row written by a superseded source (the legacy EODData tier returned only ~20 daily bars) would otherwise shadow the current ~5y Nasdaq/Yahoo/Stooq fetch for its 24h TTL — the "not enough history" symptom. |

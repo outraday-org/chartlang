@@ -2,6 +2,8 @@
 // See the LICENSE file in the repo root for full license text.
 
 export { decomposeDrawing } from "./decompose.js";
+export { monotoneCubicSegments } from "./monotoneSpline.js";
+export type { BezierSegment } from "./monotoneSpline.js";
 export { priceToY, timeToX, worldPointToPixel } from "./project.js";
 export { RENDER_BAND, sortByRenderOrder } from "./renderOrder.js";
 export type { RenderOrderKey } from "./renderOrder.js";

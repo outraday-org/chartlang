@@ -17,7 +17,7 @@ export type DriverMountOpts = Readonly<{
 }>;
 
 /**
- * A live, mounted adapter normalised across the five example libraries.
+ * A live, mounted adapter normalised across the six example libraries.
  * `host.load(...)` feeds the compiled module; `run(signal)` drives the
  * render loop until `signal` aborts; `dispose()` tears down the renderer
  * + worker AND empties the mount element.
