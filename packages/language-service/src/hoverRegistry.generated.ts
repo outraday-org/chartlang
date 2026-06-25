@@ -256,6 +256,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.2",
         "stability": "stable"
     },
+    "applyFormat": {
+        "fqn": "applyFormat",
+        "kind": "property",
+        "title": "applyFormat",
+        "summary": "/**\nReplace positional `{n}` placeholders in `template` with `args[n]`, with an\noptional Pine-style numeric sub-mask `{n,number,MASK}` routed through\n{@link formatNumber} . `{{` / `}}` are literal braces. An out-of-range index\nleaves its placeholder intact (Pine parity). The deterministic core of\n`str.format`.",
+        "examples": [
+            "applyFormat(\"{0} / {1}\", [\"a\", \"b\"]); // \"a / b\"\napplyFormat(\"p={0,number,#.##}\", [12.349]); // \"p=12.35\"\napplyFormat(\"{{literal}} {0}\", [\"x\"]); // \"{literal} x\""
+        ],
+        "since": "1.4",
+        "stability": "stable"
+    },
     "ArcState": {
         "fqn": "ArcState",
         "kind": "type",
@@ -386,6 +397,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "declare const manifest: ScriptManifest;\ndeclare const compute: ComputeFn;\nconst cs: CompiledScriptObject = attachDepAccessorSentinels({\nmanifest,\ncompute,\n});\nvoid cs;"
         ],
         "since": "0.7",
+        "stability": "stable"
+    },
+    "avg": {
+        "fqn": "avg",
+        "kind": "property",
+        "title": "avg",
+        "summary": "Variadic skip-NaN scalar mean — averages only the finite arguments and\nreturns NaN for an empty or all-non-finite list. A fixed-arity scalar\nreducer, distinct from the rolling `ta.*` / `state.array(...).avg()` forms.\nEach argument is coerced with `Number(...)` first, so a number-coercible\nseries view (e.g. a `bar.high`/`bar.low`/`bar.close` field) reduces by its\ncurrent value instead of being silently skipped as a non-number object.",
+        "examples": [
+            "math.avg(2, Number.NaN, 4); // 3"
+        ],
+        "since": "1.4",
         "stability": "stable"
     },
     "Bar": {
@@ -736,6 +758,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: CircleState = {\nkind: \"circle\",\nanchors: [{ time: 0, price: 0 }, { time: 1, price: 0 }],\nstyle: {},\n};\nvoid s;"
         ],
         "since": "0.3",
+        "stability": "stable"
+    },
+    "clamp": {
+        "fqn": "clamp",
+        "kind": "property",
+        "title": "clamp",
+        "summary": "Clamp `value` to the inclusive range `[lo, hi]`.",
+        "examples": [
+            "math.clamp(12, 0, 10); // 10"
+        ],
+        "since": "1.4",
         "stability": "stable"
     },
     "CmfOpts": {
@@ -2975,6 +3008,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.5",
         "stability": "stable"
     },
+    "fixnan": {
+        "fqn": "fixnan",
+        "kind": "property",
+        "title": "fixnan",
+        "summary": "Replace a non-available `value` with the caller-threaded `lastGood` —\n`na(value) ? lastGood : value`. The stateful Pine `fixnan` (which threads\n`lastGood` itself) lives in `ta`/`state`; this is the pure scalar form.",
+        "examples": [
+            "math.fixnan(Number.NaN, 5); // 5\nmath.fixnan(2, 5); // 2"
+        ],
+        "since": "1.4",
+        "stability": "stable"
+    },
     "FlatTopBottomState": {
         "fqn": "FlatTopBottomState",
         "kind": "type",
@@ -2995,6 +3039,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const d: FloatDescriptor = { kind: \"float\", defaultValue: 2.5, step: 0.5 };\nvoid d;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "formatNumber": {
+        "fqn": "formatNumber",
+        "kind": "property",
+        "title": "formatNumber",
+        "summary": "Host-independent number formatter — the deterministic core of `str.tostring`\n/ `str.format`. No `Intl`, no `toLocaleString`, no locale: outputs are\nbyte-identical across the worker and quickjs hosts.",
+        "examples": [
+            "str.format(\"{0,number,#.##}\", 12.349); // uses formatNumber(\"#.##\")\n// formatNumber(12.349, \"#.##\") === \"12.35\"\n// formatNumber(1234.5, \"0.0000\") === \"1234.5000\"\n// formatNumber(42) === \"42\""
+        ],
+        "since": "1.4",
         "stability": "stable"
     },
     "FrameOpts": {
@@ -4127,6 +4182,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "na": {
+        "fqn": "na",
+        "kind": "property",
+        "title": "na",
+        "summary": "Scalar \"not available\" predicate — `true` when `value` is NaN or infinite.\nThe plain-number twin of the series-aware `ta.nz` family: chartlang series\ncarry NaN (never Infinity), so the stricter finite check is safe and treats\n`±Infinity` as not-available too. Pine's `na(x)` is NaN-only.",
+        "examples": [
+            "math.na(Number.NaN); // true"
+        ],
+        "since": "1.4",
+        "stability": "stable"
+    },
     "NetVolumeOpts": {
         "fqn": "NetVolumeOpts",
         "kind": "type",
@@ -4194,6 +4260,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "nySessionBounds(1_709_251_200_000);"
         ],
         "since": "0.6",
+        "stability": "stable"
+    },
+    "nz": {
+        "fqn": "nz",
+        "kind": "property",
+        "title": "nz",
+        "summary": "Scalar NaN-coalesce — return `value` when finite, else `replacement`\n(default `0`). The plain-number twin of `ta.nz(series, replacement?)`;\nmirrors its `?? 0` convention.",
+        "examples": [
+            "math.nz(Number.NaN); // 0\nmath.nz(Number.NaN, -1); // -1"
+        ],
+        "since": "1.4",
         "stability": "stable"
     },
     "ObvOpts": {
@@ -4827,6 +4904,28 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.3",
         "stability": "stable"
     },
+    "roundTo": {
+        "fqn": "roundTo",
+        "kind": "property",
+        "title": "roundTo",
+        "summary": "Round `value` to the nearest integer multiple of `step`. A non-positive or\nnon-finite `step` returns `value` unchanged (no-op), matching the\nprice-snapping intent where a missing tick size means \"do not snap\".",
+        "examples": [
+            "math.roundTo(7.34, 0.25); // 7.25"
+        ],
+        "since": "1.4",
+        "stability": "stable"
+    },
+    "roundToMintick": {
+        "fqn": "roundToMintick",
+        "kind": "property",
+        "title": "roundToMintick",
+        "summary": "/**\nSnap `value` to the nearest multiple of `mintick` — the price-snapping twin\nof  {@link roundTo} , named for the `syminfo.mintick` the author threads in.\n`mintick <= 0` / NaN returns `value` unchanged.",
+        "examples": [
+            "math.roundToMintick(101.237, syminfo.mintick); // snap a price to the tick grid"
+        ],
+        "since": "1.4",
+        "stability": "stable"
+    },
     "RsiOpts": {
         "fqn": "RsiOpts",
         "kind": "type",
@@ -5106,6 +5205,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const s: ShapeStyle = {\nstroke: \"#3b82f6\",\nfill: \"#dbeafe\",\nfillAlpha: 0.4,\nlineWidth: 1,\nlineStyle: \"solid\",\n};\nvoid s;"
         ],
         "since": "0.3",
+        "stability": "stable"
+    },
+    "sign": {
+        "fqn": "sign",
+        "kind": "property",
+        "title": "sign",
+        "summary": "Sign of `value` (`-1`, `-0`, `0`, or `1`), propagating NaN — unlike\n`Math.sign(NaN)` which is also NaN but is re-stated here for the Pine-parity\nsurface alongside the chart-aware helpers.",
+        "examples": [
+            "math.sign(-3); // -1"
+        ],
+        "since": "1.4",
         "stability": "stable"
     },
     "SineLineState": {
@@ -5456,6 +5566,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const d: StringDescriptor = { kind: \"string\", defaultValue: \"AAPL\" };\nvoid d;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "sum": {
+        "fqn": "sum",
+        "kind": "property",
+        "title": "sum",
+        "summary": "Variadic skip-NaN scalar sum — adds only the finite arguments and returns\nNaN for an empty or all-non-finite list. A fixed-arity scalar reducer,\ndistinct from the rolling `ta.*` / `state.array(...).sum()` forms. Each\nargument is coerced with `Number(...)` first, so a number-coercible series\nview (e.g. a `bar.*` field) reduces by its current value instead of being\nsilently skipped as a non-number object.",
+        "examples": [
+            "math.sum(2, Number.NaN, 4); // 6"
+        ],
+        "since": "1.4",
         "stability": "stable"
     },
     "SupertrendOpts": {

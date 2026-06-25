@@ -154,6 +154,65 @@ all-NaN series with one `multi-symbol-not-supported` diagnostic. The data form's
 read `.current` for the live scalar before arithmetic
 (`spy.close.current / qqq.close.current`).
 
+## `math.*` — bare `Math` plus the chart-aware extras
+
+chartlang allows plain JavaScript `Math.*` directly in `compute` (only
+`Math.random` is forbidden), so the converter leaves the numeric `math.*`
+functions on bare `Math` and adds only the chart-aware extras to the `math`
+namespace:
+
+| Pine | chartlang | Note |
+|------|-----------|------|
+| `math.abs/pow/sqrt/floor/ceil/round/min/max/log/exp/sign(...)` | `Math.abs/...` | Bare `Math` — **not** re-wrapped. `math.sign` stays on `Math.sign`. |
+| `math.round_to_mintick(x)` | `math.roundToMintick(x, syminfo.mintick)` | The tick step is injected (the namespace is pure, no ambient `syminfo`). |
+| `na(x)` | `(x === null)` / `!Number.isFinite(x)` | Lowered to an inline predicate by context. The scalar `math.na(x)` is also available when you write chartlang by hand. |
+| `nz(x)` / `nz(x, r)` | `math.nz(x)` / `math.nz(x, r)` | **Scalar** coalesce; emits an advisory `nz-scalar-assumed` info. |
+| `math.avg(a, b, …)` | `math.avg(a, b, …)` | Variadic **scalar** mean (skip-NaN). |
+| `math.sum(a, b, …)` | `math.sum(a, b, …)` | Variadic **scalar** sum (skip-NaN). |
+| `math.sum(source, length)` | *(not mapped)* | Pine's 2-arg **rolling** window has no scalar analogue — `math-rolling-window-unmapped`; rewrite with `state.array<number>(length)` or a `ta.*` average. |
+
+- **Bare `Math` is fine.** If you reach for `math.abs` in chartlang you will not
+  find it — use `Math.abs`. `math.*` is the small set of extras, not a superset
+  of `Math`. `math` is a module-scope import, **not** a `compute({ … })` field
+  (do not destructure it); `syminfo` *is* a `compute` field.
+- **Scalar `math.nz` vs series `ta.nz`.** chartlang splits the NaN-coalesce by
+  shape: `math.nz(scalar, r?)` for a plain number, `ta.nz(series, r?)` for a
+  series. The converter assumes the **scalar** `math.nz` and emits an advisory
+  `nz-scalar-assumed`; if your `nz` argument is a series whose history you
+  coalesce, change the emitted `math.nz(...)` to `ta.nz(...)` by hand.
+
+## `str.*` — the string namespace, lowered to native JS
+
+chartlang ships a `str` namespace for the dynamic text `draw.text` /
+`draw.table` / `alert(...)` consume, but the converter lowers each Pine `str.*`
+call to the **native JS** method (the same native-where-native-exists shape
+`math.*` uses for bare `Math.*`):
+
+| Pine | chartlang | Note |
+|------|-----------|------|
+| `str.tostring(x)` | `String(x)` | Plain stringify. |
+| `str.tostring(x, "#.##")` | `(x).toFixed(2)` | The mask's fractional-digit count drives `toFixed`. A grouped / `format.mintick` mask emits `str-format-not-mapped` and passes through. |
+| `str.format("{0} {1}", a, b)` | `` `${a} ${b}` `` | Positional `{n}` placeholders become a template literal. A styled `{0,number}` placeholder emits `str-format-not-mapped`. |
+| `str.length(s)` | `s.length` | |
+| `str.contains(s, t)` | `s.includes(t)` | |
+| `str.startswith(s, t)` / `str.endswith(s, t)` | `s.startsWith(t)` / `s.endsWith(t)` | |
+| `str.pos(s, t)` | `s.indexOf(t)` | Pine returns `na` when absent; JS returns `-1`. |
+| `str.upper(s)` / `str.lower(s)` | `s.toUpperCase()` / `s.toLowerCase()` | |
+| `str.trim(s)` | `s.trim()` | |
+| `str.substring(s, b[, e])` | `s.substring(b[, e])` | Both 0-based, `e` exclusive — matches JS. |
+| `str.repeat(s, n[, sep])` | `s.repeat(n)` | 2-arg, or a `""` empty-string-literal separator. A non-empty / non-literal separator emits `str-not-mapped`. |
+| `str.replace_all(s, t, r)` | `s.replaceAll(t, r)` | snake_case → native `replaceAll`. |
+| `str.replace(s, t, r[, occ])` | `s.replace(t, r)` | No occurrence, or a literal-`0` occurrence (replaces the first match). A non-zero / non-literal occurrence emits `str-not-mapped`. |
+| `str.split(s, sep)` | `s.split(sep)` | |
+| `str.tonumber(s)` | `Number(s)` | `NaN` ≈ Pine `na` (edge: `Number("")` is `0`). |
+| `str.match` / `str.format_time` | *(passed through)* | `str-not-mapped` — regex / host-time, no native one-liner; rewrite by hand. |
+| any other `str.*` member | *(passed through)* | `str-not-mapped`; rewrite by hand. |
+
+- **When you write chartlang by hand**, the `str.*` namespace is available
+  directly (`str.tostring(value, "#.##")`, `str.format(...)`) — same
+  byte-identical formatting, just the curated surface instead of native
+  methods. `str` is a module-scope import, **not** a `compute({ … })` field.
+
 ## Gotchas
 
 - **`varip` is approximated.** A `varip` handle reuses the same slot and

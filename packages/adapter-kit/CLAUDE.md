@@ -41,7 +41,14 @@ layer** every adapter shares.
   against `Viewport.pxWidth`/`pxHeight`, emitting per-cell bg-fill
   `polyline` + `text` (+ optional per-cell border `polyline` when BOTH
   `borderColor` and `borderWidth` are set) + an optional outer `frame`
-  `polyline`. Zero rows/cols → `[]` without throwing. `decomposeGroup`
+  `polyline`. Zero rows/cols → `[]` without throwing. **The table is a
+  SCREEN-SPACE HUD whose cell / font / padding / border-width sizes are
+  authored in CSS px and multiplied by `Viewport.pxRatio` (default `1`)**, so
+  a device-px adapter (uplot, lightweight-charts — `pxWidth` is the bitmap /
+  canvas device size) renders the HUD at the same PHYSICAL size as a CSS-px
+  one (canvas2d, konva, webgl). With `pxRatio` omitted (`1`) the output is
+  byte-identical to the pre-feature decomposer, so no existing golden /
+  pinned bundle (none carry a table) is touched. `decomposeGroup`
   returns `[]` (metadata-only container; children render through their own
   arms). `decomposeFrame` is world-space: a closed border `polyline`
   (`#64748b`/1) + optional `bgColor` fill + optional `label` `text`;

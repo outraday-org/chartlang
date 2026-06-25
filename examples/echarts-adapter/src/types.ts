@@ -61,4 +61,16 @@ export type EChartsSurface = {
      * handler)` form is consumed.
      */
     on?(eventName: string, handler: () => void): void;
+    /**
+     * Drawable-pixel size readers. The screen-space `table` HUD is positioned
+     * against the chart's ACTUAL pixel size, not the drawing `Viewport` (whose
+     * `pxWidth` is the full-data category span and balloons once the chart is
+     * zoomed, pushing a top-right table off-screen). The real
+     * `echarts.init(...)` instance implements both (CSS px — ECharts handles
+     * DPR internally, so the table needs no `pxRatio`); {@link
+     * import("./testing.js").MockECharts} returns a fixed size. Required: the
+     * only `EChartsSurface` implementers are the real instance and the mock.
+     */
+    getWidth(): number;
+    getHeight(): number;
 };

@@ -930,6 +930,121 @@ var color = Object.freeze({
   hsl
 });
 
+// ../core/dist/math/mathHelpers.js
+var roundTo = (value, step2) => step2 > 0 && Number.isFinite(step2) ? Math.round(value / step2) * step2 : value;
+var roundToMintick = (value, mintick) => roundTo(value, mintick);
+var na = (value) => !Number.isFinite(value);
+var nz = (value, replacement = 0) => Number.isFinite(value) ? value : replacement;
+var fixnan = (value, lastGood) => Number.isFinite(value) ? value : lastGood;
+var sign = (value) => Number.isNaN(value) ? Number.NaN : Math.sign(value);
+var clamp = (value, lo, hi) => value < lo ? lo : value > hi ? hi : value;
+var avg = (...values) => {
+  let total = 0;
+  let count = 0;
+  for (const value of values) {
+    const n = Number(value);
+    if (Number.isFinite(n)) {
+      total += n;
+      count++;
+    }
+  }
+  return count === 0 ? Number.NaN : total / count;
+};
+var sum = (...values) => {
+  let total = 0;
+  let count = 0;
+  for (const value of values) {
+    const n = Number(value);
+    if (Number.isFinite(n)) {
+      total += n;
+      count++;
+    }
+  }
+  return count === 0 ? Number.NaN : total;
+};
+
+// ../core/dist/math/index.js
+var math = Object.freeze({
+  roundToMintick,
+  roundTo,
+  na,
+  nz,
+  fixnan,
+  sign,
+  clamp,
+  avg,
+  sum
+});
+
+// ../core/dist/str/strHelpers.js
+var parseMask = (mask) => {
+  const dot = mask.indexOf(".");
+  if (dot < 0) {
+    return null;
+  }
+  const fraction = mask.slice(dot + 1);
+  const padded = fraction.includes("0");
+  return { digits: fraction.length, padded };
+};
+var formatNumber2 = (value, mask) => {
+  if (Number.isNaN(value)) {
+    return "NaN";
+  }
+  if (value === Number.POSITIVE_INFINITY) {
+    return "\u221E";
+  }
+  if (value === Number.NEGATIVE_INFINITY) {
+    return "-\u221E";
+  }
+  const normalized = value === 0 ? 0 : value;
+  const parsed = mask === void 0 ? null : parseMask(mask);
+  if (parsed === null) {
+    return String(normalized);
+  }
+  const fixed = normalized.toFixed(parsed.digits);
+  if (parsed.padded || parsed.digits === 0) {
+    return fixed;
+  }
+  return fixed.replace(/\.?0+$/, "");
+};
+var applyFormat = (template, args) => {
+  return template.replace(/\{\{|\}\}|\{(\d+)(?:,number,([^}]*))?\}/g, (match, indexText, mask) => {
+    if (match === "{{") {
+      return "{";
+    }
+    if (match === "}}") {
+      return "}";
+    }
+    const index = Number(indexText);
+    const arg = args[index];
+    if (arg === void 0) {
+      return match;
+    }
+    if (mask !== void 0) {
+      return formatNumber2(Number(arg), mask);
+    }
+    return String(arg);
+  });
+};
+
+// ../core/dist/str/index.js
+var str = Object.freeze({
+  tostring: (value, format) => typeof value === "number" ? formatNumber2(value, format) : String(value),
+  format: (template, ...args) => applyFormat(template, args),
+  length: (s) => s.length,
+  contains: (s, sub) => s.includes(sub),
+  startsWith: (s, sub) => s.startsWith(sub),
+  endsWith: (s, sub) => s.endsWith(sub),
+  replace: (s, target, repl) => s.replace(target, repl),
+  replaceAll: (s, target, repl) => s.split(target).join(repl),
+  split: (s, sep) => s.split(sep),
+  substring: (s, start, end) => s.substring(start, end),
+  upper: (s) => s.toUpperCase(),
+  lower: (s) => s.toLowerCase(),
+  trim: (s) => s.trim(),
+  repeat: (s, count) => s.repeat(Math.max(0, Math.trunc(count)))
+});
+
 // ../core/dist/statefulPrimitives.js
 var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "ta.sma", slot: true },
@@ -4774,10 +4889,10 @@ function viewForOffset(slot, offset) {
   return view;
 }
 function dxFromDi(plusDi, minusDi) {
-  const sum = plusDi + minusDi;
-  if (sum === 0)
+  const sum2 = plusDi + minusDi;
+  if (sum2 === 0)
     return 0;
-  return 100 * Math.abs(plusDi - minusDi) / sum;
+  return 100 * Math.abs(plusDi - minusDi) / sum2;
 }
 function closeValue(slot, high, low, close) {
   if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
@@ -4890,15 +5005,15 @@ function viewForOffset2(slot, barShift) {
   return view;
 }
 function weightedFromWindow(slot, headOverride) {
-  let sum = 0;
+  let sum2 = 0;
   for (let j = 0; j < slot.length; j += 1) {
     const ageFromHead = slot.length - 1 - j;
     const v = ageFromHead === 0 && headOverride !== void 0 ? headOverride : slot.sourceWindow.at(ageFromHead);
     if (!Number.isFinite(v))
       return Number.NaN;
-    sum += v * slot.weights[j];
+    sum2 += v * slot.weights[j];
   }
-  return sum / slot.normaliser;
+  return sum2 / slot.normaliser;
 }
 function closeValue2(slot, src) {
   slot.sourceWindow.append(src);
@@ -5055,7 +5170,7 @@ function computeValueArea(rows, valueAreaPct = 70, pocIdx = findPocIndex(rows)) 
       valLow: Number.NaN
     };
   }
-  const totalVolume = rows.reduce((sum, row) => sum + row.volume, 0);
+  const totalVolume = rows.reduce((sum2, row) => sum2 + row.volume, 0);
   const targetPct = Math.max(0, Math.min(100, valueAreaPct));
   const target = totalVolume * (targetPct / 100);
   let lowIdx = pocIdx;
@@ -9240,10 +9355,10 @@ function stepStreak(prevSign, prevRun, diff2) {
   }
   return { sign: -1, run: prevSign === -1 ? prevRun + 1 : 1 };
 }
-function streakScalar(sign, run) {
-  if (sign === 0)
+function streakScalar(sign2, run) {
+  if (sign2 === 0)
     return 0;
-  return sign * run;
+  return sign2 * run;
 }
 function pctChange(curr, prev) {
   if (!Number.isFinite(curr) || !Number.isFinite(prev) || prev === 0)
@@ -9271,21 +9386,21 @@ function percentRankHead(slot) {
   return validCount === 0 ? 50 : 100 * countBelow / validCount;
 }
 function blendCrsi(rsiHead, streakRsiHead, pctRank) {
-  let sum = 0;
+  let sum2 = 0;
   let count = 0;
   if (Number.isFinite(rsiHead)) {
-    sum += rsiHead;
+    sum2 += rsiHead;
     count += 1;
   }
   if (Number.isFinite(streakRsiHead)) {
-    sum += streakRsiHead;
+    sum2 += streakRsiHead;
     count += 1;
   }
   if (Number.isFinite(pctRank)) {
-    sum += pctRank;
+    sum2 += pctRank;
     count += 1;
   }
-  return count === 0 ? Number.NaN : sum / count;
+  return count === 0 ? Number.NaN : sum2 / count;
 }
 function connorsRsi(slotId, source, opts) {
   const ctx = getCtx32();
@@ -9300,7 +9415,7 @@ function connorsRsi(slotId, source, opts) {
   const src = readSourceValue(source);
   if (ctx.isTick) {
     const diff2 = pctChange(src, slot.prevClosedSrc);
-    const { sign, run } = stepStreak(
+    const { sign: sign2, run } = stepStreak(
       slot.prevClosedStreakSign,
       slot.prevClosedStreakRun,
       /* c8 ignore next */
@@ -9309,21 +9424,21 @@ function connorsRsi(slotId, source, opts) {
     const roc2 = diff2;
     slot.rocWindow.replaceHead(roc2);
     const rsiHead = rsi(`${slotId}/rsi`, src, rsiLength).current;
-    const streakRsiHead = rsi(`${slotId}/streakRsi`, streakScalar(sign, run), streakLength).current;
+    const streakRsiHead = rsi(`${slotId}/streakRsi`, streakScalar(sign2, run), streakLength).current;
     const pr = percentRankHead(slot);
     slot.outBuffer.replaceHead(blendCrsi(rsiHead, streakRsiHead, pr));
   } else {
     const diff2 = Number.isFinite(slot.prevClosedSrc) ? src - slot.prevClosedSrc : Number.NaN;
-    const { sign, run } = stepStreak(slot.streakSign, slot.streakRun, diff2);
+    const { sign: sign2, run } = stepStreak(slot.streakSign, slot.streakRun, diff2);
     const roc2 = pctChange(src, slot.prevClosedSrc);
     slot.rocWindow.append(roc2);
     const rsiHead = rsi(`${slotId}/rsi`, src, rsiLength).current;
-    const streakRsiHead = rsi(`${slotId}/streakRsi`, streakScalar(sign, run), streakLength).current;
+    const streakRsiHead = rsi(`${slotId}/streakRsi`, streakScalar(sign2, run), streakLength).current;
     const pr = percentRankHead(slot);
     slot.outBuffer.append(blendCrsi(rsiHead, streakRsiHead, pr));
     slot.prevClosedStreakSign = slot.streakSign;
     slot.prevClosedStreakRun = slot.streakRun;
-    slot.streakSign = sign;
+    slot.streakSign = sign2;
     slot.streakRun = run;
     slot.prevClosedSrc = src;
     slot.barCount += 1;
@@ -9391,16 +9506,16 @@ function computeRocSum(slot, src) {
 function closeValue14(slot, src) {
   slot.sourceWindow.append(src);
   slot.barCount += 1;
-  const sum = computeRocSum(slot, src);
-  slot.sumWindow.append(sum);
+  const sum2 = computeRocSum(slot, src);
+  slot.sumWindow.append(sum2);
   return wmaOverSumWindow(slot);
 }
 function tickValue14(slot, src) {
   if (slot.sourceWindow.length === 0)
     return Number.NaN;
   slot.sourceWindow.replaceHead(src);
-  const sum = computeRocSum(slot, src);
-  slot.sumWindow.replaceHead(sum);
+  const sum2 = computeRocSum(slot, src);
+  slot.sumWindow.replaceHead(sum2);
   return wmaOverSumWindow(slot);
 }
 function coppock(slotId, source, opts) {
@@ -9844,14 +9959,14 @@ function initSlot39(length, capacity) {
   };
 }
 function weightedFromWindow2(slot) {
-  let sum = 0;
+  let sum2 = 0;
   for (let j = 0; j < slot.length; j += 1) {
     const v = slot.window.at(j);
     if (!Number.isFinite(v))
       return Number.NaN;
-    sum += v * (slot.length - j);
+    sum2 += v * (slot.length - j);
   }
-  return sum / slot.denom;
+  return sum2 / slot.denom;
 }
 function closeValue15(slot, src) {
   slot.window.append(src);
@@ -9864,14 +9979,14 @@ function tickValue15(slot, src) {
     return Number.NaN;
   if (!Number.isFinite(src))
     return Number.NaN;
-  let sum = src * slot.length;
+  let sum2 = src * slot.length;
   for (let j = 1; j < slot.length; j += 1) {
     const v = slot.window.at(j);
     if (!Number.isFinite(v))
       return Number.NaN;
-    sum += v * (slot.length - j);
+    sum2 += v * (slot.length - j);
   }
-  return sum / slot.denom;
+  return sum2 / slot.denom;
 }
 function wma(slotId, source, length, _opts) {
   const ctx = getCtx41();
@@ -11236,7 +11351,7 @@ function ratioValue(e1, e2) {
   return e1 / e2;
 }
 function recomputeSum(slot) {
-  let sum = 0;
+  let sum2 = 0;
   let anyNaN = false;
   for (let i = 0; i < slot.ratioWindow.length; i += 1) {
     const v = slot.ratioWindow.at(i);
@@ -11244,9 +11359,9 @@ function recomputeSum(slot) {
       anyNaN = true;
       break;
     }
-    sum += v;
+    sum2 += v;
   }
-  slot.sumRatio = anyNaN ? Number.NaN : sum;
+  slot.sumRatio = anyNaN ? Number.NaN : sum2;
 }
 function closeValue20(slot, ratio) {
   if (slot.ratioWindow.length < slot.ratioWindow.capacity) {
@@ -11696,7 +11811,7 @@ function nvi(slotId, opts) {
 }
 
 // ../runtime/dist/ta/nz.js
-function nz(value, replacement) {
+function nz2(value, replacement) {
   if (Number.isNaN(value))
     return replacement ?? 0;
   return value;
@@ -13824,13 +13939,13 @@ function computeBpTr(high, low, close, prevClose) {
   const trueHigh = Math.max(high, prevClose);
   return [close - trueLow, trueHigh - trueLow];
 }
-function pushToWindow(ring, sum, incoming, capacity) {
+function pushToWindow(ring, sum2, incoming, capacity) {
   let outgoing = 0;
   if (ring.length >= capacity) {
     outgoing = ring.at(capacity - 1);
   }
   ring.append(incoming);
-  return { newSum: sum + incoming - outgoing, outgoing };
+  return { newSum: sum2 + incoming - outgoing, outgoing };
 }
 function uoFromSums(sumBpShort, sumTrShort, sumBpMedium, sumTrMedium, sumBpLong, sumTrLong) {
   if (sumTrShort === 0 || sumTrMedium === 0 || sumTrLong === 0)
@@ -14859,7 +14974,7 @@ var TA_REGISTRY = Object.freeze({
   atr,
   crossover,
   crossunder,
-  nz,
+  nz: nz2,
   highest,
   lowest,
   highestbars,
@@ -16042,8 +16157,8 @@ function restoreSma(snapshot6) {
   if (snapshot6.kind !== "ta.sma" || !isInteger(snapshot6.length) || !isBufferSnapshot(outSnapshot) || !isBufferSnapshot(windowSnapshot)) {
     return null;
   }
-  const sum = restoreNumber(snapshot6.sum);
-  if (sum === null)
+  const sum2 = restoreNumber(snapshot6.sum);
+  if (sum2 === null)
     return null;
   const outBuffer = restoreBuffer(outSnapshot, outSnapshot.values.length);
   const window = restoreBuffer(windowSnapshot, snapshot6.length);
@@ -16054,7 +16169,7 @@ function restoreSma(snapshot6) {
     ...baseSlot(outBuffer),
     length: snapshot6.length,
     window,
-    sum
+    sum: sum2
   };
 }
 function restoreEma(snapshot6) {

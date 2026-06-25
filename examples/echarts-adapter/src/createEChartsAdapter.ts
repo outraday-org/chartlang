@@ -11,10 +11,10 @@ import {
     type LogEmission,
     type PlotEmission,
     type PlotStyle,
+    RENDER_BAND,
     type RenderOrderKey,
     type RunnerEmissions,
     type Viewport,
-    RENDER_BAND,
     decomposeDrawing,
     defineAdapter,
     medianBarSpacing,
@@ -69,6 +69,13 @@ const CANDLE_BEAR_COLOR = "#ef5350";
 // `HHIST_ROW_HEIGHT_PX` tall. Mirrors the konva adapter's per-bucket geometry.
 const HHIST_MAX_WIDTH_PX = 80;
 const HHIST_ROW_HEIGHT_PX = 4;
+
+// Grid (plotting-area) margins, in CSS px. The price axis sits on the RIGHT
+// (house convention), so the label gutter is reserved there and the left
+// margin is minimal. Shared by `buildOption`'s `grid` and the screen-space
+// `table` viewport so the HUD lands inside the plot, clear of the axis.
+const GRID_LEFT_PX = 16;
+const GRID_RIGHT_PX = 56;
 
 /**
  * Constructor options for {@link createEChartsAdapter}. The `host`/`workerLike`
@@ -567,11 +574,26 @@ type EChartsGraphicElementZ = EChartsGraphicElement & { readonly zlevel?: number
 // Non-finite primitives are filtered out (see `primitiveIsFinite`). Each drawing
 // is ONE mark in the shared z-sort (band `drawing`), keyed by its emission `z`
 // and ingest `seq`.
+// The `table` is a SCREEN-SPACE HUD: it positions against `Viewport.pxWidth`/
+// `pxHeight` directly. The drawing `view`'s `pxWidth` is the full-data CATEGORY
+// span in pixels (a far-future timestamp maps to a far-right pixel) and balloons
+// once the chart is zoomed, so a top-right table would land off-screen. Build a
+// viewport from the chart's ACTUAL drawable size instead, reserving the
+// right-hand price-axis gutter so the HUD sits inside the plot (clear of the
+// labels), matching the other adapters. ECharts works in CSS px (it handles DPR
+// internally), so no `pxRatio` scaling is applied.
+function tableScreenViewport(state: AdapterState): Viewport {
+    const pxWidth = Math.max(0, state.chart.getWidth() - GRID_RIGHT_PX);
+    return { xMin: 0, xMax: 1, yMin: 0, yMax: 1, pxWidth, pxHeight: state.chart.getHeight() };
+}
+
 function drawingMarks(state: AdapterState, view: Viewport): GraphicMark[] {
     const marks: GraphicMark[] = [];
     for (const [handleId, drawing] of state.drawings) {
+        // `table` is screen-space; everything else projects through `view`.
+        const drawingView = drawing.drawingKind === "table" ? tableScreenViewport(state) : view;
         const elements: EChartsGraphicElement[] = [];
-        for (const prim of decomposeDrawing(drawing, view)) {
+        for (const prim of decomposeDrawing(drawing, drawingView)) {
             if (primitiveIsFinite(prim)) elements.push(primitiveToGraphic(prim));
         }
         if (elements.length === 0) continue;
@@ -1201,8 +1223,8 @@ function buildOption(state: AdapterState): EChartsOption {
         // Price axis sits on the RIGHT (the house convention — canvas2d, the
         // reference adapter, and lightweight-charts both do), so the label
         // gutter is reserved on the right and the left margin is minimal.
-        left: 16,
-        right: 56,
+        left: GRID_LEFT_PX,
+        right: GRID_RIGHT_PX,
         // Stack panes vertically; overlay (index 0) takes the top, larger band.
         top: `${8 + (i / Math.max(1, state.paneOrder.length)) * 84}%`,
         height: `${(1 / Math.max(1, state.paneOrder.length)) * 78}%`,

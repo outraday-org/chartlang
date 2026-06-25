@@ -131,6 +131,17 @@ export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): s
             if (node.callee.kind === "identifier-expression") {
                 const lowered = lowerBuiltinCall(node.callee.name, emittedArgs);
                 if (lowered !== null) return lowered;
+                // Pine's overloaded `nz(x[, replacement])` is a NaN-coalesce.
+                // chartlang separates the scalar form (`math.nz`) from the
+                // series form (`ta.nz`); v1 routes every `nz` to the scalar
+                // `math.nz` (the common case — an intermediate scalar). A
+                // series argument is the rarer case the author hand-edits to
+                // `ta.nz`; the advisory `nz-scalar-assumed` info is raised at
+                // the top-level call site (`emitSpecialCall` in `other.ts`),
+                // where the diagnostic collector is in scope.
+                if (node.callee.name === "nz" && emittedArgs.length > 0) {
+                    return `math.nz(${emittedArgs.join(", ")})`;
+                }
             }
             const callee = emitExpr(node.callee, annotations);
             return `${callee}(${emittedArgs.join(", ")})`;

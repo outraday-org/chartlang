@@ -718,6 +718,189 @@ export default defineIndicator({
 });
 `;
 
+const TICK_SNAPPED_LEVELS = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+//
+// Headline \`math.*\` example: compute a support/resistance band around the
+// current close and snap each edge to the symbol's tick grid with
+// \`math.roundToMintick(level, syminfo.mintick)\` before drawing it. Unlike
+// \`mintick-snapped-entry.chart.ts\` (which PLOTS one snapped target), this
+// snaps multiple LEVELS into \`draw.horizontalLine\`s — the namespace's
+// chart-aware rounding feeding the drawing layer.
+
+import { defineIndicator, input, math } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Tick-Snapped Levels",
+    apiVersion: 1,
+    overlay: true,
+    inputs: {
+        bandPercent: input.float(1.5, { min: 0.1, max: 10, step: 0.1, title: "Band (%)" }),
+    },
+    compute({ bar, draw, inputs, syminfo }) {
+        // Anchor a band around the current close, then snap each edge to the
+        // tick grid so the lines land on real, tradable price levels. \`math\` is
+        // a module-scope import (not a \`compute\` field); \`syminfo\` is the field
+        // supplying the tick size.
+        const fraction = (inputs.bandPercent as number) / 100;
+        const resistance = math.roundToMintick(bar.close * (1 + fraction), syminfo.mintick);
+        const support = math.roundToMintick(bar.close * (1 - fraction), syminfo.mintick);
+        draw.horizontalLine(resistance, { color: "#ef4444", lineStyle: "dashed" });
+        draw.horizontalLine(support, { color: "#22c55e", lineStyle: "dashed" });
+    },
+});
+`;
+
+const STR_FORMATTED_HUD = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+//
+// Headline \`str.*\` example: a draw.table HUD whose cells are built with the
+// string namespace. \`str.tostring(value, "#.##")\` formats each OHLC field to a
+// fixed-precision Pine mask (host-independent, no locale) and \`str.format\` /
+// \`str.upper\` compose the header — the dynamic text the already-shipped
+// draw.table hole consumes, with no new wire primitive and no capability.
+
+import { defineIndicator, str } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Formatted OHLC HUD",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, draw }) {
+        // \`str\` is a module-scope import (not a \`compute\` field). Round each
+        // price to two decimals once, then drop the strings straight into the
+        // table cells.
+        const price = (value: number): string => str.tostring(value, "#.##");
+        draw.table({
+            position: "top-right",
+            cells: [
+                [
+                    {
+                        text: str.format("{0} · {1}", str.upper(bar.symbol), bar.interval),
+                        bgColor: "#0f172a",
+                        textColor: "#f8fafc",
+                    },
+                    {
+                        text: price(bar.close),
+                        bgColor: "#0f172a",
+                        textColor: "#f8fafc",
+                        textHalign: "right",
+                    },
+                ],
+                [
+                    { text: "O", textColor: "#94a3b8" },
+                    { text: price(bar.open), textColor: "#0f172a", textHalign: "right" },
+                ],
+                [
+                    { text: "H", textColor: "#94a3b8" },
+                    { text: price(bar.high), textColor: "#22c55e", textHalign: "right" },
+                ],
+                [
+                    { text: "L", textColor: "#94a3b8" },
+                    { text: price(bar.low), textColor: "#ef4444", textHalign: "right" },
+                ],
+            ],
+            borderColor: "#94a3b8",
+            borderWidth: 1,
+        });
+    },
+});
+`;
+
+const MATH_SCALAR_BAND = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+//
+// Comprehensive \`math.*\` example: a direction-aware band around each bar's
+// typical price, built entirely from the pure scalar reducers — \`avg\` / \`sum\`
+// (variadic skip-NaN), \`clamp\`, \`sign\`, \`roundTo\`, and the \`nz\` guard. It is
+// the companion to \`tick-snapped-levels.chart.ts\`, which demonstrates only the
+// chart-aware \`roundToMintick\`. \`math\` is a module-scope import (never a
+// \`compute\` field); bare \`Math.*\` stays available alongside it.
+
+import { defineIndicator, math, plot } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Scalar Band",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, plot }) {
+        // The typical price is the variadic skip-NaN mean of the bar's HLC;
+        // the raw band span is the (variadic, skip-NaN) high−low range.
+        const typical = math.avg(bar.high, bar.low, bar.close);
+        const span = math.sum(bar.high - bar.low, 0);
+
+        // Bound the half-width so a freak bar cannot blow the band open, take
+        // the candle direction as a sign, and snap the midline to cents — with
+        // an \`nz\` guard so a non-finite rounding can never poison the plot.
+        const width = math.clamp(span, 0, typical);
+        const dir = math.sign(bar.close - bar.open);
+        const mid = math.nz(math.roundTo(typical, 0.01), 0);
+
+        plot(mid + dir * width, { color: "#22c55e", title: "Band edge" });
+        plot(mid - dir * width, { color: "#ef4444", title: "Band edge (mirror)" });
+    },
+});
+`;
+
+const STR_LABEL_BUILDER = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+//
+// Comprehensive \`str.*\` example: a \`draw.table\` watchlist HUD whose rows are
+// sanitized and formatted entirely with the string namespace — \`split\`,
+// \`trim\`, \`replace\`, \`substring\`, \`upper\`, \`startsWith\`, \`contains\`, and
+// \`repeat\`. It is the companion to \`str-formatted-hud.chart.ts\`, which
+// demonstrates only \`tostring\` / \`format\` / \`upper\`. \`str\` is a module-scope
+// import (never a \`compute\` field).
+
+import { defineIndicator, input, str } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "String Label Builder",
+    apiVersion: 1,
+    overlay: true,
+    inputs: {
+        // \`input.string(defaultValue, opts?)\` — the first arg IS the default;
+        // the \`inputs:\`-block key names it and \`compute\` reads \`inputs.tags\`.
+        tags: input.string("btc, eth ,#sol", { title: "Watchlist" }),
+    },
+    compute({ draw, inputs }) {
+        // Split the comma-separated watchlist into one sanitized table row per
+        // ticker. \`.split(...).map(...)\` is plain JS array work — only stateful
+        // \`ta.*\` / \`draw.*\` calls are loop-restricted — so every \`str.*\` step
+        // runs freely inside the callback.
+        const raw = inputs.tags as string;
+        const rows = str.split(raw, ",").map((token) => {
+            const tag = str.trim(token); // drop the stray spaces around each token
+            const clean = str.replace(tag, "#", ""); // strip a leading hash (first occurrence)
+            const code = str.upper(str.substring(clean, 0, 3)); // first three chars, upper-cased
+            const flagged = str.startsWith(tag, "#") || str.contains(tag, "btc");
+            return [
+                { text: code, textColor: flagged ? "#22c55e" : "#0f172a" },
+                { text: flagged ? "watch" : "hold", textColor: "#94a3b8" },
+            ];
+        });
+
+        draw.table({
+            position: "top-right",
+            cells: [
+                [
+                    {
+                        // \`repeat\` builds a bullet divider sized to the ticker count.
+                        text: str.format("WATCHLIST {0}", str.repeat("•", rows.length)),
+                        bgColor: "#0f172a",
+                        textColor: "#f8fafc",
+                    },
+                    { text: "", bgColor: "#0f172a" },
+                ],
+                ...rows,
+            ],
+            borderColor: "#94a3b8",
+            borderWidth: 1,
+        });
+    },
+});
+`;
+
 export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
     {
         id: "ema-cross",
@@ -851,5 +1034,33 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         description:
             "Pine-ergonomic color emitters: barcolor tints each candle by its own direction (blue up / orange down — deliberately not the default green/red, so the recolor is visible) and bgcolor washes the pane background by trend regime (price vs EMA(50)) with a transp transparency. Both evaluate their color expression every bar and replace the verbose plot(NaN, { style: { kind: \"bar-color\" | \"bg-color\" } }) form; adapters render them only when their plots capability includes those kinds.",
         source: BGCOLOR_BARCOLOR,
+    },
+    {
+        id: "tick-snapped-levels",
+        label: "Tick-Snapped Levels",
+        description:
+            "Chart-aware math.*: compute a support/resistance band around the close and snap each edge to the symbol's tick grid with math.roundToMintick(level, syminfo.mintick) before drawing it as a horizontal line. math is a module-scope import (not a compute field); syminfo supplies the tick size. Bare Math.* stays available — the namespace only adds the extras Math lacks.",
+        source: TICK_SNAPPED_LEVELS,
+    },
+    {
+        id: "str-formatted-hud",
+        label: "Formatted OHLC HUD",
+        description:
+            "String namespace: a draw.table HUD whose cells are built with str.*. str.tostring(value, \"#.##\") formats each OHLC price to a fixed-precision Pine mask (host-independent, no Intl/locale) and str.format(\"{0} · {1}\", str.upper(bar.symbol), bar.interval) composes the header. str is a module-scope import (not a compute field); it emits no new wire primitive — the text rides the existing draw.table hole.",
+        source: STR_FORMATTED_HUD,
+    },
+    {
+        id: "math-scalar-band",
+        label: "Scalar Band",
+        description:
+            "Comprehensive math.*: a direction-aware band around the bar's typical price built entirely from the pure scalar reducers — math.avg / math.sum (variadic skip-NaN), math.clamp to bound the half-width, math.sign for candle direction, math.roundTo to snap the midline to cents, and an math.nz guard. The companion to tick-snapped-levels (which shows only roundToMintick); math is a module-scope import and bare Math.* stays available alongside it.",
+        source: MATH_SCALAR_BAND,
+    },
+    {
+        id: "str-label-builder",
+        label: "String Label Builder",
+        description:
+            "Comprehensive str.*: a draw.table watchlist HUD whose rows are sanitized and formatted entirely with the string namespace — str.split the comma list, str.trim each token, str.replace a leading hash, str.substring + str.upper for a 3-char code, str.startsWith / str.contains to flag, and str.repeat for a bullet divider. The companion to str-formatted-hud (which shows only tostring / format / upper); str is a module-scope import and .split(...).map(...) is plain JS array work, not a loop-restricted primitive.",
+        source: STR_LABEL_BUILDER,
     },
 ];

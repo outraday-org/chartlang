@@ -96,6 +96,28 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
 
 ### Mapping tables (`src/mapping/`)
 
+- **`MATH_PASSTHROUGH_MAP` splits bare `Math.*` from the chart-aware `math.*`
+  extras.** Most numeric members map to bare `Math.*` (the no-rewrap decision —
+  `math.sign` STAYS `Math.sign`). The three chart-aware rows route to the
+  chartlang `math` namespace instead: `math.round_to_mintick` →
+  `"math.roundToMintick"` (NOT a REJECT — the emitter injects the
+  `syminfo.mintick` step), `math.avg` → `"math.avg"`, `math.sum` → `"math.sum"`
+  (the variadic SCALAR reducers; this fixed the prior latent `Math.avg`/`Math.sum`
+  invalid-JS mapping). `emitMath` (`transform/other.ts`) consumes the map and
+  adds two behaviours the table cannot express: the `syminfo.mintick` injection
+  for `round_to_mintick`, and a rolling-arity guard — a 2-arg
+  `math.sum`/`math.avg(source, length)` is Pine's rolling window with NO
+  chartlang scalar analogue, so it emits `math-rolling-window-unmapped` + a
+  `/* TODO rolling window */` rather than collapsing onto the scalar form.
+- **Pine `nz(x[, r])` lowers to the SCALAR `math.nz(...)` in `exprEmit.ts`,
+  NOT via a mapping-table row.** The bare `nz` identifier callee is intercepted
+  in `emitExpr`'s call-expression case (after the calendar `lowerBuiltinCall`
+  block, same precedent) → `math.nz(<args>)`; the advisory `nz-scalar-assumed`
+  (info) is raised at the TOP-LEVEL `emitSpecialCall` site (`other.ts`), where
+  the diagnostic collector is in scope. chartlang's `ta.nz` is itself scalar, so
+  v1 routes every `nz` to `math.nz`; a series argument is the rarer hand-rewrite.
+  `na(x)` is UNCHANGED — it keeps its context-aware inline predicate
+  (`(x === null)` / `!Number.isFinite(x)`), never `math.na`.
 - **Every Pine → chartlang name/enum decision routes through one table
   here — no transform re-derives a mapping.** `DRAWING_KIND_MAP`,
   `ENUM_VALUE_MAP`, `INPUT_MAP`, `TA_PASSTHROUGH_MAP`,
@@ -1096,7 +1118,7 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
 - **`switch` lowering.** A subjected `switch x` → `switch (x) { case <t>: {…}
   break; … default: {…} break; }`; a subjectless `switch` (boolean-case form) →
   an `if`/`else if`/`else` chain (a lone default renders unconditionally). The
-  plot family (`plotFamily.ts`), `str.*` subset (`strFormat.ts`),
+  plot family (`plotFamily.ts`), `str.*` surface (`strFormat.ts`),
   `request.security` MTF (`requestSecurity.ts`), and strategy signals
   (`strategySignals.ts`) are per-construct emitters returning a string or a warn
   result; color args route through `enumLookup` (`color.red`→`"#FF5252"`).
@@ -1104,6 +1126,31 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   scalar context inserts `.current` + `mtf-series-to-scalar-conversion`. `fill`
   → `fill-not-mapped` (error); `math.random`/`math.round_to_mintick`/`ta.kcw` →
   `math-not-mapped`/`ta-not-mapped` warn + `/* TODO unmapped */`.
+- **`emitStr` (`strFormat.ts`) lowers the FULL Pine v6 `str.*` surface to
+  NATIVE JS** — the same native-where-native-exists shape as bare `Math.*` (NO
+  `str` import/destructure is added to the generated output; the `str` namespace
+  is for hand-authored chartlang). The `switch (member)` maps: `tostring` →
+  `String(x)` / `(x).toFixed(n)` (a `"#.##"` precision mask via `parsePineFormat`,
+  else `str-format-not-mapped`); `format` → a synthesised template literal (bare
+  `{n}` slots, a styled `{n,number}` / out-of-range / unterminated placeholder →
+  `str-format-not-mapped`); `length` → `.length`; `upper`/`lower` →
+  `.toUpperCase()`/`.toLowerCase()`; `contains` → `.includes(t)`;
+  `startswith`/`endswith` → `.startsWith(t)`/`.endsWith(t)`; `pos` →
+  `.indexOf(t)` (Pine `na`-on-absent diverges to JS `-1`, acceptable v1);
+  `split` → `.split(sep)`; `substring` → `.substring(b[, e])` (2-or-3-arg,
+  both 0-based); `trim` → `.trim()`; `repeat` → `.repeat(n)`; `replace_all` →
+  `.replaceAll(t, r)`; `replace` → `.replace(t, r)`; `tonumber` → `Number(s)`
+  (`NaN` ≈ `na`). **Guards / rejects (all reuse `str-not-mapped`, NO new
+  codes):** `repeat` with a non-empty / non-literal separator (JS has no
+  one-expression repeat-with-separator; only a `""` empty-string-literal
+  separator maps); `replace` with a non-zero / non-literal occurrence (JS
+  string-target `.replace` is occurrence-`0` only — the literal-`0` / unary
+  `+0`/`-0` case is detected by the per-file `literalZero` predicate, mirroring
+  `plotFamily.ts`'s private `isLiteralZero` plus a unary unwrap); `match`
+  (regex) and `format_time` (host-time, no native one-liner) fall through to
+  the `default` arm; and a too-few-args call to any member. The `unary` /
+  `binary` / `ternary` / custom `emitSubstring` / `emitRepeat` / `emitReplace`
+  helpers all return `str-not-mapped` on a missing required arg.
 - **`request.security`'s THIRD arg decides the chartlang FORM; the FIRST arg
   decides the SYMBOL (`requestSecurity.ts`).** A bare OHLCV source field lowers
   to the **data** form `request.security(<opts>).<field>`; ANY other source (a
@@ -1237,6 +1284,17 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `polyline.new`** (their dedicated transforms own them) → `transformTables`
   → `transformPolylineLinefill` → `emit`), wired in `convert()` (`src/index.ts`,
   sync, no compile round-trip — that is the async `convertFile`'s job, Task 18).
+- **`math` and `syminfo` are an IMPORT-only / DESTRUCTURE-only pair** in
+  `UsageFlags` — they are NOT symmetric. `math` is a module-scope frozen
+  namespace (like `color`/`str`), so it pushes to `emitImports.ts` ONLY and is
+  NEVER added to the `emitCompute.ts` destructure; `syminfo` is a
+  `ComputeContext` view (`core/src/types.ts`), so it pushes to the
+  `emitCompute.ts` destructure ONLY and is NEVER imported. Both are
+  substring-scanned (`math.` / `syminfo.`) over the corpus, mirroring
+  `time.`/`session.`; the `math.` scan is case-sensitive so bare `Math.abs`
+  (capital `M`, the no-rewrap passthrough) never false-positives. The injected
+  `syminfo.mintick` step on `math.roundToMintick(x, syminfo.mintick)` is what
+  pulls BOTH in at once.
 - **`emitMaxDrawings.ts` emits ALL FIVE buckets when any is set** (unset → `0`)
   — core's `DrawingCounts` is a total 5-bag budget, so a partial literal is a
   compile-time type error; omit the whole property only when no bucket is set.

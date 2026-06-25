@@ -95,6 +95,38 @@ describe("buildViewport", () => {
         expect(priceToY(25, view) + dy).toBeCloseTo(u.valToPos(25, "y", true), 6);
     });
 
+    it("carries u.pxRatio onto the viewport when the instance exposes it", () => {
+        const u = stubUplot({
+            xMin: 0,
+            xMax: 10,
+            yMin: 0,
+            yMax: 50,
+            bbox: { left: 0, top: 0, width: 800, height: 600 },
+        });
+        const view = buildViewport({ ...u, pxRatio: 2 });
+        expect(view.pxRatio).toBe(2);
+    });
+
+    it("falls back to globalThis.devicePixelRatio when u.pxRatio is absent", () => {
+        const u = stubUplot({
+            xMin: 0,
+            xMax: 10,
+            yMin: 0,
+            yMax: 50,
+            bbox: { left: 0, top: 0, width: 800, height: 600 },
+        });
+        const g = globalThis as { devicePixelRatio?: number };
+        const prev = g.devicePixelRatio;
+        try {
+            g.devicePixelRatio = 3;
+            // u (from stubUplot) exposes no pxRatio.
+            expect(buildViewport(u).pxRatio).toBe(3);
+        } finally {
+            if (prev === undefined) Reflect.deleteProperty(g, "devicePixelRatio");
+            else g.devicePixelRatio = prev;
+        }
+    });
+
     it("falls back to a unit range when a scale carries no min/max", () => {
         const u: UplotLike = {
             setData: () => {},

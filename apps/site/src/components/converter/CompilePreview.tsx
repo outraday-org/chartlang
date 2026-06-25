@@ -90,6 +90,13 @@ function statusText(state: CompileState): string {
 /** Props for {@link CompilePreview}. */
 export type CompilePreviewProps = Readonly<{
     output: string | null;
+    /**
+     * Whether the conversion produced an error-severity diagnostic. When set,
+     * the output is a partial best-effort lowering (the converter dropped the
+     * rejected construct), so compiling it would render a misleading chart —
+     * the button is disabled and the reason is shown instead.
+     */
+    hasError: boolean;
 }>;
 
 /**
@@ -165,14 +172,16 @@ export function CompilePreview(props: CompilePreviewProps): ReactElement {
             <div className="compile-bar">
                 <button
                     className="compile-button"
-                    disabled={props.output === null || state.kind === "compiling"}
+                    disabled={props.output === null || props.hasError || state.kind === "compiling"}
                     onClick={() => void handleCompile()}
                     type="button"
                 >
                     Compile &amp; preview
                 </button>
-                <span className={`compile-status ${state.kind === "error" ? "is-error" : ""}`}>
-                    {statusText(state)}
+                <span className={`compile-status ${state.kind === "error" || props.hasError ? "is-error" : ""}`}>
+                    {props.hasError
+                        ? "Fix the rejected construct above before compiling — the converted output is partial."
+                        : statusText(state)}
                 </span>
             </div>
             {artifact === null ? null : (

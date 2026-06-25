@@ -187,18 +187,38 @@ function arcNodes(K: KonvaNamespace, p: Extract<DrawPrimitive, { kind: "arc" }>)
 function textNodes(K: KonvaNamespace, p: Extract<DrawPrimitive, { kind: "text" }>): KonvaNode[] {
     if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return [];
     const { fontSize, fontFamily } = parseFont(p.font);
+    // Konva's `Text` honours `align` / `verticalAlign` ONLY within an explicit
+    // `width` / `height` box; with none set it draws from `(x, y)` as the
+    // TOP-LEFT corner, ignoring them — so a `right`/`center` cell value (and
+    // every `middle`/`bottom` baseline) would overflow its cell. The canvas
+    // sink instead anchors `fillText` by `textAlign` / `textBaseline`. To
+    // reproduce that, bake the anchor into the node's `(x, y)`: shift left by
+    // the (heuristic) text width for `center`/`right`, up by the font height
+    // for `middle`/`bottom`. The width heuristic is the SAME `0.6` em the
+    // table column layout uses, so a right-aligned cell value lands flush at
+    // the cell's right padding.
+    const glyphWidth = p.text.length * fontSize * GLYPH_WIDTH_RATIO;
+    const anchorX =
+        p.align === "center" ? p.x - glyphWidth / 2 : p.align === "right" ? p.x - glyphWidth : p.x;
+    const anchorY =
+        p.baseline === "middle"
+            ? p.y - fontSize / 2
+            : p.baseline === "bottom"
+              ? p.y - fontSize
+              : p.y;
     const nodes: KonvaNode[] = [];
     // A `bgColor` becomes a backing `Rect` painted BEFORE the glyph — a
     // deliberate Konva enrichment (the canvas painter drops `bgColor`
     // because the structural `RenderCtx` cannot measure text). The box is
-    // sized from the font px × glyph count heuristic.
+    // sized from the font px × glyph count heuristic and anchored to the
+    // resolved top-left so it tracks the aligned glyph.
     if (p.bgColor !== undefined) {
-        const width = p.text.length * fontSize * GLYPH_WIDTH_RATIO + TEXT_BG_PAD_X * 2;
+        const width = glyphWidth + TEXT_BG_PAD_X * 2;
         const height = fontSize + TEXT_BG_PAD_Y * 2;
         nodes.push(
             new K.Rect({
-                x: p.x - TEXT_BG_PAD_X,
-                y: p.y - TEXT_BG_PAD_Y,
+                x: anchorX - TEXT_BG_PAD_X,
+                y: anchorY - TEXT_BG_PAD_Y,
                 width,
                 height,
                 fill: p.bgColor,
@@ -207,16 +227,16 @@ function textNodes(K: KonvaNamespace, p: Extract<DrawPrimitive, { kind: "text" }
     }
     nodes.push(
         new K.Text({
-            x: p.x,
-            y: p.y,
+            x: anchorX,
+            y: anchorY,
             text: p.text,
             fontSize,
             fontFamily,
             fill: p.color,
-            // The IR `align` / `baseline` map straight to Konva's `align` /
-            // `verticalAlign` (same vocabulary as the canvas `textAlign` /
-            // `textBaseline`), so the node-tree hash projection reads them
-            // consistently with the canvas-family adapters.
+            // `align` / `baseline` are still forwarded (Konva ignores them
+            // without a width/height box, but they keep the node self-describing
+            // and would compose correctly if a box is ever added). The visual
+            // anchor is the baked `(anchorX, anchorY)` above.
             align: p.align,
             verticalAlign: p.baseline,
         }),

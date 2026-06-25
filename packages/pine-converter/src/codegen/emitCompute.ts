@@ -32,6 +32,11 @@ function destructureFields(scaffold: ScriptScaffold): string[] {
     if (usage.request) fields.push("request");
     if (usage.time) fields.push("time");
     if (usage.session) fields.push("session");
+    // `syminfo` is a `ComputeContext` view — a `compute` destructure only,
+    // never a top-level import (the inverse of `math`, which is import-only;
+    // see `emitImports.ts`). The injected `syminfo.mintick` step on
+    // `math.roundToMintick(x, syminfo.mintick)` is what pulls it in.
+    if (usage.syminfo) fields.push("syminfo");
     if (usage.barstate || usage.barIndex) fields.push("barstate");
     return fields;
 }

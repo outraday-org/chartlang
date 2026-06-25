@@ -103,6 +103,7 @@ import { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 import { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
 import { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario.js";
 import { LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO } from "./lowerTfUnsupportedInterval.scenario.js";
+import { MATH_ROUND_TO_MINTICK_SCENARIO } from "./mathRoundToMintick.scenario.js";
 import { MTF_CAPABILITY_FALSE_SCENARIO } from "./mtfCapabilityFalse.scenario.js";
 import { MTF_REQUEST_SECURITY_CLOSE_SCENARIO } from "./mtfRequestSecurityClose.scenario.js";
 import { MTF_SECURITY_EXPRESSION_EMA_SCENARIO } from "./mtfSecurityExpressionEma.scenario.js";
@@ -144,6 +145,7 @@ import { RUNTIME_LOG_GATED_SCENARIO } from "./runtimeLogGated.scenario.js";
 import { RUNTIME_LOG_INFO_SCENARIO } from "./runtimeLogInfo.scenario.js";
 import { STATE_ARRAY_ROLLING_WINDOW_SCENARIO } from "./stateArrayRollingWindow.scenario.js";
 import { STATE_SERIES_HISTORY_SCENARIO } from "./stateSeriesHistory.scenario.js";
+import { STR_FORMATTED_TABLE_SCENARIO } from "./strFormattedTable.scenario.js";
 import { STATE_SESSION_HIGH_SCENARIO } from "./stateSessionHigh.scenario.js";
 import { STATE_TICK_COUNTER_SCENARIO } from "./stateTickCounter.scenario.js";
 import { SYMINFO_MINTICK_SCENARIO } from "./syminfoMintick.scenario.js";
@@ -354,6 +356,7 @@ export { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 export { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
 export { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario.js";
 export { LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO } from "./lowerTfUnsupportedInterval.scenario.js";
+export { MATH_ROUND_TO_MINTICK_SCENARIO } from "./mathRoundToMintick.scenario.js";
 export { MTF_CAPABILITY_FALSE_SCENARIO } from "./mtfCapabilityFalse.scenario.js";
 export { MTF_REQUEST_SECURITY_CLOSE_SCENARIO } from "./mtfRequestSecurityClose.scenario.js";
 export { MTF_SECURITY_EXPRESSION_EMA_SCENARIO } from "./mtfSecurityExpressionEma.scenario.js";
@@ -395,6 +398,7 @@ export { RUNTIME_LOG_GATED_SCENARIO } from "./runtimeLogGated.scenario.js";
 export { RUNTIME_LOG_INFO_SCENARIO } from "./runtimeLogInfo.scenario.js";
 export { STATE_ARRAY_ROLLING_WINDOW_SCENARIO } from "./stateArrayRollingWindow.scenario.js";
 export { STATE_SERIES_HISTORY_SCENARIO } from "./stateSeriesHistory.scenario.js";
+export { STR_FORMATTED_TABLE_SCENARIO } from "./strFormattedTable.scenario.js";
 export { STATE_SESSION_HIGH_SCENARIO } from "./stateSessionHigh.scenario.js";
 export { STATE_TICK_COUNTER_SCENARIO } from "./stateTickCounter.scenario.js";
 export { SYMINFO_MINTICK_SCENARIO } from "./syminfoMintick.scenario.js";
@@ -811,6 +815,8 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     LOWER_TF_CAPABILITY_FALSE_SCENARIO,
     STATE_SESSION_HIGH_SCENARIO,
     STATE_TICK_COUNTER_SCENARIO,
+    MATH_ROUND_TO_MINTICK_SCENARIO,
+    STR_FORMATTED_TABLE_SCENARIO,
     SYMINFO_MINTICK_SCENARIO,
     TIMEFRAME_ISDAILY_SCENARIO,
     UNSUPPORTED_INTERVAL_SCENARIO,

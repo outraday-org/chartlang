@@ -7,7 +7,34 @@ import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 
 describe("HOVER_REGISTRY", () => {
     it("contains the apiVersion 1 language-service symbol set", () => {
-        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(555);
+        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(566);
+    });
+
+    it("contains the deterministic str formatter helper entries (1.4)", () => {
+        expect(HOVER_REGISTRY.formatNumber).toMatchObject({
+            fqn: "formatNumber",
+            kind: "property",
+            since: "1.4",
+        });
+        expect(HOVER_REGISTRY.applyFormat).toMatchObject({
+            fqn: "applyFormat",
+            kind: "property",
+            since: "1.4",
+        });
+    });
+
+    it("contains the chart-aware scalar math helper entries (1.4)", () => {
+        expect(HOVER_REGISTRY.roundToMintick).toMatchObject({
+            fqn: "roundToMintick",
+            kind: "property",
+            since: "1.4",
+        });
+        expect(HOVER_REGISTRY.nz).toMatchObject({ fqn: "nz", kind: "property", since: "1.4" });
+        expect(HOVER_REGISTRY.clamp).toMatchObject({
+            fqn: "clamp",
+            kind: "property",
+            since: "1.4",
+        });
     });
 
     it("contains the render-order ZOrdered mixin type entry (1.4)", () => {

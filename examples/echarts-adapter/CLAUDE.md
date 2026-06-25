@@ -321,18 +321,28 @@ test seam + capabilities-only conformance default export).
   `/canvas` sink. Open polyline → `polyline`; closed → `polygon`; `arc` →
   `arc`; `text` → `text`; `marker` → small `circle` / `polygon`.
   `StrokeStyle.dash` → `style.lineDash` (omitted when solid); `alpha` →
-  `strokeOpacity`; `FillStyle` → `fill` + `fillOpacity`. A behavioural change
-  to the graphic mapping re-pins `integration.test.ts`'s `hashOptionLog`.
+  `strokeOpacity`; `FillStyle` → `fill` + `fillOpacity`. **A primitive with NO
+  fill emits the explicit `fill: "none"` sentinel — NOT an omitted key.**
+  ECharts paths are zrender `Path`s whose DEFAULT fill is BLACK (`#000`), not
+  transparent, so a stroke-only primitive (a `draw.line` / `rectangle` border,
+  a `table` cell border / frame) without `fill: "none"` paints a black-filled
+  shape that OCCLUDES whatever was drawn beneath it (this was the `draw.table`
+  "cells render black, text/fills missing" bug — each per-cell border, drawn
+  AFTER its cell's bg-fill + text, black-filled over them). `"none"` is
+  zrender's no-fill keyword (`hasFill()` → false), matching the canvas sink,
+  which only fills when a `fillStyle` is set. A behavioural change to the
+  graphic mapping re-pins `integration.test.ts`'s `hashOptionLog`.
 
 - **`EChartsGraphicElement` is a NARROW union, not ECharts' loose graphic
   type.** ECharts' `GraphicComponentLooseOption` is `Dictionary<any>`-loose;
   `primitiveToGraphic` returns the narrow `EChartsGraphicElement` instead and
   `buildOption` relies on its structural assignability to
   `EChartsOption["graphic"]` at the single `graphic:` assignment (verified by
-  `pnpm typecheck`, no `as`). Style keys (`lineDash` / `fill` /
-  `strokeOpacity` / `fillOpacity` / text `backgroundColor`) are OMITTED, not
-  set to a sentinel, when the IR carries no value, keeping the option tree —
-  and its hash — minimal.
+  `pnpm typecheck`, no `as`). Style keys (`lineDash` / `strokeOpacity` /
+  `fillOpacity` / text `backgroundColor`) are OMITTED, not set to a sentinel,
+  when the IR carries no value, keeping the option tree minimal — EXCEPT
+  `fill`, which is the explicit `"none"` sentinel for a fill-less path (see the
+  zrender-default-black-fill note above), never omitted.
 
 - **NaN anchors are SKIPPED, not painted (divergence from the ctx adapters).**
   ECharts logs a console warning for a `graphic` element with a non-finite
@@ -354,6 +364,24 @@ test seam + capabilities-only conformance default export).
   applies the deterministic affine `mockValueToPixel` so the sampling path is
   exercised headlessly (the pure `computeViewport` is verified against the
   `convertToPixel` identity in `viewport.test.ts`).
+
+- **The screen-space `table` is decomposed against the chart's ACTUAL
+  drawable size, NOT the drawing `Viewport`.** The drawing viewport's
+  `pxWidth` is the full-data CATEGORY span in pixels — a far-future bar time
+  maps to a far-right pixel (the category axis treats a raw timestamp as an
+  ORDINAL index), so `pxWidth` BALLOONS once the chart is zoomed and a
+  top-right `table` (which positions against `pxWidth`) lands far off-screen
+  (the original "echarts table missing entirely" bug). `drawingMarks`
+  special-cases `drawing.drawingKind === "table"` and decomposes it against
+  `tableScreenViewport(state)` = `{ pxWidth: chart.getWidth() − GRID_RIGHT_PX,
+  pxHeight: chart.getHeight() }` (reserving the right-hand price-axis gutter so
+  the HUD sits inside the plot, clear of the labels). `EChartsSurface` gained
+  REQUIRED `getWidth()` / `getHeight()` (the only implementers are the real
+  `echarts.init(...)` instance and `MockECharts`, which returns a fixed
+  800×400 — so no fallback / optionality is needed). ECharts works in CSS px
+  (it handles DPR internally), so the table needs NO `Viewport.pxRatio`
+  scaling here. `GRID_LEFT_PX` / `GRID_RIGHT_PX` are shared with
+  `buildOption`'s `grid` so the gutter stays single-sourced.
 
 - **`convertToPixel` is sampled ONLY when there is something to project.**
   `buildGraphics` returns `[]` early when `state.drawings` is empty, and

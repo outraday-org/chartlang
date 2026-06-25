@@ -12,6 +12,11 @@ import {
     parseDrawingSource,
 } from "../packages/cli/src/commands/extractDrawingPages";
 import { type PrimitiveDocInput, parsePrimitiveSource } from "../packages/cli/src/commands/genDocs";
+import {
+    PHASE4_DOC_ENTRIES,
+    type Phase4DocInput,
+    parsePhase4DocEntry,
+} from "../packages/cli/src/commands/genPhase4Docs";
 import { STATEFUL_PRIMITIVES } from "../packages/core/src/statefulPrimitives";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -214,6 +219,22 @@ async function collectPlotFamily(): Promise<ReadonlyArray<PlotDocInput>> {
     });
 }
 
+/**
+ * Collect one value namespace (`math` / `str`) as a single consolidated
+ * `Phase4DocInput`. Reuses `parsePhase4DocEntry` + the shared
+ * `PHASE4_DOC_ENTRIES` registry so the source path / symbol path can never
+ * drift from the docs gate; the namespace's `signature` is the whole
+ * `Object.freeze({...})` member list. The produced `sourceUrl` is intentionally
+ * NOT rendered (the reference carries no GitHub links).
+ */
+async function collectNamespace(title: "math" | "str"): Promise<Phase4DocInput> {
+    const entry = PHASE4_DOC_ENTRIES.find((e) => e.title === title);
+    if (entry === undefined) {
+        throw new Error(`Missing PHASE4_DOC_ENTRIES entry for "${title}"`);
+    }
+    return parsePhase4DocEntry(REPO_ROOT, entry);
+}
+
 function renderTaBlock(p: PrimitiveDocInput): string {
     const lines = [`### ta.${p.id}`, "", "```ts", p.signature, "```", ""];
     if (p.description.length > 0) lines.push(p.description, "");
@@ -239,15 +260,34 @@ function renderPlotBlock(p: PlotDocInput): string {
 }
 
 /**
+ * Render one consolidated value-namespace block (`## math.*` / `## str.*`).
+ * Unlike `ta.*` / `draw.*` (one block per member), the small frozen
+ * `math` / `str` namespaces render as a single block whose `signature` is the
+ * whole `Object.freeze({...})` member list — mirroring the single-page
+ * `docs/primitives/math.md` / `str.md` shape.
+ */
+function renderNamespaceBlock(title: string, doc: Phase4DocInput): string {
+    const lines = [`## ${title}.*`, ""];
+    if (doc.description.length > 0) lines.push(doc.description, "");
+    lines.push("```ts", doc.signature, "```", "");
+    lines.push(`**Example:** \`${doc.example}\``);
+    lines.push(`**Since:** ${doc.since} · ${doc.stability}`);
+    return lines.join("\n");
+}
+
+/**
  * Pure renderer — no IO. Emits the auto-header as the first line, then
  * one block per `ta.*` and `draw.*` primitive (alphabetical within each
  * namespace), then the `## plot family` section (`plot` / `hline` /
- * `bgcolor` / `barcolor`, in `PLOT_FAMILY` order).
+ * `bgcolor` / `barcolor`, in `PLOT_FAMILY` order), then the consolidated
+ * `## math.*` / `## str.*` value-namespace blocks.
  */
 export function renderReference(
     ta: ReadonlyArray<PrimitiveDocInput>,
     draw: ReadonlyArray<DrawingDocInput>,
     plotFamily: ReadonlyArray<PlotDocInput>,
+    math: Phase4DocInput,
+    str: Phase4DocInput,
 ): string {
     const parts: string[] = [
         AUTO_HEADER,
@@ -255,8 +295,8 @@ export function renderReference(
         "# chartlang primitive reference",
         "",
         "Generated from source JSDoc. Authoritative — do not hand-edit. Run",
-        "`pnpm skills:generate` after changing a `ta.*` / `draw.*` / plot-family",
-        "primitive.",
+        "`pnpm skills:generate` after changing a `ta.*` / `draw.*` / plot-family /",
+        "`math.*` / `str.*` primitive.",
         "",
         "The chartlang compiler injects a leading `slotId: string` argument at",
         "every callsite, so script authors call `ta.<id>(...)` / `draw.<id>(...)`",
@@ -277,6 +317,10 @@ export function renderReference(
         "",
         plotFamily.map(renderPlotBlock).join("\n\n"),
         "",
+        renderNamespaceBlock("math", math),
+        "",
+        renderNamespaceBlock("str", str),
+        "",
     ];
     return parts.join("\n");
 }
@@ -289,12 +333,14 @@ export function renderReference(
 export async function generateSkillsReference(
     opts: Readonly<{ check?: boolean }> = {},
 ): Promise<void> {
-    const [ta, draw, plotFamily] = await Promise.all([
+    const [ta, draw, plotFamily, math, str] = await Promise.all([
         collectTa(),
         collectDraw(),
         collectPlotFamily(),
+        collectNamespace("math"),
+        collectNamespace("str"),
     ]);
-    const contents = renderReference(ta, draw, plotFamily);
+    const contents = renderReference(ta, draw, plotFamily, math, str);
 
     if (opts.check === true) {
         let existing = "";

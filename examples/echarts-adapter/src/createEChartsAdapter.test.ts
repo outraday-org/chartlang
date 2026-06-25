@@ -1545,6 +1545,45 @@ describe("createEChartsAdapter — alerts, logs, drawings, diagnostics", () => {
         expect(option.graphic).toEqual([]);
     });
 
+    it("positions a top-right `table` against the chart's drawable size, not the data-span viewport", async () => {
+        const bars = [bar(0, 100), bar(1, 101)];
+        const drawing: DrawingEmission = {
+            kind: "drawing",
+            handleId: "d.ts:9:1#0",
+            drawingKind: "table",
+            op: "create",
+            state: {
+                kind: "table",
+                position: "top-right",
+                cells: [[{ text: "P&L" }, { text: "+12%" }]],
+            },
+            bar: 0,
+            time: bars[0].time,
+        };
+        const option = lastOption(
+            await drive(bars, [{ ...emptyEmissions(), drawings: [drawing] }]),
+        );
+        const graphic = option.graphic;
+        if (!Array.isArray(graphic)) throw new Error("expected a graphic array");
+        // The screen viewport uses the mock chart's getWidth() (800) minus the
+        // right-axis gutter (56) ⇒ the top-right table's cells sit at x < 744,
+        // NOT off-screen near the data-span viewport's far edge.
+        const polygons = graphic.filter((g) => g?.type === "polygon");
+        expect(polygons.length).toBeGreaterThan(0);
+        const maxX = Math.max(
+            ...polygons.flatMap(
+                (g: { shape?: { points?: ReadonlyArray<readonly [number, number]> } }) =>
+                    (g.shape?.points ?? []).map((p) => p[0]),
+            ),
+        );
+        expect(maxX).toBeLessThanOrEqual(800 - 56);
+        // The default white cell fill is emitted (a concrete `fill`, NOT
+        // zrender's default black), so the cell renders.
+        expect(
+            polygons.some((g: { style?: { fill?: string } }) => g.style?.fill === "#ffffff"),
+        ).toBe(true);
+    });
+
     it("warns on warning/error diagnostics", async () => {
         const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
         const bars = [bar(0, 100)];

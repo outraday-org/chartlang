@@ -108,6 +108,10 @@ const MINIMAL_PHASE4_SYMINFO = `/** Symbol view. @since 0.4 @stable @example voi
 export const syminfo = Object.freeze({});`;
 const MINIMAL_PHASE4_TIMEFRAME = `/** Timeframe view. @since 0.4 @stable @example void timeframe; */
 export const timeframe = Object.freeze({});`;
+const MINIMAL_PHASE4_MATH = `/** Chart-aware scalar math. @since 1.2 @stable @example void math; */
+export const math = Object.freeze({});`;
+const MINIMAL_PHASE4_STR = `/** String namespace. @since 1.4 @stable @example void str; */
+export const str = Object.freeze({});`;
 const MINIMAL_PHASE4_TIME = `/** Calendar accessors. @since 1.5 @stable @example void time; */
 export const time = Object.freeze({});`;
 const MINIMAL_PHASE4_SESSION = `/** Session helpers. @since 1.5 @stable @example void session; */
@@ -181,6 +185,8 @@ describe("runDocsCommand", () => {
         await mkdir(join(repoRoot, "packages/core/src/views"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/request"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/time-accessors"), { recursive: true });
+        await mkdir(join(repoRoot, "packages/core/src/math"), { recursive: true });
+        await mkdir(join(repoRoot, "packages/core/src/str"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/define"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/plot"), { recursive: true });
         await mkdir(join(repoRoot, "packages/core/src/alert"), { recursive: true });
@@ -222,6 +228,16 @@ describe("runDocsCommand", () => {
         await writeFile(
             join(repoRoot, "packages/core/src/time-accessors/sessionAccessors.ts"),
             MINIMAL_PHASE4_SESSION,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/math/index.ts"),
+            MINIMAL_PHASE4_MATH,
+            "utf8",
+        );
+        await writeFile(
+            join(repoRoot, "packages/core/src/str/index.ts"),
+            MINIMAL_PHASE4_STR,
             "utf8",
         );
         await writeFile(

@@ -422,7 +422,9 @@ describe("transformOther — passthrough and skips", () => {
     });
 
     it("emits a plain non-drawing call through with a semicolon", () => {
-        expect(stmts("y = 0\ny := nz(close, 0)")).toContain("y = nz(bar.close, 0);");
+        // `nz(x, r)` lowers to the scalar `math.nz(x, r)`; the assignment still
+        // emits with a trailing semicolon.
+        expect(stmts("y = 0\ny := nz(close, 0)")).toContain("y = math.nz(bar.close, 0);");
     });
 
     it("lowers request.security as a declaration value", () => {

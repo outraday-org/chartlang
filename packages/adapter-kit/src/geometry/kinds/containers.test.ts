@@ -182,4 +182,42 @@ describe("decomposeTable", () => {
         const state: TableState = { kind: "table", position: "top-left", cells: [] };
         expect(decomposeTable(state, view)).toEqual([]);
     });
+
+    it("scales cell font / border / frame sizes by Viewport.pxRatio", () => {
+        const state: TableState = {
+            kind: "table",
+            position: "top-left",
+            cells: [[{ text: "x" }]],
+            borderColor: "#999999",
+            borderWidth: 2,
+            frame: { color: "#000000", width: 3 },
+        };
+        const at1x = decomposeTable(state, view);
+        const at2x = decomposeTable(state, { ...view, pxRatio: 2 });
+
+        const font1 = at1x.find((p) => p.kind === "text");
+        const font2 = at2x.find((p) => p.kind === "text");
+        expect(font1?.kind === "text" && font1.font).toBe("12px sans-serif");
+        // The normal cell font (12px) doubles at pxRatio 2.
+        expect(font2?.kind === "text" && font2.font).toBe("24px sans-serif");
+
+        // Border + frame stroke widths scale too (the per-cell border, then the
+        // outer frame, are the last two polylines).
+        const border2 = at2x.filter((p) => p.kind === "polyline");
+        const cellBorder = border2[1];
+        const frame = border2[border2.length - 1];
+        expect(cellBorder.kind === "polyline" && cellBorder.stroke?.width).toBe(4);
+        expect(frame.kind === "polyline" && frame.stroke?.width).toBe(6);
+    });
+
+    it("treats a non-positive / non-finite pxRatio as 1", () => {
+        const state: TableState = {
+            kind: "table",
+            position: "top-left",
+            cells: [[{ text: "x" }]],
+        };
+        const baseline = decomposeTable(state, view);
+        expect(decomposeTable(state, { ...view, pxRatio: 0 })).toEqual(baseline);
+        expect(decomposeTable(state, { ...view, pxRatio: Number.NaN })).toEqual(baseline);
+    });
 });

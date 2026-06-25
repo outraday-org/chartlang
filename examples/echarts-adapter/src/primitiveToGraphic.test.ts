@@ -25,7 +25,9 @@ describe("primitiveToGraphic", () => {
                     [10, 20],
                 ],
             },
-            style: { stroke: "#abc123", lineWidth: 2 },
+            // No fill on the IR ⇒ explicit `fill: "none"` (zrender's Path
+            // default fill is BLACK, not transparent).
+            style: { stroke: "#abc123", lineWidth: 2, fill: "none" },
         });
     });
 
@@ -60,17 +62,23 @@ describe("primitiveToGraphic", () => {
             stroke: { color: "#facc15", width: 6, dash: [], alpha: 0.3 },
         });
         if (el.type !== "polyline") throw new Error("unreachable");
-        expect(el.style).toEqual({ stroke: "#facc15", lineWidth: 6, strokeOpacity: 0.3 });
+        expect(el.style).toEqual({
+            stroke: "#facc15",
+            lineWidth: 6,
+            strokeOpacity: 0.3,
+            fill: "none",
+        });
     });
 
-    it("emits an empty path style when a polyline has neither stroke nor fill", () => {
+    it("emits a no-fill path style when a polyline has neither stroke nor fill", () => {
         const el = primitiveToGraphic({
             kind: "polyline",
             points: [{ x: 1, y: 1 }],
             closed: false,
         });
         if (el.type !== "polyline") throw new Error("unreachable");
-        expect(el.style).toEqual({});
+        // `fill: "none"` keeps zrender from painting the default black fill.
+        expect(el.style).toEqual({ fill: "none" });
     });
 
     it("maps an arc to an `arc` graphic", () => {
@@ -87,7 +95,7 @@ describe("primitiveToGraphic", () => {
         expect(el).toEqual({
             type: "arc",
             shape: { cx: 50, cy: 60, r: 12, startAngle: 0, endAngle: Math.PI },
-            style: { stroke: "#10b981", lineWidth: 1 },
+            style: { stroke: "#10b981", lineWidth: 1, fill: "none" },
         });
     });
 

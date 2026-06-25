@@ -139,8 +139,18 @@ type TableLayout = {
     readonly rowHeights: ReadonlyArray<number>;
 };
 
-function tableTextSizePx(cell: TableCell): number {
-    return TABLE_TEXT_SIZE_PX[cell.textSize ?? "normal"];
+// The table is a SCREEN-SPACE HUD whose cell / font sizes are authored in
+// CSS pixels. On a device-px canvas (`Viewport.pxRatio > 1`, the uplot /
+// lightweight-charts adapters) those sizes are multiplied by the ratio so
+// the table renders at the same physical size as on a CSS-px canvas. A
+// CSS-px adapter omits `pxRatio` (⇒ `1`), keeping the output byte-identical.
+function tableScale(view: Viewport): number {
+    const ratio = view.pxRatio ?? 1;
+    return Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+}
+
+function tableTextSizePx(cell: TableCell, scale: number): number {
+    return TABLE_TEXT_SIZE_PX[cell.textSize ?? "normal"] * scale;
 }
 
 function estimateTextWidth(text: string, fontPx: number): number {
@@ -155,38 +165,50 @@ function columnCount(rows: ReadonlyArray<ReadonlyArray<TableCell>>): number {
     return count;
 }
 
-function resolveTableX(position: TablePosition, tableWidth: number, view: Viewport): number {
+function resolveTableX(
+    position: TablePosition,
+    tableWidth: number,
+    view: Viewport,
+    pad: number,
+): number {
     if (position.endsWith("-center")) return view.pxWidth / 2 - tableWidth / 2;
-    if (position.endsWith("-right")) return view.pxWidth - tableWidth - TABLE_VIEWPORT_PADDING_PX;
-    return TABLE_VIEWPORT_PADDING_PX;
+    if (position.endsWith("-right")) return view.pxWidth - tableWidth - pad;
+    return pad;
 }
 
-function resolveTableY(position: TablePosition, tableHeight: number, view: Viewport): number {
+function resolveTableY(
+    position: TablePosition,
+    tableHeight: number,
+    view: Viewport,
+    pad: number,
+): number {
     if (position.startsWith("middle-")) return view.pxHeight / 2 - tableHeight / 2;
-    if (position.startsWith("bottom-"))
-        return view.pxHeight - tableHeight - TABLE_VIEWPORT_PADDING_PX;
-    return TABLE_VIEWPORT_PADDING_PX;
+    if (position.startsWith("bottom-")) return view.pxHeight - tableHeight - pad;
+    return pad;
 }
 
-function layoutTable(state: TableState, view: Viewport): TableLayout {
+function layoutTable(state: TableState, view: Viewport, scale: number): TableLayout {
+    const padX = TABLE_CELL_PAD_X_PX * scale;
+    const padY = TABLE_CELL_PAD_Y_PX * scale;
+    const viewportPad = TABLE_VIEWPORT_PADDING_PX * scale;
     const columns = columnCount(state.cells);
     const columnWidths = Array.from({ length: columns }, () => 0);
     const rowHeights = state.cells.map((row) => {
-        let maxFont = TABLE_TEXT_SIZE_PX.normal;
+        let maxFont = TABLE_TEXT_SIZE_PX.normal * scale;
         for (let column = 0; column < row.length; column++) {
             const cell = row[column];
-            const fontPx = tableTextSizePx(cell);
+            const fontPx = tableTextSizePx(cell, scale);
             if (fontPx > maxFont) maxFont = fontPx;
-            const width = estimateTextWidth(cell.text, fontPx) + TABLE_CELL_PAD_X_PX * 2;
+            const width = estimateTextWidth(cell.text, fontPx) + padX * 2;
             if (width > columnWidths[column]) columnWidths[column] = width;
         }
-        return maxFont + TABLE_CELL_PAD_Y_PX * 2;
+        return maxFont + padY * 2;
     });
     const width = columnWidths.reduce((sum, widthPx) => sum + widthPx, 0);
     const height = rowHeights.reduce((sum, heightPx) => sum + heightPx, 0);
     return {
-        x: resolveTableX(state.position, width, view),
-        y: resolveTableY(state.position, height, view),
+        x: resolveTableX(state.position, width, view, viewportPad),
+        y: resolveTableY(state.position, height, view, viewportPad),
         width,
         height,
         columnWidths,
@@ -216,23 +238,23 @@ function rectPolyline(
     };
 }
 
-function cellTextX(cell: TableCell, x: number, width: number): number {
+function cellTextX(cell: TableCell, x: number, width: number, padX: number): number {
     switch (cell.textHalign ?? "left") {
         case "center":
             return x + width / 2;
         case "right":
-            return x + width - TABLE_CELL_PAD_X_PX;
+            return x + width - padX;
         case "left":
-            return x + TABLE_CELL_PAD_X_PX;
+            return x + padX;
     }
 }
 
-function cellTextY(cell: TableCell, y: number, height: number): number {
+function cellTextY(cell: TableCell, y: number, height: number, padY: number): number {
     switch (cell.textValign ?? "middle") {
         case "top":
-            return y + TABLE_CELL_PAD_Y_PX;
+            return y + padY;
         case "bottom":
-            return y + height - TABLE_CELL_PAD_Y_PX;
+            return y + height - padY;
         case "middle":
             return y + height / 2;
     }
@@ -256,6 +278,12 @@ function cellBaseline(cell: TableCell): "top" | "middle" | "bottom" {
  * polyline wraps the whole grid. Zero rows/columns yields a degenerate
  * (possibly empty) grid without throwing.
  *
+ * Cell / font / padding / border sizes are CSS-pixel magnitudes scaled by
+ * `Viewport.pxRatio` (default `1`), so a device-px adapter (uplot,
+ * lightweight-charts) renders the HUD at the same physical size as a CSS-px
+ * one. With `pxRatio` omitted the output is byte-identical to the
+ * pre-feature decomposer.
+ *
  * @since 1.3
  * @stable
  * @example
@@ -265,7 +293,10 @@ function cellBaseline(cell: TableCell): "top" | "middle" | "bottom" {
  *     void prims;
  */
 export function decomposeTable(state: TableState, view: Viewport): ReadonlyArray<DrawPrimitive> {
-    const layout = layoutTable(state, view);
+    const scale = tableScale(view);
+    const padX = TABLE_CELL_PAD_X_PX * scale;
+    const padY = TABLE_CELL_PAD_Y_PX * scale;
+    const layout = layoutTable(state, view, scale);
     const out: DrawPrimitive[] = [];
     let y = layout.y;
     for (let rowIndex = 0; rowIndex < state.cells.length; rowIndex++) {
@@ -283,11 +314,11 @@ export function decomposeTable(state: TableState, view: Viewport): ReadonlyArray
             );
             out.push({
                 kind: "text",
-                x: cellTextX(cell, x, width),
-                y: cellTextY(cell, y, height),
+                x: cellTextX(cell, x, width, padX),
+                y: cellTextY(cell, y, height, padY),
                 text: cell.text,
                 color: cell.textColor ?? TABLE_DEFAULT_TEXT_COLOR,
-                font: `${tableTextSizePx(cell)}px ${TABLE_FONT_FAMILY}`,
+                font: `${tableTextSizePx(cell, scale)}px ${TABLE_FONT_FAMILY}`,
                 align: cellAlign(cell),
                 baseline: cellBaseline(cell),
             });
@@ -300,7 +331,7 @@ export function decomposeTable(state: TableState, view: Viewport): ReadonlyArray
                         height,
                         {
                             color: state.borderColor,
-                            width: state.borderWidth,
+                            width: state.borderWidth * scale,
                             dash: SOLID_DASH,
                         },
                         undefined,
@@ -318,7 +349,7 @@ export function decomposeTable(state: TableState, view: Viewport): ReadonlyArray
                 layout.y,
                 layout.width,
                 layout.height,
-                { color: state.frame.color, width: state.frame.width, dash: SOLID_DASH },
+                { color: state.frame.color, width: state.frame.width * scale, dash: SOLID_DASH },
                 undefined,
             ),
         );

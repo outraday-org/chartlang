@@ -53,4 +53,21 @@ test("converter converts live, compiles the output, and flags rejects", async ({
   await expect(
     converter.getByText("refused with a structured diagnostic", { exact: false }),
   ).toBeVisible({ timeout: 30_000 })
+
+  // The diagnostics pane surfaces the structured reject: the error-severity
+  // `unsupported-for-in` diagnostic and the partial-output banner render, so
+  // the rejection is visible on-screen rather than only in the sample blurb.
+  const diagnostics = converter.locator(".converter-diagnostics")
+  await expect(diagnostics).toBeVisible({ timeout: 30_000 })
+  await expect(diagnostics.locator(".diagnostic.is-error")).toBeVisible()
+  await expect(diagnostics.getByText("unsupported-for-in")).toBeVisible()
+  await expect(diagnostics.getByText("This Pine construct is rejected", { exact: false })).toBeVisible()
+
+  // The error-severity diagnostic disables "Compile & preview": the output is
+  // a partial best-effort lowering, so compiling it would render a misleading
+  // chart. The button is disabled and the reason is shown in its place.
+  await expect(converter.locator("button.compile-button")).toBeDisabled()
+  await expect(
+    converter.getByText("Fix the rejected construct above before compiling", { exact: false }),
+  ).toBeVisible()
 })

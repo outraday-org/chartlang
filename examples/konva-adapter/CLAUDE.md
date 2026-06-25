@@ -287,7 +287,7 @@ capabilities-only conformance default export).
   (`innerRadius === outerRadius`, `angle: 360` — no radial wedge); PARTIAL
   `arc` → one `Path` (SVG `M … A … Z`; the `A` arc + `Z` chord reproduce
   canvas `arc() + closePath()`, which `Arc`'s wedge cannot); `text` → one
-  `Text` (IR `align`/`baseline` → Konva `align`/`verticalAlign`; the
+  `Text` whose anchor `(x, y)` BAKES IN the IR `align`/`baseline` (the
   `"<px>px <family>"` font split by `parseFont`) PRECEDED by a backing
   `Rect` when `bgColor` is set; `marker` → a per-shape glyph through the
   SHARED `shapeGlyphNodes` (the IR `marker` primitive's 5-shape union is a
@@ -326,10 +326,24 @@ capabilities-only conformance default export).
   bar-color path reads it with `.get(plot.time)` instead of an O(bars)
   `find` per drain.
 
+- **Text `align`/`baseline` are BAKED into the node's `(x, y)` — Konva
+  ignores them without a width/height box.** `Konva.Text` only honours
+  `align`/`verticalAlign` within an explicit `width`/`height`; with neither
+  set it draws from `(x, y)` as the TOP-LEFT corner, so a `right`/`center`
+  cell value (and every `middle`/`bottom` baseline) would OVERFLOW its cell —
+  the original `draw.table` mis-render. `textNodes` reproduces the canvas
+  sink's `textAlign`/`textBaseline` anchoring by shifting the node left by the
+  (heuristic, same `GLYPH_WIDTH_RATIO = 0.6` em the table column layout uses)
+  glyph width for `center`/`right` and up by the font height for
+  `middle`/`bottom`; the IR `align`/`baseline` are still forwarded to the node
+  (no-ops without a box, but self-describing). This re-pinned the integration
+  `PINNED_HASH` (the EMA-cross bundle's fib labels / marker text are
+  non-`top`/`left`). `left`/`top` text is byte-identical (zero offset).
 - **Text `bgColor` is a Konva-specific enrichment.** The canvas
   `paintPrimitive` DROPS a text primitive's `bgColor` (a structural
   `RenderCtx` cannot measure text); Konva CAN express it, so the adapter
-  prepends a backing `Rect`. The box is sized from a font-px × glyph-count
+  prepends a backing `Rect` anchored to the same resolved top-left as the
+  glyph. The box is sized from a font-px × glyph-count
   heuristic (`GLYPH_WIDTH_RATIO`/pads in `primitiveToNode.ts`) because the
   headless `MockKonva` has no `measureText`. Each adapter owns its own
   integration hash, so this divergence breaks no cross-adapter parity

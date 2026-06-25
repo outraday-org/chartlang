@@ -57,12 +57,26 @@ export type StrResult =
     | Readonly<{ kind: "warn"; code: "str-format-not-mapped" | "str-not-mapped" }>;
 
 /**
- * Lower a Pine `str.*` call into chartlang. Supports the v1 subset
- * (`str.tostring`, `str.format`, `str.length`, `str.contains`, `str.upper`,
- * `str.lower`); a `str.tostring(x, "#.##")` precision mask becomes
- * `x.toFixed(n)` and a `str.format` template synthesises a template literal
- * where the placeholders are bare `{n}` slots. Returns `null` when the call
- * is not a `str.*` member at all; otherwise a {@link StrResult}.
+ * Lower a Pine `str.*` call into chartlang, covering the full Pine v6
+ * `str.*` surface as native JS — the same native-where-native-exists shape
+ * `math.*` uses for bare `Math.*` (no `str` import/destructure is added to the
+ * generated output). Mapped members:
+ * `str.tostring` → `String(x)` / `(x).toFixed(n)` (a `"#.##"` precision mask),
+ * `str.format` → a synthesised template literal (bare `{n}` slots),
+ * `str.length` → `s.length`, `str.upper`/`str.lower` →
+ * `s.toUpperCase()`/`s.toLowerCase()`, `str.contains` → `s.includes(t)`,
+ * `str.startswith`/`str.endswith` → `s.startsWith(t)`/`s.endsWith(t)`,
+ * `str.pos` → `s.indexOf(t)` (Pine returns `na` when absent, JS `-1`),
+ * `str.split` → `s.split(sep)`, `str.substring` →
+ * `s.substring(begin[, end])`, `str.trim` → `s.trim()`,
+ * `str.repeat` → `s.repeat(n)` (2-arg or empty-string-literal separator),
+ * `str.replace_all` → `s.replaceAll(t, r)`, `str.replace` → `s.replace(t, r)`
+ * (no occurrence, or a literal-`0` occurrence), and `str.tonumber` →
+ * `Number(s)` (`NaN` ≈ Pine `na`). `str.match` and `str.format_time` are
+ * intentionally rejected (`str-not-mapped` — regex / host-time, no native
+ * one-liner), as are a non-empty-separator `str.repeat` and a non-zero /
+ * non-literal-occurrence `str.replace`. Returns `null` when the call is not a
+ * `str.*` member at all; otherwise a {@link StrResult}.
  *
  * @since 0.1
  * @stable
@@ -117,6 +131,29 @@ export function emitStr(call: CallExpression, ctx: EmitContext): StrResult | nul
             return unary(args, ctx, (s) => `${s}.toLowerCase()`);
         case "contains":
             return binary(args, ctx, (a, b) => `${a}.includes(${b})`);
+        case "startswith":
+            return binary(args, ctx, (s, sub) => `${s}.startsWith(${sub})`);
+        case "endswith":
+            return binary(args, ctx, (s, sub) => `${s}.endsWith(${sub})`);
+        case "pos":
+            return binary(args, ctx, (s, sub) => `${s}.indexOf(${sub})`);
+        case "split":
+            return binary(args, ctx, (s, sep) => `${s}.split(${sep})`);
+        case "substring":
+            return emitSubstring(args, ctx);
+        case "trim":
+            return unary(args, ctx, (s) => `${s}.trim()`);
+        case "repeat":
+            return emitRepeat(args, ctx);
+        case "replace_all":
+            return ternary(args, ctx, (s, target, repl) => `${s}.replaceAll(${target}, ${repl})`);
+        case "replace":
+            return emitReplace(args, ctx);
+        case "tonumber":
+            return unary(args, ctx, (s) => `Number(${s})`);
+        // `match` (regex) and `format_time` (host-time) have no native
+        // one-liner — they fall through to `default` and reject with
+        // `str-not-mapped`. Listed here so the omission is intentional.
         default:
             return { kind: "warn", code: "str-not-mapped" };
     }
@@ -148,6 +185,103 @@ function binary(
         kind: "code",
         source: build(emitWithContext(first, ctx), emitWithContext(second, ctx)),
     };
+}
+
+function ternary(
+    args: readonly ExpressionNode[],
+    ctx: EmitContext,
+    build: (a: string, b: string, c: string) => string,
+): StrResult {
+    const first = args[0];
+    const second = args[1];
+    const third = args[2];
+    if (first === undefined || second === undefined || third === undefined) {
+        return { kind: "warn", code: "str-not-mapped" };
+    }
+    return {
+        kind: "code",
+        source: build(
+            emitWithContext(first, ctx),
+            emitWithContext(second, ctx),
+            emitWithContext(third, ctx),
+        ),
+    };
+}
+
+// `str.substring(source, begin[, end])` — both bounds are 0-based and `end`
+// is exclusive, matching JS exactly. 2 args → `s.substring(begin)`, 3 args →
+// `s.substring(begin, end)`, fewer than 2 → `str-not-mapped` (malformed).
+function emitSubstring(args: readonly ExpressionNode[], ctx: EmitContext): StrResult {
+    const source = args[0];
+    const begin = args[1];
+    if (source === undefined || begin === undefined) {
+        return { kind: "warn", code: "str-not-mapped" };
+    }
+    const s = emitWithContext(source, ctx);
+    const b = emitWithContext(begin, ctx);
+    const end = args[2];
+    return {
+        kind: "code",
+        source:
+            end === undefined
+                ? `${s}.substring(${b})`
+                : `${s}.substring(${b}, ${emitWithContext(end, ctx)})`,
+    };
+}
+
+// `str.repeat(source, repeat[, separator])`. JS has no one-expression
+// "repeat with separator", so only the no-separator and empty-string-literal
+// (`""`) separator forms map to `s.repeat(n)`; any non-empty / non-literal
+// separator rejects (`str-not-mapped`). Fewer than 2 args → `str-not-mapped`.
+function emitRepeat(args: readonly ExpressionNode[], ctx: EmitContext): StrResult {
+    const source = args[0];
+    const count = args[1];
+    if (source === undefined || count === undefined) {
+        return { kind: "warn", code: "str-not-mapped" };
+    }
+    const separator = args[2];
+    if (separator !== undefined && stringLiteralValue(separator) !== "") {
+        return { kind: "warn", code: "str-not-mapped" };
+    }
+    return {
+        kind: "code",
+        source: `${emitWithContext(source, ctx)}.repeat(${emitWithContext(count, ctx)})`,
+    };
+}
+
+// `str.replace(source, target, replacement[, occurrence])`. A JS string-target
+// `s.replace(t, r)` replaces the FIRST match — equivalent to Pine occurrence
+// `0`. So the no-occurrence and literal-`0` (incl. unary `+0`/`-0`) forms map;
+// any non-zero / non-literal occurrence rejects (`str-not-mapped`, no native
+// nth-occurrence one-liner). Fewer than 3 args → `str-not-mapped`.
+function emitReplace(args: readonly ExpressionNode[], ctx: EmitContext): StrResult {
+    const source = args[0];
+    const target = args[1];
+    const replacement = args[2];
+    if (source === undefined || target === undefined || replacement === undefined) {
+        return { kind: "warn", code: "str-not-mapped" };
+    }
+    const occurrence = args[3];
+    if (occurrence !== undefined && !literalZero(occurrence)) {
+        return { kind: "warn", code: "str-not-mapped" };
+    }
+    const s = emitWithContext(source, ctx);
+    const t = emitWithContext(target, ctx);
+    const r = emitWithContext(replacement, ctx);
+    return { kind: "code", source: `${s}.replace(${t}, ${r})` };
+}
+
+// Whether a node is the literal `0` (`0` / `0.0`), including a unary `+0`/`-0`.
+// Mirrors `plotFamily.ts`'s private `isLiteralZero` (literal-number predicates
+// are intentionally kept per-file, see pine-converter/CLAUDE.md) but also
+// unwraps a unary operand so `str.replace(s, t, r, +0)` reads as occurrence 0.
+function literalZero(node: ExpressionNode): boolean {
+    const inner = node.kind === "unary-expression" ? node.operand : node;
+    return (
+        inner.kind === "literal-expression" &&
+        (inner.literalKind === "int" || inner.literalKind === "float") &&
+        Number(inner.value) === 0
+    );
 }
 
 function emitToString(args: readonly ExpressionNode[], ctx: EmitContext): StrResult {

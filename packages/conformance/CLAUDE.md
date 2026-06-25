@@ -336,3 +336,32 @@ plot hashes, alert counts, and diagnostic codes.
   `slot: false` like `ta.nz`, so they extend BOTH the
   `STATEFUL_PRIMITIVES.size` sum AND the `slot:false` expected set. Adding a
   new calendar/session accessor means appending to that constant.
+
+## `math.*` namespace invariant
+
+- **`math-round-to-mintick` is the all-adapter proof for the pure-scalar
+  `math` namespace.** `math.*` emits NO new wire primitive — its outputs are
+  `number`s flowing into the existing `plot`/`draw` holes — so the scenario
+  needs no per-adapter code. It snaps two levels with
+  `math.roundToMintick(level, syminfo.mintick)` → two `draw.horizontalLine`s on
+  bar 0 and pins ONE `drawing-hash` (`38b4e1a2…`, 2 emissions). The inline
+  source **imports `math` at the top but does NOT destructure it** — `math` is
+  a module-scope frozen namespace, not a `ComputeContext` field, so
+  `compute({ bar, draw, syminfo })` destructures only `syminfo` (the tick-size
+  view). Destructuring `math` is a `TS2339` compile error. Re-pin via the
+  runner's "expected vs actual" message exactly like every other `drawing-hash`.
+
+## `str.*` namespace invariant
+
+- **`str-formatted-table` is the all-adapter proof for the pure-compute `str`
+  namespace.** `str.*` emits NO new wire primitive — `str.format` /
+  `str.tostring("#.##")` / `str.upper` produce plain `string`s that flow into
+  the existing `draw.table` cell-text hole — so the scenario needs no
+  per-adapter code. It renders a 2×2 OHLC HUD and pins ONE `drawing-hash`
+  (`d6d8c911…`, 3 emissions: one `draw.table` per candle over `candleLimit: 3`);
+  the hash is byte-identical across all six conformance adapters, which is the
+  byte-stable-text proof. Like `math`, the inline source **imports `str` at the
+  top but does NOT destructure it** — `str` is a module-scope frozen namespace,
+  not a `ComputeContext` field, so `compute({ bar, draw })` never lists it.
+  Re-pin via the runner's "expected vs actual" message exactly like every other
+  `drawing-hash`.

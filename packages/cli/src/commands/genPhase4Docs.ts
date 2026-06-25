@@ -148,6 +148,20 @@ export const PHASE4_DOC_ENTRIES: ReadonlyArray<Phase4DocEntry> = Object.freeze([
         seeAlso: "`timeframe.*` view",
     }),
     Object.freeze({
+        title: "math",
+        sourceRelPath: `${CORE}/math/index.ts`,
+        symbolPath: ["math"],
+        outRelPath: "docs/primitives/math.md",
+        seeAlso: "`math.*` namespace — [Math](/language/math)",
+    }),
+    Object.freeze({
+        title: "str",
+        sourceRelPath: `${CORE}/str/index.ts`,
+        symbolPath: ["str"],
+        outRelPath: "docs/primitives/str.md",
+        seeAlso: "`str.*` namespace — [Strings](/language/strings)",
+    }),
+    Object.freeze({
         title: "time",
         sourceRelPath: `${CORE}/time-accessors/timeAccessors.ts`,
         symbolPath: ["time"],

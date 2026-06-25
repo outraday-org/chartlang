@@ -233,6 +233,21 @@ export { runtime } from "./runtime/index.js";
 export type { LogLevel, RuntimeNamespace } from "./runtime/index.js";
 export { color, fromGradient, hsl, rgb, withAlpha } from "./color/index.js";
 export type { GradientStop } from "./color/index.js";
+export {
+    avg,
+    clamp,
+    fixnan,
+    math,
+    na,
+    nz,
+    roundTo,
+    roundToMintick,
+    sign,
+    sum,
+} from "./math/index.js";
+export type { MathNamespace } from "./math/index.js";
+export { applyFormat, formatNumber, str } from "./str/index.js";
+export type { StrNamespace } from "./str/index.js";
 export { barcolor, bgcolor, hline, plot } from "./plot/index.js";
 export type {
     BarColorOpts,

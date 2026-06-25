@@ -67,6 +67,10 @@ describe("buildViewport", () => {
         const p = 250;
         const mediaY = -2 * p + 600; // 100
         expect(priceToY(p, view)).toBeCloseTo(mediaY * SCOPE_2X.verticalPixelRatio, 6);
+
+        // The bitmap viewport carries the horizontal pixel ratio so the
+        // screen-space `table` HUD scales its CSS-px sizes to device px.
+        expect(view.pxRatio).toBe(SCOPE_2X.horizontalPixelRatio);
     });
 
     it("is exact at the visible extremes", () => {

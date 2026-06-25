@@ -102,11 +102,16 @@ function strokeStyle(stroke: StrokeStyle): GraphicPathStyle {
     };
 }
 
-// Merge an IR fill into a path style. Fill colour + `fillOpacity` are added;
-// an absent fill leaves both keys off (ECharts treats a missing `fill` as no
-// fill — no `"none"` sentinel needed).
+// Merge an IR fill into a path style. Fill colour + `fillOpacity` are added; an
+// absent fill emits the explicit `fill: "none"` sentinel. ECharts paths are
+// zrender `Path`s whose DEFAULT fill is BLACK (`#000`), NOT transparent — so a
+// stroke-only primitive (a `draw.line`/`rectangle` border, a `table` cell
+// border/frame) would paint a black-filled shape that occludes whatever sits
+// beneath it (e.g. a table cell's bg-fill + text drawn earlier). `"none"` is
+// zrender's no-fill keyword (`hasFill()` → false), matching the canvas sink,
+// which only fills when a `fillStyle` is set.
 function withFill(base: GraphicPathStyle, fill: FillStyle | undefined): GraphicPathStyle {
-    if (fill === undefined) return base;
+    if (fill === undefined) return { ...base, fill: "none" };
     return { ...base, fill: fill.color, fillOpacity: fill.alpha };
 }
 

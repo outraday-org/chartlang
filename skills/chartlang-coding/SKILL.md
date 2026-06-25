@@ -7,7 +7,7 @@ description: >-
   `ta.*`, `plot`, `draw.*`, `alert`, or `input.*`, or wires AI into an
   editor to author chartlang scripts. Covers the import+destructure
   contract, the four script kinds, forbidden constructs, inputs, and
-  the full `ta.*`/`draw.*` primitive surface.
+  the full `ta.*`/`draw.*`/`math.*`/`str.*` primitive surface.
 ---
 
 # chartlang-coding
@@ -302,6 +302,29 @@ Highlights of the surface:
   DST zone falls back to UTC with a one-time `tz-dst-unsupported` warning
   (the host has no tz database and `Intl` is banned for determinism). Use
   these instead of `Date`/`Intl`, which are forbidden.
+- **`Math.*` is allowed directly** (only `Math.random` is forbidden), so
+  `Math.abs/pow/sqrt/floor/ceil/round/min/max/log/exp/sign(...)` need no
+  import. The `math.*` namespace adds **only** the chart-aware extras `Math`
+  lacks: `math.roundToMintick(value, syminfo.mintick)` (and `math.roundTo(
+  value, step)`) for tick-snapping, the scalar NaN helpers `math.na(x)` /
+  `math.nz(x, r?)` / `math.fixnan(x, lastGood)`, `math.sign` / `math.clamp(
+  value, lo, hi)`, and the variadic skip-NaN reducers `math.avg(...)` /
+  `math.sum(...)`. It is a module-scope import (like `color` / `str`), **not** a
+  `compute({ … })` field — do not destructure it. Use the **scalar** `math.nz`
+  for a plain number and the **series** `ta.nz` for a series; `math.avg` /
+  `math.sum` are fixed-arity scalar reducers, not rolling windows (use a
+  `state.array<number>(K)` or `ta.*` for a rolling average).
+- **`str.*` is the string namespace** for building the dynamic text
+  `draw.text` / `draw.table` / `draw.marker` / `alert(...)` consume —
+  `str.tostring(value, "#.##")` formats a number to a fixed-precision Pine
+  mask (host-independent, **no** `Intl` / locale), `str.format("{0} / {1}",
+  a, b)` substitutes positional placeholders, plus `str.length` /
+  `str.contains` / `str.startsWith` / `str.endsWith` / `str.replace` /
+  `str.replaceAll` / `str.split` / `str.substring` / `str.upper` /
+  `str.lower` / `str.trim` / `str.repeat`. Like `math` / `color` it is a
+  module-scope import, **not** a `compute({ … })` field — do not destructure
+  it. The `"mintick"` keyword and locale/date formats are deferred (pass a
+  numeric step via `math.roundToMintick` instead).
 - `alert(message, opts?)` with `severity: "info" | "warning" | "critical"`.
 - `request.security({ interval })` and `request.lowerTf({ interval })`
   for higher- and lower-timeframe data. The interval must be a

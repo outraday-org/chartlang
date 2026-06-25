@@ -160,6 +160,37 @@ export class MockECharts implements EChartsSurface {
         this.calls.push({ kind: "resize" });
     }
 
+    /**
+     * The mock's deterministic drawable size, read by the adapter's screen-space
+     * `table` viewport. A real ECharts returns the laid-out canvas size; the
+     * mock returns a fixed 800×400 so the table HUD positions deterministically
+     * under test.
+     *
+     * @since 1.10
+     * @stable
+     * @example
+     *     import { MockECharts } from "chartlang-example-echarts-adapter/testing";
+     *     const m = new MockECharts();
+     *     m.getWidth(); // 800
+     */
+    getWidth(): number {
+        return 800;
+    }
+
+    /**
+     * The mock's deterministic drawable height (see {@link getWidth}).
+     *
+     * @since 1.10
+     * @stable
+     * @example
+     *     import { MockECharts } from "chartlang-example-echarts-adapter/testing";
+     *     const m = new MockECharts();
+     *     m.getHeight(); // 400
+     */
+    getHeight(): number {
+        return 400;
+    }
+
     convertToPixel(
         _finder: { readonly gridIndex: number },
         value: readonly [number, number],

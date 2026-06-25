@@ -108,6 +108,66 @@ void timeframe.isdaily;
         expect(diagnostics.map((diagnostic) => diagnostic.messageText)).toEqual([]);
     });
 
+    it("resolves the math namespace from the ambient shim without semantic errors", () => {
+        const source = `
+import { defineIndicator, math, syminfo } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "math-shim",
+    apiVersion: 1,
+    compute: ({ syminfo }) => {
+        const snapped = math.roundToMintick(101.237, syminfo.mintick);
+        const mean = math.avg(snapped, math.nz(Number.NaN, -1), math.clamp(2, 0, 1));
+        void math.na(mean);
+        void math.fixnan(mean, snapped);
+        void math.sign(mean);
+        void math.sum(snapped, mean);
+        void math.roundTo(mean, 0.25);
+    },
+});
+
+void math.roundToMintick(1, syminfo.mintick);
+`;
+        const { program, sourceFile } = createProgramForSource(source, {
+            sourcePath: "math.chart.ts",
+        });
+        const diagnostics = program.getSemanticDiagnostics(sourceFile);
+        expect(diagnostics.map((diagnostic) => diagnostic.messageText)).toEqual([]);
+    });
+
+    it("resolves the str namespace from the ambient shim without semantic errors", () => {
+        const source = `
+import { defineIndicator, str } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "str-shim",
+    apiVersion: 1,
+    compute: ({ bar }) => {
+        const label = str.format("c={0,number,#.##}", str.tostring(bar.close, "0.0000"));
+        void str.length(label);
+        void str.contains(label, "c=");
+        void str.startsWith(label, "c");
+        void str.endsWith(label, "0");
+        void str.replace(label, ".", "-");
+        void str.replaceAll(label, ".", "-");
+        void str.split(label, "=");
+        void str.substring(label, 0, 2);
+        void str.upper(label);
+        void str.lower(label);
+        void str.trim(label);
+        void str.repeat("-", 3);
+    },
+});
+
+void str.tostring(42);
+`;
+        const { program, sourceFile } = createProgramForSource(source, {
+            sourcePath: "str.chart.ts",
+        });
+        const diagnostics = program.getSemanticDiagnostics(sourceFile);
+        expect(diagnostics.map((diagnostic) => diagnostic.messageText)).toEqual([]);
+    });
+
     it("resolves the Phase 5 snapshot ambient types without semantic errors", () => {
         const source = `
 import type {

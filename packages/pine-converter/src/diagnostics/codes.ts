@@ -695,6 +695,22 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             'Use the bare epoch (`bar.time`) with the `time.*` / `session.*` accessors — e.g. `session.isOpen(bar.time, "0930-1600")` instead of the `time(timeframe, session)` form.',
     },
+    "math-rolling-window-unmapped": {
+        code: "pine-converter/transform/math-rolling-window-unmapped",
+        severity: "warning",
+        defaultMessage:
+            "Pine `math.sum`/`math.avg(source, length)` is a rolling-window reduction; chartlang's scalar `math.sum`/`math.avg` is variadic-scalar, not rolling, and there is no `ta` rolling-sum analogue (`ta.cum` is unmapped), so the call was passed through unchanged.",
+        defaultSuggestion:
+            "Maintain the window yourself with a `state.array<number>(length)` (push the source each bar, sum/average the elements), or use a `ta.*` moving average where one fits.",
+    },
+    "nz-scalar-assumed": {
+        code: "pine-converter/transform/nz-scalar-assumed",
+        severity: "info",
+        defaultMessage:
+            "Pine `nz(...)` was lowered to the scalar `math.nz(...)`. chartlang separates scalar NaN-coalescing (`math.nz`) from the series form (`ta.nz`); the scalar form was assumed.",
+        defaultSuggestion:
+            "If the argument is a series whose history you coalesce, switch the emitted `math.nz(...)` to `ta.nz(...)` by hand.",
+    },
     "codegen-output-invalid": {
         code: "pine-converter/codegen/codegen-output-invalid",
         severity: "error",

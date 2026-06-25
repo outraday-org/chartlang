@@ -1,6 +1,6 @@
 # Task 1 — Core `math` namespace + ambient shim
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 
@@ -39,8 +39,9 @@ math.sign(x); math.clamp(x, lo, hi);
 
 ### 1. Implementation (`packages/core/src/math/mathHelpers.ts`, new)
 
-Two-line MIT header. Pure functions; each with `@since 1.2`, `@stable`,
-`@example`:
+Two-line MIT header. Pure functions; each with `@since 1.4`, `@stable`,
+`@example` (core ships at 1.3.0; this minor bump lands as 1.4.0, matching how
+`state.array`/`time.*` tagged `@since` to their shipping minor version):
 
 ```ts
 export const roundTo = (value: number, step: number): number =>
@@ -89,7 +90,7 @@ export const sum = (...values: ReadonlyArray<number>): number => {
 import { avg, clamp, fixnan, na, nz, roundTo, roundToMintick, sign, sum } from "./mathHelpers.js";
 
 /** Pure, chart-aware scalar math. Bare `Math.*` (except `random`) is already
- *  available; this adds only what `Math` lacks. @since 1.2 @stable
+ *  available; this adds only what `Math` lacks. @since 1.4 @stable
  *  @example const p = math.roundToMintick(x, syminfo.mintick); void p; */
 export const math = Object.freeze({
     roundToMintick, roundTo, na, nz, fixnan, sign, clamp, avg, sum,

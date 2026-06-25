@@ -17,9 +17,21 @@ export type Point2 = { readonly x: number; readonly y: number };
 /**
  * Visible window into world coordinates. `xMin`/`xMax` are bar times in
  * UTC milliseconds; `yMin`/`yMax` are prices in the quote currency.
- * `pxWidth`/`pxHeight` are the renderer's drawable size in CSS pixels.
+ * `pxWidth`/`pxHeight` are the renderer's drawable size — CSS pixels for a
+ * self-scaled adapter (canvas2d, konva, webgl) that applies a DPR
+ * transform, or DEVICE pixels for a library-scaled adapter (uplot,
+ * lightweight-charts) that paints into an unscaled device-px canvas.
  * Ported verbatim from the canvas2d adapter's `render/coords.ts` so all
  * adapters share one projection contract.
+ *
+ * `pxRatio` (default `1`) is the device-pixel ratio of `pxWidth`/`pxHeight`
+ * over their CSS-pixel size. World-anchored geometry is unaffected (it
+ * projects through the same `pxWidth`/`pxHeight` either way), but the
+ * SCREEN-SPACE `table` HUD — whose cell / font sizes are authored in CSS
+ * pixels — multiplies them by `pxRatio` so it renders at the same physical
+ * size on a device-px canvas as on a CSS-px one. A device-px adapter sets
+ * `pxRatio` to its `devicePixelRatio`; a CSS-px adapter omits it (`1`),
+ * leaving `decomposeTable` byte-identical to the pre-feature output.
  *
  * @since 1.3
  * @stable
@@ -37,6 +49,7 @@ export type Viewport = {
     readonly yMax: number;
     readonly pxWidth: number;
     readonly pxHeight: number;
+    readonly pxRatio?: number;
 };
 
 /**

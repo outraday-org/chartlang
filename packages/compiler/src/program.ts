@@ -928,6 +928,44 @@ declare module "@invinite-org/chartlang-core" {
         rgb: typeof rgb;
         hsl: typeof hsl;
     }>;
+    export function roundTo(value: number, step: number): number;
+    export function roundToMintick(value: number, mintick: number): number;
+    export function na(value: number): boolean;
+    export function nz(value: number, replacement?: number): number;
+    export function fixnan(value: number, lastGood: number): number;
+    export function sign(value: number): number;
+    export function clamp(value: number, lo: number, hi: number): number;
+    export function avg(...values: ReadonlyArray<number>): number;
+    export function sum(...values: ReadonlyArray<number>): number;
+    export const math: Readonly<{
+        roundToMintick: typeof roundToMintick;
+        roundTo: typeof roundTo;
+        na: typeof na;
+        nz: typeof nz;
+        fixnan: typeof fixnan;
+        sign: typeof sign;
+        clamp: typeof clamp;
+        avg: typeof avg;
+        sum: typeof sum;
+    }>;
+    export function formatNumber(value: number, mask?: string): string;
+    export function applyFormat(template: string, args: ReadonlyArray<string | number>): string;
+    export const str: Readonly<{
+        tostring(value: number | boolean | string, format?: string): string;
+        format(template: string, ...args: ReadonlyArray<string | number>): string;
+        length(s: string): number;
+        contains(s: string, sub: string): boolean;
+        startsWith(s: string, sub: string): boolean;
+        endsWith(s: string, sub: string): boolean;
+        replace(s: string, target: string, repl: string): string;
+        replaceAll(s: string, target: string, repl: string): string;
+        split(s: string, sep: string): ReadonlyArray<string>;
+        substring(s: string, start: number, end?: number): string;
+        upper(s: string): string;
+        lower(s: string): string;
+        trim(s: string): string;
+        repeat(s: string, count: number): string;
+    }>;
     export type InputKind =
         | "int"
         | "float"

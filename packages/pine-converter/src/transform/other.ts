@@ -1014,6 +1014,14 @@ function emitSpecialCall(call: CallExpression, ctx: EmitContext, walk: Walk): st
     if (name.startsWith("math.")) {
         return emitMath(name, call, ctx, walk);
     }
+    // Pine's overloaded `nz(x[, r])` lowers to the scalar `math.nz(...)` (the
+    // lowering itself lives in `emitExpr`); raise the advisory here, where the
+    // diagnostic collector is in scope, so the author is told the scalar form
+    // was assumed (a series arg wants a hand rewrite to `ta.nz`).
+    if (name === "nz" && call.args.some((arg) => arg.name === null)) {
+        walk.diagnostics.pushCode("nz-scalar-assumed", call.span);
+        return emitWithContext(call, ctx);
+    }
     if (BUILTIN_CALL_MAP.has(name)) {
         return emitBuiltinCall(name, call, ctx, walk);
     }
@@ -1082,12 +1090,38 @@ function emitTa(name: string, call: CallExpression, ctx: EmitContext, walk: Walk
     return `${body}.current`;
 }
 
+// Whether a `math.sum`/`math.avg` call is Pine's 2-arg ROLLING form
+// (`math.sum(source, length)`) rather than the variadic SCALAR reducer
+// (`math.avg(a, b, c)`). Pine's rolling form is exactly two positional args; a
+// scalar reducer is any other arity (one, three, …). A one-arg `math.sum(x)`
+// is a degenerate scalar (the value itself), so only arity 2 is rolling.
+function isRollingWindowCall(name: string, call: CallExpression): boolean {
+    if (name !== "math.sum" && name !== "math.avg") {
+        return false;
+    }
+    return call.args.filter((arg) => arg.name === null).length === 2;
+}
+
 function emitMath(name: string, call: CallExpression, ctx: EmitContext, walk: Walk): string {
     const mapping = mathLookup(name);
     if (mapping === null) {
         walk.diagnostics.pushCode("math-not-mapped", call.span);
         return `${emitWithContext(call, ctx)} /* TODO unmapped */`;
     }
+    // Pine's rolling `math.sum`/`math.avg(source, length)` is a window
+    // reduction; chartlang's scalar `math.sum`/`math.avg` is variadic-scalar
+    // and there is no `ta` rolling-sum analogue (`ta.cum` is unmapped), so do
+    // NOT collapse it onto the scalar form — leave it for a hand rewrite.
+    if (isRollingWindowCall(name, call)) {
+        walk.diagnostics.pushCode("math-rolling-window-unmapped", call.span);
+        return `${emitWithContext(call, ctx)} /* TODO rolling window */`;
+    }
     const args = call.args.map((arg) => emitWithContext(arg.value, ctx)).join(", ");
+    // `math.round_to_mintick(x)` → `math.roundToMintick(x, syminfo.mintick)`:
+    // the chartlang namespace is pure (no ambient `syminfo`), so the author
+    // passes the tick size explicitly. Inject it as the second argument here.
+    if (name === "math.round_to_mintick") {
+        return `${mapping.chartlang}(${args}, syminfo.mintick)`;
+    }
     return `${mapping.chartlang}(${args})`;
 }

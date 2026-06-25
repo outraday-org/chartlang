@@ -3,8 +3,8 @@
 # chartlang primitive reference
 
 Generated from source JSDoc. Authoritative — do not hand-edit. Run
-`pnpm skills:generate` after changing a `ta.*` / `draw.*` / plot-family
-primitive.
+`pnpm skills:generate` after changing a `ta.*` / `draw.*` / plot-family /
+`math.*` / `str.*` primitive.
 
 The chartlang compiler injects a leading `slotId: string` argument at
 every callsite, so script authors call `ta.<id>(...)` / `draw.<id>(...)`
@@ -3253,4 +3253,49 @@ Tint the candle / bar for the current bar — the Pine-ergonomic alias for
 `plot(NaN, { style: { kind: "bar-color", color } })`. Sugar over the
 existing `bar-color` plot style.
 
+**Since:** 1.4 · stable
+
+## math.*
+
+```ts
+math = Object.freeze({
+    roundToMintick,
+    roundTo,
+    na,
+    nz,
+    fixnan,
+    sign,
+    clamp,
+    avg,
+    sum,
+})
+```
+
+**Example:** `const price = math.roundToMintick(rawPrice, syminfo.mintick);
+    void price;`
+**Since:** 1.4 · stable
+
+## str.*
+
+```ts
+str = Object.freeze({
+    tostring: (value: number | boolean | string, format?: string): string => typeof value === "number" ? formatNumber(value, format) : String(value),
+    format: (template: string, ...args: ReadonlyArray<string | number>): string => applyFormat(template, args),
+    length: (s: string): number => s.length,
+    contains: (s: string, sub: string): boolean => s.includes(sub),
+    startsWith: (s: string, sub: string): boolean => s.startsWith(sub),
+    endsWith: (s: string, sub: string): boolean => s.endsWith(sub),
+    replace: (s: string, target: string, repl: string): string => s.replace(target, repl),
+    replaceAll: (s: string, target: string, repl: string): string => s.split(target).join(repl),
+    split: (s: string, sep: string): ReadonlyArray<string> => s.split(sep),
+    substring: (s: string, start: number, end?: number): string => s.substring(start, end),
+    upper: (s: string): string => s.toUpperCase(),
+    lower: (s: string): string => s.toLowerCase(),
+    trim: (s: string): string => s.trim(),
+    repeat: (s: string, count: number): string => s.repeat(Math.max(0, Math.trunc(count))),
+})
+```
+
+**Example:** `const label = str.format("{0}={1,number,#.##}", str.upper("eth"), 12.349);
+    void label; // "ETH=12.35"`
 **Since:** 1.4 · stable

@@ -152,6 +152,11 @@ export type UplotLike = {
         readonly width: number;
         readonly height: number;
     };
+    // uPlot's device-pixel ratio (`bbox.width === plotWidthCss · pxRatio`).
+    // Carried onto the drawing `Viewport.pxRatio` so the screen-space `table`
+    // HUD scales its CSS-px sizes up to the device-px canvas. Optional: the
+    // headless `MockUplot` runs at dpr 1 and omits it (⇒ `1`).
+    readonly pxRatio?: number;
 };
 
 /**

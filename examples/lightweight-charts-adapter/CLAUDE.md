@@ -235,7 +235,13 @@ lightweight-charts integration.
   non-resolvable axis (no visible range, `null` converter, coincident time
   anchors, degenerate price range) falls back to an identity window so
   painting never throws. Log-scale-exact projection (a `project?` override
-  on `decomposeDrawing`) is the deferred follow-up.
+  on `decomposeDrawing`) is the deferred follow-up. **It also carries
+  `Viewport.pxRatio = scope.horizontalPixelRatio`** so the screen-space
+  `table` HUD — whose CSS-px cell / font sizes would otherwise render
+  HALF-size in the device-px bitmap scope at dpr 2 — scales up to its
+  intended physical size. World-anchored geometry is unaffected (same
+  bitmap-space `pxWidth`); the drawings `hashCallLog` is untouched (its
+  bundle carries no table).
 - **`MockLwcApi` records `attachPrimitive` (seriesId only).** Added to the
   `LwcRecordedCall` union + `canonicalise` in lockstep with the structural
   `LwcSeries.attachPrimitive`. The integration test pins a separate drawings

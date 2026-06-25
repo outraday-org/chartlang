@@ -367,6 +367,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** This `math.*` member has no chartlang analogue (or is rejected); the call was passed through unchanged.
 - **Suggested fix:** Replace the call with a supported `math.*`/`Math.*` member.
 
+### math-rolling-window-unmapped
+
+- **Code:** `pine-converter/transform/math-rolling-window-unmapped`
+- **Severity:** warning
+- **Message:** Pine `math.sum`/`math.avg(source, length)` is a rolling-window reduction; chartlang's scalar `math.sum`/`math.avg` is variadic-scalar, not rolling, and there is no `ta` rolling-sum analogue (`ta.cum` is unmapped), so the call was passed through unchanged.
+- **Suggested fix:** Maintain the window yourself with a `state.array<number>(length)` (push the source each bar, sum/average the elements), or use a `ta.*` moving average where one fits.
+
 ### max-count-out-of-range
 
 - **Code:** `pine-converter/transform/max-count-out-of-range`
@@ -422,6 +429,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** error
 - **Message:** `input.source(...)` default must be an OHLCV built-in; a computed source is not supported.
 - **Suggested fix:** Pass `close`, `open`, `high`, `low`, `volume`, `hl2`, `hlc3`, etc.
+
+### nz-scalar-assumed
+
+- **Code:** `pine-converter/transform/nz-scalar-assumed`
+- **Severity:** info
+- **Message:** Pine `nz(...)` was lowered to the scalar `math.nz(...)`. chartlang separates scalar NaN-coalescing (`math.nz`) from the series form (`ta.nz`); the scalar form was assumed.
+- **Suggested fix:** If the argument is a series whose history you coalesce, switch the emitted `math.nz(...)` to `ta.nz(...)` by hand.
 
 ### partial-anchor-filled
 

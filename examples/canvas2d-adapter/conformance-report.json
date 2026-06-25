@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.2.1",
-    "passed": 248,
+    "passed": 250,
     "failed": 0,
     "scenarios": [
         {
@@ -605,6 +605,12 @@
             "failures": []
         },
         {
+            "id": "math-round-to-mintick",
+            "title": "math.roundToMintick snapped levels → draw.horizontalLine",
+            "status": "pass",
+            "failures": []
+        },
+        {
             "id": "mtf-capability-false",
             "title": "MTF capability false",
             "status": "pass",
@@ -859,6 +865,12 @@
         {
             "id": "state-tick-counter",
             "title": "state.tick.int tick counter",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "str-formatted-table",
+            "title": "str.format / str.tostring HUD → draw.table",
             "status": "pass",
             "failures": []
         },

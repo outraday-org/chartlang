@@ -11,15 +11,27 @@ describe("MATH_PASSTHROUGH_MAP", () => {
         expect(MATH_PASSTHROUGH_MAP.get("math.sqrt")?.chartlang).toBe("Math.sqrt");
     });
 
-    it("carries inline-helper notes for aggregates and constants", () => {
-        expect(MATH_PASSTHROUGH_MAP.get("math.avg")?.notes).toContain("helper");
+    it("carries inline-helper notes for constants", () => {
         expect(MATH_PASSTHROUGH_MAP.get("math.pi")?.chartlang).toBe("Math.PI");
         expect(MATH_PASSTHROUGH_MAP.get("math.pi")?.notes).toContain("constant");
     });
 
-    it("flags math.random and math.round_to_mintick as REJECTs", () => {
+    it("routes the chart-aware extras to the chartlang math namespace", () => {
+        // `avg`/`sum` are the variadic scalar reducers; `round_to_mintick`
+        // gets its `syminfo.mintick` step injected by the emitter.
+        expect(MATH_PASSTHROUGH_MAP.get("math.avg")?.chartlang).toBe("math.avg");
+        expect(MATH_PASSTHROUGH_MAP.get("math.sum")?.chartlang).toBe("math.sum");
+        expect(MATH_PASSTHROUGH_MAP.get("math.round_to_mintick")?.chartlang).toBe(
+            "math.roundToMintick",
+        );
+    });
+
+    it("keeps math.sign on bare Math.sign (no-rewrap decision)", () => {
+        expect(MATH_PASSTHROUGH_MAP.get("math.sign")?.chartlang).toBe("Math.sign");
+    });
+
+    it("flags math.random as a REJECT", () => {
         expect(MATH_PASSTHROUGH_MAP.get("math.random")?.chartlang).toBeNull();
-        expect(MATH_PASSTHROUGH_MAP.get("math.round_to_mintick")?.chartlang).toBeNull();
     });
 });
 

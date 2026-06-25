@@ -32,6 +32,10 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/z-layering.chart.ts",
     "examples/scripts/weekday-close-filter.chart.ts",
     "examples/scripts/bgcolor-barcolor.chart.ts",
+    "examples/scripts/tick-snapped-levels.chart.ts",
+    "examples/scripts/str-formatted-hud.chart.ts",
+    "examples/scripts/math-scalar-band.chart.ts",
+    "examples/scripts/str-label-builder.chart.ts",
 ] as const;
 
 const COMPILE_TIMEOUT_MS = 15_000;

@@ -234,6 +234,7 @@ describe("echarts adapter integration (worker host)", () => {
 // Pinned by the integration test; update only when a deliberate change
 // re-shapes the emitted option tree. `hashOptionLog` rounds finite floats to
 // 4 dp and sorts object keys, so microscopic drift does not re-hash.
-// Re-pinned for default line smoothing: the EMA-cross bundle's `line` series
-// now carry `smooth: true` (step-lines stay `smooth: false`).
-const PINNED_HASH = "a9d583ec49567c073d8656b004a64a927d19b7576f622227095cc0f5c15469a1";
+// Re-pinned for the stroke-only `fill: "none"` fix: a no-fill drawing primitive
+// (the bundle's `draw.line` / `draw.rectangle`) now carries an explicit
+// `fill: "none"` so zrender does not paint its default black fill.
+const PINNED_HASH = "51a6ff17698d69adc175ef45a0d3115670f344a0443835298630727ced71f790";

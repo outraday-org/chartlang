@@ -53,9 +53,34 @@ const UPLOT_TIME_SCALE = "x" as const;
  *     const view = buildViewport(u);
  *     void view;
  */
+// A finite positive number, else `undefined`.
+function finitePositive(value: number | undefined): number | undefined {
+    return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+// The device-pixel ratio to scale the screen-space `table` HUD by, so it
+// renders at its intended CSS size on the device-px canvas. uPlot's `bbox` is
+// device px (`= plotWidthCss · pxRatio`). Some uPlot builds expose `u.pxRatio`;
+// when they do NOT (it is `undefined`), uPlot's own default pxRatio IS the
+// document's `devicePixelRatio`, so fall back to that, then to `1` (headless /
+// `MockUplot`, where `devicePixelRatio` is absent and the canvas is CSS-px).
+function resolvePxRatio(u: UplotLike): number {
+    const fromInstance = finitePositive(u.pxRatio);
+    if (fromInstance !== undefined) return fromInstance;
+    const fromDocument = finitePositive(
+        (globalThis as { devicePixelRatio?: number }).devicePixelRatio,
+    );
+    return fromDocument ?? 1;
+}
+
 export function buildViewport(u: UplotLike): Viewport {
     const x = u.scales[UPLOT_TIME_SCALE];
     const y = u.scales[UPLOT_PRICE_SCALE];
+    // `bbox` is device px (uPlot never `ctx.scale`s). Carry the device-pixel
+    // ratio so the screen-space `table` HUD scales its CSS-px cell / font
+    // sizes up to device px and renders at its intended physical size on a
+    // Retina canvas. `MockUplot` omits `pxRatio` (dpr 1 ⇒ `1`).
+    const pxRatio = resolvePxRatio(u);
     return {
         xMin: x?.min ?? 0,
         xMax: x?.max ?? 1,
@@ -63,6 +88,7 @@ export function buildViewport(u: UplotLike): Viewport {
         yMax: y?.max ?? 1,
         pxWidth: u.bbox.width,
         pxHeight: u.bbox.height,
+        pxRatio,
     };
 }
 

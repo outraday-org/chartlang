@@ -209,5 +209,11 @@ export function buildViewport(
         yMin = priceBottom;
     }
 
-    return { xMin, xMax, yMin, yMax, pxWidth, pxHeight };
+    // The bitmap viewport is in DEVICE px (the primitive paints into the
+    // `useBitmapCoordinateSpace` scope). Carry the horizontal pixel ratio so
+    // the screen-space `table` HUD scales its CSS-px cell / font sizes up to
+    // device px and renders at its intended physical size on a Retina canvas.
+    // A degenerate (zero / non-finite) ratio is guarded downstream by
+    // `decomposeTable`'s `tableScale` (⇒ `1`), so no guard is needed here.
+    return { xMin, xMax, yMin, yMax, pxWidth, pxHeight, pxRatio: scope.horizontalPixelRatio };
 }

@@ -6,32 +6,63 @@ hard dependencies and file-contention hotspots are. Each folder keeps its own
 `README.md` with the **intra-folder** task DAG (`1-*.md`, `2-*.md`, …) — follow
 that once a folder is in flight.
 
-## Execution status — RESUME POINT (updated 2026-06-23)
+## Execution status — RESUME POINT (updated 2026-06-25)
 
-A `/execute-tasklist tasks/future/` run is **in progress**, scoped to **folder
-wave 1 (A) only** — the 7 independent folders. Folder waves B and C are
-deliberately **NOT** being run yet.
+> **TL;DR for a new chat:** Folder **wave A is fully done** (all 7 folders
+> `X-`-prefixed). **Nothing is committed** — all of wave A is in the working
+> tree. **Next up is wave B, then C**, but they are **gated on your explicit
+> go-ahead** (the original plan said STOP after wave A). When cleared, resume
+> with `/execute-tasklist tasks/future/` — aggregate mode auto-skips the
+> `X-`-prefixed folders and starts at `array-analytics` + `map-collection`.
 
-**Completed** (every task file is `X-`-prefixed, so `/execute-tasklist`
-auto-skips these folders on resume — all graded Complete/Ship, changes
-**uncommitted in the working tree**):
+**Folder wave 1 (A) is now COMPLETE** — all 7 independent folders are done,
+every task file `X-`-prefixed, folders `X-`-prefixed, all graded Complete/Ship,
+changes **uncommitted in the working tree**. Folder waves B and C have **not**
+been started.
 
-- ✅ `state-array`
-- ✅ `multi-symbol-security`
-- ✅ `bgcolor-barcolor-ergonomics` — **Deliverable 2 (the per-bar
+**Completed — folder wave A (all `X-`-prefixed, `/execute-tasklist` auto-skips
+them on resume):**
+
+- ✅ `X-state-array`
+- ✅ `X-multi-symbol-security`
+- ✅ `X-bgcolor-barcolor-ergonomics` — **Deliverable 2 (the per-bar
   `colorValue` channel) was RATIFIED and built; do NOT re-ask the product
   gate.**
-- ✅ `calendar-session-helpers` — `time_close` was **folded in here** (shipped
+- ✅ `X-calendar-session-helpers` — `time_close` was **folded in here** (shipped
   as `time.timeClose`), per this plan's note.
+- ✅ `X-math-utilities` — `math.*` scalar namespace (2026-06-25). `@since`
+  corrected to **1.4** (the shipping minor; task files' literal `1.2` was
+  overridden — match 1.4 for any sibling namespace). Pine `na(x)` deliberately
+  **left as the inline context-aware predicate** (not rewritten to `math.na`);
+  latent invalid-JS `Math.avg`/`Math.sum` mappings fixed; converter wires
+  `math` import-only + `syminfo` destructure-only. Conformance:
+  `math-round-to-mintick`.
+- ✅ `X-str-utilities` — `str.*` namespace (2026-06-25). `@since` **1.4**.
+  Formatter is **hand-rolled** (no `Intl`/`toLocaleString`/locale — byte-stable
+  across hosts). Converter lowers `str.*` to **native JS** (no `str` import
+  UsageFlag needed, unlike `math`). Conformance: `str-formatted-table`.
+- ✅ `X-drawing-handles` — **RFC only, no code.** Shipped
+  `docs/rfcs/0001-mutable-drawing-handles.md` (+ `docs/rfcs/README.md`
+  bootstrapping the RFC convention). **KEY FINDING:** the README premise below
+  ("create-once-mutate-across-bars does not exist") is **stale** — a Phase-3
+  mutable `DrawingHandle` substrate already shipped (`core/draw/handle.ts`,
+  `runtime/emit/draw/handle.ts`, wire `handleId`+`op`+full-state, all 6 adapters
+  honor `op:"remove"`, converter `drawingCamp.ts` lowers `line.new`/`set_*`).
+  RFC recommends **Option C (Hybrid)**: keep declarative `draw.*` default, add a
+  thin opt-in `draw.line.new()`/`draw.text.new()` + bounded
+  `state.drawings(maxCount)`, **no wire change, no adapter migration**; v1 =
+  line+label. The future `drawing-handles-impl/` folder is authored only after
+  this RFC is accepted; its main work is the §7 snapshot/two-ring gap.
 
-**Remaining in folder wave 1 — RESUME HERE, in this order:**
+**RESUME HERE — folder wave B, then C (NOT yet started; require explicit
+instruction before running, per the gates below):**
 
-1. `math-utilities`
-2. `str-utilities`
-3. `drawing-handles` — **RFC only, no code**
-
-**Then STOP.** Do not start folder wave B (`array-analytics`, `map-collection`)
-or wave C (`pine-converter-coverage`) without explicit instruction.
+1. **Wave B** (parallel with each other): `array-analytics`, `map-collection`
+   — both depend on the now-landed `X-state-array` (tasks 1–2 / 1–3).
+2. **Wave C** (capstone): `pine-converter-coverage` (aggregate, T1–T12) — its
+   cross-folder gates (`X-multi-symbol-security` T5, `X-bgcolor-barcolor` D2 →
+   T8, `X-str-utilities`, `X-calendar-session-helpers`) are **all now landed**,
+   so nothing external blocks it; follow its own README for the internal T-order.
 
 **Notes for the resuming agent:**
 

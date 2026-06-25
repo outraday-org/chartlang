@@ -153,6 +153,42 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   `bar-color` / `bg-color` kinds (a silent no-op otherwise). Compile-only in the
   CLI e2e gate; not in the integration render test. Mirrored by the
   `bgcolor-barcolor` `DEMO_SCRIPTS` entry.
+- `tick-snapped-levels.chart.ts` demonstrates the chart-aware `math.*`
+  namespace: it computes a support/resistance band around the close from a
+  `bandPercent` input and snaps each edge to the symbol's tick grid with
+  `math.roundToMintick(level, syminfo.mintick)` before drawing it as a
+  `draw.horizontalLine`. `math` is a **module-scope import** (NOT a `compute`
+  field — do not destructure it); `syminfo` IS the `compute` field supplying the
+  tick size. Distinct from `mintick-snapped-entry.chart.ts`, which PLOTS a
+  single snapped target rather than snapping multiple levels into drawings.
+  Bare `Math.*` stays available — the namespace only adds the extras `Math`
+  lacks. Compile-only in the CLI e2e gate; not in the integration render test.
+  Mirrored by the `tick-snapped-levels` `DEMO_SCRIPTS` entry and proven
+  byte-stable across adapters by the `math-round-to-mintick` conformance
+  scenario.
+- `math-scalar-band.chart.ts` is the comprehensive `math.*` companion to
+  `tick-snapped-levels` (which shows only `roundToMintick`): it builds a
+  direction-aware band around the bar's typical price from the pure scalar
+  reducers — `math.avg` / `math.sum` (variadic skip-NaN), `math.clamp`
+  (bound the half-width), `math.sign` (candle direction), `math.roundTo`
+  (snap the midline to cents), and an `math.nz` guard — exercising
+  `math.{nz,clamp,avg,sum,sign,roundTo}`. `math` is a **module-scope import**
+  (NOT a `compute` field); `plot` is top-level imported AND destructured.
+  Compile-only in the CLI e2e gate; not in the integration render test.
+  Mirrored by the `math-scalar-band` `DEMO_SCRIPTS` entry.
+- `str-label-builder.chart.ts` is the comprehensive `str.*` companion to
+  `str-formatted-hud` (which shows only `tostring` / `format` / `upper`): a
+  `draw.table` watchlist HUD whose rows are sanitized and formatted entirely
+  with the string namespace — `str.split` the comma list, `str.trim` each
+  token, `str.replace` a leading hash, `str.substring` + `str.upper` for a
+  3-char code, `str.startsWith` / `str.contains` to flag, and `str.repeat`
+  for a bullet divider — exercising `str.{split,contains,startsWith,replace,
+  trim,substring,repeat}`. `str` is a **module-scope import** (NOT a `compute`
+  field); `input` / `draw` are top-level imported AND destructured. The
+  `str.split(...).map(...)` row build is plain JS array work (only stateful
+  `ta.*` / `draw.*` calls are loop-restricted), so the mapped `str.*` calls
+  run freely. Compile-only in the CLI e2e gate; not in the integration render
+  test. Mirrored by the `str-label-builder` `DEMO_SCRIPTS` entry.
 
 ## Conventions
 

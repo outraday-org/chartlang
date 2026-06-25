@@ -14,6 +14,7 @@ import "./converter.css";
 
 import { CompilePreview } from "./CompilePreview";
 import { ConverterControls } from "./ConverterControls";
+import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { OutputPane } from "./OutputPane";
 import { PineInputPane } from "./PineInputPane";
 import { PINE_SCRIPTS } from "./pineScripts";
@@ -43,6 +44,7 @@ export default function ConverterBody(): ReactElement {
     const [strictMode, setStrictMode] = useState(false);
 
     const result = useConverter(source, { barInterval, strictMode });
+    const hasError = result.diagnostics.some((d) => d.severity === "error");
 
     const switchScript = (id: string): void => {
         const next = PINE_SCRIPTS.find((s) => s.id === id);
@@ -97,7 +99,9 @@ export default function ConverterBody(): ReactElement {
                 </section>
             </div>
 
-            <CompilePreview output={result.output} />
+            <DiagnosticsPanel diagnostics={result.diagnostics} />
+
+            <CompilePreview hasError={hasError} output={result.output} />
         </div>
     );
 }

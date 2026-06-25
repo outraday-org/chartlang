@@ -278,9 +278,13 @@ describe("primitiveToNode — text", () => {
         });
         expect(nodes).toHaveLength(1);
         expect(nodes[0].type).toBe("Text");
+        // Konva ignores `align`/`verticalAlign` without a width/height box, so
+        // the anchor is baked into x/y: center shifts left by half the glyph
+        // width (3 × 11 × 0.6 / 2 = 9.9 ⇒ x 0.1); middle shifts up by half the
+        // font height (11 / 2 = 5.5 ⇒ y 14.5).
         expect(nodes[0].config).toMatchObject({
-            x: 10,
-            y: 20,
+            x: 10 - (3 * 11 * 0.6) / 2,
+            y: 20 - 11 / 2,
             text: "RSI",
             fontSize: 11,
             fontFamily: "sans-serif",
@@ -288,6 +292,35 @@ describe("primitiveToNode — text", () => {
             align: "center",
             verticalAlign: "middle",
         });
+    });
+
+    it("anchors left/top text at its raw coordinate (no offset)", () => {
+        const { nodes } = build({
+            kind: "text",
+            x: 10,
+            y: 20,
+            text: "RSI",
+            color: "#e2e8f0",
+            font: "11px sans-serif",
+            align: "left",
+            baseline: "top",
+        });
+        expect(nodes[0].config).toMatchObject({ x: 10, y: 20 });
+    });
+
+    it("anchors right/bottom text by the full glyph width / font height", () => {
+        const { nodes } = build({
+            kind: "text",
+            x: 10,
+            y: 20,
+            text: "RSI",
+            color: "#e2e8f0",
+            font: "11px sans-serif",
+            align: "right",
+            baseline: "bottom",
+        });
+        // right ⇒ x − full glyph width (3 × 11 × 0.6 = 19.8); bottom ⇒ y − font.
+        expect(nodes[0].config).toMatchObject({ x: 10 - 3 * 11 * 0.6, y: 20 - 11 });
     });
 
     it("prepends a backing Rect when bgColor is set", () => {

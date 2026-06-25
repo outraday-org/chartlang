@@ -155,6 +155,8 @@ export default defineConfig({
                         { text: "Series and indexing", link: "/language/series-and-indexing" },
                         { text: "Inputs", link: "/language/inputs" },
                         { text: "Time and sessions", link: "/language/time-and-sessions" },
+                        { text: "Math", link: "/language/math" },
+                        { text: "Strings", link: "/language/strings" },
                         { text: "Multi-timeframe", link: "/language/multi-timeframe" },
                         { text: "Alerts", link: "/language/alerts" },
                         { text: "Version pinning", link: "/language/version-pinning" },
@@ -181,6 +183,8 @@ export default defineConfig({
                     items: [
                         { text: "TA", link: "/primitives/ta/" },
                         { text: "Draw", link: "/primitives/draw/" },
+                        { text: "Math", link: "/primitives/math" },
+                        { text: "Strings", link: "/primitives/str" },
                         { text: "Bar state", link: "/primitives/barstate" },
                         { text: "Symbol info", link: "/primitives/syminfo" },
                         { text: "Timeframe", link: "/primitives/timeframe" },

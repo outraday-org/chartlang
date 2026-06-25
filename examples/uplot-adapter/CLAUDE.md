@@ -364,6 +364,19 @@ emissions to [uPlot](https://github.com/leeoniya/uPlot). Mirrors the
   `y` from the last `setScale("y")`, sets `bbox = { 0, 0, width, height }`,
   and `valToPos("x")` projects plot-area-relative. A single-point / all-
   equal x row widens to a non-zero span, so the x span is never zero.
+- **`buildViewport` carries `Viewport.pxRatio` so the screen-space `table`
+  HUD renders at its intended PHYSICAL size on a Retina canvas.** The `bbox`
+  is device px (uPlot never `ctx.scale`s), so a CSS-px-authored table would
+  render HALF-size at dpr 2. `resolvePxRatio(u)` prefers `u.pxRatio` (declared
+  optional on `UplotLike`), falling back to `globalThis.devicePixelRatio` —
+  **uPlot's own default pxRatio IS `devicePixelRatio`, and the installed uPlot
+  build does NOT expose `u.pxRatio` on the instance**, so the document global
+  is the real source — then to `1` (headless `MockUplot`, where the canvas is
+  CSS-px and `devicePixelRatio` is absent). `decomposeTable` multiplies its
+  cell / font / padding / border sizes by that ratio; world-anchored geometry
+  is unaffected (it projects through the same device-px `bbox`). The
+  integration `PINNED_HASH` is untouched (its bundle carries no table, and a
+  dpr-1 / table-free frame is byte-identical).
 - **The default export is capabilities-only.** `DEFAULT_ADAPTER`
   (package `default`) exposes `id`/`name`/`capabilities`/`symInfo` with
   no-op `candles`/`onEmissions`/`dispose`. `runConformanceSuite` reads

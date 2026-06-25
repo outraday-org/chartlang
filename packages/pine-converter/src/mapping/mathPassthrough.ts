@@ -14,11 +14,25 @@ const math = (
 ];
 
 /**
- * Pine `math.*` member → JS `Math.*` member (or inline-helper note). The
- * 1:1 numeric functions pass straight through to `Math.*`; aggregates and
- * constants carry a note for the codegen to emit. `chartlang: null` marks
- * REJECTs — `math.random` (chartlang determinism rule) and
- * `math.round_to_mintick` (needs `syminfo.mintick`).
+ * Pine `math.*` member → chartlang target. Most numeric functions pass
+ * straight through to bare `Math.*` (chartlang allows `Math.*` directly, so
+ * re-wrapping them as `math.*` would only double the surface — the no-rewrap
+ * decision). The chart-aware extras `Math` cannot express route to the
+ * chartlang `math` namespace instead:
+ * - `math.round_to_mintick(x)` → `math.roundToMintick(x, syminfo.mintick)`
+ *   (the emitter injects the `syminfo.mintick` step — see
+ *   `transform/other.ts`'s `emitMath`).
+ * - `math.avg(...)` / `math.sum(...)` → the variadic SCALAR `math.avg` /
+ *   `math.sum`. Pine's 2-arg ROLLING `math.sum(source, length)` /
+ *   `math.avg(source, length)` is a window reduction with NO chartlang scalar
+ *   analogue — the emitter detects that arity and emits a diagnostic + a
+ *   `/* TODO *\/` placeholder rather than collapsing it onto the scalar form.
+ *
+ * `chartlang: null` marks REJECTs — `math.random` (chartlang determinism
+ * rule). `math.todegrees`/`toradians`/`phi` still resolve to the (non-existent)
+ * `Math.todegrees`/`Math.toradians`/`Math.phi`; those are a pre-existing latent
+ * gap left as-is — out of scope here (the namespace only owns the chart-aware
+ * extras above).
  *
  * @since 0.1
  * @stable
@@ -46,11 +60,16 @@ export const MATH_PASSTHROUGH_MAP: ReadonlyMap<string, MathMapping> = new Map<st
     math("math.atan", "Math.atan"),
     math("math.min", "Math.min"),
     math("math.max", "Math.max"),
+    // `math.sign(x)` stays on bare `Math.sign` — the no-rewrap decision keeps
+    // anything `Math` already expresses on `Math`, even though `math.sign`
+    // exists in the chartlang namespace.
     math("math.sign", "Math.sign"),
 
     // docs: https://www.tradingview.com/pine-script-reference/v6/#fun_math.avg
-    math("math.avg", "Math.avg", "inline helper emitted by codegen: sum(args)/args.length"),
-    math("math.sum", "Math.sum", "inline helper emitted by codegen: reduce(+)"),
+    // The variadic SCALAR form lands on the chartlang `math` namespace; the
+    // emitter routes the 2-arg rolling form to a diagnostic (see `emitMath`).
+    math("math.avg", "math.avg"),
+    math("math.sum", "math.sum"),
     math("math.todegrees", "Math.todegrees", "inline arithmetic: rad * 180 / Math.PI"),
     math("math.toradians", "Math.toradians", "inline arithmetic: deg * Math.PI / 180"),
 
@@ -60,15 +79,15 @@ export const MATH_PASSTHROUGH_MAP: ReadonlyMap<string, MathMapping> = new Map<st
     math("math.phi", "Math.phi", "constant inlined: (1 + Math.sqrt(5)) / 2"),
 
     // docs: https://www.tradingview.com/pine-script-reference/v6/#fun_math.round_to_mintick
-    math("math.round_to_mintick", null, "requires syminfo.mintick; Task 15 fallback — REJECT"),
+    // The emitter injects `syminfo.mintick` as the explicit step argument.
+    math("math.round_to_mintick", "math.roundToMintick", "step injected: syminfo.mintick"),
     // docs: https://www.tradingview.com/pine-script-reference/v6/#fun_math.random
     math("math.random", null, "chartlang determinism rule — REJECT"),
 ]);
 
 /**
  * Resolve a Pine `math.*` member against {@link MATH_PASSTHROUGH_MAP}.
- * Returns `null` for unknown members and for REJECTs (`math.random`,
- * `math.round_to_mintick`).
+ * Returns `null` for unknown members and for REJECTs (`math.random`).
  *
  * @since 0.1
  * @stable

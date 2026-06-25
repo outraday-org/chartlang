@@ -28,6 +28,8 @@ import { BAR_INDEX_SENTINEL } from "./emitHelpers.js";
  *         barstate: true,
  *         time: false,
  *         session: false,
+ *         math: false,
+ *         syminfo: false,
  *         drawingHandle: true,
  *         barIndex: false,
  *     };
@@ -47,6 +49,10 @@ export type UsageFlags = Readonly<{
     barstate: boolean;
     time: boolean;
     session: boolean;
+    /** The module-scope `math` namespace — a top-level import only, never destructured. */
+    math: boolean;
+    /** The `syminfo` view — a `compute` destructure only, never a top-level import. */
+    syminfo: boolean;
     drawingHandle: boolean;
     barIndex: boolean;
 }>;
@@ -105,6 +111,13 @@ export function scanUsage(scaffold: ScriptScaffold): UsageFlags {
         // … }` object key reads `time:`, so neither false-positives here.
         time: corpus.includes("time."),
         session: corpus.includes("session."),
+        // `math.` matches the chartlang `math.*` namespace members
+        // (`math.roundToMintick`/`math.nz`/`math.avg`/`math.sum`). It is
+        // case-sensitive, so bare `Math.abs`/`Math.round` (capital `M`, the
+        // no-rewrap passthrough) never false-positives here. `syminfo.` matches
+        // the injected `syminfo.mintick` step.
+        math: corpus.includes("math."),
+        syminfo: corpus.includes("syminfo."),
         drawingHandle: hasNonCompactHandle || hasRings,
         barIndex: corpus.includes(`${BAR_INDEX_SENTINEL}(`),
     };
