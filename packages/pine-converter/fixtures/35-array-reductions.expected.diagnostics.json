@@ -1,0 +1,26 @@
+[
+    {
+        "code": "pine-converter/transform/ring-eviction-implicit",
+        "severity": "info",
+        "message": "The explicit `array.shift`/`*.delete` FIFO eviction was removed; the ring buffer evicts implicitly.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 1,
+            "endLine": 3,
+            "endColumn": 43
+        },
+        "suggestion": "No action needed; the ring's modulo-K write reproduces the eviction."
+    },
+    {
+        "code": "pine-converter/transform/array-sort-returns-copy",
+        "severity": "info",
+        "message": "Pine `array.sort` sorts the array in place; chartlang `array.sort` / `<slot>.sort` returns a fresh sorted COPY and never mutates the ring, so reads of the original window after the sort are unchanged.",
+        "span": {
+            "startLine": 7,
+            "startColumn": 1,
+            "endLine": 7,
+            "endColumn": 34
+        },
+        "suggestion": "Capture the sorted copy (`const sorted = win.sort(\"desc\")`) and read from it, instead of re-reading the original array."
+    }
+]

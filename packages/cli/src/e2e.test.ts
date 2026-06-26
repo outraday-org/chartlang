@@ -28,6 +28,8 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/anchored-line.chart.ts",
     "examples/scripts/up-streak.chart.ts",
     "examples/scripts/rolling-window-mean.chart.ts",
+    "examples/scripts/volume-by-level.chart.ts",
+    "examples/scripts/rolling-zscore.chart.ts",
     "examples/scripts/symbol-ratio.chart.ts",
     "examples/scripts/z-layering.chart.ts",
     "examples/scripts/weekday-close-filter.chart.ts",

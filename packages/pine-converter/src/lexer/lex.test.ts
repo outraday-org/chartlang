@@ -101,6 +101,13 @@ describe("lex — operators and punctuation", () => {
         expect(tokens[1]?.kind).toBe("operator");
         expect(tokens[1]?.text).toBe("=");
     });
+
+    it("lexes each compound assignment as one operator, not an op + `=`", () => {
+        const src = "a += b -= c *= d /= e";
+        const { tokens } = lex(src);
+        const ops = tokens.filter((t) => t.kind === "operator").map((t) => t.text);
+        expect(ops).toEqual(["+=", "-=", "*=", "/="]);
+    });
 });
 
 describe("lex — numerics", () => {
@@ -282,6 +289,96 @@ describe("lex — line continuation", () => {
         const indents = tokens.filter((t) => t.kind === "indent").length;
         expect(indents).toBe(0);
         expect(tokens.filter((t) => t.kind === "newline").length).toBe(2);
+    });
+});
+
+describe("lex — leading-operator continuation", () => {
+    function countKind(tokens: readonly Token[], kind: TokenKind): number {
+        return tokens.filter((t) => t.kind === kind).length;
+    }
+
+    it("merges a MASM-style multi-line and/or boolean into one statement", () => {
+        const { tokens } = lex("cond = a and b\n   and c\n   or d");
+        // No structure is introduced — the continuation lines are transparent.
+        expect(countKind(tokens, "indent")).toBe(0);
+        expect(countKind(tokens, "dedent")).toBe(0);
+        // Exactly one (trailing) newline terminates the single statement.
+        expect(tokens.slice(0, -1).filter((t) => t.kind === "newline")).toHaveLength(1);
+        // The token stream is identical to the paren-wrapped single-line form.
+        expect(texts(tokens.filter((t) => t.kind === "keyword"))).toEqual(["and", "and", "or"]);
+    });
+
+    it("continues across a comparison lead and keeps a mid-line not", () => {
+        const { tokens } = lex("x = ma_slope > top\n   and rsi > 0\n   and not long_active");
+        expect(countKind(tokens, "indent")).toBe(0);
+        expect(countKind(tokens, "dedent")).toBe(0);
+        expect(tokens.slice(0, -1).filter((t) => t.kind === "newline")).toHaveLength(1);
+        // `not` appears mid-expression (after a dropped `and` lead), not as a
+        // line lead — it is never a continuation trigger on its own.
+        expect(texts(tokens.filter((t) => t.kind === "keyword"))).toEqual(["and", "and", "not"]);
+    });
+
+    it("continues across ternary ?/: leads", () => {
+        const { tokens } = lex("x = a\n   ? b\n   : c");
+        expect(countKind(tokens, "indent")).toBe(0);
+        expect(tokens.slice(0, -1).filter((t) => t.kind === "newline")).toHaveLength(1);
+        expect(texts(tokens.filter((t) => t.kind === "operator"))).toEqual(["=", "?", ":"]);
+    });
+
+    it("continues an indented unary -/+ lead (strictly deeper than the statement)", () => {
+        const { tokens } = lex("total = base\n   - fee\n   + rebate");
+        expect(countKind(tokens, "indent")).toBe(0);
+        expect(tokens.slice(0, -1).filter((t) => t.kind === "newline")).toHaveLength(1);
+        expect(texts(tokens.filter((t) => t.kind === "operator"))).toEqual(["=", "-", "+"]);
+    });
+
+    it("does NOT merge a non-indented unary-minus line (new statement)", () => {
+        const { tokens } = lex("y = 1\n-z");
+        // Same statement-start column → a new unary statement, not a continuation.
+        expect(countKind(tokens, "indent")).toBe(0);
+        expect(tokens.slice(0, -1).filter((t) => t.kind === "newline")).toHaveLength(2);
+    });
+
+    it("does NOT merge a same-indent and lead (strict-deeper guard)", () => {
+        const { tokens } = lex("cond = a\nand b");
+        expect(countKind(tokens, "indent")).toBe(0);
+        // The `and` line is at the statement-start column → a separate (broken)
+        // statement, with the newline preserved between them.
+        expect(tokens.slice(0, -1).filter((t) => t.kind === "newline")).toHaveLength(2);
+    });
+
+    it("keeps if-block boundaries while continuing the body expression", () => {
+        const { tokens } = lex("if x\n    cond = a\n       and b");
+        // The `if` body opens on one indent and closes on one dedent; the
+        // deeper continuation line adds no structure.
+        expect(countKind(tokens, "indent")).toBe(1);
+        expect(countKind(tokens, "dedent")).toBe(1);
+        // No newline splits the body expression `a and b`.
+        expect(texts(tokens.filter((t) => t.kind === "keyword"))).toEqual(["if", "and"]);
+    });
+
+    it("does not suppress a trailing-operator newline (leading-op scope only)", () => {
+        const { tokens } = lex("a and\n   b");
+        // Trailing-operator continuation is out of scope: the newline (and the
+        // continuation line's indent) are emitted, unchanged from before T9.
+        expect(kinds(tokens)).toEqual([
+            "identifier",
+            "keyword",
+            "newline",
+            "indent",
+            "identifier",
+            "newline",
+            "dedent",
+            "eof",
+        ]);
+    });
+
+    it("flushes a pending newline at eof when the held line has no token", () => {
+        const { tokens, diagnostics } = lex("cond = a\n   @");
+        // The held newline must survive even though `@` produces no token.
+        expect(tokens.some((t) => t.kind === "newline")).toBe(true);
+        expect(countKind(tokens, "indent")).toBe(countKind(tokens, "dedent"));
+        expect(diagnostics.map((d) => d.code)).toContain("pine-converter/lex/illegal-character");
     });
 });
 

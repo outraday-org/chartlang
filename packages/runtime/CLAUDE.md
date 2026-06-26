@@ -154,6 +154,67 @@
   map is the live source across bars); `dispose` clears the runner-local map
   like `seriesSlots`. Bundle dep/sibling array slots ride the `slotIdPrefix`
   isolation exactly like `state.*`.
+- **`state.map` slots are a parallel `mapSlots` map driven from
+  `runComputeBody`, mirroring `arraySlots` with two `Map`s instead of two
+  rings.** `RuntimeContext.mapSlots` holds one `MapStore`
+  (`state/mapStore.ts`) per `state.map(capacity)` callsite, keyed
+  `${slotIdPrefix}${slotId}:map`. Each slot is **two** `Map<MapKey, number>`s
+  (`committedMap` / `tentativeMap`, `MapKey = string | number`) behind an
+  identity-stable `MutableMapSlot<MapKey, number>` handle (`buildMapHandle`:
+  `set`/`get`/`has`/`delete`/`clear` + `size`/`keyAt`, all routed through the
+  **tentative** map — mirroring the array slot's tentative-ring routing;
+  committed is the rollback source). **Eviction is insertion-order FIFO**: JS
+  `Map` preserves insertion order, so `set` of a NEW key at `size === capacity`
+  evicts `tentativeMap.keys().next().value` (the oldest) before inserting; `set`
+  of an EXISTING key updates in place WITHOUT re-aging; `delete` then re-`set`
+  re-ages the key to newest. `get` returns `undefined` for an absent key
+  (distinct from a stored `0`); `keyAt(index)` walks `keys()` to the
+  insertion-order index (`0` = oldest), `undefined` out of range. **Key
+  divergence from `ArrayStateSlot`:** a `Map` has no typed-array `copyFrom`, so
+  the two map FIELDS are **mutable** and `onBarClose`/`onBarTick` reassign them
+  to a `new Map(source)` ordered clone (committed←tentative on close,
+  tentative←committed on tick); the handle reads `slot.tentativeMap` fresh per
+  call so the reassignment is transparent to handle identity. Lifecycle runs in
+  `runComputeStep.ts:runComputeBody` next to the array hooks: `commitMapSlots`
+  after close compute, `resetTentativeMapSlots` before tick compute. No advance
+  hook (same as `state.array` — the map changes only on author writes). Snapshot
+  keys use the `:map` suffix so `restoreRunnerSlots` routes them out of the
+  scalar path; `mapPersistence.ts` serialises
+  `{ kind: "state.map", capacity, committed, tentative }` where `committed` /
+  `tentative` are insertion-ordered `[key, value]` **entry tuples** (NOT a
+  `Record` — a JS object would stringify a number key, losing the
+  `string`-vs-`number` distinction; non-finite values ride as `null` via
+  `finiteOrNull`). Restore rebuilds both maps at the persisted `capacity` in
+  order and degrades to a fresh slot (never throws) on a malformed shape or an
+  over-`capacity` entry count. No `StateStore` flush (the `mapSlots` map is the
+  live source); `dispose` clears the runner-local map. Bundle dep/sibling map
+  slots ride the `slotIdPrefix` isolation exactly like `state.array`.
+- **`state.array` numeric reductions read the `tentativeRing` directly, never
+  the handle's `get(n)`.** The `MutableArraySlot<number>` analytic methods
+  (`sum`/`avg`/`min`/`max`/`range`/`variance(biased?)`/`stdev(biased?)`/`median`/
+  `percentile(p)`/`indexOf`/`includes`/`sort(order?)`) are wired in
+  `buildArrayHandle` (`state/arrayStateSlot.ts`) and delegate 1:1 to pure helpers
+  in `state/arrayReductions.ts`. Each helper walks the ring's filled region via
+  `ring.at(i)` for `i ∈ [0, length)` (0 = newest) — a direct backing-array read,
+  O(size), with no per-element handle-proxy hop — exactly mirroring
+  `ta/median.ts`'s `medianOfWindow`. Reads route through the **tentative** ring
+  (the author-facing surface), so a reduction during a tick sees the in-progress
+  pushes the same way `get`/`last` do. The statistical reductions **skip
+  `Number.isNaN`** (NOT `Number.isFinite` — `±Infinity` propagates), matching the
+  core interface JSDoc; an empty / all-`NaN` window returns `NaN` (never `0`).
+  Variance is the **Welford** single pass (never `Σx² − (Σx)²/n`); population
+  denominator `count` by default, sample `count − 1` when `biased === false`
+  (`NaN` when `count < 2`). `median`/`percentile` share one
+  `quantile(sorted, q)` (linear interpolation between closest ranks; `q = 0.5`
+  reproduces `ta.median`'s even/odd midpoint exactly), allocating one scratch
+  array (the only allocating reductions — `sum`/`avg`/`min`/`max`/`range`/
+  `variance`/`stdev` are scalar-accumulator, allocation-free). `indexOf` is
+  strict `===` (cannot find `NaN`); `includes` is SameValueZero (finds `NaN`).
+  `sort` is deliberately **not** in the skip-`NaN` set — it copies the whole
+  filled region, sorts numerically (`"desc"` reverses), and never touches the
+  committed ring nor mutates either ring (the FIFO keeps insertion order for
+  eviction; asserted via `get(0)` unchanged). The rolling stdev/median golden
+  (`arrayReductions.golden.test.ts`) is the behavioural contract.
 - **`PersistentStateStore` is a sibling lifecycle store, not the slot
   store.** `warmStart(currentMainBarTime)` restores a whole PLAN §6.9
   snapshot before the host feeds new bars; close-cadence and dispose

@@ -3,6 +3,7 @@
 
 import type { NumberSeriesSlot } from "../types.js";
 import type { MutableArraySlot } from "./arraySlot.js";
+import type { MutableMapSlot } from "./mapSlot.js";
 import type { MutableSlot } from "./mutableSlot.js";
 
 const sentinel = (name: string): never => {
@@ -115,6 +116,29 @@ export const state = Object.freeze({
      */
     array<T>(_capacity: number): MutableArraySlot<T> {
         return sentinel("state.array");
+    },
+
+    /**
+     * Allocate or read a persistent **bounded keyed collection** slot — a
+     * fixed-capacity key→value store that persists across bars. `m.set(k, v)`
+     * inserts/updates; `m.get(k)` returns the value or `undefined` for an
+     * absent key (distinct from a stored `0`); `m.has(k)` / `m.delete(k)`
+     * test/remove a key; `m.size` is the entry count (`≤ capacity`);
+     * `m.keyAt(i)` reads the `i`-th key in insertion order (`0` = oldest);
+     * `m.clear()` empties it. Inserting a NEW key once full evicts the
+     * oldest-inserted key (insertion-order FIFO). `capacity` must be a
+     * compile-time numeric literal (the slot is bounded so it serializes).
+     * Keys are `string | number`; v1 value type is `number`. Unlike
+     * {@link state}.series this is a collection, not a number-coercible value.
+     *
+     * @since 1.4
+     * @stable
+     * @example
+     *     const fn: typeof state.map = state.map;
+     *     void fn;
+     */
+    map<K extends string | number, V>(_capacity: number): MutableMapSlot<K, V> {
+        return sentinel("state.map");
     },
 
     /**

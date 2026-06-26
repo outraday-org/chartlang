@@ -115,6 +115,15 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   `up-streak.chart.ts`) can't express. Compile-only in the CLI e2e gate; not in
   the integration render test. Mirrored by the `rolling-window-mean`
   `DEMO_SCRIPTS` entry.
+- `rolling-zscore.chart.ts` demonstrates the `state.array` numeric **reductions**:
+  it pushes one `bar.close` per bar into a 20-slot window and computes a z-score
+  `(close − win.avg()) / win.stdev()`, showing BOTH call styles — `win.avg()`
+  (the handle method) and `array.stdev(win)` (the Pine-parity free-function alias
+  that delegates 1:1, imported module-scope from core, NOT destructured in
+  `compute`). The reductions skip NaN and return NaN on an empty window, so the
+  divide is guarded while the window warms. `overlay: false` (a z-score is an
+  oscillator). Compile-only in the CLI e2e gate; not in the integration render
+  test. Mirrored by the `rolling-zscore` `DEMO_SCRIPTS` entry.
 - `symbol-ratio.chart.ts` demonstrates the multi-symbol
   `request.security({ symbol, interval })` form: it reads two DIFFERENT
   instruments (`AMEX:SPY` and `NASDAQ:QQQ`) at the chart interval and plots

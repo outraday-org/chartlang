@@ -1,0 +1,8 @@
+//@version=6
+indicator("Volume by level", overlay=true)
+var map<float, float> levels = map.new<float, float>()
+key = math.round(close)
+prior = map.get(levels, key)
+map.put(levels, key, (na(prior) ? 0 : prior) + volume)
+plot(map.get(levels, key))
+plot(map.size(levels))

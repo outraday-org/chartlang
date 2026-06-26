@@ -73,6 +73,13 @@ const STATE_SERIES_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; sl
 const STATE_ARRAY_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
     Object.freeze([{ name: "state.array", slot: true }] as const);
 
+// `state.map` — the persistent, bounded keyed collection slot. A new
+// STATEFUL_PRIMITIVES entry alongside `state.array` (the allocation callsite is
+// `{ slot: true }`; `set`/`get`/`has`/`delete`/`clear`/`keyAt` are handle
+// methods, not registry callsites).
+const STATE_MAP_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
+    Object.freeze([{ name: "state.map", slot: true }] as const);
+
 // `bgcolor` / `barcolor` — the Pine-ergonomic top-level aliases for the
 // `bg-color` / `bar-color` plot styles. Each callsite is slot-injected (a
 // stable slotId + a `manifest.plots` entry), so both are STATEFUL_PRIMITIVES
@@ -141,6 +148,7 @@ describe("Phase 2 surface", () => {
                 FILL_BETWEEN_STATEFUL_ADDITIONS.length +
                 STATE_SERIES_STATEFUL_ADDITIONS.length +
                 STATE_ARRAY_STATEFUL_ADDITIONS.length +
+                STATE_MAP_STATEFUL_ADDITIONS.length +
                 BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS.length +
                 CALENDAR_SESSION_STATEFUL_ADDITIONS.length,
         );
@@ -151,6 +159,7 @@ describe("Phase 2 surface", () => {
             ...FILL_BETWEEN_STATEFUL_ADDITIONS,
             ...STATE_SERIES_STATEFUL_ADDITIONS,
             ...STATE_ARRAY_STATEFUL_ADDITIONS,
+            ...STATE_MAP_STATEFUL_ADDITIONS,
             ...BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS,
             ...CALENDAR_SESSION_STATEFUL_ADDITIONS,
         ]) {

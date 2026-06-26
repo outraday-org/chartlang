@@ -180,6 +180,7 @@ const EXPECTED_SLOT_TRUE = [
     "state.tick.bool",
     "state.tick.string",
     "state.array",
+    "state.map",
     "request.security",
     "request.lowerTf",
 ] as const;
@@ -195,6 +196,7 @@ const EXPECTED_STATE_SLOT_TRUE = [
     "state.tick.bool",
     "state.tick.string",
     "state.array",
+    "state.map",
 ] as const;
 
 const EXPECTED_REQUEST_SLOT_TRUE = ["request.security", "request.lowerTf"] as const;
@@ -302,6 +304,7 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
     "state.bool",
     "state.float",
     "state.int",
+    "state.map",
     "state.series",
     "state.string",
     "state.tick.bool",
@@ -416,11 +419,11 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
 ];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 189 entries after the time.*/session.* addition", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(189);
+    it("contains exactly 190 entries after the state.map addition", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(190);
     });
 
-    it("locks the apiVersion-1 registry to the exact 189-entry name set", () => {
+    it("locks the apiVersion-1 registry to the exact 190-entry name set", () => {
         const names = [...STATEFUL_PRIMITIVES].map((e) => e.name).sort();
         expect(names).toEqual(FROZEN_API_V1_NAMES);
     });
@@ -439,14 +442,14 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 175 slot: true entries and exactly 14 slot: false entries", () => {
+    it("has exactly 176 slot: true entries and exactly 14 slot: false entries", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
             if (entry.slot) trueCount += 1;
             else falseCount += 1;
         }
-        expect(trueCount).toBe(175);
+        expect(trueCount).toBe(176);
         expect(falseCount).toBe(14);
     });
 

@@ -207,3 +207,40 @@ export function commitArraySlots(ctx: RuntimeContext): void {
         slot.onBarClose();
     }
 }
+
+/**
+ * Roll every `state.map` slot's tentative map back to its committed map before
+ * tick compute, so a head-replacing tick discards in-progress writes (and a tick
+ * without a write reads the committed collection). Runs once per tick, before
+ * compute, next to {@link resetTentativeArraySlots}.
+ *
+ * @since 1.4
+ * @stable
+ * @example
+ *     // resetTentativeMapSlots(ctx);
+ *     const reset = true;
+ *     void reset;
+ */
+export function resetTentativeMapSlots(ctx: RuntimeContext): void {
+    for (const slot of ctx.mapSlots.values()) {
+        slot.onBarTick();
+    }
+}
+
+/**
+ * Commit every `state.map` slot's tentative map into its committed map after
+ * close compute, so the next tick can roll back to it. Runs once per close,
+ * after compute, next to {@link commitArraySlots}.
+ *
+ * @since 1.4
+ * @stable
+ * @example
+ *     // commitMapSlots(ctx);
+ *     const committed = true;
+ *     void committed;
+ */
+export function commitMapSlots(ctx: RuntimeContext): void {
+    for (const slot of ctx.mapSlots.values()) {
+        slot.onBarClose();
+    }
+}

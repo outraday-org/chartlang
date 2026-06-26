@@ -113,6 +113,17 @@ describe("transformOther — synthetic defensive arms", () => {
         expect(run([ret])).toEqual([]);
     });
 
+    it("emits nothing for a function-declaration (lowered by Tasks 3/4, not here)", () => {
+        const decl: Statement = {
+            kind: "function-declaration",
+            name: "cf",
+            params: [{ name: "x", span: SPAN }],
+            body: { kind: "block-statement", body: [], span: SPAN },
+            span: SPAN,
+        };
+        expect(run([decl])).toEqual([]);
+    });
+
     it("treats a setter whose first arg is not an identifier as a normal call", () => {
         const call: Statement = {
             kind: "expression-statement",
@@ -249,10 +260,25 @@ describe("transformOther — synthetic defensive arms", () => {
             elseBody: null,
             span: SPAN,
         });
-        // A `break` body statement is not an expression-statement → not an
-        // eviction delete → the guard is emitted.
-        const breakBody = sizeGuard([{ kind: "break-statement", span: SPAN }]);
-        expect(run([breakBody], [], symbols).join(" ")).toContain("if (array.size(ring) > 3)");
+        // A non-expression-statement body (here a variable declaration) is not
+        // an eviction delete → the guard is emitted. (A `break` body would be
+        // swallowed by the outside-loop guard, so it is not a usable filler.)
+        const declBody = sizeGuard([
+            {
+                kind: "variable-declaration",
+                qualifier: "none",
+                typeAnnotation: null,
+                name: "x",
+                initializer: {
+                    kind: "literal-expression",
+                    literalKind: "int",
+                    value: "1",
+                    span: SPAN,
+                },
+                span: SPAN,
+            },
+        ]);
+        expect(run([declBody], [], symbols).join(" ")).toContain("if (array.size(ring) > 3)");
         // A non-`.delete` call body is likewise not an eviction → emitted.
         const plotBody = sizeGuard([exprStmt(callOf(ident("plot"), [ident("close")]))]);
         expect(run([plotBody], [], symbols).join(" ")).toContain("if (array.size(ring) > 3)");

@@ -60,6 +60,20 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** A positional argument cannot follow a named argument.
 - **Suggested fix:** Move all positional arguments before the named ones.
 
+### udf-param-default-unsupported
+
+- **Code:** `pine-converter/parse/udf-param-default-unsupported`
+- **Severity:** error
+- **Message:** A user-defined function parameter has a default value; default-valued UDF params are not supported in v1, so the whole declaration was skipped.
+- **Suggested fix:** Drop the parameter default and pass the value explicitly at every call site.
+
+### udf-typed-param-unsupported
+
+- **Code:** `pine-converter/parse/udf-typed-param-unsupported`
+- **Severity:** warning
+- **Message:** A user-defined function parameter has a type annotation; Pine v1 UDF params are treated as untyped, so the type was dropped and the bare name kept.
+- **Suggested fix:** Remove the parameter type (`f(x) =>` instead of `f(float x) =>`); the converter infers types from usage.
+
 ### unexpected-token
 
 - **Code:** `pine-converter/parse/unexpected-token`
@@ -143,6 +157,20 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** History access `[n]` applied to a non-series value.
 - **Suggested fix:** History can only be taken on a series; check the operand's type.
 
+### udf-arity-mismatch
+
+- **Code:** `pine-converter/semantic/udf-arity-mismatch`
+- **Severity:** warning
+- **Message:** A user-defined function is called with a different number of arguments than it declares.
+- **Suggested fix:** Pass exactly one argument per declared parameter at the call site.
+
+### udf-recursive-rejected
+
+- **Code:** `pine-converter/semantic/udf-recursive-rejected`
+- **Severity:** error
+- **Message:** A user-defined function is recursive (it calls itself directly or through a cycle); chartlang cannot inline a recursive call graph.
+- **Suggested fix:** Rewrite the helper iteratively (a literal-bounded `for` loop), or unfold the recursion by hand.
+
 ### unbounded-handle-collection
 
 - **Code:** `pine-converter/semantic/unbounded-handle-collection`
@@ -177,6 +205,27 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** info
 - **Message:** Persistent non-numeric collections are not supported in chartlang v1 (only numeric `state.array`).
 - **Suggested fix:** Hold numeric values in the array, or track the non-numeric data with scalar `state.*` slots.
+
+### array-reduction-not-mapped
+
+- **Code:** `pine-converter/transform/array-reduction-not-mapped`
+- **Severity:** warning
+- **Message:** This `array.*` reduction has no chartlang analogue (nearest-rank percentile is deferred; only linear interpolation ships in v1), so it was left as a `Number.NaN` placeholder.
+- **Suggested fix:** Use `array.percentile_linear_interpolation(...)` (→ `array.percentile`), or maintain the reduction yourself over the `state.array<number>` window.
+
+### array-sort-returns-copy
+
+- **Code:** `pine-converter/transform/array-sort-returns-copy`
+- **Severity:** info
+- **Message:** Pine `array.sort` sorts the array in place; chartlang `array.sort` / `<slot>.sort` returns a fresh sorted COPY and never mutates the ring, so reads of the original window after the sort are unchanged.
+- **Suggested fix:** Capture the sorted copy (`const sorted = win.sort("desc")`) and read from it, instead of re-reading the original array.
+
+### break-continue-outside-loop
+
+- **Code:** `pine-converter/transform/break-continue-outside-loop`
+- **Severity:** error
+- **Message:** A `break`/`continue` appears outside any `for` loop; it has no loop to control and was dropped.
+- **Suggested fix:** Move the `break`/`continue` inside a `for` loop, or remove it.
 
 ### camp-c-heuristic-applied
 
@@ -360,6 +409,27 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** A `for` loop bound came from an `input.int` default; the unrolled iteration count is frozen at that default and will not follow the input at runtime.
 - **Suggested fix:** Use a literal bound if the iteration count must stay fixed, or accept the frozen default.
 
+### map-builtin-not-mapped
+
+- **Code:** `pine-converter/transform/map-builtin-not-mapped`
+- **Severity:** warning
+- **Message:** This `map.*` member has no chartlang analogue over a `state.map` slot (key/value iteration — `map.keys`/`map.values` — is unsupported in v1; chartlang exposes `keyAt(i)` + `size` bounded indexing, not iterators), so it was left as a `Number.NaN` placeholder.
+- **Suggested fix:** Walk the map with a literal-bounded `for (let i = 0; i < <slot>.size; i++)` over `<slot>.keyAt(i)` instead of `map.keys`/`map.values`.
+
+### map-capacity-synthesized
+
+- **Code:** `pine-converter/transform/map-capacity-synthesized`
+- **Severity:** info
+- **Message:** Pine `map.new<K, V>()` is unbounded, but chartlang `state.map<K, V>(capacity)` requires a compile-time literal capacity (so the keyed store is bounded and snapshot-clean), so a default bound of 1000 was synthesized.
+- **Suggested fix:** Set a real bound on the emitted `state.map<number, number>(1000)` based on how many distinct keys the map can hold (a new key over capacity evicts the oldest-inserted one).
+
+### map-collection-non-numeric
+
+- **Code:** `pine-converter/transform/map-collection-non-numeric`
+- **Severity:** info
+- **Message:** This `map.new(...)` has a non-numeric value type (`map<K, bool|string|color>`); chartlang `state.map`'s v1 value type is `number`, so the map was left as-is rather than lowered to a `state.map` slot.
+- **Suggested fix:** Restructure the map to a numeric `value` type, or maintain the keyed string/bool state yourself outside a `state.map`.
+
 ### math-not-mapped
 
 - **Code:** `pine-converter/transform/math-not-mapped`
@@ -415,6 +485,20 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** error
 - **Message:** Negative array indices are not supported on a chartlang ring buffer.
 - **Suggested fix:** Use `array.last(...)` for the newest element instead of `array.get(.., -1)`.
+
+### nested-ta-lowered
+
+- **Code:** `pine-converter/transform/nested-ta-lowered`
+- **Severity:** info
+- **Message:** A nested `ta.*` call in a scalar position (an operator operand, a ternary arm, or a `math.*` argument) was projected to its per-bar `.current` scalar so the surrounding arithmetic type-checks.
+- **Suggested fix:** No action needed — the `.current` projection is the per-bar number Pine uses; the `ta.*` series keeps its own per-call-site history.
+
+### nested-ta-not-lowered
+
+- **Code:** `pine-converter/transform/nested-ta-not-lowered`
+- **Severity:** warning
+- **Message:** A `ta.*` call was left as a `Series` in a scalar position because its name is unmapped or rejected; the generated arithmetic may not type-check (a `Series<number>` where a `number` is required).
+- **Suggested fix:** Map the `ta.*` name (or rewrite the expression by hand), then read its `.current` scalar before the surrounding arithmetic.
 
 ### non-literal-input-default
 
@@ -549,6 +633,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** A drawing handle is mutated across multiple branches; one `update({...})` is emitted per branch.
 - **Suggested fix:** No action needed; the per-branch folding preserves the Pine behaviour.
 
+### stateful-loop-with-break
+
+- **Code:** `pine-converter/transform/stateful-loop-with-break`
+- **Severity:** error
+- **Message:** A `for` loop with a `break`/`continue` AND a stateful primitive (`plot`/`hline`/`alert`/`ta.*`/`draw.*`) in its body cannot be converted: chartlang forbids a stateful call inside a loop, and a `break`/`continue` body cannot be unrolled.
+- **Suggested fix:** Lift the stateful call out of the loop, or drop the `break`/`continue` so the loop can unroll.
+
 ### str-format-not-mapped
 
 - **Code:** `pine-converter/transform/str-format-not-mapped`
@@ -646,6 +737,27 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** warning
 - **Message:** This calendar built-in call shape is not mapped (only `time()`, `time_close()`, and `dayofweek(t[, tz])` lower in v1).
 - **Suggested fix:** Use the bare epoch (`bar.time`) with the `time.*` / `session.*` accessors — e.g. `session.isOpen(bar.time, "0930-1600")` instead of the `time(timeframe, session)` form.
+
+### udf-arg-hoisted
+
+- **Code:** `pine-converter/transform/udf-arg-hoisted`
+- **Severity:** info
+- **Message:** A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).
+- **Suggested fix:** No action needed — the temporary preserves Pine's evaluate-once argument semantics.
+
+### udf-emitted-function
+
+- **Code:** `pine-converter/transform/udf-emitted-function`
+- **Severity:** info
+- **Message:** A pure (state-free) user-defined function was emitted as a reusable chartlang arrow function at the top of `compute`, and every call site reuses it (no inlining needed — a pure helper is referentially transparent).
+- **Suggested fix:** No action needed — a single shared function is semantically identical to Pine's per-call evaluation for a state-free helper.
+
+### udf-inlined
+
+- **Code:** `pine-converter/transform/udf-inlined`
+- **Severity:** info
+- **Message:** A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).
+- **Suggested fix:** No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper.
 
 ### unbounded-array-collection
 

@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { ExpressionNode } from "../ast/index.js";
+import type { CallExpression, ExpressionNode } from "../ast/index.js";
 import type { SourceSpan } from "../index.js";
 import type { EmitContext } from "./emitContext.js";
-import { emitWithContext } from "./emitContext.js";
+import { emitScalar, emitWithContext, lowerTaToCurrent } from "./emitContext.js";
 
 const SPAN: SourceSpan = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 };
 
@@ -267,10 +267,138 @@ describe("emitWithContext — state.array slots", () => {
         );
     });
 
-    it("leaves an unrecognised array.* member over a slot to the generic path", () => {
-        expect(emitWithContext(arrayCall("array.pop", [ident("win")]), arrayCtx())).toBe(
-            "array.pop(win)",
+    const memberOf = (chain: string): ExpressionNode => ({
+        kind: "member-access-expression",
+        head: null,
+        chain: chain.split("."),
+        span: SPAN,
+    });
+    const boolLit = (value: boolean): ExpressionNode => ({
+        kind: "literal-expression",
+        literalKind: "bool",
+        value: String(value),
+        span: SPAN,
+    });
+    // An `arrayCtx` that also captures the codes raised through `arrayWarn`.
+    const warnCtx = (): { ctx: EmitContext; codes: string[] } => {
+        const codes: string[] = [];
+        return { ctx: arrayCtx({ arrayWarn: (code) => codes.push(code) }), codes };
+    };
+
+    it("lowers no-arg reductions onto the handle method", () => {
+        for (const [member, method] of [
+            ["array.sum", "sum"],
+            ["array.avg", "avg"],
+            ["array.min", "min"],
+            ["array.max", "max"],
+            ["array.range", "range"],
+            ["array.median", "median"],
+            ["array.stdev", "stdev"],
+            ["array.variance", "variance"],
+        ] as const) {
+            expect(emitWithContext(arrayCall(member, [ident("win")]), arrayCtx())).toBe(
+                `win.${method}()`,
+            );
+        }
+    });
+
+    it("forwards the optional biased flag to variance/stdev when present", () => {
+        expect(
+            emitWithContext(arrayCall("array.stdev", [ident("win"), boolLit(false)]), arrayCtx()),
+        ).toBe("win.stdev(false)");
+    });
+
+    it("maps percentile_linear_interpolation(id, p) → <slot>.percentile(p)", () => {
+        expect(
+            emitWithContext(
+                arrayCall("array.percentile_linear_interpolation", [ident("win"), intLit("90")]),
+                arrayCtx(),
+            ),
+        ).toBe("win.percentile(90)");
+    });
+
+    it("maps indexof/includes onto the handle methods, forwarding the value", () => {
+        expect(
+            emitWithContext(arrayCall("array.indexof", [ident("win"), ident("close")]), arrayCtx()),
+        ).toBe("win.indexOf(bar.close)");
+        expect(
+            emitWithContext(
+                arrayCall("array.includes", [ident("win"), ident("close")]),
+                arrayCtx(),
+            ),
+        ).toBe("win.includes(bar.close)");
+    });
+
+    it('lowers array.sort with order.descending → <slot>.sort("desc") + caveat', () => {
+        const { ctx: c, codes } = warnCtx();
+        expect(
+            emitWithContext(
+                arrayCall("array.sort", [ident("win"), memberOf("order.descending")]),
+                c,
+            ),
+        ).toBe('win.sort("desc")');
+        expect(codes).toEqual(["array-sort-returns-copy"]);
+    });
+
+    it("lowers array.sort ascending/default/unrecognised order → bare <slot>.sort()", () => {
+        expect(
+            emitWithContext(
+                arrayCall("array.sort", [ident("win"), memberOf("order.ascending")]),
+                arrayCtx(),
+            ),
+        ).toBe("win.sort()");
+        // No order arg.
+        expect(emitWithContext(arrayCall("array.sort", [ident("win")]), arrayCtx())).toBe(
+            "win.sort()",
         );
+        // An order arg that is not a bare `order.*` enum falls back to ascending.
+        expect(
+            emitWithContext(arrayCall("array.sort", [ident("win"), ident("dir")]), arrayCtx()),
+        ).toBe("win.sort()");
+        // A bare `order.*` enum that is not in the map also falls back.
+        expect(
+            emitWithContext(
+                arrayCall("array.sort", [ident("win"), memberOf("order.weird")]),
+                arrayCtx(),
+            ),
+        ).toBe("win.sort()");
+    });
+
+    it("rejects percentile_nearest_rank with a placeholder + diagnostic", () => {
+        const { ctx: c, codes } = warnCtx();
+        expect(
+            emitWithContext(
+                arrayCall("array.percentile_nearest_rank", [ident("win"), intLit("90")]),
+                c,
+            ),
+        ).toBe("Number.NaN /* TODO: array.percentile_nearest_rank not supported in chartlang */");
+        expect(codes).toEqual(["array-reduction-not-mapped"]);
+    });
+
+    it("emits a placeholder + diagnostic for an unmapped array.* over a slot", () => {
+        const { ctx: c, codes } = warnCtx();
+        expect(emitWithContext(arrayCall("array.pop", [ident("win")]), c)).toBe(
+            "Number.NaN /* TODO: array.pop not supported in chartlang */",
+        );
+        expect(codes).toEqual(["array-reduction-not-mapped"]);
+    });
+
+    it("emits the unmapped placeholder with no diagnostic when arrayWarn is absent", () => {
+        // The `arrayWarn?.` sink short-circuits when undefined (every EmitContext
+        // built outside transformOther).
+        expect(emitWithContext(arrayCall("array.pop", [ident("win")]), arrayCtx())).toBe(
+            "Number.NaN /* TODO: array.pop not supported in chartlang */",
+        );
+    });
+
+    it("leaves a non-array dotted call whose first arg names a slot to the generic path", () => {
+        // `math.max(win, 5)` — the callee is not `array.*`, so the reduction
+        // rewrite returns null. The generic emit then applies the nested-math
+        // passthrough (`math.max` → `Math.max`), proving the array rewrite did
+        // not fire (the slot name `win` survives as a bare arg).
+        expect(
+            emitWithContext(arrayCall("math.max", [ident("win"), intLit("5")]), arrayCtx()),
+        ).toBe("Math.max(win, 5)");
     });
 
     it("leaves an array.* call whose first arg is not a slot identifier untouched", () => {
@@ -291,6 +419,84 @@ describe("emitWithContext — state.array slots", () => {
     it("leaves an array.* call untouched when no array slots are registered", () => {
         expect(emitWithContext(arrayCall("array.size", [ident("win")]), ctx())).toBe(
             "array.size(win)",
+        );
+    });
+});
+
+describe("emitScalar / lowerTaToCurrent", () => {
+    const intLit = (value: string): ExpressionNode => ({
+        kind: "literal-expression",
+        literalKind: "int",
+        value,
+        span: SPAN,
+    });
+    const call = (callee: ExpressionNode, args: readonly ExpressionNode[]): CallExpression => ({
+        kind: "call-expression",
+        callee,
+        args: args.map((value) => ({ name: null, value, span: SPAN })),
+        span: SPAN,
+    });
+    const member = (chain: readonly string[]): ExpressionNode => ({
+        kind: "member-access-expression",
+        head: null,
+        chain: [...chain],
+        span: SPAN,
+    });
+    const taCall = (name: string, args: readonly ExpressionNode[]): CallExpression =>
+        call(member(name.split(".")), args);
+
+    it("projects a root ta.* call to .current in scalar position", () => {
+        expect(emitScalar(taCall("ta.atr", [intLit("14")]), ctx())).toBe("ta.atr(14).current");
+    });
+
+    it("emits a non-ta node identically to emitWithContext", () => {
+        expect(emitScalar(ident("close"), ctx())).toBe("bar.close");
+    });
+
+    it("lowers a mapped ta.* call and surfaces its signature note", () => {
+        // `ta.rma` → `ta.smma` carries a signature-divergence note for the
+        // caller (the top-level `emitTa`) to raise.
+        const lowering = lowerTaToCurrent(taCall("ta.rma", [ident("close"), intLit("14")]), ctx());
+        expect(lowering?.source).toBe("ta.smma(bar.close, 14).current");
+        expect(lowering?.signatureNote).toBeDefined();
+    });
+
+    it("returns null for a non-ta call and for an unmapped / REJECT ta name", () => {
+        expect(lowerTaToCurrent(call(ident("foo"), [ident("close")]), ctx())).toBeNull();
+        expect(
+            lowerTaToCurrent(taCall("ta.kcw", [ident("close"), intLit("20")]), ctx()),
+        ).toBeNull();
+    });
+
+    it("leaves an unmapped scalar-position ta.* bare without a sink (no crash)", () => {
+        // A `ta.kcw` in scalar position can't lower; with no `taWarn` sink the
+        // residual-series warning is a silent no-op and the bare call survives.
+        expect(emitScalar(taCall("ta.kcw", [ident("close"), intLit("20")]), ctx())).toBe(
+            "ta.kcw(bar.close, 20)",
+        );
+    });
+
+    it("notifies the taWarn sink for an unmapped scalar-position ta.*", () => {
+        const codes: string[] = [];
+        emitScalar(
+            taCall("ta.kcw", [ident("close"), intLit("20")]),
+            ctx({ taWarn: (code) => codes.push(code) }),
+        );
+        expect(codes).toEqual(["nested-ta-not-lowered"]);
+    });
+
+    it("notifies the taWarn sink for a lowered scalar-position ta.*", () => {
+        const codes: string[] = [];
+        emitScalar(taCall("ta.atr", [intLit("14")]), ctx({ taWarn: (code) => codes.push(code) }));
+        expect(codes).toEqual(["nested-ta-lowered"]);
+    });
+
+    it("raises no residual warning for a non-ta call in scalar position", () => {
+        // An identifier callee (`foo(...)`, dotted callee `null`) and a non-`ta`
+        // member callee (`foo.bar(...)`) both skip the residual safety net.
+        expect(emitScalar(call(ident("foo"), [ident("close")]), ctx())).toBe("foo(bar.close)");
+        expect(emitScalar(call(member(["foo", "bar"]), [ident("close")]), ctx())).toBe(
+            "foo.bar(bar.close)",
         );
     });
 });

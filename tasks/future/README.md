@@ -6,19 +6,46 @@ hard dependencies and file-contention hotspots are. Each folder keeps its own
 `README.md` with the **intra-folder** task DAG (`1-*.md`, `2-*.md`, …) — follow
 that once a folder is in flight.
 
-## Execution status — RESUME POINT (updated 2026-06-25)
+## Execution status — RESUME POINT (updated 2026-06-26)
 
-> **TL;DR for a new chat:** Folder **wave A is fully done** (all 7 folders
-> `X-`-prefixed). **Nothing is committed** — all of wave A is in the working
-> tree. **Next up is wave B, then C**, but they are **gated on your explicit
-> go-ahead** (the original plan said STOP after wave A). When cleared, resume
-> with `/execute-tasklist tasks/future/` — aggregate mode auto-skips the
-> `X-`-prefixed folders and starts at `array-analytics` + `map-collection`.
+> **TL;DR for a new chat:** Folder **waves A and B are fully done** (9 folders
+> `X-`-prefixed). **Wave C (`pine-converter-coverage`) is PARTWAY** — of its 12
+> task groups, **T9, T10, T2, T1 are done** (`X-T*`-prefixed); **T3, T4, T5, T6,
+> T7, T8, T11, T12 remain**. **Nothing is committed** — everything is in the
+> working tree. To continue, run
+> `/execute-tasklist tasks/future/pine-converter-coverage/` — aggregate mode
+> auto-skips the four `X-T*` groups and starts at **T3** (see that folder's
+> README for the remaining T-order + parked-fixture follow-ups).
 
-**Folder wave 1 (A) is now COMPLETE** — all 7 independent folders are done,
-every task file `X-`-prefixed, folders `X-`-prefixed, all graded Complete/Ship,
-changes **uncommitted in the working tree**. Folder waves B and C have **not**
-been started.
+**Folder wave A (7 folders) and wave B (2 folders) are COMPLETE** — every task
+file `X-`-prefixed, folders `X-`-prefixed, all graded Complete/Ship, changes
+**uncommitted in the working tree**. Wave C is in progress (4 of 12 done).
+
+> ⚠️ **Run the full gates before committing.** Execution used per-package gates
+> only (`pnpm -F @invinite-org/chartlang-pine-converter test`, etc.) — the
+> full-workspace `pnpm typecheck/lint/test` and `pnpm conformance` (adapter
+> rebuild) were deliberately **not** run and remain the final CI proof. Each
+> folder shipped its own changesets.
+
+**Completed — folder wave B (both `X-`-prefixed, 2026-06-26; all tasks
+Complete/Ship, 0 quality fixes needed):**
+
+- ✅ `X-array-analytics` — reduction methods on `MutableArraySlot<number>`
+  (`sum/avg/min/max/stdev/variance/median/percentile/sort/indexOf/includes/range`)
+  + a thin frozen `array.*` namespace that **delegates 1:1** (no second impl).
+  Skip-NaN policy (empty/all-NaN → NaN); stdev/variance population-default;
+  percentile = linear interpolation; `sort()` returns a copy. Converter `array.*`
+  mapping (fixture **35**, `array-reduction-not-mapped`/`array-sort-returns-copy`
+  codes); conformance `array-rolling-stats`; example `rolling-zscore`. `@since 1.4`.
+- ✅ `X-map-collection` — `state.map<K extends string|number, V=number>(cap)`,
+  the keyed sibling of `state.array`. Runtime `MapStore` reuses the state.array
+  committed/tentative snapshot lifecycle (`:map` suffix); insertion-order FIFO
+  eviction. v1 surface = `set/get/has/delete/clear/size/keyAt` (**iterators
+  deferred**). Reused (not forked) the literal-capacity guard
+  (`CAPACITY_GUARDED_NAMES`). Converter `map.*` mapping with **capacity
+  synthesis** → `state.map<number,number>(1000)` + `map-capacity-synthesized`;
+  `map.get` na-bridged (`?? NaN`). Fixture **36**, conformance `map-accumulator`,
+  example `volume-by-level`. `@since 1.4`.
 
 **Completed — folder wave A (all `X-`-prefixed, `/execute-tasklist` auto-skips
 them on resume):**
@@ -54,19 +81,34 @@ them on resume):**
   line+label. The future `drawing-handles-impl/` folder is authored only after
   this RFC is accepted; its main work is the §7 snapshot/two-ring gap.
 
-**RESUME HERE — folder wave B, then C (NOT yet started; require explicit
-instruction before running, per the gates below):**
+**RESUME HERE — folder wave C, the `pine-converter-coverage` capstone (8 of 12
+groups remain):**
 
-1. **Wave B** (parallel with each other): `array-analytics`, `map-collection`
-   — both depend on the now-landed `X-state-array` (tasks 1–2 / 1–3).
-2. **Wave C** (capstone): `pine-converter-coverage` (aggregate, T1–T12) — its
-   cross-folder gates (`X-multi-symbol-security` T5, `X-bgcolor-barcolor` D2 →
-   T8, `X-str-utilities`, `X-calendar-session-helpers`) are **all now landed**,
-   so nothing external blocks it; follow its own README for the internal T-order.
+- **Done (`X-T*`-prefixed, auto-skipped):** `X-T9` (leading-op continuation),
+  `X-T10` (loop break/continue + the `.current`→`state.series` promotion for
+  history-indexed ta-series), `X-T2` (nested `ta.*` `.current` lowering), `X-T1`
+  (UDF declarations).
+- **Remaining:** **T3, T4, T6, T7, T11** (converter-internal, any order), then
+  the cross-folder-gated **T5** (needs T4) and **T8** (needs the landed bgcolor
+  D2), and core-spanning **T12**.
+- **Order swap on resume:** the prose elsewhere says "T1 → T2", but T1's Task 4/5
+  genuinely depend on T2's nested-`ta.*` lowering while T2 has no hard dep on T1
+  — so **T2 was run before T1** to break the cycle. T2 and T1 are both done now,
+  so this only matters as the rationale recorded in `pine-converter-coverage/README.md`.
+- **Carry-forward follow-ups surfaced by T1/T2 (see capstone README for detail):**
+  parked fixture `46` (history-indexed inlined-UDF-arg → `state.series` promotion);
+  `cf_ma` switch-as-value belongs to **T3**; and a **pre-existing** stale
+  `transform/other.ts` CLAUDE.md note claims `14-polyline-rebuild` was unparked
+  from `KNOWN_NON_COMPILING` when it is still listed — fix when next in that area.
 
 **Notes for the resuming agent:**
 
 - Per-task implementation + the per-folder quality pass both run on **opus**.
+- This run used the Claude Code Agent-tool surface (no `TeamCreate`): one
+  `code-implementer` teammate per task (sequential within a folder due to
+  pine-converter hotspot contention), one `quality-analysis` teammate per
+  folder. The next free fixture `NN` is **47** (`ls packages/pine-converter/fixtures`
+  to confirm — do not trust task-file numbers).
 - Build dist may be stale: run `pnpm -F @invinite-org/chartlang-core build`
   (and `adapter-kit`/`compiler`/`runtime`) before downstream typecheck if
   exports appear missing.
@@ -83,19 +125,19 @@ instruction before running, per the gates below):**
 ## TL;DR
 
 ```
-WAVE A  (7 folders, no cross-folder deps — start in parallel)
+WAVE A  ✅ DONE  (7 folders, no cross-folder deps)
   state-array · multi-symbol-security · bgcolor-barcolor-ergonomics
   calendar-session-helpers · math-utilities · str-utilities · drawing-handles(RFC)
 
         │ state-array tasks 1–3 land
         ▼
-WAVE B  (2 folders, depend on state-array — parallel with each other)
+WAVE B  ✅ DONE  (2 folders, depend on state-array)
   array-analytics · map-collection
 
         │ multi-symbol-security + bgcolor D2 + str + calendar land
         ▼
-WAVE C  (capstone — consumes the others)
-  pine-converter-coverage
+WAVE C  ◑ IN PROGRESS  (capstone — consumes the others)
+  pine-converter-coverage  →  done: T9 T10 T2 T1   |   remaining: T3 T4 T5 T6 T7 T8 T11 T12
 ```
 
 Maximum parallel width is **7** (Wave A). The critical path is

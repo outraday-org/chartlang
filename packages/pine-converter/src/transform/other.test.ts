@@ -144,19 +144,29 @@ describe("transformOther — control flow", () => {
         ]);
     });
 
-    it("emits break and continue inside an unrolled loop body", () => {
+    it("unrolls a stateful if-body with no else (else-less branch substitution)", () => {
+        const src = "for i = 0 to 1\n    if close[i] > 0\n        plot(close[i])";
+        const out = stmts(src).join(" ");
+        expect(out).toContain("if (bar.close[0] > 0) { plot(bar.close[0]); }");
+        expect(out).toContain("if (bar.close[1] > 0) { plot(bar.close[1]); }");
+    });
+
+    it("rejects a stateful loop body that contains break/continue (cannot unroll or run)", () => {
+        // The OLD behaviour unrolled this and emitted a `break;` at the top
+        // level of the unrolled body — a JS syntax error. A `break`/`continue`
+        // body cannot unroll AND a stateful call cannot live in a runtime loop,
+        // so the loop is now a hard reject.
         const src =
             "for i = 0 to 1\n    if close > open\n        plot(close)\n        break\n    continue";
-        const out = stmts(src);
-        expect(out.join(" ")).toContain("break;");
-        expect(out.join(" ")).toContain("continue;");
+        expect(stmts(src)).toEqual([]);
+        expect(codes(src)).toContain("pine-converter/transform/stateful-loop-with-break");
     });
 
     it("detects a stateful primitive nested in a for/switch/block inside the loop body", () => {
         const nestedFor = "for i = 0 to 1\n    for j = 0 to 1\n        plot(close[j])";
         expect(stmts(nestedFor).every((s) => s.startsWith("plot("))).toBe(true);
         const nestedSwitch =
-            "x = 1\nfor i = 0 to 1\n    switch x\n        1 => plot(close)\n        => break";
+            "x = 1\nfor i = 0 to 1\n    switch x\n        1 => plot(close)\n        => plot(open)";
         expect(stmts(nestedSwitch).some((s) => s.includes("plot(bar.close)"))).toBe(true);
     });
 
@@ -172,6 +182,76 @@ describe("transformOther — control flow", () => {
         expect(out).toContain("if (1 > 0)");
         expect(out).toContain("sum = sum + 1;");
         expect(out).toContain("else if (1 < 0)");
+    });
+});
+
+describe("transformOther — break / continue loops (no unroll)", () => {
+    it("emits a runtime for with break inside it for a literal-bounded non-stateful body", () => {
+        const src = "c = 0\nfor i = 0 to 3\n    if close[i] > 0\n        break\n    c += 1";
+        expect(stmts(src)).toEqual([
+            "let c = 0;",
+            "for (let i = 0; i <= 3; i++) { if (bar.close[i] > 0) { break; } c += 1; }",
+        ]);
+        // A break-loop is NEVER unrolled — no per-iteration copies.
+        expect(codes(src)).not.toContain("pine-converter/transform/loop-body-unrolled");
+    });
+
+    it("lowers continue inside the runtime for", () => {
+        const src = "c = 0\nfor i = 0 to 2\n    if close[i] > 0\n        continue\n    c += 1";
+        expect(stmts(src).join(" ")).toContain("continue;");
+    });
+
+    it("freezes an input.int break-loop bound and runs as a runtime for (not an unroll)", () => {
+        const src =
+            "n = input.int(4)\nc = 0\nfor i = 0 to n\n    if close[i] > 0\n        break\n    c += 1";
+        expect(stmts(src).join(" ")).toContain("for (let i = 0; i <= 4; i++) {");
+        expect(codes(src)).toContain(
+            "pine-converter/transform/loop-unroll-frozen-at-input-default",
+        );
+    });
+
+    it("rejects a non-resolvable break-loop bound", () => {
+        const src =
+            "n = close\nc = 0\nfor i = 0 to n\n    if close[i] > 0\n        break\n    c += 1";
+        expect(stmts(src)).toEqual(["let n = bar.close;", "let c = 0;"]);
+        expect(codes(src)).toContain(
+            "pine-converter/transform/loop-bounds-not-literal-for-stateful-body",
+        );
+    });
+
+    it("raises break-continue-outside-loop for a break with no enclosing loop", () => {
+        const src = "x = 1\nif x > 0\n    break";
+        expect(stmts(src).join(" ")).not.toContain("break;");
+        expect(codes(src)).toContain("pine-converter/transform/break-continue-outside-loop");
+    });
+
+    it("raises break-continue-outside-loop for a top-level continue", () => {
+        const src = "continue";
+        expect(stmts(src)).toEqual([]);
+        expect(codes(src)).toContain("pine-converter/transform/break-continue-outside-loop");
+    });
+});
+
+describe("transformOther — compound assignment", () => {
+    it("lowers compound operators on a plain local at top level", () => {
+        expect(stmts("x = 5\nx += 2\nx -= 1\nx *= 3\nx /= 2")).toEqual([
+            "let x = 5;",
+            "x += 2;",
+            "x -= 1;",
+            "x *= 3;",
+            "x /= 2;",
+        ]);
+    });
+
+    it("lowers a compound assignment inside a loop body", () => {
+        const src = "c = 0\nfor i = 0 to 2\n    c += i";
+        expect(stmts(src).join(" ")).toContain("c += i;");
+    });
+
+    it("lowers a compound assignment onto a var state slot's .value", () => {
+        // A history-indexed var would be a series slot; a plain var int is a
+        // scalar `state.int` slot whose compound write goes through `.value`.
+        expect(stmts("var int n = 0\nn += 1").join(" ")).toContain("n.value += 1;");
     });
 });
 
@@ -376,6 +456,61 @@ describe("transformOther — series scalars (state.series)", () => {
         expect(diagnostics.toArray().map((d) => d.code)).toContain(
             "pine-converter/transform/series-history-non-numeric",
         );
+    });
+});
+
+describe("transformOther — ta-series promotion (state.series)", () => {
+    it("promotes an `=`-declared, history-indexed ta-series to a state.series slot", () => {
+        const { scaffold, diagnostics } = run(
+            "ma = ta.ema(close, 9)\nc = 0\nfor i = 0 to 3\n    if (ma[i] > 0) or (ma[i] < 0)\n        break\n    c += 1\nplot(ma)",
+        );
+        // The slot is `state.series(Number.NaN)`; the declaration becomes the
+        // per-bar `.value` write; `ma[i]` is a real indexed read; `ma` reads as
+        // `ma.value`. A loop-bound `[i]` is NOT a `dynamic-series-index`.
+        expect(scaffold.stateSlots).toContainEqual({
+            name: "ma",
+            initExpr: "state.series(Number.NaN)",
+        });
+        const body = scaffold.computeBody.statements.join(" ");
+        expect(body).toContain("ma.value = ta.ema(bar.close, 9).current;");
+        expect(body).toContain("if ((ma[i] > 0) || (ma[i] < 0)) { break; }");
+        expect(body).toContain("plot(ma.value);");
+        expect(diagnostics.toArray().map((d) => d.code)).not.toContain(
+            "pine-converter/transform/dynamic-series-index",
+        );
+    });
+
+    it("keeps a never-`[n]`-indexed ta-series as a `.current` scalar (no slot)", () => {
+        const { scaffold } = run("ma = ta.ema(close, 9)\nplot(ma)");
+        expect(scaffold.stateSlots).toEqual([]);
+        expect(scaffold.computeBody.statements.join(" ")).toContain(
+            "let ma = ta.ema(bar.close, 9).current;",
+        );
+    });
+
+    it("wires dynamic-series-index for a non-loop-bound ta-series offset (read twice)", () => {
+        // `j` is a plain local, not a loop iterator — a genuinely dynamic offset.
+        // Indexed twice so the `prior.dynamicSpan` keep-first branch is hit.
+        const { scaffold, diagnostics } = run(
+            "ma = ta.ema(close, 9)\nj = 2\nx = ma[j] + ma[j]\nplot(x)",
+        );
+        expect(scaffold.stateSlots).toContainEqual({
+            name: "ma",
+            initExpr: "state.series(Number.NaN)",
+        });
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/dynamic-series-index",
+        );
+    });
+
+    it("does not promote a non-`ta.*` call, an input call, or a computed-callee call", () => {
+        // `input.int(...)` (callee not `ta.*`), `cc = 0` (non-call value), and
+        // `close[1].max(open)` (computed callee → no dotted name) all fail the
+        // ta-series gate; none becomes a `state.series` slot even if indexed.
+        const { scaffold } = run(
+            "n = input.int(4)\ncc = 0\nq = close[1].max(open)\nplot(q[1])\nplot(n)\nplot(cc)",
+        );
+        expect(scaffold.stateSlots).toEqual([]);
     });
 });
 

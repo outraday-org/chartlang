@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/map-capacity-synthesized",
+        "severity": "info",
+        "message": "Pine `map.new<K, V>()` is unbounded, but chartlang `state.map<K, V>(capacity)` requires a compile-time literal capacity (so the keyed store is bounded and snapshot-clean), so a default bound of 1000 was synthesized.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 1,
+            "endLine": 3,
+            "endColumn": 56
+        },
+        "suggestion": "Set a real bound on the emitted `state.map<number, number>(1000)` based on how many distinct keys the map can hold (a new key over capacity evicts the oldest-inserted one)."
+    }
+]

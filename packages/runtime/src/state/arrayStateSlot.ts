@@ -4,6 +4,20 @@
 import type { MutableArraySlot } from "@invinite-org/chartlang-core";
 
 import { Float64RingBuffer } from "../ringBuffer.js";
+import {
+    reduceAvg,
+    reduceIncludes,
+    reduceIndexOf,
+    reduceMax,
+    reduceMedian,
+    reduceMin,
+    reducePercentile,
+    reduceRange,
+    reduceSort,
+    reduceStdev,
+    reduceSum,
+    reduceVariance,
+} from "./arrayReductions.js";
 
 /**
  * Runtime slot behind a script-facing `state.array(capacity)` handle. Unlike
@@ -85,6 +99,44 @@ export function buildArrayHandle(slot: ArrayStateSlot): MutableArraySlot<number>
         },
         get capacity(): number {
             return slot.capacity;
+        },
+        // Reductions read the tentative ring's filled region directly (O(size)
+        // via `at(i)`), never the handle's own `get(n)`. See arrayReductions.ts.
+        sum(): number {
+            return reduceSum(slot.tentativeRing);
+        },
+        avg(): number {
+            return reduceAvg(slot.tentativeRing);
+        },
+        min(): number {
+            return reduceMin(slot.tentativeRing);
+        },
+        max(): number {
+            return reduceMax(slot.tentativeRing);
+        },
+        range(): number {
+            return reduceRange(slot.tentativeRing);
+        },
+        variance(biased?: boolean): number {
+            return reduceVariance(slot.tentativeRing, biased);
+        },
+        stdev(biased?: boolean): number {
+            return reduceStdev(slot.tentativeRing, biased);
+        },
+        median(): number {
+            return reduceMedian(slot.tentativeRing);
+        },
+        percentile(p: number): number {
+            return reducePercentile(slot.tentativeRing, p);
+        },
+        indexOf(value: number): number {
+            return reduceIndexOf(slot.tentativeRing, value);
+        },
+        includes(value: number): boolean {
+            return reduceIncludes(slot.tentativeRing, value);
+        },
+        sort(order?: "asc" | "desc"): ReadonlyArray<number> {
+            return reduceSort(slot.tentativeRing, order);
         },
     };
 }

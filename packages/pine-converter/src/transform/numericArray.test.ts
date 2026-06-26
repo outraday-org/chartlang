@@ -222,11 +222,36 @@ describe("numeric array — rejections", () => {
 });
 
 describe("numeric array — operation mapping edge cases", () => {
-    it("leaves an unrecognised `array.*` over a slot to the generic path", () => {
-        // `array.pop` has no slot mapping, so it falls through to a raw emit
-        // rather than mis-lowering onto the slot surface.
+    it("emits a placeholder + diagnostic for an unmapped `array.*` over a slot", () => {
+        // `array.pop` has no reduction mapping, so rather than mis-lowering to
+        // broken `array.pop(win)` it emits a `Number.NaN` placeholder and is
+        // surfaced via `array-reduction-not-mapped`.
         const body = `${RING}${EVICT}x = array.pop(win)\nplot(x)`;
-        expect(stmts(body)).toContain("let x = array.pop(win);");
+        expect(stmts(body)).toContain(
+            "let x = Number.NaN /* TODO: array.pop not supported in chartlang */;",
+        );
+        expect(codes(body)).toContain("pine-converter/transform/array-reduction-not-mapped");
+    });
+
+    it("lowers the reduction family onto the handle methods", () => {
+        const body = `${RING}${EVICT}plot(array.stdev(win))\nplot(array.percentile_linear_interpolation(win, 90))`;
+        const lines = stmts(body);
+        expect(lines).toContain("plot(win.stdev());");
+        expect(lines).toContain("plot(win.percentile(90));");
+    });
+
+    it("lowers `array.sort(id, order)` to a copy + raises the in-place caveat", () => {
+        const body = `${RING}${EVICT}array.sort(win, order.descending)\nplot(array.get(win, 0))`;
+        expect(stmts(body)).toContain('win.sort("desc");');
+        expect(codes(body)).toContain("pine-converter/transform/array-sort-returns-copy");
+    });
+
+    it("rejects nearest-rank percentile with a placeholder + diagnostic", () => {
+        const body = `${RING}${EVICT}plot(array.percentile_nearest_rank(win, 90))`;
+        expect(stmts(body)).toContain(
+            "plot(Number.NaN /* TODO: array.percentile_nearest_rank not supported in chartlang */);",
+        );
+        expect(codes(body)).toContain("pine-converter/transform/array-reduction-not-mapped");
     });
 });
 

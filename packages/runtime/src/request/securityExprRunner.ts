@@ -128,6 +128,7 @@ function buildExprContext(
         stateSlots: new Map(),
         seriesSlots: new Map(),
         arraySlots: new Map(),
+        mapSlots: new Map(),
         chartSymbol: parent.chartSymbol,
         secondaryStreams: parent.secondaryStreams,
         requestSecurityBars: new Map(),

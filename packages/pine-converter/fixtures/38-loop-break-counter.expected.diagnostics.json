@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/loop-unroll-frozen-at-input-default",
+        "severity": "info",
+        "message": "A `for` loop bound came from an `input.int` default; the unrolled iteration count is frozen at that default and will not follow the input at runtime.",
+        "span": {
+            "startLine": 7,
+            "startColumn": 1,
+            "endLine": 12,
+            "endColumn": 1
+        },
+        "suggestion": "Use a literal bound if the iteration count must stay fixed, or accept the frozen default."
+    }
+]

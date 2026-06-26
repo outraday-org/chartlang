@@ -224,6 +224,27 @@ plot hashes, alert counts, and diagnostic codes.
   while ta.sma has a NaN warmup. Re-pin via the runner's "expected vs actual"
   message only when the golden bars change.
 
+## `state.map` keyed-collection invariant
+
+- **`map-accumulator` accumulates per-rounded-price volume into a
+  `state.map<number, number>(32)` and pins two byte-stable plot hashes.** Each
+  bar buckets `bar.volume.current` under `Math.round(bar.close.current)`
+  (`get() ?? 0`-seeded so an unseen level reads `0`, not NaN; a new key over 32
+  evicts the oldest-inserted), then plots the current level's value
+  (`VALUE_AT_LEVEL_HASH` `9aa49424…`) and `levels.size`
+  (`LEVELS_TRACKED_HASH` `3fca90e0…`). `state.map` is pure compute that rides the
+  existing `plot` hole — NO new wire primitive, NO per-adapter code — so the
+  single registered scenario is the all-adapter proof. The slot ids are line
+  `11`/`12` (`#0`); re-derive from `compile(...).manifest.plots` if the SOURCE
+  changes, and re-pin the hashes via the runner's "expected vs actual" message
+  only when the golden bars change.
+- **`phase2Coverage.test.ts` tracks the `state.map` registry addition via
+  `STATE_MAP_STATEFUL_ADDITIONS` (one `{ name: "state.map", slot: true }`
+  entry).** `state.map` is the keyed sibling of `state.array`: only the
+  allocation callsite is `slot: true`; `set`/`get`/`has`/`delete`/`clear`/`keyAt`
+  are handle methods, not registry callsites. It bumps the
+  `STATEFUL_PRIMITIVES.size` baseline by one alongside `state.array`.
+
 ## `request.security` expression-form invariants
 
 - **`mtfSecurityExpressionEma` / `mtfSecurityExpressionNanFallback` prove the

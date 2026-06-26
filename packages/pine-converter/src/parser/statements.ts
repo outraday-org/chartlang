@@ -3,10 +3,14 @@
 
 import type {
     Assignment,
+    AssignmentOperator,
     BlockStatement,
     DeclarationQualifier,
     ElseIfClause,
+    ExpressionStatement,
     ForStatement,
+    FunctionDeclaration,
+    FunctionParam,
     IfStatement,
     NamedTypeName,
     Statement,
@@ -206,10 +210,26 @@ function parseVariableDeclaration(
     };
 }
 
+// The operators that turn `name <op> expr` into an {@link Assignment}: plain
+// `=`/`:=` plus the compound arithmetic forms (`count += 1`). A compound form
+// is read-and-write of an existing scalar; the transform lowers it.
+const ASSIGNMENT_OPERATORS: ReadonlySet<AssignmentOperator> = new Set<AssignmentOperator>([
+    "=",
+    ":=",
+    "+=",
+    "-=",
+    "*=",
+    "/=",
+]);
+
+function isAssignmentOperator(text: string): text is AssignmentOperator {
+    return (ASSIGNMENT_OPERATORS as ReadonlySet<string>).has(text);
+}
+
 function parseAssignment(
     ctx: ParserContext,
     nameToken: Token,
-    operatorText: "=" | ":=",
+    operatorText: AssignmentOperator,
 ): Assignment {
     ctx.cursor.next();
     ctx.cursor.next();
@@ -278,6 +298,119 @@ function parseTupleDeclaration(ctx: ParserContext, start: Token): TupleDeclarati
         initializer,
         span: spanBetween(start.span, end),
     };
+}
+
+// Whether the cursor (parked on an identifier) opens a Pine user-defined
+// function declaration head — `identifier ( … ) =>`. Pure bounded lookahead:
+// the `=>` immediately after the balanced parameter `)` is the unambiguous
+// decl marker. A plain call `f(args)` or history `f(args)[n]` lacks it and
+// routes to the existing expression/assignment path unchanged. The parameter
+// list is scanned by paren depth so a nested `(` (inside an ultimately
+// rejected default value) still finds the matching close; an unclosed head
+// hits `eof` and is not a declaration.
+function looksLikeFunctionDeclaration(ctx: ParserContext): boolean {
+    const open = ctx.peekAhead(1);
+    if (!(open.kind === "punctuation" && open.text === "(")) {
+        return false;
+    }
+    let offset = 1;
+    let depth = 0;
+    for (;;) {
+        const token = ctx.peekAhead(offset);
+        if (token.kind === "eof") {
+            return false;
+        }
+        if (token.kind === "punctuation" && token.text === "(") {
+            depth += 1;
+        } else if (token.kind === "punctuation" && token.text === ")") {
+            depth -= 1;
+            if (depth === 0) {
+                const after = ctx.peekAhead(offset + 1);
+                return after.kind === "operator" && after.text === "=>";
+            }
+        }
+        offset += 1;
+    }
+}
+
+// Parse the body of a user-defined function. A single-line body (`=> expr` on
+// the same logical line) is wrapped in a one-statement {@link BlockStatement}
+// whose sole `expression-statement` is the implicit return. A multi-line body
+// (`=>` then `newline indent … dedent`) reuses {@link parseBlock}; its last
+// statement is the implicit return.
+function parseFunctionBody(ctx: ParserContext): BlockStatement {
+    if (ctx.cursor.peekKind() === "newline") {
+        ctx.cursor.next();
+        return parseBlock(ctx);
+    }
+    const expression = parseExpression(ctx);
+    const exprStatement: ExpressionStatement = {
+        kind: "expression-statement",
+        expression,
+        span: expression.span,
+    };
+    ctx.cursor.match("newline");
+    return { kind: "block-statement", body: [exprStatement], span: expression.span };
+}
+
+// Parse a `name ( params ) => body` user-defined function declaration. The head
+// shape is pre-validated by {@link looksLikeFunctionDeclaration}, so the name,
+// `(`, balanced `)`, and `=>` are known present. Parameters are bare
+// identifiers (Pine v1 UDF params are untyped): a `float x` type prefix is
+// dropped to the bare name with a `udf-typed-param-unsupported` warning; a
+// defaulted (`x = 2`) or non-identifier param rejects the whole declaration
+// (diagnostic + line/block recovery, returning `null` so no node is
+// registered).
+function parseFunctionDeclaration(ctx: ParserContext, start: Token): Statement | null {
+    ctx.cursor.next(); // the function name (`start`)
+    ctx.cursor.next(); // `(`
+    const params: FunctionParam[] = [];
+    if (ctx.cursor.peek().text !== ")") {
+        for (;;) {
+            const typed = ctx.cursor.peek();
+            if (
+                typed.kind === "identifier" &&
+                asNamedType(typed.text) !== null &&
+                ctx.peekAhead(1).kind === "identifier"
+            ) {
+                ctx.addDiagnostic(makeDiagnostic("udf-typed-param-unsupported", typed.span));
+                ctx.cursor.next(); // drop the type annotation, keep the bare name
+            }
+            const nameToken = ctx.cursor.expect("identifier");
+            if (nameToken === null) {
+                ctx.addDiagnostic(
+                    makeDiagnostic(
+                        "expected-token",
+                        ctx.cursor.peek().span,
+                        "Expected a function parameter name.",
+                    ),
+                );
+                recoverCompound(ctx);
+                return null;
+            }
+            const afterName = ctx.cursor.peek();
+            if (afterName.kind === "operator" && afterName.text === "=") {
+                ctx.addDiagnostic(makeDiagnostic("udf-param-default-unsupported", nameToken.span));
+                recoverCompound(ctx);
+                return null;
+            }
+            params.push({ name: nameToken.text, span: nameToken.span });
+            if (ctx.cursor.match("punctuation", ",") === null) {
+                break;
+            }
+        }
+    }
+    ctx.cursor.match("punctuation", ")");
+    ctx.cursor.match("operator", "=>");
+    const body = parseFunctionBody(ctx);
+    const declaration: FunctionDeclaration = {
+        kind: "function-declaration",
+        name: start.text,
+        params,
+        body,
+        span: spanBetween(start.span, body.span),
+    };
+    return declaration;
 }
 
 function parseIfStatement(ctx: ParserContext, start: Token): IfStatement {
@@ -488,7 +621,7 @@ function parseIdentifierStatement(ctx: ParserContext, start: Token): Statement {
         return parseVariableDeclaration(ctx, "none", start);
     }
     const after = ctx.peekAhead(1);
-    if (after.kind === "operator" && (after.text === ":=" || after.text === "=")) {
+    if (after.kind === "operator" && isAssignmentOperator(after.text)) {
         return parseAssignment(ctx, start, after.text);
     }
     const expression = parseExpression(ctx);
@@ -516,6 +649,12 @@ export function parseStatement(ctx: ParserContext): Statement | null {
     }
     if (start.kind === "keyword") {
         return parseKeywordStatement(ctx, start);
+    }
+    // A `name(params) =>` head is a user-defined function declaration; the `=>`
+    // after the balanced `)` distinguishes it from a plain call / history,
+    // which fall through to the identifier path below.
+    if (start.kind === "identifier" && looksLikeFunctionDeclaration(ctx)) {
+        return parseFunctionDeclaration(ctx, start);
     }
     if (start.kind === "identifier") {
         return parseIdentifierStatement(ctx, start);

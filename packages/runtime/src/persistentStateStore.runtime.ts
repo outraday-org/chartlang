@@ -14,11 +14,14 @@ import { validateSnapshot } from "./persistentStateStore.validate.js";
 import type { RuntimeContext } from "./runtimeContext.js";
 import {
     isArraySlotSnapshotKey,
+    isMapSlotSnapshotKey,
     isSeriesSlotSnapshotKey,
     restoreArraySlots,
+    restoreMapSlots,
     restoreSeriesSlots,
     restoreStateSlots,
     serialiseArraySlots,
+    serialiseMapSlots,
     serialiseSeriesSlots,
     serialiseStateSlots,
 } from "./state/index.js";
@@ -57,6 +60,7 @@ function primarySectionSlots(state: RunnerState): Readonly<Record<string, JsonVa
         ...serialiseStateSlots(state.runtimeContext),
         ...serialiseSeriesSlots(state.runtimeContext),
         ...serialiseArraySlots(state.runtimeContext),
+        ...serialiseMapSlots(state.runtimeContext),
         ...serialiseTaSlots(state.mainStream),
     } as Record<string, JsonValue>);
 }
@@ -67,6 +71,7 @@ function runnerSection(ctx: RuntimeContext): RunnerSnapshot {
             ...serialiseStateSlots(ctx),
             ...serialiseSeriesSlots(ctx),
             ...serialiseArraySlots(ctx),
+            ...serialiseMapSlots(ctx),
         } as Record<string, JsonValue>),
     });
 }
@@ -138,15 +143,17 @@ function resolveMainStreamSnapshot(
 }
 
 // Scalar `state.*` keys only — strip `ta:` (restored onto the stream),
-// `:series` (restored into `ctx.seriesSlots`), and `:array` (restored into
-// `ctx.arraySlots`) so the scalar slot store receives none of them.
+// `:series` (restored into `ctx.seriesSlots`), `:array` (restored into
+// `ctx.arraySlots`), and `:map` (restored into `ctx.mapSlots`) so the scalar
+// slot store receives none of them.
 function scalarStateSlots(slots: Readonly<Record<string, unknown>>): Record<string, unknown> {
     const out: Record<string, unknown> = {};
     for (const [slotKey, value] of Object.entries(slots)) {
         if (
             !isTaSlotSnapshotKey(slotKey) &&
             !isSeriesSlotSnapshotKey(slotKey) &&
-            !isArraySlotSnapshotKey(slotKey)
+            !isArraySlotSnapshotKey(slotKey) &&
+            !isMapSlotSnapshotKey(slotKey)
         ) {
             out[slotKey] = value;
         }
@@ -165,6 +172,7 @@ function restoreRunnerSlots(
     restoreStateSlots(ctx, scalarStateSlots(slots));
     restoreSeriesSlots(ctx, slots, capacity);
     restoreArraySlots(ctx, slots);
+    restoreMapSlots(ctx, slots);
 }
 
 function pushMalformedSection(state: RunnerState, message: string): void {

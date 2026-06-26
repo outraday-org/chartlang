@@ -165,12 +165,17 @@
   is re-implemented, and aliases (`const t = s; t[2]`) are not tracked (same
   limitation as the `ta.*` arm). The slot-id injection for `state.series`
   needs no change (Task 1 registered it `{ slot: true }`).
-- **`state.array` capacity must resolve to a bounded positive-integer
-  literal.** `runStateArrayCapacity` (`analysis/stateArrayCapacity.ts`) walks
-  the **original** AST and, for each `state.array` callsite (matched on
-  `resolveCalleeName(...) === "state.array"`, so the element-access form is not
-  double-reported — it is already `stateful-call-element-access`), reads the
-  capacity as `node.arguments[0]`. This is the pre-injection position: the pass
+- **`state.array` / `state.map` capacity must resolve to a bounded
+  positive-integer literal.** `runStateArrayCapacity`
+  (`analysis/stateArrayCapacity.ts`) walks the **original** AST and, for each
+  bounded-collection callsite whose `resolveCalleeName(...)` is in
+  `CAPACITY_GUARDED_NAMES` (`state.array`, `state.map` — append future bounded
+  collections here rather than forking a parallel pass; the element-access form
+  is not double-reported, it is already `stateful-call-element-access`), reads
+  the capacity as `node.arguments[0]`. Both primitives share the
+  `state-array-capacity-not-literal` / `state-array-capacity-exceeds-max` codes
+  and `MAX_STATE_ARRAY_CAPACITY` ceiling; the message interpolates the matched
+  primitive name (byte-identical to the old text for `state.array`). This is the pre-injection position: the pass
   runs before `callsiteIdInjection` prepends the slot-id literal, so the
   capacity is `arguments[0]` here even though it becomes `arguments[1]` in the
   emitted module — never read `arguments[1]` in this pass. Capacity resolution

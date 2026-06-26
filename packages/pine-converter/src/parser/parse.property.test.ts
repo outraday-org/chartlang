@@ -95,6 +95,8 @@ const statement = fc.constantFrom(
     "plot(close)\n",
     "if a\n    x := 1\n",
     "for i = 0 to 9\n    plot(i)\n",
+    "cf_slope(ma, n) => ta.ema(close, n)\n",
+    "cf_atr(length) =>\n    atr = ta.atr(length)\n    p = atr\n",
 );
 
 describe("parseStatements — properties", () => {

@@ -32,6 +32,45 @@ These fire at parse time — the construct has no v1 analogue at all.
 > the `var array<chart.point>` build-loop idiom instead (see
 > [polyline rejects](#dynamic-drawing-collections)).
 
+## User-defined functions
+
+Pine user-defined functions convert (pure → reusable function, stateful →
+inlined per call site; see [supported](./supported.md#user-defined-functions)).
+A few param forms and constructs reject, and two v1 limitations stop a fully
+faithful Trend Wizard port from type-checking.
+
+| Code | When | Rewrite |
+|---|---|---|
+| [`udf-recursive-rejected`](./diagnostics.md#udf-recursive-rejected) | A UDF calls itself directly or through a cycle. chartlang cannot inline a recursive call graph. | Rewrite the recursion as a literal-bounded `for i = a to b` loop accumulating into a `var`. |
+| [`udf-param-default-unsupported`](./diagnostics.md#udf-param-default-unsupported) | A param has a default value (`f(x = 2) => …`). The whole declaration rejects. | Drop the default and pass the value at every call site. |
+| [`udf-typed-param-unsupported`](./diagnostics.md#udf-typed-param-unsupported) | A param is typed (`float x`). **Warning only** — the type is dropped and the bare name `x` is kept. | None needed; remove the type annotation to silence it. |
+| [`udf-arity-mismatch`](./diagnostics.md#udf-arity-mismatch) | A call passes a different argument count than the declaration. **Warning only.** | Match the call to the declared parameter list. |
+
+> **v1 note — a pure helper's params are typed `: number`.** A pure UDF emits as
+> a `const f = (a: number, b: number) => …` arrow; the numeric annotation lets
+> the compiler type-check it (an untyped param trips `noImplicitAny`/`TS7006`),
+> and a `PriceSeries` call-site argument (`bar.close`) is assignable to `number`.
+> The one shape this does not cover is a pure helper that history-indexes its own
+> param (`f(src) => src - src[1]`): `number[1]` is a `TS7053` error and a sound
+> series type is the same `state.series` promotion the stateful history-indexed
+> case below defers. Promote the value by hand, or pass it through a `ta.*`
+> window primitive.
+
+> **v1 limitation — a stateful helper that indexes a *param's* history.** A
+> helper whose body reads `param[1]` (e.g. Trend Wizard's
+> `cf_slope(ma, n) => ta.ema((ma - ma[1]) / ma[1] * 100, n)`) inlines correctly
+> only when the argument is itself a **series** that supports history — an OHLCV
+> field (`cf_slope(close, 3)` → `bar.close[1]`, fine). Applied to a **derived**
+> value (`ma_1 = ta.ema(close, 8)`, which lowers to a `.current` scalar), the
+> inlined `ma_1[1]` indexes a `number` (`TS7053`). Promote the derived value to
+> a `state.series` by hand, or read the prior bar through a `ta.*` window
+> primitive. Auto-promoting a history-indexed inlined argument is a planned
+> follow-up.
+
+A **`switch`-expression body** (`f(x) => switch x \n "A" => … `, Trend Wizard's
+`cf_ma`) does not yet parse as a UDF return value — it is a separate
+`switch`-as-value work item, tracked outside the UDF surface.
+
 ## Dynamic drawing collections
 
 The load-bearing reject class. chartlang has no analogue for an unbounded
@@ -76,6 +115,8 @@ no analogue for resolving a fill across an unbounded handle collection.
 | [`requires-bar-interval`](./diagnostics.md#requires-bar-interval) | A future `bar_index + N` anchor with `barInterval` null. | Pass `barInterval` (ms per bar) — CLI `--bar-interval`. |
 | [`dynamic-series-index`](./diagnostics.md#dynamic-series-index) | Series history `x[n]` with a non-literal `n`. | Use a literal offset, or a `ta.*` window primitive. |
 | [`loop-bounds-not-literal-for-stateful-body`](./diagnostics.md#loop-bounds-not-literal-for-stateful-body) | A `for` whose body calls a stateful primitive has non-resolvable bounds. | Lift the stateful call out of the loop, or use a literal `for i = 0 to N`. |
+| [`stateful-loop-with-break`](./diagnostics.md#stateful-loop-with-break) | A `for` body has **both** a stateful primitive (`plot`/`hline`/`alert`/`ta.*`/`draw.*`) **and** a `break`/`continue`. The stateful call needs an unroll; the `break` forbids one. | Lift the stateful call out of the loop, or drop the `break`/`continue` so the loop can unroll. |
+| [`break-continue-outside-loop`](./diagnostics.md#break-continue-outside-loop) | A `break`/`continue` with no enclosing `for` loop. | Move the `break`/`continue` inside a `for` loop, or remove it. |
 
 ## Tables & passthrough
 

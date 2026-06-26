@@ -1,0 +1,14 @@
+//@version=6
+indicator("Leading-op continuation", overlay=false)
+sw = input.bool(true, "Switch")
+maOk = close > open
+rsi = ta.rsi(close, 14)
+rsiOk = rsi > 50
+cond = maOk and rsiOk
+    and not sw
+    and close > 0
+entry = maOk
+    or rsiOk
+    or (close > open ? maOk : rsiOk)
+plot(cond ? 1 : 0)
+plot(entry ? 1 : 0)

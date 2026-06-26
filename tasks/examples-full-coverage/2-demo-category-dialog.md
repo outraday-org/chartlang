@@ -8,7 +8,7 @@ Replace the flat `<select>` in the live demo with a "Browse examples"
 button that opens a modal dialog: a left sidebar of categories and a
 right pane listing the examples in the selected category (label +
 description). Group the VitePress Examples sidebar by the same
-categories. This makes the ~192-entry catalogue navigable. No primitive
+categories. This makes the ~200-entry catalogue navigable. No primitive
 examples are added here — this task only changes how the catalogue is
 presented.
 
@@ -27,7 +27,7 @@ preselects an entry. The VitePress Examples sidebar
 ## Desired Behavior
 
 - A "Browse examples" trigger button shows the current example's label
-  and a count (e.g. "EMA Cross · 192 examples"). Clicking opens a modal.
+  and a count (e.g. "EMA Cross · 200 examples"). Clicking opens a modal.
 - The modal has a left sidebar listing categories in `CATEGORY_ORDER`
   (using `CATEGORY_LABELS`), each with a count — `complex` (the curated
   showcase demos) sorts first; selecting one filters

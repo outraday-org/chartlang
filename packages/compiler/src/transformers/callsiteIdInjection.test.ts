@@ -177,6 +177,7 @@ state.bool(false);
 state.string("");
 state.series(0);
 state.array(20);
+state.map(20);
 state.tick.float(0);
 state.tick.int(0);
 state.tick.bool(false);
@@ -203,8 +204,8 @@ draw.trendAngle({ time: 0, price: 0 }, { time: 1, price: 1 });
         // category. Task 5 wires the 6 line-family kinds; the remaining
         // 55 draw.* kinds land in Tasks 6–18. The test exercises every
         // shipped slot:true callsite (93 ta + plot + hline + bgcolor +
-        // barcolor + alert + 10 state (incl. state.series + state.array) +
-        // 6 line-family draw) —
+        // barcolor + alert + 11 state (incl. state.series + state.array +
+        // state.map) + 6 line-family draw) —
         // entries without a call here are excluded from the expected count.
         const unwiredDrawEntries = new Set<string>();
         for (const entry of STATEFUL_PRIMITIVES) {

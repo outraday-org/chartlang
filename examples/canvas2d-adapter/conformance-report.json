@@ -1,9 +1,15 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.2.1",
-    "passed": 250,
+    "passed": 252,
     "failed": 0,
     "scenarios": [
+        {
+            "id": "array-rolling-stats",
+            "title": "state.array rolling stdev/median are byte-stable finite series",
+            "status": "pass",
+            "failures": []
+        },
         {
             "id": "bar-close-direct-index",
             "title": "Direct bar.close[N] indexing tracks ta.sma(close, 5)",
@@ -601,6 +607,12 @@
         {
             "id": "lower-tf-unsupported-interval",
             "title": "request.lowerTf unsupported interval",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "map-accumulator",
+            "title": "state.map per-level volume accumulation is byte-stable across adapters",
             "status": "pass",
             "failures": []
         },

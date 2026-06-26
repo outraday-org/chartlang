@@ -345,6 +345,49 @@ for (let i = 0; i < 20; i++) {
 plot(win.size > 0 ? sum / win.size : 0);
 ```
 
+### Reductions over the window
+
+You rarely want the raw elements — you want a **statistic** over them. The
+handle carries the rolling reductions as **methods**, so you never hand-roll a
+bounded loop for a mean or a stdev:
+
+```ts
+const win = state.array<number>(20);
+win.push(bar.close.current);
+const z = win.stdev() > 0 ? (bar.close.current - win.avg()) / win.stdev() : 0;
+plot(z, { title: "Z-Score(20)" });
+```
+
+| Method | Returns |
+|--------|---------|
+| `win.sum()` / `win.avg()` | Σ / mean of the non-NaN elements. |
+| `win.min()` / `win.max()` / `win.range()` | min, max, and `max − min`. |
+| `win.variance(biased?)` / `win.stdev(biased?)` | variance / standard deviation — **population** by default, **sample** when `biased === false`. |
+| `win.median()` | median (linear interpolation at the midpoint). |
+| `win.percentile(p)` | the `p`-th percentile, `p ∈ [0,100]`, linear interpolation. |
+| `win.indexOf(v)` / `win.includes(v)` | first index from newest (`-1` if absent) / membership. |
+| `win.sort(order?)` | a **fresh sorted copy** (`"asc"` default / `"desc"`) — never mutates the ring. |
+
+There is also a thin **Pine-parity free-function namespace** `array` whose
+members delegate 1:1 to the methods — `array.avg(win)` is exactly `win.avg()`,
+so the two call styles can never drift (`import { array } from
+"@invinite-org/chartlang-core"`):
+
+```ts
+import { array, defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+// array.stdev(win) === win.stdev(); array.percentile(win, 90) === win.percentile(90).
+```
+
+::: tip NaN policy & caveats
+The numeric reductions (`sum`/`avg`/`min`/`max`/`range`/`variance`/`stdev`/
+`median`/`percentile`) **skip NaN** elements (matching the `ta.*` weighted-window
+convention); an empty or all-NaN window returns `NaN`, never `0`. `sort()`
+returns a fresh **copy** — unlike Pine's in-place `array.sort`, it never mutates
+the ring, so reads of the original window after a sort are unchanged. Only the
+linear-interpolation percentile ships in v1 (Pine's `percentile_nearest_rank` is
+deferred).
+:::
+
 ## Lookback is bounded — dynamic indices are flagged
 
 A series index that the compiler can **prove bounded at compile time** is

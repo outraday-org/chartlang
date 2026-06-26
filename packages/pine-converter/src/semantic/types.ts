@@ -75,12 +75,17 @@ export type SymbolKind =
     | "varip-variable"
     | "for-iterator"
     | "function-parameter"
+    | "function"
     | "builtin";
 
 /**
  * A resolved symbol: its name, what declared it, where, its inferred
  * qualifier, and — for drawing handles — which object family it holds.
- * `declarationSpan` is `null` for built-ins.
+ * `declarationSpan` is `null` for built-ins. For a `kind: "function"`
+ * user-defined function, `params` lists its parameter names and `stateful`
+ * is the resolved transitive classification Tasks 3/4 read (pure `false` →
+ * a reusable function; `true` → inline per call site); both fields are
+ * absent on every non-function symbol.
  *
  * @since 0.1
  * @stable
@@ -102,6 +107,8 @@ export type SymbolInfo = Readonly<{
     typeAnnotation: TypeAnnotation | null;
     qualifier: TypeQualifier;
     handleType: HandleType | null;
+    params?: readonly string[];
+    stateful?: boolean;
 }>;
 
 /**

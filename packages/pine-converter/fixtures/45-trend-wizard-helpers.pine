@@ -1,0 +1,17 @@
+//@version=6
+indicator("Trend Wizard helpers", overlay=false)
+src = close
+cf_dist(source, ma, smoothing_amt) => ta.sma(((source - ma) / ma * 100), smoothing_amt)
+cf_atr_perct(length) =>
+    atr = ta.atr(length)
+    atr_prct = (atr / close) * 100
+ma_1 = ta.ema(src, 8)
+ma_2 = ta.ema(src, 21)
+ma_1_dist = cf_dist(src, ma_1, 3)
+ma_2_dist = cf_dist(src, ma_2, 5)
+atr_short = cf_atr_perct(14)
+atr_long = cf_atr_perct(50)
+plot(ma_1_dist)
+plot(ma_2_dist)
+plot(atr_short)
+plot(atr_long)

@@ -28,8 +28,10 @@ Per the base rules in [Task 3](./3-ta-moving-averages.md).
   namespaces. Each example reads from the namespace (e.g.
   `barstate.isConfirmed`, `syminfo.mintick`, `timeframe.period`) and
   uses the value to gate an `alert` or drive a `plot`.
-- **`request.security`** is already covered by `htf-trend-filter`
-  (skip if absent from the allowlist). **`request.lowerTf`** needs an
+- **`request.security`** is already covered by the single-primitive
+  default `symbol-ratio` (Task 1 §6b; `htf-trend-filter` is a composite
+  that no longer credits it). Skip if absent from the allowlist.
+  **`request.lowerTf`** needs an
   intrabar lower-timeframe stream — the demo's `ChartPane` feeds
   synthetic streams from `requestedIntervals` (see `apps/CLAUDE.md`).
   Author the example so it compiles + runs clean even when the demo
@@ -49,7 +51,9 @@ Per the base rules in [Task 3](./3-ta-moving-averages.md).
 | `barstate` | new | Gate an `alert` on `barstate.isConfirmed`. |
 | `syminfo` | covered (`mintick-snapped-entry`) | Uses `syminfo.mintick` to snap a level — credited to the migrated composite (Task 1 §6); skip if absent from the allowlist. |
 | `timeframe` | new | Branch behavior on `timeframe.period`. |
-| `request.security` | covered (`htf-trend-filter`) | — |
+| `time` | covered (`weekday-close-filter`, migrated default — Task 1 §6b) — skip if absent. |
+| `session` | new | Read the `session` namespace (added since this plan); gate a `plot`/`alert` on session state. |
+| `request.security` | covered (`symbol-ratio`) | — |
 | `request.lowerTf` | new | Pull intrabar data via `request.lowerTf`. |
 
 ## Files to Create / Modify

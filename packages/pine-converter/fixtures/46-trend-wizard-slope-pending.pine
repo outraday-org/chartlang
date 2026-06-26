@@ -1,0 +1,9 @@
+//@version=6
+indicator("Trend Wizard slope pending", overlay=false)
+cf_slope(ma, smoothing_amt) => ta.ema(((ma - ma[1]) / ma[1] * 100), smoothing_amt)
+ma_1 = ta.ema(close, 8)
+ma_2 = ta.ema(close, 21)
+ma_1_slope = cf_slope(ma_1, 3)
+ma_2_slope = cf_slope(ma_2, 5)
+plot(ma_1_slope)
+plot(ma_2_slope)

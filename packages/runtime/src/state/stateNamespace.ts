@@ -3,6 +3,7 @@
 
 import type {
     MutableArraySlot,
+    MutableMapSlot,
     MutableSlot,
     NumberSeriesSlot,
     StateNamespace,
@@ -11,6 +12,7 @@ import type {
 import { Float64RingBuffer } from "../ringBuffer.js";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
 import { createArrayStateSlot } from "./arrayStateSlot.js";
+import { type MapKey, createMapStore } from "./mapStore.js";
 import { createSeriesSlot } from "./seriesSlot.js";
 import { asMutableSlot, StateSlot } from "./stateSlot.js";
 
@@ -56,6 +58,18 @@ const seriesKey = (ctx: RuntimeContext, slotId: string): string =>
  */
 const arrayKey = (ctx: RuntimeContext, slotId: string): string =>
     `${ctx.slotIdPrefix ?? ""}${slotId}:array`;
+
+/**
+ * Compose the runtime's `state.map` slot key — the `:map` suffix (vs `:state` /
+ * `:series` / `:array`) lets the snapshot restore router tell a map slot from a
+ * scalar, series, or array slot. The `slotIdPrefix` isolation rule is identical
+ * to {@link stateKey}.
+ *
+ * @since 1.4
+ * @internal
+ */
+const mapKey = (ctx: RuntimeContext, slotId: string): string =>
+    `${ctx.slotIdPrefix ?? ""}${slotId}:map`;
 
 function getCtx(name: string): RuntimeContext {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
@@ -119,6 +133,21 @@ function getOrAllocateArray(slotId: string, capacity: number): MutableArraySlot<
     return slot.handle;
 }
 
+function getOrAllocateMap(slotId: string, capacity: number): MutableMapSlot<MapKey, number> {
+    const ctx = getCtx("state.map");
+    const key = mapKey(ctx, slotId);
+    const existing = ctx.mapSlots.get(key);
+    if (existing !== undefined) {
+        return existing.handle;
+    }
+    // No store-consult / seed: an empty collection starts empty, and warm
+    // restart rehydrates `mapSlots` up front via `restoreMapSlots` (mirrors the
+    // `state.array` allocator), so this path only runs for a first-seen callsite.
+    const slot = createMapStore(capacity);
+    ctx.mapSlots.set(key, slot);
+    return slot.handle;
+}
+
 /**
  * Build the runtime `state` namespace installed on `ComputeContext`.
  * Each function accepts the compiler-injected `slotId` as its first
@@ -144,6 +173,8 @@ export function buildStateNamespace(): StateNamespace {
             getOrAllocateSeries(slotId, init),
         array: (slotId: string, capacity: number): MutableArraySlot<number> =>
             getOrAllocateArray(slotId, capacity),
+        map: (slotId: string, capacity: number): MutableMapSlot<MapKey, number> =>
+            getOrAllocateMap(slotId, capacity),
         tick: {
             float: (slotId: string, init: number): MutableSlot<number> =>
                 getOrAllocate("state.tick.float", slotId, init, true),

@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/udf-emitted-function",
+        "severity": "info",
+        "message": "A pure (state-free) user-defined function was emitted as a reusable chartlang arrow function at the top of `compute`, and every call site reuses it (no inlining needed — a pure helper is referentially transparent).",
+        "span": {
+            "startLine": 3,
+            "startColumn": 1,
+            "endLine": 3,
+            "endColumn": 105
+        },
+        "suggestion": "No action needed — a single shared function is semantically identical to Pine's per-call evaluation for a state-free helper."
+    }
+]

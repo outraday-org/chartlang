@@ -210,7 +210,12 @@ export type {
     TimeDescriptor,
 } from "./input/index.js";
 export { state } from "./state/index.js";
-export type { MutableArraySlot, MutableSlot, StateNamespace } from "./state/index.js";
+export type {
+    MutableArraySlot,
+    MutableMapSlot,
+    MutableSlot,
+    StateNamespace,
+} from "./state/index.js";
 export type {
     RunnerSnapshot,
     StateSnapshot,
@@ -248,6 +253,8 @@ export {
 export type { MathNamespace } from "./math/index.js";
 export { applyFormat, formatNumber, str } from "./str/index.js";
 export type { StrNamespace } from "./str/index.js";
+export { array } from "./array/index.js";
+export type { ArrayNamespace } from "./array/index.js";
 export { barcolor, bgcolor, hline, plot } from "./plot/index.js";
 export type {
     BarColorOpts,

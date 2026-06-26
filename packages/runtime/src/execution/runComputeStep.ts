@@ -9,11 +9,13 @@ import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext.js";
 import {
     advanceSeriesSlots,
     commitArraySlots,
+    commitMapSlots,
     commitSeriesSlots,
     commitStateSlots,
     flushStateSlots,
     resetSeriesHeads,
     resetTentativeArraySlots,
+    resetTentativeMapSlots,
     resetTentativeStateSlots,
 } from "../state/index.js";
 import { type EventKind, refreshRuntimeViews } from "../views/index.js";
@@ -107,6 +109,7 @@ export async function runComputeBody(args: RunComputeStepArgs): Promise<RunCompu
             resetTentativeStateSlots(state.runtimeContext);
             resetSeriesHeads(state.runtimeContext);
             resetTentativeArraySlots(state.runtimeContext);
+            resetTentativeMapSlots(state.runtimeContext);
         } else {
             // Advance every already-allocated series ring with a fresh NaN
             // head BEFORE compute, so a slot first allocated mid-compute (it
@@ -121,6 +124,7 @@ export async function runComputeBody(args: RunComputeStepArgs): Promise<RunCompu
                 flushStateSlots(state.runtimeContext);
                 commitSeriesSlots(state.runtimeContext);
                 commitArraySlots(state.runtimeContext);
+                commitMapSlots(state.runtimeContext);
             }
         } catch (err) {
             if (!isRuntimeErrorHalt(err)) throw err;

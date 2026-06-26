@@ -1,0 +1,11 @@
+//@version=6
+indicator("Nested ta arithmetic", overlay=false)
+scale = input.float(0.1, "Scale", step=0.02)
+r = ta.rsi(close, 14) * scale
+w = ta.wma((high + low) / 2, 5) * 2 + 1
+s = close > open ? ta.ema(close, 8) : ta.sma(close, 8)
+y = ta.sma(ta.atr(14), 5)
+plot(r)
+plot(w)
+plot(s)
+plot(y)

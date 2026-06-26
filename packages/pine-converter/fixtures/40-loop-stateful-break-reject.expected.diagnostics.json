@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/stateful-loop-with-break",
+        "severity": "error",
+        "message": "A `for` loop with a `break`/`continue` AND a stateful primitive (`plot`/`hline`/`alert`/`ta.*`/`draw.*`) in its body cannot be converted: chartlang forbids a stateful call inside a loop, and a `break`/`continue` body cannot be unrolled.",
+        "span": {
+            "startLine": 4,
+            "startColumn": 1,
+            "endLine": 8,
+            "endColumn": 1
+        },
+        "suggestion": "Lift the stateful call out of the loop, or drop the `break`/`continue` so the loop can unroll."
+    }
+]

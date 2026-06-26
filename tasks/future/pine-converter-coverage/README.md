@@ -24,6 +24,65 @@ Each TX has its own subfolder + README plus numbered task files
 (`1-*.md`, `2-*.md`, …) following the house template. All groups (T1–T12)
 are fully written and have been validated.
 
+## Execution status — RESUME POINT (updated 2026-06-26)
+
+> **TL;DR for a new chat:** **4 of 12 groups are done** — `X-T9`, `X-T10`,
+> `X-T2`, `X-T1` (folders + task files `X-`-prefixed). **T3, T4, T5, T6, T7,
+> T8, T11, T12 remain.** Nothing is committed; everything is in the working
+> tree. Resume with `/execute-tasklist tasks/future/pine-converter-coverage/`
+> — aggregate mode auto-skips the `X-T*` folders and starts at **T3**.
+
+**Done (`X-`-prefixed; all tasks Complete/Ship):**
+
+- ✅ `X-T9` — leading-operator line continuation (lexer-side deferred-`newline`
+  emit; trailing-operator form deferred). Fixture 37.
+- ✅ `X-T10` — `break`/`continue` + no-unroll loops + compound assignment
+  (`+=` etc.). **Plus a scoped-up win:** the `.current`→`state.series`
+  PROMOTION for a non-`var`, ta-derived series that is history-indexed
+  (`ma[i]`), so MASM's consolidation loop compiles end-to-end; loop-iterator
+  `[i]` no longer flags `dynamic-series-index`. Fixtures 38–40.
+- ✅ `X-T2` — nested `ta.*` `.current` lowering via the shared
+  `lowerTaToCurrent`. **Canonical scalar/series rule** (overrode the task's
+  type-invalid line-59 example): `.current` for operator operands / ternary
+  arms / `math.*`-args; a ta.* **source-arg to another ta.*** / `plot` / `hline`
+  / `request.security`-callback / history-receiver stays a bare `Series`. KNOWN
+  GAP retired. Fixture 41 (`nested-ta-lowered`/`nested-ta-not-lowered` codes).
+- ✅ `X-T1` — UDF declarations: pure UDFs → hoisted topo-ordered **typed** arrow
+  consts; stateful UDFs → **inline per call site** (slot isolation from distinct
+  generated source positions → independent slot ids → two calls diverge,
+  fixture 43). Quality pass also fixed a general nested-`math.*` lowering gap
+  and a repo-wide `docs:check` re-export failure. Fixtures 42–46.
+
+**Remaining order on resume** (the recommended order below, minus the done
+groups): **T3, T4, T6, T7, T11** (converter-internal, any order) → **T5**
+(after T4) and **T8** (bgcolor D2 already landed) → **T12**.
+
+**Carry-forward follow-ups (do these inside the owning group, don't lose them):**
+
+- **Parked fixture `46-trend-wizard-slope-pending`** — a stateful UDF that
+  indexes a **param's** history applied to a *derived* MA local (`ma_1[1]`)
+  hits TS7053; needs history-indexed-inlined-arg → `state.series` promotion.
+  Out of T1's scope; a natural T12-adjacent or follow-up converter task.
+- **`cf_ma` switch-as-value** (a `float x = switch …` body) is documented in
+  `docs/converter/rejects.md`, not fixtured — it is **T3's** job (switch
+  branch multi-assignment / switch-as-value). Revisit the full Trend Wizard
+  fixture once T3 lands.
+- **Stale doc note (pre-existing, not introduced here):** a `transform/other.ts`
+  section in `packages/pine-converter/CLAUDE.md` claims `14-polyline-rebuild`
+  was removed from `KNOWN_NON_COMPILING`, but it is still listed in
+  `fixtures-compile.test.ts`. One-line cleanup when next in that file.
+
+**Notes for the resuming agent:**
+
+- Next free fixture `NN` is **47** — confirm with `ls packages/pine-converter/fixtures`.
+- Execution used per-package gates only (`pnpm -F @invinite-org/chartlang-pine-converter
+  test`, 100% coverage). The full-workspace gates + `pnpm conformance` (only T8
+  touches adapters) are the final CI proof before committing.
+- Per-task implementation + the per-folder quality pass both run on **opus**;
+  one teammate per task, sequential within a group (pine-converter hotspot
+  contention: `diagnostics/codes.ts`, the golden corpus count, `emitContext.ts`,
+  `mapping/`, `semantic/builtins.ts`).
+
 ## Prerequisite: migrate v5 scripts to v6 first
 
 The converter is intentionally **v6-only** (`//@version=5` →
@@ -60,28 +119,33 @@ constants changed (the converter's `ENUM_VALUE_MAP` should carry **v6** hex).
 
 ## TX index
 
-| TX | Title | Primary package(s) | Surfaced by / Severity | Depends on |
-|----|-------|--------------------|------------------------|-----------|
-| [T1](./T1-udf-declarations/) | User-defined function declarations | pine-converter (+ maybe compiler) | TW 🔴 | — |
-| [T2](./T2-nested-ta-lowering/) | Nested `ta.*` `.current` lowering | pine-converter | TW 🔴 silent | (compounds T1) |
-| [T3](./T3-switch-multi-assign/) | `switch` branch comma multi-assignment | pine-converter | TW 🔴 | — |
-| [T4](./T4-input-string-enum/) | `input.string/int(options=)` → `input.enum` **+ bare `input()` / source** | core + pine-converter | TW + MASM 🔴 | core `input.enum` numeric ext (new task 1) + array-literal parse |
-| [T5](./T5-tuple-security/) | Tuple-returning `request.security` | pine-converter | TW 🔴 | `../multi-symbol-security/` + **T4** array-literal parse |
-| [T6](./T6-color-transparency/) | 4-arg `color.rgb` / `color.new` → alpha | pine-converter | TW + MASM 🟠 silent | — |
-| [T7](./T7-fill-to-fillbetween/) | `fill(plot/hline,…)` → `draw.fillBetween` | pine-converter | TW 🟠 | — |
-| [T8](./T8-plot-visibility/) | Per-plot visibility + Pine `display=` | core + compiler + runtime + adapters + converter | TW + MASM 🟡 | `../bgcolor-barcolor-ergonomics/` D2 |
-| [T9](./T9-leading-op-continuation/) | Leading-operator (`and`/`or`) line continuation | pine-converter (lexer/parser) | MASM 🔴 **general** | — |
-| [T10](./T10-loop-break-continue/) | Loop `break`/`continue` + loop-body `+=` | pine-converter | MASM 🔴 **general** | — |
-| [T11](./T11-alert-message-freq/) | `alert(message, freq)` + `alert.freq_*` | pine-converter | MASM 🔴 | — |
-| [T12](./T12-nonnumeric-persistent-state/) | `var color` + `var bool/string` history (`state.series<bool>` / `state.color`) | core + runtime + converter | MASM 🔴 | (v6 migration eases bool) |
+Status: ✅ = done (`X-`-prefixed). ☐ = remaining.
+
+| TX | Done | Title | Primary package(s) | Surfaced by / Severity | Depends on |
+|----|------|-------|--------------------|------------------------|-----------|
+| [T1](./X-T1-udf-declarations/) | ✅ | User-defined function declarations | pine-converter (+ maybe compiler) | TW 🔴 | — |
+| [T2](./X-T2-nested-ta-lowering/) | ✅ | Nested `ta.*` `.current` lowering | pine-converter | TW 🔴 silent | (compounds T1) |
+| [T3](./T3-switch-multi-assign/) | ☐ | `switch` branch comma multi-assignment | pine-converter | TW 🔴 | — |
+| [T4](./T4-input-string-enum/) | ☐ | `input.string/int(options=)` → `input.enum` **+ bare `input()` / source** | core + pine-converter | TW + MASM 🔴 | core `input.enum` numeric ext (new task 1) + array-literal parse |
+| [T5](./T5-tuple-security/) | ☐ | Tuple-returning `request.security` | pine-converter | TW 🔴 | `../multi-symbol-security/` + **T4** array-literal parse |
+| [T6](./T6-color-transparency/) | ☐ | 4-arg `color.rgb` / `color.new` → alpha | pine-converter | TW + MASM 🟠 silent | — |
+| [T7](./T7-fill-to-fillbetween/) | ☐ | `fill(plot/hline,…)` → `draw.fillBetween` | pine-converter | TW 🟠 | — |
+| [T8](./T8-plot-visibility/) | ☐ | Per-plot visibility + Pine `display=` | core + compiler + runtime + adapters + converter | TW + MASM 🟡 | `../bgcolor-barcolor-ergonomics/` D2 (landed) |
+| [T9](./X-T9-leading-op-continuation/) | ✅ | Leading-operator (`and`/`or`) line continuation | pine-converter (lexer/parser) | MASM 🔴 **general** | — |
+| [T10](./X-T10-loop-break-continue/) | ✅ | Loop `break`/`continue` + loop-body `+=` | pine-converter | MASM 🔴 **general** | — |
+| [T11](./T11-alert-message-freq/) | ☐ | `alert(message, freq)` + `alert.freq_*` | pine-converter | MASM 🔴 | — |
+| [T12](./T12-nonnumeric-persistent-state/) | ☐ | `var color` + `var bool/string` history (`state.series<bool>` / `state.color`) | core + runtime + converter | MASM 🔴 | (v6 migration eases bool) |
 
 Severity legend: TW = Trend Wizard, MASM = MASM_Strat. **general** = breaks
 most real-world Pine, not just the reference script.
 
 Recommended order: **T9 + T10 first** (leading-op continuation and `break` are
-prerequisites for converting almost *any* real script), then **T1 → T2**
-(helpers + nested-ta), then the independent converter fixes (T3/T4/T6/T7/T11),
-T5 after `multi-symbol-security`, and the core-spanning T8 + T12 last.
+prerequisites for converting almost *any* real script), then **T2 → T1**
+(nested-ta then helpers — note: run **T2 before T1**, the reverse of the
+original "T1 → T2" prose, because T1's Tasks 4/5 depend on T2's nested-ta
+lowering while T2 has no hard dep on T1), then the independent converter fixes
+(T3/T4/T6/T7/T11), T5 after `multi-symbol-security`, and the core-spanning
+T8 + T12 last. **T9, T10, T2, T1 are now done** — resume at **T3**.
 
 ## Shared invariants (apply to every TX)
 

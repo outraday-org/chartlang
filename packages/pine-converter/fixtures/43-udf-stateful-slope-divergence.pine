@@ -1,0 +1,7 @@
+//@version=6
+indicator("UDF stateful slope divergence", overlay=false)
+cf_slope(ma, smoothing_amt) => ta.ema(((ma - ma[1]) / ma[1] * 100), smoothing_amt)
+close_slope = cf_slope(close, 3)
+open_slope = cf_slope(open, 5)
+plot(close_slope)
+plot(open_slope)

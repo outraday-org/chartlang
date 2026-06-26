@@ -78,11 +78,33 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   tokens equals the number of `dedent` tokens emitted before the single
   trailing `eof`. The property test enforces this — do not emit a `dedent`
   without a prior matching `indent`.
-- **Line continuation is a paren-depth + trailing-comma rule, not
-  lookahead.** A `newline` (and any consequent `indent`/`dedent`) is
-  suppressed while `parenDepth > 0` (incremented on `( [ {`, decremented
-  on `) ] }`) OR the last significant token is a `,`. Blank and
-  comment-only lines emit a `newline` but never touch the indent stack.
+- **Line continuation has two rules: an eager paren-depth + trailing-comma
+  rule, and a deferred leading-operator rule (bounded one-token buffering,
+  NOT arbitrary lookahead).** (1) A `newline` (and any consequent
+  `indent`/`dedent`) is suppressed eagerly while `parenDepth > 0` (incremented
+  on `( [ {`, decremented on `) ] }`) OR the last significant token is a `,`.
+  (2) Otherwise a content-line `newline` is **deferred** (held in
+  `pendingNewline`) until the next significant token is known: if that token is
+  a **leading-operator continuation lead** AND its line is indented **strictly
+  deeper than the statement-start column** (== the tracker's `currentLevel()`,
+  since a statement's first line resolves the stack top to its own indent), the
+  held `newline` is **dropped** and the indent stack is left untouched (no
+  `resolve`, so no `indent`/`dedent`) — the line is transparent to block
+  structure. Any other token **flushes** the held `newline` + runs the
+  indentation resolver normally. The held newline is resolved by the *very next
+  significant token*, so this stays consistent with "not lookahead." The
+  continuation-lead set (`isContinuationLead`, `indent.ts`) is a single shared
+  constant keyed on `(kind, text)` mirroring the parser's `BINARY_PRECEDENCE`
+  infix surface PLUS the ternary `?`/`:`, MINUS the prefix-only `not`; the two
+  MUST stay in sync (a new `BINARY_PRECEDENCE` operator must be added to the
+  lead set). The lexer cannot import `BINARY_PRECEDENCE` (the parser depends on
+  the lexer — a runtime back-import would cycle), so the mirror is deliberate.
+  Disambiguation: a `-`/`+` line at the *same* indent as the statement start is
+  a NEW unary statement, not a continuation; `?`/`:` are lexer-valid leads but
+  the parser (`parseTernary`) owns their syntactic completion. Blank and
+  comment-only lines emit their `newline` immediately (no deferral) and never
+  touch the indent stack. The indent/dedent balance invariant
+  (`lex.property.test.ts`) still holds — continuation lines never push the stack.
 - **Malformed input never throws — it emits a `LexerDiagnostic`.** Codes
   are namespaced `pine-converter/lex/<code>`: `malformed-numeric`,
   `unterminated-string`, `invalid-color`, `illegal-character` (errors),
@@ -109,6 +131,54 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `math.sum`/`math.avg(source, length)` is Pine's rolling window with NO
   chartlang scalar analogue, so it emits `math-rolling-window-unmapped` + a
   `/* TODO rolling window */` rather than collapsing onto the scalar form.
+- **`ARRAY_REDUCTION_MAP` (`mapping/arrayReductions.ts`) owns the Pine `array.*`
+  reduction NAME/enum decisions; the per-arg shaping + emit live in
+  `transform/emitContext.ts`'s `rewriteArrayBuiltin`.** A reduction over a
+  registered numeric `state.array` slot lowers onto the HANDLE METHOD
+  (`array.stdev(win)` → `win.stdev()`, `array.percentile_linear_interpolation`
+  → `<slot>.percentile`, `array.sort(id, order)` → `<slot>.sort("asc"|"desc")`
+  via `ARRAY_SORT_ORDER_MAP`) — same slot surface as the existing
+  `array.push`/`array.get` rewrites, so NO `array` import is emitted. Two
+  append-only diagnostics ride this: `array.sort` raises `array-sort-returns-copy`
+  (info — chartlang's `sort` returns a fresh COPY, never mutating the ring), and
+  `array.percentile_nearest_rank` (a `chartlang: null` REJECT) + any UNMAPPED
+  `array.*` over a slot emit a `Number.NaN /* TODO */` placeholder +
+  `array-reduction-not-mapped` (warning), NEVER broken `array.<x>(...)` or a hard
+  fail. (This SUPERSEDES the old "unrecognised `array.*` falls to the generic
+  path" behavior.) The diagnostics flow through the OPTIONAL
+  `EmitContext.arrayWarn` structural sink (the `DrawCallContext.warn` precedent),
+  populated only by `transformOther` from the `DiagnosticCollector`; it fires
+  only inside the slot-gated rewrite (where `arraySlots` ⇒ `arrayWarn` is set), so
+  there is ONE classification site and no second walk. The Pine `order` enum
+  (`order.ascending`/`order.descending`) is a recognised `semantic/builtins.ts`
+  const + namespace root.
+- **`MAP_BUILTIN_MAP` (`mapping/mapBuiltins.ts`) owns the Pine `map.*` NAME +
+  shape decisions; the per-arg emit lives in `transform/emitContext.ts`'s
+  `rewriteMapBuiltin`.** A `map.*(id, …)` over a registered numeric-value
+  `state.map` slot (scanned by `transform/mapCollection.ts`, mirroring
+  `numericArray.ts`) lowers onto the HANDLE surface — `map.put` → `<slot>.set`,
+  `map.get` → `(<slot>.get(k) ?? Number.NaN)` (na-bridged, since chartlang `get`
+  returns `undefined` where Pine `map.get` returns `na`), `map.contains` →
+  `has`, `map.remove` → `delete`, `map.size` → `<slot>.size` (a PROPERTY, not a
+  call), `map.clear` → `clear()` — same slot surface as the `array.*` rewrites,
+  so NO `map` import is emitted. **CAPACITY IS SYNTHESIZED:** Pine `map.new<K,
+  V>()` is unbounded but chartlang `state.map(N)` needs a literal, so
+  `emitMapSlots` (`other.ts`) emits `state.map<number, number>(1000)`
+  (`SYNTHESIZED_MAP_CAPACITY`) + a `map-capacity-synthesized` info — a map is
+  NEVER rejected for missing capacity (unlike a numeric `array`, which
+  hard-rejects `unbounded-array-collection`), so `MapScan` has NO `unbounded`
+  partition. The KEY type is lost by the parser (the `map<K, V>` annotation
+  collapses to its LAST type arg, the VALUE), so the emit is always
+  `<number, number>`; a non-numeric VALUE map raises `map-collection-non-numeric`
+  (info) and is not lowered. `map.keys`/`map.values` (`chartlang: null` REJECTs —
+  no v1 iterators) and any unmapped `map.*` over a slot emit a `Number.NaN /* TODO
+  */` placeholder + `map-builtin-not-mapped` (warning) via the OPTIONAL
+  `EmitContext.mapWarn` sink (the `arrayWarn` precedent), never broken JS. `map`
+  is a recognised `semantic/builtins.ts` namespace root (without it every
+  `map.*` member is a spurious `unknown-identifier`). `map.*` ops never match
+  `isDrawingOwnedCall` (only `array.`/`table.`/`linefill.`/setter calls do), so
+  map slot names go in `owned` (to skip the `map.new` decl) but need no
+  `arrayNames`-style carve-out.
 - **Pine `nz(x[, r])` lowers to the SCALAR `math.nz(...)` in `exprEmit.ts`,
   NOT via a mapping-table row.** The bare `nz` identifier callee is intercepted
   in `emitExpr`'s call-expression case (after the calendar `lowerBuiltinCall`
@@ -203,6 +273,29 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   lines still emit `newline`, so `parseStatement` swallows a standalone
   leading `newline`. `TokenCursor.peekAhead(n)` is the fixed lookahead used
   to disambiguate `name = expr` named arguments and the `for ... in` head.
+- **A `name(params) => body` head parses to a `FunctionDeclaration` statement
+  (`ast/statements.ts`) — the Pine user-defined function form.**
+  `parseStatement` recognizes it with bounded `peekAhead` lookahead
+  (`looksLikeFunctionDeclaration`): an `identifier`, `(`, a paren-depth-balanced
+  parameter list, `)`, then `=>`. The `=>` after the balanced `)` is the
+  unambiguous decl marker, so a plain call `f(args)` / history `f(args)[n]` /
+  unclosed head `f(a` (eof before `=>`) all fall through to the existing
+  identifier path unchanged. Params are **bare identifiers** (Pine v1 UDF params
+  are untyped): `FunctionParam` is `{ name, span }` only — **no `default`
+  field**. A typed param `float x` drops the type to the bare name `x` with a
+  `udf-typed-param-unsupported` **warning** (chosen for v1 so a typed-param
+  helper still converts); a defaulted param `x = 2`, a non-identifier param
+  `1 + 2`, or a trailing comma `a,` **rejects the whole declaration** —
+  `udf-param-default-unsupported` (error) / `expected-token` respectively —
+  recovering the line + indented block via `recoverCompound` and registering no
+  node (`parseFunctionDeclaration` returns `null`). The **body** is a
+  `BlockStatement` whose **last statement is the implicit return** (Pine UDFs
+  have no `return` keyword): a single-line `=> expr` wraps the expression in a
+  one-statement block; a multi-line `=>` + `newline indent … dedent` reuses
+  `parseBlock` (same block shape as `if`/`for`). Parse-only — statefulness
+  classification + emission are Tasks 2–4; `transform/other.ts`'s `emitStatement`
+  carries a no-op `function-declaration` arm until then, and `analyze` does not
+  yet descend into UDF bodies.
 - **Expression parsing is a Pratt parser (`expressions.ts`).**
   `parseExpression(ctx)` is the single entry every `Expression` slot routes
   through (the Task-3 `expression-stub.ts` was deleted in Task 4). See the
@@ -241,10 +334,12 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   zero-width node is returned so the statement layer's existing
   empty-expression check (`tokens.length === 0`) recovers; any other stray
   token is consumed into a one-token node. The parser never throws.
-- **`parseAssignment` consumes BOTH the name and the `=`/`:=` operator**
-  (two `next()` calls). The Task-3 stub masked a latent single-`next()` bug
-  by greedily swallowing the operator into its token run; the real parser
-  stops at the operator, so the operator must be consumed explicitly.
+- **`parseAssignment` consumes BOTH the name and the assignment operator**
+  (two `next()` calls). The operator is `=`/`:=` OR a compound arithmetic form
+  (`+=`/`-=`/`*=`/`/=`), gated by `isAssignmentOperator`; all six widen the AST
+  `AssignmentOperator`. The Task-3 stub masked a latent single-`next()` bug by
+  greedily swallowing the operator into its token run; the real parser stops at
+  the operator, so the operator must be consumed explicitly.
 - **History `offset` is any expression.** Literal-bound enforcement for the
   chartlang emit constraint is Task 5/8, not the parser — `arr[i]` parses
   successfully here.
@@ -337,11 +432,51 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   the statement form never produces. `request.security`/MTF multi-return is
   still out of scope (its RHS isn't a recognised multi-output `ta.*`, so it
   warns `multi-return-not-mapped`).
+- **A user-defined function (`FunctionDeclaration`) registers a `kind:
+  "function"` symbol carrying `params: readonly string[]` and a resolved
+  `stateful: boolean`; Tasks 3/4 read that symbol to choose reuse vs.
+  inline.** `registerUserFunctions` runs BEFORE the body walk and HOISTS every
+  top-level UDF (forward, backward, and sibling-UDF call sites all resolve — no
+  declare-before-use rule), so a call to a UDF no longer raises
+  `unknown-identifier`. Each UDF body walks in a CHILD scope seeded with its
+  params (`kind: "function-parameter"`, per-param span into the `symbols` map,
+  the `TupleTarget` precedent); the child scope is DISCARDED after the body
+  walk, so a param is invisible outside the function (a body-free identifier is
+  still `unknown-identifier`). A call whose arg count differs from the resolved
+  `params.length` warns `udf-arity-mismatch` (`functionParamArity` returns
+  `null` for any non-function callee, so builtins/`ta.*` member calls are
+  untouched).
+- **Statefulness is computed in a pre-pass and stored IMMUTABLY on the UDF
+  symbol — never patched after the walk.** `resolveUdfStatefulness`
+  (`semantic/statefulness.ts`) classifies the whole UDF set from the AST alone
+  (no scope/symbol machinery): seed each UDF with its builtin-stateful body
+  fact (`callIsStatefulPrimitive` over `plot`/`hline`/`alert`/`ta.*`/`draw.*`),
+  link bare-identifier callees into a call graph (a non-UDF callee like `nz`
+  contributes no edge), then run a monotone fixpoint so a UDF that calls a
+  stateful UDF is itself stateful (a pure cycle stays pure; the fixpoint is
+  bounded). Because the verdict is final before the symbol is built, the symbol
+  is constructed ONCE with its immutable `stateful` — no stale copies across
+  frozen scopes.
+- **Recursion is REJECTED.** The pre-pass detects cycles (a UDF whose
+  transitive closure includes itself) and emits ONE `udf-recursive-rejected`
+  (error) per cycle on the lexically-first member. Recovery: the recursive UDF
+  is still registered with its REAL params + `stateful: true` (chosen over the
+  task's "empty params" so call sites neither cascade `unknown-identifier` NOR
+  raise a spurious `udf-arity-mismatch`).
+- **The builtin stateful-primitive predicate lives in `semantic/statefulness
+  .ts` (`callIsStatefulPrimitive`), NOT in the transform layer.** The transform
+  already depends on the semantic result, so the predicate was moved DOWN to
+  break a would-be `semantic → transform` cycle; `transform/statefulNames.ts`
+  imports + re-exports it (so `controlFlow.ts` / `transform/index.ts` keep
+  their import path) and still owns the expression-walk `expressionHasStateful
+  Primitive`. One predicate, one source of truth.
 - **`builtins.ts` / `types.ts` carry no branchy logic** and `types.ts` is
   coverage-excluded; every other `semantic/` module holds 100%
   line/branch/function. Defensive switch arms unreachable from real parser
-  output (e.g. a top-level `block-statement`) are covered by synthetic-AST
-  unit tests, the same precedent the parser uses for its defensive arms.
+  output (e.g. a top-level `block-statement`, or the UDF facts-collector's
+  `return`/`break`/`continue`/nested-`function-declaration` arms) are covered
+  by synthetic-AST unit tests, the same precedent the parser uses for its
+  defensive arms.
 
 ### Coordinate resolver (`src/transform/coordinates.ts`, `exprEmit.ts`)
 
@@ -943,18 +1078,53 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `RawTsStatement`/`IfStatement` IR the task file describes were never built;
   the real IR is verbatim STRING statements appended via
   `appendComputeStatement`.
-- **`emitTa` appends `.current` to every top-level `ta.*` result, and an input
-  read lowers as `inputs.<name> as <type>`.** chartlang `ta.*` returns a
-  `Series<number>` (a history view object) and types `compute({ inputs })`
-  loosely, so the literal Pine `ph = ta.X(...)` / `len` references do not
-  type-check as scalars without these. `.current` projects the per-bar scalar
-  (`ta.*` keeps its own per-call-site history, so feeding scalars in and reading
-  `.current` out reproduces Pine semantics); `inputCastType` (`other.ts`) →
-  `number`/`boolean`/`string` from the `input.*` factory drives the
-  `inputs.len as number` cast (`EmitContext.inputCasts`). `ta.pivothigh`/
-  `ta.pivotlow` restructure to `ta.pivotsHighLow({ leftLength, rightLength })
+- **A `ta.*` result lowers to `(...).current` through ONE shared rule,
+  `lowerTaToCurrent` (`emitContext.ts`) — applied at the top level AND in any
+  nested scalar position.** `emitTa` (`other.ts`) owns the top-level value of a
+  declaration/assignment and raises the `ta-not-mapped` /
+  `ta-signature-divergence` diagnostics; the recursive `rewriteTree`
+  (`emitContext.ts`) applies the SAME helper to a `ta.*` in a **scalar
+  position** — an operand of a binary/unary operator, a ternary arm, or a
+  `math.*` / `Math.*` argument (`emitScalar`) — so `ta.rsi(close,14) * 0.1` →
+  `ta.rsi(bar.close, 14).current * 0.1`. The lowering is **position-aware**: a
+  `ta.*` in a **series position** stays a `Series` (chartlang `ta.*` sources are
+  `Series<number>`) — a source arg to another `ta.*`, a direct `plot`/`hline`
+  value, a `request.security` callback body, or a history-access receiver
+  (`ta.sma(close,20)[1]`). chartlang `ta.*` returns a `Series<number>` (a
+  history view object); `.current` projects the per-bar scalar (`ta.*` keeps its
+  own per-call-site history, so feeding scalars in and reading `.current` out
+  reproduces Pine semantics). `lowerTaToCurrent` resolves signature-divergent
+  names through `taLookup` (`ta.rma` → `ta.smma`) and restructures
+  `ta.pivothigh`/`ta.pivotlow` to `ta.pivotsHighLow({ leftLength, rightLength })
   .high|.low` (a function-result field projection, NOT a
-  `ta.pivotsHighLow.high(...)` method).
+  `ta.pivotsHighLow.high(...)` method); a nested lowering raises NO diagnostic
+  (the top-level `emitTa` site owns them) — instead the nested rule notifies the
+  OPTIONAL `EmitContext.taWarn` structural sink (the `arrayWarn`/`mapWarn`
+  precedent, populated only by `transformOther`): a lowered nested `ta.*` raises
+  `nested-ta-lowered` (info, deduped once per script via
+  `diagnostics.has(DIAGNOSTIC_CODE_ENTRIES[code].code)`), and an unmapped /
+  REJECT `ta.*` left as a `Series` in a scalar position raises
+  `nested-ta-not-lowered` (warning, the residual-series safety net) — so a
+  nested `ta.*` is NEVER a silent output. Other `EmitContext` constructions
+  (plot/table/…) leave `taWarn` absent, so those positions stay silent, exactly
+  as the array/map sinks do. Fixture `41-nested-ta-arith` proves the clean nested
+  arithmetic round-trips through the compiler. An input read lowers as
+  `inputs.<name> as <type>`: `inputCastType` (`other.ts`) →
+  `number`/`boolean`/`string` from the `input.*` factory drives the
+  `inputs.len as number` cast (`EmitContext.inputCasts`).
+- **A NESTED `math.*` call lowers its callee to the bare-native `Math.*`
+  passthrough through the SAME `rewriteTree` seam (`emitContext.ts`).** The
+  top-level `emitMath` (`other.ts`) only remaps the OUTERMOST call, so before
+  this rule a `math.max(math.min(a, b), c)` body leaked the undefined inner
+  `math.min` (chartlang's `math` namespace has no `min`/`max`). `rewriteTree`
+  now rewrites a nested `math.*` call whose `mathLookup` target starts with
+  `Math.` (`math.min`/`math.max`/`math.abs`/…) onto that native member, args
+  recursing in scalar position (so a doubly-nested member lowers too). The
+  chart-aware `math.*` targets (`math.avg`/`math.sum`/`math.roundToMintick`) ARE
+  real chartlang members and stay as-is — their rolling-window / mintick-injection
+  handling stays the top-level `emitMath` path's. This is the `math` sibling of
+  the nested-`ta` lowering above; fixture `42-udf-pure-limit` (a pure UDF body
+  `math.max(math.min(…))`) is the round-trip witness.
 - **Multi-output `ta.*` tuple destructuring lowers via `MULTI_RETURN_TA_MAP`
   (`mapping/multiReturnTa.ts`).** `[macdLine, signalLine, hist] = ta.macd(...)`
   emits ONE result const `const <firstName>Result = ta.macd(bar.close, {
@@ -975,12 +1145,139 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   (warning, a name binds a `null`/absent field, e.g. dmi's ADX),
   `multi-return-arg-dropped` (info, a Pine arg dropped). Add a function = add one
   table row + verify Pine return order.
+- **A PURE user-defined function (`stateful: false`) is emitted ONCE as a
+  reusable chartlang arrow `const` hoisted to the FRONT of the compute body;
+  every call site reuses it (no inlining).** `emitPureUdfs` (`other.ts`) runs in
+  `transformOther` BEFORE the source-order statement walk, so a pure UDF
+  `const` lands after the state-slot allocations (codegen preamble) and before
+  any non-UDF statement. The statement walk's `function-declaration` arm stays a
+  no-op (`emitStatement` → `[]`): a pure UDF's emission is the hoisted prepend,
+  and a STATEFUL UDF (excluded here — `symbol.stateful !== false`) is Task 4's
+  call-site inline; **both** share the no-op declaration arm, which is the seam
+  between the two paths. Pure UDFs are ordered callee-before-caller by a
+  post-order DFS (`orderPureUdfs`) over the call graph re-derived from each
+  body via `collectUdfBodyFacts` (`semantic/statefulness.ts`); recursion can
+  never reach this set (a cycle is forced `stateful: true`), so the `visited`
+  pre-mark yields a true topological sort. A bare callee that is not itself a
+  pure UDF (`nz`, a stateful UDF — a `math.*` member call has no bare callee at
+  all) contributes no edge. Each emitted UDF raises one `udf-emitted-function`
+  (info). The statefulness verdict is READ off the hoisted `kind: "function"`
+  symbol (`analysis.symbols.get(decl.span).stateful`) — **never re-derived**; a
+  duplicate-named EARLIER declaration resolves to no symbol (the semantic hoist
+  registers only the last) and is skipped, so only the last `const` is emitted.
+- **A pure UDF body lowers param REFERENCES verbatim (shadowed via
+  `EmitContext.localNames`) but emits each param NAME with a `: number` TYPE
+  ANNOTATION — no `emitContext.ts` change was needed for the shadowing.**
+  `ctx.localNames` already short-circuits the input/slot rewrite
+  (`rewriteIdentifier` checks it FIRST), so seeding it with the UDF names (at
+  the top-level `ctx`, so a call-site callee like `cf_limit(...)` keeps its bare
+  name) plus, per UDF, its params + body-local names (in the child `ctx`) makes a
+  param/local reference stay verbatim while a free input/`var` reference in the
+  body still rewrites (`inputs.<name>` / `<slot>.value`) — the closure captures
+  the enclosing `compute` scope. The emitted param LIST is typed `: number` (an
+  untyped arrow param fails `noImplicitAny`; see the typed-param invariant in the
+  UDF block below). A single-expression body becomes an
+  expression-bodied arrow (`cf_add(a, b) => a + b` → `const cf_add = (a: number,
+  b: number) => a + b;`); any other body becomes a block arrow whose value locals lower to `let`
+  (uniformly — a later `:=`/`+=` reassignment of the same name emits a plain
+  `name <op> rhs;`, and nested-control-flow reassignments are handled by reusing
+  the top-level `emitStatement` lowering) and whose LAST statement yields the
+  implicit `return` (a value local returns its name; a bare expression returns
+  the expression; a control-flow last statement yields no return). The body's
+  expressions route through the SAME `emitCallValue` the top-level statement
+  walk uses, so `math.*`/`str.*`/input/`nz` lower identically. A pure UDF
+  contains NO `ta.*`/state by definition (Task 2), so the nested-`ta` `.current`
+  concern does not arise here — that is only the stateful-inline path.
+- **A STATEFUL user-defined function (`stateful: true`) is INLINE-EXPANDED at
+  every call site (`src/transform/udfInline.ts`), NEVER emitted as a shared
+  function — and that is a CORRECTNESS requirement, not an optimisation.** The
+  compiler keys every `ta.*`/`state.*` slot on the GENERATED source position of
+  the call (`callsiteIdFor` → `<sourcePath>:<line>:<col>#0`). A stateful helper
+  emitted as ONE shared function would put its `ta.*` at ONE position, so all N
+  callers would share ONE slot → cross-contaminated state. Pine instead gives
+  each lexical call site its OWN state. INLINING the body at each call site
+  reproduces that: each call site emits its OWN copy of the body's `ta.*`/
+  `state.*` at its OWN generated position, so the compiler mints an INDEPENDENT
+  slot per call site **with no compiler change**. The converter never mints slot
+  ids; inlining IS the mechanism. Re-emitting the same body twice cannot collide
+  because (1) each expansion is separate compute statement(s) at distinct lines/
+  columns, (2) every synthesized local (arg temp, body local) is a FRESH
+  `scaffold.names.allocate(...)` name, and (3) the compiler derives the slot id
+  from position. `udfInline.test.ts` compiles a two-call example through
+  `transformAndAnalyse` and asserts the two `ta.ema` calls get DISTINCT slot ids
+  (the divergence witness).
+- **The inliner is DISPATCHED from `emitDeclaration` / `emitAssignment` /
+  `emitExpressionStatement`, gated on `walk.statefulUdfs.size > 0`** (a script
+  with no stateful UDF takes the legacy `emitCallValue` path with ZERO new
+  walking — byte-identical). `inlineStatefulCalls(value, ctx, scope, prelude)`
+  walks the value, and for a call whose bare callee resolves to a stateful UDF
+  (and is not on the inline stack) it: binds each param to its arg, clones the
+  body with params→args substituted (the shared `substituteParams` /
+  `substituteParamsStatement` in `controlFlow.ts`), lowers each body statement in
+  a CHILD `EmitContext` (the caller ctx spread + `localNames` extended with the
+  param / arg-temp / body-local unique names — `emitContext.ts` needs NO change),
+  pushes intermediate locals / arg temps into `prelude` (emitted BEFORE the
+  consuming statement, like scalar `let`s precede drawing pushes), and splices
+  the body's return expression as a pseudo `identifier-expression` (a verbatim
+  lowered source string) into the call's position. `udfInline.ts` carries NO
+  `other.ts` import (which would cycle) — `other.ts` injects the two lowerers
+  (`emitCallValue` / `emitStatement`) as the `InlineScope.emitters` callbacks.
+- **Evaluate-once arg rule: a bare identifier / literal substitutes INLINE; any
+  OTHER arg (a compound expression, a member access, or — crucially — one
+  CONTAINING a call) is HOISTED to a `const <tmp> = <arg>;` temp.** Pine
+  evaluates each arg once; a `ta.*`/stateful-UDF arg must advance its OWN slot
+  every bar even when the param is referenced zero times, which the hoist
+  guarantees (and a ref-count gate would wrongly drop). Hoisting raises
+  `udf-arg-hoisted` (info); each inlined call raises `udf-inlined` (info). A
+  recursive UDF (already `udf-recursive-rejected`, forced `stateful: true`) is
+  inlined ONCE and its self-call left bare via the inline stack guard. Body
+  statement kinds handled: `assignment` / `variable-declaration` (→ a uniquely-
+  named `let`, a later `:=`/compound reassignment reuses the unique) /
+  `expression-statement`; any other (a bare control-flow body statement) is a
+  best-effort `substituteParamsStatement` + injected `emitStatement` fallback
+  (no return contribution — the result defaults to `Number.NaN`). KNOWN
+  LIMITATIONS: a local DECLARED inside such a control-flow body statement is not
+  uniquified, and a history-indexed body local is not promoted to `state.series`
+  (out of the divergence-golden scope; Task-5 fixture territory).
+- **A pure UDF param is emitted with a `: number` TYPE ANNOTATION
+  (`emitPureUdf`, `other.ts`).** An untyped arrow param trips the compiler's
+  `noImplicitAny` (TS7006), so a clean pure helper would not type-check. `number`
+  is the sound annotation for the numeric helper case: every realistic pure
+  helper uses its params in scalar/number positions (arithmetic, `math.*`,
+  comparison), and a `PriceSeries` call-site arg (`bar.close`) is `number &
+  Series<…>` (`Price = number`), assignable to `number`. The ONE pure-helper
+  shape this does NOT cover is a param that history-indexes itself (`f(src) =>
+  src - src[1]`): `number[1]` is a TS7053 error, and a sound series type
+  (`number & Series<number>`) is the SAME `state.series` promotion the stateful
+  history-indexed-arg path defers (`46`) — so that narrow shape is a documented
+  gap, not a corpus fixture.
+- **UDF fixture corpus + the remaining compile limitation (Task 5).** The UDF
+  surface is pinned by fixtures `42`–`46`: `42-udf-pure-limit` (`cf_limit` —
+  the PURE-helper round-trip: typed-param arrow `const`, nested `math.*` lowered
+  to `Math.*`, CLEAN), `43-udf-stateful-slope-divergence`
+  (`cf_slope(close, …)` + `cf_slope(open, …)` — the DIVERGENCE WITNESS: two
+  independent inlined `ta.ema` slots, CLEAN round-trip), `45-trend-wizard-helpers`
+  (the faithful clean helper cluster — `cf_dist` on derived MAs + multi-line
+  `cf_atr_perct`, all stateful-inlined, CLEAN), and `44-udf-recursive-rejected`
+  (the `udf-recursive-rejected` error, exempt from the round-trip by the
+  has-error guard). ONE fixture is PARKED in `KNOWN_NON_COMPILING` because the
+  conversion is clean (no error diagnostic) but the emitted module does not yet
+  type-check — a documented v1 limitation, NOT a bug in Task 5:
+  `46-trend-wizard-slope-pending` — the real Trend Wizard `cf_slope(ma_1, …)`
+  usage: a stateful helper whose body indexes a PARAM's history (`ma[1]`) applied
+  to a DERIVED MA local (lowered to a `.current` scalar), so the inlined
+  `ma_1[1]` indexes a `number` (TS7053). `cf_slope` on an OHLCV arg (which
+  natively supports `[1]`) round-trips — that is why `43` uses `close`/`open`.
+  Promoting a history-indexed inlined ARG to a `state.series` is a deferred
+  follow-up (the inline-side analogue of the body-local limitation above).
 - **KNOWN GAPS** (covered by the `KNOWN_NON_COMPILING` skip list in
-  `fixtures-compile.test.ts`): a `ta.*` nested inside an expression
-  (`mult * ta.stdev(...)`) is not `.current`-lowered (only top-level), so series
-  arithmetic does not yet compile; draw-call style opts (`line.new(…,
+  `fixtures-compile.test.ts`): draw-call style opts (`line.new(…,
   color=lineColor)`) are not input-aware, so an input-styled drawing leaks the
-  bare name; a tuple-decl element reassigned with `:=` is not supported.
+  bare name; a tuple-decl element reassigned with `:=` is not supported; the
+  remaining UDF compile limitation above (`46-trend-wizard-slope-pending`).
+  (A `ta.*` nested in a scalar expression IS now `.current`-lowered — see the
+  shared `lowerTaToCurrent` rule above; fixture `41-nested-ta-arith` converts
+  AND compiles through the round-trip, so it is NOT a known gap.)
   **Pine OHLCV history `close[i]` now COMPILES** — the compute bar's `bar.close`
   is an indexable `PriceSeries`, so `bar.close[i]` (literal, or an unrolled loop
   index) type-checks; `14-polyline-rebuild` was removed from the skip list.
@@ -1049,7 +1346,33 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `series-history-non-numeric` (info) — its `[n]` is the deferred
   `state.series<bool>`/`<string>` gap, never in a clean fixture. A non-literal
   series-slot offset (`x[i]`/`x[-i]`) wires the (pre-existing, error-severity)
-  `dynamic-series-index`.
+  `dynamic-series-index` — EXCEPT a `[i]` whose offset is the bare identifier of
+  an enclosing `for` iterator (`isLoopBoundOffset`), which is a legal runtime
+  history read on an indexable `Series`/`state.series` receiver and is NOT
+  flagged. `walkHistoryAccesses` threads the in-scope loop-iterator names so the
+  classifier can tell a loop-bound `[i]` from a free `[i]`/`[j]`.
+- **An `=`-declared, history-indexed `ta.*` series is PROMOTED to a
+  `state.series` slot too (`isTaSeriesDeclaration`/`emitTaSeriesSlots`,
+  `other.ts`).** A non-`var` `ma = ta.ema(...)` read as `ma[i]` cannot stay the
+  `.current` scalar (`number[i]` is a type error) — and a bare `Series<number>`
+  is not number-coercible, so its many scalar uses (`ma >= 0`, `plot(ma)`) break
+  if `.current` is dropped. So the converter promotes it to the SAME
+  `state.series` slot the `var`-history path uses: `const ma = state.series(NaN)`
+  (init NaN; the value is computed each bar), the declaring assignment lowers via
+  `emitAssignment`'s slot branch to `ma.value = ta.<…>(...).current` (the per-bar
+  write — `emitTa` still appends `.current`), bare reads → `ma.value`, `ma[i]` →
+  a real indexed read. The detection gate (`isTaSeriesDeclaration`): an `=`
+  assignment (which the semantic `=` arm already characterises as a declaration —
+  no annotation re-check) whose value is DIRECTLY a `ta.*` call, AND that is
+  history-indexed ANYWHERE (the `scan.taSeries` gate). A ta-series NEVER
+  `[n]`-indexed keeps its `.current` scalar lowering (no regression to the
+  existing `.current` fixtures/goldens). The slot local + `seriesNames` entry are
+  allocated into the SAME `slots`/`seriesNames` maps as the `var` series (the
+  emit machinery is reused wholesale — only the detection + the NaN-init slot
+  emission are new). v1 is NUMERIC `state.series<number>` only (ta returns a
+  number); non-numeric `state.series<bool>`/`<color>` stays T12's surface. This
+  is what lets MASM's `for i … ma_slope[i]` consolidation loop convert to a
+  COMPILING runtime `for` (the T10 §5 crux) instead of an impossible unroll.
 - **A bounded numeric `var array<float|int>` lowers to `state.array`
   (`numericArray.ts` + `emitArraySlots`/`emitContext.ts`).** A NUMERIC Camp B
   ring — `var`/`varip array<float|int>` whose initializer is `array.new(...)`,
@@ -1115,6 +1438,37 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   non-literal/zero `by` → `polyline-dynamic-points` reject). `substituteIterator` is the SHARED
   iterator-unroll helper (exported from `src/transform/index.ts`); `tables.ts`
   and `polylineLinefill.ts` import it from here rather than re-implementing it.
+- **`break`/`continue` OVERRIDE the unroll heuristic — a loop whose body
+  contains a `break`/`continue` is ALWAYS a runtime `for`, never unrolled.** A
+  `break` cannot span unrolled iterations, so the presence of `break`/`continue`
+  (detected by `bodyHasBreakContinue`/`statementHasBreakContinue` in
+  `controlFlow.ts`, a SEPARATE signal from the stateful walk, mirroring its
+  nested-`if`/`for`/`switch`/`block` shape) forces the runtime-`for` path —
+  `emitRuntimeForFromBounds` emits the loop from the RESOLVED bounds (literal OR
+  frozen `input.int` default; the latter still raises
+  `loop-unroll-frozen-at-input-default`, the count being frozen even though this
+  is a real `for`). The two signals are opposites: stateful forces unroll,
+  `break`/`continue` forces runtime, so a body that is BOTH stateful AND has a
+  `break`/`continue` is unconvertible → `stateful-loop-with-break` (error). A
+  non-resolvable break-loop bound rejects `loop-bounds-not-literal-for-stateful-body`
+  (reused, not a new code). The runtime-`for` child context carries
+  `inLoop: true` (`loopChildContext`), which is how `emitStatement` decides a
+  `break`/`continue` lowers to a JS jump; a `break`/`continue` reached with
+  `inLoop` falsy (top level, or any block not nested in a loop) raises
+  `break-continue-outside-loop` (error) and emits nothing rather than a stray,
+  illegal `break;` (`emitLoopJump`).
+- **Compound assignment (`+=`/`-=`/`*=`/`/=`) is parsed end-to-end and lowers
+  to a read-modify-write, NEVER a declaration.** The lexer emits each as ONE
+  two-char operator token (longest-match, ahead of `+`/`-`/`*`/`/` + `=`); the
+  AST `AssignmentOperator` carries them; `parseAssignment` accepts them
+  (`isAssignmentOperator`); the semantic analyzer treats them as reassignments
+  (its non-`=` branch), so a compound assign to an unbound name is
+  `unknown-identifier`. `emitAssignment` passes the operator through:
+  `=`/`:=` → `=`; a compound op stays itself, onto a `state.*` scalar slot's
+  `<slot>.value <op> <rhs>` or a plain local `<name> <op> <rhs>`.
+  `substituteIterator`/`substituteStatement` pass a compound-assign statement
+  through unchanged in the unroll path (the `assignment` arm preserves
+  `operator`).
 - **`switch` lowering.** A subjected `switch x` → `switch (x) { case <t>: {…}
   break; … default: {…} break; }`; a subjectless `switch` (boolean-case form) →
   an `if`/`else if`/`else` chain (a lone default renders unconditionally). The

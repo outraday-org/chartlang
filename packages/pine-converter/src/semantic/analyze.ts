@@ -11,6 +11,7 @@ import type {
     VariableDeclaration,
 } from "../ast/index.js";
 import type { Argument } from "../ast/script.js";
+import type { FunctionDeclaration } from "../ast/statements.js";
 import { makeDiagnostic } from "../diagnostics/codes.js";
 import type { Diagnostic, SourceSpan } from "../index.js";
 import { type IndicatorCaps, classifyDrawingSites } from "./drawingCamp.js";
@@ -25,6 +26,7 @@ import {
     isBoundInUserScopes,
     resolveSymbol,
 } from "./scope.js";
+import { functionParamArity, resolveUdfStatefulness } from "./statefulness.js";
 import type {
     AstNode,
     HandleType,
@@ -197,6 +199,25 @@ function walkCall(
     for (const arg of call.args) {
         walkExpression(state, scope, arg.value, contextHandle);
     }
+    checkUdfArity(state, scope, call);
+}
+
+// A bare-identifier call to a registered UDF whose argument count differs from
+// its declared parameter count warns `udf-arity-mismatch`. Builtins and
+// member-rooted calls (`ta.ema(...)`) resolve to a non-function symbol (arity
+// `null`) and are left to the existing passthrough mapping.
+function checkUdfArity(state: WalkState, scope: ScopeBuilder, call: CallExpression): void {
+    if (call.callee.kind !== "identifier-expression") {
+        return;
+    }
+    const symbol = resolveSymbol(scope, call.callee.name);
+    if (symbol === null) {
+        return;
+    }
+    const arity = functionParamArity(symbol);
+    if (arity !== null && arity !== call.args.length) {
+        state.diagnostics.push(makeDiagnostic("udf-arity-mismatch", call.span));
+    }
 }
 
 // `bar_index + N` (N > 0 literal) projects into the future.
@@ -299,6 +320,30 @@ function walkTupleDeclaration(state: WalkState, scope: ScopeBuilder, decl: Tuple
     }
 }
 
+// Walk a UDF body in a child scope seeded with its parameters. The function
+// symbol itself is hoisted into the enclosing scope before the walk (see
+// `registerUserFunctions`), so body call sites — including a forward or
+// sibling UDF call — resolve. Each param carries its own span, so the
+// `symbols` map gets one distinct entry per parameter (the `TupleTarget`
+// precedent). The child scope is discarded after the body walk: parameters are
+// not visible outside the function (the same discipline as a block scope).
+function walkFunctionBody(state: WalkState, scope: ScopeBuilder, decl: FunctionDeclaration): void {
+    const child = createScopeBuilder(scope, decl.body.span);
+    for (const param of decl.params) {
+        const symbol: SymbolInfo = {
+            name: param.name,
+            kind: "function-parameter",
+            declarationSpan: param.span,
+            typeAnnotation: null,
+            qualifier: "series",
+            handleType: null,
+        };
+        defineSymbol(child, symbol);
+        state.symbols.set(param.span, symbol);
+    }
+    walkBlockInScope(state, child, decl.body.body);
+}
+
 function walkStatement(state: WalkState, scope: ScopeBuilder, stmt: Statement): void {
     state.scopes.set(stmt, freezeScope(scope));
     switch (stmt.kind) {
@@ -310,6 +355,9 @@ function walkStatement(state: WalkState, scope: ScopeBuilder, stmt: Statement): 
             return;
         case "tuple-declaration":
             walkTupleDeclaration(state, scope, stmt);
+            return;
+        case "function-declaration":
+            walkFunctionBody(state, scope, stmt);
             return;
         case "expression-statement": {
             recordHandleMutation(state, scope, stmt.expression);
@@ -413,6 +461,43 @@ function walkBlockInScope(state: WalkState, scope: ScopeBuilder, body: readonly 
     }
 }
 
+// Hoist every top-level UDF: classify statefulness transitively over the call
+// graph, reject recursion, and register each as a `kind: "function"` symbol
+// BEFORE the body walk so any call site (forward, backward, or a sibling UDF
+// referenced from another body) resolves rather than raising
+// `unknown-identifier`. A recursive UDF is registered with its real params +
+// `stateful: true` (rejected-recovery: no `unknown-identifier` cascade, no
+// spurious arity warning), and its head gets one `udf-recursive-rejected`.
+function registerUserFunctions(state: WalkState, root: ScopeBuilder, script: Script): void {
+    const udfs = new Map<string, FunctionDeclaration>();
+    for (const stmt of script.body) {
+        if (stmt.kind === "function-declaration") {
+            udfs.set(stmt.name, stmt);
+        }
+    }
+    if (udfs.size === 0) {
+        return;
+    }
+    const { classifications, recursiveHeads } = resolveUdfStatefulness(udfs);
+    for (const head of recursiveHeads) {
+        state.diagnostics.push(makeDiagnostic("udf-recursive-rejected", head.span));
+    }
+    for (const { decl, stateful } of classifications) {
+        const symbol: SymbolInfo = {
+            name: decl.name,
+            kind: "function",
+            declarationSpan: decl.span,
+            typeAnnotation: null,
+            qualifier: "series",
+            handleType: null,
+            params: decl.params.map((param) => param.name),
+            stateful,
+        };
+        defineSymbol(root, symbol);
+        state.symbols.set(decl.span, symbol);
+    }
+}
+
 function extractIndicatorCaps(args: readonly Argument[]): IndicatorCaps {
     const caps: { -readonly [K in HandleType]?: number } = {};
     const byArg: Readonly<Record<string, HandleType>> = {
@@ -473,6 +558,8 @@ export function analyze(script: Script): SemanticResult {
         barIndex: false,
         futureBarIndex: false,
     };
+
+    registerUserFunctions(state, rootBuilder, script);
 
     for (const stmt of script.body) {
         walkStatement(state, rootBuilder, stmt);

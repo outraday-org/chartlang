@@ -34,6 +34,7 @@ describe("BUILTIN_SYMBOLS", () => {
             "math",
             "input",
             "array",
+            "map",
             "chart.point",
         ]) {
             expect(BUILTIN_SYMBOLS.get(name)?.qualifier).toBe("simple");

@@ -15,6 +15,9 @@ describe("state callable holes", () => {
         expect(() => state.array<number>(8)).toThrow(
             "state.array called outside an active script step",
         );
+        expect(() => state.map<number, number>(8)).toThrow(
+            "state.map called outside an active script step",
+        );
     });
 
     it("throws sentinels for state.tick.* slots outside an active script step", () => {

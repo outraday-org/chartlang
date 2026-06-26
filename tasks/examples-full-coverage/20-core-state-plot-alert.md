@@ -36,6 +36,9 @@ focused demonstrations of each call's option surface.
 | `state.tick.float` | Intrabar running sum. |
 | `state.tick.bool` | Intrabar latch. |
 | `state.tick.string` | Intrabar last-event label. |
+| `state.series` | covered (`up-streak`, migrated default — Task 1 §6b) — skip if absent from the allowlist. |
+| `state.array` | covered (`rolling-window-mean`, migrated default — Task 1 §6b) — skip if absent. |
+| `state.map` | covered (`volume-by-level`, migrated default — Task 1 §6b) — **only** once `tasks/state-map` lands `state/map.md`; until then it stays allowlisted (see Task 1 §6b †). |
 | `plot` | Multi-option `plot` (color, lineWidth, lineStyle, title). |
 | `hline` | Two `hline` guides (overbought/oversold) on an oscillator. |
 | `alert` | `alert(...)` with `severity` on a cross condition. |

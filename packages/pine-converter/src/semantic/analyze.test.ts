@@ -269,8 +269,7 @@ describe("analyze — control-flow walks", () => {
             "switch close",
             "    1 => high",
             "    => low",
-            "f() =>",
-            "    return close",
+            "return close",
             "",
         ].join("\n");
         const result = run(source);
@@ -528,5 +527,70 @@ describe("inferQualifier — units", () => {
             span: lit.span,
         };
         expect(inferQualifier(expr, resolve)).toBe("series");
+    });
+});
+
+describe("analyze — user-defined functions", () => {
+    function fnSymbol(source: string, name: string): SymbolInfo | undefined {
+        return [...run(source).symbols.values()].find(
+            (s) => s.name === name && s.kind === "function",
+        );
+    }
+
+    it("registers a UDF as a callable function symbol carrying its params", () => {
+        const symbol = fnSymbol(`${HEADER}cf_slope(ma, n) => ta.ema(ma, n)\n`, "cf_slope");
+        expect(symbol?.kind).toBe("function");
+        expect(symbol?.params).toEqual(["ma", "n"]);
+    });
+
+    it("resolves a UDF call site with no unknown-identifier", () => {
+        const source = `${HEADER}cf_pure(x) => x + 1\nq = cf_pure(close)\n`;
+        expect(codes(source)).not.toContain("pine-converter/semantic/unknown-identifier");
+    });
+
+    it("warns when a UDF is called with the wrong argument count", () => {
+        const source = `${HEADER}cf_pure(x) => x + 1\nplot(cf_pure(close, open))\n`;
+        expect(codes(source)).toContain("pine-converter/semantic/udf-arity-mismatch");
+    });
+
+    it("classifies a pure UDF as not stateful", () => {
+        const symbol = fnSymbol(`${HEADER}cf_lim(x) => x > 0 ? x : 0\n`, "cf_lim");
+        expect(symbol?.stateful).toBe(false);
+    });
+
+    it("classifies a UDF that calls a `ta.*` primitive as stateful", () => {
+        const symbol = fnSymbol(`${HEADER}cf_slope(ma, n) => ta.ema(ma, n)\n`, "cf_slope");
+        expect(symbol?.stateful).toBe(true);
+    });
+
+    it("propagates statefulness from a called UDF (transitive)", () => {
+        const source = `${HEADER}cf_b(x) => ta.ema(x, 2)\ncf_a(x) => cf_b(x)\n`;
+        expect(fnSymbol(source, "cf_a")?.stateful).toBe(true);
+        expect(fnSymbol(source, "cf_b")?.stateful).toBe(true);
+    });
+
+    it("resolves a parameter reference inside the body", () => {
+        const source = `${HEADER}cf(p) => p + 1\nq = cf(close)\n`;
+        expect(codes(source)).not.toContain("pine-converter/semantic/unknown-identifier");
+    });
+
+    it("does not leak a parameter into the enclosing scope", () => {
+        const source = `${HEADER}cf(p) => p + 1\nplot(p)\n`;
+        expect(codes(source)).toContain("pine-converter/semantic/unknown-identifier");
+    });
+
+    it("still flags a free identifier used inside a UDF body", () => {
+        const source = `${HEADER}cf(p) => p + ghost\n`;
+        expect(codes(source)).toContain("pine-converter/semantic/unknown-identifier");
+    });
+
+    it("rejects a directly recursive UDF", () => {
+        const source = `${HEADER}cf(x) => cf(x) + 1\n`;
+        expect(codes(source)).toContain("pine-converter/semantic/udf-recursive-rejected");
+    });
+
+    it("rejects mutually recursive UDFs", () => {
+        const source = `${HEADER}cf_a(x) => cf_b(x)\ncf_b(x) => cf_a(x)\n`;
+        expect(codes(source)).toContain("pine-converter/semantic/udf-recursive-rejected");
     });
 });

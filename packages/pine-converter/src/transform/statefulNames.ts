@@ -1,62 +1,16 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CallExpression, ExpressionNode } from "../ast/index.js";
+import type { ExpressionNode } from "../ast/index.js";
+import { callIsStatefulPrimitive } from "../semantic/statefulness.js";
 
-// The bare-named stateful primitives (no namespace): each owns one runtime
-// slot keyed by call-site, so the compiler's `stateful-call-inside-loop`
-// gate rejects them inside any loop body. `ta.*`/`draw.*` are matched by
-// their `ta`/`draw` namespace root, not enumerated here.
-const BARE_STATEFUL_NAMES: ReadonlySet<string> = new Set(["plot", "hline", "alert"]);
-
-// The dotted member name of a bare-rooted callee (`ta.ema`, `draw.line`), or
-// the bare identifier name (`plot`), or `null` for any other callee shape.
-function calleeName(call: CallExpression): string | null {
-    const callee = call.callee;
-    if (callee.kind === "identifier-expression") {
-        return callee.name;
-    }
-    if (callee.kind === "member-access-expression" && callee.head === null) {
-        return callee.chain.join(".");
-    }
-    return null;
-}
-
-/**
- * Whether a call invokes a chartlang **stateful primitive** — `plot`,
- * `hline`, `alert`, any `ta.*`, or any `draw.*`. These each own a single
- * runtime slot keyed by their source position, so chartlang's compiler
- * rejects calling one inside a loop body (`stateful-call-inside-loop`). The
- * converter mirrors this registry to decide whether a Pine `for` loop must
- * be unrolled at convert time rather than emitted as a runtime loop.
- *
- * @since 0.1
- * @stable
- * @example
- *     import { callIsStatefulPrimitive } from "./statefulNames.js";
- *     const call = {
- *         kind: "call-expression",
- *         callee: {
- *             kind: "member-access-expression",
- *             head: null,
- *             chain: ["ta", "ema"],
- *             span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 7 },
- *         },
- *         args: [],
- *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 9 },
- *     } as const;
- *     callIsStatefulPrimitive(call); // true
- */
-export function callIsStatefulPrimitive(call: CallExpression): boolean {
-    const name = calleeName(call);
-    if (name === null) {
-        return false;
-    }
-    if (BARE_STATEFUL_NAMES.has(name)) {
-        return true;
-    }
-    return name.startsWith("ta.") || name.startsWith("draw.");
-}
+// `callIsStatefulPrimitive` lives in the neutral `semantic/statefulness.ts`
+// module (the semantic UDF classifier shares the same builtin predicate);
+// re-export it FROM there so the transform-layer consumers (`controlFlow.ts`,
+// `transform/index.ts`) keep their existing import path unchanged. The `from`
+// re-export (not a bare `export { x }`) is what the docs gate recognises as a
+// forward — the JSDoc lives at the declaration site, not here.
+export { callIsStatefulPrimitive } from "../semantic/statefulness.js";
 
 /**
  * Whether any node in an expression subtree is a stateful-primitive call.

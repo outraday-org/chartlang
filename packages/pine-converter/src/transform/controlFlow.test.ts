@@ -6,7 +6,13 @@ import { describe, expect, it } from "vitest";
 import type { ExpressionNode } from "../ast/index.js";
 import type { ForStatement, Statement } from "../ast/statements.js";
 import type { SourceSpan } from "../index.js";
-import { emitFor, resolveBound, substituteIterator } from "./controlFlow.js";
+import {
+    emitFor,
+    resolveBound,
+    substituteIterator,
+    substituteParams,
+    substituteParamsStatement,
+} from "./controlFlow.js";
 import { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
 
@@ -195,6 +201,47 @@ describe("emitFor — loop direction + step (non-stateful runtime loops)", () =>
     });
 });
 
+describe("emitFor — break/continue body classification", () => {
+    it("descends into a block-statement to find a break (defensive arm)", () => {
+        // A bare block-statement in a body never comes from the real parser
+        // (blocks only appear as if/for/switch bodies), so cover the
+        // break/continue classifier's block arm with a synthetic AST. The break
+        // forces the runtime-`for` path rather than an unroll.
+        const breakStmt: Statement = { kind: "break-statement", span: SPAN };
+        const block: Statement = { kind: "block-statement", body: [breakStmt], span: SPAN };
+        const out = runForBounds([block], intLit("0"), intLit("2"), null);
+        expect(out[0]).toContain("for (let i = 0; i <= 2; i++)");
+    });
+
+    it("rejects a stateful body that also contains a break", () => {
+        const diagnostics = new DiagnosticCollector();
+        const stmt: ForStatement = {
+            kind: "for-statement",
+            variable: "i",
+            from: intLit("0"),
+            to: intLit("2"),
+            step: null,
+            body: {
+                kind: "block-statement",
+                body: [plotStmt(), { kind: "break-statement", span: SPAN }],
+                span: SPAN,
+            },
+            span: SPAN,
+        };
+        const out = emitFor(
+            stmt,
+            CTX,
+            diagnostics,
+            () => null,
+            (stmts) => stmts.map((s) => s.kind),
+        );
+        expect(out).toEqual([]);
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/stateful-loop-with-break",
+        );
+    });
+});
+
 describe("emitFor — loop direction + step (stateful unroll)", () => {
     // A stateful body forces the unroll path; emitBody returns one kind per
     // unrolled iteration, so the array length is the iteration count.
@@ -348,6 +395,227 @@ describe("substituteIterator", () => {
         ).toEqual({ kind: "lambda-expression", params: ["x"], body: intLit("7"), span: SPAN });
         expect(subValue({ kind: "na-expression", span: SPAN })).toEqual({
             kind: "na-expression",
+            span: SPAN,
+        });
+    });
+});
+
+const REPL: ExpressionNode = { kind: "identifier-expression", name: "arg", span: SPAN };
+
+// Substitute `x` → the `arg` node, leaving every other identifier untouched.
+function subNode(node: ExpressionNode): ExpressionNode {
+    return substituteParams(node, new Map([["x", REPL]]));
+}
+
+describe("substituteParams", () => {
+    it("substitutes a bound identifier across every node kind and leaves others", () => {
+        expect(subNode(ident("x"))).toEqual(REPL);
+        expect(subNode(ident("y"))).toEqual(ident("y"));
+        expect(
+            subNode({ kind: "unary-expression", operator: "-", operand: ident("x"), span: SPAN }),
+        ).toEqual({ kind: "unary-expression", operator: "-", operand: REPL, span: SPAN });
+        expect(
+            subNode({
+                kind: "binary-expression",
+                operator: "+",
+                left: ident("x"),
+                right: ident("y"),
+                span: SPAN,
+            }),
+        ).toEqual({
+            kind: "binary-expression",
+            operator: "+",
+            left: REPL,
+            right: ident("y"),
+            span: SPAN,
+        });
+        expect(
+            subNode({
+                kind: "ternary-expression",
+                condition: ident("x"),
+                consequent: ident("x"),
+                alternate: ident("x"),
+                span: SPAN,
+            }),
+        ).toEqual({
+            kind: "ternary-expression",
+            condition: REPL,
+            consequent: REPL,
+            alternate: REPL,
+            span: SPAN,
+        });
+        expect(
+            subNode({
+                kind: "call-expression",
+                callee: ident("f"),
+                args: [{ name: null, value: ident("x"), span: SPAN }],
+                span: SPAN,
+            }),
+        ).toEqual({
+            kind: "call-expression",
+            callee: ident("f"),
+            args: [{ name: null, value: REPL, span: SPAN }],
+            span: SPAN,
+        });
+        // A bare-rooted member access (head null) is structurally untouched.
+        const bareMember: ExpressionNode = {
+            kind: "member-access-expression",
+            head: null,
+            chain: ["ta", "ema"],
+            span: SPAN,
+        };
+        expect(subNode(bareMember)).toBe(bareMember);
+        // A computed-receiver member access recurses the head.
+        expect(
+            subNode({
+                kind: "member-access-expression",
+                head: ident("x"),
+                chain: ["field"],
+                span: SPAN,
+            }),
+        ).toEqual({
+            kind: "member-access-expression",
+            head: REPL,
+            chain: ["field"],
+            span: SPAN,
+        });
+        expect(
+            subNode({
+                kind: "history-access-expression",
+                receiver: ident("x"),
+                offset: ident("x"),
+                span: SPAN,
+            }),
+        ).toEqual({
+            kind: "history-access-expression",
+            receiver: REPL,
+            offset: REPL,
+            span: SPAN,
+        });
+        expect(subNode({ kind: "paren-expression", expression: ident("x"), span: SPAN })).toEqual({
+            kind: "paren-expression",
+            expression: REPL,
+            span: SPAN,
+        });
+        expect(subNode({ kind: "tuple-expression", elements: [ident("x")], span: SPAN })).toEqual({
+            kind: "tuple-expression",
+            elements: [REPL],
+            span: SPAN,
+        });
+        expect(
+            subNode({ kind: "lambda-expression", params: ["p"], body: ident("x"), span: SPAN }),
+        ).toEqual({ kind: "lambda-expression", params: ["p"], body: REPL, span: SPAN });
+        expect(subNode({ kind: "na-expression", span: SPAN })).toEqual({
+            kind: "na-expression",
+            span: SPAN,
+        });
+    });
+});
+
+describe("substituteParamsStatement", () => {
+    const bindings = new Map<string, ExpressionNode>([["x", REPL]]);
+
+    it("substitutes across an expression / declaration / assignment statement", () => {
+        expect(
+            substituteParamsStatement(
+                { kind: "expression-statement", expression: ident("x"), span: SPAN },
+                bindings,
+            ),
+        ).toEqual({ kind: "expression-statement", expression: REPL, span: SPAN });
+        expect(
+            substituteParamsStatement(
+                {
+                    kind: "variable-declaration",
+                    name: "v",
+                    qualifier: "none",
+                    typeAnnotation: null,
+                    initializer: ident("x"),
+                    span: SPAN,
+                },
+                bindings,
+            ),
+        ).toEqual({
+            kind: "variable-declaration",
+            name: "v",
+            qualifier: "none",
+            typeAnnotation: null,
+            initializer: REPL,
+            span: SPAN,
+        });
+        expect(
+            substituteParamsStatement(
+                { kind: "assignment", name: "v", operator: ":=", value: ident("x"), span: SPAN },
+                bindings,
+            ),
+        ).toEqual({ kind: "assignment", name: "v", operator: ":=", value: REPL, span: SPAN });
+    });
+
+    it("substitutes the condition + then / else-if / else bodies of an if statement", () => {
+        const ifStmt: Statement = {
+            kind: "if-statement",
+            condition: ident("x"),
+            thenBody: {
+                kind: "block-statement",
+                body: [{ kind: "expression-statement", expression: ident("x"), span: SPAN }],
+                span: SPAN,
+            },
+            elseIfClauses: [
+                {
+                    condition: ident("x"),
+                    body: { kind: "block-statement", body: [], span: SPAN },
+                    span: SPAN,
+                },
+            ],
+            elseBody: {
+                kind: "block-statement",
+                body: [{ kind: "expression-statement", expression: ident("x"), span: SPAN }],
+                span: SPAN,
+            },
+            span: SPAN,
+        };
+        const out = substituteParamsStatement(ifStmt, bindings);
+        expect(out).toEqual({
+            kind: "if-statement",
+            condition: REPL,
+            thenBody: {
+                kind: "block-statement",
+                body: [{ kind: "expression-statement", expression: REPL, span: SPAN }],
+                span: SPAN,
+            },
+            elseIfClauses: [
+                {
+                    condition: REPL,
+                    body: { kind: "block-statement", body: [], span: SPAN },
+                    span: SPAN,
+                },
+            ],
+            elseBody: {
+                kind: "block-statement",
+                body: [{ kind: "expression-statement", expression: REPL, span: SPAN }],
+                span: SPAN,
+            },
+            span: SPAN,
+        });
+    });
+
+    it("returns a non-matched statement kind unchanged (the default arm)", () => {
+        const brk: Statement = { kind: "break-statement", span: SPAN };
+        expect(substituteParamsStatement(brk, bindings)).toBe(brk);
+        // An if with a null else body covers the null-else arm.
+        const ifNoElse: Statement = {
+            kind: "if-statement",
+            condition: ident("x"),
+            thenBody: { kind: "block-statement", body: [], span: SPAN },
+            elseIfClauses: [],
+            elseBody: null,
+            span: SPAN,
+        };
+        expect(substituteParamsStatement(ifNoElse, bindings)).toEqual({
+            kind: "if-statement",
+            condition: REPL,
+            thenBody: { kind: "block-statement", body: [], span: SPAN },
+            elseIfClauses: [],
+            elseBody: null,
             span: SPAN,
         });
     });

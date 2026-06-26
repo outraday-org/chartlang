@@ -966,6 +966,20 @@ declare module "@invinite-org/chartlang-core" {
         trim(s: string): string;
         repeat(s: string, count: number): string;
     }>;
+    export const array: Readonly<{
+        sum(a: MutableArraySlot<number>): number;
+        avg(a: MutableArraySlot<number>): number;
+        min(a: MutableArraySlot<number>): number;
+        max(a: MutableArraySlot<number>): number;
+        range(a: MutableArraySlot<number>): number;
+        variance(a: MutableArraySlot<number>, biased?: boolean): number;
+        stdev(a: MutableArraySlot<number>, biased?: boolean): number;
+        median(a: MutableArraySlot<number>): number;
+        percentile(a: MutableArraySlot<number>, p: number): number;
+        indexOf(a: MutableArraySlot<number>, v: number): number;
+        includes(a: MutableArraySlot<number>, v: number): boolean;
+        sort(a: MutableArraySlot<number>, order?: "asc" | "desc"): ReadonlyArray<number>;
+    }>;
     export type InputKind =
         | "int"
         | "float"
@@ -1058,6 +1072,27 @@ declare module "@invinite-org/chartlang-core" {
         clear(): void;
         readonly size: number;
         readonly capacity: number;
+        sum(): number;
+        avg(): number;
+        min(): number;
+        max(): number;
+        range(): number;
+        variance(biased?: boolean): number;
+        stdev(biased?: boolean): number;
+        median(): number;
+        percentile(p: number): number;
+        indexOf(value: T): number;
+        includes(value: T): boolean;
+        sort(order?: "asc" | "desc"): ReadonlyArray<T>;
+    };
+    export type MutableMapSlot<K extends string | number, V> = {
+        set(key: K, value: V): void;
+        get(key: K): V | undefined;
+        has(key: K): boolean;
+        delete(key: K): boolean;
+        clear(): void;
+        readonly size: number;
+        keyAt(index: number): K | undefined;
     };
     export type StateNamespace = Readonly<{
         float(init: number): MutableSlot<number>;
@@ -1066,6 +1101,7 @@ declare module "@invinite-org/chartlang-core" {
         string(init: string): MutableSlot<string>;
         series(init: number): NumberSeriesSlot;
         array<T>(capacity: number): MutableArraySlot<T>;
+        map<K extends string | number, V>(capacity: number): MutableMapSlot<K, V>;
         tick: Readonly<{
             float(init: number): MutableSlot<number>;
             int(init: number): MutableSlot<number>;

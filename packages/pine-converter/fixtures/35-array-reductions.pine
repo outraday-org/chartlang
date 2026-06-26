@@ -1,0 +1,17 @@
+//@version=6
+indicator("Array reductions", overlay=true)
+var array<float> win = array.new<float>()
+array.push(win, close)
+if array.size(win) > 20
+    array.shift(win)
+array.sort(win, order.descending)
+plot(array.avg(win))
+plot(array.sum(win))
+plot(array.stdev(win))
+plot(array.variance(win))
+plot(array.median(win))
+plot(array.range(win))
+plot(array.percentile_linear_interpolation(win, 90))
+plot(array.max(win) - array.min(win))
+plot(array.includes(win, close) ? 1 : 0)
+plot(array.indexof(win, close))

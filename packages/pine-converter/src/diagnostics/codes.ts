@@ -687,6 +687,22 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             "Add a FIFO eviction guard (`if array.size(coll) > K` → `array.shift(coll)`) or size the array via `array.new<float>(K)` so the capacity is a literal.",
     },
+    "array-reduction-not-mapped": {
+        code: "pine-converter/transform/array-reduction-not-mapped",
+        severity: "warning",
+        defaultMessage:
+            "This `array.*` reduction has no chartlang analogue (nearest-rank percentile is deferred; only linear interpolation ships in v1), so it was left as a `Number.NaN` placeholder.",
+        defaultSuggestion:
+            "Use `array.percentile_linear_interpolation(...)` (→ `array.percentile`), or maintain the reduction yourself over the `state.array<number>` window.",
+    },
+    "array-sort-returns-copy": {
+        code: "pine-converter/transform/array-sort-returns-copy",
+        severity: "info",
+        defaultMessage:
+            "Pine `array.sort` sorts the array in place; chartlang `array.sort` / `<slot>.sort` returns a fresh sorted COPY and never mutates the ring, so reads of the original window after the sort are unchanged.",
+        defaultSuggestion:
+            'Capture the sorted copy (`const sorted = win.sort("desc")`) and read from it, instead of re-reading the original array.',
+    },
     "time-builtin-not-mapped": {
         code: "pine-converter/transform/time-builtin-not-mapped",
         severity: "warning",
@@ -711,6 +727,30 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             "If the argument is a series whose history you coalesce, switch the emitted `math.nz(...)` to `ta.nz(...)` by hand.",
     },
+    "map-capacity-synthesized": {
+        code: "pine-converter/transform/map-capacity-synthesized",
+        severity: "info",
+        defaultMessage:
+            "Pine `map.new<K, V>()` is unbounded, but chartlang `state.map<K, V>(capacity)` requires a compile-time literal capacity (so the keyed store is bounded and snapshot-clean), so a default bound of 1000 was synthesized.",
+        defaultSuggestion:
+            "Set a real bound on the emitted `state.map<number, number>(1000)` based on how many distinct keys the map can hold (a new key over capacity evicts the oldest-inserted one).",
+    },
+    "map-collection-non-numeric": {
+        code: "pine-converter/transform/map-collection-non-numeric",
+        severity: "info",
+        defaultMessage:
+            "This `map.new(...)` has a non-numeric value type (`map<K, bool|string|color>`); chartlang `state.map`'s v1 value type is `number`, so the map was left as-is rather than lowered to a `state.map` slot.",
+        defaultSuggestion:
+            "Restructure the map to a numeric `value` type, or maintain the keyed string/bool state yourself outside a `state.map`.",
+    },
+    "map-builtin-not-mapped": {
+        code: "pine-converter/transform/map-builtin-not-mapped",
+        severity: "warning",
+        defaultMessage:
+            "This `map.*` member has no chartlang analogue over a `state.map` slot (key/value iteration — `map.keys`/`map.values` — is unsupported in v1; chartlang exposes `keyAt(i)` + `size` bounded indexing, not iterators), so it was left as a `Number.NaN` placeholder.",
+        defaultSuggestion:
+            "Walk the map with a literal-bounded `for (let i = 0; i < <slot>.size; i++)` over `<slot>.keyAt(i)` instead of `map.keys`/`map.values`.",
+    },
     "codegen-output-invalid": {
         code: "pine-converter/codegen/codegen-output-invalid",
         severity: "error",
@@ -718,6 +758,92 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
             "The converted chartlang source failed to compile through `@invinite-org/chartlang-compiler`.",
         defaultSuggestion:
             "Open the emitted `.chart.ts`, address the compiler diagnostics, or file a converter bug with the source.",
+    },
+    "break-continue-outside-loop": {
+        code: "pine-converter/transform/break-continue-outside-loop",
+        severity: "error",
+        defaultMessage:
+            "A `break`/`continue` appears outside any `for` loop; it has no loop to control and was dropped.",
+        defaultSuggestion: "Move the `break`/`continue` inside a `for` loop, or remove it.",
+    },
+    "stateful-loop-with-break": {
+        code: "pine-converter/transform/stateful-loop-with-break",
+        severity: "error",
+        defaultMessage:
+            "A `for` loop with a `break`/`continue` AND a stateful primitive (`plot`/`hline`/`alert`/`ta.*`/`draw.*`) in its body cannot be converted: chartlang forbids a stateful call inside a loop, and a `break`/`continue` body cannot be unrolled.",
+        defaultSuggestion:
+            "Lift the stateful call out of the loop, or drop the `break`/`continue` so the loop can unroll.",
+    },
+    "nested-ta-lowered": {
+        code: "pine-converter/transform/nested-ta-lowered",
+        severity: "info",
+        defaultMessage:
+            "A nested `ta.*` call in a scalar position (an operator operand, a ternary arm, or a `math.*` argument) was projected to its per-bar `.current` scalar so the surrounding arithmetic type-checks.",
+        defaultSuggestion:
+            "No action needed — the `.current` projection is the per-bar number Pine uses; the `ta.*` series keeps its own per-call-site history.",
+    },
+    "nested-ta-not-lowered": {
+        code: "pine-converter/transform/nested-ta-not-lowered",
+        severity: "warning",
+        defaultMessage:
+            "A `ta.*` call was left as a `Series` in a scalar position because its name is unmapped or rejected; the generated arithmetic may not type-check (a `Series<number>` where a `number` is required).",
+        defaultSuggestion:
+            "Map the `ta.*` name (or rewrite the expression by hand), then read its `.current` scalar before the surrounding arithmetic.",
+    },
+    "udf-typed-param-unsupported": {
+        code: "pine-converter/parse/udf-typed-param-unsupported",
+        severity: "warning",
+        defaultMessage:
+            "A user-defined function parameter has a type annotation; Pine v1 UDF params are treated as untyped, so the type was dropped and the bare name kept.",
+        defaultSuggestion:
+            "Remove the parameter type (`f(x) =>` instead of `f(float x) =>`); the converter infers types from usage.",
+    },
+    "udf-param-default-unsupported": {
+        code: "pine-converter/parse/udf-param-default-unsupported",
+        severity: "error",
+        defaultMessage:
+            "A user-defined function parameter has a default value; default-valued UDF params are not supported in v1, so the whole declaration was skipped.",
+        defaultSuggestion:
+            "Drop the parameter default and pass the value explicitly at every call site.",
+    },
+    "udf-arity-mismatch": {
+        code: "pine-converter/semantic/udf-arity-mismatch",
+        severity: "warning",
+        defaultMessage:
+            "A user-defined function is called with a different number of arguments than it declares.",
+        defaultSuggestion: "Pass exactly one argument per declared parameter at the call site.",
+    },
+    "udf-recursive-rejected": {
+        code: "pine-converter/semantic/udf-recursive-rejected",
+        severity: "error",
+        defaultMessage:
+            "A user-defined function is recursive (it calls itself directly or through a cycle); chartlang cannot inline a recursive call graph.",
+        defaultSuggestion:
+            "Rewrite the helper iteratively (a literal-bounded `for` loop), or unfold the recursion by hand.",
+    },
+    "udf-emitted-function": {
+        code: "pine-converter/transform/udf-emitted-function",
+        severity: "info",
+        defaultMessage:
+            "A pure (state-free) user-defined function was emitted as a reusable chartlang arrow function at the top of `compute`, and every call site reuses it (no inlining needed — a pure helper is referentially transparent).",
+        defaultSuggestion:
+            "No action needed — a single shared function is semantically identical to Pine's per-call evaluation for a state-free helper.",
+    },
+    "udf-inlined": {
+        code: "pine-converter/transform/udf-inlined",
+        severity: "info",
+        defaultMessage:
+            "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        defaultSuggestion:
+            "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper.",
+    },
+    "udf-arg-hoisted": {
+        code: "pine-converter/transform/udf-arg-hoisted",
+        severity: "info",
+        defaultMessage:
+            "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        defaultSuggestion:
+            "No action needed — the temporary preserves Pine's evaluate-once argument semantics.",
     },
 } as const satisfies Record<string, DiagnosticCodeEntry>;
 

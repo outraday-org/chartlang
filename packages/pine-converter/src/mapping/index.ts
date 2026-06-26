@@ -8,5 +8,7 @@ export * from "./inputs.js";
 export * from "./taPassthrough.js";
 export * from "./multiReturnTa.js";
 export * from "./mathPassthrough.js";
+export * from "./arrayReductions.js";
+export * from "./mapBuiltins.js";
 export * from "./builtinIdentifiers.js";
 export * from "./builtinCalls.js";

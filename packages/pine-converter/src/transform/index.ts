@@ -49,7 +49,15 @@ export {
     callIsStatefulPrimitive,
     expressionHasStatefulPrimitive,
 } from "./statefulNames.js";
-export { emitIf, emitFor, emitSwitch, substituteIterator, resolveBound } from "./controlFlow.js";
+export {
+    emitIf,
+    emitFor,
+    emitSwitch,
+    substituteIterator,
+    substituteParams,
+    substituteParamsStatement,
+    resolveBound,
+} from "./controlFlow.js";
 export type { BodyEmitter, ResolvedBound } from "./controlFlow.js";
 export { parsePineFormat, emitStr } from "./strFormat.js";
 export type { StrResult } from "./strFormat.js";

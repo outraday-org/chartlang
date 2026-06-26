@@ -31,9 +31,17 @@ const pineFixtures = readdirSync(FIXTURES_DIR)
 //   - 20-real-world-sr: a `line.new(..., color=lineColor)` styles a drawing
 //     with an `input.color`; draw-call style opts are not yet input-aware, so
 //     the reference lowers to a bare `lineColor` instead of `inputs.lineColor`.
+//   - 46-trend-wizard-slope-pending: the real Trend Wizard `cf_slope(ma_1, …)`
+//     usage — a stateful helper whose body indexes a PARAM's history (`ma[1]`)
+//     applied to a derived MA local. The arg lowers to a `.current` scalar, so
+//     the inlined `ma_1[1]` indexes a `number` (TS7053). Promoting a
+//     history-indexed inlined arg to a `state.series` is a deferred follow-up;
+//     `cf_slope` on an OHLCV arg (which natively supports `[1]`) round-trips —
+//     see 43-udf-stateful-slope-divergence.
 const KNOWN_NON_COMPILING: ReadonlySet<string> = new Set([
     "14-polyline-rebuild.pine",
     "20-real-world-sr.pine",
+    "46-trend-wizard-slope-pending.pine",
 ]);
 
 describe("fixtures compile round-trip", () => {

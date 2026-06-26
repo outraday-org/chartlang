@@ -4,10 +4,14 @@
 import type { CallExpression, ExpressionNode, HistoryAccessExpression } from "../ast/index.js";
 import type {
     Assignment,
+    BreakStatement,
+    ContinueStatement,
+    FunctionDeclaration,
     Statement,
     TupleDeclaration,
     VariableDeclaration,
 } from "../ast/statements.js";
+import { DIAGNOSTIC_CODE_ENTRIES } from "../diagnostics/codes.js";
 import type { SourceSpan } from "../index.js";
 import {
     BUILTIN_CALL_MAP,
@@ -15,16 +19,18 @@ import {
     lowerBuiltinCall,
     mathLookup,
     multiReturnTaLookup,
-    taLookup,
 } from "../mapping/index.js";
 import type { MultiReturnTaMapping, PineDrawingConstructor } from "../mapping/index.js";
 import type { SemanticResult } from "../semantic/index.js";
+import { collectUdfBodyFacts } from "../semantic/statefulness.js";
 import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
-import type { ArraySlotInfo, EmitContext } from "./emitContext.js";
-import { emitWithContext } from "./emitContext.js";
+import type { ArraySlotInfo, EmitContext, MapSlotInfo } from "./emitContext.js";
+import { emitScalar, emitWithContext, lowerTaToCurrent } from "./emitContext.js";
 import { forEachHistoryAccess } from "./exprEmit.js";
 import type { ScriptScaffold } from "./ir.js";
+import type { MapScan } from "./mapCollection.js";
+import { scanMaps } from "./mapCollection.js";
 import type { NameAllocator } from "./nameAllocator.js";
 import type { NumericArrayScan } from "./numericArray.js";
 import { scanNumericArrays } from "./numericArray.js";
@@ -33,6 +39,8 @@ import { emitRequestSecurity, isRequestSecurityCall } from "./requestSecurity.js
 import { appendComputeStatement, appendStateSlot } from "./scaffoldMutators.js";
 import { emitStr } from "./strFormat.js";
 import { emitStrategySignal } from "./strategySignals.js";
+import type { InlineScope } from "./udfInline.js";
+import { collectStatefulUdfs, inlineStatefulCalls } from "./udfInline.js";
 
 // The dotted member name of a bare-rooted callee (`ta.ema`, `array.push`), or
 // the bare identifier name, or `null` for a computed callee.
@@ -332,6 +340,16 @@ function isScalarSlotCandidate(
     );
 }
 
+// A promoted ta-derived series (`ma_slope = ta.ema(...)` that is `[n]`-indexed):
+// its declaring assignment (whose `.value` write each bar feeds the slot) and
+// the span of its first genuinely-dynamic offset (a non-literal, non-loop-bound
+// `[n]` read), or `null` when every offset is a literal or an enclosing loop
+// iterator. A non-`null` span wires the `dynamic-series-index` error.
+type TaSeriesPromotion = {
+    readonly decl: Assignment;
+    readonly dynamicSpan: SourceSpan | null;
+};
+
 // The history-indexed scalar `var`/`varip` candidates, partitioned by whether
 // the scalar is numeric. A numeric history-indexed scalar lowers to
 // `state.series` (so its `x[n]` reads work); a `bool`/`string` one keeps its
@@ -339,12 +357,33 @@ function isScalarSlotCandidate(
 // the Pine name to its declaration (so `emitStateSlots` can pick the init);
 // `nonNumeric` is the Pine-name set. `dynamicOffsetSpans` records the access
 // span of every numeric series-slot read whose offset is not a literal — wiring
-// the registered `dynamic-series-index` error.
+// the registered `dynamic-series-index` error. `taSeries` is the SEPARATE
+// promotion of an `=`-declared ta-derived series that is `[n]`-indexed (a
+// non-`var` numeric series; see {@link TaSeriesPromotion}).
 type HistorySeriesScan = {
     readonly numeric: ReadonlyMap<string, VariableDeclaration>;
     readonly nonNumeric: ReadonlyMap<string, VariableDeclaration>;
     readonly dynamicOffsetSpans: ReadonlyMap<string, SourceSpan>;
+    readonly taSeries: ReadonlyMap<string, TaSeriesPromotion>;
 };
+
+// Whether a statement DECLARES a ta-derived series the converter promotes to a
+// `state.series` slot when it is history-indexed: an `=` assignment whose value
+// is DIRECTLY a `ta.*` call (the `.current`-lowered series form). `operator ===
+// "="` already characterises a declaration (the semantic analyzer's `=` arm), so
+// no annotation re-check is needed; the value is a `ta.*` call, never an owned
+// drawing/collection. A ta-series never `[n]`-read keeps its existing `.current`
+// scalar lowering — the history-indexed gate is applied in `scanHistorySeries`.
+function isTaSeriesDeclaration(stmt: Statement): stmt is Assignment {
+    if (
+        stmt.kind !== "assignment" ||
+        stmt.operator !== "=" ||
+        stmt.value.kind !== "call-expression"
+    ) {
+        return false;
+    }
+    return calleeName(stmt.value)?.startsWith("ta.") === true;
+}
 
 // Whether a history offset is a compile-time literal (`x[1]`) or a unary-literal
 // (`x[-1]` — degenerate but literal-bounded). A non-literal offset (`x[i]`) on a
@@ -362,75 +401,103 @@ function scanHistorySeries(
     owned: ReadonlySet<string>,
 ): HistorySeriesScan {
     const candidates = new Map<string, VariableDeclaration>();
+    const taCandidates = new Map<string, Assignment>();
     for (const stmt of analysis.script.body) {
         if (isScalarSlotCandidate(stmt, owned)) {
             candidates.set(stmt.name, stmt);
+        } else if (isTaSeriesDeclaration(stmt)) {
+            taCandidates.set(stmt.name, stmt);
         }
     }
     const numeric = new Map<string, VariableDeclaration>();
     const nonNumeric = new Map<string, VariableDeclaration>();
     const dynamicOffsetSpans = new Map<string, SourceSpan>();
-    walkHistoryAccesses(analysis.script.body, (history) => {
+    const taSeries = new Map<string, TaSeriesPromotion>();
+    // A non-literal offset that is NOT an enclosing loop iterator is genuinely
+    // dynamic (`x[i]` with a free `i`); a loop-bound `[i]` is a legal runtime
+    // history read on a `Series`/`state.series` receiver.
+    const isDynamic = (history: HistoryAccessExpression, loopVars: ReadonlySet<string>): boolean =>
+        !isLiteralOffset(history.offset) && !isLoopBoundOffset(history.offset, loopVars);
+    walkHistoryAccesses(analysis.script.body, (history, loopVars) => {
         if (history.receiver.kind !== "identifier-expression") {
             return;
         }
-        const decl = candidates.get(history.receiver.name);
-        if (decl === undefined) {
+        const name = history.receiver.name;
+        const decl = candidates.get(name);
+        if (decl !== undefined) {
+            if (scalarIsNumeric(decl)) {
+                numeric.set(name, decl);
+                if (isDynamic(history, loopVars) && !dynamicOffsetSpans.has(name)) {
+                    dynamicOffsetSpans.set(name, history.span);
+                }
+            } else {
+                nonNumeric.set(name, decl);
+            }
             return;
         }
-        if (scalarIsNumeric(decl)) {
-            numeric.set(decl.name, decl);
-            if (!isLiteralOffset(history.offset) && !dynamicOffsetSpans.has(decl.name)) {
-                dynamicOffsetSpans.set(decl.name, history.span);
-            }
-        } else {
-            nonNumeric.set(decl.name, decl);
+        const taDecl = taCandidates.get(name);
+        if (taDecl !== undefined) {
+            const prior = taSeries.get(name);
+            const dynamicSpan =
+                prior?.dynamicSpan ?? (isDynamic(history, loopVars) ? history.span : null);
+            taSeries.set(name, { decl: taDecl, dynamicSpan });
         }
     });
-    return { numeric, nonNumeric, dynamicOffsetSpans };
+    return { numeric, nonNumeric, dynamicOffsetSpans, taSeries };
 }
+
+// The visitor a {@link walkHistoryAccesses} caller supplies: each
+// `history-access-expression` plus the set of `for`-iterator names in scope at
+// that access (so a `<series>[i]` whose offset is the enclosing loop iterator is
+// a valid runtime history read, NOT a `dynamic-series-index`).
+type HistoryVisit = (history: HistoryAccessExpression, loopVars: ReadonlySet<string>) => void;
 
 // Visit every `history-access-expression` reachable through a statement list,
 // descending `if`/`for`/`switch`/`block` bodies and every statement's
 // expression tree (via `forEachHistoryAccess`). Mirrors the one-level body walk
 // the drawing-ownership scan uses, extended to the full control-flow tree.
+// `loopVars` accumulates the enclosing `for`-iterator names so the visitor can
+// tell a loop-bound runtime offset from a genuinely dynamic one.
 function walkHistoryAccesses(
     statements: readonly Statement[],
-    visit: (history: HistoryAccessExpression) => void,
+    visit: HistoryVisit,
+    loopVars: ReadonlySet<string> = new Set(),
 ): void {
+    const visitExpr = (expr: ExpressionNode): void =>
+        forEachHistoryAccess(expr, (history) => visit(history, loopVars));
     for (const stmt of statements) {
         switch (stmt.kind) {
             case "variable-declaration":
-                forEachHistoryAccess(stmt.initializer, visit);
+                visitExpr(stmt.initializer);
                 break;
             case "assignment":
-                forEachHistoryAccess(stmt.value, visit);
+                visitExpr(stmt.value);
                 break;
             case "tuple-declaration":
-                forEachHistoryAccess(stmt.initializer, visit);
+                visitExpr(stmt.initializer);
                 break;
             case "expression-statement":
-                forEachHistoryAccess(stmt.expression, visit);
+                visitExpr(stmt.expression);
                 break;
             case "if-statement":
-                forEachHistoryAccess(stmt.condition, visit);
-                walkHistoryAccesses(stmt.thenBody.body, visit);
+                visitExpr(stmt.condition);
+                walkHistoryAccesses(stmt.thenBody.body, visit, loopVars);
                 for (const clause of stmt.elseIfClauses) {
-                    forEachHistoryAccess(clause.condition, visit);
-                    walkHistoryAccesses(clause.body.body, visit);
+                    visitExpr(clause.condition);
+                    walkHistoryAccesses(clause.body.body, visit, loopVars);
                 }
                 if (stmt.elseBody !== null) {
-                    walkHistoryAccesses(stmt.elseBody.body, visit);
+                    walkHistoryAccesses(stmt.elseBody.body, visit, loopVars);
                 }
                 break;
             case "for-statement":
-                walkHistoryAccesses(stmt.body.body, visit);
+                walkHistoryAccesses(stmt.body.body, visit, new Set([...loopVars, stmt.variable]));
                 break;
             case "switch-statement":
-                walkHistorySwitch(stmt, visit);
+                walkHistorySwitch(stmt, visit, loopVars);
                 break;
             case "block-statement":
-                walkHistoryAccesses(stmt.body, visit);
+                walkHistoryAccesses(stmt.body, visit, loopVars);
                 break;
             case "break-statement":
             case "continue-statement":
@@ -445,17 +512,26 @@ function walkHistoryAccesses(
 // `case` whose `test` is `null`.
 function walkHistorySwitch(
     stmt: Extract<Statement, { kind: "switch-statement" }>,
-    visit: (history: HistoryAccessExpression) => void,
+    visit: HistoryVisit,
+    loopVars: ReadonlySet<string>,
 ): void {
     if (stmt.subject !== null) {
-        forEachHistoryAccess(stmt.subject, visit);
+        forEachHistoryAccess(stmt.subject, (history) => visit(history, loopVars));
     }
     for (const clause of stmt.cases) {
         if (clause.test !== null) {
-            forEachHistoryAccess(clause.test, visit);
+            forEachHistoryAccess(clause.test, (history) => visit(history, loopVars));
         }
-        walkHistoryAccesses(clause.body, visit);
+        walkHistoryAccesses(clause.body, visit, loopVars);
     }
+}
+
+// Whether a history offset is the bare identifier of an enclosing `for`
+// iterator (`<series>[i]`). Such an offset varies per iteration but stays inside
+// the loop's bound, so on a `state.series`/`Series` receiver it is a legal
+// runtime history read rather than a `dynamic-series-index`.
+function isLoopBoundOffset(offset: ExpressionNode, loopVars: ReadonlySet<string>): boolean {
+    return offset.kind === "identifier-expression" && loopVars.has(offset.name);
 }
 
 // The `var`/`varip` scalar declarations this transform owns. Returns a name →
@@ -556,6 +632,32 @@ function emitSeriesSlot(
     appendStateSlot(scaffold, { name: slot, initExpr: `state.series(${init})` });
 }
 
+// Promote each `=`-declared, history-indexed ta-series (`ma_slope = ta.ema(...)`
+// read as `ma_slope[i]`) to a `state.series` slot. ALLOCATES the slot local
+// (reusing the Pine identifier) into the shared `slots`/`seriesNames` maps —
+// reusing the EXISTING `var`→`state.series` emit machinery: the declaring
+// assignment lowers via `emitAssignment` to `<slot>.value = ta.<…>(...).current`
+// (the per-bar write), a bare read to `<slot>.value`, and `<slot>[n]` to a real
+// series index. The slot init is `Number.NaN` (the value is computed each bar).
+// A genuinely-dynamic offset still wires `dynamic-series-index`.
+function emitTaSeriesSlots(
+    scaffold: ScriptScaffold,
+    diagnostics: DiagnosticCollector,
+    scan: HistorySeriesScan,
+    slots: Map<string, string>,
+    seriesNames: Set<string>,
+): void {
+    for (const [name, promotion] of scan.taSeries) {
+        const slot = scaffold.names.allocateForSymbol(name);
+        slots.set(name, slot);
+        seriesNames.add(name);
+        if (promotion.dynamicSpan !== null) {
+            diagnostics.pushCode("dynamic-series-index", promotion.dynamicSpan);
+        }
+        appendStateSlot(scaffold, { name: slot, initExpr: "state.series(Number.NaN)" });
+    }
+}
+
 // Read the recorded `input.int` literal default for a registered input name,
 // or `null`. Re-walks the top-level `input.int(N)` named declarations.
 function inputDefaults(analysis: SemanticResult): Map<string, number> {
@@ -613,6 +715,34 @@ function emitArraySlots(
     return slots;
 }
 
+// Register a `state.map` slot per numeric-value map, emit its `const <slot> =
+// state.map<number, number>(cap);` declaration, push the capacity-synthesis info
+// (Pine maps are unbounded; chartlang requires a literal cap), and report the
+// non-numeric maps. Returns the Pine-name → slot map threaded into the
+// `EmitContext` so `map.*(id, …)` calls rewrite onto the slot. The slot local
+// reuses the Pine map identifier (allocator-disambiguated). Done before the
+// statement walk so each slot decl precedes its first use.
+function emitMapSlots(
+    scaffold: ScriptScaffold,
+    diagnostics: DiagnosticCollector,
+    scan: MapScan,
+): Map<string, MapSlotInfo> {
+    const slots = new Map<string, MapSlotInfo>();
+    for (const [name, info] of scan.slots) {
+        const local = scaffold.names.allocateForSymbol(name);
+        slots.set(name, { local, cap: info.cap });
+        appendStateSlot(scaffold, {
+            name: local,
+            initExpr: `state.map<number, number>(${info.cap})`,
+        });
+        diagnostics.pushCode("map-capacity-synthesized", info.decl.span);
+    }
+    for (const [, span] of scan.nonNumeric) {
+        diagnostics.pushCode("map-collection-non-numeric", span);
+    }
+    return slots;
+}
+
 // The transform's mutable threading context.
 type Walk = {
     readonly analysis: SemanticResult;
@@ -621,7 +751,27 @@ type Walk = {
     readonly owned: ReadonlySet<string>;
     readonly arrayNames: ReadonlySet<string>;
     readonly defaults: ReadonlyMap<string, number>;
+    // Stateful UDFs (`stateful: true`), inline-expanded at each call site so each
+    // gets an independent slot. Empty for any script without a stateful helper,
+    // which keeps the inline dispatch a no-op (byte-identical to the legacy path).
+    readonly statefulUdfs: ReadonlyMap<string, FunctionDeclaration>;
 };
+
+// Build the inliner's dependency bundle from the active `Walk`: the stateful-UDF
+// set, the shared name allocator, the diagnostic sink, and the two `other.ts`
+// lowerers injected as callbacks (so `udfInline.ts` carries no `other.ts`
+// import — which would cycle).
+function inlineScopeOf(walk: Walk): InlineScope {
+    return {
+        statefulUdfs: walk.statefulUdfs,
+        names: walk.scaffold.names,
+        diagnostics: walk.diagnostics,
+        emitters: {
+            emitValue: (node, ctx) => emitCallValue(node, ctx, walk),
+            emitStatement: (stmt, ctx) => emitStatement(stmt, ctx, walk),
+        },
+    };
+}
 
 // ── Tuple destructuring of multi-return `ta.*` (e.g. `ta.macd`) ──────────────
 
@@ -753,6 +903,158 @@ function emitTupleDeclaration(
     return [`const ${tupleResultName(decl, walk.scaffold.names)} = ${call};`];
 }
 
+// ── Pure user-defined function emission (Task 3) ─────────────────────────────
+
+// Every top-level pure UDF (a `kind: "function"` symbol resolved `stateful:
+// false`), keyed by name (last declaration wins, mirroring the semantic hoist).
+// A stateful UDF (Task 4 inlines it at each call site) and a recursive UDF
+// (forced `stateful: true`, already `udf-recursive-rejected`) are excluded; a
+// duplicate-named EARLIER declaration resolves to no symbol — the hoist
+// registers only the last — and is skipped. The map doubles as the call-graph
+// node set `orderPureUdfs` reads.
+function collectPureUdfs(analysis: SemanticResult): Map<string, FunctionDeclaration> {
+    const pure = new Map<string, FunctionDeclaration>();
+    for (const stmt of analysis.script.body) {
+        if (stmt.kind !== "function-declaration") {
+            continue;
+        }
+        const symbol = analysis.symbols.get(stmt.span);
+        if (symbol === undefined || symbol.stateful !== false) {
+            continue;
+        }
+        pure.set(stmt.name, stmt);
+    }
+    return pure;
+}
+
+// Order the pure UDFs callee-before-caller (post-order DFS over the call graph)
+// so a pure UDF that calls another is emitted AFTER its callee — both precede
+// the first call site. A bare callee that is not a pure UDF (a `math.*` member
+// call has no bare callee at all; `nz`, a stateful UDF, …) resolves to no node
+// and is ignored. Recursion cannot occur among pure UDFs (a cycle is forced
+// `stateful: true`, so it never enters this set), so the `visited` pre-mark
+// terminates every walk and the order is a true topological sort.
+function orderPureUdfs(pure: ReadonlyMap<string, FunctionDeclaration>): FunctionDeclaration[] {
+    const ordered: FunctionDeclaration[] = [];
+    const visited = new Set<string>();
+    const visit = (decl: FunctionDeclaration): void => {
+        if (visited.has(decl.name)) {
+            return;
+        }
+        visited.add(decl.name);
+        for (const callName of collectUdfBodyFacts(decl.body).calls) {
+            const target = pure.get(callName);
+            if (target !== undefined) {
+                visit(target);
+            }
+        }
+        ordered.push(decl);
+    };
+    for (const decl of pure.values()) {
+        visit(decl);
+    }
+    return ordered;
+}
+
+// The chartlang assignment operator for a Pine UDF-body assignment: `=`/`:=`
+// both lower to `=`, a compound arithmetic form (`+=`/…) passes through — the
+// same rule `emitAssignment` applies to top-level scalars.
+function udfAssignOperator(stmt: Assignment): string {
+    return stmt.operator === "=" || stmt.operator === ":=" ? "=" : stmt.operator;
+}
+
+// Render one UDF-body statement. A value local (`x = expr` / `float x = expr`)
+// lowers to `let x = <expr>;` on first sight and `x <op> <expr>;` on a later
+// reassignment (the param names + every value local seed `declared`); a bare
+// expression statement lowers to `<expr>;`. The implicit-return LAST statement
+// additionally yields the `return`: a value local returns its name, a bare
+// expression returns the expression. Any OTHER statement kind (control flow)
+// reuses the top-level `emitStatement` lowering and contributes no return.
+function emitUdfBodyStatement(
+    stmt: Statement,
+    ctx: EmitContext,
+    walk: Walk,
+    declared: Set<string>,
+    isLast: boolean,
+): readonly string[] {
+    if (stmt.kind === "assignment" || stmt.kind === "variable-declaration") {
+        const value = stmt.kind === "assignment" ? stmt.value : stmt.initializer;
+        const rhs = emitCallValue(value, ctx, walk);
+        const lines: string[] = [];
+        if (stmt.kind === "assignment" && declared.has(stmt.name)) {
+            lines.push(`${stmt.name} ${udfAssignOperator(stmt)} ${rhs};`);
+        } else {
+            declared.add(stmt.name);
+            lines.push(`let ${stmt.name} = ${rhs};`);
+        }
+        if (isLast) {
+            lines.push(`return ${stmt.name};`);
+        }
+        return lines;
+    }
+    if (stmt.kind === "expression-statement") {
+        const source = emitCallValue(stmt.expression, ctx, walk);
+        return [isLast ? `return ${source};` : `${source};`];
+    }
+    return emitStatement(stmt, ctx, walk);
+}
+
+// Lower one pure UDF to a reusable chartlang arrow-function `const`. Params are
+// emitted with a `: number` TYPE ANNOTATION (Pine UDF params are untyped, but an
+// untyped arrow param trips the compiler's `noImplicitAny`, so a clean pure
+// helper would not type-check) and — together with every body local and every
+// UDF name (already in `ctx.localNames`) — registered as shadowing locals so a
+// param/local reference is NOT rewritten to `inputs.*` / a state slot, and a
+// sibling-UDF call keeps its bare name. `number` is the sound annotation for the
+// numeric helper case: every realistic pure helper uses its params in
+// scalar/number positions (arithmetic, `math.*`, comparison), and a `PriceSeries`
+// call-site arg (`bar.close`) is `number & Series<…>`, assignable to `number`. A
+// pure helper that history-indexes a param (`p[1]`) genuinely needs a series-typed
+// param — the same `state.series` promotion the stateful-inline path defers — and
+// stays a documented gap. A single-expression body becomes an expression-bodied
+// arrow; any other body becomes a block arrow whose locals lower to `let`s and
+// whose last statement yields the `return`.
+function emitPureUdf(decl: FunctionDeclaration, ctx: EmitContext, walk: Walk): string {
+    const params = decl.params.map((param) => param.name);
+    const body = decl.body.body;
+    const bodyLocals = body.flatMap((stmt) =>
+        stmt.kind === "assignment" || stmt.kind === "variable-declaration" ? [stmt.name] : [],
+    );
+    const childCtx: EmitContext = {
+        ...ctx,
+        localNames: new Set([...ctx.localNames, ...params, ...bodyLocals]),
+    };
+    const paramList = params.map((param) => `${param}: number`).join(", ");
+    if (body.length === 1 && body[0].kind === "expression-statement") {
+        return `const ${decl.name} = (${paramList}) => ${emitCallValue(body[0].expression, childCtx, walk)};`;
+    }
+    const declared = new Set(params);
+    const lines = body.flatMap((stmt, index) =>
+        emitUdfBodyStatement(stmt, childCtx, walk, declared, index === body.length - 1),
+    );
+    return `const ${decl.name} = (${paramList}) => { ${lines.join(" ")} };`;
+}
+
+// Emit every pure UDF as a hoisted reusable function at the TOP of the compute
+// body (after the state-slot allocations, before any non-UDF statement),
+// callee-before-caller, and raise one `udf-emitted-function` info per UDF. The
+// statement walk's `function-declaration` arm stays a no-op — the declaration
+// site contributes nothing, so this prepend is the only emission. (The seam for
+// Task 4: a STATEFUL UDF is excluded here and is inlined at its call sites by
+// Task 4; the no-op declaration arm is shared by both paths.)
+function emitPureUdfs(
+    analysis: SemanticResult,
+    scaffold: ScriptScaffold,
+    diagnostics: DiagnosticCollector,
+    ctx: EmitContext,
+    walk: Walk,
+): void {
+    for (const decl of orderPureUdfs(collectPureUdfs(analysis))) {
+        appendComputeStatement(scaffold, emitPureUdf(decl, ctx, walk));
+        diagnostics.pushCode("udf-emitted-function", decl.span);
+    }
+}
+
 /**
  * Lower every **non-drawing** top-level statement of the analysed Pine script
  * into chartlang TypeScript source strings appended to the
@@ -805,19 +1107,36 @@ export function transformOther(
     // `array.push`/`array.get` operations still emit (rewritten onto the slot);
     // a rejected collection's operations emit raw (the output is an error stub).
     const arrayScan = scanNumericArrays(analysis, drawingOwned);
+    // A `var map<…>` collection is added to `owned` (alongside the array
+    // collections) so its `map.new(...)` decl is skipped by the statement walk —
+    // the SCALAR pipeline must never mis-lower it as a `state.float(map.new())`
+    // slot. A numeric-value map's `map.put`/`map.get` operations still emit
+    // (rewritten onto the slot); the `map.*` ops never match `isDrawingOwnedCall`
+    // (only `array.`/`table.`/`linefill.`/setter calls do), so no map-name
+    // carve-out is needed there.
+    const mapScan = scanMaps(analysis, drawingOwned);
     const owned: ReadonlySet<string> = new Set([
         ...drawingOwned,
         ...arrayScan.slots.keys(),
         ...arrayScan.nonNumeric.keys(),
         ...arrayScan.unbounded.keys(),
+        ...mapScan.slots.keys(),
+        ...mapScan.nonNumeric.keys(),
     ]);
-    // Numeric-array slots are registered + emitted first so their `const <slot>
-    // = state.array<number>(K);` declarations precede the scalar slots.
+    // Numeric-array + map slots are registered + emitted first so their
+    // `const <slot> = state.array<number>(K);` / `state.map<number, number>(cap);`
+    // declarations precede the scalar slots.
     const arraySlots = emitArraySlots(scaffold, diagnostics, arrayScan);
+    const mapSlots = emitMapSlots(scaffold, diagnostics, mapScan);
     const defaults = inputDefaults(analysis);
     const scan = scanHistorySeries(analysis, owned);
     const seriesNames = new Set(scan.numeric.keys());
     const slots = registerStateSlots(analysis, scaffold, owned, seriesNames);
+    // Promote `=`-declared, history-indexed ta-series into the SAME slot maps so
+    // the existing read/write rewrites apply; allocated AFTER the `var` scalar
+    // slots so the `slots` map carries every name before the `EmitContext` reads
+    // it. The slot decls are emitted here (init `Number.NaN`).
+    emitTaSeriesSlots(scaffold, diagnostics, scan, slots, seriesNames);
     const inputNames = new Set(scaffold.inputs.map((input) => input.name));
     const inputCasts = new Map<string, string>();
     for (const input of scaffold.inputs) {
@@ -826,15 +1145,41 @@ export function transformOther(
             inputCasts.set(input.name, cast);
         }
     }
+    // Every top-level UDF name is a known local: a call site keeps the bare
+    // callee (a pure UDF resolves to the hoisted function emitted by
+    // `emitPureUdfs`; a stateful UDF is Task 4's inline), never an `inputs.*` /
+    // slot rewrite. UDF and input/slot symbols never share a name, so this only
+    // ever prevents a spurious callee rewrite.
+    const udfNames = new Set<string>();
+    for (const stmt of analysis.script.body) {
+        if (stmt.kind === "function-declaration") {
+            udfNames.add(stmt.name);
+        }
+    }
     const ctx: EmitContext = {
         annotations: analysis.annotations,
         inputNames,
-        localNames: new Set(),
+        localNames: udfNames,
         stateSlots: slots,
         inputCasts,
         tupleFieldAliases: registerTupleFields(analysis, scaffold.names),
         seriesSlots: seriesNames,
         arraySlots,
+        arrayWarn: (code, span) => diagnostics.pushCode(code, span),
+        mapSlots,
+        mapWarn: (code, span) => diagnostics.pushCode(code, span),
+        // The nested `ta.*` lowering can fire on every operand; dedupe the
+        // `nested-ta-lowered` info to one per script (the `yloc-padding-
+        // approximated` precedent), but surface every residual-series warning.
+        taWarn: (code, span) => {
+            if (
+                code === "nested-ta-lowered" &&
+                diagnostics.has(DIAGNOSTIC_CODE_ENTRIES[code].code)
+            ) {
+                return;
+            }
+            diagnostics.pushCode(code, span);
+        },
     };
     emitStateSlots(analysis, scaffold, diagnostics, slots, scan, ctx);
     // A bool/string history-indexed scalar keeps its current (non-`state.series`)
@@ -851,7 +1196,12 @@ export function transformOther(
         owned,
         arrayNames: new Set(arraySlots.keys()),
         defaults,
+        statefulUdfs: collectStatefulUdfs(analysis),
     };
+    // Pure UDFs are hoisted to the FRONT of the compute body (callee-before-
+    // caller) before the source-order statement walk, so every reusable function
+    // precedes its first call site.
+    emitPureUdfs(analysis, scaffold, diagnostics, ctx, walk);
     for (const statement of analysis.script.body) {
         for (const line of emitStatement(statement, ctx, walk)) {
             appendComputeStatement(scaffold, line);
@@ -895,14 +1245,37 @@ function emitStatement(stmt: Statement, ctx: EmitContext, walk: Walk): readonly 
             return rendered === "" ? [] : [rendered];
         }
         case "break-statement":
-            return ["break;"];
         case "continue-statement":
-            return ["continue;"];
+            return emitLoopJump(stmt, ctx, walk);
         case "block-statement":
             return [`{ ${emitBody(stmt.body, ctx).join(" ")} }`];
         case "return-statement":
             return [];
+        // A user-defined function declaration contributes nothing at its source
+        // position. A PURE UDF is hoisted to the front of the compute body by
+        // `emitPureUdfs` (Task 3); a STATEFUL UDF is inline-expanded at each call
+        // site by `inlineStatefulCalls` (the emitDeclaration/emitAssignment/
+        // emitExpressionStatement dispatch). Both leave this declaration arm a
+        // no-op.
+        case "function-declaration":
+            return [];
     }
+}
+
+// Lower a `break`/`continue`. Inside an emitted `for` body (`ctx.inLoop`) it
+// becomes the JS jump; at top level — or any block not nested in a loop — there
+// is no loop to control, so it raises `break-continue-outside-loop` and emits
+// nothing rather than a stray, illegal `break;`/`continue;`.
+function emitLoopJump(
+    stmt: BreakStatement | ContinueStatement,
+    ctx: EmitContext,
+    walk: Walk,
+): readonly string[] {
+    if (ctx.inLoop !== true) {
+        walk.diagnostics.pushCode("break-continue-outside-loop", stmt.span);
+        return [];
+    }
+    return [stmt.kind === "break-statement" ? "break;" : "continue;"];
 }
 
 function emitDeclaration(
@@ -921,7 +1294,15 @@ function emitDeclaration(
     ) {
         return [];
     }
-    return [`let ${stmt.name} = ${emitCallValue(stmt.initializer, ctx, walk)};`];
+    // A stateful-UDF call in the value is inline-expanded: its arg temps + body
+    // locals land in `prelude` (emitted before this declaration), and the value
+    // becomes the inlined result. No stateful UDF in the script ⇒ untouched path.
+    const prelude: string[] = [];
+    const initializer =
+        walk.statefulUdfs.size === 0
+            ? stmt.initializer
+            : inlineStatefulCalls(stmt.initializer, ctx, inlineScopeOf(walk), prelude);
+    return [...prelude, `let ${stmt.name} = ${emitCallValue(initializer, ctx, walk)};`];
 }
 
 function emitAssignment(stmt: Assignment, ctx: EmitContext, walk: Walk): readonly string[] {
@@ -932,14 +1313,23 @@ function emitAssignment(stmt: Assignment, ctx: EmitContext, walk: Walk): readonl
     ) {
         return [];
     }
-    const value = emitCallValue(stmt.value, ctx, walk);
+    const prelude: string[] = [];
+    const valueNode =
+        walk.statefulUdfs.size === 0
+            ? stmt.value
+            : inlineStatefulCalls(stmt.value, ctx, inlineScopeOf(walk), prelude);
+    const value = emitCallValue(valueNode, ctx, walk);
+    // `=`/`:=` both lower to a plain `=`; a compound arithmetic assignment
+    // (`+=`/`-=`/`*=`/`/=`) passes its operator through (read-modify-write of an
+    // existing scalar, never a declaration).
+    const operator = stmt.operator === "=" || stmt.operator === ":=" ? "=" : stmt.operator;
     const slot = ctx.stateSlots.get(stmt.name);
     if (slot !== undefined) {
-        return [`${slot}.value = ${value};`];
+        return [...prelude, `${slot}.value ${operator} ${value};`];
     }
     const annotation = walk.analysis.annotations.get(stmt)?.assignment;
     const keyword = annotation?.kind === "declaration" ? "let " : "";
-    return [`${keyword}${stmt.name} = ${value};`];
+    return [...prelude, `${keyword}${stmt.name} ${operator} ${value};`];
 }
 
 // Render a value expression that MAY be a special call (request.security /
@@ -964,6 +1354,23 @@ function isInputCall(value: ExpressionNode): boolean {
 }
 
 function emitExpressionStatement(
+    expr: ExpressionNode,
+    ctx: EmitContext,
+    walk: Walk,
+): readonly string[] {
+    if (walk.statefulUdfs.size === 0) {
+        return emitExpressionStatementCore(expr, ctx, walk);
+    }
+    // Inline-expand any stateful-UDF call (including one nested in a
+    // `plot(cf_slope(…))` argument), then route the rewritten expression through
+    // the normal handling so plot/strategy/special lowering still runs.
+    const prelude: string[] = [];
+    const target = inlineStatefulCalls(expr, ctx, inlineScopeOf(walk), prelude);
+    const core = emitExpressionStatementCore(target, ctx, walk);
+    return prelude.length === 0 ? core : [...prelude, ...core];
+}
+
+function emitExpressionStatementCore(
     expr: ExpressionNode,
     ctx: EmitContext,
     walk: Walk,
@@ -1009,7 +1416,7 @@ function emitSpecialCall(call: CallExpression, ctx: EmitContext, walk: Walk): st
         return null;
     }
     if (name.startsWith("ta.")) {
-        return emitTa(name, call, ctx, walk);
+        return emitTa(call, ctx, walk);
     }
     if (name.startsWith("math.")) {
         return emitMath(name, call, ctx, walk);
@@ -1051,43 +1458,26 @@ function emitBuiltinCall(name: string, call: CallExpression, ctx: EmitContext, w
     return lowered;
 }
 
-// `ta.pivothigh`/`ta.pivotlow` project a field of `ta.pivotsHighLow`'s result,
-// which is a FUNCTION taking `{ leftLength, rightLength }` opts — not a
-// `ta.pivotsHighLow.high(...)` method. Restructure the positional
-// `(left, right)` (or trailing two of `(source, left, right)`) into the opts
-// call and project the field.
-function emitPivot(name: string, call: CallExpression, ctx: EmitContext): string {
-    const field = name === "ta.pivothigh" ? "high" : "low";
-    const positional = call.args.filter((arg) => arg.name === null).map((arg) => arg.value);
-    const right = positional[positional.length - 1];
-    const left = positional.length >= 2 ? positional[positional.length - 2] : right;
-    if (right === undefined || left === undefined) {
-        return `ta.pivotsHighLow().${field}`;
-    }
-    const leftSrc = emitWithContext(left, ctx);
-    const rightSrc = emitWithContext(right, ctx);
-    return `ta.pivotsHighLow({ leftLength: ${leftSrc}, rightLength: ${rightSrc} }).${field}`;
-}
-
-function emitTa(name: string, call: CallExpression, ctx: EmitContext, walk: Walk): string {
-    const mapping = taLookup(name);
-    if (mapping === null) {
+// The top-level `ta.*` value of a declaration/assignment. Routes through the
+// shared `lowerTaToCurrent` (the SAME rule the nested scalar-position lowering
+// in `emitContext` uses) so there is one source of truth; this site additionally
+// owns the diagnostics. A `null` lowering means an unmapped / REJECT name —
+// push `ta-not-mapped` and leave the bare call (an error stub).
+function emitTa(call: CallExpression, ctx: EmitContext, walk: Walk): string {
+    const lowered = lowerTaToCurrent(call, ctx);
+    if (lowered === null) {
         walk.diagnostics.pushCode("ta-not-mapped", call.span);
         return `${emitWithContext(call, ctx)} /* TODO unmapped */`;
     }
-    if (mapping.signatureNote !== undefined) {
-        walk.diagnostics.pushCode("ta-signature-divergence", call.span, mapping.signatureNote);
+    if (lowered.signatureNote !== undefined) {
+        walk.diagnostics.pushCode("ta-signature-divergence", call.span, lowered.signatureNote);
     }
     // chartlang `ta.*` returns a `Series<number>` (a history view); Pine uses
     // the current-bar scalar. `.current` projects that scalar so the result is
     // usable as a number (anchor price, `na`/arithmetic operand, plot value)
     // — `ta.*` maintains its own per-call-site history, so feeding scalars in
     // and reading `.current` out reproduces Pine's per-bar semantics.
-    const body =
-        name === "ta.pivothigh" || name === "ta.pivotlow"
-            ? emitPivot(name, call, ctx)
-            : `${mapping.chartlang}(${call.args.map((arg) => emitWithContext(arg.value, ctx)).join(", ")})`;
-    return `${body}.current`;
+    return lowered.source;
 }
 
 // Whether a `math.sum`/`math.avg` call is Pine's 2-arg ROLLING form
@@ -1116,7 +1506,9 @@ function emitMath(name: string, call: CallExpression, ctx: EmitContext, walk: Wa
         walk.diagnostics.pushCode("math-rolling-window-unmapped", call.span);
         return `${emitWithContext(call, ctx)} /* TODO rolling window */`;
     }
-    const args = call.args.map((arg) => emitWithContext(arg.value, ctx)).join(", ");
+    // `math.*` / `Math.*` reducers take scalar `number` args, so a nested `ta.*`
+    // argument lowers to its `.current` projection (`math.max(ta.rsi(...), 50)`).
+    const args = call.args.map((arg) => emitScalar(arg.value, ctx)).join(", ");
     // `math.round_to_mintick(x)` → `math.roundToMintick(x, syminfo.mintick)`:
     // the chartlang namespace is pure (no ambient `syminfo`), so the author
     // passes the tick size explicitly. Inject it as the second argument here.

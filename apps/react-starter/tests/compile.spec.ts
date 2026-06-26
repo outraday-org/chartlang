@@ -68,6 +68,44 @@ export default defineIndicator({
 })
 `
 
+// Exercises the `state.array` reduction surface: the analytic methods on the
+// window handle (`win.stdev()`) plus the Pine-parity `array.*` free-function
+// alias (`array.median(win)`). Proves the starter accepts the namespace
+// end-to-end (no seam change — language features flow through the compiler).
+const ARRAY_SOURCE = `import { array, defineIndicator, plot, state } from "@invinite-org/chartlang-core"
+
+export default defineIndicator({
+  name: "Rolling reductions",
+  apiVersion: 1,
+  overlay: true,
+  compute({ bar, state, plot }) {
+    const win = state.array<number>(20)
+    win.push(bar.close.current)
+    plot(win.stdev(), { title: "stdev" })
+    plot(array.median(win), { title: "median" })
+  },
+})
+`
+
+// Exercises the `state.map` keyed-collection surface: a numeric `state.map`
+// allocated with a literal capacity (the guard path) plus `set`/`get` with the
+// `?? 0` undefined-vs-zero seed. Proves the starter accepts the primitive
+// end-to-end (no seam change — language features flow through the compiler).
+const MAP_SOURCE = `import { defineIndicator, plot, state } from "@invinite-org/chartlang-core"
+
+export default defineIndicator({
+  name: "Volume by level",
+  apiVersion: 1,
+  overlay: false,
+  compute({ bar, state, plot }) {
+    const levels = state.map<number, number>(64)
+    const key = Math.round(bar.close.current)
+    levels.set(key, (levels.get(key) ?? 0) + bar.volume.current)
+    plot(levels.get(key) ?? 0, { title: "Volume at level" })
+  },
+})
+`
+
 // Missing `compute`/`defineIndicator` default export — a hard compile error.
 const BAD_SOURCE = `this is not valid chartlang @@@ ((`
 
@@ -91,6 +129,28 @@ test("compiles a script using the math.* namespace + syminfo.mintick", async ({ 
 
 test("compiles a script using the str.* namespace in a draw.table", async ({ request }) => {
   const res = await request.post("/api/compile", { data: { source: STR_SOURCE } })
+  expect(res.ok()).toBe(true)
+  const body = await res.json()
+  expect(body.ok).toBe(true)
+  expect(typeof body.moduleSource).toBe("string")
+  expect(body.moduleSource.length).toBeGreaterThan(0)
+})
+
+test("compiles a script using the state.array reduction methods + array.* alias", async ({
+  request,
+}) => {
+  const res = await request.post("/api/compile", { data: { source: ARRAY_SOURCE } })
+  expect(res.ok()).toBe(true)
+  const body = await res.json()
+  expect(body.ok).toBe(true)
+  expect(typeof body.moduleSource).toBe("string")
+  expect(body.moduleSource.length).toBeGreaterThan(0)
+})
+
+test("compiles a script using the state.map keyed collection + literal capacity", async ({
+  request,
+}) => {
+  const res = await request.post("/api/compile", { data: { source: MAP_SOURCE } })
   expect(res.ok()).toBe(true)
   const body = await res.json()
   expect(body.ok).toBe(true)

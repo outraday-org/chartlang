@@ -1,0 +1,11 @@
+//@version=6
+indicator("Loop continue", overlay=false)
+src = ta.ema(close, 5)
+positive_count = 0
+for i = 0 to 5
+    if src[i] < 0
+        continue
+    if src[i] > 100
+        break
+    positive_count += 1
+plot(positive_count)

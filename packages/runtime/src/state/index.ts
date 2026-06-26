@@ -10,15 +10,23 @@ export { ArrayStateSlot } from "./arrayStateSlot.js";
 export {
     advanceSeriesSlots,
     commitArraySlots,
+    commitMapSlots,
     commitSeriesSlots,
     commitStateSlots,
     flushStateSlots,
     resetSeriesHeads,
     resetTentativeArraySlots,
+    resetTentativeMapSlots,
     restoreStateSlots,
     resetTentativeStateSlots,
     serialiseStateSlots,
 } from "./lifecycle.js";
+export {
+    isMapSlotSnapshotKey,
+    restoreMapSlots,
+    serialiseMapSlots,
+} from "./mapPersistence.js";
+export { MapStore } from "./mapStore.js";
 export type { StateSlotSnapshot } from "./lifecycle.js";
 export {
     isSeriesSlotSnapshotKey,

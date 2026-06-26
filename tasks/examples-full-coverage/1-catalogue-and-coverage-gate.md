@@ -4,16 +4,17 @@
 
 ## Goal
 
-Establish the infrastructure that the ~192 per-primitive examples plug
+Establish the infrastructure that the ~200 per-primitive examples plug
 into: a pure `examples/catalogue.ts` metadata registry, a generator
 that emits `DEMO_SCRIPTS` from the canonical `.chart.ts` sources +
 catalogue meta, a derivation of the e2e `EXAMPLE_SCRIPTS` list from the
 catalogue, and a `scripts/examples-coverage.ts` gate that asserts every
 `docs/primitives/**` page has ≥1 example — seeded with a full
 allowlist so CI stays green until the population tasks land. Migrate
-**every** existing example script — the 11 `DEMO_SCRIPTS` entries **and**
-the additional `.chart.ts` files already in the CLI e2e set — into the
-new shape.
+**every** existing example script — the 25 `DEMO_SCRIPTS` entries **and**
+the additional `.chart.ts` files already in the CLI e2e set (31 ids
+total) — into the new shape, classifying each per the §6a fold rule
+(single-primitive → family default, multi-primitive → `complex`).
 
 ## Prerequisites
 
@@ -52,9 +53,10 @@ it.
 /**
  * Fixed taxonomy for the demo's categorized browser dialog AND the
  * invinite template dialog (the canonical category set both products
- * share — see Tasks 23-25). `complex` holds the curated multi-primitive
- * showcase demos (the pre-existing examples), kept intact rather than
- * split into single-primitive buckets.
+ * share — see Tasks 23-25). `complex` holds only the curated
+ * *multi-primitive* showcase demos (composition / MTF / pane-routing /
+ * idiom). Single-primitive demos are folded in as their primitive's
+ * family-category default, never `complex` (see §6a fold rule).
  */
 export type ExampleCategory =
     | "complex"
@@ -73,6 +75,8 @@ export type ExampleCategory =
     | "draw-gann"
     | "draw-elliott"
     | "draw-patterns"
+    | "math"
+    | "str"
     | "inputs"
     | "state-plot-alert"
     | "define-bar-context";
@@ -128,7 +132,10 @@ export const EXAMPLE_CATALOGUE: ReadonlyArray<ExampleMeta> = [
     `fib-retracement` → `draw.fibRetracement`).
   - `input/<name>.md` → `input.<name>`.
   - `state/<name>.md` → `state.<name>`; tick variants `state/tick-<t>.md`
-    → `state.tick.<t>`.
+    → `state.tick.<t>`. (Now includes `state/array.md` → `state.array`,
+    `state/series.md` → `state.series`, and — once the in-flight
+    `tasks/state-map` work lands its doc page — `state/map.md` →
+    `state.map`.)
   - `plot/plot.md` → `plot`; `plot/hline.md` → `hline`.
   - `request/security.md` → `request.security`;
     `request/lowerTf.md` → `request.lowerTf`.
@@ -136,6 +143,10 @@ export const EXAMPLE_CATALOGUE: ReadonlyArray<ExampleMeta> = [
   - `define/<name>.md` → `define.<name>`.
   - `barstate.md`/`syminfo.md`/`timeframe.md` →
     `barstate`/`syminfo`/`timeframe`.
+  - Top-level namespace pages `math.md`/`str.md`/`session.md`/`time.md`
+    → `math`/`str`/`session`/`time` (each namespace is a **single** doc
+    page, so one example covers the whole namespace — `math.*`/`str.*`
+    are not one-page-per-function).
 - Add a unit test `examples/catalogue.test.ts`: ids are unique, each
   `primitives` array is non-empty, every `category` is a known union
   member, and each `id` is a valid filename slug.
@@ -176,16 +187,23 @@ const EXAMPLE_SCRIPTS = EXAMPLE_CATALOGUE.map(
 ```
 
 Keep the existing per-script assertions (`__manifest`,
-`apiVersion === 1`). Add a note that the loop now compiles ~192 files;
+`apiVersion === 1`). Add a note that the loop now compiles ~200 files;
 if wall-clock becomes the CI long pole, follow up by sharding (see
 README §9). `COMPILE_TIMEOUT_MS` is already `15_000` and per-`it`
 (verified) — keep it.
 
-> **The current `EXAMPLE_SCRIPTS` array holds 13 files, not 11** —
-> `ema-cross`, `bollinger-bands`, `rsi-divergence-alert`,
-> `fib-retracement`, `session-high-alert`, `daily-rsi-divergence`,
-> `mintick-snapped-entry`, `base-trend`, `trend-confirmation`,
-> `htf-trend-filter`, `sma-offset`, `pivot-high-ray`, `forecast-line`.
+> **The current `EXAMPLE_SCRIPTS` array holds 27 files, not 11** — the
+> 13 originally listed here (`ema-cross`, `bollinger-bands`,
+> `rsi-divergence-alert`, `fib-retracement`, `session-high-alert`,
+> `daily-rsi-divergence`, `mintick-snapped-entry`, `base-trend`,
+> `trend-confirmation`, `htf-trend-filter`, `sma-offset`,
+> `pivot-high-ray`, `forecast-line`) **plus 14 added since the plan was
+> written**: `anchored-line`, `up-streak`, `rolling-window-mean`,
+> `volume-by-level`, `rolling-zscore`, `symbol-ratio`, `z-layering`,
+> `weekday-close-filter`, `bgcolor-barcolor`, `tick-snapped-levels`,
+> `str-formatted-hud`, `math-scalar-band`, `str-label-builder`,
+> `fill-between-band` (these already compile in e2e and back the new
+> `math.*`/`str.*`/`state.array`/`state.map`/`draw.fillBetween` surface).
 > Deriving `EXAMPLE_SCRIPTS` from the catalogue therefore requires that
 > **every one of these on-disk files has a catalogue entry** (§6), or
 > the loop silently drops them from e2e and the gen-demo-scripts
@@ -236,15 +254,21 @@ entries by catalogue order for stable diffs.
 ### 6. Migrate every existing example script
 
 There are **two** legacy sources of truth and they do **not** fully
-overlap — migrate the **union**:
+overlap — migrate the **union (31 distinct ids)**:
 
-1. **The 11 `DEMO_SCRIPTS`** in `scripts.ts`: `ema-cross`,
+1. **The 25 `DEMO_SCRIPTS`** in `scripts.ts`: `ema-cross`,
    `bollinger-bands`, `rsi-divergence-alert`, `smoothed-rsi-cross`,
    `explicit-pane-routing`, `manual-sma`, `trend-composition`,
-   `htf-trend-filter`, `sma-offset`, `pivot-high-ray`, `forecast-line`.
-   Four are demo-only (no file): `manual-sma`, `smoothed-rsi-cross`,
-   `explicit-pane-routing`, `trend-composition` — **create** their
+   `htf-trend-filter`, `sma-offset`, `pivot-high-ray`, `forecast-line`,
+   `fill-between-band`, `anchored-line`, `up-streak`,
+   `rolling-window-mean`, `volume-by-level`, `rolling-zscore`,
+   `symbol-ratio`, `z-layering`, `weekday-close-filter`,
+   `bgcolor-barcolor`, `tick-snapped-levels`, `str-formatted-hud`,
+   `math-scalar-band`, `str-label-builder`. Four are demo-only (no
+   file): `manual-sma`, `smoothed-rsi-cross`, `explicit-pane-routing`,
+   `trend-composition` — **create** their
    `examples/scripts/<id>.chart.ts` from the current inlined `source`.
+   The other 21 already exist on disk.
 2. **The 6 on-disk `.chart.ts` files in the e2e set that are NOT in
    `DEMO_SCRIPTS`**: `base-trend`, `daily-rsi-divergence`,
    `mintick-snapped-entry`, `session-high-alert`, `trend-confirmation`,
@@ -258,42 +282,96 @@ overlap — migrate the **union**:
 > `import baseTrend from "./base-trend.chart"`). Catalogue all three;
 > they are different files/ids.
 
-- **Where the migrated entries physically live.** Author **all** of
-  them in the Task-1 `examples/catalogue/complex.ts` fragment (this is
-  the only migrated fragment Task 1 owns). The `category` **field** of
-  each entry — not its fragment file — drives the demo dialog + docs
-  grouping, so a clean single-concept demo can sit in `complex.ts` while
-  still carrying a family category. The population tasks 3–21 create
-  their **own** fragments containing only **new** (non-migrated) entries
-  and never touch `complex.ts`, keeping the parallel waves disjoint.
-- **Category assignment.** The curated composite / showcase demos take
-  category `complex`: `smoothed-rsi-cross`, `manual-sma`,
-  `explicit-pane-routing`, `trend-composition`, `trend-confirmation`,
-  `base-trend`, `htf-trend-filter`, `pivot-high-ray`, `forecast-line`,
-  `daily-rsi-divergence`, `mintick-snapped-entry`, `session-high-alert`.
-  The clean single-concept demos carry their family category:
-  `ema-cross` → `ta-moving-averages`, `bollinger-bands` →
-  `ta-bands-volatility`, `rsi-divergence-alert` → `ta-momentum`,
-  `sma-offset` → `ta-moving-averages`, `fib-retracement` →
-  `draw-fibonacci`.
-- **Crediting (`primitives`).** Each entry lists only the **headline /
-  canonical** primitive id(s) it serves as the example for (≥1) — **not**
-  every primitive it happens to call. This matches how `pivot-high-ray`
-  is credited (`ta.pivotsHighLow` + `draw.horizontalRay` only, though it
-  also uses `state.float`): building-block primitives that get their own
-  dedicated example in a population task are **omitted** so the composite
-  does not preempt them. The genuinely-canonical credits the composites
-  DO carry: `mintick-snapped-entry` → `syminfo`, `session-high-alert` →
-  `alert` (both are the canonical demo for those pages — Tasks 20/21
-  flag them covered). `fib-retracement` → `draw.fibRetracement`
-  (Task 15 then skips it).
+#### 6a. Fold rule — single-primitive default vs. `complex` composite
+
+The original plan swept **all** curated demos into a `complex` bucket.
+That over-collects: a demo that exists to showcase **one** headline
+primitive **is** that primitive's per-primitive default example. So:
+
+- **Single-primitive demo → the per-primitive default.** If a migrated
+  example demonstrates a single headline primitive, give it that
+  primitive's **family category** (never `complex`) and credit exactly
+  that primitive. The family population task (3–21) then **skips**
+  authoring a duplicate (its table already flags the id `covered`).
+- **Multi-primitive composite / idiom → `complex`.** Demos that show
+  *composition* (cross-file imports, MTF wiring, pane routing,
+  pivot→ray chains, manual-computation idioms, divergence detection)
+  stay in `complex` — they demonstrate something no single-primitive
+  default does.
+- **Remove redundant single-primitive `complex` entries.** If an example
+  currently parked in `complex` is in fact a single-primitive duplicate
+  of an existing default, **do not preserve a second copy** — fold it
+  into the default (drop the `complex` entry / reassign its category).
+  This is the only removal the rule makes; genuine multi-primitive
+  composites are always kept. (As it happens the original `complex`
+  list is all genuine composites, so this clause primarily governs the
+  14 newer on-disk scripts and any future additions.)
+
+#### 6b. Category + crediting for every migrated id
+
+Author **all** migrated entries in the Task-1
+`examples/catalogue/complex.ts` fragment (the only migrated fragment
+Task 1 owns — its **filename** is historical; the `category` **field**
+of each entry, not the file, drives the dialog + docs grouping). The
+population tasks 3–21 create their own fragments with only **new**
+(non-migrated) entries and never touch `complex.ts`, keeping the
+parallel waves disjoint.
+
+| id | Category | Kind | `primitives` credit |
+|----|----------|------|---------------------|
+| `ema-cross` | `ta-moving-averages` | default | `ta.ema` |
+| `sma-offset` | `ta-moving-averages` | default | `ta.sma` |
+| `bollinger-bands` | `ta-bands-volatility` | default | `ta.bb` |
+| `rsi-divergence-alert` | `ta-momentum` | default | `ta.rsi` |
+| `fib-retracement` | `draw-fibonacci` | default | `draw.fibRetracement` |
+| `anchored-line` | `draw-lines` | default | `draw.line` |
+| `fill-between-band` | `draw-lines` | default | `draw.fillBetween` |
+| `up-streak` | `state-plot-alert` | default | `state.series` |
+| `rolling-window-mean` | `state-plot-alert` | default | `state.array` |
+| `volume-by-level` | `state-plot-alert` | default | `state.map` †|
+| `symbol-ratio` | `define-bar-context` | default | `request.security` |
+| `tick-snapped-levels` | `math` | default | `math` |
+| `math-scalar-band` | `math` | default | `math` |
+| `str-formatted-hud` | `str` | default | `str` |
+| `str-label-builder` | `str` | default | `str` |
+| `weekday-close-filter` | `inputs` | default | `input.session`, `time` |
+| `smoothed-rsi-cross` | `complex` | composite | (omit — building blocks owned by defaults) |
+| `manual-sma` | `complex` | composite | (omit — manual-computation idiom) |
+| `explicit-pane-routing` | `complex` | composite | (omit — pane-routing idiom) |
+| `trend-composition` | `complex` | composite | (omit — cross-file composition) |
+| `trend-confirmation` | `complex` | composite | (omit) |
+| `base-trend` | `complex` | composite | (omit) |
+| `htf-trend-filter` | `complex` | composite | (omit — `request.security` now owned by `symbol-ratio`) |
+| `pivot-high-ray` | `complex` | composite | `ta.pivotsHighLow`, `draw.horizontalRay` |
+| `forecast-line` | `complex` | composite | (omit) |
+| `daily-rsi-divergence` | `complex` | composite | (omit) |
+| `rolling-zscore` | `complex` | composite | (omit — `state.array` owned by `rolling-window-mean`) |
+| `z-layering` | `complex` | composite | (omit — `draw.fillBetween` owned by `fill-between-band`) |
+| `bgcolor-barcolor` | `complex` | composite | (omit — `bgcolor`/`barcolor` have no doc page yet) |
+| `mintick-snapped-entry` | `complex` | composite | `syminfo` |
+| `session-high-alert` | `complex` | composite | `alert` |
+
+† `state.map` only becomes a real gate target once the in-flight
+`tasks/state-map` doc page lands. Until then keep `state.map` in the
+allowlist and credit `volume-by-level` with `state.array` instead (it
+uses both); flip the credit to `state.map` when the page exists.
+
+- **Crediting rule.** A `default` credits exactly its headline
+  primitive. A `composite` credits only a primitive that is **genuinely
+  its canonical demo and has no cleaner single-primitive default** —
+  `pivot-high-ray` (`ta.pivotsHighLow` + `draw.horizontalRay`),
+  `mintick-snapped-entry` (`syminfo`), `session-high-alert` (`alert`).
+  Composites whose every primitive now has a single-primitive default
+  credit **nothing** (the `(omit)` rows) — the default owns the
+  coverage, so the composite cannot preempt it. This is the mechanical
+  form of the fold rule: redundant credits collapse onto the default.
 
 Then remove all covered ids from the allowlist seed. After migration,
 `pnpm examples:generate` must reproduce a `scripts.ts` whose
-`DEMO_SCRIPTS` is behaviorally identical for the original 11 (same
+`DEMO_SCRIPTS` is behaviorally identical for the existing 25 (same
 ids/labels/sources, plus the new `category` field; the 6 newly-catalogued
-files now also appear) and `pnpm examples:gate` + existing `apps/site`
-Playwright demo tests stay green.
+on-disk files now also appear) and `pnpm examples:gate` + existing
+`apps/site` Playwright demo tests stay green.
 
 ## Files to Create / Modify
 
@@ -307,6 +385,7 @@ Playwright demo tests stay green.
 | `examples/catalogue.json` | Create (generated) | Machine-readable artifact for the published package (Task 23). |
 | `examples/scripts/{manual-sma,smoothed-rsi-cross,explicit-pane-routing,trend-composition}.chart.ts` | Create | Promote demo-only sources to canonical files. |
 | `examples/catalogue/complex.ts` (entries for `base-trend`, `daily-rsi-divergence`, `mintick-snapped-entry`, `session-high-alert`, `trend-confirmation`, `fib-retracement`) | Modify | Catalogue the 6 on-disk e2e scripts not in `DEMO_SCRIPTS` (else stray-file / e2e break). |
+| `examples/catalogue/complex.ts` (entries for the 14 scripts added since the plan: `anchored-line`, `up-streak`, `rolling-window-mean`, `volume-by-level`, `rolling-zscore`, `symbol-ratio`, `z-layering`, `weekday-close-filter`, `bgcolor-barcolor`, `tick-snapped-levels`, `str-formatted-hud`, `math-scalar-band`, `str-label-builder`, `fill-between-band`) | Modify | Catalogue per the §6b table — single-primitive ones as **defaults** (family category), composites as `complex`. |
 | `scripts/gen-demo-scripts.ts` | Create | Emit `scripts.ts` from catalogue + sources. |
 | `scripts/gen-examples-docs.ts` | Modify | Run gen-demo-scripts first; byte-check `scripts.ts`. |
 | `scripts/examples-coverage.ts` | Create | Coverage gate. |
@@ -334,9 +413,12 @@ Playwright demo tests stay green.
 
 ## Acceptance Criteria
 
-- `examples/catalogue.ts` exports the taxonomy + every migrated entry
-  (the 11 `DEMO_SCRIPTS` + the 6 on-disk e2e scripts not in it = all
-  on-disk `.chart.ts` files have a catalogue entry).
+- `examples/catalogue.ts` exports the taxonomy (incl. `math`/`str`) +
+  every migrated entry (the 25 `DEMO_SCRIPTS` + the 6 on-disk e2e scripts
+  not in it = 31 ids; all 27 on-disk `.chart.ts` files plus the 4
+  demo-only sources have a catalogue entry), each classified per the
+  §6b fold rule (single-primitive → family default, composite →
+  `complex`).
 - `pnpm examples:generate` regenerates `scripts.ts` + `docs/examples`;
   `pnpm examples:gate` is byte-clean.
 - `EXAMPLE_SCRIPTS` is derived from the catalogue; `e2e.test.ts` green.

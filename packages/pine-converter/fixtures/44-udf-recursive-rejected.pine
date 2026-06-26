@@ -1,0 +1,5 @@
+//@version=6
+indicator("UDF recursive rejected", overlay=false)
+cf_countdown(n) => n <= 0 ? 0 : cf_countdown(n - 1)
+steps = cf_countdown(5)
+plot(steps)

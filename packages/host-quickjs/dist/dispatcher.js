@@ -468,6 +468,28 @@ var state = Object.freeze({
     return sentinel("state.array");
   },
   /**
+   * Allocate or read a persistent **bounded keyed collection** slot — a
+   * fixed-capacity key→value store that persists across bars. `m.set(k, v)`
+   * inserts/updates; `m.get(k)` returns the value or `undefined` for an
+   * absent key (distinct from a stored `0`); `m.has(k)` / `m.delete(k)`
+   * test/remove a key; `m.size` is the entry count (`≤ capacity`);
+   * `m.keyAt(i)` reads the `i`-th key in insertion order (`0` = oldest);
+   * `m.clear()` empties it. Inserting a NEW key once full evicts the
+   * oldest-inserted key (insertion-order FIFO). `capacity` must be a
+   * compile-time numeric literal (the slot is bounded so it serializes).
+   * Keys are `string | number`; v1 value type is `number`. Unlike
+   * {@link state}.series this is a collection, not a number-coercible value.
+   *
+   * @since 1.4
+   * @stable
+   * @example
+   *     const fn: typeof state.map = state.map;
+   *     void fn;
+   */
+  map(_capacity) {
+    return sentinel("state.map");
+  },
+  /**
    * Tick-persistent state slots, Pine `varip` semantics. Writes commit
    * immediately, even during a tick.
    *
@@ -1045,6 +1067,22 @@ var str = Object.freeze({
   repeat: (s, count) => s.repeat(Math.max(0, Math.trunc(count)))
 });
 
+// ../core/dist/array/index.js
+var array = Object.freeze({
+  sum: (a) => a.sum(),
+  avg: (a) => a.avg(),
+  min: (a) => a.min(),
+  max: (a) => a.max(),
+  range: (a) => a.range(),
+  variance: (a, biased) => a.variance(biased),
+  stdev: (a, biased) => a.stdev(biased),
+  median: (a) => a.median(),
+  percentile: (a, p) => a.percentile(p),
+  indexOf: (a, v) => a.indexOf(v),
+  includes: (a, v) => a.includes(v),
+  sort: (a, order) => a.sort(order)
+});
+
 // ../core/dist/statefulPrimitives.js
 var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "ta.sma", slot: true },
@@ -1227,6 +1265,7 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "state.tick.bool", slot: true },
   { name: "state.tick.string", slot: true },
   { name: "state.array", slot: true },
+  { name: "state.map", slot: true },
   // Both the data form `request.security({ interval })` and the expression
   // form `request.security({ interval }, (bar) => …)` route through this one
   // entry: `slot: true` injects the slot id as the first argument regardless
@@ -1773,6 +1812,159 @@ function restoreBuffer(snapshot6, capacity) {
   }
 }
 
+// ../runtime/dist/state/arrayReductions.js
+var isSkipped = (v) => Number.isNaN(v);
+function reduceSum(ring) {
+  const n = ring.length;
+  let sum2 = 0;
+  let count = 0;
+  for (let i = 0; i < n; i += 1) {
+    const v = ring.at(i);
+    if (isSkipped(v))
+      continue;
+    sum2 += v;
+    count += 1;
+  }
+  return count === 0 ? Number.NaN : sum2;
+}
+function reduceAvg(ring) {
+  const n = ring.length;
+  let sum2 = 0;
+  let count = 0;
+  for (let i = 0; i < n; i += 1) {
+    const v = ring.at(i);
+    if (isSkipped(v))
+      continue;
+    sum2 += v;
+    count += 1;
+  }
+  return count === 0 ? Number.NaN : sum2 / count;
+}
+function reduceMin(ring) {
+  const n = ring.length;
+  let min = Number.POSITIVE_INFINITY;
+  let count = 0;
+  for (let i = 0; i < n; i += 1) {
+    const v = ring.at(i);
+    if (isSkipped(v))
+      continue;
+    if (v < min)
+      min = v;
+    count += 1;
+  }
+  return count === 0 ? Number.NaN : min;
+}
+function reduceMax(ring) {
+  const n = ring.length;
+  let max = Number.NEGATIVE_INFINITY;
+  let count = 0;
+  for (let i = 0; i < n; i += 1) {
+    const v = ring.at(i);
+    if (isSkipped(v))
+      continue;
+    if (v > max)
+      max = v;
+    count += 1;
+  }
+  return count === 0 ? Number.NaN : max;
+}
+function reduceRange(ring) {
+  const n = ring.length;
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  let count = 0;
+  for (let i = 0; i < n; i += 1) {
+    const v = ring.at(i);
+    if (isSkipped(v))
+      continue;
+    if (v < min)
+      min = v;
+    if (v > max)
+      max = v;
+    count += 1;
+  }
+  return count === 0 ? Number.NaN : max - min;
+}
+function reduceVariance(ring, biased = true) {
+  const n = ring.length;
+  let count = 0;
+  let mean = 0;
+  let m2 = 0;
+  for (let i = 0; i < n; i += 1) {
+    const v = ring.at(i);
+    if (isSkipped(v))
+      continue;
+    count += 1;
+    const delta = v - mean;
+    mean += delta / count;
+    m2 += delta * (v - mean);
+  }
+  const denom = biased ? count : count - 1;
+  return denom <= 0 ? Number.NaN : m2 / denom;
+}
+function reduceStdev(ring, biased = true) {
+  return Math.sqrt(reduceVariance(ring, biased));
+}
+function collectSortedFinite(ring) {
+  const n = ring.length;
+  const out = [];
+  for (let i = 0; i < n; i += 1) {
+    const v = ring.at(i);
+    if (isSkipped(v))
+      continue;
+    out.push(v);
+  }
+  out.sort((a, b) => a - b);
+  return out;
+}
+function quantile(sorted, q) {
+  const k = sorted.length;
+  if (k === 0)
+    return Number.NaN;
+  const pos = q * (k - 1);
+  const lo = Math.floor(pos);
+  if (lo === k - 1)
+    return sorted[lo];
+  const frac = pos - lo;
+  return sorted[lo] + (sorted[lo + 1] - sorted[lo]) * frac;
+}
+function reduceMedian(ring) {
+  return quantile(collectSortedFinite(ring), 0.5);
+}
+function reducePercentile(ring, p) {
+  const clamped = Math.min(100, Math.max(0, p));
+  return quantile(collectSortedFinite(ring), clamped / 100);
+}
+function reduceIndexOf(ring, value) {
+  const n = ring.length;
+  for (let i = 0; i < n; i += 1) {
+    if (ring.at(i) === value)
+      return i;
+  }
+  return -1;
+}
+function reduceIncludes(ring, value) {
+  const n = ring.length;
+  const targetIsNaN = Number.isNaN(value);
+  for (let i = 0; i < n; i += 1) {
+    const v = ring.at(i);
+    if (v === value || targetIsNaN && Number.isNaN(v))
+      return true;
+  }
+  return false;
+}
+function reduceSort(ring, order) {
+  const n = ring.length;
+  const out = [];
+  for (let i = 0; i < n; i += 1) {
+    out.push(ring.at(i));
+  }
+  out.sort((a, b) => a - b);
+  if (order === "desc")
+    out.reverse();
+  return out;
+}
+
 // ../runtime/dist/state/arrayStateSlot.js
 var ArrayStateSlot = class {
   constructor(capacity) {
@@ -1813,6 +2005,44 @@ function buildArrayHandle(slot) {
     },
     get capacity() {
       return slot.capacity;
+    },
+    // Reductions read the tentative ring's filled region directly (O(size)
+    // via `at(i)`), never the handle's own `get(n)`. See arrayReductions.ts.
+    sum() {
+      return reduceSum(slot.tentativeRing);
+    },
+    avg() {
+      return reduceAvg(slot.tentativeRing);
+    },
+    min() {
+      return reduceMin(slot.tentativeRing);
+    },
+    max() {
+      return reduceMax(slot.tentativeRing);
+    },
+    range() {
+      return reduceRange(slot.tentativeRing);
+    },
+    variance(biased) {
+      return reduceVariance(slot.tentativeRing, biased);
+    },
+    stdev(biased) {
+      return reduceStdev(slot.tentativeRing, biased);
+    },
+    median() {
+      return reduceMedian(slot.tentativeRing);
+    },
+    percentile(p) {
+      return reducePercentile(slot.tentativeRing, p);
+    },
+    indexOf(value) {
+      return reduceIndexOf(slot.tentativeRing, value);
+    },
+    includes(value) {
+      return reduceIncludes(slot.tentativeRing, value);
+    },
+    sort(order) {
+      return reduceSort(slot.tentativeRing, order);
     }
   };
 }
@@ -1979,6 +2209,157 @@ function commitArraySlots(ctx) {
     slot.onBarClose();
   }
 }
+function resetTentativeMapSlots(ctx) {
+  for (const slot of ctx.mapSlots.values()) {
+    slot.onBarTick();
+  }
+}
+function commitMapSlots(ctx) {
+  for (const slot of ctx.mapSlots.values()) {
+    slot.onBarClose();
+  }
+}
+
+// ../runtime/dist/state/mapStore.js
+var MapStore = class {
+  constructor(capacity) {
+    __publicField(this, "capacity");
+    __publicField(this, "committedMap");
+    __publicField(this, "tentativeMap");
+    __publicField(this, "handle");
+    this.capacity = capacity;
+    this.committedMap = /* @__PURE__ */ new Map();
+    this.tentativeMap = /* @__PURE__ */ new Map();
+    this.handle = buildMapHandle(this);
+  }
+  /** Commit the tentative map into the committed map (bar close). */
+  onBarClose() {
+    this.committedMap = new Map(this.tentativeMap);
+  }
+  /** Roll the tentative map back to the committed map (head-replacing tick). */
+  onBarTick() {
+    this.tentativeMap = new Map(this.committedMap);
+  }
+};
+function buildMapHandle(slot) {
+  return {
+    set(key, value) {
+      const store = slot.tentativeMap;
+      if (store.has(key)) {
+        store.set(key, value);
+        return;
+      }
+      if (store.size >= slot.capacity) {
+        const oldest = store.keys().next();
+        if (!oldest.done) {
+          store.delete(oldest.value);
+        }
+      }
+      if (store.size < slot.capacity) {
+        store.set(key, value);
+      }
+    },
+    get(key) {
+      return slot.tentativeMap.get(key);
+    },
+    has(key) {
+      return slot.tentativeMap.has(key);
+    },
+    delete(key) {
+      return slot.tentativeMap.delete(key);
+    },
+    clear() {
+      slot.tentativeMap.clear();
+    },
+    get size() {
+      return slot.tentativeMap.size;
+    },
+    keyAt(index) {
+      if (index < 0)
+        return void 0;
+      let i = 0;
+      for (const key of slot.tentativeMap.keys()) {
+        if (i === index)
+          return key;
+        i += 1;
+      }
+      return void 0;
+    }
+  };
+}
+function createMapStore(capacity) {
+  return new MapStore(capacity);
+}
+function restoreMapStore(capacity, committedMap, tentativeMap) {
+  const slot = new MapStore(capacity);
+  slot.committedMap = new Map(committedMap);
+  slot.tentativeMap = new Map(tentativeMap);
+  return slot;
+}
+
+// ../runtime/dist/state/mapPersistence.js
+var MAP_SLOT_SUFFIX = ":map";
+function isMapSlotSnapshotKey(key) {
+  return key.endsWith(MAP_SLOT_SUFFIX);
+}
+function serialiseMapEntries(store) {
+  const entries = [];
+  for (const [key, value] of store) {
+    entries.push([key, finiteOrNull(value)]);
+  }
+  return entries;
+}
+function serialiseMapSlots(ctx) {
+  const out = {};
+  for (const [key, slot] of ctx.mapSlots.entries()) {
+    out[key] = {
+      kind: "state.map",
+      capacity: slot.capacity,
+      committed: serialiseMapEntries(slot.committedMap),
+      tentative: serialiseMapEntries(slot.tentativeMap)
+    };
+  }
+  return Object.freeze(out);
+}
+function restoreMapEntries(value, capacity) {
+  if (!Array.isArray(value) || value.length > capacity)
+    return null;
+  const map = /* @__PURE__ */ new Map();
+  for (const entry of value) {
+    if (!Array.isArray(entry) || entry.length !== 2)
+      return null;
+    const [key, rawValue] = entry;
+    if (typeof key !== "string" && typeof key !== "number")
+      return null;
+    const restored = restoreNumber(rawValue);
+    if (restored === null)
+      return null;
+    map.set(key, restored);
+  }
+  return map;
+}
+function restoreMapSnapshot(snapshot6) {
+  if (!isRecord(snapshot6) || snapshot6.kind !== "state.map")
+    return null;
+  if (!isInteger(snapshot6.capacity) || snapshot6.capacity <= 0)
+    return null;
+  const committedMap = restoreMapEntries(snapshot6.committed, snapshot6.capacity);
+  const tentativeMap = restoreMapEntries(snapshot6.tentative, snapshot6.capacity);
+  if (committedMap === null || tentativeMap === null)
+    return null;
+  return restoreMapStore(snapshot6.capacity, committedMap, tentativeMap);
+}
+function restoreMapSlots(ctx, slots) {
+  ctx.mapSlots.clear();
+  for (const [key, value] of Object.entries(slots)) {
+    if (!isMapSlotSnapshotKey(key))
+      continue;
+    const slot = restoreMapSnapshot(value);
+    if (slot !== null) {
+      ctx.mapSlots.set(key, slot);
+    }
+  }
+}
 
 // ../runtime/dist/state/seriesPersistence.js
 var SERIES_SLOT_SUFFIX = ":series";
@@ -2078,6 +2459,7 @@ function asMutableSlot(slot) {
 var stateKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:state`;
 var seriesKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:series`;
 var arrayKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:array`;
+var mapKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:map`;
 function getCtx(name) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
@@ -2122,6 +2504,17 @@ function getOrAllocateArray(slotId, capacity) {
   ctx.arraySlots.set(key, slot);
   return slot.handle;
 }
+function getOrAllocateMap(slotId, capacity) {
+  const ctx = getCtx("state.map");
+  const key = mapKey(ctx, slotId);
+  const existing = ctx.mapSlots.get(key);
+  if (existing !== void 0) {
+    return existing.handle;
+  }
+  const slot = createMapStore(capacity);
+  ctx.mapSlots.set(key, slot);
+  return slot.handle;
+}
 function buildStateNamespace() {
   const ns = {
     float: (slotId, init) => getOrAllocate("state.float", slotId, init, false),
@@ -2130,6 +2523,7 @@ function buildStateNamespace() {
     string: (slotId, init) => getOrAllocate("state.string", slotId, init, false),
     series: (slotId, init) => getOrAllocateSeries(slotId, init),
     array: (slotId, capacity) => getOrAllocateArray(slotId, capacity),
+    map: (slotId, capacity) => getOrAllocateMap(slotId, capacity),
     tick: {
       float: (slotId, init) => getOrAllocate("state.tick.float", slotId, init, true),
       int: (slotId, init) => getOrAllocate("state.tick.int", slotId, init, true),
@@ -2560,6 +2954,7 @@ function buildExprContext(parent, slotId, foldStream) {
     stateSlots: /* @__PURE__ */ new Map(),
     seriesSlots: /* @__PURE__ */ new Map(),
     arraySlots: /* @__PURE__ */ new Map(),
+    mapSlots: /* @__PURE__ */ new Map(),
     chartSymbol: parent.chartSymbol,
     secondaryStreams: parent.secondaryStreams,
     requestSecurityBars: /* @__PURE__ */ new Map(),
@@ -15515,6 +15910,7 @@ async function runComputeBody(args) {
       resetTentativeStateSlots(state2.runtimeContext);
       resetSeriesHeads(state2.runtimeContext);
       resetTentativeArraySlots(state2.runtimeContext);
+      resetTentativeMapSlots(state2.runtimeContext);
     } else {
       advanceSeriesSlots(state2.runtimeContext);
     }
@@ -15526,6 +15922,7 @@ async function runComputeBody(args) {
         flushStateSlots(state2.runtimeContext);
         commitSeriesSlots(state2.runtimeContext);
         commitArraySlots(state2.runtimeContext);
+        commitMapSlots(state2.runtimeContext);
       }
     } catch (err) {
       if (!isRuntimeErrorHalt(err))
@@ -15680,6 +16077,7 @@ function buildSubRunnerState(args, slotIdPrefix, isDep) {
       stateSlots: /* @__PURE__ */ new Map(),
       seriesSlots: /* @__PURE__ */ new Map(),
       arraySlots: /* @__PURE__ */ new Map(),
+      mapSlots: /* @__PURE__ */ new Map(),
       chartSymbol: args.chartSymbol,
       secondaryStreams: args.secondaryStreams,
       requestSecurityBars: /* @__PURE__ */ new Map(),
@@ -15892,6 +16290,7 @@ function dispose(state2) {
   state2.runtimeContext.stateSlots.clear();
   state2.runtimeContext.seriesSlots.clear();
   state2.runtimeContext.arraySlots.clear();
+  state2.runtimeContext.mapSlots.clear();
   state2.runtimeContext.secondaryStreams.clear();
   state2.runtimeContext.requestSecurityBars.clear();
   state2.runtimeContext.requestSecurityAlignments.clear();
@@ -16299,6 +16698,7 @@ function primarySectionSlots(state2) {
     ...serialiseStateSlots(state2.runtimeContext),
     ...serialiseSeriesSlots(state2.runtimeContext),
     ...serialiseArraySlots(state2.runtimeContext),
+    ...serialiseMapSlots(state2.runtimeContext),
     ...serialiseTaSlots(state2.mainStream)
   });
 }
@@ -16307,7 +16707,8 @@ function runnerSection(ctx) {
     slots: Object.freeze({
       ...serialiseStateSlots(ctx),
       ...serialiseSeriesSlots(ctx),
-      ...serialiseArraySlots(ctx)
+      ...serialiseArraySlots(ctx),
+      ...serialiseMapSlots(ctx)
     })
   });
 }
@@ -16356,7 +16757,7 @@ function resolveMainStreamSnapshot(snapshot6, mainInterval) {
 function scalarStateSlots(slots) {
   const out = {};
   for (const [slotKey, value] of Object.entries(slots)) {
-    if (!isTaSlotSnapshotKey(slotKey) && !isSeriesSlotSnapshotKey(slotKey) && !isArraySlotSnapshotKey(slotKey)) {
+    if (!isTaSlotSnapshotKey(slotKey) && !isSeriesSlotSnapshotKey(slotKey) && !isArraySlotSnapshotKey(slotKey) && !isMapSlotSnapshotKey(slotKey)) {
       out[slotKey] = value;
     }
   }
@@ -16366,6 +16767,7 @@ function restoreRunnerSlots(ctx, slots, capacity) {
   restoreStateSlots(ctx, scalarStateSlots(slots));
   restoreSeriesSlots(ctx, slots, capacity);
   restoreArraySlots(ctx, slots);
+  restoreMapSlots(ctx, slots);
 }
 function pushMalformedSection(state2, message2) {
   pushDiagnostic(state2.emissions, {
@@ -16594,6 +16996,7 @@ function buildPrimaryState(args, primary) {
       stateSlots: /* @__PURE__ */ new Map(),
       seriesSlots: /* @__PURE__ */ new Map(),
       arraySlots: /* @__PURE__ */ new Map(),
+      mapSlots: /* @__PURE__ */ new Map(),
       chartSymbol,
       secondaryStreams,
       requestSecurityBars: /* @__PURE__ */ new Map(),

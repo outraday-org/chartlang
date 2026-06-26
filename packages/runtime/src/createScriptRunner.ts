@@ -359,6 +359,7 @@ function buildPrimaryState(
             stateSlots: new Map(),
             seriesSlots: new Map(),
             arraySlots: new Map(),
+            mapSlots: new Map(),
             chartSymbol,
             secondaryStreams,
             requestSecurityBars: new Map(),

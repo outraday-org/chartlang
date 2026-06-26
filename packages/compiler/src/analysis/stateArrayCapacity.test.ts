@@ -98,4 +98,31 @@ describe("runStateArrayCapacity", () => {
         const result = run(`${IMPORT}const a = state.float(0); void a;\nMath.floor(1.5);`);
         expect(result).toHaveLength(0);
     });
+
+    // `state.map` reuses this same guard (the capacity invariant is identical
+    // for the keyed store) — it must produce the SAME diagnostic codes, with
+    // the message naming the matched primitive.
+    it("accepts a numeric-literal state.map capacity", () => {
+        const result = run(`${IMPORT}const m = state.map<number, number>(50); void m;`);
+        expect(result).toHaveLength(0);
+    });
+
+    it("rejects a non-literal state.map capacity with the shared not-literal code", () => {
+        const result = run(`${IMPORT}let n = 50;\nconst m = state.map<number, number>(n); void m;`);
+        expect(result[0]?.code).toBe("state-array-capacity-not-literal");
+        expect(result[0]?.message).toContain("state.map");
+        expect(result).toHaveLength(1);
+    });
+
+    it("rejects an over-cap state.map capacity with the shared exceeds-max code", () => {
+        const over = MAX_STATE_ARRAY_CAPACITY + 1;
+        const result = run(`${IMPORT}const m = state.map<number, number>(${over}); void m;`);
+        expect(result[0]?.code).toBe("state-array-capacity-exceeds-max");
+        expect(result[0]?.message).toContain("state.map");
+    });
+
+    it('does not match the element-access form (`state["map"]`)', () => {
+        const result = run(`${IMPORT}const m = state["map"](20); void m;`);
+        expect(result).toHaveLength(0);
+    });
 });

@@ -153,6 +153,7 @@ export default defineConfig({
                     items: [
                         { text: "Overview", link: "/language/overview" },
                         { text: "Series and indexing", link: "/language/series-and-indexing" },
+                        { text: "Maps", link: "/language/state-map" },
                         { text: "Inputs", link: "/language/inputs" },
                         { text: "Time and sessions", link: "/language/time-and-sessions" },
                         { text: "Math", link: "/language/math" },

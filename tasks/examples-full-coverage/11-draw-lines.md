@@ -45,7 +45,7 @@ are `overlay: true`.
 
 | Primitive id | Kind | Example concept |
 |--------------|------|-----------------|
-| `draw.line` | line | Trendline between two recent swing points. |
+| `draw.line` | line | covered (`anchored-line`, a migrated single-primitive default — Task 1 §6b) — skip if absent from the allowlist. |
 | `draw.arrow` | arrow | Arrow from a pivot low to current bar. |
 | `draw.horizontalLine` | horizontal-line | Horizontal level at last swing high. |
 | `draw.horizontalRay` | horizontal-ray | covered (`pivot-high-ray`) — verify; if covered, skip. |
@@ -60,18 +60,16 @@ are `overlay: true`.
 > `pivot-high-ray` example, it will already be absent from the
 > allowlist — skip it. Author only ids still in the allowlist.
 
-> **Conditional — `draw.fillBetween` (cross-feature).** The in-flight
-> `tasks/draw-fill-between/` feature lands a **new** primitive +
-> `docs/primitives/draw/fill-between.md` page. If that feature has
-> merged, the Task-1 gate auto-requires a `draw.fillBetween` example
-> (and the id appears in the allowlist). Cover it **here**, in the
-> "lines/fills" bucket: do **not** author a new script — fold in the
-> `examples/scripts/fill-between-band.chart.ts` that `draw-fill-between`
-> Task 5 already authors, and add an `ExampleMeta`
-> `{ id: "fill-between-band", category: "draw-lines",
-> primitives: ["draw.fillBetween"], … }` to this fragment. If
-> `fill-between.md` does **not** exist (this feature runs first), the id
-> is not a gate target — skip it.
+> **`draw.fillBetween` — now covered by a migrated default.** The
+> `tasks/draw-fill-between/` feature has since landed the primitive +
+> `docs/primitives/draw/fill-between.md`, and
+> `examples/scripts/fill-between-band.chart.ts` now exists on disk.
+> Task 1 §6b catalogues it as the single-primitive **default**
+> (`{ id: "fill-between-band", category: "draw-lines",
+> primitives: ["draw.fillBetween"] }`), so do **not** author or
+> re-catalogue it here — it will already be absent from the allowlist.
+> (The composite `z-layering` also uses `draw.fillBetween` but credits
+> nothing — the default owns the coverage.)
 
 ## Files to Create / Modify
 

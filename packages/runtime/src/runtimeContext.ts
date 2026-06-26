@@ -26,6 +26,7 @@ import type { DepOutputStore } from "./dep/DepOutputStore.js";
 import type { PersistentStateStore } from "./persistentStateStore.js";
 import type { SecurityExprRunner } from "./request/securityExprRunner.js";
 import type { ArrayStateSlot } from "./state/arrayStateSlot.js";
+import type { MapStore } from "./state/mapStore.js";
 import type { SeriesSlot } from "./state/seriesSlot.js";
 import type { StateSlot } from "./state/stateSlot.js";
 import type { StateStore } from "./stateStore.js";
@@ -196,6 +197,16 @@ export type RuntimeContext = {
      * `StateStore` flush. Cleared on `dispose`. @since 1.3
      */
     readonly arraySlots: Map<string, ArrayStateSlot>;
+    /**
+     * Runtime `state.map` slot store keyed by
+     * `${slotIdPrefix ?? ""}${slotId}:map`. Each holds two `Map<MapKey, number>`s
+     * (committed + tentative) behind an identity-stable bounded keyed handle. A
+     * parallel map (vs folding into `stateSlots`) mirrors the `state.array` /
+     * `state.series` precedent — the collection primitives share the
+     * two-snapshot shape and serialise directly from the live map with no
+     * `StateStore` flush. Cleared on `dispose`. @since 1.4
+     */
+    readonly mapSlots: Map<string, MapStore>;
     /**
      * The chart's own symbol, resolved once at mount from the adapter
      * `syminfo.ticker` (`""` when the adapter supplies none). A

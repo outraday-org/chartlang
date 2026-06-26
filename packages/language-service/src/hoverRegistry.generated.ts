@@ -4171,6 +4171,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "1.3",
         "stability": "stable"
     },
+    "MutableMapSlot": {
+        "fqn": "MutableMapSlot",
+        "kind": "type",
+        "title": "MutableMapSlot",
+        "summary": "/**\nScript-facing handle on a persistent, bounded **keyed collection** —\nPine's `map<K, V>` with capacity eviction. Unlike  {@link MutableArraySlot} * (a FIFO of many values) this is a key→value store: `set` inserts/updates,\n`get` returns `undefined` for an absent key (distinct from a stored `0`),\n`has`/`delete` test/remove a key, `size` is the current entry count\n(`≤ capacity`), and `clear()` empties it.",
+        "examples": [
+            "function bump(m: MutableMapSlot<number, number>, k: number): void {\nm.set(k, (m.get(k) ?? 0) + 1);\n}"
+        ],
+        "since": "1.4",
+        "stability": "stable"
+    },
     "MutableSlot": {
         "fqn": "MutableSlot",
         "kind": "type",
@@ -5376,6 +5387,24 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const fn: typeof state.int = state.int;\nvoid fn;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "state.map": {
+        "fqn": "state.map",
+        "kind": "function",
+        "title": "state.map(_capacity)",
+        "summary": "/**\nAllocate or read a persistent **bounded keyed collection** slot — a\nfixed-capacity key→value store that persists across bars. `m.set(k, v)`\ninserts/updates; `m.get(k)` returns the value or `undefined` for an\nabsent key (distinct from a stored `0`); `m.has(k)` / `m.delete(k)`\ntest/remove a key; `m.size` is the entry count (`≤ capacity`);\n`m.keyAt(i)` reads the `i`-th key in insertion order (`0` = oldest);\n`m.clear()` empties it. Inserting a NEW key once full evicts the\noldest-inserted key (insertion-order FIFO). `capacity` must be a\ncompile-time numeric literal (the slot is bounded so it serializes).\nKeys are `string | number`; v1 value type is `number`. Unlike\n{@link state} .series this is a collection, not a number-coercible value.",
+        "paramTable": [
+            {
+                "name": "_capacity",
+                "type": "number",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof state.map = state.map;\nvoid fn;"
+        ],
+        "since": "1.4",
         "stability": "stable"
     },
     "state.series": {

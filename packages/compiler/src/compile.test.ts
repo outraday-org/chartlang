@@ -269,6 +269,43 @@ export default defineIndicator({
         expect(Object.isFrozen(result)).toBe(true);
     });
 
+    it("type-checks a state.map keyed collection through the ambient shim", async () => {
+        // `state.map<number, number>(50)` returns a `MutableMapSlot<number,
+        // number>` — a bounded keyed store (`set`/`get`/`has`/`delete`/`keyAt`/
+        // `size`/`clear`), NOT a number-coercible slot. `transformAndAnalyse`
+        // (analysis-only) does not type-check, so this guard — proving the
+        // shim's `StateNamespace.map` signature and `MutableMapSlot` alias are
+        // correct — must go through `compile`. The in-loop `m.keyAt(i)` /
+        // `m.get(k)` are method calls on a value, NOT registry callsites, so
+        // they must NOT trip `stateful-call-inside-loop`; the literal `50` for
+        // bound pins that the bounded-loop walk over `m.size` is accepted.
+        const MAP_SLOT = `
+import { defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+const levels = state.map<number, number>(50);
+export default defineIndicator({
+    name: "map",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        const key = Math.round(bar.close);
+        levels.set(key, (levels.get(key) ?? 0) + 1);
+        let total = 0;
+        for (let i = 0; i < 50; i++) {
+            if (i < levels.size) {
+                const k = levels.keyAt(i);
+                if (k !== undefined) total += levels.get(k) ?? 0;
+            }
+        }
+        plot(levels.has(key) ? total : Number.NaN);
+    },
+});
+`;
+        const result = await compile(MAP_SLOT, {
+            apiVersion: 1,
+            sourcePath: "map.chart.ts",
+        });
+        expect(Object.isFrozen(result)).toBe(true);
+    });
+
     it("type-checks the bgcolor/barcolor aliases through the ambient shim", async () => {
         // `bgcolor(color, opts?)` / `barcolor(color, opts?)` are top-level
         // Pine-ergonomic holes (`packages/core/src/plot/plot.ts`) that the
@@ -367,6 +404,35 @@ export default defineIndicator({
 `;
         try {
             await compile(source, { apiVersion: 1, sourcePath: "dyn-cap.chart.ts" });
+            expect.unreachable("compile should have thrown a CompileError");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CompileError);
+            const compileError = err as CompileError;
+            expect(
+                compileError.diagnostics.some((d) => d.code === "state-array-capacity-not-literal"),
+            ).toBe(true);
+        }
+    });
+
+    it("throws CompileError for a non-literal state.map capacity", async () => {
+        // End-to-end guard: `state.map` rides the same literal-capacity pass as
+        // `state.array`, so a runtime-valued capacity errors at the compiler
+        // boundary with the shared `state-array-capacity-not-literal` code.
+        const source = `
+import { defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "dyn map cap",
+    apiVersion: 1,
+    compute({ bar, plot }) {
+        let cap = 50;
+        const m = state.map<number, number>(cap);
+        m.set(Math.round(bar.close), 1);
+        plot(m.size);
+    },
+});
+`;
+        try {
+            await compile(source, { apiVersion: 1, sourcePath: "dyn-map-cap.chart.ts" });
             expect.unreachable("compile should have thrown a CompileError");
         } catch (err) {
             expect(err).toBeInstanceOf(CompileError);

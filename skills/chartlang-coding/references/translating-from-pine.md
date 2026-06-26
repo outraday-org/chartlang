@@ -98,6 +98,72 @@ Only **numeric** (`float` / `int`) value rings have a target; a
 `var array<bool>` / `var array<string>` rejects as
 `array-collection-non-numeric`.
 
+**`array.*` reductions map onto the handle methods.** A Pine reduction takes
+the array id as its first arg, so it is a direct shape match for the chartlang
+method (or the equivalent `array.*` free-function alias — `win.avg()` and
+`array.avg(win)` are **identical**, the alias just delegates):
+
+| Pine | chartlang |
+|------|-----------|
+| `array.sum(id)` | `win.sum()` *(or `array.sum(win)`)* |
+| `array.avg(id)` | `win.avg()` |
+| `array.min(id)` / `array.max(id)` / `array.range(id)` | `win.min()` / `win.max()` / `win.range()` |
+| `array.variance(id[, biased])` / `array.stdev(id[, biased])` | `win.variance([biased])` / `win.stdev([biased])` — population by default, sample when `biased` is `false` |
+| `array.median(id)` | `win.median()` |
+| `array.percentile_linear_interpolation(id, p)` | `win.percentile(p)` |
+| `array.percentile_nearest_rank(id, p)` | **unsupported** → `array-reduction-not-mapped` + a `Number.NaN /* TODO */` (nearest-rank deferred) |
+| `array.indexof(id, v)` / `array.includes(id, v)` | `win.indexOf(v)` / `win.includes(v)` |
+| `array.sort(id, order.descending)` | `win.sort("desc")` — but chartlang `sort` returns a **fresh copy** (Pine sorts in place), so an `array-sort-returns-copy` info fires; read from the returned copy, not the original |
+
+The reductions **skip NaN** and return `NaN` (never `0`) on an empty / all-NaN
+window. An unmapped `array.*` member over a slot never hard-fails — it emits a
+`Number.NaN` placeholder + an `array-reduction-not-mapped` diagnostic.
+
+### `map.*` — the keyed collection (`state.map`)
+
+A Pine `var map<K, V>` keyed dictionary lowers to a persistent
+`state.map<number, number>(capacity)` slot; each `map.*(id, …)` call takes the
+map id as its first arg, so it is a direct shape match for the chartlang handle
+method:
+
+```pine
+// Pine: a per-price-level volume accumulator.
+var map<float, float> levels = map.new<float, float>()
+key = math.round(close)
+map.put(levels, key, (na(map.get(levels, key)) ? 0 : map.get(levels, key)) + volume)
+plot(map.get(levels, key))
+```
+
+```ts
+// A synthesized literal capacity; key→value store persists across bars.
+const levels = state.map<number, number>(1000);
+const key = Math.round(bar.close.current);
+levels.set(key, (levels.get(key) ?? 0) + bar.volume.current);
+plot(levels.get(key) ?? 0);
+```
+
+| Pine | chartlang |
+|------|-----------|
+| `map.new<K, V>()` | `state.map<number, number>(1000)` — a **synthesized** literal capacity (Pine maps are unbounded; chartlang needs a compile-time literal), with a `map-capacity-synthesized` info. **Set a real bound.** |
+| `map.put(id, k, v)` | `levels.set(k, v)` |
+| `map.get(id, k)` | `(levels.get(k) ?? Number.NaN)` — chartlang `get` returns `undefined` (not `na`); the converter na-bridges the read |
+| `map.contains(id, k)` | `levels.has(k)` |
+| `map.remove(id, k)` | `levels.delete(k)` |
+| `map.size(id)` | `levels.size` *(a property, not a call)* |
+| `map.clear(id)` | `levels.clear()` |
+| `map.keys(id)` / `map.values(id)` | **unsupported** → `map-builtin-not-mapped` + a `Number.NaN /* TODO */` (no v1 iterators — walk with `keyAt(i)` + `size`) |
+
+**`undefined` vs `0`.** chartlang's `get` returns `undefined` for a never-seen
+key (distinct from a stored `0`), so authors seed accumulators with `?? 0`
+(`(levels.get(k) ?? 0) + …`). The converter wraps Pine reads with
+`?? Number.NaN` to match Pine's `na`; switch to `?? 0` where you accumulate.
+
+**Capacity bound.** A `state.map` is bounded so it serializes; a **new** key
+once `size === capacity` evicts the **oldest-inserted** one (insertion-order
+FIFO). The synthesized `1000` is a placeholder — size it to the distinct-key
+count. Only **numeric** value maps lower; a `map<K, string|bool>` rejects as
+`map-collection-non-numeric`.
+
 ### Camp C — dynamic collections (often a reject)
 
 A collection that fits neither shape cleanly. The converter tries to infer
@@ -213,6 +279,45 @@ call to the **native JS** method (the same native-where-native-exists shape
   byte-identical formatting, just the curated surface instead of native
   methods. `str` is a module-scope import, **not** a `compute({ … })` field.
 
+## User-defined functions — `f(a, b) => …`
+
+Pine helper functions convert, and how they lower depends on whether the
+helper is **stateful** (its body, transitively, calls `ta.*` / `state.*` /
+`plot` / `hline` / `alert` / `draw.*`):
+
+- A **pure** helper (no stateful calls) becomes a reusable arrow function at the
+  top of `compute`: `cf_limit(v, hi, lo) => math.max(math.min(v, hi), lo)` →
+  `const cf_limit = (v, hi, lo) => Math.max(Math.min(v, hi), lo);`, and every
+  call site reuses it.
+- A **stateful** helper is **inlined at each call site**, because chartlang keys
+  each `ta.*` / `state` slot by source position — a shared function would make
+  all callers collide on one slot. Two calls to the same helper therefore expand
+  to two independent `ta.*` sites and hold independent state, matching Pine's
+  per-call instancing:
+
+  ```text
+  cf_slope(ma, n) => ta.ema(((ma - ma[1]) / ma[1] * 100), n)
+  close_slope = cf_slope(close, 3)   // → ta.ema(((bar.close - bar.close[1]) / bar.close[1] * 100), 3).current
+  open_slope  = cf_slope(open, 5)    // → an independent ta.ema slot
+  ```
+
+- The body's **last expression is the return** (Pine has no `return`); a
+  multi-line body's intermediate `x = expr` lines become local `let`s.
+
+Three things to keep in mind:
+
+- **Recursion does not convert** (`udf-recursive-rejected`) — rewrite it as a
+  literal-bounded `for` loop accumulating into a `var`.
+- **Param defaults reject the whole helper** (`udf-param-default-unsupported`);
+  a typed param (`float x`) just drops the type (`udf-typed-param-unsupported`).
+- **Two v1 limitations stop a fully faithful port from type-checking** (the
+  conversion is clean, but you finish by hand): a *pure* helper's params are
+  untyped (`(a, b) => …` → annotate `(a: number, b: number)`), and a *stateful*
+  helper that indexes a **param's history** (`ma[1]`) only inlines cleanly when
+  the argument natively supports history (an OHLCV field) — applied to a derived
+  `ta.*` value it needs a hand-written `state.series`. A `switch`-expression body
+  (Pine's `cf_ma`) does not yet parse as a helper return value.
+
 ## Gotchas
 
 - **`varip` is approximated.** A `varip` handle reuses the same slot and
@@ -258,6 +363,14 @@ call to the **native JS** method (the same native-where-native-exists shape
   These emit a `ta-signature-divergence` warning — check the arguments. An
   unmapped `ta.*` / `math.*` / `str.*` is passed through verbatim with a
   "not mapped" warning so you can finish the port by hand.
+- **A `ta.*` may appear anywhere in an expression — no manual `.current`.**
+  A `ta.*` in a scalar slot (an operator operand, a ternary arm, a `math.*`
+  argument) is projected to its per-bar scalar for you (`ta.rsi(close, 14) *
+  scale` → `ta.rsi(bar.close, 14).current * (inputs.scale as number)`), marked
+  by a `nested-ta-lowered` info. A `ta.*` fed as a *source* to another `ta.*`
+  stays a series (`ta.sma(ta.atr(14), 5)` keeps the inner `ta.atr` bare). When
+  you write chartlang by hand, follow the same rule: read `.current` only where
+  a number is required.
 - **`ta.pivothigh` / `ta.pivotlow` project a combined result.** Both Pine
   calls lower onto `ta.pivotsHighLow(...)` and read the matching field of
   its result (`ta.pivothigh` → the high field, `ta.pivotlow` → the low

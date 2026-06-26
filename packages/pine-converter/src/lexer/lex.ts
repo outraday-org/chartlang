@@ -1,14 +1,15 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { createIndentTracker } from "./indent.js";
+import { createIndentTracker, isContinuationLead } from "./indent.js";
 import { PINE_V6_KEYWORDS } from "./keywords.js";
 import { scanNumeric } from "./numeric.js";
 import { scanString } from "./string.js";
 import type { LexResult, LexerDiagnostic, Token, TokenKind } from "./tokens.js";
 
 // Multi-character operators are matched longest-first so `==` never lexes
-// as two `=` and `:=`/`=>` stay intact.
+// as two `=`, `:=`/`=>` stay intact, and a compound assignment (`+=`) never
+// splits into its arithmetic operator + `=`.
 const OPERATORS: readonly string[] = [
     "==",
     "!=",
@@ -16,6 +17,10 @@ const OPERATORS: readonly string[] = [
     ">=",
     ":=",
     "=>",
+    "+=",
+    "-=",
+    "*=",
+    "/=",
     "+",
     "-",
     "*",
@@ -32,6 +37,13 @@ const PUNCTUATION: ReadonlySet<string> = new Set(["[", "]", "(", ")", "{", "}", 
 
 const OPEN_BRACKETS: ReadonlySet<string> = new Set(["(", "[", "{"]);
 const CLOSE_BRACKETS: ReadonlySet<string> = new Set([")", "]", "}"]);
+
+// A `newline` whose emission is deferred until the next significant token is
+// known (leading-operator line continuation). Bounded one-token buffering: the
+// held newline is resolved by the very next significant token, never by
+// arbitrary lookahead. `lineStart`/`atLine` describe the continuation line so
+// a late flush still measures + spans it correctly.
+type PendingNewline = Readonly<{ token: Token; lineStart: number; atLine: number }>;
 
 function isIdentStart(ch: string): boolean {
     return (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") || ch === "_";
@@ -77,12 +89,50 @@ export function lex(source: string): LexResult {
     // newline (`,` or an unmatched open bracket).
     let lastSignificant: Token | undefined;
     let sawMixedIndent = false;
+    // A held `newline` awaiting its next significant token (leading-operator
+    // continuation). Resolved — dropped or flushed — by `resolvePending`.
+    let pendingNewline: PendingNewline | undefined;
 
     function push(token: Token): void {
+        // A pending newline is only ever set when the next token will be the
+        // first significant token of a continuation line, so this token
+        // resolves it (drop = continuation, or flush = real line break).
+        // `flushPendingNewline` clears the pending state before its own
+        // `push` calls, so the newline/indent/dedent it emits never re-enter.
+        const pending = pendingNewline;
+        if (pending !== undefined) {
+            resolvePending(pending, token);
+        }
         tokens.push(token);
         if (token.kind !== "comment" && token.kind !== "version-directive") {
             lastSignificant = token;
         }
+    }
+
+    function flushPendingNewline(): void {
+        const pending = pendingNewline;
+        if (pending === undefined) {
+            return;
+        }
+        pendingNewline = undefined;
+        push(pending.token);
+        emitIndentation(pending.lineStart, pending.atLine);
+    }
+
+    function resolvePending(pending: PendingNewline, leadToken: Token): void {
+        if (
+            isContinuationLead(leadToken.kind, leadToken.text) &&
+            measureIndent(pending.lineStart).width > indent.currentLevel()
+        ) {
+            // Leading-operator continuation: drop the held newline and leave
+            // the indent stack untouched (no `resolve`, so no indent/dedent),
+            // making the line transparent to block structure. The parser sees
+            // one uninterrupted expression and the indent/dedent counts stay
+            // balanced.
+            pendingNewline = undefined;
+            return;
+        }
+        flushPendingNewline();
     }
 
     function spanAt(startLine: number, startColumn: number, len: number) {
@@ -125,10 +175,13 @@ export function lex(source: string): LexResult {
         return source[j] === "/" && source[j + 1] === "/";
     }
 
-    function emitIndentation(lineStart: number): void {
-        if (isBlankOrCommentLine(lineStart)) {
-            return;
-        }
+    // Resolve the indentation of a real (non-continuation, non-blank) content
+    // line against the level stack and emit any `indent`/`dedent`. Only ever
+    // called via `flushPendingNewline`, which only holds non-blank lines —
+    // blank/comment lines emit their newline directly in `scanNewline` and
+    // never reach here. `atLine` is the continuation line's number, captured
+    // at defer time so a late flush spans the right line.
+    function emitIndentation(lineStart: number, atLine: number): void {
         const { width, mixed } = measureIndent(lineStart);
         if (mixed && !sawMixedIndent) {
             sawMixedIndent = true;
@@ -136,7 +189,7 @@ export function lex(source: string): LexResult {
                 code: "pine-converter/lex/mixed-indent",
                 severity: "warning",
                 message: "Mixed tabs and spaces in indentation; tabs counted as 4 spaces.",
-                span: spanAt(line, 1, width),
+                span: spanAt(atLine, 1, width),
             });
         }
         const resolution = indent.resolve(width);
@@ -146,14 +199,14 @@ export function lex(source: string): LexResult {
                 code: "pine-converter/lex/inconsistent-dedent",
                 severity: "warning",
                 message: "Dedent does not match any enclosing indentation level.",
-                span: spanAt(line, 1, width),
+                span: spanAt(atLine, 1, width),
             });
         }
         if (delta.kind === "indent") {
-            push({ kind: "indent", text: "", span: spanAt(line, 1, 0) });
+            push({ kind: "indent", text: "", span: spanAt(atLine, 1, 0) });
         } else if (delta.kind === "dedent") {
             for (let d = 0; d < delta.dedentCount; d += 1) {
-                push({ kind: "dedent", text: "", span: spanAt(line, 1, 0) });
+                push({ kind: "dedent", text: "", span: spanAt(atLine, 1, 0) });
             }
         }
     }
@@ -175,8 +228,21 @@ export function lex(source: string): LexResult {
         if (continuesLine()) {
             return;
         }
-        push({ kind: "newline", text: "\n", span: spanAt(startLine, startColumn, 1) });
-        emitIndentation(physicalNewlineEnd);
+        const newlineToken: Token = {
+            kind: "newline",
+            text: "\n",
+            span: spanAt(startLine, startColumn, 1),
+        };
+        if (isBlankOrCommentLine(physicalNewlineEnd)) {
+            // Blank/comment-only lines never continue an expression and never
+            // touch the indent stack — emit the newline immediately, no defer.
+            push(newlineToken);
+            return;
+        }
+        // Defer the newline until the next significant token decides whether
+        // this line is a leading-operator continuation (drop) or a real line
+        // break (flush + resolve indentation).
+        pendingNewline = { token: newlineToken, lineStart: physicalNewlineEnd, atLine: line };
     }
 
     function scanCommentOrDirective(): void {
@@ -324,6 +390,10 @@ export function lex(source: string): LexResult {
         i += 1;
     }
 
+    // A newline can still be pending if the deferred continuation line never
+    // produced a significant token (e.g. it held only an illegal character).
+    // Flush it so the held newline + its indentation are never lost.
+    flushPendingNewline();
     // Trailing NEWLINE before EOF when the final physical line carried content.
     if (lastSignificant !== undefined && lastSignificant.kind !== "newline") {
         push({ kind: "newline", text: "", span: spanAt(line, column, 0) });

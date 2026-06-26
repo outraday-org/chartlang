@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CallExpression, ExpressionNode } from "../ast/index.js";
 import type { SourceSpan } from "../index.js";
-import { callIsStatefulPrimitive, expressionHasStatefulPrimitive } from "./statefulNames.js";
+import { expressionHasStatefulPrimitive } from "./statefulNames.js";
 
 const SPAN: SourceSpan = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 };
 
@@ -25,36 +25,6 @@ function callOf(callee: ExpressionNode, args: ExpressionNode[] = []): CallExpres
         span: SPAN,
     };
 }
-
-describe("callIsStatefulPrimitive", () => {
-    it("recognises the bare stateful primitives", () => {
-        expect(callIsStatefulPrimitive(callOf(ident("plot")))).toBe(true);
-        expect(callIsStatefulPrimitive(callOf(ident("hline")))).toBe(true);
-        expect(callIsStatefulPrimitive(callOf(ident("alert")))).toBe(true);
-    });
-
-    it("recognises ta.* and draw.* namespaces", () => {
-        expect(callIsStatefulPrimitive(callOf(member(["ta", "ema"])))).toBe(true);
-        expect(callIsStatefulPrimitive(callOf(member(["draw", "line"])))).toBe(true);
-    });
-
-    it("rejects non-stateful and computed callees", () => {
-        expect(callIsStatefulPrimitive(callOf(ident("nz")))).toBe(false);
-        expect(callIsStatefulPrimitive(callOf(member(["math", "abs"])))).toBe(false);
-        const computed: CallExpression = {
-            kind: "call-expression",
-            callee: {
-                kind: "member-access-expression",
-                head: ident("x"),
-                chain: ["y"],
-                span: SPAN,
-            },
-            args: [],
-            span: SPAN,
-        };
-        expect(callIsStatefulPrimitive(computed)).toBe(false);
-    });
-});
 
 describe("expressionHasStatefulPrimitive", () => {
     it("finds a stateful call nested in each expression node kind", () => {

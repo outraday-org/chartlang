@@ -2,13 +2,16 @@
 
 ## 1. Overview
 
-Today the project ships ~11 worked example scripts. They drive the live
-demo (`apps/site` → `?script=<id>#demo`) and the auto-generated docs
-Examples section (`docs/examples/*.md`). Meanwhile the **reference**
-docs under `docs/primitives/**` are already auto-generated from JSDoc
-and cover *every* primitive — 192 pages (96 `ta.*`, 62 `draw.*`, 12
-`input.*`, 8 `state.*`, `plot`/`hline`, `request.security`/`lowerTf`,
-`alert`, 6 `define.*` overrides, `barstate`/`syminfo`/`timeframe`).
+Today the project ships ~27 worked example scripts (25 wired into the
+demo). They drive the live demo (`apps/site` → `?script=<id>#demo`) and
+the auto-generated docs Examples section (`docs/examples/*.md`).
+Meanwhile the **reference** docs under `docs/primitives/**` are already
+auto-generated from JSDoc and cover *every* primitive — **200 pages**
+(96 `ta.*`, 63 `draw.*`, 13 `input.*`, 10 `state.*`, `plot`/`hline`,
+`request.security`/`lowerTf`, `alert`, 6 `define.*` overrides,
+`barstate`/`syminfo`/`timeframe`, and the namespaces added since this
+plan was written — `math`, `str`, `session`, `time`, each a single
+page).
 
 This feature closes the gap on the *worked-example* side: ship **one
 runnable example per primitive**, wired into both example homes
@@ -18,9 +21,13 @@ sidebar of categories, replacing the flat `<select>`), and protected by
 a **coverage gate** that fails CI if any primitive doc page lacks an
 example.
 
-The pre-existing curated showcase demos are **preserved** under a
-dedicated `complex` category rather than split into single-primitive
-buckets. Finally, the catalogue is published as a small data package
+The pre-existing **multi-primitive** showcase demos are **preserved**
+under a dedicated `complex` category. Demos that showcase a *single*
+headline primitive are instead folded in as that primitive's
+per-primitive default (family category, not `complex`); a `complex`
+entry that turns out to be a single-primitive duplicate of a default is
+removed, not kept twice (Task 1 §6a). Finally, the catalogue is
+published as a small data package
 (`@invinite-org/chartlang-examples`) and the downstream **invinite**
 repo's chartlang template dialog is regenerated from it — adopting the
 **same categories** — with cross-repo CI so an invinite template-refresh
@@ -32,14 +39,16 @@ conventions these tasks must preserve.
 
 ## 2. Current State
 
-- **Example sources** — `examples/scripts/*.chart.ts` (13 files), each
+- **Example sources** — `examples/scripts/*.chart.ts` (27 files), each
   compiled end-to-end by `packages/cli/src/e2e.test.ts`
-  (`EXAMPLE_SCRIPTS`, a hand-maintained list).
+  (`EXAMPLE_SCRIPTS`, a hand-maintained list). 14 of these were added
+  since this plan was written (the `math.*`/`str.*`/`state.array`/
+  `state.map`/`draw.fillBetween` demos — see Task 1 §6).
 - **Demo catalogue** — `apps/site/src/components/demo/scripts.ts`
   exports `DEMO_SCRIPTS: DemoScript[]` (`{ id, label, description,
-  source }`), with `source` **inlined as a string** (hand-duplicated
-  from `examples/scripts/`). This is the single source of truth for the
-  live demo dropdown AND for docs Examples.
+  source }`) — **25 entries**, with `source` **inlined as a string**
+  (hand-duplicated from `examples/scripts/`). This is the single source
+  of truth for the live demo dropdown AND for docs Examples.
 - **Docs Examples** — `scripts/gen-examples-docs.ts`
   (`pnpm examples:generate` / `--check` = `examples:gate`) renders
   `docs/examples/index.md` + one page per `DEMO_SCRIPTS` entry.
@@ -61,14 +70,14 @@ conventions these tasks must preserve.
   string[] }`. `id` matches the `examples/scripts/<id>.chart.ts`
   basename. `category` is a fixed `ExampleCategory` union. `primitives`
   lists the canonical primitive ids the example demonstrates.
-- **One `.chart.ts` per primitive** — ~192 files under
+- **One `.chart.ts` per primitive** — ~200 files under
   `examples/scripts/`, each a valid `defineIndicator` default export
   that compiles clean and runs without throwing on the demo's daily
   candles.
 - **Generated `scripts.ts`** — `DEMO_SCRIPTS` is now **code-generated**
   by `scripts/gen-demo-scripts.ts` (folded into `pnpm examples:generate`)
   by reading each `.chart.ts` source + its `catalogue.ts` meta. The
-  `DemoScript` type gains a `category` field. Removes ~192× manual
+  `DemoScript` type gains a `category` field. Removes ~200× manual
   source duplication; the two homes stay in sync by construction.
 - **`EXAMPLE_SCRIPTS`** in `e2e.test.ts` is **derived from**
   `EXAMPLE_CATALOGUE` (no third hand-maintained list).
@@ -90,14 +99,14 @@ conventions these tasks must preserve.
 | Decision | Rationale |
 |----------|-----------|
 | **Canonical registry = the generated `docs/primitives/**` page set** | Every primitive already has exactly one auto-generated doc page; deriving the coverage target from that tree means the gate self-updates when a new primitive lands — no separate hardcoded primitive list to drift. |
-| **`scripts.ts` becomes generated, not hand-authored** | 192 inlined source strings cannot be hand-maintained without drift. A generator reading the canonical `.chart.ts` + `catalogue.ts` keeps both example homes byte-identical by construction; the existing `examples:gate` byte-diff already enforces this shape. |
+| **`scripts.ts` becomes generated, not hand-authored** | ~200 inlined source strings cannot be hand-maintained without drift. A generator reading the canonical `.chart.ts` + `catalogue.ts` keeps both example homes byte-identical by construction; the existing `examples:gate` byte-diff already enforces this shape. |
 | **`primitives: string[]` lives in `catalogue.ts`, not parsed from source** | Static AST extraction of "which primitives does this script use" is brittle (aliases, re-exports, indirect calls). An explicit author-declared list is simple, reviewable, and the gate cross-checks it against the doc-page set. |
-| **One example per primitive (not grouped)** | Per the feature decision: maximal per-primitive docs value; each primitive's example deep-links from its reference page. The categorized dialog keeps the 192-entry catalogue navigable. |
+| **One example per primitive (not grouped)** | Per the feature decision: maximal per-primitive docs value; each primitive's example deep-links from its reference page. The categorized dialog keeps the ~200-entry catalogue navigable. |
 | **Shrinking allowlist, not a deferred gate** | Landing the gate in task 1 with a full allowlist keeps CI green while ~20 population tasks land incrementally; each task removes the ids it covers, making progress measurable and preventing a big-bang red gate. |
 | **No new golden/conformance scenario per example** | The primitives already exist and already carry their §22.10 golden + conformance coverage in `packages/runtime`. These examples are *usage demos*; the contract is "compiles e2e + runs clean", enforced by `e2e.test.ts`. New goldens would duplicate existing runtime coverage. |
-| **Demo dialog over enriched `<select>`** | A 192-entry flat select is unusable; the user requested a categorized dialog with a left category sidebar. |
+| **Demo dialog over enriched `<select>`** | A ~200-entry flat select is unusable; the user requested a categorized dialog with a left category sidebar. |
 | **Examples must run with input *defaults*** | The demo has no input-override UI, so any `input.*` example resolves to its default value. Examples are authored to render meaningfully at defaults. |
-| **Preserve curated demos under a `complex` category** | The pre-existing multi-primitive showcase demos (composition, MTF, state, pane-routing) are valuable as-is; splitting them into single-primitive buckets would lose that. They live in `complex` and still declare their `primitives` for coverage. |
+| **`complex` holds only *multi-primitive* composites; single-primitive demos are folded as defaults** | The pre-existing **multi-primitive** showcase demos (composition, MTF, state, pane-routing) are valuable as-is and live in `complex`. But a demo that exists to showcase **one** headline primitive **is** that primitive's per-primitive default — it takes the primitive's family category (never `complex`), and the family task skips a duplicate. A `complex` entry that turns out to be a single-primitive duplicate of an existing default is **removed**, not preserved (Task 1 §6a fold rule). Composites that are now fully covered by single-primitive defaults credit **no** `primitives` (the default owns the coverage) but stay as showcases. |
 | **Publish the catalogue as `@invinite-org/chartlang-examples`** | invinite already consumes the `@invinite-org/chartlang-*` npm family; a versioned data package is the cleanest, pinnable transport for its template dialog (chosen over raw-JSON fetch / submodule). |
 | **invinite adopts chartlang's `ExampleCategory` taxonomy** | The user wants "same categories" across both products; one canonical taxonomy (incl. `complex`) replaces invinite's local 7-value `TemplateCategory`. The sync maps 1:1. |
 | **Cross-repo auto-update via `repository_dispatch` + PR bot** | chartlang push-to-main/release dispatches to invinite, which bumps the dep, re-syncs, and opens a PR — keeping the template dialog current without manual work (schedule + Renovate fallback if no cross-repo token). |
@@ -227,11 +236,16 @@ defers those three commands to the wave boundary.
 | 24 | [invinite — templates sync & unified taxonomy](./24-invinite-templates-sync.md) | **invinite repo** | 23 | — | Medium |
 | 25 | [invinite — auto-update CI](./25-invinite-auto-update-ci.md) | **invinite repo** | 24 | — | Low |
 
-> Per-task example counts for Tasks 3–21 sum to ~192 and are the planning
-> target; the authoritative target is the generated `docs/primitives/**`
-> page set the Task-1 gate enumerates. If a count drifts, the gate — not
-> this table — is the source of truth, and the relevant family task
-> absorbs the delta. **Task 21b is additive on top of the ~192:** its 15
+> Per-task example counts for Tasks 3–21 were sized against the original
+> ~200-page surface; the surface is now **200 pages** (the `math`/`str`/
+> `session`/`time` namespaces + `state.array`/`state.series`/
+> `draw.fillBetween` landed since — several already have on-disk default
+> examples, see Task 1 §6b). The authoritative target is the generated
+> `docs/primitives/**` page set the Task-1 gate enumerates. If a count
+> drifts, the gate — not this table — is the source of truth, and the
+> relevant family task absorbs the delta; the new `math` and `str`
+> categories carry their namespace defaults. **Task 21b is additive on
+> top of that surface:** its 15
 > examples cover *language idioms* (no primitive page), keyed to the
 > separate `examples/idiom-manifest.json` + `examples:idioms` gate, so
 > they do not count toward the per-primitive target.
@@ -267,7 +281,7 @@ is original demo code, not a transcription.
   page (the doc pages are auto-generated; this needs a genDocs change).
 - **Visual/screenshot goldens** for `draw.*` examples (out of scope;
   these tasks guarantee compile + runtime-clean only).
-- **Parallelizing `e2e.test.ts`** if the ~192-script compile loop
+- **Parallelizing `e2e.test.ts`** if the ~200-script compile loop
   becomes the long pole in CI (flagged in Task 1).
 
 ## 10. Cross-Feature Reconciliation (in-flight task folders)
@@ -283,7 +297,7 @@ world, and this feature's Task 1 migration absorbs them cleanly.
 
 | Folder | Adds a primitive? | Moves the coverage gate? | What this feature must do |
 |--------|-------------------|--------------------------|---------------------------|
-| `tasks/htf-security-expression/` | No — a new *overload* of existing `request.security` | No new doc page | Task 1 migration sweeps the existing `htf-trend-filter` demo into `complex`; Task 21 already records `request.security` as covered by it. Nothing extra. |
+| `tasks/htf-security-expression/` | No — a new *overload* of existing `request.security` | No new doc page | Task 1 migration sweeps the existing `htf-trend-filter` demo into `complex` (composite, credits nothing). `request.security` is covered by the single-primitive default `symbol-ratio` (Task 1 §6b); Task 21 records it as covered. Nothing extra. |
 | `tasks/bidirectional-plot-offset/` | No — behavior change to the existing `offset` option | No | Task 1 migration sweeps the existing `sma-offset` demo into its category; `ta.sma` already covered. Nothing extra. |
 | `tasks/draw-fill-between/` | **Yes — `draw.fillBetween`, a new `DrawingKind`** | **Yes** | A new `docs/primitives/draw/fill-between.md` page lands ⇒ the Task-1 coverage gate (which enumerates ids from the `docs/primitives/**` tree) **auto-requires** an example for `fill-between`. **Task 11 (draw-lines) now owns this conditionally** (see its "Conditional — `draw.fillBetween`" note): if `fill-between.md` exists, Task 11 folds in the `fill-between-band` script that `draw-fill-between` Task 5 authors (category `draw-lines`, `primitives: ["draw.fillBetween"]`) rather than authoring a second one; if it does not exist, the id is not a gate target and Task 11 skips it. |
 

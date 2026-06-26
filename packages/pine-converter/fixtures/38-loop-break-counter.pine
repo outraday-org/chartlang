@@ -1,0 +1,12 @@
+//@version=6
+indicator("Loop break counter", overlay=false)
+tol = input.int(4, "Tolerance")
+rng = input.float(1.0, "Range", step=0.1)
+ms = ta.ema(((close - close[1]) / close[1] * 100), 3)
+consol_count = 0
+for i = 0 to tol
+    if (ms[i] > rng) or (ms[i] < -rng)
+        consol_count := 0
+        break
+    consol_count += 1
+plot(consol_count)

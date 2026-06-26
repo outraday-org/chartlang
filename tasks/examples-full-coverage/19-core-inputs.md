@@ -40,12 +40,15 @@ for context. `overlay` per what is plotted.
 | `input.time` | `anchor = input.time(...)` as a draw anchor base. |
 | `input.symbol` | `sym = input.symbol(...)` feeding `request.security`. |
 | `input.externalSeries` | `ext = input.externalSeries(...)` plotted as an overlay. |
+| `input.session` | covered (`weekday-close-filter`, migrated default — Task 1 §6b) — skip if absent from the allowlist. |
 
 > Build exactly one example per **distinct** `input.*` id present under
-> `docs/primitives/input/` (12 builders: bool, color, enum,
-> externalSeries, float, int, interval, price, source, string, symbol,
-> time). The duplicated `input.int` row above is illustrative — ship one
-> `input.int` example.
+> `docs/primitives/input/` (now **13** builders: bool, color, enum,
+> externalSeries, float, int, interval, price, **session**, source,
+> string, symbol, time — `session` was added since this plan was
+> written and is already covered by the migrated `weekday-close-filter`
+> default). The duplicated `input.int` row above is illustrative — ship
+> one `input.int` example.
 
 ## Files to Create / Modify
 

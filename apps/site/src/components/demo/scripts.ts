@@ -564,6 +564,80 @@ export default defineIndicator({
 });
 `;
 
+const VOLUME_BY_LEVEL = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Volume by Level",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, state, plot }) {
+        // A keyed accumulator: bucket each bar's volume under its rounded close
+        // price. This is the case that genuinely needs a KEY→VALUE store, not a
+        // FIFO of pushed values: many bars revisit the same price level, so we
+        // read-modify-write one entry per level. \`get\` returns \`undefined\` for a
+        // never-seen level (distinct from a real 0), so \`?? 0\` seeds it; a new
+        // level once 64 are tracked evicts the oldest-inserted one (bounded so it
+        // serializes).
+        const levels = state.map<number, number>(64);
+        const key = Math.round(bar.close.current);
+        levels.set(key, (levels.get(key) ?? 0) + bar.volume.current);
+
+        // Mark the current point of control: the price level holding the most
+        // accumulated volume so far. v1 iterates with \`keyAt(i)\` + \`size\`, not an
+        // iterator — the loop bound is the literal capacity and the inner
+        // \`if (i < levels.size)\` guard skips the unfilled slots, the same bounded
+        // shape \`state.array\` uses (\`keyAt\`/\`get\` are handle methods, so they are
+        // legal inside the bounded loop; only the allocation call is not).
+        let pocLevel = Number.NaN;
+        let pocVolume = -1;
+        for (let i = 0; i < 64; i++) {
+            if (i < levels.size) {
+                const level = levels.keyAt(i);
+                if (level !== undefined) {
+                    const volume = levels.get(level) ?? 0;
+                    if (volume > pocVolume) {
+                        pocVolume = volume;
+                        pocLevel = level;
+                    }
+                }
+            }
+        }
+
+        plot(pocLevel, { color: "#ab47bc", title: "Volume POC" });
+    },
+});
+`;
+
+const ROLLING_ZSCORE = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { array, defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Rolling Z-Score",
+    apiVersion: 1,
+    overlay: false,
+    compute({ bar, state, plot }) {
+        // Push one close per bar into a bounded FIFO window, then reduce over the
+        // window with the analytic methods on the handle. A z-score is the
+        // canonical "how far is now from the recent norm" — \`(x − mean) / stdev\`.
+        const win = state.array<number>(20);
+        win.push(bar.close.current);
+
+        // Two call styles, one implementation: \`win.avg()\` is the method and
+        // \`array.stdev(win)\` is the Pine-parity free-function alias that delegates
+        // 1:1 to \`win.stdev()\` — they can never drift. Both skip NaN and return
+        // NaN on an empty window, so guard the divide while the window warms.
+        const mean = win.avg();
+        const sd = array.stdev(win);
+        plot(sd > 0 ? (bar.close.current - mean) / sd : 0, { title: "Z-Score(20)" });
+    },
+});
+`;
+
 const SYMBOL_RATIO = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
@@ -1006,6 +1080,20 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         description:
             "state.array — a bounded collection you push many values into. Here a rolling mean over the last 20 closes: push one close per bar into a fixed-capacity FIFO ring, then iterate the ELEMENTS (a.get(i), 0 = newest) to average them. This is the bounded bag of the last K pushed values that state.series (one value's bar history) can't express.",
         source: ROLLING_WINDOW,
+    },
+    {
+        id: "volume-by-level",
+        label: "Volume by Level",
+        description:
+            "state.map — a persistent, bounded KEY→VALUE store. Buckets each bar's volume under its rounded close price (read-modify-write one entry per level, get() ?? 0 to seed an unseen level, oldest-inserted key evicted once 64 are tracked), then walks the entries with keyAt(i) + size (v1 has no iterators) to mark the volume point of control — the price level holding the most volume. The keyed half of the collections story that state.array (a FIFO of pushed values) can't express.",
+        source: VOLUME_BY_LEVEL,
+    },
+    {
+        id: "rolling-zscore",
+        label: "Rolling Z-Score",
+        description:
+            "state.array reductions — the analytic methods on the window handle. A z-score (close − win.avg()) / win.stdev() over the last 20 closes, showing both call styles: win.avg() (method) and array.stdev(win) (the Pine-parity free-function alias that delegates 1:1). The reductions skip NaN and return NaN on an empty window, so the divide is guarded while the window warms.",
+        source: ROLLING_ZSCORE,
     },
     {
         id: "symbol-ratio",

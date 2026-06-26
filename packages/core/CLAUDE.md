@@ -96,6 +96,39 @@
   compiler's `program.ts` shim mirrors `MutableArraySlot` + the
   `StateNamespace.array` signature in lockstep. v1 element type is `number`.
 
+- **`state.map` is the keyed-collection sibling of `state.array` — a plain
+  handle, NOT a slot/series intersection.** `state.map<K extends string |
+  number, V>(capacity)` returns `MutableMapSlot<K, V>` (`mapSlot.ts`) — a
+  bounded key→value surface (`set`/`get`/`has`/`delete`/`clear` + readonly
+  `size` + `keyAt(index)`). Like `state.array` it is deliberately **not** a
+  `MutableSlot` and **not** number-coercible. `get(k)` returns `V | undefined`
+  (absent ≠ a stored `0`). v1 keys are `string | number` (the only
+  deterministically-hashable, snapshot-cloneable keys — enforced in the type)
+  and v1 value type is `number`. **v1 ships option-a bounded indexing**
+  (`keyAt(i)` + `size`, walked by a `for (let i = 0; i < m.size; i++)` loop —
+  the same accepted bounded-loop shape as `state.array`); `keys()`/`values()`/
+  `entries()` iterators are **deferred** (a `for...of` iterator would trip the
+  compiler's `unbounded-loop` ban). The hole is a sentinel like every sibling;
+  its registry entry rides the additive rule below; `state.tick.map` is
+  deliberately NOT defined. The compiler's `program.ts` shim mirrors
+  `MutableMapSlot` + `StateNamespace.map` in lockstep, and the `state.array`
+  literal-capacity guard covers `state.map` too (shared diagnostic codes).
+
+- **`MutableArraySlot<number>` carries numeric-reduction methods, and the
+  frozen `array` namespace (`src/array/index.ts`) is a thin 1:1 delegate.**
+  `sum`/`avg`/`min`/`max`/`range`/`variance(biased?)`/`stdev(biased?)`/
+  `median`/`percentile(p)`/`indexOf`/`includes`/`sort(order?)` are declared on
+  the `arraySlot.ts` interface (the runtime installs the real bodies). The
+  `array.*` free-function namespace exists ONLY for Pine parity — every member
+  is `(a) => a.<name>()`, so there is **no second implementation** to drift; do
+  not give `array.*` its own math. Reductions skip NaN and return `NaN` (never
+  `0`) on an empty / all-NaN window; `sort()` returns a fresh sorted COPY and
+  never mutates the ring. The `array` namespace follows the `color`/`str`
+  frozen-namespace template; its bodies live in `index.ts` (coverage-excluded
+  like every barrel), so the delegation test is parity, not a coverage gate.
+  The `program.ts` shim mirrors BOTH the extended `MutableArraySlot` and an
+  `export const array: Readonly<{ … }>` block in lockstep.
+
 - **`time.*` / `session.*` are stateless `slot: false` accessor namespaces
   installed on `ComputeContext` (like `ta`), NOT per-bar views.** They live in
   `src/time-accessors/` (deliberately separate from the host-only `Intl` folder

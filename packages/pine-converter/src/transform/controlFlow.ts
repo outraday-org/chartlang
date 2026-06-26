@@ -218,6 +218,140 @@ function substituteBlock(
 }
 
 /**
+ * Substitute identifiers across an expression tree per a `name → replacement
+ * node` map, returning a structurally-rebuilt clone. The node→node
+ * generalisation of {@link substituteIterator} (which substitutes name→literal):
+ * the UDF inliner uses it to replace a stateful helper's parameters with their
+ * argument expressions (or a hoisted temp identifier) and its body locals with
+ * uniquely-named synthesized locals. An identifier whose name is not a key is
+ * left untouched, so an arg/local reference flows through to `emitExpr`'s own
+ * remaps unchanged.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     import { substituteParams } from "./controlFlow.js";
+ *     const span = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 } as const;
+ *     const node = { kind: "identifier-expression", name: "x", span } as const;
+ *     const repl = { kind: "identifier-expression", name: "close", span } as const;
+ *     substituteParams(node, new Map([["x", repl]])); // the `close` node
+ */
+export function substituteParams(
+    node: ExpressionNode,
+    bindings: ReadonlyMap<string, ExpressionNode>,
+): ExpressionNode {
+    switch (node.kind) {
+        case "identifier-expression":
+            return bindings.get(node.name) ?? node;
+        case "unary-expression":
+            return { ...node, operand: substituteParams(node.operand, bindings) };
+        case "binary-expression":
+            return {
+                ...node,
+                left: substituteParams(node.left, bindings),
+                right: substituteParams(node.right, bindings),
+            };
+        case "ternary-expression":
+            return {
+                ...node,
+                condition: substituteParams(node.condition, bindings),
+                consequent: substituteParams(node.consequent, bindings),
+                alternate: substituteParams(node.alternate, bindings),
+            };
+        case "call-expression":
+            return {
+                ...node,
+                callee: substituteParams(node.callee, bindings),
+                args: node.args.map((arg) => ({
+                    ...arg,
+                    value: substituteParams(arg.value, bindings),
+                })),
+            };
+        case "member-access-expression":
+            return node.head === null
+                ? node
+                : { ...node, head: substituteParams(node.head, bindings) };
+        case "history-access-expression":
+            return {
+                ...node,
+                receiver: substituteParams(node.receiver, bindings),
+                offset: substituteParams(node.offset, bindings),
+            };
+        case "paren-expression":
+            return { ...node, expression: substituteParams(node.expression, bindings) };
+        case "tuple-expression":
+            return {
+                ...node,
+                elements: node.elements.map((el) => substituteParams(el, bindings)),
+            };
+        case "lambda-expression":
+            return { ...node, body: substituteParams(node.body, bindings) };
+        default:
+            return node;
+    }
+}
+
+/**
+ * Substitute identifiers across a whole statement (recursing into `if` bodies +
+ * call args) per a `name → replacement node` map — the statement-level companion
+ * to {@link substituteParams}, used by the UDF inliner to substitute params into
+ * a stateful helper's control-flow body statement before re-lowering it. Mirrors
+ * the kinds {@link substituteParams}' iterator sibling handles; any other kind
+ * passes through unchanged.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     import { substituteParamsStatement } from "./controlFlow.js";
+ *     const span = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 } as const;
+ *     const stmt = {
+ *         kind: "expression-statement",
+ *         expression: { kind: "identifier-expression", name: "x", span },
+ *         span,
+ *     } as const;
+ *     const repl = { kind: "identifier-expression", name: "close", span } as const;
+ *     substituteParamsStatement(stmt, new Map([["x", repl]]));
+ */
+export function substituteParamsStatement(
+    stmt: Statement,
+    bindings: ReadonlyMap<string, ExpressionNode>,
+): Statement {
+    switch (stmt.kind) {
+        case "expression-statement":
+            return { ...stmt, expression: substituteParams(stmt.expression, bindings) };
+        case "variable-declaration":
+            return { ...stmt, initializer: substituteParams(stmt.initializer, bindings) };
+        case "assignment":
+            return { ...stmt, value: substituteParams(stmt.value, bindings) };
+        case "if-statement":
+            return {
+                ...stmt,
+                condition: substituteParams(stmt.condition, bindings),
+                thenBody: substituteParamsBlock(stmt.thenBody, bindings),
+                elseIfClauses: stmt.elseIfClauses.map((clause) => ({
+                    ...clause,
+                    condition: substituteParams(clause.condition, bindings),
+                    body: substituteParamsBlock(clause.body, bindings),
+                })),
+                elseBody:
+                    stmt.elseBody === null ? null : substituteParamsBlock(stmt.elseBody, bindings),
+            };
+        default:
+            return stmt;
+    }
+}
+
+function substituteParamsBlock(
+    block: Extract<Statement, { kind: "block-statement" }>,
+    bindings: ReadonlyMap<string, ExpressionNode>,
+): Extract<Statement, { kind: "block-statement" }> {
+    return {
+        ...block,
+        body: block.body.map((inner) => substituteParamsStatement(inner, bindings)),
+    };
+}
+
+/**
  * Render a Pine `if`/`else if`/`else` statement as a chartlang
  * `if (...) { ... } else if (...) { ... } else { ... }` string. Each body is
  * rendered through `emitBody`. Returns `null` when every branch lowers to an
@@ -285,6 +419,38 @@ function statementHasStatefulPrimitive(stmt: Statement): boolean {
     }
 }
 
+// Whether any statement in a body contains a `break`/`continue` (descending
+// nested `if`/`for`/`switch`/`block` bodies, mirroring
+// `bodyHasStatefulPrimitive`'s shape). A SEPARATE signal from the stateful one:
+// a `break`/`continue` FORCES the no-unroll / runtime-`for` path (unrolling
+// cannot express `break`), which is the exact opposite of what a stateful body
+// forces (an unroll). The two together are unconvertible (see `emitFor`).
+function bodyHasBreakContinue(statements: readonly Statement[]): boolean {
+    return statements.some(statementHasBreakContinue);
+}
+
+function statementHasBreakContinue(stmt: Statement): boolean {
+    switch (stmt.kind) {
+        case "break-statement":
+        case "continue-statement":
+            return true;
+        case "if-statement":
+            return (
+                bodyHasBreakContinue(stmt.thenBody.body) ||
+                stmt.elseIfClauses.some((clause) => bodyHasBreakContinue(clause.body.body)) ||
+                (stmt.elseBody !== null && bodyHasBreakContinue(stmt.elseBody.body))
+            );
+        case "for-statement":
+            return bodyHasBreakContinue(stmt.body.body);
+        case "switch-statement":
+            return stmt.cases.some((arm) => bodyHasBreakContinue(arm.body));
+        case "block-statement":
+            return bodyHasBreakContinue(stmt.body);
+        default:
+            return false;
+    }
+}
+
 /**
  * Render a Pine `for i = a to b [by s]` loop. When the body calls a stateful
  * primitive (`plot`/`hline`/`alert`/`ta.*`/`draw.*`) the loop MUST be
@@ -298,6 +464,14 @@ function statementHasStatefulPrimitive(stmt: Statement): boolean {
  * emits nothing; a non-stateful non-resolvable bound pushes
  * `loop-bounds-not-literal-for-stateful-body` as well (chartlang forbids the
  * non-literal runtime bound).
+ *
+ * A body containing `break`/`continue` overrides the unroll heuristic and is
+ * ALWAYS emitted as a runtime `for` (a `break` cannot span unrolled
+ * iterations); its bound is resolved through `resolveBound` (literal OR frozen
+ * `input.int` default). Such a body cannot also hold a stateful primitive
+ * (chartlang forbids one in any loop) — that combination pushes
+ * `stateful-loop-with-break` and emits nothing; a non-resolvable break-loop
+ * bound pushes `loop-bounds-not-literal-for-stateful-body`.
  *
  * @since 0.1
  * @stable
@@ -314,6 +488,7 @@ export function emitFor(
     emitBody: BodyEmitter,
 ): readonly string[] {
     const stateful = bodyHasStatefulPrimitive(stmt.body.body);
+    const breaks = bodyHasBreakContinue(stmt.body.body);
     const from = resolveBound(stmt.from, inputDefault);
     const to = resolveBound(stmt.to, inputDefault);
     const step =
@@ -321,6 +496,23 @@ export function emitFor(
             ? { value: 1, fromInputDefault: false }
             : resolveBound(stmt.step, inputDefault);
     const resolvable = from !== null && to !== null && step !== null && step.value !== 0;
+
+    if (breaks) {
+        // A `break`/`continue` loop can be neither unrolled (a `break` cannot
+        // span unrolled iterations) nor hold a stateful call (chartlang forbids
+        // a stateful primitive in any loop). A stateful break-loop is therefore
+        // unconvertible; otherwise emit a runtime `for` with the
+        // `break`/`continue` lowered inside it.
+        if (stateful) {
+            diagnostics.pushCode("stateful-loop-with-break", stmt.span);
+            return [];
+        }
+        if (!resolvable) {
+            diagnostics.pushCode("loop-bounds-not-literal-for-stateful-body", stmt.span);
+            return [];
+        }
+        return emitRuntimeForFromBounds(stmt, from, to, step, ctx, diagnostics, emitBody);
+    }
 
     if (!stateful) {
         const literalLoop = emitLiteralLoop(stmt, ctx, emitBody);
@@ -338,6 +530,21 @@ export function emitFor(
     return unroll(stmt, from, to, step, ctx, diagnostics, stateful, emitBody);
 }
 
+// The `for (let i = a; i <= b; i += s)` header for resolved integer bounds.
+// Pine auto-counts down when `from > to`; the `by` value contributes only its
+// magnitude (direction is the from-vs-to relation), so a descending loop emits
+// `>=` / `--` / `-= mag` to run its iterations.
+function forHeader(variable: string, from: number, to: number, step: number): string {
+    const ascending = from <= to;
+    const magnitude = Math.abs(step);
+    const comparison = ascending ? "<=" : ">=";
+    const update =
+        magnitude === 1
+            ? `${variable}${ascending ? "++" : "--"}`
+            : `${variable} += ${ascending ? magnitude : -magnitude}`;
+    return `for (let ${variable} = ${from}; ${variable} ${comparison} ${to}; ${update})`;
+}
+
 // The runtime `for (let i = a; i <= b; i += s)` header + rendered body for a
 // loop whose bounds (and step) are TRUE integer literals (not input defaults),
 // or `null` so the caller falls back to unrolling. The body is split out so
@@ -353,22 +560,33 @@ function emitLiteralLoop(
     if (from === null || to === null || step === null || step === 0) {
         return null;
     }
-    const variable = stmt.variable;
-    // Pine auto-counts down when `from > to`; the `by` value contributes only
-    // its magnitude (direction is the from-vs-to relation), so a descending
-    // loop must emit `>=` / `--` / `-= mag` to run its iterations.
-    const ascending = from <= to;
-    const magnitude = Math.abs(step);
-    const comparison = ascending ? "<=" : ">=";
-    const update =
-        magnitude === 1
-            ? `${variable}${ascending ? "++" : "--"}`
-            : `${variable} += ${ascending ? magnitude : -magnitude}`;
-    const childCtx = withLocal(ctx, variable);
     return {
-        header: `for (let ${variable} = ${from}; ${variable} ${comparison} ${to}; ${update})`,
-        body: emitBody(stmt.body.body, childCtx).join(" "),
+        header: forHeader(stmt.variable, from, to, step),
+        body: emitBody(stmt.body.body, loopChildContext(ctx, stmt.variable)).join(" "),
     };
+}
+
+// Emit a runtime `for` from RESOLVED integer bounds (literal OR `input.int`
+// default), used by the `break`/`continue` path where unrolling is impossible.
+// An `input.int`-derived bound keeps the established
+// `loop-unroll-frozen-at-input-default` semantics: the frozen default is inlined
+// as the literal bound (chartlang forbids a non-literal runtime bound), and the
+// info is raised so the author knows the count will not follow the input.
+function emitRuntimeForFromBounds(
+    stmt: ForStatement,
+    from: ResolvedBound,
+    to: ResolvedBound,
+    step: ResolvedBound,
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+    emitBody: BodyEmitter,
+): readonly string[] {
+    if (from.fromInputDefault || to.fromInputDefault || step.fromInputDefault) {
+        diagnostics.pushCode("loop-unroll-frozen-at-input-default", stmt.span);
+    }
+    const header = forHeader(stmt.variable, from.value, to.value, step.value);
+    const body = emitBody(stmt.body.body, loopChildContext(ctx, stmt.variable)).join(" ");
+    return [`${header} { ${body} }`];
 }
 
 // Unroll a resolvable-bounds loop into one rendered body per iteration with
@@ -403,10 +621,12 @@ function unroll(
     return out;
 }
 
-// Add a loop-iterator local to the context so a `for` body never rewrites the
-// iterator name to `inputs.<name>` / a state slot.
-function withLocal(ctx: EmitContext, name: string): EmitContext {
-    return { ...ctx, localNames: new Set([...ctx.localNames, name]) };
+// The child context for an emitted `for` body: the loop-iterator local is
+// added (so the body never rewrites the iterator name to `inputs.<name>` / a
+// state slot) and `inLoop` is set (so a `break`/`continue` in the body lowers
+// to a JS jump rather than raising `break-continue-outside-loop`).
+function loopChildContext(ctx: EmitContext, name: string): EmitContext {
+    return { ...ctx, localNames: new Set([...ctx.localNames, name]), inLoop: true };
 }
 
 /**

@@ -136,7 +136,15 @@ plot(prev[1]);
 The literal init picks the seed (`na` → `Number.NaN`); the write stays
 `prev.value = …` and the read `prev.value`, while `prev[1]` is the committed
 history. A numeric `var` **never** read with `[n]` keeps its leaner scalar
-[`state.*`](#state) lowering. A `bool`/`string` history-indexed `var` is out of
+[`state.*`](#state) lowering.
+
+A plain (`=`-declared) **`ta.*` series that is history-indexed** anywhere —
+`ma = ta.ema(close, len)` read as `ma[i]` — is promoted to the **same**
+`state.series` slot: `const ma = state.series(Number.NaN)`, written each bar as
+`ma.value = ta.ema(bar.close, len).current`, so `ma[i]` is a real indexed read
+while `ma`'s scalar uses (`ma >= 0`, `plot(ma)`) still read `ma.value`. A
+`ta.*` series **never** indexed keeps its `.current` scalar lowering (no
+change). A `bool`/`string` history-indexed `var` is out of
 the v1 series scope and is flagged
 [`series-history-non-numeric`](./diagnostics.md#series-history-non-numeric); a
 `varip` series approximates to a (non-tick) `state.series` with
@@ -177,7 +185,9 @@ args (`tooltip`/`group`/`inline`/`confirm`) are dropped with an
 | Ternary `a ? b : c` | ✅ (chained ternary → an `chained-ternary-warning` info) |
 | `switch` (subjected and subjectless) | ✅ |
 | `for i = a to b [by s]` with **literal-resolvable** bounds | ✅ |
+| `break` / `continue` inside a `for` | ✅ (forces a runtime `for` — see below) |
 | `for` with a non-literal bound and a stateful body | ❌ `loop-bounds-not-literal-for-stateful-body` |
+| `for` with **both** a stateful body **and** a `break`/`continue` | ❌ `stateful-loop-with-break` |
 | `for ... in` | ❌ `unsupported-for-in` — rewrite as a literal `for i = a to b` |
 | `while` | ❌ `unsupported-while` — rewrite as a literal `for i = a to b` |
 
@@ -186,6 +196,128 @@ A `for` whose body calls a **stateful** primitive (`plot` / `hline` /
 forbids a stateful call inside a loop), so its bound must resolve to a
 compile-time integer. A bound from an `input.int` default unrolls but
 freezes the count at the default (`loop-unroll-frozen-at-input-default`).
+
+### `break` / `continue` — the no-unroll loop
+
+A `break` cannot span unrolled iterations, so a `for` whose body contains a
+`break` or `continue` **overrides** the unroll heuristic and is **always**
+emitted as a real runtime `for (let i = a; i <= b; i++) { … }` with the jump
+lowered inside it — never unrolled, never a stray top-level `break;`. The bound
+still resolves from a literal or a frozen `input.int` default (the latter keeps
+the `loop-unroll-frozen-at-input-default` info, since the count is fixed even
+though the loop is real). Inside that loop body, a series indexed by the **loop
+iterator** (`ms[i]`) is a legal runtime history read — not the
+[`dynamic-series-index`](./diagnostics.md#dynamic-series-index) reject a free
+`[i]` outside a loop hits — so the `MASM_Strat.md` consolidation counter
+
+```pine
+consol_count = 0
+for i = 0 to consol_tolerance
+    if (ma_slope[i] > consol_range_adj) or (ma_slope[i] < -consol_range_adj)
+        consol_count := 0
+        break
+    consol_count += 1
+```
+
+converts to a compiling chartlang `for` (`ma_slope` is a `ta.*` series
+history-indexed by `i`, so it promotes to a `state.series` slot — see
+[History on a `var`](#history-on-a-var-state-series)). A body that is **both**
+stateful **and** has a `break`/`continue` is unconvertible and rejects with
+[`stateful-loop-with-break`](./diagnostics.md#stateful-loop-with-break); a
+`break`/`continue` with no enclosing loop is dropped with
+[`break-continue-outside-loop`](./diagnostics.md#break-continue-outside-loop).
+
+### Compound assignment
+
+`+=`, `-=`, `*=`, and `/=` parse and lower to a read-modify-write, both at the
+top level and inside loop bodies — `consol_count += 1` becomes
+`consol_count += 1` onto the local (or `<slot>.value += 1` onto a `state.*`
+scalar slot). A compound assignment to a name that was never declared is an
+`unknown-identifier` error (it is a reassignment, not a declaration).
+
+## Multi-line expressions
+
+Pine lets a single expression span several lines when a continuation line is
+indented and **begins with a binary/boolean operator** — the dominant way real
+scripts format long `and`/`or` condition stacks:
+
+```pine
+cond = maOk and rsiOk
+    and not sw
+    and close > 0
+entry = maOk
+    or rsiOk
+    or (close > open ? maOk : rsiOk)
+```
+
+The converter's lexer joins these into one statement each, so the example above
+lowers to two single-expression assignments
+(`cond = ((maOk && rsiOk) && !inputs.sw) && (bar.close > 0)` and the matching
+`entry = …`). Continuation is recognised for the binary-operator surface (the
+arithmetic, comparison, and `and`/`or` operators) plus the ternary `?` / `:`,
+on a line indented **strictly deeper** than the statement that starts the
+expression. A `-`/`+` line at the **same** indent as the statement start is a
+new (unary) statement, not a continuation, so leading-operator continuation
+never silently swallows the next line. The eager paren-depth + trailing-comma
+continuation (an expression left open inside `(` / `[` / `{` or after a `,`)
+keeps working as before.
+
+## User-defined functions
+
+Pine user-defined functions (UDFs) — both the single-line
+`f(a, b) => expr` form and the multi-line indented form (whose **last
+statement is the implicit return**, Pine has no `return` keyword) — convert.
+Parameters are bare identifiers; a typed param (`float x`) keeps the bare name
+with a [`udf-typed-param-unsupported`](./diagnostics.md#udf-typed-param-unsupported)
+warning.
+
+How a UDF lowers depends on whether its body is **stateful** — i.e. whether it
+(transitively) calls a stateful primitive (`ta.*` / `state.*` / `plot` /
+`hline` / `alert` / `draw.*`):
+
+- **Pure UDF → reusable arrow function.** A state-free helper hoists to a
+  `const cf_limit = (input_val: number, upper_limit: number, lower_limit: number)
+  => …` at the top of `compute` (after the state-slot allocations, ordered
+  callee-before-caller), and every call site reuses it — a pure helper is
+  referentially transparent, so one shared function equals Pine's per-call
+  evaluation. Params are typed `: number` so the emitted arrow type-checks (an
+  untyped param trips `noImplicitAny`); a `PriceSeries` argument like `bar.close`
+  is assignable to `number`. A
+  [`udf-emitted-function`](./diagnostics.md#udf-emitted-function) info marks each.
+
+- **Stateful UDF → inlined per call site.** A stateful helper **cannot** be a
+  shared function: chartlang keys every `ta.*` / `state` slot by the **lexical
+  source position** of the call, so one shared body would make all callers share
+  **one** slot and cross-contaminate state — Pine instead instances independent
+  series per call site. The converter therefore **inline-expands** the body at
+  each call site (params bound to their arguments, a non-trivial / call-bearing
+  arg hoisted to an evaluate-once `const` temp, intermediate body locals lowered
+  to uniquely-named `let`s, and the implicit-return expression spliced into the
+  call's position). Each inlined `ta.*` lands at its own source position, so the
+  compiler mints an **independent slot** per call — two calls to the same helper
+  provably diverge. A [`udf-inlined`](./diagnostics.md#udf-inlined) info (plus
+  [`udf-arg-hoisted`](./diagnostics.md#udf-arg-hoisted) when an arg is hoisted)
+  marks each expansion.
+
+```pine
+cf_slope(ma, smoothing_amt) => ta.ema(((ma - ma[1]) / ma[1] * 100), smoothing_amt)
+close_slope = cf_slope(close, 3)
+open_slope  = cf_slope(open, 5)
+```
+
+becomes two independent inlined `ta.ema` slots:
+
+```ts
+let close_slope = ta.ema((((bar.close - bar.close[1]) / bar.close[1]) * 100), 3).current;
+let open_slope = ta.ema((((bar.open - bar.open[1]) / bar.open[1]) * 100), 5).current;
+```
+
+A call whose argument count differs from the declaration warns
+[`udf-arity-mismatch`](./diagnostics.md#udf-arity-mismatch). For the param forms
+and **recursion** that reject, and the v1 limitation a faithful Trend Wizard
+port still hits (a stateful helper that indexes a **param's history** when
+applied to a derived series), see
+[rejects](./rejects.md#user-defined-functions).
 
 ## State
 
@@ -235,6 +367,26 @@ helpers — `ema`, `sma`, `rsi`, `macd`, `bb`, `atr`, `stoch`, `crossover`,
 `crossunder`, `pivothigh`/`pivotlow`, `vwap`, and more). A handful of names
 differ in signature (e.g. Pine `ta.rma` → chartlang `ta.smma`) and emit a
 `ta-signature-divergence` warning so you can check the arguments.
+
+A `ta.*` call may appear **anywhere in an expression**, not only as the whole
+right-hand side of an assignment. A `ta.*` in a **scalar** position — an
+operator operand, a ternary arm, or a `math.*` / `Math.*` argument — is
+projected to its per-bar `.current` scalar so the surrounding arithmetic
+type-checks, and a `nested-ta-lowered` **info** marks the projection (deduped
+to one per script):
+
+```pine
+r = ta.rsi(close, 14) * scale            // → ta.rsi(bar.close, 14).current * (inputs.scale as number)
+s = close > open ? ta.ema(close, 8) : ta.sma(close, 8)
+```
+
+A `ta.*` in a **series** position stays a `Series` (no `.current`): a source
+argument to another `ta.*` (`ta.sma(ta.atr(14), 5)` keeps the inner `ta.atr`
+bare — chartlang `ta.*` sources are `Series<number>`), a direct `plot` / `hline`
+value, a `request.security` callback body, or a history-access receiver
+(`ta.sma(close, 20)[1]`). If an **unmapped** `ta.*` lands in a scalar position
+it cannot be projected and stays a bare `Series`; a `nested-ta-not-lowered`
+**warning** flags that the generated arithmetic may not type-check.
 
 A `ta.*` / `math.*` / `str.*` member with no chartlang analogue is **left
 as-is** and flagged:

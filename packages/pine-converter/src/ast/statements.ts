@@ -72,15 +72,17 @@ export type VariableDeclaration = WithSpan &
 
 /**
  * The assignment operator: `=` (declaration-or-reassignment, disambiguated
- * by Task 5's semantic analyzer) or `:=` (explicit reassignment).
+ * by Task 5's semantic analyzer), `:=` (explicit reassignment), or a compound
+ * arithmetic assignment (`+=`/`-=`/`*=`/`/=`) that reads-and-writes an
+ * existing scalar (`count += 1` ≡ `count := count + 1`).
  *
  * @since 0.1
  * @stable
  * @example
- *     const op: AssignmentOperator = ":=";
+ *     const op: AssignmentOperator = "+=";
  *     void op;
  */
-export type AssignmentOperator = "=" | ":=";
+export type AssignmentOperator = "=" | ":=" | "+=" | "-=" | "*=" | "/=";
 
 /**
  * An assignment / reassignment to an existing identifier.
@@ -350,6 +352,64 @@ export type TupleDeclaration = WithSpan &
     }>;
 
 /**
+ * One parameter of a {@link FunctionDeclaration}: the bound name and the span
+ * of its identifier token. Each param carries its own span so the semantic
+ * pass (Task 2) can register a distinct symbol per parameter without a span
+ * collision (same precedent as {@link TupleTarget}). Pine v1 UDF params are
+ * untyped — a `float x` type prefix is dropped to the bare name `x` with a
+ * `udf-typed-param-unsupported` warning, and a defaulted param rejects the
+ * whole declaration, so no `default` field is modeled here.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const p: FunctionParam = {
+ *         name: "length",
+ *         span: { startLine: 1, startColumn: 8, endLine: 1, endColumn: 14 },
+ *     };
+ *     void p;
+ */
+export type FunctionParam = WithSpan &
+    Readonly<{
+        name: string;
+    }>;
+
+/**
+ * A Pine user-defined function declaration — `name(params) => body` — in both
+ * the single-line (`f(a, b) => expr`) and multi-line (`f(a) =>` + indented
+ * block) forms. `body` is always a {@link BlockStatement}; the single-line form
+ * wraps its expression in a one-statement block. By Pine convention the body's
+ * **last** statement is the implicit return value (Pine has no `return`
+ * keyword in UDFs), so no explicit return node is synthesized. Parse-only —
+ * statefulness classification and emission live in Tasks 2–4.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const s: FunctionDeclaration = {
+ *         kind: "function-declaration",
+ *         name: "cf_slope",
+ *         params: [
+ *             { name: "ma", span: { startLine: 1, startColumn: 10, endLine: 1, endColumn: 12 } },
+ *         ],
+ *         body: {
+ *             kind: "block-statement",
+ *             body: [],
+ *             span: { startLine: 1, startColumn: 18, endLine: 1, endColumn: 18 },
+ *         },
+ *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 18 },
+ *     };
+ *     void s;
+ */
+export type FunctionDeclaration = WithSpan &
+    Readonly<{
+        kind: "function-declaration";
+        name: string;
+        params: readonly FunctionParam[];
+        body: BlockStatement;
+    }>;
+
+/**
  * A bare expression used in statement position (e.g. a `plot(...)` call).
  *
  * @since 0.1
@@ -388,6 +448,7 @@ export type Statement =
     | VariableDeclaration
     | Assignment
     | TupleDeclaration
+    | FunctionDeclaration
     | IfStatement
     | ForStatement
     | SwitchStatement

@@ -70,6 +70,48 @@ describe("lex — properties", () => {
         );
     });
 
+    // A leading-operator continuation statement: `name = term` followed by
+    // one-or-more lines that each begin (strictly indented) with an
+    // infix/ternary lead, so the lexer drops the intervening newline.
+    const continuationLead = fc.constantFrom("and", "or", "+", "-", "*", "==", ">", "?", ":");
+    const term = fc.constantFrom("a", "b", "close", "rsi", "x");
+    const continuationStatement = fc
+        .tuple(
+            term,
+            term,
+            fc.array(fc.tuple(fc.integer({ min: 1, max: 8 }), continuationLead, term), {
+                minLength: 1,
+                maxLength: 4,
+            }),
+        )
+        .map(([name, first, conts]) => {
+            const head = `${name} = ${first}`;
+            const tail = conts
+                .map(([depth, lead, rhs]) => `${" ".repeat(depth)}${lead} ${rhs}`)
+                .join("\n");
+            return `${head}\n${tail}`;
+        });
+
+    it("keeps leading-operator continuation lines transparent to block structure", () => {
+        fc.assert(
+            fc.property(
+                fc.array(continuationStatement, { minLength: 1, maxLength: 6 }),
+                (statements) => {
+                    // Every statement starts at column 0, so each continuation
+                    // line (indented ≥1) is strictly deeper and is dropped — no
+                    // indent/dedent is ever produced.
+                    const source = statements.join("\n");
+                    const { tokens } = lex(source);
+                    expect(tokens.filter((t) => t.kind === "indent")).toHaveLength(0);
+                    expect(tokens.filter((t) => t.kind === "dedent")).toHaveLength(0);
+                    expect(tokens.filter((t) => t.kind === "eof")).toHaveLength(1);
+                    expect(tokens[tokens.length - 1]?.kind).toBe("eof");
+                },
+            ),
+            { seed: SEED },
+        );
+    });
+
     it("always terminates with exactly one eof and balances indent/dedent", () => {
         fc.assert(
             fc.property(fc.array(lexeme, { minLength: 0, maxLength: 20 }), (parts) => {

@@ -3,6 +3,7 @@
 
 import type { Scenario } from "../runConformanceSuite.js";
 
+import { ARRAY_ROLLING_STATS_SCENARIO } from "./arrayRollingStats.scenario.js";
 import { BAR_CLOSE_DIRECT_INDEX_SCENARIO } from "./barCloseDirectIndex.scenario.js";
 import { BAR_POINT_TRACKING_LINE_SCENARIO } from "./barPointTrackingLine.scenario.js";
 import { BARSTATE_CONFIRMED_SCENARIO } from "./barstateConfirmed.scenario.js";
@@ -103,6 +104,7 @@ import { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 import { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
 import { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario.js";
 import { LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO } from "./lowerTfUnsupportedInterval.scenario.js";
+import { MAP_ACCUMULATOR_SCENARIO } from "./mapAccumulator.scenario.js";
 import { MATH_ROUND_TO_MINTICK_SCENARIO } from "./mathRoundToMintick.scenario.js";
 import { MTF_CAPABILITY_FALSE_SCENARIO } from "./mtfCapabilityFalse.scenario.js";
 import { MTF_REQUEST_SECURITY_CLOSE_SCENARIO } from "./mtfRequestSecurityClose.scenario.js";
@@ -254,6 +256,7 @@ import { TIMEFRAME_ISDAILY_SCENARIO } from "./timeframeIsdaily.scenario.js";
 import { UNSUPPORTED_INTERVAL_SCENARIO } from "./unsupportedInterval.scenario.js";
 import { Z_ORDER_SCENARIO } from "./zOrder.scenario.js";
 
+export { ARRAY_ROLLING_STATS_SCENARIO } from "./arrayRollingStats.scenario.js";
 export { BAR_CLOSE_DIRECT_INDEX_SCENARIO } from "./barCloseDirectIndex.scenario.js";
 export { BAR_POINT_TRACKING_LINE_SCENARIO } from "./barPointTrackingLine.scenario.js";
 export { BARSTATE_CONFIRMED_SCENARIO } from "./barstateConfirmed.scenario.js";
@@ -356,6 +359,7 @@ export { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 export { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
 export { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario.js";
 export { LOWER_TF_UNSUPPORTED_INTERVAL_SCENARIO } from "./lowerTfUnsupportedInterval.scenario.js";
+export { MAP_ACCUMULATOR_SCENARIO } from "./mapAccumulator.scenario.js";
 export { MATH_ROUND_TO_MINTICK_SCENARIO } from "./mathRoundToMintick.scenario.js";
 export { MTF_CAPABILITY_FALSE_SCENARIO } from "./mtfCapabilityFalse.scenario.js";
 export { MTF_REQUEST_SECURITY_CLOSE_SCENARIO } from "./mtfRequestSecurityClose.scenario.js";
@@ -537,6 +541,15 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     // the last five pushed closes (each plot pins to its own hash; the window
     // mean is finite from bar 0 while ta.sma(5) has a NaN warmup).
     STATE_ARRAY_ROLLING_WINDOW_SCENARIO,
+    // state.array numeric reductions — rolling stdev + median over a 14-element
+    // window; the all-adapter byte-stability proof for the array.* analytic
+    // surface (pure compute riding the existing plot hole, no new wire kind).
+    ARRAY_ROLLING_STATS_SCENARIO,
+    // Persistent keyed collection state.map — per-rounded-price volume
+    // accumulation (value-at-key + tracked-level count) over a 32-key bounded
+    // store; the all-adapter byte-stability proof for the state.map surface
+    // (pure compute riding the existing plot hole, no new wire kind).
+    MAP_ACCUMULATOR_SCENARIO,
     // Calendar accessors + session membership — `time.*` / `session.isOpen`
     // over the fixed UTC fixture. Each bar shares one time-of-day, so the
     // open branch folds the per-bar `dayofweek` into the close (always in

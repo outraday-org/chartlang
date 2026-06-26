@@ -1,0 +1,26 @@
+[
+    {
+        "code": "pine-converter/semantic/udf-recursive-rejected",
+        "severity": "error",
+        "message": "A user-defined function is recursive (it calls itself directly or through a cycle); chartlang cannot inline a recursive call graph.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 1,
+            "endLine": 3,
+            "endColumn": 52
+        },
+        "suggestion": "Rewrite the helper iteratively (a literal-bounded `for` loop), or unfold the recursion by hand."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 4,
+            "startColumn": 9,
+            "endLine": 4,
+            "endColumn": 24
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    }
+]

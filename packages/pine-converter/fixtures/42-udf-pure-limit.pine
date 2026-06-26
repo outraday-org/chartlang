@@ -1,0 +1,7 @@
+//@version=6
+indicator("UDF pure limit", overlay=false)
+cf_limit(input_val, upper_limit, lower_limit) => math.max(math.min(input_val, upper_limit), lower_limit)
+clamped_close = cf_limit(close, 100, 0)
+clamped_open = cf_limit(open, 50, 10)
+plot(clamped_close)
+plot(clamped_open)
