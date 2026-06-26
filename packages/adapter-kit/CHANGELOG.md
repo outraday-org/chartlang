@@ -1,5 +1,56 @@
 # @invinite-org/chartlang-adapter-kit
 
+## 1.7.0
+
+### Minor Changes
+
+- 3770236: Promote `monotoneCubicSegments` to the public geometry surface so every
+  smoothing adapter samples one monotone-cubic (Fritsch–Carlson) curve source
+  instead of forking it per adapter (the bug class the `shift.ts` /
+  `renderOrder.ts` promotions exist to kill). New public exports on the geometry
+  barrel and the root barrel:
+
+  - `monotoneCubicSegments(pts: ReadonlyArray<Point2>): BezierSegment[]` — converts
+    a polyline into monotone-cubic Bézier segments that pass **through** every
+    point with **no overshoot** (safe on indicator data). A canvas2d adapter
+    issues one `bezierCurveTo` per segment; a GPU adapter samples each segment
+    into denser line-strip points.
+  - `BezierSegment` — the per-segment control-points + end-point type.
+
+  Moved verbatim out of the canvas2d reference adapter's
+  `render/monotoneSpline.ts` (now a bare re-export); behaviour is byte-identical,
+  so the canvas2d goldens are untouched. The webgl example adapter samples it for
+  its default smooth `line` plots.
+
+### Patch Changes
+
+- 810125e: Scale the screen-space `draw.table` HUD by `Viewport.pxRatio` so it renders at
+  its intended physical size on device-pixel canvases.
+
+  `decomposeTable` authors its cell / font / padding / border sizes in CSS pixels
+  but resolves positions against `Viewport.pxWidth`/`pxHeight`. On a device-px
+  adapter (uplot, lightweight-charts paint into an unscaled device-px canvas) a
+  `12px` table font rendered at `12` device px — half physical size on a Retina
+  (dpr 2) display. `Viewport` gains an optional `pxRatio` (default `1`);
+  `decomposeTable` multiplies all table sizes by it, so a device-px adapter that
+  sets `pxRatio` to its device-pixel ratio renders the HUD at the same physical
+  size as a CSS-px adapter (canvas2d, konva, webgl). World-anchored geometry is
+  unaffected.
+
+  With `pxRatio` omitted (`1`) the decomposer output is byte-identical to before,
+  so every pinned adapter golden (none carry a table) is untouched. The bundled
+  uplot / lightweight-charts example adapters now pass their device-pixel ratio
+  onto the viewport; the echarts / konva example adapters fix the same
+  `draw.table` rendering through adapter-local changes (off-screen positioning,
+  zrender default-black fill, and Konva text-anchor alignment).
+
+- Updated dependencies [382d1f1]
+- Updated dependencies [48e8ebb]
+- Updated dependencies [810125e]
+- Updated dependencies [382d1f1]
+- Updated dependencies [810125e]
+  - @invinite-org/chartlang-core@1.4.0
+
 ## 1.6.0
 
 ### Minor Changes

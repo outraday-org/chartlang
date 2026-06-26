@@ -1,5 +1,97 @@
 # @invinite-org/chartlang-core
 
+## 1.4.0
+
+### Minor Changes
+
+- 382d1f1: Add numeric-reduction method signatures to `MutableArraySlot<number>` and a
+  pure frozen `array` namespace (Pine-parity free functions that delegate 1:1 to
+  the handle methods). Both reach the compiler ambient shim in lockstep.
+
+  New handle methods (signatures only — runtime bodies land in the
+  array-analytics runtime task): `sum`, `avg`, `min`, `max`, `range`,
+  `variance(biased?)`, `stdev(biased?)`, `median`, `percentile(p)`,
+  `indexOf(value)`, `includes(value)`, `sort(order?)` (returns a fresh sorted
+  `ReadonlyArray<number>` — never mutates the ring). Numeric reductions skip NaN
+  and return `NaN` for an empty / all-NaN window.
+
+  New exports: `array` (value) and `ArrayNamespace` (type) from
+  `@invinite-org/chartlang-core`.
+
+- 48e8ebb: Widen `input.enum` from `T extends string` to `T extends string | number`, so a
+  dropdown can be backed by numeric options (`input.enum(21, [8, 21, 30, 50, 100])`)
+  in addition to string options. The `EnumDescriptor` generic bound and the
+  `InputDescriptor` enum union member widen to match; the string form is unchanged.
+  This is additive — existing string-enum callers and goldens are untouched. The
+  compiler's ambient core shim mirrors the widened signature in lockstep.
+- 810125e: Add the pure, frozen `math` namespace to core (and mirror it in the compiler
+  ambient shim) carrying only the chart-aware / Pine-parity scalar helpers bare
+  `Math` lacks. Bare `Math.*` (except `Math.random`) stays available in
+  `compute`; `math` does **not** re-wrap it.
+
+  New core exports (also available as a frozen `math.*` namespace):
+
+  - `math.roundTo(value, step)` / `math.roundToMintick(value, mintick)` —
+    round to the nearest integer multiple of `step` (price-snapping); a
+    non-positive / non-finite step is a no-op.
+  - `math.na(value)` — `true` when `value` is NaN or `±Infinity` (the scalar
+    twin of the series-aware `ta.nz` family).
+  - `math.nz(value, replacement?)` — scalar NaN-coalesce → `replacement ?? 0`.
+  - `math.fixnan(value, lastGood)` — `na(value) ? lastGood : value`.
+  - `math.sign(value)`, `math.clamp(value, lo, hi)`.
+  - `math.avg(...values)` / `math.sum(...values)` — variadic skip-NaN scalar
+    reducers (NaN on an empty / all-non-finite list).
+
+  `MathNamespace` (`typeof math`) is exported alongside it.
+
+- 382d1f1: Add the `state.map<K, V>(capacity)` keyed-collection primitive (core type + hole
+
+  - registry + compiler ambient shim + literal-capacity guard). The sibling of
+    `state.array`: a persistent, bounded key→value store with the same
+    committed/tentative slot lifecycle. Task 1 of the `map-collection` feature —
+    the runtime store (Task 2) and converter/conformance/docs (Task 3) land
+    separately.
+
+  New core exports: `MutableMapSlot<K extends string | number, V>` (type) and the
+  `state.map` hole on the frozen `state` namespace. The v1 handle surface is
+  `set(k, v)`, `get(k): V | undefined`, `has(k)`, `delete(k): boolean`,
+  `clear()`, `readonly size`, and `keyAt(index): K | undefined` — bounded indexing
+  (`for (let i = 0; i < m.size; i++)`) rather than iterators, which are deferred.
+  Keys are `string | number`; the v1 value type is `number`; the handle is not
+  number-coercible. `capacity` is a required compile-time numeric literal.
+
+  `STATEFUL_PRIMITIVES` gains `{ name: "state.map", slot: true }`. The compiler's
+  ambient shim mirrors `MutableMapSlot` + `StateNamespace.map`, and the existing
+  `state.array` literal-capacity guard now also covers `state.map` (same
+  `state-array-capacity-not-literal` / `state-array-capacity-exceeds-max`
+  diagnostic codes, with the message naming the matched primitive).
+
+- 810125e: Add the pure, frozen `str` namespace to core (and mirror it in the compiler
+  ambient shim) — Pine-parity string + number-format helpers for building the
+  dynamic text the already-shipped `draw.text` / `draw.table` / `draw.marker` /
+  `alert(...)` holes consume. Like `color` / `math`, it is frozen, deterministic,
+  and compute-time, with no slot and no capability.
+
+  Number formatting is host-independent — a hand-rolled fixed/precision formatter
+  (no `Intl`, no `toLocaleString`, no locale/date) — so outputs are byte-identical
+  across the worker and quickjs hosts.
+
+  New core exports (also available as a frozen `str.*` namespace):
+
+  - `str.tostring(value, format?)` — numbers via a Pine-style mask (`"#.##"`
+    trims trailing zeros; `"0.0000"` zero-pads to a fixed width); `NaN` / `±∞`
+    render the Pine glyphs; `-0` normalizes to `"0"`. The `"mintick"` keyword
+    form is deferred — the author passes a numeric step.
+  - `str.format(template, ...args)` — index-placeholder substitution (`{0}` /
+    `{1}`) with an optional `{n,number,MASK}` numeric sub-mask and `{{` / `}}`
+    literal braces; an out-of-range index is left intact (Pine parity).
+  - `str.length` / `str.contains` / `str.startsWith` / `str.endsWith` /
+    `str.replace` (first occurrence) / `str.replaceAll` / `str.split` /
+    `str.substring` / `str.upper` / `str.lower` / `str.trim` / `str.repeat`
+    (negative / fractional counts guarded).
+
+  `StrNamespace` (`typeof str`) is exported alongside it.
+
 ## 1.3.0
 
 ### Minor Changes

@@ -1,5 +1,82 @@
 # @invinite-org/chartlang-runtime
 
+## 1.4.0
+
+### Minor Changes
+
+- 382d1f1: Implement the `MutableArraySlot<number>` numeric-reduction bodies on the
+  `state.array` runtime handle: `sum`, `avg`, `min`, `max`, `range`,
+  `variance(biased?)`, `stdev(biased?)`, `median`, `percentile(p)`,
+  `indexOf(value)`, `includes(value)`, `sort(order?)`. Each reads the slot's
+  tentative ring's filled region directly (O(size) via `at(i)`, never the handle's
+  `get(n)` proxy). The Pine-parity `array.*` namespace delegates to these methods,
+  so there is one implementation.
+
+  Semantics: statistical reductions skip `NaN` (empty / all-`NaN` window → `NaN`,
+  never `0`); variance is the numerically-stable Welford single pass (population
+  by default, sample when `biased === false`, `NaN` when `count < 2`);
+  median/percentile use linear interpolation between closest ranks (`percentile`
+  clamps `p` to `[0, 100]`); `indexOf` is strict (cannot find `NaN`) while
+  `includes` is SameValueZero (finds `NaN`); `sort` returns a fresh sorted copy
+  and never mutates the ring. Lands unit + property + golden tests.
+
+- 382d1f1: Implement the runtime `state.map<K, V>(capacity)` slot — Task 2 of the
+  `map-collection` feature. A bounded, insertion-ordered keyed store backed by two
+  `Map<MapKey, number>`s (committed + tentative) behind the identity-stable
+  `MutableMapSlot` handle, reusing the `state.array` committed/tentative slot
+  lifecycle: writes during a tick are tentative, a head-replacing tick rolls them
+  back to the last committed map, and a bar close commits the tentative map.
+
+  Eviction is insertion-order FIFO: inserting a **new** key once `size ===
+capacity` evicts the oldest-inserted key; re-`set`ting an existing key updates in
+  place without changing its insertion age; `delete` then re-`set` re-ages the key
+  to newest. `get` returns `undefined` for an absent key (distinct from a stored
+  `0`); `keyAt(index)` reads the insertion-order key (`0` = oldest), `undefined`
+  out of range.
+
+  Snapshot/restore rides the existing persistence plumbing under a `:map`
+  namespace suffix: each slot serialises to insertion-ordered `[key, value]` entry
+  tuples (preserving the `string` vs `number` key distinction; non-finite values
+  ride as `null`), restores at the persisted capacity, and degrades to a fresh
+  slot — never throws — on a malformed or over-capacity snapshot. Warm restart,
+  bundle dep/sibling isolation, and `dispose` mirror `state.array`. No wire,
+  converter, or adapter change.
+
+- 48e8ebb: Make numeric `input.enum` execution complete (T4 Task 4 counterpart to Task 1's
+  core widening).
+
+  - **Runtime — `resolveInputs.matchesDescriptor`'s `enum` arm accepts a numeric
+    override.** It previously type-gated an adapter override to `string`, so a
+    numeric-enum override (`input.enum(21, [8, 21, 30])` overridden to `30`) was
+    wrongly rejected with `input-coercion-failed` and fell back to the default.
+    The arm now accepts a `string` OR `number` value that names a valid option.
+    String-enum behaviour is byte-stable (a string value still checks string
+    membership).
+  - **Compiler — `extractInputs` serialises numeric enum options.** The manifest
+    extractor previously required `input.enum` options to be string literals, so
+    a numeric dropdown emitted `input-default-not-literal` and failed to compile.
+    A uniform numeric or uniform string options list now serialises; a mixed
+    string/number list is still rejected (it cannot type-check). The numeric
+    default already round-tripped.
+  - **Editor — the inputs form renders numeric enums and preserves their type.**
+    `InputsFormOption.value` widens to `string | number`, the `<select>` value
+    stringifies numeric current values so the control matches an option, and the
+    change handler coerces the DOM string back to a number for numeric-enum
+    options. Without this, a numeric override picked in the form was emitted as a
+    string and silently discarded by the runtime's typed membership check.
+
+### Patch Changes
+
+- Updated dependencies [3770236]
+- Updated dependencies [382d1f1]
+- Updated dependencies [48e8ebb]
+- Updated dependencies [810125e]
+- Updated dependencies [382d1f1]
+- Updated dependencies [810125e]
+- Updated dependencies [810125e]
+  - @invinite-org/chartlang-adapter-kit@1.7.0
+  - @invinite-org/chartlang-core@1.4.0
+
 ## 1.3.0
 
 ### Minor Changes
