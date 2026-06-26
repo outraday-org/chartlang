@@ -85,6 +85,50 @@ describe("InputsForm", () => {
         expect(container.querySelector("form")?.classList.contains("custom-inputs")).toBe(true);
     });
 
+    it("renders numeric enum options and coerces the selection back to a number", () => {
+        const changes: Readonly<Record<string, unknown>>[] = [];
+        render(
+            <InputsForm
+                manifest={{
+                    ...inputsFormTestManifest,
+                    inputs: {
+                        length: { kind: "enum", defaultValue: 21, options: [8, 21, 30] },
+                    },
+                }}
+                onChange={(next) => {
+                    changes.push(next);
+                }}
+                value={{ length: 8 }}
+            />,
+        );
+
+        // selectValue stringifies the numeric current value so the <select> matches.
+        expect(screen.getByLabelText("length")).toHaveProperty("value", "8");
+        // coerceSelectValue maps the DOM string back to the typed numeric option.
+        fireEvent.change(screen.getByLabelText("length"), { target: { value: "21" } });
+
+        expect(changes).toEqual([{ length: 21 }]);
+    });
+
+    it("renders an enum select even when the current value is neither string nor number", () => {
+        render(
+            <InputsForm
+                manifest={{
+                    ...inputsFormTestManifest,
+                    inputs: {
+                        length: { kind: "enum", defaultValue: 21, options: [8, 21, 30] },
+                    },
+                }}
+                onChange={() => undefined}
+                value={{ length: true }}
+            />,
+        );
+
+        // selectValue returns "" for the non-string/non-number value; jsdom then
+        // falls back to displaying the first option, but the empty branch ran.
+        expect(screen.getByLabelText("length").tagName).toBe("SELECT");
+    });
+
     it("renders single-line strings and empty values for non-string text and non-number numeric values", () => {
         render(
             <InputsForm

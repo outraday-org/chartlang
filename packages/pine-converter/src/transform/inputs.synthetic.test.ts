@@ -45,6 +45,16 @@ function inputCall(kind: string, defaultValue: string): CallExpression {
     };
 }
 
+// A bare `input(<defaultValue>)` call (callee identifier `input`).
+function bareInputCall(defaultValue: ExpressionNode): CallExpression {
+    return {
+        kind: "call-expression",
+        callee: { kind: "identifier-expression", name: "input", span: SPAN },
+        args: [{ name: null, value: defaultValue, span: SPAN }],
+        span: SPAN,
+    };
+}
+
 function scriptWith(body: readonly Statement[]): Script {
     return { kind: "script", version: null, declaration: null, body, span: SPAN };
 }
@@ -87,6 +97,16 @@ describe("transformInputs — synthetic defensive arms", () => {
         };
         const scaffold = runBody([{ kind: "expression-statement", expression: tuple, span: SPAN }]);
         expect(scaffold.inputs.map((i) => i.code)).toEqual(["input.int(1)", "input.int(2)"]);
+    });
+
+    it("promotes inline inputs nested in an array-literal value", () => {
+        const array: ExpressionNode = {
+            kind: "array-literal-expression",
+            elements: [inputCall("int", "3"), inputCall("int", "4")],
+            span: SPAN,
+        };
+        const scaffold = runBody([{ kind: "expression-statement", expression: array, span: SPAN }]);
+        expect(scaffold.inputs.map((i) => i.code)).toEqual(["input.int(3)", "input.int(4)"]);
     });
 
     it("promotes inline inputs in a switch subject and case bodies", () => {
@@ -139,5 +159,33 @@ describe("transformInputs — synthetic defensive arms", () => {
             },
         ]);
         expect(scaffold.inputs.map((i) => i.code)).toEqual(["input.int(5)"]);
+    });
+
+    it("rejects a bare input whose default is a literal-expression of kind na", () => {
+        // A bare `na` parses to a dedicated `na-expression`, never a
+        // `literal-expression` with `literalKind: "na"`, so the
+        // `BARE_TYPED_FACTORY` miss arm is unreachable from real parser output —
+        // exercised here through a hand-built literal node.
+        const diagnostics = new DiagnosticCollector();
+        const analysis = {
+            script: scriptWith([
+                {
+                    kind: "assignment",
+                    operator: "=",
+                    name: "x",
+                    value: bareInputCall({
+                        kind: "literal-expression",
+                        literalKind: "na",
+                        value: "na",
+                        span: SPAN,
+                    }),
+                    span: SPAN,
+                },
+            ]),
+        } as unknown as SemanticResult;
+        const scaffold = emptyScaffold();
+        transformInputs(analysis, scaffold, diagnostics);
+        expect(scaffold.inputs).toHaveLength(0);
+        expect(diagnostics.has("pine-converter/transform/non-literal-input-default")).toBe(true);
     });
 });

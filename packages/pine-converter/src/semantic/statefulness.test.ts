@@ -97,6 +97,16 @@ describe("collectUdfBodyFacts — expression traversal", () => {
         expect([...facts.calls]).toContain("cf_a");
     });
 
+    it("descends array-literal elements", () => {
+        const tree: ExpressionNode = {
+            kind: "array-literal-expression",
+            elements: [call(ident("cf_in_array")), ident("z")],
+            span: SPAN,
+        };
+        const facts = collectUdfBodyFacts(block([exprStmt(tree)]));
+        expect([...facts.calls]).toEqual(["cf_in_array"]);
+    });
+
     it("descends every expression node kind", () => {
         const tree: ExpressionNode = {
             kind: "binary-expression",

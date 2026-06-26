@@ -424,6 +424,15 @@ describe("inferQualifier — units", () => {
         ).toBe("const");
     });
 
+    it("walks array-literal elements (no tuple-destructuring diagnostic)", () => {
+        const clean = codes(`${HEADER}x = [close, open]\n`);
+        expect(clean).not.toContain("pine-converter/semantic/unsupported-tuple-destructuring");
+        // Descending into elements still resolves names — an unknown one flags.
+        expect(codes(`${HEADER}x = [ghost]\n`)).toContain(
+            "pine-converter/semantic/unknown-identifier",
+        );
+    });
+
     it("joins through unary, paren, history, tuple, and lambda forms", () => {
         const root = createScopeBuilder(null, lit.span);
         const resolve = (n: string): SymbolInfo | null => resolveSymbol(root, n);
@@ -453,6 +462,12 @@ describe("inferQualifier — units", () => {
         expect(
             inferQualifier(
                 { kind: "tuple-expression", elements: [close, lit], span: lit.span },
+                resolve,
+            ),
+        ).toBe("series");
+        expect(
+            inferQualifier(
+                { kind: "array-literal-expression", elements: [close, lit], span: lit.span },
                 resolve,
             ),
         ).toBe("series");

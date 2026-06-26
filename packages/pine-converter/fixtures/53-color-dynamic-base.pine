@@ -1,0 +1,5 @@
+//@version=6
+indicator("Color Dynamic Base", overlay=true)
+trendCol = close > open ? color.green : color.red
+plot(close, "Trend", color=color.new(trendCol, 50))
+plot(open, "RGB", color=color.rgb(close > open ? 0 : 255, 153, 0))

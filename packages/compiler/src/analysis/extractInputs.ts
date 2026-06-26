@@ -223,7 +223,7 @@ function serialiseDescriptor(
 
     if (wireKind === "enum") {
         const optionsArg = call.arguments[1];
-        const options = optionsArg === undefined ? null : readStringArray(optionsArg);
+        const options = optionsArg === undefined ? null : readEnumOptions(optionsArg);
         if (options === null) {
             addDefaultLiteralDiagnostic(builderKind, optionsArg ?? call.expression, context);
             return null;
@@ -332,10 +332,21 @@ function readLiteral(node: ts.Expression): unknown | undefined {
     if (unwrapped.kind === ts.SyntaxKind.TrueKeyword) return true;
     if (unwrapped.kind === ts.SyntaxKind.FalseKeyword) return false;
     if (ts.isArrayLiteralExpression(unwrapped)) {
-        const values: string[] = [];
+        // `input.enum` options are `string | number` (core widened the generic),
+        // but a single enum is UNIFORM — a uniform numeric or uniform string list
+        // serialises; a mixed list is not a valid enum (and would not type-check).
+        const values: Array<string | number> = [];
+        let elementType: "string" | "number" | null = null;
         for (const element of unwrapped.elements) {
             const literal = readLiteral(element);
-            if (typeof literal !== "string") return undefined;
+            if (typeof literal !== "string" && typeof literal !== "number") return undefined;
+            const literalType: "string" | "number" =
+                typeof literal === "string" ? "string" : "number";
+            if (elementType === null) {
+                elementType = literalType;
+            } else if (literalType !== elementType) {
+                return undefined;
+            }
             values.push(literal);
         }
         return Object.freeze(values);
@@ -343,7 +354,7 @@ function readLiteral(node: ts.Expression): unknown | undefined {
     return undefined;
 }
 
-function readStringArray(node: ts.Expression): ReadonlyArray<string> | null {
+function readEnumOptions(node: ts.Expression): ReadonlyArray<string | number> | null {
     const value = readLiteral(node);
     if (!Array.isArray(value)) return null;
     return Object.freeze(value.slice());

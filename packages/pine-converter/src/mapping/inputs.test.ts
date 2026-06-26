@@ -3,7 +3,7 @@
 
 import { input } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
-import { INPUT_MAP, inputLookup } from "./inputs.js";
+import { INPUT_MAP, STRING_OPTIONS_ENUM_BUILDER, inputLookup } from "./inputs.js";
 
 describe("INPUT_MAP", () => {
     it("passes the simple input forms straight through", () => {
@@ -29,6 +29,18 @@ describe("INPUT_MAP", () => {
 
     it("flags input.enum as a REJECT", () => {
         expect(INPUT_MAP.get("input.enum")?.chartlang).toBeNull();
+    });
+
+    it("carries a recognised-primitive marker for the bare input() form", () => {
+        const m = INPUT_MAP.get("input");
+        expect(m?.chartlang).toBe("input.source");
+        expect(m?.notes).toContain("typed");
+    });
+
+    it("exposes the string-options enum bridge target as a real input.* builder", () => {
+        expect(STRING_OPTIONS_ENUM_BUILDER).toBe("input.enum");
+        const member = STRING_OPTIONS_ENUM_BUILDER.replace(/^input\./, "");
+        expect(new Set(Object.keys(input))).toContain(member);
     });
 
     it("every non-null chartlang target is a real input.* builder", () => {

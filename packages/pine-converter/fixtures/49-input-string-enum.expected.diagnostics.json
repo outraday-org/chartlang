@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/input-string-options-default-mismatch",
+        "severity": "warning",
+        "message": "An `input.string(default, options=[…])` default is not one of the listed options; the `input.enum` is still emitted with the given default.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 12,
+            "endLine": 5,
+            "endColumn": 70
+        },
+        "suggestion": "Set the default to one of the `options=` values so the dropdown opens on a valid selection."
+    }
+]

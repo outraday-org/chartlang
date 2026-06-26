@@ -99,6 +99,7 @@ function exprOfDepth(depth: number): fc.Arbitrary<string> {
         fc.tuple(sub, sub, sub).map(([c, a, b]) => `(${c} ? ${a} : ${b})`),
         fc.tuple(sub, sub).map(([f, a]) => `ta.ema(${f}, ${a})`),
         sub.map((x) => `close[${x}]`),
+        fc.tuple(sub, sub).map(([l, r]) => `[${l}, ${r}]`),
     );
 }
 

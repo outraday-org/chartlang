@@ -391,6 +391,13 @@ describe("substituteIterator", () => {
             span: SPAN,
         });
         expect(
+            subValue({ kind: "array-literal-expression", elements: [ident("i")], span: SPAN }),
+        ).toEqual({
+            kind: "array-literal-expression",
+            elements: [intLit("7")],
+            span: SPAN,
+        });
+        expect(
             subValue({ kind: "lambda-expression", params: ["x"], body: ident("i"), span: SPAN }),
         ).toEqual({ kind: "lambda-expression", params: ["x"], body: intLit("7"), span: SPAN });
         expect(subValue({ kind: "na-expression", span: SPAN })).toEqual({
@@ -499,6 +506,13 @@ describe("substituteParams", () => {
         });
         expect(subNode({ kind: "tuple-expression", elements: [ident("x")], span: SPAN })).toEqual({
             kind: "tuple-expression",
+            elements: [REPL],
+            span: SPAN,
+        });
+        expect(
+            subNode({ kind: "array-literal-expression", elements: [ident("x")], span: SPAN }),
+        ).toEqual({
+            kind: "array-literal-expression",
             elements: [REPL],
             span: SPAN,
         });

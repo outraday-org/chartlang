@@ -74,7 +74,7 @@ export type InputDescriptor<T> =
     | FloatDescriptor
     | BoolDescriptor
     | StringDescriptor
-    | EnumDescriptor<string>
+    | EnumDescriptor<string | number>
     | ColorDescriptor
     | SourceDescriptor
     | TimeDescriptor
@@ -135,9 +135,11 @@ export type BoolDescriptor = Common<"bool", boolean>;
 export type StringDescriptor = Common<"string", string> & Readonly<{ multiline?: boolean }>;
 
 /**
- * Descriptor for `input.enum(...)`.
+ * Descriptor for `input.enum(...)`. The member type is `string | number`:
+ * a string enum models a labelled dropdown, a numeric enum a fixed set of
+ * lengths/levels.
  *
- * @since 0.4
+ * @since 0.4 — numeric (`number`) members added in 1.6
  * @stable
  * @example
  *     const d: EnumDescriptor<"a" | "b"> = {
@@ -145,9 +147,15 @@ export type StringDescriptor = Common<"string", string> & Readonly<{ multiline?:
  *         defaultValue: "a",
  *         options: ["a", "b"],
  *     };
+ *     const n: EnumDescriptor<8 | 21 | 30> = {
+ *         kind: "enum",
+ *         defaultValue: 21,
+ *         options: [8, 21, 30],
+ *     };
  *     void d;
+ *     void n;
  */
-export type EnumDescriptor<T extends string> = Common<"enum", T> &
+export type EnumDescriptor<T extends string | number> = Common<"enum", T> &
     Readonly<{ options: ReadonlyArray<T> }>;
 
 /**

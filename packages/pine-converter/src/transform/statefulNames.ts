@@ -67,6 +67,7 @@ export function expressionHasStatefulPrimitive(node: ExpressionNode): boolean {
         case "paren-expression":
             return expressionHasStatefulPrimitive(node.expression);
         case "tuple-expression":
+        case "array-literal-expression":
             return node.elements.some((el) => expressionHasStatefulPrimitive(el));
         case "lambda-expression":
             return expressionHasStatefulPrimitive(node.body);

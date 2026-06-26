@@ -1,0 +1,6 @@
+//@version=6
+indicator("Color Table Transp", overlay=true)
+var table dash = na
+if barstate.islast
+    dash := table.new(position.top_right, 1, 1)
+    table.cell(dash, 0, 0, "Up", bgcolor=color.new(color.green, 30), text_color=color.rgb(0, 0, 0, 20))

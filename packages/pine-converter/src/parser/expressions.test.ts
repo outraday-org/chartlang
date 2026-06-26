@@ -3,10 +3,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { BinaryExpression, ExpressionNode } from "../ast/index.js";
+import type { ArrayLiteralExpression, BinaryExpression, ExpressionNode } from "../ast/index.js";
 import { lex } from "../lexer/index.js";
 import { createContext } from "./context.js";
 import { parseExpression } from "./expressions.js";
+import { parseStatement } from "./statements.js";
 
 function exprFrom(source: string): ExpressionNode {
     const ctx = createContext(lex(source).tokens);
@@ -22,6 +23,13 @@ function exprAndDiagnostics(source: string) {
 function asBinary(node: ExpressionNode): BinaryExpression {
     if (node.kind !== "binary-expression") {
         throw new Error(`expected binary-expression, got ${node.kind}`);
+    }
+    return node;
+}
+
+function asArray(node: ExpressionNode): ArrayLiteralExpression {
+    if (node.kind !== "array-literal-expression") {
+        throw new Error(`expected array-literal-expression, got ${node.kind}`);
     }
     return node;
 }
@@ -204,6 +212,74 @@ describe("parseExpression — paren / tuple / lambda", () => {
     it("recovers an unterminated paren", () => {
         const { codes } = exprAndDiagnostics("(a\n");
         expect(codes).toContain("pine-converter/parse/expected-token");
+    });
+});
+
+describe("parseExpression — value-position array literals", () => {
+    it("parses a numeric array on the RHS", () => {
+        const e = asArray(exprFrom("[1, 2, 3]\n"));
+        expect(e.elements).toHaveLength(3);
+        expect(e.elements.map((el) => el.kind)).toEqual([
+            "literal-expression",
+            "literal-expression",
+            "literal-expression",
+        ]);
+    });
+
+    it("parses a string array as an `options=` named-arg value", () => {
+        const e = exprFrom('input.string("EMA", options = ["SMA", "EMA"])\n');
+        expect(e.kind).toBe("call-expression");
+        if (e.kind === "call-expression") {
+            const options = e.args.find((arg) => arg.name === "options");
+            expect(options?.value.kind).toBe("array-literal-expression");
+            if (options?.value.kind === "array-literal-expression") {
+                expect(options.value.elements.map((el) => el.kind)).toEqual([
+                    "literal-expression",
+                    "literal-expression",
+                ]);
+            }
+        }
+    });
+
+    it("parses an array as a positional call argument", () => {
+        const e = exprFrom("f([high, low])\n");
+        if (e.kind === "call-expression") {
+            expect(e.args[0].value.kind).toBe("array-literal-expression");
+        }
+    });
+
+    it("parses an empty array", () => {
+        expect(asArray(exprFrom("[]\n")).elements).toHaveLength(0);
+    });
+
+    it("allows a trailing comma", () => {
+        expect(asArray(exprFrom("[1, 2,]\n")).elements).toHaveLength(2);
+    });
+
+    it("parses a nested array of arrays", () => {
+        const e = asArray(exprFrom("[[1], [2]]\n"));
+        expect(e.elements.map((el) => el.kind)).toEqual([
+            "array-literal-expression",
+            "array-literal-expression",
+        ]);
+    });
+
+    it("recovers without throwing on an unterminated array", () => {
+        const { expr, codes } = exprAndDiagnostics("[1, 2\n");
+        // The zero-width fallback leaves the boundary token so the statement
+        // layer (not this expression entry) reports the recovery.
+        expect(expr.kind).toBe("unknown-expression");
+        expect(codes).toEqual([]);
+    });
+
+    it("does not regress postfix history access `a[0]`", () => {
+        const e = exprFrom("a[0]\n");
+        expect(e.kind).toBe("history-access-expression");
+    });
+
+    it("does not regress `[a, b] = x` statement-leading tuple destructuring", () => {
+        const stmt = parseStatement(createContext(lex("[a, b] = ta.macd(close)\n").tokens));
+        expect(stmt?.kind).toBe("tuple-declaration");
     });
 });
 

@@ -166,6 +166,7 @@ export function substituteIterator(
         case "paren-expression":
             return { ...node, expression: substituteIterator(node.expression, variable, value) };
         case "tuple-expression":
+        case "array-literal-expression":
             return {
                 ...node,
                 elements: node.elements.map((el) => substituteIterator(el, variable, value)),
@@ -280,6 +281,7 @@ export function substituteParams(
         case "paren-expression":
             return { ...node, expression: substituteParams(node.expression, bindings) };
         case "tuple-expression":
+        case "array-literal-expression":
             return {
                 ...node,
                 elements: node.elements.map((el) => substituteParams(el, bindings)),

@@ -129,6 +129,12 @@ describe("emitWithContext", () => {
         ).toBe("[inputs.len]");
         expect(
             emitWithContext(
+                { kind: "array-literal-expression", elements: [ident("len")], span: SPAN },
+                c,
+            ),
+        ).toBe("[inputs.len]");
+        expect(
+            emitWithContext(
                 { kind: "lambda-expression", params: ["x"], body: ident("len"), span: SPAN },
                 c,
             ),

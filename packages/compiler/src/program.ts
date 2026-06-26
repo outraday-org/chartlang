@@ -1014,7 +1014,7 @@ declare module "@invinite-org/chartlang-core" {
     export type FloatDescriptor = CommonInputDescriptor<"float", number> & NumericInputOpts;
     export type BoolDescriptor = CommonInputDescriptor<"bool", boolean>;
     export type StringDescriptor = CommonInputDescriptor<"string", string> & Readonly<{ multiline?: boolean }>;
-    export type EnumDescriptor<T extends string> = CommonInputDescriptor<"enum", T> & Readonly<{ options: ReadonlyArray<T> }>;
+    export type EnumDescriptor<T extends string | number> = CommonInputDescriptor<"enum", T> & Readonly<{ options: ReadonlyArray<T> }>;
     export type ColorDescriptor = CommonInputDescriptor<"color", Color>;
     export type SourceDescriptor = CommonInputDescriptor<"source", SourceField>;
     export type TimeDescriptor = CommonInputDescriptor<"time", number> & Readonly<{ pickFromChart?: boolean }>;
@@ -1033,7 +1033,7 @@ declare module "@invinite-org/chartlang-core" {
         | FloatDescriptor
         | BoolDescriptor
         | StringDescriptor
-        | EnumDescriptor<string>
+        | EnumDescriptor<string | number>
         | ColorDescriptor
         | SourceDescriptor
         | TimeDescriptor
@@ -1047,7 +1047,7 @@ declare module "@invinite-org/chartlang-core" {
         float(defaultValue: number, opts?: NumericInputOpts & Readonly<{ title?: string }>): FloatDescriptor;
         bool(defaultValue: boolean, opts?: Readonly<{ title?: string }>): BoolDescriptor;
         string(defaultValue: string, opts?: Readonly<{ title?: string; multiline?: boolean }>): StringDescriptor;
-        enum<T extends string>(
+        enum<T extends string | number>(
             defaultValue: T,
             options: ReadonlyArray<T>,
             opts?: Readonly<{ title?: string }>,

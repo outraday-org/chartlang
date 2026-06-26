@@ -1,0 +1,50 @@
+[
+    {
+        "code": "pine-converter/transform/drawing-only-script",
+        "severity": "info",
+        "message": "Script emits only drawings; converted as a `defineDrawing` (plot capability dropped).",
+        "span": {
+            "startLine": 2,
+            "startColumn": 1,
+            "endLine": 2,
+            "endColumn": 46
+        },
+        "suggestion": "Add a `plot(...)` call if the script should remain a `defineIndicator`."
+    },
+    {
+        "code": "pine-converter/transform/table-bucket-cap-adjusted",
+        "severity": "info",
+        "message": "The `other` drawing-bucket cap was raised to fit the converted tables.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 13,
+            "endLine": 5,
+            "endColumn": 48
+        },
+        "suggestion": "No action needed; the cap was widened to match the table count."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 6,
+            "startColumn": 42,
+            "endLine": 6,
+            "endColumn": 68
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 6,
+            "startColumn": 81,
+            "endLine": 6,
+            "endColumn": 103
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    }
+]

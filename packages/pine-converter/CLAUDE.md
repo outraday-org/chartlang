@@ -340,9 +340,41 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `AssignmentOperator`. The Task-3 stub masked a latent single-`next()` bug by
   greedily swallowing the operator into its token run; the real parser stops at
   the operator, so the operator must be consumed explicitly.
+- **An inline `switch`/arrow arm body reads a comma-separated assignment LIST,
+  not a single statement.** `parseSwitchCase` (`statements.ts`) loops on `,`
+  (relying on the lexer's trailing-comma line continuation, so `a := 8, b := 21`
+  is one logical line), parsing each element as its own `Statement` into
+  `SwitchCase.body` — so an arm body is N statements. The AST is unchanged
+  (`SwitchCase.body` was already `readonly Statement[]`); the switch lowering
+  already iterates it (see the transform "`switch` lowering" invariant).
+- **A `switch` used as a VALUE is a clean parse reject, NOT a silently-broken
+  expression.** `switch` parses only as a STATEMENT; in a declaration/assignment
+  value position (`float r = switch s …`, `x = switch s …` — Trend Wizard's
+  `cf_ma` return) `rejectValueSwitch` (`statements.ts`, called from
+  `parseVariableDeclaration` + `parseAssignment` before `parseExpression`) emits
+  ONE `switch-expression-unsupported` (error) and `recoverCompound`s the
+  `switch <subject>` header + indented arm block, returning a placeholder
+  `unknown-expression` (the transform emits nothing for it). Lowering it to a
+  ternary chain (a new `SwitchExpression` node + Pratt surgery) is a deferred
+  follow-up.
 - **History `offset` is any expression.** Literal-bound enforcement for the
   chartlang emit constraint is Task 5/8, not the parser — `arr[i]` parses
   successfully here.
+- **A `[` has THREE disjoint contexts; the Pratt structure keeps them apart.**
+  (a) A **prefix** `[` (no left operand — reached from `parsePrimary` at a value
+  start: after `=`/`:=`/`(`/`,`/an operator, or an `options=` named-arg value)
+  is a **value-position array literal** → `ArrayLiteralExpression { elements:
+  readonly ExpressionNode[] }` (`parseArrayLiteral`, empty `[]` + trailing comma
+  allowed; elements via `parseExpression`). (b) A **postfix** `[` (a receiver is
+  present — `a[0]`) stays the precedence-9 `history-access-expression` in
+  `parsePostfix`. (c) A **statement-leading** `[` is owned by `parseStatement`
+  (`statements.ts`), NOT this expression entry — see the tuple note below. An
+  unterminated array literal (`[1, 2`) returns the zero-width `UnknownExpression`
+  fallback (boundary token left in place, no diagnostic here — the statement
+  layer reports it), never throws, never consumes to EOF. `emitExpr`/`unparse`
+  emit `[e0, e1, …]` (the `array-literal-expression` arm shares the
+  `tuple-expression` body where the output is identical). Task 3/4 consume the
+  node as an `options=` value (each element a `literal-expression`).
 - **`type` / `method` / library `import` hard-reject at the top level**
   (`statements.ts` `parseKeywordStatement`): `unsupported-udt` /
   `unsupported-method` (block-recovered via `recoverCompound`) and
@@ -424,7 +456,12 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   (`looksLikeTupleDeclaration`, `parser/statements.ts`) parses to a
   `TupleDeclaration` AST node (`names: { name; span }[]` — per-name spans so
   the semantic `symbols` map gets one entry per element, no span collision);
-  any other `[` line still routes to `unexpected-token`. `walkTupleDeclaration`
+  any other statement-leading `[` line (a non-identifier target, a missing
+  comma, a `:=`) is rejected **explicitly in `parseStatement`** with
+  `unexpected-token` + `recoverLine` — it is NEVER allowed to fall through to
+  the value-position array-literal parse, because a statement-leading `[` is
+  always a destructuring head in Pine (value arrays appear only nested, reached
+  through `parseExpression`). `walkTupleDeclaration`
   walks the RHS and `defineSymbol`s each non-`_` target (a `_` is a discarded
   placeholder, not bound). The transform layer lowers it (see the codegen
   `emitTa`/tuple section). The legacy `unsupported-tuple-destructuring` (info)
@@ -653,6 +690,49 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   (`input.int(-1)`). Unmapped named args (`tooltip`/`group`/`inline`/
   `confirm`, a non-literal `title`/`minval`/…) warn once via
   `input-arg-not-mapped` and are dropped, but the input is still emitted.
+- **A Pine `input.string/int/float(default, title?, options=[literals])`
+  (dropdown) becomes chartlang `input.enum(default, [literals], { title? })`
+  (`resolveOptionsEnum`, parameterised by an `OptionsConfig`), keyed on the
+  `options=` named arg being an `ArrayLiteralExpression` of UNIFORM literals
+  (all strings, or all numbers — `OPTIONS_DROPDOWN_CONFIG` maps `input.string`→
+  string, `input.int`/`input.float`→numeric).** This is the
+  converter-SYNTHESISED options → enum bridge, distinct from Pine's
+  own UDT-backed `input.enum` primitive (which STAYS rejected via
+  `input-enum-rejected`). The target builder name lives in mapping
+  (`STRING_OPTIONS_ENUM_BUILDER`, `mapping/inputs.ts`), not inlined. The
+  title threads from the 2nd positional arg OR a `title=` named arg (core's
+  `input.enum` takes the title in an options OBJECT, not a trailing slot).
+  A default ∉ options warns `input-string-options-default-mismatch` (still
+  emits the enum); a MIXED / non-literal `options=` list cannot become an
+  enum and falls back to the plain factory (options dropped) with
+  `input-string-options-not-literal` — `buildOptions(skipOptionsArg=true)`
+  suppresses the would-be double `input-arg-not-mapped` on `options`. A
+  CROSS-TYPE list (all-numeric on `input.string`, all-string on numeric) and
+  the vacuous empty `[]` DEFER to the generic path (`config.deferElements`),
+  dropping the options via `input-arg-not-mapped`. The string-enum read casts
+  as `string` in `inputCastType` (`other.ts`, gated on `input.enum("`); a
+  NUMERIC enum (`input.enum(21, …`) casts as `number`, so length args /
+  comparisons type-check. Numeric `input.enum<number>` only type-checks
+  because Task 1 widened core's `input.enum` to `T extends string | number`,
+  and is fully functional end-to-end: `compiler/extractInputs` serialises a
+  uniform numeric options list, and `runtime/resolveInputs.matchesDescriptor`'s
+  `enum` arm accepts a numeric override.
+- **A bare generic `input(...)` (callee identifier `input`, NOT
+  `input.<member>`) is recognised in `inputCalleeKey` and lowered by
+  `buildBareInput` — the SOURCE-vs-TYPED target is a TRANSFORM decision keyed
+  on the resolved `defval` (positional[0] OR named `defval=`), not a mapping
+  lookup.** A series default (OHLCV / synthetic field via `sourceDefault`) →
+  `input.source("<field>", { title? })`; a compile-time literal default → the
+  typed `input.int/float/bool/string/color` by `LiteralKind` (`BARE_TYPED_FACTORY`,
+  unary `±`-numeric preserved); a missing / `na` / computed default rejects
+  `non-literal-input-default`. Both hoist to `scaffold.inputs` (read as
+  `inputs.<name>`), so `other.ts:isInputCall` ALSO matches the bare `input`
+  callee to skip the decl in `compute`. `INPUT_MAP["input"]` is a
+  recognised-primitive MARKER only (`chartlang: "input.source"` = the series
+  target); `buildBareInput` decides the typed case. The `BARE_TYPED_FACTORY`
+  miss arm (`literalKind: "na"`) is unreachable from the real parser (bare `na`
+  is an `na-expression`, not a `literal-expression`) and is covered by a
+  synthetic-AST test (`inputs.synthetic.test.ts`).
 - **`pineTimeframeToInterval`/`intervalToPineTimeframe`
   (`timeframeConvert.ts`) are the §3 Pine-timeframe ↔ chartlang-interval
   table (`"60"`↔`"1h"`, `"D"`→`"1d"`, …), returning `null` for an
@@ -935,9 +1015,12 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
 - **The chartlang `draw.table` cell model matches Pine's `(col, row)` grid
   cleanly.** core `TableCell` is `{ text; bgColor?; textColor?;
   textHalign?; textValign?; textSize? }`; `position.*`/`text.align_*`/
-  `size.*`/`color.*` lower through `enumLookup`; non-enum styling values
-  lower via `emitExpr`. The only gaps are merge (no analogue → top-left
-  fallback) and Pine's `text_formatting`/`text_font_family`/`text_wrap`
+  `size.*`/`color.*` lower through `enumLookup`; a transparency-carrying cell
+  colour (`color.new(base, transp)` / 4-arg `color.rgb(...)`) routes through the
+  shared `convertColor` (hex fold / `color.withAlpha`, raising
+  `color-transp-approximated`); every other non-enum styling value lowers via
+  `convertColor`'s `emitExpr` fallback. The only gaps are merge (no analogue →
+  top-left fallback) and Pine's `text_formatting`/`text_font_family`/`text_wrap`
   (no analogue → `table-formatting-not-mapped` warning, dropped).
 - **Cells are collected last-write-wins into a `Map<"col:row", CellSpec>`**
   by a one-level descent (top level + `if`/`else if`/`else`/`for` bodies).
@@ -1032,16 +1115,36 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   linefill over a ring's elements → `linefill-over-ring` (Camp B). The
   `linefill-rotatedrect-approximated` info was RETIRED (the lowering is no
   longer an approximation).
-- **`convertColor(node, annotations)` + `transpToAlphaHex(transp)`
-  (`colorConvert.ts`) are the shared colour helpers.** `color.new(base, transp)`
-  with a compile-time `#RRGGBB` base (a `color.*` enum or `#RRGGBB` literal) and
-  a literal int `transp` folds to a quoted `#RRGGBBAA` string —
-  `alpha = round(255 * (100 - clamp(transp, 0, 100)) / 100)`, 2-digit uppercase
-  hex (`color.new(color.gray, 80)` → `#787B8633`; note `color.gray` is
-  `#787B86`, not the task file's illustrative `#808080`). A bare `color.*` enum
-  lowers through `enumLookup`; everything else falls back to `emitExpr`. The
-  `linefill-color-transp-approximated` info is raised by `emitLinefill` when the
-  fill colour arg is a `color.new(...)`.
+- **`colorConvert.ts` owns the ONE colour-lowering rule shared by the
+  linefill, plot/hline (`plotFamily.ts`), and table (`tables.ts`) paths — never
+  fork a second.** `convertColorWith(node, emit)` is the core; `convertColor(node,
+  annotations)` is the thin wrapper (`emit = (n) => emitExpr(n, annotations)`)
+  the linefill / box-setter paths use. The plot path passes
+  `convertColorWith(node, (n) => emitWithContext(n, ctx))` so a dynamic base /
+  transp is **input/state-aware**; the table path uses the annotation-based
+  `convertColor` (cell styling has no input context). The rule (fixed):
+  - **Literal base + literal transp folds to a quoted `#RRGGBBAA` string.**
+    `color.new(base, transp)` with a compile-time `#RRGGBB` base (a `color.*`
+    enum or `#RRGGBB` literal) → `alpha = round(255 * (100 - clamp(transp, 0,
+    100)) / 100)`, 2-digit uppercase hex via `transpToAlphaHex` (`color.new(
+    color.gray, 80)` → `#787B8633`; `color.gray` is `#787B86`, not the task
+    file's illustrative `#808080`). A 4-arg `color.rgb(r, g, b, transp)` with all
+    literal components folds the same way (`byteHex` clamps each `[0, 255]`
+    component; `color.rgb(255, 153, 0, 60)` → `#FF990066`).
+  - **A DYNAMIC base or transp emits `color.withAlpha(<base>, <alpha>)`** with
+    `alpha` in core's **0–1** range (`(100 - clamp(transp, 0, 100)) / 100` for a
+    literal transp, `(100 - <emitted transp>) / 100` for a dynamic one). The base
+    is the resolved hex when known, else the emitted expression; a 4-arg
+    `color.rgb` dynamic base re-emits `color.rgb(r, g, b)`. (chartlang core has
+    NO `color.new` — a `color.new` must NEVER reach the `emit` fallback.)
+  - A bare `color.*` enum lowers through `enumLookup`; a 3-arg `color.rgb(r, g,
+    b)` and every other node fall through to `emit` (so `color.rgb` survives and
+    Task 2's `color`-import gating must cover any surviving `color.` member).
+  - `isTranspColorForm(node)` (a 2-arg `color.new` or 4-arg `color.rgb`) is the
+    predicate the plot/hline/table call sites raise `color-transp-approximated`
+    (info) on. The linefill path keeps its own `linefill-color-transp-
+    approximated` (info), raised by `emitLinefill` when the fill colour is a
+    `color.new(...)` — the two codes are NOT overloaded across paths.
 - **New codes (APPENDED to `diagnostics/codes.ts`, no reorder):**
   `polyline-curved-anchors-warning` (warning), `polyline-closed-info` (info),
   `linefill-series-fill` (info), `linefill-color-transp-approximated` (info).
@@ -1471,7 +1574,14 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `operator`).
 - **`switch` lowering.** A subjected `switch x` → `switch (x) { case <t>: {…}
   break; … default: {…} break; }`; a subjectless `switch` (boolean-case form) →
-  an `if`/`else if`/`else` chain (a lone default renders unconditionally). The
+  an `if`/`else if`/`else` chain (a lone default renders unconditionally). **An
+  arm body is a statement LIST** (`SwitchCase.body: readonly Statement[]`), and
+  both `emitSwitch`/`emitSubjectlessSwitch` (`controlFlow.ts`) render
+  `emitBody(arm.body).join(" ")` — so a comma multi-assignment arm
+  (`"X" => a := 8, b := 21`) emits EACH element in source order (here `a = 8;
+  b = 21;`, or `<slot>.value = …` per element when the target is a `var`→state
+  slot) before the trailing `break;`. No special multi-element path — the same
+  per-statement dispatch the single-element arm uses. The
   plot family (`plotFamily.ts`), `str.*` surface (`strFormat.ts`),
   `request.security` MTF (`requestSecurity.ts`), and strategy signals
   (`strategySignals.ts`) are per-construct emitters returning a string or a warn
@@ -1638,17 +1748,23 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `polyline.new`** (their dedicated transforms own them) → `transformTables`
   → `transformPolylineLinefill` → `emit`), wired in `convert()` (`src/index.ts`,
   sync, no compile round-trip — that is the async `convertFile`'s job, Task 18).
-- **`math` and `syminfo` are an IMPORT-only / DESTRUCTURE-only pair** in
-  `UsageFlags` — they are NOT symmetric. `math` is a module-scope frozen
-  namespace (like `color`/`str`), so it pushes to `emitImports.ts` ONLY and is
-  NEVER added to the `emitCompute.ts` destructure; `syminfo` is a
-  `ComputeContext` view (`core/src/types.ts`), so it pushes to the
-  `emitCompute.ts` destructure ONLY and is NEVER imported. Both are
-  substring-scanned (`math.` / `syminfo.`) over the corpus, mirroring
-  `time.`/`session.`; the `math.` scan is case-sensitive so bare `Math.abs`
-  (capital `M`, the no-rewrap passthrough) never false-positives. The injected
-  `syminfo.mintick` step on `math.roundToMintick(x, syminfo.mintick)` is what
-  pulls BOTH in at once.
+- **`math`/`color` are IMPORT-only; `syminfo` is DESTRUCTURE-only** in
+  `UsageFlags` — they are NOT symmetric. `math` AND `color` are module-scope
+  frozen namespaces (like `str`), so each pushes to `emitImports.ts` ONLY and is
+  NEVER added to the `emitCompute.ts` destructure (`color` is NOT a
+  `ComputeContext` field — verified in `core/src/types.ts`); `syminfo` is a
+  `ComputeContext` view, so it pushes to the `emitCompute.ts` destructure ONLY
+  and is NEVER imported. All three are substring-scanned (`math.` / `color.` /
+  `syminfo.`) over the corpus, mirroring `time.`/`session.`; the `math.` scan is
+  case-sensitive so bare `Math.abs` (capital `M`, the no-rewrap passthrough)
+  never false-positives. The injected `syminfo.mintick` step on
+  `math.roundToMintick(x, syminfo.mintick)` is what pulls BOTH `math`/`syminfo`
+  in at once. **`color` rides in whenever a `color.*` member SURVIVES the Task-1
+  colour lowering** — `color.withAlpha(...)` (dynamic base/transp), a 3-arg
+  `color.rgb(...)` passthrough, or a bare palette member (`color.green`) emitted
+  verbatim in a plain assignment. An all-literal colour folds to a quoted
+  `#RRGGBBAA` string with no `color.` token, so a hex-only script imports no
+  `color` (byte-compat — no spurious import).
 - **`emitMaxDrawings.ts` emits ALL FIVE buckets when any is set** (unset → `0`)
   — core's `DrawingCounts` is a total 5-bag budget, so a partial literal is a
   compile-time type error; omit the whole property only when no bucket is set.

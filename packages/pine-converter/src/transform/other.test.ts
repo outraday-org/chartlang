@@ -144,6 +144,44 @@ describe("transformOther — control flow", () => {
         ]);
     });
 
+    it("emits every element of a comma multi-assignment subjected switch arm", () => {
+        // Task 1 parses `a := 8, b := 21` into TWO arm-body statements; the
+        // lowering renders each, in order, before the trailing `break;`.
+        expect(
+            stmts(
+                'a = 0\nb = 0\nsel = input.string("X")\nswitch sel\n    "X" => a := 8, b := 21\n    "Y" => a := 4, b := 10',
+            ),
+        ).toEqual([
+            "let a = 0;",
+            "let b = 0;",
+            'switch ((inputs.sel as string)) { case "X": { a = 8; b = 21; break; } case "Y": { a = 4; b = 10; break; } }',
+        ]);
+    });
+
+    it("emits every element of a comma multi-assignment subjectless switch arm", () => {
+        expect(
+            stmts(
+                "a = 0\nb = 0\nswitch\n    close > open => a := 8, b := 21\n    => a := 4, b := 10",
+            ),
+        ).toEqual([
+            "let a = 0;",
+            "let b = 0;",
+            "if (bar.close > bar.open) { a = 8; b = 21; } else { a = 4; b = 10; }",
+        ]);
+    });
+
+    it("mixes single- and multi-assignment arms in one switch", () => {
+        expect(
+            stmts(
+                'a = 0\nb = 0\nsel = input.string("X")\nswitch sel\n    "X" => a := 8, b := 21\n    "Y" => a := 4',
+            ),
+        ).toEqual([
+            "let a = 0;",
+            "let b = 0;",
+            'switch ((inputs.sel as string)) { case "X": { a = 8; b = 21; break; } case "Y": { a = 4; break; } }',
+        ]);
+    });
+
     it("unrolls a stateful if-body with no else (else-less branch substitution)", () => {
         const src = "for i = 0 to 1\n    if close[i] > 0\n        plot(close[i])";
         const out = stmts(src).join(" ");

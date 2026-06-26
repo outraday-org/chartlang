@@ -279,6 +279,27 @@ call to the **native JS** method (the same native-where-native-exists shape
   byte-identical formatting, just the curated surface instead of native
   methods. `str` is a module-scope import, **not** a `compute({ … })` field.
 
+## Color & transparency — Pine `transp` → chartlang alpha
+
+Pine separates a color from its transparency (`color.new(base, transp)`, or the
+4-arg `color.rgb(r, g, b, transp)`), where `transp` is `0` (opaque) … `100`
+(fully transparent). chartlang has no separate transparency channel — opacity
+lives in the color's **alpha**. The converter folds the two together with
+`alpha = (100 − transp)`:
+
+| Pine | chartlang | Note |
+|------|-----------|------|
+| `color.rgb(255, 153, 0, 60)` | `"#FF990066"` | Literal base + literal `transp` → a `#RRGGBBAA` hex string. No `color` import. |
+| `color.new(color.white, 50)` | `"#FFFFFF80"` | Named/`#RRGGBB` base + literal `transp` → hex string. |
+| `color.new(dynCol, 50)` | `color.withAlpha(dynCol, 0.5)` | A **dynamic** base (or dynamic `transp`) → `color.withAlpha(base, (100 − transp) / 100)` (alpha in 0–1). Imports `color`. |
+| `color.rgb(r, g, b)` | `color.rgb(r, g, b)` | 3-arg form passes through. Imports `color`. |
+
+- **When you write chartlang by hand**, reach for `color.withAlpha(base, a)`
+  (alpha `0`–`1`, **not** Pine's `0`–`100`) for a dynamic tint, or just write a
+  `#RRGGBBAA` string for a fixed one. `color` is a module-scope import, **not**
+  a `compute({ … })` field — it only appears in the import line when a
+  `color.*` member survives (an all-hex script imports none).
+
 ## User-defined functions — `f(a, b) => …`
 
 Pine helper functions convert, and how they lower depends on whether the
@@ -317,6 +338,30 @@ Three things to keep in mind:
   the argument natively supports history (an OHLCV field) — applied to a derived
   `ta.*` value it needs a hand-written `state.series`. A `switch`-expression body
   (Pine's `cf_ma`) does not yet parse as a helper return value.
+
+## Inputs — dropdowns → `input.enum`, bare `input()`
+
+Pine's `input.*` builders map to chartlang's, but two shapes lower into forms
+that aren't a 1:1 name match — option dropdowns become `input.enum`, and the
+legacy generic `input()` becomes a source or typed builder.
+
+| Pine | chartlang | Note |
+|------|-----------|------|
+| `input.string("EMA", options=["EMA", "SMA"])` | `input.enum("EMA", ["EMA", "SMA"])` | A string-literal `options=` dropdown. Comparisons against the value (`sel == "EMA"`) keep working — the enum value is the string. |
+| `input.int(21, options=[8, 21, 30, 50])` | `input.enum(21, [8, 21, 30, 50])` | A numeric-literal `options=` dropdown → a **numeric** `input.enum` (`input.enum` accepts `string \| number`). Same for `input.float`. |
+| `input(close, "Source")` | `input.source("close", { title: "Source" })` | Bare `input()` with a **series** default (an OHLCV / synthetic source). Hoisted to `manifest.inputs`, referenced as `inputs.<name>`. |
+| `input(14, "Length")` | `input.int(14, { title: "Length" })` | Bare `input()` with a **literal** default → the typed builder by the literal's kind (`input(14)` → `input.int`, `input(1.5)` → `input.float`, `input(true)` → `input.bool`, …). |
+
+- **Default must be one of the options.** If the dropdown `default` isn't in
+  `options=`, the enum is still emitted with an
+  `input-string-options-default-mismatch` warning — fix the source to pick a
+  listed value.
+- **Non-uniform option lists can't become an enum.** A mixed or non-literal
+  `options=` list falls back to a plain `input.string`/`input.int` with the
+  options dropped (`input-string-options-not-literal`) — list the choices as
+  plain literals to recover the dropdown.
+- **Bare `input()` rejects a non-literal, `na`, or missing default**
+  (`non-literal-input-default`).
 
 ## Gotchas
 
@@ -387,10 +432,11 @@ Three things to keep in mind:
   can pick the closest fit by hand.
 - **Inputs must be literal.** Defaults and option values must be
   compile-time literals (a unary `+`/`-` on a number is fine). A computed
-  default rejects. **The converter** does not translate Pine `input.enum`
-  (Pine v6 enums are UDT-backed) — use `input.string` as the migration
-  target. chartlang itself supports `input.enum`; this limit is
-  converter-only.
+  default rejects. Pine's own UDT-backed `input.enum` (Pine v6 enums) is
+  **not** translated — use `input.string`/`input.int` with an `options=`
+  dropdown as the migration target, which the converter then lowers to a
+  chartlang `input.enum` (see [Inputs — dropdowns &
+  bare `input()`](#inputs--dropdowns--inputenum-bare-input)).
 - **`explicit_plot_zorder` needs no translation.** chartlang already orders
   marks by declaration within a group by default, so Pine's
   `explicit_plot_zorder=true` is chartlang's default — the converter

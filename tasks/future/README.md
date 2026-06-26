@@ -10,12 +10,13 @@ that once a folder is in flight.
 
 > **TL;DR for a new chat:** Folder **waves A and B are fully done** (9 folders
 > `X-`-prefixed). **Wave C (`pine-converter-coverage`) is PARTWAY** — of its 12
-> task groups, **T9, T10, T2, T1 are done** (`X-T*`-prefixed); **T3, T4, T5, T6,
-> T7, T8, T11, T12 remain**. **Nothing is committed** — everything is in the
-> working tree. To continue, run
+> task groups, **T9, T10, T2, T1, T3, T4, T6 are done** (`X-T*`-prefixed);
+> **T5, T7, T8, T11, T12 remain**. **Nothing is committed** — everything is in
+> the working tree. To continue, run
 > `/execute-tasklist tasks/future/pine-converter-coverage/` — aggregate mode
-> auto-skips the four `X-T*` groups and starts at **T3** (see that folder's
+> auto-skips the seven `X-T*` groups and starts at **T7** (see that folder's
 > README for the remaining T-order + parked-fixture follow-ups).
+> (Last run halted by user request after T6 on 2026-06-26.)
 
 **Folder wave A (7 folders) and wave B (2 folders) are COMPLETE** — every task
 file `X-`-prefixed, folders `X-`-prefixed, all graded Complete/Ship, changes
@@ -137,7 +138,7 @@ WAVE B  ✅ DONE  (2 folders, depend on state-array)
         │ multi-symbol-security + bgcolor D2 + str + calendar land
         ▼
 WAVE C  ◑ IN PROGRESS  (capstone — consumes the others)
-  pine-converter-coverage  →  done: T9 T10 T2 T1   |   remaining: T3 T4 T5 T6 T7 T8 T11 T12
+  pine-converter-coverage  →  done: T9 T10 T2 T1 T3 T4 T6   |   remaining: T5 T7 T8 T11 T12
 ```
 
 Maximum parallel width is **7** (Wave A). The critical path is

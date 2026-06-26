@@ -67,9 +67,33 @@ faithful Trend Wizard port from type-checking.
 > primitive. Auto-promoting a history-indexed inlined argument is a planned
 > follow-up.
 
-A **`switch`-expression body** (`f(x) => switch x \n "A" => … `, Trend Wizard's
-`cf_ma`) does not yet parse as a UDF return value — it is a separate
-`switch`-as-value work item, tracked outside the UDF surface.
+### `switch` used as a value
+
+A **`switch` in value position** — `x = switch s \n "A" => … ` (Trend Wizard's
+`cf_ma` returns one) — is a clean reject:
+[`switch-expression-unsupported`](./diagnostics.md#switch-expression-unsupported)
+(error). The converter recovers the `switch` header + its indented arm block
+and resumes at the next statement, so the rest of the script still converts.
+Rewrite it as a chained ternary, or assign the result **inside each arm body**
+(which IS supported — see the multi-assignment switch in
+[supported.md](./supported.md#control-flow)):
+
+```pine
+// rejected — switch as a value
+ma = switch ma_type
+    "SMA" => ta.sma(src, len)
+    "EMA" => ta.ema(src, len)
+
+// supported — assign inside each arm
+var float ma = na
+switch ma_type
+    "SMA" => ma := ta.sma(src, len)
+    "EMA" => ma := ta.ema(src, len)
+```
+
+> **Deferred follow-up.** Lowering a value-position `switch` to a ternary chain
+> (a new `SwitchExpression` AST node + Pratt-parser surgery) is a tracked
+> follow-up, out of scope for the multi-assignment switch feature.
 
 ## Dynamic drawing collections
 
@@ -106,6 +130,8 @@ no analogue for resolving a fill across an unbounded handle collection.
 | [`input-enum-rejected`](./diagnostics.md#input-enum-rejected) | `input.enum(...)`. | Use `input.string(...)` of the allowed values. |
 | [`non-literal-input-default`](./diagnostics.md#non-literal-input-default) | An `input.*` default is computed. | Use a compile-time literal default. |
 | [`non-literal-source-input`](./diagnostics.md#non-literal-source-input) | `input.source(...)` default is a computed series. | Pass an OHLCV built-in (`close`, `hl2`, …). |
+| [`input-string-options-default-mismatch`](./diagnostics.md#input-string-options-default-mismatch) | An `input.string(default, options=[…])` default is not one of the options (the enum is still emitted). | Set the default to one of the `options=` values. |
+| [`input-string-options-not-literal`](./diagnostics.md#input-string-options-not-literal) | An `input.string(options=[…])` list has a non-literal or mixed-type element (a plain `input.string` is emitted, options dropped). | List the choices as plain string literals. |
 | [`computed-indicator-title`](./diagnostics.md#computed-indicator-title) | The `indicator(...)` title is computed. | Use a string-literal `name`. |
 
 ## Coordinates & control flow

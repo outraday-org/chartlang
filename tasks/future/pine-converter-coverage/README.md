@@ -26,11 +26,16 @@ are fully written and have been validated.
 
 ## Execution status — RESUME POINT (updated 2026-06-26)
 
-> **TL;DR for a new chat:** **4 of 12 groups are done** — `X-T9`, `X-T10`,
-> `X-T2`, `X-T1` (folders + task files `X-`-prefixed). **T3, T4, T5, T6, T7,
-> T8, T11, T12 remain.** Nothing is committed; everything is in the working
-> tree. Resume with `/execute-tasklist tasks/future/pine-converter-coverage/`
-> — aggregate mode auto-skips the `X-T*` folders and starts at **T3**.
+> **TL;DR for a new chat:** **7 of 12 groups are done** — `X-T9`, `X-T10`,
+> `X-T2`, `X-T1`, `X-T3`, `X-T4`, `X-T6` (folders + task files `X-`-prefixed).
+> **T5, T7, T8, T11, T12 remain.** Nothing is committed; everything is in the
+> working tree. Resume with `/execute-tasklist tasks/future/pine-converter-coverage/`
+> — aggregate mode auto-skips the `X-T*` folders and starts at **T7**.
+>
+> Run halted by user request after T6 (2026-06-26). Next free fixture is **54**
+> (`ls packages/pine-converter/fixtures` to confirm — T3 used 47/48, T4 49/50,
+> T6 51/52/53). Recommended remaining order: **T7, T11** (converter-internal) →
+> **T5** (needs T4, done) → **T8** (bgcolor D2 landed) → **T12**.
 
 **Done (`X-`-prefixed; all tasks Complete/Ship):**
 
@@ -53,9 +58,29 @@ are fully written and have been validated.
   fixture 43). Quality pass also fixed a general nested-`math.*` lowering gap
   and a repo-wide `docs:check` re-export failure. Fixtures 42–46.
 
+- ✅ `X-T3` — `switch` branch comma multi-assignment. Parser-only feature (the
+  switch lowering was already list-aware). Option A: switch-in-**value**-position
+  is a clean named reject (`pine-converter/parse/switch-expression-unsupported`),
+  deferred follow-up. Fixtures 47 (multi-assign, round-trips), 48 (value reject).
+  Changeset `t3-switch-multi-assign` (minor).
+- ✅ `X-T4` — input dropdowns + bare `input()`. Core `input.enum` widened to
+  `T extends string | number` (3-place compiler-shim lockstep + `InputDescriptor`
+  union member). Parser `ArrayLiteralExpression` (value-position `[…]`). Shared
+  `resolveOptionsEnum` for string **and** numeric `options=`; bare `input(defval=)`
+  → hoisted `input.source` (series) / typed (literal). **Also fixed** runtime
+  `resolveInputs.matchesDescriptor` enum arm + compiler `extractInputs` manifest
+  serialisation for numeric overrides. Fixtures 49/50. Changesets
+  `core-numeric-enum`, `t4-input-enum-converter`, `t4-numeric-enum-runtime`.
+- ✅ `X-T6` — color transparency. `convertColorWith` reuse (no fork; linefill/
+  setterFold byte-identical → no golden drift). 4-arg `color.rgb`/`color.new`:
+  literal base+transp → `#RRGGBBAA` hex; dynamic → `color.withAlpha(base,(100-t)/100)`.
+  `UsageFlags.color` import-gating (module-scope, like `math`). New info code
+  `color-transp-approximated`. Fixtures 51/52/53. Changeset `t6-color-transparency`
+  (minor).
+
 **Remaining order on resume** (the recommended order below, minus the done
-groups): **T3, T4, T6, T7, T11** (converter-internal, any order) → **T5**
-(after T4) and **T8** (bgcolor D2 already landed) → **T12**.
+groups): **T7, T11** (converter-internal, any order) → **T5**
+(after T4 — done) and **T8** (bgcolor D2 already landed) → **T12**.
 
 **Carry-forward follow-ups (do these inside the owning group, don't lose them):**
 
@@ -125,10 +150,10 @@ Status: ✅ = done (`X-`-prefixed). ☐ = remaining.
 |----|------|-------|--------------------|------------------------|-----------|
 | [T1](./X-T1-udf-declarations/) | ✅ | User-defined function declarations | pine-converter (+ maybe compiler) | TW 🔴 | — |
 | [T2](./X-T2-nested-ta-lowering/) | ✅ | Nested `ta.*` `.current` lowering | pine-converter | TW 🔴 silent | (compounds T1) |
-| [T3](./T3-switch-multi-assign/) | ☐ | `switch` branch comma multi-assignment | pine-converter | TW 🔴 | — |
-| [T4](./T4-input-string-enum/) | ☐ | `input.string/int(options=)` → `input.enum` **+ bare `input()` / source** | core + pine-converter | TW + MASM 🔴 | core `input.enum` numeric ext (new task 1) + array-literal parse |
+| [T3](./X-T3-switch-multi-assign/) | ✅ | `switch` branch comma multi-assignment | pine-converter | TW 🔴 | — |
+| [T4](./X-T4-input-string-enum/) | ✅ | `input.string/int(options=)` → `input.enum` **+ bare `input()` / source** | core + pine-converter | TW + MASM 🔴 | core `input.enum` numeric ext (new task 1) + array-literal parse |
 | [T5](./T5-tuple-security/) | ☐ | Tuple-returning `request.security` | pine-converter | TW 🔴 | `../multi-symbol-security/` + **T4** array-literal parse |
-| [T6](./T6-color-transparency/) | ☐ | 4-arg `color.rgb` / `color.new` → alpha | pine-converter | TW + MASM 🟠 silent | — |
+| [T6](./X-T6-color-transparency/) | ✅ | 4-arg `color.rgb` / `color.new` → alpha | pine-converter | TW + MASM 🟠 silent | — |
 | [T7](./T7-fill-to-fillbetween/) | ☐ | `fill(plot/hline,…)` → `draw.fillBetween` | pine-converter | TW 🟠 | — |
 | [T8](./T8-plot-visibility/) | ☐ | Per-plot visibility + Pine `display=` | core + compiler + runtime + adapters + converter | TW + MASM 🟡 | `../bgcolor-barcolor-ergonomics/` D2 (landed) |
 | [T9](./X-T9-leading-op-continuation/) | ✅ | Leading-operator (`and`/`or`) line continuation | pine-converter (lexer/parser) | MASM 🔴 **general** | — |

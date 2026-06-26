@@ -8,8 +8,8 @@ import { scanUsage } from "./usage.js";
  * Emit the minimized `@invinite-org/chartlang-core` import line for a
  * converted scaffold. The `defineIndicator` / `defineDrawing` constructor is
  * always present; every other named import (`draw`, `state`, `ta`, `plot`,
- * `hline`, `alert`, `input`, `request`, `time`, `session`, `math`) is included
- * only when the scaffold's generated source references it, and
+ * `hline`, `alert`, `input`, `request`, `time`, `session`, `math`, `color`) is
+ * included only when the scaffold's generated source references it, and
  * `type DrawingHandle` is added only when
  * a NON-compact handle slot or a ring is emitted (the codegen helper signatures
  * name it; a compact handle slot's bare `const` carries no type annotation).
@@ -38,11 +38,14 @@ export function emitImports(scaffold: ScriptScaffold): string {
     if (usage.request) specifiers.push("request");
     if (usage.time) specifiers.push("time");
     if (usage.session) specifiers.push("session");
-    // `math` is a module-scope frozen namespace (like `color`/`str`): a
-    // top-level import only — it is NOT a `ComputeContext` field, so it never
-    // joins the `compute` destructure. `syminfo` is the inverse (destructure
-    // only, see `emitCompute.ts`).
+    // `math` and `color` are module-scope frozen namespaces (like `str`): a
+    // top-level import only — neither is a `ComputeContext` field, so neither
+    // joins the `compute` destructure. `color` rides in whenever a `color.*`
+    // member survives the Task-1 color lowering (`color.withAlpha`, a 3-arg
+    // `color.rgb` passthrough, or a bare palette member). `syminfo` is the
+    // inverse (destructure only, see `emitCompute.ts`).
     if (usage.math) specifiers.push("math");
+    if (usage.color) specifiers.push("color");
     if (usage.drawingHandle) specifiers.push("type DrawingHandle");
 
     return `import { ${specifiers.join(", ")} } from "@invinite-org/chartlang-core";`;

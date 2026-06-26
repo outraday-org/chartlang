@@ -4,18 +4,27 @@
 import type { CallArgument, CallExpression, ExpressionNode } from "../ast/index.js";
 import { enumLookup } from "../mapping/index.js";
 import { dottedCallee } from "./callArgs.js";
+import { convertColorWith, isTranspColorForm } from "./colorConvert.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
 import { emitWithContext } from "./emitContext.js";
 
 // Lower a styling value: a bare-rooted `color.*`/enum member routes through
-// `enumLookup` (so `color.red` → `"#FF5252"`), everything else through the
-// input-aware expression emitter. A per-bar conditional color
+// `enumLookup` (so `color.red` → `"#FF5252"`); a per-bar conditional color
 // (`close > open ? color.green : color.red`) recurses through the ternary
 // branches (and paren grouping) so each color leaf resolves while the
 // condition flows through the normal emitter — the dynamic-color expression
-// `bgcolor`/`barcolor` carry through to the `colorValue` channel.
-function styleValue(node: ExpressionNode, ctx: EmitContext): string {
+// `bgcolor`/`barcolor` carry through to the `colorValue` channel. The LEAF
+// routes through the shared `convertColorWith` (input/state-aware emit) so a
+// `color.new(base, transp)` / 4-arg `color.rgb(...)` folds to a `#RRGGBBAA`
+// hex (literal base) or `color.withAlpha(...)` (dynamic base) — raising
+// `color-transp-approximated` — and any other expression lowers through the
+// input-aware emitter unchanged.
+function styleValue(
+    node: ExpressionNode,
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+): string {
     if (node.kind === "member-access-expression" && node.head === null) {
         const mapping = enumLookup(node.chain.join("."));
         if (mapping !== null && typeof mapping.chartlang === "string") {
@@ -23,15 +32,18 @@ function styleValue(node: ExpressionNode, ctx: EmitContext): string {
         }
     }
     if (node.kind === "paren-expression") {
-        return `(${styleValue(node.expression, ctx)})`;
+        return `(${styleValue(node.expression, ctx, diagnostics)})`;
     }
     if (node.kind === "ternary-expression") {
         const cond = emitWithContext(node.condition, ctx);
-        const yes = styleValue(node.consequent, ctx);
-        const no = styleValue(node.alternate, ctx);
+        const yes = styleValue(node.consequent, ctx, diagnostics);
+        const no = styleValue(node.alternate, ctx, diagnostics);
         return `${cond} ? ${yes} : ${no}`;
     }
-    return emitWithContext(node, ctx);
+    if (isTranspColorForm(node)) {
+        diagnostics.pushCode("color-transp-approximated", node.span);
+    }
+    return convertColorWith(node, (sub) => emitWithContext(sub, ctx));
 }
 
 // The plot-family bare callees this transform recognises.
@@ -110,13 +122,14 @@ function commonOptions(
     args: readonly CallArgument[],
     pos: readonly ExpressionNode[],
     ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
 ): string {
     const titleNode = named(args, "title") ?? pos[1] ?? null;
     const colorNode = named(args, "color") ?? pos[2] ?? null;
     const widthNode = named(args, "linewidth") ?? pos[3] ?? null;
     return options([
         ["title", titleNode === null ? null : emitWithContext(titleNode, ctx)],
-        ["color", colorNode === null ? null : styleValue(colorNode, ctx)],
+        ["color", colorNode === null ? null : styleValue(colorNode, ctx, diagnostics)],
         ["lineWidth", widthNode === null ? null : emitWithContext(widthNode, ctx)],
     ]);
 }
@@ -182,17 +195,17 @@ export function emitPlotFamily(
         case "plotshape":
         case "plotchar":
         case "plotarrow":
-            return emitConditional(name, call.args, pos, ctx);
+            return emitConditional(name, call.args, pos, ctx, diagnostics);
         case "plotcandle":
             return emitCandle(pos, ctx);
         case "plotbar":
-            return emitBar(call.args, ctx);
+            return emitBar(call.args, ctx, diagnostics);
         case "hline":
-            return emitHline(call.args, pos, ctx);
+            return emitHline(call.args, pos, ctx, diagnostics);
         case "bgcolor":
-            return emitBackground("bgcolor", call.args, pos, ctx);
+            return emitBackground("bgcolor", call.args, pos, ctx, diagnostics);
         case "barcolor":
-            return emitBackground("barcolor", call.args, pos, ctx);
+            return emitBackground("barcolor", call.args, pos, ctx, diagnostics);
         default:
             diagnostics.pushCode("fill-not-mapped", call.span);
             return null;
@@ -271,7 +284,7 @@ function emitPlot(
     if (value === undefined) {
         return null;
     }
-    const opts = commonOptions(args, pos, ctx);
+    const opts = commonOptions(args, pos, ctx, diagnostics);
     const valueSource = emitPlotValue(value, args, ctx, diagnostics);
     return opts === "" ? `plot(${valueSource});` : `plot(${valueSource}, ${opts});`;
 }
@@ -292,6 +305,7 @@ function emitConditional(
     args: readonly CallArgument[],
     pos: readonly ExpressionNode[],
     ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
 ): string | null {
     const condition = pos[0];
     if (condition === undefined) {
@@ -326,7 +340,8 @@ function emitConditional(
     }
     // The glyph styles carry no `color`; preserve a `color=` arg at plot level.
     const colorNode = named(args, "color");
-    const colorPart = colorNode === null ? "" : `color: ${styleValue(colorNode, ctx)}, `;
+    const colorPart =
+        colorNode === null ? "" : `color: ${styleValue(colorNode, ctx, diagnostics)}, `;
     return `plot(${cond} ? bar.close : Number.NaN, { ${colorPart}style: ${style} });`;
 }
 
@@ -341,9 +356,14 @@ function emitCandle(pos: readonly ExpressionNode[], ctx: EmitContext): string | 
     return `plot(${emitWithContext(close, ctx)}, { style: { kind: "candle-override" } });`;
 }
 
-function emitBar(args: readonly CallArgument[], ctx: EmitContext): string | null {
+function emitBar(
+    args: readonly CallArgument[],
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+): string | null {
     const colorNode = named(args, "color");
-    const colorPart = colorNode === null ? "" : `, color: ${styleValue(colorNode, ctx)}`;
+    const colorPart =
+        colorNode === null ? "" : `, color: ${styleValue(colorNode, ctx, diagnostics)}`;
     return `plot(Number.NaN, { style: { kind: "bar-override"${colorPart} } });`;
 }
 
@@ -351,12 +371,13 @@ function emitHline(
     args: readonly CallArgument[],
     pos: readonly ExpressionNode[],
     ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
 ): string | null {
     const price = pos[0];
     if (price === undefined) {
         return null;
     }
-    const opts = commonOptions(args, pos, ctx);
+    const opts = commonOptions(args, pos, ctx, diagnostics);
     const priceSource = emitWithContext(price, ctx);
     return opts === "" ? `hline(${priceSource});` : `hline(${priceSource}, ${opts});`;
 }
@@ -374,6 +395,7 @@ function emitBackground(
     args: readonly CallArgument[],
     pos: readonly ExpressionNode[],
     ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
 ): string | null {
     const color = pos[0];
     if (color === undefined) {
@@ -385,6 +407,6 @@ function emitBackground(
         ["transp", transpNode === null ? null : emitWithContext(transpNode, ctx)],
         ["title", titleNode === null ? null : emitWithContext(titleNode, ctx)],
     ]);
-    const colorSource = styleValue(color, ctx);
+    const colorSource = styleValue(color, ctx, diagnostics);
     return opts === "" ? `${callee}(${colorSource});` : `${callee}(${colorSource}, ${opts});`;
 }

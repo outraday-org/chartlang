@@ -1,0 +1,4 @@
+//@version=6
+indicator("Color Literal Transp", overlay=true)
+plot(close, "MA", color=color.rgb(255, 153, 0, 60))
+hline(0.0, "Zero", color=color.new(color.white, 50))

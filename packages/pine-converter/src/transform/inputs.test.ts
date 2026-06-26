@@ -138,3 +138,212 @@ describe("transformInputs — per-kind mapping", () => {
         expect(single("len = input.int(+3)").code).toBe("input.int(+3)");
     });
 });
+
+describe("transformInputs — input.string(options=) → input.enum", () => {
+    it("maps string options with a positional title to input.enum", () => {
+        const input = single('t = input.string("EMA", "MA Type", options = ["SMA", "EMA"])');
+        expect(input.name).toBe("t");
+        expect(input.code).toBe('input.enum("EMA", ["SMA", "EMA"], { title: "MA Type" })');
+    });
+
+    it("maps string options with a named title to input.enum", () => {
+        expect(single('t = input.string("EMA", options = ["SMA", "EMA"], title = "MA")').code).toBe(
+            'input.enum("EMA", ["SMA", "EMA"], { title: "MA" })',
+        );
+    });
+
+    it("emits no title object when no title is given", () => {
+        expect(single('t = input.string("a", options = ["a", "b"])').code).toBe(
+            'input.enum("a", ["a", "b"])',
+        );
+    });
+
+    it("warns when the default is not one of the options but still emits the enum", () => {
+        const { inputs, diagnostics } = runInputs('t = input.string("c", options = ["a", "b"])');
+        expect((inputs[0] as InputDeclarationIR).code).toBe('input.enum("c", ["a", "b"])');
+        expect(
+            diagnostics.has("pine-converter/transform/input-string-options-default-mismatch"),
+        ).toBe(true);
+    });
+
+    it("warns and keeps a plain input.string when an option is non-literal", () => {
+        const { inputs, diagnostics } = runInputs('t = input.string("a", options = ["a", other])');
+        expect((inputs[0] as InputDeclarationIR).code).toBe('input.string("a")');
+        expect(diagnostics.has("pine-converter/transform/input-string-options-not-literal")).toBe(
+            true,
+        );
+        // The non-literal options arg is NOT double-warned as a dropped arg.
+        expect(diagnostics.has("pine-converter/transform/input-arg-not-mapped")).toBe(false);
+    });
+
+    it("falls back to input.string for a mixed string/numeric options list", () => {
+        const { inputs, diagnostics } = runInputs('t = input.string("a", options = ["a", 2])');
+        expect((inputs[0] as InputDeclarationIR).code).toBe('input.string("a")');
+        expect(diagnostics.has("pine-converter/transform/input-string-options-not-literal")).toBe(
+            true,
+        );
+    });
+
+    it("defers a numeric options list to the plain string path (Task 4)", () => {
+        const { inputs, diagnostics } = runInputs('t = input.string("a", options = [1, 2])');
+        expect((inputs[0] as InputDeclarationIR).code).toBe('input.string("a")');
+        expect(diagnostics.has("pine-converter/transform/input-string-options-not-literal")).toBe(
+            false,
+        );
+        // Numeric options are dropped via the generic unmapped-arg path for now.
+        expect(diagnostics.has("pine-converter/transform/input-arg-not-mapped")).toBe(true);
+    });
+
+    it("defers an empty options list to the plain string path", () => {
+        const { inputs } = runInputs('t = input.string("a", options = [])');
+        expect((inputs[0] as InputDeclarationIR).code).toBe('input.string("a")');
+    });
+
+    it("drops a non-literal positional title but still emits the enum", () => {
+        const { inputs, diagnostics } = runInputs(
+            't = input.string("a", close, options = ["a", "b"])',
+        );
+        expect((inputs[0] as InputDeclarationIR).code).toBe('input.enum("a", ["a", "b"])');
+        expect(diagnostics.has("pine-converter/transform/input-arg-not-mapped")).toBe(true);
+    });
+
+    it("warns on an extra unmapped named arg alongside the enum", () => {
+        const { inputs, diagnostics } = runInputs(
+            't = input.string("a", options = ["a", "b"], tooltip = "hint")',
+        );
+        expect((inputs[0] as InputDeclarationIR).code).toBe('input.enum("a", ["a", "b"])');
+        expect(diagnostics.has("pine-converter/transform/input-arg-not-mapped")).toBe(true);
+    });
+
+    it("defers when string options are present but no default is given", () => {
+        const { inputs } = runInputs('t = input.string(options = ["a", "b"])');
+        expect(inputs).toHaveLength(0);
+    });
+
+    it("rejects a non-literal default before reaching the enum branch", () => {
+        const { inputs, diagnostics } = runInputs('t = input.string(sym, options = ["a", "b"])');
+        expect(inputs).toHaveLength(0);
+        expect(diagnostics.has("pine-converter/transform/non-literal-input-default")).toBe(true);
+    });
+});
+
+describe("transformInputs — numeric input.int/float(options=) → input.enum<number>", () => {
+    it("maps an integer dropdown with a positional title to a numeric enum", () => {
+        const input = single(
+            'ma_length = input.int(21, "MA Length", options = [8, 21, 30, 50, 100, 200])',
+        );
+        expect(input.name).toBe("ma_length");
+        expect(input.code).toBe(
+            'input.enum(21, [8, 21, 30, 50, 100, 200], { title: "MA Length" })',
+        );
+    });
+
+    it("maps a float dropdown with no title to a numeric enum", () => {
+        expect(single("mult = input.float(2.0, options = [1.0, 2.0, 3.0])").code).toBe(
+            "input.enum(2.0, [1.0, 2.0, 3.0])",
+        );
+    });
+
+    it("warns when the numeric default is not one of the options but still emits the enum", () => {
+        const { inputs, diagnostics } = runInputs("len = input.int(99, options = [8, 21])");
+        expect((inputs[0] as InputDeclarationIR).code).toBe("input.enum(99, [8, 21])");
+        expect(
+            diagnostics.has("pine-converter/transform/input-string-options-default-mismatch"),
+        ).toBe(true);
+    });
+
+    it("does not warn when an int default matches a float option of equal value", () => {
+        const { inputs, diagnostics } = runInputs("len = input.float(2, options = [2.0, 4.0])");
+        expect((inputs[0] as InputDeclarationIR).code).toBe("input.enum(2, [2.0, 4.0])");
+        expect(
+            diagnostics.has("pine-converter/transform/input-string-options-default-mismatch"),
+        ).toBe(false);
+    });
+
+    it("falls back to a plain input.int for a mixed numeric/non-literal options list", () => {
+        const { inputs, diagnostics } = runInputs("len = input.int(8, options = [8, other])");
+        expect((inputs[0] as InputDeclarationIR).code).toBe("input.int(8)");
+        expect(diagnostics.has("pine-converter/transform/input-string-options-not-literal")).toBe(
+            true,
+        );
+        expect(diagnostics.has("pine-converter/transform/input-arg-not-mapped")).toBe(false);
+    });
+
+    it("defers an all-string options list on input.int to the plain int path", () => {
+        const { inputs, diagnostics } = runInputs('len = input.int(8, options = ["a", "b"])');
+        expect((inputs[0] as InputDeclarationIR).code).toBe("input.int(8)");
+        expect(diagnostics.has("pine-converter/transform/input-string-options-not-literal")).toBe(
+            false,
+        );
+        expect(diagnostics.has("pine-converter/transform/input-arg-not-mapped")).toBe(true);
+    });
+
+    it("defers an empty numeric options list to the plain int path", () => {
+        const { inputs } = runInputs("len = input.int(8, options = [])");
+        expect((inputs[0] as InputDeclarationIR).code).toBe("input.int(8)");
+    });
+});
+
+describe("transformInputs — bare input() → source / typed", () => {
+    it("maps a named series default to a hoisted input.source", () => {
+        const input = single('lt_trend = input(title = "LT", defval = close)');
+        expect(input.name).toBe("lt_trend");
+        expect(input.code).toBe('input.source("close", { title: "LT" })');
+    });
+
+    it("maps a positional series default to input.source", () => {
+        expect(single("s = input(close)").code).toBe('input.source("close")');
+    });
+
+    it("maps a positional integer default to a typed input.int (dropping a positional title)", () => {
+        expect(single('n = input(14, "Smoothing")').code).toBe("input.int(14)");
+    });
+
+    it("threads a named title onto a typed default", () => {
+        expect(single('n = input(14, title = "N")').code).toBe('input.int(14, { title: "N" })');
+    });
+
+    it("maps a float default to input.float", () => {
+        expect(single("f = input(2.5)").code).toBe("input.float(2.5)");
+    });
+
+    it("maps a bool default to input.bool", () => {
+        expect(single("b = input(true)").code).toBe("input.bool(true)");
+    });
+
+    it("maps a string default to input.string", () => {
+        expect(single('s = input("AAPL")').code).toBe('input.string("AAPL")');
+    });
+
+    it("maps a color default to input.color", () => {
+        expect(single("c = input(#ff0000)").code).toBe('input.color("#ff0000")');
+    });
+
+    it("maps a unary-negated numeric default to a typed input.int", () => {
+        expect(single("n = input(-5)").code).toBe("input.int(-5)");
+    });
+
+    it("rejects a bare input with no default", () => {
+        const { inputs, diagnostics } = runInputs('x = input(title = "X")');
+        expect(inputs).toHaveLength(0);
+        expect(diagnostics.has("pine-converter/transform/non-literal-input-default")).toBe(true);
+    });
+
+    it("rejects a bare input whose default is na", () => {
+        const { inputs, diagnostics } = runInputs("x = input(defval = na)");
+        expect(inputs).toHaveLength(0);
+        expect(diagnostics.has("pine-converter/transform/non-literal-input-default")).toBe(true);
+    });
+
+    it("rejects a bare input whose default is a unary not", () => {
+        const { inputs, diagnostics } = runInputs("x = input(not true)");
+        expect(inputs).toHaveLength(0);
+        expect(diagnostics.has("pine-converter/transform/non-literal-input-default")).toBe(true);
+    });
+
+    it("rejects a bare input whose default is a computed expression", () => {
+        const { inputs, diagnostics } = runInputs("x = input(close + 1)");
+        expect(inputs).toHaveLength(0);
+        expect(diagnostics.has("pine-converter/transform/non-literal-input-default")).toBe(true);
+    });
+});

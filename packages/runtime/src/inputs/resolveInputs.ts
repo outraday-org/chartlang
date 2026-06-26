@@ -75,7 +75,14 @@ function matchesDescriptor(descriptor: InputDescriptor<unknown>, value: unknown)
         case "session":
             return typeof value === "string";
         case "enum":
-            return typeof value === "string" && descriptor.options.includes(value);
+            // An enum is backed by string OR numeric options (core widened the
+            // `input.enum` generic to `string | number`); accept either kind of
+            // override that names a valid option. String-enum behaviour is
+            // unchanged (a string value still checks string membership).
+            return (
+                (typeof value === "string" || typeof value === "number") &&
+                descriptor.options.includes(value)
+            );
         case "source":
             return typeof value === "string" && SOURCE_FIELDS.has(value);
         case "external-series":

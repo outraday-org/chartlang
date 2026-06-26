@@ -156,10 +156,10 @@ non-literal series-slot offset rejects with
 
 | Pine input | chartlang input |
 |---|---|
-| `input.int` | `input.int` |
-| `input.float` | `input.float` |
+| `input.int` | `input.int`, or `input.enum` when a numeric-literal `options=[…]` dropdown is given |
+| `input.float` | `input.float`, or `input.enum` when a numeric-literal `options=[…]` dropdown is given |
 | `input.bool` | `input.bool` |
-| `input.string` | `input.string` |
+| `input.string` | `input.string`, or `input.enum` when a string-literal `options=[…]` dropdown is given |
 | `input.color` | `input.color` |
 | `input.source` | `input.source` (OHLCV built-in default only) |
 | `input.symbol` | `input.symbol` |
@@ -167,6 +167,7 @@ non-literal series-slot offset rejects with
 | `input.price` | `input.price` |
 | `input.session` | `input.session` (an `"HH:MM-HH:MM"` spec, fed to `session.isOpen`) |
 | `input.timeframe` | `input.interval` |
+| bare `input(...)` | `input.source` (series default) or the typed `input.int/float/bool/string/color` (literal default) |
 | `input.enum` | **rejected** (`input-enum-rejected`) — Pine v6 enums are UDT-backed |
 
 Input defaults and option literals must be **compile-time literals** (a
@@ -177,13 +178,45 @@ args (`tooltip`/`group`/`inline`/`confirm`) are dropped with an
 (`ta.ema(close, input.int(20))`) is promoted to a named top-level input
 (`inline-input-promoted`).
 
+### String dropdowns → `input.enum`
+
+`input.string(default, title?, options=["A", "B"])` (a string-literal
+dropdown) converts to `input.enum(default, ["A", "B"], { title? })` — the title
+threads from the positional 2nd arg or a `title=` named arg, and string
+comparisons against the value (`sel == "EMA"`) keep working (the enum value
+is the string). If the `default` is not one of the `options`, the enum is still
+emitted with a `input-string-options-default-mismatch` warning. A mixed or
+non-literal `options=` list cannot become an enum: it falls back to a plain
+`input.string` with `input-string-options-not-literal`. (Pine's UDT-backed
+`input.enum` stays rejected; see [rejects](./rejects.md).)
+
+### Numeric dropdowns → `input.enum<number>`
+
+`input.int/float(default, options=[8, 21, 30, …])` (a numeric-literal dropdown)
+converts to a numeric `input.enum(default, [8, 21, 30, …], { title? })`. Numeric
+use sites keep working: comparisons (`len == 8`) and length args
+(`ta.sma(close, len)`) read the value as a `number`. The same
+`input-string-options-default-mismatch` / `input-string-options-not-literal`
+rules apply; an all-string or empty `options=` list on a numeric input defers to
+the plain `input.int/float`.
+
+### Bare `input()` → `input.source` / typed
+
+The legacy generic `input(...)` form (callee `input`, not `input.<member>`)
+hoists to `manifest.inputs` and is referenced as `inputs.<name>` — never an
+inline `input(...)` call. A **series** default (`input(title="LT", defval=close)`
+— an OHLCV / synthetic source) becomes `input.source("close", { title? })`; a
+**literal** default becomes the typed `input.int/float/bool/string/color` by the
+literal's kind (`input(14)` → `input.int(14)`). A missing default, `na`, or a
+computed default rejects with `non-literal-input-default`.
+
 ## Control flow
 
 | Pine construct | Converts? |
 |---|---|
 | `if` / `else if` / `else` | ✅ |
 | Ternary `a ? b : c` | ✅ (chained ternary → an `chained-ternary-warning` info) |
-| `switch` (subjected and subjectless) | ✅ |
+| `switch` (subjected and subjectless), incl. **comma multi-assignment arms** (`"X" => a := 8, b := 21`) | ✅ |
 | `for i = a to b [by s]` with **literal-resolvable** bounds | ✅ |
 | `break` / `continue` inside a `for` | ✅ (forces a runtime `for` — see below) |
 | `for` with a non-literal bound and a stateful body | ❌ `loop-bounds-not-literal-for-stateful-body` |
@@ -358,6 +391,35 @@ already carries its own `offset` argument, the plot-level offset wins and a
 [`plot-offset-overrides-ta-offset`](./diagnostics.md#plot-offset-overrides-ta-offset)
 warning is emitted. A plot whose value is **not** a direct `ta.*` call has no
 representable offset target — see [rejects](./rejects.md#tables--passthrough).
+
+## Color & transparency
+
+Pine's transparency-carrying color forms — `color.new(base, transp)` and the
+4-argument `color.rgb(r, g, b, transp)` — convert in **every** styling
+position (a `plot` / `hline` color, a `bgcolor` / `barcolor`, and a `table`
+cell's `bgcolor` / `text_color`). Pine's `transp` runs 0 (opaque) … 100
+(transparent); chartlang carries opacity as a CSS alpha, so the converter maps
+`alpha = (100 − transp)`:
+
+```pine
+plot(close, color=color.rgb(255, 153, 0, 60))   // → plot(bar.close, { color: "#FF990066" })
+hline(0.0, color=color.new(color.white, 50))     // → hline(0.0, { color: "#FFFFFF80" })
+```
+
+- A **literal** `#RRGGBB` (or named) base **and** a literal `transp` fold to a
+  quoted `#RRGGBBAA` hex string — no `color` import, byte-identical to a plain
+  CSS color.
+- A **dynamic** base **or** a dynamic `transp` emits
+  `color.withAlpha(<base>, (100 − transp) / 100)` (core's `withAlpha` takes the
+  alpha in the 0–1 range), and the generated module imports `color`.
+- A 3-argument `color.rgb(r, g, b)` passes through unchanged, also importing
+  `color`.
+
+Every transparency fold raises a
+[`color-transp-approximated`](./diagnostics.md#color-transp-approximated)
+info — the alpha preserves the Pine transparency, so no action is needed. The
+`color` import is added (and never destructured — `color` is a module-scope
+namespace) only when a `color.*` member actually survives in the output.
 
 ## `ta.*` / `math.*` / `str.*`
 

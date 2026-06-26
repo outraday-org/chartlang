@@ -204,6 +204,52 @@ describe("parseStatements — statements", () => {
         expect(codes(result)).toContain("pine-converter/parse/expected-token");
     });
 
+    it("parses a comma-separated assignment list as a switch arm body", () => {
+        const source =
+            '//@version=6\nindicator()\nswitch sel\n    "X" => a := 8, b := 21, c := 50\n';
+        const result = parse(source);
+        expect(result.diagnostics).toHaveLength(0);
+        const stmt = result.script.body[0];
+        expect(stmt.kind).toBe("switch-statement");
+        if (stmt.kind === "switch-statement") {
+            const arm = stmt.cases[0];
+            expect(arm.body.map((s) => s.kind)).toEqual(["assignment", "assignment", "assignment"]);
+        }
+    });
+
+    it("parses a multi-assignment arm in a subjectless switch", () => {
+        const source = "//@version=6\nindicator()\nswitch\n    cond => a := 1, b := 2\n";
+        const result = parse(source);
+        expect(result.diagnostics).toHaveLength(0);
+        const stmt = result.script.body[0];
+        if (stmt.kind === "switch-statement") {
+            expect(stmt.subject).toBeNull();
+            expect(stmt.cases[0].body).toHaveLength(2);
+        }
+    });
+
+    it("keeps a single-value switch arm a one-element body", () => {
+        const source = "//@version=6\nindicator()\nswitch sel\n    cond => close + 1\n";
+        const result = parse(source);
+        expect(result.diagnostics).toHaveLength(0);
+        const stmt = result.script.body[0];
+        if (stmt.kind === "switch-statement") {
+            expect(stmt.cases[0].body.map((s) => s.kind)).toEqual(["expression-statement"]);
+        }
+    });
+
+    it("recovers from a malformed element in a switch arm assignment list", () => {
+        const source = "//@version=6\nindicator()\nswitch sel\n    cond => a := 1,, b := 2\n";
+        const result = parse(source);
+        expect(codes(result)).toContain("pine-converter/parse/unexpected-token");
+        const stmt = result.script.body[0];
+        if (stmt.kind === "switch-statement") {
+            // The first assignment survives; the double comma recovers to the
+            // arm boundary (the trailing `b := 2` is discarded by the recover).
+            expect(stmt.cases[0].body.map((s) => s.kind)).toEqual(["assignment"]);
+        }
+    });
+
     it("parses break, continue, and return statements", () => {
         const source =
             "//@version=6\nindicator()\nfor i = 0 to 9\n    break\n    continue\nf() =>\n    return 1\n";

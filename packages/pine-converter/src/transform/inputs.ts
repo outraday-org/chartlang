@@ -1,12 +1,13 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CallExpression, ExpressionNode } from "../ast/index.js";
+import type { CallExpression, ExpressionNode, LiteralKind } from "../ast/index.js";
 import type { Argument } from "../ast/script.js";
 import type { Statement } from "../ast/statements.js";
 import type { SourceSpan } from "../index.js";
-import { inputLookup } from "../mapping/index.js";
+import { STRING_OPTIONS_ENUM_BUILDER, inputLookup } from "../mapping/index.js";
 import type { SemanticResult } from "../semantic/index.js";
+import { positionalArgs } from "./callArgs.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { InputDeclarationIR, ScriptScaffold } from "./ir.js";
 import { appendInput } from "./scaffoldMutators.js";
@@ -40,6 +41,11 @@ const RANGE_ARG_TO_OPTION: ReadonlyMap<string, "min" | "max" | "step"> = new Map
 // the call is not an `input.*` primitive.
 function inputCalleeKey(call: CallExpression): string | null {
     const callee = call.callee;
+    // The bare generic `input(...)` form (callee identifier `input`); the
+    // source-vs-typed target is decided in `buildBareInput`.
+    if (callee.kind === "identifier-expression" && callee.name === "input") {
+        return "input";
+    }
     if (
         callee.kind === "member-access-expression" &&
         callee.head === null &&
@@ -125,6 +131,7 @@ function buildOptions(
     named: ReadonlyMap<string, Argument>,
     multiline: boolean,
     diagnostics: DiagnosticCollector,
+    skipOptionsArg: boolean,
 ): string | null {
     const parts: string[] = [];
     const titleArg = named.get("title");
@@ -149,6 +156,12 @@ function buildOptions(
         }
     }
     for (const [argName, arg] of named) {
+        // A non-literal/mixed `options=` list was already reported by the enum
+        // bridge (`input-string-options-not-literal`) and dropped, so it must
+        // not double-warn here.
+        if (skipOptionsArg && argName === "options") {
+            continue;
+        }
         if (argName !== "title" && !RANGE_ARG_TO_OPTION.has(argName)) {
             diagnostics.pushCode("input-arg-not-mapped", arg.span);
         }
@@ -215,6 +228,247 @@ function resolveDefault(
     return literal;
 }
 
+// Whether every element of a `[…]` options list is a numeric (int/float)
+// literal. Vacuously true for an empty list — an empty `options=[]` is not a
+// string dropdown, so it routes to the numeric/defer path rather than emitting
+// a degenerate `input.enum(x, [])`.
+function everyOptionNumericLiteral(elements: readonly ExpressionNode[]): boolean {
+    return elements.every(
+        (el) =>
+            el.kind === "literal-expression" &&
+            (el.literalKind === "int" || el.literalKind === "float"),
+    );
+}
+
+// Whether every element of a `[…]` options list is a string literal. The
+// numeric-dropdown's cross-type guard: a numeric `input.int/float` whose
+// `options=` are all strings (or the vacuous empty `[]`) is not a numeric enum,
+// so it DEFERS to the generic path (the strings drop as `input-arg-not-mapped`)
+// rather than reporting a malformed list.
+function everyOptionStringLiteral(elements: readonly ExpressionNode[]): boolean {
+    return elements.every((el) => el.kind === "literal-expression" && el.literalKind === "string");
+}
+
+// The chartlang source for a numeric (int/float) option-list element or default
+// value, or `null` when the node is not a plain numeric literal.
+function numericLiteralOf(node: ExpressionNode): string | null {
+    if (
+        node.kind === "literal-expression" &&
+        (node.literalKind === "int" || node.literalKind === "float")
+    ) {
+        return node.value;
+    }
+    return null;
+}
+
+// The chartlang `{ title: "X" }` opts fragment for a string-enum, threaded from
+// a named `title=` arg or the 2nd positional arg (Pine `input.string(default,
+// title, …)`). A present-but-non-literal title is dropped with
+// `input-arg-not-mapped` (mirroring `buildOptions`). Returns the leading `, `
+// included, or `""` when there is no usable title.
+function enumTitleOpt(
+    call: CallExpression,
+    named: ReadonlyMap<string, Argument>,
+    diagnostics: DiagnosticCollector,
+): string {
+    const positional = positionalArgs(call.args);
+    const titleArg = named.get("title") ?? (positional.length >= 2 ? positional[1] : undefined);
+    if (titleArg === undefined) {
+        return "";
+    }
+    const title = stringLiteralOf(titleArg.value);
+    if (title === null) {
+        diagnostics.pushCode("input-arg-not-mapped", titleArg.span);
+        return "";
+    }
+    return `, { title: ${title} }`;
+}
+
+// The outcome of inspecting an `input.string` `options=` named arg. `enum` is a
+// ready chartlang `input.enum(...)` source string; `fallback` means a
+// non-literal/mixed list was dropped (diagnostic already pushed) and the caller
+// should emit a plain `input.string`, skipping the `options` arg; `defer` means
+// there is nothing enum-specific here (no options, or numeric options — Task 4)
+// so the normal path handles the call unchanged.
+type StringOptionsResult =
+    | Readonly<{ kind: "enum"; code: string }>
+    | Readonly<{ kind: "fallback" }>
+    | Readonly<{ kind: "defer" }>;
+
+// How an `options=[…]` dropdown is bridged to `input.enum`, parameterised by the
+// option element type. `element` extracts one option-list literal (or `null`
+// when it is the wrong type); `defaultLiteral` extracts the default value source;
+// `deferElements` is the cross-type guard — when the whole list is the OTHER
+// element type (or empty), the call DEFERS to the generic path instead of
+// reporting a malformed list.
+type OptionsConfig = Readonly<{
+    element: (node: ExpressionNode) => string | null;
+    defaultLiteral: (node: ExpressionNode) => string | null;
+    deferElements: (elements: readonly ExpressionNode[]) => boolean;
+    matchesDefault: (option: string, defaultLiteral: string) => boolean;
+}>;
+
+// A Pine `input.string(default, title?, options=[string literals])` dropdown.
+const STRING_OPTIONS_CONFIG: OptionsConfig = {
+    element: stringLiteralOf,
+    defaultLiteral: literalDefault,
+    deferElements: everyOptionNumericLiteral,
+    matchesDefault: (option, defaultLiteral) => option === defaultLiteral,
+};
+
+// A Pine `input.int/float(default, options=[numeric literals])` dropdown →
+// chartlang `input.enum<number>` (the numeric form Task 1 widened core for).
+const NUMERIC_OPTIONS_CONFIG: OptionsConfig = {
+    element: numericLiteralOf,
+    defaultLiteral: literalDefault,
+    deferElements: everyOptionStringLiteral,
+    // Compare numerically, not by raw token text: a `2` default against a
+    // `2.0` option (or vice versa) is the SAME value, so it must not trip the
+    // default-mismatch warning.
+    matchesDefault: (option, defaultLiteral) => Number(option) === Number(defaultLiteral),
+};
+
+// The Pine `input.*` primitives that carry an `options=[…]` dropdown the
+// converter bridges onto `input.enum`, mapped to their element-type config.
+const OPTIONS_DROPDOWN_CONFIG: ReadonlyMap<string, OptionsConfig> = new Map([
+    ["input.string", STRING_OPTIONS_CONFIG],
+    ["input.int", NUMERIC_OPTIONS_CONFIG],
+    ["input.float", NUMERIC_OPTIONS_CONFIG],
+]);
+
+// Bridge a Pine `input.*(default, title?, options=[literals])` dropdown onto
+// chartlang `input.enum(default, [literals], { title? })`, for the element type
+// the `config` selects (string or numeric).
+function resolveOptionsEnum(
+    call: CallExpression,
+    defaultArg: Argument | null,
+    named: ReadonlyMap<string, Argument>,
+    diagnostics: DiagnosticCollector,
+    config: OptionsConfig,
+): StringOptionsResult {
+    const optionsArg = named.get("options");
+    if (optionsArg === undefined || optionsArg.value.kind !== "array-literal-expression") {
+        return { kind: "defer" };
+    }
+    const optionLiterals: string[] = [];
+    let allMatch = true;
+    for (const element of optionsArg.value.elements) {
+        const literal = config.element(element);
+        if (literal === null) {
+            allMatch = false;
+            break;
+        }
+        optionLiterals.push(literal);
+    }
+    if (!allMatch || optionLiterals.length === 0) {
+        // A list that is wholly the OTHER element type (or the vacuous empty
+        // list) is not this dropdown's enum — let the generic path drop the
+        // options with `input-arg-not-mapped`. A mixed / non-literal list cannot
+        // become an enum at all.
+        if (config.deferElements(optionsArg.value.elements)) {
+            return { kind: "defer" };
+        }
+        diagnostics.pushCode("input-string-options-not-literal", optionsArg.span);
+        return { kind: "fallback" };
+    }
+    const defaultLiteral = defaultArg === null ? null : config.defaultLiteral(defaultArg.value);
+    if (defaultLiteral === null) {
+        // A missing / non-literal default is rejected by the normal path
+        // (`non-literal-input-default`); don't pre-empt that here.
+        return { kind: "defer" };
+    }
+    if (!optionLiterals.some((option) => config.matchesDefault(option, defaultLiteral))) {
+        diagnostics.pushCode("input-string-options-default-mismatch", call.span);
+    }
+    // Any other named arg (`tooltip`/`group`/`confirm`/…) has no enum analogue.
+    for (const [argName, arg] of named) {
+        if (argName !== "title" && argName !== "options") {
+            diagnostics.pushCode("input-arg-not-mapped", arg.span);
+        }
+    }
+    const titleOpt = enumTitleOpt(call, named, diagnostics);
+    return {
+        kind: "enum",
+        code: `${STRING_OPTIONS_ENUM_BUILDER}(${defaultLiteral}, [${optionLiterals.join(", ")}]${titleOpt})`,
+    };
+}
+
+// The typed `input.*` factory a bare `input(defval=<literal>)` maps to, by the
+// default literal's kind.
+const BARE_TYPED_FACTORY: ReadonlyMap<LiteralKind, string> = new Map([
+    ["int", "input.int"],
+    ["float", "input.float"],
+    ["bool", "input.bool"],
+    ["string", "input.string"],
+    ["color", "input.color"],
+]);
+
+// The typed `input.*` factory + chartlang default source a bare
+// `input(defval=<literal>)` maps to, or `null` when the default is not a
+// compile-time literal (a `na`-expression, a computed value, or — handled by
+// the caller before this — an OHLCV source). A unary `+`/`-` on a numeric
+// literal (`input(-1)`) keeps its numeric factory.
+type BareTypedDefault = Readonly<{ factory: string; literal: string }>;
+
+function bareTypedDefault(node: ExpressionNode): BareTypedDefault | null {
+    const literalNode =
+        node.kind === "unary-expression" && node.operator !== "not" ? node.operand : node;
+    if (literalNode.kind !== "literal-expression") {
+        return null;
+    }
+    const factory = BARE_TYPED_FACTORY.get(literalNode.literalKind);
+    const literal = literalDefault(node);
+    if (factory === undefined || literal === null) {
+        return null;
+    }
+    return { factory, literal };
+}
+
+// Close a bare-input factory call (`input.source("close"` / `input.int(14`),
+// threading any recognised title/range options from the named args.
+function appendBareOptions(
+    prefix: string,
+    named: ReadonlyMap<string, Argument>,
+    diagnostics: DiagnosticCollector,
+): string {
+    const options = buildOptions(named, false, diagnostics, false);
+    return options === null ? `${prefix})` : `${prefix}, ${options})`;
+}
+
+// Lower a bare generic `input(...)` call. The TARGET is a TRANSFORM decision
+// keyed on the resolved `defval` (positional or named `defval=`): an OHLCV /
+// synthetic series default → `input.source` (hoisted to `manifest.inputs`, read
+// as `inputs.<name>`); a compile-time literal default → the typed
+// `input.int/float/bool/string/color` factory by the literal's kind. A missing
+// default, `na`, or a computed default has no inferable type → reject with
+// `non-literal-input-default`.
+function buildBareInput(
+    call: CallExpression,
+    positionalDefault: Argument | null,
+    named: ReadonlyMap<string, Argument>,
+    diagnostics: DiagnosticCollector,
+): string | null {
+    const defaultArg = positionalDefault ?? named.get("defval") ?? null;
+    if (defaultArg === null) {
+        diagnostics.pushCode("non-literal-input-default", call.span);
+        return null;
+    }
+    // `defval` is consumed as the default — never an option-object field.
+    const optionNamed = new Map(named);
+    optionNamed.delete("defval");
+    const value = defaultArg.value;
+    const source = sourceDefault(value);
+    if (source !== null) {
+        return appendBareOptions(`input.source(${source}`, optionNamed, diagnostics);
+    }
+    const typed = bareTypedDefault(value);
+    if (typed === null) {
+        diagnostics.pushCode("non-literal-input-default", call.span);
+        return null;
+    }
+    return appendBareOptions(`${typed.factory}(${typed.literal}`, optionNamed, diagnostics);
+}
+
 // Build the chartlang `input.*(...)` source string for one Pine input call,
 // or `null` when the call cannot be converted (a diagnostic is pushed).
 // `primitive` is the resolved Pine `input.*` key (`"input.text_area"`).
@@ -233,12 +487,35 @@ function buildInputCode(
         return null;
     }
     const { defaultArg, named } = splitArgs(call);
+    // The bare generic `input(...)` form picks `input.source` (series defval) vs
+    // a typed factory (literal defval) by inspecting the resolved default.
+    if (primitive === "input") {
+        return buildBareInput(call, defaultArg, named, diagnostics);
+    }
+    // A Pine `input.string/int/float(..., options=[…])` is a dropdown: a uniform
+    // string list → `input.enum`, a uniform numeric list → `input.enum<number>`;
+    // a mixed/non-literal list falls back to the plain factory (options dropped);
+    // a cross-type / empty list defers to the generic path.
+    let skipOptionsArg = false;
+    const optionsConfig = OPTIONS_DROPDOWN_CONFIG.get(primitive);
+    if (optionsConfig !== undefined) {
+        const dropdown = resolveOptionsEnum(call, defaultArg, named, diagnostics, optionsConfig);
+        if (dropdown.kind === "enum") {
+            return dropdown.code;
+        }
+        skipOptionsArg = dropdown.kind === "fallback";
+    }
     const defaultExpr = resolveDefault(primitive, defaultArg, call.span, diagnostics);
     if (defaultExpr === null) {
         return null;
     }
     const builder = mapping.chartlang;
-    const options = buildOptions(named, primitive === "input.text_area", diagnostics);
+    const options = buildOptions(
+        named,
+        primitive === "input.text_area",
+        diagnostics,
+        skipOptionsArg,
+    );
     return options === null
         ? `${builder}(${defaultExpr})`
         : `${builder}(${defaultExpr}, ${options})`;
@@ -287,6 +564,7 @@ function collectInlineInputs(node: ExpressionNode, out: InlineInput[]): void {
             collectInlineInputs(node.expression, out);
             return;
         case "tuple-expression":
+        case "array-literal-expression":
             for (const el of node.elements) {
                 collectInlineInputs(el, out);
             }
@@ -419,7 +697,10 @@ function walkStatements(statements: readonly Statement[], state: WalkState): voi
  * declaration (`len = input.int(20)`) keys its descriptor by the bound name;
  * an inline call (`ta.ema(close, input.int(20))`) is promoted to a
  * synthesised `inlineInput` name (e.g. `inlineInput`/`inlineInput2`) with an `inline-input-promoted` info
- * diagnostic. Unconvertible inputs (`input.enum`, a computed `input.source`
+ * diagnostic. A `string`/`numeric` `options=[…]` dropdown bridges onto
+ * `input.enum`; a bare generic `input(...)` lowers to `input.source` (series
+ * default) or the typed `input.int/float/bool/string` (literal default).
+ * Unconvertible inputs (`input.enum`, a computed `input.source`
  * default, a non-literal default) push an error and are skipped. The
  * function mutates the scaffold and is `void` — Task 16 codegen reads
  * `scaffold.inputs` and rewrites the Pine input identifiers to

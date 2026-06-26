@@ -29,6 +29,7 @@ import { BAR_INDEX_SENTINEL } from "./emitHelpers.js";
  *         time: false,
  *         session: false,
  *         math: false,
+ *         color: false,
  *         syminfo: false,
  *         drawingHandle: true,
  *         barIndex: false,
@@ -51,6 +52,8 @@ export type UsageFlags = Readonly<{
     session: boolean;
     /** The module-scope `math` namespace — a top-level import only, never destructured. */
     math: boolean;
+    /** The module-scope `color` namespace — a top-level import only, never destructured. */
+    color: boolean;
     /** The `syminfo` view — a `compute` destructure only, never a top-level import. */
     syminfo: boolean;
     drawingHandle: boolean;
@@ -117,6 +120,13 @@ export function scanUsage(scaffold: ScriptScaffold): UsageFlags {
         // no-rewrap passthrough) never false-positives here. `syminfo.` matches
         // the injected `syminfo.mintick` step.
         math: corpus.includes("math."),
+        // `color.` matches every chartlang `color.*` member that SURVIVES the
+        // Task-1 color lowering: `color.withAlpha(...)` (dynamic base/transp),
+        // a 3-arg `color.rgb(...)` passthrough, and a bare palette member
+        // (`color.green`) emitted verbatim in a plain assignment. An all-literal
+        // color folds to a quoted `#RRGGBBAA` string with no `color.` token, so
+        // a hex-only script imports no `color` (byte-compat — no spurious import).
+        color: corpus.includes("color."),
         syminfo: corpus.includes("syminfo."),
         drawingHandle: hasNonCompactHandle || hasRings,
         barIndex: corpus.includes(`${BAR_INDEX_SENTINEL}(`),

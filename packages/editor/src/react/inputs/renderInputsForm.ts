@@ -18,7 +18,7 @@ import type {
  *     const option: InputsFormOption = { value: "1D", label: "1 day" };
  *     void option;
  */
-export type InputsFormOption = Readonly<{ value: string; label: string }>;
+export type InputsFormOption = Readonly<{ value: string | number; label: string }>;
 
 /**
  * One renderable script input field.
@@ -170,6 +170,6 @@ function titleFor(key: string, descriptor: InputDescriptor<unknown>): string {
     return key;
 }
 
-function toOptions(values: ReadonlyArray<string>): ReadonlyArray<InputsFormOption> {
-    return Object.freeze(values.map((item) => Object.freeze({ value: item, label: item })));
+function toOptions(values: ReadonlyArray<string | number>): ReadonlyArray<InputsFormOption> {
+    return Object.freeze(values.map((item) => Object.freeze({ value: item, label: String(item) })));
 }

@@ -402,6 +402,13 @@ describe("inlineStatefulCalls — structural walk (no stateful UDFs)", () => {
         };
         expect(inlineStatefulCalls(tupleLambda, CTX, EMPTY_SCOPE, [])).toEqual(tupleLambda);
 
+        const arrayLiteral: ExpressionNode = {
+            kind: "array-literal-expression",
+            elements: [ID],
+            span: SPAN,
+        };
+        expect(inlineStatefulCalls(arrayLiteral, CTX, EMPTY_SCOPE, [])).toEqual(arrayLiteral);
+
         // A bare-rooted call (`f(z)`) whose callee is NOT a stateful UDF takes
         // the structural-recurse path (covers `tryInlineCall` returning null).
         const bareCall: ExpressionNode = {

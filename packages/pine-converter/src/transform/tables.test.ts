@@ -125,6 +125,36 @@ describe("transformTables — cell styling + last-write-wins", () => {
         expect(cellsStmt).toContain('bgColor: "#FF5252"');
         expect(cellsStmt).toContain('textValign: "top"');
     });
+
+    it("folds a transparency-carrying cell colour to a #RRGGBBAA hex", () => {
+        const { scaffold, diagnostics } = runTables(
+            [
+                "var table t = na",
+                "if barstate.islast",
+                "    t := table.new(position.top_left, 1, 1)",
+                '    table.cell(t, 0, 0, "x", bgcolor=color.new(color.green, 80), text_color=color.rgb(255, 153, 0, 60))',
+            ].join("\n"),
+        );
+        const cellsStmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
+        expect(cellsStmt).toContain('bgColor: "#4CAF5033"');
+        expect(cellsStmt).toContain('textColor: "#FF990066"');
+        expect(codes(diagnostics)).toContain("pine-converter/transform/color-transp-approximated");
+    });
+
+    it("lowers a dynamic-base cell colour via cell_set_bgcolor to color.withAlpha", () => {
+        const { scaffold, diagnostics } = runTables(
+            [
+                "var table t = na",
+                "if barstate.islast",
+                "    t := table.new(position.top_left, 1, 1)",
+                '    table.cell(t, 0, 0, "x")',
+                "    table.cell_set_bgcolor(t, 0, 0, color.new(myColor, 80))",
+            ].join("\n"),
+        );
+        const cellsStmt = scaffold.computeBody.statements.find((s) => s.startsWith("const tCells"));
+        expect(cellsStmt).toContain("bgColor: color.withAlpha(myColor, 0.2)");
+        expect(codes(diagnostics)).toContain("pine-converter/transform/color-transp-approximated");
+    });
 });
 
 describe("transformTables — clear + empty cells", () => {

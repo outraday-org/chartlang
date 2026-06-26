@@ -1,0 +1,7 @@
+//@version=6
+indicator("Switch as value", overlay=false)
+sel = input.string("SMA", "MA type")
+float ma = switch sel
+    "SMA" => ta.sma(close, 14)
+    "EMA" => ta.ema(close, 14)
+plot(ma)

@@ -123,6 +123,7 @@ export function inferQualifier(expr: ExpressionNode, resolve: SymbolResolver): T
                 inferQualifier(expr.offset, resolve),
             );
         case "tuple-expression":
+        case "array-literal-expression":
             return expr.elements.reduce<TypeQualifier>(
                 (acc, element) => joinQualifier(acc, inferQualifier(element, resolve)),
                 "const",

@@ -252,13 +252,17 @@ var input = Object.freeze({
     return Object.freeze({ kind: "string", defaultValue, ...opts });
   },
   /**
-   * Build a string enum input descriptor.
+   * Build an enum input descriptor (a fixed-options dropdown). Options are
+   * either string labels or numeric values; the default must be one of the
+   * options.
    *
-   * @since 0.4
+   * @since 0.4 — numeric (`number`) options added in 1.6
    * @stable
    * @example
    *     const mode = input.enum("fast", ["fast", "slow"]);
+   *     const length = input.enum(21, [8, 21, 30, 50, 100]);
    *     void mode;
+   *     void length;
    */
   enum(defaultValue, options, opts) {
     return Object.freeze({
@@ -2587,7 +2591,7 @@ function matchesDescriptor(descriptor, value) {
     case "session":
       return typeof value === "string";
     case "enum":
-      return typeof value === "string" && descriptor.options.includes(value);
+      return (typeof value === "string" || typeof value === "number") && descriptor.options.includes(value);
     case "source":
       return typeof value === "string" && SOURCE_FIELDS.has(value);
     case "external-series":

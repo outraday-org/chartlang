@@ -171,6 +171,39 @@ function parseParenOrTupleOrLambda(ctx: ParserContext, open: Token): ExpressionN
     return { kind: "tuple-expression", elements, span };
 }
 
+// Parse a value-position array literal `[a, b, c]` (empty `[]` and a trailing
+// comma allowed). This is the PREFIX `[` — a `[` with no left operand, reached
+// only from `parsePrimary` (statement value start, or after `=`/`(`/`,`/an
+// operator). A postfix `[` (a receiver is present, e.g. `a[0]`) is the
+// precedence-9 history access in `parsePostfix`; a statement-leading
+// `[ ident… ] =` is the tuple destructuring in `statements.ts` — both untouched.
+function parseArrayLiteral(ctx: ParserContext, open: Token): ExpressionNode {
+    const elements: ExpressionNode[] = [];
+    while (ctx.cursor.peek().text !== "]") {
+        elements.push(parseExpression(ctx));
+        if (ctx.cursor.match("punctuation", ",") === null) {
+            break;
+        }
+    }
+    const close = ctx.cursor.match("punctuation", "]");
+    if (close === null) {
+        // Unterminated `[` — leave the boundary token in place (do not consume
+        // to EOF) and return a zero-width fallback at the `[`, so the statement
+        // layer's empty-expression recovery resumes. The parser never throws.
+        const at = open.span;
+        return {
+            kind: "unknown-expression",
+            tokens: [],
+            span: { ...at, endColumn: at.startColumn, endLine: at.startLine },
+        };
+    }
+    return {
+        kind: "array-literal-expression",
+        elements,
+        span: spanBetween(open.span, close.span),
+    };
+}
+
 function parsePrimary(ctx: ParserContext): ExpressionNode {
     const token = ctx.cursor.peek();
     const literalKind = LITERAL_TOKEN_KINDS.get(token.kind);
@@ -195,6 +228,10 @@ function parsePrimary(ctx: ParserContext): ExpressionNode {
     if (token.kind === "punctuation" && token.text === "(") {
         ctx.cursor.next();
         return parseParenOrTupleOrLambda(ctx, token);
+    }
+    if (token.kind === "punctuation" && token.text === "[") {
+        ctx.cursor.next();
+        return parseArrayLiteral(ctx, token);
     }
     // No prefix rule can start here. Leave a closing/separator boundary
     // (`) ] } ,`, newline, eof) in place — emitting a zero-token, zero-width

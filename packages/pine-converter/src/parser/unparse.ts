@@ -49,6 +49,8 @@ export function unparse(node: ExpressionNode): string {
             return unparse(node.expression);
         case "tuple-expression":
             return `(${node.elements.map(unparse).join(", ")})`;
+        case "array-literal-expression":
+            return `[${node.elements.map(unparse).join(", ")}]`;
         case "lambda-expression":
             return `(${node.params.join(", ")}) => ${unparse(node.body)}`;
         case "unknown-expression":

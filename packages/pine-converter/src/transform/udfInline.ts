@@ -211,6 +211,7 @@ function expandNode(
         case "paren-expression":
             return { ...node, expression: expandNode(node.expression, ctx, scope, prelude, stack) };
         case "tuple-expression":
+        case "array-literal-expression":
             return {
                 ...node,
                 elements: node.elements.map((el) => expandNode(el, ctx, scope, prelude, stack)),

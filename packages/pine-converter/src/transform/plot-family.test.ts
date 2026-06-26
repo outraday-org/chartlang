@@ -269,3 +269,56 @@ describe("emitPlotFamily", () => {
         expect(codes).toContain("pine-converter/transform/plot-offset-needs-ta-call");
     });
 });
+
+describe("emitPlotFamily — color transparency", () => {
+    const APPROX = "pine-converter/transform/color-transp-approximated";
+
+    it("folds a 4-arg color.rgb plot colour to a #RRGGBBAA hex", () => {
+        const { source, codes } = emit("plot(close, color=color.rgb(255, 153, 0, 60))");
+        expect(source).toBe('plot(bar.close, { color: "#FF990066" });');
+        expect(codes).toContain(APPROX);
+    });
+
+    it("folds a literal-base color.new plot colour to a #RRGGBBAA hex", () => {
+        const { source, codes } = emit("plot(close, color=color.new(color.red, 50))");
+        expect(source).toBe('plot(bar.close, { color: "#FF525280" });');
+        expect(codes).toContain(APPROX);
+    });
+
+    it("lowers a dynamic-base color.new bgcolor to color.withAlpha", () => {
+        const { source, codes } = emit("bgcolor(color.new(myColor, 80))");
+        expect(source).toBe("bgcolor(color.withAlpha(myColor, 0.2));");
+        expect(codes).toContain(APPROX);
+    });
+
+    it("folds a color.new hline colour to a #RRGGBBAA hex", () => {
+        const { source, codes } = emit("hline(0, color=color.new(color.gray, 80))");
+        expect(source).toBe('hline(0, { color: "#787B8633" });');
+        expect(codes).toContain(APPROX);
+    });
+
+    it("folds a color.new plotshape plot-level colour", () => {
+        const { source, codes } = emit("plotshape(close > open, color=color.new(color.green, 0))");
+        expect(source).toBe(
+            "plot(bar.close > bar.open ? bar.close : Number.NaN, " +
+                '{ color: "#4CAF50FF", style: { kind: "shape", shape: "circle", size: 8 } });',
+        );
+        expect(codes).toContain(APPROX);
+    });
+
+    it("folds a color.new plotbar colour", () => {
+        const { source, codes } = emit(
+            "plotbar(open, high, low, close, color=color.new(color.red, 80))",
+        );
+        expect(source).toBe(
+            'plot(Number.NaN, { style: { kind: "bar-override", color: "#FF525233" } });',
+        );
+        expect(codes).toContain(APPROX);
+    });
+
+    it("does not raise the approximation note for a plain colour enum", () => {
+        const { source, codes } = emit("plot(close, color=color.red)");
+        expect(source).toBe('plot(bar.close, { color: "#FF5252" });');
+        expect(codes).not.toContain(APPROX);
+    });
+});

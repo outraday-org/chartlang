@@ -96,6 +96,13 @@ describe("expressionHasStatefulPrimitive", () => {
         ).toBe(true);
         expect(
             expressionHasStatefulPrimitive({
+                kind: "array-literal-expression",
+                elements: [stateful],
+                span: SPAN,
+            }),
+        ).toBe(true);
+        expect(
+            expressionHasStatefulPrimitive({
                 kind: "lambda-expression",
                 params: ["x"],
                 body: stateful,

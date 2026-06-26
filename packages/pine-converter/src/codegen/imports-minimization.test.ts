@@ -107,6 +107,39 @@ describe("import minimization", () => {
         expect(flags.session).toBe(true);
     });
 
+    it("imports color when a color.* member survives the lowering", () => {
+        const line = emitImports(
+            scaffold({
+                computeBody: {
+                    statements: [
+                        "const trendCol = bar.close > bar.open ? color.green : color.red;",
+                        "plot(bar.close, { color: color.withAlpha(trendCol, 0.5) });",
+                        "plot(bar.open, { color: color.rgb(bar.close > bar.open ? 0 : 255, 153, 0) });",
+                    ],
+                },
+            }),
+        );
+        expect(line).toContain("color");
+    });
+
+    it("does not import color when every color folded to a hex string", () => {
+        const flags = scanUsage(
+            scaffold({
+                computeBody: {
+                    statements: ['plot(bar.close, { color: "#FF993399" });'],
+                },
+            }),
+        );
+        expect(flags.color).toBe(false);
+        expect(
+            emitImports(
+                scaffold({
+                    computeBody: { statements: ['plot(bar.close, { color: "#FF993399" });'] },
+                }),
+            ),
+        ).not.toContain("color");
+    });
+
     it("scanUsage flags barstate and bar-index references", () => {
         const flags = scanUsage(
             scaffold({

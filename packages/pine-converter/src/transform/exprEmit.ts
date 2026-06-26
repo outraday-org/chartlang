@@ -156,6 +156,7 @@ export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): s
         case "paren-expression":
             return `(${emitExpr(node.expression, annotations)})`;
         case "tuple-expression":
+        case "array-literal-expression":
             return `[${node.elements.map((el) => emitExpr(el, annotations)).join(", ")}]`;
         case "lambda-expression":
             return `(${node.params.join(", ")}) => ${operand(node.body, annotations)}`;
@@ -240,6 +241,7 @@ export function forEachHistoryAccess(
             forEachHistoryAccess(node.expression, visit);
             return;
         case "tuple-expression":
+        case "array-literal-expression":
             for (const element of node.elements) {
                 forEachHistoryAccess(element, visit);
             }

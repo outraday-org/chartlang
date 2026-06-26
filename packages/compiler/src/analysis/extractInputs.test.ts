@@ -124,6 +124,17 @@ describe("extractInputs", () => {
         });
     });
 
+    it("serialises a numeric input.enum with a numeric default and options", () => {
+        const result = run('len: input.enum(21, [8, 21, 30, 50, 100] as const, { title: "Len" })');
+        expect(result.diagnostics).toEqual([]);
+        expect(result.inputs.len).toEqual({
+            kind: "enum",
+            defaultValue: 21,
+            options: [8, 21, 30, 50, 100],
+            title: "Len",
+        });
+    });
+
     it("returns frozen records and nested arrays", () => {
         const result = run('mode: input.enum("a", ["a", "b"] as const)');
         expect(Object.isFrozen(result)).toBe(true);
@@ -194,6 +205,25 @@ export default defineIndicator({
             sourcePath: "dynamic-enum.chart.ts",
         });
         const result = extractInputs(sourceFile, checker, "dynamic-enum.chart.ts");
+        expect(result.diagnostics[0]?.code).toBe("input-default-not-literal");
+        expect(result.inputs).toEqual({});
+    });
+
+    it("emits input-default-not-literal for a non-literal enum option element", () => {
+        const source = `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+const other = "b";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { mode: input.enum("a", ["a", other] as const) },
+    compute: () => {},
+});
+`;
+        const { sourceFile, checker } = createProgramForSource(source, {
+            sourcePath: "nonliteral-enum.chart.ts",
+        });
+        const result = extractInputs(sourceFile, checker, "nonliteral-enum.chart.ts");
         expect(result.diagnostics[0]?.code).toBe("input-default-not-literal");
         expect(result.inputs).toEqual({});
     });

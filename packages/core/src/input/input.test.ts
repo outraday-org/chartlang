@@ -64,6 +64,29 @@ describe("input builders", () => {
         expect(() => Object.assign(descriptor.options, { 0: "medium" })).toThrow(TypeError);
     });
 
+    it("builds a numeric enum descriptor with a frozen options copy", () => {
+        const options = [8, 21, 30] as const;
+        const descriptor = input.enum(21, options, { title: "MA Length" });
+
+        expect(descriptor).toEqual({
+            kind: "enum",
+            defaultValue: 21,
+            options: [8, 21, 30],
+            title: "MA Length",
+        });
+        expect(descriptor.options).not.toBe(options);
+        expect(Object.isFrozen(descriptor.options)).toBe(true);
+        expect(() => Object.assign(descriptor.options, { 0: 99 })).toThrow(TypeError);
+    });
+
+    it("builds a numeric enum descriptor without opts", () => {
+        expect(input.enum(50, [50, 100, 200])).toEqual({
+            kind: "enum",
+            defaultValue: 50,
+            options: [50, 100, 200],
+        });
+    });
+
     it("builds a color descriptor", () => {
         expect(input.color("#26a69a", { title: "Color" })).toEqual({
             kind: "color",

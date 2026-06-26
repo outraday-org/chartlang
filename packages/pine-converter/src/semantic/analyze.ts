@@ -181,6 +181,13 @@ function walkExpression(
             }
             return;
         }
+        case "array-literal-expression":
+            // A value-position array literal is supported (unlike a value-position
+            // tuple) — walk every element so symbols resolve, no diagnostic.
+            for (const element of expr.elements) {
+                walkExpression(state, scope, element, null);
+            }
+            return;
         case "lambda-expression":
             walkExpression(state, scope, expr.body, null);
             return;

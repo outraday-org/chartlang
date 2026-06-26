@@ -279,6 +279,16 @@ describe("emitExpr", () => {
         ).toBe("[a, b]");
         expect(
             emitExpr(
+                {
+                    kind: "array-literal-expression",
+                    elements: [ident("a"), ident("b")],
+                    span: SPAN,
+                },
+                noAnnotations,
+            ),
+        ).toBe("[a, b]");
+        expect(
+            emitExpr(
                 { kind: "lambda-expression", params: ["x"], body: ident("x"), span: SPAN },
                 noAnnotations,
             ),
@@ -385,6 +395,13 @@ describe("forEachHistoryAccess", () => {
                 span: SPAN,
             }),
         ).toEqual(["t1", "t2"]);
+        expect(
+            names({
+                kind: "array-literal-expression",
+                elements: [history(ident("a1"), int("1")), history(ident("a2"), int("2"))],
+                span: SPAN,
+            }),
+        ).toEqual(["a1", "a2"]);
         expect(
             names({
                 kind: "lambda-expression",

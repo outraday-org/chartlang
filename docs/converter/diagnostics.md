@@ -60,6 +60,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** A positional argument cannot follow a named argument.
 - **Suggested fix:** Move all positional arguments before the named ones.
 
+### switch-expression-unsupported
+
+- **Code:** `pine-converter/parse/switch-expression-unsupported`
+- **Severity:** error
+- **Message:** A `switch` used as a value (e.g. `x = switch s ...`) is not yet supported.
+- **Suggested fix:** Rewrite it as a chained ternary, or assign the result inside each `switch` arm body (`switch s\n  "A" => x := ...`).
+
 ### udf-param-default-unsupported
 
 - **Code:** `pine-converter/parse/udf-param-default-unsupported`
@@ -248,6 +255,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** `chart.point.from_index` used on a drawing whose `xloc` is `bar_time`; treated as `bar_index`.
 - **Suggested fix:** Use `chart.point.from_time` for `xloc.bar_time` drawings.
 
+### color-transp-approximated
+
+- **Code:** `pine-converter/transform/color-transp-approximated`
+- **Severity:** info
+- **Message:** A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.
+- **Suggested fix:** No action needed; the alpha preserves the Pine transparency.
+
 ### computed-indicator-title
 
 - **Code:** `pine-converter/transform/computed-indicator-title`
@@ -359,6 +373,20 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** error
 - **Message:** `input.enum(...)` is not supported; Pine enums are UDT-backed in v6.
 - **Suggested fix:** Replace the enum input with an `input.string(...)` of allowed values.
+
+### input-string-options-default-mismatch
+
+- **Code:** `pine-converter/transform/input-string-options-default-mismatch`
+- **Severity:** warning
+- **Message:** An `input.string(default, options=[…])` default is not one of the listed options; the `input.enum` is still emitted with the given default.
+- **Suggested fix:** Set the default to one of the `options=` values so the dropdown opens on a valid selection.
+
+### input-string-options-not-literal
+
+- **Code:** `pine-converter/transform/input-string-options-not-literal`
+- **Severity:** warning
+- **Message:** An `input.string(options=[…])` list is not a uniform set of string literals (a non-literal or mixed-type element); it could not become an `input.enum`, so the options were dropped and a plain `input.string` was emitted.
+- **Suggested fix:** List the dropdown choices as plain string literals (`options=["SMA", "EMA"]`).
 
 ### label-style-not-mapped
 

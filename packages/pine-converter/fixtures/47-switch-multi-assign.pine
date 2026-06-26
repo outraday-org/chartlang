@@ -1,0 +1,10 @@
+//@version=6
+indicator("Preset selector", overlay=false)
+var int a = na
+var int b = na
+sel = input.string("X", "Preset")
+switch sel
+    "X" => a := 8, b := 21
+    "Y" => a := 4, b := 10
+plot(a)
+plot(b)

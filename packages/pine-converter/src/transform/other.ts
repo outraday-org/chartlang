@@ -81,8 +81,20 @@ function inputCastType(code: string): string | null {
     if (code.startsWith("input.bool(")) {
         return "boolean";
     }
-    if (code.startsWith("input.string(") || code.startsWith("input.interval(")) {
+    // A string-options dropdown lowers to `input.enum("…", […])` — its value is
+    // one of the string options, so it casts like `input.string`.
+    if (
+        code.startsWith("input.string(") ||
+        code.startsWith("input.interval(") ||
+        code.startsWith('input.enum("')
+    ) {
         return "string";
+    }
+    // A numeric-options dropdown lowers to `input.enum(21, […])` — its value is
+    // one of the numeric options, so it casts like `input.int` (length args /
+    // comparisons keep type-checking). The string enum was matched just above.
+    if (code.startsWith("input.enum(")) {
+        return "number";
     }
     return null;
 }
@@ -1344,13 +1356,15 @@ function emitCallValue(value: ExpressionNode, ctx: EmitContext, walk: Walk): str
     return emitWithContext(value, ctx);
 }
 
-// Whether a call is an `input.*` primitive (its declaration is Task 9's, and
+// Whether a call is an input primitive — an `input.*` member call OR the bare
+// generic `input(...)` form (its declaration is hoisted to `manifest.inputs` and
 // references rewrite to `inputs.<name>`, so the decl itself emits nothing).
 function isInputCall(value: ExpressionNode): boolean {
     if (value.kind !== "call-expression") {
         return false;
     }
-    return calleeName(value)?.startsWith("input.") ?? false;
+    const name = calleeName(value);
+    return name === "input" || (name?.startsWith("input.") ?? false);
 }
 
 function emitExpressionStatement(

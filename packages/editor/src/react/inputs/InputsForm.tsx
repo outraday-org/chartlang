@@ -3,7 +3,11 @@
 
 import type { ReactElement } from "react";
 
-import { renderInputsForm, type InputsFormField } from "./renderInputsForm.js";
+import {
+    renderInputsForm,
+    type InputsFormField,
+    type InputsFormOption,
+} from "./renderInputsForm.js";
 
 /**
  * Props for the React script inputs form binding.
@@ -118,11 +122,13 @@ function SelectField({ field }: Readonly<{ field: InputsFormField }>): ReactElem
             {field.title}
             <select
                 name={field.key}
-                onChange={(event) => field.onChange(event.target.value)}
-                value={stringValue(field.value)}
+                onChange={(event) =>
+                    field.onChange(coerceSelectValue(field.options, event.target.value))
+                }
+                value={selectValue(field.value)}
             >
                 {field.options?.map((option) => (
-                    <option key={option.value} value={option.value}>
+                    <option key={String(option.value)} value={String(option.value)}>
                         {option.label}
                     </option>
                 ))}
@@ -173,4 +179,21 @@ function numberValue(value: unknown): number | string {
 
 function stringValue(value: unknown): string {
     return typeof value === "string" ? value : "";
+}
+
+function selectValue(value: unknown): string {
+    return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
+
+function coerceSelectValue(
+    options: ReadonlyArray<InputsFormOption> | undefined,
+    raw: string,
+): string | number {
+    // The DOM hands `<select>` changes back as strings. A numeric enum carries
+    // number options, so convert when the chosen option is numeric; string
+    // enums, source and interval fields keep the raw string unchanged.
+    const numeric = options?.some(
+        (option) => typeof option.value === "number" && String(option.value) === raw,
+    );
+    return numeric === true ? Number(raw) : raw;
 }

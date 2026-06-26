@@ -327,6 +327,37 @@ export type TupleExpression = WithSpan &
     }>;
 
 /**
+ * A value-position array literal `[a, b, c]` — Pine's `array.from`-style
+ * bracket list when it appears as a value (an `options=` named-arg value, a
+ * call argument, or a right-hand side), distinct from the postfix
+ * history-access `x[n]` and the statement-leading `[a, b] = …` tuple
+ * destructuring. `elements` are parsed via the full expression grammar; an
+ * empty `[]` carries no elements.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const lit = (v: string, col: number) =>
+ *         ({
+ *             kind: "literal-expression",
+ *             literalKind: "string",
+ *             value: v,
+ *             span: { startLine: 1, startColumn: col, endLine: 1, endColumn: col + 5 },
+ *         }) as const;
+ *     const e: ArrayLiteralExpression = {
+ *         kind: "array-literal-expression",
+ *         elements: [lit('"SMA"', 2), lit('"EMA"', 9)],
+ *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 14 },
+ *     };
+ *     void e;
+ */
+export type ArrayLiteralExpression = WithSpan &
+    Readonly<{
+        kind: "array-literal-expression";
+        elements: readonly ExpressionNode[];
+    }>;
+
+/**
  * A lambda `(x, y) => body`. Parsed surface-faithfully; the transform layer
  * rejects it (no chartlang analogue in v1) rather than the parser, so later
  * passes can report a single contextual diagnostic (e.g. for `array.map`).
@@ -401,5 +432,6 @@ export type ExpressionNode =
     | HistoryAccessExpression
     | ParenExpression
     | TupleExpression
+    | ArrayLiteralExpression
     | LambdaExpression
     | UnknownExpression;

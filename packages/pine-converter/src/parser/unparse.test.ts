@@ -53,6 +53,11 @@ describe("unparse", () => {
         expect(roundTrip("(a, b)")).toBe("(a, b)");
     });
 
+    it("emits an array literal", () => {
+        expect(roundTrip("[a, b]")).toBe("[a, b]");
+        expect(roundTrip("[]")).toBe("[]");
+    });
+
     it("emits a lambda", () => {
         expect(roundTrip("(x, y) => x + y")).toBe("(x, y) => (x + y)");
     });

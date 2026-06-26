@@ -2724,11 +2724,11 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "EnumDescriptor",
         "kind": "type",
         "title": "EnumDescriptor",
-        "summary": "Descriptor for `input.enum(...)`.",
+        "summary": "Descriptor for `input.enum(...)`. The member type is `string | number`:\na string enum models a labelled dropdown, a numeric enum a fixed set of\nlengths/levels.",
         "examples": [
-            "const d: EnumDescriptor<\"a\" | \"b\"> = {\nkind: \"enum\",\ndefaultValue: \"a\",\noptions: [\"a\", \"b\"],\n};\nvoid d;"
+            "const d: EnumDescriptor<\"a\" | \"b\"> = {\nkind: \"enum\",\ndefaultValue: \"a\",\noptions: [\"a\", \"b\"],\n};\nconst n: EnumDescriptor<8 | 21 | 30> = {\nkind: \"enum\",\ndefaultValue: 21,\noptions: [8, 21, 30],\n};\nvoid d;\nvoid n;"
         ],
-        "since": "0.4",
+        "since": "0.4 — numeric (`number`) members added in 1.6",
         "stability": "stable"
     },
     "EnvelopeOpts": {
@@ -3446,7 +3446,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "input.enum",
         "kind": "function",
         "title": "input.enum(defaultValue, options, opts?)",
-        "summary": "Build a string enum input descriptor.",
+        "summary": "Build an enum input descriptor (a fixed-options dropdown). Options are\neither string labels or numeric values; the default must be one of the\noptions.",
         "paramTable": [
             {
                 "name": "defaultValue",
@@ -3465,9 +3465,9 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "examples": [
-            "const mode = input.enum(\"fast\", [\"fast\", \"slow\"]);\nvoid mode;"
+            "const mode = input.enum(\"fast\", [\"fast\", \"slow\"]);\nconst length = input.enum(21, [8, 21, 30, 50, 100]);\nvoid mode;\nvoid length;"
         ],
-        "since": "0.4",
+        "since": "0.4 — numeric (`number`) options added in 1.6",
         "stability": "stable"
     },
     "input.externalSeries": {

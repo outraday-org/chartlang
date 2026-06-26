@@ -845,6 +845,37 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             "No action needed — the temporary preserves Pine's evaluate-once argument semantics.",
     },
+    "switch-expression-unsupported": {
+        code: "pine-converter/parse/switch-expression-unsupported",
+        severity: "error",
+        defaultMessage:
+            "A `switch` used as a value (e.g. `x = switch s ...`) is not yet supported.",
+        defaultSuggestion:
+            'Rewrite it as a chained ternary, or assign the result inside each `switch` arm body (`switch s\\n  "A" => x := ...`).',
+    },
+    "input-string-options-default-mismatch": {
+        code: "pine-converter/transform/input-string-options-default-mismatch",
+        severity: "warning",
+        defaultMessage:
+            "An `input.string(default, options=[…])` default is not one of the listed options; the `input.enum` is still emitted with the given default.",
+        defaultSuggestion:
+            "Set the default to one of the `options=` values so the dropdown opens on a valid selection.",
+    },
+    "input-string-options-not-literal": {
+        code: "pine-converter/transform/input-string-options-not-literal",
+        severity: "warning",
+        defaultMessage:
+            "An `input.string(options=[…])` list is not a uniform set of string literals (a non-literal or mixed-type element); it could not become an `input.enum`, so the options were dropped and a plain `input.string` was emitted.",
+        defaultSuggestion:
+            'List the dropdown choices as plain string literals (`options=["SMA", "EMA"]`).',
+    },
+    "color-transp-approximated": {
+        code: "pine-converter/transform/color-transp-approximated",
+        severity: "info",
+        defaultMessage:
+            "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        defaultSuggestion: "No action needed; the alpha preserves the Pine transparency.",
+    },
 } as const satisfies Record<string, DiagnosticCodeEntry>;
 
 /**

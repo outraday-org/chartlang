@@ -80,7 +80,37 @@ export const INPUT_MAP: ReadonlyMap<string, InputMapping> = new Map<string, Inpu
             notes: "Pine UDT-backed; needs full type-system support — REJECT for v1",
         },
     ],
+    // docs: https://www.tradingview.com/pine-script-reference/v6/#fun_input
+    // Bare generic `input(...)` (the legacy form). This row is a recognised-
+    // primitive MARKER only — the actual target is a TRANSFORM decision keyed on
+    // the resolved `defval`: an OHLCV/series default → `input.source` (the
+    // `chartlang` here), a literal default → the typed `input.int/float/bool/
+    // string/color` factory (`transform/inputs.ts:buildBareInput`).
+    [
+        "input",
+        {
+            pine: "input",
+            chartlang: "input.source",
+            notes: "Bare input(); transform picks source (series defval) vs typed (literal defval)",
+        },
+    ],
 ]);
+
+/**
+ * The chartlang `input.*` builder a Pine `input.string(default, options=[…])`
+ * (string dropdown) lowers to. Distinct from the {@link INPUT_MAP}
+ * `input.enum` REJECT row (that one is Pine's UDT-backed `input.enum`
+ * primitive); this is the converter-synthesised string-options → enum bridge.
+ * Keeping the target name here, not inlined in `transform/inputs.ts`, holds the
+ * "mapping decisions route through `src/mapping/`" invariant.
+ *
+ * @since 1.6
+ * @stable
+ * @example
+ *     import { STRING_OPTIONS_ENUM_BUILDER } from "@invinite-org/chartlang-pine-converter";
+ *     void STRING_OPTIONS_ENUM_BUILDER; // "input.enum"
+ */
+export const STRING_OPTIONS_ENUM_BUILDER = "input.enum";
 
 /**
  * Resolve a Pine `input.*` primitive against {@link INPUT_MAP}. Returns

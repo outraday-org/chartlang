@@ -7,6 +7,7 @@ import type {
     BlockStatement,
     DeclarationQualifier,
     ElseIfClause,
+    ExpressionNode,
     ExpressionStatement,
     ForStatement,
     FunctionDeclaration,
@@ -183,6 +184,25 @@ function parseTypeAnnotation(ctx: ParserContext): TypeAnnotation | null {
     return { kind: "named-type", name, span: token.span };
 }
 
+// A `switch` used as a VALUE (`x = switch s …` / `float r = switch s …`) is not
+// yet supported: the Pratt parser models `switch` only as a statement, so in
+// value position it would otherwise fall to the silently-broken
+// `unknown-expression` path. Detect it at the assignment/declaration value slot,
+// emit a clean `switch-expression-unsupported` reject, and recover the
+// `switch <subject>` header line + its indented arm block via `recoverCompound`
+// so parsing resumes at the next sibling. Returns a placeholder initializer
+// (emitted as nothing by the transform), or `null` when the value is not a
+// `switch` (the caller then parses it normally).
+function rejectValueSwitch(ctx: ParserContext): ExpressionNode | null {
+    const token = ctx.cursor.peek();
+    if (!(token.kind === "keyword" && token.text === "switch")) {
+        return null;
+    }
+    ctx.addDiagnostic(makeDiagnostic("switch-expression-unsupported", token.span));
+    recoverCompound(ctx);
+    return { kind: "unknown-expression", tokens: [], span: token.span };
+}
+
 function parseVariableDeclaration(
     ctx: ParserContext,
     qualifier: DeclarationQualifier,
@@ -197,7 +217,7 @@ function parseVariableDeclaration(
         );
     }
     ctx.cursor.match("operator", "=");
-    const initializer = parseExpression(ctx);
+    const initializer = rejectValueSwitch(ctx) ?? parseExpression(ctx);
     const end = ctx.cursor.peek().span;
     ctx.cursor.match("newline");
     return {
@@ -233,7 +253,7 @@ function parseAssignment(
 ): Assignment {
     ctx.cursor.next();
     ctx.cursor.next();
-    const value = parseExpression(ctx);
+    const value = rejectValueSwitch(ctx) ?? parseExpression(ctx);
     const end = ctx.cursor.peek().span;
     ctx.cursor.match("newline");
     return {
@@ -289,7 +309,7 @@ function parseTupleDeclaration(ctx: ParserContext, start: Token): TupleDeclarati
     }
     ctx.cursor.match("punctuation", "]");
     ctx.cursor.match("operator", "=");
-    const initializer = parseExpression(ctx);
+    const initializer = rejectValueSwitch(ctx) ?? parseExpression(ctx);
     const end = ctx.cursor.peek().span;
     ctx.cursor.match("newline");
     return {
@@ -524,10 +544,19 @@ function parseSwitchCase(ctx: ParserContext): SwitchCase {
         }
         endSpan = block.span;
     } else {
-        const statement = parseStatement(ctx);
-        if (statement !== null) {
-            body.push(statement);
-            endSpan = statement.span;
+        // An inline arm body may be a single expression OR a comma-separated
+        // assignment list (`a := 8, b := 21`). The lexer suppresses the
+        // newline after a trailing `,`, so the list is one logical line; each
+        // comma-separated element becomes its own statement in the arm body.
+        for (;;) {
+            const statement = parseStatement(ctx);
+            if (statement !== null) {
+                body.push(statement);
+                endSpan = statement.span;
+            }
+            if (ctx.cursor.match("punctuation", ",") === null) {
+                break;
+            }
         }
     }
     return { test, body, span: spanBetween(startToken.span, endSpan) };
@@ -659,11 +688,22 @@ export function parseStatement(ctx: ParserContext): Statement | null {
     if (start.kind === "identifier") {
         return parseIdentifierStatement(ctx, start);
     }
-    // `[a, b, c] = expr` tuple destructuring (a multi-return `ta.*` like
-    // `ta.macd`). Only a well-formed `[ ident (, ident)* ] =` head is taken;
-    // anything else falls through to the `unexpected-token` recovery below.
-    if (start.kind === "punctuation" && start.text === "[" && looksLikeTupleDeclaration(ctx)) {
-        return parseTupleDeclaration(ctx, start);
+    // A statement-leading `[` is a tuple-destructuring head: a well-formed
+    // `[ ident (, ident)* ] =` becomes a `TupleDeclaration`; any other
+    // `[ … ]` head (a non-identifier target, a missing comma, a `:=`) is a
+    // malformed destructuring and rejects with `unexpected-token`. A
+    // value-position array literal (`options=[…]`, `f([…])`, `x = [...]`) is
+    // never statement-leading — it is reached nested through `parseExpression`,
+    // not this dispatch — so a leading `[` is never a bare array expression.
+    if (start.kind === "punctuation" && start.text === "[") {
+        if (looksLikeTupleDeclaration(ctx)) {
+            return parseTupleDeclaration(ctx, start);
+        }
+        ctx.addDiagnostic(
+            makeDiagnostic("unexpected-token", start.span, `Unexpected token \`${start.text}\`.`),
+        );
+        recoverLine(ctx);
+        return null;
     }
     const expression = parseExpression(ctx);
     if (expression.kind === "unknown-expression" && expression.tokens.length === 0) {

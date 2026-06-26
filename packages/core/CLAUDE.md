@@ -177,6 +177,22 @@
   addition in core; validation, omit-when-`0` emission, and the global
   render sort live in `adapter-kit` / `runtime` / the reference adapter.
 
+- **`input.enum` / `EnumDescriptor` admit `T extends string | number`.** A
+  numeric enum (`input.enum(21, [8, 21, 30])`) is a fixed-options dropdown over
+  numbers, the string enum is unchanged. The widened bound is mirrored in three
+  lockstep places: the `enum` builder (`input/input.ts`), `EnumDescriptor`
+  itself, AND the `InputDescriptor<T>` union member (`EnumDescriptor<string |
+  number>` — without this a numeric enum is not assignable to
+  `InputSchema = Record<string, InputDescriptor<unknown>>`, so a script's
+  `inputs: { len: input.enum(21, […]) }` would not type-check). The compiler's
+  `program.ts` shim mirrors all three. Additive within `apiVersion: 1`; the
+  runtime default path round-trips a numeric default unchanged (it is a plain
+  number). The execution side is complete (T4 Task 4):
+  `runtime/resolveInputs.matchesDescriptor`'s `enum` arm accepts a numeric
+  adapter *override* (not just the default), and `compiler/extractInputs`
+  serialises a uniform numeric options list into the manifest. String-enum
+  behaviour is byte-stable.
+
 - **Coverage excludes `index.ts` (barrel) and any `types.ts` (declarations).**
   Real exported logic lives in dedicated files with co-located `*.test.ts`
   (unit) and `*.types.test.ts` (`expect-type`) layers. The two type-test

@@ -44,6 +44,18 @@ describe("input builder type surface", () => {
         >();
     });
 
+    it("preserves numeric enum literal unions", () => {
+        expectTypeOf(input.enum(21, [8, 21, 30] as const)).toEqualTypeOf<
+            EnumDescriptor<8 | 21 | 30>
+        >();
+    });
+
+    it("assigns a numeric enum to the shared input union", () => {
+        expectTypeOf(input.enum(21, [8, 21, 30] as const)).toMatchTypeOf<
+            InputDescriptor<unknown>
+        >();
+    });
+
     it("carries external series schema payload type", () => {
         const schema: Schema<number> = { kind: "external-series-schema" };
         expectTypeOf(input.externalSeries({ name: "feed", schema })).toEqualTypeOf<

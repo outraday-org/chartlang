@@ -1,0 +1,26 @@
+[
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 25,
+            "endLine": 3,
+            "endColumn": 51
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 4,
+            "startColumn": 26,
+            "endLine": 4,
+            "endColumn": 52
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    }
+]

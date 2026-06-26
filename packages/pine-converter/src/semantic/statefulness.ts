@@ -126,6 +126,7 @@ function collectExpressionFacts(expr: ExpressionNode, acc: FactsAccumulator): vo
             }
             return;
         case "tuple-expression":
+        case "array-literal-expression":
             for (const element of expr.elements) {
                 collectExpressionFacts(element, acc);
             }

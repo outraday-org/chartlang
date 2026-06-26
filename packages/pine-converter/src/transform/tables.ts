@@ -7,12 +7,12 @@ import type { SourceSpan } from "../index.js";
 import { enumLookup } from "../mapping/index.js";
 import type { SemanticResult } from "../semantic/index.js";
 import { dottedCallee, positionalArgs } from "./callArgs.js";
+import { convertColor, isTranspColorForm } from "./colorConvert.js";
 import { substituteIterator } from "./controlFlow.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
 import { emitWithContext } from "./emitContext.js";
 import type { AnnotationLookup } from "./exprEmit.js";
-import { emitExpr } from "./exprEmit.js";
 import { emitStr } from "./strFormat.js";
 import { handleSlotLocalName } from "./handleSlot.js";
 import type { ScriptScaffold } from "./ir.js";
@@ -91,16 +91,28 @@ const UNMAPPED_CELL_ARGS: ReadonlySet<string> = new Set([
     "text_wrap",
 ]);
 
-// The chartlang source for a styling arg: a bare-rooted enum routes through
-// `enumLookup`, everything else lowers via `emitExpr`.
-function styleValueSource(node: ExpressionNode, annotations: AnnotationLookup): string {
+// The chartlang source for a cell styling arg: a bare-rooted enum routes
+// through `enumLookup`; a `color.new(base, transp)` / 4-arg `color.rgb(...)`
+// folds to a `#RRGGBBAA` hex (literal base) or `color.withAlpha(...)` (dynamic
+// base) via the shared {@link convertColor} — raising
+// `color-transp-approximated` — and everything else lowers through it
+// unchanged. Cell styling has no input/state context, so the annotation-based
+// `convertColor` (its emit fallback is `emitExpr`) matches the prior behaviour.
+function styleValueSource(
+    node: ExpressionNode,
+    annotations: AnnotationLookup,
+    diagnostics: DiagnosticCollector,
+): string {
     if (node.kind === "member-access-expression" && node.head === null) {
         const mapping = enumLookup(node.chain.join("."));
         if (mapping !== null && typeof mapping.chartlang === "string") {
             return JSON.stringify(mapping.chartlang);
         }
     }
-    return emitExpr(node, annotations);
+    if (isTranspColorForm(node)) {
+        diagnostics.pushCode("color-transp-approximated", node.span);
+    }
+    return convertColor(node, annotations);
 }
 
 // Lower a table-cell text expression. A `str.*` call routes through the
@@ -184,7 +196,7 @@ function applyCellSetter(
     if (valueArg === undefined) {
         return;
     }
-    const value = styleValueSource(valueArg.value, annotations);
+    const value = styleValueSource(valueArg.value, annotations, diagnostics);
     switch (member) {
         case "cell_set_text":
             spec.text = cellTextSource(valueArg.value, annotations, diagnostics);
@@ -225,7 +237,7 @@ function applyCellNamedArgs(
             diagnostics.pushCode("table-formatting-not-mapped", arg.span);
             continue;
         }
-        const value = styleValueSource(arg.value, annotations);
+        const value = styleValueSource(arg.value, annotations, diagnostics);
         switch (arg.name) {
             case "bgcolor":
                 spec.bgColor = value;

@@ -365,6 +365,14 @@
   3-overload impl branches on `typeof arg1 === "string"` AND confirms
   both edges are arrays before dispatching (the bare script-facing form
   always throws the active-step sentinel).
+- **`resolveInputs.matchesDescriptor`'s `enum` arm accepts a `string` OR
+  `number` override.** Core widened `input.enum` to `T extends string |
+  number`, so a numeric-enum override (`input.enum(21, [8, 21, 30])` → `30`)
+  must coerce instead of falling back with `input-coercion-failed`. The arm is
+  `(typeof value === "string" || typeof value === "number") &&
+  descriptor.options.includes(value)` — string-enum membership is unchanged, so
+  string-enum overrides stay byte-identical. The default path already
+  round-trips a numeric default (it is a plain number).
 - **`RuntimeContext.plotOverrides` is the one mutable presentation
   field — frozen entries, swappable container.** Resolved once at mount
   (`args.plotOverrides ?? args.resolvePlotOverrides?.(name) ?? {}`) and

@@ -632,6 +632,7 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext, scalar: boolean): E
         case "paren-expression":
             return { ...node, expression: rewriteTree(node.expression, ctx, scalar) };
         case "tuple-expression":
+        case "array-literal-expression":
             return { ...node, elements: node.elements.map((el) => rewriteTree(el, ctx, false)) };
         case "lambda-expression":
             return { ...node, body: rewriteTree(node.body, ctx, false) };

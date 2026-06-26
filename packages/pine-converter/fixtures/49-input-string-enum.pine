@@ -1,0 +1,8 @@
+//@version=6
+indicator("MA Type Select", overlay=true)
+ma_type = input.string("EMA", "MA Type", options = ["SMA", "EMA"])
+preset = input.string("Fast", options = ["Fast", "Slow"])
+mismatch = input.string("Mid", "Mismatch", options = ["Low", "High"])
+src = ma_type == "EMA" ? close : open
+plot(preset == "Fast" ? src : close)
+plot(mismatch == "Low" ? high : low)

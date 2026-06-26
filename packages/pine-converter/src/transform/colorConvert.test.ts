@@ -7,7 +7,13 @@ import { describe, expect, it } from "vitest";
 import type { CallExpression, ExpressionNode } from "../ast/index.js";
 import { lex } from "../lexer/index.js";
 import { parseStatements } from "../parser/index.js";
-import { convertColor, transpToAlphaHex } from "./colorConvert.js";
+import {
+    convertColor,
+    convertColorWith,
+    isTranspColorForm,
+    transpToAlphaHex,
+} from "./colorConvert.js";
+import { emitExpr } from "./exprEmit.js";
 
 // Parse `x = <expr>` and return the value expression.
 function parseValue(expr: string): ExpressionNode {
@@ -72,15 +78,18 @@ describe("convertColor", () => {
         expect(convertColor(parseValue("#abcdef"), new Map())).toBe('"#abcdef"');
     });
 
-    it("falls back to emitExpr for a non-literal transp", () => {
+    it("emits color.withAlpha for a literal base + dynamic transp", () => {
+        // A dynamic transp cannot fold to a hex; the literal base resolves to
+        // its hex and the alpha becomes the `(100 - transp) / 100` fraction.
         expect(convertColor(parseValue("color.new(color.gray, len)"), new Map())).toBe(
-            "color.new(color.gray, len)",
+            'color.withAlpha("#787B86", (100 - len) / 100)',
         );
     });
 
-    it("falls back to emitExpr for a non-foldable base color", () => {
+    it("emits color.withAlpha for a dynamic base + literal transp", () => {
+        // transp 80 → alpha 0.2; the dynamic base lowers through the emitter.
         expect(convertColor(parseValue("color.new(myColor, 80)"), new Map())).toBe(
-            "color.new(myColor, 80)",
+            "color.withAlpha(myColor, 0.2)",
         );
     });
 
@@ -90,18 +99,47 @@ describe("convertColor", () => {
         );
     });
 
-    it("rejects an 8-digit #RRGGBBAA base (not a 6-digit hex)", () => {
-        // An already-alpha'd literal is not a 6-digit base, so no double fold;
-        // the emitExpr fallback quotes the color literal verbatim.
+    it("lowers an 8-digit #RRGGBBAA base via color.withAlpha (not a 6-digit fold)", () => {
+        // An already-alpha'd literal is not a 6-digit base, so no hex fold; the
+        // dynamic path quotes the literal verbatim and applies the alpha.
         const node = parseValue("color.new(#11223344, 50)");
-        expect(convertColor(node, new Map())).toBe('color.new("#11223344", 50)');
+        expect(convertColor(node, new Map())).toBe('color.withAlpha("#11223344", 0.5)');
+    });
+
+    it("clamps an out-of-range transp in the color.new hex fold", () => {
+        expect(convertColor(parseValue("color.new(color.red, 150)"), new Map())).toBe(
+            '"#FF525200"',
+        );
+    });
+
+    it("folds a 4-arg color.rgb(r, g, b, transp) to a #RRGGBBAA hex", () => {
+        // transp 60 → alpha 0x66.
+        expect(convertColor(parseValue("color.rgb(255, 153, 0, 60)"), new Map())).toBe(
+            '"#FF990066"',
+        );
+    });
+
+    it("clamps an out-of-range rgb component in the 4-arg fold", () => {
+        expect(convertColor(parseValue("color.rgb(300, 0, 0, 0)"), new Map())).toBe('"#FF0000FF"');
+    });
+
+    it("emits color.withAlpha for a 4-arg color.rgb with a dynamic transp", () => {
+        expect(convertColor(parseValue("color.rgb(255, 153, 0, x)"), new Map())).toBe(
+            "color.withAlpha(color.rgb(255, 153, 0), (100 - x) / 100)",
+        );
+    });
+
+    it("emits color.withAlpha for a 4-arg color.rgb with a dynamic component", () => {
+        expect(convertColor(parseValue("color.rgb(r, 153, 0, 60)"), new Map())).toBe(
+            "color.withAlpha(color.rgb(r, 153, 0), 0.4)",
+        );
     });
 
     it("lowers a non-color expression via emitExpr", () => {
         expect(convertColor(parseValue("close"), new Map())).toBe("bar.close");
     });
 
-    it("does not treat a non-color.new call as a fold", () => {
+    it("passes a 3-arg color.rgb(r, g, b) through unchanged (no transp arg)", () => {
         const node = parseValue("color.rgb(1, 2, 3)");
         expect(node.kind).toBe("call-expression");
         expect(convertColor(node, new Map())).toBe("color.rgb(1, 2, 3)");
@@ -140,5 +178,51 @@ describe("convertColor — head-null callee guard", () => {
         // A `obj.color.new(...)` chain has head=null but chain ["obj","color","new"];
         // dottedCallee !== "color.new", so no fold.
         expect(convertColor(inner, new Map())).toContain("obj.color.new");
+    });
+});
+
+describe("convertColorWith — context-aware emit", () => {
+    // A stub emitter that rewrites a bare `len` to `inputs.len` (mimics the
+    // input-aware `emitWithContext`), proving the dynamic sub-expressions route
+    // through the caller's emitter rather than the annotation-based default.
+    const inputEmit = (node: ExpressionNode): string =>
+        node.kind === "identifier-expression" && node.name === "len"
+            ? "inputs.len"
+            : emitExpr(node, new Map());
+
+    it("routes a dynamic transp through the supplied emitter", () => {
+        expect(convertColorWith(parseValue("color.new(color.gray, len)"), inputEmit)).toBe(
+            'color.withAlpha("#787B86", (100 - inputs.len) / 100)',
+        );
+    });
+
+    it("routes a non-colour fallback through the supplied emitter", () => {
+        expect(convertColorWith(parseValue("len"), inputEmit)).toBe("inputs.len");
+    });
+});
+
+describe("isTranspColorForm", () => {
+    it("is true for a 2-arg color.new", () => {
+        expect(isTranspColorForm(parseValue("color.new(color.red, 80)"))).toBe(true);
+    });
+
+    it("is false for a 1-arg color.new (no transp)", () => {
+        expect(isTranspColorForm(parseValue("color.new(color.red)"))).toBe(false);
+    });
+
+    it("is true for a 4-arg color.rgb", () => {
+        expect(isTranspColorForm(parseValue("color.rgb(1, 2, 3, 60)"))).toBe(true);
+    });
+
+    it("is false for a 3-arg color.rgb (no transp)", () => {
+        expect(isTranspColorForm(parseValue("color.rgb(1, 2, 3)"))).toBe(false);
+    });
+
+    it("is false for another color call", () => {
+        expect(isTranspColorForm(parseValue("color.hsl(1, 2, 3)"))).toBe(false);
+    });
+
+    it("is false for a non-call node", () => {
+        expect(isTranspColorForm(parseValue("color.red"))).toBe(false);
     });
 });
