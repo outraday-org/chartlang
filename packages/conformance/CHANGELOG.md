@@ -1,5 +1,143 @@
 # @invinite-org/chartlang-conformance
 
+## 1.2.2
+
+### Patch Changes
+
+- 382d1f1: Map the Pine `array.*` reduction family onto the chartlang `state.array` handle
+  surface and prove it across every adapter.
+
+  - **Converter:** a new internal `ARRAY_REDUCTION_MAP` (`mapping/arrayReductions.ts`)
+    lowers `array.sum/avg/min/max/range/median/variance/stdev/indexof/includes`,
+    `array.percentile_linear_interpolation` → `<slot>.percentile`, and
+    `array.sort(id, order)` → `<slot>.sort("asc"|"desc")` onto the handle methods.
+    `array.sort` raises an `array-sort-returns-copy` info (chartlang's `sort`
+    returns a fresh copy, never mutating the ring); `array.percentile_nearest_rank`
+    and any unmapped `array.*` over a slot emit a `Number.NaN` placeholder + an
+    `array-reduction-not-mapped` warning rather than hard-failing. The Pine `order`
+    enum (`order.ascending`/`order.descending`) is now a recognised builtin. Fixture
+    `35-array-reductions` covers the clean family.
+  - **Conformance:** `array-rolling-stats` pins a rolling `stdev`/`median` series
+    over a `state.array<number>(14)` window. The reductions are pure compute that
+    ride the existing `plot` hole — **no new wire primitive and no per-adapter code
+    change** — so `pnpm conformance` replays the scenario through every adapter and
+    asserts byte-stable output.
+
+- 810125e: Map the chart-aware Pine `math.*` / `nz` subset onto the chartlang `math`
+  namespace in the converter, and prove the namespace is byte-stable across every
+  adapter.
+
+  Pine-converter changes:
+
+  - `math.round_to_mintick(x)` → `math.roundToMintick(x, syminfo.mintick)` (the
+    emitter injects the explicit tick step; the namespace is pure with no ambient
+    `syminfo`).
+  - `math.avg(a, b, …)` / `math.sum(a, b, …)` → the variadic **scalar**
+    `math.avg` / `math.sum`. This also fixes a latent bug where these mapped to
+    the non-existent `Math.avg` / `Math.sum`. Pine's 2-arg **rolling**
+    `math.sum(source, length)` / `math.avg(source, length)` has no chartlang
+    scalar analogue, so it is left for a manual rewrite with a new advisory
+    `math-rolling-window-unmapped` warning rather than being collapsed onto the
+    scalar form.
+  - `nz(x)` / `nz(x, r)` → the scalar `math.nz(...)` with a new advisory
+    `nz-scalar-assumed` info (switch to `ta.nz` by hand for a series argument).
+  - Bare numeric `math.abs`/`pow`/`sqrt`/`sign`/… stay on `Math.*` (the
+    no-rewrap decision); `na(x)` keeps its existing context-aware inline
+    predicate lowering.
+  - Codegen now wires the module-scope `math` import and the `syminfo` compute
+    destructure when the converted source references them.
+
+  The `math` namespace emits **no new wire primitive** — its outputs are plain
+  `number`s that flow into the existing `plot`/`draw` holes — so **no adapter code
+  change is required**. The new `math-round-to-mintick` conformance scenario
+  (snapped levels → `draw.horizontalLine`) is replayed through every adapter by
+  `pnpm conformance`, which is the all-adapter byte-stability proof. The
+  language-service hover registry is regenerated to include the new `math.*`
+  helper entries.
+
+- 382d1f1: Map the Pine `map.*` keyed-collection family onto the chartlang `state.map`
+  handle surface and prove it across every adapter.
+
+  - **Converter:** a new internal `MAP_BUILTIN_MAP` (`mapping/mapBuiltins.ts`)
+    lowers `map.put` → `<slot>.set`, `map.get` → `(<slot>.get(k) ?? Number.NaN)`
+    (na-bridged — chartlang returns `undefined`, Pine `na`), `map.contains` →
+    `has`, `map.remove` → `delete`, `map.size` → `size`, and `map.clear` → `clear`
+    onto a `state.map<number, number>(cap)` slot scanned by
+    `transform/mapCollection.ts`. Pine maps are unbounded, so the converter
+    **synthesizes** a literal capacity (default `1000`) + a
+    `map-capacity-synthesized` info; a non-numeric value map raises
+    `map-collection-non-numeric` (info) and is not lowered; `map.keys`/`map.values`
+    (no v1 iterators) and any unmapped `map.*` over a slot emit a `Number.NaN`
+    placeholder + `map-builtin-not-mapped` (warning) rather than hard-failing.
+    `map` is now a recognised Pine namespace. Fixture `36-map-volume-by-level`
+    covers the clean family.
+  - **Conformance:** `map-accumulator` pins a per-rounded-price volume profile
+    (value-at-key + tracked-level count) over a `state.map<number, number>(32)`
+    store. `state.map` is pure compute that rides the existing `plot` hole — **no
+    new wire primitive and no per-adapter code change** — so `pnpm conformance`
+    replays the scenario through every adapter and asserts byte-stable output. No
+    adapter diff is expected.
+
+- 810125e: Publish the author-facing surface for the `str` string namespace: extend the
+  Pine `str.*` converter mapping, prove the namespace is byte-stable across every
+  adapter, and ship the docs / skill / example surfaces.
+
+  Pine-converter changes:
+
+  - `str.replace_all(s, t, r)` → `s.replaceAll(t, r)` and `str.split(s, sep)` →
+    `s.split(sep)` (the snake_case Pine names lower to the native JS method).
+    This rounds out the existing `str.tostring` / `str.format` / `str.length` /
+    `str.contains` / `str.upper` / `str.lower` lowerings — the same
+    native-where-native-exists shape `math.*` uses for bare `Math.*`.
+  - A non-mask `str.tostring` format (grouping / `format.mintick`) or a styled
+    `{n,number}` `str.format` placeholder continues to emit the existing
+    `str-format-not-mapped` diagnostic and pass the call through, never a hard
+    failure.
+
+  The `str` namespace emits **no new wire primitive** — its outputs are plain
+  `string`s that flow into the already-shipped `draw.text` / `draw.table` /
+  `draw.marker` / `alert(...)` holes — so **no adapter code change is required**.
+  The new `str-formatted-table` conformance scenario (a `draw.table` HUD built
+  from `str.format` / `str.tostring("#.##")` / `str.upper`) is replayed through
+  every adapter by `pnpm conformance`, which is the all-adapter byte-stability
+  proof (the emitted text payload hash is byte-identical across canvas2d, echarts,
+  konva, lightweight-charts, uplot, and webgl). The CLI primitive-docs generator
+  gains a `str` page entry (`docs/primitives/str.md`) and the language-service
+  hover registry is regenerated to include the deterministic `str` formatter
+  helper entries.
+
+- Updated dependencies [3770236]
+- Updated dependencies [382d1f1]
+- Updated dependencies [382d1f1]
+- Updated dependencies [382d1f1]
+- Updated dependencies [48e8ebb]
+- Updated dependencies [810125e]
+- Updated dependencies [810125e]
+- Updated dependencies [382d1f1]
+- Updated dependencies [382d1f1]
+- Updated dependencies [382d1f1]
+- Updated dependencies [810125e]
+- Updated dependencies [382d1f1]
+- Updated dependencies [382d1f1]
+- Updated dependencies [382d1f1]
+- Updated dependencies [382d1f1]
+- Updated dependencies [382d1f1]
+- Updated dependencies [382d1f1]
+- Updated dependencies [382d1f1]
+- Updated dependencies [382d1f1]
+- Updated dependencies [810125e]
+- Updated dependencies [810125e]
+- Updated dependencies [48e8ebb]
+- Updated dependencies [48e8ebb]
+- Updated dependencies [48e8ebb]
+- Updated dependencies [48e8ebb]
+- Updated dependencies [810125e]
+  - @invinite-org/chartlang-adapter-kit@1.7.0
+  - @invinite-org/chartlang-pine-converter@0.3.0
+  - @invinite-org/chartlang-core@1.4.0
+  - @invinite-org/chartlang-compiler@1.5.0
+  - @invinite-org/chartlang-runtime@1.4.0
+
 ## 1.2.1
 
 ### Patch Changes

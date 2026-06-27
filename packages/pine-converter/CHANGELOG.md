@@ -1,5 +1,382 @@
 # @invinite-org/chartlang-pine-converter
 
+## 0.3.0
+
+### Minor Changes
+
+- 382d1f1: pine-converter (lexer): support **leading-operator line continuation**. An
+  indented line that begins with an infix/ternary lead (`and`, `or`, `+`, `-`,
+  `*`, `/`, `%`, `==`, `!=`, `>`, `>=`, `<`, `<=`, `?`, `:`) now continues the
+  previous line's expression instead of starting a new (truncated) statement —
+  the MASM-style multi-line boolean condition that dominates real-world Pine.
+
+  The lexer suppresses the intervening `newline`/`indent`/`dedent` via a
+  **deferred `newline` emit** (bounded one-token buffering: the held newline is
+  resolved by the very next significant token, not by arbitrary lookahead),
+  composing with the existing paren-depth + trailing-comma suppression. A
+  continuation line must be indented **strictly deeper than the statement-start
+  column**, so a non-indented unary `-`/`+` (or a same-indent `and`) stays a
+  separate statement. Block structure is unaffected: `if`/`for` bodies still open
+  on a real `indent` and close on the matching `dedent`, and the indent/dedent
+  counts stay balanced. The prefix-only `not` is never a continuation lead.
+
+  No new diagnostic codes; the stable `code:` contract is unchanged. A
+  `37-leading-op-continuation` fixture triple locks the behaviour behind the
+  compile round-trip, and `docs/converter/supported.md` documents the idiom.
+
+- 382d1f1: Convert Pine `for` loops that use `break`/`continue`, and add compound
+  assignment (`+=`/`-=`/`*=`/`/=`) — the two general-purpose gaps that broke most
+  real looping scripts (the `MASM_Strat.md` consolidation counter is the
+  reference).
+
+  - **No-unroll-with-`break`:** a loop whose body contains a `break`/`continue` is
+    now ALWAYS emitted as a runtime `for` (a `break` cannot span unrolled
+    iterations), overriding the stateful/non-stateful unroll heuristic. The bound
+    resolves from a literal OR a frozen `input.int` default
+    (`loop-unroll-frozen-at-input-default`). A body that is BOTH stateful AND has a
+    `break`/`continue` is unconvertible → new `stateful-loop-with-break` error; a
+    non-resolvable break-loop bound reuses `loop-bounds-not-literal-for-stateful-body`.
+  - **Outside-loop guard:** a `break`/`continue` with no enclosing loop is dropped
+    with a new `break-continue-outside-loop` error instead of emitting an illegal
+    stray `break;`.
+  - **Compound assignment:** `+=`/`-=`/`*=`/`/=` parse end-to-end (lexer operator
+    tokens, AST `AssignmentOperator`, `parseAssignment`) and lower to a
+    read-modify-write at top level and inside loop bodies — onto a `state.*`
+    scalar slot's `.value` or a plain local. (Previously `count += 1` mis-lowered
+    to `count + (undefined); 1;`.)
+  - **Runtime series index:** an `=`-declared, history-indexed `ta.*` series
+    (`ma = ta.ema(...)` read as `ma[i]`) is promoted to a `state.series` slot —
+    reusing the existing `var`→`state.series` machinery — so `ma[i]` is a legal
+    indexed read while `ma`'s scalar uses (`ma >= 0`, `plot(ma)`) still work via
+    `ma.value`. A `[i]` whose offset is an enclosing `for` iterator is a valid
+    runtime history read, not a `dynamic-series-index`. A `ta.*` series never
+    `[n]`-indexed keeps its `.current` scalar lowering (no regression). This makes
+    the `MASM_Strat.md` consolidation loop convert to a compiling runtime `for`.
+
+  Two append-only diagnostic codes: `break-continue-outside-loop`,
+  `stateful-loop-with-break`.
+
+- 382d1f1: pine-converter (transform): lower a nested `ta.*` call to its `(...).current`
+  scalar projection **wherever it sits in a scalar position** — an operand of a
+  binary/unary operator, a ternary arm, or a `math.*` / `Math.*` argument — not
+  only when it is the top-level value of a declaration. `ta.rsi(close, 14) * 0.1`
+  now converts to `ta.rsi(bar.close, 14).current * 0.1` instead of a bare
+  `Series<number>` that does not type-check. The lowering routes through the same
+  `taLookup`-backed rule the top-level `emitTa` uses (so `ta.rma` → `ta.smma` and
+  pivots resolve), and is position-aware: a `ta.*` fed as a **source argument to
+  another `ta.*`** stays a `Series` (chartlang `ta.*` sources are
+  `Series<number>`), as do a direct `plot`/`hline` value, a `request.security`
+  callback body, and a history-access receiver. No double `.current` at top
+  level; existing golden output is byte-identical.
+
+  The lowering is now observable: a nested projection raises a `nested-ta-lowered`
+  info (deduped once per script) and an unmapped / rejected `ta.*` left as a
+  `Series` in a scalar position raises a `nested-ta-not-lowered` warning, so a
+  nested `ta.*` is never a silent non-compiling output. Fixture
+  `41-nested-ta-arith` exercises the operator, ternary, and `ta`-source forms and
+  round-trips through the compiler.
+
+- 810125e: pine-converter: lower the full Pine v6 `str.*` surface. `str.startswith` /
+  `str.endswith` → `s.startsWith(t)` / `s.endsWith(t)`, `str.pos` →
+  `s.indexOf(t)`, `str.substring` → `s.substring(begin[, end])`, `str.trim` →
+  `s.trim()`, `str.repeat` → `s.repeat(n)` (2-arg or empty-string-literal
+  separator), occurrence-aware `str.replace` → `s.replace(t, r)` (no occurrence
+  or a literal-`0` occurrence), and `str.tonumber` → `Number(s)`. This rounds out
+  the existing `str.tostring` / `str.format` / `str.length` / `str.contains` /
+  `str.upper` / `str.lower` / `str.split` / `str.replace_all` lowerings — the same
+  native-where-native-exists shape `math.*` uses for bare `Math.*` (no `str`
+  import/destructure is added to the generated output).
+
+  `str.match` (regex) and `str.format_time` (host-time) have no native
+  one-liner and continue to emit the existing `str-not-mapped` diagnostic and
+  pass the call through; so do a `str.repeat` with a non-empty separator and a
+  `str.replace` with a non-zero / non-literal occurrence. No new diagnostic codes
+  — the stable `code:` contract is unchanged.
+
+- 382d1f1: Pine **user-defined function declarations** now convert (T1). A helper written
+  `f(a, b) => expr` (single-line) or with a multi-line indented body (whose last
+  statement is the implicit return) lowers two ways depending on whether its body
+  is stateful: a **pure** (state-free) helper hoists to a reusable chartlang
+  arrow-function `const` at the top of `compute` that every call site reuses,
+  while a **stateful** helper (one that transitively calls `ta.*` / `state.*` /
+  `plot` / `hline` / `alert` / `draw.*`) is **inline-expanded at each call site**.
+  Inlining is a correctness requirement, not an optimisation: chartlang keys every
+  `ta.*` / `state` slot by lexical source position, so a shared function would make
+  all callers collide on one slot and cross-contaminate state — inlining gives each
+  call site its own slot, reproducing Pine's per-call-site state instancing (two
+  calls to the same helper provably diverge).
+
+  A pure helper's params are emitted with a `: number` type annotation so the
+  hoisted arrow type-checks (an untyped param trips the compiler's `noImplicitAny`),
+  and a nested `math.*` call in any body now lowers its callee to the bare-native
+  `Math.*` passthrough (`math.max(math.min(a, b), c)` → `Math.max(Math.min(a, b),
+c)`) — the `math` sibling of the existing nested-`ta.*` lowering — so a pure
+  helper like `cf_limit` round-trips cleanly through the compiler.
+
+  New diagnostics ride this: `udf-emitted-function`, `udf-inlined`,
+  `udf-arg-hoisted` (info), `udf-typed-param-unsupported`, `udf-arity-mismatch`
+  (warning), and the `udf-param-default-unsupported` / `udf-recursive-rejected`
+  rejects (error). Fixtures `42`–`46` exercise the surface — the pure-helper
+  round-trip (`42`), the divergence witness (`43`), the faithful Trend Wizard
+  helper cluster (`45`), and the recursion reject (`44`) convert cleanly; one v1
+  limitation is documented and tracked: a stateful helper that indexes a param's
+  history only inlines cleanly when applied to an OHLCV argument (a derived-series
+  argument needs a `state.series` promotion, a planned follow-up).
+
+- 48e8ebb: Support comma multi-assignment `switch` arm bodies and turn a value-position
+  `switch` into a clean reject (T3).
+
+  - **`switch` arms with a comma-separated assignment list now convert.** A Pine
+    arm body such as `"X" => a := 8, b := 21` (Trend Wizard's `preset_select`
+    uses ten per branch) parses into N statements and lowers each in source
+    order before the `break;` — no element is dropped. The switch lowering was
+    already list-aware; the parser now populates the arm body as a list. Fixture
+    `47-switch-multi-assign` round-trips through the compiler.
+  - **A `switch` used as a value (`x = switch s …`, Trend Wizard's `cf_ma`) is
+    now a clean reject** — `pine-converter/parse/switch-expression-unsupported`
+    (error) — instead of silently-broken output. The parser recovers the switch
+    header + arm block and resumes at the next statement. Rewrite it as a chained
+    ternary, or assign inside each arm body (which IS supported). Lowering a
+    value-position switch to a ternary chain is a tracked follow-up.
+
+- 48e8ebb: Parse value-position `[…]` array literals (T4 Task 2).
+
+  - **A `[…]` appearing as a value now parses to an `ArrayLiteralExpression`**
+    instead of breaking with `expected-token` / `unexpected-token`. This covers a
+    named-arg value (`input.string("EMA", options=["SMA", "EMA"])`), a call
+    argument (`f([high, low])`), and a right-hand side (`x = [1, 2, 3]`); empty
+    `[]` and a trailing comma are allowed. The Pratt parser disambiguates the
+    three `[` contexts automatically: a **prefix** `[` (value start) is the array
+    literal, a **postfix** `[` (`a[0]`) stays history-access, and a
+    statement-leading `[ ident, … ] =` stays tuple destructuring (a malformed
+    statement-leading head still rejects with `unexpected-token`).
+  - An unterminated `[` recovers via the established zero-width fallback — the
+    parser never throws.
+
+  This is the parser enabler for the T4 `input.string/int(options=)` →
+  `input.enum` mapping (Tasks 3–4 consume the node) and for T5's `[high, low]`
+  `request.security` source list.
+
+  Map string dropdowns to `input.enum` (T4 Task 3).
+
+  - **`input.string(default, title?, options=["A", "B"])` now converts to
+    `input.enum(default, ["A", "B"], { title? })`** — a real fixed-options
+    dropdown instead of a free-text input that silently dropped the options.
+    String comparisons against the value (`sel == "EMA"`) keep working. The title
+    threads from the positional 2nd arg or a `title=` named arg.
+  - A `default` not in `options` warns `input-string-options-default-mismatch`
+    (the enum is still emitted); a mixed / non-literal `options=` list falls back
+    to a plain `input.string` with `input-string-options-not-literal`. Numeric
+    `options=` dropdowns and Pine's UDT-backed `input.enum` are unchanged here
+    (numeric is Task 4; the UDT enum stays rejected).
+  - New diagnostic codes: `input-string-options-default-mismatch`,
+    `input-string-options-not-literal`.
+
+  Map numeric dropdowns and bare `input()` (T4 Task 4).
+
+  - **`input.int/float(default, options=[8, 21, 30, …])` now converts to a numeric
+    `input.enum(default, [8, 21, 30, …], { title? })`** (the `input.enum<number>`
+    form Task 1 widened core for). Numeric use sites keep working — `len == 8`
+    comparisons and length args (`ta.sma(close, len)`) read `inputs.len as number`.
+  - **A bare generic `input(...)` now hoists to `manifest.inputs`** instead of
+    leaking an uncompilable `input(...)` call: a series default
+    (`input(title="LT", defval=close)`) → `input.source("close", { title? })`; a
+    literal default → the typed `input.int/float/bool/string/color` by the
+    literal's kind. A missing / `na` / computed default rejects with
+    `non-literal-input-default`. The source-vs-typed choice is a transform
+    decision; `INPUT_MAP` carries only a recognised-primitive marker for bare
+    `input`.
+
+- 48e8ebb: Convert Pine's transparency-carrying colour forms — `color.new(base, transp)`
+  and the 4-arg `color.rgb(r, g, b, transp)` — across the **plot / hline /
+  table** paths, and gate the `color` import so the output compiles.
+
+  - **Lowering (shared rule):** `colorConvert.ts`'s `convertColorWith(node, emit)`
+    is the single colour rule the plot (`plotFamily.ts`), table (`tables.ts`), and
+    linefill paths share. A literal `#RRGGBB`/palette base + literal `transp` folds
+    to a quoted `#RRGGBBAA` hex string (`alpha = round(255 * (100 - transp) /
+100)`); a **dynamic** base or `transp` emits `color.withAlpha(<base>, (100 -
+transp) / 100)` (core's `withAlpha` takes alpha in 0–1). A 3-arg
+    `color.rgb(r, g, b)` passes through. Every transparency fold raises a
+    `color-transp-approximated` info.
+  - **Import gating:** `scanUsage` (`codegen/usage.ts`) gains a `color: boolean`
+    flag, force-on whenever a `color.*` member survives in the output
+    (`color.withAlpha`, a 3-arg `color.rgb`, or a bare palette member). `color`
+    joins the core import list as a module-scope namespace (like `math`/`str`) —
+    it is NEVER added to the `compute` destructure. An all-hex script imports no
+    `color` (byte-compatible — no spurious import).
+  - Fixtures `51-color-rgb-transp` (plot + hline, hex, no import),
+    `52-color-new-literal` (table cell, hex, no import), and
+    `53-color-dynamic-base` (`withAlpha` + 3-arg `color.rgb` passthrough +
+    surviving palette member, `color` imported) round-trip through the compiler.
+
+### Patch Changes
+
+- 382d1f1: Map the Pine `array.*` reduction family onto the chartlang `state.array` handle
+  surface and prove it across every adapter.
+
+  - **Converter:** a new internal `ARRAY_REDUCTION_MAP` (`mapping/arrayReductions.ts`)
+    lowers `array.sum/avg/min/max/range/median/variance/stdev/indexof/includes`,
+    `array.percentile_linear_interpolation` → `<slot>.percentile`, and
+    `array.sort(id, order)` → `<slot>.sort("asc"|"desc")` onto the handle methods.
+    `array.sort` raises an `array-sort-returns-copy` info (chartlang's `sort`
+    returns a fresh copy, never mutating the ring); `array.percentile_nearest_rank`
+    and any unmapped `array.*` over a slot emit a `Number.NaN` placeholder + an
+    `array-reduction-not-mapped` warning rather than hard-failing. The Pine `order`
+    enum (`order.ascending`/`order.descending`) is now a recognised builtin. Fixture
+    `35-array-reductions` covers the clean family.
+  - **Conformance:** `array-rolling-stats` pins a rolling `stdev`/`median` series
+    over a `state.array<number>(14)` window. The reductions are pure compute that
+    ride the existing `plot` hole — **no new wire primitive and no per-adapter code
+    change** — so `pnpm conformance` replays the scenario through every adapter and
+    asserts byte-stable output.
+
+- 810125e: Map the chart-aware Pine `math.*` / `nz` subset onto the chartlang `math`
+  namespace in the converter, and prove the namespace is byte-stable across every
+  adapter.
+
+  Pine-converter changes:
+
+  - `math.round_to_mintick(x)` → `math.roundToMintick(x, syminfo.mintick)` (the
+    emitter injects the explicit tick step; the namespace is pure with no ambient
+    `syminfo`).
+  - `math.avg(a, b, …)` / `math.sum(a, b, …)` → the variadic **scalar**
+    `math.avg` / `math.sum`. This also fixes a latent bug where these mapped to
+    the non-existent `Math.avg` / `Math.sum`. Pine's 2-arg **rolling**
+    `math.sum(source, length)` / `math.avg(source, length)` has no chartlang
+    scalar analogue, so it is left for a manual rewrite with a new advisory
+    `math-rolling-window-unmapped` warning rather than being collapsed onto the
+    scalar form.
+  - `nz(x)` / `nz(x, r)` → the scalar `math.nz(...)` with a new advisory
+    `nz-scalar-assumed` info (switch to `ta.nz` by hand for a series argument).
+  - Bare numeric `math.abs`/`pow`/`sqrt`/`sign`/… stay on `Math.*` (the
+    no-rewrap decision); `na(x)` keeps its existing context-aware inline
+    predicate lowering.
+  - Codegen now wires the module-scope `math` import and the `syminfo` compute
+    destructure when the converted source references them.
+
+  The `math` namespace emits **no new wire primitive** — its outputs are plain
+  `number`s that flow into the existing `plot`/`draw` holes — so **no adapter code
+  change is required**. The new `math-round-to-mintick` conformance scenario
+  (snapped levels → `draw.horizontalLine`) is replayed through every adapter by
+  `pnpm conformance`, which is the all-adapter byte-stability proof. The
+  language-service hover registry is regenerated to include the new `math.*`
+  helper entries.
+
+- 382d1f1: Parser + AST for Pine user-defined function declarations (T1 Task 1). Add a
+  `FunctionDeclaration` statement node (`name`, `FunctionParam[]`, `body:
+BlockStatement`) and teach `parseStatement` to recognize the `name(params) =>`
+  head in both the single-line (`f(a, b) => expr`) and multi-line (indented body
+  with an implicit last-expression return) forms. Two append-only parse
+  diagnostics ride this: `udf-typed-param-unsupported` (warning — a typed param
+  is treated as its bare name) and `udf-param-default-unsupported` (error — a
+  defaulted param rejects the whole declaration). Parse-only; semantic
+  registration and emission land in T1 Tasks 2–4 (the public converter surface is
+  unchanged here, so the user-visible bump is folded into Task 5's feature
+  changeset).
+- 382d1f1: Emit pure (state-free) Pine user-defined functions as reusable chartlang
+  arrow-function `const`s (T1 Task 3). `transformOther` now hoists every
+  `stateful: false` UDF to the FRONT of the compute body — after the state-slot
+  allocations, before any non-UDF statement — ordered callee-before-caller by a
+  topological sort over the call graph, so every helper precedes its first call
+  site and a single shared function replaces Pine's per-call evaluation (a pure
+  helper is referentially transparent). Params are emitted verbatim (registered
+  as shadowing locals so a param/local never picks up an `inputs.*` / state-slot
+  rewrite, while a free input/`var` reference in the body still rewrites);
+  intermediate body locals lower to `let`s and the body's implicit-return last
+  statement yields the `return`. A new `udf-emitted-function` (info) is raised
+  per emitted UDF. Stateful UDFs are excluded (Task 4 inlines them at each call
+  site); the statement walk's `function-declaration` arm stays a no-op shared by
+  both paths. Package-internal; the user-visible converter surface bump is folded
+  into Task 5's feature changeset.
+- 382d1f1: Semantic registration + statefulness classification for Pine user-defined
+  functions (T1 Task 2). `analyze` now hoists every top-level
+  `FunctionDeclaration` into a `kind: "function"` symbol carrying `params` and a
+  resolved `stateful` flag, walks each UDF body in a param-seeded child scope
+  (so call sites stop raising `unknown-identifier` and free body identifiers are
+  still flagged), and warns `udf-arity-mismatch` on an argument-count mismatch.
+
+  Statefulness is computed transitively over the UDF call graph in a pre-pass
+  (`semantic/statefulness.ts`): a UDF is stateful if its body uses a builtin
+  stateful primitive (`plot`/`hline`/`alert`/`ta.*`/`draw.*`) or calls another
+  stateful UDF — the flag Tasks 3/4 read to choose reuse (pure) vs. inline
+  (stateful). Recursion (direct or mutual) is rejected with
+  `udf-recursive-rejected` (error), one per cycle on the lexically-first member.
+  The shared builtin stateful predicate moved from `transform/statefulNames.ts`
+  into the neutral `semantic/statefulness.ts` (re-exported from the old path) to
+  avoid a semantic→transform cycle. Package-internal; the user-visible converter
+  surface bump is folded into Task 5's feature changeset.
+
+- 382d1f1: Inline-expand STATEFUL Pine user-defined functions (`stateful: true`) at every
+  call site (T1 Task 4), the complement of Task 3's pure-UDF reuse. A stateful
+  helper cannot be emitted as a shared function — its `ta.*`/`state.*` would share
+  ONE compiler slot across every caller and cross-contaminate state — so
+  `udfInline.ts` expands the body at each call site instead: params bind to their
+  arguments (a non-trivial / call-bearing arg is hoisted to a `const <tmp> =
+<arg>;` evaluate-once temp; a bare identifier / literal substitutes inline),
+  the body is cloned with params + body locals substituted (the new shared
+  `substituteParams` / `substituteParamsStatement` in `controlFlow.ts`), each
+  intermediate local lowers to a uniquely-named `let` emitted BEFORE the consuming
+  statement, and the body's return expression splices into the call's position.
+  Because each inlined `ta.*`/`state.*` lands at a DISTINCT generated source
+  position, the compiler's `callsiteIdFor` mints an INDEPENDENT slot per call site
+  — reproducing Pine's per-call-site state instancing with no compiler change (two
+  calls to the same helper provably diverge). Nested stateful-UDF-calling-stateful
+  -UDF composes; a recursive self-call (already `udf-recursive-rejected`) is left
+  bare via an inline stack guard. New `udf-inlined` + `udf-arg-hoisted` (info)
+  diagnostics fire. Package-internal; the user-visible converter surface bump is
+  folded into Task 5's feature changeset.
+- 382d1f1: Map the Pine `map.*` keyed-collection family onto the chartlang `state.map`
+  handle surface and prove it across every adapter.
+
+  - **Converter:** a new internal `MAP_BUILTIN_MAP` (`mapping/mapBuiltins.ts`)
+    lowers `map.put` → `<slot>.set`, `map.get` → `(<slot>.get(k) ?? Number.NaN)`
+    (na-bridged — chartlang returns `undefined`, Pine `na`), `map.contains` →
+    `has`, `map.remove` → `delete`, `map.size` → `size`, and `map.clear` → `clear`
+    onto a `state.map<number, number>(cap)` slot scanned by
+    `transform/mapCollection.ts`. Pine maps are unbounded, so the converter
+    **synthesizes** a literal capacity (default `1000`) + a
+    `map-capacity-synthesized` info; a non-numeric value map raises
+    `map-collection-non-numeric` (info) and is not lowered; `map.keys`/`map.values`
+    (no v1 iterators) and any unmapped `map.*` over a slot emit a `Number.NaN`
+    placeholder + `map-builtin-not-mapped` (warning) rather than hard-failing.
+    `map` is now a recognised Pine namespace. Fixture `36-map-volume-by-level`
+    covers the clean family.
+  - **Conformance:** `map-accumulator` pins a per-rounded-price volume profile
+    (value-at-key + tracked-level count) over a `state.map<number, number>(32)`
+    store. `state.map` is pure compute that rides the existing `plot` hole — **no
+    new wire primitive and no per-adapter code change** — so `pnpm conformance`
+    replays the scenario through every adapter and asserts byte-stable output. No
+    adapter diff is expected.
+
+- 810125e: Publish the author-facing surface for the `str` string namespace: extend the
+  Pine `str.*` converter mapping, prove the namespace is byte-stable across every
+  adapter, and ship the docs / skill / example surfaces.
+
+  Pine-converter changes:
+
+  - `str.replace_all(s, t, r)` → `s.replaceAll(t, r)` and `str.split(s, sep)` →
+    `s.split(sep)` (the snake_case Pine names lower to the native JS method).
+    This rounds out the existing `str.tostring` / `str.format` / `str.length` /
+    `str.contains` / `str.upper` / `str.lower` lowerings — the same
+    native-where-native-exists shape `math.*` uses for bare `Math.*`.
+  - A non-mask `str.tostring` format (grouping / `format.mintick`) or a styled
+    `{n,number}` `str.format` placeholder continues to emit the existing
+    `str-format-not-mapped` diagnostic and pass the call through, never a hard
+    failure.
+
+  The `str` namespace emits **no new wire primitive** — its outputs are plain
+  `string`s that flow into the already-shipped `draw.text` / `draw.table` /
+  `draw.marker` / `alert(...)` holes — so **no adapter code change is required**.
+  The new `str-formatted-table` conformance scenario (a `draw.table` HUD built
+  from `str.format` / `str.tostring("#.##")` / `str.upper`) is replayed through
+  every adapter by `pnpm conformance`, which is the all-adapter byte-stability
+  proof (the emitted text payload hash is byte-identical across canvas2d, echarts,
+  konva, lightweight-charts, uplot, and webgl). The CLI primitive-docs generator
+  gains a `str` page entry (`docs/primitives/str.md`) and the language-service
+  hover registry is regenerated to include the deterministic `str` formatter
+  helper entries.
+
 ## 0.2.0
 
 ### Minor Changes
