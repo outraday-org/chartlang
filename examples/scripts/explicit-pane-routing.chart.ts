@@ -1,0 +1,22 @@
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, hline, plot, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Explicit Pane Routing",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, ta, plot, hline }) {
+        // Overlay (price) pane: a fast/slow EMA pair on the candles.
+        plot(ta.ema(bar.close, 20), { color: "#26a69a", title: "EMA(20)" });
+        plot(ta.ema(bar.close, 50), { color: "#ef5350", title: "EMA(50)" });
+
+        // Explicit subpane: a bounded RSI(14) oscillator on its own
+        // 0-100 y-scale, with 70/30 overbought/oversold bands routed
+        // into the same "rsi" pane via `hline(..., { pane })`.
+        plot(ta.rsi(bar.close, 14), { color: "#9c27b0", title: "RSI(14)", pane: "rsi" });
+        hline(70, { color: "#ef5350", lineStyle: "dashed", title: "Overbought", pane: "rsi" });
+        hline(30, { color: "#26a69a", lineStyle: "dashed", title: "Oversold", pane: "rsi" });
+    },
+});

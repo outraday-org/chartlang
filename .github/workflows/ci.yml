@@ -107,6 +107,8 @@ jobs:
             - run: pnpm docs:gate
             - run: pnpm docs:committed:check   # git-aware: fails when committed primitive pages drift from the generator (catches a regenerated-but-uncommitted page that the working-tree docs:gate would miss locally)
             - run: pnpm examples:gate
+            - run: pnpm examples:coverage   # fails if a docs/primitives/** page has no example and is not allow-listed
+            - run: pnpm examples:idioms   # fails if a language idiom in examples/idiom-manifest.json has no example
             - run: pnpm examples:sync
             - run: pnpm docs:build
             - run: pnpm hover:check
@@ -215,7 +217,8 @@ jobs:
               with: { node-version: 20, cache: pnpm, registry-url: "https://registry.npmjs.org" }
             - run: pnpm install --frozen-lockfile
             - run: pnpm build
-            - uses: changesets/action@v1
+            - id: changesets
+              uses: changesets/action@v1
               with:
                   publish: pnpm release
                   version: pnpm changeset:version
@@ -227,3 +230,24 @@ jobs:
                   # auth from NODE_AUTH_TOKEN — without it every publish
                   # PUT is unauthenticated and npm replies E404.
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+            # Cross-repo dispatch to invinite — fires ONLY when this run
+            # actually published @invinite-org/chartlang-examples to npm (not on
+            # docs-only pushes, nor when the Version Packages PR is merely
+            # opened). Gated on the changesets action's `published` output, and
+            # `publishedPackages` (a JSON `[{name,version}]` array) must contain
+            # the examples package. The exact published version is parsed from
+            # that array and sent in the client_payload, so invinite's receiver
+            # (Task 25) bumps to the real version. Secret: INVINITE_DISPATCH_TOKEN
+            # (PAT/App token with contents:write + actions:write on invinite).
+            - name: Notify invinite of new examples package
+              if: >-
+                  steps.changesets.outputs.published == 'true' &&
+                  contains(steps.changesets.outputs.publishedPackages, '@invinite-org/chartlang-examples')
+              env:
+                  GH_TOKEN: ${{ secrets.INVINITE_DISPATCH_TOKEN }}
+                  PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
+              run: |
+                  version="$(node -e "const p=JSON.parse(process.env.PUBLISHED_PACKAGES);const e=p.find(x=>x.name==='@invinite-org/chartlang-examples');if(!e){process.exit(1)}process.stdout.write(e.version)")"
+                  echo "Dispatching chartlang-examples-updated for version $version"
+                  printf '{"event_type":"chartlang-examples-updated","client_payload":{"package":"@invinite-org/chartlang-examples","version":"%s"}}' "$version" \
+                    | gh api repos/outraday-org/invinite/dispatches --input -

@@ -23,6 +23,7 @@ const PACKAGE_DIRS = [
     "packages/editor",
     "packages/cli",
     "packages/conformance",
+    "packages/examples",
     "examples/canvas2d-adapter",
     "examples/echarts-adapter",
     "examples/konva-adapter",
@@ -46,6 +47,8 @@ const DESCRIPTIONS: Record<string, string> = {
         "CodeMirror 6 reference editor over @invinite-org/chartlang-language-service",
     "packages/cli": "chartlang CLI — compile, lint, bench, scaffold-adapter",
     "packages/conformance": "Adapter conformance test suite",
+    "packages/examples":
+        "The chartlang example catalogue as a typed data package (metadata + inlined source)",
     "examples/canvas2d-adapter": "Reference adapter — renders to a <canvas> element",
     "examples/echarts-adapter": "Example adapter — renders chartlang to Apache ECharts",
     "examples/konva-adapter": "Example adapter — renders chartlang to a Konva scene-graph",
@@ -75,6 +78,8 @@ const PUBLIC_SURFACE: Record<string, string> = {
     "packages/cli":
         "Commands: `chartlang compile`, `chartlang lint`, `chartlang bench`, `chartlang scaffold-adapter`, `chartlang docs`.",
     "packages/conformance": "`runConformanceSuite(adapter) → Report`.",
+    "packages/examples":
+        "`EXAMPLE_CATALOGUE: ReadonlyArray<ExampleMetaWithSource>` (catalogue metadata + inlined `.chart.ts` source); the `ExampleCategory` / `CATEGORY_LABELS` / `CATEGORY_ORDER` taxonomy; types `ExampleMeta`, `ExampleMetaWithSource`.",
     "examples/canvas2d-adapter":
         "Reference adapter rendering to `<canvas>`. Not exported as a package surface — copy from this folder when writing your own adapter.",
     "examples/echarts-adapter":
@@ -101,6 +106,7 @@ const DOCS_LINKS: Record<string, string> = {
     "packages/editor": "docs/getting-started/embed-in-our-chart.md",
     "packages/cli": "docs/reference/",
     "packages/conformance": "docs/adapters/conformance.md",
+    "packages/examples": "docs/examples/",
     "examples/canvas2d-adapter": "docs/adapters/writing-an-adapter.md",
     "examples/echarts-adapter": "docs/adapters/reference/echarts.md",
     "examples/konva-adapter": "docs/adapters/reference/konva.md",

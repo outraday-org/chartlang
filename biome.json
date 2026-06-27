@@ -13,8 +13,10 @@
             "examples/scripts/*.chart.js",
             "examples/scripts/*.chart.d.ts",
             "examples/scripts/*.chart.manifest.json",
+            "examples/catalogue.json",
             "examples/canvas2d-adapter/e2e-smoke.ts",
             "packages/cli/src/generated/**",
+            "packages/examples/src/*.generated.ts",
             "packages/host-quickjs/src/*.generated.ts",
             "apps/**",
             "parity-smoke.mts"

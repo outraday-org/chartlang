@@ -17,6 +17,11 @@ GitHub-specific configuration: CI workflow and pull-request template.
   `pnpm hover:check` — regenerates
   `skills/chartlang-coding/references/primitives.md` from `ta.*`/`draw.*`
   JSDoc and byte-diffs against the committed file (repo tooling);
+  (4b) the examples-full-coverage task set adds a `pnpm examples:coverage` step
+  after `pnpm examples:gate` — the per-primitive coverage gate that fails when a
+  `docs/primitives/**` page has no example credit. It is **fully enforcing**
+  (`target ⊆ covered`, no allowlist — the catalogue covers every primitive)
+  (repo tooling);
   (5) the landing-site task set adds
   `pnpm --filter chartlang-site typecheck` + `… build` steps (after the
   conformance block, before `pnpm bench:ci`) so a broken marketing site
@@ -94,6 +99,25 @@ GitHub-specific configuration: CI workflow and pull-request template.
   after a successful publish); the publish log + the pushed
   `<name>@<version>` tag are the source of truth, not an immediate
   `npm view`.
+- The **cross-repo dispatch** to the downstream invinite repo (Tasks 23-25)
+  is a step **inside the `release` job**, not a separate workflow — so it is
+  bound to an actual npm publish, never to a bare push. The
+  `changesets/action@v1` step carries `id: changesets`; the "Notify invinite
+  of new examples package" step runs only when
+  `steps.changesets.outputs.published == 'true'` **and**
+  `contains(steps.changesets.outputs.publishedPackages, '@invinite-org/chartlang-examples')`
+  (so docs-only pushes and a merely-opened Version Packages PR never fire it).
+  It parses the exact published version from `publishedPackages` (a JSON
+  `[{name,version}]` array) and `gh api`-POSTs a `repository_dispatch` to
+  **`outraday-org/invinite`** with `event_type: chartlang-examples-updated` and
+  `client_payload: { package: "@invinite-org/chartlang-examples", version }`.
+  invinite's receiver (Task 25) bumps the dep, re-syncs its template dialog,
+  and opens a PR. **Secret:** `INVINITE_DISPATCH_TOKEN` — a fine-grained PAT /
+  GitHub App token with `contents:write` + `actions:write` on
+  `outraday-org/invinite` (do not reuse `NPM_TOKEN` / `GITHUB_TOKEN`; the
+  default token can't dispatch cross-repo). **Fallback** (no cross-repo token):
+  drop the dispatch step and let invinite consume the package via a scheduled
+  Renovate/Dependabot bump — Task 25 supports both receiver shapes.
 - `pull_request_template.md` is **§22.7 verbatim** — six checklist items.
   New checklist items go in `pull_request_template.md` first, then mirror here.
 

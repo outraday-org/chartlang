@@ -16,9 +16,9 @@ import { type ReactElement, useEffect, useMemo, useRef, useState } from "react"
 import { DEFAULT_ADAPTER_ID, isDemoAdapterId } from "./adapters/registry"
 import { ChartPane } from "./ChartPane"
 import { EditorPane } from "./EditorPane"
+import { ExampleBrowser } from "./ExampleBrowser"
 import { type CompiledArtifact, createHybridLanguageService } from "./hybridLanguageService"
 import { DEMO_SCRIPTS } from "./scripts"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const MAX_ALERTS_SHOWN = 6
 
@@ -127,29 +127,15 @@ export default function DemoBody(): ReactElement {
   return (
     <div className="cl-demo mt-10 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Script</span>
-          <Select
-            items={DEMO_SCRIPTS.map((s) => ({ label: s.label, value: s.id }))}
-            onValueChange={(value) => {
-              setScriptId(value ?? "")
-              setAlerts([])
-              setArtifact(null)
-            }}
-            value={script?.id ?? ""}
-          >
-            <SelectTrigger className="w-[220px]" size="sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DEMO_SCRIPTS.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
+        <ExampleBrowser
+          activeId={script?.id ?? ""}
+          onSelect={(id) => {
+            setScriptId(id)
+            setAlerts([])
+            setArtifact(null)
+          }}
+          scripts={DEMO_SCRIPTS}
+        />
       </div>
 
       <div className="panes">

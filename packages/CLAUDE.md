@@ -21,3 +21,8 @@ Workspace packages published under the `@invinite-org/chartlang-*` npm scope.
   `index.ts` (barrel) and `types.ts` (declarations only).
 - READMEs cap at 100 lines and follow §17.1 structure (title, stability
   label, purpose, install, public surface, MV API, docs link, license).
+- **`packages/examples`** (`@invinite-org/chartlang-examples`) is public but
+  its surface (`src/catalogue.generated.ts`) is **generated** by
+  `pnpm examples:generate` and byte-diff-gated by `pnpm examples:gate` — it is
+  the only published package whose `src` carries a generated, Biome-ignored
+  data module. Never hand-edit it; see `packages/examples/CLAUDE.md`.

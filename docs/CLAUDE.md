@@ -60,16 +60,18 @@ the repo-root `DEPLOYMENT.md`).
   writing-an-adapter, plot-overrides, conformance) and the per-library
   `docs/adapters/reference/*.md` pages are hand-authored.
 
-- **`docs/examples/` is auto-generated from the demo catalogue.** The
-  source of truth is `DEMO_SCRIPTS` in
-  `apps/site/src/components/demo/scripts.ts`. `pnpm examples:generate`
-  (`scripts/gen-examples-docs.ts`) emits `docs/examples/index.md` plus one
-  `docs/examples/<id>.md` per example (code + description + a "Try it live"
-  link to the demo). The companion gate `pnpm examples:gate` byte-diffs the
-  regenerated tree against the committed pages — drift, missing, or stale
-  pages fail CI. Do not hand-edit these pages; re-run the generator. The
-  Examples nav tab + sidebar in `config.ts` are built **live** from the same
-  `DEMO_SCRIPTS` import, so they never drift from the catalogue.
+- **`docs/examples/` is auto-generated from the example catalogue.** The
+  source of truth is `examples/catalogue.ts` (+ each
+  `examples/scripts/<id>.chart.ts` source). `pnpm examples:generate`
+  (`scripts/gen-examples-docs.ts`) regenerates `apps/site/src/components/demo/
+  scripts.ts` (`DEMO_SCRIPTS`) and `examples/catalogue.json` first, then emits
+  `docs/examples/index.md` plus one `docs/examples/<id>.md` per example (code +
+  description + a "Try it live" link to the demo). The companion gate
+  `pnpm examples:gate` byte-diffs all three against the committed tree — drift,
+  missing, or stale pages fail CI. Do not hand-edit these pages (or
+  `scripts.ts` / `catalogue.json`); re-run the generator. The Examples nav tab
+  + sidebar in `config.ts` are built **live** from the generated `DEMO_SCRIPTS`
+  import, so they never drift from the catalogue.
 
 - `docs/.vitepress/config.ts` is live. `base` defaults to `/`
   (`process.env.DOCS_BASE ?? "/"`) — the docs deploy to
@@ -108,10 +110,18 @@ the repo-root `DEPLOYMENT.md`).
   against the committed tree. Hand-edits to an auto-generated page
   fail the gate. `docs/primitives/ta/index.md` is hand-written and
   is exempt from the byte-diff.
-- `pnpm examples:gate` regenerates `docs/examples/*.md` from
-  `apps/site` `DEMO_SCRIPTS` and byte-diffs against the committed tree.
-  Hand-edits, missing pages, or stale pages fail the gate. Part of the
-  root `check` chain.
+- `pnpm examples:gate` regenerates `docs/examples/*.md` (plus
+  `apps/site` `DEMO_SCRIPTS` and `examples/catalogue.json`) from
+  `examples/catalogue.ts` + the `.chart.ts` sources and byte-diffs against the
+  committed tree. Hand-edits, missing pages, or stale pages fail the gate. Part
+  of the root `check` chain.
+- `pnpm examples:coverage` (`scripts/examples-coverage.ts`) enumerates the
+  primitive id set from this `docs/primitives/**` page tree and fails if a page
+  has no example credit. The gate is **fully enforcing** (`target ⊆ covered`,
+  no allowlist — the catalogue covers every primitive). It **reads**
+  `docs/primitives/**` but writes nothing — adding a new primitive doc page
+  makes the gate require an example for it. Part of the root `check` chain +
+  CI `test` job.
 - `pnpm adapters:gate` regenerates `docs/adapters/gallery.md` (and the CLI
   `add-adapter` bundles) from the adapters registry and byte-diffs against
   the committed tree. Hand-edits to the gallery fail the gate. Part of the

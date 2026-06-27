@@ -29,3 +29,207 @@ back to run it in your browser.
 - [Formatted OHLC HUD](/examples/str-formatted-hud) — String namespace: a draw.table HUD whose cells are built with str.*. str.tostring(value, "#.##") formats each OHLC price to a fixed-precision Pine mask (host-independent, no Intl/locale) and str.format("{0} · {1}", str.upper(bar.symbol), bar.interval) composes the header. str is a module-scope import (not a compute field); it emits no new wire primitive — the text rides the existing draw.table hole.
 - [Scalar Band](/examples/math-scalar-band) — Comprehensive math.*: a direction-aware band around the bar's typical price built entirely from the pure scalar reducers — math.avg / math.sum (variadic skip-NaN), math.clamp to bound the half-width, math.sign for candle direction, math.roundTo to snap the midline to cents, and an math.nz guard. The companion to tick-snapped-levels (which shows only roundToMintick); math is a module-scope import and bare Math.* stays available alongside it.
 - [String Label Builder](/examples/str-label-builder) — Comprehensive str.*: a draw.table watchlist HUD whose rows are sanitized and formatted entirely with the string namespace — str.split the comma list, str.trim each token, str.replace a leading hash, str.substring + str.upper for a 3-char code, str.startsWith / str.contains to flag, and str.repeat for a bullet divider. The companion to str-formatted-hud (which shows only tostring / format / upper); str is a module-scope import and .split(...).map(...) is plain JS array work, not a loop-restricted primitive.
+- [Base Trend](/examples/base-trend) — Composition building block: a length-parameterized EMA indicator (input.int default 50) other scripts mount as a dependency via baseTrend.withInputs({ length }). Mounted privately it renders nothing; exported it plots its EMA line.
+- [Daily RSI Divergence](/examples/daily-rsi-divergence) — Pine-parity reference: an RSI(14) that runs only on the daily timeframe (timeframe.isdaily guard) and counts bars since the last overbought/oversold extreme in a persistent state.int slot, both plotted in their own pane.
+- [Mintick Snapped Entry](/examples/mintick-snapped-entry) — Pine-parity reference: projects a target price a configurable percent above the close and snaps it to the symbol's mintick grid (syminfo.mintick), falling back to the raw target when the tick size is unknown.
+- [Session High Alert](/examples/session-high-alert) — Pine-parity reference: a running session-high tracked in a persistent state.float slot, reset on each session open, with an optional alert when the close crosses above it.
+- [Trend Confirmation](/examples/trend-confirmation) — Cross-file composition: imports base-trend and mounts it twice with different lengths (withInputs({ length: 20 }) and { length: 100 }) — a fast and slow EMA — then marks the bars where the fast trend crosses above the slow one.
+- [Fib Retracement](/examples/fib-retracement) — draw.fibRetracement plus draw.fibTrendExtension over one impulse leg: the retracement grid between a swing low/high (labels on, extended right) and the 1.618 trend-extension target, annotated with a draw.text caption.
+- [Persistent Color](/examples/persistent-color) — The three NON-NUMERIC persistent slots a numeric state.series can't express: state.color (a CSS color that survives across bars), state.boolSeries, and state.stringSeries (writable head plus indexable history), used to latch a position-open regime and recolor the close line by it.
+- [WMA vs SMA](/examples/wma-vs-sma) — ta.wma — a linearly-weighted moving average (newest bar heaviest) overlaid on an equal-weight SMA(20) to show how the weighting pulls the line toward price.
+- [Hull MA Fast Turn](/examples/hma-fast-turn) — ta.hma — the Hull moving average, a WMA composition that cuts lag and turns at swings sooner than an equal-length EMA(16).
+- [DEMA Reduced Lag](/examples/dema-reduced-lag) — ta.dema — the Double EMA (2·EMA − EMA(EMA)) overlaid on a plain EMA(20) to show its reduced lag on the same length.
+- [TEMA Overlay](/examples/tema-overlay) — ta.tema — the Triple EMA (3·EMA − 3·EMA(EMA) + EMA(EMA(EMA))) overlaid on a plain EMA(20), tracking price even tighter than DEMA.
+- [Smoothed MA (RMA)](/examples/smma-rma) — ta.smma — Wilder's smoothed/running MA (the α = 1/length recurrence under RSI and ATR) overlaid on a plain SMA(14).
+- [Volume-Weighted MA](/examples/vwma-volume-weighted) — ta.vwma — a volume-weighted moving average overlaid on SMA(20); heavy-volume bars pull it harder, and it reads NaN on a feed without volume.
+- [ALMA Gaussian](/examples/alma-gaussian) — ta.alma — the Arnaud Legoux MA with Gaussian weights tuned by the offset (peak position) and sigma (spread) opts (0.85 / 6), overlaid on SMA(20).
+- [KAMA Adaptive](/examples/kama-adaptive) — ta.kama — Kaufman's Adaptive MA whose smoothing follows an efficiency ratio (length / fast / slow opts), overlaid on a fixed EMA(10).
+- [LSMA Regression](/examples/lsma-regression) — ta.lsma — the Least-Squares MA, the endpoint of the trailing-window regression line, leading price like a projected trendline vs a plain SMA(25).
+- [McGinley Dynamic](/examples/mcginley-dynamic) — ta.mcginley — the McGinley Dynamic, a self-correcting EMA that speeds up on strong moves and smooths in quiet bars, overlaid on a plain EMA(14).
+- [MA Ribbon](/examples/ma-ribbon) — ta.maRibbon — a fan of same-kind MAs at several lengths from one call, here five EMA outputs ([10,20,30,40,50]) whose spread and ordering show trend strength.
+- [Stochastic RSI](/examples/stoch-rsi) — ta.stochRsi %K/%D in its own pane with 80/20 overbought/oversold guide levels — the Stochastic transform of the RSI series.
+- [Stochastic Oscillator](/examples/stochastic-oscillator) — ta.stoch %K/%D(14,3,3) sourced from bar high/low/close, with 80/20 guides — the classic Stochastic Oscillator.
+- [Stochastic Momentum Index](/examples/stochastic-momentum-index) — ta.smi(10,3,5) with its EMA(3) signal line and ±40 guides — Blau's double-smoothed Stochastic Momentum Index.
+- [Williams %R](/examples/williams-r) — ta.williamsR(14) bounded in [-100, 0] with -20/-80 overbought/oversold guide levels.
+- [CCI](/examples/cci) — ta.cci(20) over hlc3 centred on zero with the classic ±100 overbought/oversold bands.
+- [Chande Momentum Oscillator](/examples/chande-momentum) — ta.cmo(9) bounded [-100, 100] with ±50 guides and a zero centre line.
+- [Momentum](/examples/momentum-oscillator) — ta.momentum(10): the raw close − close[10] difference oscillating around a zero line.
+- [Rate of Change](/examples/rate-of-change) — ta.roc(12): percent change versus 12 bars ago, oscillating around a zero line.
+- [True Strength Index](/examples/true-strength-index) — ta.tsi(25,13) with its EMA(13) signal line around a zero centre line — Blau's double-smoothed momentum ratio.
+- [MACD](/examples/macd-histogram) — ta.macd — the MACD line (fast EMA minus slow EMA) plus its signal-line EMA over a zero-based histogram of their difference, in its own pane.
+- [Percentage Price Oscillator](/examples/ppo-oscillator) — ta.ppo — MACD's shape normalised by the slow EMA so the line, signal, and histogram are scale-invariant across symbols.
+- [Percentage Volume Oscillator](/examples/pvo-oscillator) — ta.pvo — the MACD shape applied to bar.volume and normalised by the slow EMA: line, signal, and histogram in their own pane.
+- [Awesome Oscillator](/examples/awesome-oscillator) — ta.ao — Bill Williams' SMA(hl2, 5) − SMA(hl2, 34) momentum spread drawn as a zero-based histogram.
+- [Balance of Power](/examples/balance-of-power) — ta.bop — the per-bar (close − open) / (high − low) tug-of-war between buyers and sellers, drawn as a zero-based histogram.
+- [Fisher Transform](/examples/fisher-transform) — ta.fisher — John Ehlers' Fisher Transform of the rolling hl2 midpoint plus its 1-bar-lagged trigger line.
+- [Connors RSI](/examples/connors-rsi) — ta.connorsRsi — Larry Connors' three-component composite (price RSI, streak RSI, ROC percent-rank) averaged into one [0, 100] line with 90/10 guides.
+- [Coppock Curve](/examples/coppock-curve) — ta.coppock — Edwin Coppock's long-term momentum curve (a WMA of summed rate-of-change); zero crossings are the canonical signal.
+- [Know Sure Thing](/examples/know-sure-thing) — ta.kst — Martin Pring's weighted sum of four smoothed rate-of-change series plus its SMA signal line, around a zero line.
+- [Price Momentum Oscillator](/examples/price-momentum-oscillator) — ta.pmo — Carl Swenlin's doubly-smoothed rate-of-change momentum line plus its EMA signal line, around zero.
+- [TRIX](/examples/trix-oscillator) — ta.trix — the rate-of-change of a triple-smoothed EMA (length 15) plus its EMA signal line, filtering out short-term noise.
+- [Relative Volatility Index](/examples/relative-volatility-index) — ta.rvi — an RSI-style oscillator that measures the direction of volatility (rolling stddev) instead of price change, bounded [0, 100].
+- [Relative Vigor Index](/examples/relative-vigor-index) — ta.rvgi — John Ehlers' smoothed (close − open) / (high − low) vigor line plus its 4-bar weighted signal line, around zero.
+- [Detrended Price Oscillator](/examples/detrended-price-oscillator) — ta.dpo — removes the SMA(21) trend from price by comparing a displaced close to the moving average, isolating the short-cycle component.
+- [Ultimate Oscillator](/examples/ultimate-oscillator) — ta.ultimateOsc — Larry Williams' weighted blend of buying-pressure / true-range ratios over 7/14/28 windows, bounded [0, 100] with 70/30 guides.
+- [Choppiness Index](/examples/choppiness-index) — ta.chop — a [0, 100] regime gauge separating trending from sideways markets, with the 61.8 (choppy) / 38.2 (trending) Fibonacci guides.
+- [Trend Strength Index](/examples/trend-strength-index) — ta.trendStrengthIndex — the Pearson correlation between price and the bar index over a 20-bar window, bounded [-1, +1] around a zero line.
+- [Ichimoku Cloud](/examples/ichimoku-cloud) — Ichimoku via ta.ichimoku — Tenkan, Kijun, Senkou Span A/B (the cloud edges) and the lagging Chikou span, all overlaid on price.
+- [ADX Trend Strength](/examples/adx-trend-strength) — Wilder's ADX(14) in its own pane with a 25 threshold guide — readings above it mark a strengthening directional trend, regardless of side.
+- [DMI Directional](/examples/dmi-directional) — The Directional Movement Index via ta.dmi(14): the +DI / -DI pair plus an ADX line, the classic three-line trend-direction-and-strength read.
+- [Aroon Up / Down](/examples/aroon-up-down) — Aroon via ta.aroon(25) — the Up and Down lines that measure how many bars ago the window last printed its high and its low.
+- [Aroon Oscillator](/examples/aroon-oscillator) — Aroon Oscillator via ta.aroonOsc(25) — Aroon Up minus Aroon Down as a zero-baselined histogram, positive in up-trends and negative in down-trends.
+- [Parabolic SAR](/examples/parabolic-sar) — Parabolic SAR via ta.psar — stop-and-reverse dots that trail price and flip side once the stop is breached, rendered as circle markers over the candles.
+- [Supertrend](/examples/supertrend) — Supertrend via ta.supertrend(10, 3) — an ATR-banded trailing line over price that flips above/below the candles as the trend direction changes.
+- [Vortex Indicator](/examples/vortex-indicator) — Vortex via ta.vortex(14) — the VI+ and VI- lines; VI+ crossing above VI- signals an emerging up-trend (and the reverse a down-trend).
+- [Chande Kroll Stop](/examples/chande-kroll-stop) — Chande Kroll Stop via ta.chandeKrollStop — smoothed ATR-based long and short trailing stops bracketing price as overlay lines.
+- [Volatility Stop](/examples/volatility-stop) — Volatility Stop via ta.volatilityStop(20, 2) — an ATR trailing stop that sits below price in up-trends and above it in down-trends.
+- [Chandelier Exit](/examples/chandelier-exit) — Chandelier Exit via ta.chandelier(22, 3) — long and short stops hung an ATR multiple off the rolling highest high / lowest low.
+- [Keltner Channel](/examples/keltner-channel) — Keltner Channel(20, 2) — an EMA(20) middle with ATR(20)-scaled upper/lower bands overlaid on price.
+- [Donchian Channel](/examples/donchian-channel) — Donchian Channel(20) — the highest high and lowest low over 20 bars plus their midline overlaid on price.
+- [MA Envelope](/examples/ma-envelope) — Moving-average envelope — an SMA(20) with bands set at ±2.5% of the average overlaid on price.
+- [Bollinger Bandwidth](/examples/bollinger-bandwidth) — Bollinger Bandwidth(20, 2) — the (upper − lower) / middle ratio that compresses ahead of breakouts.
+- [Bollinger %B](/examples/bollinger-percent-b) — Bollinger %B(20, 2) — price position within the band, with 0 (lower) and 1 (upper) guides.
+- [Average True Range](/examples/average-true-range) — Wilder's Average True Range(14) — a volatility oscillator in price units.
+- [Average Daily Range](/examples/average-daily-range) — Average Daily Range(14) — the SMA of high − low across the last 14 completed UTC calendar days.
+- [Rolling Std Dev](/examples/rolling-stdev) — Rolling sample standard deviation of the close over the last 20 bars.
+- [Historical Volatility](/examples/historical-volatility) — Historical Volatility(10) — the annualised standard deviation of log returns, percent-scaled.
+- [Ulcer Index](/examples/ulcer-index) — Ulcer Index(14) — a drawdown-based downside-risk volatility oscillator that is always non-negative.
+- [Mass Index](/examples/mass-index) — Mass Index(9, 25) — a range EMA-of-EMA bulge oscillator with the 27 / 26.5 reversal-setup guides.
+- [On-Balance Volume](/examples/obv) — On-Balance Volume via ta.obv — a cumulative line that adds volume on up closes and subtracts it on down closes.
+- [VWAP](/examples/vwap) — Session VWAP via ta.vwap — the volume-weighted average price overlaid on the candles.
+- [Anchored VWAP](/examples/anchored-vwap) — Anchored VWAP via ta.anchoredVwap — volume-weighted average price accumulated from a fixed time anchor.
+- [Chaikin Money Flow](/examples/chaikin-money-flow) — Chaikin Money Flow(20) via ta.cmf — money-flow volume over a window with a zero line splitting accumulation from distribution.
+- [Money Flow Index](/examples/money-flow-index) — Money Flow Index(14) via ta.mfi — a volume-weighted RSI bounded 0-100 with 80/20 overbought/oversold guides.
+- [Ease of Movement](/examples/ease-of-movement) — Ease of Movement(14) via ta.eom — price displacement relative to volume, positive when price moves on light volume.
+- [Negative Volume Index](/examples/negative-volume-index) — Negative Volume Index via ta.nvi — a cumulative index that only updates on bars where volume falls.
+- [Positive Volume Index](/examples/positive-volume-index) — Positive Volume Index via ta.pvi — a cumulative index that only updates on bars where volume rises.
+- [Price Volume Trend](/examples/price-volume-trend) — Price Volume Trend via ta.pvt — volume scaled by each bar's percentage price change, accumulated with a zero line.
+- [Klinger Volume Oscillator](/examples/klinger-oscillator) — Klinger Volume Oscillator via ta.klinger — the oscillator line plus its EMA signal, with crossings flagging volume-momentum shifts.
+- [Chaikin Oscillator](/examples/chaikin-oscillator) — Chaikin Oscillator via ta.chaikinOsc — the difference of a fast and slow EMA of the Accumulation/Distribution line.
+- [Accumulation/Distribution Line](/examples/accumulation-distribution) — Accumulation/Distribution Line via ta.adl — volume weighted by the close's position within each bar's range.
+- [Net Volume](/examples/net-volume) — Net Volume via ta.netVolume — the running up-minus-down volume drawn as a histogram off the zero baseline.
+- [Volume](/examples/raw-volume) — Raw volume via ta.vol — the bar's volume plotted as a histogram off a zero baseline, the classic volume column plot.
+- [Anchored Volume Profile](/examples/anchored-volume-profile) — ta.anchoredVolumeProfile — bucketizes volume from a picked time anchor forward (input.time, pickFromChart) and plots the point of control, the price level holding the most volume.
+- [Fixed Range Volume Profile](/examples/fixed-range-volume-profile) — ta.fixedRangeVolumeProfile — bucketizes volume across a fixed [from, to] time window (two input.time anchors) and plots the POC plus the value-area high/low band.
+- [Session Volume Profile](/examples/session-volume-profile) — ta.sessionVolumeProfile — bucketizes the current session's volume by price and plots the session POC, resetting on each session boundary (UTC-day fallback when syminfo.session is absent).
+- [Visible Range Volume Profile](/examples/visible-range-volume-profile) — ta.visibleRangeVolumeProfile — bucketizes the visible range's volume by price (the latest 100 bars via bar.viewport) and plots the POC.
+- [Standard Pivots](/examples/standard-pivots) — ta.pivotsStandard — classical floor pivots (PP plus R1-R3 / S1-S3) derived from the prior UTC day's high/low/close, overlaid on price.
+- [Williams Fractals](/examples/williams-fractals) — ta.williamsFractal — up/down fractal markers at each confirmed swing high and low (a bar whose extreme tops the symmetric window on both sides), anchored at the fractal's price.
+- [ZigZag Swings](/examples/zigzag-swings) — ta.zigZag — a streaming swing-pivot detector whose value holds the most-recently-confirmed pivot price (a 5% reversal trailing reference level), stepped between confirmations.
+- [Highest High Channel](/examples/highest-high-channel) — ta.highest — the rolling maximum high over the last 20 bars, the upper edge of a Donchian-style channel.
+- [Lowest Low Channel](/examples/lowest-low-channel) — ta.lowest — the rolling minimum low over the last 20 bars, the lower edge of a Donchian-style channel.
+- [Highest Bars Offset](/examples/highest-bars-offset) — ta.highestbars — the bar offset (0 = now, -k = k bars ago) to the highest high in the trailing 20-bar window, an oscillator of how recently the high was set.
+- [Lowest Bars Offset](/examples/lowest-bars-offset) — ta.lowestbars — the bar offset (0 = now, -k = k bars ago) to the lowest low in the trailing 20-bar window, an oscillator of how recently the low was set.
+- [Bars Since Overbought](/examples/bars-since-overbought) — ta.barssince — a counter that resets to 0 each time RSI(14) crosses above 70 and climbs by one every bar after, measuring how long since the last overbought breakout.
+- [Crossover Signal](/examples/crossover-signal) — ta.crossover — true only on the bar where the fast EMA(9) crosses above the slow EMA(21) (a golden-cross trigger), drawn as 1-spikes on a zero baseline.
+- [Crossunder Signal](/examples/crossunder-signal) — ta.crossunder — true only on the bar where the fast EMA(9) crosses below the slow EMA(21) (a death-cross trigger), drawn as 1-spikes on a zero baseline.
+- [Value At Cross](/examples/value-at-cross) — ta.valuewhen — the close captured at the most recent SMA(10)/SMA(30) crossover, held constant between events as a stepped reference level on price.
+- [Close Change](/examples/close-change) — ta.change — the bar-over-bar first difference of close (today − yesterday), drawn as a zero-baseline histogram of momentum.
+- [Rolling Median](/examples/rolling-median) — ta.median — the rolling middle-value of the last 20 closes, a spike-robust center line where an SMA would be dragged by outliers.
+- [NZ Warmup Fill](/examples/nz-warmup-fill) — ta.nz — replace the warmup NaN of a 5-bar change with 0, so the plotted momentum line starts at the first bar instead of leaving a leading gap.
+- [Pivot Arrow](/examples/pivot-arrow) — draw.arrow — track the latest confirmed swing low in state.* slots (recovered 5 bars back via bar.point(-5, …)) and draw one reused directional arrow from it up to the current bar, with a label near the shaft.
+- [Swing High Level](/examples/swing-high-level) — draw.horizontalLine — hold a full-width horizontal level at the most recent confirmed swing high; the single reused line jumps up to each new pivot high as it confirms.
+- [Cross Event Marker](/examples/cross-event-marker) — draw.verticalLine — drop a full-height vertical marker on the bar where a fast EMA(9) crosses above a slow EMA(21) (ta.crossover), the reused line jumping to the time of each new event.
+- [Pivot Crosshair](/examples/pivot-crosshair) — draw.crossLine — park an orthogonal crosshair (horizontal + vertical strokes through one anchor) on the latest confirmed swing high, recovered via bar.point(-5, …); one reused handle follows each new pivot.
+- [Trend Angle Slope](/examples/trend-angle-slope) — draw.trendAngle — measure the screen-space slope of the EMA(20) over the last 20 bars, drawing a reused line from bar.point(-20, ema) to bar.point(0, ema) plus an arc and a degree label at the tail.
+- [Sine Wave Cycle](/examples/sine-wave-cycle) — draw.sineLine — fit a sine wave over a fixed 40-bar window: baseline at the anchors' midpoint, amplitude half their price span, half-period the time between them (the window low to the window high), re-fit each bar and extended across the viewport.
+- [Pivot Polyline](/examples/pivot-polyline) — draw.polyline — a CLOSED polyline (the renderer auto-connects the last anchor back to the first) through three data-derived points: a 40-bar low, a 20-bar high, and the current close.
+- [Swing Path](/examples/swing-path) — draw.path — an OPEN path (no wrap-around close, unlike draw.polyline) tracing the close at five fixed bar.point offsets back to the current bar, drawn once 40 bars of history exist.
+- [Pivot Circle](/examples/pivot-circle) — A circle centred on a recent pivot, its radius reaching that bar's high — one handle reused each bar.
+- [Consolidation Ellipse](/examples/consolidation-ellipse) — An axis-aligned ellipse bounding the last 20 bars' low-to-high consolidation range.
+- [Swing Arc](/examples/swing-arc) — An arc that passes through a high apex between two swing lows (apex at t = 0.5).
+- [Range Rectangle](/examples/range-rectangle) — A range box spanning the last 20 bars' low to the current high, redrawn each bar.
+- [Trend Rotated Box](/examples/trend-rotated-box) — A tilted range box — a parallelogram whose long edge follows the 20-bar low-to-high trend.
+- [Pivot Triangle](/examples/pivot-triangle) — A closed triangle over three pivots: two swing lows and a high between them.
+- [Region Frame](/examples/region-frame) — A labelled rectangular frame highlighting a recent N-bar region with a background fill.
+- [Swing Curve](/examples/swing-curve) — A quadratic Bezier whose middle anchor is the off-curve control point the curve bends toward.
+- [Double Curve Swing](/examples/double-curve-swing) — A cubic-Bezier S-shape through five anchors stepped back over the last 20 bars.
+- [Brush Stroke](/examples/brush-stroke) — A freehand brush stroke — a closed, filled polyline zig-zagging through a fixed point list.
+- [Pen Stroke](/examples/pen-stroke) — A freehand pen stroke — an open polyline through a fixed point list (no auto-close).
+- [Price Zone Highlight](/examples/price-zone-highlight) — A thick translucent highlighter band over the close level across a recent window.
+- [Event Marker](/examples/event-marker) — draw.marker — a single-anchor marker glyph dropped at a detected event (price crossing up through its EMA(20)). The crossing bar is tracked in state.* slots so one reused marker handle jumps to each new event rather than stacking a glyph per bar.
+- [Pivot Arrow Marker](/examples/pivot-arrow-marker) — draw.arrowMarker — a compact arrow-marker glyph (dot + stub + arrowhead) plus a text label, re-anchored at the latest confirmed ta.pivotsHighLow swing high. The confirmed pivot sits 5 bars back, recovered via bar.point(-5, …) and tracked in state.*.
+- [Swing-Low Buy Arrow](/examples/swing-low-buy-arrow) — draw.arrowMarkUp — a bullish up-chevron buy signal at the latest confirmed swing LOW (ta.pivotsHighLow, the pivot recovered via bar.point(-5, …)). One reused handle, tracked in state.*, follows each new swing low.
+- [Swing-High Sell Arrow](/examples/swing-high-sell-arrow) — draw.arrowMarkDown — a bearish down-chevron sell signal at the latest confirmed swing HIGH (ta.pivotsHighLow, the pivot recovered via bar.point(-5, …)). One reused handle, tracked in state.*, follows each new swing high.
+- [Last Price Callout](/examples/last-price-callout) — draw.text — a freeform text annotation anchored just above the current bar via bar.point(0, …) (offset 0 == the live bar). Re-emitting from one callsite every bar reuses a single handle, so the callout tracks the last bar.
+- [Stats Table](/examples/stats-table) — draw.table — a CSS-pixel viewport-anchored HUD pinned top-right showing the last close and RSI(14). Cells are built with plain JS (Math.round + template literals, no str.*) and the table is re-emitted into one reused handle every bar so the panel updates in place.
+- [Grouped Line + Label](/examples/grouped-line-label) — draw.group — bundle two child drawings (a short draw.line trend segment and a draw.text label) under one logical container by passing their handle ids to draw.group([a.id, b.id]). The group renders nothing of its own; the children render themselves but move/select as one.
+- [Disjoint Channel](/examples/disjoint-channel) — draw.disjointChannel — two INDEPENDENT segments (no shared geometry): a resistance leg along the last 30 bars' highs and a separate support leg along their lows, each anchored via bar.point(-N, …).
+- [Trend Channel](/examples/trend-channel) — draw.trendChannel — a parallel trend channel: two anchors set the primary support line over the recent lows and a third mid-window high is offset perpendicular to fix the parallel upper rail.
+- [Regression Trend](/examples/regression-trend) — draw.regressionTrend — an OLS linear-regression channel over the last 50 closes with ±2σ bands; the runtime persists the anchor pair + opts and the adapter fits the line.
+- [Flat Top / Bottom](/examples/flat-top-bottom) — draw.flatTopBottom — two parallel HORIZONTAL rails over a 30-bar consolidation: the flat top at the window's highest high and the flat bottom at its lowest low, scanned in a bounded loop.
+- [Pitchfork](/examples/pitchfork) — draw.pitchfork — a standard Andrews pitchfork from three pivots (older low, mid-window high, current low): a median line from the pivot to the midpoint of the other two, with parallel rails.
+- [Pitchfan](/examples/pitchfan) — draw.pitchfan — the same three pivots as a pitchfork, but the rays DIVERGE from the single pivot through the high, the midpoint, and the low (a fan rather than parallel rails).
+- [Cyclic Lines](/examples/cyclic-lines) — draw.cyclicLines — two anchors 20 bars apart set the cycle period; the renderer tiles equally spaced vertical strokes to the right at every from.time + n*period.
+- [Time Cycles](/examples/time-cycles) — draw.timeCycles — two anchors 30 bars apart set the cycle diameter; the renderer projects concentric upper-half arcs centred at their midpoint and tiles them across the viewport.
+- [Fib Channel](/examples/fib-channel) — draw.fibChannel along a tracked swing leg: parallel fib-ratio translates of the pivot-low → pivot-high line passing through the live bar.
+- [Fib Circles](/examples/fib-circles) — draw.fibCircles centred on the latest pivot low with its radius set by the latest pivot high — concentric fib-ratio circles over a tracked swing leg.
+- [Fib Speed Arcs](/examples/fib-speed-arcs) — draw.fibSpeedArcs — concentric speed-resistance arcs centred on the latest pivot low, edged at the latest pivot high of a tracked swing leg.
+- [Fib Speed Fan](/examples/fib-speed-fan) — draw.fibSpeedFan — a fan of fib-scaled rays from the latest pivot low toward the latest pivot high of a tracked swing leg.
+- [Fib Spiral](/examples/fib-spiral) — draw.fibSpiral — a golden spiral grown from the latest pivot low (centre) with its initial radius set by the latest pivot high of a tracked swing leg.
+- [Fib Time Zones](/examples/fib-time-zone) — draw.fibTimeZone — fib-spaced vertical time zones across the span between the latest pivot low and pivot high of a tracked swing leg.
+- [Fib Trend Extension](/examples/fib-trend-extension) — draw.fibTrendExtension — the pivot-low → pivot-high price delta of a tracked swing leg projected as fib extensions from the live bar.
+- [Fib Trend Time](/examples/fib-trend-time) — draw.fibTrendTime — the pivot-low → pivot-high time delta of a tracked swing leg projected as fib-spaced vertical lines from the live bar.
+- [Fib Wedge](/examples/fib-wedge) — draw.fibWedge — fib-interpolated rays fanning from the latest pivot low between its directions to the latest pivot high and the live bar.
+- [Gann Box](/examples/gann-box) — draw.gannBox over a tracked swing: the latest ta.pivotsHighLow swing low (anchored in time via bar.point(-5, …)) up to the live bar's high, so the GANN_LEVELS ratio grid spans the current swing range.
+- [Gann Fan](/examples/gann-fan) — draw.gannFan from a tracked pivot: the nine canonical Gann angles fan out from the latest ta.pivotsHighLow swing low (the origin a, anchored via bar.point(-5, …)) with the 1×1 ray aimed at the live bar's high.
+- [Gann Square](/examples/gann-square) — draw.gannSquare sized on a tracked swing: the latest ta.pivotsHighLow swing low and the live bar's high are the two corners, and the renderer takes max(|dx|, |dy|) as the square-of-nine side, subdivided by GANN_LEVELS.
+- [Gann Square (Fixed)](/examples/gann-square-fixed) — draw.gannSquareFixed pinned to a single tracked anchor: an 80×80px scale-locked square-of-nine on the latest ta.pivotsHighLow swing low (time recovered via bar.point(-5, …)), the single-anchor counterpart to gann-square.
+- [Elliott Impulse Wave](/examples/elliott-impulse-wave) — A five-wave Elliott impulse [1-2-3-4-5] drawn through five bar-anchored pivots ending at the live bar.
+- [Elliott Correction Wave](/examples/elliott-correction-wave) — A three-wave Elliott A-B-C correction drawn through three bar-anchored pivots ending at the live bar.
+- [Elliott Triangle Wave](/examples/elliott-triangle-wave) — A five-wave Elliott a-b-c-d-e triangle correction whose swing amplitude contracts toward the apex.
+- [Elliott Double Combo](/examples/elliott-double-combo) — A seven-anchor Elliott W-X-Y double-three corrective structure drawn through bar-anchored pivots.
+- [Elliott Triple Combo](/examples/elliott-triple-combo) — A seven-anchor Elliott W-X-Y-X-Z triple-three corrective structure drawn through bar-anchored pivots.
+- [ABCD Pattern](/examples/abcd-pattern) — draw.abcdPattern — a 4-point ABCD measured-move zig-zag [A, B, C, D] time-anchored at fixed bar offsets via bar.point and scaled to a 1%-of-price unit.
+- [Cypher Pattern](/examples/cypher-pattern) — draw.cypherPattern — a 5-point Cypher harmonic pattern [X, A, B, C, D] time-anchored at fixed bar offsets via bar.point and scaled to a 1%-of-price unit.
+- [XABCD Pattern](/examples/xabcd-pattern) — draw.xabcdPattern — a 5-point XABCD harmonic pattern [X, A, B, C, D] time-anchored at fixed bar offsets via bar.point and scaled to a 1%-of-price unit.
+- [Three Drives Pattern](/examples/three-drives-pattern) — draw.threeDrivesPattern — a 7-point three-drives reversal [start, drive1, retr1, drive2, retr2, drive3, end] as an ascending staircase time-anchored via bar.point.
+- [Head and Shoulders](/examples/head-and-shoulders) — draw.headAndShoulders — a 5-point head-and-shoulders reversal [leftShoulder, leftLow, head, rightLow, rightShoulder] with the head topping the shoulders over a shared neckline, anchored via bar.point.
+- [Triangle Pattern](/examples/triangle-pattern) — draw.trianglePattern — a 3-point triangle continuation [apex, baseHigh, baseLow] converging from a base to a current-bar apex; the LineDrawStyle outline form, distinct from the solid draw.triangle shape.
+- [Input · Integer Length](/examples/input-int-length) — input.int(20) drives an SMA length; at the default the demo plots SMA(20) over the close.
+- [Input · Float Multiplier](/examples/input-float-multiplier) — input.float(2.0) sets the width of a standard-deviation band around an SMA — a ±2σ envelope at the default.
+- [Input · Boolean Toggle](/examples/input-bool-toggle) — input.bool(true) gates a plot: the EMA shows at the default and disappears (NaN) when toggled off.
+- [Input · String Title](/examples/input-string-title) — input.string("Trend") names the plotted line; the EMA legend reads "Trend" at the default.
+- [Input · Enum MA Type](/examples/input-enum-ma-type) — input.enum("ema", ["ema","sma","wma"]) selects the moving-average family; the default plots an EMA(20).
+- [Input · Color Line](/examples/input-color-line) — input.color("#26a69a") sets the plot stroke; the EMA renders teal at the default.
+- [Input · Source Field](/examples/input-source-select) — input.source("close") picks which bar series feeds an SMA via the resolved SourceField key; SMA(close, 20) at the default.
+- [Input · Interval Match](/examples/input-interval-timeframe) — input.interval("1D") names the tuned-for timeframe; the SMA tints teal when timeframe.period matches it, grey otherwise.
+- [Input · Price Level](/examples/input-price-level) — input.price(125) drives a horizontal guide level sitting inside the demo's ~100–150 close band.
+- [Input · Time Anchor](/examples/input-time-anchor) — input.time(...) anchors a vertical guide line; the default is the demo's first-bar time, marking the series start.
+- [Input · Symbol Match](/examples/input-symbol-security) — input.symbol(...) names the tuned-for instrument; the SMA tints teal when the chart's bar.symbol matches it, grey otherwise.
+- [Input · External Series](/examples/input-external-series) — input.externalSeries(...) declares an adapter-supplied overlay; with no feed at the default the script falls back to the close.
+- [Bar Counter](/examples/bar-counter) — state.int — a persistent integer slot (Pine var int) seeded once and incremented every bar, plotted as a step series so the cross-bar accumulation is visible.
+- [Running Max Close](/examples/running-max-close) — state.float — a persistent float slot (Pine var float) holding the highest close seen so far, updated only on a new high so the line ratchets up across bars and never falls.
+- [Cross Latch](/examples/cross-latch) — state.bool — a persistent boolean slot (Pine var bool) latched true the first time price crosses above its SMA(20) and held true thereafter, recording that the event happened at some point in history.
+- [Last Signal Label](/examples/last-signal-label) — state.string — a persistent string slot (Pine var string) holding the most recent long/short signal label across quiet bars, overwritten only when a new crossover or crossunder fires.
+- [Tick Count](/examples/tick-count) — state.tick.int — a tick-persistent integer slot (Pine varip) whose writes commit immediately, even mid-bar. On the demo's confirmed-bar feed it advances once per bar; a live tick feed would commit on every intrabar tick.
+- [Tick Running Sum](/examples/tick-running-sum) — state.tick.float — a tick-persistent float slot (Pine varip) accumulating a running sum of close prices, committing the instant it is written. Confirmed-bar data folds in one close per bar; a live tick feed folds in every intrabar tick.
+- [Tick Latch](/examples/tick-latch) — state.tick.bool — a tick-persistent boolean slot (Pine varip) latched true on the first up-close and held thereafter. The demo flips it on bar close; a live tick feed would flip it the moment a tick turned up.
+- [Tick Last Event](/examples/tick-last-event) — state.tick.string — a tick-persistent string slot (Pine varip) recording the current bar's direction as a label, committing on every write. Confirmed-bar data re-labels once per bar; a live tick feed re-labels each intrabar direction change.
+- [Styled Plot](/examples/plot-styled) — plot — a single line exercising the styling option surface: title (legend label), color, lineWidth (stroke thickness), and lineStyle (the solid/dashed/dotted dash pattern) on an EMA(20).
+- [Hline Guides](/examples/hline-guides) — hline — two fixed-price guides framing an RSI(14) oscillator: a 70 overbought line and a 30 oversold line, each pinned across all bars with its own color and dashed style.
+- [Define · format](/examples/define-format-percent) — The `format: "percent"` override: a bar-over-bar return oscillator whose axis labels and cursor read-out render with a trailing %.
+- [Define · maxBarsBack](/examples/define-max-bars-back) — The `maxBarsBack: 500` override reserving a fixed history ring (Pine `max_bars_back` parity) under a 200-period SMA.
+- [Define · precision](/examples/define-precision) — The `precision: 4` override forcing four decimal places on a plotted EMA, overriding the symbol's default precision.
+- [Define · requiresIntervals](/examples/define-requires-intervals) — The `requiresIntervals: ["1D"]` override declaring the interval the adapter must ship for a daily-only trend line.
+- [Define · scale](/examples/define-scale) — The `scale: "right"` override binding a sub-pane oscillator to the right axis instead of the price overlay.
+- [Define · shortName](/examples/define-short-name) — The `shortName: "EMA20"` override setting the compact legend-chip label that otherwise falls back to a truncated name.
+- [Barstate Confirmed Alert](/examples/barstate-confirm-alert) — Gates a crossover alert on `barstate.isconfirmed` so it fires once per closed bar instead of on every intrabar tick.
+- [Timeframe-Adaptive MA](/examples/timeframe-adaptive-ma) — Branches the moving-average length on `timeframe.isintraday` — a faster average intraday, a slower one on daily-and-up charts.
+- [Session Window Flag](/examples/session-window-flag) — Uses `session.isOpen` to plot the close only inside the US cash session window (needs intraday bars to discriminate).
+- [Intrabar Bar Count](/examples/intrabar-lowertf) — Pulls the array of finer-grained bars contained in each main bar via `request.lowerTf` and plots their count.
+- [Idiom · Series Indexing](/examples/idiom-series-index) — Reading a `Series<T>` by index: plot an EMA's bar-over-bar delta (`ema.current − ema[1]`) using `.current` / `[n]` / `.length`.
+- [Idiom · Bar Series Indexing](/examples/idiom-bar-series-index) — Indexing the price series directly (`bar.close[1]`) plus the raw-number coercion caveat — `+bar.close` for the scalar a comparison or `state.*` slot needs.
+- [Idiom · Plot Offset](/examples/idiom-plot-offset) — The bidirectional `ta.*` `offset` display shift: an SMA drawn unshifted plus `+5` (right/future) and `−5` (left/past) copies, while the numeric value stays unshifted.
+- [Idiom · Warmup Gap](/examples/idiom-warmup-gap) — Warmup `NaN` renders as a plot gap, not a zero: `ta.ema(_, 50)` is `NaN` for its first 49 bars and the line simply starts late.
+- [Idiom · Bounded Loop Window](/examples/idiom-bounded-loop) — A rolling mean expressed as a bounded `for (i < N) bar.close[i]` loop — the loop form of an unrolled `series[0] + … + series[N]`, sized identically by the compiler.
+- [Idiom · Bar Point Anchors](/examples/idiom-bar-point) — `bar.point(offset, price)` drawing anchors spanning past and future: one line from `bar.point(-20, …)` to `bar.point(+20, …)`.
+- [Idiom · Dependency Output](/examples/idiom-dep-output) — Consume another indicator's titled plot as a `Series<number>` via `<dep>.output("title")` — a private `const` producer read by the default export.
+- [Idiom · withInputs Override](/examples/idiom-with-inputs) — Override a dependency's input defaults without forking via `<dep>.withInputs({ length })`, then read its output.
+- [Idiom · Multi-Export File](/examples/idiom-multi-export) — One file declaring three indicators: a private `const` dep (data feed), an `export const` sibling (rendered), and the `export default` primary.
+- [Idiom · Cross-File Import](/examples/idiom-cross-file-import) — A same-package cross-file dependency: `import baseTrend from "./base-trend.chart"` inlines the producer's compiled module and reads its output.
+- [Idiom · Pane Routing](/examples/idiom-pane-routing) — Route a bounded oscillator into its own subpane with `plot(_, { pane: "rsi" })` (folds to overlay with an `unsupported-pane` diagnostic where panes are unsupported).
+- [Idiom · Version Pinning](/examples/idiom-version-pinning) — `apiVersion: 1` as a numeric literal pin — the frozen language contract every chartlang v1 implementation honours forever.
+- [Idiom · defineDrawing](/examples/idiom-define-drawing) — The `defineDrawing` script kind (drawing-first): a drawing-only script that emits `draw.*` with no plot output.
+- [Idiom · defineAlert](/examples/idiom-define-alert) — The `defineAlert` script kind: a headless alert-only script that fires `alert(...)` and emits nothing to render.
+- [Idiom · defineAlertCondition](/examples/idiom-define-alert-condition) — The `defineAlertCondition` script kind: user-wireable named conditions signalled via `signal?.("id", cond)`.

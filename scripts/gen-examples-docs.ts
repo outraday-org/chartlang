@@ -2,24 +2,38 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 /**
- * `pnpm examples:generate` — renders the docs Examples section from the
- * demo catalogue. `apps/site/src/components/demo/scripts.ts`'s
- * `DEMO_SCRIPTS` is the single source of truth; this script emits
- * `docs/examples/index.md` plus one `docs/examples/<id>.md` per example
- * so the docs and the live demo never show different code.
+ * `pnpm examples:generate` — the example artifact pipeline. From
+ * `examples/catalogue.ts` (metadata) + each `examples/scripts/<id>.chart.ts`
+ * source it regenerates, in order:
  *
- * `--check` (`pnpm examples:gate`) regenerates in memory and byte-diffs
- * against the committed tree — failing on drift, on a missing page, and
- * on a stale page the catalogue no longer produces. Mirrors the
- * `docs-gate.ts` / `generate-skills-reference.ts` gate convention.
+ * 1. `apps/site/src/components/demo/scripts.ts` (`DEMO_SCRIPTS`) and
+ *    `examples/catalogue.json` (via `gen-demo-scripts.ts`), and
+ * 2. `docs/examples/index.md` + one `docs/examples/<id>.md` per example,
+ *    rendered from the SAME in-memory catalogue data so the docs and the
+ *    live demo never show different code.
  *
- * Never hand-edit `docs/examples/*.md` — re-run `pnpm examples:generate`.
+ * `--check` (`pnpm examples:gate`) regenerates everything in memory and
+ * byte-diffs each output against the committed tree — failing on drift,
+ * on a missing page, and on a stale page the catalogue no longer
+ * produces. Mirrors the `docs-gate.ts` gate convention.
+ *
+ * Never hand-edit `docs/examples/*.md`, `scripts.ts`, or `catalogue.json`
+ * — re-run `pnpm examples:generate`.
  */
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DEMO_SCRIPTS } from "../apps/site/src/components/demo/scripts";
+import {
+    CATALOGUE_JSON_PATH,
+    EXAMPLES_PKG_OUT_PATH,
+    type ExampleData,
+    SCRIPTS_OUT_PATH,
+    collectExampleData,
+    renderCatalogueJson,
+    renderExamplesPackageModule,
+    renderScriptsModule,
+} from "./gen-demo-scripts";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(REPO_ROOT, "docs/examples");
@@ -28,13 +42,13 @@ const OUT_DIR = join(REPO_ROOT, "docs/examples");
 const DEMO_BASE_URL = "https://chartlang.invinite.com";
 
 export const OUT_OF_DATE_MESSAGE =
-    "docs/examples is out of date. Run pnpm examples:generate and commit.";
+    "Example artifacts are out of date. Run pnpm examples:generate and commit (scripts.ts, examples/catalogue.json, packages/examples/src/catalogue.generated.ts, docs/examples).";
 
 function liveUrl(id: string): string {
     return `${DEMO_BASE_URL}/?script=${id}#demo`;
 }
 
-function renderExample(script: (typeof DEMO_SCRIPTS)[number]): string {
+function renderExample(script: ExampleData): string {
     const head = [
         `# ${script.label}`,
         "",
@@ -49,7 +63,7 @@ function renderExample(script: (typeof DEMO_SCRIPTS)[number]): string {
     return `${head}\n${script.source}\`\`\`\n`;
 }
 
-function renderIndex(scripts: ReadonlyArray<(typeof DEMO_SCRIPTS)[number]>): string {
+function renderIndex(scripts: ReadonlyArray<ExampleData>): string {
     const lines = [
         "# Examples",
         "",
@@ -71,7 +85,7 @@ function renderIndex(scripts: ReadonlyArray<(typeof DEMO_SCRIPTS)[number]>): str
  * truth for what the tree should contain.
  */
 export function renderExampleDocs(
-    scripts: ReadonlyArray<(typeof DEMO_SCRIPTS)[number]>,
+    scripts: ReadonlyArray<ExampleData>,
 ): ReadonlyMap<string, string> {
     const files = new Map<string, string>();
     files.set("index.md", renderIndex(scripts));
@@ -91,31 +105,43 @@ async function listCommittedPages(): Promise<ReadonlyArray<string>> {
     return entries.filter((name) => name.endsWith(".md")).sort();
 }
 
+async function checkFile(path: string, expected: string, failures: string[]): Promise<void> {
+    let existing: string | null = null;
+    try {
+        existing = await readFile(path, "utf8");
+    } catch {
+        failures.push(`${relative(REPO_ROOT, path)}: missing committed file`);
+        return;
+    }
+    if (existing !== expected) {
+        failures.push(`${relative(REPO_ROOT, path)}: out of date`);
+    }
+}
+
 /**
- * Generate the Examples docs. `check: true` byte-diffs the regenerated
- * tree against the committed pages (failing on drift / missing / stale,
- * like `docs-gate.ts`); otherwise writes the files.
+ * Regenerate every example artifact. `check: true` byte-diffs each
+ * regenerated output against the committed file (failing on drift /
+ * missing / stale, like `docs-gate.ts`); otherwise writes them.
  */
-export async function generateExampleDocs(opts: Readonly<{ check?: boolean }> = {}): Promise<void> {
-    const files = renderExampleDocs(DEMO_SCRIPTS);
+export async function generateExampleArtifacts(
+    opts: Readonly<{ check?: boolean }> = {},
+): Promise<void> {
+    const data = await collectExampleData();
+    const scriptsModule = renderScriptsModule(data);
+    const catalogueJson = renderCatalogueJson(data);
+    const packageModule = renderExamplesPackageModule(data);
+    const docs = renderExampleDocs(data);
 
     if (opts.check === true) {
         const failures: string[] = [];
-        for (const [name, contents] of files) {
-            const path = join(OUT_DIR, name);
-            let existing: string | null = null;
-            try {
-                existing = await readFile(path, "utf8");
-            } catch {
-                failures.push(`${relative(REPO_ROOT, path)}: missing committed page`);
-                continue;
-            }
-            if (existing !== contents) {
-                failures.push(`${relative(REPO_ROOT, path)}: out of date`);
-            }
+        await checkFile(SCRIPTS_OUT_PATH, scriptsModule, failures);
+        await checkFile(CATALOGUE_JSON_PATH, catalogueJson, failures);
+        await checkFile(EXAMPLES_PKG_OUT_PATH, packageModule, failures);
+        for (const [name, contents] of docs) {
+            await checkFile(join(OUT_DIR, name), contents, failures);
         }
         for (const name of await listCommittedPages()) {
-            if (!files.has(name)) {
+            if (!docs.has(name)) {
                 failures.push(
                     `${relative(REPO_ROOT, join(OUT_DIR, name))}: stale page (no matching example)`,
                 );
@@ -128,15 +154,18 @@ export async function generateExampleDocs(opts: Readonly<{ check?: boolean }> = 
         return;
     }
 
+    await writeFile(SCRIPTS_OUT_PATH, scriptsModule, "utf8");
+    await writeFile(CATALOGUE_JSON_PATH, catalogueJson, "utf8");
+    await writeFile(EXAMPLES_PKG_OUT_PATH, packageModule, "utf8");
     await mkdir(OUT_DIR, { recursive: true });
-    for (const [name, contents] of files) {
+    for (const [name, contents] of docs) {
         await writeFile(join(OUT_DIR, name), contents, "utf8");
     }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const check = process.argv.includes("--check");
-    generateExampleDocs({ check }).catch((err: unknown) => {
+    generateExampleArtifacts({ check }).catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
         console.error(message);
         process.exitCode = 1;

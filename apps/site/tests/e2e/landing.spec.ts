@@ -33,13 +33,17 @@ test("landing renders and the demo compiles, renders, and recompiles", async ({ 
   )
   expect(firstBitmap.length).toBeGreaterThan(1000)
 
-  // Recompile: switch to a visually distinct script. Selecting a script
-  // clears the artifact (Play goes disabled) and re-mounts the editor,
-  // whose linter compiles the new source through the same `/api/compile`
-  // loop. Play re-enabling plus a changed bitmap proves the loop
-  // recompiled and re-rendered fresh source end to end.
-  await demo.getByRole("combobox").first().click()
-  await page.getByRole("option", { name: "RSI Divergence Alert" }).click()
+  // Recompile: switch to a visually distinct script via the "Browse
+  // examples" dialog. Picking a script clears the artifact (Play goes
+  // disabled) and re-mounts the editor, whose linter compiles the new
+  // source through the same `/api/compile` loop. Play re-enabling plus a
+  // changed bitmap proves the loop recompiled and re-rendered fresh
+  // source end to end.
+  await demo.getByRole("button", { name: "Browse examples" }).click()
+  const dialog = page.getByRole("dialog")
+  await dialog.getByRole("button", { name: /TA · Momentum/ }).click()
+  await dialog.getByRole("button", { name: /RSI Divergence Alert/ }).click()
+  await expect(dialog).toBeHidden()
   await expect(play).toBeEnabled({ timeout: 30_000 })
 
   await expect

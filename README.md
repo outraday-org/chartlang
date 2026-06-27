@@ -223,7 +223,9 @@ linked from there. Published announcements are on
   CI gate: `pnpm docs:gate`).
 - **Adapter author guide:** [`./docs/adapters/writing-an-adapter.md`](./docs/adapters/writing-an-adapter.md).
 - **Host author guide:** [`./docs/hosts/writing-a-host.md`](./docs/hosts/writing-a-host.md).
-- **Examples:** [`./examples/`](./examples/).
+- **Examples:** [`./examples/`](./examples/) — one runnable script per
+  primitive (full coverage, enforced by `pnpm examples:coverage`), wired into
+  the live demo and the docs Examples section.
 - **Contributing:** [`./CONTRIBUTING.md`](./CONTRIBUTING.md).
 - **Code of conduct:** [`./CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md).
 - **License:** [`./LICENSE`](./LICENSE) (MIT).

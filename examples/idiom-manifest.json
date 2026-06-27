@@ -1,0 +1,54 @@
+{
+    "_note": "Canonical language-idiom target set for `pnpm examples:idioms` (scripts/examples-idioms.ts). `idioms` is the idiom analog of `docs/primitives/**` for the per-primitive coverage gate: each id must be credited by some `language`-category EXAMPLE_CATALOGUE entry's `idioms` array. `page` is the doc source the example is paired with (relative to `docs/`, no extension). `unrepresentedPages` allow-lists `docs/language/*.md` pages that are intentionally NOT idioms — narrative companions to primitive families (covered by `examples:coverage`) or the negative forbidden-constructs surface — so the gate's UNREPRESENTED_PAGE check passes today but still fails when a genuinely new idiom page lands with no idiom.",
+    "idioms": [
+        { "id": "lang.seriesIndex", "page": "language/series-and-indexing" },
+        { "id": "lang.barSeriesIndex", "page": "language/series-and-indexing" },
+        { "id": "lang.offset", "page": "language/series-and-indexing" },
+        { "id": "lang.warmupGap", "page": "language/series-and-indexing" },
+        { "id": "lang.boundedLoop", "page": "language/series-and-indexing" },
+        { "id": "lang.barPoint", "page": "language/series-and-indexing" },
+        { "id": "lang.depOutput", "page": "language/indicator-composition" },
+        { "id": "lang.withInputs", "page": "language/indicator-composition" },
+        { "id": "lang.multiExport", "page": "language/indicator-composition" },
+        { "id": "lang.crossFileImport", "page": "language/indicator-composition" },
+        { "id": "lang.paneRouting", "page": "spec/emissions" },
+        { "id": "lang.versionPinning", "page": "language/version-pinning" },
+        { "id": "lang.defineDrawing", "page": "language/overview" },
+        { "id": "lang.defineAlert", "page": "language/overview" },
+        { "id": "lang.defineAlertCondition", "page": "language/overview" }
+    ],
+    "unrepresentedPages": [
+        {
+            "page": "forbidden-constructs",
+            "reason": "Negative surface (the diagnostic table) — there is no positive runnable example, so it is deliberately excluded from the idiom set."
+        },
+        {
+            "page": "alerts",
+            "reason": "Covered by the `alert` / `defineAlert` / `defineAlertCondition` primitive + idiom examples; the page itself is narrative, not a standalone idiom."
+        },
+        {
+            "page": "inputs",
+            "reason": "Companion to the `input.*` primitive family (the `inputs` category) — owned by the per-primitive `examples:coverage` gate, not an idiom."
+        },
+        {
+            "page": "math",
+            "reason": "Companion to the `math.*` namespace primitive page (the `math` category) — owned by `examples:coverage`, not an idiom."
+        },
+        {
+            "page": "multi-timeframe",
+            "reason": "Companion to the `request.security` / `request.lowerTf` primitives (covered by composites + the `define-bar-context` category), not a standalone idiom."
+        },
+        {
+            "page": "state-map",
+            "reason": "Companion to the `state.map` primitive (covered once its `docs/primitives/state/map.md` page lands), not an idiom."
+        },
+        {
+            "page": "strings",
+            "reason": "Companion to the `str.*` namespace primitive page (the `str` category) — owned by `examples:coverage`, not an idiom."
+        },
+        {
+            "page": "time-and-sessions",
+            "reason": "Companion to the `time.*` / `session.*` accessor primitives (covered by the `define-bar-context` category + conformance), not an idiom."
+        }
+    ]
+}

@@ -5,7 +5,11 @@ import llmstxt from "vitepress-plugin-llms";
 // DEMO_SCRIPTS (a pure type + string-constant module, no React) keeps the
 // nav tab + sidebar in lockstep with the demo by construction; the
 // per-example pages are emitted by `pnpm examples:generate`.
-import { DEMO_SCRIPTS } from "../../apps/site/src/components/demo/scripts";
+import {
+    CATEGORY_LABELS,
+    CATEGORY_ORDER,
+    DEMO_SCRIPTS,
+} from "../../apps/site/src/components/demo/scripts";
 
 const REPO_BLOB_URL = "https://github.com/outraday-org/chartlang/blob/main/";
 
@@ -86,17 +90,25 @@ export default defineConfig({
             { text: "Converter", link: "/converter/" },
         ],
         sidebar: {
+            // Grouped by the shared catalogue taxonomy (CATEGORY_ORDER),
+            // mirroring the demo's "Browse examples" dialog: an Overview
+            // entry followed by one collapsible section per non-empty
+            // category. Empty categories are skipped (the catalogue fills
+            // in incrementally across the population tasks).
             "/examples/": [
                 {
                     text: "Examples",
-                    items: [
-                        { text: "Overview", link: "/examples/" },
-                        ...DEMO_SCRIPTS.map((script) => ({
-                            text: script.label,
-                            link: `/examples/${script.id}`,
-                        })),
-                    ],
+                    items: [{ text: "Overview", link: "/examples/" }],
                 },
+                ...CATEGORY_ORDER.filter((category) =>
+                    DEMO_SCRIPTS.some((script) => script.category === category),
+                ).map((category) => ({
+                    text: CATEGORY_LABELS[category],
+                    collapsed: true,
+                    items: DEMO_SCRIPTS.filter((script) => script.category === category).map(
+                        (script) => ({ text: script.label, link: `/examples/${script.id}` }),
+                    ),
+                })),
             ],
             "/skills/": [
                 {

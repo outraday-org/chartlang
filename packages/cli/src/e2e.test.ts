@@ -7,41 +7,31 @@ import { fileURLToPath } from "node:url";
 import { compileFile } from "@invinite-org/chartlang-compiler";
 import { describe, expect, it } from "vitest";
 
+import { EXAMPLE_CATALOGUE } from "../../../examples/catalogue";
+
 const here = fileURLToPath(new URL(".", import.meta.url));
 const REPO_ROOT = resolvePath(here, "../../..");
 
-const EXAMPLE_SCRIPTS = [
-    "examples/scripts/ema-cross.chart.ts",
-    "examples/scripts/bollinger-bands.chart.ts",
-    "examples/scripts/rsi-divergence-alert.chart.ts",
-    "examples/scripts/fib-retracement.chart.ts",
-    "examples/scripts/session-high-alert.chart.ts",
-    "examples/scripts/daily-rsi-divergence.chart.ts",
-    "examples/scripts/mintick-snapped-entry.chart.ts",
-    "examples/scripts/base-trend.chart.ts",
-    "examples/scripts/trend-confirmation.chart.ts",
-    "examples/scripts/htf-trend-filter.chart.ts",
-    "examples/scripts/sma-offset.chart.ts",
-    "examples/scripts/pivot-high-ray.chart.ts",
-    "examples/scripts/forecast-line.chart.ts",
-    "examples/scripts/fill-between-band.chart.ts",
-    "examples/scripts/anchored-line.chart.ts",
-    "examples/scripts/up-streak.chart.ts",
-    "examples/scripts/rolling-window-mean.chart.ts",
-    "examples/scripts/volume-by-level.chart.ts",
-    "examples/scripts/rolling-zscore.chart.ts",
-    "examples/scripts/symbol-ratio.chart.ts",
-    "examples/scripts/z-layering.chart.ts",
-    "examples/scripts/weekday-close-filter.chart.ts",
-    "examples/scripts/bgcolor-barcolor.chart.ts",
-    "examples/scripts/tick-snapped-levels.chart.ts",
-    "examples/scripts/str-formatted-hud.chart.ts",
-    "examples/scripts/math-scalar-band.chart.ts",
-    "examples/scripts/str-label-builder.chart.ts",
-    "examples/scripts/persistent-color.chart.ts",
-] as const;
+// Derived from the catalogue — the single source of truth for the example
+// set (the demo, the docs Examples section, and this e2e compile loop all
+// read it). The loop now compiles every catalogued `.chart.ts` (~32 today,
+// growing toward ~200 as the per-primitive examples land). `COMPILE_TIMEOUT_MS`
+// is per-`it`; if wall-clock becomes the CI long pole, shard the loop (see
+// tasks/examples-full-coverage README §9).
+const EXAMPLE_SCRIPTS = EXAMPLE_CATALOGUE.map((e) => `examples/scripts/${e.id}.chart.ts` as const);
 
 const COMPILE_TIMEOUT_MS = 15_000;
+
+// Each script kind declares one capability. The loop asserts against the
+// ACTUAL compiled kind so the four script kinds all stay covered — most
+// examples are `defineIndicator`, but the Task-21b language idioms also ship
+// `defineDrawing` / `defineAlert` / `defineAlertCondition` examples.
+const KIND_CAPABILITY = {
+    indicator: "indicators",
+    drawing: "drawings",
+    alert: "alerts",
+    alertCondition: "alertConditions",
+} as const;
 
 describe("example scripts compile end-to-end", () => {
     for (const relPath of EXAMPLE_SCRIPTS) {
@@ -53,8 +43,9 @@ describe("example scripts compile end-to-end", () => {
 
                 expect(compiled.moduleSource).toMatch(/__manifest/);
                 expect(compiled.manifest.apiVersion).toBe(1);
-                expect(compiled.manifest.kind).toBe("indicator");
-                expect(compiled.manifest.capabilities).toContain("indicators");
+                const kind = compiled.manifest.kind as keyof typeof KIND_CAPABILITY;
+                expect(Object.keys(KIND_CAPABILITY)).toContain(kind);
+                expect(compiled.manifest.capabilities).toContain(KIND_CAPABILITY[kind]);
                 expect(compiled.types).toMatch(/export default script/);
             },
             COMPILE_TIMEOUT_MS,

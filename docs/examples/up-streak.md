@@ -19,7 +19,7 @@ export default defineIndicator({
         // writable series: the value is SELF-REFERENTIAL — it is defined in
         // terms of its OWN value one bar ago — so it cannot be read off
         // `bar.close[N]` the way a plain price lookback can (that is the
-        // directly-indexable-bar-series / Manual SMA case). `state.series`
+        // `directly-indexable-bar-series` / Manual SMA case). `state.series`
         // both STORES this bar's streak and lets us look it back N bars later.
         const streak = state.series(0);
         const up = bar.close.current > bar.close[1];

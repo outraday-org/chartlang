@@ -215,9 +215,25 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
 
 - Every script carries the two-line MIT header at the top — same as
   workspace package sources.
-- Each script default-exports exactly one `defineIndicator({ ... })`
-  with `apiVersion: 1`. `defineAlert` / `defineDrawing` exports are
-  Phase 2+ and are NOT shipped here yet.
+- Most scripts default-export exactly one `defineIndicator({ ... })`
+  with `apiVersion: 1`. The Task-21b **language-idiom** scripts
+  (`idiom-*.chart.ts`, `language` category) also ship the other three
+  script kinds — `idiom-define-drawing` (`defineDrawing`),
+  `idiom-define-alert` (`defineAlert`), and `idiom-define-alert-condition`
+  (`defineAlertCondition`) — so the CLI e2e compile loop asserts against the
+  ACTUAL `manifest.kind` (`indicator`/`drawing`/`alert`/`alertCondition`)
+  and its capability, not a hardcoded `"indicator"`.
+- **`idiom-*.chart.ts` are the language-idiom examples** (`language`
+  category, keyed to `examples/idiom-manifest.json` + the `examples:idioms`
+  gate, NOT the per-primitive coverage allowlist). Each isolates one idiom
+  with a comment naming the idiom + its `docs/language/<page>.md` (or
+  `docs/spec/<page>.md`) source. Two compiler facts they encode:
+  `<dep>.withInputs({...})` validates the override against the producer's
+  inputs **only for cross-file producers** (a same-file `const` producer's
+  schema is not resolved — `idiom-with-inputs` imports `base-trend.chart`),
+  and a bounded `for` loop's bound must be a numeric **literal**
+  (`for (let i = 0; i < 20; i++)`), not a `const` binding
+  (`unbounded-loop`).
 - Scripts use **both** top-level imports AND the destructured
   `compute({ ta, plot, alert })` argument. The top-level imports
   let the compiler's `extractCapabilities` pass walk the named-
@@ -230,13 +246,21 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
 - These files are user-author-style sources, not workspace package
   source. They are excluded from `docs-check.ts` and from per-package
   coverage gates by design — the CLI's e2e test is their gate.
-- Adding, renaming, or removing a script requires updating the path
-  list in `packages/cli/src/e2e.test.ts`. Runtime-rendered examples
-  also belong in `examples/canvas2d-adapter/src/integration.test.ts`.
-- **Most scripts here are mirrored by a same-`id` `DEMO_SCRIPTS` entry**
-  in `apps/site/src/components/demo/scripts.ts` (the inlined demo / docs
-  copy). `pnpm examples:sync` token-compares the two and fails CI on code
-  drift (comments / whitespace / wrapping / trailing commas are ignored).
-  When you change a mirrored script's CODE, change BOTH copies in the same
-  PR, then re-run `pnpm examples:generate`. Scripts with no demo entry
-  (e.g. `base-trend`, `fib-retracement`) are skipped by the gate.
+- **Adding, renaming, or removing a script requires a matching
+  `examples/catalogue.ts` entry** (the e2e `EXAMPLE_SCRIPTS` list is now
+  *derived* from `EXAMPLE_CATALOGUE`, not hand-maintained in
+  `packages/cli/src/e2e.test.ts`). A catalogue id with no `.chart.ts`, or a
+  stray `.chart.ts` with no catalogue entry, hard-fails
+  `pnpm examples:generate` / `examples:gate`. Add the entry to a fragment under
+  `examples/catalogue/` (Task-1 migrations live in `complex.ts`; later
+  per-family tasks own their own fragments), then re-run
+  `pnpm examples:generate`. Runtime-rendered examples also belong in
+  `examples/canvas2d-adapter/src/integration.test.ts`.
+- **Every catalogued script is mirrored by a same-`id` `DEMO_SCRIPTS` entry**
+  in the GENERATED `apps/site/src/components/demo/scripts.ts` (the inlined demo
+  / docs copy — `DEMO_SCRIPTS` is emitted from the catalogue + these sources by
+  `pnpm examples:generate`, so the mirror is byte-exact by construction).
+  `pnpm examples:sync` token-compares the pair and fails CI on code drift. As
+  of the catalogue migration there are **no demo-only or example-only scripts**
+  — `base-trend`, `fib-retracement`, and `persistent-color` (previously
+  unmirrored) are now catalogued and mirrored too.
