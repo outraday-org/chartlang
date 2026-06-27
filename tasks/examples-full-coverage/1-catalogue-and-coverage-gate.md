@@ -12,7 +12,7 @@ catalogue, and a `scripts/examples-coverage.ts` gate that asserts every
 `docs/primitives/**` page has ≥1 example — seeded with a full
 allowlist so CI stays green until the population tasks land. Migrate
 **every** existing example script — the 25 `DEMO_SCRIPTS` entries **and**
-the additional `.chart.ts` files already in the CLI e2e set (31 ids
+the additional `.chart.ts` files already in the CLI e2e set (32 ids
 total) — into the new shape, classifying each per the §6a fold rule
 (single-primitive → family default, multi-primitive → `complex`).
 
@@ -192,18 +192,22 @@ if wall-clock becomes the CI long pole, follow up by sharding (see
 README §9). `COMPILE_TIMEOUT_MS` is already `15_000` and per-`it`
 (verified) — keep it.
 
-> **The current `EXAMPLE_SCRIPTS` array holds 27 files, not 11** — the
+> **The current `EXAMPLE_SCRIPTS` array holds 28 files, not 11** — the
 > 13 originally listed here (`ema-cross`, `bollinger-bands`,
 > `rsi-divergence-alert`, `fib-retracement`, `session-high-alert`,
 > `daily-rsi-divergence`, `mintick-snapped-entry`, `base-trend`,
 > `trend-confirmation`, `htf-trend-filter`, `sma-offset`,
-> `pivot-high-ray`, `forecast-line`) **plus 14 added since the plan was
+> `pivot-high-ray`, `forecast-line`) **plus 15 added since the plan was
 > written**: `anchored-line`, `up-streak`, `rolling-window-mean`,
 > `volume-by-level`, `rolling-zscore`, `symbol-ratio`, `z-layering`,
 > `weekday-close-filter`, `bgcolor-barcolor`, `tick-snapped-levels`,
 > `str-formatted-hud`, `math-scalar-band`, `str-label-builder`,
-> `fill-between-band` (these already compile in e2e and back the new
-> `math.*`/`str.*`/`state.array`/`state.map`/`draw.fillBetween` surface).
+> `fill-between-band`, `persistent-color` (these already compile in e2e
+> and back the new `math.*`/`str.*`/`state.array`/`state.map`/
+> `draw.fillBetween` surface plus the non-numeric persistent slots —
+> `state.color`/`state.boolSeries`/`state.stringSeries` — that
+> `persistent-color` exercises; that last one is **e2e-only**, not in
+> `DEMO_SCRIPTS`, so it joins the §6 item-2 group below).
 > Deriving `EXAMPLE_SCRIPTS` from the catalogue therefore requires that
 > **every one of these on-disk files has a catalogue entry** (§6), or
 > the loop silently drops them from e2e and the gen-demo-scripts
@@ -254,7 +258,7 @@ entries by catalogue order for stable diffs.
 ### 6. Migrate every existing example script
 
 There are **two** legacy sources of truth and they do **not** fully
-overlap — migrate the **union (31 distinct ids)**:
+overlap — migrate the **union (32 distinct ids)**:
 
 1. **The 25 `DEMO_SCRIPTS`** in `scripts.ts`: `ema-cross`,
    `bollinger-bands`, `rsi-divergence-alert`, `smoothed-rsi-cross`,
@@ -269,12 +273,15 @@ overlap — migrate the **union (31 distinct ids)**:
    `trend-composition` — **create** their
    `examples/scripts/<id>.chart.ts` from the current inlined `source`.
    The other 21 already exist on disk.
-2. **The 6 on-disk `.chart.ts` files in the e2e set that are NOT in
+2. **The 7 on-disk `.chart.ts` files in the e2e set that are NOT in
    `DEMO_SCRIPTS`**: `base-trend`, `daily-rsi-divergence`,
    `mintick-snapped-entry`, `session-high-alert`, `trend-confirmation`,
-   `fib-retracement`. These already compile in e2e and exist on disk;
-   the stray-file check (§2) + the catalogue-derived `EXAMPLE_SCRIPTS`
-   (§3) make cataloguing them **mandatory**, not optional.
+   `fib-retracement`, `persistent-color`. These already compile in e2e
+   and exist on disk; the stray-file check (§2) + the catalogue-derived
+   `EXAMPLE_SCRIPTS` (§3) make cataloguing them **mandatory**, not
+   optional. (`persistent-color` is the newest — a non-numeric
+   persistent-slot idiom using `state.color`/`state.boolSeries`/
+   `state.stringSeries`; see the §6b row.)
 
 > Note `trend-composition` (a self-contained demo-only file with
 > `baseTrend` inlined) is **distinct** from the on-disk
@@ -348,6 +355,7 @@ parallel waves disjoint.
 | `rolling-zscore` | `complex` | composite | (omit — `state.array` owned by `rolling-window-mean`) |
 | `z-layering` | `complex` | composite | (omit — `draw.fillBetween` owned by `fill-between-band`) |
 | `bgcolor-barcolor` | `complex` | composite | (omit — `bgcolor`/`barcolor` have no doc page yet) |
+| `persistent-color` | `complex` | composite | (omit — `state.color`/`state.boolSeries`/`state.stringSeries` have no doc page yet) |
 | `mintick-snapped-entry` | `complex` | composite | `syminfo` |
 | `session-high-alert` | `complex` | composite | `alert` |
 
@@ -369,7 +377,7 @@ uses both); flip the credit to `state.map` when the page exists.
 Then remove all covered ids from the allowlist seed. After migration,
 `pnpm examples:generate` must reproduce a `scripts.ts` whose
 `DEMO_SCRIPTS` is behaviorally identical for the existing 25 (same
-ids/labels/sources, plus the new `category` field; the 6 newly-catalogued
+ids/labels/sources, plus the new `category` field; the 7 newly-catalogued
 on-disk files now also appear) and `pnpm examples:gate` + existing
 `apps/site` Playwright demo tests stay green.
 
@@ -384,7 +392,7 @@ on-disk files now also appear) and `pnpm examples:gate` + existing
 | `examples/coverage-allowlist.json` | Create | Shrinking uncovered-id allowlist. |
 | `examples/catalogue.json` | Create (generated) | Machine-readable artifact for the published package (Task 23). |
 | `examples/scripts/{manual-sma,smoothed-rsi-cross,explicit-pane-routing,trend-composition}.chart.ts` | Create | Promote demo-only sources to canonical files. |
-| `examples/catalogue/complex.ts` (entries for `base-trend`, `daily-rsi-divergence`, `mintick-snapped-entry`, `session-high-alert`, `trend-confirmation`, `fib-retracement`) | Modify | Catalogue the 6 on-disk e2e scripts not in `DEMO_SCRIPTS` (else stray-file / e2e break). |
+| `examples/catalogue/complex.ts` (entries for `base-trend`, `daily-rsi-divergence`, `mintick-snapped-entry`, `session-high-alert`, `trend-confirmation`, `fib-retracement`, `persistent-color`) | Modify | Catalogue the 7 on-disk e2e scripts not in `DEMO_SCRIPTS` (else stray-file / e2e break). |
 | `examples/catalogue/complex.ts` (entries for the 14 scripts added since the plan: `anchored-line`, `up-streak`, `rolling-window-mean`, `volume-by-level`, `rolling-zscore`, `symbol-ratio`, `z-layering`, `weekday-close-filter`, `bgcolor-barcolor`, `tick-snapped-levels`, `str-formatted-hud`, `math-scalar-band`, `str-label-builder`, `fill-between-band`) | Modify | Catalogue per the §6b table — single-primitive ones as **defaults** (family category), composites as `complex`. |
 | `scripts/gen-demo-scripts.ts` | Create | Emit `scripts.ts` from catalogue + sources. |
 | `scripts/gen-examples-docs.ts` | Modify | Run gen-demo-scripts first; byte-check `scripts.ts`. |
@@ -414,8 +422,8 @@ on-disk files now also appear) and `pnpm examples:gate` + existing
 ## Acceptance Criteria
 
 - `examples/catalogue.ts` exports the taxonomy (incl. `math`/`str`) +
-  every migrated entry (the 25 `DEMO_SCRIPTS` + the 6 on-disk e2e scripts
-  not in it = 31 ids; all 27 on-disk `.chart.ts` files plus the 4
+  every migrated entry (the 25 `DEMO_SCRIPTS` + the 7 on-disk e2e scripts
+  not in it = 32 ids; all 28 on-disk `.chart.ts` files plus the 4
   demo-only sources have a catalogue entry), each classified per the
   §6b fold rule (single-primitive → family default, composite →
   `complex`).

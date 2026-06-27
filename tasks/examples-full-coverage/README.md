@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-Today the project ships ~27 worked example scripts (25 wired into the
+Today the project ships ~28 worked example scripts (25 wired into the
 demo). They drive the live demo (`apps/site` → `?script=<id>#demo`) and
 the auto-generated docs Examples section (`docs/examples/*.md`).
 Meanwhile the **reference** docs under `docs/primitives/**` are already
@@ -39,11 +39,12 @@ conventions these tasks must preserve.
 
 ## 2. Current State
 
-- **Example sources** — `examples/scripts/*.chart.ts` (27 files), each
+- **Example sources** — `examples/scripts/*.chart.ts` (28 files), each
   compiled end-to-end by `packages/cli/src/e2e.test.ts`
-  (`EXAMPLE_SCRIPTS`, a hand-maintained list). 14 of these were added
+  (`EXAMPLE_SCRIPTS`, a hand-maintained list). 15 of these were added
   since this plan was written (the `math.*`/`str.*`/`state.array`/
-  `state.map`/`draw.fillBetween` demos — see Task 1 §6).
+  `state.map`/`draw.fillBetween` demos plus `persistent-color`'s
+  non-numeric persistent slots — see Task 1 §6).
 - **Demo catalogue** — `apps/site/src/components/demo/scripts.ts`
   exports `DEMO_SCRIPTS: DemoScript[]` (`{ id, label, description,
   source }`) — **25 entries**, with `source` **inlined as a string**
@@ -209,7 +210,7 @@ defers those three commands to the wave boundary.
 
 | # | Title | Package / Area | Deps | Examples | Est. Complexity |
 |---|-------|----------------|------|----------|-----------------|
-| 1 | [Catalogue model, generators & coverage gate](./1-catalogue-and-coverage-gate.md) | examples, scripts, apps/site, cli | None | (migrate all on-disk: 11 demo + 6 extra e2e) | High |
+| 1 | [Catalogue model, generators & coverage gate](./1-catalogue-and-coverage-gate.md) | examples, scripts, apps/site, cli | None | (migrate all on-disk: 21 demo + 7 extra e2e) | High |
 | 2 | [Categorized demo dialog & docs grouping](./2-demo-category-dialog.md) | apps/site, docs | 1 | — | Medium |
 | 3 | [TA — moving averages & overlays](./3-ta-moving-averages.md) | examples | 1,2 | 13 | Medium |
 | 4 | [TA — momentum oscillators I](./4-ta-momentum-i.md) | examples | 1,2 | 10 | Medium |
