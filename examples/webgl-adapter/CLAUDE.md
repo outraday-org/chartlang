@@ -280,6 +280,17 @@ to `ortho2d`.
   `static ?? fallback`; present ⇒ override; `null` ⇒ `null` gap). **The
   Task-1 `opts.palette` opt is NOT yet on `CreateWebglAdapterOpts`** — Task 5
   adds it + threads it into `createAdapterState`.
+- **`visible: false` drops the mark and excludes it from the y-scale —
+  self-scaled "hidden by omission" semantics (canvas2d parity).** `ingest.ts`'s
+  `applyPlot` early-returns on `plot.visible === false` before storing any
+  series point / hline / overlay, so a hidden slot contributes nothing the
+  GPU draws AND nothing to `buildFrame`'s `computeYRange` (it never stretches
+  the pane scale). The renderer re-derives every frame (no persistent legend),
+  so omitting the mark IS "keep the slot hidden" — re-enabling re-emits it. The
+  runtime writes `visible: false` for BOTH authoring (`plot(value, { visible
+  })`) and host overrides; the same guard covers both. Orthogonal to
+  `value: null` (a per-bar gap) — see the adapter-kit `PlotEmission.visible`
+  normative contract. Covered by `ingest.test.ts`.
 - **Pure → headlessly unit-tested (§16.3).** `layer-descriptor.test.ts`
   (colors/palette), `ingest.test.ts` (accumulation), `buildFrame.test.ts`
   (window/y-fit/descriptors). The window/y-fit math is already tested in

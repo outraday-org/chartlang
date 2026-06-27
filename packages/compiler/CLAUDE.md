@@ -237,6 +237,16 @@
   must preserve full names such as `state.tick.float` in addition to
   one-hop names like `ta.ema`; callsite-id injection and loop diagnostics
   key directly on those registry names.
+- **The ambient `state` shim mirrors the non-numeric slots in lockstep.** The
+  `StateNamespace` shim carries `color(init: Color): MutableSlot<Color>`,
+  `boolSeries(init): BoolSeriesSlot`, and `stringSeries(init): StringSeriesSlot`
+  alongside the numeric `series`, plus the two new slot view types
+  (`BoolSeriesSlot = MutableSlot<boolean> & Series<boolean>`,
+  `StringSeriesSlot = MutableSlot<string> & Series<string>`) declared next to
+  `NumberSeriesSlot`. `Color` is already declared in the shim (`type Color =
+  string`). These are type/contract additions only — the `STATEFUL_PRIMITIVES`
+  registry entries + slot-id injection for the new factories land with the T12
+  runtime task, not here.
 - **Determinism is testable.** `transformAndAnalyse(src, opts)` printed
   twice must yield byte-identical strings via `ts.createPrinter`. Slot
   ids are pure string literals, never template strings or symbol
@@ -288,3 +298,19 @@
   multi-export files the flat plot-slot list attaches to the **default
   manifest only** (mirrors how `outputs?` scopes; per-export plot
   partitioning is deferred).
+- **`manifest.plots[*].defaultVisible` is a boolean-literal-only static
+  visibility hint, gated to `plot`.** `injectCallsiteIds` reads a `visible`
+  opt via `readLiteralVisible` (sibling of `readLiteralTitle`) and records
+  `defaultVisible: true|false` ONLY for a **direct boolean-literal**
+  `plot(x, { visible: false })` — a compile-time hint a host can use to
+  pre-toggle a legend entry before the first emission. A dynamic / input-driven
+  `{ visible: showRsi }`, a ternary, or any non-literal records **nothing**
+  (resolved per run at runtime — Task 3's `PlotEmission.visible`), keeping the
+  conservative computed-title posture (no constant-folding). `visible` is a
+  `PlotOpts`-only opt, so the read is gated to `calleeName === "plot"` —
+  `hline`/`bgcolor`/`barcolor` descriptors never carry `defaultVisible`.
+  Omitted ⇒ "no static hint, defaults to visible"; the field is dropped from
+  the descriptor when unset so apiVersion:1 manifests stay byte-identical when
+  visibility is unused. `PlotSlotDescriptor` is a **core** type
+  (`packages/core/src/types.ts`); the append-only `defaultVisible?` lives there
+  and is mirrored in the `program.ts` shim `PlotSlotDescriptor` in lockstep.

@@ -1,0 +1,7 @@
+//@version=6
+indicator("Var Bool History")
+var bool active = false
+active := close > open
+wasActive = active[1]
+wasActive2 = active[2]
+plot(wasActive and not wasActive2 ? 1 : 0, "JustActivated")

@@ -57,6 +57,11 @@ describe("emitExpr", () => {
             [na, { naKind: "handle" }],
         ]);
         expect(emitExpr(na, handleAnn)).toBe("null");
+        // A `var color x = na` lowers to the transparent CSS string.
+        const colorAnn: ReadonlyMap<AstNode, SemanticAnnotation> = new Map([
+            [na, { naKind: "color" }],
+        ]);
+        expect(emitExpr(na, colorAnn)).toBe('"#00000000"');
     });
 
     it("lowers `na(x)` to a real predicate by the callee's na flavour", () => {

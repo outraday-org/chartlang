@@ -1,23 +1,17 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CallExpression, ExpressionNode } from "../ast/index.js";
+import type { CallExpression } from "../ast/index.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
 import { emitWithContext } from "./emitContext.js";
-import { pineTimeframeToInterval } from "./timeframeConvert.js";
-
-// The `SecurityBar` series fields a Pine OHLCV/aggregate source lowers to.
-const SECURITY_FIELDS: ReadonlySet<string> = new Set([
-    "open",
-    "high",
-    "low",
-    "close",
-    "volume",
-    "hl2",
-    "hlc3",
-    "ohlc4",
-]);
+import {
+    resolveSecurityFeed,
+    securityCallbackRead,
+    securityDataRead,
+    securityField,
+    securityOpts,
+} from "./securityShape.js";
 
 // Whether a call's callee is the bare-rooted `request.security` member.
 function isRequestSecurity(call: CallExpression): boolean {
@@ -29,32 +23,6 @@ function isRequestSecurity(call: CallExpression): boolean {
         callee.chain[0] === "request" &&
         callee.chain[1] === "security"
     );
-}
-
-// Whether a node is the `syminfo.tickerid` built-in (the same-symbol marker).
-function isTickerId(node: ExpressionNode): boolean {
-    return (
-        node.kind === "member-access-expression" &&
-        node.head === null &&
-        node.chain.length === 2 &&
-        node.chain[0] === "syminfo" &&
-        node.chain[1] === "tickerid"
-    );
-}
-
-// The raw (unquoted) value of a Pine string literal, or `null` otherwise.
-function stringLiteralValue(node: ExpressionNode): string | null {
-    return node.kind === "literal-expression" && node.literalKind === "string"
-        ? node.value.slice(1, -1)
-        : null;
-}
-
-// The `SecurityBar` field name a Pine source identifier maps to, or `null`
-// for a non-OHLCV source expression.
-function securityField(node: ExpressionNode): string | null {
-    return node.kind === "identifier-expression" && SECURITY_FIELDS.has(node.name)
-        ? node.name
-        : null;
 }
 
 /**
@@ -156,40 +124,28 @@ export function emitRequestSecurity(
         diagnostics.pushCode("request-security-not-mapped", call.span);
         return null;
     }
-    // Resolve the symbol arg into the opts. `syminfo.tickerid` is the chart's
-    // own symbol → omit `symbol` (byte-identical to the single-symbol form). A
-    // string literal lowers to chartlang multi-symbol; anything else is a
-    // computed/non-literal ticker chartlang cannot key on.
-    const tickerSymbol = isTickerId(symbol) ? null : stringLiteralValue(symbol);
-    if (!isTickerId(symbol) && tickerSymbol === null) {
+    // Resolve the symbol + timeframe into the opts via the shared resolver:
+    // `syminfo.tickerid` → `symbol: null` (omit `symbol`, byte-identical to the
+    // single-symbol form); a string literal → the cross-symbol `{ symbol }`;
+    // anything else (computed ticker, non-literal timeframe, out-of-table
+    // timeframe) → `null`, the un-mappable shape.
+    const feed = resolveSecurityFeed(symbol, timeframe);
+    if (feed === null) {
         diagnostics.pushCode("request-security-not-mapped", call.span);
         return null;
     }
-    const raw = stringLiteralValue(timeframe);
-    if (raw === null) {
-        diagnostics.pushCode("request-security-not-mapped", call.span);
-        return null;
-    }
-    const interval = pineTimeframeToInterval(raw);
-    if (interval === null) {
-        diagnostics.pushCode("request-security-not-mapped", call.span);
-        return null;
-    }
-    if (tickerSymbol !== null) {
+    if (feed.symbol !== null) {
         // A mappable cross-symbol read — emit the info so downstream tooling
         // still sees the cross-symbol signal even though it now lowers cleanly.
         diagnostics.pushCode("request-security-different-symbol", call.span);
     }
-    const opts =
-        tickerSymbol === null
-            ? `{ interval: ${JSON.stringify(interval)} }`
-            : `{ symbol: ${JSON.stringify(tickerSymbol)}, interval: ${JSON.stringify(interval)} }`;
+    const opts = securityOpts(feed.symbol, feed.interval);
     const field = securityField(source);
     // A bare OHLCV field reads the aligned data form; any other source (a
     // `ta.*`/expression) runs on the HTF clock via the callback form. The
     // mapper already lowered its OHLCV reads to `bar.<field>`, so the emitted
     // source is the callback body verbatim.
     return field === null
-        ? `request.security(${opts}, (bar) => ${emitWithContext(source, ctx)})`
-        : `request.security(${opts}).${field}`;
+        ? securityCallbackRead(opts, emitWithContext(source, ctx))
+        : securityDataRead(opts, field);
 }

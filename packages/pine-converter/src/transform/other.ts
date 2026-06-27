@@ -21,8 +21,9 @@ import {
     multiReturnTaLookup,
 } from "../mapping/index.js";
 import type { MultiReturnTaMapping, PineDrawingConstructor } from "../mapping/index.js";
-import type { SemanticResult } from "../semantic/index.js";
+import type { SecurityTupleAnnotation, SemanticResult } from "../semantic/index.js";
 import { collectUdfBodyFacts } from "../semantic/statefulness.js";
+import { emitAlertCall } from "./alertCall.js";
 import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { ArraySlotInfo, EmitContext, MapSlotInfo } from "./emitContext.js";
@@ -37,6 +38,7 @@ import { scanNumericArrays } from "./numericArray.js";
 import { emitPlotFamily, isPlotFamilyCall } from "./plotFamily.js";
 import { emitRequestSecurity, isRequestSecurityCall } from "./requestSecurity.js";
 import { appendComputeStatement, appendStateSlot } from "./scaffoldMutators.js";
+import { securityCallbackRead, securityDataRead, securityOpts } from "./securityShape.js";
 import { emitStr } from "./strFormat.js";
 import { emitStrategySignal } from "./strategySignals.js";
 import type { InlineScope } from "./udfInline.js";
@@ -309,25 +311,67 @@ function stateFactory(value: ExpressionNode): string | null {
     return null;
 }
 
-// Whether a scalar `var`/`varip` holds a numeric value (so its history can lower
-// to a number-backed `state.series`). Read from the slot factory when the type
-// is inferable (`state.int`/`state.float`), else from the declared type
-// annotation (so `var float prev = na` is numeric despite the `na` init), else
-// `true` — an un-inferable init (identifier/expression) defaults to a numeric
-// series (init `Number.NaN`), the same precedent as `scalar-state-type-defaulted`.
-function scalarIsNumeric(decl: VariableDeclaration): boolean {
+// Whether a value expression produces a `color` (a `#RRGGBB(AA)` literal, a
+// `color.*` palette member, or a `color.*(...)` constructor call). Drives the
+// `var color` scalar inference when the declaration carries no `color` type
+// annotation (`var c = color.red`).
+function isColorValued(value: ExpressionNode): boolean {
+    if (value.kind === "literal-expression") {
+        return value.literalKind === "color";
+    }
+    if (value.kind === "member-access-expression") {
+        return value.head === null && value.chain[0] === "color";
+    }
+    if (value.kind === "call-expression") {
+        return calleeName(value)?.startsWith("color.") === true;
+    }
+    return false;
+}
+
+// Whether a scalar `var`/`varip` is a persistent COLOR (so it lowers to
+// `state.color`): a `color` type annotation, or a color-valued initializer.
+function colorScalar(decl: VariableDeclaration): boolean {
+    if (decl.typeAnnotation !== null && decl.typeAnnotation.kind === "named-type") {
+        if (decl.typeAnnotation.name === "color") {
+            return true;
+        }
+    }
+    return isColorValued(decl.initializer);
+}
+
+// The element type a scalar `var`/`varip` carries — picks the `state.*` factory
+// and, for a history-indexed scalar, which series slot it lowers to. `color`
+// (a scalar-only `state.color`) is checked first; then the inferable slot
+// factory (`state.int`/`float`/`bool`/`string`); then the declared type
+// annotation (so `var bool flag = na` is `bool` despite the `na` init); else
+// `numeric` — an un-inferable init (identifier/expression) defaults to a numeric
+// series (`Number.NaN`), the `scalar-state-type-defaulted` precedent.
+type ScalarElement = "numeric" | "bool" | "string" | "color";
+
+function scalarElementType(decl: VariableDeclaration): ScalarElement {
+    if (colorScalar(decl)) {
+        return "color";
+    }
     const factory = stateFactory(decl.initializer);
     if (factory !== null) {
-        return factory === "state.int" || factory === "state.float";
+        if (factory === "state.bool") {
+            return "bool";
+        }
+        if (factory === "state.string") {
+            return "string";
+        }
+        return "numeric";
     }
     if (decl.typeAnnotation !== null && decl.typeAnnotation.kind === "named-type") {
         const name = decl.typeAnnotation.name;
-        // `int`/`float` are the only numeric scalar annotations. `bool`/`string`/
-        // `color` are non-numeric; every other named type is a drawing handle,
-        // already filtered out of the scalar candidates before this runs.
-        return name === "int" || name === "float";
+        if (name === "bool") {
+            return "bool";
+        }
+        if (name === "string") {
+            return "string";
+        }
     }
-    return true;
+    return "numeric";
 }
 
 // Whether a top-level statement is a scalar `var`/`varip` declaration this
@@ -362,19 +406,23 @@ type TaSeriesPromotion = {
     readonly dynamicSpan: SourceSpan | null;
 };
 
-// The history-indexed scalar `var`/`varip` candidates, partitioned by whether
-// the scalar is numeric. A numeric history-indexed scalar lowers to
-// `state.series` (so its `x[n]` reads work); a `bool`/`string` one keeps its
-// scalar lowering and gets a `series-history-non-numeric` info. `numeric` maps
-// the Pine name to its declaration (so `emitStateSlots` can pick the init);
-// `nonNumeric` is the Pine-name set. `dynamicOffsetSpans` records the access
-// span of every numeric series-slot read whose offset is not a literal — wiring
-// the registered `dynamic-series-index` error. `taSeries` is the SEPARATE
-// promotion of an `=`-declared ta-derived series that is `[n]`-indexed (a
-// non-`var` numeric series; see {@link TaSeriesPromotion}).
+// The history-indexed scalar `var`/`varip` candidates, partitioned by element
+// type. A `numeric` one lowers to `state.series`, a `bool` one to
+// `state.boolSeries`, a `string` one to `state.stringSeries` (all indexable, so
+// `x[n]` reads work); a `color` (or other still-unsupported type) stays in
+// `unsupportedHistory` — it keeps its scalar lowering and gets a
+// `series-history-non-numeric` info (color history is deferred). Each map keys
+// the Pine name to its declaration so `emitStateSlots` can pick the factory +
+// init. `dynamicOffsetSpans` records the access span of every series-slot read
+// (numeric/bool/string) whose offset is not a literal — wiring the registered
+// `dynamic-series-index` error. `taSeries` is the SEPARATE promotion of an
+// `=`-declared ta-derived series that is `[n]`-indexed (a non-`var` numeric
+// series; see {@link TaSeriesPromotion}).
 type HistorySeriesScan = {
     readonly numeric: ReadonlyMap<string, VariableDeclaration>;
-    readonly nonNumeric: ReadonlyMap<string, VariableDeclaration>;
+    readonly boolSeries: ReadonlyMap<string, VariableDeclaration>;
+    readonly stringSeries: ReadonlyMap<string, VariableDeclaration>;
+    readonly unsupportedHistory: ReadonlyMap<string, VariableDeclaration>;
     readonly dynamicOffsetSpans: ReadonlyMap<string, SourceSpan>;
     readonly taSeries: ReadonlyMap<string, TaSeriesPromotion>;
 };
@@ -422,9 +470,18 @@ function scanHistorySeries(
         }
     }
     const numeric = new Map<string, VariableDeclaration>();
-    const nonNumeric = new Map<string, VariableDeclaration>();
+    const boolSeries = new Map<string, VariableDeclaration>();
+    const stringSeries = new Map<string, VariableDeclaration>();
+    const unsupportedHistory = new Map<string, VariableDeclaration>();
     const dynamicOffsetSpans = new Map<string, SourceSpan>();
     const taSeries = new Map<string, TaSeriesPromotion>();
+    // The series-lowered element types (their `x[n]` becomes a real indexed read,
+    // so a dynamic offset is an error); `color` is scalar-only and never here.
+    const seriesByType: Record<"numeric" | "bool" | "string", Map<string, VariableDeclaration>> = {
+        numeric,
+        bool: boolSeries,
+        string: stringSeries,
+    };
     // A non-literal offset that is NOT an enclosing loop iterator is genuinely
     // dynamic (`x[i]` with a free `i`); a loop-bound `[i]` is a legal runtime
     // history read on a `Series`/`state.series` receiver.
@@ -437,13 +494,16 @@ function scanHistorySeries(
         const name = history.receiver.name;
         const decl = candidates.get(name);
         if (decl !== undefined) {
-            if (scalarIsNumeric(decl)) {
-                numeric.set(name, decl);
-                if (isDynamic(history, loopVars) && !dynamicOffsetSpans.has(name)) {
-                    dynamicOffsetSpans.set(name, history.span);
-                }
-            } else {
-                nonNumeric.set(name, decl);
+            const element = scalarElementType(decl);
+            if (element === "color") {
+                // Color history (`state.colorSeries`) is deferred — keep the
+                // scalar `state.color` slot and flag the gap.
+                unsupportedHistory.set(name, decl);
+                return;
+            }
+            seriesByType[element].set(name, decl);
+            if (isDynamic(history, loopVars) && !dynamicOffsetSpans.has(name)) {
+                dynamicOffsetSpans.set(name, history.span);
             }
             return;
         }
@@ -455,7 +515,7 @@ function scanHistorySeries(
             taSeries.set(name, { decl: taDecl, dynamicSpan });
         }
     });
-    return { numeric, nonNumeric, dynamicOffsetSpans, taSeries };
+    return { numeric, boolSeries, stringSeries, unsupportedHistory, dynamicOffsetSpans, taSeries };
 }
 
 // The visitor a {@link walkHistoryAccesses} caller supplies: each
@@ -549,9 +609,10 @@ function isLoopBoundOffset(offset: ExpressionNode, loopVars: ReadonlySet<string>
 // The `var`/`varip` scalar declarations this transform owns. Returns a name →
 // slot-local map. The slot local REUSES the Pine scalar identifier
 // (allocator-disambiguated) so a `var int count = 0` reads as `count`, not
-// `__count_state`. A `na`-init scalar is registered ONLY when it is a numeric
-// history-indexed series slot (`seriesNames`) — otherwise it stays a plain
-// `let x = Number.NaN` (`emitDeclaration` handles it).
+// `__count_state`. A `na`-init scalar is registered ONLY when it is a series
+// slot (`seriesNames`) OR a persistent `state.color` scalar (`var color c = na`
+// → `state.color("#00000000")`) — otherwise it stays a plain `let x =
+// Number.NaN` (`emitDeclaration` handles it).
 function registerStateSlots(
     analysis: SemanticResult,
     scaffold: ScriptScaffold,
@@ -563,7 +624,11 @@ function registerStateSlots(
         if (!isScalarSlotCandidate(stmt, owned)) {
             continue;
         }
-        if (stmt.initializer.kind === "na-expression" && !seriesNames.has(stmt.name)) {
+        if (
+            stmt.initializer.kind === "na-expression" &&
+            !seriesNames.has(stmt.name) &&
+            !colorScalar(stmt)
+        ) {
             continue;
         }
         const slot = scaffold.names.allocateForSymbol(stmt.name);
@@ -573,12 +638,14 @@ function registerStateSlots(
 }
 
 // Emit the `appendStateSlot` IR for each registered slot, choosing the slot
-// factory + init expression. Done after the slot-name map is built so the
-// init expression can rewrite references to earlier slots. A numeric
-// history-indexed scalar (`scan.numeric`) lowers to `state.series`; a
-// non-numeric history-indexed scalar keeps its scalar factory (the
-// `series-history-non-numeric` info for those is pushed in `transformOther`,
-// which sees every non-numeric candidate, not just the registered slots).
+// factory + init expression. Done after the slot-name map is built so the init
+// expression can rewrite references to earlier slots. A history-indexed scalar
+// lowers to the matching series slot (numeric → `state.series`, bool →
+// `state.boolSeries`, string → `state.stringSeries`); a `var color` scalar →
+// `state.color`; everything else keeps its scalar factory. (The
+// `series-history-non-numeric` info for the still-unsupported color-history case
+// is pushed in `transformOther`, which sees every candidate, not just the
+// registered slots.)
 function emitStateSlots(
     analysis: SemanticResult,
     scaffold: ScriptScaffold,
@@ -596,7 +663,54 @@ function emitStateSlots(
             continue;
         }
         if (scan.numeric.has(stmt.name)) {
-            emitSeriesSlot(stmt, slot, scaffold, diagnostics, scan, ctx);
+            appendSeriesSlot(
+                stmt,
+                slot,
+                "state.series",
+                numericSeriesInit(stmt, diagnostics, ctx),
+                scaffold,
+                diagnostics,
+                scan,
+            );
+            continue;
+        }
+        if (scan.boolSeries.has(stmt.name)) {
+            appendSeriesSlot(
+                stmt,
+                slot,
+                "state.boolSeries",
+                nonNumericSeriesInit(stmt, "false", ctx),
+                scaffold,
+                diagnostics,
+                scan,
+            );
+            continue;
+        }
+        if (scan.stringSeries.has(stmt.name)) {
+            appendSeriesSlot(
+                stmt,
+                slot,
+                "state.stringSeries",
+                nonNumericSeriesInit(stmt, '""', ctx),
+                scaffold,
+                diagnostics,
+                scan,
+            );
+            continue;
+        }
+        if (colorScalar(stmt)) {
+            // A persistent `var color` scalar. `varip color` has no
+            // `state.tick.color`, so it approximates to the non-tick slot + the
+            // shared warning (the `varip-series-approximated` precedent). The
+            // `na` init lowers to the transparent CSS string via the color
+            // na-flavour (`emitWithContext` → `emitNa`).
+            if (stmt.qualifier === "varip") {
+                diagnostics.pushCode("varip-series-approximated", stmt.span);
+            }
+            appendStateSlot(scaffold, {
+                name: slot,
+                initExpr: `state.color(${emitWithContext(stmt.initializer, ctx)})`,
+            });
             continue;
         }
         let factory = stateFactory(stmt.initializer);
@@ -611,29 +725,52 @@ function emitStateSlots(
     }
 }
 
-// Emit a `state.series(<init>)` slot for a numeric history-indexed scalar. The
-// init is the literal numeric value, `Number.NaN` for an `na` init, or
-// `Number.NaN` + `scalar-state-type-defaulted` for an un-inferable init. A
-// `varip` series slot lowers to a (non-tick) `state.series` + a
-// `varip-series-approximated` info (`state.tick.series` is deferred). A
-// non-literal history offset trips the registered `dynamic-series-index` error.
-function emitSeriesSlot(
+// The `state.series` init for a NUMERIC history-indexed scalar: the literal
+// numeric value, `Number.NaN` for an `na` init, or `Number.NaN` +
+// `scalar-state-type-defaulted` for an un-inferable init.
+function numericSeriesInit(
+    stmt: VariableDeclaration,
+    diagnostics: DiagnosticCollector,
+    ctx: EmitContext,
+): string {
+    if (stmt.initializer.kind === "na-expression") {
+        return "Number.NaN";
+    }
+    if (stateFactory(stmt.initializer) !== null) {
+        return emitWithContext(stmt.initializer, ctx);
+    }
+    diagnostics.pushCode("scalar-state-type-defaulted", stmt.span);
+    return "Number.NaN";
+}
+
+// The `state.boolSeries`/`stringSeries` init for a non-numeric history-indexed
+// scalar: the runtime first-bar default (`false` / `""`) for an `na` init, else
+// the emitted initializer (a literal/expression of the matching type — bool/
+// string seeds need no type defaulting, unlike numeric).
+function nonNumericSeriesInit(
+    stmt: VariableDeclaration,
+    naDefault: string,
+    ctx: EmitContext,
+): string {
+    return stmt.initializer.kind === "na-expression"
+        ? naDefault
+        : emitWithContext(stmt.initializer, ctx);
+}
+
+// Append a series slot (`<factory>(<init>)`) sharing the `varip`-approximation
+// and dynamic-offset diagnostics across the numeric/bool/string series types. A
+// `varip` series lowers to its non-tick form + `varip-series-approximated`
+// (`state.tick.*Series` is deferred); a non-literal history offset trips the
+// registered `dynamic-series-index` error.
+function appendSeriesSlot(
     stmt: VariableDeclaration,
     slot: string,
+    factory: string,
+    init: string,
     scaffold: ScriptScaffold,
     diagnostics: DiagnosticCollector,
     scan: HistorySeriesScan,
-    ctx: EmitContext,
 ): void {
-    let init: string;
-    if (stmt.initializer.kind === "na-expression") {
-        init = "Number.NaN";
-    } else if (stateFactory(stmt.initializer) !== null) {
-        init = emitWithContext(stmt.initializer, ctx);
-    } else {
-        diagnostics.pushCode("scalar-state-type-defaulted", stmt.span);
-        init = "Number.NaN";
-    }
     if (stmt.qualifier === "varip") {
         diagnostics.pushCode("varip-series-approximated", stmt.span);
     }
@@ -641,7 +778,7 @@ function emitSeriesSlot(
     if (dynamicSpan !== undefined) {
         diagnostics.pushCode("dynamic-series-index", dynamicSpan);
     }
-    appendStateSlot(scaffold, { name: slot, initExpr: `state.series(${init})` });
+    appendStateSlot(scaffold, { name: slot, initExpr: `${factory}(${init})` });
 }
 
 // Promote each `=`-declared, history-indexed ta-series (`ma_slope = ta.ema(...)`
@@ -895,14 +1032,68 @@ function emitMultiReturnCall(
     return `${mapping.chartlang}(${args.join(", ")})`;
 }
 
-// Lower `[a, b, c] = ta.macd(...)` into one result const; element reads rewrite
-// to `<result>.<field>.current` via the pre-registered aliases. An
-// unrecognised multi-return RHS warns and emits nothing.
+// Lower a tuple-LHS `request.security` into one independent read per element:
+// an OHLCV field → the data form `request.security(<opts>).<field>`, any other
+// expression → the callback form `request.security(<opts>, (bar) => <body>)`.
+// All N reads share ONE `{ symbol, interval }` opts literal (one feed; the
+// runtime dedups via `feedKey`), so the emitted source is N standard
+// single-source reads — the compiler's existing `requestedFeeds` extraction
+// picks them up with no special-casing. Each non-`_` name binds its own `const`
+// (bare downstream references resolve unchanged — no alias indirection); a `_`
+// or an absent element (arity mismatch, already warned in the semantic walk) is
+// skipped. A cross-symbol feed pushes `request-security-different-symbol` once,
+// mirroring the single-source advisory. `:=` element reassignment is out of
+// scope (same limit as the multi-return-`ta.*` tuple form).
+function emitSecurityTuple(
+    decl: TupleDeclaration,
+    annotation: SecurityTupleAnnotation,
+    ctx: EmitContext,
+    walk: Walk,
+): readonly string[] {
+    const opts = securityOpts(annotation.feed.symbol ?? null, annotation.feed.interval);
+    if (annotation.feed.symbol !== undefined) {
+        walk.diagnostics.pushCode("request-security-different-symbol", decl.span);
+    }
+    const lines: string[] = [];
+    decl.names.forEach((target, index) => {
+        const element = annotation.elements[index];
+        if (target.name === "_" || element === undefined) {
+            return;
+        }
+        const read =
+            element.kind === "ohlcv"
+                ? securityDataRead(opts, element.field)
+                : securityCallbackRead(opts, emitWithContext(element.node, ctx));
+        lines.push(`const ${target.name} = ${read};`);
+    });
+    return lines;
+}
+
+// Lower a tuple destructuring. A `request.security` tuple (classified in the
+// semantic walk) lowers to N independent reads — checked BEFORE the
+// multi-return-`ta.*` path so it never mis-fires `multi-return-not-mapped`. A
+// `request.security` RHS with no annotation is a feed/source reject the semantic
+// walk already diagnosed, so it emits nothing rather than falling through.
+// Otherwise: `[a, b, c] = ta.macd(...)` lowers into one result const (element
+// reads rewrite to `<result>.<field>.current` via the pre-registered aliases),
+// and an unrecognised multi-return RHS warns and emits nothing.
 function emitTupleDeclaration(
     decl: TupleDeclaration,
     ctx: EmitContext,
     walk: Walk,
 ): readonly string[] {
+    const securityTuple = walk.analysis.annotations.get(decl)?.securityTuple;
+    if (securityTuple !== undefined) {
+        return emitSecurityTuple(decl, securityTuple, ctx, walk);
+    }
+    const init = decl.initializer;
+    if (init.kind === "call-expression" && isRequestSecurityCall(init)) {
+        // A `request.security` tuple whose feed/source the semantic walk
+        // rejected (request-security-not-mapped / security-tuple-source-not-list
+        // already pushed) — emit nothing, never the misleading
+        // multi-return-not-mapped of the `ta.*` path below.
+        return [];
+    }
     const resolved = multiReturnRhs(decl.initializer);
     if (resolved === null) {
         walk.diagnostics.pushCode("multi-return-not-mapped", decl.span);
@@ -1142,7 +1333,14 @@ export function transformOther(
     const mapSlots = emitMapSlots(scaffold, diagnostics, mapScan);
     const defaults = inputDefaults(analysis);
     const scan = scanHistorySeries(analysis, owned);
-    const seriesNames = new Set(scan.numeric.keys());
+    // Every series-lowered scalar (numeric `state.series`, bool `state.boolSeries`,
+    // string `state.stringSeries`) routes `[n]` reads to the bare slot via
+    // `EmitContext.seriesSlots`; the `.value` read/write stays on `stateSlots`.
+    const seriesNames = new Set([
+        ...scan.numeric.keys(),
+        ...scan.boolSeries.keys(),
+        ...scan.stringSeries.keys(),
+    ]);
     const slots = registerStateSlots(analysis, scaffold, owned, seriesNames);
     // Promote `=`-declared, history-indexed ta-series into the SAME slot maps so
     // the existing read/write rewrites apply; allocated AFTER the `var` scalar
@@ -1194,11 +1392,11 @@ export function transformOther(
         },
     };
     emitStateSlots(analysis, scaffold, diagnostics, slots, scan, ctx);
-    // A bool/string history-indexed scalar keeps its current (non-`state.series`)
-    // lowering and gets a clear info — its `x[n]` is a known v1 gap, never a
-    // silent broken emit. Reported here (not in `emitStateSlots`) so an na-init
-    // non-numeric scalar (which is NOT registered as a slot) is still flagged.
-    for (const [, decl] of scan.nonNumeric) {
+    // A still-unsupported non-numeric history-indexed scalar (color — its
+    // `state.colorSeries` is deferred) keeps a scalar lowering and gets a clear
+    // info, never a silent broken emit. `bool`/`string` history now lowers to a
+    // real `state.boolSeries`/`stringSeries` and is NO LONGER flagged here.
+    for (const [, decl] of scan.unsupportedHistory) {
         diagnostics.pushCode("series-history-non-numeric", decl.span);
     }
     const walk: Walk = {
@@ -1396,12 +1594,19 @@ function emitExpressionStatementCore(
         return [];
     }
     if (isPlotFamilyCall(expr)) {
-        const plot = emitPlotFamily(expr, ctx, walk.diagnostics);
+        const plot = emitPlotFamily(expr, ctx, walk.diagnostics, walk.analysis.script.body);
         return plot === null ? [] : [plot];
     }
     const signal = emitStrategySignal(expr, walk.diagnostics);
     if (signal !== null) {
         return [signal];
+    }
+    // A bare `alert(message, freq?)` lowers here (the frequency is consumed)
+    // BEFORE the generic emitter, which would leak the `alert.freq_*` 2nd arg
+    // verbatim as an undefined member access.
+    const alertSrc = emitAlertCall(expr, ctx, walk.diagnostics);
+    if (alertSrc !== null) {
+        return [alertSrc];
     }
     const special = emitSpecialCall(expr, ctx, walk);
     if (special !== null) {

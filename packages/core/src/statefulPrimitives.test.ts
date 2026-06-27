@@ -175,6 +175,9 @@ const EXPECTED_SLOT_TRUE = [
     "state.bool",
     "state.string",
     "state.series",
+    "state.color",
+    "state.boolSeries",
+    "state.stringSeries",
     "state.tick.float",
     "state.tick.int",
     "state.tick.bool",
@@ -191,6 +194,9 @@ const EXPECTED_STATE_SLOT_TRUE = [
     "state.bool",
     "state.string",
     "state.series",
+    "state.color",
+    "state.boolSeries",
+    "state.stringSeries",
     "state.tick.float",
     "state.tick.int",
     "state.tick.bool",
@@ -302,11 +308,14 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
     "session.isOpen",
     "state.array",
     "state.bool",
+    "state.boolSeries",
+    "state.color",
     "state.float",
     "state.int",
     "state.map",
     "state.series",
     "state.string",
+    "state.stringSeries",
     "state.tick.bool",
     "state.tick.float",
     "state.tick.int",
@@ -419,11 +428,11 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
 ];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 190 entries after the state.map addition", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(190);
+    it("contains exactly 193 entries after the non-numeric state addition", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(193);
     });
 
-    it("locks the apiVersion-1 registry to the exact 190-entry name set", () => {
+    it("locks the apiVersion-1 registry to the exact 193-entry name set", () => {
         const names = [...STATEFUL_PRIMITIVES].map((e) => e.name).sort();
         expect(names).toEqual(FROZEN_API_V1_NAMES);
     });
@@ -442,14 +451,14 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 176 slot: true entries and exactly 14 slot: false entries", () => {
+    it("has exactly 179 slot: true entries and exactly 14 slot: false entries", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
             if (entry.slot) trueCount += 1;
             else falseCount += 1;
         }
-        expect(trueCount).toBe(176);
+        expect(trueCount).toBe(179);
         expect(falseCount).toBe(14);
     });
 

@@ -121,6 +121,40 @@
   `stateStore` flush for series (the `seriesSlots` map is the live source
   across bars; snapshots serialise from it directly), unlike scalar
   `state.*` which `flushStateSlots` mirrors into `StateStore`.
+- **Non-numeric persistent state (`state.color` / `state.boolSeries` /
+  `state.stringSeries`) reuses the numeric machinery — it does NOT introduce a
+  new lifecycle shape.** `state.color` is a persistent CSS **string** scalar:
+  it binds to the existing `getOrAllocate(...)` scalar `StateSlot` path
+  (`stateNamespace.ts`), keyed `${slotIdPrefix}${slotId}:state` like
+  `state.float`/`bool`/`string`, and rides the existing scalar
+  flush/serialise/restore unchanged (a string is JSON-clean, no new routing).
+  `state.boolSeries` / `state.stringSeries` are the non-numeric analogue of
+  `state.series`: a parallel `RuntimeContext.objectSeriesSlots` map
+  (`Map<string, ObjectSeriesSlot<unknown>>`) keyed
+  `${slotIdPrefix}${slotId}:objseries` — **one** map and **one** suffix back
+  BOTH element kinds (the entry's `kind: "state.boolSeries" |
+  "state.stringSeries"` picks the restore default). Each slot is an
+  `ObjectRingBuffer<T>` (`ringBuffer.ts`) — the object-payload sibling of
+  `Float64RingBuffer` whose `at()` returns a per-instance `defaultValue` (NOT
+  `undefined`) on out-of-range, so the **same** `makeSeriesView` `buf.at(n)`
+  path yields the deterministic first-bar / OOR default: `false` for bool
+  (Pine v6), `""` for string. **Ring sizing mirrors the numeric series exactly**
+  (`new ObjectRingBuffer(ctx.stream.ohlcv.close.capacity, default)`), and the
+  lifecycle is byte-for-byte the numeric one — `advanceObjectSeriesSlots`
+  (append the default head) BEFORE close compute, `commitObjectSeriesSlots`
+  after, `resetObjectSeriesHeads` (replace head with committedHead) before tick
+  compute — all driven from `runComputeStep.ts:runComputeBody` next to the
+  numeric `*SeriesSlots` hooks. **Snapshots are deterministic with NO host
+  variance:** bool/string `values` + `committedHead` ride verbatim (no
+  `NaN`→`null` mapping the numeric buffer needs); the empty-map spread yields
+  `{}`, so a script with no non-numeric series leaves every numeric/scalar
+  snapshot **byte-identical**. `:objseries` cannot collide with `:series`
+  (`endsWith(":series")` is false — the char before "series" is "j").
+  Restore (`objectSeriesPersistence.ts`) validates `kind` + element type +
+  ring shape and degrades a malformed/capacity-incompatible entry to a fresh
+  slot (never throws), exactly like the numeric/array/map paths. Cleared on
+  `dispose` like `seriesSlots`. Bundle dep/sibling slots ride the
+  `slotIdPrefix` isolation like every other `state.*`.
 - **`state.array` slots are a parallel `arraySlots` map driven from
   `runComputeBody`, NOT folded into `stateSlots`.**
   `RuntimeContext.arraySlots` holds one `ArrayStateSlot`
@@ -387,6 +421,23 @@
   a no-override or visible-override run is byte-identical to the
   pre-feature baseline. Dep / sibling runners default `plotOverrides` to
   `{}` — overrides target the primary script's slots only in v1.
+- **`opts.visible` is `plotImpl`'s AUTHORING visibility channel, resolved
+  onto the same `PlotEmission.visible` wire field the host-override path
+  writes — carried as `false` only, dropped for `true`/`undefined`.**
+  `plotImpl` (`emit/plot.ts`) reads `opts.visible` and appends
+  `...(visible === false ? { visible: false } : {})` to the emission with the
+  SAME omit-when-default idiom as `z` / `colorValue`, so an omitted-or-`true`
+  plot is byte-identical to the pre-feature wire (every pinned plot golden /
+  conformance `plot-hash` (`{ bar, value }` only) holds; `apiVersion: 1`
+  snapshots do not move). It composes with `applyPlotOverride`, which runs
+  AFTER and also only ever writes `false` — so either source (author or host)
+  hides the mark and NEITHER writes `true`. `visible: false` SUPPRESSES the
+  mark (adapter render-skip, T8 Task 4); it is NOT substituted as `value: NaN`
+  — the real numeric value still rides the wire, and a `value: null` skip-bar
+  can co-occur with `visible: false` (the two are orthogonal). `visible` rides
+  the same `(slotId, bar)` last-write-wins dedup as `value` and is NOT part of
+  any numeric hash. The wire validator (`adapter-kit/validateEmission`)
+  already accepts the optional boolean — no runtime-side validation is added.
 - **A `ta.*` `opts.offset` is a presentation x-shift carried to
   `PlotEmission.xShift`, not a value-read.** `seriesView.ts`'s
   `makeShiftedSeriesView(buf, offset)` returns the **unshifted** view and

@@ -518,8 +518,9 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         code: "pine-converter/transform/fill-not-mapped",
         severity: "error",
         defaultMessage:
-            "`fill(plot1, plot2, ...)` has no chartlang analogue (no plot-fill primitive in v1).",
-        defaultSuggestion: "Draw the band as an explicit `draw.rectangle`/`draw.path` instead.",
+            "This `fill(...)` form has no chartlang analogue: only `fill(hline, hline)` / `fill(plot, plot)` bands lower to `draw.fillBetween`; gradient (`top_color`/`bottom_color`/`top_value`/`bottom_value`) and `fillgaps` fills are deferred.",
+        defaultSuggestion:
+            "Drop the gradient / `fillgaps` styling, or draw the band as an explicit `draw.rectangle`/`draw.path` instead.",
     },
     "plot-offset-needs-ta-call": {
         code: "pine-converter/transform/plot-offset-needs-ta-call",
@@ -651,9 +652,9 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         code: "pine-converter/transform/series-history-non-numeric",
         severity: "info",
         defaultMessage:
-            "History indexing on a non-numeric `var` is not supported in chartlang v1 (only numeric series).",
+            "History indexing on a `color` `var` is not supported in chartlang v1 (`bool`/`string` history lowers to a persistent series; `color` history does not).",
         defaultSuggestion:
-            "Track the boolean/string history yourself, or convert the value to a number before indexing it.",
+            "Track the color history yourself, or store a numeric/boolean discriminator and index that instead.",
     },
     "varip-series-approximated": {
         code: "pine-converter/transform/varip-series-approximated",
@@ -875,6 +876,45 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultMessage:
             "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
         defaultSuggestion: "No action needed; the alpha preserves the Pine transparency.",
+    },
+    "fill-handle-unresolved": {
+        code: "pine-converter/transform/fill-handle-unresolved",
+        severity: "error",
+        defaultMessage:
+            "A `fill(...)` handle argument does not resolve to a top-level `hline`/`plot` handle (or an inline `hline`/`plot` call), so the band edges cannot be built.",
+        defaultSuggestion:
+            "Pass two `hline(...)` / `plot(...)` handles (or inline calls) to `fill(a, b, color)`.",
+    },
+    "alert-frequency-not-mapped": {
+        code: "pine-converter/transform/alert-frequency-not-mapped",
+        severity: "info",
+        defaultMessage:
+            "An `alert(message, alert.freq_*)` frequency argument was dropped: chartlang's `AlertOpts` has no firing-frequency contract, so the cadence cannot be honored. The message and its enclosing `if` are preserved.",
+        defaultSuggestion:
+            "No action needed for a once-per-bar-close trigger inside an `if`; if you need explicit deduplication, gate the `alert(...)` behind your own `state.*` flag.",
+    },
+    "security-tuple-arity-mismatch": {
+        code: "pine-converter/semantic/security-tuple-arity-mismatch",
+        severity: "warning",
+        defaultMessage:
+            "A tuple `request.security([a, b] = …, [s1, s2])` binds a different number of names than its source list has elements; the overlapping positions were bound and the extras left unresolved.",
+        defaultSuggestion: "Match the destructured name count to the `[…]` source-list length.",
+    },
+    "security-tuple-source-not-list": {
+        code: "pine-converter/semantic/security-tuple-source-not-list",
+        severity: "error",
+        defaultMessage:
+            "A tuple `request.security([a, b] = …, <source>)` must pass an array-literal source list (`[high, low]`); a non-list third argument cannot be split into per-element reads.",
+        defaultSuggestion:
+            "Pass the sources as an array literal, e.g. `[a, b] = request.security(sym, tf, [high, low])`.",
+    },
+    "plot-display-approximated": {
+        code: "pine-converter/transform/plot-display-approximated",
+        severity: "warning",
+        defaultMessage:
+            "A `plot(..., display=...)` target has no chartlang analogue beyond `display.all`/`display.none`; only the show/hide toggle maps to `{ visible }`, so the `display=` argument was dropped and the plot left visible.",
+        defaultSuggestion:
+            "Use `display = <cond> ? display.all : display.none` (or a bare `display.none`) for the visibility toggle; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement.",
     },
 } as const satisfies Record<string, DiagnosticCodeEntry>;
 

@@ -158,6 +158,7 @@ function buildSubRunnerState(
             seriesSlots: new Map(),
             arraySlots: new Map(),
             mapSlots: new Map(),
+            objectSeriesSlots: new Map(),
             chartSymbol: args.chartSymbol,
             secondaryStreams: args.secondaryStreams,
             requestSecurityBars: new Map(),

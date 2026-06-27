@@ -290,6 +290,59 @@ precisely. It is the writable sibling of the bar/`ta.*` series: same `[n]` /
 `.current` / `+s` read surface, same NaN-gap rendering — the only delta is that
 you write its values yourself.
 
+## Non-numeric persistent state
+
+`state.series` stores **numbers**. Three siblings cover the non-numeric cases
+without giving up the same writable/indexable ergonomics:
+
+- `state.color(init)` — a persistent **color scalar** (a CSS color string). Like
+  `state.float` it is writable but **not** indexable: `c.value = "#ff0000"`
+  writes this bar's color, `c.value` reads it back. It survives across bars, so
+  it is the home for a "current regime color" you compute once and reuse.
+- `state.boolSeries(init)` / `state.stringSeries(init)` — the **boolean** and
+  **string** twins of `state.series`: a writable head **and** an indexable
+  history. `s.value = expr` writes this bar, `s[1]` reads one bar ago, `s[3]`
+  three bars ago.
+
+```ts
+import { color, defineIndicator, plot, state } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Regime color + entry latch",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, state, plot }) {
+        const regimeClr = state.color(color.gray);   // persistent color scalar
+        const active = state.boolSeries(false);       // writable + indexable bool
+
+        const up = bar.close.current > bar.open.current;
+        // The non-up arm reads `active[1]` (the committed head one bar ago),
+        // NOT `.value` — the bar-open advance resets the live head to `false`,
+        // so a `.value` self-reference would never latch.
+        active.value = up ? true : active[1];
+        regimeClr.value = up ? color.green : color.red;
+
+        // active[1] is the committed value one bar ago — `false` on the first
+        // bar (the deterministic default), never NaN.
+        const justEntered = active.current && !active[1];
+        plot(bar.close, { title: "Close", color: regimeClr.value });
+        plot(justEntered ? 1 : 0, { title: "Just entered" });
+    },
+});
+```
+
+::: warning Don't coerce these to numbers
+Unlike the numeric `state.series`, `state.boolSeries` / `state.stringSeries`
+hold non-numbers, so arithmetic coercion is meaningless: a bool coerces to
+`0` / `1` and a string follows JS rules (`+"3"` is `3`, `+"long"` is `NaN`).
+Never rely on `+s` — read the head with `s.value` /
+`s.current` / `s[0]` and the history with `s[n]`. First-bar / out-of-range
+history is a deterministic default: `false` for `boolSeries`, `""` for
+`stringSeries` (matching Pine v6, where a bool's `[]` history returns `false`,
+not `na`, on the first bar). `state.color(init)` seeds its first-bar value with
+`init`.
+:::
+
 ## Persistent collections — `state.array`
 
 `state.series` is the history of **one** value: it advances once per bar and

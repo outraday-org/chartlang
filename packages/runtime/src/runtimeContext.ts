@@ -27,6 +27,7 @@ import type { PersistentStateStore } from "./persistentStateStore.js";
 import type { SecurityExprRunner } from "./request/securityExprRunner.js";
 import type { ArrayStateSlot } from "./state/arrayStateSlot.js";
 import type { MapStore } from "./state/mapStore.js";
+import type { ObjectSeriesSlot } from "./state/objectSeriesSlot.js";
 import type { SeriesSlot } from "./state/seriesSlot.js";
 import type { StateSlot } from "./state/stateSlot.js";
 import type { StateStore } from "./stateStore.js";
@@ -207,6 +208,17 @@ export type RuntimeContext = {
      * `StateStore` flush. Cleared on `dispose`. @since 1.4
      */
     readonly mapSlots: Map<string, MapStore>;
+    /**
+     * Runtime non-numeric series slot store (`state.boolSeries` /
+     * `state.stringSeries`) keyed by `${slotIdPrefix ?? ""}${slotId}:objseries`.
+     * Each holds an {@link ObjectRingBuffer} history ring + the identity-stable
+     * writable+indexable view + the last committed head, mirroring the numeric
+     * `seriesSlots` lifecycle (advance once per close, reset head per tick) but
+     * with an element default (`false` / `""`) instead of `NaN`. One map backs
+     * both element kinds; the entry's `kind` discriminates on snapshot restore.
+     * Cleared on `dispose`. @since 1.5
+     */
+    readonly objectSeriesSlots: Map<string, ObjectSeriesSlot<unknown>>;
     /**
      * The chart's own symbol, resolved once at mount from the adapter
      * `syminfo.ticker` (`""` when the adapter supplies none). A

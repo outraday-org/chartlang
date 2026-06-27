@@ -5,7 +5,11 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import { createProgramForSource } from "../program.js";
-import { plotKindFromCallsite, readLiteralTitle } from "./plotKindFromCallsite.js";
+import {
+    plotKindFromCallsite,
+    readLiteralTitle,
+    readLiteralVisible,
+} from "./plotKindFromCallsite.js";
 
 function firstCall(source: string, name: "plot" | "hline"): ts.CallExpression {
     const { sourceFile } = createProgramForSource(source, { sourcePath: "k.chart.ts" });
@@ -34,6 +38,7 @@ declare const v: import("@invinite-org/chartlang-core").Series<number>;
 declare const dyn: import("@invinite-org/chartlang-core").PlotOpts;
 declare const k: "histogram";
 declare const sty: { kind: "histogram" };
+declare const showSlope: boolean;
 export default defineIndicator({
     name: "k",
     apiVersion: 1,
@@ -138,5 +143,42 @@ describe("readLiteralTitle", () => {
     it("omits when opts is not an object literal", () => {
         const call = firstCall(wrap("plot(v, dyn);"), "plot");
         expect(readLiteralTitle(call.arguments[1])).toBeUndefined();
+    });
+});
+
+describe("readLiteralVisible", () => {
+    it("reads a `false` literal", () => {
+        const call = firstCall(wrap("plot(v, { visible: false });"), "plot");
+        expect(readLiteralVisible(call.arguments[1])).toBe(false);
+    });
+
+    it("reads a `true` literal", () => {
+        const call = firstCall(wrap("plot(v, { visible: true });"), "plot");
+        expect(readLiteralVisible(call.arguments[1])).toBe(true);
+    });
+
+    it("omits a dynamic (input-driven) visible", () => {
+        const call = firstCall(wrap("plot(v, { visible: showSlope });"), "plot");
+        expect(readLiteralVisible(call.arguments[1])).toBeUndefined();
+    });
+
+    it("omits a ternary visible (conservative — no constant-folding)", () => {
+        const call = firstCall(wrap("plot(v, { visible: showSlope ? true : false });"), "plot");
+        expect(readLiteralVisible(call.arguments[1])).toBeUndefined();
+    });
+
+    it("omits a missing visible", () => {
+        const call = firstCall(wrap('plot(v, { color: "#fff" });'), "plot");
+        expect(readLiteralVisible(call.arguments[1])).toBeUndefined();
+    });
+
+    it("omits when opts is absent", () => {
+        const call = firstCall(wrap("plot(v);"), "plot");
+        expect(readLiteralVisible(call.arguments[1])).toBeUndefined();
+    });
+
+    it("omits when opts is not an object literal", () => {
+        const call = firstCall(wrap("plot(v, dyn);"), "plot");
+        expect(readLiteralVisible(call.arguments[1])).toBeUndefined();
     });
 });

@@ -1,0 +1,15 @@
+//@version=6
+indicator("MASM Position State", overlay=true)
+var bool long_pos_active = false
+var bool short_pos_active = false
+var color long_pos_exit_clr = na
+var color short_pos_exit_clr = na
+long_pos_active := close > open ? true : long_pos_active
+short_pos_active := close < open ? true : short_pos_active
+long_pos_exit_clr := close >= open ? color.green : color.red
+short_pos_exit_clr := close < open ? color.red : color.green
+alert_trigger_go_long = not long_pos_active[1]
+alert_trigger_flatten_short = short_pos_active[1]
+plot(close, "Price", color=long_pos_exit_clr)
+plot(alert_trigger_go_long ? 1 : 0, "GoLong", color=short_pos_exit_clr)
+plot(alert_trigger_flatten_short ? 1 : 0, "FlattenShort")

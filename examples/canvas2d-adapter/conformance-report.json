@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.2.2",
-    "passed": 252,
+    "passed": 253,
     "failed": 0,
     "scenarios": [
         {
@@ -811,6 +811,12 @@
         {
             "id": "plot-style-overrides",
             "title": "Plot style overrides",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-visible",
+            "title": "Plot visible → PlotEmission.visible (false present, absent/true omitted)",
             "status": "pass",
             "failures": []
         },

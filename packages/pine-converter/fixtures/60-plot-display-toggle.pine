@@ -1,0 +1,9 @@
+//@version=6
+indicator("Plot display toggle", overlay=true)
+show = input.bool(true)
+hide = input.bool(false)
+plot(ta.sma(close, 20), display = show ? display.all : display.none)
+plot(ta.ema(close, 20), display = hide ? display.none : display.all)
+plot(close, display = display.none)
+plot(open, display = display.all)
+plot(volume, display = display.data_window)

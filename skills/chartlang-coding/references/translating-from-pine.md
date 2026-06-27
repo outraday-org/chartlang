@@ -206,6 +206,7 @@ carry a `symbol`:
 | `request.security(syminfo.tickerid, "1D", close)` | `request.security({ interval: "1D" }).close` | Chart's own symbol ⇒ `symbol` **omitted** (byte-identical to the higher-timeframe-only case). |
 | `request.security("NASDAQ:AAPL", "1D", close)` | `request.security({ symbol: "NASDAQ:AAPL", interval: "1D" }).close` | A **literal** different symbol ⇒ `{ symbol, interval }` (multi-symbol). |
 | `request.security(someComputedTicker, "1D", close)` | _reject_ `request-security-not-mapped` | The symbol must be a compile-time literal (string literal / `input.symbol` / `input.enum`); a computed ticker can't lower. |
+| `[hi, lo] = request.security(syminfo.tickerid, "D", [high, low])` | `const hi = request.security({ interval: "1d" }).high`<br>`const lo = request.security({ interval: "1d" }).low` | **Tuple** form ⇒ one independent read per element, all sharing one feed; each name binds its own `const`. OHLCV → data form, `ta.*`/computed → callback form. A `_` element is dropped. |
 
 The expression form carries the symbol the same way:
 `request.security("NASDAQ:AAPL", "1D", ta.ema(close, 20))` →
@@ -300,6 +301,36 @@ lives in the color's **alpha**. The converter folds the two together with
   a `compute({ … })` field — it only appears in the import line when a
   `color.*` member survives (an all-hex script imports none).
 
+## Alerts — `alert(message, freq)` → `alert(message)`
+
+Pine fires an alert imperatively from inside an `if` with a string payload and
+an `alert.freq_*` firing-frequency enum. chartlang's `alert` is already
+message-first and imperative, so the conversion is small — the message passes
+through (string concat preserved), the enclosing `if` is **preserved** (never
+hoisted), and the frequency is **dropped**:
+
+| Pine | chartlang | Note |
+|------|-----------|------|
+| `alert(message)` | `alert(message)` | Bare message, no diagnostic. |
+| `alert(message, alert.freq_all)` | `alert(message)` | The `alert.freq_*` arg is dropped with an `alert-frequency-not-mapped` info. |
+
+```pine
+if go_long
+    alert('{"symbol": "' + syminfo.ticker + '", "action": "buy"}', alert.freq_all)
+// → if (go_long) { alert(('{"symbol": "' + syminfo.ticker) + '", "action": "buy"}'); }
+```
+
+All three frequency enums (`alert.freq_all`, `alert.freq_once_per_bar`,
+`alert.freq_once_per_bar_close`) are recognised and dropped — chartlang's
+`AlertOpts` (`{ severity?, meta? }`) has no firing-frequency contract. The
+trigger still fires once per closed bar inside its `if`; for explicit
+deduplication, gate the `alert(...)` behind your own `state.*` flag.
+
+- **When you write chartlang by hand**, `alert(message, { severity, meta })` is
+  a `compute({ … })` field; there is no frequency option (every alert is
+  effectively once-per-closed-bar inside its guard). `alertcondition(...)` is a
+  deferred follow-up.
+
 ## User-defined functions — `f(a, b) => …`
 
 Pine helper functions convert, and how they lower depends on whether the
@@ -374,10 +405,24 @@ legacy generic `input()` becomes a source or typed builder.
   `x[n]` history converts directly: `var float prev = na; … prev := close;
   plot(prev[1])` → `const prev = state.series(Number.NaN); … prev.value =
   bar.close; plot(prev[1])`. A numeric `var` never read with `[n]` keeps its
-  leaner scalar `state.*` lowering. A `bool`/`string` history-indexed `var` is
-  out of v1 series scope (`series-history-non-numeric`); a `varip` series
-  approximates to a non-tick `state.series` (`varip-series-approximated`); a
-  non-literal series-slot offset rejects (`dynamic-series-index`).
+  leaner scalar `state.*` lowering. A `varip` series approximates to a non-tick
+  `state.series` (`varip-series-approximated`); a non-literal series-slot offset
+  rejects (`dynamic-series-index`).
+- **A history-indexed `var bool` / `var string` becomes a `state.boolSeries` /
+  `state.stringSeries`.** The non-numeric analogues of `state.series` lower the
+  same way — `var bool active = false; … active := close > open; x = active[1]`
+  → `const active = state.boolSeries(false); … active.value = bar.close >
+  bar.open; let x = active[1]`. First-bar / out-of-range history defaults are
+  deterministic (`false` for bool — Pine v6 bool history, `""` for string), so
+  no warmup guard is emitted. (This **retires** the old
+  `series-history-non-numeric` deferral for bool/string.) A history-indexed
+  `var color` is still out of v1 scope and keeps `series-history-non-numeric`.
+- **A `var color` becomes a `state.color`.** A persistent color *scalar*
+  (`var color exitClr = na; exitClr := close > open ? color.green : color.red`)
+  lowers to `const exitClr = state.color("#00000000"); exitClr.value = (bar.close
+  > bar.open) ? color.green : color.red`, read back as `exitClr.value`. Pine `na`
+  color seeds the transparent `"#00000000"`, so no `scalar-state-type-defaulted`
+  info fires (color is now a first-class slot, not a defaulted `state.float`).
 - **A bounded numeric `var array<float>`/`<int>` becomes a `state.array`.** A
   Camp B numeric value ring (an `array.push` plus an `array.size > K` →
   `array.shift` eviction) lowers to a persistent `const a =
@@ -430,6 +475,16 @@ legacy generic `input()` becomes a source or typed builder.
   `shape.*` / `size.*`, and the literal `char` argument onto the chartlang
   equivalents. An unrecognised enum member falls back to a warning so you
   can pick the closest fit by hand.
+- **`plot(..., display=)` maps to `{ visible }`.** `display = <cond> ?
+  display.all : display.none` lowers to `plot(value, { visible: <cond> })`
+  (the inverted `... ? display.none : display.all` becomes
+  `{ visible: !(<cond>) }`); a bare `display.none` becomes
+  `{ visible: false }`. A constant `display.all` (and an omitted `display=`)
+  emits **no** `visible` key, so a fully-shown plot stays byte-clean. Any
+  other `display.*` target (`display.status_line`, `display.price_scale`,
+  `display.pane`, `display.data_window`) has no chartlang analogue beyond
+  show/hide, so the `display=` is dropped, the plot is left visible, and a
+  `plot-display-approximated` warning is emitted.
 - **Inputs must be literal.** Defaults and option values must be
   compile-time literals (a unary `+`/`-` on a number is fine). A computed
   default rejects. Pine's own UDT-backed `input.enum` (Pine v6 enums) is

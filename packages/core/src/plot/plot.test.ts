@@ -136,6 +136,33 @@ describe("PlotOpts.z render-order key", () => {
     });
 });
 
+describe("PlotOpts.visible authoring opt", () => {
+    it("accepts an optional boolean and rejects non-booleans", () => {
+        const hidden: PlotOpts = { visible: false };
+        const shown: PlotOpts = { visible: true };
+        const dynamic: PlotOpts = { visible: 1 < 2 };
+        const noVisible: PlotOpts = { color: "#000" };
+        // @ts-expect-error visible is a boolean, not a string
+        const bad: PlotOpts = { visible: "no" };
+        void hidden;
+        void shown;
+        void dynamic;
+        void noVisible;
+        void bad;
+    });
+
+    it("types visible as boolean | undefined", () => {
+        const present: PlotOpts["visible"] = false;
+        const absent: PlotOpts["visible"] = undefined;
+        expect(present).toBe(false);
+        expect(absent).toBeUndefined();
+    });
+
+    it("plot accepts a visible opt at the callsite", () => {
+        expect(() => plot(42, { visible: false })).toThrow("plot called outside compiled runtime");
+    });
+});
+
 describe("HLineOpts.pane", () => {
     it("accepts the three-variant pane shape", () => {
         const overlay: HLineOpts = { pane: "overlay" };

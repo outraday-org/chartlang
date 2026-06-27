@@ -2,17 +2,26 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type {
+    BoolSeriesSlot,
+    Color,
     MutableArraySlot,
     MutableMapSlot,
     MutableSlot,
     NumberSeriesSlot,
     StateNamespace,
+    StringSeriesSlot,
 } from "@invinite-org/chartlang-core";
 
-import { Float64RingBuffer } from "../ringBuffer.js";
+import { Float64RingBuffer, ObjectRingBuffer } from "../ringBuffer.js";
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
 import { createArrayStateSlot } from "./arrayStateSlot.js";
 import { type MapKey, createMapStore } from "./mapStore.js";
+import {
+    createObjectSeriesSlot,
+    type ObjectSeriesKind,
+    type ObjectSeriesSlot,
+    type ObjectSeriesSlotView,
+} from "./objectSeriesSlot.js";
 import { createSeriesSlot } from "./seriesSlot.js";
 import { asMutableSlot, StateSlot } from "./stateSlot.js";
 
@@ -71,6 +80,19 @@ const arrayKey = (ctx: RuntimeContext, slotId: string): string =>
 const mapKey = (ctx: RuntimeContext, slotId: string): string =>
     `${ctx.slotIdPrefix ?? ""}${slotId}:map`;
 
+/**
+ * Compose the runtime non-numeric series slot key — the `:objseries` suffix
+ * (vs `:series` / `:array` / `:map`) lets the snapshot restore router tell a
+ * `state.boolSeries` / `state.stringSeries` slot from every other family. One
+ * suffix backs both element kinds. The `slotIdPrefix` isolation rule is
+ * identical to {@link stateKey}.
+ *
+ * @since 1.5
+ * @internal
+ */
+const objectSeriesKey = (ctx: RuntimeContext, slotId: string): string =>
+    `${ctx.slotIdPrefix ?? ""}${slotId}:objseries`;
+
 function getCtx(name: string): RuntimeContext {
     const ctx = ACTIVE_RUNTIME_CONTEXT.current;
     if (ctx === null) {
@@ -114,6 +136,31 @@ function getOrAllocateSeries(slotId: string, init: number): NumberSeriesSlot {
     // and this seed path only runs for a genuinely first-seen callsite.
     const slot = createSeriesSlot(new Float64RingBuffer(ctx.stream.ohlcv.close.capacity), init);
     ctx.seriesSlots.set(key, slot);
+    return slot.view;
+}
+
+function getOrAllocateObjectSeries<T>(
+    slotId: string,
+    init: T,
+    kind: ObjectSeriesKind,
+    defaultValue: T,
+): ObjectSeriesSlotView<T> {
+    const ctx = getCtx(kind);
+    const key = objectSeriesKey(ctx, slotId);
+    const existing = ctx.objectSeriesSlots.get(key);
+    if (existing !== undefined) {
+        return existing.view as ObjectSeriesSlotView<T>;
+    }
+    // Size the ring to the runner's global capacity, mirroring the numeric
+    // series allocator. Warm restart rehydrates `objectSeriesSlots` up front via
+    // `restoreObjectSeriesSlots`, so this seed path only runs for a genuinely
+    // first-seen callsite.
+    const slot = createObjectSeriesSlot(
+        new ObjectRingBuffer<T>(ctx.stream.ohlcv.close.capacity, defaultValue),
+        init,
+        kind,
+    );
+    ctx.objectSeriesSlots.set(key, slot as ObjectSeriesSlot<unknown>);
     return slot.view;
 }
 
@@ -171,6 +218,12 @@ export function buildStateNamespace(): StateNamespace {
             getOrAllocate("state.string", slotId, init, false),
         series: (slotId: string, init: number): NumberSeriesSlot =>
             getOrAllocateSeries(slotId, init),
+        color: (slotId: string, init: Color): MutableSlot<Color> =>
+            getOrAllocate("state.color", slotId, init, false),
+        boolSeries: (slotId: string, init: boolean): BoolSeriesSlot =>
+            getOrAllocateObjectSeries(slotId, init, "state.boolSeries", false),
+        stringSeries: (slotId: string, init: string): StringSeriesSlot =>
+            getOrAllocateObjectSeries(slotId, init, "state.stringSeries", ""),
         array: (slotId: string, capacity: number): MutableArraySlot<number> =>
             getOrAllocateArray(slotId, capacity),
         map: (slotId: string, capacity: number): MutableMapSlot<MapKey, number> =>

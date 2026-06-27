@@ -15,13 +15,16 @@ import type { RuntimeContext } from "./runtimeContext.js";
 import {
     isArraySlotSnapshotKey,
     isMapSlotSnapshotKey,
+    isObjectSeriesSlotSnapshotKey,
     isSeriesSlotSnapshotKey,
     restoreArraySlots,
     restoreMapSlots,
+    restoreObjectSeriesSlots,
     restoreSeriesSlots,
     restoreStateSlots,
     serialiseArraySlots,
     serialiseMapSlots,
+    serialiseObjectSeriesSlots,
     serialiseSeriesSlots,
     serialiseStateSlots,
 } from "./state/index.js";
@@ -59,6 +62,7 @@ function primarySectionSlots(state: RunnerState): Readonly<Record<string, JsonVa
     return Object.freeze({
         ...serialiseStateSlots(state.runtimeContext),
         ...serialiseSeriesSlots(state.runtimeContext),
+        ...serialiseObjectSeriesSlots(state.runtimeContext),
         ...serialiseArraySlots(state.runtimeContext),
         ...serialiseMapSlots(state.runtimeContext),
         ...serialiseTaSlots(state.mainStream),
@@ -70,6 +74,7 @@ function runnerSection(ctx: RuntimeContext): RunnerSnapshot {
         slots: Object.freeze({
             ...serialiseStateSlots(ctx),
             ...serialiseSeriesSlots(ctx),
+            ...serialiseObjectSeriesSlots(ctx),
             ...serialiseArraySlots(ctx),
             ...serialiseMapSlots(ctx),
         } as Record<string, JsonValue>),
@@ -143,15 +148,18 @@ function resolveMainStreamSnapshot(
 }
 
 // Scalar `state.*` keys only — strip `ta:` (restored onto the stream),
-// `:series` (restored into `ctx.seriesSlots`), `:array` (restored into
-// `ctx.arraySlots`), and `:map` (restored into `ctx.mapSlots`) so the scalar
-// slot store receives none of them.
+// `:series` (restored into `ctx.seriesSlots`), `:objseries` (restored into
+// `ctx.objectSeriesSlots`), `:array` (restored into `ctx.arraySlots`), and
+// `:map` (restored into `ctx.mapSlots`) so the scalar slot store receives none
+// of them. `state.color` rides the scalar `:state` path (a persistent string),
+// so it is deliberately NOT stripped here.
 function scalarStateSlots(slots: Readonly<Record<string, unknown>>): Record<string, unknown> {
     const out: Record<string, unknown> = {};
     for (const [slotKey, value] of Object.entries(slots)) {
         if (
             !isTaSlotSnapshotKey(slotKey) &&
             !isSeriesSlotSnapshotKey(slotKey) &&
+            !isObjectSeriesSlotSnapshotKey(slotKey) &&
             !isArraySlotSnapshotKey(slotKey) &&
             !isMapSlotSnapshotKey(slotKey)
         ) {
@@ -161,7 +169,8 @@ function scalarStateSlots(slots: Readonly<Record<string, unknown>>): Record<stri
     return out;
 }
 
-// Restore a runner's scalar `state.*` slots and `state.series` slots from
+// Restore a runner's scalar `state.*`, numeric `state.series`, non-numeric
+// `state.boolSeries`/`stringSeries`, `state.array`, and `state.map` slots from
 // one merged `slots` record. Series rings are sized to the runner's current
 // ring capacity (the close buffer's capacity).
 function restoreRunnerSlots(
@@ -171,6 +180,7 @@ function restoreRunnerSlots(
 ): void {
     restoreStateSlots(ctx, scalarStateSlots(slots));
     restoreSeriesSlots(ctx, slots, capacity);
+    restoreObjectSeriesSlots(ctx, slots, capacity);
     restoreArraySlots(ctx, slots);
     restoreMapSlots(ctx, slots);
 }

@@ -270,7 +270,14 @@ Highlights of the surface:
 - `draw.*` — lines, boxes, curves, fills/bands, Fibonacci, Gann,
   pitchforks, harmonic patterns, Elliott waves, cycles.
 - `plot(value, opts?)` and `hline(level, opts?)` for per-bar value plots
-  and horizontal lines.
+  and horizontal lines. `plot`'s opts include `color` / `title` / `lineWidth` /
+  `lineStyle` / `style` / `z`, plus `visible?: boolean` — pass `visible: false`
+  (or a boolean input toggle, `{ visible: showRsi }`) to hide the plot. Hiding
+  SUPPRESSES the mark (removed from the chart AND the y-scale); it is NOT the
+  same as plotting `NaN`, which leaves a gap in the line. Omitting `visible`
+  (or `true`) draws it — the default. It mirrors Pine's
+  `display = display.all | display.none`. (`hline` has no `visible`; level
+  guides are constant.)
 - `bgcolor(color, opts?)` and `barcolor(color, opts?)` — Pine-ergonomic
   aliases for the `bg-color` (pane background) and `bar-color` (candle/bar
   tint) plot styles. `bgcolor` takes a `transp` (0–100, 0 opaque … 100
@@ -351,6 +358,17 @@ Highlights of the surface:
   already a series (a self-referential or conditionally-updated value); index
   `bar.*` / `ta.*` directly otherwise. It is the lowering target for Pine's
   `var x := …; x[1]`.
+- `state.color(initial)`, `state.boolSeries(initial)`,
+  `state.stringSeries(initial)` are the **non-numeric** persistent slots.
+  `state.color(init)` is a persistent **color scalar** (a CSS color string;
+  `c.value` get/set, no indexing) — Pine's `var color c = …`.
+  `state.boolSeries(init)` / `state.stringSeries(init)` are the boolean / string
+  twins of `state.series`: a writable head (`s.value = expr`) PLUS indexable
+  history (`s[1]`), but they are NOT number-coercible (never `+s`), so read the
+  head with `s.value` / `s.current` / `s[0]`. First-bar / out-of-range history is
+  a deterministic default — `false` for bool (Pine v6 bool history), `""` for
+  string — so no warmup guard is needed. They lower Pine's `var bool x; x[1]` /
+  `var string s; s[1]`. (`@since 1.5`.)
 - `state.array<number>(capacity)` is a persistent **bounded collection** — a
   fixed-capacity FIFO ring you **push** many values into across bars:
   `a.push(v)` appends (oldest evicted at capacity), `a.get(n)` reads the `n`-th

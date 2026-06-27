@@ -80,6 +80,21 @@ const STATE_ARRAY_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slo
 const STATE_MAP_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
     Object.freeze([{ name: "state.map", slot: true }] as const);
 
+// `state.color` / `state.boolSeries` / `state.stringSeries` — the
+// non-numeric persistent state slots added alongside the numeric
+// `state.series`. `state.color` is a persistent `Color` scalar; the two
+// `*Series` slots are the boolean/string siblings of `state.series` (a
+// writable `.value` head plus integer-indexed `[n]` history). Each allocation
+// callsite is a stateful registry entry (`{ slot: true }`); the `.value` head
+// and `[n]` history reads are handle accesses, not registry callsites.
+const STATE_NONNUMERIC_STATEFUL_ADDITIONS: ReadonlyArray<
+    Readonly<{ name: string; slot: boolean }>
+> = Object.freeze([
+    { name: "state.color", slot: true },
+    { name: "state.boolSeries", slot: true },
+    { name: "state.stringSeries", slot: true },
+] as const);
+
 // `bgcolor` / `barcolor` — the Pine-ergonomic top-level aliases for the
 // `bg-color` / `bar-color` plot styles. Each callsite is slot-injected (a
 // stable slotId + a `manifest.plots` entry), so both are STATEFUL_PRIMITIVES
@@ -149,6 +164,7 @@ describe("Phase 2 surface", () => {
                 STATE_SERIES_STATEFUL_ADDITIONS.length +
                 STATE_ARRAY_STATEFUL_ADDITIONS.length +
                 STATE_MAP_STATEFUL_ADDITIONS.length +
+                STATE_NONNUMERIC_STATEFUL_ADDITIONS.length +
                 BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS.length +
                 CALENDAR_SESSION_STATEFUL_ADDITIONS.length,
         );
@@ -160,6 +176,7 @@ describe("Phase 2 surface", () => {
             ...STATE_SERIES_STATEFUL_ADDITIONS,
             ...STATE_ARRAY_STATEFUL_ADDITIONS,
             ...STATE_MAP_STATEFUL_ADDITIONS,
+            ...STATE_NONNUMERIC_STATEFUL_ADDITIONS,
             ...BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS,
             ...CALENDAR_SESSION_STATEFUL_ADDITIONS,
         ]) {

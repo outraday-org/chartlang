@@ -1,0 +1,5 @@
+//@version=6
+indicator("Var Color Slot", overlay=true)
+var color trendClr = na
+trendClr := close > open ? color.green : color.red
+plot(close, "Price", color=trendClr)

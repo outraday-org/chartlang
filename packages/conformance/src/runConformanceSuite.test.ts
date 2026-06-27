@@ -37,6 +37,7 @@ import {
     PLOT_KIND_BG_COLOR_DYNAMIC_SCENARIO,
     PLOT_OFFSET_XSHIFT_SCENARIO,
     PLOT_STYLE_OVERRIDES_SCENARIO,
+    PLOT_VISIBLE_SCENARIO,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
     RSI_SUBPANE_ROUTING_SCENARIO,
     RUNTIME_ERROR_SCENARIO,
@@ -324,6 +325,21 @@ describe("runConformanceSuite", () => {
         // rides the wire WITHOUT entering the `{ bar, value }` hash tuple.
         const report = await runConformanceSuite(makeAdapter(), {
             scenarios: [PLOT_KIND_BG_COLOR_DYNAMIC_SCENARIO],
+            candles: SMALL_BARS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.failures).toEqual([]);
+    }, 30_000);
+
+    it("runs the plot-visible scenario end-to-end (false present, absent/true omitted)", async () => {
+        // Exercises the `plot-field: "visible"` evaluator arm (the authoring
+        // `plot(value, { visible })` opt): slot 1 carries the threaded
+        // `visible: false`, while slot 0 (absent) AND slot 2 (`visible: true`)
+        // both omit the field — proving `visible` absent OR `true` ⇒ the
+        // byte-identical pre-feature wire — plus the presentation-independent
+        // control `plot-hash` (visible is not in the `{ bar, value }` tuple).
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [PLOT_VISIBLE_SCENARIO],
             candles: SMALL_BARS,
         });
         expect(report.failed).toBe(0);

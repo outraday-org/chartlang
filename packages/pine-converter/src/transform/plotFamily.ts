@@ -1,13 +1,15 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CallArgument, CallExpression, ExpressionNode } from "../ast/index.js";
-import { enumLookup } from "../mapping/index.js";
+import type { CallArgument, CallExpression, ExpressionNode, Statement } from "../ast/index.js";
+import { displayLookup, enumLookup } from "../mapping/index.js";
 import { dottedCallee } from "./callArgs.js";
 import { convertColorWith, isTranspColorForm } from "./colorConvert.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
 import { emitWithContext } from "./emitContext.js";
+import type { FillBetweenEdge } from "./polylineLinefill.js";
+import { emitFillBetweenBand } from "./polylineLinefill.js";
 
 // Lower a styling value: a bare-rooted `color.*`/enum member routes through
 // `enumLookup` (so `color.red` → `"#FF5252"`); a per-bar conditional color
@@ -46,8 +48,20 @@ function styleValue(
     return convertColorWith(node, (sub) => emitWithContext(sub, ctx));
 }
 
-// The plot-family bare callees this transform recognises.
-const PLOT_FAMILY: ReadonlySet<string> = new Set([
+// The plot-family bare callee names this transform recognises.
+type PlotFamilyName =
+    | "plot"
+    | "plotshape"
+    | "plotchar"
+    | "plotcandle"
+    | "plotbar"
+    | "plotarrow"
+    | "hline"
+    | "bgcolor"
+    | "barcolor"
+    | "fill";
+
+const PLOT_FAMILY: ReadonlySet<string> = new Set<PlotFamilyName>([
     "plot",
     "plotshape",
     "plotchar",
@@ -64,6 +78,14 @@ const PLOT_FAMILY: ReadonlySet<string> = new Set([
 // callee (the plot family is always a bare identifier in Pine).
 function bareCallee(call: CallExpression): string | null {
     return call.callee.kind === "identifier-expression" ? call.callee.name : null;
+}
+
+// The plot-family member a call dispatches on, or `null` when its bare callee
+// is not one. Membership-checked, then narrowed to the literal union so the
+// `emitPlotFamily` switch is exhaustive (no dead `default` reject arm).
+function plotFamilyName(call: CallExpression): PlotFamilyName | null {
+    const name = bareCallee(call);
+    return name !== null && PLOT_FAMILY.has(name) ? (name as PlotFamilyName) : null;
 }
 
 /**
@@ -89,8 +111,7 @@ function bareCallee(call: CallExpression): string | null {
  *     isPlotFamilyCall(call); // true
  */
 export function isPlotFamilyCall(call: CallExpression): boolean {
-    const name = bareCallee(call);
-    return name !== null && PLOT_FAMILY.has(name);
+    return plotFamilyName(call) !== null;
 }
 
 // The positional (unnamed) args of a call in source order.
@@ -115,23 +136,36 @@ function options(pairs: ReadonlyArray<readonly [string, string | null]>): string
     return parts.length === 0 ? "" : `{ ${parts.join(", ")} }`;
 }
 
-// Render the title / color / lineWidth options shared by `plot` and `hline`.
+// The title / color / lineWidth option pairs shared by `plot` and `hline`.
 // `title` falls back to the second positional; `color` routes through the enum
-// resolver; `lineWidth` takes the named arg or the fourth positional.
+// resolver; `lineWidth` takes the named arg or the fourth positional. Returned
+// as a pair list so `emitPlot` can append its plot-only `visible` pair before
+// rendering, while `hline` renders the pairs as-is.
+function commonOptionPairs(
+    args: readonly CallArgument[],
+    pos: readonly ExpressionNode[],
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+): ReadonlyArray<readonly [string, string | null]> {
+    const titleNode = named(args, "title") ?? pos[1] ?? null;
+    const colorNode = named(args, "color") ?? pos[2] ?? null;
+    const widthNode = named(args, "linewidth") ?? pos[3] ?? null;
+    return [
+        ["title", titleNode === null ? null : emitWithContext(titleNode, ctx)],
+        ["color", colorNode === null ? null : styleValue(colorNode, ctx, diagnostics)],
+        ["lineWidth", widthNode === null ? null : emitWithContext(widthNode, ctx)],
+    ];
+}
+
+// Render the shared title / color / lineWidth options into a `{ … }` object
+// (or the empty string when none are present).
 function commonOptions(
     args: readonly CallArgument[],
     pos: readonly ExpressionNode[],
     ctx: EmitContext,
     diagnostics: DiagnosticCollector,
 ): string {
-    const titleNode = named(args, "title") ?? pos[1] ?? null;
-    const colorNode = named(args, "color") ?? pos[2] ?? null;
-    const widthNode = named(args, "linewidth") ?? pos[3] ?? null;
-    return options([
-        ["title", titleNode === null ? null : emitWithContext(titleNode, ctx)],
-        ["color", colorNode === null ? null : styleValue(colorNode, ctx, diagnostics)],
-        ["lineWidth", widthNode === null ? null : emitWithContext(widthNode, ctx)],
-    ]);
+    return options(commonOptionPairs(args, pos, ctx, diagnostics));
 }
 
 /**
@@ -142,9 +176,11 @@ function commonOptions(
  * and select a `style.kind`; `bgcolor`/`barcolor` emit the Pine-ergonomic
  * `bgcolor(<color>)` / `barcolor(<color>)` sugar carrying the real per-bar
  * color expression (Deliverable-2 dynamic-color channel); `hline` maps to
- * chartlang `hline(price, { ... })`. `fill`
- * has no chartlang analogue and pushes `fill-not-mapped`. Returns `null` for
- * a non-plot-family call.
+ * chartlang `hline(price, { ... })`. `fill(a, b, color?)` over two `hline`/
+ * `plot` handles lowers to a `draw.fillBetween` band (resolving the handles
+ * against `body`); an unresolved handle pushes `fill-handle-unresolved` and a
+ * gradient / `fillgaps` form pushes `fill-not-mapped`. Returns `null` for a
+ * non-plot-family call (and for any reject).
  *
  * @since 0.1
  * @stable
@@ -177,15 +213,16 @@ function commonOptions(
  *         ],
  *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 12 },
  *     } as const;
- *     emitPlotFamily(call, ctx, new DiagnosticCollector()); // "plot(bar.close);"
+ *     emitPlotFamily(call, ctx, new DiagnosticCollector(), []); // "plot(bar.close);"
  */
 export function emitPlotFamily(
     call: CallExpression,
     ctx: EmitContext,
     diagnostics: DiagnosticCollector,
+    body: readonly Statement[],
 ): string | null {
-    const name = bareCallee(call);
-    if (name === null || !PLOT_FAMILY.has(name)) {
+    const name = plotFamilyName(call);
+    if (name === null) {
         return null;
     }
     const pos = positional(call.args);
@@ -206,10 +243,107 @@ export function emitPlotFamily(
             return emitBackground("bgcolor", call.args, pos, ctx, diagnostics);
         case "barcolor":
             return emitBackground("barcolor", call.args, pos, ctx, diagnostics);
-        default:
-            diagnostics.pushCode("fill-not-mapped", call.span);
-            return null;
+        case "fill":
+            return emitFill(call, pos, ctx, diagnostics, body);
     }
+}
+
+// The Pine gradient / `fillgaps` `fill` styling args with no v1 chartlang
+// analogue; their presence keeps the (narrowed) `fill-not-mapped` reject.
+const UNSUPPORTED_FILL_ARGS: readonly string[] = [
+    "fillgaps",
+    "top_color",
+    "bottom_color",
+    "top_value",
+    "bottom_value",
+];
+
+// Lower a Pine `fill(a, b, color?)` over two `hline`/`plot` handles to a
+// `draw.fillBetween` band. A gradient / `fillgaps` form is the narrowed
+// `fill-not-mapped` reject; a handle that resolves to neither an `hline`/`plot`
+// (top-level or inline) is `fill-handle-unresolved`. `fill` is never silently
+// dropped — every unsupported shape emits exactly one diagnostic.
+function emitFill(
+    call: CallExpression,
+    pos: readonly ExpressionNode[],
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+    body: readonly Statement[],
+): string | null {
+    if (UNSUPPORTED_FILL_ARGS.some((key) => named(call.args, key) !== null)) {
+        diagnostics.pushCode("fill-not-mapped", call.span);
+        return null;
+    }
+    const argA = pos[0];
+    const argB = pos[1];
+    const edgeA = argA === undefined ? null : resolveFillEdge(argA, body, ctx);
+    const edgeB = argB === undefined ? null : resolveFillEdge(argB, body, ctx);
+    if (edgeA === null || edgeB === null) {
+        diagnostics.pushCode("fill-handle-unresolved", call.span);
+        return null;
+    }
+    // The fill color rides the shared plot-family `styleValue` rule (enum /
+    // ternary / T6 transp fold, raising `color-transp-approximated` itself); no
+    // `color` arg ⇒ `draw.fillBetween`'s default fill (opts omitted).
+    const colorNode = named(call.args, "color") ?? pos[2] ?? null;
+    const fill = colorNode === null ? null : styleValue(colorNode, ctx, diagnostics);
+    return `${emitFillBetweenBand(edgeA, edgeB, fill).call};`;
+}
+
+// Resolve one `fill` handle argument to its band edge descriptor: an `hline(p)`
+// → a constant-price edge; a `plot(e)` → a per-bar series edge. `null` when the
+// arg resolves to neither (the `fill-handle-unresolved` reject).
+function resolveFillEdge(
+    arg: ExpressionNode,
+    body: readonly Statement[],
+    ctx: EmitContext,
+): FillBetweenEdge | null {
+    const defining = fillHandleCall(arg, body);
+    if (defining === null) {
+        return null;
+    }
+    const callee = bareCallee(defining);
+    const first = positional(defining.args)[0];
+    if (first === undefined) {
+        return null;
+    }
+    if (callee === "hline") {
+        return { kind: "constant", price: emitWithContext(first, ctx) };
+    }
+    if (callee === "plot") {
+        return { kind: "series", value: emitWithContext(first, ctx) };
+    }
+    return null;
+}
+
+// The `hline`/`plot` call a `fill` handle arg names: the arg itself when it is
+// an inline call, or the call bound to the arg identifier by a top-level
+// `<name> = hline(...)` / `plot(...)` declaration or assignment. `null` for any
+// other arg shape (a literal, an `array.get(...)` ring handle, an unbound name).
+function fillHandleCall(arg: ExpressionNode, body: readonly Statement[]): CallExpression | null {
+    if (arg.kind === "call-expression") {
+        return arg;
+    }
+    if (arg.kind !== "identifier-expression") {
+        return null;
+    }
+    for (const stmt of body) {
+        if (
+            stmt.kind === "variable-declaration" &&
+            stmt.name === arg.name &&
+            stmt.initializer.kind === "call-expression"
+        ) {
+            return stmt.initializer;
+        }
+        if (
+            stmt.kind === "assignment" &&
+            stmt.name === arg.name &&
+            stmt.value.kind === "call-expression"
+        ) {
+            return stmt.value;
+        }
+    }
+    return null;
 }
 
 // Whether a node is the literal `0` (any `0`/`0.0` numeric literal). A
@@ -274,6 +408,65 @@ function emitPlotValue(
     return emitWithContext(value, ctx);
 }
 
+// The visibility verdict a `display.*` member maps to: `"all"` (shown) /
+// `"none"` (hidden) for the two toggle-mappable members, or `null` for an
+// unsupported `display.*` target (or any non-member node). Routes through the
+// `DISPLAY_MAP` table (the repo's mapping-not-inline invariant); `displayLookup`
+// returns only the `all`/`none` entries, so the `=== "all"` test fully
+// partitions its result.
+function displayMemberKind(node: ExpressionNode): "all" | "none" | null {
+    if (node.kind !== "member-access-expression" || node.head !== null) {
+        return null;
+    }
+    const mapping = displayLookup(node.chain.join("."));
+    if (mapping === null) {
+        return null;
+    }
+    return mapping.chartlang === "all" ? "all" : "none";
+}
+
+// Lower a Pine `plot(..., display=<value>)` named arg onto the chartlang
+// `{ visible }` channel. Returns the rendered `visible` value source, or `null`
+// when no `visible` key should be emitted (the field is omitted for an absent
+// `display=`, a constant `display.all`, and any approximated target — the last
+// of which also raises `plot-display-approximated`). The runtime treats omitted
+// and `visible: true` identically, so a fully-shown plot stays byte-clean.
+//   - `<cond> ? display.all : display.none` → `<emit(cond)>`
+//   - `<cond> ? display.none : display.all` → `!(<emit(cond)>)`
+//   - `display.none` → `"false"`; `display.all` → omit (`null`)
+//   - anything else → `plot-display-approximated` + omit (`null`)
+function displayOption(
+    args: readonly CallArgument[],
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+): string | null {
+    const node = named(args, "display");
+    if (node === null) {
+        return null;
+    }
+    if (node.kind === "ternary-expression") {
+        const yes = displayMemberKind(node.consequent);
+        const no = displayMemberKind(node.alternate);
+        if (yes === "all" && no === "none") {
+            return emitWithContext(node.condition, ctx);
+        }
+        if (yes === "none" && no === "all") {
+            return `!(${emitWithContext(node.condition, ctx)})`;
+        }
+        diagnostics.pushCode("plot-display-approximated", node.span);
+        return null;
+    }
+    const kind = displayMemberKind(node);
+    if (kind === "none") {
+        return "false";
+    }
+    if (kind === "all") {
+        return null;
+    }
+    diagnostics.pushCode("plot-display-approximated", node.span);
+    return null;
+}
+
 function emitPlot(
     args: readonly CallArgument[],
     pos: readonly ExpressionNode[],
@@ -284,7 +477,11 @@ function emitPlot(
     if (value === undefined) {
         return null;
     }
-    const opts = commonOptions(args, pos, ctx, diagnostics);
+    const visiblePair: readonly [string, string | null] = [
+        "visible",
+        displayOption(args, ctx, diagnostics),
+    ];
+    const opts = options([...commonOptionPairs(args, pos, ctx, diagnostics), visiblePair]);
     const valueSource = emitPlotValue(value, args, ctx, diagnostics);
     return opts === "" ? `plot(${valueSource});` : `plot(${valueSource}, ${opts});`;
 }

@@ -24,18 +24,35 @@ Each TX has its own subfolder + README plus numbered task files
 (`1-*.md`, `2-*.md`, …) following the house template. All groups (T1–T12)
 are fully written and have been validated.
 
-## Execution status — RESUME POINT (updated 2026-06-26)
+## Execution status — COMPLETE (updated 2026-06-27)
 
-> **TL;DR for a new chat:** **7 of 12 groups are done** — `X-T9`, `X-T10`,
-> `X-T2`, `X-T1`, `X-T3`, `X-T4`, `X-T6` (folders + task files `X-`-prefixed).
-> **T5, T7, T8, T11, T12 remain.** Nothing is committed; everything is in the
-> working tree. Resume with `/execute-tasklist tasks/future/pine-converter-coverage/`
-> — aggregate mode auto-skips the `X-T*` folders and starts at **T7**.
+> **TL;DR for a new chat:** **ALL 12 groups are done** — every `T*` folder is
+> `X-`-prefixed (task files too). The final wave (`X-T7`, `X-T11`, `X-T5`,
+> `X-T8`, `X-T12`) landed 2026-06-27 via `/execute-tasklist`, each graded
+> Complete/Ship by its per-folder quality pass. **Nothing is committed yet;**
+> everything is in the working tree.
 >
-> Run halted by user request after T6 (2026-06-26). Next free fixture is **54**
-> (`ls packages/pine-converter/fixtures` to confirm — T3 used 47/48, T4 49/50,
-> T6 51/52/53). Recommended remaining order: **T7, T11** (converter-internal) →
-> **T5** (needs T4, done) → **T8** (bgcolor D2 landed) → **T12**.
+> Fixtures used by the final wave: T7 → 54/55/56, T11 → 57, T5 → 58/59,
+> T8 → 60, T12 → 61/62/63/64 (golden corpus count now 65). Next free fixture
+> is **65** (`ls packages/pine-converter/fixtures` to confirm).
+>
+> **Before committing:** run the full-workspace gates (`pnpm typecheck/lint/test`)
+> and `pnpm conformance` (the adapter rebuild — **T8** is the only
+> adapter-touching group; it added the `plot-visible` conformance scenario).
+> Per-package gates were green at 100% throughout, but the full-workspace gates
+> + conformance remain the final CI proof. Changesets shipped:
+> `converter-fill-fillbetween` (T7), `converter-alert-message-freq` (T11),
+> `converter-tuple-security` (T5), `core-plot-visible` (T8, spans
+> core/compiler/runtime/conformance/pine-converter), `core-nonnumeric-state`
+> (T12, spans core/compiler/runtime/pine-converter).
+>
+> **Carry-forward follow-ups (deferred, not blocking):** color history
+> (`color[1]`) → a `state.colorSeries` twin (still emits
+> `series-history-non-numeric`); `varip` non-numeric series; the pre-existing
+> titled-handle declaration-position gap (`x = plot(high,"Upper")` doesn't route
+> through plot-family options lowering — T7/T8 fixtures steered around it); the
+> full `var string` MASM alert engine fixture (now unblocked by T12). See each
+> `X-T*` folder's README for detail.
 
 **Done (`X-`-prefixed; all tasks Complete/Ship):**
 
@@ -152,14 +169,14 @@ Status: ✅ = done (`X-`-prefixed). ☐ = remaining.
 | [T2](./X-T2-nested-ta-lowering/) | ✅ | Nested `ta.*` `.current` lowering | pine-converter | TW 🔴 silent | (compounds T1) |
 | [T3](./X-T3-switch-multi-assign/) | ✅ | `switch` branch comma multi-assignment | pine-converter | TW 🔴 | — |
 | [T4](./X-T4-input-string-enum/) | ✅ | `input.string/int(options=)` → `input.enum` **+ bare `input()` / source** | core + pine-converter | TW + MASM 🔴 | core `input.enum` numeric ext (new task 1) + array-literal parse |
-| [T5](./T5-tuple-security/) | ☐ | Tuple-returning `request.security` | pine-converter | TW 🔴 | `../multi-symbol-security/` + **T4** array-literal parse |
+| [T5](./X-T5-tuple-security/) | ✅ | Tuple-returning `request.security` | pine-converter | TW 🔴 | `../multi-symbol-security/` + **T4** array-literal parse |
 | [T6](./X-T6-color-transparency/) | ✅ | 4-arg `color.rgb` / `color.new` → alpha | pine-converter | TW + MASM 🟠 silent | — |
-| [T7](./T7-fill-to-fillbetween/) | ☐ | `fill(plot/hline,…)` → `draw.fillBetween` | pine-converter | TW 🟠 | — |
-| [T8](./T8-plot-visibility/) | ☐ | Per-plot visibility + Pine `display=` | core + compiler + runtime + adapters + converter | TW + MASM 🟡 | `../bgcolor-barcolor-ergonomics/` D2 (landed) |
+| [T7](./X-T7-fill-to-fillbetween/) | ✅ | `fill(plot/hline,…)` → `draw.fillBetween` | pine-converter | TW 🟠 | — |
+| [T8](./X-T8-plot-visibility/) | ✅ | Per-plot visibility + Pine `display=` | core + compiler + runtime + adapters + converter | TW + MASM 🟡 | `../bgcolor-barcolor-ergonomics/` D2 (landed) |
 | [T9](./X-T9-leading-op-continuation/) | ✅ | Leading-operator (`and`/`or`) line continuation | pine-converter (lexer/parser) | MASM 🔴 **general** | — |
 | [T10](./X-T10-loop-break-continue/) | ✅ | Loop `break`/`continue` + loop-body `+=` | pine-converter | MASM 🔴 **general** | — |
-| [T11](./T11-alert-message-freq/) | ☐ | `alert(message, freq)` + `alert.freq_*` | pine-converter | MASM 🔴 | — |
-| [T12](./T12-nonnumeric-persistent-state/) | ☐ | `var color` + `var bool/string` history (`state.series<bool>` / `state.color`) | core + runtime + converter | MASM 🔴 | (v6 migration eases bool) |
+| [T11](./X-T11-alert-message-freq/) | ✅ | `alert(message, freq)` + `alert.freq_*` | pine-converter | MASM 🔴 | — |
+| [T12](./X-T12-nonnumeric-persistent-state/) | ✅ | `var color` + `var bool/string` history (`state.boolSeries`/`state.stringSeries` / `state.color`) | core + runtime + converter | MASM 🔴 | (v6 migration eases bool) |
 
 Severity legend: TW = Trend Wizard, MASM = MASM_Strat. **general** = breaks
 most real-world Pine, not just the reference script.

@@ -99,6 +99,18 @@ declare module "@invinite-org/chartlang-core" {
      */
     export type NumberSeriesSlot = MutableSlot<number> & Series<number>;
     /**
+     * Boolean counterpart of \`NumberSeriesSlot\` — the value half of
+     * \`state.boolSeries(init)\`. First-bar / out-of-range history reads are
+     * \`false\` (Pine v6). Mirrors core's \`BoolSeriesSlot\`.
+     */
+    export type BoolSeriesSlot = MutableSlot<boolean> & Series<boolean>;
+    /**
+     * String counterpart of \`NumberSeriesSlot\` — the value half of
+     * \`state.stringSeries(init)\`. First-bar / out-of-range history reads are
+     * \`""\`. Mirrors core's \`StringSeriesSlot\`.
+     */
+    export type StringSeriesSlot = MutableSlot<string> & Series<string>;
+    /**
      * The \`compute\`-facing bar (\`ComputeContext.bar\`): like \`Bar\` but the
      * OHLCV + derived fields are indexable \`PriceSeries\` / \`VolumeSeries\`.
      * Mirrors core's \`BarSeries\`.
@@ -826,6 +838,7 @@ declare module "@invinite-org/chartlang-core" {
         pane?: "overlay" | "new" | string;
         style?: PlotOptsStyle;
         z?: number;
+        visible?: boolean;
     }>;
     export type HLineOpts = Readonly<{
         color?: Color;
@@ -1100,6 +1113,9 @@ declare module "@invinite-org/chartlang-core" {
         bool(init: boolean): MutableSlot<boolean>;
         string(init: string): MutableSlot<string>;
         series(init: number): NumberSeriesSlot;
+        color(init: Color): MutableSlot<Color>;
+        boolSeries(init: boolean): BoolSeriesSlot;
+        stringSeries(init: string): StringSeriesSlot;
         array<T>(capacity: number): MutableArraySlot<T>;
         map<K extends string | number, V>(capacity: number): MutableMapSlot<K, V>;
         tick: Readonly<{
@@ -1211,6 +1227,7 @@ declare module "@invinite-org/chartlang-core" {
         readonly slotId: string;
         readonly kind: PlotKind;
         readonly title?: string;
+        readonly defaultVisible?: boolean;
     }>;
     export type SecurityExpressionDescriptor = Readonly<{
         readonly slotId: string;

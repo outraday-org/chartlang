@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/plot-display-approximated",
+        "severity": "warning",
+        "message": "A `plot(..., display=...)` target has no chartlang analogue beyond `display.all`/`display.none`; only the show/hide toggle maps to `{ visible }`, so the `display=` argument was dropped and the plot left visible.",
+        "span": {
+            "startLine": 9,
+            "startColumn": 24,
+            "endLine": 9,
+            "endColumn": 43
+        },
+        "suggestion": "Use `display = <cond> ? display.all : display.none` (or a bare `display.none`) for the visibility toggle; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement."
+    }
+]

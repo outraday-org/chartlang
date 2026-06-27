@@ -7,12 +7,15 @@ import { resetSubIdCounters } from "../emit/draw/index.js";
 import { isRuntimeErrorHalt, pushDiagnostic } from "../emit/index.js";
 import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext.js";
 import {
+    advanceObjectSeriesSlots,
     advanceSeriesSlots,
     commitArraySlots,
     commitMapSlots,
+    commitObjectSeriesSlots,
     commitSeriesSlots,
     commitStateSlots,
     flushStateSlots,
+    resetObjectSeriesHeads,
     resetSeriesHeads,
     resetTentativeArraySlots,
     resetTentativeMapSlots,
@@ -108,13 +111,16 @@ export async function runComputeBody(args: RunComputeStepArgs): Promise<RunCompu
         if (isTick) {
             resetTentativeStateSlots(state.runtimeContext);
             resetSeriesHeads(state.runtimeContext);
+            resetObjectSeriesHeads(state.runtimeContext);
             resetTentativeArraySlots(state.runtimeContext);
             resetTentativeMapSlots(state.runtimeContext);
         } else {
-            // Advance every already-allocated series ring with a fresh NaN
-            // head BEFORE compute, so a slot first allocated mid-compute (it
+            // Advance every already-allocated series ring with a fresh
+            // sentinel head (NaN for numeric, `false`/`""` for non-numeric)
+            // BEFORE compute, so a slot first allocated mid-compute (it
             // already holds its seeded head) is not double-advanced.
             advanceSeriesSlots(state.runtimeContext);
+            advanceObjectSeriesSlots(state.runtimeContext);
         }
         refreshRuntimeViews(state, eventKind);
         try {
@@ -123,6 +129,7 @@ export async function runComputeBody(args: RunComputeStepArgs): Promise<RunCompu
                 commitStateSlots(state.runtimeContext);
                 flushStateSlots(state.runtimeContext);
                 commitSeriesSlots(state.runtimeContext);
+                commitObjectSeriesSlots(state.runtimeContext);
                 commitArraySlots(state.runtimeContext);
                 commitMapSlots(state.runtimeContext);
             }

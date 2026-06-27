@@ -1,0 +1,26 @@
+[
+    {
+        "code": "pine-converter/transform/alert-frequency-not-mapped",
+        "severity": "info",
+        "message": "An `alert(message, alert.freq_*)` frequency argument was dropped: chartlang's `AlertOpts` has no firing-frequency contract, so the cadence cannot be honored. The message and its enclosing `if` are preserved.",
+        "span": {
+            "startLine": 13,
+            "startColumn": 5,
+            "endLine": 13,
+            "endColumn": 83
+        },
+        "suggestion": "No action needed for a once-per-bar-close trigger inside an `if`; if you need explicit deduplication, gate the `alert(...)` behind your own `state.*` flag."
+    },
+    {
+        "code": "pine-converter/transform/alert-frequency-not-mapped",
+        "severity": "info",
+        "message": "An `alert(message, alert.freq_*)` frequency argument was dropped: chartlang's `AlertOpts` has no firing-frequency contract, so the cadence cannot be honored. The message and its enclosing `if` are preserved.",
+        "span": {
+            "startLine": 15,
+            "startColumn": 5,
+            "endLine": 15,
+            "endColumn": 93
+        },
+        "suggestion": "No action needed for a once-per-bar-close trigger inside an `if`; if you need explicit deduplication, gate the `alert(...)` behind your own `state.*` flag."
+    }
+]

@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { ExpressionNode, HistoryAccessExpression } from "../ast/index.js";
-import { lowerBuiltinCall, remapIdentifier } from "../mapping/index.js";
+import { PINE_NA_COLOR, lowerBuiltinCall, remapIdentifier } from "../mapping/index.js";
 import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
 
 /**
@@ -53,9 +53,17 @@ function emitColorLiteral(value: string): string {
 }
 
 function emitNa(node: ExpressionNode, annotations: AnnotationLookup): string {
-    // `na` is the drawing-handle `null` sentinel when the site is a handle
-    // context, else the numeric `Number.NaN` sentinel.
-    return annotations.get(node)?.naKind === "handle" ? "null" : "Number.NaN";
+    // `na` is the drawing-handle `null` sentinel in a handle context, the
+    // transparent CSS string in a `var color` context (the runtime synthesizes
+    // no color default), else the numeric `Number.NaN` sentinel.
+    const naKind = annotations.get(node)?.naKind;
+    if (naKind === "handle") {
+        return "null";
+    }
+    if (naKind === "color") {
+        return JSON.stringify(PINE_NA_COLOR);
+    }
+    return "Number.NaN";
 }
 
 function emitMemberChain(chain: readonly string[], headExpr: string | null): string {

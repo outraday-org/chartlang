@@ -70,6 +70,17 @@ describe("ENUM_VALUE_MAP", () => {
         expect(ENUM_VALUE_MAP.get("yloc.abovebar")?.chartlang).toBeNull();
         expect(ENUM_VALUE_MAP.get("yloc.price")?.chartlang).toBe("price");
     });
+
+    it("recognises the alert.freq_* enums as REJECTs the alert lowering consumes", () => {
+        for (const freq of [
+            "alert.freq_all",
+            "alert.freq_once_per_bar",
+            "alert.freq_once_per_bar_close",
+        ]) {
+            expect(ENUM_VALUE_MAP.has(freq)).toBe(true);
+            expect(ENUM_VALUE_MAP.get(freq)?.chartlang).toBeNull();
+        }
+    });
 });
 
 describe("enumLookup", () => {

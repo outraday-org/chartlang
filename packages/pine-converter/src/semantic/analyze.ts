@@ -8,6 +8,7 @@ import type {
     Script,
     Statement,
     TupleDeclaration,
+    TypeAnnotation,
     VariableDeclaration,
 } from "../ast/index.js";
 import type { Argument } from "../ast/script.js";
@@ -26,6 +27,7 @@ import {
     isBoundInUserScopes,
     resolveSymbol,
 } from "./scope.js";
+import { analyzeSecurityTuple } from "./securityTuple.js";
 import { functionParamArity, resolveUdfStatefulness } from "./statefulness.js";
 import type {
     AstNode,
@@ -45,6 +47,17 @@ const HANDLE_TYPE_NAMES: ReadonlySet<HandleType> = new Set<HandleType>([
     "polyline",
     "linefill",
 ]);
+
+// The `na` context a value is being stored into: a drawing-handle type (a bare
+// `na` lowers to the handle `null`), the `"color"` flavour (a `var color x = na`
+// lowers to the transparent CSS string, not `Number.NaN`), or `null` (numeric).
+type NaContext = HandleType | "color" | null;
+
+// Whether a type annotation declares a persistent `color` scalar — the signal
+// the `color` na-flavour keys on (`var color c = na`).
+function isColorTyped(annotation: TypeAnnotation | null): boolean {
+    return annotation !== null && annotation.kind === "named-type" && annotation.name === "color";
+}
 
 type WalkState = {
     readonly scopes: Map<AstNode, Scope>;
@@ -87,14 +100,15 @@ function naKindOfReceiver(receiver: ExpressionNode, resolve: (n: string) => Symb
 
 // The `na` flavour of an expression node, or `undefined` for non-`na` nodes:
 // a bare `na` keyword takes its kind from the assignment context (handle var
-// → `handle`); an `na(receiver)` call takes it from the receiver's type.
+// → `handle`, color var → `color`, else `numeric`); an `na(receiver)` call
+// takes it from the receiver's type.
 function naKindOf(
     expr: ExpressionNode,
-    contextHandle: HandleType | null,
+    context: NaContext,
     resolve: (n: string) => SymbolInfo | null,
-): "numeric" | "handle" | undefined {
+): "numeric" | "handle" | "color" | undefined {
     if (expr.kind === "na-expression") {
-        return contextHandle !== null ? "handle" : "numeric";
+        return context === null ? "numeric" : context === "color" ? "color" : "handle";
     }
     if (
         expr.kind === "call-expression" &&
@@ -110,7 +124,7 @@ function walkExpression(
     state: WalkState,
     scope: ScopeBuilder,
     expr: ExpressionNode,
-    contextHandle: HandleType | null,
+    contextHandle: NaContext,
 ): void {
     const resolve = (name: string): SymbolInfo | null => resolveSymbol(scope, name);
     state.scopes.set(expr, freezeScope(scope));
@@ -200,7 +214,7 @@ function walkCall(
     state: WalkState,
     scope: ScopeBuilder,
     call: CallExpression,
-    contextHandle: HandleType | null,
+    contextHandle: NaContext,
 ): void {
     walkExpression(state, scope, call.callee, null);
     for (const arg of call.args) {
@@ -246,7 +260,8 @@ function detectFutureBarIndex(state: WalkState, expr: ExpressionNode): void {
 function declareVariable(state: WalkState, scope: ScopeBuilder, decl: VariableDeclaration): void {
     const resolve = (name: string): SymbolInfo | null => resolveSymbol(scope, name);
     const handleType = handleTypeOf(decl);
-    walkExpression(state, scope, decl.initializer, handleType);
+    const naContext: NaContext = handleType ?? (isColorTyped(decl.typeAnnotation) ? "color" : null);
+    walkExpression(state, scope, decl.initializer, naContext);
     const symbol: SymbolInfo = {
         name: decl.name,
         kind: symbolKindOf(decl),
@@ -264,7 +279,8 @@ function declareVariable(state: WalkState, scope: ScopeBuilder, decl: VariableDe
 
 function walkAssignment(state: WalkState, scope: ScopeBuilder, assignment: Assignment): void {
     const existing = resolveSymbol(scope, assignment.name);
-    const contextHandle = existing?.handleType ?? null;
+    const contextHandle: NaContext =
+        existing?.handleType ?? (isColorTyped(existing?.typeAnnotation ?? null) ? "color" : null);
     walkExpression(state, scope, assignment.value, contextHandle);
 
     const shadows = isBoundInUserScopes(scope, assignment.name) ? existing : null;
@@ -310,6 +326,13 @@ function walkAssignment(state: WalkState, scope: ScopeBuilder, assignment: Assig
 function walkTupleDeclaration(state: WalkState, scope: ScopeBuilder, decl: TupleDeclaration): void {
     const resolve = (name: string): SymbolInfo | null => resolveSymbol(scope, name);
     walkExpression(state, scope, decl.initializer, null);
+    const securityTuple = analyzeSecurityTuple(decl, state.diagnostics);
+    if (securityTuple !== null) {
+        state.annotations.set(decl, {
+            ...(state.annotations.get(decl) ?? {}),
+            securityTuple,
+        });
+    }
     for (const target of decl.names) {
         if (target.name === "_") {
             continue;

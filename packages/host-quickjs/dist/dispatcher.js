@@ -39,6 +39,59 @@ var RingBuffer = class {
     this.filled = 0;
   }
 };
+var ObjectRingBuffer = class {
+  constructor(capacity, defaultValue) {
+    __publicField(this, "capacity");
+    __publicField(this, "defaultValue");
+    __publicField(this, "buf");
+    __publicField(this, "head", -1);
+    __publicField(this, "filled", 0);
+    this.capacity = capacity;
+    this.defaultValue = defaultValue;
+    this.buf = new Array(capacity).fill(defaultValue);
+  }
+  append(v) {
+    this.head = (this.head + 1) % this.capacity;
+    this.buf[this.head] = v;
+    if (this.filled < this.capacity)
+      this.filled += 1;
+  }
+  replaceHead(v) {
+    if (this.head === -1) {
+      this.append(v);
+      return;
+    }
+    this.buf[this.head] = v;
+  }
+  at(n) {
+    if (n < 0 || n >= this.filled)
+      return this.defaultValue;
+    return this.buf[(this.head - n + this.capacity) % this.capacity];
+  }
+  get length() {
+    return this.filled;
+  }
+  serialiseSnapshotBuffer() {
+    return Object.freeze({
+      headIndex: this.head,
+      filled: this.filled,
+      values: Object.freeze([...this.buf])
+    });
+  }
+  restoreFromSnapshotBuffer(args) {
+    if (args.values.length !== this.capacity || !Number.isInteger(args.headIndex) || args.headIndex < -1 || args.headIndex >= this.capacity || !Number.isInteger(args.filled) || args.filled < 0 || args.filled > this.capacity || args.filled === 0 && args.headIndex !== -1 || args.filled > 0 && args.headIndex < 0) {
+      throw new Error("invalid ring buffer snapshot");
+    }
+    this.buf = [...args.values];
+    this.head = args.headIndex;
+    this.filled = args.filled;
+  }
+  reset() {
+    this.buf = new Array(this.capacity).fill(this.defaultValue);
+    this.head = -1;
+    this.filled = 0;
+  }
+};
 var Float64RingBuffer = class {
   constructor(capacity) {
     __publicField(this, "capacity");
@@ -450,6 +503,60 @@ var state = Object.freeze({
    */
   series(_init) {
     return sentinel("state.series");
+  },
+  /**
+   * Allocate or read a persistent **color** scalar slot — Pine's
+   * `var color c = …`. `c.value = expr` writes the current bar's color;
+   * `c.value` reads it back. A {@link Color} is a CSS color string the
+   * adapter round-trips verbatim, so the slot stores the string directly.
+   * The allocation bar's pre-write head is seeded with `init`; unlike
+   * {@link state}.series there is no history window — it is a scalar, not an
+   * indexable series.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof state.color = state.color;
+   *     void fn;
+   */
+  color(_init) {
+    return sentinel("state.color");
+  },
+  /**
+   * Allocate or read a persistent **boolean series** slot — the non-numeric
+   * sibling of {@link state}.series for Pine's `var bool` history. `s.value =
+   * entered` writes the current bar's value; `s[1]` reads one bar ago,
+   * `s.current` the current bar. Out-of-range / first-bar history reads are
+   * **`false`** (Pine v6: a `bool` `[]` no longer returns `na`). The
+   * allocation bar's pre-write head is seeded with `init`. The slot retains a
+   * bounded window sized to the script's deepest literal `s[n]` lookback.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof state.boolSeries = state.boolSeries;
+   *     void fn;
+   */
+  boolSeries(_init) {
+    return sentinel("state.boolSeries");
+  },
+  /**
+   * Allocate or read a persistent **string series** slot — the non-numeric
+   * sibling of {@link state}.series for Pine's `var string` history.
+   * `s.value = label` writes the current bar's value; `s[1]` reads one bar
+   * ago, `s.current` the current bar. Out-of-range / first-bar history reads
+   * are the empty string **`""`**. The allocation bar's pre-write head is
+   * seeded with `init`. The slot retains a bounded window sized to the
+   * script's deepest literal `s[n]` lookback.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof state.stringSeries = state.stringSeries;
+   *     void fn;
+   */
+  stringSeries(_init) {
+    return sentinel("state.stringSeries");
   },
   /**
    * Allocate or read a persistent **bounded collection** slot — a
@@ -1264,6 +1371,9 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "state.bool", slot: true },
   { name: "state.string", slot: true },
   { name: "state.series", slot: true },
+  { name: "state.color", slot: true },
+  { name: "state.boolSeries", slot: true },
+  { name: "state.stringSeries", slot: true },
   { name: "state.tick.float", slot: true },
   { name: "state.tick.int", slot: true },
   { name: "state.tick.bool", slot: true },
@@ -2103,6 +2213,56 @@ function restoreArraySlots(ctx, slots) {
   }
 }
 
+// ../runtime/dist/state/objectSeriesSlot.js
+function makeObjectSeriesSlotView(buffer) {
+  const reads = makeSeriesView(buffer);
+  return new Proxy(reads, {
+    get(target, prop, receiver) {
+      if (prop === "value")
+        return buffer.at(0);
+      return Reflect.get(target, prop, receiver);
+    },
+    set(_target, prop, value) {
+      if (prop === "value") {
+        buffer.replaceHead(value);
+        return true;
+      }
+      return false;
+    },
+    has(target, prop) {
+      if (prop === "value")
+        return true;
+      return Reflect.has(target, prop);
+    }
+  });
+}
+function createObjectSeriesSlot(buffer, init, kind) {
+  buffer.append(init);
+  return {
+    kind,
+    buffer,
+    view: makeObjectSeriesSlotView(buffer),
+    committedHead: init
+  };
+}
+function restoreObjectSeriesSlot(buffer, committedHead, kind) {
+  return {
+    kind,
+    buffer,
+    view: makeObjectSeriesSlotView(buffer),
+    committedHead
+  };
+}
+function advanceObjectSeriesSlot(slot) {
+  slot.buffer.append(slot.buffer.defaultValue);
+}
+function commitObjectSeriesSlot(slot) {
+  slot.committedHead = slot.buffer.at(0);
+}
+function resetObjectSeriesSlotHead(slot) {
+  slot.buffer.replaceHead(slot.committedHead);
+}
+
 // ../runtime/dist/state/seriesSlot.js
 function makeSeriesSlotView(buffer) {
   const reads = makeSeriesView(buffer);
@@ -2221,6 +2381,87 @@ function resetTentativeMapSlots(ctx) {
 function commitMapSlots(ctx) {
   for (const slot of ctx.mapSlots.values()) {
     slot.onBarClose();
+  }
+}
+function advanceObjectSeriesSlots(ctx) {
+  for (const slot of ctx.objectSeriesSlots.values()) {
+    advanceObjectSeriesSlot(slot);
+  }
+}
+function commitObjectSeriesSlots(ctx) {
+  for (const slot of ctx.objectSeriesSlots.values()) {
+    commitObjectSeriesSlot(slot);
+  }
+}
+function resetObjectSeriesHeads(ctx) {
+  for (const slot of ctx.objectSeriesSlots.values()) {
+    resetObjectSeriesSlotHead(slot);
+  }
+}
+
+// ../runtime/dist/state/objectSeriesPersistence.js
+var OBJECT_SERIES_SLOT_SUFFIX = ":objseries";
+var ELEMENT_SPEC = {
+  "state.boolSeries": { default: false, isElement: (value) => typeof value === "boolean" },
+  "state.stringSeries": { default: "", isElement: (value) => typeof value === "string" }
+};
+function isObjectSeriesSlotSnapshotKey(key) {
+  return key.endsWith(OBJECT_SERIES_SLOT_SUFFIX);
+}
+function serialiseObjectSeriesSlots(ctx) {
+  const out = {};
+  for (const [key, slot] of ctx.objectSeriesSlots.entries()) {
+    const buffer = slot.buffer.serialiseSnapshotBuffer();
+    out[key] = {
+      kind: slot.kind,
+      buffer: {
+        headIndex: buffer.headIndex,
+        filled: buffer.filled,
+        values: [...buffer.values]
+      },
+      committedHead: slot.committedHead
+    };
+  }
+  return Object.freeze(out);
+}
+function restoreObjectSeriesSnapshot(snapshot6, capacity) {
+  if (!isRecord(snapshot6))
+    return null;
+  const kind = snapshot6.kind;
+  if (kind !== "state.boolSeries" && kind !== "state.stringSeries")
+    return null;
+  const spec = ELEMENT_SPEC[kind];
+  const bufferSnapshot = snapshot6.buffer;
+  if (!isRecord(bufferSnapshot))
+    return null;
+  if (!isInteger(bufferSnapshot.headIndex) || !isInteger(bufferSnapshot.filled))
+    return null;
+  const values = bufferSnapshot.values;
+  if (!Array.isArray(values) || !values.every(spec.isElement))
+    return null;
+  if (!spec.isElement(snapshot6.committedHead))
+    return null;
+  const buffer = new ObjectRingBuffer(capacity, spec.default);
+  try {
+    buffer.restoreFromSnapshotBuffer({
+      headIndex: bufferSnapshot.headIndex,
+      filled: bufferSnapshot.filled,
+      values
+    });
+  } catch {
+    return null;
+  }
+  return restoreObjectSeriesSlot(buffer, snapshot6.committedHead, kind);
+}
+function restoreObjectSeriesSlots(ctx, slots, capacity) {
+  ctx.objectSeriesSlots.clear();
+  for (const [key, value] of Object.entries(slots)) {
+    if (!isObjectSeriesSlotSnapshotKey(key))
+      continue;
+    const slot = restoreObjectSeriesSnapshot(value, capacity);
+    if (slot !== null) {
+      ctx.objectSeriesSlots.set(key, slot);
+    }
   }
 }
 
@@ -2464,6 +2705,7 @@ var stateKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:state`;
 var seriesKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:series`;
 var arrayKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:array`;
 var mapKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:map`;
+var objectSeriesKey = (ctx, slotId) => `${ctx.slotIdPrefix ?? ""}${slotId}:objseries`;
 function getCtx(name) {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
@@ -2497,6 +2739,17 @@ function getOrAllocateSeries(slotId, init) {
   ctx.seriesSlots.set(key, slot);
   return slot.view;
 }
+function getOrAllocateObjectSeries(slotId, init, kind, defaultValue) {
+  const ctx = getCtx(kind);
+  const key = objectSeriesKey(ctx, slotId);
+  const existing = ctx.objectSeriesSlots.get(key);
+  if (existing !== void 0) {
+    return existing.view;
+  }
+  const slot = createObjectSeriesSlot(new ObjectRingBuffer(ctx.stream.ohlcv.close.capacity, defaultValue), init, kind);
+  ctx.objectSeriesSlots.set(key, slot);
+  return slot.view;
+}
 function getOrAllocateArray(slotId, capacity) {
   const ctx = getCtx("state.array");
   const key = arrayKey(ctx, slotId);
@@ -2526,6 +2779,9 @@ function buildStateNamespace() {
     bool: (slotId, init) => getOrAllocate("state.bool", slotId, init, false),
     string: (slotId, init) => getOrAllocate("state.string", slotId, init, false),
     series: (slotId, init) => getOrAllocateSeries(slotId, init),
+    color: (slotId, init) => getOrAllocate("state.color", slotId, init, false),
+    boolSeries: (slotId, init) => getOrAllocateObjectSeries(slotId, init, "state.boolSeries", false),
+    stringSeries: (slotId, init) => getOrAllocateObjectSeries(slotId, init, "state.stringSeries", ""),
     array: (slotId, capacity) => getOrAllocateArray(slotId, capacity),
     map: (slotId, capacity) => getOrAllocateMap(slotId, capacity),
     tick: {
@@ -2959,6 +3215,7 @@ function buildExprContext(parent, slotId, foldStream) {
     seriesSlots: /* @__PURE__ */ new Map(),
     arraySlots: /* @__PURE__ */ new Map(),
     mapSlots: /* @__PURE__ */ new Map(),
+    objectSeriesSlots: /* @__PURE__ */ new Map(),
     chartSymbol: parent.chartSymbol,
     secondaryStreams: parent.secondaryStreams,
     requestSecurityBars: /* @__PURE__ */ new Map(),
@@ -6060,6 +6317,7 @@ function plotImpl(ctx, slotId, value, opts, dynamicColor) {
   const xShift = typeof value === "number" ? 0 : seriesOffsetOf(value);
   const z = opts.z ?? 0;
   const colorValue = dynamicColor;
+  const visible = opts.visible;
   const emission = {
     kind: "plot",
     slotId,
@@ -6071,6 +6329,7 @@ function plotImpl(ctx, slotId, value, opts, dynamicColor) {
     color: opts.color ?? null,
     meta: {},
     pane,
+    ...visible === false ? { visible: false } : {},
     ...xShift === 0 ? {} : { xShift },
     ...z === 0 ? {} : { z },
     ...colorValue === void 0 ? {} : { colorValue }
@@ -15913,10 +16172,12 @@ async function runComputeBody(args) {
     if (isTick) {
       resetTentativeStateSlots(state2.runtimeContext);
       resetSeriesHeads(state2.runtimeContext);
+      resetObjectSeriesHeads(state2.runtimeContext);
       resetTentativeArraySlots(state2.runtimeContext);
       resetTentativeMapSlots(state2.runtimeContext);
     } else {
       advanceSeriesSlots(state2.runtimeContext);
+      advanceObjectSeriesSlots(state2.runtimeContext);
     }
     refreshRuntimeViews(state2, eventKind);
     try {
@@ -15925,6 +16186,7 @@ async function runComputeBody(args) {
         commitStateSlots(state2.runtimeContext);
         flushStateSlots(state2.runtimeContext);
         commitSeriesSlots(state2.runtimeContext);
+        commitObjectSeriesSlots(state2.runtimeContext);
         commitArraySlots(state2.runtimeContext);
         commitMapSlots(state2.runtimeContext);
       }
@@ -16082,6 +16344,7 @@ function buildSubRunnerState(args, slotIdPrefix, isDep) {
       seriesSlots: /* @__PURE__ */ new Map(),
       arraySlots: /* @__PURE__ */ new Map(),
       mapSlots: /* @__PURE__ */ new Map(),
+      objectSeriesSlots: /* @__PURE__ */ new Map(),
       chartSymbol: args.chartSymbol,
       secondaryStreams: args.secondaryStreams,
       requestSecurityBars: /* @__PURE__ */ new Map(),
@@ -16295,6 +16558,7 @@ function dispose(state2) {
   state2.runtimeContext.seriesSlots.clear();
   state2.runtimeContext.arraySlots.clear();
   state2.runtimeContext.mapSlots.clear();
+  state2.runtimeContext.objectSeriesSlots.clear();
   state2.runtimeContext.secondaryStreams.clear();
   state2.runtimeContext.requestSecurityBars.clear();
   state2.runtimeContext.requestSecurityAlignments.clear();
@@ -16701,6 +16965,7 @@ function primarySectionSlots(state2) {
   return Object.freeze({
     ...serialiseStateSlots(state2.runtimeContext),
     ...serialiseSeriesSlots(state2.runtimeContext),
+    ...serialiseObjectSeriesSlots(state2.runtimeContext),
     ...serialiseArraySlots(state2.runtimeContext),
     ...serialiseMapSlots(state2.runtimeContext),
     ...serialiseTaSlots(state2.mainStream)
@@ -16711,6 +16976,7 @@ function runnerSection(ctx) {
     slots: Object.freeze({
       ...serialiseStateSlots(ctx),
       ...serialiseSeriesSlots(ctx),
+      ...serialiseObjectSeriesSlots(ctx),
       ...serialiseArraySlots(ctx),
       ...serialiseMapSlots(ctx)
     })
@@ -16761,7 +17027,7 @@ function resolveMainStreamSnapshot(snapshot6, mainInterval) {
 function scalarStateSlots(slots) {
   const out = {};
   for (const [slotKey, value] of Object.entries(slots)) {
-    if (!isTaSlotSnapshotKey(slotKey) && !isSeriesSlotSnapshotKey(slotKey) && !isArraySlotSnapshotKey(slotKey) && !isMapSlotSnapshotKey(slotKey)) {
+    if (!isTaSlotSnapshotKey(slotKey) && !isSeriesSlotSnapshotKey(slotKey) && !isObjectSeriesSlotSnapshotKey(slotKey) && !isArraySlotSnapshotKey(slotKey) && !isMapSlotSnapshotKey(slotKey)) {
       out[slotKey] = value;
     }
   }
@@ -16770,6 +17036,7 @@ function scalarStateSlots(slots) {
 function restoreRunnerSlots(ctx, slots, capacity) {
   restoreStateSlots(ctx, scalarStateSlots(slots));
   restoreSeriesSlots(ctx, slots, capacity);
+  restoreObjectSeriesSlots(ctx, slots, capacity);
   restoreArraySlots(ctx, slots);
   restoreMapSlots(ctx, slots);
 }
@@ -17001,6 +17268,7 @@ function buildPrimaryState(args, primary) {
       seriesSlots: /* @__PURE__ */ new Map(),
       arraySlots: /* @__PURE__ */ new Map(),
       mapSlots: /* @__PURE__ */ new Map(),
+      objectSeriesSlots: /* @__PURE__ */ new Map(),
       chartSymbol,
       secondaryStreams,
       requestSecurityBars: /* @__PURE__ */ new Map(),

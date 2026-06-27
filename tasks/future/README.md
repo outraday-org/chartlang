@@ -6,21 +6,22 @@ hard dependencies and file-contention hotspots are. Each folder keeps its own
 `README.md` with the **intra-folder** task DAG (`1-*.md`, `2-*.md`, …) — follow
 that once a folder is in flight.
 
-## Execution status — RESUME POINT (updated 2026-06-26)
+## Execution status — COMPLETE (updated 2026-06-27)
 
-> **TL;DR for a new chat:** Folder **waves A and B are fully done** (9 folders
-> `X-`-prefixed). **Wave C (`pine-converter-coverage`) is PARTWAY** — of its 12
-> task groups, **T9, T10, T2, T1, T3, T4, T6 are done** (`X-T*`-prefixed);
-> **T5, T7, T8, T11, T12 remain**. **Nothing is committed** — everything is in
-> the working tree. To continue, run
-> `/execute-tasklist tasks/future/pine-converter-coverage/` — aggregate mode
-> auto-skips the seven `X-T*` groups and starts at **T7** (see that folder's
-> README for the remaining T-order + parked-fixture follow-ups).
-> (Last run halted by user request after T6 on 2026-06-26.)
+> **TL;DR for a new chat:** **ALL folders are done** — folder waves A, B, and C
+> are fully `X-`-prefixed. Wave C (`pine-converter-coverage`) closed on
+> 2026-06-27: its final five groups (`X-T7`, `X-T11`, `X-T5`, `X-T8`, `X-T12`)
+> landed via `/execute-tasklist`, each graded Complete/Ship by a per-folder
+> quality pass. **Nothing is committed** — everything is in the working tree.
+> To finish, run the full-workspace gates (`pnpm typecheck/lint/test`) and
+> `pnpm conformance` (adapter rebuild — **T8** is the only adapter-touching
+> group; it added the `plot-visible` conformance scenario), then commit.
 
-**Folder wave A (7 folders) and wave B (2 folders) are COMPLETE** — every task
-file `X-`-prefixed, folders `X-`-prefixed, all graded Complete/Ship, changes
-**uncommitted in the working tree**. Wave C is in progress (4 of 12 done).
+**Folder waves A (7 folders), B (2 folders), and C (`pine-converter-coverage`,
+12 task groups) are ALL COMPLETE** — every task file `X-`-prefixed, folders
+`X-`-prefixed, all graded Complete/Ship, changes **uncommitted in the working
+tree**. Per-package gates ran green at 100% throughout; the full-workspace gates
++ `pnpm conformance` are the final CI proof before committing.
 
 > ⚠️ **Run the full gates before committing.** Execution used per-package gates
 > only (`pnpm -F @invinite-org/chartlang-pine-converter test`, etc.) — the
@@ -137,8 +138,8 @@ WAVE B  ✅ DONE  (2 folders, depend on state-array)
 
         │ multi-symbol-security + bgcolor D2 + str + calendar land
         ▼
-WAVE C  ◑ IN PROGRESS  (capstone — consumes the others)
-  pine-converter-coverage  →  done: T9 T10 T2 T1 T3 T4 T6   |   remaining: T5 T7 T8 T11 T12
+WAVE C  ✅ DONE  (capstone — consumes the others)
+  pine-converter-coverage  →  all 12 groups done (T1–T12, every folder X-prefixed)
 ```
 
 Maximum parallel width is **7** (Wave A). The critical path is

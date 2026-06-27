@@ -220,6 +220,47 @@ export type VolumeSeries = Volume & Series<Volume>;
 export type NumberSeriesSlot = MutableSlot<number> & Series<number>;
 
 /**
+ * The boolean counterpart of {@link NumberSeriesSlot} — a user-allocated,
+ * writable, indexable **boolean** history, the value half of
+ * {@link state}'s `boolSeries` slot. Both a writable scalar slot
+ * (`s.value = entered`, like `state.bool`) **and** an indexable
+ * `Series<boolean>` (`s[1]` reads one bar ago, `s.current` the current bar).
+ * Assign the current bar's value with `s.value = …` each step; read history
+ * with `s[n]`. Out-of-range / first-bar history reads are **`false`**, matching
+ * Pine v6 where a `bool` `[]` no longer returns `na`. The runtime backs it with
+ * a ring-buffer view sized to the script's max lookback.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     function wasActive(s: BoolSeriesSlot, entered: boolean): boolean {
+ *         s.value = entered;
+ *         return s[1]; // false on the first bar (v6 semantics)
+ *     }
+ */
+export type BoolSeriesSlot = MutableSlot<boolean> & Series<boolean>;
+
+/**
+ * The string counterpart of {@link NumberSeriesSlot} — a user-allocated,
+ * writable, indexable **string** history, the value half of {@link state}'s
+ * `stringSeries` slot. Both a writable scalar slot (`s.value = label`, like
+ * `state.string`) **and** an indexable `Series<string>` (`s[1]` reads one bar
+ * ago, `s.current` the current bar). Assign the current bar's value with
+ * `s.value = …` each step; read history with `s[n]`. Out-of-range / first-bar
+ * history reads are the empty string **`""`**. The runtime backs it with a
+ * ring-buffer view sized to the script's max lookback.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     function priorLabel(s: StringSeriesSlot, label: string): string {
+ *         s.value = label;
+ *         return s[1]; // "" on the first bar
+ *     }
+ */
+export type StringSeriesSlot = MutableSlot<string> & Series<string>;
+
+/**
  * The current bar as `compute` sees it. Identical to {@link Bar} except the
  * OHLCV + derived price/volume fields are {@link PriceSeries} /
  * {@link VolumeSeries} — both a scalar (`bar.close * 2`, `plot(bar.close)`,
@@ -381,7 +422,12 @@ export type DrawingCounts = {
  * emits one entry per `plot()` / `plot.*()` / `hline()` callsite so an
  * embedder can build a style/visibility UI keyed by the stable `slotId`
  * before the first emission. `title` is present only when the call's
- * opts carries a string-literal `title`.
+ * opts carries a string-literal `title`. `defaultVisible` (@since 1.5) is
+ * present only when the call's opts carries a **boolean-literal**
+ * `visible` (`plot(x, { visible: false })`) — a static hint a host can use
+ * to pre-toggle a legend entry; an input-driven `{ visible: showRsi }` is
+ * resolved per run at runtime and leaves the field absent (omitted ⇒ "no
+ * static hint, defaults to visible").
  *
  * @since 0.8
  * @stable
@@ -390,6 +436,7 @@ export type DrawingCounts = {
  *         slotId: "ema.ts:12:5#0",
  *         kind: "line",
  *         title: "EMA",
+ *         defaultVisible: false,
  *     };
  *     void slot;
  */
@@ -397,6 +444,7 @@ export type PlotSlotDescriptor = {
     readonly slotId: string;
     readonly kind: PlotKind;
     readonly title?: string;
+    readonly defaultVisible?: boolean;
 };
 
 /**

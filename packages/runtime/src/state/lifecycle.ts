@@ -2,6 +2,11 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { RuntimeContext } from "../runtimeContext.js";
+import {
+    advanceObjectSeriesSlot,
+    commitObjectSeriesSlot,
+    resetObjectSeriesSlotHead,
+} from "./objectSeriesSlot.js";
 import { advanceSeriesSlot, commitSeriesSlot, resetSeriesSlotHead } from "./seriesSlot.js";
 
 /**
@@ -242,5 +247,61 @@ export function resetTentativeMapSlots(ctx: RuntimeContext): void {
 export function commitMapSlots(ctx: RuntimeContext): void {
     for (const slot of ctx.mapSlots.values()) {
         slot.onBarClose();
+    }
+}
+
+/**
+ * Advance every non-numeric series ring once for a new close bar — append a
+ * fresh element-default head (`false` / `""`) so the prior committed head slides
+ * to index 1. The non-numeric analogue of {@link advanceSeriesSlots}; runs
+ * BEFORE compute on close, so a slot first allocated mid-compute is not
+ * double-advanced.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     // advanceObjectSeriesSlots(ctx);
+ *     const advanced = true;
+ *     void advanced;
+ */
+export function advanceObjectSeriesSlots(ctx: RuntimeContext): void {
+    for (const slot of ctx.objectSeriesSlots.values()) {
+        advanceObjectSeriesSlot(slot);
+    }
+}
+
+/**
+ * Commit every non-numeric series live head as its bar-close value after close
+ * compute, so the next advance retains it and a tick can reset to it. The
+ * non-numeric analogue of {@link commitSeriesSlots}.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     // commitObjectSeriesSlots(ctx);
+ *     const committed = true;
+ *     void committed;
+ */
+export function commitObjectSeriesSlots(ctx: RuntimeContext): void {
+    for (const slot of ctx.objectSeriesSlots.values()) {
+        commitObjectSeriesSlot(slot);
+    }
+}
+
+/**
+ * Reset every non-numeric series live head to its last committed value before
+ * tick compute. The non-numeric analogue of {@link resetSeriesHeads}; does NOT
+ * advance length.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     // resetObjectSeriesHeads(ctx);
+ *     const reset = true;
+ *     void reset;
+ */
+export function resetObjectSeriesHeads(ctx: RuntimeContext): void {
+    for (const slot of ctx.objectSeriesSlots.values()) {
+        resetObjectSeriesSlotHead(slot);
     }
 }

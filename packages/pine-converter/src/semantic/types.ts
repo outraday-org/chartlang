@@ -151,9 +151,50 @@ export type AssignmentAnnotation = Readonly<{
 }>;
 
 /**
+ * One element of a tuple `request.security` source list: a bare OHLCV `field`
+ * lowers to the data form (`request.security(opts).<field>`); any other `node`
+ * lowers to the callback form (`request.security(opts, (bar) => <node>)`).
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const el: SecurityTupleElement = { kind: "ohlcv", field: "high" };
+ *     void el;
+ */
+export type SecurityTupleElement =
+    | Readonly<{ kind: "ohlcv"; field: string }>
+    | Readonly<{ kind: "expr"; node: ExpressionNode }>;
+
+/**
+ * The classified IR for a tuple-LHS `request.security` declaration
+ * (`[a, b] = request.security(sym, tf, [s1, s2])`): the resolved higher-
+ * timeframe `feed` (the `symbol` omitted for the chart's own symbol) and the
+ * source-order `elements` (one per `[…]` entry, binding to the LHS names by
+ * position). Stored on the `TupleDeclaration` node in
+ * {@link SemanticResult.annotations}; the transform reads it back to emit N
+ * independent reads.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const a: SecurityTupleAnnotation = {
+ *         kind: "securityTuple",
+ *         feed: { interval: "1d" },
+ *         elements: [{ kind: "ohlcv", field: "high" }],
+ *     };
+ *     void a;
+ */
+export type SecurityTupleAnnotation = Readonly<{
+    kind: "securityTuple";
+    feed: Readonly<{ symbol?: string; interval: string }>;
+    elements: readonly SecurityTupleElement[];
+}>;
+
+/**
  * Per-node semantic facts attached during the walk: the inferred qualifier
  * for expression nodes, the resolved `na` flavour for `na`/`na(...)` nodes,
- * and the declaration/reassignment verdict for assignment statements.
+ * the declaration/reassignment verdict for assignment statements, and the
+ * classified feed/elements for a tuple `request.security` declaration.
  *
  * @since 0.1
  * @stable
@@ -163,8 +204,9 @@ export type AssignmentAnnotation = Readonly<{
  */
 export type SemanticAnnotation = Readonly<{
     qualifier?: TypeQualifier;
-    naKind?: "numeric" | "handle";
+    naKind?: "numeric" | "handle" | "color";
     assignment?: AssignmentAnnotation;
+    securityTuple?: SecurityTupleAnnotation;
 }>;
 
 /**

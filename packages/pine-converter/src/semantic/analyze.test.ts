@@ -113,6 +113,23 @@ describe("analyze — qualifier + na-kind annotations", () => {
         expect(naNumeric?.[1].naKind).toBe("numeric");
     });
 
+    it("infers na into a color var as color kind, on the init and a := reassignment", () => {
+        const decl = run(`${HEADER}var color c = na\n`);
+        const naDecl = [...decl.annotations.entries()].find(
+            ([node]) => node.kind === "na-expression",
+        );
+        expect(naDecl?.[1].naKind).toBe("color");
+
+        // A later `:=` ternary arm na on the same color var is also color-flavoured.
+        const reassigned = run(
+            `${HEADER}var color c = color.red\nc := close > open ? na : color.red\n`,
+        );
+        const naArm = [...reassigned.annotations.entries()].find(
+            ([node]) => node.kind === "na-expression",
+        );
+        expect(naArm?.[1].naKind).toBe("color");
+    });
+
     it("annotates na(handle) calls as handle and na(series) calls as numeric", () => {
         const result = run(`${HEADER}var line lvl = na\nx = na(lvl)\ny = na(close)\n`);
         const callAnns = [...result.annotations.entries()].filter(
@@ -607,5 +624,91 @@ describe("analyze — user-defined functions", () => {
     it("rejects mutually recursive UDFs", () => {
         const source = `${HEADER}cf_a(x) => cf_b(x)\ncf_b(x) => cf_a(x)\n`;
         expect(codes(source)).toContain("pine-converter/semantic/udf-recursive-rejected");
+    });
+});
+
+describe("analyze — tuple request.security", () => {
+    function securityTuple(source: string) {
+        const result = run(source);
+        const decl = result.script.body.find((s) => s.kind === "tuple-declaration");
+        const annotation =
+            decl === undefined ? undefined : result.annotations.get(decl)?.securityTuple;
+        return { annotation, codes: result.diagnostics.map((d) => d.code) };
+    }
+
+    it("classifies a tickerid OHLCV source list (symbol omitted)", () => {
+        const { annotation, codes } = securityTuple(
+            `${HEADER}[h, l] = request.security(syminfo.tickerid, "D", [high, low])\n`,
+        );
+        expect(annotation).toEqual({
+            kind: "securityTuple",
+            feed: { interval: "1d" },
+            elements: [
+                { kind: "ohlcv", field: "high" },
+                { kind: "ohlcv", field: "low" },
+            ],
+        });
+        expect(codes).not.toContain("pine-converter/semantic/security-tuple-arity-mismatch");
+        expect(codes).not.toContain("pine-converter/semantic/security-tuple-source-not-list");
+        expect(codes).not.toContain("pine-converter/transform/request-security-not-mapped");
+    });
+
+    it("carries a literal cross-symbol into the feed", () => {
+        const { annotation } = securityTuple(
+            `${HEADER}[h, l] = request.security("NASDAQ:AAPL", "60", [high, low])\n`,
+        );
+        expect(annotation?.feed).toEqual({ symbol: "NASDAQ:AAPL", interval: "1h" });
+    });
+
+    it("classifies a computed element as an expression and an OHLCV element as a field", () => {
+        const { annotation } = securityTuple(
+            `${HEADER}[a, b] = request.security(syminfo.tickerid, "D", [close + 1, low])\n`,
+        );
+        expect(annotation?.elements[0].kind).toBe("expr");
+        expect(annotation?.elements[1]).toEqual({ kind: "ohlcv", field: "low" });
+    });
+
+    it("warns on a name/source-length arity mismatch and binds what it can", () => {
+        const { annotation, codes } = securityTuple(
+            `${HEADER}[a, b, c] = request.security(syminfo.tickerid, "D", [high, low])\n`,
+        );
+        expect(codes).toContain("pine-converter/semantic/security-tuple-arity-mismatch");
+        expect(annotation?.elements).toHaveLength(2);
+    });
+
+    it("rejects a non-array source list", () => {
+        const { annotation, codes } = securityTuple(
+            `${HEADER}[h, l] = request.security(syminfo.tickerid, "D", close)\n`,
+        );
+        expect(annotation).toBeUndefined();
+        expect(codes).toContain("pine-converter/semantic/security-tuple-source-not-list");
+    });
+
+    it("rejects a non-literal feed via request-security-not-mapped", () => {
+        const { annotation, codes } = securityTuple(
+            `${HEADER}sym = input.symbol("X")\n[h, l] = request.security(sym, "D", [high, low])\n`,
+        );
+        expect(annotation).toBeUndefined();
+        expect(codes).toContain("pine-converter/transform/request-security-not-mapped");
+    });
+
+    it("rejects a call missing the source-list argument", () => {
+        const { annotation, codes } = securityTuple(
+            `${HEADER}[h, l] = request.security(syminfo.tickerid, "D")\n`,
+        );
+        expect(annotation).toBeUndefined();
+        expect(codes).toContain("pine-converter/transform/request-security-not-mapped");
+    });
+
+    it("ignores a non-call tuple RHS", () => {
+        const { annotation, codes } = securityTuple(`${HEADER}[a, b] = close\n`);
+        expect(annotation).toBeUndefined();
+        expect(codes).not.toContain("pine-converter/transform/request-security-not-mapped");
+    });
+
+    it("ignores a non-request.security call (the multi-output ta.* path)", () => {
+        const { annotation, codes } = securityTuple(`${HEADER}[a, b] = ta.macd(close)\n`);
+        expect(annotation).toBeUndefined();
+        expect(codes).not.toContain("pine-converter/semantic/security-tuple-source-not-list");
     });
 });

@@ -466,9 +466,41 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   placeholder, not bound). The transform layer lowers it (see the codegen
   `emitTa`/tuple section). The legacy `unsupported-tuple-destructuring` (info)
   now fires ONLY for a `TupleExpression` reaching a VALUE position (RHS), which
-  the statement form never produces. `request.security`/MTF multi-return is
-  still out of scope (its RHS isn't a recognised multi-output `ta.*`, so it
-  warns `multi-return-not-mapped`).
+  the statement form never produces.
+- **A tuple-LHS whose RHS is `request.security` is recognised + classified in
+  the SEMANTIC walk, on a path SEPARATE from `MULTI_RETURN_TA_MAP` (which is
+  `ta.*`-only).** `analyzeSecurityTuple` (`semantic/securityTuple.ts`, called
+  from `walkTupleDeclaration`) detects the RHS by callee (`dottedCallee` ===
+  `"request.security"`, the shared leaf accessor) and stores a `securityTuple`
+  annotation on the `TupleDeclaration` node in `analysis.annotations` (the
+  identity-keyed map). The annotation is
+  `{ kind: "securityTuple"; feed: { symbol?; interval }; elements: ReadonlyArray<{ kind: "ohlcv"; field } | { kind: "expr"; node }> }`:
+  the feed is resolved by the SHARED `resolveSecurityFeed` (see the transform
+  `request.security` invariant — `symbol` omitted for `syminfo.tickerid`), and
+  each `[…]` source element is classified by the SHARED `securityField` (bare
+  OHLCV → `ohlcv`, anything else → `expr`) — the SAME two helpers the
+  single-source path uses, no second copy. Task 2's `emitTupleDeclaration` reads
+  the annotation back via `analysis.annotations.get(decl)` and lowers it to N
+  independent reads. **Diagnostics:** a non-array third arg →
+  `security-tuple-source-not-list` (error, semantic-namespaced); a name/source
+  arity mismatch → `security-tuple-arity-mismatch` (warning) + bind-what-it-can;
+  a non-literal / out-of-table symbol-or-interval feed reuses the existing
+  transform `request-security-not-mapped` (the task's
+  `request-security-*-not-literal` codes never existed — `request-security-not-
+  mapped` is the landed multi-symbol reject) and produces NO annotation.
+  **KNOWN LIMITATION (multi-symbol-security follow-up, not T5):** the landed
+  feed resolver accepts only a literal / `syminfo.tickerid` symbol and a literal
+  interval, so Trend Wizard's `request.security(src_symbol_custom, src_tframe,
+  …)` — both `input.symbol`/`input.timeframe`-defaulted VARIABLES — rejects its
+  feed today; the tuple machinery is exercised with literal symbol/interval.
+- **The `request.security` AST-shape + feed-resolution helpers live in the
+  ast-only leaf `transform/securityShape.ts`** (`securityField`,
+  `resolveSecurityFeed`, `SecurityFeed`), imported by BOTH `requestSecurity.ts`
+  (single-source) and `semantic/securityTuple.ts` (tuple). The leaf imports only
+  `../ast` + `timeframeConvert.ts`, so the semantic layer can import it directly
+  WITHOUT a `semantic → transform` cycle (the `transform/callArgs.ts` precedent);
+  do NOT import these through the `transform/index.ts` barrel (it pulls
+  `coordinates.ts → ../semantic`, which WOULD cycle).
 - **A user-defined function (`FunctionDeclaration`) registers a `kind:
   "function"` symbol carrying `params: readonly string[]` and a resolved
   `stateful: boolean`; Tasks 3/4 read that symbol to choose reuse vs.
@@ -1104,7 +1136,11 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `fillAlpha` is emitted). The handle slot kind is `fill-between` (the
   `DrawingState` family for `draw.fillBetween`); the create/update body is
   `if (slot.current() === null) { slot.set(draw.fillBetween(edgeA, edgeB,
-  opts)); } else { slot.current()?.update({ edgeA, edgeB }); }`.
+  opts)); } else { slot.current()?.update({ edgeA, edgeB }); }`. The edge
+  strings + the `draw.fillBetween(...)` call come from the SHARED
+  `emitFillBetweenBand(edgeA, edgeB, fill)` builder (below); `emitLinefill`
+  passes `{ kind: "endpoints", a, b }` descriptors + its own default fill
+  (`"#00000033"`).
   `linefill.set_color` folds into a `style` update; `linefill.delete` clears
   the slot. A `color.new(...)` fill still raises
   `linefill-color-transp-approximated` (the transp → 8-bit alpha hex is a
@@ -1115,6 +1151,41 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   linefill over a ring's elements → `linefill-over-ring` (Camp B). The
   `linefill-rotatedrect-approximated` info was RETIRED (the lowering is no
   longer an approximation).
+- **`emitFillBetweenBand(edgeA, edgeB, fill)` (exported from
+  `polylineLinefill.ts`) is the ONE `draw.fillBetween` band builder — both the
+  static `linefill.new` lowering AND the Pine `fill(plot/hline, …)` lowering
+  (`plotFamily.ts`) route through it; never assemble a second.** It takes two
+  pre-resolved `FillBetweenEdge` descriptors (`{ kind: "constant", price }` for
+  an `hline`, `{ kind: "series", value }` for a `plot`, `{ kind: "endpoints",
+  a, b }` for a `linefill`'s two line anchors — each a rendered SOURCE STRING)
+  plus a pre-folded `fill: string | null` (`null` ⇒ opts omitted, the core
+  default fill), and returns `{ edgeA, edgeB, call }`. `constant`/`series` edges
+  render `[bar.point(0, X), bar.point(0, X)]` (both endpoints at the CURRENT
+  bar, re-anchored each compute tick — x-extent is the current bar, NOT a
+  cross-bar ribbon, which is deferred); `endpoints` passes `[a, b]` through. The
+  3-kind union is exhaustive (no `default`), so there is no dead unknown-kind
+  arm. Colour folding + the colour diagnostic stay in each CALLER (they diverge:
+  `linefill` defaults to `"#00000033"` + raises `linefill-color-transp-
+  approximated`; `fill` omits opts when colourless + folds via the plot-family
+  `styleValue` rule, which raises `color-transp-approximated`).
+- **`fill(a, b, color?)` lowers to a bare `draw.fillBetween(...)` statement via
+  `emitPlotFamily`'s `case "fill"` (`emitFill`), NOT a handle slot.** Unlike
+  `linefill` (which needs `set_color`/`delete` mutations, hence the slot), a
+  `fill` has no mutations, so the call rides as a plain per-bar statement (like
+  `plot`/`hline`). `emitFill` resolves each handle arg via `resolveFillEdge` →
+  `fillHandleCall`: an INLINE `hline(p)`/`plot(e)` call, or an identifier bound
+  by a top-level `<name> = hline/plot(...)` `assignment` OR `var <name> =
+  hline/plot(...)` `variable-declaration` (the resolution scope is the script
+  `body`, passed as `emitPlotFamily`'s 4th param). The `emitPlotFamily` switch
+  is exhaustive over a `PlotFamilyName` literal union (no `default` arm —
+  `fill-not-mapped` is now pushed ONLY from `emitFill`). **Two append-only fill
+  codes:** `fill-handle-unresolved` (error) when a handle resolves to neither an
+  `hline` nor a `plot` (unbound id, `array.get` ring handle, missing arg, an
+  inline non-`hline`/`plot` call, or an `hline()`/`plot()` with no value); the
+  NARROWED `fill-not-mapped` (error, message updated) ONLY for a deferred
+  gradient (`top_color`/`bottom_color`/`top_value`/`bottom_value`) or `fillgaps`
+  form. `fill` is NEVER silently dropped — every unsupported shape emits exactly
+  one of the two codes.
 - **`colorConvert.ts` owns the ONE colour-lowering rule shared by the
   linefill, plot/hline (`plotFamily.ts`), and table (`tables.ts`) paths — never
   fork a second.** `convertColorWith(node, emit)` is the core; `convertColor(node,
@@ -1248,6 +1319,35 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   (warning, a name binds a `null`/absent field, e.g. dmi's ADX),
   `multi-return-arg-dropped` (info, a Pine arg dropped). Add a function = add one
   table row + verify Pine return order.
+- **A tuple-LHS `request.security` lowers to N INDEPENDENT reads, checked BEFORE
+  the multi-return-`ta.*` path.** `emitTupleDeclaration` (`other.ts`) first reads
+  the `securityTuple` annotation off the decl (`analysis.annotations.get(decl)
+  ?.securityTuple`, classified in the semantic walk — see the semantic
+  `request.security` invariant). When present, `emitSecurityTuple` emits one
+  `const <name> = …` per element: an `ohlcv` element → the data form, an `expr`
+  element → the callback form, via the SHARED `securityDataRead` /
+  `securityCallbackRead` builders (`securityShape.ts`, used by the single-source
+  `requestSecurity.ts` too). All N reads share ONE `{ symbol?, interval }` opts
+  literal from the SHARED `securityOpts` (one feed; the runtime dedups via
+  `feedKey`, and the compiler's `requestedFeeds` extraction picks up the N
+  standard single-source reads with no special-casing — proven by the
+  fixtures-compile round-trip, NOT a converter manifest pass). **Unlike the
+  multi-return-`ta.*` path there is NO `tupleFieldAliases` indirection** — each
+  name is its own `const` and bare downstream references resolve unchanged
+  (`registerTupleFields` skips a `request.security` RHS since `multiReturnRhs`
+  returns null for it). A `_` target and an absent element (more names than
+  elements — `security-tuple-arity-mismatch` already warned in the semantic walk)
+  are skipped; a cross-symbol feed pushes `request-security-different-symbol` ONCE
+  (mirroring the single-source advisory). **Ordering is load-bearing:** a
+  `request.security` RHS with NO annotation (a feed/source reject the semantic
+  walk already diagnosed as `request-security-not-mapped` /
+  `security-tuple-source-not-list`) returns `[]` BEFORE the `multiReturnRhs`
+  fall-through, so it never also fires the misleading `multi-return-not-mapped`.
+  The bound reads are `Series` (no `.current`, matching the single-source form);
+  scalar arithmetic on a bound read is the same Series-identifier gap as the
+  single-source path (read `.current`). `:=` tuple-element reassignment is out of
+  scope (same limit as the multi-return form). Input-driven feed VARIABLES still
+  reject (the multi-symbol-security follow-up; see the semantic invariant).
 - **A PURE user-defined function (`stateful: false`) is emitted ONCE as a
   reusable chartlang arrow `const` hoisted to the FRONT of the compute body;
   every call site reuses it (no inlining).** `emitPureUdfs` (`other.ts`) runs in
@@ -1387,13 +1487,18 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   **NUMERIC `var`/`varip` history now COMPILES** too — a numeric scalar that is
   history-indexed anywhere lowers to `state.series` instead of `state.float`/`int`
   (see the `state.series` lowering note below), so `var x := …; x[1]` round-trips
-  (fixture `30-var-series-history`, NOT in the skip list). Two gaps remain:
+  (fixture `30-var-series-history`, NOT in the skip list). **`bool`/`string`
+  `var` history now COMPILES** as well (T12) — a history-indexed `var bool` →
+  `state.boolSeries`, `var string` → `state.stringSeries` (the non-numeric
+  siblings of `state.series`; first-bar/out-of-range `[n]` ⇒ `false`/`""`),
+  using the SAME value/history/`:=` split as the numeric series. Remaining gaps:
   TUPLE-element history (`macdLine[1]`, where `macdLine` is projected with
-  `.current`, so `…macd.current[1]` indexes a scalar); and `bool`/`string` `var`
-  history (a `state.series<bool>`/`<string>` is a deferred follow-up — the
-  converter keeps the scalar slot and emits `series-history-non-numeric`, so
-  `<slot>.value[n]` stays a known non-compiling form for those, never in a
-  clean fixture).
+  `.current`, so `…macd.current[1]` indexes a scalar); and **`color` `var`
+  history** (a `state.colorSeries` is a deferred follow-up — the converter keeps
+  the scalar `state.color` slot and emits `series-history-non-numeric`, so
+  `<slot>.value[n]` stays a known non-compiling form for color, never in a clean
+  fixture). A persistent **`var color` SCALAR** (no `[n]`) DOES compile —
+  `state.color` (T12).
 - **Drawing-ownership dedup is the load-bearing skip.** `transformOther` walks
   ALL statements but emits ONLY non-drawing ones: it skips (a) any call that is
   a `DRAWING_KIND_MAP.has` constructor, (b) a `*.set_*`/`*.delete`/`array.*`/
@@ -1423,37 +1528,58 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `emitStateSlots`).** A scalar's literal initializer picks the factory
   (int→`state.int`, float→`state.float`, bool→`state.bool`, string→
   `state.string`); a `varip` uses the `state.tick.*` form; an un-inferable type
-  (e.g. a `#RRGGBB` color literal, an identifier init) defaults to `state.float`
-  + a `scalar-state-type-defaulted` info — the converter NEVER silently guesses.
-  Slot local REUSES the Pine scalar identifier; reads → `<slot>.value`, `:=` → `<slot>.value
+  (an identifier init) defaults to `state.float` + a `scalar-state-type-defaulted`
+  info — the converter NEVER silently guesses. Slot local REUSES the Pine scalar
+  identifier; reads → `<slot>.value`, `:=` → `<slot>.value
   = …`. The `MutableSlot<T>` API is `.value` get/set (NOT the drawing-handle
   slot's `.current()`/`.set()`). A plain `=` declaration → `let x = …`; a `=`
   the semantic pass flags `declaration` → `let`, a reassignment → bare `x = …`.
-- **A history-indexed NUMERIC scalar lowers to `state.series`, NOT the scalar
-  `state.float`/`int` (`scanHistorySeries`/`emitSeriesSlot`, `other.ts`).** Only
-  a numeric `var`/`varip` read with `[n]` ANYWHERE in the script (whole-body +
+- **A `var color` scalar lowers to `state.color` (`colorScalar`/`emitStateSlots`,
+  T12).** A `var`/`varip` whose declared type is `color`, OR whose init is a
+  color literal (`#RRGGBB(AA)`) / `color.*` palette member / `color.*(...)` call,
+  is a persistent COLOR — `state.color(<init>)` (a `MutableSlot<Color>`, read/`:=`
+  via `.value`). It is registered even with an `na` init (the one na-init scalar
+  besides a series slot that gets a slot, not a `let`). A Pine `na` (transparent)
+  color lowers to the concrete CSS string `PINE_NA_COLOR` = `"#00000000"` (fully
+  transparent — the runtime synthesizes NO default) via the semantic `naKind:
+  "color"` flavour (`analyze.ts` → `exprEmit.emitNa`); the na-flavour is keyed on
+  a `color` TYPE ANNOTATION, so an annotation-less `var c = color.red`
+  reassignment-na arm stays numeric (rare; documented). `varip color` has no
+  `state.tick.color`, so it approximates to the non-tick slot +
+  `varip-series-approximated`. NO `scalar-state-type-defaulted` for a color
+  anymore (it is now inferred, not defaulted). Color HISTORY (`color[1]`) is
+  still deferred (`state.colorSeries`) — see the non-numeric history note below.
+- **A history-indexed scalar lowers to a SERIES slot keyed on its element type
+  (`scanHistorySeries`/`scalarElementType`/`emitStateSlots`, `other.ts`).** A
+  `var`/`varip` read with `[n]` ANYWHERE in the script (whole-body +
   expression-tree walk via the shared `forEachHistoryAccess` in `exprEmit.ts`)
-  becomes `const x = state.series(<init>)` — this is what makes the generated
-  `x[n]` compile (the `state.series` slot is an indexable `Series<number>`, so
-  `x[1]` is a real history read; a scalar `<slot>.value[n]` would be a typecheck
-  error). The init is the literal numeric value, `Number.NaN` for an `na` init
-  (so an `na`-init numeric `var` — normally dropped from the scalar map — IS
-  registered when history-indexed), or `Number.NaN` + `scalar-state-type-
-  defaulted` for an un-inferable init. A `varip` numeric series approximates to a
-  NON-tick `state.series` + `varip-series-approximated` (`state.tick.series` is
-  deferred). A numeric `var` NEVER `[n]`-indexed keeps its leaner scalar slot.
-  VALUE reads still go through `rewriteIdentifier` → `<slot>.value`; HISTORY
-  reads go through `EmitContext.seriesSlots` → the BARE slot local
-  (`<slot>[n]`); writes (`:=`) stay `<slot>.value = …`. A NON-numeric (`bool`/
-  `string`/`color`) history-indexed `var` keeps its scalar lowering and emits
-  `series-history-non-numeric` (info) — its `[n]` is the deferred
-  `state.series<bool>`/`<string>` gap, never in a clean fixture. A non-literal
-  series-slot offset (`x[i]`/`x[-i]`) wires the (pre-existing, error-severity)
-  `dynamic-series-index` — EXCEPT a `[i]` whose offset is the bare identifier of
-  an enclosing `for` iterator (`isLoopBoundOffset`), which is a legal runtime
-  history read on an indexable `Series`/`state.series` receiver and is NOT
-  flagged. `walkHistoryAccesses` threads the in-scope loop-iterator names so the
-  classifier can tell a loop-bound `[i]` from a free `[i]`/`[j]`.
+  becomes a series slot: NUMERIC → `state.series(<init>)`, BOOL →
+  `state.boolSeries(<init>)`, STRING → `state.stringSeries(<init>)` (T12). This
+  is what makes the generated `x[n]` compile (each is an indexable `Series<T>`,
+  so `x[1]` is a real history read; a scalar `<slot>.value[n]` would be a
+  typecheck error). The init: numeric → the literal value / `Number.NaN` for an
+  `na` init / `Number.NaN` + `scalar-state-type-defaulted` for an un-inferable
+  init; bool → the literal / `false` for `na` (v6 first-bar default); string →
+  the literal / `""` for `na`. An `na`-init series scalar (normally dropped from
+  the scalar map) IS registered when history-indexed. A `varip` series of ANY of
+  the three approximates to its NON-tick form + `varip-series-approximated`
+  (`state.tick.*Series` deferred). A scalar NEVER `[n]`-indexed keeps its leaner
+  scalar slot (`state.bool`/`state.string`/…). VALUE reads go through
+  `rewriteIdentifier` → `<slot>.value`; HISTORY reads through
+  `EmitContext.seriesSlots` → the BARE slot local (`<slot>[n]`); writes (`:=`)
+  stay `<slot>.value = …` — the SAME machinery for all three types (bool/string
+  series are NOT number-coercible, but this path never emits `+s`). A still-
+  UNSUPPORTED non-numeric history (`color` — `state.colorSeries` is deferred)
+  keeps its scalar `state.color` lowering and emits `series-history-non-numeric`
+  (info) — its `[n]` is a known gap, never in a clean fixture. (This diagnostic
+  is RETIRED for `bool`/`string`, which now lower to a real series.) A
+  non-literal series-slot offset (`x[i]`/`x[-i]`) on a numeric/bool/string series
+  wires the (pre-existing, error-severity) `dynamic-series-index` — EXCEPT a
+  `[i]` whose offset is the bare identifier of an enclosing `for` iterator
+  (`isLoopBoundOffset`), which is a legal runtime history read on an indexable
+  `Series`/`state.series` receiver and is NOT flagged. `walkHistoryAccesses`
+  threads the in-scope loop-iterator names so the classifier can tell a
+  loop-bound `[i]` from a free `[i]`/`[j]`.
 - **An `=`-declared, history-indexed `ta.*` series is PROMOTED to a
   `state.series` slot too (`isTaSeriesDeclaration`/`emitTaSeriesSlots`,
   `other.ts`).** A non-`var` `ma = ta.ema(...)` read as `ma[i]` cannot stay the
@@ -1587,8 +1713,30 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   (`strategySignals.ts`) are per-construct emitters returning a string or a warn
   result; color args route through `enumLookup` (`color.red`→`"#FF5252"`).
   `request.security({ interval }).<field>` returns a `Series` — a downstream
-  scalar context inserts `.current` + `mtf-series-to-scalar-conversion`. `fill`
-  → `fill-not-mapped` (error); `math.random`/`math.round_to_mintick`/`ta.kcw` →
+  scalar context inserts `.current` + `mtf-series-to-scalar-conversion`. A bare
+  `alert(message, freq?)` is lowered by `emitAlertCall` (`alertCall.ts`), wired
+  into `emitExpressionStatementCore` AFTER `emitStrategySignal` and BEFORE the
+  generic emitter (which would otherwise leak the Pine 2nd arg verbatim). The
+  message emits through `emitWithContext` (string concat preserved); the
+  enclosing `if` is PRESERVED, never hoisted (chartlang `alert` is imperative,
+  like Pine). chartlang's `AlertOpts` has no frequency contract, so the
+  `alert.freq_*` 2nd arg is DROPPED with an `alert-frequency-not-mapped` (info);
+  the three freq enums are recognised via `ENUM_VALUE_MAP.has` (REJECT rows, the
+  `linefill.new` precedent — NOT `enumLookup`, which collapses a REJECT to
+  null), never a private set. An unrecognised 2nd arg (a freq held in a
+  variable) is still dropped (message-only emit) but without the info; an
+  `alert()` with no positional message returns `null` (generic fallback).
+  Adding `frequency` to core `AlertOpts` is a deferred follow-up. Fixture
+  `57-alert-message-freq` pins the lowering (two dropped freqs + a bare
+  `alert(message)`); it fires alerts DIRECTLY inside `if` blocks rather than via
+  MASM's `var string alert_msg = na` / `if not na(alert_msg)` engine, because a
+  non-numeric `var` mis-lowers to `let x = Number.NaN` today (the unfinished
+  **T12** `var string/bool` persistent-state gap) — out of scope for the alert
+  mapping. `fill`
+  over two `hline`/`plot` handles lowers to `draw.fillBetween` (see the
+  `emitFillBetweenBand`/`emitFill` invariants above); only an unresolved handle
+  (`fill-handle-unresolved`) or a gradient/`fillgaps` form (narrowed
+  `fill-not-mapped`) rejects. `math.random`/`math.round_to_mintick`/`ta.kcw` →
   `math-not-mapped`/`ta-not-mapped` warn + `/* TODO unmapped */`.
 - **`emitStr` (`strFormat.ts`) lowers the FULL Pine v6 `str.*` surface to
   NATIVE JS** — the same native-where-native-exists shape as bare `Math.*` (NO
@@ -1655,6 +1803,24 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   callee) has no representable chartlang offset target (chartlang has no plot-
   level offset — deferred follow-up), so the offset is DROPPED with
   `plot-offset-needs-ta-call` (warning).
+- **Pine `plot(<value>, display=<v>)` lowers onto the `{ visible }` plot opt
+  (`plotFamily.ts` `displayOption`/`displayMemberKind` → `emitPlot`).** The
+  `display` named arg threads as a `["visible", …]` pair appended AFTER the
+  shared title/color/lineWidth pairs (the common pairs are extracted into
+  `commonOptionPairs`; `commonOptions`/`emitHline` still render them alone — only
+  `plot` gets `visible`). Mapping (routed through the `src/mapping/enums.ts`
+  `DISPLAY_MAP`/`displayLookup` table, NOT an inline compare): `<cond> ?
+  display.all : display.none` → `visible: <emit(cond)>`; the inverted `<cond> ?
+  display.none : display.all` → `visible: !(<emit(cond)>)`; a bare `display.none`
+  → `visible: false`; a bare `display.all` → OMIT the key (byte-clean — the
+  runtime treats omitted and `visible: true` identically, and the task mandates
+  omit, never `visible: true`). Any OTHER `display.*` target (the `DISPLAY_MAP`
+  REJECT rows `status_line`/`price_scale`/`pane`/`data_window`, an unknown
+  member, a non-all/none ternary pair, or a non-`display.*` value) → the
+  append-only `plot-display-approximated` (warning) + OMIT the key (plot left
+  visible). `displayLookup` returns ONLY the `all`/`none` entries, so
+  `displayMemberKind`'s `=== "all" ? "all" : "none"` fully partitions a non-null
+  lookup (no dead arm). `display=` is NEVER silently dropped.
 - **`bgcolor`/`barcolor` lower to the chartlang Pine-ergonomic SUGAR
   (`plotFamily.ts` `emitBackground`), NOT `plot(NaN, { style })`.** Since
   Deliverable 2 of the `bgcolor`/`barcolor` ergonomics feature, `emitBackground`
@@ -1690,8 +1856,8 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   here earlier and is now WIRED). Re-exports APPENDED to `src/transform/
   index.ts` (incl. `forEachHistoryAccess` from `exprEmit.ts`).
 - **Coverage.** `other.ts`/`controlFlow.ts`/`emitContext.ts`/`statefulNames.ts`/
-  `strFormat.ts`/`plotFamily.ts`/`requestSecurity.ts`/`strategySignals.ts` hold
-  100% line/branch/function. Parser-unreachable arms (a top-level
+  `strFormat.ts`/`plotFamily.ts`/`requestSecurity.ts`/`strategySignals.ts`/
+  `alertCall.ts` hold 100% line/branch/function. Parser-unreachable arms (a top-level
   `block-statement`/`return-statement`, a camp-b `collectionSymbol` site, a
   handle-typed symbol skip, a non-identifier push collection, the
   `array.shift`/`array.remove` eviction variants, an empty subjectless switch,

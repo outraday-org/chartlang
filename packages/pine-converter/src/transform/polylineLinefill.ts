@@ -493,6 +493,77 @@ function hasDelete(analysis: SemanticResult, fillName: string): boolean {
     );
 }
 
+/**
+ * A pre-resolved `draw.fillBetween` band edge — one of three shapes the shared
+ * {@link emitFillBetweenBand} builder renders to a `WorldPoint` array source.
+ * `price`/`value`/`a`/`b` are already-rendered chartlang source strings (the
+ * caller emits them with the right context), so the builder is pure assembly.
+ *
+ * - `constant` (Pine `hline(price)`): a horizontal band level.
+ * - `series` (Pine `plot(expr)`): a per-bar series value.
+ * - `endpoints` (Pine `linefill.new`): the two `line.new` endpoint anchors.
+ *
+ * @since 1.7
+ * @stable
+ * @example
+ *     import type { FillBetweenEdge } from "./polylineLinefill.js";
+ *     const edge: FillBetweenEdge = { kind: "constant", price: "0.2" };
+ *     void edge;
+ */
+export type FillBetweenEdge =
+    | { readonly kind: "constant"; readonly price: string }
+    | { readonly kind: "series"; readonly value: string }
+    | { readonly kind: "endpoints"; readonly a: string; readonly b: string };
+
+// Render one edge descriptor to a `ReadonlyArray<WorldPoint>` source string.
+// `constant`/`series` anchor BOTH endpoints at the current bar (`bar.point(0,
+// …)`); the band re-anchors every compute tick, so its x-extent is the current
+// bar (a true multi-bar ribbon would need cross-bar accumulation — deferred).
+// `endpoints` passes the two line anchors through verbatim. `draw.fillBetween`
+// reverses `edgeB` internally, so an un-reversed edge closes the correct polygon.
+function renderEdge(edge: FillBetweenEdge): string {
+    switch (edge.kind) {
+        case "constant":
+            return `[bar.point(0, ${edge.price}), bar.point(0, ${edge.price})]`;
+        case "series":
+            return `[bar.point(0, ${edge.value}), bar.point(0, ${edge.value})]`;
+        case "endpoints":
+            return `[${edge.a}, ${edge.b}]`;
+    }
+}
+
+/**
+ * The SHARED `draw.fillBetween` band builder both the static `linefill.new`
+ * lowering and the Pine `fill(plot/hline, …)` lowering route through. Takes two
+ * pre-resolved {@link FillBetweenEdge} descriptors plus a pre-folded `fill`
+ * colour source (`null` ⇒ the core default fill, opts omitted), and returns the
+ * rendered edge strings plus the assembled `draw.fillBetween(...)` call (no
+ * trailing `;`). The caller wraps `call` (a bare statement for `fill`, a
+ * create-once/update for `linefill`) and re-uses `edgeA`/`edgeB` for any patch.
+ *
+ * @since 1.7
+ * @stable
+ * @example
+ *     import { emitFillBetweenBand } from "./polylineLinefill.js";
+ *     emitFillBetweenBand(
+ *         { kind: "constant", price: "0.2" },
+ *         { kind: "constant", price: "-0.2" },
+ *         '"#CD79DB1F"',
+ *     ).call;
+ *     // draw.fillBetween([bar.point(0, 0.2), bar.point(0, 0.2)],
+ *     //   [bar.point(0, -0.2), bar.point(0, -0.2)], { fill: "#CD79DB1F" })
+ */
+export function emitFillBetweenBand(
+    edgeA: FillBetweenEdge,
+    edgeB: FillBetweenEdge,
+    fill: string | null,
+): { readonly edgeA: string; readonly edgeB: string; readonly call: string } {
+    const a = renderEdge(edgeA);
+    const b = renderEdge(edgeB);
+    const opts = fill === null ? "" : `, { fill: ${fill} }`;
+    return { edgeA: a, edgeB: b, call: `draw.fillBetween(${a}, ${b}${opts})` };
+}
+
 // Lower one static two-line `linefill.new(lineA, lineB, color)` site into a
 // `draw.fillBetween` handle whose two edges are the referenced lines'
 // endpoints — a true filled band, not an approximation.
@@ -521,12 +592,9 @@ function emitLinefill(
 
     const [aA, aB] = lineAnchors(lineA.call, analysis.annotations);
     const [bA, bB] = lineAnchors(lineB.call, analysis.annotations);
-    // Two band edges: edgeA = lineA's endpoints, edgeB = lineB's endpoints.
-    // `draw.fillBetween` reverses edgeB internally, so passing `[bA, bB]`
-    // closes the same `A1 → A2 → B2 → B1` polygon the old quad described.
-    const edgeA = `[${aA}, ${aB}]`;
-    const edgeB = `[${bA}, ${bB}]`;
     const colorNode = fillColorArg(site.call);
+    // A linefill ALWAYS carries a fill (its own default when no `color` arg) —
+    // unlike `fill`, which omits opts and takes `draw.fillBetween`'s default.
     const color =
         colorNode === null ? '"#00000033"' : convertColor(colorNode, analysis.annotations);
 
@@ -537,12 +605,17 @@ function emitLinefill(
         diagnostics.pushCode("linefill-series-fill", site.span);
     }
 
-    const opts = `{ fill: ${color} }`;
+    // Two band edges = each line's endpoints, routed through the shared builder.
+    const band = emitFillBetweenBand(
+        { kind: "endpoints", a: aA, b: aB },
+        { kind: "endpoints", a: bA, b: bB },
+        color,
+    );
     appendComputeStatement(
         scaffold,
         `if (${local}.current() === null) { ` +
-            `${local}.set(draw.fillBetween(${edgeA}, ${edgeB}, ${opts})); ` +
-            `} else { ${local}.current()?.update({ edgeA: ${edgeA}, edgeB: ${edgeB} }); }`,
+            `${local}.set(${band.call}); ` +
+            `} else { ${local}.current()?.update({ edgeA: ${band.edgeA}, edgeB: ${band.edgeB} }); }`,
     );
 
     const recolor = findSetColor(analysis, fillName);

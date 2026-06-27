@@ -67,17 +67,19 @@ current bar.
 | `color` | string or `null` | CSS color override or `null` for adapter default. May be overwritten by a host plot override. |
 | `meta` | record of `JsonValue` | Reserved metadata record. Runtime plot emitters currently use `{}`. |
 | `pane` | string | `"overlay"`, `"new"`, or a named pane id. Current runtime folds non-overlay requests to `"overlay"` with `unsupported-pane`. |
-| `visible` | optional boolean | Omitted ⇒ visible. Only ever present as `false`, set by the runtime when a host [plot override](../adapters/contract.md#plot-overrides) hides the slot. An adapter MUST skip rendering and scale inclusion for a `visible: false` plot while keeping the slot listed. |
+| `visible` | optional boolean | Omitted ⇒ visible. Only ever present as `false`, written by the runtime when the slot is hidden — by a script-author `plot(value, { visible })` opt (Pine's `display = display.all \| display.none`) or by a host [plot override](../adapters/contract.md#plot-overrides). An adapter MUST skip rendering and scale inclusion for a `visible: false` plot while keeping the slot listed. It is orthogonal to `value` (a hidden plot still rides its real numeric `value`; the runtime never substitutes `NaN`) and is NOT part of the `{ bar, value }` plot-hash, so conformance asserts it via `plot-field`, not `plot-hash`. |
 | `xShift` | optional signed integer | Omitted/`0` ⇒ no shift. Presentation-only display shift in bars: the series renders displaced by `xShift` bars (`+n` right/future, `−n` left/past), set by the runtime from a plotted offset `ta.*` series. It does NOT change `value` or the bar an alert fires on. An adapter MAY honour it (render at the displaced bar) or ignore it (render at the bar's own time). |
 | `z` | optional finite number | Omitted/`0` ⇒ default placement (every no-`z` emission is byte-identical to a pre-feature run). Presentation-only render-order key set from `PlotOpts.z`: higher `z` renders on top, lower behind. Finite numbers only (fractional allowed, e.g. `1.5` to slot between layers); NaN/±Infinity are rejected. An adapter computes one global render order as a stable sort by `(z, groupBand, declarationOrder)` (see [render ordering](./semantics.md#render-order-key)). It affects **only** stacking — never `value`, alerts, or `state.*`. |
 | `colorValue` | optional non-empty color string or `null` | Per-bar dynamic color, set by the runtime from `bgcolor`/`barcolor` (and value-plot) per-bar color expressions. **Omitted** ⇒ the adapter uses the static color (`style.color` for `bg-color`/`bar-color`, the top-level `color` for line-family) and the emission is byte-identical to a pre-feature run (the `plot-hash` over `{ bar, value }` is untouched). **Present** ⇒ adapters MUST prefer it over the static color for this `(slotId, bar)` (the normative precedence: `colorValue` wins). **`null`** ⇒ an explicit "no color this bar" gap (paint nothing), distinct from omitted. Orthogonal to `value`: a `bg-color` emission still carries `value: null`. |
 
-Hiding a plot via an override is presentation state, not a diagnostic: a
-`visible: false` emission is a deliberate host instruction, so no
-`RuntimeDiagnostic` accompanies it (the same silent-no-op spirit as the
-[capability fallbacks](#capability-gating)). Because `visible` is omitted unless
-a slot is explicitly hidden, every no-override emission is byte-identical to a
-run with no override channel at all.
+Hiding a plot is presentation state, not a diagnostic: a `visible: false`
+emission is a deliberate instruction — a script `plot(value, { visible: false })`
+opt or a host override — so no `RuntimeDiagnostic` accompanies it (the same
+silent-no-op spirit as the [capability fallbacks](#capability-gating)), and the
+channel is never capability-gated. Because `visible` is omitted unless a slot is
+explicitly hidden, an emission with nothing hidden is byte-identical to a run
+with no visibility channel at all (a `visible: true` opt resolves to the same
+omitted wire as no opt).
 
 ### Plot Kinds
 

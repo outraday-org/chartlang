@@ -1,0 +1,26 @@
+[
+    {
+        "code": "pine-converter/semantic/history-on-non-series",
+        "severity": "warning",
+        "message": "History access `[n]` applied to a non-series value.",
+        "span": {
+            "startLine": 11,
+            "startColumn": 29,
+            "endLine": 11,
+            "endColumn": 47
+        },
+        "suggestion": "History can only be taken on a series; check the operand's type."
+    },
+    {
+        "code": "pine-converter/semantic/history-on-non-series",
+        "severity": "warning",
+        "message": "History access `[n]` applied to a non-series value.",
+        "span": {
+            "startLine": 12,
+            "startColumn": 31,
+            "endLine": 12,
+            "endColumn": 50
+        },
+        "suggestion": "History can only be taken on a series; check the operand's type."
+    }
+]

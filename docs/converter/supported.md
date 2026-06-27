@@ -144,8 +144,10 @@ A plain (`=`-declared) **`ta.*` series that is history-indexed** anywhere —
 `ma.value = ta.ema(bar.close, len).current`, so `ma[i]` is a real indexed read
 while `ma`'s scalar uses (`ma >= 0`, `plot(ma)`) still read `ma.value`. A
 `ta.*` series **never** indexed keeps its `.current` scalar lowering (no
-change). A `bool`/`string` history-indexed `var` is out of
-the v1 series scope and is flagged
+change). A `bool` / `string` history-indexed `var` lowers to the non-numeric
+twins [`state.boolSeries`](#non-numeric-persistent-state) /
+`state.stringSeries` (see below); only a **`color`** history (`c[1]`) is still
+out of the v1 series scope and flagged
 [`series-history-non-numeric`](./diagnostics.md#series-history-non-numeric); a
 `varip` series approximates to a (non-tick) `state.series` with
 [`varip-series-approximated`](./diagnostics.md#varip-series-approximated). A
@@ -357,14 +359,32 @@ applied to a derived series), see
 A `var` / `varip` scalar becomes a chartlang `state.*` slot. The literal
 initializer picks the factory (`int`→`state.int`, `float`→`state.float`,
 `bool`→`state.bool`, `string`→`state.string`); a `varip` uses the
-`state.tick.*` form. An un-inferable type (e.g. a `#RRGGBB` color literal or
-an identifier initializer) defaults to `state.float` with a
-`scalar-state-type-defaulted` info — the converter never silently guesses.
+`state.tick.*` form. An un-inferable type (e.g. an identifier initializer)
+defaults to `state.float` with a `scalar-state-type-defaulted` info — the
+converter never silently guesses.
 
 The one exception is a **numeric `var`/`varip` read with a literal `[n]`**: it
 lowers to a writable, indexable `state.series` instead of a scalar slot so the
 `x[n]` history converts directly — see
 [History on a `var`](#history-on-a-var-state-series) above.
+
+### Non-numeric persistent state
+
+A **`var color`** scalar lowers to a persistent
+[`state.color`](../language/series-and-indexing.md#non-numeric-persistent-state)
+slot (`const c = state.color("#00000000")`, written `c.value = …`, read
+`c.value`); a Pine `na` color seeds the transparent `"#00000000"`. Because
+`color` is now a first-class slot, a `var color c = na` no longer emits
+`scalar-state-type-defaulted`.
+
+A history-indexed **`var bool`** / **`var string`** lowers to the non-numeric
+series twins `state.boolSeries(false)` / `state.stringSeries("")` — the boolean
+/ string analogues of `state.series`, with a writable `.value` head and an
+indexable `[n]` history. First-bar / out-of-range history defaults
+deterministically (`false` for bool — Pine v6 bool history — and `""` for
+string), so the converter emits no warmup guard. This **retires**
+`series-history-non-numeric` for `bool`/`string`; only a `color` history
+(`c[1]`) is still deferred (see [rejects](./rejects.md#non-numeric-state)).
 
 ## Plots
 
@@ -391,6 +411,62 @@ already carries its own `offset` argument, the plot-level offset wins and a
 [`plot-offset-overrides-ta-offset`](./diagnostics.md#plot-offset-overrides-ta-offset)
 warning is emitted. A plot whose value is **not** a direct `ta.*` call has no
 representable offset target — see [rejects](./rejects.md#tables--passthrough).
+
+### Per-plot visibility (`display=`)
+
+Pine's `plot(value, display=...)` maps onto chartlang's
+[`plot(value, { visible })`](../primitives/plot/plot.md) channel. The common
+input-toggle form lowers the ternary to its condition:
+
+```pine
+plot(maSlope, display = show ? display.all : display.none)
+// → plot(ta.sma(...), { visible: (inputs.show as boolean) })
+plot(rsi, display = hide ? display.none : display.all)
+// → plot(ta.rsi(...), { visible: !((inputs.hide as boolean)) })   // inverted
+plot(close, display = display.none)   // → plot(bar.close, { visible: false })
+plot(open,  display = display.all)    // → plot(bar.open)   // shown ⇒ omit (byte-clean)
+```
+
+| Pine `display=` | chartlang |
+|---|---|
+| `<cond> ? display.all : display.none` | `{ visible: <cond> }` |
+| `<cond> ? display.none : display.all` | `{ visible: !(<cond>) }` |
+| `display.none` | `{ visible: false }` |
+| `display.all` | `visible` omitted (a hidden-only wire field; shown is the default) |
+
+A constant `display.all` (and an omitted `display=`) emits **no** `visible`
+key, so a fully-shown plot converts byte-clean. Any other `display.*` target
+(`display.status_line`, `display.price_scale`, `display.pane`,
+`display.data_window`, or a bitmask combination) has no chartlang analogue
+beyond show/hide: the `display=` argument is dropped, the plot is left visible,
+and a [`plot-display-approximated`](./diagnostics.md#plot-display-approximated)
+warning is emitted (`display=` is never silently dropped).
+
+### Filled bands (`fill`)
+
+`fill(a, b, color?)` over two `hline` / `plot` handles lowers to a
+`draw.fillBetween` band:
+
+| Pine | chartlang |
+|---|---|
+| `fill(hlineA, hlineB, color?)` | `draw.fillBetween([...], [...], { fill })` — a horizontal band between the two `hline` levels |
+| `fill(plotA, plotB, color?)` | `draw.fillBetween([...], [...], { fill })` — a per-bar band tracking both plotted series |
+
+```pine
+guide_consol_upper = hline(0.2)
+guide_consol_lower = hline(-0.2)
+fill(guide_consol_upper, guide_consol_lower, color=color.rgb(205, 121, 219, 88))
+// → draw.fillBetween([bar.point(0, 0.2), bar.point(0, 0.2)],
+//                    [bar.point(0, -0.2), bar.point(0, -0.2)], { fill: "#CD79DB1F" })
+```
+
+Each handle resolves to its defining top-level `hline(...)` / `plot(...)`
+call (or an inline call), and the `color` folds via the same
+[transparency rule](#color--transparency) as a plot/hline colour. The
+`hline`/`plot` declarations still emit their own line/series; the `fill`
+adds the band on top — the same `draw.fillBetween` primitive `linefill.new`
+lowers to. A handle that resolves to neither an `hline` nor a `plot`, or a
+gradient / `fillgaps` styling, is a [reject](./rejects.md#tables--passthrough).
 
 ## Color & transparency
 
@@ -420,6 +496,35 @@ Every transparency fold raises a
 info — the alpha preserves the Pine transparency, so no action is needed. The
 `color` import is added (and never destructured — `color` is a module-scope
 namespace) only when a `color.*` member actually survives in the output.
+
+## Alerts
+
+Pine's `alert(message, frequency?)` builtin — a string payload fired
+imperatively from inside an `if` — maps onto chartlang's message-first
+`alert(message, opts?)`:
+
+| Pine | chartlang |
+|---|---|
+| `alert(message)` | `alert(message)` (message passes through, string concat preserved) |
+| `alert(message, alert.freq_*)` | `alert(message)` — the `alert.freq_*` frequency arg is **dropped** with an [`alert-frequency-not-mapped`](./diagnostics.md#alert-frequency-not-mapped) info |
+
+chartlang's `alert` is already message-first and imperative, so the enclosing
+`if` is **preserved** (never hoisted) — `if (cond) { alert(message); }`, the
+same shape as Pine:
+
+```pine
+if go_long
+    alert('{"symbol": "' + syminfo.ticker + '", "action": "buy"}', alert.freq_all)
+// → if (go_long) { alert(('{"symbol": "' + syminfo.ticker) + '", "action": "buy"}'); }
+```
+
+All three frequency enums (`alert.freq_all`, `alert.freq_once_per_bar`,
+`alert.freq_once_per_bar_close`) are recognised and dropped — chartlang's
+`AlertOpts` (`{ severity?, meta? }`) carries no firing-frequency contract, so
+the cadence cannot be honored. The trigger still fires once per closed bar
+inside its `if`; for explicit deduplication, gate the `alert(...)` behind your
+own `state.*` flag. A bare `alert(message)` with no frequency arg passes
+through with no diagnostic. (`alertcondition(...)` is a deferred follow-up.)
 
 ## `ta.*` / `math.*` / `str.*`
 
@@ -461,11 +566,10 @@ as-is** and flagged:
 
 These are **warnings**, not errors: the converter emits the call verbatim
 (often with a `/* TODO unmapped */` marker) so you can finish the port by
-hand. `fill(plot1, plot2, ...)` is the exception — it **errors**
-(`fill-not-mapped`), since chartlang has no *plot-level* series fill in
-v1. For a drawing-level band, `draw.fillBetween` fills the ribbon between
-two anchor lists (the same primitive `linefill.new` lowers to); a
-`plot`-level series fill is a planned follow-up.
+hand. `fill(hline, hline)` / `fill(plot, plot)` bands now lower to
+`draw.fillBetween` (see [Filled bands](#filled-bands-fill)); only an
+unresolved handle (`fill-handle-unresolved`) or a gradient / `fillgaps`
+styling (the narrowed `fill-not-mapped`) still rejects.
 
 ## Multi-timeframe and multi-symbol
 
@@ -492,6 +596,20 @@ the symbol and the **third** decides the chartlang form:
 A **computed** (non-literal) symbol, a non-literal timeframe, or an otherwise
 unmapped form rejects (`request-security-not-mapped`); a `lookahead` argument
 rejects (`request-security-lookahead-not-supported`).
+
+The **tuple** form
+`[a, b] = request.security(<symbol>, "<timeframe>", [s1, s2])` lowers to **one
+independent read per element**, each binding its own `const` and all sharing the
+**same** `{ symbol?, interval }` opts (one feed; the runtime dedups it). An OHLCV
+element uses the data form, a `ta.*` / computed element the callback form —
+exactly as the single-source dispatch above. For example
+`[src_hi, src_lo] = request.security(syminfo.tickerid, "D", [high, low])` becomes
+two reads `const src_hi = request.security({ interval: "1d" }).high` and
+`const src_lo = request.security({ interval: "1d" }).low`; a `_` element is
+discarded. A name/source-length mismatch warns `security-tuple-arity-mismatch`
+and binds what it can; a non-array third argument rejects
+`security-tuple-source-not-list`. (The bound reads are `Series` — read `.current`
+before scalar arithmetic, the same as the single-source form.)
 
 ## Calendar and sessions
 

@@ -534,9 +534,29 @@ export type PlotEmission = {
     readonly meta: Readonly<Record<string, JsonValue>>;
     readonly pane: "overlay" | "new" | string;
     /**
-     * Omitted ⇒ visible. Set to `false` by the runtime when a host
-     * override hides this slot; the adapter SHOULD skip rendering and
-     * y-scale inclusion but keep the slot listed.
+     * Per-plot visibility. **Omitted (or `true`) ⇒ visible** — the emission
+     * renders exactly as it would without the field, so a no-`visible`
+     * emission is byte-identical to the pre-feature wire. The runtime only
+     * ever writes `visible: false`, set either by an authoring-driven
+     * `plot(value, { visible })` opt (the script hid the slot) or by a host
+     * `PlotOverride` (the host hid the slot) — the SAME field carries both.
+     *
+     * **`visible === false` is the normative adapter contract:** an adapter
+     * MUST skip rendering this emission's mark AND MUST exclude it from the
+     * y-scale / autoscale computation. It MUST NOT be drawn as a per-bar gap /
+     * break — that is {@link PlotEmission.value}` === null`'s job (a hole that
+     * interrupts line continuity); `visible: false` suppresses the whole mark
+     * instead, and MUST NOT be substituted with a `NaN` value. The two are
+     * ORTHOGONAL and may co-occur (a hidden plot still carries its real numeric
+     * `value` on the wire). Visibility is never capability-gated — every
+     * adapter that can draw a plot can also skip it.
+     *
+     * An adapter that owns a persistent series / legend (lightweight-charts,
+     * uPlot, ECharts) SHOULD keep the hidden slot LISTED (hidden, not removed)
+     * so re-enabling restores it without re-creating state; a self-scaled
+     * adapter that re-derives the whole scene each frame (canvas2d, konva,
+     * webgl) has no legend to ghost and observationally satisfies this by
+     * simply omitting the hidden mark.
      *
      * @since 0.8
      * @stable

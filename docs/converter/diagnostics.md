@@ -164,6 +164,20 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** History access `[n]` applied to a non-series value.
 - **Suggested fix:** History can only be taken on a series; check the operand's type.
 
+### security-tuple-arity-mismatch
+
+- **Code:** `pine-converter/semantic/security-tuple-arity-mismatch`
+- **Severity:** warning
+- **Message:** A tuple `request.security([a, b] = …, [s1, s2])` binds a different number of names than its source list has elements; the overlapping positions were bound and the extras left unresolved.
+- **Suggested fix:** Match the destructured name count to the `[…]` source-list length.
+
+### security-tuple-source-not-list
+
+- **Code:** `pine-converter/semantic/security-tuple-source-not-list`
+- **Severity:** error
+- **Message:** A tuple `request.security([a, b] = …, <source>)` must pass an array-literal source list (`[high, low]`); a non-list third argument cannot be split into per-element reads.
+- **Suggested fix:** Pass the sources as an array literal, e.g. `[a, b] = request.security(sym, tf, [high, low])`.
+
 ### udf-arity-mismatch
 
 - **Code:** `pine-converter/semantic/udf-arity-mismatch`
@@ -198,6 +212,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** info
 - **Message:** Tuple destructuring is outside the v1 drawing scope.
 - **Suggested fix:** Assign each returned value to its own variable.
+
+### alert-frequency-not-mapped
+
+- **Code:** `pine-converter/transform/alert-frequency-not-mapped`
+- **Severity:** info
+- **Message:** An `alert(message, alert.freq_*)` frequency argument was dropped: chartlang's `AlertOpts` has no firing-frequency contract, so the cadence cannot be honored. The message and its enclosing `if` are preserved.
+- **Suggested fix:** No action needed for a once-per-bar-close trigger inside an `if`; if you need explicit deduplication, gate the `alert(...)` behind your own `state.*` flag.
 
 ### anchor-mirror-required
 
@@ -318,12 +339,19 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** Pine `explicit_plot_zorder` is the default in chartlang (marks layer by declaration order within their group); no flag is needed and none is emitted.
 - **Suggested fix:** Remove the argument; chartlang always orders marks by declaration order, so the flag is a no-op either way.
 
+### fill-handle-unresolved
+
+- **Code:** `pine-converter/transform/fill-handle-unresolved`
+- **Severity:** error
+- **Message:** A `fill(...)` handle argument does not resolve to a top-level `hline`/`plot` handle (or an inline `hline`/`plot` call), so the band edges cannot be built.
+- **Suggested fix:** Pass two `hline(...)` / `plot(...)` handles (or inline calls) to `fill(a, b, color)`.
+
 ### fill-not-mapped
 
 - **Code:** `pine-converter/transform/fill-not-mapped`
 - **Severity:** error
-- **Message:** `fill(plot1, plot2, ...)` has no chartlang analogue (no plot-fill primitive in v1).
-- **Suggested fix:** Draw the band as an explicit `draw.rectangle`/`draw.path` instead.
+- **Message:** This `fill(...)` form has no chartlang analogue: only `fill(hline, hline)` / `fill(plot, plot)` bands lower to `draw.fillBetween`; gradient (`top_color`/`bottom_color`/`top_value`/`bottom_value`) and `fillgaps` fills are deferred.
+- **Suggested fix:** Drop the gradient / `fillgaps` styling, or draw the band as an explicit `draw.rectangle`/`draw.path` instead.
 
 ### for-in-line-all
 
@@ -556,6 +584,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** A whole-anchor setter moved only one endpoint; the unset anchor was filled from the creation expression so the patch is a complete tuple. The filled endpoint re-evaluates each bar instead of staying frozen.
 - **Suggested fix:** Set both `set_xy1` and `set_xy2`, or mirror the fixed endpoint in a state slot if it must stay put.
 
+### plot-display-approximated
+
+- **Code:** `pine-converter/transform/plot-display-approximated`
+- **Severity:** warning
+- **Message:** A `plot(..., display=...)` target has no chartlang analogue beyond `display.all`/`display.none`; only the show/hide toggle maps to `{ visible }`, so the `display=` argument was dropped and the plot left visible.
+- **Suggested fix:** Use `display = <cond> ? display.all : display.none` (or a bare `display.none`) for the visibility toggle; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement.
+
 ### plot-offset-needs-ta-call
 
 - **Code:** `pine-converter/transform/plot-offset-needs-ta-call`
@@ -644,8 +679,8 @@ hard-rejects and the recommended Pine rewrites.
 
 - **Code:** `pine-converter/transform/series-history-non-numeric`
 - **Severity:** info
-- **Message:** History indexing on a non-numeric `var` is not supported in chartlang v1 (only numeric series).
-- **Suggested fix:** Track the boolean/string history yourself, or convert the value to a number before indexing it.
+- **Message:** History indexing on a `color` `var` is not supported in chartlang v1 (`bool`/`string` history lowers to a persistent series; `color` history does not).
+- **Suggested fix:** Track the color history yourself, or store a numeric/boolean discriminator and index that instead.
 
 ### set-path-unsupported
 

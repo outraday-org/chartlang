@@ -111,3 +111,30 @@ export function readLiteralTitle(optsArg: ts.Expression | undefined): string | u
     const title = titleProp.initializer;
     return ts.isStringLiteral(title) ? title.text : undefined;
 }
+
+/**
+ * Read a boolean-literal `visible` from a plotting callsite's opts object
+ * literal, for `manifest.plots[*].defaultVisible`. Returns `true`/`false`
+ * only for a **direct** `true`/`false` keyword; a missing, dynamic
+ * (`{ visible: showRsi }`), ternary, or non-object-literal opts yields
+ * `undefined` so the manifest omits the field rather than guessing — the
+ * dynamic case is resolved per run at runtime (mirrors the conservative
+ * computed-title rule; no constant-folding).
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     // const visible = readLiteralVisible(optsObjectLiteralNode);
+ *     // visible === false | true | undefined
+ *     const fn: typeof readLiteralVisible = readLiteralVisible;
+ *     void fn;
+ */
+export function readLiteralVisible(optsArg: ts.Expression | undefined): boolean | undefined {
+    if (optsArg === undefined || !ts.isObjectLiteralExpression(optsArg)) return undefined;
+    const visibleProp = findProperty(optsArg, "visible");
+    if (visibleProp === undefined) return undefined;
+    const value = visibleProp.initializer;
+    if (value.kind === ts.SyntaxKind.TrueKeyword) return true;
+    if (value.kind === ts.SyntaxKind.FalseKeyword) return false;
+    return undefined;
+}

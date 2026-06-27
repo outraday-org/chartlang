@@ -64,6 +64,7 @@ export type { StrResult } from "./strFormat.js";
 export { emitPlotFamily, isPlotFamilyCall } from "./plotFamily.js";
 export { emitRequestSecurity, isRequestSecurityCall } from "./requestSecurity.js";
 export { emitStrategySignal, isStrategySignalCall } from "./strategySignals.js";
+export { emitAlertCall, isAlertCall } from "./alertCall.js";
 export type {
     ScriptScaffold,
     ComputeBodyIR,

@@ -1,0 +1,5 @@
+//@version=6
+indicator("Tuple security expr", overlay=true)
+[wk_hi, _, wk_trend] = request.security("NASDAQ:QQQ", "W", [high, low, ta.sma(close, 20)])
+plot(wk_hi)
+plot(wk_trend)

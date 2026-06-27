@@ -426,24 +426,81 @@ describe("transformOther — series scalars (state.series)", () => {
         );
     });
 
-    it("keeps a bool var history as a scalar slot and flags series-history-non-numeric", () => {
+    it("lowers a history-indexed bool var to a state.boolSeries slot", () => {
         const { scaffold, diagnostics } = run(
             "var bool up = false\nup := close > open\nplot(up[1] ? 1 : 0)",
         );
-        expect(scaffold.stateSlots).toEqual([{ name: "up", initExpr: "state.bool(false)" }]);
-        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+        expect(scaffold.stateSlots).toEqual([{ name: "up", initExpr: "state.boolSeries(false)" }]);
+        // The value write, value read, and bare `[n]` history read.
+        expect(scaffold.computeBody.statements).toEqual([
+            "up.value = bar.close > bar.open;",
+            "plot(up[1] ? 1 : 0);",
+        ]);
+        expect(diagnostics.toArray().map((d) => d.code)).not.toContain(
             "pine-converter/transform/series-history-non-numeric",
         );
     });
 
-    it("keeps an na-init bool var history non-numeric (declared type drives it)", () => {
+    it("seeds an na-init bool series with the v6 first-bar default (false)", () => {
         const { scaffold, diagnostics } = run(
             "var bool flag = na\nflag := close > open\nplot(flag[1] ? 1 : 0)",
         );
-        // na-init non-numeric stays a plain `let` (not registered as a slot).
-        expect(scaffold.stateSlots).toEqual([]);
-        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+        expect(scaffold.stateSlots).toEqual([
+            { name: "flag", initExpr: "state.boolSeries(false)" },
+        ]);
+        expect(diagnostics.toArray().map((d) => d.code)).not.toContain(
             "pine-converter/transform/series-history-non-numeric",
+        );
+    });
+
+    it("lowers a history-indexed string var to a state.stringSeries slot", () => {
+        const { scaffold } = run(
+            'var string suffix = "-"\nsuffix := "+"\nplot(suffix[1] == "-" ? 1 : 0)',
+        );
+        expect(scaffold.stateSlots).toEqual([
+            { name: "suffix", initExpr: 'state.stringSeries("-")' },
+        ]);
+    });
+
+    it("seeds an na-init string series with the empty-string default", () => {
+        const { scaffold } = run('var string s = na\ns := "x"\nplot(s[1] == "" ? 1 : 0)');
+        expect(scaffold.stateSlots).toEqual([{ name: "s", initExpr: 'state.stringSeries("")' }]);
+    });
+
+    it("wires dynamic-series-index for a dynamic offset on a bool series", () => {
+        const { diagnostics } = run(
+            "var bool up = false\ni = 2\nup := close > open\nplot(up[i] ? 1 : 0)",
+        );
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/dynamic-series-index",
+        );
+    });
+
+    it("lowers a `var color = na` scalar to a transparent state.color slot", () => {
+        const { scaffold, diagnostics } = run(
+            "var color c = na\nc := close > open ? color.green : color.red\nplot(c == color.green ? 1 : 0)",
+        );
+        expect(scaffold.stateSlots).toEqual([{ name: "c", initExpr: 'state.color("#00000000")' }]);
+        expect(scaffold.computeBody.statements).toEqual([
+            "c.value = (bar.close > bar.open) ? color.green : color.red;",
+            "plot((c.value == color.green) ? 1 : 0);",
+        ]);
+        // A color scalar is now first-class — no defaulting / non-numeric info.
+        expect(diagnostics.toArray().map((d) => d.code)).not.toContain(
+            "pine-converter/transform/scalar-state-type-defaulted",
+        );
+    });
+
+    it("infers state.color from a color-valued initializer with no annotation", () => {
+        const { scaffold } = run("var c = color.red\nc := color.green\nplot(close)");
+        expect(scaffold.stateSlots).toEqual([{ name: "c", initExpr: "state.color(color.red)" }]);
+    });
+
+    it("approximates a varip color scalar as a non-tick state.color", () => {
+        const { scaffold, diagnostics } = run("varip color c = na\nc := color.red\nplot(close)");
+        expect(scaffold.stateSlots).toEqual([{ name: "c", initExpr: 'state.color("#00000000")' }]);
+        expect(diagnostics.toArray().map((d) => d.code)).toContain(
+            "pine-converter/transform/varip-series-approximated",
         );
     });
 
@@ -485,12 +542,13 @@ describe("transformOther — series scalars (state.series)", () => {
         expect(scaffold.stateSlots).toEqual([{ name: "n", initExpr: "state.float(0.0)" }]);
     });
 
-    it("promotes a color-typed na-init var read with [n] as non-numeric", () => {
+    it("keeps a history-indexed color var as a scalar state.color + flags the gap", () => {
         const { scaffold, diagnostics } = run(
             "var color c = na\nc := color.red\nplot(c[1] == color.red ? 1 : 0)",
         );
-        // `color` is non-numeric: not registered as a series slot, and flagged.
-        expect(scaffold.stateSlots).toEqual([]);
+        // Color HISTORY is deferred (no `state.colorSeries`): the slot stays the
+        // scalar `state.color`, and the `[n]` gap is flagged (never silent).
+        expect(scaffold.stateSlots).toEqual([{ name: "c", initExpr: 'state.color("#00000000")' }]);
         expect(diagnostics.toArray().map((d) => d.code)).toContain(
             "pine-converter/transform/series-history-non-numeric",
         );
@@ -626,6 +684,15 @@ describe("transformOther — passthrough and skips", () => {
         expect(out.join(" ")).toContain('alert("Long entry", { severity: "info" })');
     });
 
+    it("lowers alert(message, freq) inside an if, dropping the frequency", () => {
+        const out = stmts('if close > open\n    alert("hi", alert.freq_all)');
+        expect(out.join(" ")).toContain('if (bar.close > bar.open) { alert("hi"); }');
+        expect(out.join(" ")).not.toContain("alert.freq_all");
+        expect(codes('if close > open\n    alert("hi", alert.freq_all)')).toContain(
+            "pine-converter/transform/alert-frequency-not-mapped",
+        );
+    });
+
     it("lowers a special call used as a bare statement", () => {
         expect(stmts('request.security(syminfo.tickerid, "D", close)')).toContain(
             'request.security({ interval: "1d" }).close;',
@@ -641,9 +708,46 @@ describe("transformOther — passthrough and skips", () => {
         expect(stmts("doThing(close)")).toContain("doThing(bar.close);");
     });
 
-    it("defaults a color-literal var to a state.float slot with the type-defaulted info", () => {
+    it("infers a color-literal var as a state.color slot (no type-defaulting)", () => {
         const { scaffold, diagnostics } = run("var c = #ff0000\nplot(close)");
-        expect(scaffold.stateSlots[0].initExpr).toBe('state.float("#ff0000")');
+        expect(scaffold.stateSlots[0].initExpr).toBe('state.color("#ff0000")');
+        expect(diagnostics.toArray().map((d) => d.code)).not.toContain(
+            "pine-converter/transform/scalar-state-type-defaulted",
+        );
+    });
+
+    it("defaults a parser-unreachable literal kind to state.float (synthetic AST)", () => {
+        // The parser emits `na` as an `na-expression`, never a `literal-expression`
+        // with `literalKind: "na"`, and a color literal is intercepted as
+        // `state.color` upstream — so `factoryForLiteralKind`'s default arm is
+        // unreachable from real source. Exercise it with a synthetic AST (the
+        // established defensive-arm precedent).
+        const src = `//@version=6\nindicator("X")\nvar x = 0\nplot(x)\n`;
+        const analysis = analyze(parseStatements(lex(src).tokens).script);
+        const decl0 = analysis.script.body[0];
+        if (
+            decl0 === undefined ||
+            decl0.kind !== "variable-declaration" ||
+            decl0.initializer.kind !== "literal-expression"
+        ) {
+            throw new Error("expected a literal-init variable declaration");
+        }
+        const patchedBody = [
+            { ...decl0, initializer: { ...decl0.initializer, literalKind: "na" as const } },
+            ...analysis.script.body.slice(1),
+        ];
+        const patched = {
+            ...analysis,
+            script: { ...analysis.script, body: patchedBody },
+        };
+        const top = patched.script.declaration;
+        if (top === null || top.kind !== "indicator-declaration") {
+            throw new Error("expected an indicator declaration");
+        }
+        const diagnostics = new DiagnosticCollector();
+        const scaffold = transformDeclaration(top, patched, diagnostics);
+        transformOther(patched, scaffold, diagnostics);
+        expect(scaffold.stateSlots).toEqual([{ name: "x", initExpr: "state.float(0)" }]);
         expect(diagnostics.toArray().map((d) => d.code)).toContain(
             "pine-converter/transform/scalar-state-type-defaulted",
         );

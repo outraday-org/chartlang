@@ -360,6 +360,7 @@ function buildPrimaryState(
             seriesSlots: new Map(),
             arraySlots: new Map(),
             mapSlots: new Map(),
+            objectSeriesSlots: new Map(),
             chartSymbol,
             secondaryStreams,
             requestSecurityBars: new Map(),

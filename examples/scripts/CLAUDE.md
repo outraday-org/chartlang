@@ -198,6 +198,18 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   `ta.*` / `draw.*` calls are loop-restricted), so the mapped `str.*` calls
   run freely. Compile-only in the CLI e2e gate; not in the integration render
   test. Mirrored by the `str-label-builder` `DEMO_SCRIPTS` entry.
+- `persistent-color.chart.ts` demonstrates the three NON-NUMERIC persistent
+  `state.*` slots (`@since 1.5`): `state.color(init)` (a persistent CSS-color
+  scalar — writable `.value`, NOT indexable), and `state.boolSeries(init)` /
+  `state.stringSeries(init)` (the boolean / string twins of `state.series` — a
+  writable `.value` head PLUS indexable `[n]` history, but NOT number-coercible).
+  It latches a position-active flag, labels a regime string, and recolors the
+  close by direction, reading `active[1]` / `phase[1]` history (deterministic
+  first-bar defaults: `false` / `""`). `color.*` palette members are a
+  **module-scope import** (NOT a `compute` field). This is the authored
+  counterpart to the converter's `var color` / `var bool x; x[1]` lowering
+  (pine-converter fixtures 61–64). Compile-only in the CLI e2e gate; not in the
+  integration render test; no `DEMO_SCRIPTS` mirror (skipped by `examples:sync`).
 
 ## Conventions
 

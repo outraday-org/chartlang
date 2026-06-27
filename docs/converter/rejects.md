@@ -95,6 +95,22 @@ switch ma_type
 > (a new `SwitchExpression` AST node + Pratt-parser surgery) is a tracked
 > follow-up, out of scope for the multi-assignment switch feature.
 
+## Non-numeric state
+
+A `var color` scalar and a history-indexed `var bool` / `var string` now lower
+to first-class slots — `state.color`, `state.boolSeries`, and
+`state.stringSeries` (see
+[supported.md](./supported.md#non-numeric-persistent-state)). The one piece
+still deferred is **color *history***:
+
+| Code | When | Rewrite |
+|---|---|---|
+| [`series-history-non-numeric`](./diagnostics.md#series-history-non-numeric) | A `var color` is read with a history index (`exitClr[1]`). `bool`/`string` history is supported; only `color` history has no v1 slot. | Keep the prior-bar color in a second `state.color` you assign at the end of each bar, or recompute it from the numeric series the color is derived from. |
+
+> **Deferred follow-up.** A `state.colorSeries` (the indexable color twin of
+> `state.boolSeries` / `state.stringSeries`) is a tracked follow-up; v1 ships
+> only the persistent color *scalar*.
+
 ## Dynamic drawing collections
 
 The load-bearing reject class. chartlang has no analogue for an unbounded
@@ -150,7 +166,8 @@ no analogue for resolving a fill across an unbounded handle collection.
 |---|---|---|
 | [`table-cell-out-of-bounds`](./diagnostics.md#table-cell-out-of-bounds) | A `table.cell(...)` addresses a cell outside the declared grid. | Raise the `table.new(position, columns, rows)` counts or fix the index. |
 | [`table-dynamic-loop`](./diagnostics.md#table-dynamic-loop) | A table-cell loop has a non-literal bound. | Use a literal `for i = 0 to N` bound so the writes unroll. |
-| [`fill-not-mapped`](./diagnostics.md#fill-not-mapped) | `fill(plot1, plot2, ...)`. | Draw the band with `draw.fillBetween(edgeA, edgeB, ...)` over the two series' anchors. A `plot`-level series fill is a planned follow-up. |
+| [`fill-handle-unresolved`](./diagnostics.md#fill-handle-unresolved) | A `fill(a, b, ...)` handle resolves to neither an `hline` nor a `plot` (an unbound name, a ring-buffer `array.get(...)`, a literal). The supported `fill(hline, hline)` / `fill(plot, plot)` band shape is in [supported](./supported.md#filled-bands-fill). | Pass two top-level (or inline) `hline(...)` / `plot(...)` handles to `fill(a, b, color)`. |
+| [`fill-not-mapped`](./diagnostics.md#fill-not-mapped) | A `fill(...)` with a gradient (`top_color`/`bottom_color`/`top_value`/`bottom_value`) or `fillgaps` styling — the two-handle band itself is [supported](./supported.md#filled-bands-fill). | Drop the gradient / `fillgaps` styling, or draw the band as an explicit `draw.rectangle` / `draw.path`. |
 | [`plot-offset-needs-ta-call`](./diagnostics.md#plot-offset-needs-ta-call) | `plot(<value>, offset=N)` where `<value>` is **not** a direct `ta.*` call (a bare series, a variable, an arithmetic expression). The offset is dropped — chartlang's offset lives on the `ta.*` opts and there is no plot-level offset yet. | Wrap the value in a `ta.*` primitive, or set the offset on the indicator's `ta.*` call. A `plot`-level offset is a planned follow-up. |
 | [`request-security-not-mapped`](./diagnostics.md#request-security-not-mapped) | A `request.security(...)` shape outside the v1 single-symbol MTF subset — a non-literal timeframe, an out-of-table timeframe, or missing positional args. (A `ta.*`/expression third arg is **supported** — it lowers to the callback form.) | Use a literal `"<timeframe>"`; the third arg may be a bare OHLCV field or a `ta.*` expression. |
 

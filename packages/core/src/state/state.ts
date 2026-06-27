@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { NumberSeriesSlot } from "../types.js";
+import type { BoolSeriesSlot, Color, NumberSeriesSlot, StringSeriesSlot } from "../types.js";
 import type { MutableArraySlot } from "./arraySlot.js";
 import type { MutableMapSlot } from "./mapSlot.js";
 import type { MutableSlot } from "./mutableSlot.js";
@@ -95,6 +95,63 @@ export const state = Object.freeze({
      */
     series(_init: number): NumberSeriesSlot {
         return sentinel("state.series");
+    },
+
+    /**
+     * Allocate or read a persistent **color** scalar slot — Pine's
+     * `var color c = …`. `c.value = expr` writes the current bar's color;
+     * `c.value` reads it back. A {@link Color} is a CSS color string the
+     * adapter round-trips verbatim, so the slot stores the string directly.
+     * The allocation bar's pre-write head is seeded with `init`; unlike
+     * {@link state}.series there is no history window — it is a scalar, not an
+     * indexable series.
+     *
+     * @since 1.5
+     * @stable
+     * @example
+     *     const fn: typeof state.color = state.color;
+     *     void fn;
+     */
+    color(_init: Color): MutableSlot<Color> {
+        return sentinel("state.color");
+    },
+
+    /**
+     * Allocate or read a persistent **boolean series** slot — the non-numeric
+     * sibling of {@link state}.series for Pine's `var bool` history. `s.value =
+     * entered` writes the current bar's value; `s[1]` reads one bar ago,
+     * `s.current` the current bar. Out-of-range / first-bar history reads are
+     * **`false`** (Pine v6: a `bool` `[]` no longer returns `na`). The
+     * allocation bar's pre-write head is seeded with `init`. The slot retains a
+     * bounded window sized to the script's deepest literal `s[n]` lookback.
+     *
+     * @since 1.5
+     * @stable
+     * @example
+     *     const fn: typeof state.boolSeries = state.boolSeries;
+     *     void fn;
+     */
+    boolSeries(_init: boolean): BoolSeriesSlot {
+        return sentinel("state.boolSeries");
+    },
+
+    /**
+     * Allocate or read a persistent **string series** slot — the non-numeric
+     * sibling of {@link state}.series for Pine's `var string` history.
+     * `s.value = label` writes the current bar's value; `s[1]` reads one bar
+     * ago, `s.current` the current bar. Out-of-range / first-bar history reads
+     * are the empty string **`""`**. The allocation bar's pre-write head is
+     * seeded with `init`. The slot retains a bounded window sized to the
+     * script's deepest literal `s[n]` lookback.
+     *
+     * @since 1.5
+     * @stable
+     * @example
+     *     const fn: typeof state.stringSeries = state.stringSeries;
+     *     void fn;
+     */
+    stringSeries(_init: string): StringSeriesSlot {
+        return sentinel("state.stringSeries");
     },
 
     /**

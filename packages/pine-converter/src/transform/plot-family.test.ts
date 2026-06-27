@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { CallExpression } from "../ast/index.js";
+import type { CallExpression, Statement } from "../ast/index.js";
 import { lex } from "../lexer/index.js";
 import { parseStatements } from "../parser/index.js";
 import { DiagnosticCollector } from "./diagnosticCollector.js";
@@ -17,21 +17,29 @@ const CTX: EmitContext = {
     stateSlots: new Map(),
 };
 
-// Parse a bare call statement (`plot(close)`) into its CallExpression.
-function call(expr: string): CallExpression {
-    const src = `//@version=6\nindicator("X")\n${expr}\n`;
-    const script = parseStatements(lex(src).tokens).script;
-    for (const stmt of script.body) {
+// Parse a fixture body and return its first bare-call statement (the plot-family
+// call under test) plus the full top-level body (the `fill` handle-resolution
+// scope). Top-level `<name> = hline(...)` bindings parse to `assignment` nodes,
+// not call expression-statements, so this still lands on the `plot`/`fill` call.
+function parse(src: string): { target: CallExpression; body: readonly Statement[] } {
+    const full = `//@version=6\nindicator("X")\n${src}\n`;
+    const body = parseStatements(lex(full).tokens).script.body;
+    for (const stmt of body) {
         if (stmt.kind === "expression-statement" && stmt.expression.kind === "call-expression") {
-            return stmt.expression;
+            return { target: stmt.expression, body };
         }
     }
     throw new Error("no call expression in fixture");
 }
 
+function call(expr: string): CallExpression {
+    return parse(expr).target;
+}
+
 function emit(expr: string): { source: string | null; codes: string[] } {
+    const { target, body } = parse(expr);
     const diagnostics = new DiagnosticCollector();
-    const source = emitPlotFamily(call(expr), CTX, diagnostics);
+    const source = emitPlotFamily(target, CTX, diagnostics, body);
     return { source, codes: diagnostics.toArray().map((d) => d.code) };
 }
 
@@ -195,8 +203,90 @@ describe("emitPlotFamily", () => {
         expect(emit("barcolor()").source).toBeNull();
     });
 
-    it("rejects fill with fill-not-mapped", () => {
+    it("lowers fill over two hline handles to a constant-price draw.fillBetween", () => {
+        const { source, codes } = emit(
+            "u = hline(0.2)\nl = hline(0.8)\nfill(u, l, color=color.red)",
+        );
+        expect(source).toBe(
+            "draw.fillBetween([bar.point(0, 0.2), bar.point(0, 0.2)], " +
+                '[bar.point(0, 0.8), bar.point(0, 0.8)], { fill: "#FF5252" });',
+        );
+        expect(codes).toEqual([]);
+    });
+
+    it("folds a transparency fill color via the shared T6 rule", () => {
+        const { source, codes } = emit(
+            "u = hline(0.2)\nl = hline(0.8)\nfill(u, l, color=color.rgb(205, 121, 219, 88))",
+        );
+        expect(source).toContain('{ fill: "#CD79DB1F" }');
+        expect(codes).toContain("pine-converter/transform/color-transp-approximated");
+    });
+
+    it("lowers fill over two plot handles to a per-bar series draw.fillBetween (no color → default fill)", () => {
+        const { source, codes } = emit("p = plot(close)\nq = plot(open)\nfill(p, q)");
+        expect(source).toBe(
+            "draw.fillBetween([bar.point(0, bar.close), bar.point(0, bar.close)], " +
+                "[bar.point(0, bar.open), bar.point(0, bar.open)]);",
+        );
+        expect(codes).toEqual([]);
+    });
+
+    it("resolves a `var` declaration handle binding", () => {
+        const { source } = emit("var u = hline(0.2)\nl = hline(0.8)\nfill(u, l)");
+        expect(source).toBe(
+            "draw.fillBetween([bar.point(0, 0.2), bar.point(0, 0.2)], " +
+                "[bar.point(0, 0.8), bar.point(0, 0.8)]);",
+        );
+    });
+
+    it("resolves inline hline()/plot() handle arguments (positional color)", () => {
+        const { source } = emit("fill(hline(1), hline(2), color.blue)");
+        expect(source).toBe(
+            "draw.fillBetween([bar.point(0, 1), bar.point(0, 1)], " +
+                '[bar.point(0, 2), bar.point(0, 2)], { fill: "#2196F3" });',
+        );
+    });
+
+    it("rejects an unbound fill handle with fill-handle-unresolved", () => {
         const { source, codes } = emit("fill(p1, p2, color.red)");
+        expect(source).toBeNull();
+        expect(codes).toContain("pine-converter/transform/fill-handle-unresolved");
+    });
+
+    it("rejects a fill with a missing second handle", () => {
+        const { source, codes } = emit("u = hline(0.2)\nfill(u)");
+        expect(source).toBeNull();
+        expect(codes).toContain("pine-converter/transform/fill-handle-unresolved");
+    });
+
+    it("rejects a fill with no handle arguments", () => {
+        const { source, codes } = emit("fill()");
+        expect(source).toBeNull();
+        expect(codes).toContain("pine-converter/transform/fill-handle-unresolved");
+    });
+
+    it("rejects a non-identifier, non-call fill argument", () => {
+        const { source, codes } = emit("fill(1, 2)");
+        expect(source).toBeNull();
+        expect(codes).toContain("pine-converter/transform/fill-handle-unresolved");
+    });
+
+    it("rejects an inline call that is neither hline nor plot", () => {
+        const { source, codes } = emit("l = hline(0.8)\nfill(foo(close), l)");
+        expect(source).toBeNull();
+        expect(codes).toContain("pine-converter/transform/fill-handle-unresolved");
+    });
+
+    it("rejects an hline handle with no price argument", () => {
+        const { source, codes } = emit("fill(hline(), hline(2))");
+        expect(source).toBeNull();
+        expect(codes).toContain("pine-converter/transform/fill-handle-unresolved");
+    });
+
+    it("keeps the narrowed fill-not-mapped for a gradient / fillgaps form", () => {
+        const { source, codes } = emit(
+            "p = plot(close)\nq = plot(open)\nfill(p, q, fillgaps=true)",
+        );
         expect(source).toBeNull();
         expect(codes).toContain("pine-converter/transform/fill-not-mapped");
     });
@@ -267,6 +357,59 @@ describe("emitPlotFamily", () => {
         const { source, codes } = emit("plot(myFunc(), offset=5)");
         expect(source).toBe("plot(myFunc());");
         expect(codes).toContain("pine-converter/transform/plot-offset-needs-ta-call");
+    });
+});
+
+describe("emitPlotFamily — display visibility", () => {
+    const APPROX = "pine-converter/transform/plot-display-approximated";
+
+    it("maps `cond ? display.all : display.none` to `{ visible: cond }`", () => {
+        const { source, codes } = emit("plot(close, display = show ? display.all : display.none)");
+        expect(source).toBe("plot(bar.close, { visible: show });");
+        expect(codes).toEqual([]);
+    });
+
+    it("maps the inverted `cond ? display.none : display.all` to `{ visible: !(cond) }`", () => {
+        const { source, codes } = emit("plot(close, display = hide ? display.none : display.all)");
+        expect(source).toBe("plot(bar.close, { visible: !(hide) });");
+        expect(codes).toEqual([]);
+    });
+
+    it("maps a constant `display.none` to `{ visible: false }`", () => {
+        const { source, codes } = emit("plot(close, display = display.none)");
+        expect(source).toBe("plot(bar.close, { visible: false });");
+        expect(codes).toEqual([]);
+    });
+
+    it("omits `visible` for a constant `display.all` (byte-clean fully-shown plot)", () => {
+        const { source, codes } = emit("plot(close, display = display.all)");
+        expect(source).toBe("plot(bar.close);");
+        expect(codes).toEqual([]);
+    });
+
+    it("composes `display=` with the title/color plot options", () => {
+        const { source } = emit('plot(close, "MA", color.red, display = display.none)');
+        expect(source).toBe('plot(bar.close, { title: "MA", color: "#FF5252", visible: false });');
+    });
+
+    it("approximates an unsupported `display.*` target and leaves the plot visible", () => {
+        const { source, codes } = emit("plot(close, display = display.data_window)");
+        expect(source).toBe("plot(bar.close);");
+        expect(codes).toContain(APPROX);
+    });
+
+    it("approximates a ternary whose arms are not the all/none pair", () => {
+        const { source, codes } = emit(
+            "plot(close, display = show ? display.all : display.status_line)",
+        );
+        expect(source).toBe("plot(bar.close);");
+        expect(codes).toContain(APPROX);
+    });
+
+    it("approximates a non-ternary, non-`display.*` display value", () => {
+        const { source, codes } = emit("plot(close, display = show)");
+        expect(source).toBe("plot(bar.close);");
+        expect(codes).toContain(APPROX);
     });
 });
 

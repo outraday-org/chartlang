@@ -129,6 +129,7 @@ function buildExprContext(
         seriesSlots: new Map(),
         arraySlots: new Map(),
         mapSlots: new Map(),
+        objectSeriesSlots: new Map(),
         chartSymbol: parent.chartSymbol,
         secondaryStreams: parent.secondaryStreams,
         requestSecurityBars: new Map(),

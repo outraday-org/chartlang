@@ -8,12 +8,15 @@ export {
 } from "./arrayPersistence.js";
 export { ArrayStateSlot } from "./arrayStateSlot.js";
 export {
+    advanceObjectSeriesSlots,
     advanceSeriesSlots,
     commitArraySlots,
     commitMapSlots,
+    commitObjectSeriesSlots,
     commitSeriesSlots,
     commitStateSlots,
     flushStateSlots,
+    resetObjectSeriesHeads,
     resetSeriesHeads,
     resetTentativeArraySlots,
     resetTentativeMapSlots,
@@ -21,6 +24,16 @@ export {
     resetTentativeStateSlots,
     serialiseStateSlots,
 } from "./lifecycle.js";
+export {
+    isObjectSeriesSlotSnapshotKey,
+    restoreObjectSeriesSlots,
+    serialiseObjectSeriesSlots,
+} from "./objectSeriesPersistence.js";
+export type {
+    ObjectSeriesKind,
+    ObjectSeriesSlot,
+    ObjectSeriesSlotView,
+} from "./objectSeriesSlot.js";
 export {
     isMapSlotSnapshotKey,
     restoreMapSlots,

@@ -1,0 +1,6 @@
+//@version=6
+indicator("Var String History")
+var string phase = "-"
+phase := close > open ? "up" : "down"
+prevPhase = phase[1]
+plot(prevPhase == "up" ? 1 : 0, "PrevUp")

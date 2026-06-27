@@ -191,6 +191,9 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "state.bool", slot: true },
     { name: "state.string", slot: true },
     { name: "state.series", slot: true },
+    { name: "state.color", slot: true },
+    { name: "state.boolSeries", slot: true },
+    { name: "state.stringSeries", slot: true },
     { name: "state.tick.float", slot: true },
     { name: "state.tick.int", slot: true },
     { name: "state.tick.bool", slot: true },
@@ -241,7 +244,7 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
  * logging/error as stateless loop-diagnostic entries plus `draw.table`
  * as a slot-backed viewport drawing.
  *
- * Additive within `apiVersion: 1` (currently 190 entries): new entries MAY
+ * Additive within `apiVersion: 1` (currently 193 entries): new entries MAY
  * be appended in a `1.x` release (a new call name is additive — new callsites
  * only, no change to any existing script). Removing or renaming an entry, or
  * flipping its `slot`, is a language change and requires `apiVersion: 2` — see
@@ -269,7 +272,7 @@ export const STATEFUL_PRIMITIVES: ReadonlySet<StatefulPrimitiveEntry> = Object.f
  * the same canonical entry list as {@link STATEFUL_PRIMITIVES} so adding
  * a primitive to the set adds it here automatically.
  *
- * Additive within `apiVersion: 1` (currently 190 entries): new entries MAY
+ * Additive within `apiVersion: 1` (currently 193 entries): new entries MAY
  * be appended in a `1.x` release (a new call name is additive — new callsites
  * only, no change to any existing script). Removing or renaming an entry, or
  * flipping its `slot`, is a language change and requires `apiVersion: 2` — see

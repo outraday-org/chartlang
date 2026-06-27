@@ -82,6 +82,32 @@
   mirrors `NumberSeriesSlot` + the `StateNamespace.series` signature in
   lockstep.
 
+- **Non-numeric persistent state uses TYPED SIBLINGS, not a generic
+  `state.series<T>`.** `state.color(init: Color): MutableSlot<Color>` is a
+  persistent color *scalar* (no indexing); `state.boolSeries(init: boolean):
+  BoolSeriesSlot` and `state.stringSeries(init: string): StringSeriesSlot` are
+  the non-numeric analogues of the numeric `state.series` —
+  `BoolSeriesSlot = MutableSlot<boolean> & Series<boolean>` /
+  `StringSeriesSlot = MutableSlot<string> & Series<string>` (a writable
+  `.value` head + integer-indexed `[n]` history), declared in `types.ts` next
+  to `NumberSeriesSlot` and barrel-exported. The typed-sibling shape (vs. a
+  generic `series<T>`) is deliberate: it keeps the numeric `series` /
+  `NumberSeriesSlot` signature and every numeric snapshot **byte-identical**
+  (lowest blast radius), and mirrors the proven `Mutable* & Series<*>` pattern.
+  `Color` is the `Color = string` alias from `types.ts` (NOT `color/`, which
+  exports only helpers + the palette) — `state.ts` imports it as a **type**
+  from `../types.js`, so `state.color` stores the CSS string directly with no
+  new value type. **Deterministic first-bar / out-of-range defaults (no host
+  variance):** `boolSeries` ⇒ `false` (Pine v6 — bool `[]` no longer returns
+  `na`), `stringSeries` ⇒ `""`, `color` scalar ⇒ the caller's `init`. All
+  three are sentinel holes like every sibling; their `STATEFUL_PRIMITIVES`
+  entries (`slot: true`, appended after `state.series`) AND the runtime ring/
+  persistence plumbing landed in T12 Task 2 — `state.color` rides the scalar
+  `StateSlot` (`:state`) path (a persistent CSS string), while `boolSeries` /
+  `stringSeries` ride a shared non-numeric history ring (`:objseries`); see
+  `packages/runtime/CLAUDE.md`. The `program.ts` shim mirrors the two slot
+  types + the three `StateNamespace` members in lockstep. `@since 1.5`.
+
 - **`state.array` is a plain collection handle, NOT a slot/series
   intersection.** `state.array<T>(capacity)` returns `MutableArraySlot<T>`
   (`arraySlot.ts`) — a bounded FIFO collection surface
@@ -176,6 +202,25 @@
   copy-paste it onto each style type. The option is purely a type/contract
   addition in core; validation, omit-when-`0` emission, and the global
   render sort live in `adapter-kit` / `runtime` / the reference adapter.
+
+- **`PlotOpts.visible` is the AUTHORING opt that feeds the PRE-EXISTING
+  `PlotEmission.visible` wire field — it is NOT a new wire field.** `visible?:
+  boolean` (`plot/plot.ts`) is the script-facing toggle (`plot(x, { visible:
+  showRsi })`, mapping Pine `display = display.all | display.none`). The wire
+  field `PlotEmission.visible` already exists in `adapter-kit` (`@since 0.8`,
+  populated by the host-override path), so T8 adds **no** adapter-kit wire
+  change — it only adds the authoring opt + the `program.ts` shim mirror.
+  **Omitted / `true` ⇒ visible** (the runtime drops the field, Task 3), so
+  `apiVersion: 1` emissions stay byte-identical when unused; only `false` is
+  carried. **`false` SUPPRESSES the mark — it is NOT a `NaN` series hole** (a
+  `NaN` value breaks line continuity / fills; `visible: false` removes the
+  mark while keeping the slot listed). v1 is a constant boolean; a per-bar
+  `Series<boolean>` channel is deferred. Like `z`, it is a type/contract
+  addition in core; the runtime resolve (omit-when-`true`), the
+  already-present `validateEmission` check, and the adapter render-skip live
+  downstream. `HLineOpts` deliberately carries NO `visible` (hlines are
+  constant guides). The `program.ts` shim mirrors `PlotOpts.visible` in
+  lockstep.
 
 - **`input.enum` / `EnumDescriptor` admit `T extends string | number`.** A
   numeric enum (`input.enum(21, [8, 21, 30])`) is a fixed-options dropdown over

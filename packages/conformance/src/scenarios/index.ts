@@ -138,6 +138,7 @@ import { PINE_CONVERTER_ROUND_TRIP_VAR_ARRAY_SCENARIO } from "./pineConverterRou
 import { PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO } from "./pineConverterRoundTripVarSeries.scenario.js";
 import { PLOT_OFFSET_XSHIFT_SCENARIO } from "./plotOffsetXshift.scenario.js";
 import { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
+import { PLOT_VISIBLE_SCENARIO } from "./plotVisible.scenario.js";
 import { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario.js";
 import { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario.js";
 import { RSI_SUBPANE_ROUTING_SCENARIO } from "./rsiSubpaneRouting.scenario.js";
@@ -393,6 +394,7 @@ export { PINE_CONVERTER_ROUND_TRIP_VAR_ARRAY_SCENARIO } from "./pineConverterRou
 export { PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO } from "./pineConverterRoundTripVarSeries.scenario.js";
 export { PLOT_OFFSET_XSHIFT_SCENARIO } from "./plotOffsetXshift.scenario.js";
 export { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
+export { PLOT_VISIBLE_SCENARIO } from "./plotVisible.scenario.js";
 export { REQUEST_SECURITY_NAN_FALLBACK_SCENARIO } from "./requestSecurityNanFallback.scenario.js";
 export { RSI_DIVERGENCE_SCENARIO } from "./rsiDivergenceAlert.scenario.js";
 export { RSI_SUBPANE_ROUTING_SCENARIO } from "./rsiSubpaneRouting.scenario.js";
@@ -847,6 +849,12 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     // value-hash proving `z` is presentation-only. Drawing-`z` is covered by
     // the runtime + adapter tests (unassertable in this harness).
     Z_ORDER_SCENARIO,
+    // T8 plot visibility — pins `plot(value, { visible })` → `PlotEmission.visible`
+    // (false present on the hidden slot, absent/`true` slots omit the field),
+    // plus a value-hash proving `visible` is presentation-only. The wire field
+    // is the universal cross-adapter contract; per-adapter render/skip is the
+    // adapter render tests' job.
+    PLOT_VISIBLE_SCENARIO,
     // subpane-rendering Task 5 — `overlay: false` routes every plot +
     // hline to `script:<name>`; asserted via the `all-plots-on-pane`
     // variant against the canvas2d reference (subPanes >= 1).

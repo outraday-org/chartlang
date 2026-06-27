@@ -1,6 +1,6 @@
 # Task 3 — Runtime: resolve `visible` into the emission + validate
 
-> **Status: TODO**
+> **Status: DONE**
 
 ## Goal
 

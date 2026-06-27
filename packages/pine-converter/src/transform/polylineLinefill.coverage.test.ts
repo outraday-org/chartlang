@@ -9,7 +9,7 @@ import { analyze } from "../semantic/index.js";
 import { transformDeclaration } from "./declaration.js";
 import { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { ScriptScaffold } from "./ir.js";
-import { transformPolylineLinefill } from "./polylineLinefill.js";
+import { emitFillBetweenBand, transformPolylineLinefill } from "./polylineLinefill.js";
 
 function run(body: string): { scaffold: ScriptScaffold; diagnostics: DiagnosticCollector } {
     const src = `//@version=6\nindicator("X", overlay=true)\n${body}\nplot(close)\n`;
@@ -247,5 +247,45 @@ describe("transformPolylineLinefill — standalone with no points arg", () => {
     it("synthesises an index handle and rejects when no points arg is given", () => {
         const { diagnostics } = run("polyline.new()");
         expect(codes(diagnostics)).toContain("pine-converter/transform/polyline-dynamic-points");
+    });
+});
+
+describe("emitFillBetweenBand — shared edge builder", () => {
+    it("renders line-endpoint edges with a fill color", () => {
+        const band = emitFillBetweenBand(
+            { kind: "endpoints", a: "bar.point(0, bar.high)", b: "bar.point(0, bar.high)" },
+            { kind: "endpoints", a: "bar.point(0, bar.low)", b: "bar.point(0, bar.low)" },
+            '"#00897B33"',
+        );
+        expect(band.edgeA).toBe("[bar.point(0, bar.high), bar.point(0, bar.high)]");
+        expect(band.edgeB).toBe("[bar.point(0, bar.low), bar.point(0, bar.low)]");
+        expect(band.call).toBe(
+            "draw.fillBetween([bar.point(0, bar.high), bar.point(0, bar.high)], " +
+                '[bar.point(0, bar.low), bar.point(0, bar.low)], { fill: "#00897B33" })',
+        );
+    });
+
+    it("renders constant-price hline edges and omits opts when fill is null", () => {
+        const band = emitFillBetweenBand(
+            { kind: "constant", price: "0.2" },
+            { kind: "constant", price: "-0.2" },
+            null,
+        );
+        expect(band.call).toBe(
+            "draw.fillBetween([bar.point(0, 0.2), bar.point(0, 0.2)], " +
+                "[bar.point(0, -0.2), bar.point(0, -0.2)])",
+        );
+    });
+
+    it("renders per-bar series edges", () => {
+        const band = emitFillBetweenBand(
+            { kind: "series", value: "bar.close" },
+            { kind: "series", value: "bar.open" },
+            '"#FF5252"',
+        );
+        expect(band.call).toBe(
+            "draw.fillBetween([bar.point(0, bar.close), bar.point(0, bar.close)], " +
+                '[bar.point(0, bar.open), bar.point(0, bar.open)], { fill: "#FF5252" })',
+        );
     });
 });

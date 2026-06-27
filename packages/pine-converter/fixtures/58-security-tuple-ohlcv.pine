@@ -1,0 +1,6 @@
+//@version=6
+indicator("Tuple security OHLCV", overlay=true)
+[src_hi, src_lo] = request.security(syminfo.tickerid, "D", [high, low])
+plot(src_hi)
+plot(src_lo)
+plot(ta.sma(src_hi, 5))

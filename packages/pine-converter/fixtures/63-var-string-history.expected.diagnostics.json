@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/semantic/history-on-non-series",
+        "severity": "warning",
+        "message": "History access `[n]` applied to a non-series value.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 13,
+            "endLine": 5,
+            "endColumn": 21
+        },
+        "suggestion": "History can only be taken on a series; check the operand's type."
+    }
+]

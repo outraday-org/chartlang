@@ -38,6 +38,7 @@ const EXAMPLE_SCRIPTS = [
     "examples/scripts/str-formatted-hud.chart.ts",
     "examples/scripts/math-scalar-band.chart.ts",
     "examples/scripts/str-label-builder.chart.ts",
+    "examples/scripts/persistent-color.chart.ts",
 ] as const;
 
 const COMPILE_TIMEOUT_MS = 15_000;

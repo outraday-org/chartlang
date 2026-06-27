@@ -1,0 +1,20 @@
+//@version=6
+indicator("Alert message + frequency", overlay = true)
+
+// MASM_Strat.md's API-alert engine (simplified): a JSON message fired from
+// inside an `if`, carrying an `alert.freq_*` firing-frequency enum. chartlang's
+// `alert` is already message-first and imperative, so the enclosing `if` is
+// preserved (never hoisted) and the frequency argument is dropped — chartlang's
+// `AlertOpts` has no firing-frequency contract — with one info per dropped freq.
+go_long  = ta.crossover(close, ta.sma(close, 20))
+go_short = ta.crossunder(close, ta.sma(close, 20))
+
+if go_long
+    alert('{"symbol": "' + syminfo.ticker + '", "action": "buy"}', alert.freq_all)
+else if go_short
+    alert('{"symbol": "' + syminfo.ticker + '", "action": "sell"}', alert.freq_once_per_bar)
+
+// A bare `alert(message)` with no frequency arg passes through unchanged — no
+// `alert-frequency-not-mapped` info.
+if go_short
+    alert("flatten " + syminfo.ticker)

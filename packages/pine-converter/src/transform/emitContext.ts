@@ -95,13 +95,14 @@ export type EmitContext = Readonly<{
      */
     tupleFieldAliases?: ReadonlyMap<string, string>;
     /**
-     * Pine names of the `var`/`varip` scalars lowered to a `state.series` slot
-     * (a numeric scalar that is history-indexed anywhere). A `[n]` history read
-     * of one of these emits the BARE slot local (`<slot>[n]`, a real
-     * `Series<number>` read), not the scalar `<slot>.value[n]` (a typecheck
-     * error). A plain VALUE read still flows through `stateSlots` →
-     * `<slot>.value` (a `state.series` is number-coercible and exposes
-     * `.value`). Absent → no series slots.
+     * Pine names of the `var`/`varip` scalars lowered to a series slot — a
+     * history-indexed `state.series` (numeric), `state.boolSeries` (bool), or
+     * `state.stringSeries` (string). A `[n]` history read of one of these emits
+     * the BARE slot local (`<slot>[n]`, a real `Series<T>` read), not the scalar
+     * `<slot>.value[n]` (a typecheck error). A plain VALUE read still flows
+     * through `stateSlots` → `<slot>.value` (every series slot exposes a writable
+     * `.value` head; the numeric one is additionally number-coercible, the
+     * bool/string ones are not). Absent → no series slots.
      */
     seriesSlots?: ReadonlySet<string>;
     /**

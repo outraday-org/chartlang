@@ -83,6 +83,107 @@ export class RingBuffer<T> implements RingBufferLike<T> {
 }
 
 /**
+ * Non-numeric ring buffer over a plain `Array<T>` that, unlike
+ * {@link RingBuffer}, returns a fixed `defaultValue` (not `undefined`) on
+ * out-of-range reads — the object-payload analogue of {@link Float64RingBuffer}
+ * returning `NaN`. This is what lets a non-numeric `state.*Series` view read a
+ * deterministic first-bar / out-of-range default (`false` for `boolSeries`,
+ * `""` for `stringSeries`) through the same {@link makeSeriesView} `buf.at(n)`
+ * path the numeric series uses.
+ *
+ * The backing array is pre-filled with `defaultValue` so unwritten cells (and
+ * the snapshot they serialise to) are deterministic JSON values, never `null`
+ * holes. `boolean` / `string` payloads are JSON-clean, so the snapshot stores
+ * the raw `values` array verbatim (no `NaN`→`null` mapping the numeric buffer
+ * needs).
+ *
+ * @since 1.5
+ * @example
+ *     const buf = new ObjectRingBuffer<boolean>(4, false);
+ *     buf.append(true);
+ *     buf.at(0); // true
+ *     buf.at(3); // false (out of range → default)
+ */
+export class ObjectRingBuffer<T> implements RingBufferLike<T> {
+    private buf: T[];
+    private head = -1;
+    private filled = 0;
+
+    constructor(
+        public readonly capacity: number,
+        public readonly defaultValue: T,
+    ) {
+        this.buf = new Array<T>(capacity).fill(defaultValue);
+    }
+
+    append(v: T): void {
+        this.head = (this.head + 1) % this.capacity;
+        this.buf[this.head] = v;
+        if (this.filled < this.capacity) this.filled += 1;
+    }
+
+    replaceHead(v: T): void {
+        if (this.head === -1) {
+            this.append(v);
+            return;
+        }
+        this.buf[this.head] = v;
+    }
+
+    at(n: number): T {
+        if (n < 0 || n >= this.filled) return this.defaultValue;
+        return this.buf[(this.head - n + this.capacity) % this.capacity];
+    }
+
+    get length(): number {
+        return this.filled;
+    }
+
+    serialiseSnapshotBuffer(): Readonly<{
+        headIndex: number;
+        filled: number;
+        values: ReadonlyArray<T>;
+    }> {
+        return Object.freeze({
+            headIndex: this.head,
+            filled: this.filled,
+            values: Object.freeze([...this.buf]),
+        });
+    }
+
+    restoreFromSnapshotBuffer(
+        args: Readonly<{
+            headIndex: number;
+            filled: number;
+            values: ReadonlyArray<T>;
+        }>,
+    ): void {
+        if (
+            args.values.length !== this.capacity ||
+            !Number.isInteger(args.headIndex) ||
+            args.headIndex < -1 ||
+            args.headIndex >= this.capacity ||
+            !Number.isInteger(args.filled) ||
+            args.filled < 0 ||
+            args.filled > this.capacity ||
+            (args.filled === 0 && args.headIndex !== -1) ||
+            (args.filled > 0 && args.headIndex < 0)
+        ) {
+            throw new Error("invalid ring buffer snapshot");
+        }
+        this.buf = [...args.values];
+        this.head = args.headIndex;
+        this.filled = args.filled;
+    }
+
+    reset(): void {
+        this.buf = new Array<T>(this.capacity).fill(this.defaultValue);
+        this.head = -1;
+        this.filled = 0;
+    }
+}
+
+/**
  * Numeric ring buffer backed by a `Float64Array`. Reads are direct
  * memory hits — no boxing, no map lookup. Out-of-range reads return
  * `NaN` (the language-wide warmup sentinel), which

@@ -255,6 +255,75 @@ describe("plot — z (render-order, omit-when-0)", () => {
     });
 });
 
+describe("plot — visible (authoring, omit-when-visible)", () => {
+    it("carries visible: false onto the emission", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42, { visible: false });
+        expect(emissions.plots[0].visible).toBe(false);
+    });
+
+    it("omits the visible key when visible: true (byte-identical baseline)", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42, { visible: true });
+        const e = emissions.plots[0];
+        expect("visible" in e).toBe(false);
+        expect(e.visible).toBeUndefined();
+    });
+
+    it("omits the visible key entirely when not provided (byte-identical baseline)", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42);
+        expect("visible" in emissions.plots[0]).toBe(false);
+    });
+
+    it("resolves a per-bar boolean — set when false", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const close = -1;
+        plot("a:1:1#0", 42, { visible: close > 0 });
+        expect(emissions.plots[0].visible).toBe(false);
+    });
+
+    it("resolves a per-bar boolean — omitted when true", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const close = 5;
+        plot("a:1:1#0", 42, { visible: close > 0 });
+        expect("visible" in emissions.plots[0]).toBe(false);
+    });
+
+    it("is orthogonal to a value: null skip-bar (both co-occur)", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", Number.NaN, { visible: false });
+        const e = emissions.plots[0];
+        expect(e.value).toBeNull();
+        expect(e.visible).toBe(false);
+    });
+
+    it("dedup: second same-bar write with visible: false wins", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 1);
+        plot("a:1:1#0", 2, { visible: false });
+        expect(emissions.plots).toHaveLength(1);
+        expect(emissions.plots[0].value).toBe(2);
+        expect(emissions.plots[0].visible).toBe(false);
+    });
+
+    it("composes with a host override — authored false AND override both leave visible: false", () => {
+        const { ctx, emissions } = makeCtx({
+            plotOverrides: { "a:1:1#0": { visible: false } },
+        });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 1, { visible: false });
+        expect(emissions.plots[0].visible).toBe(false);
+    });
+});
+
 describe("plot — plot overrides", () => {
     it("applies a matching slot override from the context (visible/color/line)", () => {
         const { ctx, emissions } = makeCtx({

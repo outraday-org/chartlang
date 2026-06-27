@@ -1,0 +1,5 @@
+//@version=6
+indicator("Series Band", overlay=true)
+upper = plot(high)
+lower = plot(low)
+fill(upper, lower, color=color.new(color.blue, 80))

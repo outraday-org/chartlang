@@ -151,6 +151,18 @@ export function plotImpl(
     // producer may emit, not something the aliases manufacture.
     const colorValue = dynamicColor;
 
+    // Authoring visibility (`plot(x, { visible })`, Pine's `display =
+    // display.all | display.none`). Resolve to the appended-optional
+    // `visible` wire field with the SAME omit-when-default idiom as `z`:
+    // carry `false` only, drop `true`/`undefined`. An absent field IS visible,
+    // so defaulting to `true` would bloat the wire and break the
+    // byte-identical guarantee (apiVersion: 1 snapshots / pinned plot-hashes).
+    // It composes with the host-override path below — `applyPlotOverride` also
+    // only ever writes `false`, so either source hides the mark and neither
+    // writes `true`. Suppressing the mark is distinct from `value: null`
+    // (a skip-bar series hole); the two are orthogonal and may co-occur.
+    const visible = opts.visible;
+
     const emission: PlotEmission = {
         kind: "plot",
         slotId,
@@ -162,6 +174,7 @@ export function plotImpl(
         color: opts.color ?? null,
         meta: {},
         pane,
+        ...(visible === false ? { visible: false } : {}),
         ...(xShift === 0 ? {} : { xShift }),
         ...(z === 0 ? {} : { z }),
         ...(colorValue === undefined ? {} : { colorValue }),

@@ -248,6 +248,23 @@ layer** every adapter shares.
   the canvas2d reference adapter (Task 6 — `render/bgColor.ts` +
   `createCanvas2dAdapter.ts`'s bg/bar overlays). Other adapters bind to the
   same contract as they port it.
+- **`PlotEmission.visible?: boolean` is the per-plot visibility channel;
+  omitted/`true` ⇒ visible (byte-identical to the pre-feature wire), and the
+  runtime only ever writes `visible: false`.** The SAME field carries BOTH
+  sources — an authoring-driven `plot(value, { visible })` opt AND a host
+  `PlotOverride` — so no adapter needs a separate path for the two. The
+  **normative render contract** (on the `PlotEmission.visible` JSDoc, bound on
+  every conformant adapter): `visible === false` ⇒ the adapter MUST skip
+  rendering the mark AND MUST exclude it from the y-scale / autoscale, MUST NOT
+  draw it as a `value:null` gap/break, and MUST NOT substitute a `NaN` value.
+  It is ORTHOGONAL to `value` (a hidden plot still rides its real numeric
+  `value`; `value:null` and `visible:false` can co-occur) and is NEVER
+  capability-gated. Keeping the hidden slot LISTED is a SHOULD scoped to
+  adapters with a persistent series/legend (lightweight-charts
+  `applyOptions({ visible:false })`, uPlot's all-null row keeps the spec) —
+  the self-scaled adapters (canvas2d, konva, webgl) re-derive the scene each
+  frame and satisfy it by omitting the hidden mark (no legend ghost). All six
+  bundled adapters already honor this; T8 only formalized the contract.
 - **`CandleEvent.streamKey` IS the composite feed key — the same string
   `feedKey(symbol, interval)` produces, byte-for-byte.** Omit it for the main
   stream; a bare interval (`"1D"`) tags a higher-timeframe stream of the

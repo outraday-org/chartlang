@@ -599,6 +599,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "BoolSeriesSlot": {
+        "fqn": "BoolSeriesSlot",
+        "kind": "type",
+        "title": "BoolSeriesSlot",
+        "summary": "/**\nThe boolean counterpart of  {@link NumberSeriesSlot} — a user-allocated,\nwritable, indexable **boolean** history, the value half of\n{@link state} 's `boolSeries` slot. Both a writable scalar slot\n(`s.value = entered`, like `state.bool`) **and** an indexable\n`Series<boolean>` (`s[1]` reads one bar ago, `s.current` the current bar).\nAssign the current bar's value with `s.value = …` each step; read history\nwith `s[n]`. Out-of-range / first-bar history reads are **`false`**, matching\nPine v6 where a `bool` `[]` no longer returns `na`. The runtime backs it with\na ring-buffer view sized to the script's max lookback.",
+        "examples": [
+            "function wasActive(s: BoolSeriesSlot, entered: boolean): boolean {\ns.value = entered;\nreturn s[1]; // false on the first bar (v6 semantics)\n}"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
     "BopOpts": {
         "fqn": "BopOpts",
         "kind": "type",
@@ -4549,9 +4560,9 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "PlotSlotDescriptor",
         "kind": "type",
         "title": "PlotSlotDescriptor",
-        "summary": "One plotted-slot descriptor in `ScriptManifest.plots`. The compiler\nemits one entry per `plot()` / `plot.*()` / `hline()` callsite so an\nembedder can build a style/visibility UI keyed by the stable `slotId`\nbefore the first emission. `title` is present only when the call's\nopts carries a string-literal `title`.",
+        "summary": "One plotted-slot descriptor in `ScriptManifest.plots`. The compiler\nemits one entry per `plot()` / `plot.*()` / `hline()` callsite so an\nembedder can build a style/visibility UI keyed by the stable `slotId`\nbefore the first emission. `title` is present only when the call's\nopts carries a string-literal `title`. `defaultVisible` (@since 1.5) is\npresent only when the call's opts carries a **boolean-literal**\n`visible` (`plot(x, { visible: false })`) — a static hint a host can use\nto pre-toggle a legend entry; an input-driven `{ visible: showRsi }` is\nresolved per run at runtime and leaves the field absent (omitted ⇒ \"no\nstatic hint, defaults to visible\").",
         "examples": [
-            "const slot: PlotSlotDescriptor = {\nslotId: \"ema.ts:12:5#0\",\nkind: \"line\",\ntitle: \"EMA\",\n};\nvoid slot;"
+            "const slot: PlotSlotDescriptor = {\nslotId: \"ema.ts:12:5#0\",\nkind: \"line\",\ntitle: \"EMA\",\ndefaultVisible: false,\n};\nvoid slot;"
         ],
         "since": "0.8",
         "stability": "stable"
@@ -5353,6 +5364,42 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "state.boolSeries": {
+        "fqn": "state.boolSeries",
+        "kind": "function",
+        "title": "state.boolSeries(_init)",
+        "summary": "/**\nAllocate or read a persistent **boolean series** slot — the non-numeric\nsibling of  {@link state} .series for Pine's `var bool` history. `s.value =\nentered` writes the current bar's value; `s[1]` reads one bar ago,\n`s.current` the current bar. Out-of-range / first-bar history reads are\n*`false`** (Pine v6: a `bool` `[]` no longer returns `na`). The\nallocation bar's pre-write head is seeded with `init`. The slot retains a\nbounded window sized to the script's deepest literal `s[n]` lookback.",
+        "paramTable": [
+            {
+                "name": "_init",
+                "type": "boolean",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof state.boolSeries = state.boolSeries;\nvoid fn;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
+    "state.color": {
+        "fqn": "state.color",
+        "kind": "function",
+        "title": "state.color(_init)",
+        "summary": "/**\nAllocate or read a persistent **color** scalar slot — Pine's\n`var color c = …`. `c.value = expr` writes the current bar's color;\n`c.value` reads it back. A  {@link Color} is a CSS color string the\nadapter round-trips verbatim, so the slot stores the string directly.\nThe allocation bar's pre-write head is seeded with `init`; unlike\n{@link state} .series there is no history window — it is a scalar, not an\nindexable series.",
+        "paramTable": [
+            {
+                "name": "_init",
+                "type": "Color",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof state.color = state.color;\nvoid fn;"
+        ],
+        "since": "1.5",
+        "stability": "stable"
+    },
     "state.float": {
         "fqn": "state.float",
         "kind": "function",
@@ -5441,6 +5488,24 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const fn: typeof state.string = state.string;\nvoid fn;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "state.stringSeries": {
+        "fqn": "state.stringSeries",
+        "kind": "function",
+        "title": "state.stringSeries(_init)",
+        "summary": "/**\nAllocate or read a persistent **string series** slot — the non-numeric\nsibling of  {@link state} .series for Pine's `var string` history.\n`s.value = label` writes the current bar's value; `s[1]` reads one bar\nago, `s.current` the current bar. Out-of-range / first-bar history reads\nare the empty string **`\"\"`**. The allocation bar's pre-write head is\nseeded with `init`. The slot retains a bounded window sized to the\nscript's deepest literal `s[n]` lookback.",
+        "paramTable": [
+            {
+                "name": "_init",
+                "type": "string",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof state.stringSeries = state.stringSeries;\nvoid fn;"
+        ],
+        "since": "1.5",
         "stability": "stable"
     },
     "state.tick": {
@@ -5595,6 +5660,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const d: StringDescriptor = { kind: \"string\", defaultValue: \"AAPL\" };\nvoid d;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "StringSeriesSlot": {
+        "fqn": "StringSeriesSlot",
+        "kind": "type",
+        "title": "StringSeriesSlot",
+        "summary": "/**\nThe string counterpart of  {@link NumberSeriesSlot} — a user-allocated,\nwritable, indexable **string** history, the value half of  {@link state} 's\n`stringSeries` slot. Both a writable scalar slot (`s.value = label`, like\n`state.string`) **and** an indexable `Series<string>` (`s[1]` reads one bar\nago, `s.current` the current bar). Assign the current bar's value with\n`s.value = …` each step; read history with `s[n]`. Out-of-range / first-bar\nhistory reads are the empty string **`\"\"`**. The runtime backs it with a\nring-buffer view sized to the script's max lookback.",
+        "examples": [
+            "function priorLabel(s: StringSeriesSlot, label: string): string {\ns.value = label;\nreturn s[1]; // \"\" on the first bar\n}"
+        ],
+        "since": "1.5",
         "stability": "stable"
     },
     "sum": {

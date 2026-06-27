@@ -1,0 +1,5 @@
+//@version=6
+indicator("Consolidation Band", overlay=true)
+guide_consol_upper = hline(0.2)
+guide_consol_lower = hline(-0.2)
+fill(guide_consol_upper, guide_consol_lower, color=color.rgb(205, 121, 219, 88))

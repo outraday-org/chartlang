@@ -163,6 +163,23 @@ plot hashes, alert counts, and diagnostic codes.
   kind, and `drawing-hash` hashes `DrawingState`, which does not carry
   the top-level `z`) — it is covered by the runtime unit test and the
   canvas2d adapter render test instead.
+- **`plot-visible` asserts the WIRE field only — the harness never
+  renders.** `PLOT_VISIBLE_SCENARIO` plots `bar.close` (no `visible`),
+  `bar.hl2` (`{ visible: false }`), and `bar.hlc3` (`{ visible: true }`),
+  then asserts (via `plot-field: "visible"`) `visible === false` on the
+  hidden slot and an OMITTED field on BOTH the absent slot and the
+  explicit-`true` slot — the byte-identity guard proving `visible` absent
+  OR `true` ⇒ the pre-feature wire (the runtime only ever writes `false`).
+  `visible: false` is the UNIVERSAL cross-adapter contract (suppress the
+  mark + exclude from y-scale); the suite drives the runtime directly and
+  cannot observe rendering, so the per-adapter render/skip + autoscale-
+  exclusion proofs live in the adapter render tests, and the persistent-
+  legend "keep slot listed" SHOULD is intentionally NOT asserted here. A
+  control `plot-hash` on the `bar.close` slot proves `visible` is never in
+  the `{ bar, value }` tuple; it is NOT the `plotStyleOverrides`
+  `232ef794…` baseline (that one is `bar.hl2`, this is `bar.close`).
+  Re-pin via the runner's "expected vs actual" message only when the
+  golden bars change.
 
 ## Pine round-trip invariants
 

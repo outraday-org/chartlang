@@ -176,6 +176,31 @@ describe("buildManifest", () => {
         expect(Object.isFrozen(manifest.plots?.[1])).toBe(true);
     });
 
+    it("carries a literal defaultVisible through the spread + freeze", () => {
+        const manifest = buildManifest({
+            name: "p",
+            kind: "indicator",
+            capabilities: ["indicators"],
+            requestedIntervals: [],
+            userPickableInterval: false,
+            seriesCapacities: {},
+            maxLookback: 0,
+            inputs: {},
+            plots: [
+                { slotId: "p.chart.ts:1:1#0", kind: "line", defaultVisible: false },
+                { slotId: "p.chart.ts:2:1#0", kind: "line", defaultVisible: true },
+                { slotId: "p.chart.ts:3:1#0", kind: "line" },
+            ],
+        });
+        expect(manifest.plots).toEqual([
+            { slotId: "p.chart.ts:1:1#0", kind: "line", defaultVisible: false },
+            { slotId: "p.chart.ts:2:1#0", kind: "line", defaultVisible: true },
+            { slotId: "p.chart.ts:3:1#0", kind: "line" },
+        ]);
+        // The hint-less descriptor never grows the key.
+        expect("defaultVisible" in (manifest.plots?.[2] ?? {})).toBe(false);
+    });
+
     it("omits plots when the slot list is empty or absent", () => {
         const empty = buildManifest({
             name: "p",
@@ -246,6 +271,21 @@ export default defineIndicator({
     compute: ({ bar }) => {
         bgcolor(bar.close > bar.open ? "#16a34a" : "#dc2626", { transp: 80, title: "Heat" });
         barcolor("#a855f7");
+    },
+});
+`;
+
+const VISIBLE_SOURCE = `
+import { defineIndicator, input, plot } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "Visible",
+    apiVersion: 1,
+    inputs: { showSlope: input.bool(true) },
+    compute: ({ bar, inputs }) => {
+        plot(bar.close, { visible: false });
+        plot(bar.open, { visible: true });
+        plot(bar.high, { visible: inputs.showSlope as boolean });
+        plot(bar.low);
     },
 });
 `;
@@ -323,6 +363,24 @@ describe("manifest.plots (compiled)", () => {
         expect(manifest.plots).toHaveLength(1);
         expect(manifest.plots?.[0].kind).toBe("line");
         expect(manifest.plots?.[0].title).toBeUndefined();
+    });
+
+    it("records defaultVisible only for a boolean-literal `visible` opt", async () => {
+        const { manifest } = await compile(VISIBLE_SOURCE, {
+            apiVersion: 1,
+            sourcePath: "visible.chart.ts",
+        });
+        expect(manifest.plots).toHaveLength(4);
+        // literal false / true ⇒ explicit static hint.
+        expect(manifest.plots?.[0].defaultVisible).toBe(false);
+        expect(manifest.plots?.[1].defaultVisible).toBe(true);
+        // input-driven `{ visible: inputs.showSlope }` ⇒ resolved per run at
+        // runtime; no static hint, but the slot is still listed with a slotId.
+        expect(manifest.plots?.[2].defaultVisible).toBeUndefined();
+        expect("defaultVisible" in (manifest.plots?.[2] ?? {})).toBe(false);
+        expect(manifest.plots?.[2].slotId).toMatch(/^visible\.chart\.ts:\d+:\d+#0$/);
+        // plain plot ⇒ byte-identical (no defaultVisible key at all).
+        expect("defaultVisible" in (manifest.plots?.[3] ?? {})).toBe(false);
     });
 
     it("survives a JSON round-trip unchanged", async () => {

@@ -251,6 +251,24 @@ export type PlotOpts = Readonly<{
      *     plot(ta.sma(bar.close, 50), { z: -1 }); // behind other plots
      */
     z?: number;
+    /**
+     * Whether this plot is drawn. `false` hides the plot entirely; omitted or
+     * `true` draws it (the default). Hiding SUPPRESSES the mark — it is NOT
+     * the same as plotting `NaN` (a `NaN` value breaks line continuity and
+     * fills, leaving a series hole; `visible: false` removes the mark while
+     * keeping the slot listed). The runtime feeds this into the existing
+     * {@link PlotEmission.visible} wire field, dropping it when omitted /
+     * `true` so byte-identical emissions are preserved. Mirrors Pine's
+     * `display = display.all | display.none`. v1 is a constant boolean
+     * (input-toggle case); a per-bar `Series<boolean>` channel is a
+     * documented follow-up.
+     *
+     * @since 1.5
+     * @stable
+     * @example
+     *     plot(ta.rsi(bar.close, 14), { visible: showRsi }); // input toggle
+     */
+    visible?: boolean;
 }>;
 
 /**

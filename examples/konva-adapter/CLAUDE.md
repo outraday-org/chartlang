@@ -256,6 +256,16 @@ capabilities-only conformance default export).
   tests). `filled-band` is unaffected — its colour is band-level, outside the
   4-kind line-family scope.
 
+- **`visible: false` drops the mark and excludes it from the y-scale —
+  self-scaled "hidden by omission" semantics (canvas2d parity).** `applyPlot`
+  early-returns on `plot.visible === false` before storing any series point /
+  hline / overlay, so a hidden slot contributes nothing painted AND nothing to
+  `computeYRange` (a hidden oscillator never stretches the scale). Konva
+  re-derives the scene every drain (no persistent legend), so omitting the mark
+  IS "keep the slot hidden" — re-enabling re-emits it. The runtime writes
+  `visible: false` for BOTH authoring (`plot(value, { visible })`) and host
+  overrides; the same guard covers both. Orthogonal to `value: null` (a per-bar
+  gap) — see the adapter-kit `PlotEmission.visible` normative contract.
 - **`onEmissions` ingests the FULL emission surface without throwing.**
   Plots are validated + accumulated; drawings are validated + buffered in
   `state.drawings` (`op:"remove"` drops the key, also from `drawingSeq`) and

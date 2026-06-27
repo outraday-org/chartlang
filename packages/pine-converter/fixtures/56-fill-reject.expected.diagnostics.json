@@ -1,0 +1,26 @@
+[
+    {
+        "code": "pine-converter/transform/fill-not-mapped",
+        "severity": "error",
+        "message": "This `fill(...)` form has no chartlang analogue: only `fill(hline, hline)` / `fill(plot, plot)` bands lower to `draw.fillBetween`; gradient (`top_color`/`bottom_color`/`top_value`/`bottom_value`) and `fillgaps` fills are deferred.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 1,
+            "endLine": 5,
+            "endColumn": 43
+        },
+        "suggestion": "Drop the gradient / `fillgaps` styling, or draw the band as an explicit `draw.rectangle`/`draw.path` instead."
+    },
+    {
+        "code": "pine-converter/transform/fill-handle-unresolved",
+        "severity": "error",
+        "message": "A `fill(...)` handle argument does not resolve to a top-level `hline`/`plot` handle (or an inline `hline`/`plot` call), so the band edges cannot be built.",
+        "span": {
+            "startLine": 6,
+            "startColumn": 1,
+            "endLine": 6,
+            "endColumn": 18
+        },
+        "suggestion": "Pass two `hline(...)` / `plot(...)` handles (or inline calls) to `fill(a, b, color)`."
+    }
+]
