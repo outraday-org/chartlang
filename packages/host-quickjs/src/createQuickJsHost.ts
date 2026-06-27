@@ -1,9 +1,6 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import type {
     AdapterSymInfo,
     Capabilities,
@@ -15,6 +12,11 @@ import type {
 import { validateEmission } from "@invinite-org/chartlang-adapter-kit";
 import { getQuickJS } from "quickjs-emscripten";
 
+// The dispatcher bundle is inlined as a build-time string constant (generated
+// by `scripts/buildDispatcher.ts`) rather than read from disk, so this module
+// has no `node:fs` / `node:path` / `node:url` imports and loads in any runtime
+// — Cloudflare Durable Object, browser, or Node.
+import { DISPATCHER_SOURCE } from "./dispatcherSource.generated.js";
 import { DEFAULT_QUICKJS_LIMITS } from "./limits.js";
 import type { HostToQuickJs, QuickJsToHost } from "./protocol.js";
 import type {
@@ -25,9 +27,6 @@ import type {
     QuickJsRuntimeLike,
     ScriptHost,
 } from "./types.js";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const DISPATCHER_SOURCE = readFileSync(resolve(HERE, "../dist/dispatcher.js"), "utf8");
 
 /**
  * Constructor options for {@link createQuickJsHost}.

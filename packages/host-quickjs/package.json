@@ -14,7 +14,7 @@
     },
     "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
     "scripts": {
-        "build": "tsc -p tsconfig.json && pnpm tsx ./scripts/buildDispatcher.ts",
+        "build": "pnpm tsx ./scripts/buildDispatcher.ts --source-only && tsc -p tsconfig.json && pnpm tsx ./scripts/buildDispatcher.ts",
         "bench:ci": "vitest bench --run",
         "build:dispatcher": "pnpm tsx ./scripts/buildDispatcher.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit",

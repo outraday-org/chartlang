@@ -15,6 +15,7 @@
             "examples/scripts/*.chart.manifest.json",
             "examples/canvas2d-adapter/e2e-smoke.ts",
             "packages/cli/src/generated/**",
+            "packages/host-quickjs/src/*.generated.ts",
             "apps/**",
             "parity-smoke.mts"
         ]
