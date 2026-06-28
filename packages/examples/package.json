@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-examples",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "type": "module",
     "license": "MIT",
     "description": "The chartlang example catalogue as a typed data package (metadata + inlined source)",
