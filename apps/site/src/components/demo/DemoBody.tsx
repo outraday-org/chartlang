@@ -49,14 +49,15 @@ function resolveInitialAdapterId(): string {
 }
 
 /**
- * Persist the selected adapter to `?adapter=<id>` via `history.replaceState`
- * (no router navigation — the demo is client-only and must not trigger a
- * nav). Leaves every other param (notably `?script=`) untouched.
+ * Persist a single demo query param (`?script=` / `?adapter=`) via
+ * `history.replaceState` (no router navigation — the demo is client-only
+ * and must not trigger a nav). Leaves every other param untouched, so the
+ * script and adapter selections coexist in the URL.
  */
-function syncAdapterParam(id: string): void {
+function syncDemoParam(key: "script" | "adapter", id: string): void {
   if (typeof window === "undefined") return
   const params = new URLSearchParams(window.location.search)
-  params.set("adapter", id)
+  params.set(key, id)
   const { pathname, hash } = window.location
   history.replaceState(null, "", `${pathname}?${params.toString()}${hash}`)
 }
@@ -104,6 +105,15 @@ export default function DemoBody(): ReactElement {
     [],
   )
 
+  // On mount, write the resolved selections back to the URL so it always
+  // reflects the active example + adapter — even when the page loaded with
+  // missing/unknown params (which fall back to defaults above). Runs once.
+  useEffect(() => {
+    syncDemoParam("script", scriptId)
+    syncDemoParam("adapter", adapterId)
+    // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only URL seed
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     void (async (): Promise<void> => {
@@ -131,6 +141,7 @@ export default function DemoBody(): ReactElement {
           activeId={script?.id ?? ""}
           onSelect={(id) => {
             setScriptId(id)
+            syncDemoParam("script", id)
             setAlerts([])
             setArtifact(null)
           }}
@@ -159,7 +170,7 @@ export default function DemoBody(): ReactElement {
               // script, alerts, and artifact are intentionally preserved
               // (unlike the script Select, which clears them).
               setAdapterId(id)
-              syncAdapterParam(id)
+              syncDemoParam("adapter", id)
             }}
             onAlert={handleAlert}
             onPlayStart={() => setAlerts([])}

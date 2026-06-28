@@ -20,13 +20,13 @@ test("converter converts live, compiles the output, and flags rejects", async ({
 
   const converter = page.locator(".cl-converter")
 
-  // The Pine input editor mounts (left pane) and the default Camp A sample
-  // converts to a drawing — the read-only output pane shows the generated
-  // chartlang `defineDrawing(...)`. That text appearing is end-user proof
+  // The Pine input editor mounts (left pane) and the default EMA-cross sample
+  // converts to an indicator — the read-only output pane shows the generated
+  // chartlang `defineIndicator(...)`. That text appearing is end-user proof
   // the in-browser `convert()` ran with no server round-trip.
   await expect(converter.locator(".pane-editor .cm-content")).toBeVisible({ timeout: 30_000 })
   const output = converter.locator(".output-editor .cm-content")
-  await expect(output).toContainText("defineDrawing", { timeout: 30_000 })
+  await expect(output).toContainText("defineIndicator", { timeout: 30_000 })
 
   // Full pipeline on the clean default sample: compile the converted output
   // through the real /api/compile route and render it. The canvas mounting
@@ -41,15 +41,19 @@ test("converter converts live, compiles the output, and flags rejects", async ({
     })
     .toBeGreaterThan(1000)
 
-  // Switch to the hard-reject sample. The Sample switcher is the first
-  // combobox in the toolbar; opening it and picking the reject entry
-  // re-converts and lands the playground on that sample — its trigger
-  // reflects the new selection and the reject-specific description renders.
-  await converter.getByRole("combobox").first().click()
-  await page.getByRole("option", { name: "Hard reject (for…in)" }).click()
-  await expect(converter.getByRole("combobox").first()).toHaveText(/Hard reject/, {
-    timeout: 30_000,
-  })
+  // Switch to a hard-reject sample. The Sample switcher is now a "Browse
+  // examples" dialog with a category sidebar: open it, pick the Rejections
+  // category, then the for…in reject. That re-converts and lands the
+  // playground on that sample — its trigger reflects the new selection and
+  // the reject-specific description renders. The dialog portals to <body>,
+  // so its category / item buttons are queried via `page`, not `converter`.
+  await converter.locator("button.example-browser-trigger").click()
+  await page.locator(".example-browser-category", { hasText: "Rejections" }).click()
+  await page.locator(".example-browser-item", { hasText: "for…in over handles" }).click()
+  await expect(converter.locator("button.example-browser-trigger")).toContainText(
+    "for…in over handles",
+    { timeout: 30_000 },
+  )
   await expect(
     converter.getByText("refused with a structured diagnostic", { exact: false }),
   ).toBeVisible({ timeout: 30_000 })
