@@ -17,7 +17,11 @@ export default defineIndicator({
     compute({ ta, plot }) {
         // SAR dots trail price and flip side when the stop is breached.
         const p = ta.psar();
-        plot(p.sar, { color: "#42a5f5", title: "PSAR", style: { kind: "marker", shape: "circle", size: 2 } });
+        plot(p.sar, {
+            color: "#42a5f5",
+            title: "PSAR",
+            style: { kind: "marker", shape: "circle", size: 2 },
+        });
     },
 });
 ```

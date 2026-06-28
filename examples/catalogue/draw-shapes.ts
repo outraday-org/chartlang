@@ -55,8 +55,7 @@ const DRAW_SHAPES_FRAGMENT: ReadonlyArray<ExampleMeta> = [
     {
         id: "pivot-triangle",
         label: "Pivot Triangle",
-        description:
-            "A closed triangle over three pivots: two swing lows and a high between them.",
+        description: "A closed triangle over three pivots: two swing lows and a high between them.",
         category: "draw-shapes",
         primitives: ["draw.triangle"],
     },

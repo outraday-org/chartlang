@@ -19,7 +19,11 @@ export default defineIndicator({
         const fast = ta.sma(bar.close, 10);
         const slow = ta.sma(bar.close, 30);
         const atCross = ta.valuewhen(ta.crossover(fast, slow), bar.close);
-        plot(atCross, { color: "#fb8c00", title: "Close @ last cross", style: { kind: "step-line" } });
+        plot(atCross, {
+            color: "#fb8c00",
+            title: "Close @ last cross",
+            style: { kind: "step-line" },
+        });
     },
 });
 ```

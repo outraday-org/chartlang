@@ -47,8 +47,7 @@ const entries: ReadonlyArray<ExampleMeta> = [
     {
         id: "chande-momentum",
         label: "Chande Momentum Oscillator",
-        description:
-            "ta.cmo(9) bounded [-100, 100] with ±50 guides and a zero centre line.",
+        description: "ta.cmo(9) bounded [-100, 100] with ±50 guides and a zero centre line.",
         category: "ta-momentum",
         primitives: ["ta.cmo"],
     },

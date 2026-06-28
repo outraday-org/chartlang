@@ -48,7 +48,7 @@ const entries: ReadonlyArray<ExampleMeta> = [
         id: "input-color-line",
         label: "Input · Color Line",
         description:
-            "input.color(\"#26a69a\") sets the plot stroke; the EMA renders teal at the default.",
+            'input.color("#26a69a") sets the plot stroke; the EMA renders teal at the default.',
         category: "inputs",
         primitives: ["input.color"],
     },

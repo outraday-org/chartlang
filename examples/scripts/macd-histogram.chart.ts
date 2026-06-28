@@ -11,7 +11,11 @@ export default defineIndicator({
         // MACD line + signal line over a zero-based histogram of their difference.
         const m = ta.macd(bar.close);
         hline(0, { color: "#787b86", lineStyle: "dashed", title: "Zero" });
-        plot(m.hist, { color: "#26a69a", title: "Histogram", style: { kind: "histogram", baseline: 0 } });
+        plot(m.hist, {
+            color: "#26a69a",
+            title: "Histogram",
+            style: { kind: "histogram", baseline: 0 },
+        });
         plot(m.macd, { color: "#2962ff", title: "MACD" });
         plot(m.signal, { color: "#ff6d00", title: "Signal" });
     },

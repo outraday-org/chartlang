@@ -1723,7 +1723,11 @@ export default defineIndicator({
         // MACD line + signal line over a zero-based histogram of their difference.
         const m = ta.macd(bar.close);
         hline(0, { color: "#787b86", lineStyle: "dashed", title: "Zero" });
-        plot(m.hist, { color: "#26a69a", title: "Histogram", style: { kind: "histogram", baseline: 0 } });
+        plot(m.hist, {
+            color: "#26a69a",
+            title: "Histogram",
+            style: { kind: "histogram", baseline: 0 },
+        });
         plot(m.macd, { color: "#2962ff", title: "MACD" });
         plot(m.signal, { color: "#ff6d00", title: "Signal" });
     },
@@ -1743,7 +1747,11 @@ export default defineIndicator({
         // Scale-invariant MACD: line + signal + histogram normalised by the slow EMA.
         const p = ta.ppo(bar.close);
         hline(0, { color: "#787b86", lineStyle: "dashed", title: "Zero" });
-        plot(p.hist, { color: "#26a69a", title: "Histogram", style: { kind: "histogram", baseline: 0 } });
+        plot(p.hist, {
+            color: "#26a69a",
+            title: "Histogram",
+            style: { kind: "histogram", baseline: 0 },
+        });
         plot(p.ppo, { color: "#2962ff", title: "PPO" });
         plot(p.signal, { color: "#ff6d00", title: "Signal" });
     },
@@ -1763,7 +1771,11 @@ export default defineIndicator({
         // MACD shape on bar.volume: line + signal + histogram normalised by the slow EMA.
         const p = ta.pvo();
         hline(0, { color: "#787b86", lineStyle: "dashed", title: "Zero" });
-        plot(p.hist, { color: "#26a69a", title: "Histogram", style: { kind: "histogram", baseline: 0 } });
+        plot(p.hist, {
+            color: "#26a69a",
+            title: "Histogram",
+            style: { kind: "histogram", baseline: 0 },
+        });
         plot(p.pvo, { color: "#2962ff", title: "PVO" });
         plot(p.signal, { color: "#ff6d00", title: "Signal" });
     },
@@ -2118,7 +2130,11 @@ export default defineIndicator({
     compute({ ta, plot, hline }) {
         // Aroon Up minus Aroon Down: positive = up-trend bias, negative = down.
         const osc = ta.aroonOsc(25);
-        plot(osc, { color: "#7e57c2", title: "Aroon Osc(25)", style: { kind: "histogram", baseline: 0 } });
+        plot(osc, {
+            color: "#7e57c2",
+            title: "Aroon Osc(25)",
+            style: { kind: "histogram", baseline: 0 },
+        });
         hline(0, { color: "#9e9e9e", lineStyle: "dashed", title: "Zero" });
     },
 });
@@ -2136,7 +2152,11 @@ export default defineIndicator({
     compute({ ta, plot }) {
         // SAR dots trail price and flip side when the stop is breached.
         const p = ta.psar();
-        plot(p.sar, { color: "#42a5f5", title: "PSAR", style: { kind: "marker", shape: "circle", size: 2 } });
+        plot(p.sar, {
+            color: "#42a5f5",
+            title: "PSAR",
+            style: { kind: "marker", shape: "circle", size: 2 },
+        });
     },
 });
 `;
@@ -2313,7 +2333,10 @@ export default defineIndicator({
     overlay: false,
     compute({ bar, ta, plot, hline }) {
         // Bollinger %B(20, 2): price position in the band — 0 on the lower band, 1 on the upper.
-        plot(ta.bbPercentB(bar.close, 20, { multiplier: 2 }), { color: "#2962ff", title: "%B(20)" });
+        plot(ta.bbPercentB(bar.close, 20, { multiplier: 2 }), {
+            color: "#2962ff",
+            title: "%B(20)",
+        });
 
         hline(1, { color: "#ef5350", lineStyle: "dashed", title: "Upper band" });
         hline(0, { color: "#26a69a", lineStyle: "dashed", title: "Lower band" });
@@ -2913,7 +2936,11 @@ export default defineIndicator({
         // ta.barssince — a counter that resets to 0 each time RSI(14) crosses above 70 and climbs by one every bar after, measuring how long since the last overbought breakout.
         const rsi = ta.rsi(bar.close, 14);
         const since = ta.barssince(ta.crossover(rsi, 70));
-        plot(since, { color: "#ab47bc", title: "Bars Since RSI crossed 70", style: { kind: "histogram" } });
+        plot(since, {
+            color: "#ab47bc",
+            title: "Bars Since RSI crossed 70",
+            style: { kind: "histogram" },
+        });
     },
 });
 `;
@@ -2930,7 +2957,11 @@ export default defineIndicator({
     compute({ bar, ta, plot }) {
         // ta.crossover — fires true only on the bar where the fast EMA(9) crosses above the slow EMA(21) (a golden-cross trigger), drawn as 1-spikes on a zero baseline.
         const up = ta.crossover(ta.ema(bar.close, 9), ta.ema(bar.close, 21));
-        plot(up.current ? 1 : 0, { color: "#26a69a", title: "Cross up", style: { kind: "histogram", baseline: 0 } });
+        plot(up.current ? 1 : 0, {
+            color: "#26a69a",
+            title: "Cross up",
+            style: { kind: "histogram", baseline: 0 },
+        });
     },
 });
 `;
@@ -2947,7 +2978,11 @@ export default defineIndicator({
     compute({ bar, ta, plot }) {
         // ta.crossunder — fires true only on the bar where the fast EMA(9) crosses below the slow EMA(21) (a death-cross trigger), drawn as 1-spikes on a zero baseline.
         const down = ta.crossunder(ta.ema(bar.close, 9), ta.ema(bar.close, 21));
-        plot(down.current ? 1 : 0, { color: "#ef5350", title: "Cross down", style: { kind: "histogram", baseline: 0 } });
+        plot(down.current ? 1 : 0, {
+            color: "#ef5350",
+            title: "Cross down",
+            style: { kind: "histogram", baseline: 0 },
+        });
     },
 });
 `;
@@ -2966,7 +3001,11 @@ export default defineIndicator({
         const fast = ta.sma(bar.close, 10);
         const slow = ta.sma(bar.close, 30);
         const atCross = ta.valuewhen(ta.crossover(fast, slow), bar.close);
-        plot(atCross, { color: "#fb8c00", title: "Close @ last cross", style: { kind: "step-line" } });
+        plot(atCross, {
+            color: "#fb8c00",
+            title: "Close @ last cross",
+            style: { kind: "step-line" },
+        });
     },
 });
 `;
@@ -2983,7 +3022,11 @@ export default defineIndicator({
     compute({ bar, ta, plot }) {
         // ta.change — the bar-over-bar first difference of close (today − yesterday), drawn as a zero-baseline histogram of momentum.
         const delta = ta.change(bar.close);
-        plot(delta, { color: "#2962ff", title: "Δ Close", style: { kind: "histogram", baseline: 0 } });
+        plot(delta, {
+            color: "#2962ff",
+            title: "Δ Close",
+            style: { kind: "histogram", baseline: 0 },
+        });
     },
 });
 `;

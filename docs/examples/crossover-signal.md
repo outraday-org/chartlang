@@ -17,7 +17,11 @@ export default defineIndicator({
     compute({ bar, ta, plot }) {
         // ta.crossover — fires true only on the bar where the fast EMA(9) crosses above the slow EMA(21) (a golden-cross trigger), drawn as 1-spikes on a zero baseline.
         const up = ta.crossover(ta.ema(bar.close, 9), ta.ema(bar.close, 21));
-        plot(up.current ? 1 : 0, { color: "#26a69a", title: "Cross up", style: { kind: "histogram", baseline: 0 } });
+        plot(up.current ? 1 : 0, {
+            color: "#26a69a",
+            title: "Cross up",
+            style: { kind: "histogram", baseline: 0 },
+        });
     },
 });
 ```

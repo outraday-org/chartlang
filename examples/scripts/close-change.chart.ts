@@ -10,6 +10,10 @@ export default defineIndicator({
     compute({ bar, ta, plot }) {
         // ta.change — the bar-over-bar first difference of close (today − yesterday), drawn as a zero-baseline histogram of momentum.
         const delta = ta.change(bar.close);
-        plot(delta, { color: "#2962ff", title: "Δ Close", style: { kind: "histogram", baseline: 0 } });
+        plot(delta, {
+            color: "#2962ff",
+            title: "Δ Close",
+            style: { kind: "histogram", baseline: 0 },
+        });
     },
 });

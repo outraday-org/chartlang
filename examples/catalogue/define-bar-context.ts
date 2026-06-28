@@ -18,7 +18,7 @@ const DEFINE_BAR_CONTEXT_FRAGMENT: ReadonlyArray<ExampleMeta> = [
         id: "define-format-percent",
         label: "Define · format",
         description:
-            "The `format: \"percent\"` override: a bar-over-bar return oscillator whose axis labels and cursor read-out render with a trailing %.",
+            'The `format: "percent"` override: a bar-over-bar return oscillator whose axis labels and cursor read-out render with a trailing %.',
         category: "define-bar-context",
         primitives: ["define.format"],
     },
@@ -42,7 +42,7 @@ const DEFINE_BAR_CONTEXT_FRAGMENT: ReadonlyArray<ExampleMeta> = [
         id: "define-requires-intervals",
         label: "Define · requiresIntervals",
         description:
-            "The `requiresIntervals: [\"1D\"]` override declaring the interval the adapter must ship for a daily-only trend line.",
+            'The `requiresIntervals: ["1D"]` override declaring the interval the adapter must ship for a daily-only trend line.',
         category: "define-bar-context",
         primitives: ["define.requiresIntervals"],
     },
@@ -50,7 +50,7 @@ const DEFINE_BAR_CONTEXT_FRAGMENT: ReadonlyArray<ExampleMeta> = [
         id: "define-scale",
         label: "Define · scale",
         description:
-            "The `scale: \"right\"` override binding a sub-pane oscillator to the right axis instead of the price overlay.",
+            'The `scale: "right"` override binding a sub-pane oscillator to the right axis instead of the price overlay.',
         category: "define-bar-context",
         primitives: ["define.scale"],
     },
@@ -58,7 +58,7 @@ const DEFINE_BAR_CONTEXT_FRAGMENT: ReadonlyArray<ExampleMeta> = [
         id: "define-short-name",
         label: "Define · shortName",
         description:
-            "The `shortName: \"EMA20\"` override setting the compact legend-chip label that otherwise falls back to a truncated name.",
+            'The `shortName: "EMA20"` override setting the compact legend-chip label that otherwise falls back to a truncated name.',
         category: "define-bar-context",
         primitives: ["define.shortName"],
     },

@@ -11,7 +11,11 @@ export default defineIndicator({
         // Scale-invariant MACD: line + signal + histogram normalised by the slow EMA.
         const p = ta.ppo(bar.close);
         hline(0, { color: "#787b86", lineStyle: "dashed", title: "Zero" });
-        plot(p.hist, { color: "#26a69a", title: "Histogram", style: { kind: "histogram", baseline: 0 } });
+        plot(p.hist, {
+            color: "#26a69a",
+            title: "Histogram",
+            style: { kind: "histogram", baseline: 0 },
+        });
         plot(p.ppo, { color: "#2962ff", title: "PPO" });
         plot(p.signal, { color: "#ff6d00", title: "Signal" });
     },

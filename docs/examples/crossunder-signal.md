@@ -17,7 +17,11 @@ export default defineIndicator({
     compute({ bar, ta, plot }) {
         // ta.crossunder — fires true only on the bar where the fast EMA(9) crosses below the slow EMA(21) (a death-cross trigger), drawn as 1-spikes on a zero baseline.
         const down = ta.crossunder(ta.ema(bar.close, 9), ta.ema(bar.close, 21));
-        plot(down.current ? 1 : 0, { color: "#ef5350", title: "Cross down", style: { kind: "histogram", baseline: 0 } });
+        plot(down.current ? 1 : 0, {
+            color: "#ef5350",
+            title: "Cross down",
+            style: { kind: "histogram", baseline: 0 },
+        });
     },
 });
 ```

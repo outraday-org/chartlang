@@ -503,7 +503,7 @@
         "primitives": [
             "ta.macd"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, hline, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"MACD\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot, hline }) {\n        // MACD line + signal line over a zero-based histogram of their difference.\n        const m = ta.macd(bar.close);\n        hline(0, { color: \"#787b86\", lineStyle: \"dashed\", title: \"Zero\" });\n        plot(m.hist, { color: \"#26a69a\", title: \"Histogram\", style: { kind: \"histogram\", baseline: 0 } });\n        plot(m.macd, { color: \"#2962ff\", title: \"MACD\" });\n        plot(m.signal, { color: \"#ff6d00\", title: \"Signal\" });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, hline, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"MACD\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot, hline }) {\n        // MACD line + signal line over a zero-based histogram of their difference.\n        const m = ta.macd(bar.close);\n        hline(0, { color: \"#787b86\", lineStyle: \"dashed\", title: \"Zero\" });\n        plot(m.hist, {\n            color: \"#26a69a\",\n            title: \"Histogram\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n        plot(m.macd, { color: \"#2962ff\", title: \"MACD\" });\n        plot(m.signal, { color: \"#ff6d00\", title: \"Signal\" });\n    },\n});\n"
     },
     {
         "id": "ppo-oscillator",
@@ -513,7 +513,7 @@
         "primitives": [
             "ta.ppo"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, hline, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Percentage Price Oscillator\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot, hline }) {\n        // Scale-invariant MACD: line + signal + histogram normalised by the slow EMA.\n        const p = ta.ppo(bar.close);\n        hline(0, { color: \"#787b86\", lineStyle: \"dashed\", title: \"Zero\" });\n        plot(p.hist, { color: \"#26a69a\", title: \"Histogram\", style: { kind: \"histogram\", baseline: 0 } });\n        plot(p.ppo, { color: \"#2962ff\", title: \"PPO\" });\n        plot(p.signal, { color: \"#ff6d00\", title: \"Signal\" });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, hline, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Percentage Price Oscillator\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot, hline }) {\n        // Scale-invariant MACD: line + signal + histogram normalised by the slow EMA.\n        const p = ta.ppo(bar.close);\n        hline(0, { color: \"#787b86\", lineStyle: \"dashed\", title: \"Zero\" });\n        plot(p.hist, {\n            color: \"#26a69a\",\n            title: \"Histogram\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n        plot(p.ppo, { color: \"#2962ff\", title: \"PPO\" });\n        plot(p.signal, { color: \"#ff6d00\", title: \"Signal\" });\n    },\n});\n"
     },
     {
         "id": "pvo-oscillator",
@@ -523,7 +523,7 @@
         "primitives": [
             "ta.pvo"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, hline, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Percentage Volume Oscillator\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ ta, plot, hline }) {\n        // MACD shape on bar.volume: line + signal + histogram normalised by the slow EMA.\n        const p = ta.pvo();\n        hline(0, { color: \"#787b86\", lineStyle: \"dashed\", title: \"Zero\" });\n        plot(p.hist, { color: \"#26a69a\", title: \"Histogram\", style: { kind: \"histogram\", baseline: 0 } });\n        plot(p.pvo, { color: \"#2962ff\", title: \"PVO\" });\n        plot(p.signal, { color: \"#ff6d00\", title: \"Signal\" });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, hline, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Percentage Volume Oscillator\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ ta, plot, hline }) {\n        // MACD shape on bar.volume: line + signal + histogram normalised by the slow EMA.\n        const p = ta.pvo();\n        hline(0, { color: \"#787b86\", lineStyle: \"dashed\", title: \"Zero\" });\n        plot(p.hist, {\n            color: \"#26a69a\",\n            title: \"Histogram\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n        plot(p.pvo, { color: \"#2962ff\", title: \"PVO\" });\n        plot(p.signal, { color: \"#ff6d00\", title: \"Signal\" });\n    },\n});\n"
     },
     {
         "id": "awesome-oscillator",
@@ -713,7 +713,7 @@
         "primitives": [
             "ta.aroonOsc"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, hline, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Aroon Oscillator\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ ta, plot, hline }) {\n        // Aroon Up minus Aroon Down: positive = up-trend bias, negative = down.\n        const osc = ta.aroonOsc(25);\n        plot(osc, { color: \"#7e57c2\", title: \"Aroon Osc(25)\", style: { kind: \"histogram\", baseline: 0 } });\n        hline(0, { color: \"#9e9e9e\", lineStyle: \"dashed\", title: \"Zero\" });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, hline, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Aroon Oscillator\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ ta, plot, hline }) {\n        // Aroon Up minus Aroon Down: positive = up-trend bias, negative = down.\n        const osc = ta.aroonOsc(25);\n        plot(osc, {\n            color: \"#7e57c2\",\n            title: \"Aroon Osc(25)\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n        hline(0, { color: \"#9e9e9e\", lineStyle: \"dashed\", title: \"Zero\" });\n    },\n});\n"
     },
     {
         "id": "parabolic-sar",
@@ -723,7 +723,7 @@
         "primitives": [
             "ta.psar"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Parabolic SAR\",\n    apiVersion: 1,\n    overlay: true,\n    compute({ ta, plot }) {\n        // SAR dots trail price and flip side when the stop is breached.\n        const p = ta.psar();\n        plot(p.sar, { color: \"#42a5f5\", title: \"PSAR\", style: { kind: \"marker\", shape: \"circle\", size: 2 } });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Parabolic SAR\",\n    apiVersion: 1,\n    overlay: true,\n    compute({ ta, plot }) {\n        // SAR dots trail price and flip side when the stop is breached.\n        const p = ta.psar();\n        plot(p.sar, {\n            color: \"#42a5f5\",\n            title: \"PSAR\",\n            style: { kind: \"marker\", shape: \"circle\", size: 2 },\n        });\n    },\n});\n"
     },
     {
         "id": "supertrend",
@@ -823,7 +823,7 @@
         "primitives": [
             "ta.bbPercentB"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, hline, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Bollinger %B\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot, hline }) {\n        // Bollinger %B(20, 2): price position in the band — 0 on the lower band, 1 on the upper.\n        plot(ta.bbPercentB(bar.close, 20, { multiplier: 2 }), { color: \"#2962ff\", title: \"%B(20)\" });\n\n        hline(1, { color: \"#ef5350\", lineStyle: \"dashed\", title: \"Upper band\" });\n        hline(0, { color: \"#26a69a\", lineStyle: \"dashed\", title: \"Lower band\" });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, hline, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Bollinger %B\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot, hline }) {\n        // Bollinger %B(20, 2): price position in the band — 0 on the lower band, 1 on the upper.\n        plot(ta.bbPercentB(bar.close, 20, { multiplier: 2 }), {\n            color: \"#2962ff\",\n            title: \"%B(20)\",\n        });\n\n        hline(1, { color: \"#ef5350\", lineStyle: \"dashed\", title: \"Upper band\" });\n        hline(0, { color: \"#26a69a\", lineStyle: \"dashed\", title: \"Lower band\" });\n    },\n});\n"
     },
     {
         "id": "average-true-range",
@@ -1143,7 +1143,7 @@
         "primitives": [
             "ta.barssince"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Bars Since Overbought\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.barssince — a counter that resets to 0 each time RSI(14) crosses above 70 and climbs by one every bar after, measuring how long since the last overbought breakout.\n        const rsi = ta.rsi(bar.close, 14);\n        const since = ta.barssince(ta.crossover(rsi, 70));\n        plot(since, { color: \"#ab47bc\", title: \"Bars Since RSI crossed 70\", style: { kind: \"histogram\" } });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Bars Since Overbought\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.barssince — a counter that resets to 0 each time RSI(14) crosses above 70 and climbs by one every bar after, measuring how long since the last overbought breakout.\n        const rsi = ta.rsi(bar.close, 14);\n        const since = ta.barssince(ta.crossover(rsi, 70));\n        plot(since, {\n            color: \"#ab47bc\",\n            title: \"Bars Since RSI crossed 70\",\n            style: { kind: \"histogram\" },\n        });\n    },\n});\n"
     },
     {
         "id": "crossover-signal",
@@ -1153,7 +1153,7 @@
         "primitives": [
             "ta.crossover"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Crossover Signal\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.crossover — fires true only on the bar where the fast EMA(9) crosses above the slow EMA(21) (a golden-cross trigger), drawn as 1-spikes on a zero baseline.\n        const up = ta.crossover(ta.ema(bar.close, 9), ta.ema(bar.close, 21));\n        plot(up.current ? 1 : 0, { color: \"#26a69a\", title: \"Cross up\", style: { kind: \"histogram\", baseline: 0 } });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Crossover Signal\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.crossover — fires true only on the bar where the fast EMA(9) crosses above the slow EMA(21) (a golden-cross trigger), drawn as 1-spikes on a zero baseline.\n        const up = ta.crossover(ta.ema(bar.close, 9), ta.ema(bar.close, 21));\n        plot(up.current ? 1 : 0, {\n            color: \"#26a69a\",\n            title: \"Cross up\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n    },\n});\n"
     },
     {
         "id": "crossunder-signal",
@@ -1163,7 +1163,7 @@
         "primitives": [
             "ta.crossunder"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Crossunder Signal\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.crossunder — fires true only on the bar where the fast EMA(9) crosses below the slow EMA(21) (a death-cross trigger), drawn as 1-spikes on a zero baseline.\n        const down = ta.crossunder(ta.ema(bar.close, 9), ta.ema(bar.close, 21));\n        plot(down.current ? 1 : 0, { color: \"#ef5350\", title: \"Cross down\", style: { kind: \"histogram\", baseline: 0 } });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Crossunder Signal\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.crossunder — fires true only on the bar where the fast EMA(9) crosses below the slow EMA(21) (a death-cross trigger), drawn as 1-spikes on a zero baseline.\n        const down = ta.crossunder(ta.ema(bar.close, 9), ta.ema(bar.close, 21));\n        plot(down.current ? 1 : 0, {\n            color: \"#ef5350\",\n            title: \"Cross down\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n    },\n});\n"
     },
     {
         "id": "value-at-cross",
@@ -1173,7 +1173,7 @@
         "primitives": [
             "ta.valuewhen"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Value At Cross\",\n    apiVersion: 1,\n    overlay: true,\n    compute({ bar, ta, plot }) {\n        // ta.valuewhen — the close captured at the most recent SMA(10)/SMA(30) crossover, held constant between events as a stepped reference level on price.\n        const fast = ta.sma(bar.close, 10);\n        const slow = ta.sma(bar.close, 30);\n        const atCross = ta.valuewhen(ta.crossover(fast, slow), bar.close);\n        plot(atCross, { color: \"#fb8c00\", title: \"Close @ last cross\", style: { kind: \"step-line\" } });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Value At Cross\",\n    apiVersion: 1,\n    overlay: true,\n    compute({ bar, ta, plot }) {\n        // ta.valuewhen — the close captured at the most recent SMA(10)/SMA(30) crossover, held constant between events as a stepped reference level on price.\n        const fast = ta.sma(bar.close, 10);\n        const slow = ta.sma(bar.close, 30);\n        const atCross = ta.valuewhen(ta.crossover(fast, slow), bar.close);\n        plot(atCross, {\n            color: \"#fb8c00\",\n            title: \"Close @ last cross\",\n            style: { kind: \"step-line\" },\n        });\n    },\n});\n"
     },
     {
         "id": "close-change",
@@ -1183,7 +1183,7 @@
         "primitives": [
             "ta.change"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Close Change\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.change — the bar-over-bar first difference of close (today − yesterday), drawn as a zero-baseline histogram of momentum.\n        const delta = ta.change(bar.close);\n        plot(delta, { color: \"#2962ff\", title: \"Δ Close\", style: { kind: \"histogram\", baseline: 0 } });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Close Change\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.change — the bar-over-bar first difference of close (today − yesterday), drawn as a zero-baseline histogram of momentum.\n        const delta = ta.change(bar.close);\n        plot(delta, {\n            color: \"#2962ff\",\n            title: \"Δ Close\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n    },\n});\n"
     },
     {
         "id": "rolling-median",
