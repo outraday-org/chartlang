@@ -97,15 +97,27 @@ export function collectCoveredIds(catalogue: ReadonlyArray<ExampleMeta>): Readon
     return covered;
 }
 
-/** The set of `docs/language/<name>` page ids (without `.md`, excluding `index.md`). */
+/**
+ * The set of `docs/language/**` page ids (relative, forward-slashed, without
+ * `.md`, excluding `index.md`). Walks recursively so a page added inside a
+ * subdirectory of `docs/language/` is still subject to the UNREPRESENTED_PAGE
+ * check — mirroring `collectTargetIds` in `examples-coverage.ts`. The relative
+ * id matches the post-`language/` tail that `collectRepresentedPages` derives.
+ */
 export async function collectLanguagePages(dir: string): Promise<ReadonlySet<string>> {
-    const entries = await readdir(dir);
     const pages = new Set<string>();
-    for (const name of entries) {
-        if (name.endsWith(".md") && name !== "index.md") {
-            pages.add(name.slice(0, -".md".length));
+    async function walk(current: string, prefix: string): Promise<void> {
+        const entries = await readdir(current, { withFileTypes: true });
+        for (const entry of entries) {
+            const rel = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+            if (entry.isDirectory()) {
+                await walk(join(current, entry.name), rel);
+            } else if (entry.name.endsWith(".md") && entry.name !== "index.md") {
+                pages.add(rel.slice(0, -".md".length));
+            }
         }
     }
+    await walk(dir, "");
     return pages;
 }
 

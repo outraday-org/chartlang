@@ -54,9 +54,17 @@ describe("example catalogue", () => {
     it("sets a non-empty `idioms` array on every `language` entry, and on no other", () => {
         // The `idioms` field is the idiom-gate signal cross-checked by
         // `pnpm examples:idioms`; it belongs ONLY to the `language` category.
+        // A `language` entry must ALSO credit no primitive (`primitives: []`):
+        // it is covered by the orthogonal `examples:idioms` axis, and crediting
+        // a primitive here would silently satisfy the per-primitive
+        // `examples:coverage` gate for an id whose dedicated default could then
+        // be removed undetected.
         for (const entry of EXAMPLE_CATALOGUE) {
             if (entry.category === "language") {
                 expect(entry.idioms ?? [], `${entry.id} credits ≥1 idiom`).not.toHaveLength(0);
+                expect(entry.primitives.length, `${entry.id} (language) credits no primitive`).toBe(
+                    0,
+                );
             } else {
                 expect(entry.idioms, `${entry.id} (non-language) sets no idioms`).toBeUndefined();
             }

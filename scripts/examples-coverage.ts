@@ -46,6 +46,16 @@ export function mapPageToId(relPath: string): string {
         // `time`, `barstate`, `syminfo`, `timeframe`.
         return parts[0] ?? "";
     }
+    if (parts.length > 2) {
+        // Every primitive namespace is exactly one directory deep
+        // (`<namespace>/<page>.md`); a deeper path would drop its intermediate
+        // segment and silently mis-map (e.g. `state/tick/bool.md` → `state.bool`).
+        // Throw so a new nesting convention forces an explicit mapping decision,
+        // mirroring the unknown-directory guard below.
+        throw new Error(
+            `examples-coverage: unexpected nesting depth for primitive page "${relPath}"`,
+        );
+    }
     const dir = parts[0] ?? "";
     const base = parts[parts.length - 1] ?? "";
     switch (dir) {

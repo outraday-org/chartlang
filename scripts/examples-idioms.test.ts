@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -106,14 +106,16 @@ describe("collectLanguagePages", () => {
         await writeFile(join(dir, "overview.md"), "# x\n");
         await writeFile(join(dir, "index.md"), "# index\n"); // excluded
         await writeFile(join(dir, "notes.txt"), "ignored\n"); // non-md
+        await mkdir(join(dir, "spec"), { recursive: true });
+        await writeFile(join(dir, "spec", "emissions.md"), "# nested\n"); // recursive
     });
     afterAll(async () => {
         await rm(dir, { recursive: true, force: true });
     });
 
-    it("collects *.md basenames, excluding index.md and non-md", async () => {
+    it("collects *.md page ids recursively, excluding index.md and non-md", async () => {
         const pages = await collectLanguagePages(dir);
-        expect([...pages].sort()).toEqual(["overview", "series-and-indexing"]);
+        expect([...pages].sort()).toEqual(["overview", "series-and-indexing", "spec/emissions"]);
     });
 });
 

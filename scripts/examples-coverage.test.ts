@@ -33,6 +33,10 @@ describe("mapPageToId", () => {
     it("throws on an unrecognised primitive directory", () => {
         expect(() => mapPageToId("mystery/thing.md")).toThrow(/unmapped/);
     });
+
+    it("throws on a 3-deep page instead of silently dropping the middle segment", () => {
+        expect(() => mapPageToId("state/tick/bool.md")).toThrow(/nesting depth/);
+    });
 });
 
 describe("collectTargetIds", () => {
