@@ -1,7 +1,7 @@
 {
     "name": "chartlang-site",
     "private": true,
-    "version": "0.0.9",
+    "version": "0.0.10",
     "type": "module",
     "license": "MIT",
     "description": "chartlang landing site — TanStack Start + shadcn (Base UI preset).",

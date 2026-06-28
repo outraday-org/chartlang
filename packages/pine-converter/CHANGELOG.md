@@ -1,5 +1,107 @@
 # @invinite-org/chartlang-pine-converter
 
+## 0.4.0
+
+### Minor Changes
+
+- 70cb92f: Lower Pine `alert(message, freq?)` to chartlang `alert(message)`. The message
+  passes through the ordinary expression emitter (string concatenation preserved)
+  and the enclosing `if` is preserved, never hoisted — chartlang's `alert` is
+  imperative, the same shape as Pine's. The Pine `alert.freq_*` frequency
+  argument is consumed (dropped) with a new `alert-frequency-not-mapped` (info),
+  because chartlang's `AlertOpts` carries no firing-frequency contract; the three
+  frequency enums (`alert.freq_all`, `alert.freq_once_per_bar`,
+  `alert.freq_once_per_bar_close`) are recognised as REJECT rows in
+  `ENUM_VALUE_MAP` so the symbol is never leaked to the generic emitter. Adding a
+  `frequency` field to core `AlertOpts` is a deferred follow-up.
+- 70cb92f: Recognise + classify Pine's tuple-LHS `request.security` form in the semantic
+  pass (`[a, b] = request.security(sym, tf, [s1, s2])`). The `[…]` source list
+  (already parsed as a value-position array literal) is read per element and each
+  entry is classified as a bare OHLCV `field` (data form) or an arbitrary `expr`
+  (callback form) — the same OHLCV-field test and feed resolver the single-source
+  `request.security` path uses, now extracted into the shared ast-only leaf
+  `transform/securityShape.ts` (`securityField` / `resolveSecurityFeed`). A
+  `securityTuple` annotation (`{ feed, elements }`) is stored on the
+  `TupleDeclaration` node for the lowering pass to read back. New semantic
+  diagnostics: `security-tuple-source-not-list` (error — a non-array third arg)
+  and `security-tuple-arity-mismatch` (warning — name/source length differ); a
+  non-literal symbol/interval feed reuses the existing `request-security-not-
+mapped`.
+
+  The lowering pass now consumes that annotation: a tuple-LHS `request.security`
+  emits **one independent read per element** (`const <name> = …`), all sharing a
+  single `{ symbol?, interval }` opts literal (one feed; the runtime dedups via
+  `feedKey`). OHLCV elements use the data form, computed elements the callback
+  form, via shared `securityOpts` / `securityDataRead` / `securityCallbackRead`
+  builders the single-source path also uses. A `_` element is dropped; an
+  arity-mismatch binds what it can; a rejected feed/source emits nothing (never the
+  misleading `multi-return-not-mapped`). For example
+  `[hi, lo] = request.security(syminfo.tickerid, "D", [high, low])` lowers to two
+  data reads that compile. Ships the OHLCV + computed-expr fixture round-trips and
+  the supported/skill docs.
+
+- 70cb92f: Add non-numeric persistent state: `state.color` plus boolean/string series
+  slots (`state.boolSeries` / `state.stringSeries`), enabling `var color` and
+  `var bool/string` history conversion.
+
+  `state.color(init)` is a persistent color scalar (`MutableSlot<Color>`, the
+  `Color` string seeded with `init`). `state.boolSeries(init)` /
+  `state.stringSeries(init)` are the non-numeric siblings of the numeric
+  `state.series` — a writable `.value` head plus integer-indexed `[n]` history
+  (`BoolSeriesSlot` / `StringSeriesSlot`). First-bar / out-of-range history reads
+  are `false` for booleans (Pine v6 semantics) and `""` for strings. The numeric
+  `state.series` / `NumberSeriesSlot` signature is unchanged (numeric snapshots
+  stay byte-identical). The compiler ambient `state` shim mirrors all three
+  factories + the two new slot types in lockstep.
+
+  The Pine converter now lowers a `var color` scalar to `state.color` (a Pine `na`
+  color → the concrete transparent CSS string `"#00000000"`), and a history-indexed
+  `var bool` / `var string` to `state.boolSeries` / `state.stringSeries` (value
+  read / `[n]` history / `:=` write split, mirroring the numeric series). The
+  `series-history-non-numeric` info is retired for `bool`/`string` (now first-class)
+  and narrowed to the still-unsupported `color` history case.
+
+- 70cb92f: Add a per-plot authoring `visible` opt — `plot(x, { visible })` (and Pine
+  `display = display.all | display.none` conversion). Wired into the existing
+  `PlotEmission.visible` wire field; omitted when visible so existing emissions
+  stay byte-identical. (adapter-kit needs no change — its `visible` wire field +
+  validator already exist @since 0.8.)
+
+  The compiler also threads a boolean-literal `visible` into a new optional
+  `manifest.plots[*].defaultVisible` static hint (a host can pre-toggle a legend
+  entry); an input-driven `{ visible }` is resolved per run and leaves the field
+  absent, so unused-visibility manifests stay byte-identical.
+
+  The conformance suite adds the `PLOT_VISIBLE_SCENARIO` export pinning the wire
+  contract cross-adapter: `plot(value, { visible: false })` emits `visible: false`
+  while a no-`visible` plot AND a `visible: true` plot both omit the field
+  (byte-identical wire), with a control `plot-hash` proving `visible` is never in
+  the numeric `{ bar, value }` tuple.
+
+  The Pine converter (minor — new capability + a new diagnostic code) maps a
+  `plot(..., display=...)` named arg onto the `{ visible }` opt:
+  `<cond> ? display.all : display.none` → `{ visible: <cond> }` (the inverted
+  arm order → `{ visible: !(<cond>) }`), a bare `display.none` → `{ visible:
+false }`, and a constant `display.all` (or an omitted `display=`) omits the key
+  for byte-clean output. Any other `display.*` target (`status_line`/`price_scale`/
+  `pane`/`data_window`) is left visible with a new `plot-display-approximated`
+  warning — `display=` is never silently dropped.
+
+### Patch Changes
+
+- 70cb92f: Lower Pine `fill(hline, hline)` / `fill(plot, plot)` to `draw.fillBetween`.
+  Both the static `linefill.new` lowering and the new `fill` lowering now route
+  through one shared `emitFillBetweenBand` edge-builder over pre-resolved edge
+  descriptors (constant-price hline / per-bar plot series / line endpoints); the
+  linefill output is byte-identical. The `fill` handles resolve to their defining
+  top-level (or inline) `hline`/`plot` calls and the fill colour folds via the
+  shared T6 colour rule. `fill-not-mapped` is narrowed to the deferred gradient /
+  `fillgaps` forms (message updated), and a new `fill-handle-unresolved` (error)
+  covers a handle that resolves to neither an `hline` nor a `plot` — `fill` is
+  never silently dropped. Adds the `fill-hline-band` / `fill-plot-band` (clean,
+  compile round-trip) and `fill-reject` fixtures, and documents the mapping in
+  the converter `supported.md` / `rejects.md`.
+
 ## 0.3.0
 
 ### Minor Changes
