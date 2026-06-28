@@ -15,9 +15,20 @@ import { createLanguageService } from "@invinite-org/chartlang-language-service"
 // @ts-expect-error virtual module provided by the chartlangCoreBundles Vite plugin
 import coreBundles from "virtual:chartlang-core-bundles"
 
+import { DEMO_SCRIPTS } from "../../components/demo/scripts"
 import { ensureTsDefaultLibsPatched } from "./tsDefaultLibs"
 
 const IN_MEMORY_MODULES: Readonly<Record<string, string>> = coreBundles
+
+// Sibling cross-file/composition imports (`import x from "./base-trend.chart"`)
+// cannot be read from disk by the single-source `/api/compile` route, so feed
+// the compiler every catalogue example's source keyed by its `./<id>.chart`
+// specifier. The resolver only compiles the siblings actually imported, so the
+// whole map is cheap to pass. `scripts.ts` is pure data (it re-exports the
+// catalogue only), so importing it here drags no esbuild/node into the graph.
+const IN_MEMORY_CHART_SOURCES: Readonly<Record<string, string>> = Object.fromEntries(
+  DEMO_SCRIPTS.map((s) => [`./${s.id}.chart`, s.source]),
+)
 
 /**
  * Successful compile response. `moduleSource` + `manifest` flow straight
@@ -61,13 +72,17 @@ export async function handleCompile(
     return { ok: false, diagnostics: [] }
   }
   ensureTsDefaultLibsPatched()
-  const languageService = createLanguageService({ inMemoryModules: IN_MEMORY_MODULES })
+  const languageService = createLanguageService({
+    inMemoryModules: IN_MEMORY_MODULES,
+    inMemoryChartSources: IN_MEMORY_CHART_SOURCES,
+  })
   const diagnostics = await languageService.compileToDiagnostics(source)
   try {
     const compiled = await compile(source, {
       apiVersion: 1,
       sourcePath: SOURCE_PATH,
       inMemoryModules: IN_MEMORY_MODULES,
+      inMemoryChartSources: IN_MEMORY_CHART_SOURCES,
     })
     return {
       ok: true,

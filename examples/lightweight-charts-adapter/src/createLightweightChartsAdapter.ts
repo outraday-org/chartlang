@@ -222,6 +222,11 @@ type AdapterState = {
     // The candlestick series of the overlay pane, lazily created on the first
     // candle event — the anchor for overlay-pane price lines.
     candleSeries: LwcSeries | undefined;
+    // Set when a `bar-color` / `candle-override` recolours a NON-last (historical)
+    // bar: LC's `series.update()` only accepts the last point or a newer append,
+    // so a historical recolour cannot `update` in place. The `ingest` tail then
+    // rebuilds the whole candle series with one `setData` so the colour lands.
+    candleDirty: boolean;
     // Per-bar candle colour overrides keyed by bar time. A `bar-color` /
     // `bar-override` emission stamps the resolved colour here; `candleData`
     // merges it onto the candlestick point (body + border + wick) so the
@@ -915,7 +920,15 @@ function applyCandleOverride(
     state.candleOverrides.set(plot.time, palette);
     const target = state.bars.find((b) => b.time === plot.time);
     if (target === undefined) return;
-    state.candleSeries.update(candleData(state, target));
+    // LC's `series.update()` only accepts the LAST point (or a newer append);
+    // updating a historical bar throws "Cannot update oldest data". Re-`update`
+    // the last bar in place; defer a historical recolour to the batched
+    // `setData` rebuild at the end of `ingest`.
+    if (target === state.bars[state.bars.length - 1]) {
+        state.candleSeries.update(candleData(state, target));
+    } else {
+        state.candleDirty = true;
+    }
 }
 
 // Per-bar `bar-color` / `bar-override`: stamp the resolved colour onto the
@@ -935,7 +948,15 @@ function applyBarColor(state: AdapterState, plot: PlotEmission, color: string): 
     }
     const target = state.bars.find((b) => b.time === plot.time);
     if (target === undefined) return;
-    state.candleSeries.update(candleData(state, target));
+    // LC's `series.update()` only accepts the LAST point (or a newer append);
+    // updating a historical bar throws "Cannot update oldest data". Re-`update`
+    // the last bar in place; defer a historical recolour to the batched
+    // `setData` rebuild at the end of `ingest`.
+    if (target === state.bars[state.bars.length - 1]) {
+        state.candleSeries.update(candleData(state, target));
+    } else {
+        state.candleDirty = true;
+    }
 }
 
 function applyPlot(state: AdapterState, plot: PlotEmission): void {
@@ -1063,6 +1084,15 @@ function ingest(
         if (d.severity === "warning" || d.severity === "error") {
             console.warn(`[chartlang ${d.code}]`, d.message);
         }
+    }
+    // A `bar-color` / `candle-override` that recoloured a historical (non-last)
+    // bar cannot `update` in place (LC throws "Cannot update oldest data"), so
+    // it flagged `candleDirty`. Rebuild the whole candle series once per drain
+    // with a single `setData` so every recoloured bar — past and present —
+    // takes its colour without a per-bar `update` throw.
+    if (state.candleDirty && state.candleSeries !== undefined) {
+        state.candleSeries.setData(state.bars.map((b) => candleData(state, b)));
+        state.candleDirty = false;
     }
 }
 
@@ -1224,6 +1254,7 @@ export function createLightweightChartsAdapter(
         runSlots: new Map(),
         priceLines: new Map(),
         candleSeries: undefined,
+        candleDirty: false,
         barColors: new Map(),
         candleOverrides: new Map(),
         glyphs: new Map(),
@@ -1278,6 +1309,7 @@ export function createLightweightChartsAdapter(
             // dropping our references is enough (no per-line removePriceLine).
             state.priceLines.clear();
             state.candleSeries = undefined;
+            state.candleDirty = false;
             state.barColors.clear();
             state.candleOverrides.clear();
             state.glyphs.clear();

@@ -423,7 +423,10 @@ export function createWebglAdapter(opts: CreateWebglAdapterOpts): WebglAdapterHa
             lastOverlayCssWidth = info.cssRect.width;
             overlay?.clear();
         }
-        overlay?.paintAxisLabels(info, state.palette);
+        // Time labels paint in the bottom gutter only for the BOTTOM-most pane
+        // (last in `paneOrder`); price labels paint on every pane.
+        const isBottomPane = info.paneKey === state.paneOrder[state.paneOrder.length - 1];
+        overlay?.paintAxisLabels(info, state.palette, isBottomPane);
         // Override SUBSTRATE (bg-color / candle-override / bar-override /
         // bar-color / horizontal-histogram) paints BEFORE the z-sorted glyph /
         // drawing pass — the canvas2d `renderBackgroundOverlays` /

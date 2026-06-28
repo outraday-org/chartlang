@@ -352,18 +352,53 @@ test seam + capabilities-only conformance default export).
   dropped entirely. The canvas-family adapters instead paint a harmless no-op
   path — documented in the README + the reference page.
 
-- **The drawing `Viewport` comes from ECharts' grid pixels.**
-  `buildViewport(chart, bars)` (`src/viewport.ts`) samples two grid corners
-  via `chart.convertToPixel({ gridIndex: 0 }, [time, price])` and hands them to
-  the pure `computeViewport`; the bar-time x extent comes from the bar window
-  (the x axis is a CATEGORY of bar times, so `decomposeDrawing` does the
-  time→x projection). `EChartsSurface` carries an OPTIONAL `convertToPixel?`:
-  the headless default and a not-yet-laid-out chart omit it, and
-  `buildViewport` then returns a deterministic fallback viewport so
-  `option.graphic` is always well-defined. `MockECharts.convertToPixel`
-  applies the deterministic affine `mockValueToPixel` so the sampling path is
-  exercised headlessly (the pure `computeViewport` is verified against the
-  `convertToPixel` identity in `viewport.test.ts`).
+- **The drawing `Viewport` comes from ECharts' grid pixels, sampled at the
+  category INDEX and reconstructed into ABSOLUTE pixels.**
+  `buildViewport(chart, bars, gridIndex, window)` (`src/viewport.ts`) samples
+  two grid corners via `chart.convertToPixel` and hands them to the pure
+  `computeViewport`. Two real-ECharts subtleties (the `MockECharts` affine
+  models NEITHER, so they are verified LIVE, not by the unit test):
+  1. **Category-INDEX x, not raw time.** The x axis is `type:"category"`, so
+     `convertToPixel` is sampled at the bar's category INDEX
+     (`[firstIndex, price]` / `[lastIndex, price]`), NOT its raw `[time, …]` —
+     a ~1e12 timestamp is read as an out-of-range ordinal and returns a pixel
+     trillions wide. The bar TIME stays the world anchor `decomposeDrawing`
+     projects (`Sample.value[0]` is the time; the pixel was sampled at the
+     index).
+  2. **Absolute-pixel reconstruction.** `computeViewport(lo, hi, pxWidth,
+     pxHeight)` (pxWidth/pxHeight = `chart.getWidth()`/`getHeight()`)
+     EXTRAPOLATES the world time/price at container pixel 0 and the far edge,
+     so `timeToX`/`priceToY` (0..px) yield ABSOLUTE container pixels — the grid
+     left/top OFFSET is folded in (a drawing at the first bar lands ON the grid,
+     not at container 0). Without this, drawings were shifted up/left by the
+     grid margins.
+  `EChartsSurface` carries an OPTIONAL `convertToPixel?`: the headless default
+  and a not-yet-laid-out chart omit it (or it THROWS), and `buildViewport` then
+  returns the deterministic fallback. A single visible column or a zero-span
+  sampled basis also falls back (no projection basis). `MockECharts.convertToPixel`
+  applies the deterministic affine `mockValueToPixel`; the index-sampling +
+  absolute reconstruction are pinned in `viewport.test.ts` against it, but the
+  category-axis ordinal behaviour itself is a LIVE-only property.
+
+- **`buildViewport` projects against the VISIBLE `dataZoom` window.** When the
+  chart opens zoomed (`initialVisibleBars` seeds the inside `dataZoom`), the
+  FIRST data bar is off-screen and `convertToPixel` returns `undefined` for it.
+  `buildViewport` takes a `window: ZoomWindow` (`{ start, end }` percent,
+  default full) and samples the FIRST / LAST VISIBLE category index
+  (`visibleIndexRange`) so both corners are on-screen. Every caller passes
+  `zoomWindow(state)` (`{ start: state.zoomStart, end: state.zoomEnd }`).
+
+- **The first laid-out frame is RE-APPLIED once (`state.hasReprojected`).** A
+  live ECharts `convertToPixel` THROWS before the chart's first layout, so any
+  graphic in the FIRST frame is projected against the nominal fallback. After
+  the first `setOption` lays the grid out (synchronously), `onEmissions`
+  re-applies `setOption` ONCE — gated on `hasGraphicMarks(state) ||
+  hasOverlayPanels(state)` so a line-only frame never doubles its `setOption` —
+  so those graphics re-project against the real grid. The demo's static history
+  is a SINGLE frame, so without this the only frame is the pre-layout one and
+  drawings render at fallback positions (off-screen / mis-scaled). This + the
+  index-sampling changed the recorded `convertToPixel` `value`s and added the
+  second `setOption`, re-pinning `integration.test.ts`'s `PINNED_HASH`.
 
 - **The screen-space `table` is decomposed against the chart's ACTUAL
   drawable size, NOT the drawing `Viewport`.** The drawing viewport's

@@ -16,6 +16,25 @@
   memory before the filesystem walk. Values MUST be pre-bundled (no
   remaining bare imports). Default behavior (no map / empty map) is
   byte-identical — keep it that way so the determinism + golden tests hold.
+- **`inMemoryChartSources` resolves sibling `./X.chart` imports from
+  memory; it is a DIFFERENT seam from `inMemoryModules`.** A host that
+  compiles a single source string (the demo's `/api/compile` route) cannot
+  read sibling composition producers (`import x from "./base-trend.chart"`)
+  from disk. `inMemoryChartSources` (`{ "./X.chart": producerSource }`,
+  keyed by the specifier **as written**) feeds two paths: (1) the cross-file
+  **producer resolver** (`createProducerResolver`'s `inMemorySources`) so
+  dependency analysis + bundling inline the producer — this is what
+  `inMemoryModules` (an esbuild bare-specifier seam) CANNOT do, because the
+  `dep-dynamic` error is raised in analysis before esbuild runs; and (2) the
+  **typecheck program** via `inMemoryChartImports` (the resolving specifiers),
+  which `createProgramForSource` serves as per-specifier virtual
+  `CompiledScriptObject` stub `.ts` files mapped through a host
+  `resolveModuleNames` hook — the ambient `declare module "./X.chart"` shim
+  does NOT satisfy a *relative* import, so the stub is required to avoid a
+  spurious `TS2307`. Both are opt-in and lazy (only resolving specifiers are
+  consulted), so absent/empty ⇒ byte-identical to the disk path. The
+  language-service forwards its own `inMemoryChartSources` option to
+  `compile` in lockstep.
 - **Callsite-id format is load-bearing.** Slot ids follow
   `<sourcePath>:<line>:<col>#<callIndex>` (§5.5). Lines and columns are
   1-based, read from the **input** source file before any rewrite. The

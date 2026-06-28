@@ -48,7 +48,7 @@ import {
     primitiveToGraphic,
 } from "./primitiveToGraphic.js";
 import type { EChartsSurface } from "./types.js";
-import { buildViewport } from "./viewport.js";
+import { type ZoomWindow, buildViewport } from "./viewport.js";
 
 const DEFAULT_INTERVAL = "1D";
 const MAX_RECENT_ALERTS = 256;
@@ -289,6 +289,12 @@ type AdapterState = {
     // the first frame WITH bars applies the `initialVisibleBars` window, then
     // flips so later frames track the user's window untouched.
     hasSeededZoom: boolean;
+    // Has the first laid-out frame been re-projected? `convertToPixel` THROWS
+    // before the chart's first layout, so any graphic in the first frame is
+    // projected against the fallback viewport; one re-apply after that frame
+    // re-projects against the real grid pixels. The demo's static history is a
+    // single frame, so without it the only frame is the pre-layout one.
+    hasReprojected: boolean;
 };
 
 function paneSlotKey(paneKey: string, slotId: string): string {
@@ -656,7 +662,12 @@ function horizontalHistogramMarks(state: AdapterState): GraphicMark[] {
     for (const [key, stored] of state.series) {
         if (stored.style.kind !== "horizontal-histogram") continue;
         const paneKey = key.slice(0, key.indexOf("|"));
-        const view = buildViewport(state.chart, state.bars, gridIndexOf(state, paneKey));
+        const view = buildViewport(
+            state.chart,
+            state.bars,
+            gridIndexOf(state, paneKey),
+            zoomWindow(state),
+        );
         const elements = horizontalHistogramGraphics(stored.style, view);
         if (elements.length === 0) continue;
         marks.push({ z: stored.z, band: RENDER_BAND.series, seq: stored.seq, elements });
@@ -925,7 +936,12 @@ function glyphMarks(state: AdapterState, spacing: number): GraphicMark[] {
     for (const [key, stored] of state.series) {
         if (!isGlyphStyle(stored.style)) continue;
         const paneKey = key.slice(0, key.indexOf("|"));
-        const view = buildViewport(state.chart, state.bars, gridIndexOf(state, paneKey));
+        const view = buildViewport(
+            state.chart,
+            state.bars,
+            gridIndexOf(state, paneKey),
+            zoomWindow(state),
+        );
         const color = seriesColor(stored);
         for (const point of stored.points) {
             // A non-finite `value` is the only non-finite source: the bar time is
@@ -961,6 +977,14 @@ function hasGraphicMarks(state: AdapterState): boolean {
     return false;
 }
 
+// The live inside-`dataZoom` window as a `ZoomWindow`, so `buildViewport` frames
+// its sampled corners on the VISIBLE bars (the first data bar is off-screen when
+// the chart is zoomed via `initialVisibleBars`, and ECharts cannot convert an
+// off-screen category).
+function zoomWindow(state: AdapterState): ZoomWindow {
+    return { start: state.zoomStart, end: state.zoomEnd };
+}
+
 // Build the full `option.graphic` array: glyph + drawing + horizontal-histogram
 // marks, z-sorted by the SHARED `sortByRenderOrder` (`(z, band, seq)`), each
 // element carrying its batch's `zlevel` (derived from the same `z`) so a
@@ -971,7 +995,7 @@ function hasGraphicMarks(state: AdapterState): boolean {
 function buildGraphicLayer(state: AdapterState): EChartsGraphicElementZ[] {
     if (!hasGraphicMarks(state)) return [];
     const spacing = medianBarSpacing(state.bars);
-    const drawingView = buildViewport(state.chart, state.bars);
+    const drawingView = buildViewport(state.chart, state.bars, 0, zoomWindow(state));
     const marks: GraphicMark[] = [
         ...horizontalHistogramMarks(state),
         ...glyphMarks(state, spacing),
@@ -1079,7 +1103,7 @@ function hasOverlayPanels(state: AdapterState): boolean {
 // when nothing is fired / logged.
 function overlayPanelGraphics(state: AdapterState): EChartsGraphicElement[] {
     if (!hasOverlayPanels(state)) return [];
-    const view = buildViewport(state.chart, state.bars);
+    const view = buildViewport(state.chart, state.bars, 0, zoomWindow(state));
     return [
         ...alertConditionGraphics(state.currentAlertConditions, view),
         ...logPaneGraphics(state.recentLogs, view),
@@ -1645,6 +1669,7 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
             ? {}
             : { initialVisibleBars: opts.initialVisibleBars }),
         hasSeededZoom: false,
+        hasReprojected: false,
     };
     // Wire a double-click reset to snap the inside-zoom/pan window back to the
     // full range, matching the canvas2d reference adapter's dblclick reset. The
@@ -1690,6 +1715,19 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
             // window and live bars keep auto-following.
             seedInitialZoom(state);
             state.chart.setOption(buildOption(state), { notMerge: true });
+            // The first setOption lays out the grid synchronously; on that first
+            // frame any drawing / glyph / horizontal-histogram / overlay-panel
+            // was projected through `buildViewport` BEFORE the chart had a
+            // coordinate system (a live ECharts `convertToPixel` THROWS pre-layout,
+            // so `buildViewport` returned the nominal fallback). Re-apply ONCE so
+            // those graphics re-project against the now-real grid pixels. Gated on
+            // there BEING such graphics (and only the first frame) so a line-only
+            // bundle (e.g. EMA-cross) never doubles its `setOption` — keeping the
+            // no-spurious-sample invariant + the pinned option-log hash intact.
+            if (!state.hasReprojected && (hasGraphicMarks(state) || hasOverlayPanels(state))) {
+                state.hasReprojected = true;
+                state.chart.setOption(buildOption(state), { notMerge: true });
+            }
         },
         dispose: () => {
             state.bars.length = 0;
@@ -1705,6 +1743,7 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
             state.drawingSeq.clear();
             state.seq = 0;
             state.hasSeededZoom = false;
+            state.hasReprojected = false;
             state.chart.dispose();
             host.dispose();
         },

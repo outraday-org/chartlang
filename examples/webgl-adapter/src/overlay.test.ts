@@ -49,6 +49,14 @@ describe("axisLabelItems", () => {
         expect(items.length).toBe(6);
     });
 
+    it("omits the time labels when includeTimeAxis is false (a non-bottom pane)", () => {
+        const items = axisLabelItems(overlayInfo, "#cccccc", false);
+        // Only the 3 price labels remain; the bottom time row is suppressed so a
+        // mid-stack pane never paints a time axis.
+        expect(items.length).toBe(3);
+        expect(items.every((i) => i.align === "left")).toBe(true);
+    });
+
     it("places price labels in the right gutter and time labels along the bottom", () => {
         const items = axisLabelItems(overlayInfo, "#cccccc");
         const priceLabels = items.filter((i) => i.align === "left");

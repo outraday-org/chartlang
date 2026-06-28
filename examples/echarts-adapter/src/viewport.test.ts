@@ -31,74 +31,96 @@ function bar(i: number, low: number, high: number): Bar {
 }
 
 describe("computeViewport", () => {
-    it("derives pxWidth/pxHeight from the sampled corner delta", () => {
-        const vp = computeViewport(
-            { value: [0, 100], pixel: [48, 408] },
-            { value: [9, 110], pixel: [848, 8] },
-            0,
-            9,
-        );
-        expect(vp).toEqual({
-            xMin: 0,
-            xMax: 9,
-            yMin: 100,
-            yMax: 110,
-            pxWidth: 800,
-            pxHeight: 400,
-        });
+    it("reconstructs an ABSOLUTE-pixel viewport that reproduces the sampled corners", () => {
+        // The two corners carry their world value + the pixel ECharts returned.
+        // The reconstructed viewport's linear projection must reproduce those
+        // exact pixels — the grid left/top OFFSET folded in (a drawing at the
+        // first sampled value lands on its sampled pixel, not at container 0).
+        const lo = { value: [START_TIME, 100] as const, pixel: [48, 408] as const };
+        const hi = {
+            value: [START_TIME + 9 * MS_PER_DAY, 110] as const,
+            pixel: [848, 8] as const,
+        };
+        const vp = computeViewport(lo, hi, 900, 450);
+        expect(vp.pxWidth).toBe(900);
+        expect(vp.pxHeight).toBe(450);
+        expect(timeToX(lo.value[0], vp)).toBeCloseTo(48, 6);
+        expect(timeToX(hi.value[0], vp)).toBeCloseTo(848, 6);
+        expect(priceToY(lo.value[1], vp)).toBeCloseTo(408, 6);
+        expect(priceToY(hi.value[1], vp)).toBeCloseTo(8, 6);
     });
 
-    it("falls back to a nominal size when the sampled pixels are degenerate", () => {
-        const vp = computeViewport(
-            { value: [0, 100], pixel: [50, 50] },
-            { value: [9, 100], pixel: [50, 50] },
-            0,
-            9,
-        );
-        expect(vp.pxWidth).toBe(800);
-        expect(vp.pxHeight).toBe(400);
-    });
-
-    it("reproduces ECharts' convertToPixel under the linear projection", () => {
-        // Project a known world price through `priceToY` against the derived
-        // viewport and confirm it lands on the same pixel the sampler returned
-        // — the verification the task asks for.
-        const loValue: readonly [number, number] = [START_TIME, 100];
-        const hiValue: readonly [number, number] = [START_TIME + MS_PER_DAY, 200];
-        const lo = mockValueToPixel(loValue);
-        const hi = mockValueToPixel(hiValue);
-        const vp = computeViewport(
-            { value: loValue, pixel: lo },
-            { value: hiValue, pixel: hi },
-            loValue[0],
-            hiValue[0],
-        );
-        // priceToY returns a pane-relative y (0..pxHeight); the sampler's pixel
-        // includes the grid `top` offset. Both edges agree once the offset is
-        // accounted for: at yMax the relative y is 0 (sampler's smaller py), at
-        // yMin it is pxHeight (sampler's larger py).
-        const topPy = Math.min(lo[1], hi[1]);
-        const botPy = Math.max(lo[1], hi[1]);
-        expect(priceToY(vp.yMax, vp) + topPy).toBeCloseTo(topPy, 6);
-        expect(priceToY(vp.yMin, vp) + topPy).toBeCloseTo(botPy, 6);
-        // x is linear in bar time: the midpoint time lands at half the width.
-        const midTime = (loValue[0] + hiValue[0]) / 2;
-        expect(timeToX(midTime, vp)).toBeCloseTo(vp.pxWidth / 2, 6);
+    it("places the world value at container pixel 0 at the viewport edge", () => {
+        // The far-left corner sits at pixel 48 (a grid gutter); the world time at
+        // container pixel 0 is extrapolated into `xMin`, so `timeToX(xMin) === 0`.
+        const lo = { value: [START_TIME, 100] as const, pixel: [48, 408] as const };
+        const hi = {
+            value: [START_TIME + 9 * MS_PER_DAY, 110] as const,
+            pixel: [848, 8] as const,
+        };
+        const vp = computeViewport(lo, hi, 900, 450);
+        expect(timeToX(vp.xMin, vp)).toBeCloseTo(0, 6);
+        expect(timeToX(vp.xMax, vp)).toBeCloseTo(900, 6);
     });
 });
 
 describe("buildViewport", () => {
-    it("samples the chart's convertToPixel when available", () => {
+    it("samples convertToPixel at the visible category INDICES and reproduces those pixels", () => {
         const chart = new MockECharts();
         const bars = [bar(0, 100, 110), bar(1, 105, 120)];
         const vp = buildViewport(chart, bars);
-        // Two corner samples were recorded.
-        expect(chart.calls.filter((c) => c.kind === "convertToPixel")).toHaveLength(2);
-        // The price extent comes from the bar window's low/high.
-        expect(vp.yMin).toBe(100);
-        expect(vp.yMax).toBe(120);
+        const samples = chart.calls.filter((c) => c.kind === "convertToPixel");
+        expect(samples).toHaveLength(2);
+        // x is sampled at the category INDEX (0 / 1), NOT the ~1.7e12 bar time
+        // (a category axis reads a raw timestamp as an out-of-range ordinal).
+        expect(samples[0]?.kind === "convertToPixel" && samples[0].value[0]).toBe(0);
+        expect(samples[1]?.kind === "convertToPixel" && samples[1].value[0]).toBe(1);
+        // The reconstructed viewport reproduces the mock's pixels for the corner
+        // world coords (time at index 0/1, price at the window low/high).
+        expect(timeToX(bars[0].time, vp)).toBeCloseTo(mockValueToPixel([0, 100])[0], 6);
+        expect(timeToX(bars[1].time, vp)).toBeCloseTo(mockValueToPixel([1, 120])[0], 6);
+        expect(priceToY(100, vp)).toBeCloseTo(mockValueToPixel([0, 100])[1], 6);
+        expect(priceToY(120, vp)).toBeCloseTo(mockValueToPixel([1, 120])[1], 6);
+        expect(vp.pxWidth).toBe(chart.getWidth());
+        expect(vp.pxHeight).toBe(chart.getHeight());
+    });
+
+    it("frames the sampled corners on the VISIBLE dataZoom window, not the full extent", () => {
+        const chart = new MockECharts();
+        // 11 bars (indices 0..10); a 60–100% window frames indices 6..10.
+        const bars = Array.from({ length: 11 }, (_, i) => bar(i, 100 + i, 110 + i));
+        buildViewport(chart, bars, 0, { start: 60, end: 100 });
+        const samples = chart.calls.filter((c) => c.kind === "convertToPixel");
+        // floor(0.6·10)=6, ceil(1.0·10)=10 — the on-screen slice, never index 0.
+        expect(samples[0]?.kind === "convertToPixel" && samples[0].value[0]).toBe(6);
+        expect(samples[1]?.kind === "convertToPixel" && samples[1].value[0]).toBe(10);
+    });
+
+    it("falls back without sampling when only one bar is visible", () => {
+        const chart = new MockECharts();
+        const vp = buildViewport(chart, [bar(0, 100, 110)]);
+        // Single visible column → no horizontal basis; fall back before sampling.
+        expect(chart.calls.filter((c) => c.kind === "convertToPixel")).toHaveLength(0);
+        expect(vp.pxWidth).toBe(800);
+        expect(vp.xMax).toBe(bar(0, 100, 110).time + 1);
+    });
+
+    it("falls back on a degenerate (zero-span) sampled basis", () => {
+        // A surface whose convertToPixel collapses both corners to one pixel.
+        const flatConvert: EChartsSurface = {
+            setOption() {},
+            resize() {},
+            dispose() {},
+            getWidth: () => 800,
+            getHeight: () => 400,
+            convertToPixel: () => [50, 50],
+        };
+        const bars = [bar(0, 100, 110), bar(1, 105, 120)];
+        const vp = buildViewport(flatConvert, bars);
+        // No basis → deterministic fallback (xMin/xMax = full bar-time extent).
         expect(vp.xMin).toBe(bars[0].time);
         expect(vp.xMax).toBe(bars[1].time);
+        expect(vp.pxWidth).toBe(800);
     });
 
     it("returns a deterministic fallback when convertToPixel is absent", () => {
@@ -124,16 +146,18 @@ describe("buildViewport", () => {
             setOption() {},
             resize() {},
             dispose() {},
+            getWidth: () => 800,
+            getHeight: () => 400,
             convertToPixel() {
                 return undefined;
             },
         };
-        const bars = [bar(0, 100, 110)];
+        const bars = [bar(0, 100, 110), bar(1, 105, 120)];
         const vp = buildViewport(undefConvert, bars);
-        // Single bar → xMax is widened by 1; price extent from the lone bar.
-        expect(vp.xMax).toBe(bars[0].time + 1);
+        expect(vp.xMin).toBe(bars[0].time);
+        expect(vp.xMax).toBe(bars[1].time);
         expect(vp.yMin).toBe(100);
-        expect(vp.yMax).toBe(110);
+        expect(vp.yMax).toBe(120);
     });
 
     it("returns a fallback when convertToPixel throws (chart not laid out)", () => {
@@ -143,15 +167,16 @@ describe("buildViewport", () => {
             setOption() {},
             resize() {},
             dispose() {},
+            getWidth: () => 800,
+            getHeight: () => 400,
             convertToPixel() {
                 throw new Error("Cannot read properties of undefined (reading 'queryComponents')");
             },
         };
-        const bars = [bar(0, 100, 110)];
+        const bars = [bar(0, 100, 110), bar(1, 105, 120)];
         const vp = buildViewport(throwingConvert, bars);
-        expect(vp.xMax).toBe(bars[0].time + 1);
-        expect(vp.yMin).toBe(100);
-        expect(vp.yMax).toBe(110);
+        expect(vp.xMin).toBe(bars[0].time);
+        expect(vp.xMax).toBe(bars[1].time);
     });
 
     it("handles an empty bar window with a unit fallback extent", () => {
@@ -161,6 +186,21 @@ describe("buildViewport", () => {
             dispose() {},
         };
         const vp = buildViewport(noConvert, []);
+        expect(vp).toEqual({
+            xMin: 0,
+            xMax: 1,
+            yMin: 0,
+            yMax: 1,
+            pxWidth: 800,
+            pxHeight: 400,
+        });
+    });
+
+    it("falls back on an empty bar window even when convertToPixel is present", () => {
+        const chart = new MockECharts();
+        const vp = buildViewport(chart, []);
+        // No bars → no window to frame; fall back before sampling any corner.
+        expect(chart.calls.filter((c) => c.kind === "convertToPixel")).toHaveLength(0);
         expect(vp).toEqual({
             xMin: 0,
             xMax: 1,
@@ -181,5 +221,18 @@ describe("buildViewport", () => {
         const vp = buildViewport(noConvert, flat);
         expect(vp.yMin).toBe(99);
         expect(vp.yMax).toBe(101);
+    });
+
+    it("pads a flat VISIBLE price window before sampling the corners", () => {
+        // With `convertToPixel` present the price extent is sampled; a flat
+        // window (low === high across the visible bars) is padded so the two y
+        // corners stay distinct (otherwise the basis would collapse).
+        const chart = new MockECharts();
+        const flat = [bar(0, 100, 100), bar(1, 100, 100)];
+        const vp = buildViewport(chart, flat);
+        expect(chart.calls.filter((c) => c.kind === "convertToPixel")).toHaveLength(2);
+        // priceExtent padded 100 → [99, 101]; the corners were sampled there.
+        expect(priceToY(99, vp)).toBeCloseTo(mockValueToPixel([0, 99])[1], 6);
+        expect(priceToY(101, vp)).toBeCloseTo(mockValueToPixel([1, 101])[1], 6);
     });
 });

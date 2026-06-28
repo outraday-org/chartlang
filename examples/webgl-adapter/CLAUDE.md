@@ -560,9 +560,20 @@ the pure packer + the layout math + the histogram routing are node-unit-tested.
   `paneOrder` entries (volume / oscillators) split the bottom band uniformly in
   order, the LAST subpane absorbing the integer-rounding remainder so the panes
   tile the canvas exactly (no 1-px seam). Zero subpanes ⇒ the overlay spans the
-  full canvas (the Task-5 MVP shape is now the zero-subpane case). There is NO
-  reserved time-axis / price-axis gutter or inter-pane gap — axis labels paint
-  on the 2D overlay (Task 8), same as canvas2d. The factory's `layout()` calls
+  full PLOT area (the Task-5 MVP shape is now the zero-subpane case). **Every
+  pane is INSET by the axis gutters: `plotWidth = cssWidth −
+  PRICE_AXIS_GUTTER_PX (52)`, `plotHeight = cssHeight − TIME_AXIS_GUTTER_PX
+  (18)`.** The GL geometry + overlay drawings render inside `plotWidth ×
+  plotHeight`, and the 2D overlay paints the axis labels in the reserved bands —
+  price labels at `cssRect.width + gap` (the right gutter), time labels at
+  `cssRect.height + gap` (the bottom gutter). WITHOUT the gutters those labels
+  land at `fullWidth/Height + gap`, OFF the canvas (the "webgl has no axis
+  labels" bug). `PRICE_AXIS_GUTTER_PX` mirrors canvas2d's `Y_AXIS_GUTTER_PX`.
+  Time labels paint ONLY for the BOTTOM-most pane (`onAxes` passes
+  `includeTimeAxis = info.paneKey === paneOrder.at(-1)` to
+  `paintAxisLabels`/`axisLabelItems`), so a multi-pane stack shows one time row
+  at the very bottom, never mid-chart; price labels paint on every pane (each
+  its own scale). The factory's `layout()` calls
   this each frame from `state.paneOrder` (which grows as subpane series arrive)
   + the GL context's CSS dims; the hardcoded single-overlay rect from Task 5 is
   gone.
@@ -725,14 +736,30 @@ browser-only.
   `decomposeDrawing` + `paintPrimitive` — NOT a GL program; NO per-kind
   geometry is re-derived (the adapter-kit contract).** `drawings.ts`'s
   `drawingPrimitives(state, info)` is PURE: it builds the overlay-pane pixel
-  `Viewport` via `glyphs.ts`'s `paneViewportFromInfo(info)` — the SAME
-  projection the glyph / badge anchors + axis labels use, so all overlay
-  layers share ONE projection source per frame — iterates `state.drawings`
+  `Viewport` via a `drawingViewport(state, info)` wrapper over `glyphs.ts`'s
+  `paneViewportFromInfo(info)` — iterates `state.drawings`
   ordered by `(z ?? 0, drawingSeq)`, and concatenates
   `decomposeDrawing(drawing, viewport)` per live drawing into a flat
   `DrawPrimitive[]`. The factory's `onAxes` hook (overlay pane) paints them
   via `paintOverlayDrawings` → `overlay.paintDrawings(prims)` →
   `paintPrimitive(ctx, prim)` — byte-consistent with canvas2d / uplot / lwc.
+- **`drawingViewport` re-bases the x window from bar SLOT to bar TIME — the
+  ONE place the overlay diverges from the GL/glyph slot space.** The GL
+  geometry, glyph anchors (`glyphs.ts`), and override bands (`overrides.ts`)
+  all use the COMPRESSED bar SLOT (index) as world x (`barX` = `barIndex +
+  xShift`; no calendar gaps), and project the slot directly via `timeToX(slot,
+  …)`. But the SHARED `decomposeDrawing` projects each drawing's bar-TIME
+  anchors (it is renderer-agnostic). So `drawingViewport` rewrites only the
+  slot-space viewport's `xMin`/`xMax` to the bar TIME at those slot edges via
+  `slotAnchorTime` (the inverse of the bar→slot mapping: interior slots
+  interpolate between adjacent bar times, out-of-range slots extrapolate with
+  the edge spacing). A drawing anchored at a bar's time then lands on the SAME
+  pixel as that bar's candle, for ANY spacing. `y`/`pxWidth`/`pxHeight` (the
+  slot-space projection) are unchanged; `< 2` bars returns the slot viewport
+  unchanged (no time basis). WITHOUT this re-base a ~1e12 epoch anchor projects
+  against the ~`[len−N, len−1]` slot window and flies ~1e12 px off-canvas (the
+  "webgl drawings invisible" bug). Glyphs / overrides need NO change — they are
+  already slot-native.
 - **NO GL arc tessellation / no `drawings-program.ts` — the overlay sink
   paints arcs / fills / text / markers natively.** `decomposeDrawing` emits
   pixel-space primitives INCLUDING real `kind:"arc"` (circle / time-cycles /

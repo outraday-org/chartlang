@@ -86,6 +86,32 @@ export function defineIndicator(o){ return o; }
         await expect(service.compileToDiagnostics(minimal)).resolves.toEqual([]);
     });
 
+    it("forwards `inMemoryChartSources` so a sibling `.chart` import does not error", async () => {
+        // Without the forwarded map the diagnostics compile would report
+        // `TS2307: Cannot find module './base-trend.chart'`; supplying the
+        // sibling source in memory resolves it and keeps diagnostics clean.
+        const producer = `import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "p",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, ta, plot }) { plot(ta.ema(bar.close, 14), { title: "line" }); },
+});`;
+        const consumer = `import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+import baseTrend from "./base-trend.chart";
+export default defineIndicator({
+    name: "c",
+    apiVersion: 1,
+    overlay: true,
+    compute({ plot }) { plot(baseTrend.output("line").current, { title: "x" }); },
+});`;
+        const service = createLanguageService({
+            inMemoryChartSources: { "./base-trend.chart": producer },
+        });
+
+        await expect(service.compileToDiagnostics(consumer)).resolves.toEqual([]);
+    });
+
     it("maps TypeScript semantic errors to `type-error` diagnostics with correct range", async () => {
         // Regression test for the PLAN §5.2 step 1 gap: a script with a
         // semantic type error must surface a diagnostic the editor's

@@ -157,6 +157,18 @@ export type LanguageServiceOptions = Readonly<{
      * @since 1.2
      */
     inMemoryModules?: Readonly<Record<string, string>>;
+    /**
+     * Forwarded to the local Node compiler's `inMemoryChartSources` option
+     * when `compileToDiagnostics` is NOT injected. Lets a host that compiles
+     * a single source string (the demo's `/api/compile` route) resolve
+     * sibling `./X.chart` cross-file imports it has in memory but cannot read
+     * from disk, so the local diagnostics compile does not report a spurious
+     * `TS2307: Cannot find module './X.chart'`. Ignored when
+     * `compileToDiagnostics` is provided.
+     *
+     * @since 1.2
+     */
+    inMemoryChartSources?: Readonly<Record<string, string>>;
 }>;
 
 /**

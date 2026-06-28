@@ -20,6 +20,7 @@ export type {
     GraphicPathStyle,
 } from "./primitiveToGraphic.js";
 export { buildViewport, computeViewport } from "./viewport.js";
+export type { ZoomWindow } from "./viewport.js";
 
 /**
  * Default export — re-exports {@link DEFAULT_ADAPTER} so consumers (the

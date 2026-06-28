@@ -153,7 +153,7 @@ export type TextOverlay = {
      * price tick, bottom-row time labels at each time tick. Pure mapping over
      * the {@link AxisRenderInfo} the renderer's `onAxes` hook supplies.
      */
-    paintAxisLabels(info: AxisRenderInfo, palette: Palette): void;
+    paintAxisLabels(info: AxisRenderInfo, palette: Palette, includeTimeAxis?: boolean): void;
     /** Re-size the backing canvas to a new CSS box / dpr (browser-only). */
     resize(cssWidth: number, cssHeight: number, dpr: number): void;
     /** Release the overlay (detach the canvas element if the overlay owns it). */
@@ -183,7 +183,11 @@ export type TextOverlay = {
  *     // labels.length === 6
  *     void labels;
  */
-export function axisLabelItems(info: AxisRenderInfo, labelColor: string): OverlayText[] {
+export function axisLabelItems(
+    info: AxisRenderInfo,
+    labelColor: string,
+    includeTimeAxis = true,
+): OverlayText[] {
     const { cssRect, window: win, ticks } = info;
     const viewport: Viewport = {
         xMin: win.xMin,
@@ -213,20 +217,25 @@ export function axisLabelItems(info: AxisRenderInfo, labelColor: string): Overla
             baseline,
         });
     }
-    const spanMs = win.xMax - win.xMin;
-    for (const time of ticks.timeTicks) {
-        const localX = timeToX(time, viewport);
-        if (localX < 0 || localX > cssRect.width) continue;
-        const text = info.timeFormatter?.(time, spanMs) ?? formatTime(time, spanMs);
-        if (text === "") continue;
-        items.push({
-            x: cssRect.x + localX,
-            y: cssRect.y + cssRect.height + TIME_LABEL_GAP_PX,
-            text,
-            color: labelColor,
-            align: "center",
-            baseline: "top",
-        });
+    // Time labels paint in the bottom gutter — only for the BOTTOM-most pane
+    // (the caller passes `includeTimeAxis: false` for the overlay / middle panes
+    // in a multi-pane stack, so a mid-chart time row never appears).
+    if (includeTimeAxis) {
+        const spanMs = win.xMax - win.xMin;
+        for (const time of ticks.timeTicks) {
+            const localX = timeToX(time, viewport);
+            if (localX < 0 || localX > cssRect.width) continue;
+            const text = info.timeFormatter?.(time, spanMs) ?? formatTime(time, spanMs);
+            if (text === "") continue;
+            items.push({
+                x: cssRect.x + localX,
+                y: cssRect.y + cssRect.height + TIME_LABEL_GAP_PX,
+                text,
+                color: labelColor,
+                align: "center",
+                baseline: "top",
+            });
+        }
     }
     return items;
 }
@@ -333,8 +342,8 @@ export function createTextOverlay(opts: {
                 ctx.fillRect(row.x, row.y, row.width, row.height);
             }
         },
-        paintAxisLabels(info, palette): void {
-            this.paintText(axisLabelItems(info, palette.candleWick));
+        paintAxisLabels(info, palette, includeTimeAxis = true): void {
+            this.paintText(axisLabelItems(info, palette.candleWick, includeTimeAxis));
         },
         /* v8 ignore start -- DOM sizing is browser-only; the ctx-only test seam skips it */
         resize(nextCssWidth, nextCssHeight, nextDpr): void {

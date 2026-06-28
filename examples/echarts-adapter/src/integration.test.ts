@@ -237,4 +237,10 @@ describe("echarts adapter integration (worker host)", () => {
 // Re-pinned for the stroke-only `fill: "none"` fix: a no-fill drawing primitive
 // (the bundle's `draw.line` / `draw.rectangle`) now carries an explicit
 // `fill: "none"` so zrender does not paint its default black fill.
-const PINNED_HASH = "51a6ff17698d69adc175ef45a0d3115670f344a0443835298630727ced71f790";
+// Re-pinned again for the drawing-projection fix: `buildViewport` now samples
+// `convertToPixel` at the bar's category INDEX (not its raw time) and folds the
+// grid pixel offset into an absolute-pixel viewport, so the recorded sample
+// `value`s changed; and the first frame is RE-APPLIED once (a second setOption)
+// so graphics projected against the pre-layout fallback re-project against the
+// real grid — both deliberate correctness changes.
+const PINNED_HASH = "f96c628c1f8ef1fb620b7e416b8be4eb10caf8c7035e1b5241d7e3f6fbde1a5f";

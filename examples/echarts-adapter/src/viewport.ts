@@ -13,29 +13,54 @@ import type { EChartsSurface } from "./types.js";
 const FALLBACK_WIDTH = 800;
 const FALLBACK_HEIGHT = 400;
 
-// A sampled pixel corner from ECharts' `convertToPixel` for a known value
-// coordinate. `value` is the world `[x, y]` fed in; `pixel` is the `[px, py]`
-// ECharts returned.
+// A sampled pixel corner from ECharts' `convertToPixel`. `value` is the WORLD
+// `[time, price]` the pixel corresponds to; `pixel` is the `[px, py]` ECharts
+// returned. NOTE: the x of `value` is a bar TIME, but the corner is SAMPLED at
+// the bar's category INDEX (see `buildViewport`) — the category x axis treats a
+// raw timestamp as an ordinal index, so sampling at the time would return a
+// pixel ~1e12 wide; the time is only the world anchor `decomposeDrawing` projects.
 type Sample = {
     readonly value: readonly [number, number];
     readonly pixel: readonly [number, number];
 };
 
 /**
- * Derive a renderer-agnostic {@link Viewport} from two sampled ECharts pixel
- * corners plus the bar-time / price extents, so adapter-kit's linear
- * projection (`timeToX` / `priceToY`) reproduces ECharts' own grid pixels.
+ * A `dataZoom` window in percent (0–100) over the bar-time CATEGORY axis. The
+ * drawing {@link Viewport} samples the bars this window FRAMES (their on-screen
+ * pixels) — not the full data extent — so a chart opened zoomed
+ * (`initialVisibleBars`) projects `draw.*` drawings against on-screen bars
+ * rather than off-screen ones ECharts cannot convert. The full window
+ * `{ start: 0, end: 100 }` reproduces the un-zoomed full-extent build.
  *
- * `lo`/`hi` are `convertToPixel` samples at the value-axis extremes. The grid
- * is linear (value axes are linear; the bar-time axis is linear in ms), so the
- * sampled corner pixels give the grid's pixel rect: `pxWidth`/`pxHeight` from
- * the corner delta, and the `left`/`top` offset is folded into `xMin`/`yMax`
- * by reconstructing the world value at the grid origin. The `Viewport`'s
- * `xMin`/`xMax` are bar TIMES (the x axis is a category of bar times);
- * `decomposeDrawing` does the time→x projection.
+ * @since 1.11
+ * @stable
+ * @example
+ *     import type { ZoomWindow } from "chartlang-example-echarts-adapter";
+ *     const window: ZoomWindow = { start: 70, end: 100 };
+ *     void window;
+ */
+export type ZoomWindow = { readonly start: number; readonly end: number };
+
+const FULL_WINDOW: ZoomWindow = { start: 0, end: 100 };
+
+/**
+ * Reconstruct an ABSOLUTE-pixel {@link Viewport} from two sampled ECharts
+ * corners plus the chart's full drawable size, so adapter-kit's linear
+ * projection (`timeToX` / `priceToY`) reproduces ECharts' own ABSOLUTE
+ * (container-relative) pixels — the coordinate space the `graphic` layer
+ * positions in.
  *
- * Pure — no ECharts instance, no DOM — so it is unit-testable against the
- * `convertToPixel` identity.
+ * `lo`/`hi` carry the WORLD value (`[time, price]`) and the ECharts pixel for
+ * two corners. The grid is linear (value axes are linear; the bar-time axis is
+ * linear in ms over a window), so the two corners fix the world→pixel line. The
+ * `Viewport`'s `xMin`/`xMax` (times) and `yMin`/`yMax` (prices) are the world
+ * values AT THE CHART'S PIXEL ORIGIN AND FAR EDGE — extrapolated from the
+ * corners — and `pxWidth`/`pxHeight` are the full chart size, so the grid's
+ * left/top pixel OFFSET is folded in (a drawing at the first bar lands on the
+ * grid, not at container pixel 0). `decomposeDrawing` does the time→x / price→y
+ * projection.
+ *
+ * Pure — no ECharts instance, no DOM — so it is unit-testable.
  *
  * @since 1.4
  * @stable
@@ -44,34 +69,47 @@ type Sample = {
  *     const vp = computeViewport(
  *         { value: [0, 100], pixel: [48, 408] },
  *         { value: [9, 110], pixel: [848, 8] },
- *         0,
- *         9,
+ *         896,
+ *         416,
  *     );
- *     // vp.pxWidth === 800; vp.pxHeight === 400
+ *     // vp.pxWidth === 896; vp.pxHeight === 416
  *     void vp;
  */
-export function computeViewport(lo: Sample, hi: Sample, xMin: number, xMax: number): Viewport {
-    const [, loY] = lo.pixel;
-    const [, hiY] = hi.pixel;
-    const [loPx] = lo.pixel;
-    const [hiPx] = hi.pixel;
-    const pxWidth = Math.abs(hiPx - loPx);
-    const pxHeight = Math.abs(loY - hiY);
-    const [, loPrice] = lo.value;
-    const [, hiPrice] = hi.value;
+export function computeViewport(
+    lo: Sample,
+    hi: Sample,
+    pxWidth: number,
+    pxHeight: number,
+): Viewport {
+    const [timeLo, priceLo] = lo.value;
+    const [timeHi, priceHi] = hi.value;
+    const [loPx, loPy] = lo.pixel;
+    const [hiPx, hiPy] = hi.pixel;
+    // time → x: extrapolate the world time at container pixel 0 and `pxWidth`,
+    // so `timeToX` (0..pxWidth) yields absolute pixels including the grid offset.
+    const timePerPx = (timeHi - timeLo) / (hiPx - loPx);
+    const xMin = timeLo - loPx * timePerPx;
+    const xMax = xMin + pxWidth * timePerPx;
+    // price → y: extrapolate the world price at pixel 0 (top) and `pxHeight`
+    // (bottom). ECharts' y grows downward, so the larger pixel y is the LOWER
+    // price — `min`/`max` orient `yMin`/`yMax` for `priceToY`.
+    const pricePerPx = (priceHi - priceLo) / (hiPy - loPy);
+    const priceAtTop = priceLo - loPy * pricePerPx;
+    const priceAtBottom = priceLo + (pxHeight - loPy) * pricePerPx;
     return {
         xMin,
         xMax,
-        // ECharts' y grows downward, so the LOWER price sits at the LARGER
-        // pixel y. The viewport's `yMin`/`yMax` are world prices; `priceToY`
-        // flips them back to pixel space.
-        yMin: Math.min(loPrice, hiPrice),
-        yMax: Math.max(loPrice, hiPrice),
-        pxWidth: pxWidth === 0 ? FALLBACK_WIDTH : pxWidth,
-        pxHeight: pxHeight === 0 ? FALLBACK_HEIGHT : pxHeight,
+        yMin: Math.min(priceAtTop, priceAtBottom),
+        yMax: Math.max(priceAtTop, priceAtBottom),
+        pxWidth,
+        pxHeight,
     };
 }
 
+// World bounds (full bar-time x extent + price y extent) used when ECharts
+// cannot convert coordinates (headless mock, a chart not laid out, an
+// off-screen / degenerate sample). An empty bar run collapses to a unit extent
+// so `buildOption` never divides by zero.
 function fallbackViewport(bars: ReadonlyArray<Bar>): Viewport {
     let xMin = Number.POSITIVE_INFINITY;
     let xMax = Number.NEGATIVE_INFINITY;
@@ -99,19 +137,59 @@ function fallbackViewport(bars: ReadonlyArray<Bar>): Viewport {
     return { xMin, xMax, yMin, yMax, pxWidth: FALLBACK_WIDTH, pxHeight: FALLBACK_HEIGHT };
 }
 
+// The inclusive `[first, last]` visible bar-index range a `dataZoom` percent
+// window frames over a category axis of `barCount` bars. ECharts maps a percent
+// `p` to category index `p/100 · (barCount − 1)`; the start is FLOORED and the
+// end CEILED so the visible slice fully covers the framed window (edge bars
+// included), then both are clamped into range and ordered. The default full
+// window yields `[0, barCount − 1]` — every bar.
+function visibleIndexRange(barCount: number, window: ZoomWindow): readonly [number, number] {
+    const lastIndex = barCount - 1;
+    const first = Math.max(0, Math.min(lastIndex, Math.floor((window.start / 100) * lastIndex)));
+    const last = Math.max(first, Math.min(lastIndex, Math.ceil((window.end / 100) * lastIndex)));
+    return [first, last];
+}
+
+// Price `[min, max]` over the inclusive bar-index window, padded when degenerate
+// so the two sampled y corners are distinct.
+function priceExtent(
+    bars: ReadonlyArray<Bar>,
+    first: number,
+    last: number,
+): readonly [number, number] {
+    let lo = Number.POSITIVE_INFINITY;
+    let hi = Number.NEGATIVE_INFINITY;
+    for (let i = first; i <= last; i += 1) {
+        if (bars[i].low < lo) lo = bars[i].low;
+        if (bars[i].high > hi) hi = bars[i].high;
+    }
+    if (lo === hi) {
+        lo -= 1;
+        hi += 1;
+    }
+    return [lo, hi];
+}
+
 /**
- * Build the drawing {@link Viewport} for a built chart + its current bar
- * window. When the ECharts surface exposes `convertToPixel`, two grid corners
- * are sampled and handed to {@link computeViewport} so drawings align pixel-
- * perfectly with the candlestick series; otherwise (headless mock, or a chart
- * not yet laid out) a deterministic fallback viewport is returned so the
- * declarative `graphic` array is always well-defined.
+ * Build the drawing {@link Viewport} for a built chart, projected against the
+ * VISIBLE `dataZoom` window (`window`, default full). When the ECharts surface
+ * exposes `convertToPixel`, two grid corners are sampled and reconstructed into
+ * an absolute-pixel viewport so drawings align with the candlestick series;
+ * otherwise (headless mock, a chart not yet laid out, an off-screen / degenerate
+ * sample) a deterministic fallback viewport keeps `option.graphic` well-defined.
  *
- * The bar-time x extent comes from the bar window (the x axis is a category of
- * bar times); the price extent and pixel rect come from the samples. `gridIndex`
- * selects which pane's grid to sample (overlay = 0, subpanes follow
- * `paneOrder`), so a price-anchored visual in a subpane projects against that
- * pane's own scale.
+ * Two subtleties make this work on a REAL ECharts chart (the mock models
+ * neither, so this is verified live):
+ *  1. **Category-INDEX sampling.** The x axis is `type:"category"`, so
+ *     `convertToPixel` is sampled at the bar's category INDEX, not its raw
+ *     time (a ~1e12 timestamp would be read as an ordinal index → a pixel
+ *     trillions wide). The world TIME stays the projection anchor.
+ *  2. **In-window corners.** On a zoomed category axis the first data bar is
+ *     off-screen and `convertToPixel` returns `undefined`; sampling the FIRST /
+ *     LAST VISIBLE index keeps both corners convertible.
+ *
+ * `gridIndex` selects which pane's grid to sample (overlay = 0, subpanes follow
+ * `paneOrder`).
  *
  * @since 1.4
  * @stable
@@ -119,7 +197,7 @@ function fallbackViewport(bars: ReadonlyArray<Bar>): Viewport {
  *     import { buildViewport } from "chartlang-example-echarts-adapter";
  *     import type { EChartsSurface } from "chartlang-example-echarts-adapter";
  *     declare const chart: EChartsSurface;
- *     const vp = buildViewport(chart, []);
+ *     const vp = buildViewport(chart, [], 0, { start: 70, end: 100 });
  *     // vp.pxWidth > 0
  *     void vp;
  */
@@ -127,35 +205,38 @@ export function buildViewport(
     chart: EChartsSurface,
     bars: ReadonlyArray<Bar>,
     gridIndex = 0,
+    window: ZoomWindow = FULL_WINDOW,
 ): Viewport {
     const fallback = fallbackViewport(bars);
     const convert = chart.convertToPixel;
     // No conversion available (headless default, or a chart not yet laid out):
     // the deterministic fallback keeps the `graphic` array well-defined.
     if (convert === undefined) return fallback;
-    const loValue: readonly [number, number] = [fallback.xMin, fallback.yMin];
-    const hiValue: readonly [number, number] = [fallback.xMax, fallback.yMax];
-    // Before its first layout a live ECharts chart has no coordinate system,
-    // so `convertToPixel` THROWS (it dereferences an absent component model)
-    // rather than returning `undefined`. Treat a throw the same as an
-    // out-of-system result: fall back to the deterministic viewport so the
-    // first frame's `graphic` array is still well-defined.
+    if (bars.length === 0) return fallback;
+    const [first, last] = visibleIndexRange(bars.length, window);
+    // A single visible column gives no horizontal basis to project against.
+    if (first === last) return fallback;
+    const [priceLo, priceHi] = priceExtent(bars, first, last);
+    // Sample at the first / last VISIBLE category INDEX (x) and the window's
+    // price extent (y). Before its first layout a live ECharts chart has no
+    // coordinate system, so `convertToPixel` THROWS — treat that the same as an
+    // out-of-system result and fall back.
     let loPixel: readonly [number, number] | undefined;
     let hiPixel: readonly [number, number] | undefined;
     try {
-        loPixel = convert.call(chart, { gridIndex }, loValue);
-        hiPixel = convert.call(chart, { gridIndex }, hiValue);
+        loPixel = convert.call(chart, { gridIndex }, [first, priceLo]);
+        hiPixel = convert.call(chart, { gridIndex }, [last, priceHi]);
     } catch {
         return fallback;
     }
-    // ECharts returns `undefined` when the value falls outside any coordinate
-    // system (e.g. before the chart has laid out) — fall back rather than feed
-    // NaN corners into the projection.
+    // ECharts returns `undefined` for a value outside any coordinate system.
     if (loPixel === undefined || hiPixel === undefined) return fallback;
+    // Degenerate basis (zero pixel span on either axis) — cannot invert.
+    if (loPixel[0] === hiPixel[0] || loPixel[1] === hiPixel[1]) return fallback;
     return computeViewport(
-        { value: loValue, pixel: loPixel },
-        { value: hiValue, pixel: hiPixel },
-        fallback.xMin,
-        fallback.xMax,
+        { value: [bars[first].time, priceLo], pixel: loPixel },
+        { value: [bars[last].time, priceHi], pixel: hiPixel },
+        chart.getWidth(),
+        chart.getHeight(),
     );
 }

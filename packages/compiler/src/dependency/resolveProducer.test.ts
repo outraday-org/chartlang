@@ -196,6 +196,40 @@ describe("createProducerResolver", () => {
         expect(compileMock).toHaveBeenCalledTimes(1);
     });
 
+    it("compiles a host-supplied in-memory source without reading disk", async () => {
+        // No file on disk — the specifier is satisfied from `inMemorySources`
+        // keyed by the import as written. The compile callback receives the
+        // in-memory source string (not a disk read).
+        const compileMock: CompileProducerCallback = vi.fn(async (source) => {
+            expect(source).toBe("export default 42;\n");
+            return fixedArtefacts();
+        });
+        const resolve = createProducerResolver(
+            { rootDir: dir, inMemorySources: { "./base.chart": "export default 42;\n" } },
+            compileMock,
+        );
+        const fromPath = join(dir, "consumer.chart.ts");
+        const compiled = await resolve("./base.chart", fromPath);
+        expect(compiled).not.toBeNull();
+        expect(compiled?.rewrittenSource).toContain("__producer_");
+        expect(compileMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls through to disk for specifiers absent from `inMemorySources`", async () => {
+        await writeFile(join(dir, "base.chart.ts"), "export default 1;\n", "utf8");
+        const compileMock: CompileProducerCallback = vi.fn(async () => fixedArtefacts());
+        // A non-empty map that does NOT contain the resolving specifier must
+        // not divert the disk read (the default byte-identical path).
+        const resolve = createProducerResolver(
+            { rootDir: dir, inMemorySources: { "./other.chart": "export default 0;\n" } },
+            compileMock,
+        );
+        const fromPath = join(dir, "consumer.chart.ts");
+        const compiled = await resolve("./base.chart", fromPath);
+        expect(compiled).not.toBeNull();
+        expect(compileMock).toHaveBeenCalledTimes(1);
+    });
+
     it("returns null when the compile callback yields null", async () => {
         await writeFile(join(dir, "base.chart.ts"), "export default 1;\n", "utf8");
         const compileMock: CompileProducerCallback = vi.fn(async () => null);

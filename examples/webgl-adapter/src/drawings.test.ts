@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { DrawingEmission } from "@invinite-org/chartlang-adapter-kit";
+import type { Bar } from "@invinite-org/chartlang-core";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { AxisRenderInfo } from "./axes.js";
@@ -115,6 +116,102 @@ describe("drawingPrimitives — decompose mapping", () => {
             // Projected to pixel space (NOT the world anchors) — the overlay
             // viewport projection ran.
             expect(p.points[0].x).not.toBe(LINE_STATE.anchors[0].time);
+        }
+    });
+
+    it("re-bases the slot-space window to bar TIME so a time anchor lands on its bar's slot pixel", () => {
+        // The GL geometry uses the compressed bar SLOT (index) as world x, but
+        // `decomposeDrawing` projects the drawing's bar-TIME anchors. With bars
+        // present, `drawingViewport` re-bases the slot window to the bar times at
+        // its edges so a drawing at a bar's time lands on that bar's slot pixel —
+        // without it the ~1e3 time would project against the 0..4 slot window and
+        // fly off-canvas. Slot s ↔ time 1000·(s+1).
+        for (let i = 0; i < 5; i += 1) {
+            state.bars.push({
+                time: 1000 * (i + 1),
+                open: 0,
+                high: 0,
+                low: 0,
+                close: 0,
+                volume: 0,
+                symbol: "T",
+                interval: "1D",
+                hl2: 0,
+                hlc3: 0,
+                ohlc4: 0,
+                hlcc4: 0,
+            } as Bar);
+        }
+        // Endpoints at the first / last bar's time (edge slots 0 / 4); the middle
+        // anchor at time 3000 is interior slot 2.
+        ingest(
+            state,
+            drawing("l", "line", {
+                kind: "line",
+                anchors: [
+                    { time: 1000, price: 0 },
+                    { time: 5000, price: 100 },
+                ],
+                style: {},
+            }),
+        );
+        const info: AxisRenderInfo = {
+            paneKey: "overlay",
+            cssRect: { x: 0, y: 0, width: 800, height: 400 },
+            window: { xMin: 0, xMax: 4, yMin: 0, yMax: 100 },
+            ticks: { priceTicks: [], timeTicks: [] },
+        };
+        const [p] = drawingPrimitives(state, info);
+        expect(p?.kind).toBe("polyline");
+        if (p?.kind === "polyline") {
+            // slot 0 (time 1000) → x 0; slot 4 (time 5000) → x 800.
+            expect(p.points[0].x).toBeCloseTo(0, 6);
+            expect(p.points[1].x).toBeCloseTo(800, 6);
+        }
+    });
+
+    it("interpolates an interior slot when the window edges are fractional bars", () => {
+        // Window edges at interior slots (1 → time 2000, 3 → time 4000) exercise
+        // `slotAnchorTime`'s interpolation branch; a drawing at the mid time 3000
+        // lands at the window centre.
+        for (let i = 0; i < 5; i += 1) {
+            state.bars.push({
+                time: 1000 * (i + 1),
+                open: 0,
+                high: 0,
+                low: 0,
+                close: 0,
+                volume: 0,
+                symbol: "T",
+                interval: "1D",
+                hl2: 0,
+                hlc3: 0,
+                ohlc4: 0,
+                hlcc4: 0,
+            } as Bar);
+        }
+        ingest(
+            state,
+            drawing("l", "line", {
+                kind: "line",
+                anchors: [
+                    { time: 2000, price: 0 },
+                    { time: 4000, price: 100 },
+                ],
+                style: {},
+            }),
+        );
+        const info: AxisRenderInfo = {
+            paneKey: "overlay",
+            cssRect: { x: 0, y: 0, width: 800, height: 400 },
+            window: { xMin: 1, xMax: 3, yMin: 0, yMax: 100 },
+            ticks: { priceTicks: [], timeTicks: [] },
+        };
+        const [p] = drawingPrimitives(state, info);
+        if (p?.kind === "polyline") {
+            // window [time 2000, 4000] → 800px; time 2000 → x 0, time 4000 → x 800.
+            expect(p.points[0].x).toBeCloseTo(0, 6);
+            expect(p.points[1].x).toBeCloseTo(800, 6);
         }
     });
 

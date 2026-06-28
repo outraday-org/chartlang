@@ -64,6 +64,16 @@ import { emitTypes } from "./typesEmit.js";
 export type TransformAndAnalyseOptions = Readonly<{
     sourcePath: string;
     declaredIntervals?: ReadonlyArray<IntervalDescriptor>;
+    /**
+     * `./X.chart` import specifiers whose source is supplied in-memory (not
+     * on disk). Each is served to the typecheck program as a virtual
+     * `CompiledScriptObject` stub so a single-source host (the demo's
+     * `/api/compile`) does not report `TS2307` for sibling imports it
+     * resolves out-of-band. Empty/absent ⇒ default disk resolution.
+     *
+     * @since 1.1
+     */
+    inMemoryChartImports?: ReadonlyArray<string>;
     resolveProducer?: (
         moduleSpecifier: string,
         exportName: string,
@@ -135,6 +145,9 @@ export function transformAndAnalyse(
     const { program, sourceFile, checker } = createProgramForSource(source, {
         sourcePath,
         chartImports,
+        ...(opts.inMemoryChartImports === undefined
+            ? {}
+            : { inMemoryChartImports: opts.inMemoryChartImports }),
     });
 
     const structural = runStructuralChecks(sourceFile, checker, sourcePath);
@@ -501,6 +514,22 @@ export type CompileOptions = Readonly<{
      * @since 1.1
      */
     inMemoryModules?: Readonly<Record<string, string>>;
+    /**
+     * Relative `./X.chart` import specifier → source map the cross-file
+     * resolver satisfies in-memory instead of from disk, keyed by the
+     * specifier **as written** (e.g. `"./base-trend.chart"`). Lets a host
+     * that compiles a single source string (the demo's `/api/compile`
+     * route) resolve sibling cross-file/composition imports it has in
+     * memory but cannot read from disk. Ignored for **producer
+     * resolution** when a custom `resolveProducer` is supplied (the host
+     * owns resolution then); the TypeScript virtual stubs that suppress
+     * `TS2307` for those specifiers are still inserted regardless.
+     * Absent specifiers fall through to the normal disk read, so default
+     * behaviour (no map / empty map) is byte-identical.
+     *
+     * @since 1.1
+     */
+    inMemoryChartSources?: Readonly<Record<string, string>>;
 }>;
 
 /**
@@ -607,12 +636,17 @@ export async function compile(source: string, opts: CompileOptions): Promise<Com
         resolvedBySpecifier.set(entry.specifier, entry.compiled);
     }
 
+    const inMemoryChartImports =
+        opts.inMemoryChartSources === undefined
+            ? []
+            : preScan.filter((specifier) => opts.inMemoryChartSources?.[specifier] !== undefined);
     const transformOpts: TransformAndAnalyseOptions = {
         sourcePath,
         /* v8 ignore next 3 */
         ...(opts.declaredIntervals === undefined
             ? {}
             : { declaredIntervals: opts.declaredIntervals }),
+        ...(inMemoryChartImports.length === 0 ? {} : { inMemoryChartImports }),
         resolveProducer: (modSpec, expName) => {
             const compiled = resolvedBySpecifier.get(modSpec);
             /* v8 ignore next 3 */
@@ -1081,7 +1115,12 @@ function createDefaultProducerResolver(
     }
     const rootDir = opts.rootDir ?? dirname(absSourcePath);
     const resolver: ResolveCrossFileProducer = createProducerResolver(
-        { rootDir },
+        {
+            rootDir,
+            ...(opts.inMemoryChartSources === undefined
+                ? {}
+                : { inMemorySources: opts.inMemoryChartSources }),
+        },
         (source, producerSourcePath) =>
             compileProducerArtefacts(source, producerSourcePath, resolver),
     );

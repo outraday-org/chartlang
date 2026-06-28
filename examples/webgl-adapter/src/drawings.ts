@@ -11,12 +11,46 @@
 // projection is the SAME overlay-pane pixel `Viewport` the glyph anchors use
 // (`paneViewportFromInfo`) — ONE projection source of truth per frame.
 
-import { type DrawPrimitive, decomposeDrawing } from "@invinite-org/chartlang-adapter-kit";
+import {
+    type DrawPrimitive,
+    type Viewport,
+    decomposeDrawing,
+} from "@invinite-org/chartlang-adapter-kit";
+import type { Bar } from "@invinite-org/chartlang-core";
 
 import type { AxisRenderInfo } from "./axes.js";
 import { paneViewportFromInfo } from "./glyphs.js";
 import { BAND, type RenderOrderMark, applyRenderOrder } from "./renderOrder.js";
 import type { AdapterState } from "./state.js";
+
+// Bar TIME at a (possibly fractional / out-of-range) bar SLOT — the inverse of
+// the compressed slot→bar mapping the GL geometry uses. Interior slots
+// interpolate between adjacent bar times; a slot past either data edge
+// extrapolates with that edge's spacing, so a `+k` future / far-past drawing
+// anchor still projects onto the slot axis. Callers guarantee `bars.length >= 2`.
+function slotAnchorTime(bars: ReadonlyArray<Bar>, slot: number): number {
+    const last = bars.length - 1;
+    if (slot <= 0) return bars[0].time + slot * (bars[1].time - bars[0].time);
+    if (slot >= last) {
+        return bars[last].time + (slot - last) * (bars[last].time - bars[last - 1].time);
+    }
+    const i = Math.floor(slot);
+    return bars[i].time + (slot - i) * (bars[i + 1].time - bars[i].time);
+}
+
+// The overlay-pane drawing viewport. The GL geometry, glyph anchors, and
+// override bands all use the COMPRESSED bar SLOT (index) as world x, but the
+// SHARED `decomposeDrawing` projects each drawing's bar-TIME anchors. So re-base
+// the slot-space viewport's x bounds to the bar TIME at the window's slot edges
+// (`slotAnchorTime`, the inverse of the bar→slot mapping): a drawing anchored at
+// a bar's time then lands on the SAME pixel as that bar's candle, for ANY
+// spacing. y / pxWidth / pxHeight (the slot-space projection) are unchanged.
+function drawingViewport(state: AdapterState, info: AxisRenderInfo): Viewport {
+    const vp = paneViewportFromInfo(info);
+    const bars = state.bars;
+    if (bars.length < 2) return vp;
+    return { ...vp, xMin: slotAnchorTime(bars, vp.xMin), xMax: slotAnchorTime(bars, vp.xMax) };
+}
 
 /**
  * Reduce every live drawing in `state` to a flat, pixel-space
@@ -57,7 +91,7 @@ export function drawingPrimitives(
     info: AxisRenderInfo,
 ): ReadonlyArray<DrawPrimitive> {
     if (state.drawings.size === 0) return [];
-    const viewport = paneViewportFromInfo(info);
+    const viewport = drawingViewport(state, info);
     // Order drawings through the SHARED `applyRenderOrder` (never a local
     // comparator) tagged `(z, drawing-band, seq)`, so a per-drawing `z` override
     // reorders the drawing band — parity with canvas2d's `collectSortableMarks`.

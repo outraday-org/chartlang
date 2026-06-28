@@ -51,8 +51,19 @@ lightweight-charts integration.
   colour that bar); `colorValue` omitted uses the static `style.color`.
   Overrides live in `state.barColors` keyed by bar time. Because the
   candle for a bar is drawn (in `applyCandleEvent`) BEFORE that bar's
-  emissions drain, `applyBarColor` re-`update`s the candle point in place
-  to apply the colour the same frame; a bar-color whose `time` matches no
+  emissions drain, `applyBarColor` applies the colour the same frame —
+  **but ONLY the LAST bar may be re-`update`d in place.** LC's
+  `series.update()` accepts only the last point (or a newer append) and
+  throws `"Cannot update oldest data"` on a historical bar; the demo
+  delivers all history in one batch, so recolouring any earlier bar hits
+  this. So `applyBarColor` re-`update`s the candle point in place ONLY when
+  `target === state.bars[state.bars.length - 1]`; for a historical
+  (non-last) bar it sets `state.candleDirty = true` and DEFERS. The
+  `ingest` tail then rebuilds the whole candle series ONCE per drain with a
+  single `state.candleSeries.setData(state.bars.map(...candleData))`
+  (gated on `candleDirty && candleSeries !== undefined`, then resets the
+  flag) so every recoloured bar — past and present — takes its colour
+  without a per-bar `update` throw. A bar-color whose `time` matches no
   known bar is a no-op for that frame. `defaultCreateChart` passes the
   three colour fields through (with `borderVisible: true`) to the real LC
   series.
@@ -61,8 +72,12 @@ lightweight-charts integration.
   candle base series has no per-bar candle-override, but the candlestick DATA
   POINT carries `color`/`borderColor`/`wickColor` (the same path `bar-color`
   uses). `applyCandleOverride` stamps the emission's `{ bull, bear, doji? }`
-  palette into `state.candleOverrides` keyed by bar time and re-`update`s the
-  bar's candle; `candleData` → `resolveCandleColor` picks the colour by
+  palette into `state.candleOverrides` keyed by bar time and applies it the
+  same frame via the **SAME last-bar-`update` vs deferred-`setData`-rebuild
+  rule `bar-color` uses** (above): the LAST bar is re-`update`d in place; a
+  historical (non-last) bar sets `state.candleDirty` and is rebuilt by the
+  single `ingest`-tail `setData` (LC's `update` throws "Cannot update oldest
+  data" on a non-last point). `candleData` → `resolveCandleColor` picks the colour by
   direction (`close > open ⇒ bull`, `< ⇒ bear`, else `doji ?? bull` — the
   canvas2d `render/candleOverride.ts` direction logic, a first-party
   translation, NOT an `../invinite/` port). **Precedence: a `bar-color` /

@@ -75,3 +75,56 @@ test("converter converts live, compiles the output, and flags rejects", async ({
     converter.getByText("Fix the rejected construct above before compiling", { exact: false }),
   ).toBeVisible()
 })
+
+// The `?script=<id>` deep-link now round-trips: the read path still resolves
+// the param on load, and `syncConverterParam` (mirroring the demo's
+// `syncDemoParam`) writes the resolved selection back via
+// `history.replaceState` — on select and once on mount, so a bare/unknown
+// load self-heals. These three tests prove read, write-back, and the seed.
+
+test("?script= deep-links straight to the requested converter sample", async ({ page }) => {
+  await page.goto("/converter?script=macd")
+
+  const converter = page.locator(".cl-converter")
+  // The Pine input mounts and the deep-linked MACD sample converts: the
+  // read-only output pane shows its generated `defineIndicator("MACD", …)`,
+  // proving `?script=macd` resolved the right sample on load.
+  await expect(converter.locator(".pane-editor .cm-content")).toBeVisible({ timeout: 30_000 })
+  await expect(converter.locator(".output-editor .cm-content")).toContainText("MACD", {
+    timeout: 30_000,
+  })
+})
+
+test("selecting a converter sample writes ?script= back to the URL", async ({ page }) => {
+  await page.goto("/converter")
+
+  const converter = page.locator(".cl-converter")
+  await expect(converter.locator(".pane-editor .cm-content")).toBeVisible({ timeout: 30_000 })
+
+  // Open the Browse examples dialog and pick a non-default TA sample. The
+  // dialog portals to <body>, so its category / item buttons are queried via
+  // `page`, not `converter`.
+  await converter.locator("button.example-browser-trigger").click()
+  await page.locator(".example-browser-category", { hasText: "TA indicators" }).click()
+  await page.locator(".example-browser-item", { hasText: "Bollinger Bands" }).click()
+
+  // Selecting it writes the id back to the URL via `history.replaceState`
+  // (no router nav), so the deep-link is now shareable.
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("script"), { timeout: 30_000 })
+    .toBe("bollinger-bands")
+})
+
+test("a bare /converter self-heals ?script= to the first sample", async ({ page }) => {
+  await page.goto("/converter")
+
+  const converter = page.locator(".cl-converter")
+  await expect(converter.locator(".pane-editor .cm-content")).toBeVisible({ timeout: 30_000 })
+
+  // With no `?script=`, the resolved selection falls back to the first
+  // PINE_SCRIPTS entry ("ema-cross", see pineScripts.ts); the mount seed
+  // writes that fallback id back so the URL always reflects what is shown.
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("script"), { timeout: 30_000 })
+    .toBe("ema-cross")
+})

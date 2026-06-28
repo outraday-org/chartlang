@@ -52,6 +52,9 @@ export function createLanguageService(opts: LanguageServiceOptions = {}): Chartl
                         ...(opts.inMemoryModules === undefined
                             ? {}
                             : { inMemoryModules: opts.inMemoryModules }),
+                        ...(opts.inMemoryChartSources === undefined
+                            ? {}
+                            : { inMemoryChartSources: opts.inMemoryChartSources }),
                     });
                 } catch (err) {
                     /* v8 ignore next 3 -- non-CompileError failures must propagate. */

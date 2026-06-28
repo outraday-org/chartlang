@@ -816,4 +816,44 @@ export default defineIndicator({
             await rm(dir, { recursive: true, force: true });
         }
     });
+
+    it("resolves a sibling `.chart` import from `inMemoryChartSources` with nothing on disk", async () => {
+        // The single-source host path (the demo's `/api/compile`): no
+        // producer file on disk — the `./base-trend.chart` import is
+        // satisfied entirely from the in-memory source map keyed by the
+        // specifier as written. Without it the compile would fail with
+        // `TS2307: Cannot find module './base-trend.chart'` + `dep-dynamic`.
+        const producerSource = `import { defineIndicator, input, plot, ta } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "in-memory producer",
+    apiVersion: 1,
+    overlay: true,
+    inputs: { length: input.int(14, { min: 2, max: 250 }) },
+    compute({ bar, ta, inputs, plot }) {
+        plot(ta.ema(bar.close, inputs.length as number), { title: "line" });
+    },
+});`;
+        const consumerSource = `import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+import baseTrend from "./base-trend.chart";
+export default defineIndicator({
+    name: "in-memory consumer",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, plot }) {
+        plot(baseTrend.output("line").current, { title: "imported" });
+    },
+});`;
+        const result = await compile(consumerSource, {
+            apiVersion: 1,
+            sourcePath: "demo.chart.ts",
+            inMemoryChartSources: { "./base-trend.chart": producerSource },
+        });
+        // The in-memory producer was inlined as a self-contained IIFE and the
+        // cross-file dependency was recorded against the `./base-trend.chart`
+        // specifier — proof the cross-file resolve + dependency analysis ran
+        // off the in-memory map (and that the typecheck did not TS2307).
+        expect(result.moduleSource).toMatch(/__producer_[0-9a-f]+__default/);
+        expect(result.moduleSource).toContain('"producerSourcePath":"./base-trend.chart"');
+        expect(result.moduleSource).toContain('"title":"line"');
+    });
 });

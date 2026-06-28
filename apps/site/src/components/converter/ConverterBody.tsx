@@ -7,7 +7,7 @@
 // on-demand "Compile & preview" runs the output through the real compiler
 // and renders the chart.
 
-import { type ReactElement, useState } from "react";
+import { type ReactElement, useEffect, useState } from "react";
 
 import "../demo/demo.css";
 import "./converter.css";
@@ -33,6 +33,20 @@ function initialScriptId(): string {
 }
 
 /**
+ * Persist the converter's `?script=` selection via `history.replaceState`
+ * (no router navigation — the converter is client-only + lazy). Leaves the
+ * pathname, hash, and every other query param untouched. Mirrors the demo's
+ * `syncDemoParam`.
+ */
+function syncConverterParam(id: string): void {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("script", id);
+    const { pathname, hash } = window.location;
+    history.replaceState(null, "", `${pathname}?${params.toString()}${hash}`);
+}
+
+/**
  * The converter playground. Wires the Pine input, the live conversion
  * hook, the chartlang output, and the compile-&-preview block.
  */
@@ -50,7 +64,16 @@ export default function ConverterBody(): ReactElement {
         const next = PINE_SCRIPTS.find((s) => s.id === id);
         setScriptId(id);
         setSource(next?.source ?? "");
+        syncConverterParam(id);
     };
+
+    // On mount, write the resolved selection back to the URL so it always
+    // reflects the shown sample — even when loaded with a missing/unknown
+    // `?script=` (which falls back to the first sample above). Runs once.
+    useEffect(() => {
+        syncConverterParam(scriptId);
+        // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only URL seed
+    }, []);
 
     return (
         <div className="cl-demo cl-converter mt-10 space-y-4">

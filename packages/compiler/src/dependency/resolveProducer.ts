@@ -69,6 +69,16 @@ export type ResolveCrossFileProducer = (
  * absolute base directory that constrains every cross-file walk —
  * imports resolving outside this tree return `null`.
  *
+ * `inMemorySources` lets a host satisfy a `./X.chart` import from memory
+ * instead of disk, keyed by the import specifier **as written** (e.g.
+ * `"./base-trend.chart"`). When a resolving import is present in the map its
+ * value is compiled as the producer source and the disk read is skipped;
+ * absent specifiers fall through to the normal `readFile` path. The demo's
+ * single-file `/api/compile` route uses this to resolve sibling-example
+ * imports it has in memory but cannot read from disk. Default behaviour (no
+ * map / empty map) is byte-identical — the map is only consulted for
+ * specifiers actually imported.
+ *
  * @since 0.7
  * @stable
  * @example
@@ -77,6 +87,7 @@ export type ResolveCrossFileProducer = (
  */
 export type CreateProducerResolverOptions = Readonly<{
     readonly rootDir: string;
+    readonly inMemorySources?: Readonly<Record<string, string>>;
 }>;
 
 /**
@@ -199,10 +210,19 @@ export function createProducerResolver(
         const pending = (async (): Promise<ProducerCompiled | null> => {
             try {
                 let source: string;
-                try {
-                    source = await readFile(absolute, "utf8");
-                } catch {
-                    return null;
+                // A host-supplied in-memory source (keyed by the specifier as
+                // written) satisfies the import without a disk read — the demo
+                // feeds sibling-example sources it cannot read from disk. Absent
+                // specifiers fall through to the normal `readFile` path.
+                const inMemorySource = opts.inMemorySources?.[importPath];
+                if (inMemorySource !== undefined) {
+                    source = inMemorySource;
+                } else {
+                    try {
+                        source = await readFile(absolute, "utf8");
+                    } catch {
+                        return null;
+                    }
                 }
                 // Hand the absolute path to `compileProducer` so the
                 // recursive `compile` invocation can resolve nested

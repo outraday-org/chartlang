@@ -43,6 +43,7 @@
         "readme:check": "pnpm tsx scripts/readme-check.ts",
         "coverage:report": "pnpm tsx scripts/coverage-merge.ts",
         "scaffold": "pnpm tsx scripts/scaffold.ts",
+        "sync:env": "node scripts/sync-env-from-examples.mjs",
         "skills:generate": "pnpm tsx scripts/generate-skills-reference.ts",
         "skills:gate": "pnpm tsx scripts/generate-skills-reference.ts --check",
         "test:scripts": "vitest run -c scripts/vitest.config.ts",

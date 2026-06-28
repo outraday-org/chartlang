@@ -943,6 +943,40 @@ describe("createLightweightChartsAdapter — plot mapping", () => {
         expect(chart.calls.some((c) => c.kind === "update" && c.color !== undefined)).toBe(false);
     });
 
+    // Regression: a `bar-color` for a NON-last (historical) bar must NOT
+    // `series.update()` it — LC's `update` only accepts the last point (or a
+    // newer append) and throws "Cannot update oldest data" otherwise. The
+    // demo delivers all history in ONE batch, so recolouring any but the final
+    // bar hits this. The deferred batched `setData` rebuild applies the colour.
+    it("a bar-color for a historical (non-last) bar rebuilds via setData, not update", async () => {
+        const chart = await runWithPlots(
+            [plot({ kind: "bar-color", color: "#2962ff" }, { slotId: "bc", time: 1 })],
+            [{ kind: "history", bars: [bar(1), bar(2), bar(3)] }],
+        );
+        const setData = chart.calls.filter((c) => c.kind === "setData" && c.seriesId === "s0");
+        // Two setData on the candle series: the initial history load, then the
+        // batched rebuild that lands the historical bar's colour.
+        expect(setData).toHaveLength(2);
+        // No per-bar `update` carried a colour — the in-place update path is
+        // skipped for the non-last bar (it would have thrown).
+        expect(chart.calls.some((c) => c.kind === "update" && c.color !== undefined)).toBe(false);
+    });
+
+    it("a candle-override for a historical (non-last) bar rebuilds via setData, not update", async () => {
+        const chart = await runWithPlots(
+            [
+                plot(
+                    { kind: "candle-override", bull: "#0f0", bear: "#f00" },
+                    { slotId: "co", time: 1 },
+                ),
+            ],
+            [{ kind: "history", bars: [bar(1), bar(2), bar(3)] }],
+        );
+        const setData = chart.calls.filter((c) => c.kind === "setData" && c.seriesId === "s0");
+        expect(setData).toHaveLength(2);
+        expect(chart.calls.some((c) => c.kind === "update" && c.color !== undefined)).toBe(false);
+    });
+
     it("bg-color buffers an overlay band (no native series) and horizontal-histogram stays a no-op", async () => {
         const chart = await runWithPlots([
             plot({ kind: "bg-color", color: "#222" }, { slotId: "bg" }),

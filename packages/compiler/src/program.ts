@@ -1662,6 +1662,7 @@ export function createProgramForSource(
     opts: {
         readonly sourcePath: string;
         readonly chartImports?: ReadonlyArray<string>;
+        readonly inMemoryChartImports?: ReadonlyArray<string>;
     },
 ): ProgramForSource {
     const sourcePath = normalisePath(opts.sourcePath);
@@ -1710,6 +1711,36 @@ declare module ${JSON.stringify(specifier)} {
         );
     }
 
+    // A host that compiles a single source string (the demo's
+    // `/api/compile` route) cannot read sibling `./X.chart` producers from
+    // disk. The ambient `declare module "./X.chart"` shim above does NOT
+    // satisfy a *relative* import (TS only consults ambient declarations for
+    // bare specifiers), so each in-memory specifier is served as its own
+    // virtual stub `.ts` file — typed as `CompiledScriptObject`, identical to
+    // the ambient shim's body — and mapped to the import via a host
+    // `resolveModuleNames` hook. The analysis pass still validates the real
+    // producer outputs (`extractDependencyGraph`); these stubs only keep the
+    // consumer's `typecheck` clean. Empty list ⇒ no hook, default resolution
+    // (byte-identical behaviour for the disk path).
+    const inMemoryChartImports = opts.inMemoryChartImports ?? [];
+    const chartStubPathBySpecifier = new Map<string, string>();
+    const chartStubFileByPath = new Map<string, ts.SourceFile>();
+    inMemoryChartImports.forEach((specifier, index) => {
+        const stubPath = `/__chartlang__/chart-import-${index}.ts`;
+        chartStubPathBySpecifier.set(specifier, stubPath);
+        chartStubFileByPath.set(
+            stubPath,
+            ts.createSourceFile(
+                stubPath,
+                `import type { CompiledScriptObject } from "@invinite-org/chartlang-core";\ndeclare const value: CompiledScriptObject;\nexport default value;\n`,
+                ts.ScriptTarget.ES2022,
+                true,
+                ts.ScriptKind.TS,
+            ),
+        );
+        VIRTUAL_FILE_SET.add(stubPath);
+    });
+
     const fallbackHost = ts.createCompilerHost(COMPILER_OPTIONS, true);
 
     const host: ts.CompilerHost = {
@@ -1725,6 +1756,8 @@ declare module ${JSON.stringify(specifier)} {
             if (fileName === chartShimPath && chartShimFile !== undefined) {
                 return chartShimFile;
             }
+            const stub = chartStubFileByPath.get(fileName);
+            if (stub !== undefined) return stub;
             return fallbackHost.getSourceFile(
                 fileName,
                 languageVersionOrOptions,
@@ -1737,8 +1770,24 @@ declare module ${JSON.stringify(specifier)} {
         },
     };
 
+    // Only divert resolution when there are in-memory chart stubs to serve;
+    // an in-memory specifier maps to its stub, everything else (core's ambient
+    // module, any disk `.chart`) resolves exactly as the default host would.
+    if (inMemoryChartImports.length > 0) {
+        host.resolveModuleNames = (moduleNames, containingFile, _r, _rd, options) =>
+            moduleNames.map((name) => {
+                const stubPath = chartStubPathBySpecifier.get(name);
+                if (stubPath !== undefined) {
+                    return { resolvedFileName: stubPath, extension: ts.Extension.Ts };
+                }
+                return ts.resolveModuleName(name, containingFile, options, fallbackHost)
+                    .resolvedModule;
+            });
+    }
+
     const rootNames: string[] = [sourcePath, CORE_MODULE_PATH];
     if (chartShimFile !== undefined) rootNames.push(chartShimPath);
+    for (const stubPath of chartStubPathBySpecifier.values()) rootNames.push(stubPath);
     const program = ts.createProgram({
         rootNames,
         options: COMPILER_OPTIONS,
