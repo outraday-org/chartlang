@@ -1,5 +1,23 @@
 # @invinite-org/chartlang-cli
 
+## 1.3.4
+
+### Patch Changes
+
+- Updated dependencies [f89117d]
+- Updated dependencies [a47c2fe]
+- Updated dependencies [c44c0d5]
+- Updated dependencies [f89117d]
+- Updated dependencies [903f14a]
+- Updated dependencies [f89117d]
+- Updated dependencies [7704fbf]
+- Updated dependencies [f89117d]
+- Updated dependencies [f89117d]
+- Updated dependencies [f89117d]
+  - @invinite-org/chartlang-pine-converter@0.5.0
+  - @invinite-org/chartlang-compiler@1.7.0
+  - @invinite-org/chartlang-core@1.6.0
+
 ## 1.3.3
 
 ### Patch Changes

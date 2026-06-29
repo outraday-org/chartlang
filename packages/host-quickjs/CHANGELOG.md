@@ -1,5 +1,16 @@
 # @invinite-org/chartlang-host-quickjs
 
+## 1.3.4
+
+### Patch Changes
+
+- Updated dependencies [f89117d]
+- Updated dependencies [903f14a]
+- Updated dependencies [903f14a]
+- Updated dependencies [903f14a]
+  - @invinite-org/chartlang-core@1.6.0
+  - @invinite-org/chartlang-runtime@1.5.1
+
 ## 1.3.3
 
 ### Patch Changes

@@ -1,5 +1,66 @@
 # @invinite-org/chartlang-conformance
 
+## 1.3.1
+
+### Patch Changes
+
+- 903f14a: Resolve Pine's empty-interval idiom (`request.security({ interval: "" })`) to the
+  chart's own timeframe instead of all-NaN. An empty interval combined with the
+  chart symbol is "the chart's own clock" (Pine's
+  `request.security(syminfo.tickerid, "", x)`), which on TradingView simply returns
+  the chart's own series. `makeSecurityBar` now short-circuits the
+  `symbol === undefined && interval === ""` case to a `SecurityBar` view over the
+  MAIN stream's own series — reusing the stream's O(1) head-relative views — BEFORE
+  the symbol / `multiTimeframe` / `unsupported-interval` / secondary-stream gates,
+  so it needs no adapter capability and no registered secondary feed. A different
+  symbol at `interval: ""` is unchanged (it stays the `multiSymbol` secondary path,
+  NaN when unsupported), and a non-empty interval still flows through the secondary
+  alignment path. Adds the `empty-interval-passthrough` conformance scenario proving
+  the passthrough close is byte-identical to a direct `bar.close` plot under
+  `multiTimeframe: false`. The expression form (`request.security({ interval: "" },
+expr)`) is unchanged: the compiler treats the chart timeframe as the main clock
+  (no HTF expression unit), so its callsite routes into the same data-form
+  passthrough.
+- 903f14a: Fix a real-path NaN bug across the `ta.*` OHLC-sourcing primitive family.
+  `bar.high`/`.low`/`.close`/`.open`/`.volume` (and the derived `hl2`/`hlc3`/…)
+  are number-coercible `makeSeriesView` proxies, not primitive numbers, so any
+  primitive that read one and passed it to `Number.isFinite(...)` (or stored it
+  as a `number`) bailed to its NaN fallback on every real bar. The unit harness
+  (`ta/__fixtures__/runPrimitive.ts`) masked it by overwriting the bar fields
+  with plain numbers each step; it now keeps the real proxies, matching
+  `onBarClose`.
+
+  Each affected primitive now coerces at the read (`+bar.x`) when the value is
+  used as a scalar, while keeping the proxy when it is passed as a `Series`
+  source to `highest`/`lowest`/`dispatchMa`. Primitives fixed: `atr`, `adx`,
+  `dmi`, `vortex`, `ultimateOsc`, `pivotsStandard`, `psar`, `aroon`, `adr`,
+  `zigZag`, `supertrend`, `volatilityStop`, `adl`, `obv`, `bop`, `cmf`, `eom`,
+  `klinger`, `mfi`, `netVolume`, `nvi`, `pvi`, `pvt`, `rvgi`, `vwap`,
+  `anchoredVwap`, `vwma`, and the mixed series/scalar `chop`, `williamsR`,
+  `fisher`, `pivotsHighLow`. The math is byte-identical to the pinned goldens.
+
+  Conformance: the `ta.atr`/`ta.adx`/`ta.dmi`/`ta.vwap`/`ta.williamsR` scenarios
+  now pin a `plot-hash` so the real-path (non-NaN) output is value-checked and
+  can't silently regress.
+
+- Updated dependencies [f89117d]
+- Updated dependencies [a47c2fe]
+- Updated dependencies [c44c0d5]
+- Updated dependencies [f89117d]
+- Updated dependencies [903f14a]
+- Updated dependencies [f89117d]
+- Updated dependencies [7704fbf]
+- Updated dependencies [f89117d]
+- Updated dependencies [f89117d]
+- Updated dependencies [903f14a]
+- Updated dependencies [903f14a]
+- Updated dependencies [903f14a]
+- Updated dependencies [f89117d]
+  - @invinite-org/chartlang-pine-converter@0.5.0
+  - @invinite-org/chartlang-compiler@1.7.0
+  - @invinite-org/chartlang-core@1.6.0
+  - @invinite-org/chartlang-runtime@1.5.1
+
 ## 1.3.0
 
 ### Minor Changes

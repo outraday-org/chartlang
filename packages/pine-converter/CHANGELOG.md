@@ -1,5 +1,124 @@
 # @invinite-org/chartlang-pine-converter
 
+## 0.5.0
+
+### Minor Changes
+
+- c44c0d5: Back history-indexed series-in-Pine receivers with indexable `state.*Series`
+  slots so they compile, instead of emitting `x[1]` on a `.current` scalar
+  (the Trend Wizard `cf_slope`/`cf_macross` cluster — 31 TS7053 errors → 0).
+
+  Two converter-only promotions:
+
+  - **Cross-UDF / non-`ta.*` series locals (Part A).** A top-level `=`-decl
+    whose value is series-qualified and `[n]`-indexed but is not directly a
+    `ta.*` call (`ma_1_slope = cf_slope(…)`, `ma_slope_comp = … ? ta.sma :
+ta.ema`), and a simple-identifier argument passed to a stateful UDF whose
+    body history-indexes the matching parameter (`cf_slope(ma_1, …)` → promote
+    `ma_1`), now lower to a numeric `state.series` slot. An OHLCV argument
+    (already an indexable `PriceSeries`) is left untouched.
+  - **History-indexed inlined body-locals (Part B).** A stateful UDF body-local
+    read at `[n]` (`cf_macross`'s `ma_cross = ta.crossover(…)` read at
+    `ma_cross[1]`/`[2]`) is backed by a `state.boolSeries`/`state.series` slot at
+    each inline call site, so every call site gets independent history.
+
+  `request.security` reads are now `.current`-projected (data, expression, and
+  the new block-callback form for a stateful UDF inlined into the HTF closure),
+  and OHLCV reads inside a `request.security` callback project `.current` for
+  scalar use. No core or runtime change.
+
+- f89117d: Map input-bound `request.security` symbol/timeframe feeds,
+  `input.timeframe`→`input.interval` (incl. chart timeframe), and the `gaps=`
+  argument.
+
+  The converter now resolves a `request.security` symbol/timeframe bound to an
+  `input.symbol` / `input.timeframe` declaration through that input and emits the
+  chartlang `inputs.<name>` reference (so the value stays user-editable), instead
+  of rejecting it with `request-security-not-mapped`. `input.timeframe` maps to
+  `input.interval`, and an empty `input.timeframe("")` default is the chart
+  timeframe (`input.interval("")`) rather than a spurious
+  `non-literal-input-default`. The tuple/list output form shares the same
+  resolution. A `gaps = barmerge.gaps_off|gaps_on` argument is recognised and
+  dropped with one `request-security-gaps-dropped` info (chartlang feeds are
+  gap-filled by default) instead of an unmapped-arg error. A computed / wrong-axis
+  symbol or timeframe still rejects with `request-security-not-mapped`.
+
+  `compiler`: the `request.security` feed extractor (`getInputDefault` /
+  `getInputsEnumOptions`) now unwraps enclosing parentheses + `as` casts, so the
+  converter's `inputs.<name> as string` feed emit — the cast is required because a
+  script's `compute` `inputs` is typed `Record<string, unknown>` — resolves to the
+  input default. A hand-written un-cast `inputs.<name>` is unchanged.
+
+- f89117d: Support value-form `switch` expressions (`x = switch s …`, Pine's `cf_ma`
+  helper). A `switch` in a declaration / assignment / tuple value position now
+  parses into a new `SwitchExpression` AST node (a Pratt prefix rule) and lowers
+  to a right-nested ternary chain: with a subject, `subject === label ? value :
+…`; subject-less, `cond ? value : …`; a wildcard `=> value` arm is the default;
+  and an unmatched subject yields `na` (`Number.NaN`), matching Pine's value-
+  `switch` semantics. Each arm value is lowered in scalar position, so a nested
+  `ta.*` arm projects to its `.current` scalar. The old hard reject
+  (`switch-expression-unsupported`) is retired for the single-expression value
+  form — which also clears the `unexpected-token` recovery cascades it caused — and
+  now fires only for the residual unsupported sub-shape (a multi-statement block,
+  comma list, or `:=` assignment arm).
+
+### Patch Changes
+
+- f89117d: Consolidate `input-arg-not-mapped` and `table-formatting-not-mapped` to one
+  diagnostic per distinct unmapped argument name across the whole script (the
+  representative span is the first occurrence), instead of one per call site.
+  A script with ~150 grouped inputs now reports ~4 input-arg warnings, not 228,
+  and a styled on-chart table ~3 cell-formatting warnings, not 6. The
+  `request.security` `gaps=` info is likewise consolidated to once per script.
+  Mapped-argument behavior (including the dynamic `bgcolor`/`text_color` table
+  path) is unchanged.
+- a47c2fe: Fix three Pine→chartlang lowering gaps that made the support/resistance sample
+  emit chartlang that did not compile (the converter reported 0 errors). The
+  drawing transforms (Camp A/B, tables, setter-fold) now emit option/setter/cell
+  values through the shared input/ring/`str`-aware `emitWithContext` instead of a
+  bare `emitExpr` / minimal context:
+
+  - A bare `color=<input.color>` draw option now qualifies to `(inputs.<name> as
+string)` (and `input.color` casts as `string`) instead of leaking the
+    undefined Pine identifier.
+  - `str.tostring(...)` lowers to `String(...)` in every expression context (a
+    `label.set_text` body, a binary-op operand), not just `table.cell`.
+  - `array.size(<ring>)` over a Camp B drawing-handle ring lowers to
+    `<ring>.size()` even when nested (e.g. inside `str.tostring`), via the new
+    `EmitContext.handleRings` rewrite.
+
+- 903f14a: Hoist bar-invariant captures into `request.security` expression callbacks so
+  they compile. A higher-timeframe callback runs on a separate clock, so the
+  chartlang compiler rejects any callback that captures a main-timeline binding
+  (`request-security-expr-captures-local`). The converter now reconstructs every
+  captured top-level binding whose value is bar-INVARIANT (it bottoms out at
+  `inputs`/`Math`/literals — e.g. a length derived from an `input.int` and a
+  `switch`-over-input preset) as a callback-local `let`/`switch` prelude
+  (transitively, in source order), so the references resolve in-scope. Both the
+  single-source and tuple `request.security` paths hoist. The numeric `na`
+  sentinel emits as the validator-safe `NaN` (not `Number.NaN`) inside a security
+  callback. A genuinely bar-VARYING capture (one depending on series / `ta.*` /
+  OHLCV) cannot be rebuilt and now raises the new append-only error
+  `request-security-expr-captures-series` — an actionable converter diagnostic in
+  place of a downstream compiler error. This fixes feature-heavy scripts (e.g.
+  Trend Wizard) that derived a higher-timeframe `ta.atr` length from inputs.
+- f89117d: Fix both `switch` parsers to tolerate a blank or comment-only line between or
+  after the arms. A trailing blank/comment line (the common Pine idiom of a
+  `switch` block followed by a section comment) previously left a stray `newline`
+  between the last arm and the block `dedent`: the statement form cascaded an
+  `unexpected-token` into every following statement, and the value form misfired
+  `switch-expression-unsupported` on the empty "arm" and degraded the whole
+  `switch` to a placeholder. Both arm loops now `skipNewlines()` before each arm,
+  so a value-form `switch` whose single-expression arms are followed by a blank
+  line (e.g. the `cf_ma` MA-selector helper) converts cleanly.
+- f89117d: Tolerate leading comments/blank lines before the version directive and at the
+  start of an indented block. The parser now skips comment-only / blank lines
+  (via a new explicit `TokenCursor.skipNewlines()`) before matching
+  `//@version=6` and before opening an indented block, so a Pine script with a
+  license header above the directive — or a block whose first physical line is a
+  comment — parses cleanly. A genuinely missing directive or empty body still
+  reports `missing-version-directive` / `expected-token`.
+
 ## 0.4.0
 
 ### Minor Changes
