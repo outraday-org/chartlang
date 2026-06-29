@@ -366,15 +366,21 @@ that has no byte-identical chartlang analogue.
 - **`request-security-different-symbol` / `request-security-gaps-dropped`
   (info).** Multi-symbol/timeframe feed notes — the feed resolved through its
   input default; `gaps=` has no chartlang analogue. Informational.
-- **`history-on-non-series` (warning) is NOT a residual of a cleanly-parsed
-  script.** It fires from `analyze.ts` when `inferQualifier(receiver) !==
-  "series"`. In Trend Wizard it appeared ONLY as a cascade artifact of a broken
-  parse (a `switch`/UDF that failed to parse left downstream receivers
-  unresolved → `const`-qualified). Once the script parses cleanly and stateful
-  UDFs inline, the receivers (`ta.*`-derived locals, slope first-differences)
-  resolve to `series` and the warning disappears. If you see it on a clean
-  parse, the receiver really is non-series — investigate the qualifier, don't
-  document it away.
+- **`history-on-non-series` (warning) STAYS SILENT for a series-in-Pine
+  receiver, and that silence means "back the `[n]` with a slot", not
+  "impossible".** It fires from `analyze.ts` when `inferQualifier(receiver) !==
+  "series"`, and `inferQualifier` JOINS THROUGH UDF calls, so a slope/MA local
+  declared via a stateful UDF (`ma_1_slope = cf_slope(ma_1, …)`), a ternary of
+  `ta.*` (`ma_slope_comp = … ? ta.sma : ta.ema`), or a cross-UDF argument
+  (`cf_slope(ma_1, …)`) is correctly inferred `series` and the warning does NOT
+  fire. The receivers really ARE series in Pine; chartlang indexes them via an
+  INDEXABLE SLOT, so the lowering MUST back each such `[n]` with a
+  `state.series`/`state.boolSeries` slot — see the Part A/B history-promotion
+  notes in the `other.ts`/`udfInline.ts` section. (The earlier claim that
+  silence on a clean parse meant "the receiver really is non-series" was WRONG —
+  the silence is exactly the signal to slot-back the index, and Trend Wizard's
+  31 TS7053 errors came from emitting `x[1]` on the `.current` SCALAR projection
+  rather than on a slot.)
 
 ### Parser / expressions (`src/parser/expressions.ts`, `unparse.ts`)
 
@@ -686,6 +692,16 @@ that has no byte-identical chartlang analogue.
   .ts`) maps OHLCV/`time` → `bar.*` and `bar_index` → the internal `__barIndexBridge()` sentinel (renamed to `barIndex()` at codegen) but
   deliberately OMITS `na`: the emitter reads `SemanticAnnotation.naKind` per
   node and emits `null` (handle) or `Number.NaN` (numeric/absent).
+- **A `literal == literal` / `literal != literal` comparison WIDENS its left
+  operand with a same-base `as` cast (`exprEmit.ts` binary case).** When an
+  inlined UDF / value-`switch` substitutes literals onto BOTH sides of an
+  equality (`"SMA" == "SMA"`, after a dropdown `ma_slope_comp_type == "SMA"`
+  collapses), strict TS rejects it as TS2367 ("no overlap") even though it is a
+  harmless always-true/false test. `literalBaseType` (string/number/boolean,
+  `null` otherwise) gates a `(<left> as <base>) == <right>` rewrite, applied
+  ONLY when the operator is `==`/`!=` AND both operands are literals sharing a
+  base — so a legitimately-typed mismatch never has a NEW error masked, and a
+  color/other literal (base `null`) is untouched.
 - **`table.new`/`linefill.new`/`polyline.new` carry no `(time, price)`
   pairs and are absent from `COORD_LAYOUT`** — the resolver skips them.
   Polyline `chart.point` array elements are resolved by their dedicated
@@ -802,8 +818,14 @@ that has no byte-identical chartlang analogue.
   synthesised `inlineInput` name (allocator-issued, e.g. `inlineInput`/`inlineInput2`) with an `inline-input-promoted` info.** The
   walk descends `if`/`for`/`switch`/block bodies + full expression trees; a
   declaration whose value is DIRECTLY an `input.*` call is named, anything
-  else is scanned for nested (inline) inputs. The actual call-node → 
-  `inputs.<name>` expression splice is Task 16's, not here.
+  else is scanned for nested (inline) inputs. The promoted call is REWRITTEN AT
+  ITS USE SITE by `rewriteTree` (`emitContext.ts`): the call's `spanKey` is
+  looked up in `EmitContext.promotedInline` and the node replaced with the
+  `inputs.<name>` read — with the SAME cast a bare input identifier gets
+  (`(inputs.inlineInput as number)` when `inputCasts` has the name, bare
+  `inputs.inlineInput` otherwise). Keyed by `spanKey` (not node identity —
+  `udfInline` clones nodes; the span survives). Without this the raw
+  `input.*(...)` call would leak into `compute` (the hole throws at runtime).
 - **Rejects push a `pine-converter/transform/...` error and skip the input
   (no `appendInput`):** `input.enum` → `input-enum-rejected`; a computed
   `input.source` default → `non-literal-source-input`; a non-literal default
@@ -1534,10 +1556,11 @@ that has no byte-identical chartlang analogue.
   named `let`, a later `:=`/compound reassignment reuses the unique) /
   `expression-statement`; any other (a bare control-flow body statement) is a
   best-effort `substituteParamsStatement` + injected `emitStatement` fallback
-  (no return contribution — the result defaults to `Number.NaN`). KNOWN
-  LIMITATIONS: a local DECLARED inside such a control-flow body statement is not
-  uniquified, and a history-indexed body local is not promoted to `state.series`
-  (out of the divergence-golden scope; Task-5 fixture territory).
+  (no return contribution — the result defaults to `Number.NaN`). A
+  history-indexed body local IS now promoted to a `state.*Series` slot (Part B,
+  see the `historyIndexedBodyLocals`/`registerSeriesSlot` note in the
+  `other.ts`/`udfInline.ts` history-promotion section). KNOWN LIMITATION: a local
+  DECLARED inside a nested control-flow body statement is still not uniquified.
 - **A pure UDF param is emitted with a `: number` TYPE ANNOTATION
   (`emitPureUdf`, `other.ts`).** An untyped arrow param trips the compiler's
   `noImplicitAny` (TS7006), so a clean pure helper would not type-check. `number`
@@ -1545,35 +1568,32 @@ that has no byte-identical chartlang analogue.
   helper uses its params in scalar/number positions (arithmetic, `math.*`,
   comparison), and a `PriceSeries` call-site arg (`bar.close`) is `number &
   Series<…>` (`Price = number`), assignable to `number`. The ONE pure-helper
-  shape this does NOT cover is a param that history-indexes itself (`f(src) =>
-  src - src[1]`): `number[1]` is a TS7053 error, and a sound series type
-  (`number & Series<number>`) is the SAME `state.series` promotion the stateful
-  history-indexed-arg path defers (`46`) — so that narrow shape is a documented
-  gap, not a corpus fixture.
-- **UDF fixture corpus + the remaining compile limitation (Task 5).** The UDF
-  surface is pinned by fixtures `42`–`46`: `42-udf-pure-limit` (`cf_limit` —
-  the PURE-helper round-trip: typed-param arrow `const`, nested `math.*` lowered
-  to `Math.*`, CLEAN), `43-udf-stateful-slope-divergence`
-  (`cf_slope(close, …)` + `cf_slope(open, …)` — the DIVERGENCE WITNESS: two
-  independent inlined `ta.ema` slots, CLEAN round-trip), `45-trend-wizard-helpers`
+  shape this does NOT cover is a PURE param that history-indexes itself (`f(src)
+  => src - src[1]`): a pure UDF is emitted as a real arrow whose param is a
+  scalar `: number`, so `number[1]` is a TS7053 error. (A STATEFUL helper whose
+  param/body is history-indexed IS handled — Part A2 promotes the argument, Part
+  B the body-local; only the pure-helper self-index stays a narrow documented
+  gap, not a corpus fixture.)
+- **UDF fixture corpus.** The UDF surface is pinned by fixtures `42`–`46`:
+  `42-udf-pure-limit` (`cf_limit` — the PURE-helper round-trip: typed-param arrow
+  `const`, nested `math.*` lowered to `Math.*`, CLEAN), `43-udf-stateful-slope-
+  divergence` (`cf_slope(close, …)` + `cf_slope(open, …)` — the DIVERGENCE
+  WITNESS: two independent inlined `ta.ema` slots, CLEAN; OHLCV args are
+  natively indexable, so they are NOT slot-promoted), `45-trend-wizard-helpers`
   (the faithful clean helper cluster — `cf_dist` on derived MAs + multi-line
-  `cf_atr_perct`, all stateful-inlined, CLEAN), and `44-udf-recursive-rejected`
-  (the `udf-recursive-rejected` error, exempt from the round-trip by the
-  has-error guard). ONE fixture is PARKED in `KNOWN_NON_COMPILING` because the
-  conversion is clean (no error diagnostic) but the emitted module does not yet
-  type-check — a documented v1 limitation, NOT a bug in Task 5:
-  `46-trend-wizard-slope-pending` — the real Trend Wizard `cf_slope(ma_1, …)`
-  usage: a stateful helper whose body indexes a PARAM's history (`ma[1]`) applied
-  to a DERIVED MA local (lowered to a `.current` scalar), so the inlined
-  `ma_1[1]` indexes a `number` (TS7053). `cf_slope` on an OHLCV arg (which
-  natively supports `[1]`) round-trips — that is why `43` uses `close`/`open`.
-  Promoting a history-indexed inlined ARG to a `state.series` is a deferred
-  follow-up (the inline-side analogue of the body-local limitation above).
+  `cf_atr_perct`, all stateful-inlined, CLEAN), `44-udf-recursive-rejected` (the
+  `udf-recursive-rejected` error, exempt from the round-trip by the has-error
+  guard), and `46-trend-wizard-slope-pending` — the real Trend Wizard
+  `cf_slope(ma_1, …)` usage: a stateful helper whose body indexes a PARAM's
+  history (`ma[1]`) applied to a DERIVED MA local. This NOW COMPILES — Part A2
+  promotes the `ma_1`/`ma_2` arguments to `state.series` slots (it was a parked
+  `KNOWN_NON_COMPILING` entry before the cross-UDF history-promotion landed).
+  `74-inlined-bool-history` pins Part B (a `cf_macross`-like body-local
+  `ta.crossover` read at `[1]`/`[2]` → per-call-site `state.boolSeries` slots).
 - **KNOWN GAPS** (covered by the `KNOWN_NON_COMPILING` skip list in
   `fixtures-compile.test.ts`): draw-call style opts (`line.new(…,
   color=lineColor)`) are not input-aware, so an input-styled drawing leaks the
-  bare name; a tuple-decl element reassigned with `:=` is not supported; the
-  remaining UDF compile limitation above (`46-trend-wizard-slope-pending`).
+  bare name; a tuple-decl element reassigned with `:=` is not supported.
   (A `ta.*` nested in a scalar expression IS now `.current`-lowered — see the
   shared `lowerTaToCurrent` rule above; fixture `41-nested-ta-arith` converts
   AND compiles through the round-trip, so it is NOT a known gap.)
@@ -1630,6 +1650,14 @@ that has no byte-identical chartlang analogue.
   = …`. The `MutableSlot<T>` API is `.value` get/set (NOT the drawing-handle
   slot's `.current()`/`.set()`). A plain `=` declaration → `let x = …`; a `=`
   the semantic pass flags `declaration` → `let`, a reassignment → bare `x = …`.
+- **A non-indexed `na`-init `string`/`bool` scalar carries a `T | null = null`
+  ANNOTATION (`emitDeclaration`, `other.ts`).** A `var string`/`var bool`
+  initialised to `na` that is NEVER history-indexed gets no series slot — its
+  default would be `Number.NaN`, making TS infer `number`, so a later `:= "EMA"`
+  / `:= true` fails (TS2322). Carry the Pine declared type into an explicit
+  `let x: string | null = null;` / `let x: boolean | null = null;` (the `null`
+  na sentinel) so the reads/writes type-check. Scoped to the `na`-init
+  string/bool case — `int`/`float` already infer `number` from `Number.NaN`.
 - **A `var color` scalar lowers to `state.color` (`colorScalar`/`emitStateSlots`,
   T12).** A `var`/`varip` whose declared type is `color`, OR whose init is a
   color literal (`#RRGGBB(AA)`) / `color.*` palette member / `color.*(...)` call,
@@ -1698,6 +1726,45 @@ that has no byte-identical chartlang analogue.
   number); non-numeric `state.series<bool>`/`<color>` stays T12's surface. This
   is what lets MASM's `for i … ma_slope[i]` consolidation loop convert to a
   COMPILING runtime `for` (the T10 §5 crux) instead of an impossible unroll.
+- **Part A — non-`ta.*` series locals + cross-UDF arguments are ALSO promoted to
+  a numeric `state.series` slot (`scanPromotedSeries`, `other.ts`).** A receiver
+  that `inferQualifier` calls `series` (joining through UDF calls) but which
+  `isTaSeriesDeclaration` rejects still needs a slot when it is `[n]`-indexed —
+  otherwise the emitted `x[1]` indexes the `.current` SCALAR (TS7053, the Trend
+  Wizard 31-error cluster). Two shapes feed `promotedSeries` (numeric
+  `state.series(Number.NaN)`, same read/write rewrites as the direct-`ta.*`
+  path): **A1** a top-level `=`-decl whose VALUE is series-qualified AND
+  history-indexed at the top level but is NOT directly a `ta.*` call (a UDF-call
+  RHS `ma_1_slope = cf_slope(…)`, a ternary `ma_slope_comp = … ? ta.sma :
+  ta.ema`) — the history-indexed gate keeps a non-indexed series local (fixture
+  43's `close_slope`) a plain `let`; **A2** a SIMPLE-IDENTIFIER argument passed
+  to a STATEFUL UDF whose body history-indexes the matching parameter
+  (`statefulUdfParamHistory`: `cf_slope(ma, n) => …ma[1]…` → promote the
+  `cf_slope(ma_1, …)`/`cf_slope(rsi_ma, …)` args), since the post-inline
+  `ma_1[1]` would index a `number`. A2 only promotes args that name a
+  USER-DECLARED series local (`rootScope.symbols.has` + `qualifier === "series"`),
+  so an OHLCV arg (`cf_slope(close, …)`, fixture 43) — already an indexable
+  `PriceSeries` — is left untouched. `forEachCall` finds the call through the
+  scalar-expression containers (direct / binary / unary / ternary / paren) a
+  promoting call realistically nests in; other containers are a documented
+  best-effort gap (a missed promotion surfaces as a normal compile error, never
+  a silent value).
+- **Part B — a history-indexed INLINED body-local is slot-backed
+  (`udfInline.ts`).** `cf_macross`'s body-local `ma_cross = ta.crossover(MA1,
+  MA2)` read at `ma_cross[1]`/`[2]` cannot stay a `let` (the `[n]` would index a
+  `boolean`). `historyIndexedBodyLocals` detects it; each inline expansion backs
+  it with its OWN `state.*Series` slot (element type from the initializer via
+  `seriesSlotInit`: `ta.cross`/`crossover`/`crossunder` → `state.boolSeries(false)`,
+  else `state.series(Number.NaN)`) registered through the new
+  `InlineScope.registerSeriesSlot` callback (which `other.ts` wires to
+  `appendStateSlot`). The slot is registered + bound BEFORE its init is lowered
+  so a self-referential history (`x = nz(x[1]) + a`) resolves its own `[n]` to
+  the fresh slot; the write emits `<slot>.value = …`, bare reads `<slot>.value`,
+  `[n]` reads the bare slot, and a `:=` reassignment writes `<slot>.value` too.
+  Each call site mints an INDEPENDENT slot (the per-call-site instancing the
+  inliner already gives `ta.*`) — `cf_macross` called 4× → 4 boolSeries slots
+  (fixture `74-inlined-bool-history`). NO core/runtime change: `state.boolSeries`
+  / `state.series` already expose a writable `.value` head + indexable `[n]`.
 - **A bounded numeric `var array<float|int>` lowers to `state.array`
   (`numericArray.ts` + `emitArraySlots`/`emitContext.ts`).** A NUMERIC Camp B
   ring — `var`/`varip array<float|int>` whose initializer is `array.new(...)`,
@@ -1859,12 +1926,27 @@ that has no byte-identical chartlang analogue.
   the `default` arm; and a too-few-args call to any member. The `unary` /
   `binary` / `ternary` / custom `emitSubstring` / `emitRepeat` / `emitReplace`
   helpers all return `str-not-mapped` on a missing required arg.
+- **A `request.security` READ is `.current`-PROJECTED — the result is a
+  `Series<number>` and scalar use needs the scalar head.** Both shared builders
+  append `.current`: `securityDataRead` → `request.security(<opts>).<field>.current`,
+  `securityCallbackRead` → `request.security(<opts>, (bar) => <body>).current`, and
+  `securityCallbackReadBlock` → `request.security(<opts>, (bar) => { … return …;
+  }).current`. INSIDE the callback `bar` is the `SecurityBar` whose OHLCV fields
+  are series-only `Series<Price>` (NOT the number-coercible main `bar`), so an
+  OHLCV read in callback scalar arithmetic is ALSO `.current`-projected
+  (`bar.close` → `bar.close.current`) — `EmitContext.securityExpr` gates this in
+  `rewriteTree`. The block form is reached when a STATEFUL UDF in the source
+  inlines into a prelude (`emitSecuritySourceCallback`, `other.ts`): a
+  multi-statement inline → block-bodied arrow; a prelude-free source (a direct
+  `ta.*`, a single-expr UDF) stays the expression arrow even when the script has
+  a stateful UDF. The single-source AND tuple paths share these builders, so a
+  scalar bound read (`hi.current`) is byte-consistent across both.
 - **`request.security`'s THIRD arg decides the chartlang FORM; the FIRST arg
   decides the SYMBOL (`requestSecurity.ts`).** A bare OHLCV source field lowers
-  to the **data** form `request.security(<opts>).<field>`; ANY other source (a
-  `ta.*`/expression) lowers to the **callback** form
-  `request.security(<opts>, (bar) => <source>)` — the HTF expression form that
-  runs on the higher-timeframe clock the way Pine does. The callback body is
+  to the **data** form `request.security(<opts>).<field>.current`; ANY other
+  source (a `ta.*`/expression) lowers to the **callback** form
+  `request.security(<opts>, (bar) => <source>).current` — the HTF expression form
+  that runs on the higher-timeframe clock the way Pine does. The callback body is
   `emitWithContext(source, ctx)` verbatim (the shared field mapper already
   rewrites the source's `close`/`hl2`/… reads to `bar.close`/`bar.hl2`/…). Do
   NOT re-introduce the old `request.security({ interval }).<emitted-source>`
@@ -1890,6 +1972,20 @@ that has no byte-identical chartlang analogue.
   genuinely-unsupported shapes (a computed / wrong-axis symbol or interval, an
   out-of-table timeframe, missing args); an in-subset `ta.*` source and a
   literal/input-bound symbol+interval are supported.
+- **`hline` threads a `linestyle=hline.style_*` enum onto the `lineStyle` opt,
+  and an ASSIGNED hline reuses the same lowering (`plotFamily.ts`).** The
+  `hline.style_solid|dotted|dashed` rows live in `mapping/enums.ts`; `emitHline`
+  reads `enumArg(args, "linestyle")` and appends `["lineStyle", JSON.stringify(
+  style)]` only when present (a styleless hline omits the key). An assigned hline
+  (`guide = hline(...)`) routes through `emitHlineValue` in `emitCallValue`
+  (`other.ts`) so it lowers to the SAME `hline(price, { … })` as the statement
+  form (not the verbatim emitter, which would leak the Pine positional
+  title/color/linestyle args). A 2-arg `color.new` / 4-arg `color.rgb` reaching
+  `emitCallValue` in a VALUE position (a UDF return, a plain assignment) folds to
+  a `#RRGGBBAA` hex / `color.withAlpha(...)` via `isTranspColorForm` +
+  `convertColorWith` — chartlang has no `color.new`, so the verbatim form would
+  not type-check. A `draw.curve`/table-cell `as const` tuple is the established
+  literal-tuple gate (`tables.ts`, `polylineLinefill.ts`).
 - **Pine `plot(<value>, offset=N)` threads onto a direct `ta.*` plot value
   (`plotFamily.ts` `emitPlot`).** `emitPlot` IS passed the
   `DiagnosticCollector` (the `case "plot"` site threads it; `hline`/

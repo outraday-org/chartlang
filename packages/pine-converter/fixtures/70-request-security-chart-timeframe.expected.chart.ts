@@ -18,7 +18,7 @@ export default defineIndicator({
             tf: input.interval(""),
         },
         compute({ bar, plot, inputs, request }) {
-            let chartclose = request.security({ interval: inputs.tf as string }).close;
+            let chartclose = request.security({ interval: inputs.tf as string }).close.current;
             plot(chartclose);
         },
 });

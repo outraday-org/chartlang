@@ -1,0 +1,22 @@
+//@version=6
+indicator("Inlined Boolean History")
+
+src = close
+
+// A `cf_macross`-like STATEFUL helper whose body-local `ma_cross` is a boolean
+// `ta.crossover` read at `[1]`/`[2]`: each inline call site backs it with an
+// independent `state.boolSeries` slot so the emitted `ma_cross[n]` compiles.
+cf_macross(MA1, MA2, excl) =>
+    ma_cross = ta.crossover(MA1, MA2)
+    counter = (ma_cross and not (excl ? ma_cross[1] : (ma_cross[1] or ma_cross[2]))) ? 1 : 0
+    counter
+
+ma_a = ta.sma(src, 5)
+ma_b = ta.sma(src, 20)
+
+// Two call sites → two independent boolean-history slots.
+cross_ab = cf_macross(ma_a, ma_b, true)
+cross_ba = cf_macross(ma_b, ma_a, false)
+
+plot(cross_ab, "A-B")
+plot(cross_ba, "B-A")

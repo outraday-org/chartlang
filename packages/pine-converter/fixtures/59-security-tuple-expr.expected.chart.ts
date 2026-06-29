@@ -15,8 +15,8 @@ export default defineIndicator({
             other: 0,
         },
         compute({ bar, ta, plot, request }) {
-            const wk_hi = request.security({ symbol: "NASDAQ:QQQ", interval: "1w" }).high;
-            const wk_trend = request.security({ symbol: "NASDAQ:QQQ", interval: "1w" }, (bar) => ta.sma(bar.close, 20));
+            const wk_hi = request.security({ symbol: "NASDAQ:QQQ", interval: "1w" }).high.current;
+            const wk_trend = request.security({ symbol: "NASDAQ:QQQ", interval: "1w" }, (bar) => ta.sma(bar.close.current, 20)).current;
             plot(wk_hi);
             plot(wk_trend);
         },

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CallExpression, ExpressionNode } from "../ast/index.js";
 import type { SourceSpan } from "../index.js";
+import { spanKey } from "./callArgs.js";
 import type { EmitContext } from "./emitContext.js";
 import { emitScalar, emitWithContext, lowerTaToCurrent } from "./emitContext.js";
 
@@ -33,6 +34,29 @@ describe("emitWithContext", () => {
         expect(emitWithContext(ident("len"), ctx({ inputNames: new Set(["len"]) }))).toBe(
             "inputs.len",
         );
+    });
+
+    it("rewrites a promoted inline-input call to its inputs.<name> read (cast + bare)", () => {
+        const call: CallExpression = {
+            kind: "call-expression",
+            callee: { kind: "member-access-expression", head: null, chain: ["input", "int"], span: SPAN },
+            args: [],
+            span: SPAN,
+        };
+        // With a registered cast → `(inputs.<name> as <cast>)`.
+        expect(
+            emitWithContext(
+                call,
+                ctx({
+                    promotedInline: new Map([[spanKey(SPAN), "inlineInput"]]),
+                    inputCasts: new Map([["inlineInput", "number"]]),
+                }),
+            ),
+        ).toBe("(inputs.inlineInput as number)");
+        // Without a cast → the bare `inputs.<name>`.
+        expect(
+            emitWithContext(call, ctx({ promotedInline: new Map([[spanKey(SPAN), "inlineInput"]]) })),
+        ).toBe("inputs.inlineInput");
     });
 
     it("rewrites a state-slot scalar to <slot>.value", () => {

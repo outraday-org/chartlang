@@ -7,7 +7,7 @@ import type { Statement } from "../ast/statements.js";
 import type { SourceSpan } from "../index.js";
 import { STRING_OPTIONS_ENUM_BUILDER, inputLookup } from "../mapping/index.js";
 import type { SemanticResult } from "../semantic/index.js";
-import { positionalArgs } from "./callArgs.js";
+import { positionalArgs, spanKey } from "./callArgs.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { InputDeclarationIR, ScriptScaffold } from "./ir.js";
 import { appendInput } from "./scaffoldMutators.js";
@@ -628,6 +628,10 @@ function collectInlineInputs(node: ExpressionNode, out: InlineInput[]): void {
 type WalkState = {
     scaffold: ScriptScaffold;
     diagnostics: DiagnosticCollector;
+    // Inline `input.*(...)` call `spanKey` → its promoted top-level input name,
+    // so the emitter can rewrite the use site to the `inputs.<name>` read.
+    // Keyed by span (not node identity — `udfInline` clones nodes downstream).
+    promotedInline: Map<string, string>;
 };
 
 // Register a named input declaration (`len = input.int(...)`) — its bound
@@ -652,6 +656,10 @@ function registerInline(inline: InlineInput, state: WalkState): void {
     state.diagnostics.pushCode("inline-input-promoted", inline.call.span);
     const input: InputDeclarationIR = { name, code };
     appendInput(state.scaffold, input);
+    // Record the call node → promoted name so the emitter rewrites the use site
+    // to `inputs.<name>` (an un-rewritten inline `input.*(...)` is invalid in
+    // `compute`).
+    state.promotedInline.set(spanKey(inline.call.span), name);
 }
 
 // Promote every inline input nested in an expression (used for value
@@ -747,9 +755,12 @@ function walkStatements(statements: readonly Statement[], state: WalkState): voi
  * default) or the typed `input.int/float/bool/string` (literal default).
  * Unconvertible inputs (`input.enum`, a computed `input.source`
  * default, a non-literal default) push an error and are skipped. The
- * function mutates the scaffold and is `void` — Task 16 codegen reads
- * `scaffold.inputs` and rewrites the Pine input identifiers to
- * `inputs.<name>` references.
+ * function mutates the scaffold (appending to `scaffold.inputs`) and RETURNS a
+ * map from each promoted inline `input.*(...)` call node to its synthesised
+ * input name, so the emitter rewrites the inline use site to its
+ * `inputs.<name>` read (an un-rewritten inline `input.*(...)` is invalid inside
+ * `compute`). A named declaration's identifier is rewritten via the scaffold's
+ * input-name set as before.
  *
  * @since 0.1
  * @stable
@@ -773,7 +784,8 @@ export function transformInputs(
     analysis: SemanticResult,
     scaffold: ScriptScaffold,
     diagnostics: DiagnosticCollector,
-): void {
-    const state: WalkState = { scaffold, diagnostics };
+): ReadonlyMap<string, string> {
+    const state: WalkState = { scaffold, diagnostics, promotedInline: new Map() };
     walkStatements(analysis.script.body, state);
+    return state.promotedInline;
 }

@@ -58,18 +58,76 @@ const HOISTED = "pine-converter/transform/udf-arg-hoisted";
 
 describe("transformOther — stateful UDF inline expansion", () => {
     it("inlines a single-line stateful UDF directly into the call site", () => {
-        expect(
-            stmts(
-                "cf_slope(ma, n) => ta.ema(((ma - ma[1]) / ma[1] * 100), n)\n" +
-                    "ma_1 = ta.ema(close, 8)\n" +
-                    "s1 = cf_slope(ma_1, 2)\n" +
-                    "plot(s1)",
-            ),
-        ).toEqual([
-            "let ma_1 = ta.ema(bar.close, 8).current;",
-            "let s1 = ta.ema((((ma_1 - ma_1[1]) / ma_1[1]) * 100), 2).current;",
+        // `cf_slope` history-indexes its param `ma`, so the cross-UDF arg path
+        // promotes `ma_1` to a `state.series` slot (its post-inline `ma_1[1]`
+        // would otherwise index a `number`): the decl writes `ma_1.value`, bare
+        // reads are `ma_1.value`, history reads index the bare slot.
+        const { scaffold } = run(
+            "cf_slope(ma, n) => ta.ema(((ma - ma[1]) / ma[1] * 100), n)\n" +
+                "ma_1 = ta.ema(close, 8)\n" +
+                "s1 = cf_slope(ma_1, 2)\n" +
+                "plot(s1)",
+        );
+        expect(scaffold.stateSlots).toContainEqual({
+            name: "ma_1",
+            initExpr: "state.series(Number.NaN)",
+        });
+        expect(scaffold.computeBody.statements).toEqual([
+            "ma_1.value = ta.ema(bar.close, 8).current;",
+            "let s1 = ta.ema((((ma_1.value - ma_1[1]) / ma_1[1]) * 100), 2).current;",
             "plot(s1);",
         ]);
+    });
+
+    it("backs history-indexed inlined body-locals with series slots", () => {
+        // A cf_macross-like helper whose body-locals are read at `[n]`: a boolean
+        // `ta.crossover` → `state.boolSeries`, and numeric locals (a `ta.sma`, a
+        // binary, an `nz` identifier-callee call) → `state.series`. The bool slot
+        // is also reassigned, exercising the slot-reassignment `.value` write.
+        const { scaffold } = run(
+            "cf_mix(a, b) =>\n" +
+                "    x = ta.crossover(a, b)\n" +
+                "    x := x and not x[1]\n" +
+                "    d = a - b\n" +
+                "    e = d - d[1]\n" +
+                "    f = nz(a)\n" +
+                "    g = f - f[1]\n" +
+                "    h = ta.sma(a, 3)\n" +
+                "    k = h - h[1]\n" +
+                "    (x ? 1 : 0) + e + g + k\n" +
+                "z = cf_mix(close, open)\n" +
+                "plot(z)",
+        );
+        const inits = scaffold.stateSlots.map((slot) => slot.initExpr);
+        expect(inits).toContain("state.boolSeries(false)");
+        // Three numeric history-indexed body-locals (d, f, h) → `state.series`.
+        expect(inits.filter((init) => init === "state.series(Number.NaN)")).toHaveLength(3);
+        const lines = scaffold.computeBody.statements;
+        // The reassigned boolean slot writes `<slot>.value`, reading its own `[1]`.
+        expect(
+            lines.some(
+                (line) => line.includes(".value =") && line.includes("&&") && line.includes("[1]"),
+            ),
+        ).toBe(true);
+    });
+
+    it("registers a self-referential history body-local slot before lowering its own init", () => {
+        // A single-statement body whose history-indexed local references its OWN
+        // `[1]`: the slot + binding are registered BEFORE lowering, so the
+        // self-`[1]` resolves to the fresh slot (not a dangling Pine name), and
+        // the slot read `<slot>.value` is the inlined return value.
+        const { scaffold } = run(
+            "cf_run(a) =>\n    y = a + 1\n    x = ta.sma(y, 2) + nz(x[1])\n" +
+                "z = cf_run(close)\nplot(z)",
+        );
+        expect(scaffold.stateSlots.map((slot) => slot.initExpr)).toContain(
+            "state.series(Number.NaN)",
+        );
+        const lines = scaffold.computeBody.statements;
+        // The self-history reads the slot (`<slot>[1]`); the slot decl is the
+        // body's LAST statement, so the inlined return reads `<slot>.value`.
+        expect(lines.some((line) => /^x\d*\.value = .*math\.nz\(x\d*\[1\]\)/.test(line))).toBe(true);
+        expect(lines.some((line) => /^let z = x\d*\.value;$/.test(line))).toBe(true);
     });
 
     it("inlines two call sites to independent ta.* sites (the divergence shape)", () => {

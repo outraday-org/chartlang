@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { CallArgument, CallExpression } from "../ast/index.js";
+import type { SourceSpan } from "../index.js";
 
 /**
  * The dotted member name of a bare-rooted callee (`line.new`, `array.push`),
@@ -51,4 +52,21 @@ export function positionalArgs(args: readonly CallArgument[]): readonly CallArgu
  */
 export function namedArg(args: readonly CallArgument[], name: string): CallArgument | null {
     return args.find((arg) => arg.name === name) ?? null;
+}
+
+/**
+ * A stable string key for a {@link SourceSpan} (`"startLine:startColumn:endLine
+ * :endColumn"`). Used to associate an AST node with side-table data across a
+ * transform that may CLONE the node (e.g. `udfInline`'s `expandNode` rebuilds
+ * every node with `{ ...node }`, so node-identity `Map` keys break — but the
+ * 1-based span is preserved). Spans are unique per source location.
+ *
+ * @since 0.4
+ * @stable
+ * @example
+ *     import { spanKey } from "./callArgs.js";
+ *     spanKey({ startLine: 3, startColumn: 5, endLine: 3, endColumn: 9 }); // "3:5:3:9"
+ */
+export function spanKey(span: SourceSpan): string {
+    return `${span.startLine}:${span.startColumn}:${span.endLine}:${span.endColumn}`;
 }

@@ -157,17 +157,6 @@ function commonOptionPairs(
     ];
 }
 
-// Render the shared title / color / lineWidth options into a `{ … }` object
-// (or the empty string when none are present).
-function commonOptions(
-    args: readonly CallArgument[],
-    pos: readonly ExpressionNode[],
-    ctx: EmitContext,
-    diagnostics: DiagnosticCollector,
-): string {
-    return options(commonOptionPairs(args, pos, ctx, diagnostics));
-}
-
 /**
  * Lower a Pine plot-family call into a chartlang `plot(...)` / `hline(...)`
  * statement string, or push a reject diagnostic. `plot` maps title/color/
@@ -564,7 +553,14 @@ function emitBar(
     return `plot(Number.NaN, { style: { kind: "bar-override"${colorPart} } });`;
 }
 
-function emitHline(
+// Render an `hline(price, { ... })` chartlang call STRING (no trailing
+// semicolon) shared by the statement form (`emitHline`) and the value form
+// (`emitHlineValue`, for an assigned `guide = hline(...)`). The Pine
+// `linestyle = hline.style_*` named arg maps through `enumArg` onto the
+// chartlang `lineStyle` option (`"solid"|"dashed"|"dotted"`); without this the
+// style was silently dropped and the assigned form leaked `hline.style_dashed`
+// verbatim.
+function hlineCallString(
     args: readonly CallArgument[],
     pos: readonly ExpressionNode[],
     ctx: EmitContext,
@@ -574,9 +570,76 @@ function emitHline(
     if (price === undefined) {
         return null;
     }
-    const opts = commonOptions(args, pos, ctx, diagnostics);
+    const styleStr = enumArg(args, "linestyle");
+    const opts = options([
+        ...commonOptionPairs(args, pos, ctx, diagnostics),
+        ["lineStyle", styleStr === null ? null : JSON.stringify(styleStr)],
+    ]);
     const priceSource = emitWithContext(price, ctx);
-    return opts === "" ? `hline(${priceSource});` : `hline(${priceSource}, ${opts});`;
+    return opts === "" ? `hline(${priceSource})` : `hline(${priceSource}, ${opts})`;
+}
+
+function emitHline(
+    args: readonly CallArgument[],
+    pos: readonly ExpressionNode[],
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+): string | null {
+    const call = hlineCallString(args, pos, ctx, diagnostics);
+    return call === null ? null : `${call};`;
+}
+
+/**
+ * Lower an `hline(...)` call used as a VALUE (an assigned `guide = hline(...)`)
+ * to the chartlang `hline(price, { ... })` call string, or `null` for a
+ * non-`hline` call. The statement-position path (`emitPlotFamily`) handles a
+ * bare `hline(...)` expression statement; an assigned hline goes through
+ * `emitCallValue`, which would otherwise emit the Pine positional args verbatim
+ * (wrong arity + a leaked `hline.style_*`). Same lowering, no trailing `;`.
+ *
+ * @since 0.4
+ * @stable
+ * @example
+ *     import { emitHlineValue } from "./plotFamily.js";
+ *     import { DiagnosticCollector } from "./diagnosticCollector.js";
+ *     const ctx = {
+ *         annotations: new Map(),
+ *         inputNames: new Set<string>(),
+ *         localNames: new Set<string>(),
+ *         stateSlots: new Map<string, string>(),
+ *     };
+ *     const call = {
+ *         kind: "call-expression",
+ *         callee: {
+ *             kind: "identifier-expression",
+ *             name: "hline",
+ *             span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 6 },
+ *         },
+ *         args: [
+ *             {
+ *                 name: null,
+ *                 value: {
+ *                     kind: "literal-expression",
+ *                     literalKind: "int",
+ *                     value: "0",
+ *                     span: { startLine: 1, startColumn: 7, endLine: 1, endColumn: 8 },
+ *                 },
+ *                 span: { startLine: 1, startColumn: 7, endLine: 1, endColumn: 8 },
+ *             },
+ *         ],
+ *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 9 },
+ *     } as const;
+ *     emitHlineValue(call, ctx, new DiagnosticCollector()); // "hline(0)"
+ */
+export function emitHlineValue(
+    call: CallExpression,
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+): string | null {
+    if (bareCallee(call) !== "hline") {
+        return null;
+    }
+    return hlineCallString(call.args, positional(call.args), ctx, diagnostics);
 }
 
 // Lower Pine `bgcolor(color, transp?, …, title?)` / `barcolor(color, …,

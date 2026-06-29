@@ -294,32 +294,65 @@ export function securityOpts(symbol: string | null, interval: string): string {
 
 /**
  * The chartlang **data** form of a security read: `request.security(<opts>)
- * .<field>` (a `Series`). Used for a bare OHLCV source in both the single-source
- * and tuple paths.
+ * .<field>.current` — the per-bar SCALAR of the higher-timeframe field. The
+ * `SecurityBar` fields are `Series<Price>` (series-only, NOT the number-coercible
+ * `PriceSeries` intersection the main `bar` uses), so the read is projected to
+ * `.current` exactly as `ta.*` results are (`lowerTaToCurrent`) — without it the
+ * value cannot be used in scalar arithmetic (`src - ma` ⇒ TS2362). Used for a
+ * bare OHLCV source in both the single-source and tuple paths.
  *
  * @since 0.1
  * @stable
  * @example
  *     import { securityDataRead } from "./securityShape.js";
- *     securityDataRead('{ interval: "1d" }', "high"); // 'request.security({ interval: "1d" }).high'
+ *     securityDataRead('{ interval: "1d" }', "high"); // 'request.security({ interval: "1d" }).high.current'
  */
 export function securityDataRead(opts: string, field: string): string {
-    return `request.security(${opts}).${field}`;
+    return `request.security(${opts}).${field}.current`;
 }
 
 /**
  * The chartlang **callback** form of a security read: `request.security(<opts>,
- * (bar) => <body>)`, which runs `body` on the higher-timeframe clock (the way
- * Pine does). `body` is the already-emitted source expression (its OHLCV reads
- * rewritten to `bar.*`). Used for a `ta.*` / computed source in both paths.
+ * (bar) => <body>).current` — the per-bar SCALAR of the higher-timeframe
+ * expression. `body` is the already-emitted source expression (its OHLCV reads
+ * rewritten to `bar.*`); the expression form returns `Series<number>`, so the
+ * read is projected to `.current` (mirroring `ta.*`) so it can be used in scalar
+ * arithmetic. Used for a `ta.*` / computed source in both paths.
  *
  * @since 0.1
  * @stable
  * @example
  *     import { securityCallbackRead } from "./securityShape.js";
  *     securityCallbackRead('{ interval: "1d" }', "ta.ema(bar.close, 9)");
- *     // 'request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9))'
+ *     // 'request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9)).current'
  */
 export function securityCallbackRead(opts: string, body: string): string {
-    return `request.security(${opts}, (bar) => ${body})`;
+    return `request.security(${opts}, (bar) => ${body}).current`;
+}
+
+/**
+ * The BLOCK-bodied chartlang **callback** form of a security read:
+ * `request.security(<opts>, (bar) => { <prelude…> return <result>; }).current`.
+ * Used when a `ta.*` / computed source contains a stateful user-defined
+ * function whose inline expansion produces intermediate `let`/`const` prelude
+ * lines (e.g. `cf_atr_perct` → `atr = ta.atr(length)` then `(atr/close)*100`):
+ * the prelude MUST live inside the callback so its `ta.*`/`state.*` accumulate
+ * on the higher-timeframe clock (the way Pine evaluates the source on the HTF
+ * bar), not the chart clock. An empty prelude uses the expression form
+ * {@link securityCallbackRead} instead.
+ *
+ * @since 0.4
+ * @stable
+ * @example
+ *     import { securityCallbackReadBlock } from "./securityShape.js";
+ *     securityCallbackReadBlock('{ interval: "1d" }', ["let a = ta.atr(14).current;"], "(a / bar.close) * 100");
+ *     // 'request.security({ interval: "1d" }, (bar) => { let a = ta.atr(14).current; return (a / bar.close) * 100; }).current'
+ */
+export function securityCallbackReadBlock(
+    opts: string,
+    prelude: readonly string[],
+    result: string,
+): string {
+    const body = [...prelude, `return ${result};`].join(" ");
+    return `request.security(${opts}, (bar) => { ${body} }).current`;
 }

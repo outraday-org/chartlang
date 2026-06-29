@@ -8,8 +8,10 @@ import {
     ARRAY_SORT_ORDER_MAP,
     MAP_BUILTIN_MAP,
     mathLookup,
+    remapIdentifier,
     taLookup,
 } from "../mapping/index.js";
+import { spanKey } from "./callArgs.js";
 import type { AnnotationLookup } from "./exprEmit.js";
 import { emitExpr } from "./exprEmit.js";
 import type { SecurityFeedInputs } from "./securityShape.js";
@@ -180,6 +182,31 @@ export type EmitContext = Readonly<{
      * `break-continue-outside-loop` instead of emitting an illegal jump.
      */
     inLoop?: boolean;
+    /**
+     * Inline `input.*(...)` call nodes promoted to a named top-level input,
+     * mapped to that input's chartlang name. A promoted call is rewritten at its
+     * USE SITE to the `inputs.<name>` read (`ta.wma(x * input.float(1.1), 5)` →
+     * `ta.wma(x * (inputs.inlineInput as number), 5)`); without this the original
+     * `input.float(...)` call would be emitted verbatim, which is invalid inside
+     * `compute` (the `input.*` hole throws at runtime, and the positional
+     * title/step args mis-shape the call). Keyed by the call's `spanKey` (NOT
+     * node identity — `udfInline` clones nodes, so identity breaks; the span is
+     * preserved), built by `transformInputs`. Absent → no inline-input
+     * promotions.
+     */
+    promotedInline?: ReadonlyMap<string, string>;
+    /**
+     * Set while lowering a `request.security(opts, (bar) => …)` EXPRESSION
+     * source body. Inside that callback `bar` is the `SecurityBar`, whose OHLCV
+     * fields are `Series<Price>` (series-only, NOT the number-coercible
+     * `PriceSeries` the MAIN `bar` exposes), so a bare `bar.close` cannot be used
+     * in scalar arithmetic (`atr / close` ⇒ TS2363). When set, an OHLCV read is
+     * projected to its `.current` scalar (`bar.close` → `bar.close.current`),
+     * mirroring how `ta.*` results are always `.current`-projected. Absent (the
+     * main compute body, where `bar` is the number-coercible `BarSeries`) → no
+     * projection.
+     */
+    securityExpr?: boolean;
 }>;
 
 /**
@@ -509,7 +536,21 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext, scalar: boolean): E
     switch (node.kind) {
         case "identifier-expression": {
             const replacement = rewriteIdentifier(node.name, ctx);
-            return replacement === null ? node : { ...node, name: replacement };
+            if (replacement !== null) {
+                return { ...node, name: replacement };
+            }
+            // Inside a `request.security` expression callback, project an OHLCV
+            // read to its `.current` scalar — the `SecurityBar` fields are
+            // series-only, so `bar.close` is unusable in scalar arithmetic. A
+            // shadowing local (e.g. an inlined UDF body local) is excluded so
+            // only genuine OHLCV builtins are projected.
+            if (ctx.securityExpr === true && !ctx.localNames.has(node.name)) {
+                const mapped = remapIdentifier(node.name);
+                if (mapped?.startsWith("bar.") === true) {
+                    return { ...node, name: `${mapped}.current` };
+                }
+            }
+            return node;
         }
         case "unary-expression":
             return { ...node, operand: rewriteTree(node.operand, ctx, true) };
@@ -527,6 +568,18 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext, scalar: boolean): E
                 alternate: rewriteTree(node.alternate, ctx, true),
             };
         case "call-expression": {
+            // An inline `input.*(...)` call promoted to a named top-level input
+            // is rewritten at its use site to the `inputs.<name>` read (with the
+            // same cast a bare input identifier gets). An un-rewritten
+            // `input.*(...)` inside `compute` is invalid chartlang (the hole
+            // throws at runtime; the positional title/step args mis-shape it).
+            const promoted = ctx.promotedInline?.get(spanKey(node.span));
+            if (promoted !== undefined) {
+                const cast = ctx.inputCasts?.get(promoted);
+                const source =
+                    cast === undefined ? `inputs.${promoted}` : `(inputs.${promoted} as ${cast})`;
+                return { kind: "identifier-expression", name: source, span: node.span };
+            }
             // A nested `ta.*` call in a SCALAR position lowers to its current-bar
             // scalar (`ta.rsi(close,14) * 0.1` → `ta.rsi(bar.close, 14).current
             // * 0.1`). Routed through the SAME `lowerTaToCurrent` the top-level

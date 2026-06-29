@@ -187,6 +187,36 @@ describe("emitExpr", () => {
         ).toBe("a * b");
     });
 
+    it("widens a literal == literal comparison with a same-base `as` cast", () => {
+        const lit = (
+            literalKind: "string" | "int" | "float" | "bool" | "color",
+            value: string,
+        ): ExpressionNode => ({ kind: "literal-expression", literalKind, value, span: SPAN });
+        const binary = (
+            operator: string,
+            left: ExpressionNode,
+            right: ExpressionNode,
+        ): ExpressionNode => ({ kind: "binary-expression", operator, left, right, span: SPAN });
+        // String/number/bool literal pairs widen the LEFT with a same-base cast
+        // so a value-switch dropdown read (`(mode as string) == "SMA"`) narrows.
+        expect(emitExpr(binary("==", lit("string", '"SMA"'), lit("string", '"SMA"')), noAnnotations)).toBe(
+            '("SMA" as string) == "SMA"',
+        );
+        expect(emitExpr(binary("!=", lit("int", "1"), lit("int", "2")), noAnnotations)).toBe(
+            "(1 as number) != 2",
+        );
+        expect(emitExpr(binary("==", lit("bool", "true"), lit("bool", "false")), noAnnotations)).toBe(
+            "(true as boolean) == false",
+        );
+        // No widening: a color literal has no widening base (default arm → null),
+        // a non-`==`/`!=` operator, and a non-literal operand all pass through.
+        expect(emitExpr(binary("==", lit("color", "#fff"), lit("color", "#fff")), noAnnotations)).toBe(
+            '"#fff" == "#fff"',
+        );
+        expect(emitExpr(binary("+", lit("int", "1"), lit("int", "2")), noAnnotations)).toBe("1 + 2");
+        expect(emitExpr(binary("==", ident("a"), lit("int", "2")), noAnnotations)).toBe("a == 2");
+    });
+
     it("emits ternary expressions", () => {
         expect(
             emitExpr(

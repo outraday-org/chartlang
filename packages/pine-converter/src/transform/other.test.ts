@@ -467,6 +467,46 @@ describe("transformOther — series scalars (state.series)", () => {
         expect(scaffold.stateSlots).toEqual([{ name: "s", initExpr: 'state.stringSeries("")' }]);
     });
 
+    it("promotes cross-UDF history args through direct / binary / unary / ternary / paren nestings", () => {
+        // `cf_s` history-indexes its param, so each SIMPLE-IDENTIFIER series-local
+        // argument is promoted to a `state.series` slot regardless of the call's
+        // nesting; a non-identifier arg (`close + 1`) is left alone.
+        const { scaffold } = run(
+            "cf_s(m) => ta.ema(m - m[1], 3)\n" +
+                "a = ta.sma(close, 3)\n" +
+                "b = ta.sma(close, 5)\n" +
+                "c = ta.sma(close, 8)\n" +
+                "d = ta.sma(close, 13)\n" +
+                "float v = 3.0\n" +
+                "r1 = cf_s(a)\n" +
+                "r2 = cf_s(b) + 1\n" +
+                "r3 = -cf_s(c)\n" +
+                "r4 = close > open ? cf_s(d) : 0\n" +
+                "r5 = (cf_s(a))\n" +
+                "r6 = cf_s(close + 1)\n" +
+                "plot(r1)\nplot(r2)\nplot(r3)\nplot(r4)\nplot(r5)\nplot(r6)",
+        );
+        const slotted = new Set(scaffold.stateSlots.map((slot) => slot.name));
+        for (const name of ["a", "b", "c", "d"]) {
+            expect(slotted.has(name)).toBe(true);
+        }
+        // The typed `float v` is not history-indexed → stays a plain scalar slot.
+        expect(slotted.has("v")).toBe(false);
+    });
+
+    it("annotates a non-indexed na-init string/bool scalar as `T | null = null`", () => {
+        // A `var string`/`var bool` initialised to `na` but NEVER history-indexed
+        // gets no series slot — its `Number.NaN` default would make TS infer
+        // `number`, so a later `:= "EMA"` / `:= true` would fail. Carry the Pine
+        // type into a `T | null` annotation with a `null` sentinel instead.
+        expect(stmts('var string mode = na\nmode := "EMA"\nplot(close)')).toContain(
+            "let mode: string | null = null;",
+        );
+        expect(stmts("var bool armed = na\narmed := close > open\nplot(close)")).toContain(
+            "let armed: boolean | null = null;",
+        );
+    });
+
     it("wires dynamic-series-index for a dynamic offset on a bool series", () => {
         const { diagnostics } = run(
             "var bool up = false\ni = 2\nup := close > open\nplot(up[i] ? 1 : 0)",
@@ -660,7 +700,7 @@ describe("transformOther — passthrough and skips", () => {
 
     it("lowers request.security as a declaration value", () => {
         expect(stmts('htf = request.security(syminfo.tickerid, "1D", close)\nplot(htf)')).toContain(
-            'let htf = request.security({ interval: "1d" }).close;',
+            'let htf = request.security({ interval: "1d" }).close.current;',
         );
     });
 
@@ -695,7 +735,7 @@ describe("transformOther — passthrough and skips", () => {
 
     it("lowers a special call used as a bare statement", () => {
         expect(stmts('request.security(syminfo.tickerid, "D", close)')).toContain(
-            'request.security({ interval: "1d" }).close;',
+            'request.security({ interval: "1d" }).close.current;',
         );
         expect(stmts("ta.ema(close, 9)").some((s) => s.startsWith("ta.ema("))).toBe(true);
     });

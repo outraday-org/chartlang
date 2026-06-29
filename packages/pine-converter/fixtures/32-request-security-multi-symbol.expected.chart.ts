@@ -15,8 +15,8 @@ export default defineIndicator({
             other: 0,
         },
         compute({ bar, plot, request }) {
-            let aapl = request.security({ symbol: "NASDAQ:AAPL", interval: "1d" }).close;
-            let self = request.security({ interval: "1d" }).close;
+            let aapl = request.security({ symbol: "NASDAQ:AAPL", interval: "1d" }).close.current;
+            let self = request.security({ interval: "1d" }).close.current;
             plot(aapl);
             plot(self);
         },

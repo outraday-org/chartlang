@@ -21,8 +21,8 @@ describe("tuple request.security — N-read lowering", () => {
             '[hi, lo] = request.security(syminfo.tickerid, "D", [high, low])\nplot(hi)\nplot(lo)',
         );
         expect(codes).toEqual([]);
-        expect(lines).toContain('const hi = request.security({ interval: "1d" }).high;');
-        expect(lines).toContain('const lo = request.security({ interval: "1d" }).low;');
+        expect(lines).toContain('const hi = request.security({ interval: "1d" }).high.current;');
+        expect(lines).toContain('const lo = request.security({ interval: "1d" }).low.current;');
     });
 
     it("lowers a computed element to the callback form", () => {
@@ -30,7 +30,24 @@ describe("tuple request.security — N-read lowering", () => {
             '[hi, trend] = request.security(syminfo.tickerid, "W", [high, ta.sma(close, 20)])\nplot(hi)\nplot(trend)',
         );
         expect(lines).toContain(
-            'const trend = request.security({ interval: "1w" }, (bar) => ta.sma(bar.close, 20));',
+            'const trend = request.security({ interval: "1w" }, (bar) => ta.sma(bar.close.current, 20)).current;',
+        );
+    });
+
+    it("lowers computed elements to block + expression callbacks when a stateful UDF exists", () => {
+        const { lines } = run(
+            "cf_pct(len) =>\n    a = ta.atr(len)\n    a / close * 100\n" +
+                '[hi, pct, ma] = request.security(syminfo.tickerid, "D", [high, cf_pct(14), ta.sma(close, 20)])\n' +
+                "plot(hi)\nplot(pct)\nplot(ma)",
+        );
+        // A multi-statement inlined UDF prelude → the block-bodied arrow form
+        // (`(bar) => { let … ; return …; }`), projected `.current` like every read.
+        const block = lines.find((l) => l.startsWith("const pct ="));
+        expect(block).toMatch(/\(bar\) => \{ .*ta\.atr\(14\)\.current.* return .* \}\)\.current;$/);
+        // A prelude-free source (a direct `ta.*`) stays the expression-arrow form
+        // even though the script has a stateful UDF (statefulUdfs > 0, empty prelude).
+        expect(lines).toContain(
+            "const ma = request.security({ interval: \"1d\" }, (bar) => ta.sma(bar.close.current, 20)).current;",
         );
     });
 
@@ -40,7 +57,7 @@ describe("tuple request.security — N-read lowering", () => {
         );
         expect(codes).toEqual(["pine-converter/transform/request-security-different-symbol"]);
         expect(lines).toContain(
-            'const hi = request.security({ symbol: "NASDAQ:QQQ", interval: "1d" }).high;',
+            'const hi = request.security({ symbol: "NASDAQ:QQQ", interval: "1d" }).high.current;',
         );
     });
 
@@ -56,10 +73,10 @@ describe("tuple request.security — N-read lowering", () => {
         );
         expect(codes).toContain("pine-converter/transform/request-security-different-symbol");
         expect(lines).toContain(
-            "const hi = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).high;",
+            "const hi = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).high.current;",
         );
         expect(lines).toContain(
-            "const lo = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).low;",
+            "const lo = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).low.current;",
         );
     });
 
@@ -68,7 +85,7 @@ describe("tuple request.security — N-read lowering", () => {
             '[hi, _] = request.security(syminfo.tickerid, "D", [high, low])\nplot(hi)',
         );
         expect(codes).toEqual([]);
-        expect(lines).toContain('const hi = request.security({ interval: "1d" }).high;');
+        expect(lines).toContain('const hi = request.security({ interval: "1d" }).high.current;');
         expect(lines.some((l) => l.includes(".low"))).toBe(false);
     });
 
@@ -77,8 +94,8 @@ describe("tuple request.security — N-read lowering", () => {
             '[a, b, c] = request.security(syminfo.tickerid, "D", [high, low])\nplot(a)\nplot(b)',
         );
         expect(codes).toContain("pine-converter/semantic/security-tuple-arity-mismatch");
-        expect(lines).toContain('const a = request.security({ interval: "1d" }).high;');
-        expect(lines).toContain('const b = request.security({ interval: "1d" }).low;');
+        expect(lines).toContain('const a = request.security({ interval: "1d" }).high.current;');
+        expect(lines).toContain('const b = request.security({ interval: "1d" }).low.current;');
         // The extra name `c` has no element to bind — never emitted.
         expect(lines.some((l) => l.startsWith("const c ="))).toBe(false);
     });

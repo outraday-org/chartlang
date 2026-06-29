@@ -8,6 +8,7 @@ import type { SemanticResult } from "../semantic/index.js";
 import { substituteParams, substituteParamsStatement } from "./controlFlow.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
+import { forEachHistoryAccess } from "./exprEmit.js";
 import type { NameAllocator } from "./nameAllocator.js";
 
 /**
@@ -50,6 +51,7 @@ export type InlineEmitters = Readonly<{
  *         names: new NameAllocator(),
  *         diagnostics: new DiagnosticCollector(),
  *         emitters: { emitValue: () => "0", emitStatement: () => [] },
+ *         registerSeriesSlot: () => {},
  *     };
  *     void scope;
  */
@@ -58,6 +60,15 @@ export type InlineScope = Readonly<{
     names: NameAllocator;
     diagnostics: DiagnosticCollector;
     emitters: InlineEmitters;
+    /**
+     * Register a `state.*Series` slot allocation in the scaffold preamble for a
+     * history-indexed inlined body-local (`cf_macross`'s `ma_cross = ta.cross(…)`
+     * read at `ma_cross[1]`). `name` is the allocator-issued unique slot local;
+     * `initExpr` is the full factory call (`state.boolSeries(false)` /
+     * `state.series(Number.NaN)`). Injected (rather than passing the scaffold)
+     * so `udfInline.ts` keeps a single, narrow scaffold dependency.
+     */
+    registerSeriesSlot: (name: string, initExpr: string) => void;
 }>;
 
 /**
@@ -281,15 +292,18 @@ function inlineCall(
     const params = decl.params.map((param) => param.name);
     const positional = call.args.filter((arg) => arg.name === null).map((arg) => arg.value);
     const childLocals = new Set(ctx.localNames);
-    for (const param of params) {
-        // An unbound param (arity mismatch — already `udf-arity-mismatch`) keeps
-        // its own name; reserve it so the body reference is not rewritten.
-        childLocals.add(param);
-    }
     const bindings = new Map<string, ExpressionNode>();
     params.forEach((param, index) => {
         const arg = positional[index];
         if (arg === undefined) {
+            // An unbound param (arity mismatch — already `udf-arity-mismatch`)
+            // keeps its own name; reserve it so the body reference is not
+            // rewritten. A BOUND param must NOT be reserved here: its body
+            // references are removed by `substituteParams`, and reserving it
+            // would shadow a same-named top-level input (e.g. a param
+            // `ma12_cross_smooth` matching the input of the same name), making
+            // `rewriteIdentifier` emit the bare name instead of `inputs.x`.
+            childLocals.add(param);
             return;
         }
         if (argIsSimple(arg)) {
@@ -303,22 +317,56 @@ function inlineCall(
         scope.diagnostics.pushCode("udf-arg-hoisted", arg.span);
         bindings.set(param, identifierNode(tmp, arg.span));
     });
-    const childCtx: EmitContext = { ...ctx, localNames: childLocals };
+    // Fresh per-inline slot maps so a history-indexed body-local can register
+    // itself mid-expansion (its `<slot>.value` reads + `<slot>[n]` history reads
+    // route through these) WITHOUT mutating the caller's maps — every other
+    // (parent) slot is inherited by copy.
+    const childStateSlots = new Map(ctx.stateSlots);
+    const childSeriesSlots = new Set(ctx.seriesSlots);
+    const childCtx: EmitContext = {
+        ...ctx,
+        localNames: childLocals,
+        stateSlots: childStateSlots,
+        seriesSlots: childSeriesSlots,
+    };
     const innerStack = new Set(stack);
     innerStack.add(decl.name);
     const localUnique = new Map<string, string>();
+    // The body-locals read at `[n]` inside this body — backed by a
+    // `state.*Series` slot so the emitted `<slot>[n]` compiles (a scalar `let`
+    // would be `number[1]`/`boolean[1]`, a TS7053 error). The slot-backed unique
+    // names so a later reassignment writes `<slot>.value` not the bare local.
+    const historyLocals = historyIndexedBodyLocals(decl, params);
+    const slotLocals = new Set<string>();
     const body = decl.body.body;
     let result = "Number.NaN";
+    const lower = (value: ExpressionNode): string =>
+        lowerBodyValue(substituteParams(value, bindings), childCtx, scope, prelude, innerStack);
     body.forEach((stmt, index) => {
         const isLast = index === body.length - 1;
         if (stmt.kind === "assignment" || stmt.kind === "variable-declaration") {
             const rawValue = stmt.kind === "assignment" ? stmt.value : stmt.initializer;
             const operator = stmt.kind === "assignment" ? assignOperator(stmt) : "=";
-            const substituted = substituteParams(rawValue, bindings);
-            const lowered = lowerBodyValue(substituted, childCtx, scope, prelude, innerStack);
-            // A first-sight local declares a uniquely-named `let`; a later
-            // `:=`/compound reassignment of the same local reuses that unique.
             const existing = localUnique.get(stmt.name);
+            // A first-sight HISTORY-INDEXED local registers its series slot +
+            // binding BEFORE lowering so a self-referential history (`x =
+            // nz(x[1]) + a`) resolves its own `[n]` to the fresh slot.
+            if (existing === undefined && historyLocals.has(stmt.name)) {
+                const unique = scope.names.allocate(stmt.name);
+                localUnique.set(stmt.name, unique);
+                bindings.set(stmt.name, identifierNode(unique, stmt.span));
+                scope.registerSeriesSlot(unique, seriesSlotInit(rawValue));
+                childStateSlots.set(unique, unique);
+                childSeriesSlots.add(unique);
+                slotLocals.add(unique);
+                prelude.push(`${unique}.value = ${lower(rawValue)};`);
+                result = isLast ? `${unique}.value` : result;
+                return;
+            }
+            const lowered = lower(rawValue);
+            // A first-sight (non-indexed) local declares a uniquely-named `let`;
+            // a later `:=`/compound reassignment reuses that unique (writing
+            // `<slot>.value` when the reused local is a series slot).
             if (existing === undefined) {
                 const unique = scope.names.allocate(stmt.name);
                 childLocals.add(unique);
@@ -327,8 +375,9 @@ function inlineCall(
                 prelude.push(`let ${unique} = ${lowered};`);
                 result = isLast ? unique : result;
             } else {
-                prelude.push(`${existing} ${operator} ${lowered};`);
-                result = isLast ? existing : result;
+                const target = slotLocals.has(existing) ? `${existing}.value` : existing;
+                prelude.push(`${target} ${operator} ${lowered};`);
+                result = isLast ? target : result;
             }
             return;
         }
@@ -353,6 +402,74 @@ function inlineCall(
         }
     });
     return result;
+}
+
+// The `ta.*` members that produce a BOOLEAN series (crossings), so a
+// history-indexed body-local initialised by one is backed by `state.boolSeries`.
+const BOOLEAN_TA: ReadonlySet<string> = new Set(["ta.cross", "ta.crossover", "ta.crossunder"]);
+
+// The `state.*Series` factory call for a history-indexed inlined body-local,
+// chosen from its INITIALIZER: a boolean-producing `ta.cross`/`crossover`/
+// `crossunder` → `state.boolSeries(false)` (Pine v6's first-bar / out-of-range
+// bool history default), everything else → numeric `state.series(Number.NaN)`.
+function seriesSlotInit(initializer: ExpressionNode): string {
+    if (
+        initializer.kind === "call-expression" &&
+        initializer.callee.kind === "member-access-expression" &&
+        BOOLEAN_TA.has(initializer.callee.chain.join("."))
+    ) {
+        return "state.boolSeries(false)";
+    }
+    return "state.series(Number.NaN)";
+}
+
+// The value expression a UDF-body statement carries (scanned for body-local
+// history), or `null` for a control-flow statement the scan does not descend.
+function bodyStatementValue(stmt: Statement): ExpressionNode | null {
+    switch (stmt.kind) {
+        case "assignment":
+            return stmt.value;
+        case "variable-declaration":
+            return stmt.initializer;
+        case "expression-statement":
+            return stmt.expression;
+        default:
+            return null;
+    }
+}
+
+// The body-local names read at `[n]` somewhere in a stateful UDF body (excluding
+// its parameters — a history-indexed PARAMETER is the caller's argument, promoted
+// by the cross-UDF arg path in `other.ts`). Each is backed by a `state.*Series`
+// slot at every inline call site so the emitted `<local>[n]` compiles.
+function historyIndexedBodyLocals(
+    decl: FunctionDeclaration,
+    params: readonly string[],
+): Set<string> {
+    const paramSet = new Set(params);
+    const bodyLocals = new Set<string>();
+    for (const stmt of decl.body.body) {
+        if (stmt.kind === "assignment" || stmt.kind === "variable-declaration") {
+            bodyLocals.add(stmt.name);
+        }
+    }
+    const indexed = new Set<string>();
+    for (const stmt of decl.body.body) {
+        const value = bodyStatementValue(stmt);
+        if (value === null) {
+            continue;
+        }
+        forEachHistoryAccess(value, (history) => {
+            if (
+                history.receiver.kind === "identifier-expression" &&
+                bodyLocals.has(history.receiver.name) &&
+                !paramSet.has(history.receiver.name)
+            ) {
+                indexed.add(history.receiver.name);
+            }
+        });
+    }
+    return indexed;
 }
 
 // Lower a substituted body value: expand any NESTED stateful-UDF call (a UDF

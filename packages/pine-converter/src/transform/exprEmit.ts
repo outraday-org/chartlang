@@ -97,6 +97,27 @@ function emitSwitchExpression(node: SwitchExpression, annotations: AnnotationLoo
     return chain;
 }
 
+// The widening base TS type for a LITERAL operand, or null if the node is not
+// a literal whose double-literal equality would trip TS2367 (`color`/`na`
+// literals and non-literals are excluded — they never produce a no-overlap
+// equality of the inlined-literal form this guards).
+function literalBaseType(node: ExpressionNode): "string" | "number" | "boolean" | null {
+    if (node.kind !== "literal-expression") {
+        return null;
+    }
+    switch (node.literalKind) {
+        case "string":
+            return "string";
+        case "int":
+        case "float":
+            return "number";
+        case "bool":
+            return "boolean";
+        default:
+            return null;
+    }
+}
+
 /**
  * Lower a Pine v6 {@link ExpressionNode} to a chartlang TypeScript
  * expression string. OHLCV / `time` / `bar_index` identifiers are remapped
@@ -133,7 +154,26 @@ export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): s
         }
         case "binary-expression": {
             const op = LOGICAL_OPERATORS.get(node.operator) ?? node.operator;
-            return `${operand(node.left, annotations)} ${op} ${operand(node.right, annotations)}`;
+            const left = operand(node.left, annotations);
+            const right = operand(node.right, annotations);
+            // A stateful UDF inlined by `udfInline.ts` can substitute a string /
+            // numeric LITERAL argument into an equality test, leaving literal
+            // operands on BOTH sides (`"EMA" == "HMA"`). Under strict TS that is
+            // a TS2367 "no overlap" error even though it is a harmless,
+            // always-false test. Widen the left literal to its base TS type —
+            // the same `as`-cast precedent as `(inputs.x as string)` — so the
+            // comparison type-checks. Gated to equality ops where BOTH operands
+            // are literals sharing a base type, so a legitimately-typed mismatch
+            // never has a NEW error masked.
+            const leftBase = literalBaseType(node.left);
+            if (
+                (node.operator === "==" || node.operator === "!=") &&
+                leftBase !== null &&
+                leftBase === literalBaseType(node.right)
+            ) {
+                return `(${left} as ${leftBase}) ${op} ${right}`;
+            }
+            return `${left} ${op} ${right}`;
         }
         case "ternary-expression":
             return (

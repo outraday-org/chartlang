@@ -74,6 +74,14 @@ export const ENUM_VALUE_MAP: ReadonlyMap<string, EnumMapping> = new Map<string, 
         "arrow heads not modeled in chartlang LineStyle; emit warning",
     ),
 
+    // docs: https://www.tradingview.com/pine-script-reference/v6/#var_hline.style_solid
+    // `hline`'s line styles mirror `line`'s — chartlang `LineStyle` is the same
+    // `"solid"|"dashed"|"dotted"` for both. Pine spells them on a distinct
+    // namespace, so they need their own rows.
+    entry("hline.style_solid", "solid"),
+    entry("hline.style_dotted", "dotted"),
+    entry("hline.style_dashed", "dashed"),
+
     // docs: https://www.tradingview.com/pine-script-reference/v6/#var_extend.none
     entry("extend.none", { extendLeft: false, extendRight: false }),
     entry("extend.left", { extendLeft: true, extendRight: false }),

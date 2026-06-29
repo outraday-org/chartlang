@@ -22,6 +22,7 @@ import {
 } from "../mapping/index.js";
 import type { MultiReturnTaMapping, PineDrawingConstructor } from "../mapping/index.js";
 import type { SecurityTupleAnnotation, SemanticResult } from "../semantic/index.js";
+import { inferQualifier } from "../semantic/index.js";
 import { collectUdfBodyFacts } from "../semantic/statefulness.js";
 import { emitAlertCall } from "./alertCall.js";
 import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js";
@@ -35,12 +36,14 @@ import { scanMaps } from "./mapCollection.js";
 import type { NameAllocator } from "./nameAllocator.js";
 import type { NumericArrayScan } from "./numericArray.js";
 import { scanNumericArrays } from "./numericArray.js";
-import { emitPlotFamily, isPlotFamilyCall } from "./plotFamily.js";
+import { convertColorWith, isTranspColorForm } from "./colorConvert.js";
+import { emitHlineValue, emitPlotFamily, isPlotFamilyCall } from "./plotFamily.js";
 import { emitRequestSecurity, isRequestSecurityCall } from "./requestSecurity.js";
 import { appendComputeStatement, appendStateSlot } from "./scaffoldMutators.js";
 import {
     collectSecurityFeedInputs,
     securityCallbackRead,
+    securityCallbackReadBlock,
     securityDataRead,
     securityOpts,
 } from "./securityShape.js";
@@ -430,6 +433,16 @@ type HistorySeriesScan = {
     readonly unsupportedHistory: ReadonlyMap<string, VariableDeclaration>;
     readonly dynamicOffsetSpans: ReadonlyMap<string, SourceSpan>;
     readonly taSeries: ReadonlyMap<string, TaSeriesPromotion>;
+    // Top-level `=`-declared series locals promoted to a NUMERIC `state.series`
+    // slot because they are history-indexed but are NOT directly a `ta.*` call
+    // (so `isTaSeriesDeclaration` rejects them): a UDF-call RHS / ternary RHS read
+    // at `[n]` at the top level (`ma_1_slope = cf_slope(…)`, `ma_slope_comp = … ?
+    // ta.sma : ta.ema`), OR a simple-identifier argument passed to a stateful UDF
+    // whose body history-indexes the matching parameter (`cf_slope(ma_1, …)` →
+    // promote `ma_1`, whose post-inline `ma_1[1]` would otherwise index a
+    // `number`). Each carries the span of its first genuinely-dynamic offset (or
+    // `null`) — the same `dynamic-series-index` contract as {@link TaSeriesPromotion}.
+    readonly promotedSeries: ReadonlyMap<string, { readonly dynamicSpan: SourceSpan | null }>;
 };
 
 // Whether a statement DECLARES a ta-derived series the converter promotes to a
@@ -492,11 +505,20 @@ function scanHistorySeries(
     // history read on a `Series`/`state.series` receiver.
     const isDynamic = (history: HistoryAccessExpression, loopVars: ReadonlySet<string>): boolean =>
         !isLiteralOffset(history.offset) && !isLoopBoundOffset(history.offset, loopVars);
+    // Every identifier-receiver name read at `[n]` at the top level, plus the
+    // span of its first genuinely-dynamic offset — the signal Part A's `=`-decl
+    // promotion (A1) keys on (a series local read at `[n]` cannot stay a scalar).
+    const historyIndexed = new Set<string>();
+    const dynamicReceiverSpans = new Map<string, SourceSpan>();
     walkHistoryAccesses(analysis.script.body, (history, loopVars) => {
         if (history.receiver.kind !== "identifier-expression") {
             return;
         }
         const name = history.receiver.name;
+        historyIndexed.add(name);
+        if (isDynamic(history, loopVars) && !dynamicReceiverSpans.has(name)) {
+            dynamicReceiverSpans.set(name, history.span);
+        }
         const decl = candidates.get(name);
         if (decl !== undefined) {
             const element = scalarElementType(decl);
@@ -520,7 +542,195 @@ function scanHistorySeries(
             taSeries.set(name, { decl: taDecl, dynamicSpan });
         }
     });
-    return { numeric, boolSeries, stringSeries, unsupportedHistory, dynamicOffsetSpans, taSeries };
+    const promotedSeries = scanPromotedSeries(
+        analysis,
+        owned,
+        { candidates, taSeries, numeric, boolSeries, stringSeries },
+        historyIndexed,
+        dynamicReceiverSpans,
+    );
+    return {
+        numeric,
+        boolSeries,
+        stringSeries,
+        unsupportedHistory,
+        dynamicOffsetSpans,
+        taSeries,
+        promotedSeries,
+    };
+}
+
+// The series locals already promoted by the `var`-scalar / direct-`ta.*` paths,
+// so the Part A scan skips them (one slot per name).
+type PriorPromotions = Readonly<{
+    candidates: ReadonlyMap<string, VariableDeclaration>;
+    taSeries: ReadonlyMap<string, TaSeriesPromotion>;
+    numeric: ReadonlyMap<string, VariableDeclaration>;
+    boolSeries: ReadonlyMap<string, VariableDeclaration>;
+    stringSeries: ReadonlyMap<string, VariableDeclaration>;
+}>;
+
+// Part A: collect the top-level `=`-declared series locals that must be promoted
+// to a NUMERIC `state.series` slot even though they are not directly a `ta.*`
+// call (so `isTaSeriesDeclaration` rejects them). Two surface shapes:
+//   A1 — a top-level `=`-decl whose VALUE is series-qualified AND is read at
+//        `[n]` at the top level (`ma_1_slope = cf_slope(…)`, `ma_slope_comp = …
+//        ? ta.sma : ta.ema`). The history-indexed gate keeps a non-indexed
+//        series local (fixture 43's `close_slope`) a plain `let`.
+//   A2 — a SIMPLE-IDENTIFIER argument passed to a stateful UDF whose body
+//        history-indexes the matching parameter (`cf_slope(ma_1, …)` → promote
+//        `ma_1`). The arg must name a user-declared (non-builtin) series local,
+//        so an OHLCV arg (`cf_slope(close, …)`, fixture 43) — already an
+//        indexable `PriceSeries` — is left untouched.
+function scanPromotedSeries(
+    analysis: SemanticResult,
+    owned: ReadonlySet<string>,
+    prior: PriorPromotions,
+    historyIndexed: ReadonlySet<string>,
+    dynamicReceiverSpans: ReadonlyMap<string, SourceSpan>,
+): Map<string, { dynamicSpan: SourceSpan | null }> {
+    const resolve = (name: string) => analysis.rootScope.symbols.get(name) ?? null;
+    const alreadyPromoted = (name: string): boolean =>
+        owned.has(name) ||
+        prior.candidates.has(name) ||
+        prior.taSeries.has(name) ||
+        prior.numeric.has(name) ||
+        prior.boolSeries.has(name) ||
+        prior.stringSeries.has(name);
+    const promoted = new Map<string, { dynamicSpan: SourceSpan | null }>();
+    const add = (name: string): void => {
+        if (alreadyPromoted(name) || promoted.has(name)) {
+            return;
+        }
+        promoted.set(name, { dynamicSpan: dynamicReceiverSpans.get(name) ?? null });
+    };
+    // A1.
+    for (const stmt of analysis.script.body) {
+        if (stmt.kind !== "assignment" || stmt.operator !== "=" || !historyIndexed.has(stmt.name)) {
+            continue;
+        }
+        if (inferQualifier(stmt.value, resolve) === "series") {
+            add(stmt.name);
+        }
+    }
+    // A2.
+    const paramHistory = statefulUdfParamHistory(analysis);
+    if (paramHistory.size > 0) {
+        for (const stmt of analysis.script.body) {
+            const value = statementValueExpr(stmt);
+            if (value === null) {
+                continue;
+            }
+            forEachCall(value, (call) => {
+                if (call.callee.kind !== "identifier-expression") {
+                    return;
+                }
+                const indices = paramHistory.get(call.callee.name);
+                if (indices === undefined) {
+                    return;
+                }
+                const positional = call.args.filter((arg) => arg.name === null);
+                for (const index of indices) {
+                    const arg = positional[index]?.value;
+                    if (arg === undefined || arg.kind !== "identifier-expression") {
+                        continue;
+                    }
+                    const symbol = analysis.rootScope.symbols.get(arg.name);
+                    if (symbol !== undefined && symbol.qualifier === "series") {
+                        add(arg.name);
+                    }
+                }
+            });
+        }
+    }
+    return promoted;
+}
+
+// The PARAMETER POSITIONS history-indexed inside each STATEFUL UDF's body
+// (`cf_slope(ma, n) => …ma[1]…` → `cf_slope` ↦ {0}). Only stateful UDFs are
+// scanned — they are inline-expanded, so the post-inline `<arg>[n]` indexes the
+// caller's argument; a pure UDF emits a real function whose param is a typed
+// scalar (a documented separate gap). A UDF with no param history is omitted.
+function statefulUdfParamHistory(analysis: SemanticResult): Map<string, ReadonlySet<number>> {
+    const result = new Map<string, ReadonlySet<number>>();
+    for (const stmt of analysis.script.body) {
+        if (stmt.kind !== "function-declaration") {
+            continue;
+        }
+        const symbol = analysis.symbols.get(stmt.span);
+        if (symbol === undefined || symbol.stateful !== true) {
+            continue;
+        }
+        const paramIndex = new Map<string, number>();
+        stmt.params.forEach((param, index) => paramIndex.set(param.name, index));
+        const indexed = new Set<number>();
+        walkHistoryAccesses(stmt.body.body, (history) => {
+            if (history.receiver.kind === "identifier-expression") {
+                const index = paramIndex.get(history.receiver.name);
+                if (index !== undefined) {
+                    indexed.add(index);
+                }
+            }
+        });
+        if (indexed.size > 0) {
+            result.set(stmt.name, indexed);
+        }
+    }
+    return result;
+}
+
+// The value expression a top-level statement carries (the RHS scanned for
+// cross-UDF promotion calls), or `null` for a statement with no value
+// (drawing/control-flow forms the Part A scan does not descend).
+function statementValueExpr(stmt: Statement): ExpressionNode | null {
+    switch (stmt.kind) {
+        case "assignment":
+            return stmt.value;
+        case "variable-declaration":
+        case "tuple-declaration":
+            return stmt.initializer;
+        case "expression-statement":
+            return stmt.expression;
+        default:
+            return null;
+    }
+}
+
+// Visit every call-expression reachable through the SCALAR-expression containers
+// a cross-UDF promotion call realistically nests in — the call itself (+ its
+// callee/args), and the binary / unary / ternary / paren forms. A `cf_slope(ma_1,
+// …)` lands either directly as a decl value or inside such an arithmetic chain
+// (`cf_slope(rsi_ma, …) * scaling`), which is the whole Pine-v1 surface for an
+// argument-promoting call. A call buried in a member/history/tuple/array/lambda/
+// switch container is a documented best-effort gap (it would surface as a normal
+// compile error, never a silent wrong value).
+function forEachCall(node: ExpressionNode, visit: (call: CallExpression) => void): void {
+    if (node.kind === "call-expression") {
+        visit(node);
+        forEachCall(node.callee, visit);
+        for (const arg of node.args) {
+            forEachCall(arg.value, visit);
+        }
+        return;
+    }
+    if (node.kind === "binary-expression") {
+        forEachCall(node.left, visit);
+        forEachCall(node.right, visit);
+        return;
+    }
+    if (node.kind === "unary-expression") {
+        forEachCall(node.operand, visit);
+        return;
+    }
+    if (node.kind === "ternary-expression") {
+        forEachCall(node.condition, visit);
+        forEachCall(node.consequent, visit);
+        forEachCall(node.alternate, visit);
+        return;
+    }
+    if (node.kind === "paren-expression") {
+        forEachCall(node.expression, visit);
+    }
 }
 
 // The visitor a {@link walkHistoryAccesses} caller supplies: each
@@ -801,14 +1011,26 @@ function emitTaSeriesSlots(
     slots: Map<string, string>,
     seriesNames: Set<string>,
 ): void {
-    for (const [name, promotion] of scan.taSeries) {
+    // `taSeries` and `promotedSeries` are disjoint (a promoted name is never a
+    // direct-`ta.*` decl — `scanPromotedSeries` excludes them), and each map has
+    // unique keys, so every name reaches `allocate` exactly once.
+    const allocate = (name: string, dynamicSpan: SourceSpan | null): void => {
         const slot = scaffold.names.allocateForSymbol(name);
         slots.set(name, slot);
         seriesNames.add(name);
-        if (promotion.dynamicSpan !== null) {
-            diagnostics.pushCode("dynamic-series-index", promotion.dynamicSpan);
+        if (dynamicSpan !== null) {
+            diagnostics.pushCode("dynamic-series-index", dynamicSpan);
         }
         appendStateSlot(scaffold, { name: slot, initExpr: "state.series(Number.NaN)" });
+    };
+    for (const [name, promotion] of scan.taSeries) {
+        allocate(name, promotion.dynamicSpan);
+    }
+    // Part A: the UDF-call / ternary `=`-decls (A1) and the stateful-UDF
+    // history-indexed simple-identifier arguments (A2). Same numeric
+    // `state.series` slot + read/write rewrites as the direct-`ta.*` promotion.
+    for (const [name, { dynamicSpan }] of scan.promotedSeries) {
+        allocate(name, dynamicSpan);
     }
 }
 
@@ -924,6 +1146,10 @@ function inlineScopeOf(walk: Walk): InlineScope {
             emitValue: (node, ctx) => emitCallValue(node, ctx, walk),
             emitStatement: (stmt, ctx) => emitStatement(stmt, ctx, walk),
         },
+        // A history-indexed inlined body-local registers its `state.*Series`
+        // slot in the scaffold preamble (allocated once; written per bar in the
+        // call-site prelude).
+        registerSeriesSlot: (name, initExpr) => appendStateSlot(walk.scaffold, { name, initExpr }),
     };
 }
 
@@ -1049,6 +1275,35 @@ function emitMultiReturnCall(
 // skipped. A cross-symbol feed pushes `request-security-different-symbol` once,
 // mirroring the single-source advisory. `:=` element reassignment is out of
 // scope (same limit as the multi-return-`ta.*` tuple form).
+// Lower a `request.security` EXPRESSION source (a `ta.*` / computed source, not
+// a bare OHLCV field) into the chartlang callback form. A stateful user-defined
+// function in the source (e.g. `cf_atr_perct`) is inline-expanded INTO the
+// closure so its `ta.*`/`state.*` accumulate on the higher-timeframe clock (the
+// way Pine evaluates the source on the HTF bar) — a stateful UDF is never
+// emitted as a callable, so leaving the bare call would not type-check. A
+// multi-statement inline becomes a block-bodied arrow; an empty prelude (pure
+// source, or no stateful UDF in the script) stays the expression form, so the
+// existing literal-source goldens are byte-unchanged.
+function emitSecuritySourceCallback(
+    opts: string,
+    source: ExpressionNode,
+    ctx: EmitContext,
+    walk: Walk,
+): string {
+    // Inside the callback `bar` is the `SecurityBar` (series-only OHLCV), so the
+    // body's OHLCV reads project to `.current` for scalar use.
+    const secCtx: EmitContext = { ...ctx, securityExpr: true };
+    if (walk.statefulUdfs.size === 0) {
+        return securityCallbackRead(opts, emitWithContext(source, secCtx));
+    }
+    const prelude: string[] = [];
+    const expanded = inlineStatefulCalls(source, secCtx, inlineScopeOf(walk), prelude);
+    const result = emitWithContext(expanded, secCtx);
+    return prelude.length === 0
+        ? securityCallbackRead(opts, result)
+        : securityCallbackReadBlock(opts, prelude, result);
+}
+
 function emitSecurityTuple(
     decl: TupleDeclaration,
     annotation: SecurityTupleAnnotation,
@@ -1068,7 +1323,7 @@ function emitSecurityTuple(
         const read =
             element.kind === "ohlcv"
                 ? securityDataRead(opts, element.field)
-                : securityCallbackRead(opts, emitWithContext(element.node, ctx));
+                : emitSecuritySourceCallback(opts, element.node, ctx, walk);
         lines.push(`const ${target.name} = ${read};`);
     });
     return lines;
@@ -1305,6 +1560,7 @@ export function transformOther(
     analysis: SemanticResult,
     scaffold: ScriptScaffold,
     diagnostics: DiagnosticCollector,
+    promotedInline: ReadonlyMap<string, string> = new Map(),
 ): void {
     const drawingOwned = drawingOwnedSymbols(analysis);
     // A `var array<…>` collection (a bounded numeric ring, a non-numeric
@@ -1378,6 +1634,7 @@ export function transformOther(
         stateSlots: slots,
         inputCasts,
         securityFeedInputs: collectSecurityFeedInputs(analysis.script),
+        promotedInline,
         tupleFieldAliases: registerTupleFields(analysis, scaffold.names),
         seriesSlots: seriesNames,
         arraySlots,
@@ -1513,6 +1770,22 @@ function emitDeclaration(
     // A stateful-UDF call in the value is inline-expanded: its arg temps + body
     // locals land in `prelude` (emitted before this declaration), and the value
     // becomes the inlined result. No stateful UDF in the script ⇒ untouched path.
+    // A typed `var string x = na` / `var bool b = na` would otherwise lower its
+    // `na` init to `Number.NaN` (the numeric `naKind` default), making TS infer
+    // `number` so a later `x := "EMA"` fails (TS2322). Carry the Pine declared
+    // type into an explicit `T | null` annotation with a `null` na sentinel so
+    // the reads/writes type-check. Scoped to the `na`-init string/bool case;
+    // `int`/`float` already infer `number` from `Number.NaN` and compile.
+    if (stmt.initializer.kind === "na-expression") {
+        const element = scalarElementType(stmt);
+        if (element === "string" || element === "bool") {
+            const tsType = element === "string" ? "string" : "boolean";
+            return [`let ${stmt.name}: ${tsType} | null = null;`];
+        }
+    }
+    // A stateful-UDF call in the value is inline-expanded: its arg temps + body
+    // locals land in `prelude` (emitted before this declaration), and the value
+    // becomes the inlined result. No stateful UDF in the script ⇒ untouched path.
     const prelude: string[] = [];
     const initializer =
         walk.statefulUdfs.size === 0
@@ -1555,6 +1828,23 @@ function emitCallValue(value: ExpressionNode, ctx: EmitContext, walk: Walk): str
         const special = emitSpecialCall(value, ctx, walk);
         if (special !== null) {
             return special;
+        }
+        // An assigned hline (`guide = hline(...)`) lowers to the same
+        // `hline(price, { ... })` as the statement form. Without this it falls
+        // to the verbatim emitter below, emitting the Pine positional
+        // title/color/linestyle args (wrong arity + a leaked `hline.style_*`).
+        const hline = emitHlineValue(value, ctx, walk.diagnostics);
+        if (hline !== null) {
+            return hline;
+        }
+        // A `color.new(base, transp)` / 4-arg `color.rgb(...)` in a value
+        // position (a UDF return, a plain assignment) folds to a `#RRGGBBAA`
+        // hex / `color.withAlpha(...)` exactly as in a styling position —
+        // chartlang has no `color.new`, so the verbatim form would not
+        // type-check. Mirrors `styleValue` (plotFamily.ts).
+        if (isTranspColorForm(value)) {
+            walk.diagnostics.pushCode("color-transp-approximated", value.span);
+            return convertColorWith(value, (sub) => emitWithContext(sub, ctx));
         }
     }
     return emitWithContext(value, ctx);

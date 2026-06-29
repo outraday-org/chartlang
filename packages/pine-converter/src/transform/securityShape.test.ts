@@ -151,13 +151,13 @@ describe("securityOpts", () => {
 describe("securityDataRead / securityCallbackRead", () => {
     it("builds the data form for an OHLCV field", () => {
         expect(securityDataRead('{ interval: "1d" }', "high")).toBe(
-            'request.security({ interval: "1d" }).high',
+            'request.security({ interval: "1d" }).high.current',
         );
     });
 
     it("builds the callback form for a computed body", () => {
         expect(securityCallbackRead('{ interval: "1d" }', "ta.ema(bar.close, 9)")).toBe(
-            'request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9))',
+            'request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9)).current',
         );
     });
 });

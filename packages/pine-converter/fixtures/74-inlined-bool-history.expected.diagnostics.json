@@ -1,0 +1,26 @@
+[
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 18,
+            "startColumn": 12,
+            "endLine": 18,
+            "endColumn": 40
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 19,
+            "startColumn": 12,
+            "endLine": 19,
+            "endColumn": 41
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    }
+]

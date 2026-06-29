@@ -617,7 +617,16 @@ function emitTable(
 
     const cellsSource = renderCells(collected.cells, shape);
     const cellsLocal = scaffold.names.allocate(`${local}Cells`);
-    appendComputeStatement(scaffold, `const ${cellsLocal} = ${cellsSource};`);
+    // A cell that carries a constrained-union field (`textHalign`/`textValign`/
+    // `textSize`) emits a string literal (`textHalign: "left"`) that TS widens
+    // to `string` inside the array literal, so the cells array is not
+    // assignable to `draw.table`'s `ReadonlyArray<ReadonlyArray<TableCell>>`
+    // (TS2322). `as const` narrows those literals back to their union members.
+    // Gated to cells that actually carry such a field, so a text/color-only
+    // table (fixtures 11/12) stays byte-identical.
+    const needsConst = /\btext(?:Halign|Valign|Size):/.test(cellsSource);
+    const cellsLiteral = needsConst ? `${cellsSource} as const` : cellsSource;
+    appendComputeStatement(scaffold, `const ${cellsLocal} = ${cellsLiteral};`);
     appendComputeStatement(
         scaffold,
         `if (barstate.islast) { ${local}.current()?.remove(); ` +

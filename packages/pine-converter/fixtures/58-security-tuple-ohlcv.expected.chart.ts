@@ -15,8 +15,8 @@ export default defineIndicator({
             other: 0,
         },
         compute({ bar, ta, plot, request }) {
-            const src_hi = request.security({ interval: "1d" }).high;
-            const src_lo = request.security({ interval: "1d" }).low;
+            const src_hi = request.security({ interval: "1d" }).high.current;
+            const src_lo = request.security({ interval: "1d" }).low.current;
             plot(src_hi);
             plot(src_lo);
             plot(ta.sma(src_hi, 5));

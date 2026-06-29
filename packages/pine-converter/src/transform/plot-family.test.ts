@@ -166,6 +166,12 @@ describe("emitPlotFamily", () => {
         expect(emit("hline(50)").source).toBe("hline(50);");
     });
 
+    it("threads a hline linestyle enum onto the lineStyle opt", () => {
+        expect(emit("hline(50, linestyle=hline.style_dashed)").source).toBe(
+            'hline(50, { lineStyle: "dashed" });',
+        );
+    });
+
     it("returns null for hline with no price", () => {
         expect(emit("hline()").source).toBeNull();
     });

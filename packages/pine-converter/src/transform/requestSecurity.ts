@@ -160,7 +160,11 @@ export function emitRequestSecurity(
     // `ta.*`/expression) runs on the HTF clock via the callback form. The
     // mapper already lowered its OHLCV reads to `bar.<field>`, so the emitted
     // source is the callback body verbatim.
-    return field === null
-        ? securityCallbackRead(opts, emitWithContext(source, ctx))
-        : securityDataRead(opts, field);
+    if (field !== null) {
+        return securityDataRead(opts, field);
+    }
+    // The callback runs on the HTF `SecurityBar` (series-only OHLCV), so the
+    // source's OHLCV reads project to `.current` for scalar use.
+    const secCtx: EmitContext = { ...ctx, securityExpr: true };
+    return securityCallbackRead(opts, emitWithContext(source, secCtx));
 }

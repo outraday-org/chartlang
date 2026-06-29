@@ -19,9 +19,9 @@ export default defineIndicator({
             tf: input.interval("1d"),
         },
         compute({ bar, plot, inputs, request }) {
-            let custom = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).close;
-            const hi = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).high;
-            const lo = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).low;
+            let custom = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).close.current;
+            const hi = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).high.current;
+            const lo = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).low.current;
             plot(custom);
             plot(hi);
             plot(lo);

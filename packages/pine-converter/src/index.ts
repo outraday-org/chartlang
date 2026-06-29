@@ -251,7 +251,7 @@ export function convert(source: string, opts?: ConvertOpts): ConvertResult {
     const analysis = analyze(parseResult.script);
     const diagnostics = new DiagnosticCollector();
     const scaffold = transformDeclaration(declaration, analysis, diagnostics);
-    transformInputs(analysis, scaffold, diagnostics);
+    const promotedInline = transformInputs(analysis, scaffold, diagnostics);
     // `transformOther` runs BEFORE the drawing transforms so the non-drawing
     // scalar declarations it emits (`let ph = ta.pivotsHighLow.high(...)`)
     // precede the drawing pushes/updates that reference them. Pine declares a
@@ -260,7 +260,7 @@ export function convert(source: string, opts?: ConvertOpts): ConvertResult {
     // (a `used-before-declaration` compile error). `transformOther` reads only
     // `analysis` + `scaffold.inputs`, never the drawing transforms' output, so
     // running it first is order-safe.
-    transformOther(analysis, scaffold, diagnostics);
+    transformOther(analysis, scaffold, diagnostics, promotedInline);
     for (const site of analysis.drawingSites) {
         // `table.new` and `polyline.new` are owned by their dedicated
         // transforms (`transformTables` / `transformPolylineLinefill`), not the
