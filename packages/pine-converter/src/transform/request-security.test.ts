@@ -193,7 +193,9 @@ describe("emitRequestSecurity", () => {
             "request.security(syminfo.tickerid, period, close)",
             new Map([["period", "interval"]]),
         );
-        expect(source).toBe("request.security({ interval: inputs.period as string }).close.current");
+        expect(source).toBe(
+            "request.security({ interval: inputs.period as string }).close.current",
+        );
         expect(codes).not.toContain("pine-converter/transform/request-security-different-symbol");
     });
 

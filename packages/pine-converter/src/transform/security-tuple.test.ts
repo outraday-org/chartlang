@@ -47,7 +47,7 @@ describe("tuple request.security — N-read lowering", () => {
         // A prelude-free source (a direct `ta.*`) stays the expression-arrow form
         // even though the script has a stateful UDF (statefulUdfs > 0, empty prelude).
         expect(lines).toContain(
-            "const ma = request.security({ interval: \"1d\" }, (bar) => ta.sma(bar.close.current, 20)).current;",
+            'const ma = request.security({ interval: "1d" }, (bar) => ta.sma(bar.close.current, 20)).current;',
         );
     });
 

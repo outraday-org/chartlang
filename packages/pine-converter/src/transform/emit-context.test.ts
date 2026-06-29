@@ -39,7 +39,12 @@ describe("emitWithContext", () => {
     it("rewrites a promoted inline-input call to its inputs.<name> read (cast + bare)", () => {
         const call: CallExpression = {
             kind: "call-expression",
-            callee: { kind: "member-access-expression", head: null, chain: ["input", "int"], span: SPAN },
+            callee: {
+                kind: "member-access-expression",
+                head: null,
+                chain: ["input", "int"],
+                span: SPAN,
+            },
             args: [],
             span: SPAN,
         };
@@ -55,7 +60,10 @@ describe("emitWithContext", () => {
         ).toBe("(inputs.inlineInput as number)");
         // Without a cast → the bare `inputs.<name>`.
         expect(
-            emitWithContext(call, ctx({ promotedInline: new Map([[spanKey(SPAN), "inlineInput"]]) })),
+            emitWithContext(
+                call,
+                ctx({ promotedInline: new Map([[spanKey(SPAN), "inlineInput"]]) }),
+            ),
         ).toBe("inputs.inlineInput");
     });
 

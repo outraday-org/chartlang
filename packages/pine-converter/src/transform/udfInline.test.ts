@@ -126,7 +126,9 @@ describe("transformOther — stateful UDF inline expansion", () => {
         const lines = scaffold.computeBody.statements;
         // The self-history reads the slot (`<slot>[1]`); the slot decl is the
         // body's LAST statement, so the inlined return reads `<slot>.value`.
-        expect(lines.some((line) => /^x\d*\.value = .*math\.nz\(x\d*\[1\]\)/.test(line))).toBe(true);
+        expect(lines.some((line) => /^x\d*\.value = .*math\.nz\(x\d*\[1\]\)/.test(line))).toBe(
+            true,
+        );
         expect(lines.some((line) => /^let z = x\d*\.value;$/.test(line))).toBe(true);
     });
 
