@@ -16,7 +16,17 @@ export default defineIndicator({
 });
 `;
 
+// Value-pins the REAL-path `+DI` / `−DI` series over the bundled golden bars.
+// DMI reads `bar.high`/`bar.low`/`bar.close` (number-coercible series-view
+// proxies) directly; the proxy-coercion fix makes the directional helpers see
+// real numbers instead of an always-NaN proxy. Re-pin via the runner's
+// "expected vs actual" message if the golden bars change.
+const PLUS_DI_HASH = "0b2805c434d12a02fb39c95186c571e4754bab70b104567811668b0fc79aef31";
+const MINUS_DI_HASH = "66ee04cac59f7bc261099243112ef305d6507129164d950e44a01f939c4a973d";
+
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
+    { kind: "plot-hash", slotId: "<inline:ta-dmi>.chart.ts:8:9#0", sha256: PLUS_DI_HASH },
+    { kind: "plot-hash", slotId: "<inline:ta-dmi>.chart.ts:9:9#0", sha256: MINUS_DI_HASH },
     { kind: "alert-count", count: 0 },
     { kind: "diagnostic-code-absent", code: "lookback-exceeded" },
     { kind: "diagnostic-code-absent", code: "malformed-emission" },

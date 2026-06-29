@@ -183,8 +183,10 @@ export function aroon(slotId: string, length: number, _opts?: AroonOpts): AroonR
         slot = initSlot(length, ctx.stream.ohlcv.close.capacity);
         ctx.stream.taSlots.set(slotId, slot);
     }
-    const high = ctx.stream.bar.high;
-    const low = ctx.stream.bar.low;
+    // `bar.{high,low}` are number-coercible series-view proxies — coerce at the
+    // read so the step helpers see real numbers, not a proxy.
+    const high = +ctx.stream.bar.high;
+    const low = +ctx.stream.bar.low;
     if (ctx.isTick) {
         const { up, down } = tickStep(slot, high, low);
         slot.upBuffer.replaceHead(up);

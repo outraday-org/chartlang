@@ -189,14 +189,20 @@ export function chop(slotId: string, length: number, _opts?: ChopOpts): Series<n
         ctx.stream.taSlots.set(slotId, slot);
     }
     const bar = ctx.stream.bar;
+    // `bar.{high,low}` go to `highest`/`lowest` AS proxies (they need the
+    // indexable Series source); coerce scalar copies for `closeValue`/
+    // `tickValue`, whose `Number.isFinite` guards need real numbers.
     const upperSeries = highest(`${slotId}/highest`, bar.high, length);
     const lowerSeries = lowest(`${slotId}/lowest`, bar.low, length);
     const upper = upperSeries.current;
     const lower = lowerSeries.current;
+    const high = +bar.high;
+    const low = +bar.low;
+    const close = +bar.close;
     if (ctx.isTick) {
-        slot.outBuffer.replaceHead(tickValue(slot, bar.high, bar.low, bar.close, upper, lower));
+        slot.outBuffer.replaceHead(tickValue(slot, high, low, close, upper, lower));
     } else {
-        slot.outBuffer.append(closeValue(slot, bar.high, bar.low, bar.close, upper, lower));
+        slot.outBuffer.append(closeValue(slot, high, low, close, upper, lower));
     }
     return slot.series;
 }

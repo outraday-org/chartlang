@@ -196,7 +196,7 @@ db driver out of the client bundle. Components use `src/lib/eodClient.ts`
 ## Chart adapter seam (the single swappable module)
 
 The chart renders through ONE swappable module — `src/lib/chart/activeAdapter.ts`,
-default **canvas2d**. It is the **only** file in the app that names a concrete
+default **webgl**. It is the **only** file in the app that names a concrete
 `chartlang-example-*-adapter` (plus the npm chart lib). Everything else —
 `ChartPane` especially — drives charts through the abstract surface it exports:
 `createActiveAdapter({ container, candleSource, interval?, onAlert? })`,
@@ -220,19 +220,18 @@ default **canvas2d**. It is the **only** file in the app that names a concrete
 - **`src/lib/chart/seamVariants.ts` is the seam SSOT.** `SEAM_VARIANTS` holds
   one entry per bundled id (`canvas2d`, `lightweight-charts`, `uplot`,
   `echarts`, `konva`, `webgl`), each carrying the FULL `activeAdapter.ts` body for that
-  library. The committed `activeAdapter.ts` **equals `SEAM_VARIANTS.canvas2d`'s
+  library. The committed `activeAdapter.ts` **equals `SEAM_VARIANTS.webgl`'s
   `seamSource` verbatim** — `tests/adapter-matrix.spec.ts` asserts the
   byte-identity. The `create-chartlang` installer (Task 7) rewrites ONLY
   `activeAdapter.ts` (to the chosen variant) + the one runtime dep in
   `package.json`; its `seamTemplates.ts` must emit bodies byte-identical to
   these (after the `workspace:*` → published-version substitution). Edit a
   library's seam **here**, never by forking a copy.
-- **Deps:** runtime dep is canvas2d-only (`chartlang-example-canvas2d-adapter`,
-  which needs no npm chart lib); the four library adapters + their npm libs
+- **Deps:** the runtime deps are the two zero-dep raw renderers — the committed
+  default `chartlang-example-webgl-adapter` plus `chartlang-example-canvas2d-adapter`
+  (neither needs an npm chart lib); the four library adapters + their npm libs
   (`echarts`, `lightweight-charts`, `uplot`, `konva`) are **devDependencies** so
-  the matrix runs in-monorepo with zero network. (`webgl` is the sixth bundled
-  adapter — a zero-dep raw WebGL2 renderer like canvas2d, so it adds no npm
-  chart lib.) Adapters resolve to their built
+  the matrix runs in-monorepo with zero network. Adapters resolve to their built
   `dist/`, so the six example adapters (and the workspace packages they depend
   on) must be built before the app typechecks/builds/e2e-tests against them.
 - **echarts mount quirk:** echarts takes `echartsFactory: () => echarts.init(
@@ -315,11 +314,11 @@ is no quota to budget against — Yahoo is unmetered.
 `tests/chart.spec.ts` drives the test-only `/test/chart` harness route
 (`src/routes/test.chart.tsx`, which mounts `ChartPane` standalone until Task 6
 wires it into `/`): it compiles a seed script through `/api/compile` and
-asserts the canvas2d chart paints a `<canvas>` + an alert surfaces as a toast.
+asserts the webgl chart paints a `<canvas>` + an alert surfaces as a toast.
 `tests/adapter-matrix.spec.ts` proves the seam is interchangeable — for each
 `SEAM_VARIANTS` entry it swaps `activeAdapter.ts` and runs `vite build` into a
 throwaway out dir (so the served `dist` is untouched), asserting every library
-bundles through the seam; it runs **serially** and restores canvas2d in
+bundles through the seam; it runs **serially** and restores webgl in
 `afterAll` (it mutates a shared source file, so it must not run in parallel
 with anything reading `activeAdapter.ts`).
 `tests/workspace.spec.ts` (Task 6) drives the real `/` workspace: seed visible

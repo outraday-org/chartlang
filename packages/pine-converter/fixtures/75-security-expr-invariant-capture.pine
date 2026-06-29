@@ -1,0 +1,30 @@
+//@version=6
+indicator("Security Expr Invariant Capture", overlay = false)
+
+// A switch over an input preset feeds a bar-invariant length, which a
+// request.security expression callback captures. The converter reconstructs the
+// whole invariant chain (preset seed + switch + derived length) INSIDE each
+// callback so the higher-timeframe read resolves the names to callback-locals
+// (which the chartlang compiler accepts) instead of capturing main-timeline
+// bindings (which it rejects).
+preset = input.string("Fast", "Preset", options = ["Fast", "Slow"])
+base_len = input.int(10, "Base Length")
+
+var int preset_len = na
+switch preset
+    "Fast" => preset_len := 8
+    "Slow" => preset_len := 21
+
+eff_len = base_len + preset_len
+atr_len = math.round(eff_len * 1.5)
+
+// Single-source callback form: ta.atr(atr_len) captures the invariant length.
+htf_atr = request.security(syminfo.tickerid, "D", ta.atr(atr_len))
+
+// Tuple form: an OHLCV element (data form, no capture) alongside an expression
+// element (callback form) that captures the same invariant length.
+[htf_hi, htf_sma] = request.security("NASDAQ:QQQ", "D", [high, ta.sma(close, atr_len)])
+
+plot(htf_atr, "HTF ATR")
+plot(htf_hi, "HTF High")
+plot(htf_sma, "HTF SMA")

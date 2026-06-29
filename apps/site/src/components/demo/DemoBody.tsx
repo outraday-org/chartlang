@@ -38,7 +38,7 @@ function initialScriptId(): string {
 /**
  * Resolve the initial adapter id from a `?adapter=<id>` query param so the
  * choice is shareable/deep-linkable, mirroring {@link initialScriptId}.
- * Falls back to {@link DEFAULT_ADAPTER_ID} (canvas2d) when the param is
+ * Falls back to {@link DEFAULT_ADAPTER_ID} (webgl) when the param is
  * absent or names an unknown adapter. Reads `window` directly — DemoBody
  * is lazy-loaded and client-only.
  */

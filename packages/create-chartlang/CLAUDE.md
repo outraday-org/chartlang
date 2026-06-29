@@ -2,7 +2,7 @@
 
 `@invinite-org/create-chartlang` — the `npm create @invinite-org/chartlang@latest my-app` installer. It
 clones `apps/react-starter` from GitHub, prompts for a chart library (default
-canvas2d), vendors the chosen adapter from the CLI's offline bundles, rewrites
+webgl), vendors the chosen adapter from the CLI's offline bundles, rewrites
 the single `activeAdapter.ts` seam + `package.json` workspace deps, writes
 `.env`, and prints next steps.
 
@@ -98,10 +98,10 @@ the single `activeAdapter.ts` seam + `package.json` workspace deps, writes
     directly from source with NO build step. Absent fields are left untouched.
   - **Matrix chart-lib drop (`rewritePackageJson.ts`).** The starter ships every
     adapter-matrix chart lib (`echarts`/`konva`/`lightweight-charts`/`uplot`, all
-    in devDeps now that canvas2d is the committed default) for its in-monorepo dev
+    in devDeps now that webgl is the committed default) for its in-monorepo dev
     setup. `rewriteBlock` drops all of `MATRIX_CHART_LIBS`; the existing re-add of
     the chosen `chartLibrary` at its registry range puts back only the one the user
-    picked (none for the default canvas2d).
+    picked (none for the default webgl, a zero-dep raw WebGL2 renderer).
 
 See `packages/CLAUDE.md` (package-wide gates) and `apps/react-starter/CLAUDE.md`
 (the seam SSOT + what the clone contains).

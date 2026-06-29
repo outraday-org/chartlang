@@ -115,7 +115,11 @@ export function obv(slotId: string, _opts?: ObvOpts): Series<number> {
         slot = initSlot(ctx.stream.ohlcv.close.capacity);
         ctx.stream.taSlots.set(slotId, slot);
     }
-    const { close, volume } = ctx.stream.bar;
+    // `bar.{close,volume}` are number-coercible series-view proxies — coerce at
+    // the read so `fold`'s `Number.isFinite` guards see real numbers.
+    const bar = ctx.stream.bar;
+    const close = +bar.close;
+    const volume = +bar.volume;
 
     if (ctx.isTick) {
         const next = fold(slot.prevClosedCumObv, slot.prevClosedPrevClose, close, volume);

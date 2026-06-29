@@ -127,7 +127,7 @@ async function exists(path: string): Promise<boolean> {
 }
 
 describe("renderLibraryChoices", () => {
-    it("lists canvas2d first and marks the default", () => {
+    it("lists webgl first and marks the default", () => {
         const text = renderLibraryChoices([
             {
                 id: "echarts",
@@ -135,14 +135,14 @@ describe("renderLibraryChoices", () => {
                 library: "echarts",
             } as unknown as GeneratedAdapterMeta,
             {
-                id: "canvas2d",
-                displayName: "Canvas 2D",
+                id: "webgl",
+                displayName: "WebGL",
                 library: "(none)",
             } as unknown as GeneratedAdapterMeta,
         ]);
-        const canvasLine = text.indexOf("canvas2d");
+        const webglLine = text.indexOf("webgl");
         const echartsLine = text.indexOf("echarts");
-        expect(canvasLine).toBeLessThan(echartsLine);
+        expect(webglLine).toBeLessThan(echartsLine);
         expect(text).toContain("(default)");
         expect(text).toContain("no runtime dep");
     });
@@ -275,13 +275,13 @@ describe("runCreateChartlang", () => {
         expect(npmrc).toContain("legacy-peer-deps=true");
     });
 
-    it("defaults to canvas2d with --yes and no --library", async () => {
+    it("defaults to webgl with --yes and no --library", async () => {
         const dir = join(root, "default-app");
         const { deps } = makeDeps();
         await runCreateChartlang([dir, "--yes", "--no-install"], deps);
         const seam = await readFile(join(dir, "src", "lib", "chart", "activeAdapter.ts"), "utf8");
-        expect(seam).toContain('ACTIVE_ADAPTER_ID = "canvas2d"');
-        expect(await exists(join(dir, "vendor", "canvas2d-adapter"))).toBe(true);
+        expect(seam).toContain('ACTIVE_ADAPTER_ID = "webgl"');
+        expect(await exists(join(dir, "vendor", "webgl-adapter"))).toBe(true);
     });
 
     it("clones from the pinned github source", async () => {
@@ -307,12 +307,12 @@ describe("runCreateChartlang", () => {
         expect(seam).toContain('ACTIVE_ADAPTER_ID = "uplot"');
     });
 
-    it("prompts on a TTY and defaults to canvas2d on an empty answer", async () => {
+    it("prompts on a TTY and defaults to webgl on an empty answer", async () => {
         const dir = join(root, "prompt-default-app");
         const { deps } = makeDeps({ isTTY: true, answer: "" });
         await runCreateChartlang([dir, "--no-install"], deps);
         const seam = await readFile(join(dir, "src", "lib", "chart", "activeAdapter.ts"), "utf8");
-        expect(seam).toContain('ACTIVE_ADAPTER_ID = "canvas2d"');
+        expect(seam).toContain('ACTIVE_ADAPTER_ID = "webgl"');
     });
 
     it("errors + exits 1 on an unknown --library", async () => {

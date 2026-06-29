@@ -95,16 +95,11 @@ export function harness<T>(
             stream.ohlcv.hlc3.append(hlc3);
             stream.ohlcv.ohlc4.append(ohlc4);
             stream.ohlcv.hlcc4.append(hlcc4);
+            // Match the real `onBarClose`: only the scalar `time` is written
+            // onto the `BarView`. The OHLCV + derived fields stay the
+            // `seriesViews.*` proxies (number-coercible, history-indexable) so
+            // a primitive that mishandles the proxy fails here, not in prod.
             stream.bar.time = bar.time;
-            stream.bar.open = bar.open;
-            stream.bar.high = bar.high;
-            stream.bar.low = bar.low;
-            stream.bar.close = bar.close;
-            stream.bar.volume = bar.volume;
-            stream.bar.hl2 = hl2;
-            stream.bar.hlc3 = hlc3;
-            stream.bar.ohlc4 = ohlc4;
-            stream.bar.hlcc4 = hlcc4;
             updateFallbackViewport(stream);
             ctx.isTick = false;
             out.push(step(bar, ctx));
@@ -135,14 +130,8 @@ export function tick<T>(ctxRef: { ctx: RuntimeContext }, tickBar: Bar, step: () 
     stream.ohlcv.hlc3.replaceHead(hlc3);
     stream.ohlcv.ohlc4.replaceHead(ohlc4);
     stream.ohlcv.hlcc4.replaceHead(hlcc4);
-    stream.bar.close = tickBar.close;
-    stream.bar.high = tickBar.high;
-    stream.bar.low = tickBar.low;
-    stream.bar.volume = tickBar.volume;
-    stream.bar.hl2 = hl2;
-    stream.bar.hlc3 = hlc3;
-    stream.bar.ohlc4 = ohlc4;
-    stream.bar.hlcc4 = hlcc4;
+    // Mirror `onBarTick`: no `BarView` scalar writes — the close-side proxies
+    // read the replaced ring head live.
     updateFallbackViewport(stream);
     ACTIVE_RUNTIME_CONTEXT.current = ctx;
     ctx.isTick = true;
@@ -221,16 +210,9 @@ export function harnessWithCtx<T>(
             stream.ohlcv.hlc3.append(hlc3);
             stream.ohlcv.ohlc4.append(ohlc4);
             stream.ohlcv.hlcc4.append(hlcc4);
+            // See `harness` — only the scalar `time` is written; OHLCV/derived
+            // fields stay the live proxies, matching the real `onBarClose`.
             stream.bar.time = bar.time;
-            stream.bar.open = bar.open;
-            stream.bar.high = bar.high;
-            stream.bar.low = bar.low;
-            stream.bar.close = bar.close;
-            stream.bar.volume = bar.volume;
-            stream.bar.hl2 = hl2;
-            stream.bar.hlc3 = hlc3;
-            stream.bar.ohlc4 = ohlc4;
-            stream.bar.hlcc4 = hlcc4;
             updateFallbackViewport(stream);
             ctx.isTick = false;
             out.push(step(bar, ctx));
@@ -306,16 +288,9 @@ export function withPrefilledContext<T>(
         stream.ohlcv.hlc3.append(hlc3);
         stream.ohlcv.ohlc4.append(ohlc4);
         stream.ohlcv.hlcc4.append(hlcc4);
+        // See `harness` — only the scalar `time` is written; OHLCV/derived
+        // fields stay the live proxies, matching the real `onBarClose`.
         stream.bar.time = bar.time;
-        stream.bar.open = bar.open;
-        stream.bar.high = bar.high;
-        stream.bar.low = bar.low;
-        stream.bar.close = bar.close;
-        stream.bar.volume = bar.volume;
-        stream.bar.hl2 = hl2;
-        stream.bar.hlc3 = hlc3;
-        stream.bar.ohlc4 = ohlc4;
-        stream.bar.hlcc4 = hlcc4;
     }
     updateFallbackViewport(stream);
 

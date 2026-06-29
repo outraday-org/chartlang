@@ -12,7 +12,7 @@ import { type ReactElement, useEffect, useState } from "react";
 import "../demo/demo.css";
 import "./converter.css";
 
-import { CompilePreview } from "./CompilePreview";
+import { CompileBar, CompilePreviewChart, useCompilePreview } from "./CompilePreview";
 import { ConverterControls } from "./ConverterControls";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { OutputPane } from "./OutputPane";
@@ -59,6 +59,7 @@ export default function ConverterBody(): ReactElement {
 
     const result = useConverter(source, { barInterval, strictMode });
     const hasError = result.diagnostics.some((d) => d.severity === "error");
+    const compile = useCompilePreview(result.output);
 
     const switchScript = (id: string): void => {
         const next = PINE_SCRIPTS.find((s) => s.id === id);
@@ -98,6 +99,10 @@ export default function ConverterBody(): ReactElement {
                 <p className="text-sm text-muted-foreground">{script.description}</p>
             )}
 
+            <CompileBar controller={compile} hasError={hasError} output={result.output} />
+
+            <CompilePreviewChart controller={compile} />
+
             <div className="panes">
                 <section className="pane pane-editor">
                     <PineInputPane
@@ -112,8 +117,6 @@ export default function ConverterBody(): ReactElement {
             </div>
 
             <DiagnosticsPanel diagnostics={result.diagnostics} />
-
-            <CompilePreview hasError={hasError} output={result.output} />
         </div>
     );
 }

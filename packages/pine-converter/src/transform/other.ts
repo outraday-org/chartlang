@@ -26,7 +26,7 @@ import { inferQualifier } from "../semantic/index.js";
 import { collectUdfBodyFacts } from "../semantic/statefulness.js";
 import { emitAlertCall } from "./alertCall.js";
 import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js";
-import type { DiagnosticCollector } from "./diagnosticCollector.js";
+import { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { ArraySlotInfo, EmitContext, MapSlotInfo } from "./emitContext.js";
 import { emitScalar, emitWithContext, lowerTaToCurrent } from "./emitContext.js";
 import { forEachHistoryAccess } from "./exprEmit.js";
@@ -40,6 +40,7 @@ import { convertColorWith, isTranspColorForm } from "./colorConvert.js";
 import { emitHlineValue, emitPlotFamily, isPlotFamilyCall } from "./plotFamily.js";
 import { emitRequestSecurity, isRequestSecurityCall } from "./requestSecurity.js";
 import { appendComputeStatement, appendStateSlot } from "./scaffoldMutators.js";
+import { collectCaptureHoist } from "./securityCapture.js";
 import {
     collectSecurityFeedInputs,
     securityCallbackRead,
@@ -1293,12 +1294,37 @@ function emitSecuritySourceCallback(
     // Inside the callback `bar` is the `SecurityBar` (series-only OHLCV), so the
     // body's OHLCV reads project to `.current` for scalar use.
     const secCtx: EmitContext = { ...ctx, securityExpr: true };
-    if (walk.statefulUdfs.size === 0) {
-        return securityCallbackRead(opts, emitWithContext(source, secCtx));
+    // A stateful UDF in the source inline-expands into the closure (so its
+    // `ta.*`/`state.*` accumulate on the HTF clock); its arg temps / body locals
+    // land in `inlinePrelude`.
+    const inlinePrelude: string[] = [];
+    const expanded =
+        walk.statefulUdfs.size === 0
+            ? source
+            : inlineStatefulCalls(source, secCtx, inlineScopeOf(walk), inlinePrelude);
+    // A callback runs on a SEPARATE higher-timeframe clock, so the chartlang
+    // compiler forbids capturing a main-timeline binding. Reconstruct every
+    // captured bar-INVARIANT top-level binding (one whose value bottoms out at
+    // `inputs.*`/`Math`/literals) as a callback-local prelude so the references
+    // resolve in-scope; a bar-VARYING capture is un-hoistable and is reported.
+    // Captures are detected on both the original source and the post-inline AST
+    // (a stateful-UDF body can reference a binding revealed only after inlining).
+    const bodies = expanded === source ? [source] : [source, expanded];
+    const childWalk: Walk = { ...walk, diagnostics: new DiagnosticCollector() };
+    const hoist = collectCaptureHoist(bodies, secCtx, walk.analysis, (stmt, localNames) =>
+        emitStatement(stmt, { ...secCtx, localNames }, childWalk),
+    );
+    for (const reject of hoist.rejects) {
+        walk.diagnostics.pushCode("request-security-expr-captures-series", reject.span);
     }
-    const prelude: string[] = [];
-    const expanded = inlineStatefulCalls(source, secCtx, inlineScopeOf(walk), prelude);
-    const result = emitWithContext(expanded, secCtx);
+    const bodyCtx: EmitContext =
+        hoist.localNames.size === 0
+            ? secCtx
+            : { ...secCtx, localNames: new Set([...secCtx.localNames, ...hoist.localNames]) };
+    const result = emitWithContext(expanded, bodyCtx);
+    // The hoist prelude precedes the inline-expansion prelude: the arg temps may
+    // reference the reconstructed bindings.
+    const prelude = [...hoist.prelude, ...inlinePrelude];
     return prelude.length === 0
         ? securityCallbackRead(opts, result)
         : securityCallbackReadBlock(opts, prelude, result);
@@ -1916,7 +1942,9 @@ function emitExpressionStatementCore(
 // for any other call (the caller falls back to the generic emitter).
 function emitSpecialCall(call: CallExpression, ctx: EmitContext, walk: Walk): string | null {
     if (isRequestSecurityCall(call)) {
-        return emitRequestSecurity(call, ctx, walk.diagnostics);
+        return emitRequestSecurity(call, ctx, walk.diagnostics, (opts, source) =>
+            emitSecuritySourceCallback(opts, source, ctx, walk),
+        );
     }
     const str = emitStr(call, ctx);
     if (str !== null) {

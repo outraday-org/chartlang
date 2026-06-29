@@ -126,6 +126,76 @@ export function hexToRgbaUnit(hex: string, alpha = 1): RgbaUnit {
     return [r / 255, g / 255, b / 255, a];
 }
 
+function clamp01(v: number): number {
+    return Math.min(1, Math.max(0, v));
+}
+
+// HSL (`h` 0..360, `s`/`l` 0..100) → unit RGB triple — the standard
+// hue-to-channel formula (drives `hsl()` / `hsla()` parsing below).
+function hslToRgbUnit(h: number, s: number, l: number): [number, number, number] {
+    const sN = clamp01(s / 100);
+    const lN = clamp01(l / 100);
+    const k = (n: number): number => (n + h / 30) % 12;
+    const a = sN * Math.min(lN, 1 - lN);
+    const f = (n: number): number => lN - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+    return [f(0), f(8), f(4)];
+}
+
+/**
+ * Parse ANY CSS colour the chartlang `color.*` helpers emit — `#hex` (incl. the
+ * `#rgba` / `#rrggbbaa` ALPHA byte), `rgb()` / `rgba()`, and `hsl()` / `hsla()`
+ * — into a unit {@link RgbaUnit}. `alpha` (default `1`) MULTIPLIES any alpha the
+ * string carries (so a `#…00` colour stays transparent and an `rgba(…, 0.5)`
+ * dims). Unrecognised input falls back to opaque black `[0, 0, 0, alpha]` (never
+ * NaN into a GPU buffer). The canvas2d adapter gets this for free from the
+ * browser's CSS parser; a raw GPU renderer must parse colours itself — so
+ * EMISSION colours (plot `style.color` / `colorValue`, hline colour, which may
+ * be `color.rgb(...)` / `color.hsl(...)`) route through here, NOT the hex-only
+ * {@link hexToRgbaUnit} (kept for the always-hex palette).
+ *
+ * @since 0.2
+ * @stable
+ * @example
+ *     cssColorToRgbaUnit("rgb(207, 176, 102)"); // [≈0.812, ≈0.690, 0.4, 1]
+ *     cssColorToRgbaUnit("#86868600")[3]; // 0  (honours the hex alpha)
+ */
+export function cssColorToRgbaUnit(color: string, alpha = 1): RgbaUnit {
+    const a0 = clamp01(alpha);
+    const c = color.trim();
+    if (c[0] === "#") {
+        const short = c.length === 4 || c.length === 5;
+        const r = hexByte(c, 1, short ? 1 : 2);
+        const g = hexByte(c, short ? 2 : 3, short ? 1 : 2);
+        const b = hexByte(c, short ? 3 : 5, short ? 1 : 2);
+        if (r === null || g === null || b === null) return [0, 0, 0, a0];
+        const aByte = c.length === 5 ? hexByte(c, 4, 1) : c.length === 9 ? hexByte(c, 7, 2) : null;
+        const hexA = aByte === null ? 1 : aByte / 255;
+        return [r / 255, g / 255, b / 255, a0 * hexA];
+    }
+    const fn = /^(rgba?|hsla?)\(([^)]*)\)$/i.exec(c);
+    if (fn !== null) {
+        const parts = (fn[2] ?? "").split(",").map((p) => Number.parseFloat(p.trim()));
+        const x = parts[0];
+        const y = parts[1];
+        const z = parts[2];
+        const aRaw = parts[3];
+        if (
+            x !== undefined &&
+            y !== undefined &&
+            z !== undefined &&
+            [x, y, z].every(Number.isFinite)
+        ) {
+            const strA = aRaw !== undefined && Number.isFinite(aRaw) ? clamp01(aRaw) : 1;
+            if ((fn[1] ?? "").toLowerCase().startsWith("hsl")) {
+                const [r, g, b] = hslToRgbUnit(x, y, z);
+                return [r, g, b, a0 * strA];
+            }
+            return [clamp01(x / 255), clamp01(y / 255), clamp01(z / 255), a0 * strA];
+        }
+    }
+    return [0, 0, 0, a0];
+}
+
 /**
  * Candle-direction predicate ported from invinite `webgl/colors.ts`: a bar
  * is bullish when its close is at or above its open (a doji counts as

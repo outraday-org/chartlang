@@ -119,7 +119,9 @@ export function vwma(
         ctx.stream.taSlots.set(slotId, slot);
     }
     const src = readSourceValue(source);
-    const vol = ctx.stream.bar.volume;
+    // `bar.volume` is a number-coercible series-view proxy — coerce at the read
+    // so `closeValue`/`tickValue`'s `Number.isFinite` guards see a real number.
+    const vol = +ctx.stream.bar.volume;
     if (ctx.isTick) {
         slot.outBuffer.replaceHead(tickValue(slot, src, vol));
     } else {

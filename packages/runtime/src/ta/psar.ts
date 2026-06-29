@@ -405,9 +405,11 @@ export function psar(slotId: string, opts?: PsarOpts): PsarResult {
         slot = initSlot(ctx.stream.ohlcv.close.capacity, accStart, accStep, accMax);
         ctx.stream.taSlots.set(slotId, slot);
     }
-    const high = ctx.stream.bar.high;
-    const low = ctx.stream.bar.low;
-    const close = ctx.stream.bar.close;
+    // `bar.{high,low,close}` are number-coercible series-view proxies — coerce
+    // at the read so the step helpers see real numbers, not a proxy.
+    const high = +ctx.stream.bar.high;
+    const low = +ctx.stream.bar.low;
+    const close = +ctx.stream.bar.close;
     if (ctx.isTick) {
         const { sar, direction } = tickStep(slot, high, low, close);
         slot.sarBuffer.replaceHead(sar);

@@ -75,7 +75,13 @@ export function bop(slotId: string, _opts?: BopOpts): Series<number> {
         slot = initSlot(ctx.stream.ohlcv.close.capacity);
         ctx.stream.taSlots.set(slotId, slot);
     }
-    const { open, high, low, close } = ctx.stream.bar;
+    // `bar.{open,high,low,close}` are number-coercible series-view proxies —
+    // coerce at the read so `bopAt`'s `Number.isFinite` guards see real numbers.
+    const bar = ctx.stream.bar;
+    const open = +bar.open;
+    const high = +bar.high;
+    const low = +bar.low;
+    const close = +bar.close;
     const value = bopAt(open, high, low, close);
     if (ctx.isTick) {
         slot.outBuffer.replaceHead(value);

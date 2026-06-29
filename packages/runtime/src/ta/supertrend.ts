@@ -244,9 +244,11 @@ export function supertrend(slotId: string, opts?: SupertrendOpts): SupertrendRes
     // Compose: ta.atr at a sub-slot. The composed call routes
     // through the registry and respects ctx.isTick automatically.
     const atrSeries: Series<number> = atr(`${slotId}/atr`, slot.length);
-    const mid = ctx.stream.bar.hl2;
+    // `bar.hl2` / `bar.close` are number-coercible series-view proxies — coerce
+    // at the read so the step helpers see real numbers, not a proxy.
+    const mid = +ctx.stream.bar.hl2;
     const atrValue = atrSeries.current;
-    const close = ctx.stream.bar.close;
+    const close = +ctx.stream.bar.close;
     if (ctx.isTick) {
         const { line, direction } = tickStep(slot, mid, atrValue, close);
         slot.lineBuffer.replaceHead(line);

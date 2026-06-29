@@ -3437,6 +3437,23 @@ function makeLiveSecurityBar(ctx, slotId, feed, interval, secondary) {
     interval: makeConstantStringSeries(interval)
   });
 }
+function makeMainPassthroughSecurityBar(ctx) {
+  const v = ctx.stream.seriesViews;
+  return Object.freeze({
+    time: v.time,
+    open: v.open,
+    high: v.high,
+    low: v.low,
+    close: v.close,
+    volume: v.volume,
+    hl2: v.hl2,
+    hlc3: v.hlc3,
+    ohlc4: v.ohlc4,
+    hlcc4: v.hlcc4,
+    symbol: makeConstantStringSeries(ctx.stream.bar.symbol),
+    interval: makeConstantStringSeries(ctx.stream.bar.interval)
+  });
+}
 var MULTI_SYMBOL_MSG = "Adapter declares multiSymbol: false; request.security for a different symbol returns NaN";
 function fallbackNaN(ctx, cacheKey, slotId, feed, code, message2) {
   pushOnce(ctx, code, slotId, feed, "security", message2);
@@ -3450,13 +3467,18 @@ function makeSecurityBar(ctx, slotId, symbol, interval) {
   const existing = ctx.requestSecurityBars.get(cacheKey);
   if (existing !== void 0)
     return existing;
+  if (symbol === void 0 && interval === "") {
+    const bar2 = makeMainPassthroughSecurityBar(ctx);
+    ctx.requestSecurityBars.set(cacheKey, bar2);
+    return bar2;
+  }
   if (symbol !== void 0 && !ctx.capabilities.multiSymbol) {
     return fallbackNaN(ctx, cacheKey, slotId, feed, "multi-symbol-not-supported", MULTI_SYMBOL_MSG);
   }
   if (!ctx.capabilities.multiTimeframe) {
     return fallbackNaN(ctx, cacheKey, slotId, feed, "multi-timeframe-not-supported", "Adapter declares multiTimeframe: false; request.security returns NaN");
   }
-  const known = ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
+  const known = interval === "" || ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
   if (!known) {
     return fallbackNaN(ctx, cacheKey, slotId, feed, "unsupported-interval", `Requested interval "${interval}" is not in Capabilities.intervals`);
   }
@@ -3476,7 +3498,7 @@ function resolveSecondaryOrDiagnose(ctx, slotId, feed, interval) {
     pushOnce(ctx, "multi-timeframe-not-supported", slotId, feed, "security", "Adapter declares multiTimeframe: false; request.security returns NaN");
     return void 0;
   }
-  if (!ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval)) {
+  if (interval !== "" && !ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval)) {
     pushOnce(ctx, "unsupported-interval", slotId, feed, "security", `Requested interval "${interval}" is not in Capabilities.intervals`);
     return void 0;
   }
@@ -5280,7 +5302,11 @@ function adl(slotId, _opts) {
     slot = initSlot(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const { close, high, low, volume } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const close = +bar.close;
+  const high = +bar.high;
+  const low = +bar.low;
+  const volume = +bar.volume;
   const mfv = mfvAt(close, high, low, volume);
   if (ctx.isTick) {
     slot.outBuffer.replaceHead(slot.prevClosedCumAdl + mfv);
@@ -5362,7 +5388,10 @@ function adr(slotId, opts) {
     slot = initSlot2(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const { high, low, time: time2 } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const high = +bar.high;
+  const low = +bar.low;
+  const time2 = bar.time;
   if (ctx.isTick) {
     slot.outBuffer.replaceHead(emit(slot));
   } else {
@@ -5603,10 +5632,13 @@ function adx(slotId, length, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
+  const high = +bar.high;
+  const low = +bar.low;
+  const close = +bar.close;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue(slot, bar.high, bar.low, bar.close));
+    slot.outBuffer.replaceHead(tickValue(slot, high, low, close));
   } else {
-    slot.outBuffer.append(closeValue(slot, bar.high, bar.low, bar.close));
+    slot.outBuffer.append(closeValue(slot, high, low, close));
   }
   return viewForOffset(slot, opts?.offset ?? 0);
 }
@@ -8191,15 +8223,15 @@ function initSlot6(capacity, anchorTime) {
 function readSource(ctx, source) {
   switch (source) {
     case "close":
-      return ctx.stream.bar.close;
+      return +ctx.stream.bar.close;
     case "hl2":
-      return ctx.stream.bar.hl2;
+      return +ctx.stream.bar.hl2;
     case "hlc3":
-      return ctx.stream.bar.hlc3;
+      return +ctx.stream.bar.hlc3;
     case "ohlc4":
-      return ctx.stream.bar.ohlc4;
+      return +ctx.stream.bar.ohlc4;
     case "hlcc4":
-      return ctx.stream.bar.hlcc4;
+      return +ctx.stream.bar.hlcc4;
   }
 }
 function fold(inCumPV, inCumV, inStarted, anchorTime, time2, src, volume) {
@@ -8228,7 +8260,7 @@ function anchoredVwap(slotId, anchorTime, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSource(ctx, source);
-  const volume = ctx.stream.bar.volume;
+  const volume = +ctx.stream.bar.volume;
   const time2 = ctx.stream.bar.time;
   if (ctx.isTick) {
     const next2 = fold(slot.prevClosedCumPV, slot.prevClosedCumV, slot.prevClosedStarted, slot.anchorTime, time2, src, volume);
@@ -8458,8 +8490,8 @@ function aroon(slotId, length, _opts) {
     slot = initSlot9(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const high = ctx.stream.bar.high;
-  const low = ctx.stream.bar.low;
+  const high = +ctx.stream.bar.high;
+  const low = +ctx.stream.bar.low;
   if (ctx.isTick) {
     const { up, down } = tickStep(slot, high, low);
     slot.upBuffer.replaceHead(up);
@@ -8588,10 +8620,13 @@ function atr(slotId, length, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
+  const high = +bar.high;
+  const low = +bar.low;
+  const close = +bar.close;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue4(slot, bar.high, bar.low, bar.close));
+    slot.outBuffer.replaceHead(tickValue4(slot, high, low, close));
   } else {
-    slot.outBuffer.append(closeValue4(slot, bar.high, bar.low, bar.close));
+    slot.outBuffer.append(closeValue4(slot, high, low, close));
   }
   return viewForOffset4(slot, opts?.offset ?? 0);
 }
@@ -8945,7 +8980,11 @@ function bop(slotId, _opts) {
     slot = initSlot17(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const { open, high, low, close } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const open = +bar.open;
+  const high = +bar.high;
+  const low = +bar.low;
+  const close = +bar.close;
   const value = bopAt(open, high, low, close);
   if (ctx.isTick) {
     slot.outBuffer.replaceHead(value);
@@ -9664,10 +9703,13 @@ function chop(slotId, length, _opts) {
   const lowerSeries = lowest(`${slotId}/lowest`, bar.low, length);
   const upper = upperSeries.current;
   const lower = lowerSeries.current;
+  const high = +bar.high;
+  const low = +bar.low;
+  const close = +bar.close;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue11(slot, bar.high, bar.low, bar.close, upper, lower));
+    slot.outBuffer.replaceHead(tickValue11(slot, high, low, close, upper, lower));
   } else {
-    slot.outBuffer.append(closeValue11(slot, bar.high, bar.low, bar.close, upper, lower));
+    slot.outBuffer.append(closeValue11(slot, high, low, close, upper, lower));
   }
   return slot.series;
 }
@@ -9717,7 +9759,11 @@ function cmf(slotId, length, _opts) {
     slot = initSlot27(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const { close, high, low, volume } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const close = +bar.close;
+  const high = +bar.high;
+  const low = +bar.low;
+  const volume = +bar.volume;
   const mfv = mfvAt2(close, high, low, volume);
   const vol2 = safeVol(volume);
   if (ctx.isTick) {
@@ -10412,12 +10458,15 @@ function dmi(slotId, length, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
+  const high = +bar.high;
+  const low = +bar.low;
+  const close = +bar.close;
   if (ctx.isTick) {
-    const { plusDi, minusDi } = tickDirectional(slot.dirState, bar.high, bar.low, bar.close);
+    const { plusDi, minusDi } = tickDirectional(slot.dirState, high, low, close);
     slot.plusDiBuffer.replaceHead(plusDi);
     slot.minusDiBuffer.replaceHead(minusDi);
   } else {
-    const { plusDi, minusDi } = advanceDirectionalClose(slot.dirState, bar.high, bar.low, bar.close);
+    const { plusDi, minusDi } = advanceDirectionalClose(slot.dirState, high, low, close);
     slot.plusDiBuffer.append(plusDi);
     slot.minusDiBuffer.append(minusDi);
   }
@@ -10797,7 +10846,10 @@ function eom(slotId, length, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
-  const { high, low, volume } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const high = +bar.high;
+  const low = +bar.low;
+  const volume = +bar.volume;
   if (ctx.isTick) {
     if (slot.rawEomWindow.length < slot.length) {
       slot.outBuffer.replaceHead(Number.NaN);
@@ -10887,13 +10939,14 @@ function fisher(slotId, length, _opts) {
   const llSeries = lowest(`${slotId}/midLow`, mid, length);
   const hh = hhSeries.current;
   const ll = llSeries.current;
+  const midValue = +mid;
   let normalised;
-  if (!Number.isFinite(mid) || !Number.isFinite(hh) || !Number.isFinite(ll)) {
+  if (!Number.isFinite(midValue) || !Number.isFinite(hh) || !Number.isFinite(ll)) {
     normalised = Number.NaN;
   } else if (hh === ll) {
     normalised = 0;
   } else {
-    normalised = (mid - ll) / (hh - ll) - 0.5;
+    normalised = (midValue - ll) / (hh - ll) - 0.5;
   }
   if (ctx.isTick) {
     const step2 = Number.isFinite(normalised) ? computeStep(normalised, slot.prevClosedX, slot.prevClosedFisher) : {
@@ -11590,7 +11643,11 @@ function klinger(slotId, opts) {
     slot = initSlot49(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const { high, low, close, volume } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const high = +bar.high;
+  const low = +bar.low;
+  const close = +bar.close;
+  const volume = +bar.volume;
   let vf;
   if (ctx.isTick) {
     const step2 = computeVf(high, low, close, volume, slot.prevClosedHlc, slot.prevClosedTrend, slot.prevClosedCm, slot.prevClosedDm);
@@ -12264,7 +12321,11 @@ function mfi(slotId, length, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
-  const { high, low, close, volume } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const high = +bar.high;
+  const low = +bar.low;
+  const close = +bar.close;
+  const volume = +bar.volume;
   const tp = (high + low + close) / 3;
   const { posMf, negMf } = bucketMf(tp, slot.prevTp, volume);
   const hasComparison = Number.isFinite(slot.prevTp);
@@ -12376,7 +12437,9 @@ function netVolume(slotId, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
-  const { close, volume } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const close = +bar.close;
+  const volume = +bar.volume;
   if (ctx.isTick) {
     const next2 = fold2(slot.prevClosedCumNetVol, slot.prevClosedPrevClose, close, volume);
     slot.outBuffer.replaceHead(next2.cum);
@@ -12451,7 +12514,9 @@ function nvi(slotId, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
-  const { close, volume } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const close = +bar.close;
+  const volume = +bar.volume;
   if (ctx.isTick) {
     const next2 = fold3(slot.prevClosedValue, slot.prevClosedPrevClose, slot.prevClosedPrevVolume, close, volume);
     slot.outBuffer.replaceHead(next2.value);
@@ -12521,7 +12586,9 @@ function obv(slotId, _opts) {
     slot = initSlot59(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const { close, volume } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const close = +bar.close;
+  const volume = +bar.volume;
   if (ctx.isTick) {
     const next2 = fold4(slot.prevClosedCumObv, slot.prevClosedPrevClose, close, volume);
     slot.outBuffer.replaceHead(next2.cumObv);
@@ -12616,18 +12683,20 @@ function pivotsHighLow(slotId, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
+  const high = +bar.high;
+  const low = +bar.low;
   const windowSize = slot.leftLength + slot.rightLength + 1;
   if (ctx.isTick) {
     if (slot.barCount < windowSize) {
       slot.highBuffer.replaceHead(Number.NaN);
       slot.lowBuffer.replaceHead(Number.NaN);
     } else {
-      slot.highBuffer.replaceHead(scanUpPivot(slot.highWindow, bar.high, slot.leftLength, slot.rightLength));
-      slot.lowBuffer.replaceHead(scanDownPivot(slot.lowWindow, bar.low, slot.leftLength, slot.rightLength));
+      slot.highBuffer.replaceHead(scanUpPivot(slot.highWindow, high, slot.leftLength, slot.rightLength));
+      slot.lowBuffer.replaceHead(scanDownPivot(slot.lowWindow, low, slot.leftLength, slot.rightLength));
     }
   } else {
-    slot.highWindow.append(bar.high);
-    slot.lowWindow.append(bar.low);
+    slot.highWindow.append(high);
+    slot.lowWindow.append(low);
     slot.barCount += 1;
     if (slot.barCount < windowSize) {
       slot.highBuffer.append(Number.NaN);
@@ -12859,11 +12928,14 @@ function pivotsStandard(slotId, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
+  const high = +bar.high;
+  const low = +bar.low;
+  const close = +bar.close;
   if (ctx.isTick) {
-    const levels = tickStep2(slot, bar.time, bar.high, bar.low, bar.close);
+    const levels = tickStep2(slot, bar.time, high, low, close);
     emitLevels(slot, levels, true);
   } else {
-    const levels = closeStep3(slot, bar.time, bar.high, bar.low, bar.close);
+    const levels = closeStep3(slot, bar.time, high, low, close);
     emitLevels(slot, levels, false);
   }
   return slot.outputs;
@@ -13250,9 +13322,9 @@ function psar(slotId, opts) {
     slot = initSlot63(ctx.stream.ohlcv.close.capacity, accStart, accStep, accMax);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const high = ctx.stream.bar.high;
-  const low = ctx.stream.bar.low;
-  const close = ctx.stream.bar.close;
+  const high = +ctx.stream.bar.high;
+  const low = +ctx.stream.bar.low;
+  const close = +ctx.stream.bar.close;
   if (ctx.isTick) {
     const { sar, direction } = tickStep3(slot, high, low, close);
     slot.sarBuffer.replaceHead(sar);
@@ -13325,7 +13397,9 @@ function pvi(slotId, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
-  const { close, volume } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const close = +bar.close;
+  const volume = +bar.volume;
   if (ctx.isTick) {
     const next2 = fold5(slot.prevClosedValue, slot.prevClosedPrevClose, slot.prevClosedPrevVolume, close, volume);
     slot.outBuffer.replaceHead(next2.value);
@@ -13475,7 +13549,9 @@ function pvt(slotId, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
-  const { close, volume } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const close = +bar.close;
+  const volume = +bar.volume;
   if (ctx.isTick) {
     const next2 = fold6(slot.prevClosedCumPvt, slot.prevClosedPrevClose, close, volume);
     slot.outBuffer.replaceHead(next2.emit);
@@ -13586,7 +13662,11 @@ function rvgi(slotId, opts) {
     slot = initSlot68(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const { open, high, low, close } = ctx.stream.bar;
+  const bar = ctx.stream.bar;
+  const open = +bar.open;
+  const high = +bar.high;
+  const low = +bar.low;
+  const close = +bar.close;
   const co = Number.isFinite(close) && Number.isFinite(open) ? close - open : Number.NaN;
   const hl = Number.isFinite(high) && Number.isFinite(low) ? high - low : Number.NaN;
   if (ctx.isTick) {
@@ -14172,9 +14252,9 @@ function supertrend(slotId, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const atrSeries = atr(`${slotId}/atr`, slot.length);
-  const mid = ctx.stream.bar.hl2;
+  const mid = +ctx.stream.bar.hl2;
   const atrValue = atrSeries.current;
-  const close = ctx.stream.bar.close;
+  const close = +ctx.stream.bar.close;
   if (ctx.isTick) {
     const { line: line2, direction } = tickStep4(slot, mid, atrValue, close);
     slot.lineBuffer.replaceHead(line2);
@@ -14665,10 +14745,13 @@ function ultimateOsc(slotId, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
+  const high = +bar.high;
+  const low = +bar.low;
+  const close = +bar.close;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue24(slot, bar.high, bar.low, bar.close));
+    slot.outBuffer.replaceHead(tickValue24(slot, high, low, close));
   } else {
-    slot.outBuffer.append(closeValue24(slot, bar.high, bar.low, bar.close));
+    slot.outBuffer.append(closeValue24(slot, high, low, close));
   }
   return slot.series;
 }
@@ -14976,7 +15059,7 @@ function volatilityStop(slotId, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const atrSeries = atr(`${slotId}/atr`, slot.length);
-  const src = ctx.stream.bar.close;
+  const src = +ctx.stream.bar.close;
   const atrValue = atrSeries.current;
   if (ctx.isTick) {
     const { value, direction } = tickStep6(slot, src, atrValue);
@@ -15122,12 +15205,15 @@ function vortex(slotId, length, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
+  const high = +bar.high;
+  const low = +bar.low;
+  const close = +bar.close;
   if (ctx.isTick) {
-    const { plus, minus } = tickStep7(slot, bar.high, bar.low, bar.close);
+    const { plus, minus } = tickStep7(slot, high, low, close);
     slot.plusBuffer.replaceHead(plus);
     slot.minusBuffer.replaceHead(minus);
   } else {
-    const { plus, minus } = closeStep8(slot, bar.high, bar.low, bar.close);
+    const { plus, minus } = closeStep8(slot, high, low, close);
     slot.plusBuffer.append(plus);
     slot.minusBuffer.append(minus);
   }
@@ -15160,15 +15246,15 @@ function initSlot82(capacity) {
 function readSource2(ctx, source) {
   switch (source) {
     case "close":
-      return ctx.stream.bar.close;
+      return +ctx.stream.bar.close;
     case "hl2":
-      return ctx.stream.bar.hl2;
+      return +ctx.stream.bar.hl2;
     case "hlc3":
-      return ctx.stream.bar.hlc3;
+      return +ctx.stream.bar.hlc3;
     case "ohlc4":
-      return ctx.stream.bar.ohlc4;
+      return +ctx.stream.bar.ohlc4;
     case "hlcc4":
-      return ctx.stream.bar.hlcc4;
+      return +ctx.stream.bar.hlcc4;
   }
 }
 function dayKeyOf(time2) {
@@ -15201,7 +15287,7 @@ function vwap(slotId, opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSource2(ctx, source);
-  const volume = ctx.stream.bar.volume;
+  const volume = +ctx.stream.bar.volume;
   const dayKey = dayKeyOf(ctx.stream.bar.time);
   if (ctx.isTick) {
     const next2 = fold7(slot.prevClosedCumPV, slot.prevClosedCumV, slot.prevClosedDayKey, dayKey, src, volume);
@@ -15285,7 +15371,7 @@ function vwma(slotId, source, length, _opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
-  const vol2 = ctx.stream.bar.volume;
+  const vol2 = +ctx.stream.bar.volume;
   if (ctx.isTick) {
     slot.outBuffer.replaceHead(tickValue26(slot, src, vol2));
   } else {
@@ -15413,7 +15499,7 @@ function williamsR(slotId, length, _opts) {
   const bar = ctx.stream.bar;
   const hh = highest(`${slotId}/hh`, bar.high, length).current;
   const ll = lowest(`${slotId}/ll`, bar.low, length).current;
-  const value = williamsRValue(hh, ll, bar.close);
+  const value = williamsRValue(hh, ll, +bar.close);
   if (ctx.isTick) {
     slot.outBuffer.replaceHead(value);
   } else {
@@ -15606,7 +15692,7 @@ function zigZag(slotId, opts) {
     slot = initSlot85(ctx.stream.ohlcv.close.capacity, deviation, depth);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const close = ctx.stream.bar.close;
+  const close = +ctx.stream.bar.close;
   if (ctx.isTick) {
     const barIndexForStep = slot.prevClosedBarCount;
     const { value, direction } = tickStep8(slot, close, barIndexForStep);

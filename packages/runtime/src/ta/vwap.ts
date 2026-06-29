@@ -60,17 +60,19 @@ function initSlot(capacity: number): VwapSlot {
 }
 
 function readSource(ctx: RuntimeContext, source: VwapSource): number {
+    // The `bar.*` source fields are number-coercible series-view proxies, not
+    // real numbers — coerce so `fold`'s `Number.isFinite(src)` guard works.
     switch (source) {
         case "close":
-            return ctx.stream.bar.close;
+            return +ctx.stream.bar.close;
         case "hl2":
-            return ctx.stream.bar.hl2;
+            return +ctx.stream.bar.hl2;
         case "hlc3":
-            return ctx.stream.bar.hlc3;
+            return +ctx.stream.bar.hlc3;
         case "ohlc4":
-            return ctx.stream.bar.ohlc4;
+            return +ctx.stream.bar.ohlc4;
         case "hlcc4":
-            return ctx.stream.bar.hlcc4;
+            return +ctx.stream.bar.hlcc4;
     }
 }
 
@@ -153,7 +155,7 @@ export function vwap(slotId: string, opts?: VwapOpts): Series<number> {
         ctx.stream.taSlots.set(slotId, slot);
     }
     const src = readSource(ctx, source);
-    const volume = ctx.stream.bar.volume;
+    const volume = +ctx.stream.bar.volume;
     const dayKey = dayKeyOf(ctx.stream.bar.time);
 
     if (ctx.isTick) {

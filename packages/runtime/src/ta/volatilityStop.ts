@@ -246,7 +246,9 @@ export function volatilityStop(slotId: string, opts?: VolatilityStopOpts): Volat
         ctx.stream.taSlots.set(slotId, slot);
     }
     const atrSeries = atr(`${slotId}/atr`, slot.length);
-    const src = ctx.stream.bar.close;
+    // `bar.close` is a number-coercible series-view proxy — coerce at the read
+    // so the step helpers see a real number, not a proxy.
+    const src = +ctx.stream.bar.close;
     const atrValue = atrSeries.current;
     if (ctx.isTick) {
         const { value, direction } = tickStep(slot, src, atrValue);

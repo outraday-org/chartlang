@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CallExpression } from "../ast/index.js";
+import type { CallExpression, ExpressionNode } from "../ast/index.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
 import { emitWithContext } from "./emitContext.js";
@@ -76,6 +76,12 @@ export function isRequestSecurityCall(call: CallExpression): boolean {
  * (computed timeframe,
  * missing args) pushes `request-security-not-mapped` and returns `null`.
  *
+ * `callbackEmit`, when supplied (by the `other.ts` caller that holds the `Walk`),
+ * builds the EXPRESSION-source callback body — it inline-expands stateful UDFs
+ * and hoists captured bar-invariant bindings into the closure so the read
+ * compiles. Absent (the diagnostic-free JSDoc/test callers), the callback body
+ * falls back to the verbatim emit (its OHLCV reads still `.current`-projected).
+ *
  * @since 0.1
  * @stable
  * @example
@@ -113,6 +119,7 @@ export function emitRequestSecurity(
     call: CallExpression,
     ctx: EmitContext,
     diagnostics: DiagnosticCollector,
+    callbackEmit?: (opts: string, source: ExpressionNode) => string,
 ): string | null {
     if (!isRequestSecurity(call)) {
         return null;
@@ -164,7 +171,12 @@ export function emitRequestSecurity(
         return securityDataRead(opts, field);
     }
     // The callback runs on the HTF `SecurityBar` (series-only OHLCV), so the
-    // source's OHLCV reads project to `.current` for scalar use.
+    // source's OHLCV reads project to `.current` for scalar use. When the caller
+    // supplies `callbackEmit`, it owns the stateful-UDF inline + capture-hoist
+    // (it holds the `Walk`); otherwise the body is emitted verbatim.
+    if (callbackEmit !== undefined) {
+        return callbackEmit(opts, source);
+    }
     const secCtx: EmitContext = { ...ctx, securityExpr: true };
     return securityCallbackRead(opts, emitWithContext(source, secCtx));
 }

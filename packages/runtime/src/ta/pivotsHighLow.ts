@@ -185,6 +185,11 @@ export function pivotsHighLow(slotId: string, opts?: PivotsHighLowOpts): PivotsH
         ctx.stream.taSlots.set(slotId, slot);
     }
     const bar = ctx.stream.bar;
+    // `bar.{high,low}` are number-coercible series-view proxies — coerce at the
+    // read so `scanUpPivot`/`scanDownPivot`'s `Number.isFinite` guard sees a
+    // real number (and the ring `append` stores a number, not a proxy).
+    const high = +bar.high;
+    const low = +bar.low;
     const windowSize = slot.leftLength + slot.rightLength + 1;
 
     if (ctx.isTick) {
@@ -196,15 +201,15 @@ export function pivotsHighLow(slotId: string, opts?: PivotsHighLowOpts): PivotsH
             slot.lowBuffer.replaceHead(Number.NaN);
         } else {
             slot.highBuffer.replaceHead(
-                scanUpPivot(slot.highWindow, bar.high, slot.leftLength, slot.rightLength),
+                scanUpPivot(slot.highWindow, high, slot.leftLength, slot.rightLength),
             );
             slot.lowBuffer.replaceHead(
-                scanDownPivot(slot.lowWindow, bar.low, slot.leftLength, slot.rightLength),
+                scanDownPivot(slot.lowWindow, low, slot.leftLength, slot.rightLength),
             );
         }
     } else {
-        slot.highWindow.append(bar.high);
-        slot.lowWindow.append(bar.low);
+        slot.highWindow.append(high);
+        slot.lowWindow.append(low);
         slot.barCount += 1;
         if (slot.barCount < windowSize) {
             slot.highBuffer.append(Number.NaN);

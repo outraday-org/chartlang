@@ -1972,6 +1972,43 @@ that has no byte-identical chartlang analogue.
   genuinely-unsupported shapes (a computed / wrong-axis symbol or interval, an
   out-of-table timeframe, missing args); an in-subset `ta.*` source and a
   literal/input-bound symbol+interval are supported.
+- **A `request.security` expression callback HOISTS the bar-invariant top-level
+  bindings its body captures, so the higher-timeframe closure resolves them to
+  callback-LOCALS instead of capturing a main-timeline binding (which the
+  compiler's `validateSecurityExpr` rejects as
+  `request-security-expr-captures-local`).** `collectCaptureHoist`
+  (`transform/securityCapture.ts`) walks the callback body's free identifier
+  reads, and for each that resolves to a top-level symbol (excluding inputs, the
+  `bar` param, `BUILTIN_IDENTIFIER_MAP` / namespace roots, and `ctx.localNames`)
+  it finds the binding's defining statement(s) — a `variable-declaration`, an
+  `assignment`, or a `switch` whose arms assign it — and, when EVERY defining RHS
+  is bar-INVARIANT (`inferQualifier(...) !== "series"`, the same resolver
+  `scanPromotedSeries` uses) AND the binding is a PLAIN local (not a
+  `ctx.stateSlots` / `ctx.seriesSlots` slot), re-emits a copy of those statements
+  (transitively, in source order) as a callback-local prelude. The re-emit reuses
+  `emitStatement` with a `securityExpr` child context + a FRESH throwaway
+  `DiagnosticCollector` (so a hoisted statement never double-reports), and the
+  hoisted names are unioned into the body emit's `localNames`. `emitSecurity
+  SourceCallback` prepends the hoist prelude BEFORE the stateful-UDF inline
+  prelude (arg temps may read a hoisted binding) and uses the BLOCK callback form
+  whenever the combined prelude is non-empty. A captured binding that is
+  bar-VARYING (depends on series / `ta.*` / OHLCV) or slot-backed is NOT
+  hoistable and pushes the append-only **error** `request-security-expr-captures-
+  series` (one per un-hoistable name) — an actionable converter diagnostic in
+  place of the downstream compiler `captures-local`. Both the single-source
+  (`emitRequestSecurity`'s optional `callbackEmit`, threaded from the
+  `emitSpecialCall` call site that holds the `Walk`) and tuple paths route their
+  expression callbacks through `emitSecuritySourceCallback`, so both hoist. The
+  numeric `na` sentinel emits as the bare `NaN` (a `validateSecurityExpr`-safe
+  value global) NOT `Number.NaN` inside a `securityExpr` context — `rewriteTree`'s
+  `na-expression` arm remaps it (the validator allows `NaN`/`Math` but rejects
+  `Number` as a captured outer binding). **Limitation:** a SINGLE-source read
+  whose source is a STATEFUL USER-DEFINED FUNCTION (`request.security(sym, tf,
+  cf(len))`, `cf` stateful) is pre-inlined by `emitAssignment` into a baked
+  verbatim-source identifier BEFORE `emitSecuritySourceCallback` sees it, so its
+  captures are invisible to the hoist (the binding leaks); the TUPLE form of the
+  same source (Trend Wizard's shape) passes the real AST and hoists. A bare
+  builtin `ta.*` single-source (`ta.atr(len)`) is not a UDF and hoists fine.
 - **`hline` threads a `linestyle=hline.style_*` enum onto the `lineStyle` opt,
   and an ASSIGNED hline reuses the same lowering (`plotFamily.ts`).** The
   `hline.style_solid|dotted|dashed` rows live in `mapping/enums.ts`; `emitHline`
@@ -2058,9 +2095,14 @@ that has no byte-identical chartlang analogue.
   `scalar-state-type-defaulted`, `series-history-non-numeric`,
   `varip-series-approximated` (infos — the last two added by the
   `state.series` `var`-history lowering; `dynamic-series-index` was registered
-  here earlier and is now WIRED). Re-exports APPENDED to `src/transform/
+  here earlier and is now WIRED),
+  `request-security-expr-captures-series` (error — a `request.security`
+  expression callback captures a bar-VARYING outer binding that cannot be
+  reconstructed inside the higher-timeframe closure; a bar-invariant capture is
+  hoisted silently, no diagnostic). Re-exports APPENDED to `src/transform/
   index.ts` (incl. `forEachHistoryAccess` from `exprEmit.ts`).
 - **Coverage.** `other.ts`/`controlFlow.ts`/`emitContext.ts`/`statefulNames.ts`/
+  `securityCapture.ts`/
   `strFormat.ts`/`plotFamily.ts`/`requestSecurity.ts`/`strategySignals.ts`/
   `alertCall.ts` hold 100% line/branch/function. Parser-unreachable arms (a top-level
   `block-statement`/`return-statement`, a camp-b `collectionSymbol` site, a

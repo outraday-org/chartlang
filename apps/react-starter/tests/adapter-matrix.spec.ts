@@ -2,19 +2,19 @@
 // See the LICENSE file in the repo root for full license text.
 //
 // Adapter matrix — proves the activeAdapter seam is genuinely interchangeable
-// across ALL five bundled libraries, not just the default canvas2d. The whole
+// across ALL bundled libraries, not just the default webgl. The whole
 // point of `src/lib/chart/activeAdapter.ts` is library-interchange; this is
 // the guarantee that any library the create-chartlang installer can pick
-// (canvas2d, lightweight-charts, uplot, echarts, konva) builds a chart bundle
-// in the starter.
+// (canvas2d, lightweight-charts, uplot, echarts, konva, webgl) builds a chart
+// bundle in the starter.
 //
 // Strategy (the task's "lighter build-per-variant" variant): for each entry
 // in SEAM_VARIANTS, swap `activeAdapter.ts` to that variant's seamSource, run
 // the production `vite build`, and assert it succeeds — this proves the chosen
 // library resolves + bundles through the seam (import line + factory call +
-// render entry) with zero network, inside the monorepo. canvas2d (the committed
+// render entry) with zero network, inside the monorepo. webgl (the committed
 // default) is restored in afterAll. A green matrix means the seam is not
-// canvas2d-only. (The default canvas2d path also has a live render + alert-toast
+// webgl-only. (The default webgl path also has a live render + alert-toast
 // mount assertion in chart.spec.ts.)
 //
 // This spec MUTATES a shared source file (`activeAdapter.ts`), so the whole
@@ -40,7 +40,7 @@ const ACTIVE_ADAPTER_PATH = fileURLToPath(
 )
 const APP_DIR = fileURLToPath(new URL("..", import.meta.url))
 
-const CANVAS2D_SOURCE = SEAM_VARIANTS.find((v) => v.id === "canvas2d")?.seamSource ?? ""
+const WEBGL_SOURCE = SEAM_VARIANTS.find((v) => v.id === "webgl")?.seamSource ?? ""
 
 test.describe("adapter matrix", () => {
   // Serial: every case rewrites the shared activeAdapter.ts then builds, and
@@ -48,16 +48,16 @@ test.describe("adapter matrix", () => {
   test.describe.configure({ mode: "serial", timeout: 300_000 })
 
   test.afterAll(() => {
-    // Restore the committed canvas2d default no matter what.
-    writeFileSync(ACTIVE_ADAPTER_PATH, CANVAS2D_SOURCE)
+    // Restore the committed webgl default no matter what.
+    writeFileSync(ACTIVE_ADAPTER_PATH, WEBGL_SOURCE)
   })
 
-  // The committed activeAdapter.ts must equal the canvas2d variant verbatim —
+  // The committed activeAdapter.ts must equal the webgl variant verbatim —
   // it is the single seam SSOT rendered into the file. (Also guards Task 7's
   // installer, which emits byte-identical bodies from SEAM_VARIANTS.) Runs
   // first, before any case swaps the file.
-  test("committed activeAdapter.ts equals SEAM_VARIANTS.canvas2d verbatim", () => {
-    expect(readFileSync(ACTIVE_ADAPTER_PATH, "utf8")).toBe(CANVAS2D_SOURCE)
+  test("committed activeAdapter.ts equals SEAM_VARIANTS.webgl verbatim", () => {
+    expect(readFileSync(ACTIVE_ADAPTER_PATH, "utf8")).toBe(WEBGL_SOURCE)
   })
 
   for (const variant of SEAM_VARIANTS) {

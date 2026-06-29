@@ -14,7 +14,15 @@ export default defineIndicator({
 });
 `;
 
+// Value-pins the REAL-path VWAP series over the bundled golden bars. VWAP reads
+// its `hlc3` source + `bar.volume` (number-coercible series-view proxies); the
+// proxy-coercion fix makes `fold`'s `Number.isFinite(src)` / volume guards see
+// real numbers instead of an always-NaN proxy. Re-pin via the runner's
+// "expected vs actual" message if the golden bars change.
+const VWAP_HASH = "00af1631f430f11c0316c92fcfe1c1b5d269edab0f9dfcb7c7236d29674176d6";
+
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
+    { kind: "plot-hash", slotId: "<inline:ta-vwap>.chart.ts:7:9#0", sha256: VWAP_HASH },
     { kind: "alert-count", count: 0 },
     { kind: "diagnostic-code-absent", code: "lookback-exceeded" },
     { kind: "diagnostic-code-absent", code: "malformed-emission" },

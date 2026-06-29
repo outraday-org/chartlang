@@ -394,11 +394,17 @@ export function pivotsStandard(slotId: string, opts?: PivotsStandardOpts): Pivot
         ctx.stream.taSlots.set(slotId, slot);
     }
     const bar = ctx.stream.bar;
+    // `bar.{high,low,close}` are number-coercible series-view proxies — coerce
+    // at the read so the step helpers see real numbers (`bar.time` is already a
+    // scalar, so it passes through unchanged).
+    const high = +bar.high;
+    const low = +bar.low;
+    const close = +bar.close;
     if (ctx.isTick) {
-        const levels = tickStep(slot, bar.time, bar.high, bar.low, bar.close);
+        const levels = tickStep(slot, bar.time, high, low, close);
         emitLevels(slot, levels, true);
     } else {
-        const levels = closeStep(slot, bar.time, bar.high, bar.low, bar.close);
+        const levels = closeStep(slot, bar.time, high, low, close);
         emitLevels(slot, levels, false);
     }
     return slot.outputs;

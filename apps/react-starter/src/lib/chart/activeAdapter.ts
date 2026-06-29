@@ -9,14 +9,14 @@
 
 import type { AlertEmission, CandleEvent } from "@invinite-org/chartlang-adapter-kit"
 import {
-  createCanvas2dAdapter,
-  type Canvas2dAdapterHandle,
-  runRendererLoop,
-} from "chartlang-example-canvas2d-adapter"
+  createWebglAdapter,
+  runWebglLoop,
+  type WebglAdapterHandle,
+} from "chartlang-example-webgl-adapter"
 
-export type ActiveAdapterHandle = Canvas2dAdapterHandle
+export type ActiveAdapterHandle = WebglAdapterHandle
 
-export const ACTIVE_ADAPTER_ID = "canvas2d"
+export const ACTIVE_ADAPTER_ID = "webgl"
 
 /** Library-agnostic options ChartPane passes to {@link createActiveAdapter}. */
 export type CreateAdapterOpts = Readonly<{
@@ -29,8 +29,8 @@ export type CreateAdapterOpts = Readonly<{
 /** Options forwarded to {@link runActiveLoop} (cancellation via `signal`). */
 export type RunActiveLoopOpts = Readonly<{ signal?: AbortSignal }>
 
-// canvas2d paints onto a <canvas>; the seam creates one inside the generic
-// container so ChartPane only ever provides a DOM node.
+// webgl renders onto a <canvas> via a WebGL2 context; the seam creates one
+// inside the generic container so ChartPane only ever provides a DOM node.
 export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandle {
   const cssWidth = opts.container.clientWidth || 800
   const cssHeight = opts.container.clientHeight || 480
@@ -45,7 +45,7 @@ export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandl
   canvas.style.width = `${cssWidth}px`
   canvas.style.height = `${cssHeight}px`
   opts.container.replaceChildren(canvas)
-  return createCanvas2dAdapter({
+  return createWebglAdapter({
     canvas,
     candleSource: opts.candleSource,
     devicePixelRatio: dpr,
@@ -61,5 +61,5 @@ export async function runActiveLoop(
   handle: ActiveAdapterHandle,
   opts: RunActiveLoopOpts = {},
 ): Promise<void> {
-  await runRendererLoop(handle, opts)
+  await runWebglLoop(handle, opts)
 }

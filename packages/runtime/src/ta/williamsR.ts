@@ -71,9 +71,12 @@ export function williamsR(slotId: string, length: number, _opts?: WilliamsROpts)
         ctx.stream.taSlots.set(slotId, slot);
     }
     const bar = ctx.stream.bar;
+    // `bar.{high,low}` go to `highest`/`lowest` AS proxies (they need the
+    // indexable Series source); `bar.close` is coerced for `williamsRValue`,
+    // whose `Number.isFinite` guard needs a real number.
     const hh = highest(`${slotId}/hh`, bar.high, length).current;
     const ll = lowest(`${slotId}/ll`, bar.low, length).current;
-    const value = williamsRValue(hh, ll, bar.close);
+    const value = williamsRValue(hh, ll, +bar.close);
     if (ctx.isTick) {
         slot.outBuffer.replaceHead(value);
     } else {

@@ -254,12 +254,17 @@ export function vortex(slotId: string, length: number, opts?: VortexOpts): Vorte
         ctx.stream.taSlots.set(slotId, slot);
     }
     const bar = ctx.stream.bar;
+    // `bar.{high,low,close}` are number-coercible series-view proxies — coerce
+    // at the read so the step helpers see real numbers, not a proxy.
+    const high = +bar.high;
+    const low = +bar.low;
+    const close = +bar.close;
     if (ctx.isTick) {
-        const { plus, minus } = tickStep(slot, bar.high, bar.low, bar.close);
+        const { plus, minus } = tickStep(slot, high, low, close);
         slot.plusBuffer.replaceHead(plus);
         slot.minusBuffer.replaceHead(minus);
     } else {
-        const { plus, minus } = closeStep(slot, bar.high, bar.low, bar.close);
+        const { plus, minus } = closeStep(slot, high, low, close);
         slot.plusBuffer.append(plus);
         slot.minusBuffer.append(minus);
     }

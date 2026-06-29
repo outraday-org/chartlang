@@ -142,8 +142,16 @@ A plain (`=`-declared) **`ta.*` series that is history-indexed** anywhere —
 `ma = ta.ema(close, len)` read as `ma[i]` — is promoted to the **same**
 `state.series` slot: `const ma = state.series(Number.NaN)`, written each bar as
 `ma.value = ta.ema(bar.close, len).current`, so `ma[i]` is a real indexed read
-while `ma`'s scalar uses (`ma >= 0`, `plot(ma)`) still read `ma.value`. A
-`ta.*` series **never** indexed keeps its `.current` scalar lowering (no
+while `ma`'s scalar uses (`ma >= 0`, `plot(ma)`) still read `ma.value`. The
+promotion is by **series qualifier**, not just a direct `ta.*` right-hand side:
+any `=`-declared value that is series-qualified and read at `[n]` promotes —
+including a UDF-call result (`ma_slope = cf_slope(ma_1, n)`) or a ternary
+(`comp = ma_slope_comp_type == "SMA" ? ta.sma(x, n) : ta.ema(x, n)`). And a
+**simple-identifier argument passed to a stateful helper that history-indexes
+the matching parameter** (`cf_slope(ma_1, n)` whose body reads `ma[1]`) promotes
+the argument the same way, and a history-indexed local *inside* an inlined
+stateful body gets its own per-call-site `state.series` / `state.boolSeries`
+slot. A `ta.*` series **never** indexed keeps its `.current` scalar lowering (no
 change). A `bool` / `string` history-indexed `var` lowers to the non-numeric
 twins [`state.boolSeries`](#non-numeric-persistent-state) /
 `state.stringSeries` (see below); only a **`color`** history (`c[1]`) is still
@@ -348,10 +356,12 @@ let open_slope = ta.ema((((bar.open - bar.open[1]) / bar.open[1]) * 100), 5).cur
 ```
 
 A call whose argument count differs from the declaration warns
-[`udf-arity-mismatch`](./diagnostics.md#udf-arity-mismatch). For the param forms
-and **recursion** that reject, and the v1 limitation a faithful Trend Wizard
-port still hits (a stateful helper that indexes a **param's history** when
-applied to a derived series), see
+[`udf-arity-mismatch`](./diagnostics.md#udf-arity-mismatch). A stateful helper
+that indexes a **param's history** applied to a derived series (Trend Wizard's
+`cf_slope(ma_1, n)`) now converts — the argument auto-promotes to a
+`state.series` (see [Sources and history](#sources-and-history) above). For the
+param forms and **recursion** that reject, and the one residual limitation (a
+*pure* helper that indexes its own param's history), see
 [rejects](./rejects.md#user-defined-functions).
 
 ## State

@@ -156,7 +156,13 @@ export function adr(slotId: string, opts?: AdrOpts): Series<number> {
         slot = initSlot(length, ctx.stream.ohlcv.close.capacity);
         ctx.stream.taSlots.set(slotId, slot);
     }
-    const { high, low, time } = ctx.stream.bar;
+    // `bar.{high,low}` are number-coercible series-view proxies — coerce at the
+    // read so `closeStep`'s `Number.isFinite` guards see real numbers
+    // (`bar.time` is already a scalar).
+    const bar = ctx.stream.bar;
+    const high = +bar.high;
+    const low = +bar.low;
+    const time = bar.time;
     if (ctx.isTick) {
         // Tick replay does NOT touch the day aggregate or the rolling
         // sum — those are snapshots of the last close. The output is the

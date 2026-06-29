@@ -139,7 +139,11 @@ export function pvt(slotId: string, opts?: PvtOpts): Series<number> {
         ctx.stream.taSlots.set(slotId, slot);
     }
     const offset = opts?.offset ?? 0;
-    const { close, volume } = ctx.stream.bar;
+    // `bar.{close,volume}` are number-coercible series-view proxies — coerce at
+    // the read so `fold`'s `Number.isFinite` guards see real numbers.
+    const bar = ctx.stream.bar;
+    const close = +bar.close;
+    const volume = +bar.volume;
 
     if (ctx.isTick) {
         const next = fold(slot.prevClosedCumPvt, slot.prevClosedPrevClose, close, volume);

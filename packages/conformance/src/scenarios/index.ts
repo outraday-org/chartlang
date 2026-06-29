@@ -99,6 +99,7 @@ import { DRAW_TRIANGLE_PATTERN_SCENARIO } from "./drawTrianglePattern.scenario.j
 import { DRAW_VERTICAL_LINE_SCENARIO } from "./drawVerticalLine.scenario.js";
 import { DRAW_XABCD_PATTERN_SCENARIO } from "./drawXabcdPattern.scenario.js";
 import { EMA_CROSS_SCENARIO } from "./emaCross.scenario.js";
+import { EMPTY_INTERVAL_PASSTHROUGH_SCENARIO } from "./emptyIntervalPassthrough.scenario.js";
 import { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario.js";
 import { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 import { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
@@ -113,6 +114,11 @@ import { MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO } from "./mtfSecurityExpr
 import { MTF_UNSUPPORTED_INTERVAL_SCENARIO } from "./mtfUnsupportedInterval.scenario.js";
 import { MULTI_SYMBOL_NOT_SUPPORTED_SCENARIO } from "./multiSymbolNotSupported.scenario.js";
 import { MULTI_SYMBOL_RATIO_SCENARIO } from "./multiSymbolRatio.scenario.js";
+import { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
+import { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "./pineConverterRoundTripCampB.scenario.js";
+import { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "./pineConverterRoundTripTable.scenario.js";
+import { PINE_CONVERTER_ROUND_TRIP_VAR_ARRAY_SCENARIO } from "./pineConverterRoundTripVarArray.scenario.js";
+import { PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO } from "./pineConverterRoundTripVarSeries.scenario.js";
 import { PLOT_KIND_ARROW_SCENARIO } from "./plotKindArrow.scenario.js";
 import { PLOT_KIND_ARROW_GATED_SCENARIO } from "./plotKindArrowGated.scenario.js";
 import { PLOT_KIND_BAR_COLOR_SCENARIO } from "./plotKindBarColor.scenario.js";
@@ -131,11 +137,6 @@ import { PLOT_KIND_HORIZONTAL_HISTOGRAM_SCENARIO } from "./plotKindHorizontalHis
 import { PLOT_KIND_HORIZONTAL_HISTOGRAM_GATED_SCENARIO } from "./plotKindHorizontalHistogramGated.scenario.js";
 import { PLOT_KIND_SHAPE_SCENARIO } from "./plotKindShape.scenario.js";
 import { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js";
-import { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
-import { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "./pineConverterRoundTripCampB.scenario.js";
-import { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "./pineConverterRoundTripTable.scenario.js";
-import { PINE_CONVERTER_ROUND_TRIP_VAR_ARRAY_SCENARIO } from "./pineConverterRoundTripVarArray.scenario.js";
-import { PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO } from "./pineConverterRoundTripVarSeries.scenario.js";
 import { PLOT_OFFSET_XSHIFT_SCENARIO } from "./plotOffsetXshift.scenario.js";
 import { PLOT_STYLE_OVERRIDES_SCENARIO } from "./plotStyleOverrides.scenario.js";
 import { PLOT_VISIBLE_SCENARIO } from "./plotVisible.scenario.js";
@@ -148,9 +149,9 @@ import { RUNTIME_LOG_GATED_SCENARIO } from "./runtimeLogGated.scenario.js";
 import { RUNTIME_LOG_INFO_SCENARIO } from "./runtimeLogInfo.scenario.js";
 import { STATE_ARRAY_ROLLING_WINDOW_SCENARIO } from "./stateArrayRollingWindow.scenario.js";
 import { STATE_SERIES_HISTORY_SCENARIO } from "./stateSeriesHistory.scenario.js";
-import { STR_FORMATTED_TABLE_SCENARIO } from "./strFormattedTable.scenario.js";
 import { STATE_SESSION_HIGH_SCENARIO } from "./stateSessionHigh.scenario.js";
 import { STATE_TICK_COUNTER_SCENARIO } from "./stateTickCounter.scenario.js";
+import { STR_FORMATTED_TABLE_SCENARIO } from "./strFormattedTable.scenario.js";
 import { SYMINFO_MINTICK_SCENARIO } from "./syminfoMintick.scenario.js";
 import { TA_ADL_SCENARIO } from "./taAdl.scenario.js";
 import { TA_ADR_SCENARIO } from "./taAdr.scenario.js";
@@ -355,6 +356,7 @@ export { DRAW_TREND_CHANNEL_SCENARIO } from "./drawTrendChannel.scenario.js";
 export { DRAW_TRIANGLE_SCENARIO } from "./drawTriangle.scenario.js";
 export { DRAW_VERTICAL_LINE_SCENARIO } from "./drawVerticalLine.scenario.js";
 export { EMA_CROSS_SCENARIO } from "./emaCross.scenario.js";
+export { EMPTY_INTERVAL_PASSTHROUGH_SCENARIO } from "./emptyIntervalPassthrough.scenario.js";
 export { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario.js";
 export { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 export { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
@@ -810,6 +812,11 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     BARSTATE_CONFIRMED_SCENARIO,
     INPUT_INTERVAL_SCENARIO,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
+    // Pine's empty-interval idiom: a chart-symbol `request.security({ interval:
+    // "" })` resolves to the MAIN stream (no secondary feed, no capability), so
+    // its close plots byte-identically to a direct `bar.close` control even
+    // under `multiTimeframe: false`.
+    EMPTY_INTERVAL_PASSTHROUGH_SCENARIO,
     MTF_REQUEST_SECURITY_CLOSE_SCENARIO,
     // request.security expression form — the EMA runs on the HTF (secondary
     // 1D) clock, not the main-aligned daily close. The happy-path golden +

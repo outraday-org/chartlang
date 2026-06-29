@@ -32,7 +32,7 @@ const NPMRC_CONTENTS =
     "# vite@8's optional esbuild peer (^0.27||^0.28) conflicts with the\n# chartlang-compiler esbuild dep (^0.24); the app runs fine on 0.24.\nlegacy-peer-deps=true\n";
 
 const DEFAULT_TARGET = "./chartlang-starter";
-const DEFAULT_LIBRARY: SeamId = "canvas2d";
+const DEFAULT_LIBRARY: SeamId = "webgl";
 const SEAM_PATH = ["src", "lib", "chart", "activeAdapter.ts"];
 const ENV_EXAMPLE = ".env.example";
 const ENV_FILE = ".env";
@@ -178,7 +178,7 @@ async function isNonEmptyDir(path: string): Promise<boolean> {
 }
 
 /**
- * Render the library-choice prompt list from the registry, canvas2d first
+ * Render the library-choice prompt list from the registry, webgl first
  * (the default) then the rest in registry order. Pure: no IO.
  *
  * @since 0.1

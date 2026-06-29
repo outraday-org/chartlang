@@ -239,9 +239,20 @@ export function createMultiSymbolCandlePump(
     feeds: ReadonlyArray<RequestedFeed>,
 ): AsyncIterable<CandleEvent> {
     const symbolFeeds: Array<{ symbol: string; bucketMs: number; key: string }> = [];
+    // A DIFFERENT symbol on the chart's OWN timeframe (`interval: ""`) is "that
+    // instrument on the chart clock" — a 1:1 passthrough, NOT a higher-timeframe
+    // bucket. `intervalToBucketMs("")` is `null` (it is reserved for genuine
+    // HTFs), so these feeds are routed here and emit one synthetic close per main
+    // bar, keyed `feedKey(symbol, "")` to match the runtime's secondary lookup.
+    const passthroughFeeds: Array<{ symbol: string; key: string }> = [];
     for (const feed of feeds) {
-        // Skip chart-symbol feeds — the interval-only resampler owns those.
+        // Skip chart-symbol feeds — the interval-only resampler (or, for `""`,
+        // the runtime's main passthrough) owns those.
         if (feed.symbol === undefined || feed.symbol === chartSymbol) continue;
+        if (feed.interval === "") {
+            passthroughFeeds.push({ symbol: feed.symbol, key: feedKey(feed.symbol, "") });
+            continue;
+        }
         const bucketMs = intervalToBucketMs(feed.interval);
         if (bucketMs !== null) {
             symbolFeeds.push({
@@ -301,6 +312,16 @@ export function createMultiSymbolCandlePump(
                     } else {
                         cur.bars.push(synthetic);
                     }
+                }
+                // Empty-interval feeds are the chart's own clock: one synthetic
+                // close per main bar, no bucketing/aggregation. Tagged `interval:
+                // ""` so it matches `feedKey(symbol, "")` exactly.
+                for (const feed of passthroughFeeds) {
+                    closes.push({
+                        kind: "close",
+                        bar: syntheticBar(feed, "", srcBar),
+                        streamKey: feed.key,
+                    });
                 }
                 return closes;
             }

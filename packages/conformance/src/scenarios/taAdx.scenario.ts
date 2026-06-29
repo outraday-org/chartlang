@@ -14,7 +14,15 @@ export default defineIndicator({
 });
 `;
 
+// Value-pins the REAL-path ADX series over the bundled golden bars. ADX reads
+// `bar.high`/`bar.low`/`bar.close` (number-coercible series-view proxies)
+// directly; the proxy-coercion fix makes the directional helpers see real
+// numbers instead of an always-NaN proxy. Re-pin via the runner's "expected vs
+// actual" message if the golden bars change.
+const ADX_HASH = "efc249b558d175200718a207d3567a79a50bec1c9b1fe899786715b4ab263472";
+
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
+    { kind: "plot-hash", slotId: "<inline:ta-adx>.chart.ts:7:9#0", sha256: ADX_HASH },
     { kind: "alert-count", count: 0 },
     { kind: "diagnostic-code-absent", code: "lookback-exceeded" },
     { kind: "diagnostic-code-absent", code: "malformed-emission" },

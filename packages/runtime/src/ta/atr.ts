@@ -147,10 +147,16 @@ export function atr(slotId: string, length: number, opts?: AtrOpts): Series<numb
         ctx.stream.taSlots.set(slotId, slot);
     }
     const bar = ctx.stream.bar;
+    // `bar.{high,low,close}` are number-coercible series-view proxies, not real
+    // numbers — coerce at the read so the `Number.isFinite` guards inside
+    // `closeValue`/`tickValue` see actual numbers (a raw proxy is never finite).
+    const high = +bar.high;
+    const low = +bar.low;
+    const close = +bar.close;
     if (ctx.isTick) {
-        slot.outBuffer.replaceHead(tickValue(slot, bar.high, bar.low, bar.close));
+        slot.outBuffer.replaceHead(tickValue(slot, high, low, close));
     } else {
-        slot.outBuffer.append(closeValue(slot, bar.high, bar.low, bar.close));
+        slot.outBuffer.append(closeValue(slot, high, low, close));
     }
     return viewForOffset(slot, opts?.offset ?? 0);
 }

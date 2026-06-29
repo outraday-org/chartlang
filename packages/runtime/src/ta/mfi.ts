@@ -135,7 +135,14 @@ export function mfi(slotId: string, length: number, opts?: MfiOpts): Series<numb
         ctx.stream.taSlots.set(slotId, slot);
     }
     const offset = opts?.offset ?? 0;
-    const { high, low, close, volume } = ctx.stream.bar;
+    // `bar.{high,low,close,volume}` are number-coercible series-view proxies —
+    // coerce at the read so `bucketMf`'s `Number.isFinite` guards see real
+    // numbers.
+    const bar = ctx.stream.bar;
+    const high = +bar.high;
+    const low = +bar.low;
+    const close = +bar.close;
+    const volume = +bar.volume;
     const tp = (high + low + close) / 3;
     const { posMf, negMf } = bucketMf(tp, slot.prevTp, volume);
 

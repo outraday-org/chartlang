@@ -18,6 +18,7 @@ import {
     type PaneWindow,
     type RgbaUnit,
     type VerticalBarsDescriptor,
+    cssColorToRgbaUnit,
     hexToRgbaUnit,
     isBullish,
     resolvePaintColor,
@@ -236,8 +237,10 @@ function seriesColor(series: ReadonlyArray<PlotPoint>, fallback: string, alpha =
     const last = series[series.length - 1];
     const resolved = resolvePaintColor(undefined, last.color, fallback);
     // `resolvePaintColor(undefined, ...)` returns `staticColor ?? fallback`,
-    // never `null`, so a finite hex is always available.
-    return hexToRgbaUnit(resolved ?? fallback, alpha);
+    // never `null`, so a colour is always available. An emission colour may be
+    // `color.rgb(...)` / `color.hsl(...)` / `#rrggbbaa`, so parse the full CSS
+    // surface (not just hex) and honour any alpha it carries.
+    return cssColorToRgbaUnit(resolved ?? fallback, alpha);
 }
 
 // Pack a line-family series into a world-space `line-strip` descriptor. Each
@@ -405,7 +408,7 @@ function buildHLine(
         kind: "line-strip",
         points,
         pointCount: 2,
-        color: hexToRgbaUnit(hline.color ?? fallback, 1),
+        color: cssColorToRgbaUnit(hline.color ?? fallback, 1),
         widthPx: hline.lineWidth > 0 ? hline.lineWidth : HLINE_DEFAULT_WIDTH_PX,
         dash: hline.lineStyle === "solid" ? null : HLINE_DASH,
         step: false,

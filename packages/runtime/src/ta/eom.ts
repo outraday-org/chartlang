@@ -161,7 +161,12 @@ export function eom(slotId: string, length: number, opts?: EomOpts): Series<numb
         ctx.stream.taSlots.set(slotId, slot);
     }
     const offset = opts?.offset ?? 0;
-    const { high, low, volume } = ctx.stream.bar;
+    // `bar.{high,low,volume}` are number-coercible series-view proxies — coerce
+    // at the read so `rawEomAt`'s `Number.isFinite` guards see real numbers.
+    const bar = ctx.stream.bar;
+    const high = +bar.high;
+    const low = +bar.low;
+    const volume = +bar.volume;
 
     if (ctx.isTick) {
         // Tick replay against the closed window: recompute the head

@@ -362,7 +362,9 @@ export function zigZag(slotId: string, opts?: ZigZagOpts): ZigZagResult {
         slot = initSlot(ctx.stream.ohlcv.close.capacity, deviation, depth);
         ctx.stream.taSlots.set(slotId, slot);
     }
-    const close = ctx.stream.bar.close;
+    // `bar.close` is a number-coercible series-view proxy — coerce at the read
+    // so the step helpers see a real number, not a proxy.
+    const close = +ctx.stream.bar.close;
     if (ctx.isTick) {
         // Tick replay uses the snapshot's barCount as the current-bar
         // index (the close-side incremented barCount AFTER taking the

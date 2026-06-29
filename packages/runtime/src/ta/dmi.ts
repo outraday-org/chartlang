@@ -118,17 +118,17 @@ export function dmi(slotId: string, length: number, opts?: DmiOpts): DmiResult {
         ctx.stream.taSlots.set(slotId, slot);
     }
     const bar = ctx.stream.bar;
+    // `bar.{high,low,close}` are number-coercible series-view proxies — coerce
+    // at the read so the directional helpers see real numbers, not a proxy.
+    const high = +bar.high;
+    const low = +bar.low;
+    const close = +bar.close;
     if (ctx.isTick) {
-        const { plusDi, minusDi } = tickDirectional(slot.dirState, bar.high, bar.low, bar.close);
+        const { plusDi, minusDi } = tickDirectional(slot.dirState, high, low, close);
         slot.plusDiBuffer.replaceHead(plusDi);
         slot.minusDiBuffer.replaceHead(minusDi);
     } else {
-        const { plusDi, minusDi } = advanceDirectionalClose(
-            slot.dirState,
-            bar.high,
-            bar.low,
-            bar.close,
-        );
+        const { plusDi, minusDi } = advanceDirectionalClose(slot.dirState, high, low, close);
         slot.plusDiBuffer.append(plusDi);
         slot.minusDiBuffer.append(minusDi);
     }

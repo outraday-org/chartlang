@@ -924,6 +924,14 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             "Use `display = <cond> ? display.all : display.none` (or a bare `display.none`) for the visibility toggle; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement.",
     },
+    "request-security-expr-captures-series": {
+        code: "pine-converter/transform/request-security-expr-captures-series",
+        severity: "error",
+        defaultMessage:
+            "A `request.security` expression callback captures the outer binding, which is bar-varying (it depends on series / `ta.*` / OHLCV) and so cannot be reconstructed inside the higher-timeframe callback; a bar-invariant binding (one that bottoms out at `inputs`/`Math`/literals) is reconstructed automatically.",
+        defaultSuggestion:
+            "Compute the higher-timeframe value inside the callback from `inputs`/OHLCV, or read it on the main timeframe instead of inside the `request.security` source.",
+    },
 } as const satisfies Record<string, DiagnosticCodeEntry>;
 
 /**

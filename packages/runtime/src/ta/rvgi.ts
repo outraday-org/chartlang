@@ -117,7 +117,13 @@ export function rvgi(slotId: string, opts?: RvgiOpts): RvgiResult {
         ctx.stream.taSlots.set(slotId, slot);
     }
 
-    const { open, high, low, close } = ctx.stream.bar;
+    // `bar.{open,high,low,close}` are number-coercible series-view proxies —
+    // coerce at the read so the `Number.isFinite` guards below see real numbers.
+    const bar = ctx.stream.bar;
+    const open = +bar.open;
+    const high = +bar.high;
+    const low = +bar.low;
+    const close = +bar.close;
     const co = Number.isFinite(close) && Number.isFinite(open) ? close - open : Number.NaN;
     const hl = Number.isFinite(high) && Number.isFinite(low) ? high - low : Number.NaN;
 

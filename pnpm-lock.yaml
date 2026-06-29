@@ -137,6 +137,9 @@ importers:
       chartlang-example-canvas2d-adapter:
         specifier: workspace:*
         version: link:../../examples/canvas2d-adapter
+      chartlang-example-webgl-adapter:
+        specifier: workspace:*
+        version: link:../../examples/webgl-adapter
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

@@ -8,6 +8,10 @@
 // `ChartPane` to render the compiled drawing. Kept on-click (not on every
 // keystroke) and behind a lazy boundary so the canvas adapter stays out of
 // the default page chunk. Resets when the converted output changes.
+//
+// The button (`CompileBar`) and the chart (`CompilePreviewChart`) are split
+// around one shared `useCompilePreview` controller so the trigger can sit at
+// the TOP of the converter (above the panes) while the chart renders BELOW.
 
 import type { AlertEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
@@ -87,28 +91,29 @@ function statusText(state: CompileState): string {
     }
 }
 
-/** Props for {@link CompilePreview}. */
-export type CompilePreviewProps = Readonly<{
-    output: string | null;
-    /**
-     * Whether the conversion produced an error-severity diagnostic. When set,
-     * the output is a partial best-effort lowering (the converter dropped the
-     * rejected construct), so compiling it would render a misleading chart —
-     * the button is disabled and the reason is shown instead.
-     */
-    hasError: boolean;
+/** Shared controller wiring the {@link CompileBar} button to the chart. */
+export type CompilePreviewController = Readonly<{
+    state: CompileState;
+    artifact: CompiledArtifact | null;
+    bars: ReadonlyArray<Bar>;
+    alerts: ReadonlyArray<AlertEmission>;
+    compile: () => void;
+    onAlert: (alert: AlertEmission) => void;
+    clearAlerts: () => void;
 }>;
 
 /**
- * On-demand compile + chart preview for the converted chartlang output.
+ * On-demand compile + chart-preview state for the converted chartlang output.
+ * Resets when the converted `output` changes so the chart never shows a stale
+ * compilation. Drives both the top button-bar and the bottom chart.
  */
-export function CompilePreview(props: CompilePreviewProps): ReactElement {
+export function useCompilePreview(output: string | null): CompilePreviewController {
     const [bars, setBars] = useState<ReadonlyArray<Bar>>([]);
     const [artifact, setArtifact] = useState<CompiledArtifact | null>(null);
     const [state, setState] = useState<CompileState>({ kind: "idle" });
     const [alerts, setAlerts] = useState<ReadonlyArray<AlertEmission>>([]);
-    const outputRef = useRef(props.output);
-    outputRef.current = props.output;
+    const outputRef = useRef(output);
+    outputRef.current = output;
 
     useEffect(() => {
         let cancelled = false;
@@ -129,97 +134,130 @@ export function CompilePreview(props: CompilePreviewProps): ReactElement {
         setArtifact(null);
         setState({ kind: "idle" });
         setAlerts([]);
-    }, [props.output]);
+    }, [output]);
 
-    const handleCompile = async (): Promise<void> => {
-        const source = outputRef.current;
-        if (source === null) return;
-        setState({ kind: "compiling" });
-        setAlerts([]);
-        try {
-            const response = await fetch("/api/compile", {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({ source }),
-            });
-            if (!response.ok) {
-                setState({ kind: "error", message: `Compile request failed (HTTP ${response.status})` });
-                return;
+    const compile = (): void => {
+        void (async (): Promise<void> => {
+            const source = outputRef.current;
+            if (source === null) return;
+            setState({ kind: "compiling" });
+            setAlerts([]);
+            try {
+                const response = await fetch("/api/compile", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ source }),
+                });
+                if (!response.ok) {
+                    setState({ kind: "error", message: `Compile request failed (HTTP ${response.status})` });
+                    return;
+                }
+                const parsed = parseCompile(await response.json());
+                if (parsed.ok) {
+                    setArtifact(parsed.artifact);
+                    setState({ kind: "ok", warnings: parsed.warnings });
+                } else {
+                    setArtifact(null);
+                    setState({ kind: "error", message: parsed.message });
+                }
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                setState({ kind: "error", message });
             }
-            const parsed = parseCompile(await response.json());
-            if (parsed.ok) {
-                setArtifact(parsed.artifact);
-                setState({ kind: "ok", warnings: parsed.warnings });
-            } else {
-                setArtifact(null);
-                setState({ kind: "error", message: parsed.message });
-            }
-        } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            setState({ kind: "error", message });
-        }
+        })();
     };
 
-    const handleAlert = (alert: AlertEmission): void => {
+    const onAlert = (alert: AlertEmission): void => {
         setAlerts((previous) => {
             const next = [...previous, alert];
             return next.length > MAX_ALERTS_SHOWN ? next.slice(next.length - MAX_ALERTS_SHOWN) : next;
         });
     };
 
+    const clearAlerts = (): void => setAlerts([]);
+
+    return { state, artifact, bars, alerts, compile, onAlert, clearAlerts };
+}
+
+/** Props for the compile button-bar. */
+export type CompileBarProps = Readonly<{
+    controller: CompilePreviewController;
+    output: string | null;
+    /**
+     * Whether the conversion produced an error-severity diagnostic. When set,
+     * the output is a partial best-effort lowering (the converter dropped the
+     * rejected construct), so compiling it would render a misleading chart —
+     * the button is disabled and the reason is shown instead.
+     */
+    hasError: boolean;
+}>;
+
+/**
+ * The "Compile & preview" button + status line. Rendered at the TOP of the
+ * converter (above the panes) so the trigger is reachable without scrolling
+ * past the converted code.
+ */
+export function CompileBar(props: CompileBarProps): ReactElement {
+    const { state } = props.controller;
     return (
-        <div className="compile-preview">
-            <div className="compile-bar">
-                <button
-                    className="compile-button"
-                    disabled={props.output === null || props.hasError || state.kind === "compiling"}
-                    onClick={() => void handleCompile()}
-                    type="button"
-                >
-                    Compile &amp; preview
-                </button>
-                <span className={`compile-status ${state.kind === "error" || props.hasError ? "is-error" : ""}`}>
-                    {props.hasError
-                        ? "Fix the rejected construct above before compiling — the converted output is partial."
-                        : statusText(state)}
-                </span>
-            </div>
-            {artifact === null ? null : (
-                <Suspense
-                    fallback={
-                        <div className="output-empty">Loading the chart renderer…</div>
-                    }
-                >
-                    <div className="pane pane-chart">
-                        <ChartPane
-                            adapterId={DEFAULT_ADAPTER_ID}
-                            artifact={artifact}
-                            bars={bars}
-                            onAlert={handleAlert}
-                            onPlayStart={() => setAlerts([])}
-                        />
-                        <div className="chart-alerts">
-                            <h3 className="panel-title">Recent alerts</h3>
-                            {alerts.length === 0 ? (
-                                <p className="alerts-empty">No alerts fired yet.</p>
-                            ) : (
-                                <ul className="alerts">
-                                    {alerts.map((alert, i) => (
-                                        <li
-                                            className={`alert alert-${alert.severity}`}
-                                            // biome-ignore lint/suspicious/noArrayIndexKey: append-only feed
-                                            key={i}
-                                        >
-                                            <span className="alert-sev">{alert.severity}</span>{" "}
-                                            <span className="alert-msg">{alert.message}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                    </div>
-                </Suspense>
-            )}
+        <div className="compile-bar">
+            <button
+                className="compile-button"
+                disabled={props.output === null || props.hasError || state.kind === "compiling"}
+                onClick={() => props.controller.compile()}
+                type="button"
+            >
+                Compile &amp; preview
+            </button>
+            <span className={`compile-status ${state.kind === "error" || props.hasError ? "is-error" : ""}`}>
+                {props.hasError
+                    ? "Fix the rejected construct above before compiling — the converted output is partial."
+                    : statusText(state)}
+            </span>
         </div>
+    );
+}
+
+/**
+ * The compiled chart (lazy `ChartPane`) + recent-alerts feed, rendered at the
+ * BOTTOM of the converter (below the panes). Returns `null` until a successful
+ * compile produces an artifact.
+ */
+export function CompilePreviewChart(props: {
+    controller: CompilePreviewController;
+}): ReactElement | null {
+    const { artifact, bars, alerts, onAlert, clearAlerts } = props.controller;
+    if (artifact === null) return null;
+    return (
+        <Suspense fallback={<div className="output-empty">Loading the chart renderer…</div>}>
+            <div className="pane pane-chart">
+                <ChartPane
+                    adapterId={DEFAULT_ADAPTER_ID}
+                    artifact={artifact}
+                    bars={bars}
+                    onAlert={onAlert}
+                    onPlayStart={clearAlerts}
+                />
+                <div className="chart-alerts">
+                    <h3 className="panel-title">Recent alerts</h3>
+                    {alerts.length === 0 ? (
+                        <p className="alerts-empty">No alerts fired yet.</p>
+                    ) : (
+                        <ul className="alerts">
+                            {alerts.map((alert, i) => (
+                                <li
+                                    className={`alert alert-${alert.severity}`}
+                                    // biome-ignore lint/suspicious/noArrayIndexKey: append-only feed
+                                    key={i}
+                                >
+                                    <span className="alert-sev">{alert.severity}</span>{" "}
+                                    <span className="alert-msg">{alert.message}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </div>
+        </Suspense>
     );
 }

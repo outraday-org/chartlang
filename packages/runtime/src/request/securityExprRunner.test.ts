@@ -9,8 +9,6 @@ import fc from "fast-check";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { appendSecondaryBar, replaceSecondaryHead } from "../execution/secondaryStream.js";
-import { ema } from "../ta/ema.js";
-import { sma } from "../ta/sma.js";
 import {
     ACTIVE_RUNTIME_CONTEXT,
     type MutableRunnerEmissions,
@@ -18,6 +16,8 @@ import {
 } from "../runtimeContext.js";
 import { inMemoryStateStore } from "../stateStore.js";
 import { createStreamState } from "../streamState.js";
+import { ema } from "../ta/ema.js";
+import { sma } from "../ta/sma.js";
 import { createRuntimeViews } from "../views/index.js";
 import { makeSecurityExprSeries } from "./security.js";
 import {
@@ -157,8 +157,9 @@ function pushMainClose(ctx: RuntimeContext, time: number, close: number): void {
     s.ohlcv.hlc3.append(close);
     s.ohlcv.ohlc4.append(close);
     s.ohlcv.hlcc4.append(close);
+    // Mirror the real `onBarClose`: only the scalar `time` is written; the
+    // close-side `bar.*` stay the live proxies over the appended ring head.
     s.bar.time = time;
-    s.bar.close = close;
 }
 
 /** Reference SMA-seeded EMA over a closed array, mirroring `ta/ema.ts`. */
@@ -472,6 +473,28 @@ describe("makeSecurityExprSeries fallbacks", () => {
         const series = makeSecurityExprSeries(ctx, runner, "1W", false);
         expect(Number.isNaN(series.current)).toBe(true);
         expect(ctx.emissions.diagnostics[0].code).toBe("unsupported-interval");
+    });
+
+    it("treats the empty interval as always-valid (no unsupported-interval) in the expr form", () => {
+        // The chart-timeframe sentinel `""` is never validated against
+        // capabilities.intervals — it flows straight to the secondary lookup.
+        const ctx = makeContext(true);
+        const runner = createSecurityExprRunner({
+            slotId: "expr#chartTf",
+            symbol: "",
+            interval: "",
+            capacity: 8,
+            parent: ctx,
+        });
+        ctx.securityExprRunners = new Map([[runner.slotId, runner]]);
+        ctx.secondaryStreams.set("", createStreamState({ interval: "", capacity: 8, symbol: "" }));
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const series = makeSecurityExprSeries(ctx, runner, "", false);
+        // Registered (empty) stream → all-NaN-but-non-diagnostic aligned series,
+        // critically with NO `unsupported-interval`.
+        expect(ctx.emissions.diagnostics).toEqual([]);
+        void series;
     });
 
     it("emits unknown-secondary-stream when no secondary stream is registered", () => {

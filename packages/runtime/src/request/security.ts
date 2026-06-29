@@ -174,6 +174,40 @@ function makeLiveSecurityBar(
     });
 }
 
+/**
+ * Build a {@link SecurityBar} view over the MAIN stream's own series for Pine's
+ * empty-interval idiom (`request.security(syminfo.tickerid, "", x)` = "the
+ * chart's own timeframe"). The chart symbol on the chart clock IS the main
+ * stream, so this reuses the stream's existing O(1) head-relative
+ * `seriesViews.*` (NO ascending-array rebuild) and pins the constant
+ * symbol / interval from the live `bar`. The read is therefore the identity it
+ * is in Pine / on TradingView — no secondary feed, no adapter capability.
+ *
+ * @since 1.6
+ * @stable
+ * @example
+ *     // const bar = makeMainPassthroughSecurityBar(ctx);
+ *     const idiom = "chart timeframe";
+ *     void idiom;
+ */
+function makeMainPassthroughSecurityBar(ctx: RuntimeContext): SecurityBar {
+    const v = ctx.stream.seriesViews;
+    return Object.freeze({
+        time: v.time,
+        open: v.open,
+        high: v.high,
+        low: v.low,
+        close: v.close,
+        volume: v.volume,
+        hl2: v.hl2,
+        hlc3: v.hlc3,
+        ohlc4: v.ohlc4,
+        hlcc4: v.hlcc4,
+        symbol: makeConstantStringSeries(ctx.stream.bar.symbol),
+        interval: makeConstantStringSeries(ctx.stream.bar.interval),
+    });
+}
+
 // The adapter does not advertise `multiSymbol`, so a `request.security` for a
 // symbol other than the chart's own degrades to all-NaN — mirroring the
 // `multiTimeframe` fallback message exactly, only naming the symbol gate.
@@ -230,6 +264,19 @@ export function makeSecurityBar(
     const existing = ctx.requestSecurityBars.get(cacheKey);
     if (existing !== undefined) return existing;
 
+    // Pine's empty-interval idiom: `request.security(syminfo.tickerid, "", x)` is
+    // "the chart's own timeframe" — the chart symbol on the chart clock IS the main
+    // stream, no secondary feed and no adapter capability required (core request.ts
+    // §"empty interval"). Resolve it to a SecurityBar view over the main stream's
+    // own series so the read is the identity it is in Pine / on TradingView. A
+    // DIFFERENT symbol at the empty interval is "that instrument on the chart clock"
+    // and stays on the multiSymbol secondary path below.
+    if (symbol === undefined && interval === "") {
+        const bar = makeMainPassthroughSecurityBar(ctx);
+        ctx.requestSecurityBars.set(cacheKey, bar);
+        return bar;
+    }
+
     // Symbol gate precedes the timeframe gate: a different symbol is a strictly
     // larger ask than a higher timeframe of the chart's own symbol.
     if (symbol !== undefined && !ctx.capabilities.multiSymbol) {
@@ -254,7 +301,16 @@ export function makeSecurityBar(
         );
     }
 
-    const known = ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
+    // `""` is Pine's "chart's own timeframe" sentinel — never a literal interval
+    // an adapter lists, so validating it against `capabilities.intervals` is
+    // wrong. For the CHART symbol + `""` the passthrough above already ran; a
+    // DIFFERENT symbol + `""` ("that instrument on the chart clock") flows past
+    // this gate and is gated only by the secondary-stream lookup below
+    // (`unknown-secondary-stream` when none is registered, not the misleading
+    // `unsupported-interval`).
+    const known =
+        interval === "" ||
+        ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval);
     if (!known) {
         return fallbackNaN(
             ctx,
@@ -304,7 +360,12 @@ function resolveSecondaryOrDiagnose(
         );
         return undefined;
     }
-    if (!ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval)) {
+    // `""` is the chart-timeframe sentinel (see `makeSecurityBar`) — always a
+    // valid interval, never validated against `capabilities.intervals`.
+    if (
+        interval !== "" &&
+        !ctx.capabilities.intervals.some((descriptor) => descriptor.value === interval)
+    ) {
         pushOnce(
             ctx,
             "unsupported-interval",

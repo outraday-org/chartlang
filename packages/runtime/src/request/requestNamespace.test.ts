@@ -19,7 +19,7 @@ import {
     type RuntimeContext,
 } from "../runtimeContext.js";
 import { inMemoryStateStore } from "../stateStore.js";
-import { createStreamState } from "../streamState.js";
+import { appendBarToStream, createStreamState } from "../streamState.js";
 import { createRuntimeViews } from "../views/index.js";
 import { buildRequestNamespace } from "./requestNamespace.js";
 
@@ -563,6 +563,156 @@ describe("buildRequestNamespace", () => {
                 severity: "warning",
                 code: "multi-timeframe-not-supported",
                 message: "Adapter declares multiTimeframe: false; request.security returns NaN",
+                slotId: "slot#0",
+                bar: 3,
+            },
+        ]);
+    });
+
+    it("resolves a chart-symbol empty interval to the main stream (Pine chart-timeframe idiom)", () => {
+        // multiTimeframe AND multiSymbol OFF: the empty-interval passthrough must
+        // bypass every secondary gate and need no adapter capability.
+        const ctx = makeContext(false, false);
+        appendBarToStream(ctx.stream, {
+            time: 1_700_000_000_000,
+            open: 49,
+            high: 55,
+            low: 48,
+            close: 50,
+            volume: 900,
+            symbol: "AAPL",
+            interval: "1m",
+        });
+        appendBarToStream(ctx.stream, {
+            time: 1_700_000_060_000,
+            open: 100,
+            high: 101,
+            low: 99,
+            close: 100.5,
+            volume: 1_000,
+            symbol: "AAPL",
+            interval: "1m",
+        });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const bar = runtimeRequest().security("slot#0", { interval: "" });
+
+        // The live head is the MAIN stream's current close/high, NOT NaN.
+        expect(bar.close.current).toBe(100.5);
+        expect(bar.high.current).toBe(101);
+        expect(bar.close[0]).toBe(100.5);
+        // History reads the main stream's prior bar (the whole bug: no alignment).
+        expect(bar.close[1]).toBe(50);
+        expect(bar.high[1]).toBe(55);
+        // Metadata is the chart's own symbol + interval.
+        expect(bar.symbol.current).toBe("AAPL");
+        expect(bar.interval.current).toBe("1m");
+        // No capability gate tripped — passthrough needs none.
+        expect(ctx.emissions.diagnostics).toEqual([]);
+    });
+
+    it("caches a stable SecurityBar identity for the empty-interval passthrough", () => {
+        const ctx = makeContext(false, false);
+        pushBars(ctx);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const request = runtimeRequest();
+
+        const first = request.security("slot#0", { interval: "" });
+        const second = request.security("slot#0", { interval: "" });
+
+        expect(second).toBe(first);
+        expect(first.close.current).toBe(100.5);
+        expect(ctx.emissions.diagnostics).toEqual([]);
+    });
+
+    it("does NOT passthrough a DIFFERENT symbol at the empty interval (stays multiSymbol-gated)", () => {
+        // A different symbol on the chart's clock is NOT the main stream — it must
+        // fall through to the secondary multiSymbol path (NaN when unsupported).
+        const ctx = makeContext(true, false);
+        pushBars(ctx);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const bar = runtimeRequest().security("slot#0", { symbol: "AMEX:SPY", interval: "" });
+
+        expect(Number.isNaN(bar.close.current)).toBe(true);
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "multi-symbol-not-supported",
+                message:
+                    "Adapter declares multiSymbol: false; request.security for a different symbol returns NaN",
+                slotId: "slot#0",
+                bar: 3,
+            },
+        ]);
+    });
+
+    it("reads a DIFFERENT-symbol empty-interval feed from its registered secondary stream", () => {
+        // multiSymbol ON, multiTimeframe ON: `{ symbol, interval: "" }` is "that
+        // instrument on the chart's clock". The empty interval is the chart-tf
+        // sentinel (never validated against capabilities.intervals), so the
+        // request flows past the interval gate and reads the registered stream.
+        const ctx = makeContext(true, true);
+        const spy = createStreamState({ interval: "", capacity: 5, symbol: "AMEX:SPY" });
+        appendSecondaryBar(spy, {
+            time: 1_700_000_000_000,
+            open: 400,
+            high: 405,
+            low: 395,
+            close: 402,
+            volume: 5_000,
+            symbol: "AMEX:SPY",
+            interval: "",
+        });
+        ctx.secondaryStreams.set("AMEX:SPY@", spy);
+        pushBars(ctx);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const bar = runtimeRequest().security("slot#0", { symbol: "AMEX:SPY", interval: "" });
+
+        expect(bar.close.current).toBe(402);
+        expect(bar.symbol.current).toBe("AMEX:SPY");
+        // NO `unsupported-interval` (the whole bug): the empty interval is valid.
+        expect(ctx.emissions.diagnostics).toEqual([]);
+    });
+
+    it("falls back to unknown-secondary-stream (NOT unsupported-interval) for an unregistered empty-interval feed", () => {
+        const ctx = makeContext(true, true);
+        pushBars(ctx);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const bar = runtimeRequest().security("slot#0", { symbol: "AMEX:SPY", interval: "" });
+
+        expect(Number.isNaN(bar.close.current)).toBe(true);
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "unknown-secondary-stream",
+                message: 'Requested interval "" has no registered secondary stream',
+                slotId: "slot#0",
+                bar: 3,
+            },
+        ]);
+    });
+
+    it("still trips unsupported-interval for a DIFFERENT-symbol NON-empty unsupported interval", () => {
+        // The empty-interval relaxation is strictly gated on `""`; a real
+        // unsupported interval (`1W`) on a different symbol still trips.
+        const ctx = makeContext(true, true);
+        pushBars(ctx);
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        const bar = runtimeRequest().security("slot#0", { symbol: "AMEX:SPY", interval: "1W" });
+
+        expect(Number.isNaN(bar.close.current)).toBe(true);
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "unsupported-interval",
+                message: 'Requested interval "1W" is not in Capabilities.intervals',
                 slotId: "slot#0",
                 bar: 3,
             },

@@ -30,6 +30,7 @@
         "@lezer/highlight": "^1",
         "@tailwindcss/vite": "^4",
         "chartlang-example-canvas2d-adapter": "workspace:*",
+        "chartlang-example-webgl-adapter": "workspace:*",
         "better-sqlite3": "^12.11.1",
         "drizzle-orm": "^0.45.2",
         "@tanstack/react-devtools": "latest",

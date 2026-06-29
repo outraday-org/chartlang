@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import {
     DEFAULT_PALETTE,
+    cssColorToRgbaUnit,
     hexToRgbaUnit,
     isBullish,
     resolvePaintColor,
@@ -84,6 +85,45 @@ describe("hexToRgbaUnit", () => {
         const malformed = hexToRgbaUnit("#zzzzzz", 1);
         expect(malformed.some((c) => Number.isNaN(c))).toBe(false);
         expect(malformed).toEqual([0, 0, 0, 1]);
+    });
+});
+
+describe("cssColorToRgbaUnit", () => {
+    it("parses an rgb() string (the `color.rgb(...)` emission form)", () => {
+        const [r, g, b, a] = cssColorToRgbaUnit("rgb(207, 176, 102)");
+        expect(r).toBeCloseTo(207 / 255);
+        expect(g).toBeCloseTo(176 / 255);
+        expect(b).toBeCloseTo(102 / 255);
+        expect(a).toBe(1);
+    });
+
+    it("parses an rgba() string and multiplies the arg alpha by the string alpha", () => {
+        expect(cssColorToRgbaUnit("rgba(255, 0, 0, 0.5)")).toEqual([1, 0, 0, 0.5]);
+        expect(cssColorToRgbaUnit("rgba(255, 0, 0, 0.5)", 0.5)[3]).toBeCloseTo(0.25);
+    });
+
+    it("parses an hsl() string via the hue formula", () => {
+        // hsl(0, 100%, 50%) is pure red.
+        const [r, g, b] = cssColorToRgbaUnit("hsl(0, 100%, 50%)");
+        expect(r).toBeCloseTo(1);
+        expect(g).toBeCloseTo(0);
+        expect(b).toBeCloseTo(0);
+    });
+
+    it("HONOURS the #rrggbbaa / #rgba alpha byte (unlike hexToRgbaUnit)", () => {
+        // The transparent guide colour `#86868600` must come through alpha 0.
+        expect(cssColorToRgbaUnit("#86868600")[3]).toBe(0);
+        expect(cssColorToRgbaUnit("#ff000080")[3]).toBeCloseTo(128 / 255);
+        expect(cssColorToRgbaUnit("#f00f")).toEqual([1, 0, 0, 1]); // #rgba short form
+        // A plain 6-digit hex carries no alpha → the arg wins.
+        expect(cssColorToRgbaUnit("#26a69a", 0.5)[3]).toBe(0.5);
+    });
+
+    it("falls back to opaque black on a malformed / unknown string (no NaN)", () => {
+        expect(cssColorToRgbaUnit("nope", 0.3)).toEqual([0, 0, 0, 0.3]);
+        expect(cssColorToRgbaUnit("rgb(a, b, c)", 1)).toEqual([0, 0, 0, 1]);
+        const out = cssColorToRgbaUnit("rgb(1, 2, 3)");
+        expect(out.some((c) => Number.isNaN(c))).toBe(false);
     });
 });
 

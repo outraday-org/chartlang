@@ -155,7 +155,14 @@ export function klinger(slotId: string, opts?: KlingerOpts): KlingerResult {
         ctx.stream.taSlots.set(slotId, slot);
     }
 
-    const { high, low, close, volume } = ctx.stream.bar;
+    // `bar.{high,low,close,volume}` are number-coercible series-view proxies —
+    // coerce at the read so `computeVf`'s `Number.isFinite` guards see real
+    // numbers.
+    const bar = ctx.stream.bar;
+    const high = +bar.high;
+    const low = +bar.low;
+    const close = +bar.close;
+    const volume = +bar.volume;
 
     let vf: number;
     if (ctx.isTick) {

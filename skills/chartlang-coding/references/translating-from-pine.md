@@ -203,26 +203,42 @@ carry a `symbol`:
 
 | Pine | chartlang | Notes |
 |---|---|---|
-| `request.security(syminfo.tickerid, "1D", close)` | `request.security({ interval: "1D" }).close` | Chart's own symbol ⇒ `symbol` **omitted** (byte-identical to the higher-timeframe-only case). |
-| `request.security("NASDAQ:AAPL", "1D", close)` | `request.security({ symbol: "NASDAQ:AAPL", interval: "1D" }).close` | A **literal** different symbol ⇒ `{ symbol, interval }` (multi-symbol). |
-| `sym = input.symbol("NASDAQ:QQQ")`<br>`tf = input.timeframe("D")`<br>`request.security(sym, tf, close)` | `request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).close` | A symbol/timeframe bound to an **`input.symbol`/`input.timeframe`** lowers to an `inputs.<name>` reference (so the value stays user-editable); the compiler resolves the feed through the input default. `input.timeframe` → `input.interval`. |
-| `tf = input.timeframe("")`<br>`request.security(syminfo.tickerid, tf, close)` | `request.security({ interval: inputs.tf as string }).close` | An **empty** `input.timeframe("")` default is the **chart timeframe** (`input.interval("")`) — the primary stream, not a rejected default. |
-| `request.security(syminfo.tickerid, "D", close, gaps=barmerge.gaps_off)` | `request.security({ interval: "1d" }).close` + info | The `gaps=` arg is **dropped** with `request-security-gaps-dropped` (info) — chartlang feeds are gap-filled by default. |
+| `request.security(syminfo.tickerid, "1D", close)` | `request.security({ interval: "1D" }).close.current` | Chart's own symbol ⇒ `symbol` **omitted** (byte-identical to the higher-timeframe-only case). |
+| `request.security("NASDAQ:AAPL", "1D", close)` | `request.security({ symbol: "NASDAQ:AAPL", interval: "1D" }).close.current` | A **literal** different symbol ⇒ `{ symbol, interval }` (multi-symbol). |
+| `sym = input.symbol("NASDAQ:QQQ")`<br>`tf = input.timeframe("D")`<br>`request.security(sym, tf, close)` | `request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).close.current` | A symbol/timeframe bound to an **`input.symbol`/`input.timeframe`** lowers to an `inputs.<name>` reference (so the value stays user-editable); the compiler resolves the feed through the input default. `input.timeframe` → `input.interval`. |
+| `tf = input.timeframe("")`<br>`request.security(syminfo.tickerid, tf, close)` | `request.security({ interval: inputs.tf as string }).close.current` | An **empty** `input.timeframe("")` default is the **chart timeframe** (`input.interval("")`) — the primary stream, not a rejected default. |
+| `request.security(syminfo.tickerid, "D", close, gaps=barmerge.gaps_off)` | `request.security({ interval: "1d" }).close.current` + info | The `gaps=` arg is **dropped** with `request-security-gaps-dropped` (info) — chartlang feeds are gap-filled by default. |
 | `request.security(someComputedTicker, "1D", close)` | _reject_ `request-security-not-mapped` | The symbol/timeframe must be a compile-time literal **or** an `input.symbol`/`input.timeframe`/`input.enum` value; a computed ticker (or an input of the wrong kind) can't lower. |
-| `[hi, lo] = request.security(syminfo.tickerid, "D", [high, low])` | `const hi = request.security({ interval: "1d" }).high`<br>`const lo = request.security({ interval: "1d" }).low` | **Tuple** form ⇒ one independent read per element, all sharing one feed; each name binds its own `const`. OHLCV → data form, `ta.*`/computed → callback form. A `_` element is dropped. |
+| `[hi, lo] = request.security(syminfo.tickerid, "D", [high, low])` | `const hi = request.security({ interval: "1d" }).high.current`<br>`const lo = request.security({ interval: "1d" }).low.current` | **Tuple** form ⇒ one independent read per element, all sharing one feed; each name binds its own `const`. OHLCV → data form, `ta.*`/computed → callback form. A `_` element is dropped. |
 
 The expression form carries the symbol the same way:
 `request.security("NASDAQ:AAPL", "1D", ta.ema(close, 20))` →
 `request.security({ symbol: "NASDAQ:AAPL", interval: "1D" }, (bar) =>
-ta.ema(bar.close, 20))`.
+ta.ema(bar.close, 20)).current`.
 
 A non-chart symbol additionally requires the adapter's **`multiSymbol`**
 capability (a strictly larger ask than `multiTimeframe`); against an adapter
 that declares `multiSymbol: false`, a different-symbol read degrades to an
-all-NaN series with one `multi-symbol-not-supported` diagnostic. The data form's
-`SecurityBar.close` is a `Series<Price>` (indexable, NOT number-coercible), so
-read `.current` for the live scalar before arithmetic
-(`spy.close.current / qqq.close.current`).
+all-NaN series with one `multi-symbol-not-supported` diagnostic. `SecurityBar`'s
+OHLCV fields are `Series<Price>` (indexable, NOT number-coercible), so every
+security read is lowered with a trailing **`.current`** for the live per-bar
+scalar — that is why the table's outputs end in `.close.current` and the
+expression form ends in `).current`. Inside an expression callback, an OHLCV
+read used in arithmetic is projected the same way (`(bar) => atr / bar.close.current`),
+and a stateful helper in the source (`request.security(sym, tf, cf_atr(len))`)
+is inlined into a block-bodied callback (`(bar) => { … return …; }`).
+
+An expression callback runs on a **separate higher-timeframe clock**, so it may
+not capture a main-timeline binding. The converter handles this automatically:
+when the callback reads a top-level binding whose value is **bar-invariant**
+(it bottoms out at `inputs`/`Math`/literals — e.g. a length derived from an
+`input.int` and a `switch`-over-input preset), the converter **reconstructs**
+that binding (and its whole dependency chain) as a callback-local `let`/`switch`
+prelude, so the read resolves in-scope. You do not need to inline the length by
+hand. Only a **bar-varying** capture (one that depends on series / `ta.*` /
+OHLCV) cannot be rebuilt — that emits `request-security-expr-captures-series`
+(error); rewrite it so the higher-timeframe value is computed inside the callback
+from `inputs`/OHLCV, or read it on the main timeframe.
 
 ## `math.*` — bare `Math` plus the chart-aware extras
 
@@ -365,12 +381,15 @@ Three things to keep in mind:
   literal-bounded `for` loop accumulating into a `var`.
 - **Param defaults reject the whole helper** (`udf-param-default-unsupported`);
   a typed param (`float x`) just drops the type (`udf-typed-param-unsupported`).
-- **Two v1 limitations stop a fully faithful port from type-checking** (the
-  conversion is clean, but you finish by hand): a *pure* helper's params are
-  untyped (`(a, b) => …` → annotate `(a: number, b: number)`), and a *stateful*
-  helper that indexes a **param's history** (`ma[1]`) only inlines cleanly when
-  the argument natively supports history (an OHLCV field) — applied to a derived
-  `ta.*` value it needs a hand-written `state.series`.
+- **A helper that indexes a param's history mostly converts now.** A pure
+  helper's params are auto-annotated `: number`, and a *stateful* helper that
+  indexes a **param's history** (`cf_slope(ma, n) => ta.ema((ma - ma[1]) / ma[1]
+  * 100, n)`) auto-promotes the matching argument to a `state.series` slot — so
+  `cf_slope(ma_1, 3)` over a derived `ma_1 = ta.ema(close, 8)` converts cleanly
+  (it used to need a hand-written slot). The one residual v1 limitation: a
+  **pure** helper (no `ta.*`) that indexes its own param's history
+  (`f(src) => src - src[1]`) — the param is a `: number`, so `src[1]` is a
+  `TS7053`; promote `src` by hand or pass it through a `ta.*` window primitive.
 - **A value-form `switch` converts** (Pine's `cf_ma`): `result = switch sel`
   with `"SMA" => ta.sma(src, len)` arms lowers to a chained ternary
   (`sel === "SMA" ? ta.sma(src, len).current : … : Number.NaN`) — the first

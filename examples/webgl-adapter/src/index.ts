@@ -14,6 +14,7 @@ export { DEFAULT_ADAPTER } from "./defaultAdapter.js";
 
 export {
     DEFAULT_PALETTE,
+    cssColorToRgbaUnit,
     hexToRgbaUnit,
     isBullish,
     resolvePaintColor,

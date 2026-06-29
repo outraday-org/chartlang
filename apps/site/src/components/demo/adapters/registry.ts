@@ -28,8 +28,8 @@ export const DEMO_ADAPTERS: ReadonlyArray<DemoAdapterDescriptor> = [
     { id: "webgl", label: "WebGL", load: () => import("./webgl").then((m) => m.default) },
 ];
 
-/** The default adapter id (mirrors the demo's historical canvas2d default). */
-export const DEFAULT_ADAPTER_ID = "canvas2d";
+/** The default adapter id — the demo + converter preview open on WebGL. */
+export const DEFAULT_ADAPTER_ID = "webgl";
 
 /** Whether `id` names a known demo adapter. */
 export function isDemoAdapterId(id: string): boolean {

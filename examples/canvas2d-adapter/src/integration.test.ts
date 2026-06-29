@@ -922,7 +922,10 @@ describe("canvas2d adapter integration", () => {
 // Re-pinned for default line smoothing: plain `line` plots now stroke as a
 // monotone-cubic curve (`bezierCurveTo`) instead of straight `lineTo`s, so
 // the EMA-cross bundle's two plot lines re-shape the call log.
-const PINNED_HASH = "71a8367bce1b796d8d1fbf86e1924a23601485bd5199a3e75e6c27e0a653dad8";
+// Re-pinned for nice-number y-axis ticks: `drawYAxis` now places gridlines +
+// labels at round 1/2/5×10ⁿ price levels (via `niceTicks`) instead of dividing
+// the padded range into 5 even slices, so the axis call sequence re-shapes.
+const PINNED_HASH = "3a46f9f4218196b462687228cb46af53bfc2f6e393336832c0b98245497dea7b";
 
 // §22.10 indicator-composition: a hand-crafted multi-export bundle
 // equivalent to a `MULTI_EXPORT_COMPOSITION`-shaped `.chart.ts` file

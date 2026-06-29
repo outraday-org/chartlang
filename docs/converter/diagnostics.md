@@ -633,6 +633,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** `request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.
 - **Suggested fix:** Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol.
 
+### request-security-expr-captures-series
+
+- **Code:** `pine-converter/transform/request-security-expr-captures-series`
+- **Severity:** error
+- **Message:** A `request.security` expression callback captures the outer binding, which is bar-varying (it depends on series / `ta.*` / OHLCV) and so cannot be reconstructed inside the higher-timeframe callback; a bar-invariant binding (one that bottoms out at `inputs`/`Math`/literals) is reconstructed automatically.
+- **Suggested fix:** Compute the higher-timeframe value inside the callback from `inputs`/OHLCV, or read it on the main timeframe instead of inside the `request.security` source.
+
 ### request-security-gaps-dropped
 
 - **Code:** `pine-converter/transform/request-security-gaps-dropped`

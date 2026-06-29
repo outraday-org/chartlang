@@ -117,7 +117,13 @@ export function cmf(slotId: string, length: number, _opts?: CmfOpts): Series<num
         slot = initSlot(length, ctx.stream.ohlcv.close.capacity);
         ctx.stream.taSlots.set(slotId, slot);
     }
-    const { close, high, low, volume } = ctx.stream.bar;
+    // `bar.{close,high,low,volume}` are number-coercible series-view proxies —
+    // coerce at the read so the `Number.isFinite` guards see real numbers.
+    const bar = ctx.stream.bar;
+    const close = +bar.close;
+    const high = +bar.high;
+    const low = +bar.low;
+    const volume = +bar.volume;
     const mfv = mfvAt(close, high, low, volume);
     const vol = safeVol(volume);
 

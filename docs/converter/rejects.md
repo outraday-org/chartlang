@@ -50,50 +50,53 @@ faithful Trend Wizard port from type-checking.
 > a `const f = (a: number, b: number) => …` arrow; the numeric annotation lets
 > the compiler type-check it (an untyped param trips `noImplicitAny`/`TS7006`),
 > and a `PriceSeries` call-site argument (`bar.close`) is assignable to `number`.
-> The one shape this does not cover is a pure helper that history-indexes its own
-> param (`f(src) => src - src[1]`): `number[1]` is a `TS7053` error and a sound
-> series type is the same `state.series` promotion the stateful history-indexed
-> case below defers. Promote the value by hand, or pass it through a `ta.*`
-> window primitive.
+> **v1 limitation — a *pure* helper that history-indexes its own param.** A pure
+> helper whose body reads `param[1]` (`f(src) => src - src[1]`) emits as
+> `const f = (src: number) => src - src[1]`, and `number[1]` is a `TS7053`.
+> Promote `src` to a `state.series` by hand, or pass it through a `ta.*` window
+> primitive. (A *stateful* helper that does the same — `cf_slope` — no longer
+> needs this; see the next note.)
 
-> **v1 limitation — a stateful helper that indexes a *param's* history.** A
-> helper whose body reads `param[1]` (e.g. Trend Wizard's
-> `cf_slope(ma, n) => ta.ema((ma - ma[1]) / ma[1] * 100, n)`) inlines correctly
-> only when the argument is itself a **series** that supports history — an OHLCV
-> field (`cf_slope(close, 3)` → `bar.close[1]`, fine). Applied to a **derived**
-> value (`ma_1 = ta.ema(close, 8)`, which lowers to a `.current` scalar), the
-> inlined `ma_1[1]` indexes a `number` (`TS7053`). Promote the derived value to
-> a `state.series` by hand, or read the prior bar through a `ta.*` window
-> primitive. Auto-promoting a history-indexed inlined argument is a planned
-> follow-up.
+> **Now supported — a *stateful* helper that indexes a *param's* history.** A
+> stateful helper whose body reads `param[1]` (e.g. Trend Wizard's
+> `cf_slope(ma, n) => ta.ema((ma - ma[1]) / ma[1] * 100, n)`) inlines cleanly
+> whether the argument natively supports history — an OHLCV field
+> (`cf_slope(close, 3)` → `bar.close[1]`) — **or** is a derived value: a
+> simple-identifier argument passed to such a helper auto-promotes to a
+> `state.series` slot (`ma_1 = ta.ema(close, 8)` → `const ma_1 =
+> state.series(Number.NaN)`, written `ma_1.value = …` each bar), so the inlined
+> `ma_1[1]` is a real indexed read. A history-indexed local *inside* an inlined
+> stateful body (Trend Wizard's `cf_macross` `ma_cross[1]`) likewise gets its own
+> per-call-site `state.series`/`state.boolSeries` slot. See
+> [supported.md](./supported.md#sources-and-history).
 
 ### `switch` used as a value
 
 A **`switch` in value position** — `x = switch s \n "A" => … ` (Trend Wizard's
-`cf_ma` returns one) — is a clean reject:
-[`switch-expression-unsupported`](./diagnostics.md#switch-expression-unsupported)
-(error). The converter recovers the `switch` header + its indented arm block
-and resumes at the next statement, so the rest of the script still converts.
-Rewrite it as a chained ternary, or assign the result **inside each arm body**
-(which IS supported — see the multi-assignment switch in
-[supported.md](./supported.md#control-flow)):
+`cf_ma` returns one) — **now converts**: it lowers to a chained ternary
+(`s === "A" ? … : … : Number.NaN`), the first matching arm wins, a wildcard
+`=> v` arm is the default, and an unmatched subject yields `na`. The
+subject-less boolean form lowers each condition directly. See
+[supported.md](./supported.md#control-flow).
+
+The one residual reject is an arm whose **body is not a single expression** — a
+multi-statement block, a comma list, or a `:=`/`=` assignment arm — which still
+emits [`switch-expression-unsupported`](./diagnostics.md#switch-expression-unsupported)
+(error) and degrades that `switch` to an unknown expression. Rewrite such an arm
+as a statement-form `switch` that assigns into a `var`:
 
 ```pine
-// rejected — switch as a value
+// converts — single-expression arms (value position)
 ma = switch ma_type
     "SMA" => ta.sma(src, len)
     "EMA" => ta.ema(src, len)
 
-// supported — assign inside each arm
+// for a multi-statement / `:=` arm body, use the statement form instead
 var float ma = na
 switch ma_type
     "SMA" => ma := ta.sma(src, len)
     "EMA" => ma := ta.ema(src, len)
 ```
-
-> **Deferred follow-up.** Lowering a value-position `switch` to a ternary chain
-> (a new `SwitchExpression` AST node + Pratt-parser surgery) is a tracked
-> follow-up, out of scope for the multi-assignment switch feature.
 
 ## Non-numeric state
 
@@ -170,6 +173,7 @@ no analogue for resolving a fill across an unbounded handle collection.
 | [`fill-not-mapped`](./diagnostics.md#fill-not-mapped) | A `fill(...)` with a gradient (`top_color`/`bottom_color`/`top_value`/`bottom_value`) or `fillgaps` styling — the two-handle band itself is [supported](./supported.md#filled-bands-fill). | Drop the gradient / `fillgaps` styling, or draw the band as an explicit `draw.rectangle` / `draw.path`. |
 | [`plot-offset-needs-ta-call`](./diagnostics.md#plot-offset-needs-ta-call) | `plot(<value>, offset=N)` where `<value>` is **not** a direct `ta.*` call (a bare series, a variable, an arithmetic expression). The offset is dropped — chartlang's offset lives on the `ta.*` opts and there is no plot-level offset yet. | Wrap the value in a `ta.*` primitive, or set the offset on the indicator's `ta.*` call. A `plot`-level offset is a planned follow-up. |
 | [`request-security-not-mapped`](./diagnostics.md#request-security-not-mapped) | A `request.security(...)` shape outside the v1 single-symbol MTF subset — a non-literal timeframe, an out-of-table timeframe, or missing positional args. (A `ta.*`/expression third arg is **supported** — it lowers to the callback form.) | Use a literal `"<timeframe>"`; the third arg may be a bare OHLCV field or a `ta.*` expression. |
+| [`request-security-expr-captures-series`](./diagnostics.md#request-security-expr-captures-series) | A `request.security(...)` expression callback captures an outer binding that is **bar-varying** (it depends on series / `ta.*` / OHLCV), so it cannot be reconstructed inside the higher-timeframe callback. A bar-**invariant** capture (one that bottoms out at `inputs`/`Math`/literals) is reconstructed automatically — no diagnostic. | Compute the higher-timeframe value inside the callback from `inputs`/OHLCV, or read it on the main timeframe instead of inside the source. |
 
 ## Internal
 

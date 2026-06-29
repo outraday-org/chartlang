@@ -137,19 +137,23 @@ export function fisher(slotId: string, length: number, _opts?: FisherOpts): Fish
         ctx.stream.taSlots.set(slotId, slot);
     }
 
+    // `bar.hl2` is a number-coercible series-view proxy: pass it AS the proxy
+    // to `highest`/`lowest` (they need the indexable Series source), but coerce
+    // a scalar copy for the `Number.isFinite` guard + arithmetic below.
     const mid = ctx.stream.bar.hl2;
     const hhSeries = highest(`${slotId}/midHigh`, mid, length);
     const llSeries = lowest(`${slotId}/midLow`, mid, length);
     const hh = hhSeries.current;
     const ll = llSeries.current;
+    const midValue = +mid;
 
     let normalised: number;
-    if (!Number.isFinite(mid) || !Number.isFinite(hh) || !Number.isFinite(ll)) {
+    if (!Number.isFinite(midValue) || !Number.isFinite(hh) || !Number.isFinite(ll)) {
         normalised = Number.NaN;
     } else if (hh === ll) {
         normalised = 0;
     } else {
-        normalised = (mid - ll) / (hh - ll) - 0.5;
+        normalised = (midValue - ll) / (hh - ll) - 0.5;
     }
 
     if (ctx.isTick) {

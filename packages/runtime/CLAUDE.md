@@ -285,6 +285,50 @@
   appear in an interval literal, so the two key spaces never collide). The
   host wire `CandleEvent.streamKey` carries this same composite key (Task 4/5),
   so `pushSecondaryEvent` routes by it with no structural change.
+- **Pine's empty-interval idiom passes through to the MAIN stream (chart
+  symbol only).** `request.security({ interval: "" })` is Pine's
+  `request.security(syminfo.tickerid, "", x)` — "the chart's own timeframe".
+  `makeSecurityBar` (`request/security.ts`) short-circuits on
+  `symbol === undefined && interval === ""` — AFTER the per-callsite cache
+  check but BEFORE the symbol gate — returning a `SecurityBar` view over the
+  main stream's own `ctx.stream.seriesViews.*` (the existing O(1) head-relative
+  views; NO ascending-array rebuild) via `makeMainPassthroughSecurityBar`, with
+  the symbol / interval pinned from the live `bar`. This BYPASSES the
+  `multiSymbol` / `multiTimeframe` / `unsupported-interval` /
+  secondary-stream gates and needs NO adapter capability — the chart symbol on
+  the chart clock IS the main stream (core `request.ts` §"empty interval"), so
+  the read is the identity it is in Pine / on TradingView (no secondary feed).
+  The branch is gated STRICTLY on `symbol === undefined && interval === ""`: a
+  genuine same-tf NON-empty request still flows through the secondary path, and
+  a DIFFERENT symbol at `interval: ""` ("that instrument on the chart clock")
+  stays on the `multiSymbol` secondary path → correct NaN when unsupported. The
+  bar is cached on `requestSecurityBars` like every other callsite (stable
+  identity across reads in a bar).
+  **The `unsupported-interval` capability gate treats `interval === ""` as
+  always-known** in BOTH `makeSecurityBar` and `resolveSecondaryOrDiagnose`
+  (`const known = interval === "" || capabilities.intervals.some(…)`). `""` is
+  the chart-tf sentinel — never a literal interval an adapter lists — so
+  validating it against `capabilities.intervals` is wrong. For the CHART symbol
+  the passthrough above already ran; for a DIFFERENT symbol at `interval: ""`
+  the request flows PAST this gate (gated only by `multiSymbol` + the
+  secondary-stream lookup keyed `feedKey(symbol, "")`): with a registered
+  secondary stream it reads that stream's aligned data; with NONE it falls back
+  to `unknown-secondary-stream` (accurate) rather than the misleading
+  `unsupported-interval`. A different-symbol NON-empty unsupported interval
+  still trips `unsupported-interval` (the relaxation is strictly `interval === ""`). The conformance proof is
+  `empty-interval-passthrough` (its passthrough-close plot-hash is byte-identical
+  to a `bar.close` control under `multiTimeframe: false`).
+  **EXPRESSION form is intentionally unchanged (scoped follow-up).** The
+  compiler emits NO `securityExpressions` descriptor for an empty interval (the
+  chart timeframe is the main clock, not an HTF expression clock —
+  `extractRequestedIntervals.ts:readLiteralInterval`), so no `SecurityExprRunner`
+  is mounted and `requestNamespace.security`'s expr-form chart-tf callsite routes
+  into `makeSecurityBar` → this same passthrough (the callback is dropped, no
+  all-NaN, no spurious diagnostic). Making the callback actually fold per MAIN
+  bar would require driving the HTF fold on main close — the fold-drive machinery
+  is keyed on secondary-stream events (`driveSecurityExpressions`) and there is
+  no secondary stream for the chart tf — which is non-trivial rework deferred to
+  a future epic. The reported data-form bug is fully fixed here.
 - **The `multiSymbol` NaN-fallback gate precedes the `multiTimeframe` gate.**
   `makeSecurityBar` / `makeSecurityExprSeries` (`request/security.ts`) gate in
   this order: **symbol** (`multiSymbol`) → **timeframe** (`multiTimeframe`) →
