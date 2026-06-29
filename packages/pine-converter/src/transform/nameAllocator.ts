@@ -249,6 +249,27 @@ export class NameAllocator {
         return allocated;
     }
 
+    /**
+     * The local already allocated for a Pine SYMBOL via
+     * {@link allocateForSymbol}, or `undefined` when the symbol was never
+     * allocated. A pure PEEK — it never claims a new name, so a caller can ask
+     * "did this collection/handle get a local?" without the side effect of
+     * minting one (the contract the drawing-ring emit context relies on to skip
+     * un-registered collections).
+     *
+     * @since 0.4
+     * @stable
+     * @example
+     *     import { NameAllocator } from "./nameAllocator.js";
+     *     const names = new NameAllocator();
+     *     names.allocatedSymbol("lvls"); // undefined
+     *     names.allocateForSymbol("lvls"); // "lvls"
+     *     names.allocatedSymbol("lvls"); // "lvls"
+     */
+    public allocatedSymbol(pineName: string): string | undefined {
+        return this.symbolNames.get(pineName);
+    }
+
     // Shared claim loop: pick `base` when `isTaken(base)` is false, else the
     // smallest `base<n>` (n ≥ 2) that passes, recording the winner as emitted.
     private claim(base: string, isTaken: (name: string) => boolean): string {

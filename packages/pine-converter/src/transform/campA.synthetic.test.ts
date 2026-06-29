@@ -53,7 +53,12 @@ function callExpr(chain: readonly string[], argSrc: string): CallExpression {
 }
 
 const emptyCtx: DrawCallContext = {
-    annotations: new Map(),
+    emit: {
+        annotations: new Map(),
+        inputNames: new Set(),
+        localNames: new Set(),
+        stateSlots: new Map(),
+    },
     anchors: new Map(),
     warn: () => {},
 };

@@ -858,7 +858,7 @@ that has no byte-identical chartlang analogue.
   CROSS-TYPE list (all-numeric on `input.string`, all-string on numeric) and
   the vacuous empty `[]` DEFER to the generic path (`config.deferElements`),
   dropping the options via `input-arg-not-mapped`. The string-enum read casts
-  as `string` in `inputCastType` (`other.ts`, gated on `input.enum("`); a
+  as `string` in `inputCastType` (`emitContext.ts`, gated on `input.enum("`); a
   NUMERIC enum (`input.enum(21, …`) casts as `number`, so length args /
   comparisons type-check. Numeric `input.enum<number>` only type-checks
   because Task 1 widened core's `input.enum` to `T extends string | number`,
@@ -942,10 +942,16 @@ that has no byte-identical chartlang analogue.
   is likewise `hasNonCompactHandle || hasRings`.
 - **`synthesizeDrawCall(kind, call, ctx)` (`handleSlot.ts`) is the reusable
   draw-call synthesis** (Camp A wraps it in `slot.set(...)`, Camp B will wrap
-  it in `ring.push(...)`). `ctx: DrawCallContext = { annotations, anchors,
-  warn }` — a STRUCTURAL sink (not the `DiagnosticCollector` class) so both
-  camps share one signature; `warn` only raises `label-style-not-mapped` /
-  `yloc-padding-approximated`. Coordinates come from the resolved
+  it in `ring.push(...)`). `ctx: DrawCallContext = { emit, anchors, warn }` —
+  a STRUCTURAL sink (not the `DiagnosticCollector` class) so both camps share
+  one signature; `warn` only raises `label-style-not-mapped` /
+  `yloc-padding-approximated`. **`emit: EmitContext` is the DRAWING emit
+  context** ({@link buildDrawingEmitContext}, `emitContext.ts`): a draw-option
+  value (`color=lineColor`, `width=2`) lowers through `emitWithContext`, NOT
+  bare `emitExpr`, so a bare `input.color`/`input.int` reference qualifies to
+  `(inputs.<name> as <cast>)` exactly like the `transformOther` scalar path —
+  do NOT reintroduce an annotation-only `styleValueSource` that leaks the bare
+  Pine identifier. Coordinates come from the resolved
   `anchors` side-table (the `.new()` site pass); `DRAW_METHOD`/`ANCHOR_ARITY`
   are TOTAL `Record<ChartlangDrawKind, …>` maps (no `??` fallback, so no dead
   arm). `resolveCampADrawKind(site, diagnostics)` (`drawKindResolve.ts`)
@@ -953,9 +959,13 @@ that has no byte-identical chartlang analogue.
   `label.new`→`text` by default or `marker`/`frame`/`arrow-mark-up|down`/
   `rectangle` per the `style=label.style_*` enum (unmapped/non-drawing style
   → `text` + `label-style-not-mapped`).
-- **`foldSetters(setters, handleType, annotations, warn): string | null`
+- **`foldSetters(setters, handleType, emit, warn): string | null`
   (`setterFold.ts`) is the reusable setter→patch fold** (Camp A + Camp B +
-  tables). A `SetterCall` is `{ method, call }`. It looks each setter's
+  tables). The `emit: EmitContext` (NOT a bare `AnnotationLookup`) lowers each
+  setter VALUE through `emitWithContext`, so `label.set_text(lbl, "x" +
+  str.tostring(close))` lowers the nested `str.tostring` (→ `String(...)`) and a
+  bare input qualifies — a setter value is a full expression context, not a
+  raw `emitExpr` splice. A `SetterCall` is `{ method, call }`. It looks each setter's
   `statePath` up in `DRAWING_KIND_MAP`'s `setterMap` and builds ONE
   `Partial<DrawingState>` object: whole-anchor setters (`set_xy1`/`set_xy2`,
   `statePath` `["anchors", N]`, arity 2) collapse into `anchors: [a, b]`
@@ -1165,9 +1175,16 @@ that has no byte-identical chartlang analogue.
   textHalign?; textValign?; textSize? }`; `position.*`/`text.align_*`/
   `size.*`/`color.*` lower through `enumLookup`; a transparency-carrying cell
   colour (`color.new(base, transp)` / 4-arg `color.rgb(...)`) routes through the
-  shared `convertColor` (hex fold / `color.withAlpha`, raising
-  `color-transp-approximated`); every other non-enum styling value lowers via
-  `convertColor`'s `emitExpr` fallback. The only gaps are merge (no analogue →
+  shared `convertColorWith` (hex fold / `color.withAlpha`, raising
+  `color-transp-approximated`); every other non-enum styling value, and the cell
+  TEXT, lower via `emitWithContext` over the {@link buildDrawingEmitContext}
+  context — so a bare `input.color` qualifies AND a `str.tostring(array.size(
+  ring))` cell text lowers BOTH the `str.tostring` (→ `String(...)`) and the
+  `array.size(<ring>)` over a Camp B drawing ring (→ `<ring>.size()`, via
+  `EmitContext.handleRings`). The tables pass runs LAST (after Camp B registers
+  its rings), so every ring is resolvable; do NOT rebuild a minimal empty-input
+  `EmitContext` here (that was the leak that emitted `array.size(levels)` /
+  bare `lineColor`). The only gaps are merge (no analogue →
   top-left fallback) and Pine's `text_formatting`/`text_font_family`/`text_wrap`
   (no analogue → `table-formatting-not-mapped` warning, dropped — consolidated
   to ONE diagnostic per distinct arg name across the whole script via
@@ -1308,10 +1325,13 @@ that has no byte-identical chartlang analogue.
   linefill, plot/hline (`plotFamily.ts`), and table (`tables.ts`) paths — never
   fork a second.** `convertColorWith(node, emit)` is the core; `convertColor(node,
   annotations)` is the thin wrapper (`emit = (n) => emitExpr(n, annotations)`)
-  the linefill / box-setter paths use. The plot path passes
-  `convertColorWith(node, (n) => emitWithContext(n, ctx))` so a dynamic base /
-  transp is **input/state-aware**; the table path uses the annotation-based
-  `convertColor` (cell styling has no input context). The rule (fixed):
+  the linefill / polyline paths use. The plot, table, AND drawing-setter
+  (`setterFold.ts`) paths pass `convertColorWith(node, (n) => emitWithContext(n,
+  ctx))` so a dynamic base / transp is **input/state/ring-aware** — a bare
+  `input.color` base qualifies to `(inputs.<name> as string)`. (The table path
+  formerly used the annotation-based `convertColor`; that leaked a bare input —
+  it now threads the `buildDrawingEmitContext` context like the plot path.) The
+  rule (fixed):
   - **Literal base + literal transp folds to a quoted `#RRGGBBAA` string.**
     `color.new(base, transp)` with a compile-time `#RRGGBB` base (a `color.*`
     enum or `#RRGGBB` literal) → `alpha = round(255 * (100 - clamp(transp, 0,
@@ -1401,9 +1421,12 @@ that has no byte-identical chartlang analogue.
   (plot/table/…) leave `taWarn` absent, so those positions stay silent, exactly
   as the array/map sinks do. Fixture `41-nested-ta-arith` proves the clean nested
   arithmetic round-trips through the compiler. An input read lowers as
-  `inputs.<name> as <type>`: `inputCastType` (`other.ts`) →
+  `inputs.<name> as <type>`: `inputCastType` (`emitContext.ts`, shared by
+  `transformOther` AND the drawing transforms via `buildDrawingEmitContext`) →
   `number`/`boolean`/`string` from the `input.*` factory drives the
-  `inputs.len as number` cast (`EmitContext.inputCasts`).
+  `inputs.len as number` cast (`EmitContext.inputCasts`). `input.color` casts as
+  `string` (a `#RRGGBB[AA]` colour string), so a bare `color=lineColor` draw
+  option assigns to the `string` colour field.
 - **A NESTED `math.*` call lowers its callee to the bare-native `Math.*`
   passthrough through the SAME `rewriteTree` seam (`emitContext.ts`).** The
   top-level `emitMath` (`other.ts`) only remaps the OUTERMOST call, so before

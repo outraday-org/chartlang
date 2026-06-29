@@ -9,6 +9,7 @@ import { analyze } from "../semantic/index.js";
 import { transformCampA } from "./campA.js";
 import { transformDeclaration } from "./declaration.js";
 import { DiagnosticCollector } from "./diagnosticCollector.js";
+import type { EmitContext } from "./emitContext.js";
 import type { ScriptScaffold } from "./ir.js";
 import { type SetterCall, foldSetters, renderEnumTarget } from "./setterFold.js";
 
@@ -45,14 +46,19 @@ function setterCall(method: string, args: readonly string[]): SetterCall {
 }
 
 describe("foldSetters", () => {
-    const annotations = new Map();
+    const emit: EmitContext = {
+        annotations: new Map(),
+        inputNames: new Set(),
+        localNames: new Set(),
+        stateSlots: new Map(),
+    };
     const noWarn = (): void => {};
 
     it("merges multiple setters in one block into a single patch", () => {
         const patch = foldSetters(
             [setterCall("set_color", ["color.red"]), setterCall("set_width", ["3"])],
             "line",
-            annotations,
+            emit,
             noWarn,
         );
         expect(patch).toBe('{ style: { color: "#FF5252", lineWidth: 3 } }');
@@ -65,7 +71,7 @@ describe("foldSetters", () => {
                 setterCall("set_xy2", ["bar_index", "open"]),
             ],
             "line",
-            annotations,
+            emit,
             noWarn,
         );
         expect(patch).toContain("anchors: [");
@@ -74,27 +80,20 @@ describe("foldSetters", () => {
     });
 
     it("returns null when no setter folds", () => {
-        expect(
-            foldSetters([setterCall("set_nonsense", ["1"])], "line", annotations, noWarn),
-        ).toBeNull();
+        expect(foldSetters([setterCall("set_nonsense", ["1"])], "line", emit, noWarn)).toBeNull();
     });
 
     it("returns null for an unmapped handle family", () => {
         expect(
-            foldSetters([setterCall("set_color", ["color.red"])], "linefill", annotations, noWarn),
+            foldSetters([setterCall("set_color", ["color.red"])], "linefill", emit, noWarn),
         ).toBeNull();
     });
 
     it("drops a deep single-coordinate setter with set-path-unsupported", () => {
         let warned: string | null = null;
-        const patch = foldSetters(
-            [setterCall("set_y1", ["close"])],
-            "line",
-            annotations,
-            (code) => {
-                warned = code;
-            },
-        );
+        const patch = foldSetters([setterCall("set_y1", ["close"])], "line", emit, (code) => {
+            warned = code;
+        });
         expect(patch).toBeNull();
         expect(warned).toBe("set-path-unsupported");
     });
@@ -103,19 +102,14 @@ describe("foldSetters", () => {
         const patch = foldSetters(
             [setterCall("set_style", ["text.format_bold"]), setterCall("set_width", ["2"])],
             "line",
-            annotations,
+            emit,
             noWarn,
         );
         expect(patch).toBe("{ style: { lineWidth: 2 } }");
     });
 
     it("ignores a whole-anchor setter missing its second coordinate", () => {
-        const patch = foldSetters(
-            [setterCall("set_xy1", ["bar_index"])],
-            "line",
-            annotations,
-            noWarn,
-        );
+        const patch = foldSetters([setterCall("set_xy1", ["bar_index"])], "line", emit, noWarn);
         expect(patch).toContain("price: Number.NaN");
     });
 });

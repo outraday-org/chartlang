@@ -55,11 +55,16 @@ for (const sample of PINE_SCRIPTS) {
       })
       await expect(compileButton).toBeDisabled()
     } else {
-      // Convert produced a chartlang indicator; compile + render it. A
-      // warning-only sample keeps the button enabled (warnings don't set
-      // `hasError`), so assert on the `.compile-status.is-error` count, not
-      // on the absence of all diagnostics.
-      await expect(output).toContainText("defineIndicator", { timeout: 30_000 })
+      // Convert produced a chartlang entrypoint; compile + render it. The
+      // converter lowers `ta`/`plot` scripts to `defineIndicator` but
+      // `draw.*` scripts (the `drawings` category) to `defineDrawing`, so
+      // accept either entrypoint here. A warning-only sample keeps the
+      // button enabled (warnings don't set `hasError`), so assert on the
+      // `.compile-status.is-error` count, not on the absence of all
+      // diagnostics.
+      await expect(output).toContainText(/define(Indicator|Drawing|Library)/, {
+        timeout: 30_000,
+      })
       await expect(compileButton).toBeEnabled({ timeout: 30_000 })
       await compileButton.click()
       const canvas = converter.locator("canvas.chart-canvas")

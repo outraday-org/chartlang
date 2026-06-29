@@ -6,10 +6,10 @@ import type { ChartlangSetter } from "../mapping/index.js";
 import { drawingLookup, enumLookup } from "../mapping/index.js";
 import type { HandleType } from "../semantic/index.js";
 import { dottedCallee } from "./callArgs.js";
-import { convertColor } from "./colorConvert.js";
+import { convertColorWith } from "./colorConvert.js";
 import { anchorToWorldPoint, resolveAnchorExpr } from "./coordinates.js";
-import type { AnnotationLookup } from "./exprEmit.js";
-import { emitExpr } from "./exprEmit.js";
+import type { EmitContext } from "./emitContext.js";
+import { emitWithContext } from "./emitContext.js";
 
 /**
  * One observed Pine setter call against a drawing handle: the setter
@@ -90,10 +90,12 @@ export function renderEnumTarget(
 // call folds to a hex-alpha string (so `set_bgcolor` does not leak the
 // undefined `color` namespace); a member-chain enum routes through
 // `enumLookup` (string literal or partial-object); everything else lowers via
-// `emitExpr`. Returns `null` when the enum has no analogue.
-function setterValueSource(node: ExpressionNode, annotations: AnnotationLookup): string | null {
+// the input/ring/str-aware `emitWithContext` so `set_text(lbl, "x" +
+// str.tostring(close))` lowers `str.tostring` and a bare input qualifies.
+// Returns `null` when the enum has no analogue.
+function setterValueSource(node: ExpressionNode, emit: EmitContext): string | null {
     if (node.kind === "call-expression" && dottedCallee(node) === "color.new") {
-        return convertColor(node, annotations);
+        return convertColorWith(node, (sub) => emitWithContext(sub, emit));
     }
     if (node.kind === "member-access-expression" && node.head === null) {
         const mapping = enumLookup(node.chain.join("."));
@@ -102,21 +104,21 @@ function setterValueSource(node: ExpressionNode, annotations: AnnotationLookup):
         }
         return renderEnumTarget(mapping.chartlang);
     }
-    return emitExpr(node, annotations);
+    return emitWithContext(node, emit);
 }
 
 // Build a `{ time: …, price: … }` source from a whole-anchor setter's two
 // positional value args (the handle is arg 0). The `(x, y)` pair routes
 // through the coordinate resolver so `bar_index`-mode setters lower their x
 // to `bar.time` arithmetic, identically to the `.new()` constructor anchors.
-function wholeAnchorSource(call: CallExpression, annotations: AnnotationLookup): string {
+function wholeAnchorSource(call: CallExpression, emit: EmitContext): string {
     const values = call.args.filter((arg) => arg.name === null).slice(1);
     const xExpr = values[0];
     const yExpr = values[1];
     if (xExpr === undefined || yExpr === undefined) {
         return "{ time: bar.time, price: Number.NaN }";
     }
-    return anchorToWorldPoint(resolveAnchorExpr(xExpr.value, yExpr.value, annotations));
+    return anchorToWorldPoint(resolveAnchorExpr(xExpr.value, yExpr.value, emit.annotations));
 }
 
 // A nested patch builder: stores values at a dotted path inside a tree of
@@ -226,12 +228,18 @@ function setterSpec(handleType: HandleType, method: string): ChartlangSetter | n
  * @example
  *     import { foldSetters } from "./setterFold.js";
  *     declare const setters: readonly import("./setterFold.js").SetterCall[];
- *     foldSetters(setters, "line", new Map(), () => {}, []);
+ *     const emit = {
+ *         annotations: new Map(),
+ *         inputNames: new Set<string>(),
+ *         localNames: new Set<string>(),
+ *         stateSlots: new Map<string, string>(),
+ *     };
+ *     foldSetters(setters, "line", emit, () => {}, []);
  */
 export function foldSetters(
     setters: readonly SetterCall[],
     handleType: HandleType,
-    annotations: AnnotationLookup,
+    emit: EmitContext,
     warn: SetterWarn,
     anchorDefaults: readonly string[] = [],
 ): string | null {
@@ -253,11 +261,11 @@ export function foldSetters(
         const valueArgs = setter.call.args.filter((arg) => arg.name === null).slice(1);
         let value: string | null;
         if (isWholeAnchor) {
-            value = wholeAnchorSource(setter.call, annotations);
+            value = wholeAnchorSource(setter.call, emit);
         } else if (valueArgs.length === 0) {
             value = null;
         } else {
-            value = setterValueSource(valueArgs[0].value, annotations);
+            value = setterValueSource(valueArgs[0].value, emit);
         }
         if (value === null) {
             continue;

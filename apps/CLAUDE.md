@@ -208,7 +208,9 @@ and the demo 500s, the client bundle fails to load, or the whole site
   generates one test per sample via `for (const sample of PINE_SCRIPTS)`, so a
   new sample auto-covers with no spec edit. Each test deep-links
   `/converter?script=<id>`: non-`rejects` samples must convert (output shows
-  `defineIndicator`), enable + click `button.compile-button`, render a
+  a `define(Indicator|Drawing|Library)` entrypoint — `ta`/`plot` scripts
+  lower to `defineIndicator`, the `drawings` category to `defineDrawing`),
+  enable + click `button.compile-button`, render a
   non-empty `canvas.chart-canvas`, and end with `.compile-status.is-error`
   count `0`; `rejects` samples are asserted as refusals (a visible
   `.diagnostic.is-error` + a disabled `button.compile-button`, no click). No
@@ -253,7 +255,12 @@ and the demo 500s, the client bundle fails to load, or the whole site
 - **canvas2d's driver builds its inner `<canvas class="chart-canvas">`.**
   `landing.spec.ts` targets `canvas.chart-canvas` and reads its bitmap, so
   the canvas2d driver must keep that class on the canvas it creates inside
-  the mount element.
+  the mount element. Because `DEFAULT_ADAPTER_ID` is now `webgl` (whose
+  `toDataURL()` returns a constant blank image without
+  `preserveDrawingBuffer`, making the recompile bitmap-change assertion
+  unreadable), `landing.spec.ts` **pins canvas2d via the `?adapter=canvas2d`
+  deep-link** — the bitmap readback only works on a 2D canvas. Every
+  adapter's render is still covered by `demo-adapters.spec.ts`.
 - **`DEMO_ADAPTERS` ids mirror `scripts/adapters/registry.ts`
   `ADAPTERS[].id`** (`canvas2d`, `echarts`, `konva`, `lightweight-charts`,
   `uplot`, `webgl`). The list is deliberately NOT imported from `scripts/` (avoids

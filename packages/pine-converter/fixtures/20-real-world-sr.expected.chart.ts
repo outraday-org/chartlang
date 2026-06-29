@@ -56,11 +56,11 @@ export default defineDrawing({
             const levels = useDrawingHandleRing<"line">(20);
             let ph = ta.pivotsHighLow({ leftLength: (inputs.lookback as number), rightLength: (inputs.lookback as number) }).high.current;
             let pl = ta.pivotsHighLow({ leftLength: (inputs.lookback as number), rightLength: (inputs.lookback as number) }).low.current;
-            if (!!Number.isFinite(ph)) { levels.push(draw.line(bar.point(0, ph), bar.point(0, ph), { color: lineColor, lineWidth: 2 })); }
-            if (!!Number.isFinite(pl)) { levels.push(draw.line(bar.point(0, pl), bar.point(0, pl), { color: lineColor, lineWidth: 2 })); }
+            if (!!Number.isFinite(ph)) { levels.push(draw.line(bar.point(0, ph), bar.point(0, ph), { color: (inputs.lineColor as string), lineWidth: 2 })); }
+            if (!!Number.isFinite(pl)) { levels.push(draw.line(bar.point(0, pl), bar.point(0, pl), { color: (inputs.lineColor as string), lineWidth: 2 })); }
             const lastLbl = draw.frame(bar.point(0, bar.close), bar.point(0, bar.close), { label: "Last close" });
-            lastLbl.update({ body: "Close " + str.tostring(bar.close) });
-            const statsCells = [[{ text: "Levels" }, { text: String(array.size(levels)) }], [{ text: "Last close" }, { text: String(bar.close) }]];
+            lastLbl.update({ body: "Close " + String(bar.close) });
+            const statsCells = [[{ text: "Levels" }, { text: String(levels.size()) }], [{ text: "Last close" }, { text: String(bar.close) }]];
             if (barstate.islast) { stats.current()?.remove(); stats.set(draw.table({ position: "top-right", cells: statsCells })); }
         },
 });

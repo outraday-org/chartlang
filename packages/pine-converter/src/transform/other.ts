@@ -28,7 +28,7 @@ import { emitAlertCall } from "./alertCall.js";
 import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js";
 import { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { ArraySlotInfo, EmitContext, MapSlotInfo } from "./emitContext.js";
-import { emitScalar, emitWithContext, lowerTaToCurrent } from "./emitContext.js";
+import { emitScalar, emitWithContext, inputCastType, lowerTaToCurrent } from "./emitContext.js";
 import { forEachHistoryAccess } from "./exprEmit.js";
 import type { ScriptScaffold } from "./ir.js";
 import type { MapScan } from "./mapCollection.js";
@@ -73,41 +73,6 @@ function firstArgName(call: CallExpression): string | null {
     return first !== undefined && first.value.kind === "identifier-expression"
         ? first.value.name
         : null;
-}
-
-// The TypeScript cast an `inputs.<name>` read needs, derived from the input
-// factory in its emitted code. `input.int`/`input.float`/`input.source` lower
-// to a numeric (`source` is series-or-scalar, assignable from `number`);
-// `input.bool` → `boolean`; the string-valued factories → `string`. `null`
-// leaves the read uncast (`enum`/unknown factories the converter does not
-// emit). chartlang types `compute({ inputs })` loosely, so the cast is what
-// makes `ta.atr(inputs.length)` type-check.
-function inputCastType(code: string): string | null {
-    if (code.startsWith("input.int(") || code.startsWith("input.float(")) {
-        return "number";
-    }
-    if (code.startsWith("input.source(")) {
-        return "number";
-    }
-    if (code.startsWith("input.bool(")) {
-        return "boolean";
-    }
-    // A string-options dropdown lowers to `input.enum("…", […])` — its value is
-    // one of the string options, so it casts like `input.string`.
-    if (
-        code.startsWith("input.string(") ||
-        code.startsWith("input.interval(") ||
-        code.startsWith('input.enum("')
-    ) {
-        return "string";
-    }
-    // A numeric-options dropdown lowers to `input.enum(21, […])` — its value is
-    // one of the numeric options, so it casts like `input.int` (length args /
-    // comparisons keep type-checking). The string enum was matched just above.
-    if (code.startsWith("input.enum(")) {
-        return "number";
-    }
-    return null;
 }
 
 // The collection name an `array.push(coll, <drawing>.new(...))` targets, or

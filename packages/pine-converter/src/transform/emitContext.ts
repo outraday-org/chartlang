@@ -11,9 +11,12 @@ import {
     remapIdentifier,
     taLookup,
 } from "../mapping/index.js";
+import type { SemanticResult } from "../semantic/index.js";
+import { mapArrayBuiltin } from "./arrayBuiltinMap.js";
 import { spanKey } from "./callArgs.js";
 import type { AnnotationLookup } from "./exprEmit.js";
 import { emitExpr } from "./exprEmit.js";
+import type { ScriptScaffold } from "./ir.js";
 import type { SecurityFeedInputs } from "./securityShape.js";
 import { emitStr } from "./strFormat.js";
 
@@ -123,6 +126,20 @@ export type EmitContext = Readonly<{
      * count internally). Absent → no array slots.
      */
     arraySlots?: ReadonlyMap<string, ArraySlotInfo>;
+    /**
+     * Pine drawing-collection name → its chartlang `useDrawingHandleRing` local
+     * (Camp B / Camp C). An `array.*(coll, …)` READ over one of these lowers
+     * onto the ring accessor surface via {@link import("./arrayBuiltinMap.js").mapArrayBuiltin}
+     * (`array.size(coll)` → `<ring>.size()`, `array.get(coll, i)` →
+     * `<ring>.at(i)`, `array.first`/`array.last` → the oldest/newest element),
+     * so a `str.tostring(array.size(coll))` cell text or a draw-option value
+     * never leaks the undefined `array` namespace. Distinct from
+     * {@link arraySlots} (a NUMERIC `state.array`, a different surface). Absent →
+     * no handle rings (the write builtins `array.push`/`array.shift` are owned by
+     * Camp B and never reach this rewrite). Built by
+     * {@link buildDrawingEmitContext}.
+     */
+    handleRings?: ReadonlyMap<string, string>;
     /**
      * Diagnostic sink for the numeric-array reduction rewrite — a structural
      * `(code, span) => void` (the `DrawCallContext.warn` precedent) populated by
@@ -424,6 +441,29 @@ function sortOrder(call: CallExpression): "asc" | "desc" {
     return "asc";
 }
 
+// Rewrite an `array.*(coll, …)` READ over a registered drawing-handle ring onto
+// the ring accessor surface (`array.size` → `<ring>.size()`, `array.get` →
+// `<ring>.at(i)`, etc.) via the shared `mapArrayBuiltin`, returning the emitted
+// source string. Returns `null` when the call's first arg is not a bare
+// identifier naming a registered ring, or the callee is not a ring-mappable
+// `array.*` read (the write builtins `array.push`/`array.shift`, owned by Camp B,
+// and a rejected negative literal index both fall through to the generic path).
+function rewriteHandleRingBuiltin(call: CallExpression, ctx: EmitContext): string | null {
+    if (ctx.handleRings === undefined) {
+        return null;
+    }
+    const first = call.args[0]?.value;
+    if (first === undefined || first.kind !== "identifier-expression") {
+        return null;
+    }
+    const ring = ctx.handleRings.get(first.name);
+    if (ring === undefined) {
+        return null;
+    }
+    const mapped = mapArrayBuiltin(call, ring, ctx.annotations);
+    return mapped !== null && mapped.kind === "source" ? mapped.source : null;
+}
+
 // The chartlang `state.map` slot local a call's first argument targets, or
 // `null` when the first arg is not a bare identifier naming a registered map
 // slot.
@@ -613,6 +653,15 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext, scalar: boolean): E
             if (arrayLowered !== null) {
                 return { kind: "identifier-expression", name: arrayLowered, span: node.span };
             }
+            // Lower an `array.*(coll, …)` READ over a drawing-handle ring (Camp
+            // B / Camp C) onto the ring accessor (`array.size(coll)` →
+            // `<ring>.size()`); without this a `str.tostring(array.size(coll))`
+            // cell text or draw-option value leaks the undefined `array`
+            // namespace. A non-ring call falls through.
+            const ringLowered = rewriteHandleRingBuiltin(node, ctx);
+            if (ringLowered !== null) {
+                return { kind: "identifier-expression", name: ringLowered, span: node.span };
+            }
             // Lower a `map.*(id, …)` operation over a numeric `state.map` slot
             // onto the slot's surface (`map.put(id, k, v)` → `<slot>.set(k, v)`).
             // Spliced as a verbatim identifier so `emitExpr` re-emits it as-is; a
@@ -793,4 +842,106 @@ export function emitWithContext(node: ExpressionNode, ctx: EmitContext): string 
  */
 export function emitScalar(node: ExpressionNode, ctx: EmitContext): string {
     return emitExpr(rewriteTree(node, ctx, true), ctx.annotations);
+}
+
+/**
+ * The TypeScript cast an `inputs.<name>` read needs, derived from the input
+ * factory in its emitted code. `input.int`/`input.float`/`input.source` lower
+ * to `number` (`source` is series-or-scalar, assignable from `number`);
+ * `input.bool` → `boolean`; the string-valued factories (incl. `input.color`,
+ * whose value is a `#RRGGBB[AA]` colour STRING) → `string`; a numeric-options
+ * `input.enum(21, …)` → `number`. `null` leaves the read uncast (the factories
+ * the converter does not emit). chartlang types `compute({ inputs })` loosely,
+ * so the cast is what makes `ta.atr(inputs.length)` type-check and a bare
+ * `color=lineColor` draw option assign to the `string` colour field.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     import { inputCastType } from "./emitContext.js";
+ *     inputCastType("input.int(5)"); // "number"
+ *     inputCastType('input.bool(true)'); // "boolean"
+ *     inputCastType('input.color("#FF9800")'); // "string"
+ */
+export function inputCastType(code: string): string | null {
+    if (code.startsWith("input.int(") || code.startsWith("input.float(")) {
+        return "number";
+    }
+    if (code.startsWith("input.source(")) {
+        return "number";
+    }
+    if (code.startsWith("input.bool(")) {
+        return "boolean";
+    }
+    // The string-valued factories: a plain `input.string`, the timeframe/session
+    // `input.interval`, a string-options `input.enum("…", […])`, and
+    // `input.color` (a `#RRGGBB[AA]` colour string). All cast like `input.string`.
+    if (
+        code.startsWith("input.string(") ||
+        code.startsWith("input.interval(") ||
+        code.startsWith("input.color(") ||
+        code.startsWith('input.enum("')
+    ) {
+        return "string";
+    }
+    // A numeric-options dropdown lowers to `input.enum(21, […])` — its value is
+    // one of the numeric options, so it casts like `input.int` (length args /
+    // comparisons keep type-checking). The string enum was matched just above.
+    if (code.startsWith("input.enum(")) {
+        return "number";
+    }
+    return null;
+}
+
+/**
+ * Build the {@link EmitContext} the DRAWING transforms (Camp A/B, tables,
+ * polyline/linefill) emit value expressions through — a draw-option colour, a
+ * setter value, a table-cell text. Unlike the rich `transformOther` context it
+ * carries no `var`/`varip` state slots or UDF locals (a drawing value is a
+ * literal / enum / input read / handle reference), but it DOES qualify a bare
+ * registered input to `inputs.<name>` (with the {@link inputCastType} cast) and
+ * lower an `array.*(coll, …)` read over a Camp B/C drawing-handle ring onto the
+ * ring accessor surface ({@link EmitContext.handleRings}). The ring map is
+ * derived side-effect-free from the already-registered Camp B collection symbols
+ * (a peek via {@link import("./nameAllocator.js").NameAllocator.allocatedSymbol},
+ * so an un-registered collection is skipped without minting a name).
+ *
+ * @since 0.4
+ * @stable
+ * @example
+ *     import { buildDrawingEmitContext } from "./emitContext.js";
+ *     declare const analysis: import("../semantic/index.js").SemanticResult;
+ *     declare const scaffold: import("./ir.js").ScriptScaffold;
+ *     buildDrawingEmitContext(analysis, scaffold).inputNames; // Set of input names
+ */
+export function buildDrawingEmitContext(
+    analysis: SemanticResult,
+    scaffold: ScriptScaffold,
+): EmitContext {
+    const inputNames = new Set(scaffold.inputs.map((input) => input.name));
+    const inputCasts = new Map<string, string>();
+    for (const input of scaffold.inputs) {
+        const cast = inputCastType(input.code);
+        if (cast !== null) {
+            inputCasts.set(input.name, cast);
+        }
+    }
+    const handleRings = new Map<string, string>();
+    for (const site of analysis.drawingSites) {
+        if (site.camp.kind === "camp-b") {
+            const collection = site.camp.collectionSymbol.name;
+            const ring = scaffold.names.allocatedSymbol(collection);
+            if (ring !== undefined) {
+                handleRings.set(collection, ring);
+            }
+        }
+    }
+    return {
+        annotations: analysis.annotations,
+        inputNames,
+        localNames: new Set(),
+        stateSlots: new Map(),
+        inputCasts,
+        handleRings,
+    };
 }

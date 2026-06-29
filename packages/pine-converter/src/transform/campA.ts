@@ -10,6 +10,8 @@ import { dottedCallee } from "./callArgs.js";
 import type { ResolvedAnchor } from "./coordinates.js";
 import { resolveCoordinates } from "./coordinates.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
+import type { EmitContext } from "./emitContext.js";
+import { buildDrawingEmitContext } from "./emitContext.js";
 import { resolveCampADrawKind } from "./drawKindResolve.js";
 import type { DrawCallContext } from "./handleSlot.js";
 import { drawCallAnchors, handleSlotLocalName, synthesizeDrawCall } from "./handleSlot.js";
@@ -114,12 +116,12 @@ function nonNaInitialSpan(analysis: SemanticResult, handle: SymbolInfo): SourceS
 // The diagnostic context the draw-call synthesis raises into, bridging the
 // structural `DrawCallContext.warn` to the package `DiagnosticCollector`.
 function drawContext(
-    analysis: SemanticResult,
+    emit: EmitContext,
     anchors: ReadonlyMap<ExpressionNode, ResolvedAnchor>,
     diagnostics: DiagnosticCollector,
 ): DrawCallContext {
     return {
-        annotations: analysis.annotations,
+        emit,
         anchors,
         warn: (code, node) => {
             if (
@@ -211,7 +213,8 @@ export function transformCampA(
     appendHandleSlot(scaffold, { name: local, kind, compact });
 
     const { anchors } = resolveCoordinates(analysis, {});
-    const ctx = drawContext(analysis, anchors, diagnostics);
+    const emit = buildDrawingEmitContext(analysis, scaffold);
+    const ctx = drawContext(emit, anchors, diagnostics);
     const drawCall = synthesizeDrawCall(kind, site.call, ctx);
     const anchorDefaults = drawCallAnchors(kind, site.call, ctx);
 
@@ -267,7 +270,7 @@ function emitBranch(
         const patch = foldSetters(
             setters,
             site.handleType,
-            ctx.annotations,
+            ctx.emit,
             (code, node) => diagnostics.pushCode(code, node.span),
             anchorDefaults,
         );

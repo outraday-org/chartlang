@@ -5,9 +5,22 @@ import { describe, expect, it } from "vitest";
 
 import type { CallExpression, ExpressionNode } from "../ast/index.js";
 import type { SourceSpan } from "../index.js";
+import { lex } from "../lexer/index.js";
+import { parseStatements } from "../parser/index.js";
+import { analyze } from "../semantic/index.js";
 import { spanKey } from "./callArgs.js";
+import { transformCampB } from "./campB.js";
+import { transformDeclaration } from "./declaration.js";
+import { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
-import { emitScalar, emitWithContext, lowerTaToCurrent } from "./emitContext.js";
+import {
+    buildDrawingEmitContext,
+    emitScalar,
+    emitWithContext,
+    inputCastType,
+    lowerTaToCurrent,
+} from "./emitContext.js";
+import { transformInputs } from "./inputs.js";
 
 const SPAN: SourceSpan = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 };
 
@@ -536,5 +549,155 @@ describe("emitScalar / lowerTaToCurrent", () => {
         expect(emitScalar(call(member(["foo", "bar"]), [ident("close")]), ctx())).toBe(
             "foo.bar(bar.close)",
         );
+    });
+});
+
+describe("emitWithContext — handle rings", () => {
+    const arrayCall = (member: string, args: readonly ExpressionNode[]): ExpressionNode => ({
+        kind: "call-expression",
+        callee: {
+            kind: "member-access-expression",
+            head: null,
+            chain: member.split("."),
+            span: SPAN,
+        },
+        args: args.map((value) => ({ name: null, value, span: SPAN })),
+        span: SPAN,
+    });
+    const intLit = (value: string): ExpressionNode => ({
+        kind: "literal-expression",
+        literalKind: "int",
+        value,
+        span: SPAN,
+    });
+    const ringCtx = (over: Partial<EmitContext> = {}): EmitContext =>
+        ctx({ handleRings: new Map([["levels", "levels"]]), ...over });
+
+    it("lowers array.size(<ring>) → <ring>.size() (the cell-text leak fix)", () => {
+        expect(emitWithContext(arrayCall("array.size", [ident("levels")]), ringCtx())).toBe(
+            "levels.size()",
+        );
+    });
+
+    it("lowers a nested array.size over a ring inside str.tostring", () => {
+        // `str.tostring(array.size(levels))` → `String(levels.size())` — the
+        // ring lowering fires even when nested in a call argument.
+        const node = arrayCall("str.tostring", [arrayCall("array.size", [ident("levels")])]);
+        expect(emitWithContext(node, ringCtx())).toBe("String(levels.size())");
+    });
+
+    it("lowers array.get(<ring>, i) → <ring>.at(i)", () => {
+        expect(
+            emitWithContext(arrayCall("array.get", [ident("levels"), intLit("0")]), ringCtx()),
+        ).toBe("levels.at(0)");
+    });
+
+    it("leaves a non-ring-mappable array.* over a ring to the generic path", () => {
+        // `array.push` is a WRITE builtin (`mapArrayBuiltin` → null), so the ring
+        // rewrite falls through and the generic emit re-emits the call as-is.
+        expect(
+            emitWithContext(arrayCall("array.push", [ident("levels"), ident("close")]), ringCtx()),
+        ).toBe("array.push(levels, bar.close)");
+    });
+
+    it("ignores array.* over a non-ring identifier", () => {
+        expect(emitWithContext(arrayCall("array.size", [ident("other")]), ringCtx())).toBe(
+            "array.size(other)",
+        );
+    });
+
+    it("ignores array.* with no first argument", () => {
+        expect(emitWithContext(arrayCall("array.size", []), ringCtx())).toBe("array.size()");
+    });
+
+    it("ignores array.* whose first arg is not a bare identifier", () => {
+        // The OUTER `array.size` over a non-identifier first arg falls through;
+        // its inner `array.first(levels)` argument still lowers via the generic
+        // recursion, so the result is `array.size(levels.at(0))`.
+        expect(
+            emitWithContext(
+                arrayCall("array.size", [arrayCall("array.first", [ident("levels")])]),
+                ringCtx(),
+            ),
+        ).toBe("array.size(levels.at(0))");
+    });
+
+    it("is a no-op when no handleRings are registered", () => {
+        expect(emitWithContext(arrayCall("array.size", [ident("levels")]), ctx())).toBe(
+            "array.size(levels)",
+        );
+    });
+});
+
+describe("inputCastType", () => {
+    it("casts numeric factories to number", () => {
+        expect(inputCastType("input.int(5)")).toBe("number");
+        expect(inputCastType("input.float(1.5)")).toBe("number");
+        expect(inputCastType("input.source(close)")).toBe("number");
+        expect(inputCastType("input.enum(21, [21, 50])")).toBe("number");
+    });
+
+    it("casts the boolean factory to boolean", () => {
+        expect(inputCastType("input.bool(true)")).toBe("boolean");
+    });
+
+    it("casts the string-valued factories (incl. input.color) to string", () => {
+        expect(inputCastType('input.string("a")')).toBe("string");
+        expect(inputCastType('input.interval("D")')).toBe("string");
+        expect(inputCastType('input.color("#FF9800")')).toBe("string");
+        expect(inputCastType('input.enum("a", ["a", "b"])')).toBe("string");
+    });
+
+    it("leaves an unknown factory uncast", () => {
+        expect(inputCastType("input.price(1)")).toBeNull();
+    });
+});
+
+describe("buildDrawingEmitContext", () => {
+    function contextFor(body: string): EmitContext {
+        const src = `//@version=6\nindicator("X", overlay=true)\n${body}\nplot(close)\n`;
+        const analysis = analyze(parseStatements(lex(src).tokens).script);
+        const decl = analysis.script.declaration;
+        if (
+            decl === null ||
+            decl.kind === "library-declaration" ||
+            decl.kind === "import-declaration"
+        ) {
+            throw new Error("expected an indicator declaration");
+        }
+        const diagnostics = new DiagnosticCollector();
+        const scaffold = transformDeclaration(decl, analysis, diagnostics);
+        transformInputs(analysis, scaffold, diagnostics);
+        for (const site of analysis.drawingSites) {
+            if (site.camp.kind === "camp-b") {
+                transformCampB(site, analysis, scaffold, diagnostics);
+            }
+        }
+        return buildDrawingEmitContext(analysis, scaffold);
+    }
+
+    it("qualifies a registered input with its cast and maps a Camp B ring", () => {
+        const ctx = contextFor(
+            [
+                "c = input.color(#FF9800)",
+                "var array<line> lvls = array.new_line()",
+                "if close > open",
+                "    array.push(lvls, line.new(bar_index, close, bar_index, close))",
+                "    if array.size(lvls) > 10",
+                "        line.delete(array.shift(lvls))",
+            ].join("\n"),
+        );
+        expect(ctx.inputNames.has("c")).toBe(true);
+        expect(ctx.inputCasts?.get("c")).toBe("string");
+        expect(ctx.handleRings?.get("lvls")).toBe("lvls");
+        // No `var`/`varip` slots or UDF locals leak into the drawing context.
+        expect(ctx.localNames.size).toBe(0);
+        expect(ctx.stateSlots.size).toBe(0);
+    });
+
+    it("registers no handle rings when the script has none", () => {
+        const ctx = contextFor("len = input.int(5)");
+        expect(ctx.handleRings?.size).toBe(0);
+        expect(ctx.inputCasts?.get("len")).toBe("number");
     });
 });

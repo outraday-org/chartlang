@@ -7,12 +7,11 @@ import type { SourceSpan } from "../index.js";
 import { enumLookup } from "../mapping/index.js";
 import type { SemanticResult } from "../semantic/index.js";
 import { dottedCallee, positionalArgs } from "./callArgs.js";
-import { convertColor, isTranspColorForm } from "./colorConvert.js";
+import { convertColorWith, isTranspColorForm } from "./colorConvert.js";
 import { substituteIterator } from "./controlFlow.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
-import { emitWithContext } from "./emitContext.js";
-import type { AnnotationLookup } from "./exprEmit.js";
+import { buildDrawingEmitContext, emitWithContext } from "./emitContext.js";
 import { emitStr } from "./strFormat.js";
 import { handleSlotLocalName } from "./handleSlot.js";
 import type { ScriptScaffold } from "./ir.js";
@@ -94,13 +93,12 @@ const UNMAPPED_CELL_ARGS: ReadonlySet<string> = new Set([
 // The chartlang source for a cell styling arg: a bare-rooted enum routes
 // through `enumLookup`; a `color.new(base, transp)` / 4-arg `color.rgb(...)`
 // folds to a `#RRGGBBAA` hex (literal base) or `color.withAlpha(...)` (dynamic
-// base) via the shared {@link convertColor} — raising
-// `color-transp-approximated` — and everything else lowers through it
-// unchanged. Cell styling has no input/state context, so the annotation-based
-// `convertColor` (its emit fallback is `emitExpr`) matches the prior behaviour.
+// base) via the shared {@link convertColorWith} — raising
+// `color-transp-approximated` — and everything else lowers through the
+// input/ring-aware `emitWithContext` (so a bare `input.color` qualifies).
 function styleValueSource(
     node: ExpressionNode,
-    annotations: AnnotationLookup,
+    ctx: EmitContext,
     diagnostics: DiagnosticCollector,
 ): string {
     if (node.kind === "member-access-expression" && node.head === null) {
@@ -112,26 +110,20 @@ function styleValueSource(
     if (isTranspColorForm(node)) {
         diagnostics.pushCode("color-transp-approximated", node.span);
     }
-    return convertColor(node, annotations);
+    return convertColorWith(node, (sub) => emitWithContext(sub, ctx));
 }
 
 // Lower a table-cell text expression. A `str.*` call routes through the
 // shared {@link emitStr} formatter so `str.tostring(close, "#.##")` becomes
 // `(bar.close).toFixed(2)` instead of leaking the undefined `str` identifier;
 // an unmapped `str.*` form warns and falls back. Every other node lowers via
-// `emitExpr`. Cell text has no input/state context (state slots are
-// registered after the table pass), so a minimal {@link EmitContext} is used.
+// the shared `emitWithContext`, which qualifies bare inputs and lowers an
+// `array.size(<ring>)` over a Camp B drawing ring onto `<ring>.size()`.
 function cellTextSource(
     node: ExpressionNode,
-    annotations: AnnotationLookup,
+    ctx: EmitContext,
     diagnostics: DiagnosticCollector,
 ): string {
-    const ctx: EmitContext = {
-        annotations,
-        inputNames: new Set(),
-        localNames: new Set(),
-        stateSlots: new Map(),
-    };
     if (node.kind === "call-expression") {
         const lowered = emitStr(node, ctx);
         if (lowered !== null && lowered.kind === "warn") {
@@ -165,7 +157,7 @@ function applyWrite(
     call: CallExpression,
     col: number,
     row: number,
-    annotations: AnnotationLookup,
+    ctx: EmitContext,
     diagnostics: DiagnosticCollector,
 ): void {
     const key = cellKey(col, row);
@@ -176,11 +168,11 @@ function applyWrite(
     if (member === "cell") {
         const textArg = positional[3];
         if (textArg !== undefined) {
-            spec.text = cellTextSource(textArg.value, annotations, diagnostics);
+            spec.text = cellTextSource(textArg.value, ctx, diagnostics);
         }
-        applyCellNamedArgs(spec, call.args, annotations, diagnostics);
+        applyCellNamedArgs(spec, call.args, ctx, diagnostics);
     } else {
-        applyCellSetter(spec, member, positional[3], annotations, diagnostics);
+        applyCellSetter(spec, member, positional[3], ctx, diagnostics);
     }
     cells.set(key, spec);
 }
@@ -190,16 +182,16 @@ function applyCellSetter(
     spec: CellSpec,
     member: string,
     valueArg: CallArgument | undefined,
-    annotations: AnnotationLookup,
+    ctx: EmitContext,
     diagnostics: DiagnosticCollector,
 ): void {
     if (valueArg === undefined) {
         return;
     }
-    const value = styleValueSource(valueArg.value, annotations, diagnostics);
+    const value = styleValueSource(valueArg.value, ctx, diagnostics);
     switch (member) {
         case "cell_set_text":
-            spec.text = cellTextSource(valueArg.value, annotations, diagnostics);
+            spec.text = cellTextSource(valueArg.value, ctx, diagnostics);
             return;
         case "cell_set_bgcolor":
             spec.bgColor = value;
@@ -227,7 +219,7 @@ function applyCellSetter(
 function applyCellNamedArgs(
     spec: CellSpec,
     args: readonly CallArgument[],
-    annotations: AnnotationLookup,
+    ctx: EmitContext,
     diagnostics: DiagnosticCollector,
 ): void {
     for (const arg of args) {
@@ -243,7 +235,7 @@ function applyCellNamedArgs(
             );
             continue;
         }
-        const value = styleValueSource(arg.value, annotations, diagnostics);
+        const value = styleValueSource(arg.value, ctx, diagnostics);
         switch (arg.name) {
             case "bgcolor":
                 spec.bgColor = value;
@@ -289,12 +281,12 @@ function collectFromBody(
     body: readonly Statement[],
     handle: string,
     collected: Collected,
-    annotations: AnnotationLookup,
+    ctx: EmitContext,
     shape: TableShape,
     diagnostics: DiagnosticCollector,
 ): void {
     for (const stmt of body) {
-        collectFromStatement(stmt, handle, collected, annotations, shape, diagnostics);
+        collectFromStatement(stmt, handle, collected, ctx, shape, diagnostics);
     }
 }
 
@@ -302,26 +294,26 @@ function collectFromStatement(
     stmt: Statement,
     handle: string,
     collected: Collected,
-    annotations: AnnotationLookup,
+    ctx: EmitContext,
     shape: TableShape,
     diagnostics: DiagnosticCollector,
 ): void {
     if (stmt.kind === "expression-statement" && stmt.expression.kind === "call-expression") {
-        recordWrite(stmt.expression, handle, collected, annotations, shape, diagnostics);
+        recordWrite(stmt.expression, handle, collected, ctx, shape, diagnostics);
         return;
     }
     if (stmt.kind === "if-statement") {
-        collectFromBody(stmt.thenBody.body, handle, collected, annotations, shape, diagnostics);
+        collectFromBody(stmt.thenBody.body, handle, collected, ctx, shape, diagnostics);
         for (const clause of stmt.elseIfClauses) {
-            collectFromBody(clause.body.body, handle, collected, annotations, shape, diagnostics);
+            collectFromBody(clause.body.body, handle, collected, ctx, shape, diagnostics);
         }
         if (stmt.elseBody !== null) {
-            collectFromBody(stmt.elseBody.body, handle, collected, annotations, shape, diagnostics);
+            collectFromBody(stmt.elseBody.body, handle, collected, ctx, shape, diagnostics);
         }
         return;
     }
     if (stmt.kind === "for-statement") {
-        unrollLoop(stmt, handle, collected, annotations, shape, diagnostics);
+        unrollLoop(stmt, handle, collected, ctx, shape, diagnostics);
     }
 }
 
@@ -331,7 +323,7 @@ function unrollLoop(
     stmt: Extract<Statement, { kind: "for-statement" }>,
     handle: string,
     collected: Collected,
-    annotations: AnnotationLookup,
+    ctx: EmitContext,
     shape: TableShape,
     diagnostics: DiagnosticCollector,
 ): void {
@@ -362,7 +354,7 @@ function unrollLoop(
                 inner.expression.kind === "call-expression"
             ) {
                 const substituted = substituteCall(inner.expression, stmt.variable, i);
-                recordWrite(substituted, handle, collected, annotations, shape, diagnostics);
+                recordWrite(substituted, handle, collected, ctx, shape, diagnostics);
             }
         }
     }
@@ -393,7 +385,7 @@ function recordWrite(
     call: CallExpression,
     handle: string,
     collected: Collected,
-    annotations: AnnotationLookup,
+    ctx: EmitContext,
     shape: TableShape,
     diagnostics: DiagnosticCollector,
 ): void {
@@ -430,7 +422,7 @@ function recordWrite(
         return;
     }
     const member = name.slice("table.".length);
-    applyWrite(collected.cells, member, call, col, row, annotations, diagnostics);
+    applyWrite(collected.cells, member, call, col, row, ctx, diagnostics);
 }
 
 // Blank every cell of a merged span except the top-left, with one warning
@@ -606,14 +598,11 @@ function emitTable(
 
     const shape = readShape(entry.call);
     const collected: Collected = { cells: new Map(), deleted: false };
-    collectFromBody(
-        analysis.script.body,
-        handle,
-        collected,
-        analysis.annotations,
-        shape,
-        diagnostics,
-    );
+    // The tables pass runs LAST (after the Camp B transforms register their
+    // rings), so the drawing emit context resolves every input + handle ring a
+    // cell text / styling value might reference.
+    const ctx = buildDrawingEmitContext(analysis, scaffold);
+    collectFromBody(analysis.script.body, handle, collected, ctx, shape, diagnostics);
 
     const cellsSource = renderCells(collected.cells, shape);
     const cellsLocal = scaffold.names.allocate(`${local}Cells`);

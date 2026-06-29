@@ -7,7 +7,14 @@ import { expect, test } from "@playwright/test"
 // artifact. The demo posts to the real `/api/compile` server route, so
 // this also exercises the Netlify-bound function path end to end.
 test("landing renders and the demo compiles, renders, and recompiles", async ({ page }) => {
-  await page.goto("/")
+  // Pin the canvas2d adapter via the `?adapter=` deep-link. The demo's
+  // default adapter is now `webgl` (see `adapters/registry.ts`), but a
+  // WebGL canvas's `toDataURL()` returns a constant blank image without
+  // `preserveDrawingBuffer`, so the recompile bitmap-change assertion
+  // below can only be read off a 2D canvas. canvas2d is the one driver
+  // that paints the readable `<canvas class="chart-canvas">` this test
+  // samples (every adapter's render is covered by `demo-adapters.spec.ts`).
+  await page.goto("/?adapter=canvas2d")
 
   // Marketing sections from Tasks 2–3 plus the Task-4 demo.
   await expect(page.getByRole("heading", { name: "Quickstart" })).toBeVisible()

@@ -6,16 +6,17 @@ import { enumLookup } from "../mapping/index.js";
 import { namedArg, positionalArgs } from "./callArgs.js";
 import type { ResolvedAnchor } from "./coordinates.js";
 import { anchorToWorldPoint } from "./coordinates.js";
-import type { AnnotationLookup } from "./exprEmit.js";
-import { emitExpr } from "./exprEmit.js";
+import type { EmitContext } from "./emitContext.js";
+import { emitWithContext } from "./emitContext.js";
 import type { NameAllocator } from "./nameAllocator.js";
 import { renderEnumTarget } from "./setterFold.js";
 import { resolveYloc } from "./ylocResolve.js";
 
 // The chartlang source for a Pine style argument: a bare-rooted enum
 // (`color.red`) routes through `enumLookup`; everything else (a literal, an
-// input reference) lowers via `emitExpr`.
-function styleValueSource(node: ExpressionNode, annotations: AnnotationLookup): string {
+// input reference) lowers via the input/ring-aware `emitWithContext` so a bare
+// `color=lineColor` (an `input.color`) qualifies to `inputs.lineColor`.
+function styleValueSource(node: ExpressionNode, emit: EmitContext): string {
     if (node.kind === "member-access-expression" && node.head === null) {
         const mapping = enumLookup(node.chain.join("."));
         if (mapping !== null) {
@@ -25,7 +26,7 @@ function styleValueSource(node: ExpressionNode, annotations: AnnotationLookup): 
             }
         }
     }
-    return emitExpr(node, annotations);
+    return emitWithContext(node, emit);
 }
 
 /**
@@ -108,14 +109,19 @@ export function handleSlotLocalName(pineName: string, names: NameAllocator): str
  * @stable
  * @example
  *     const sink: DrawCallContext = {
- *         annotations: new Map(),
+ *         emit: {
+ *             annotations: new Map(),
+ *             inputNames: new Set(),
+ *             localNames: new Set(),
+ *             stateSlots: new Map(),
+ *         },
  *         anchors: new Map(),
  *         warn: () => {},
  *     };
  *     void sink;
  */
 export type DrawCallContext = Readonly<{
-    annotations: AnnotationLookup;
+    emit: EmitContext;
     anchors: ReadonlyMap<ExpressionNode, ResolvedAnchor>;
     warn: (
         code: "label-style-not-mapped" | "yloc-padding-approximated",
@@ -174,11 +180,11 @@ function buildStyleOpts(
     const colorArg = namedArg(args, "color");
     if (colorArg !== null) {
         const field = kind === "rectangle" ? "stroke" : "color";
-        parts.push(`${field}: ${styleValueSource(colorArg.value, ctx.annotations)}`);
+        parts.push(`${field}: ${styleValueSource(colorArg.value, ctx.emit)}`);
     }
     const widthArg = namedArg(args, "width");
     if (widthArg !== null) {
-        parts.push(`lineWidth: ${styleValueSource(widthArg.value, ctx.annotations)}`);
+        parts.push(`lineWidth: ${styleValueSource(widthArg.value, ctx.emit)}`);
     }
     const styleArg = namedArg(args, "style");
     if (styleArg !== null && styleArg.value.kind === "member-access-expression") {

@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 
+import { convert } from "../index.js";
 import { lex } from "../lexer/index.js";
 import { parseStatements } from "../parser/index.js";
 import { analyze } from "../semantic/index.js";
-import { convert } from "../index.js";
 import { NameAllocator, collectReservedNames } from "./nameAllocator.js";
 
 describe("NameAllocator — readable allocation", () => {
@@ -84,6 +84,21 @@ describe("NameAllocator — allocateForSymbol (Pine identifiers)", () => {
         // `a` again is memoized → still `a`, but a NEW base colliding with an
         // emitted name suffixes past both the emitted and seeded sets.
         expect(names.allocate("a")).toBe("a3");
+    });
+});
+
+describe("NameAllocator — allocatedSymbol (side-effect-free peek)", () => {
+    it("returns undefined before allocation and never mints a name", () => {
+        const names = new NameAllocator(["lvls"]);
+        expect(names.allocatedSymbol("lvls")).toBeUndefined();
+        // The peek did not consume `lvls`, so a real allocation still reclaims it.
+        expect(names.allocateForSymbol("lvls")).toBe("lvls");
+    });
+
+    it("returns the allocated local after allocateForSymbol", () => {
+        const names = new NameAllocator(["lvls"]);
+        names.allocateForSymbol("lvls");
+        expect(names.allocatedSymbol("lvls")).toBe("lvls");
     });
 });
 

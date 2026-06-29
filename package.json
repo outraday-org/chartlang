@@ -20,7 +20,7 @@
         "check": "pnpm check:content && pnpm check:committed",
         "check:content": "pnpm build && pnpm typecheck && pnpm lint && pnpm format && pnpm test && pnpm coverage:report && pnpm conformance && pnpm conformance:check && pnpm site:typecheck && pnpm site:build && pnpm bench:ci && pnpm docs:check && pnpm docs:gate && pnpm examples:gate && pnpm examples:coverage && pnpm examples:idioms && pnpm examples:sync && pnpm adapters:gate && pnpm docs:snippets && pnpm docs:build && pnpm hover:check && pnpm skills:gate && pnpm converter:docs:check && pnpm readme:check",
         "check:committed": "pnpm docs:committed:check",
-        "check:all": "pnpm check && pnpm site:e2e",
+        "check:all": "pnpm check && pnpm site:e2e:install && pnpm site:e2e",
         "adapters:generate": "pnpm tsx scripts/gen-adapters.ts",
         "adapters:gate": "pnpm tsx scripts/gen-adapters.ts --check",
         "conformance": "pnpm tsx scripts/run-conformance.ts",

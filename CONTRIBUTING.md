@@ -57,10 +57,18 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm build
 The last line is the local mirror of what the CI workflow runs on every
 PR. If any of those four commands fail, the PR will fail in CI.
 
-For the full pre-push gate run `pnpm check` — it mirrors CI except for
-two slow steps CI runs additionally: `pnpm bench:ci` (benchmarks) and
-`pnpm docs:build` (VitePress build, catches dead links). Run those
-manually when touching benches or docs.
+For the full pre-push gate run `pnpm check` — it runs every static
+correctness gate CI's `test` job runs (build, typecheck, lint, tests +
+coverage, conformance, benches, docs + VitePress build, examples, hover,
+skills, converter docs, readme).
+
+**`pnpm check` does NOT run the apps/site Playwright e2e suite.** CI gates
+that in a separate `e2e-site` job (`pnpm site:e2e`), so a green `pnpm
+check` can still fail CI on an e2e regression. To mirror CI **completely**
+— the `test` job **and** the `e2e-site` job — run `pnpm check:all`; it
+appends the Playwright browser install (`site:e2e:install`) + the e2e run
+to `pnpm check`. Always run `pnpm check:all` before pushing anything that
+touches `apps/site/` or the converter playground (`pineScripts.ts`).
 
 ## 2. Test + coverage gate (§16)
 

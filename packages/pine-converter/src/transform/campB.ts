@@ -9,6 +9,8 @@ import type { ResolvedAnchor } from "./coordinates.js";
 import { resolveCoordinates } from "./coordinates.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import { resolveCampADrawKind } from "./drawKindResolve.js";
+import type { EmitContext } from "./emitContext.js";
+import { buildDrawingEmitContext } from "./emitContext.js";
 import { emitExpr } from "./exprEmit.js";
 import type { DrawCallContext } from "./handleSlot.js";
 import { drawCallAnchors, synthesizeDrawCall } from "./handleSlot.js";
@@ -215,12 +217,12 @@ function loopSetterOf(stmt: Statement, collection: string, iterator: string): Se
 // structural `DrawCallContext.warn` to the package `DiagnosticCollector` with
 // a once-per-script `yloc-padding-approximated` dedupe.
 function drawContext(
-    analysis: SemanticResult,
+    emit: EmitContext,
     anchors: ReadonlyMap<ExpressionNode, ResolvedAnchor>,
     diagnostics: DiagnosticCollector,
 ): DrawCallContext {
     return {
-        annotations: analysis.annotations,
+        emit,
         anchors,
         warn: (code, node) => {
             if (
@@ -242,7 +244,7 @@ function emitRingUpdateLoop(
     ringLocal: string,
     cap: number,
     site: DrawingCallSite,
-    annotations: DrawCallContext["annotations"],
+    emit: EmitContext,
     diagnostics: DiagnosticCollector,
     scaffold: ScriptScaffold,
     anchorDefaults: readonly string[],
@@ -253,7 +255,7 @@ function emitRingUpdateLoop(
             ? foldSetters(
                   setters,
                   site.handleType,
-                  annotations,
+                  emit,
                   (code, node) => diagnostics.pushCode(code, node.span),
                   anchorDefaults,
               )
@@ -354,7 +356,8 @@ export function transformCampB(
 
     const ringLocal = registerRing(scaffold, collection, kind, cap);
     const { anchors } = resolveCoordinates(analysis, {});
-    const ctx = drawContext(analysis, anchors, diagnostics);
+    const emit = buildDrawingEmitContext(analysis, scaffold);
+    const ctx = drawContext(emit, anchors, diagnostics);
     const drawCall = synthesizeDrawCall(kind, site.call, ctx);
     const anchorDefaults = drawCallAnchors(kind, site.call, ctx);
 
@@ -373,7 +376,7 @@ export function transformCampB(
             ringLocal,
             cap,
             site,
-            analysis.annotations,
+            emit,
             diagnostics,
             scaffold,
             anchorDefaults,
