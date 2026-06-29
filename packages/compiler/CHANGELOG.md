@@ -1,5 +1,57 @@
 # @invinite-org/chartlang-compiler
 
+## 1.7.0
+
+### Minor Changes
+
+- 7704fbf: Add an in-memory cross-file producer seam so a single-source host can resolve sibling `./X.chart` imports without disk access.
+
+  - `compiler`: new `CompileOptions.inMemoryChartSources` (a `./X.chart` specifier → source map). It feeds both the cross-file producer resolver (`createProducerResolver`'s new `inMemorySources` option) so dependency analysis and bundling inline the producer, and the typecheck program (via the new `TransformAndAnalyseOptions.inMemoryChartImports`) which serves each resolving specifier as a virtual `CompiledScriptObject` stub to suppress a spurious `TS2307`. Both paths are opt-in and lazy — only specifiers actually imported are consulted, so the default (no map / empty map) is byte-identical to the disk path.
+  - `language-service`: new `LanguageServiceOptions.inMemoryChartSources`, forwarded to the local Node compiler when `compileToDiagnostics` is not injected, so a host's diagnostics compile does not report `TS2307` for sibling chart imports it holds in memory.
+
+- f89117d: Accept input-bound and chart-timeframe intervals as compile-time security feeds.
+
+  The compiler's `request.security` feed extraction now reads an `interval` bound
+  to an `input.interval` default (via the shared `getInputDefault` helper), exactly
+  as it already reads an `input.symbol` default for the `symbol` axis — reversing
+  the previous "an `input.interval` is never a feed interval" rule. An empty
+  default (`""`, Pine's chart timeframe) resolves to the chart interval: a
+  chart-symbol + chart-timeframe pair collapses onto the primary stream (no feed,
+  no `requestedIntervals` entry), while a present-symbol + chart-timeframe pair
+  stays a distinct `{ symbol, interval: "" }` feed. The expression-form descriptor
+  anchor mirrors the same `input.interval`-default acceptance. A genuinely-dynamic
+  interval still rejects with `request-security-interval-not-literal`.
+
+  `core`: relaxed the `RequestSecurityOpts.interval` literal-only JSDoc to document
+  the `input.interval` default + chart-timeframe (`""`) cases.
+
+### Patch Changes
+
+- f89117d: Map input-bound `request.security` symbol/timeframe feeds,
+  `input.timeframe`→`input.interval` (incl. chart timeframe), and the `gaps=`
+  argument.
+
+  The converter now resolves a `request.security` symbol/timeframe bound to an
+  `input.symbol` / `input.timeframe` declaration through that input and emits the
+  chartlang `inputs.<name>` reference (so the value stays user-editable), instead
+  of rejecting it with `request-security-not-mapped`. `input.timeframe` maps to
+  `input.interval`, and an empty `input.timeframe("")` default is the chart
+  timeframe (`input.interval("")`) rather than a spurious
+  `non-literal-input-default`. The tuple/list output form shares the same
+  resolution. A `gaps = barmerge.gaps_off|gaps_on` argument is recognised and
+  dropped with one `request-security-gaps-dropped` info (chartlang feeds are
+  gap-filled by default) instead of an unmapped-arg error. A computed / wrong-axis
+  symbol or timeframe still rejects with `request-security-not-mapped`.
+
+  `compiler`: the `request.security` feed extractor (`getInputDefault` /
+  `getInputsEnumOptions`) now unwraps enclosing parentheses + `as` casts, so the
+  converter's `inputs.<name> as string` feed emit — the cast is required because a
+  script's `compute` `inputs` is typed `Record<string, unknown>` — resolves to the
+  input default. A hand-written un-cast `inputs.<name>` is unchanged.
+
+- Updated dependencies [f89117d]
+  - @invinite-org/chartlang-core@1.6.0
+
 ## 1.6.0
 
 ### Minor Changes
