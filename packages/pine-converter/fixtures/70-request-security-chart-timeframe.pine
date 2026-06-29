@@ -1,0 +1,5 @@
+//@version=6
+indicator("Chart-timeframe request.security", overlay=true)
+tf = input.timeframe("")
+chartclose = request.security(syminfo.tickerid, tf, close)
+plot(chartclose)

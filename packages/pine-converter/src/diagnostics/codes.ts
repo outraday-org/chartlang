@@ -554,6 +554,14 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             "Remove the `lookahead` argument; chartlang MTF reads are non-repainting.",
     },
+    "request-security-gaps-dropped": {
+        code: "pine-converter/transform/request-security-gaps-dropped",
+        severity: "info",
+        defaultMessage:
+            "The `gaps` parameter on `request.security` has no chartlang analogue and was dropped; chartlang security feeds are gap-filled by default.",
+        defaultSuggestion:
+            "Remove the `gaps` argument; chartlang aligns the higher-timeframe feed onto every chart bar.",
+    },
     "request-security-not-mapped": {
         code: "pine-converter/transform/request-security-not-mapped",
         severity: "error",
@@ -850,9 +858,9 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         code: "pine-converter/parse/switch-expression-unsupported",
         severity: "error",
         defaultMessage:
-            "A `switch` used as a value (e.g. `x = switch s ...`) is not yet supported.",
+            "A value-form `switch` arm body must be a single expression; a multi-statement block, a comma-separated list, or a `:=` assignment arm is not supported.",
         defaultSuggestion:
-            'Rewrite it as a chained ternary, or assign the result inside each `switch` arm body (`switch s\\n  "A" => x := ...`).',
+            'Make each arm yield one expression (`"A" => ta.sma(close, 14)`), or use a statement-form `switch` that assigns into a `var` for multi-statement arms.',
     },
     "input-string-options-default-mismatch": {
         code: "pine-converter/transform/input-string-options-default-mismatch",

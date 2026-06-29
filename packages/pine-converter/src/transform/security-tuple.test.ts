@@ -44,6 +44,25 @@ describe("tuple request.security — N-read lowering", () => {
         );
     });
 
+    it("resolves an input-bound symbol + timeframe feed to inputs.<name> refs", () => {
+        const { lines, codes } = run(
+            [
+                'sym = input.symbol("NASDAQ:QQQ")',
+                'tf = input.timeframe("D")',
+                "[hi, lo] = request.security(sym, tf, [high, low])",
+                "plot(hi)",
+                "plot(lo)",
+            ].join("\n"),
+        );
+        expect(codes).toContain("pine-converter/transform/request-security-different-symbol");
+        expect(lines).toContain(
+            "const hi = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).high;",
+        );
+        expect(lines).toContain(
+            "const lo = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).low;",
+        );
+    });
+
     it("skips a `_` placeholder element (no read emitted for it)", () => {
         const { lines, codes } = run(
             '[hi, _] = request.security(syminfo.tickerid, "D", [high, low])\nplot(hi)',

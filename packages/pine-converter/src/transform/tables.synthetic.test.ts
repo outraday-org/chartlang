@@ -96,6 +96,37 @@ describe("transformTables — full cell-styling coverage", () => {
         );
     });
 
+    it("consolidates unmapped cell args to one per distinct name and still maps colors", () => {
+        const { scaffold, diagnostics } = run(
+            [
+                "var table t = na",
+                "if barstate.islast",
+                "    t := table.new(position.top_left, 1, 3)",
+                '    table.cell(t, 0, 0, "a", text_formatting=text.format_bold, text_color=color.white)',
+                '    table.cell(t, 0, 1, "b", text_font_family=font.family_monospace, bgcolor=color.green)',
+                '    table.cell(t, 0, 2, "c", text_wrap=text.wrap_auto, text_formatting=text.format_bold)',
+            ].join("\n"),
+        );
+        const formatting = codes(diagnostics).filter(
+            (c) => c === "pine-converter/transform/table-formatting-not-mapped",
+        );
+        // 4 unmapped occurrences across 3 cells → 3 (text_formatting, text_font_family, text_wrap).
+        expect(formatting).toHaveLength(3);
+        const messages = diagnostics
+            .toArray()
+            .filter((d) => d.code === "pine-converter/transform/table-formatting-not-mapped")
+            .map((d) => d.message);
+        expect(messages).toEqual([
+            "Pine's `text_formatting` table-cell option has no chartlang analogue and was dropped.",
+            "Pine's `text_font_family` table-cell option has no chartlang analogue and was dropped.",
+            "Pine's `text_wrap` table-cell option has no chartlang analogue and was dropped.",
+        ]);
+        // Mapped color args are unaffected by the consolidation.
+        const cells = cellsOf(scaffold);
+        expect(cells).toContain('textColor: "#FFFFFF"');
+        expect(cells).toContain('bgColor: "#4CAF50"');
+    });
+
     it("drops an unknown cell named arg", () => {
         const { scaffold } = run(
             [

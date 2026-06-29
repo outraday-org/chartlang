@@ -61,6 +61,10 @@ const STATEMENT_SYNC: ReadonlySet<TokenKind> = new Set<TokenKind>(["newline", "e
  *     parseVersionDirective(ctx)?.version; // 6
  */
 export function parseVersionDirective(ctx: ParserContext): VersionDirective | null {
+    // Real TradingView Pine allows `//` license/credit and blank lines before
+    // the directive; the cursor skips the comments but leaves their trailing
+    // `newline`, so drop those before matching the directive.
+    ctx.cursor.skipNewlines();
     const token = ctx.cursor.match("version-directive");
     if (token === null) {
         ctx.addDiagnostic(makeDiagnostic("missing-version-directive", ctx.cursor.peek().span));

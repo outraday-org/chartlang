@@ -27,6 +27,7 @@ import type { Diagnostic, SourceSpan } from "../index.js";
 export class DiagnosticCollector {
     private readonly items: Diagnostic[] = [];
     private readonly codes = new Set<string>();
+    private readonly onceKeys = new Set<string>();
 
     /**
      * Append an already-built {@link Diagnostic} (e.g. a diagnostic returned
@@ -69,6 +70,40 @@ export class DiagnosticCollector {
      */
     public pushCode(key: ParserDiagnosticCode, span: SourceSpan, messageOverride?: string): void {
         this.push(makeDiagnostic(key, span, messageOverride));
+    }
+
+    /**
+     * Build and append a registry diagnostic the FIRST time a given
+     * `(key, dedupeKey)` pair is seen, suppressing every later push of the same
+     * pair. Where {@link DiagnosticCollector.has} de-dupes a once-per-script
+     * diagnostic by code alone, this de-dupes by code AND a caller-supplied
+     * discriminator — so an unmapped `input.*` / table-cell argument warns once
+     * per distinct argument NAME across the whole script (its representative
+     * span being the first occurrence) instead of once per call site. Because
+     * the transform walk is source-order deterministic, both the chosen span and
+     * the emission order are stable.
+     *
+     * @since 0.1
+     * @stable
+     * @example
+     *     const diagnostics = new DiagnosticCollector();
+     *     const span = { startLine: 3, startColumn: 1, endLine: 3, endColumn: 9 };
+     *     diagnostics.pushCodeOnce("input-arg-not-mapped", "group", span);
+     *     diagnostics.pushCodeOnce("input-arg-not-mapped", "group", span);
+     *     diagnostics.size; // 1 — the second `group` push is suppressed
+     */
+    public pushCodeOnce(
+        key: ParserDiagnosticCode,
+        dedupeKey: string,
+        span: SourceSpan,
+        messageOverride?: string,
+    ): void {
+        const compound = `${key}::${dedupeKey}`;
+        if (this.onceKeys.has(compound)) {
+            return;
+        }
+        this.onceKeys.add(compound);
+        this.pushCode(key, span, messageOverride);
     }
 
     /**

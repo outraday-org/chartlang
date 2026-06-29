@@ -134,6 +134,17 @@ function collectExpressionFacts(expr: ExpressionNode, acc: FactsAccumulator): vo
         case "lambda-expression":
             collectExpressionFacts(expr.body, acc);
             return;
+        case "switch-expression":
+            if (expr.subject !== null) {
+                collectExpressionFacts(expr.subject, acc);
+            }
+            for (const arm of expr.cases) {
+                if (arm.test !== null) {
+                    collectExpressionFacts(arm.test, acc);
+                }
+                collectExpressionFacts(arm.value, acc);
+            }
+            return;
         case "identifier-expression":
         case "literal-expression":
         case "na-expression":

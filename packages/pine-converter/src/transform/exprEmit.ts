@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { ExpressionNode, HistoryAccessExpression } from "../ast/index.js";
+import type { ExpressionNode, HistoryAccessExpression, SwitchExpression } from "../ast/index.js";
 import { PINE_NA_COLOR, lowerBuiltinCall, remapIdentifier } from "../mapping/index.js";
 import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
 
@@ -69,6 +69,32 @@ function emitNa(node: ExpressionNode, annotations: AnnotationLookup): string {
 function emitMemberChain(chain: readonly string[], headExpr: string | null): string {
     const tail = chain.join(".");
     return headExpr === null ? tail : `${headExpr}.${tail}`;
+}
+
+// Lower a value-form `switch` to a right-nested ternary chain matching Pine: an
+// arm with a `test` becomes `<cond> ? <value> : <rest>` (with a subject the
+// condition is `<subject> === <label>`; the subject-less boolean form uses the
+// test directly), a default arm (`test === null`) becomes the unconditional
+// `<rest>`, and an exhausted chain yields `Number.NaN` (Pine returns `na` when
+// nothing matches and there is no default). Building right-to-left nests the
+// ternary correctly without extra parentheses (ternary is right-associative);
+// `operand` self-parenthesises any non-atomic sub-expression.
+function emitSwitchExpression(node: SwitchExpression, annotations: AnnotationLookup): string {
+    let chain = "Number.NaN";
+    for (let i = node.cases.length - 1; i >= 0; i -= 1) {
+        const arm = node.cases[i];
+        const value = operand(arm.value, annotations);
+        if (arm.test === null) {
+            chain = value;
+            continue;
+        }
+        const condition =
+            node.subject === null
+                ? operand(arm.test, annotations)
+                : `${operand(node.subject, annotations)} === ${operand(arm.test, annotations)}`;
+        chain = `${condition} ? ${value} : ${chain}`;
+    }
+    return chain;
 }
 
 /**
@@ -168,6 +194,8 @@ export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): s
             return `[${node.elements.map((el) => emitExpr(el, annotations)).join(", ")}]`;
         case "lambda-expression":
             return `(${node.params.join(", ")}) => ${operand(node.body, annotations)}`;
+        case "switch-expression":
+            return emitSwitchExpression(node, annotations);
         case "unknown-expression":
             // Unrecoverable parser fallback; never reaches a real coordinate
             // arg. Emit a benign placeholder so the output still parses.
@@ -256,6 +284,17 @@ export function forEachHistoryAccess(
             return;
         case "lambda-expression":
             forEachHistoryAccess(node.body, visit);
+            return;
+        case "switch-expression":
+            if (node.subject !== null) {
+                forEachHistoryAccess(node.subject, visit);
+            }
+            for (const arm of node.cases) {
+                if (arm.test !== null) {
+                    forEachHistoryAccess(arm.test, visit);
+                }
+                forEachHistoryAccess(arm.value, visit);
+            }
             return;
     }
 }

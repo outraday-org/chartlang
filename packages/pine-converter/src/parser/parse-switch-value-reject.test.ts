@@ -14,26 +14,16 @@ function codes(result: ReturnType<typeof parse>): string[] {
     return result.diagnostics.map((d) => d.code);
 }
 
-// A `switch` used as a value is not yet supported (the Pratt parser models
-// `switch` only as a statement). The parser must emit exactly one clean
-// `switch-expression-unsupported` reject and recover the switch header + its
-// indented arm block so the next sibling statement still parses.
-describe("switch-as-value hard-reject", () => {
-    it("rejects a typed declaration whose initializer is a `switch` and continues", () => {
+// Value-form `switch` is supported (lowered to a chained ternary), but ONLY when
+// every arm yields a single expression. A multi-statement / multi-assignment arm
+// body is the residual unsupported sub-shape: it keeps emitting one clean
+// `switch-expression-unsupported` and the whole `switch` degrades to a
+// placeholder so the next sibling statement still parses.
+describe("value-form switch residual reject", () => {
+    it("rejects a multi-statement (block) arm body and continues", () => {
         const result = parse(
-            '//@version=6\nindicator()\nfloat ma = switch sel\n    "A" => 1\n    "B" => 2\nplot(close)\n',
-        );
-        expect(codes(result)).toEqual(["pine-converter/parse/switch-expression-unsupported"]);
-        // The placeholder declaration is registered; `plot(close)` resumes.
-        expect(result.script.body.map((s) => s.kind)).toEqual([
-            "variable-declaration",
-            "expression-statement",
-        ]);
-    });
-
-    it("rejects an untyped assignment whose value is a `switch` and continues", () => {
-        const result = parse(
-            '//@version=6\nindicator()\nma = switch sel\n    "A" => 1\n    "B" => 2\nplot(close)\n',
+            "//@version=6\nindicator()\nma = switch sel\n" +
+                "    1 =>\n        x = 1\n        x + 1\n    2 => 2\nplot(close)\n",
         );
         expect(codes(result)).toEqual(["pine-converter/parse/switch-expression-unsupported"]);
         expect(result.script.body.map((s) => s.kind)).toEqual([
@@ -42,14 +32,35 @@ describe("switch-as-value hard-reject", () => {
         ]);
     });
 
-    it("rejects a tuple destructuring whose value is a `switch` and continues", () => {
+    it("rejects an empty (multi-line) arm body with no indented block", () => {
         const result = parse(
-            '//@version=6\nindicator()\n[a, b] = switch sel\n    "A" => [1, 2]\n    "B" => [3, 4]\nplot(close)\n',
+            "//@version=6\nindicator()\nma = switch sel\n" +
+                '    "A" =>\n    "B" => 2\nplot(close)\n',
         );
         expect(codes(result)).toEqual(["pine-converter/parse/switch-expression-unsupported"]);
-        expect(result.script.body.map((s) => s.kind)).toEqual([
-            "tuple-declaration",
-            "expression-statement",
-        ]);
+    });
+
+    it("rejects a comma-separated multi-assignment arm body", () => {
+        const result = parse(
+            "//@version=6\nindicator()\nma = switch sel\n" +
+                '    "A" => a := 1, b := 2\n    "B" => 3\nplot(close)\n',
+        );
+        expect(codes(result)).toEqual(["pine-converter/parse/switch-expression-unsupported"]);
+    });
+
+    it("rejects a single `:=` assignment arm (a statement, not an expression)", () => {
+        const result = parse(
+            "//@version=6\nindicator()\nma = switch sel\n" +
+                '    "A" => b := 1\n    "B" => 2\nplot(close)\n',
+        );
+        expect(codes(result)).toEqual(["pine-converter/parse/switch-expression-unsupported"]);
+    });
+
+    it("emits the diagnostic ONCE even when several arms are unsupported", () => {
+        const result = parse(
+            "//@version=6\nindicator()\nma = switch sel\n" +
+                '    "A" => a := 1\n    "B" => b := 2\nplot(close)\n',
+        );
+        expect(codes(result)).toEqual(["pine-converter/parse/switch-expression-unsupported"]);
     });
 });

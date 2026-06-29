@@ -421,3 +421,115 @@ describe("forEachHistoryAccess", () => {
         expect(names(history(history(ident("n"), int("1")), int("2")))).toEqual(["n"]);
     });
 });
+
+describe("emitExpr — value-form switch", () => {
+    const sw = (
+        subject: ExpressionNode | null,
+        cases: ReadonlyArray<{ test: ExpressionNode | null; value: ExpressionNode }>,
+    ): ExpressionNode => ({
+        kind: "switch-expression",
+        subject,
+        cases: cases.map((c) => ({ ...c, span: SPAN })),
+        span: SPAN,
+    });
+    const str = (v: string): ExpressionNode => ({
+        kind: "literal-expression",
+        literalKind: "string",
+        value: v,
+        span: SPAN,
+    });
+
+    it("lowers a subject form to a chained ternary ending in Number.NaN", () => {
+        expect(
+            emitExpr(
+                sw(ident("sel"), [
+                    { test: str('"A"'), value: int("1") },
+                    { test: str('"B"'), value: int("2") },
+                ]),
+                noAnnotations,
+            ),
+        ).toBe('sel === "A" ? 1 : sel === "B" ? 2 : Number.NaN');
+    });
+
+    it("lowers the subject-less form using each arm condition directly", () => {
+        expect(
+            emitExpr(
+                sw(null, [
+                    { test: ident("c"), value: int("1") },
+                    { test: ident("d"), value: int("2") },
+                ]),
+                noAnnotations,
+            ),
+        ).toBe("c ? 1 : d ? 2 : Number.NaN");
+    });
+
+    it("uses a wildcard default arm as the chain fallback", () => {
+        expect(
+            emitExpr(
+                sw(ident("sel"), [
+                    { test: str('"A"'), value: int("1") },
+                    { test: null, value: int("9") },
+                ]),
+                noAnnotations,
+            ),
+        ).toBe('sel === "A" ? 1 : 9');
+    });
+
+    it("lowers an empty switch to the bare Number.NaN fallback", () => {
+        expect(emitExpr(sw(ident("sel"), []), noAnnotations)).toBe("Number.NaN");
+    });
+
+    it("parenthesises a non-atomic subject, condition, and value", () => {
+        const sum = (a: string, b: string): ExpressionNode => ({
+            kind: "binary-expression",
+            operator: "+",
+            left: ident(a),
+            right: ident(b),
+            span: SPAN,
+        });
+        expect(
+            emitExpr(sw(sum("a", "b"), [{ test: int("0"), value: sum("c", "d") }]), noAnnotations),
+        ).toBe("(a + b) === 0 ? (c + d) : Number.NaN");
+    });
+});
+
+describe("forEachHistoryAccess — value-form switch", () => {
+    const hist = (name: string): ExpressionNode => ({
+        kind: "history-access-expression",
+        receiver: { kind: "identifier-expression", name, span: SPAN },
+        offset: { kind: "literal-expression", literalKind: "int", value: "1", span: SPAN },
+        span: SPAN,
+    });
+    const collect = (node: ExpressionNode): string[] => {
+        const out: string[] = [];
+        forEachHistoryAccess(node, (h) => {
+            if (h.receiver.kind === "identifier-expression") {
+                out.push(h.receiver.name);
+            }
+        });
+        return out;
+    };
+
+    it("descends the subject and every arm test/value", () => {
+        const node: ExpressionNode = {
+            kind: "switch-expression",
+            subject: hist("subj"),
+            cases: [
+                { test: hist("t0"), value: hist("v0"), span: SPAN },
+                { test: null, value: hist("v1"), span: SPAN },
+            ],
+            span: SPAN,
+        };
+        expect(collect(node)).toEqual(["subj", "t0", "v0", "v1"]);
+    });
+
+    it("handles a subject-less switch", () => {
+        const node: ExpressionNode = {
+            kind: "switch-expression",
+            subject: null,
+            cases: [{ test: hist("c0"), value: hist("r0"), span: SPAN }],
+            span: SPAN,
+        };
+        expect(collect(node)).toEqual(["c0", "r0"]);
+    });
+});

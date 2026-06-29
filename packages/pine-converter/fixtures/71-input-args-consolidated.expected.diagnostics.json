@@ -1,0 +1,38 @@
+[
+    {
+        "code": "pine-converter/transform/input-arg-not-mapped",
+        "severity": "warning",
+        "message": "The `group` input argument has no chartlang analogue and was dropped.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 21,
+            "endLine": 3,
+            "endColumn": 31
+        },
+        "suggestion": "Remove the argument; chartlang inputs do not model it."
+    },
+    {
+        "code": "pine-converter/transform/input-arg-not-mapped",
+        "severity": "warning",
+        "message": "The `inline` input argument has no chartlang analogue and was dropped.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 33,
+            "endLine": 3,
+            "endColumn": 45
+        },
+        "suggestion": "Remove the argument; chartlang inputs do not model it."
+    },
+    {
+        "code": "pine-converter/transform/input-arg-not-mapped",
+        "severity": "warning",
+        "message": "The `tooltip` input argument has no chartlang analogue and was dropped.",
+        "span": {
+            "startLine": 3,
+            "startColumn": 47,
+            "endLine": 3,
+            "endColumn": 68
+        },
+        "suggestion": "Remove the argument; chartlang inputs do not model it."
+    }
+]

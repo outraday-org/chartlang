@@ -405,6 +405,42 @@ describe("substituteIterator", () => {
             span: SPAN,
         });
     });
+
+    it("substitutes the iterator across a value-form switch (subject + arms)", () => {
+        expect(
+            subValue({
+                kind: "switch-expression",
+                subject: ident("i"),
+                cases: [
+                    { test: ident("i"), value: ident("i"), span: SPAN },
+                    { test: null, value: ident("i"), span: SPAN },
+                ],
+                span: SPAN,
+            }),
+        ).toEqual({
+            kind: "switch-expression",
+            subject: intLit("7"),
+            cases: [
+                { test: intLit("7"), value: intLit("7"), span: SPAN },
+                { test: null, value: intLit("7"), span: SPAN },
+            ],
+            span: SPAN,
+        });
+        // The subject-less form leaves `subject` null.
+        expect(
+            subValue({
+                kind: "switch-expression",
+                subject: null,
+                cases: [{ test: ident("i"), value: ident("i"), span: SPAN }],
+                span: SPAN,
+            }),
+        ).toEqual({
+            kind: "switch-expression",
+            subject: null,
+            cases: [{ test: intLit("7"), value: intLit("7"), span: SPAN }],
+            span: SPAN,
+        });
+    });
 });
 
 const REPL: ExpressionNode = { kind: "identifier-expression", name: "arg", span: SPAN };
@@ -521,6 +557,42 @@ describe("substituteParams", () => {
         ).toEqual({ kind: "lambda-expression", params: ["p"], body: REPL, span: SPAN });
         expect(subNode({ kind: "na-expression", span: SPAN })).toEqual({
             kind: "na-expression",
+            span: SPAN,
+        });
+    });
+
+    it("substitutes bound params across a value-form switch (subject + arms)", () => {
+        expect(
+            subNode({
+                kind: "switch-expression",
+                subject: ident("x"),
+                cases: [
+                    { test: ident("x"), value: ident("x"), span: SPAN },
+                    { test: null, value: ident("x"), span: SPAN },
+                ],
+                span: SPAN,
+            }),
+        ).toEqual({
+            kind: "switch-expression",
+            subject: REPL,
+            cases: [
+                { test: REPL, value: REPL, span: SPAN },
+                { test: null, value: REPL, span: SPAN },
+            ],
+            span: SPAN,
+        });
+        // The subject-less form leaves `subject` null.
+        expect(
+            subNode({
+                kind: "switch-expression",
+                subject: null,
+                cases: [{ test: ident("x"), value: ident("x"), span: SPAN }],
+                span: SPAN,
+            }),
+        ).toEqual({
+            kind: "switch-expression",
+            subject: null,
+            cases: [{ test: REPL, value: REPL, span: SPAN }],
             span: SPAN,
         });
     });

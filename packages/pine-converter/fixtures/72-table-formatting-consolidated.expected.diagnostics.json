@@ -1,0 +1,50 @@
+[
+    {
+        "code": "pine-converter/transform/table-bucket-cap-adjusted",
+        "severity": "info",
+        "message": "The `other` drawing-bucket cap was raised to fit the converted tables.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 14,
+            "endLine": 5,
+            "endColumn": 49
+        },
+        "suggestion": "No action needed; the cap was widened to match the table count."
+    },
+    {
+        "code": "pine-converter/transform/table-formatting-not-mapped",
+        "severity": "warning",
+        "message": "Pine's `text_formatting` table-cell option has no chartlang analogue and was dropped.",
+        "span": {
+            "startLine": 6,
+            "startColumn": 62,
+            "endLine": 6,
+            "endColumn": 94
+        },
+        "suggestion": "chartlang `TableCell` models text, colors, alignment, and size only."
+    },
+    {
+        "code": "pine-converter/transform/table-formatting-not-mapped",
+        "severity": "warning",
+        "message": "Pine's `text_font_family` table-cell option has no chartlang analogue and was dropped.",
+        "span": {
+            "startLine": 7,
+            "startColumn": 85,
+            "endLine": 7,
+            "endColumn": 123
+        },
+        "suggestion": "chartlang `TableCell` models text, colors, alignment, and size only."
+    },
+    {
+        "code": "pine-converter/transform/table-formatting-not-mapped",
+        "severity": "warning",
+        "message": "Pine's `text_wrap` table-cell option has no chartlang analogue and was dropped.",
+        "span": {
+            "startLine": 8,
+            "startColumn": 37,
+            "endLine": 8,
+            "endColumn": 61
+        },
+        "suggestion": "chartlang `TableCell` models text, colors, alignment, and size only."
+    }
+]

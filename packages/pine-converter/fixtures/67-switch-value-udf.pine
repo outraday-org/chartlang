@@ -1,0 +1,11 @@
+//@version=6
+indicator("Switch MA", overlay=true)
+maType = input.string("SMA", "MA type")
+len = input.int(14, "Length")
+cf_ma(s, t, l) =>
+    float result = switch t
+        "SMA" => ta.sma(s, l)
+        "EMA" => ta.ema(s, l)
+        "WMA" => ta.wma(s, l)
+    result
+plot(cf_ma(close, maType, len))

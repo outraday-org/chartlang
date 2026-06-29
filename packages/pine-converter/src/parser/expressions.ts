@@ -16,6 +16,7 @@ import { makeDiagnostic } from "../diagnostics/codes.js";
 import type { Token } from "../lexer/index.js";
 import type { ParserContext } from "./context.js";
 import { spanBetween } from "./spans.js";
+import { parseSwitchExpression } from "./statements.js";
 
 // Binary-operator precedence (higher binds tighter). `and`/`or` are
 // `keyword` tokens; the comparison/arithmetic operators are `operator`
@@ -219,6 +220,11 @@ function parsePrimary(ctx: ParserContext): ExpressionNode {
         if (token.text === "true" || token.text === "false") {
             ctx.cursor.next();
             return literalFrom(token, "bool");
+        }
+        // A `switch` in value position (`x = switch s …`) is the prefix form of
+        // the statement-form switch; delegate to the shared arm parser.
+        if (token.text === "switch") {
+            return parseSwitchExpression(ctx);
         }
     }
     if (token.kind === "identifier") {

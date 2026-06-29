@@ -4863,7 +4863,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "RequestSecurityOpts",
         "kind": "type",
         "title": "RequestSecurityOpts",
-        "summary": "/**\nArgument to  {@link request.security} . The `interval` must be a string\nliteral or an `input.enum` value; the compiler's literal-only pass rejects\ndynamic expressions with `request-security-interval-not-literal`.",
+        "summary": "/**\nArgument to  {@link request.security} . The `interval` must be compile-time\nresolvable — a string literal, an `input.interval` default, an `input.enum`\nvalue, or empty (`\"\"`, the chart timeframe); the compiler's literal-only\npass rejects a dynamic expression with `request-security-interval-not-literal`.",
         "examples": [
             "const opts: RequestSecurityOpts = { interval: \"1D\" };\nvoid opts;",
             "// read a different instrument (requires Capabilities.multiSymbol)\nconst spy: RequestSecurityOpts = { symbol: \"AMEX:SPY\", interval: \"1D\" };\nvoid spy;"

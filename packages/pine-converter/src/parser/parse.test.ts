@@ -250,6 +250,33 @@ describe("parseStatements — statements", () => {
         }
     });
 
+    it("tolerates a blank line after the last statement-switch arm", () => {
+        // A blank line right after the arms emits a stray `newline` between the
+        // arm body and the block `dedent`; the arm loop must skip it instead of
+        // parsing it as a malformed arm and cascading into the next statement.
+        const source =
+            '//@version=6\nindicator()\nswitch sel\n    "X" => a := 1\n\nb = close\nplot(b)\n';
+        const result = parse(source);
+        expect(result.diagnostics).toHaveLength(0);
+        expect(result.script.body.map((s) => s.kind)).toEqual([
+            "switch-statement",
+            "assignment",
+            "expression-statement",
+        ]);
+    });
+
+    it("tolerates a comment-only line after the last statement-switch arm", () => {
+        const source =
+            '//@version=6\nindicator()\nswitch sel\n    "X" => a := 1\n// trailing note\nb = close\nplot(b)\n';
+        const result = parse(source);
+        expect(result.diagnostics).toHaveLength(0);
+        const stmt = result.script.body[0];
+        expect(stmt.kind).toBe("switch-statement");
+        if (stmt.kind === "switch-statement") {
+            expect(stmt.cases).toHaveLength(1);
+        }
+    });
+
     it("parses break, continue, and return statements", () => {
         const source =
             "//@version=6\nindicator()\nfor i = 0 to 9\n    break\n    continue\nf() =>\n    return 1\n";

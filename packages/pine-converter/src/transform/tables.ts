@@ -222,7 +222,8 @@ function applyCellSetter(
 }
 
 // Apply the named styling args of a `table.cell(...)` create call, warning
-// once on each unmapped formatting arg.
+// once per distinct unmapped formatting-arg name across the whole script (at
+// its first occurrence, naming the arg) rather than once per cell.
 function applyCellNamedArgs(
     spec: CellSpec,
     args: readonly CallArgument[],
@@ -234,7 +235,12 @@ function applyCellNamedArgs(
             continue;
         }
         if (UNMAPPED_CELL_ARGS.has(arg.name)) {
-            diagnostics.pushCode("table-formatting-not-mapped", arg.span);
+            diagnostics.pushCodeOnce(
+                "table-formatting-not-mapped",
+                arg.name,
+                arg.span,
+                `Pine's \`${arg.name}\` table-cell option has no chartlang analogue and was dropped.`,
+            );
             continue;
         }
         const value = styleValueSource(arg.value, annotations, diagnostics);

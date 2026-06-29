@@ -173,6 +173,19 @@ export function substituteIterator(
             };
         case "lambda-expression":
             return { ...node, body: substituteIterator(node.body, variable, value) };
+        case "switch-expression":
+            return {
+                ...node,
+                subject:
+                    node.subject === null
+                        ? null
+                        : substituteIterator(node.subject, variable, value),
+                cases: node.cases.map((arm) => ({
+                    ...arm,
+                    test: arm.test === null ? null : substituteIterator(arm.test, variable, value),
+                    value: substituteIterator(arm.value, variable, value),
+                })),
+            };
         default:
             return node;
     }
@@ -288,6 +301,16 @@ export function substituteParams(
             };
         case "lambda-expression":
             return { ...node, body: substituteParams(node.body, bindings) };
+        case "switch-expression":
+            return {
+                ...node,
+                subject: node.subject === null ? null : substituteParams(node.subject, bindings),
+                cases: node.cases.map((arm) => ({
+                    ...arm,
+                    test: arm.test === null ? null : substituteParams(arm.test, bindings),
+                    value: substituteParams(arm.value, bindings),
+                })),
+            };
         default:
             return node;
     }

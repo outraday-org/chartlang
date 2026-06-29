@@ -69,6 +69,16 @@
   stay byte-identical. `RequestSecurityOpts.symbol` and
   `SecurityExpressionDescriptor.symbol` are likewise optional (omitted ⇒ chart
   symbol). The compiler's `program.ts` shim mirrors all of this in lockstep.
+  **Chart timeframe = empty interval (Task 3).** An `interval` of `""` is the
+  chart's own timeframe (Pine's empty `request.security` tf; the compiler
+  accepts a literal `""`, an `input.interval("")` default, and an
+  `input.interval("1D")`-style non-empty default). A chart-symbol + chart-tf
+  pair is the **primary stream** — `feedKey(undefined, "") === ""` collapses it,
+  so the compiler emits NO feed and NO `requestedIntervals` entry for it. A
+  present-symbol + chart-tf pair stays a distinct feed `{ symbol, interval: "" }`
+  (keyed `"<symbol>@"`); its **runtime** resolution against an adapter is
+  deferred (README → Deferred/Follow-Up "truly runtime-arbitrary feeds"), the
+  manifest entry exists for compile-time correctness.
 
 - **`state.series` is the one `state.*` slot that is both writable AND
   indexable.** `state.float`/`int`/`bool`/`string` return a scalar

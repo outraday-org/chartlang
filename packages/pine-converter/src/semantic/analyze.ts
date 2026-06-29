@@ -15,6 +15,7 @@ import type { Argument } from "../ast/script.js";
 import type { FunctionDeclaration } from "../ast/statements.js";
 import { makeDiagnostic } from "../diagnostics/codes.js";
 import type { Diagnostic, SourceSpan } from "../index.js";
+import { type SecurityFeedInputs, collectSecurityFeedInputs } from "../transform/securityShape.js";
 import { type IndicatorCaps, classifyDrawingSites } from "./drawingCamp.js";
 import { createLifetimeCollector } from "./lifetimes.js";
 import { dottedName, rootIdentifier } from "./nodes.js";
@@ -65,6 +66,7 @@ type WalkState = {
     readonly symbols: Map<SourceSpan, SymbolInfo>;
     readonly diagnostics: Diagnostic[];
     readonly lifetimes: ReturnType<typeof createLifetimeCollector>;
+    readonly securityFeedInputs: SecurityFeedInputs;
     barIndex: boolean;
     futureBarIndex: boolean;
 };
@@ -205,6 +207,17 @@ function walkExpression(
         case "lambda-expression":
             walkExpression(state, scope, expr.body, null);
             return;
+        case "switch-expression":
+            if (expr.subject !== null) {
+                walkExpression(state, scope, expr.subject, null);
+            }
+            for (const arm of expr.cases) {
+                if (arm.test !== null) {
+                    walkExpression(state, scope, arm.test, null);
+                }
+                walkExpression(state, scope, arm.value, contextHandle);
+            }
+            return;
         case "literal-expression":
             return;
     }
@@ -326,7 +339,7 @@ function walkAssignment(state: WalkState, scope: ScopeBuilder, assignment: Assig
 function walkTupleDeclaration(state: WalkState, scope: ScopeBuilder, decl: TupleDeclaration): void {
     const resolve = (name: string): SymbolInfo | null => resolveSymbol(scope, name);
     walkExpression(state, scope, decl.initializer, null);
-    const securityTuple = analyzeSecurityTuple(decl, state.diagnostics);
+    const securityTuple = analyzeSecurityTuple(decl, state.diagnostics, state.securityFeedInputs);
     if (securityTuple !== null) {
         state.annotations.set(decl, {
             ...(state.annotations.get(decl) ?? {}),
@@ -585,6 +598,7 @@ export function analyze(script: Script): SemanticResult {
         symbols: new Map(),
         diagnostics: [],
         lifetimes: createLifetimeCollector(),
+        securityFeedInputs: collectSecurityFeedInputs(script),
         barIndex: false,
         futureBarIndex: false,
     };

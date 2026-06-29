@@ -34,6 +34,21 @@ function emit(expr: string): { source: string | null; codes: string[] } {
     return { source, codes: diagnostics.toArray().map((d) => d.code) };
 }
 
+// Emit with a populated `securityFeedInputs` so an identifier-bound symbol /
+// timeframe resolves to its `inputs.<name>` reference.
+function emitWith(
+    expr: string,
+    feedInputs: ReadonlyMap<string, "symbol" | "interval">,
+): { source: string | null; codes: string[] } {
+    const diagnostics = new DiagnosticCollector();
+    const source = emitRequestSecurity(
+        call(expr),
+        { ...CTX, securityFeedInputs: feedInputs },
+        diagnostics,
+    );
+    return { source, codes: diagnostics.toArray().map((d) => d.code) };
+}
+
 describe("isRequestSecurityCall", () => {
     it("recognises request.security and rejects others", () => {
         expect(isRequestSecurityCall(call('request.security(syminfo.tickerid, "1D", close)'))).toBe(
@@ -119,6 +134,69 @@ describe("emitRequestSecurity", () => {
 
     it("rejects a call missing positional args", () => {
         const { source, codes } = emit("request.security(syminfo.tickerid)");
+        expect(source).toBeNull();
+        expect(codes).toContain("pine-converter/transform/request-security-not-mapped");
+    });
+
+    it("drops gaps=barmerge.gaps_off with a single info", () => {
+        const { source, codes } = emit(
+            'request.security(syminfo.tickerid, "D", close, gaps=barmerge.gaps_off)',
+        );
+        expect(source).toBe('request.security({ interval: "1d" }).close');
+        expect(codes).toContain("pine-converter/transform/request-security-gaps-dropped");
+        expect(codes).not.toContain("pine-converter/transform/request-security-not-mapped");
+    });
+
+    it("recognises gaps=barmerge.gaps_on", () => {
+        const { codes } = emit(
+            'request.security(syminfo.tickerid, "D", close, gaps=barmerge.gaps_on)',
+        );
+        expect(codes).toContain("pine-converter/transform/request-security-gaps-dropped");
+    });
+
+    it("drops gaps once per script across multiple feeds", () => {
+        const diagnostics = new DiagnosticCollector();
+        emitRequestSecurity(
+            call('request.security(syminfo.tickerid, "D", close, gaps=barmerge.gaps_off)'),
+            CTX,
+            diagnostics,
+        );
+        emitRequestSecurity(
+            call('request.security(syminfo.tickerid, "W", high, gaps=barmerge.gaps_off)'),
+            CTX,
+            diagnostics,
+        );
+        const gaps = diagnostics
+            .toArray()
+            .filter((d) => d.code === "pine-converter/transform/request-security-gaps-dropped");
+        expect(gaps).toHaveLength(1);
+    });
+
+    it("lowers an input-bound symbol + timeframe to inputs.<name> refs", () => {
+        const { source, codes } = emitWith(
+            "request.security(sym, period, close)",
+            new Map([
+                ["sym", "symbol"],
+                ["period", "interval"],
+            ]),
+        );
+        expect(source).toBe(
+            "request.security({ symbol: inputs.sym as string, interval: inputs.period as string }).close",
+        );
+        expect(codes).toContain("pine-converter/transform/request-security-different-symbol");
+    });
+
+    it("lowers a chart symbol + input-bound timeframe with no different-symbol info", () => {
+        const { source, codes } = emitWith(
+            "request.security(syminfo.tickerid, period, close)",
+            new Map([["period", "interval"]]),
+        );
+        expect(source).toBe("request.security({ interval: inputs.period as string }).close");
+        expect(codes).not.toContain("pine-converter/transform/request-security-different-symbol");
+    });
+
+    it("rejects an input-bound symbol whose input is missing from the feed map", () => {
+        const { source, codes } = emitWith("request.security(sym, period, close)", new Map());
         expect(source).toBeNull();
         expect(codes).toContain("pine-converter/transform/request-security-not-mapped");
     });

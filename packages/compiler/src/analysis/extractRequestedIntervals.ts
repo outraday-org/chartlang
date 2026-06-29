@@ -2,9 +2,9 @@
 // See the LICENSE file in the repo root for full license text.
 
 import {
-    feedKey,
     type RequestedFeed,
     type SecurityExpressionDescriptor,
+    feedKey,
 } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
@@ -51,13 +51,15 @@ export type RequestAnalysis = Readonly<{
  * `request.security` symbol emits `request-security-symbol-not-literal`. Either
  * dynamic axis is excluded.
  *
- * The `symbol` opt is read the same three ways `interval` is — a string literal,
- * an `inputs.<enum>` access (expanded to all options), or an `inputs.<name>`
- * `input.symbol` default literal — and the cartesian product of resolved
+ * Both axes are read the same ways — a string literal, an `inputs.<enum>`
+ * access (expanded to all options), or an `inputs.<name>` `input.symbol` /
+ * `input.interval` default literal — and the cartesian product of resolved
  * symbols × intervals is deduped into `feeds` via the shared
  * `feedKey(symbol, interval)`. A symbol-omitted (or empty-literal) feed keeps its
  * interval in `intervals` (the main-symbol projection); a present-symbol feed
- * does not.
+ * does not. An empty (`""`) interval is the chart timeframe: a chart-symbol +
+ * chart-tf pair collapses onto the primary stream (no feed, no `intervals`
+ * entry), while a present-symbol + chart-tf pair stays a distinct feed.
  *
  * Each expression callsite is recorded as a {@link SecurityExpressionDescriptor}
  * keyed by the same `slotId` the callsite-id transformer injects (via the
@@ -159,14 +161,15 @@ export function extractRequestedIntervals(
 /**
  * Detect and record a `request.security` expression callsite — a second
  * argument that is an arrow or function expression. Mints the descriptor's
- * `slotId` via `callsiteIdFor` (lockstep with the injector), reads the literal
- * `interval`, the literal `symbol` (string literal or `input.symbol` default —
- * an `input.enum`/dynamic symbol can't anchor a single expression clock, so it
- * is omitted, mirroring how an `input.enum` interval can't anchor one), and the
- * callback's single parameter name, and — when `validate` — runs the capture
- * check. A callsite whose interval is not a compile-time literal already emitted
- * `request-security-interval-not-literal` via `readRequestInterval`; it is
- * skipped here (no descriptor).
+ * `slotId` via `callsiteIdFor` (lockstep with the injector), reads the
+ * `interval` (string literal or `input.interval` default — an `input.enum`
+ * interval can't anchor a single clock, and an empty `""` default is the chart
+ * timeframe, the main clock, not an HTF expression clock), the `symbol` (string
+ * literal or `input.symbol` default — an `input.enum`/dynamic symbol can't
+ * anchor one), and the callback's single parameter name, and — when `validate`
+ * — runs the capture check. A callsite whose interval is not a compile-time
+ * literal already emitted `request-security-interval-not-literal` via
+ * `readRequestInterval`; it is skipped here (no descriptor).
  */
 function readSecurityExpression(
     call: ts.CallExpression,
@@ -190,7 +193,7 @@ function readSecurityExpression(
     }
     const opts = call.arguments[0];
     if (opts === undefined || !ts.isObjectLiteralExpression(opts)) return;
-    const interval = readLiteralInterval(opts);
+    const interval = readLiteralInterval(opts, inputs);
     if (interval === null) return;
     const symbol = readLiteralSymbol(opts, inputs);
     const firstParam = callback.parameters[0];
@@ -207,19 +210,24 @@ function readSecurityExpression(
 }
 
 /**
- * Read the literal `interval` string off a `request.security` opts object, or
- * `null` when it is absent or non-literal. Only string-literal intervals key an
- * expression unit; an `input.enum` interval expands to multiple intervals for
- * the requested-interval list but cannot anchor a single expression clock, so it
- * is treated as non-literal here.
+ * Read the literal `interval` off a `request.security` opts object for the
+ * expression-descriptor anchor, or `null` when it is absent / non-literal /
+ * unable to anchor a single clock. A string literal or an `input.interval`
+ * default resolves to a concrete interval (mirroring `readLiteralSymbol`'s
+ * `input.symbol`-default path); an `input.enum` interval is multi-valued so it
+ * cannot anchor one clock, and an empty (`""`) default is the chart timeframe —
+ * the main clock, not a higher-timeframe expression clock — so both resolve to
+ * `null` (no expression unit).
  */
-function readLiteralInterval(opts: ts.ObjectLiteralExpression): string | null {
-    const intervalProperty = opts.properties
-        .filter(ts.isPropertyAssignment)
-        .find((property) => ts.isIdentifier(property.name) && property.name.text === "interval");
-    if (intervalProperty === undefined) return null;
-    const initializer = intervalProperty.initializer;
-    return ts.isStringLiteral(initializer) ? initializer.text : null;
+function readLiteralInterval(
+    opts: ts.ObjectLiteralExpression,
+    inputs: Readonly<Record<string, ExtractedDescriptor>>,
+): string | null {
+    const resolved = resolveOptString(opts, "interval", inputs);
+    if (resolved.kind === "literal" || resolved.kind === "input-default") {
+        return resolved.value === "" ? null : resolved.value;
+    }
+    return null;
 }
 
 /**
@@ -242,10 +250,12 @@ function readLiteralSymbol(
 }
 
 /**
- * Resolution of an opts string property read three ways (mirroring `interval`,
- * plus the `input.symbol`-default path symbols need): a string literal, the
- * options of an `inputs.<enum>` access, the default of an `inputs.<name>`
- * `input.symbol` access, an absent property, or a genuinely-dynamic expression.
+ * Resolution of an opts string property read four ways: a string literal, the
+ * options of an `inputs.<enum>` access, the **default** of an `inputs.<name>`
+ * `input.symbol` / `input.interval` access (the kind selected per `propName` —
+ * `"interval"` reads an `input.interval` default, every other property reads an
+ * `input.symbol` default), an absent property, or a genuinely-dynamic
+ * expression.
  */
 type ResolvedOptString =
     | Readonly<{ kind: "literal"; value: string }>
@@ -270,8 +280,12 @@ function resolveOptString(
     const enumOptions = getInputsEnumOptions(initializer, inputs);
     if (enumOptions !== null) return { kind: "enum", values: enumOptions };
 
-    const symbolDefault = getInputSymbolDefault(initializer, inputs);
-    if (symbolDefault !== null) return { kind: "input-default", value: symbolDefault };
+    const inputDefault = getInputDefault(
+        initializer,
+        inputs,
+        propName === "interval" ? "interval" : "symbol",
+    );
+    if (inputDefault !== null) return { kind: "input-default", value: inputDefault };
 
     return { kind: "dynamic", node: initializer };
 }
@@ -321,6 +335,14 @@ function readRequestInterval(
     const resolvedSymbols = resolveSymbols(opts, inputs, sourceFile, sourcePath, diagnostics);
     for (const symbol of resolvedSymbols) {
         for (const interval of resolvedIntervals ?? []) {
+            // An empty interval is the chart's own timeframe (Pine's empty
+            // `request.security` tf, here an `input.interval("")` default).
+            // Combined with the chart symbol (symbol omitted) it IS the primary
+            // stream — never a secondary feed, and not a higher-timeframe entry
+            // in the main-symbol projection. A present (different) symbol at the
+            // chart timeframe stays a distinct feed (a different instrument on
+            // the chart's own clock).
+            if (symbol === undefined && interval === "") continue;
             // A symbol-omitted (chart-symbol) feed keeps its interval in the
             // main-symbol projection; a present-symbol feed does not.
             if (symbol === undefined) intervals.add(interval);
@@ -335,16 +357,23 @@ function readRequestInterval(
 /**
  * Resolve a `request.*` `interval` initializer to its concrete interval list —
  * a single-element list for a string literal, all options for an `inputs.<enum>`
- * access — or `null` for a genuinely-dynamic interval (the caller pushes the
- * appropriate diagnostic). `interval` never uses the `input.symbol`-default path:
- * `input.interval` is the main-chart interval, not a feed interval.
+ * access, a single-element list for an `inputs.<name>` `input.interval`
+ * **default** (an empty default `""` ⇒ the chart timeframe; the feed loop
+ * collapses a chart-symbol + chart-tf pair onto the primary stream) — or `null`
+ * for a genuinely-dynamic interval (the caller pushes the appropriate
+ * diagnostic). This mirrors the `input.symbol`-default path the `symbol` axis
+ * already accepts.
  */
 function resolveIntervals(
     initializer: ts.Expression,
     inputs: Readonly<Record<string, ExtractedDescriptor>>,
 ): ReadonlyArray<string> | null {
     if (ts.isStringLiteral(initializer)) return [initializer.text];
-    return getInputsEnumOptions(initializer, inputs);
+    const enumOptions = getInputsEnumOptions(initializer, inputs);
+    if (enumOptions !== null) return enumOptions;
+    const intervalDefault = getInputDefault(initializer, inputs, "interval");
+    if (intervalDefault !== null) return [intervalDefault];
+    return null;
 }
 
 /**
@@ -390,24 +419,44 @@ function resolveSymbols(
 }
 
 /**
- * Resolve an `inputs.<name>` access whose descriptor is an `input.symbol` to its
- * `defaultValue` string, or `null` when the access is not an `inputs.<name>`
- * property access, the descriptor is missing / not a `symbol` kind, or its
- * `defaultValue` is not a string.
+ * Strip the parentheses + `as` casts a generated source may wrap an
+ * `inputs.<name>` access in. The pine-converter emits an input-bound feed as
+ * `inputs.<name> as string` (the script's `compute` context types `inputs`
+ * loosely, so an un-cast read fails the `RequestSecurityOpts` typecheck); the
+ * feed extractor must see through that cast to the `inputs.<name>` access to
+ * resolve the default. Hand-written `inputs.<name>` (no cast) is unchanged.
  */
-function getInputSymbolDefault(
+function unwrapInputAccess(expr: ts.Expression): ts.Expression {
+    let current = expr;
+    while (ts.isParenthesizedExpression(current) || ts.isAsExpression(current)) {
+        current = current.expression;
+    }
+    return current;
+}
+
+/**
+ * Resolve an `inputs.<name>` access whose descriptor is an `input.symbol` (for
+ * the `symbol` axis) or an `input.interval` (for the `interval` axis) to its
+ * `defaultValue` string, or `null` when the access is not an `inputs.<name>`
+ * property access, the descriptor is missing / not the requested `kind`, or its
+ * `defaultValue` is not a string. The `symbol` and `interval` axes share this
+ * one helper so the two feed-default paths can never drift.
+ */
+function getInputDefault(
     expr: ts.Expression,
     inputs: Readonly<Record<string, ExtractedDescriptor>>,
+    descriptorKind: "symbol" | "interval",
 ): string | null {
+    const access = unwrapInputAccess(expr);
     if (
-        !ts.isPropertyAccessExpression(expr) ||
-        !ts.isIdentifier(expr.expression) ||
-        expr.expression.text !== "inputs"
+        !ts.isPropertyAccessExpression(access) ||
+        !ts.isIdentifier(access.expression) ||
+        access.expression.text !== "inputs"
     ) {
         return null;
     }
-    const descriptor = inputs[expr.name.text];
-    if (descriptor === undefined || descriptor.kind !== "symbol") return null;
+    const descriptor = inputs[access.name.text];
+    if (descriptor === undefined || descriptor.kind !== descriptorKind) return null;
     const defaultValue = descriptor.defaultValue;
     return typeof defaultValue === "string" ? defaultValue : null;
 }
@@ -416,14 +465,15 @@ function getInputsEnumOptions(
     expr: ts.Expression,
     inputs: Readonly<Record<string, ExtractedDescriptor>>,
 ): ReadonlyArray<string> | null {
+    const access = unwrapInputAccess(expr);
     if (
-        !ts.isPropertyAccessExpression(expr) ||
-        !ts.isIdentifier(expr.expression) ||
-        expr.expression.text !== "inputs"
+        !ts.isPropertyAccessExpression(access) ||
+        !ts.isIdentifier(access.expression) ||
+        access.expression.text !== "inputs"
     ) {
         return null;
     }
-    const descriptor = inputs[expr.name.text];
+    const descriptor = inputs[access.name.text];
     if (descriptor === undefined || descriptor.kind !== "enum") return null;
     const options = descriptor.options;
     if (!Array.isArray(options)) return null;

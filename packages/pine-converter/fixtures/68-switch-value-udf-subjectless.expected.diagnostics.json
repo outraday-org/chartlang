@@ -1,0 +1,26 @@
+[
+    {
+        "code": "pine-converter/transform/nested-ta-lowered",
+        "severity": "info",
+        "message": "A nested `ta.*` call in a scalar position (an operator operand, a ternary arm, or a `math.*` argument) was projected to its per-bar `.current` scalar so the surrounding arithmetic type-checks.",
+        "span": {
+            "startLine": 7,
+            "startColumn": 18,
+            "endLine": 7,
+            "endColumn": 34
+        },
+        "suggestion": "No action needed — the `.current` projection is the per-bar number Pine uses; the `ta.*` series keeps its own per-call-site history."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 10,
+            "startColumn": 6,
+            "endLine": 10,
+            "endColumn": 25
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    }
+]

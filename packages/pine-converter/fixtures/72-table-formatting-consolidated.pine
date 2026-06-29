@@ -1,0 +1,9 @@
+//@version=6
+indicator("Table formatting consolidated", overlay=true)
+var table panel = na
+if barstate.islast
+    panel := table.new(position.top_right, 1, 3)
+    table.cell(panel, 0, 0, "Title", text_color=color.white, text_formatting=text.format_bold)
+    table.cell(panel, 0, 1, "Body", bgcolor=close > open ? color.green : color.red, text_font_family=font.family_monospace)
+    table.cell(panel, 0, 2, "Note", text_wrap=text.wrap_auto, text_formatting=text.format_bold)
+plot(close)

@@ -218,6 +218,20 @@ function expandNode(
             };
         case "lambda-expression":
             return { ...node, body: expandNode(node.body, ctx, scope, prelude, stack) };
+        case "switch-expression":
+            return {
+                ...node,
+                subject:
+                    node.subject === null
+                        ? null
+                        : expandNode(node.subject, ctx, scope, prelude, stack),
+                cases: node.cases.map((arm) => ({
+                    ...arm,
+                    test:
+                        arm.test === null ? null : expandNode(arm.test, ctx, scope, prelude, stack),
+                    value: expandNode(arm.value, ctx, scope, prelude, stack),
+                })),
+            };
         default:
             return node;
     }

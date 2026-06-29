@@ -16,6 +16,8 @@ import type {
     NamedTypeName,
     Statement,
     SwitchCase,
+    SwitchExpression,
+    SwitchExpressionCase,
     SwitchStatement,
     TupleDeclaration,
     TupleTarget,
@@ -23,6 +25,7 @@ import type {
     VariableDeclaration,
 } from "../ast/index.js";
 import { makeDiagnostic } from "../diagnostics/codes.js";
+import type { SourceSpan } from "../index.js";
 import type { Token, TokenKind } from "../lexer/index.js";
 import type { ParserContext } from "./context.js";
 import { parseExpression, scanTypeArgs } from "./expressions.js";
@@ -123,6 +126,10 @@ function recoverCompound(ctx: ParserContext): void {
  *     void ctx;
  */
 export function parseBlock(ctx: ParserContext): BlockStatement {
+    // A comment-only first physical line emits a `newline` the cursor leaves
+    // in place after skipping the comment; drop it so the `indent` that opens
+    // the body is found.
+    ctx.cursor.skipNewlines();
     const open = ctx.cursor.expect("indent");
     if (open === null) {
         const at = ctx.cursor.peek().span;
@@ -184,25 +191,6 @@ function parseTypeAnnotation(ctx: ParserContext): TypeAnnotation | null {
     return { kind: "named-type", name, span: token.span };
 }
 
-// A `switch` used as a VALUE (`x = switch s …` / `float r = switch s …`) is not
-// yet supported: the Pratt parser models `switch` only as a statement, so in
-// value position it would otherwise fall to the silently-broken
-// `unknown-expression` path. Detect it at the assignment/declaration value slot,
-// emit a clean `switch-expression-unsupported` reject, and recover the
-// `switch <subject>` header line + its indented arm block via `recoverCompound`
-// so parsing resumes at the next sibling. Returns a placeholder initializer
-// (emitted as nothing by the transform), or `null` when the value is not a
-// `switch` (the caller then parses it normally).
-function rejectValueSwitch(ctx: ParserContext): ExpressionNode | null {
-    const token = ctx.cursor.peek();
-    if (!(token.kind === "keyword" && token.text === "switch")) {
-        return null;
-    }
-    ctx.addDiagnostic(makeDiagnostic("switch-expression-unsupported", token.span));
-    recoverCompound(ctx);
-    return { kind: "unknown-expression", tokens: [], span: token.span };
-}
-
 function parseVariableDeclaration(
     ctx: ParserContext,
     qualifier: DeclarationQualifier,
@@ -217,7 +205,7 @@ function parseVariableDeclaration(
         );
     }
     ctx.cursor.match("operator", "=");
-    const initializer = rejectValueSwitch(ctx) ?? parseExpression(ctx);
+    const initializer = parseExpression(ctx);
     const end = ctx.cursor.peek().span;
     ctx.cursor.match("newline");
     return {
@@ -253,7 +241,7 @@ function parseAssignment(
 ): Assignment {
     ctx.cursor.next();
     ctx.cursor.next();
-    const value = rejectValueSwitch(ctx) ?? parseExpression(ctx);
+    const value = parseExpression(ctx);
     const end = ctx.cursor.peek().span;
     ctx.cursor.match("newline");
     return {
@@ -309,7 +297,7 @@ function parseTupleDeclaration(ctx: ParserContext, start: Token): TupleDeclarati
     }
     ctx.cursor.match("punctuation", "]");
     ctx.cursor.match("operator", "=");
-    const initializer = rejectValueSwitch(ctx) ?? parseExpression(ctx);
+    const initializer = parseExpression(ctx);
     const end = ctx.cursor.peek().span;
     ctx.cursor.match("newline");
     return {
@@ -518,7 +506,14 @@ function parseSwitchStatement(ctx: ParserContext, start: Token): SwitchStatement
         );
         return { kind: "switch-statement", subject, cases, span: spanBetween(start.span, endSpan) };
     }
-    while (!ctx.cursor.atEnd() && ctx.cursor.peekKind() !== "dedent") {
+    // A blank or comment-only line between/after the arms emits a stray
+    // `newline` (the cursor skips comments but not the trailing newline); skip
+    // those before the dedent check so they never parse as a malformed arm.
+    for (;;) {
+        ctx.cursor.skipNewlines();
+        if (ctx.cursor.atEnd() || ctx.cursor.peekKind() === "dedent") {
+            break;
+        }
         const caseNode = parseSwitchCase(ctx);
         cases.push(caseNode);
         endSpan = caseNode.span;
@@ -560,6 +555,109 @@ function parseSwitchCase(ctx: ParserContext): SwitchCase {
         }
     }
     return { test, body, span: spanBetween(startToken.span, endSpan) };
+}
+
+// One arm of a value-form `switch`, with `value` set to `null` for the residual
+// unsupported sub-shape (a multi-line block body, a comma list, or a `:=`/`=`
+// assignment arm — anything that is not a single expression).
+type SwitchExpressionArm = Readonly<{
+    test: ExpressionNode | null;
+    value: ExpressionNode | null;
+    span: SourceSpan;
+}>;
+
+// Parse one `label/cond => value` arm of a value-form `switch`. The test is the
+// arm label/condition (or `null` for the wildcard `=> value` arm). Unlike a
+// statement-form arm ({@link parseSwitchCase}), the body is parsed as a single
+// EXPRESSION via {@link parseExpression} — so an array-literal arm value
+// (`=> [1, 2]`) parses as a value, not a rejected statement-leading `[` tuple
+// head. A multi-line block body, or a trailing `,`/`:=`/`=` (a comma list or an
+// assignment arm), is the residual unsupported sub-shape: it is consumed and
+// reported with `value: null`.
+function parseSwitchExpressionArm(ctx: ParserContext): SwitchExpressionArm {
+    const startToken = ctx.cursor.peek();
+    const test = ctx.cursor.peek().text === "=>" ? null : parseExpression(ctx);
+    ctx.cursor.match("operator", "=>");
+    // A multi-line arm body (`=>` then a newline + indented block) is the
+    // residual unsupported form; consume it so the next arm still parses.
+    if (ctx.cursor.peekKind() === "newline") {
+        ctx.cursor.next();
+        const end =
+            ctx.cursor.peekKind() === "indent" ? parseBlock(ctx).span : ctx.cursor.peek().span;
+        return { test, value: null, span: spanBetween(startToken.span, end) };
+    }
+    const value = parseExpression(ctx);
+    // A value arm is exactly one expression terminated by a newline; any other
+    // trailing token (`,` comma list, `:=`/`=` assignment arm) is unsupported.
+    if (ctx.cursor.peekKind() !== "newline") {
+        recoverLine(ctx);
+        return { test, value: null, span: spanBetween(startToken.span, value.span) };
+    }
+    ctx.cursor.next();
+    return { test, value, span: spanBetween(startToken.span, value.span) };
+}
+
+/**
+ * Parse a value-position `switch` (`x = switch s …`, the Pine `cf_ma` helper)
+ * into a {@link SwitchExpression}. Each arm yields a single expression (parsed
+ * by {@link parseSwitchExpressionArm}); the subject (`switch s`) is `null` for
+ * the subject-less boolean form. An arm whose body is not a single expression (a
+ * multi-statement block, a comma list, or a `:=`/`=` assignment) is the residual
+ * unsupported sub-shape: one `switch-expression-unsupported` is recorded and the
+ * whole `switch` degrades to an `unknown-expression`. A missing indented body
+ * degrades the same way. The parser never throws.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const ctx = createContext(lex('x = switch s\n    "A" => 1\n').tokens);
+ *     // after `x =`, parsePrimary delegates the `switch` keyword here
+ *     void ctx;
+ */
+export function parseSwitchExpression(ctx: ParserContext): ExpressionNode {
+    const start = ctx.cursor.next();
+    const subject = ctx.cursor.peekKind() === "newline" ? null : parseExpression(ctx);
+    ctx.cursor.match("newline");
+    const open = ctx.cursor.expect("indent");
+    if (open === null) {
+        const at = ctx.cursor.peek().span;
+        ctx.addDiagnostic(
+            makeDiagnostic("expected-token", at, "Expected an indented `switch` body."),
+        );
+        return { kind: "unknown-expression", tokens: [], span: spanBetween(start.span, at) };
+    }
+    const cases: SwitchExpressionCase[] = [];
+    let endSpan = open.span;
+    let unsupported = false;
+    // A blank or comment-only line between/after the arms emits a stray
+    // `newline` (the cursor skips comments but not the trailing newline); skip
+    // those before the dedent check so they never parse as a malformed arm and
+    // misfire `switch-expression-unsupported`.
+    for (;;) {
+        ctx.cursor.skipNewlines();
+        if (ctx.cursor.atEnd() || ctx.cursor.peekKind() === "dedent") {
+            break;
+        }
+        const arm = parseSwitchExpressionArm(ctx);
+        endSpan = arm.span;
+        if (arm.value === null) {
+            if (!unsupported) {
+                ctx.addDiagnostic(makeDiagnostic("switch-expression-unsupported", arm.span));
+                unsupported = true;
+            }
+            continue;
+        }
+        cases.push({ test: arm.test, value: arm.value, span: arm.span });
+    }
+    const close = ctx.cursor.expect("dedent");
+    if (close !== null) {
+        endSpan = close.span;
+    }
+    const span = spanBetween(start.span, endSpan);
+    if (unsupported) {
+        return { kind: "unknown-expression", tokens: [], span };
+    }
+    return { kind: "switch-expression", subject, cases, span };
 }
 
 function parseSimpleStatement(

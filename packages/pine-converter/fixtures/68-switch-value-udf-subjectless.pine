@@ -1,0 +1,10 @@
+//@version=6
+indicator("Switch pick", overlay=true)
+fast = input.int(10, "Fast")
+slow = input.int(20, "Slow")
+cf_pick(a, b) =>
+    float out = switch
+        a > b => ta.sma(close, a)
+        => ta.ema(close, b)
+    out
+plot(cf_pick(fast, slow))

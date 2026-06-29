@@ -92,6 +92,14 @@ describe("transformInputs — per-kind mapping", () => {
         expect(input.code).toBe('input.interval("1h", { title: "Higher TF" })');
     });
 
+    it("maps an empty input.timeframe default to the chart-timeframe interval", () => {
+        const { inputs, diagnostics } = runInputs('tf = input.timeframe("", title="Timeframe")');
+        expect((inputs[0] as InputDeclarationIR).code).toBe(
+            'input.interval("", { title: "Timeframe" })',
+        );
+        expect(diagnostics.has("pine-converter/transform/non-literal-input-default")).toBe(false);
+    });
+
     it("maps input.time", () => {
         expect(single("t = input.time(0)").code).toBe("input.time(0)");
     });
@@ -281,6 +289,63 @@ describe("transformInputs — numeric input.int/float(options=) → input.enum<n
     it("defers an empty numeric options list to the plain int path", () => {
         const { inputs } = runInputs("len = input.int(8, options = [])");
         expect((inputs[0] as InputDeclarationIR).code).toBe("input.int(8)");
+    });
+});
+
+describe("transformInputs — unmapped-arg consolidation", () => {
+    const unmappedCount = (diagnostics: DiagnosticCollector): number =>
+        diagnostics
+            .toArray()
+            .filter((d) => d.code === "pine-converter/transform/input-arg-not-mapped").length;
+
+    it("warns once per distinct arg name across many inputs, not once per call", () => {
+        const { inputs, diagnostics } = runInputs(
+            [
+                'fast = input.int(9, group="MA", inline="row", tooltip="fast")',
+                'slow = input.int(21, group="MA", inline="row", tooltip="slow")',
+                'src = input.source(close, group="MA", inline="row", tooltip="src")',
+            ].join("\n"),
+        );
+        expect(inputs).toHaveLength(3);
+        // 3 inputs × {group, inline, tooltip} = 9 occurrences → 3 diagnostics.
+        expect(unmappedCount(diagnostics)).toBe(3);
+        const messages = diagnostics
+            .toArray()
+            .filter((d) => d.code === "pine-converter/transform/input-arg-not-mapped")
+            .map((d) => d.message);
+        expect(messages).toEqual([
+            "The `group` input argument has no chartlang analogue and was dropped.",
+            "The `inline` input argument has no chartlang analogue and was dropped.",
+            "The `tooltip` input argument has no chartlang analogue and was dropped.",
+        ]);
+    });
+
+    it("consolidates one arg name across different input primitives", () => {
+        const { diagnostics } = runInputs(
+            ['a = input.int(1, group="G")', 'b = input.bool(true, group="G")'].join("\n"),
+        );
+        expect(unmappedCount(diagnostics)).toBe(1);
+    });
+
+    it("keeps the first occurrence span as the representative", () => {
+        const { diagnostics } = runInputs(
+            ['a = input.int(1, group="G")', 'b = input.int(2, group="G")'].join("\n"),
+        );
+        const diag = diagnostics
+            .toArray()
+            .find((d) => d.code === "pine-converter/transform/input-arg-not-mapped");
+        // Line 3 is the first input (line 1 is the version directive, 2 the indicator).
+        expect(diag?.span.startLine).toBe(3);
+    });
+
+    it("reports a non-literal modelled arg with a distinct value message", () => {
+        const { diagnostics } = runInputs("len = input.int(9, title=someName)");
+        const diag = diagnostics
+            .toArray()
+            .find((d) => d.code === "pine-converter/transform/input-arg-not-mapped");
+        expect(diag?.message).toBe(
+            "The `title` input argument was dropped; its value is not a compile-time literal.",
+        );
     });
 });
 

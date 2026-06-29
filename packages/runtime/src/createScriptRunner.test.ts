@@ -516,6 +516,75 @@ describe("createScriptRunner", () => {
         await runner.dispose();
     });
 
+    it("registers an input-default-resolved feed identically to a literal feed (Task 3)", async () => {
+        // The compiler resolves an `input.symbol` / `input.interval` default to
+        // a plain `{ symbol, interval }` feed — the runtime cannot tell it came
+        // from an input default, so it registers the secondary stream exactly as
+        // for a string-literal feed.
+        const observedKeys: string[] = [];
+        const compiled = defineIndicator({
+            name: "input-default-feed",
+            apiVersion: 1,
+            compute: () => {
+                const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+                observedKeys.push(...(ctx?.secondaryStreams.keys() ?? []));
+            },
+        });
+        const customCompiled = {
+            manifest: {
+                ...compiled.manifest,
+                requestedFeeds: [{ symbol: "NASDAQ:QQQ", interval: "1D" }],
+                requestedIntervals: [],
+            },
+            compute: compiled.compute,
+        };
+        const runner = createScriptRunner({
+            compiled: customCompiled,
+            capabilities: makeCapabilities(),
+            symInfo: { ticker: "AAPL" },
+        });
+
+        await runner.onBarClose(makeBar(0));
+
+        expect(observedKeys).toEqual(["NASDAQ:QQQ@1D"]);
+        await runner.dispose();
+    });
+
+    it("registers zero secondary streams for a chart-symbol + chart-timeframe-only script (Task 3)", async () => {
+        // A chart-symbol + chart-tf request is the primary stream: the compiler
+        // emits NO feed, so the runtime mounts zero secondary streams and there
+        // is no spurious unknown-secondary-stream diagnostic.
+        let observedSize = -1;
+        const compiled = defineIndicator({
+            name: "chart-timeframe-only",
+            apiVersion: 1,
+            compute: () => {
+                const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+                observedSize = ctx?.secondaryStreams.size ?? -1;
+            },
+        });
+        const customCompiled = {
+            manifest: {
+                ...compiled.manifest,
+                requestedIntervals: [],
+            },
+            compute: compiled.compute,
+        };
+        const runner = createScriptRunner({
+            compiled: customCompiled,
+            capabilities: makeCapabilities(),
+            symInfo: { ticker: "AAPL" },
+        });
+
+        await runner.onBarClose(makeBar(0));
+
+        expect(observedSize).toBe(0);
+        expect(
+            runner.drain().diagnostics.filter((d) => d.code === "unknown-secondary-stream"),
+        ).toEqual([]);
+        await runner.dispose();
+    });
+
     it("routes a composite-keyed secondary event to its feed and rejects an unknown composite key", async () => {
         const seen: number[] = [];
         const compiled = defineIndicator({

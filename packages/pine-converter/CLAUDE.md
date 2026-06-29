@@ -273,6 +273,20 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   lines still emit `newline`, so `parseStatement` swallows a standalone
   leading `newline`. `TokenCursor.peekAhead(n)` is the fixed lookahead used
   to disambiguate `name = expr` named arguments and the `for ... in` head.
+  The cursor does NOT swallow `newline` globally (that would ripple to
+  line-continuation, switch arms, and every `peekAhead`); the structural
+  matches that must tolerate a comment-only / blank line call
+  `TokenCursor.skipNewlines()` EXPLICITLY first — `parseVersionDirective`
+  (leading license/blank lines before `//@version=6`), `parseBlock` (an
+  indented block whose first physical line is a comment), and BOTH switch arm
+  loops (`parseSwitchStatement` and `parseSwitchExpression`), which
+  `skipNewlines()` at the top of every arm iteration so a blank/comment-only
+  line between or after the arms is a stray `newline` that is skipped, NOT
+  parsed as a malformed arm. (A trailing blank/comment line after the final arm
+  is the common Pine idiom — without the skip the statement form cascades an
+  `unexpected-token` and the value form misfires `switch-expression-unsupported`
+  on the empty "arm".) A genuinely missing directive / genuinely empty body
+  still fires `missing-version-directive` / `expected-token` after the skip.
 - **A `name(params) => body` head parses to a `FunctionDeclaration` statement
   (`ast/statements.ts`) — the Pine user-defined function form.**
   `parseStatement` recognizes it with bounded `peekAhead` lookahead
@@ -315,6 +329,53 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   literal code/message in the parser. `codes.ts` is coverage-covered;
   `diagnostics/index.ts` (barrel) is excluded.
 
+### Residual diagnostics (expected, NOT bugs)
+
+A clean conversion of a large feature-heavy script still emits non-error
+diagnostics. These were audited and are **correct, expected output** — they
+are honest notes about a deliberate lowering, not defects. Do NOT "fix" them by
+suppressing the diagnostic; each one is the documented contract for a construct
+that has no byte-identical chartlang analogue.
+
+- **`ta-signature-divergence` (warning).** A `ta.*` Pine primitive maps to the
+  closest chartlang member whose signature/semantics differ; the arguments are
+  passed through unchanged and the note says how to reconcile by hand. The
+  canonical case is `ta.cross(a, b)` → `ta.crossover` (chartlang has no
+  bidirectional `ta.cross`; the note says "synthesise as crossover ||
+  crossunder"); `ta.swma` → `ta.wma` is the same approximation pattern. This is
+  intentional and LOUD (severity `warning`, actionable note) — never a silent
+  wrong value. It cannot be a mapping-table row because the faithful lowering is
+  a combined expression (`crossover || crossunder`), not a one-name swap.
+  Extending it to a real synthesised lowering is a `ta.*`-lowering feature, out
+  of scope for the audit.
+- **`color-transp-approximated` (info).** A `color.new(base, transp)` /
+  `color.rgb(r, g, b, transp)` plot/hline/table colour is lowered with Pine's
+  0–100 transparency folded into an alpha channel (`#RRGGBBAA` for a literal
+  base, `color.withAlpha(...)` for a dynamic one). The alpha PRESERVES the
+  transparency; the note just records the representation change. Informational
+  by design — no behaviour change.
+- **`table-bucket-cap-adjusted` (info).** The drawing-bucket `other` cap is
+  widened to fit the converted tables. Informational; the widening is the fix,
+  not a problem.
+- **`input-arg-not-mapped` / `table-formatting-not-mapped` (warning).** core's
+  `InputOptionsObject` (`title/min/max/step/multiline`) and `TableCell`
+  (`text/colors/alignment/size`) genuinely cannot carry Pine's
+  `group`/`inline`/`tooltip`/`confirm` and `text_formatting`/
+  `text_font_family`/`text_wrap`. Consolidated to one warning per distinct arg
+  name (Task 5). The drop is a documented hard boundary.
+- **`request-security-different-symbol` / `request-security-gaps-dropped`
+  (info).** Multi-symbol/timeframe feed notes — the feed resolved through its
+  input default; `gaps=` has no chartlang analogue. Informational.
+- **`history-on-non-series` (warning) is NOT a residual of a cleanly-parsed
+  script.** It fires from `analyze.ts` when `inferQualifier(receiver) !==
+  "series"`. In Trend Wizard it appeared ONLY as a cascade artifact of a broken
+  parse (a `switch`/UDF that failed to parse left downstream receivers
+  unresolved → `const`-qualified). Once the script parses cleanly and stateful
+  UDFs inline, the receivers (`ta.*`-derived locals, slope first-differences)
+  resolve to `series` and the warning disappears. If you see it on a clean
+  parse, the receiver really is non-series — investigate the qualifier, don't
+  document it away.
+
 ### Parser / expressions (`src/parser/expressions.ts`, `unparse.ts`)
 
 - **`parseExpression(ctx)` is a Pratt / precedence-climbing parser** —
@@ -347,16 +408,32 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `SwitchCase.body` — so an arm body is N statements. The AST is unchanged
   (`SwitchCase.body` was already `readonly Statement[]`); the switch lowering
   already iterates it (see the transform "`switch` lowering" invariant).
-- **A `switch` used as a VALUE is a clean parse reject, NOT a silently-broken
-  expression.** `switch` parses only as a STATEMENT; in a declaration/assignment
-  value position (`float r = switch s …`, `x = switch s …` — Trend Wizard's
-  `cf_ma` return) `rejectValueSwitch` (`statements.ts`, called from
-  `parseVariableDeclaration` + `parseAssignment` before `parseExpression`) emits
-  ONE `switch-expression-unsupported` (error) and `recoverCompound`s the
-  `switch <subject>` header + indented arm block, returning a placeholder
-  `unknown-expression` (the transform emits nothing for it). Lowering it to a
-  ternary chain (a new `SwitchExpression` node + Pratt surgery) is a deferred
-  follow-up.
+- **A `switch` used as a VALUE parses to a `SwitchExpression` and lowers to a
+  chained ternary.** `switch` is BOTH a statement (`parseSwitchStatement`) and a
+  Pratt prefix expression: in a declaration/assignment/tuple value position
+  (`float r = switch s …`, `x := switch s …`, `[a,b] = switch s …` — Trend
+  Wizard's `cf_ma` return) `parsePrimary` (`expressions.ts`) delegates the
+  `switch` keyword to `parseSwitchExpression` (`statements.ts`, imported across
+  the existing `statements ↔ expressions` function cycle). Each arm is parsed by
+  `parseSwitchExpressionArm` as a single EXPRESSION via `parseExpression` (NOT
+  `parseSwitchCase`, whose statement-based body would reject an array-literal arm
+  value `=> [1, 2]` as a statement-leading `[` tuple head). `subject` is `null`
+  for the subject-less boolean form. The node lowers in `emitExpr`
+  (`exprEmit.ts`) to a right-nested ternary: with a subject `subject === label ?
+  value : …`, subject-less `cond ? value : …`, a wildcard `=> value` arm is the
+  default, and an exhausted chain yields `Number.NaN` (Pine's unmatched-`na`).
+  `rewriteTree` lowers each subject/test/value in SCALAR position (a value
+  `switch` yields a scalar, so a nested `ta.*` arm projects to `.current`). The
+  RESIDUAL unsupported sub-shape — a multi-line block arm body, a comma list, or
+  a `:=`/`=` assignment arm (not a single expression) — still emits ONE
+  `switch-expression-unsupported` (error, reworded for this shape) and degrades
+  the whole `switch` to an `unknown-expression`. Adding `SwitchExpression` to the
+  `ExpressionNode` union means EVERY exhaustive expression walker carries a
+  `switch-expression` arm (`emitExpr`/`forEachHistoryAccess`/`unparse`/
+  `inferQualifier`/`walkExpression`/`collectExpressionFacts`/`rewriteTree`/
+  `substituteParams`/`substituteIterator`/`expandNode`/
+  `expressionHasStatefulPrimitive`); `collectInlineInputs` is the deliberate
+  exception (Pine forbids `input.*()` inside a conditional/switch arm).
 - **History `offset` is any expression.** Literal-bound enforcement for the
   chartlang emit constraint is Task 5/8, not the parser — `arr[i]` parses
   successfully here.
@@ -484,15 +561,15 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   independent reads. **Diagnostics:** a non-array third arg →
   `security-tuple-source-not-list` (error, semantic-namespaced); a name/source
   arity mismatch → `security-tuple-arity-mismatch` (warning) + bind-what-it-can;
-  a non-literal / out-of-table symbol-or-interval feed reuses the existing
-  transform `request-security-not-mapped` (the task's
+  a computed / wrong-axis / out-of-table symbol-or-interval feed reuses the
+  existing transform `request-security-not-mapped` (the task's
   `request-security-*-not-literal` codes never existed — `request-security-not-
   mapped` is the landed multi-symbol reject) and produces NO annotation.
-  **KNOWN LIMITATION (multi-symbol-security follow-up, not T5):** the landed
-  feed resolver accepts only a literal / `syminfo.tickerid` symbol and a literal
-  interval, so Trend Wizard's `request.security(src_symbol_custom, src_tframe,
-  …)` — both `input.symbol`/`input.timeframe`-defaulted VARIABLES — rejects its
-  feed today; the tuple machinery is exercised with literal symbol/interval.
+  The feed is resolved by the SHARED `resolveSecurityFeed` threaded the script's
+  `SecurityFeedInputs` (see the transform `request.security` invariant), so an
+  `input.symbol`/`input.timeframe`-bound symbol/timeframe resolves to its
+  `inputs.<name>` ref identically to the single-source path (`feed.symbol` /
+  `feed.interval` are chartlang EMIT-SOURCE STRINGS, not raw values).
 - **The `request.security` AST-shape + feed-resolution helpers live in the
   ast-only leaf `transform/securityShape.ts`** (`securityField`,
   `resolveSecurityFeed`, `SecurityFeed`), imported by BOTH `requestSecurity.ts`
@@ -659,11 +736,25 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   coordinate passes (which RETURN diagnostics in their result), the
   `void`-returning Tasks 10–15 mutate the scaffold and must push into a
   shared collector: `push(diagnostic)`, `pushCode(key, span, message?)`
-  (wraps `makeDiagnostic`), `has(code)`, `toArray()` (snapshot copy),
-  `size`. Construct ONE per conversion, thread it through every transform,
-  drain via `toArray()` at codegen. `transformDeclaration` snapshots it onto
-  `scaffold.diagnostics` at build time — later tasks that push more
-  diagnostics re-read the collector, not the frozen scaffold field.
+  (wraps `makeDiagnostic`), `pushCodeOnce(key, dedupeKey, span, message?)`,
+  `has(code)`, `toArray()` (snapshot copy), `size`. Construct ONE per
+  conversion, thread it through every transform, drain via `toArray()` at
+  codegen. `transformDeclaration` snapshots it onto `scaffold.diagnostics` at
+  build time — later tasks that push more diagnostics re-read the collector,
+  not the frozen scaffold field.
+- **`pushCodeOnce` de-dupes by `(code, dedupeKey)`, where `has(code)`
+  de-dupes by code alone — so a noisy per-call-site warning collapses to ONE
+  diagnostic per distinct discriminator across the whole script** (emitted at
+  the FIRST occurrence's span, the rest suppressed). The transform walk is
+  source-order deterministic, so the chosen span + emission order are stable.
+  This is how an unmapped `input.*` argument
+  (`input-arg-not-mapped`, `inputs.ts`), an unmapped `table.cell` formatting
+  argument (`table-formatting-not-mapped`, `tables.ts`), and the
+  `request.security` `gaps=` info (`request-security-gaps-dropped`,
+  `requestSecurity.ts`) each warn once per distinct ARG NAME / once per script
+  rather than once per call. The genuinely-unmapped and the non-literal-value
+  uses of `input-arg-not-mapped` share the code but key on disjoint arg-name
+  sets, so each name resolves to exactly one (honest) override message.
 - **`mapDeclarationArgs` (`declarationArgs.ts`) is the §2 arg → option
   table.** Each `max_*_count` bucket defaults to 50 (`BUCKET_DEFAULT_CAP`)
   to preserve Pine GC behaviour; over-cap values clamp to `BUCKET_CAP`
@@ -720,8 +811,11 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   unrecognised `input.*` → `unknown-input-primitive`. Allowed defaults are
   compile-time literals PLUS a unary `+`/`-` on a numeric literal
   (`input.int(-1)`). Unmapped named args (`tooltip`/`group`/`inline`/
-  `confirm`, a non-literal `title`/`minval`/…) warn once via
-  `input-arg-not-mapped` and are dropped, but the input is still emitted.
+  `confirm`, a non-literal `title`/`minval`/…) warn via `input-arg-not-mapped`
+  and are dropped, but the input is still emitted — and these consolidate to
+  ONE diagnostic per distinct ARG NAME across the whole script (via
+  `pushCodeOnce`, `warnUnmappedInputArg`/`warnNonLiteralInputArg`), not one per
+  call site.
 - **A Pine `input.string/int/float(default, title?, options=[literals])`
   (dropdown) becomes chartlang `input.enum(default, [literals], { title? })`
   (`resolveOptionsEnum`, parameterised by an `OptionsConfig`), keyed on the
@@ -1053,7 +1147,9 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `color-transp-approximated`); every other non-enum styling value lowers via
   `convertColor`'s `emitExpr` fallback. The only gaps are merge (no analogue →
   top-left fallback) and Pine's `text_formatting`/`text_font_family`/`text_wrap`
-  (no analogue → `table-formatting-not-mapped` warning, dropped).
+  (no analogue → `table-formatting-not-mapped` warning, dropped — consolidated
+  to ONE diagnostic per distinct arg name across the whole script via
+  `pushCodeOnce`, not one per cell).
 - **Cells are collected last-write-wins into a `Map<"col:row", CellSpec>`**
   by a one-level descent (top level + `if`/`else if`/`else`/`for` bodies).
   A `for i = a to b` whose body writes the handle UNROLLS when both bounds
@@ -1773,17 +1869,27 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   rewrites the source's `close`/`hl2`/… reads to `bar.close`/`bar.hl2`/…). Do
   NOT re-introduce the old `request.security({ interval }).<emitted-source>`
   main-timeframe shape — it counted the `ta.*` window in main bars, the root
-  bug. The `<opts>` symbol slot is decided by the first arg: `syminfo.tickerid`
-  reads the chart's own symbol → omit `symbol` (`{ interval }`, byte-identical
-  to the single-symbol output); a **string literal** (`"NASDAQ:AAPL"`) carries
-  the symbol into chartlang multi-symbol (`{ symbol, interval }`) and pushes an
-  **info** `request-security-different-symbol` so downstream tooling still sees
-  the cross-symbol read; any other symbol expression (a computed ticker, a
-  non-`tickerid` identifier) is un-mappable — chartlang requires a literal
-  symbol too — and pushes `request-security-not-mapped`. `request-security-not-
-  mapped` is reserved for the genuinely-unsupported shapes (non-literal symbol,
-  non-literal / out-of-table timeframe, missing args); an in-subset `ta.*`
-  source and a literal symbol are both supported.
+  bug. The `<opts>` symbol/interval slots are resolved by the SHARED
+  `resolveSecurityFeed`, threaded the script's `SecurityFeedInputs` (built once
+  by `collectSecurityFeedInputs` and carried on `EmitContext.securityFeedInputs`;
+  the tuple path shares it via the semantic walk). `feed.symbol`/`feed.interval`
+  are chartlang EMIT-SOURCE STRINGS (a quoted literal or an `inputs.<name>`
+  ref), spliced verbatim by `securityOpts`. SYMBOL: `syminfo.tickerid` →
+  omit `symbol` (`{ interval }`, byte-identical to the single-symbol output); a
+  **string literal** (`"NASDAQ:AAPL"`) → `{ symbol: "...", interval }`; an
+  **identifier bound to an `input.symbol`** → `{ symbol: inputs.<name> as string,
+  interval }` (the cast: `compute`'s `inputs` is `Record<string, unknown>`, so an
+  un-cast read fails the `RequestSecurityOpts` typecheck — the compiler's feed
+  extractor unwraps the `as`/parens to resolve the default). A present
+  (cross-symbol) feed pushes an **info** `request-security-different-symbol`. The
+  INTERVAL slot resolves the same three ways (literal tf / empty `""` chart
+  timeframe / `input.timeframe`-bound `inputs.<name> as string`). A `gaps=` named
+  arg pushes the **info** `request-security-gaps-dropped` once per script
+  (`pushCodeOnce`; chartlang feeds are gap-filled by default).
+  `request-security-not-mapped` is reserved for the
+  genuinely-unsupported shapes (a computed / wrong-axis symbol or interval, an
+  out-of-table timeframe, missing args); an in-subset `ta.*` source and a
+  literal/input-bound symbol+interval are supported.
 - **Pine `plot(<value>, offset=N)` threads onto a direct `ta.*` plot value
   (`plotFamily.ts` `emitPlot`).** `emitPlot` IS passed the
   `DiagnosticCollector` (the `case "plot"` site threads it; `hline`/
@@ -1844,6 +1950,9 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `request-security-not-mapped`, `dynamic-series-index`,
   `loop-bounds-not-literal-for-stateful-body` (errors),
   `request-security-lookahead-not-supported` (warning),
+  `request-security-gaps-dropped` (info — the `gaps=` arg has no chartlang
+  analogue; feeds are gap-filled by default; consolidated to once per script
+  via `pushCodeOnce`),
   `request-security-different-symbol` (info — repurposed from a warning when
   multi-symbol landed; the CODE STRING is unchanged, only the severity/message
   are: a literal cross-symbol read now LOWERS to `{ symbol, interval }` rather

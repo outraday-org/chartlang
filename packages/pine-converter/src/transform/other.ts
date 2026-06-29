@@ -38,7 +38,12 @@ import { scanNumericArrays } from "./numericArray.js";
 import { emitPlotFamily, isPlotFamilyCall } from "./plotFamily.js";
 import { emitRequestSecurity, isRequestSecurityCall } from "./requestSecurity.js";
 import { appendComputeStatement, appendStateSlot } from "./scaffoldMutators.js";
-import { securityCallbackRead, securityDataRead, securityOpts } from "./securityShape.js";
+import {
+    collectSecurityFeedInputs,
+    securityCallbackRead,
+    securityDataRead,
+    securityOpts,
+} from "./securityShape.js";
 import { emitStr } from "./strFormat.js";
 import { emitStrategySignal } from "./strategySignals.js";
 import type { InlineScope } from "./udfInline.js";
@@ -1372,6 +1377,7 @@ export function transformOther(
         localNames: udfNames,
         stateSlots: slots,
         inputCasts,
+        securityFeedInputs: collectSecurityFeedInputs(analysis.script),
         tupleFieldAliases: registerTupleFields(analysis, scaffold.names),
         seriesSlots: seriesNames,
         arraySlots,

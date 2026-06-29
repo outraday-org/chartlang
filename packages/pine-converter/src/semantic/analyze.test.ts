@@ -642,7 +642,7 @@ describe("analyze — tuple request.security", () => {
         );
         expect(annotation).toEqual({
             kind: "securityTuple",
-            feed: { interval: "1d" },
+            feed: { interval: '"1d"' },
             elements: [
                 { kind: "ohlcv", field: "high" },
                 { kind: "ohlcv", field: "low" },
@@ -657,7 +657,17 @@ describe("analyze — tuple request.security", () => {
         const { annotation } = securityTuple(
             `${HEADER}[h, l] = request.security("NASDAQ:AAPL", "60", [high, low])\n`,
         );
-        expect(annotation?.feed).toEqual({ symbol: "NASDAQ:AAPL", interval: "1h" });
+        expect(annotation?.feed).toEqual({ symbol: '"NASDAQ:AAPL"', interval: '"1h"' });
+    });
+
+    it("resolves an input-bound symbol + timeframe feed to inputs.<name> refs", () => {
+        const { annotation } = securityTuple(
+            `${HEADER}sym = input.symbol("NASDAQ:QQQ")\ntf = input.timeframe("D")\n[h, l] = request.security(sym, tf, [high, low])\n`,
+        );
+        expect(annotation?.feed).toEqual({
+            symbol: "inputs.sym as string",
+            interval: "inputs.tf as string",
+        });
     });
 
     it("classifies a computed element as an expression and an OHLCV element as a field", () => {
@@ -684,9 +694,9 @@ describe("analyze — tuple request.security", () => {
         expect(codes).toContain("pine-converter/semantic/security-tuple-source-not-list");
     });
 
-    it("rejects a non-literal feed via request-security-not-mapped", () => {
+    it("rejects a computed (non-input) feed via request-security-not-mapped", () => {
         const { annotation, codes } = securityTuple(
-            `${HEADER}sym = input.symbol("X")\n[h, l] = request.security(sym, "D", [high, low])\n`,
+            `${HEADER}sym = close\n[h, l] = request.security(sym, "D", [high, low])\n`,
         );
         expect(annotation).toBeUndefined();
         expect(codes).toContain("pine-converter/transform/request-security-not-mapped");

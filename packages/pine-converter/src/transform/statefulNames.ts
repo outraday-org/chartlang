@@ -71,6 +71,15 @@ export function expressionHasStatefulPrimitive(node: ExpressionNode): boolean {
             return node.elements.some((el) => expressionHasStatefulPrimitive(el));
         case "lambda-expression":
             return expressionHasStatefulPrimitive(node.body);
+        case "switch-expression":
+            return (
+                (node.subject !== null && expressionHasStatefulPrimitive(node.subject)) ||
+                node.cases.some(
+                    (arm) =>
+                        (arm.test !== null && expressionHasStatefulPrimitive(arm.test)) ||
+                        expressionHasStatefulPrimitive(arm.value),
+                )
+            );
         default:
             return false;
     }

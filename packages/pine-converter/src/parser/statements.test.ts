@@ -82,6 +82,28 @@ describe("parseBlock — defensive dedent recovery", () => {
     });
 });
 
+describe("parseBlock — leading-comment tolerance", () => {
+    it("parses an indented block whose first physical line is a comment", () => {
+        const { ctx } = bodyOf(
+            "//@version=6\nindicator()\nif barstate.islast\n    // header\n    plot(close)\n",
+        );
+        const stmt = parseStatement(ctx);
+        expect(stmt?.kind).toBe("if-statement");
+        if (stmt?.kind === "if-statement") {
+            expect(stmt.thenBody.body).toHaveLength(1);
+            expect(stmt.thenBody.body[0]?.kind).toBe("expression-statement");
+        }
+        expect(ctx.diagnostics).toEqual([]);
+    });
+
+    it("still reports expected-token for a genuinely empty body", () => {
+        const { ctx } = bodyOf("//@version=6\nindicator()\nif barstate.islast\nplot(close)\n");
+        const stmt = parseStatement(ctx);
+        expect(stmt?.kind).toBe("if-statement");
+        expect(ctx.diagnostics.map((d) => d.code)).toContain("pine-converter/parse/expected-token");
+    });
+});
+
 describe("parseStatement — user-defined function declarations", () => {
     it("parses a single-line decl with the body as a one-statement return block", () => {
         const { ctx } = bodyOf("//@version=6\nindicator()\ncf_slope(ma, n) => ta.ema(close, n)\n");

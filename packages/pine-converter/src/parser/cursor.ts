@@ -31,6 +31,15 @@ export type TokenCursor = Readonly<{
     peekKind: () => TokenKind;
     /** Return the current token and advance past it (never past `eof`). */
     next: () => Token;
+    /**
+     * Advance past any run of leading `newline` tokens (comments are skipped
+     * transparently throughout), parking on the next significant
+     * non-`newline` token or the trailing `eof`. Used at the
+     * version-directive and indented-block call sites to tolerate
+     * comment-only / blank lines, which emit a stray `newline` the
+     * structural match would otherwise reject.
+     */
+    skipNewlines: () => void;
     /** True once the cursor is parked on the trailing `eof`. */
     atEnd: () => boolean;
     /**
@@ -111,6 +120,12 @@ export function createCursor(tokens: readonly Token[]): TokenCursor {
         return token;
     }
 
+    function skipNewlines(): void {
+        while (current().kind === "newline") {
+            next();
+        }
+    }
+
     function matches(token: Token, kind: TokenKind, text?: string): boolean {
         return token.kind === kind && (text === undefined || token.text === text);
     }
@@ -133,5 +148,5 @@ export function createCursor(tokens: readonly Token[]): TokenCursor {
         }
     }
 
-    return { peek, peekAhead, peekKind, next, atEnd, match, expect, recover };
+    return { peek, peekAhead, peekKind, next, skipNewlines, atEnd, match, expect, recover };
 }

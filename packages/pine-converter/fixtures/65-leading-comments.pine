@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: MPL-2.0
+// © Example Author — license header before the version directive
+
+//@version=6
+indicator("Leading Comments", overlay=true)
+plot(close)
+if barstate.islast
+    // first physical line of the block is a comment
+    plot(open)

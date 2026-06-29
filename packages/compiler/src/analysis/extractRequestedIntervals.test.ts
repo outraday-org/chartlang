@@ -230,7 +230,11 @@ export default defineIndicator({
         expect(result.diagnostics).toEqual([]);
     });
 
-    it("rejects inputs references that are missing or not enum descriptors", () => {
+    it("accepts an input.interval default and rejects only a missing reference", () => {
+        // The invariant reversed in Task 3: an interval bound to an
+        // `input.interval` default now resolves through its literal default
+        // (symmetric with `input.symbol`); a genuinely-missing `inputs.<name>`
+        // reference is still a dynamic expression and rejects.
         const result = run(`
 import { defineIndicator, input } from "@invinite-org/chartlang-core";
 export default defineIndicator({
@@ -245,9 +249,31 @@ export default defineIndicator({
     },
 });
 `);
-        expect(result.intervals).toEqual([]);
+        expect(result.intervals).toEqual(["1D"]);
         expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
             "request-security-interval-not-literal",
+        ]);
+    });
+
+    it("rejects an interval bound to a non-interval input descriptor", () => {
+        // An `inputs.<name>` whose descriptor is not an `input.interval` (here a
+        // plain `input.string`) is not a feed interval — it falls through to the
+        // dynamic diagnostic, mirroring the symbol axis' non-symbol reject.
+        const result = run(`
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: {
+        tf: input.string("1D"),
+    },
+    compute: ({ inputs, request }) => {
+        request.security({ interval: inputs.tf });
+    },
+});
+`);
+        expect(result.intervals).toEqual([]);
+        expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
             "request-security-interval-not-literal",
         ]);
     });
@@ -432,6 +458,43 @@ export default defineIndicator({
         ]);
     });
 
+    it("anchors an expression unit on an input.interval default", () => {
+        const result = analyse(
+            `import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { tf: input.interval("1D") },
+    compute: ({ inputs, request }) => {
+        request.security({ interval: inputs.tf }, (bar) => bar.close);
+    },
+});`,
+        );
+        expect(result.securityExpressions).toEqual([
+            { slotId: "demo.chart.ts:7:9#0", interval: "1D", paramName: "bar" },
+        ]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("records no expression unit for an empty (chart-timeframe) input.interval default", () => {
+        // The chart timeframe is the main clock, not a higher-timeframe
+        // expression clock — so no descriptor (and no feed, no diagnostic).
+        const result = analyse(
+            `import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { tf: input.interval("") },
+    compute: ({ inputs, request }) => {
+        request.security({ interval: inputs.tf }, (bar) => bar.close);
+    },
+});`,
+        );
+        expect(result.securityExpressions).toEqual([]);
+        expect(result.feeds).toEqual([]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
     it("omits the descriptor symbol for an input.enum symbol", () => {
         const result = analyse(
             `import { defineIndicator, input } from "@invinite-org/chartlang-core";
@@ -536,6 +599,100 @@ export default defineIndicator({
 });
 `);
         expect(result.feeds).toEqual([{ symbol: "NASDAQ:QQQ", interval: "1D" }]);
+        expect(result.intervals).toEqual([]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("resolves an input.interval default into the feed and the interval list", () => {
+        const result = runFeeds(`
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { tf: input.interval("1D") },
+    compute: ({ inputs, request }) => {
+        request.security({ interval: inputs.tf });
+    },
+});
+`);
+        expect(result.feeds).toEqual([{ interval: "1D" }]);
+        expect(result.intervals).toEqual(["1D"]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("sees through an `as` cast on an input-bound symbol + interval (converter emit)", () => {
+        // The pine-converter emits an input-bound feed as `inputs.<name> as
+        // string` (the `compute` context types `inputs` loosely), so the
+        // extractor must unwrap the cast to resolve the default.
+        const result = runFeeds(`
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { sym: input.symbol("NASDAQ:QQQ"), tf: input.interval("1D") },
+    compute: ({ inputs, request }) => {
+        request.security({ symbol: inputs.sym as string, interval: inputs.tf as string });
+    },
+});
+`);
+        expect(result.feeds).toEqual([{ symbol: "NASDAQ:QQQ", interval: "1D" }]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("sees through a parenthesized `as` cast on an input.enum symbol", () => {
+        const result = runFeeds(`
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { sym: input.enum("AMEX:SPY", ["AMEX:SPY", "NASDAQ:QQQ"] as const) },
+    compute: ({ inputs, request }) => {
+        request.security({ symbol: (inputs.sym as string), interval: "1D" });
+    },
+});
+`);
+        expect(result.feeds).toEqual([
+            { symbol: "AMEX:SPY", interval: "1D" },
+            { symbol: "NASDAQ:QQQ", interval: "1D" },
+        ]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("collapses a chart-symbol + chart-timeframe (empty default) onto the primary stream", () => {
+        // `input.interval("")` is Pine's empty = chart timeframe; with the chart
+        // symbol (omitted) it IS the primary stream — no secondary feed and no
+        // higher-timeframe entry in the main-symbol projection.
+        const result = runFeeds(`
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { tf: input.interval("") },
+    compute: ({ inputs, request }) => {
+        request.security({ interval: inputs.tf });
+    },
+});
+`);
+        expect(result.feeds).toEqual([]);
+        expect(result.intervals).toEqual([]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("keeps a different-symbol + chart-timeframe (empty interval) feed", () => {
+        // A present (different) symbol at the chart timeframe is a distinct feed
+        // — a different instrument on the chart's own clock — keyed "<symbol>@".
+        const result = runFeeds(`
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { sym: input.symbol("NASDAQ:QQQ"), tf: input.interval("") },
+    compute: ({ inputs, request }) => {
+        request.security({ symbol: inputs.sym, interval: inputs.tf });
+    },
+});
+`);
+        expect(result.feeds).toEqual([{ symbol: "NASDAQ:QQQ", interval: "" }]);
         expect(result.intervals).toEqual([]);
         expect(result.diagnostics).toEqual([]);
     });

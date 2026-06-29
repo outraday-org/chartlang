@@ -128,5 +128,15 @@ export function inferQualifier(expr: ExpressionNode, resolve: SymbolResolver): T
                 (acc, element) => joinQualifier(acc, inferQualifier(element, resolve)),
                 "const",
             );
+        case "switch-expression": {
+            // The qualifier of a value-`switch` is the join of its subject, every
+            // arm test, and every arm value — the same widening a ternary applies.
+            const subject = expr.subject === null ? "const" : inferQualifier(expr.subject, resolve);
+            return expr.cases.reduce<TypeQualifier>((acc, arm) => {
+                const withTest =
+                    arm.test === null ? acc : joinQualifier(acc, inferQualifier(arm.test, resolve));
+                return joinQualifier(withTest, inferQualifier(arm.value, resolve));
+            }, subject);
+        }
     }
 }

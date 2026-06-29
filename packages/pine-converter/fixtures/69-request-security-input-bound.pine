@@ -1,0 +1,9 @@
+//@version=6
+indicator("Input-bound request.security", overlay=true)
+sym = input.symbol("NASDAQ:QQQ")
+tf = input.timeframe("D")
+custom = request.security(sym, tf, close, gaps=barmerge.gaps_off)
+[hi, lo] = request.security(sym, tf, [high, low])
+plot(custom)
+plot(hi)
+plot(lo)

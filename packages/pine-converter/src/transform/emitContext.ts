@@ -12,6 +12,7 @@ import {
 } from "../mapping/index.js";
 import type { AnnotationLookup } from "./exprEmit.js";
 import { emitExpr } from "./exprEmit.js";
+import type { SecurityFeedInputs } from "./securityShape.js";
 import { emitStr } from "./strFormat.js";
 
 /**
@@ -162,6 +163,15 @@ export type EmitContext = Readonly<{
      * construction) → no diagnostics.
      */
     taWarn?: (code: NestedTaWarnCode, span: SourceSpan) => void;
+    /**
+     * Pine input names that can source a `request.security` feed, mapped to
+     * their axis (`input.symbol` → `"symbol"`, `input.timeframe` →
+     * `"interval"`). Threaded into the shared feed resolver so an
+     * identifier-bound symbol/timeframe lowers to its `inputs.<name>` reference.
+     * Absent → no input-bound feeds (every literal/`tickerid` feed still
+     * resolves).
+     */
+    securityFeedInputs?: SecurityFeedInputs;
     /**
      * Whether the statements being rendered are inside an emitted `for` loop.
      * Set on the child context of a runtime `for` body so a `break`/`continue`
@@ -637,6 +647,19 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext, scalar: boolean): E
             return { ...node, elements: node.elements.map((el) => rewriteTree(el, ctx, false)) };
         case "lambda-expression":
             return { ...node, body: rewriteTree(node.body, ctx, false) };
+        case "switch-expression":
+            // A value-form `switch` yields a SCALAR value, so the subject, each
+            // arm test, and each arm value are scalar positions (a nested `ta.*`
+            // lowers to its `.current` projection).
+            return {
+                ...node,
+                subject: node.subject === null ? null : rewriteTree(node.subject, ctx, true),
+                cases: node.cases.map((arm) => ({
+                    ...arm,
+                    test: arm.test === null ? null : rewriteTree(arm.test, ctx, true),
+                    value: rewriteTree(arm.value, ctx, true),
+                })),
+            };
         default:
             return node;
     }

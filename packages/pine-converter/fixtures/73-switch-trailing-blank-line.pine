@@ -1,0 +1,19 @@
+//@version=6
+indicator("Switch trailing blank", overlay=true)
+maType = input.string("SMA", "MA type")
+len = input.int(14, "Length")
+cf_ma(s, t, l) =>
+    float result = switch t
+        "SMA" => ta.sma(s, l)
+        "EMA" => ta.ema(s, l)
+
+// the blank + comment lines above and below the switch must not break parsing
+var float fast = 0.0
+var float slow = 0.0
+switch maType
+    "SMA" => fast := 8.0, slow := 21.0
+    "EMA" => fast := 12.0, slow := 26.0
+
+plot(cf_ma(close, maType, len))
+plot(fast)
+plot(slow)

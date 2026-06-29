@@ -157,3 +157,12 @@ MPL-2.0) at the repo root, used as a real-world conformance target.
   analogue). Revisit only if core's table cell schema grows.
 - **`group` / `inline` / `tooltip` input metadata**: revisit if core's
   `InputOptionsObject` ever carries UI-grouping fields.
+- **`codegen/usage.ts` `state.` substring false-positive** (pre-existing, not
+  introduced by these tasks): the import/destructure gate uses
+  `corpus.includes("state.")`, which also matches `barstate.`, so a script
+  that uses `barstate.*` but no real `state.*` slot emits a spurious (unused
+  but harmless — still compiles) `state` import. The clean fix is the anchored
+  `/\bstate\./` scan that the sibling `plot`/`hline`/`bgcolor` flags already
+  use; it shifts 8 existing goldens (incl. unrelated tables/polyline/color
+  fixtures 11/12/13/14/20/52), so it was deferred out of this scoped pass to
+  avoid broad unrelated golden churn.

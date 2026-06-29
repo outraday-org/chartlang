@@ -53,6 +53,14 @@ export function unparse(node: ExpressionNode): string {
             return `[${node.elements.map(unparse).join(", ")}]`;
         case "lambda-expression":
             return `(${node.params.join(", ")}) => ${unparse(node.body)}`;
+        case "switch-expression": {
+            const head = node.subject === null ? "switch" : `switch ${unparse(node.subject)}`;
+            const arms = node.cases.map((arm) => {
+                const label = arm.test === null ? "=>" : `${unparse(arm.test)} =>`;
+                return `\n    ${label} ${unparse(arm.value)}`;
+            });
+            return `${head}${arms.join("")}`;
+        }
         case "unknown-expression":
             return node.tokens.map((token) => token.text).join(" ");
     }

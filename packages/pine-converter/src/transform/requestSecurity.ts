@@ -55,11 +55,14 @@ export function isRequestSecurityCall(call: CallExpression): boolean {
  * symbol arg decides the opts: `syminfo.tickerid` reads the chart's own symbol
  * and omits `symbol` (`{ interval }`, byte-identical to the single-symbol
  * form); a **string literal** (`"NASDAQ:AAPL"`) carries the symbol into the
- * opts (`{ symbol, interval }`, chartlang multi-symbol) and pushes an info
- * `request-security-different-symbol` so downstream tooling still sees the
- * cross-symbol read; any other symbol expression (a computed ticker, a
- * non-`tickerid` identifier) is un-mappable — chartlang requires a literal
- * symbol too — and pushes `request-security-not-mapped` returning `null`.
+ * opts (`{ symbol, interval }`, chartlang multi-symbol); an identifier bound to
+ * an `input.symbol` declaration lowers to its `inputs.<name>` reference (the
+ * compiler resolves it through the default). A present (cross-symbol) feed
+ * pushes an info `request-security-different-symbol` so downstream tooling still
+ * sees the cross-symbol read; any other symbol expression (a computed ticker, a
+ * non-input identifier) is un-mappable and pushes `request-security-not-mapped`
+ * returning `null`. The timeframe arg resolves the same three ways (literal /
+ * empty `""` chart timeframe / `input.timeframe`-bound `inputs.<name>` ref).
  *
  * A bare OHLCV source lowers to the chartlang **data** form
  * `request.security(<opts>).<field>` (a `Series`); a `ta.*` / expression
@@ -67,9 +70,11 @@ export function isRequestSecurityCall(call: CallExpression): boolean {
  * `request.security(<opts>, (bar) => <source>)`, which runs the expression on
  * the higher-timeframe clock the way Pine does (the source's `close`/`hl2`/…
  * already rewrite to `bar.close`/`bar.hl2`/… through the shared field mapper).
- * A `lookahead` named arg pushes `request-security-lookahead-not-supported`. An
- * out-of-subset shape (non-literal timeframe, missing args) pushes
- * `request-security-not-mapped` and returns `null`.
+ * A `lookahead` named arg pushes `request-security-lookahead-not-supported`; a
+ * `gaps` named arg pushes the info `request-security-gaps-dropped` once per
+ * script (chartlang feeds are gap-filled by default). An out-of-subset shape
+ * (computed timeframe,
+ * missing args) pushes `request-security-not-mapped` and returns `null`.
  *
  * @since 0.1
  * @stable
@@ -116,6 +121,14 @@ export function emitRequestSecurity(
     if (lookahead !== undefined) {
         diagnostics.pushCode("request-security-lookahead-not-supported", lookahead.span);
     }
+    // `gaps = barmerge.gaps_off|gaps_on` has no chartlang analogue — chartlang
+    // security feeds are gap-filled by default — so it is dropped with one info
+    // per script (consolidated by arg name across every feed), never a hard
+    // unmapped-arg error.
+    const gaps = call.args.find((arg) => arg.name === "gaps");
+    if (gaps !== undefined) {
+        diagnostics.pushCodeOnce("request-security-gaps-dropped", "gaps", gaps.span);
+    }
     const positional = call.args.filter((arg) => arg.name === null).map((arg) => arg.value);
     const symbol = positional[0];
     const timeframe = positional[1];
@@ -126,10 +139,12 @@ export function emitRequestSecurity(
     }
     // Resolve the symbol + timeframe into the opts via the shared resolver:
     // `syminfo.tickerid` → `symbol: null` (omit `symbol`, byte-identical to the
-    // single-symbol form); a string literal → the cross-symbol `{ symbol }`;
-    // anything else (computed ticker, non-literal timeframe, out-of-table
-    // timeframe) → `null`, the un-mappable shape.
-    const feed = resolveSecurityFeed(symbol, timeframe);
+    // single-symbol form); a string literal → the cross-symbol `{ symbol }`; an
+    // `input.symbol`/`input.timeframe`-bound identifier → its `inputs.<name>`
+    // ref (the Task-3 compiler resolves it through the default); anything else
+    // (computed ticker/tf, out-of-table timeframe) → `null`, the un-mappable
+    // shape.
+    const feed = resolveSecurityFeed(symbol, timeframe, ctx.securityFeedInputs ?? new Map());
     if (feed === null) {
         diagnostics.pushCode("request-security-not-mapped", call.span);
         return null;

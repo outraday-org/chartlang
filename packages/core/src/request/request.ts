@@ -4,9 +4,10 @@
 import type { Bar, Price, Series, Time, Volume } from "../types.js";
 
 /**
- * Argument to {@link request.security}. The `interval` must be a string
- * literal or an `input.enum` value; the compiler's literal-only pass rejects
- * dynamic expressions with `request-security-interval-not-literal`.
+ * Argument to {@link request.security}. The `interval` must be compile-time
+ * resolvable — a string literal, an `input.interval` default, an `input.enum`
+ * value, or empty (`""`, the chart timeframe); the compiler's literal-only
+ * pass rejects a dynamic expression with `request-security-interval-not-literal`.
  *
  * @since 0.4
  * @stable
@@ -31,6 +32,17 @@ export type RequestSecurityOpts = Readonly<{
      * @since 1.2
      */
     readonly symbol?: string;
+    /**
+     * The secondary interval to read. Must be compile-time resolvable — a
+     * string literal, an `input.interval` default, or an `input.enum` value;
+     * the compiler's literal-only pass rejects a dynamic expression with
+     * `request-security-interval-not-literal`. An empty interval (`""`) is the
+     * chart's own timeframe (Pine's empty `request.security` tf): combined with
+     * the chart symbol it resolves to the main stream (no secondary feed); with
+     * a different `symbol` it is that instrument on the chart's own clock.
+     *
+     * @since 0.4
+     */
     readonly interval: string;
 }>;
 
@@ -124,8 +136,9 @@ const sentinel = (name: string): never => {
  *   clocked to the main timeline, so `ta.ema(weekly.close, 20)` would
  *   average 20 *main* bars.
  *
- * Both `symbol` and `interval` must be compile-time literals (a string
- * literal, an `input.symbol` default, or an `input.enum` value); the compiler
+ * Both `symbol` and `interval` must be compile-time resolvable (a string
+ * literal, an `input.symbol` / `input.interval` default, or an `input.enum`
+ * value — and, for `interval`, empty `""` = the chart timeframe); the compiler
  * walks every call to populate `manifest.requestedFeeds` (and the main-symbol
  * projection `manifest.requestedIntervals`). `symbol` is **optional** —
  * omitting it reads the chart's own symbol (the higher-timeframe-only case).

@@ -4,7 +4,7 @@
 import { defineIndicator, plot, input } from "@invinite-org/chartlang-core";
 
 export default defineIndicator({
-        name: "Switch as value",
+        name: "Switch subjectless",
         apiVersion: 1,
         overlay: false,
         maxDrawings: {
@@ -15,9 +15,11 @@ export default defineIndicator({
             other: 0,
         },
         inputs: {
-            sel: input.string("SMA"),
+            threshold: input.int(50),
+            level: input.int(60),
         },
         compute({ bar, plot, inputs }) {
-            plot(ma);
+            let score = ((inputs.level as number) > (inputs.threshold as number)) ? 1 : ((inputs.level as number) < (inputs.threshold as number)) ? (-1) : 0;
+            plot(score);
         },
 });

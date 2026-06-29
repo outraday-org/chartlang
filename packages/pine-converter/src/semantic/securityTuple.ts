@@ -5,7 +5,11 @@ import type { TupleDeclaration } from "../ast/index.js";
 import { makeDiagnostic } from "../diagnostics/codes.js";
 import type { Diagnostic } from "../index.js";
 import { dottedCallee, positionalArgs } from "../transform/callArgs.js";
-import { resolveSecurityFeed, securityField } from "../transform/securityShape.js";
+import {
+    type SecurityFeedInputs,
+    resolveSecurityFeed,
+    securityField,
+} from "../transform/securityShape.js";
 import type { SecurityTupleAnnotation, SecurityTupleElement } from "./types.js";
 
 /**
@@ -15,8 +19,13 @@ import type { SecurityTupleAnnotation, SecurityTupleElement } from "./types.js";
  * a resolvable feed and an array-literal source list, otherwise `null` (a
  * non-`request.security` tuple RHS is left to the multi-output `ta.*` path).
  *
+ * The feed is resolved by the shared {@link resolveSecurityFeed} against the
+ * script's {@link SecurityFeedInputs}, so an `input.symbol`/`input.timeframe`-
+ * bound symbol/timeframe lowers to its `inputs.<name>` reference exactly like
+ * the single-source path.
+ *
  * Diagnostics are pushed into `diagnostics` (the semantic walk's collector): a
- * non-literal / out-of-table symbol or interval reuses the existing
+ * computed / wrong-axis / out-of-table symbol or interval reuses the existing
  * `request-security-not-mapped`; a non-array third argument raises
  * `security-tuple-source-not-list`; a name/source-length mismatch raises
  * `security-tuple-arity-mismatch` and still classifies what it can. The shared
@@ -34,6 +43,7 @@ import type { SecurityTupleAnnotation, SecurityTupleElement } from "./types.js";
 export function analyzeSecurityTuple(
     decl: TupleDeclaration,
     diagnostics: Diagnostic[],
+    inputs: SecurityFeedInputs,
 ): SecurityTupleAnnotation | null {
     const init = decl.initializer;
     if (init.kind !== "call-expression" || dottedCallee(init) !== "request.security") {
@@ -44,7 +54,7 @@ export function analyzeSecurityTuple(
         diagnostics.push(makeDiagnostic("request-security-not-mapped", init.span));
         return null;
     }
-    const feed = resolveSecurityFeed(positional[0].value, positional[1].value);
+    const feed = resolveSecurityFeed(positional[0].value, positional[1].value, inputs);
     if (feed === null) {
         diagnostics.push(makeDiagnostic("request-security-not-mapped", init.span));
         return null;

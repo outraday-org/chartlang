@@ -1,0 +1,38 @@
+[
+    {
+        "code": "pine-converter/transform/request-security-gaps-dropped",
+        "severity": "info",
+        "message": "The `gaps` parameter on `request.security` has no chartlang analogue and was dropped; chartlang security feeds are gap-filled by default.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 43,
+            "endLine": 5,
+            "endColumn": 65
+        },
+        "suggestion": "Remove the `gaps` argument; chartlang aligns the higher-timeframe feed onto every chart bar."
+    },
+    {
+        "code": "pine-converter/transform/request-security-different-symbol",
+        "severity": "info",
+        "message": "`request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.",
+        "span": {
+            "startLine": 5,
+            "startColumn": 10,
+            "endLine": 5,
+            "endColumn": 66
+        },
+        "suggestion": "Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol."
+    },
+    {
+        "code": "pine-converter/transform/request-security-different-symbol",
+        "severity": "info",
+        "message": "`request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.",
+        "span": {
+            "startLine": 6,
+            "startColumn": 1,
+            "endLine": 6,
+            "endColumn": 51
+        },
+        "suggestion": "Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol."
+    }
+]

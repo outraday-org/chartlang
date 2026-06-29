@@ -70,6 +70,26 @@ describe("createCursor", () => {
         expect(cursor.expect("punctuation", "(")?.text).toBe("(");
     });
 
+    it("skipNewlines drops a run of newlines (and interleaved comments)", () => {
+        const cursor = createCursor([
+            tok("comment", "// a"),
+            tok("newline", "\n"),
+            tok("newline", "\n"),
+            tok("comment", "// b"),
+            tok("newline", "\n"),
+            tok("version-directive", "//@version=6"),
+            EOF,
+        ]);
+        cursor.skipNewlines();
+        expect(cursor.peekKind()).toBe("version-directive");
+    });
+
+    it("skipNewlines is a no-op when the current token is not a newline", () => {
+        const cursor = createCursor([tok("indent", ""), EOF]);
+        cursor.skipNewlines();
+        expect(cursor.peekKind()).toBe("indent");
+    });
+
     it("recover skips tokens until a stop kind or eof", () => {
         const cursor = createCursor([
             tok("identifier", "junk"),

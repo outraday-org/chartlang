@@ -54,23 +54,47 @@
   callsite in `manifest.securityExpressions` (sorted by `slotId`, omitted when
   empty so data-only snapshots stay byte-identical). The compiled callback stays
   **inline** in the emitted module — the descriptor is only the registry the
-  runtime uses to know which slot id runs on an HTF clock. Only a
-  string-literal `interval` anchors an expression unit; an `input.enum`
-  interval (multi-valued) does not. The descriptor's `symbol` is attached only
+  runtime uses to know which slot id runs on an HTF clock. A string-literal OR
+  `input.interval`-default `interval` anchors an expression unit (Task 3); an
+  `input.enum` interval (multi-valued) does not, and an empty (`""`,
+  chart-timeframe) interval does not (the main clock, not an HTF clock). The
+  descriptor's `symbol` is attached only
   for a string-literal or `input.symbol`-default symbol (a single concrete
   clock); an `input.enum`/dynamic/empty-literal/omitted symbol leaves it off
   (omitted ⇒ chart symbol), exactly as a multi-valued `input.enum` interval
   can't anchor a single clock.
-- **`request.security` reads the optional `symbol` opt the same three ways as
-  `interval`, plus the `input.symbol`-default path, and emits
-  `manifest.requestedFeeds`.** `resolveOptString` reads `{ symbol }` as a string
-  literal, an `inputs.<enum>` access (all options), an `inputs.<name>`
-  `input.symbol` **default** literal (NEW — `interval` never uses this; an
-  `input.interval` is the main-chart interval, not a feed interval), an absent
-  property, or a genuinely-dynamic expression. A dynamic symbol emits the
-  append-only `request-security-symbol-not-literal` diagnostic and is excluded
-  (mirrors `request-security-interval-not-literal`; both can fire on one
-  callsite). The analyser builds `RequestAnalysis.feeds` as the cartesian
+- **`request.security` reads BOTH the `symbol` and `interval` opts the same
+  four ways — string literal, `input.enum`, an `input.symbol` / `input.interval`
+  **default**, or dynamic — and emits `manifest.requestedFeeds`.**
+  `resolveOptString` (called for `{ symbol }`) reads a string literal, an
+  `inputs.<enum>` access (all options), an `inputs.<name>` `input.symbol`
+  **default** literal (via the shared `getInputDefault(expr, inputs, kind)`
+  helper, `kind = "symbol"`), an absent property, or a genuinely-dynamic
+  expression. `getInputDefault` / `getInputsEnumOptions` first `unwrapInputAccess`
+  the expression — stripping enclosing parentheses + `as` casts — so the
+  pine-converter's input-bound feed emit `inputs.<name> as string` (the cast is
+  needed because a script's `compute` `inputs` is `Record<string, unknown>`, so
+  an un-cast read fails the `RequestSecurityOpts` typecheck) still resolves to
+  the descriptor default; a hand-written un-cast `inputs.<name>` is unchanged.
+  The **interval branch** (`resolveIntervals`) now mirrors this:
+  a string literal, an `input.enum` (cartesian), or an `input.interval`
+  **default** (`getInputDefault(..., "interval")`) — **reversed from the
+  previous "`interval` never uses the input default" rule (Task 3)**. An empty
+  (`""`) interval is the **chart timeframe**: a chart-symbol + chart-tf pair
+  collapses onto the **primary stream** (no feed, no `requestedIntervals`
+  entry — Pine's empty `request.security` tf), while a present-symbol + chart-tf
+  pair stays a distinct feed keyed `feedKey(symbol, "")` (= `"<symbol>@"`).
+  `readLiteralInterval` accepts the same literal + `input.interval`-default
+  anchor for the expression descriptor (empty → no expression unit, since the
+  chart timeframe is the main clock, not an HTF clock). A dynamic symbol emits
+  the append-only `request-security-symbol-not-literal` diagnostic and is
+  excluded (mirrors `request-security-interval-not-literal`; both can fire on
+  one callsite). **Deferred (out of scope, README → Deferred/Follow-Up):** the
+  *runtime* resolution of a present-symbol + chart-tf `{ symbol, interval: "" }`
+  feed against a real adapter (a "different instrument on the chart's clock")
+  needs the host/adapter dynamic-feed API — the compiler emits the manifest
+  entry (so input-bound scripts compile clean), runtime resolution is a future
+  epic. The analyser builds `RequestAnalysis.feeds` as the cartesian
   product of resolved symbols × intervals, deduped into a
   `Map<string, RequestedFeed>` keyed by the shared core `feedKey(symbol,
   interval)` and emitted sorted by that key (byte-stable for the determinism

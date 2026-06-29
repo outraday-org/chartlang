@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { SourceSpan } from "../index.js";
+import { lex } from "../lexer/index.js";
 import type { Token } from "../lexer/index.js";
 import { createContext } from "./context.js";
 import { parseVersionDirective } from "./declarations.js";
@@ -11,6 +12,23 @@ import { parseVersionDirective } from "./declarations.js";
 const SPAN: SourceSpan = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 13 };
 
 describe("parseVersionDirective", () => {
+    it("tolerates leading comment and blank lines before the directive", () => {
+        const ctx = createContext(
+            lex("// license\n// credit\n\n//@version=6\nindicator()\n").tokens,
+        );
+        const directive = parseVersionDirective(ctx);
+        expect(directive?.version).toBe(6);
+        expect(ctx.diagnostics).toEqual([]);
+    });
+
+    it("still reports a missing directive for a comment-only file", () => {
+        const ctx = createContext(lex("// only a comment\n\n").tokens);
+        expect(parseVersionDirective(ctx)).toBeNull();
+        expect(ctx.diagnostics.map((d) => d.code)).toEqual([
+            "pine-converter/parse/missing-version-directive",
+        ]);
+    });
+
     it("defaults to version 0 (rejected) for a directive token lacking versionNumber", () => {
         // The lexer never emits this shape, but the parser must stay
         // type-safe against the optional `versionNumber` field.

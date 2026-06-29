@@ -122,11 +122,49 @@ function splitArgs(call: CallExpression): SplitArgs {
     return { defaultArg, named };
 }
 
+// Warn once per distinct unmapped input-argument NAME across the whole script.
+// Pine carries UI metadata (`group`/`inline`/`tooltip`/`confirm`/…) on every
+// input that chartlang's `InputOptionsObject` (title/min/max/step/multiline)
+// cannot model; reporting each name once — at its first occurrence, naming the
+// arg — keeps the diagnostic honest without flooding one warning per call site.
+function warnUnmappedInputArg(
+    diagnostics: DiagnosticCollector,
+    name: string,
+    span: SourceSpan,
+): void {
+    diagnostics.pushCodeOnce(
+        "input-arg-not-mapped",
+        name,
+        span,
+        `The \`${name}\` input argument has no chartlang analogue and was dropped.`,
+    );
+}
+
+// Warn once per distinct input-argument NAME whose chartlang option IS modelled
+// (`title`/`minval`/`maxval`/`step`) but whose VALUE is not a compile-time
+// literal, so the arg was dropped. Shares the `input-arg-not-mapped` code +
+// per-name consolidation with {@link warnUnmappedInputArg}; the distinct message
+// keeps the cause (a non-literal value, not "no analogue") accurate. The two
+// helpers never key the same name (the generic walk excludes `title` and the
+// range args), so each name resolves to exactly one message.
+function warnNonLiteralInputArg(
+    diagnostics: DiagnosticCollector,
+    name: string,
+    span: SourceSpan,
+): void {
+    diagnostics.pushCodeOnce(
+        "input-arg-not-mapped",
+        name,
+        span,
+        `The \`${name}\` input argument was dropped; its value is not a compile-time literal.`,
+    );
+}
+
 // Build the chartlang options-object source (`{ title: "X", min: 1 }`) from
 // the named args, or `null` when no recognised option is present. Unmapped
 // named args (`tooltip`/`group`/`inline`/`confirm`/…) raise
-// `input-arg-not-mapped` once per occurrence. `multiline` is forced on for a
-// `text_area` source.
+// `input-arg-not-mapped` once per distinct argument name across the script.
+// `multiline` is forced on for a `text_area` source.
 function buildOptions(
     named: ReadonlyMap<string, Argument>,
     multiline: boolean,
@@ -140,7 +178,7 @@ function buildOptions(
         if (title !== null) {
             parts.push(`title: ${title}`);
         } else {
-            diagnostics.pushCode("input-arg-not-mapped", titleArg.span);
+            warnNonLiteralInputArg(diagnostics, "title", titleArg.span);
         }
     }
     for (const [argName, option] of RANGE_ARG_TO_OPTION) {
@@ -152,7 +190,7 @@ function buildOptions(
         if (value !== null) {
             parts.push(`${option}: ${value}`);
         } else {
-            diagnostics.pushCode("input-arg-not-mapped", arg.span);
+            warnNonLiteralInputArg(diagnostics, argName, arg.span);
         }
     }
     for (const [argName, arg] of named) {
@@ -163,7 +201,7 @@ function buildOptions(
             continue;
         }
         if (argName !== "title" && !RANGE_ARG_TO_OPTION.has(argName)) {
-            diagnostics.pushCode("input-arg-not-mapped", arg.span);
+            warnUnmappedInputArg(diagnostics, argName, arg.span);
         }
     }
     if (multiline) {
@@ -183,14 +221,21 @@ function sourceDefault(node: ExpressionNode): string | null {
 }
 
 // The chartlang default-value source for an `input.timeframe` call: the Pine
-// timeframe string converted to a chartlang interval literal, or `null` when
-// the timeframe is unknown / not a string literal (the caller rejects).
+// timeframe string converted to a chartlang interval literal. An empty `""`
+// default is Pine's "chart timeframe" — a literal, not a missing default — so it
+// maps to the chartlang chart-interval sentinel `""` (the Task-3 compiler reads
+// it as the chart timeframe). Returns `null` only when the default is not a
+// string literal (a computed expr) or an unknown timeframe (the caller rejects).
 function timeframeDefault(node: ExpressionNode): string | null {
     const raw = stringLiteralOf(node);
     if (raw === null) {
         return null;
     }
-    const interval = pineTimeframeToInterval(JSON.parse(raw) as string);
+    const pine = JSON.parse(raw) as string;
+    if (pine === "") {
+        return JSON.stringify("");
+    }
+    const interval = pineTimeframeToInterval(pine);
     return interval === null ? null : JSON.stringify(interval);
 }
 
@@ -278,7 +323,7 @@ function enumTitleOpt(
     }
     const title = stringLiteralOf(titleArg.value);
     if (title === null) {
-        diagnostics.pushCode("input-arg-not-mapped", titleArg.span);
+        warnNonLiteralInputArg(diagnostics, "title", titleArg.span);
         return "";
     }
     return `, { title: ${title} }`;
@@ -383,7 +428,7 @@ function resolveOptionsEnum(
     // Any other named arg (`tooltip`/`group`/`confirm`/…) has no enum analogue.
     for (const [argName, arg] of named) {
         if (argName !== "title" && argName !== "options") {
-            diagnostics.pushCode("input-arg-not-mapped", arg.span);
+            warnUnmappedInputArg(diagnostics, argName, arg.span);
         }
     }
     const titleOpt = enumTitleOpt(call, named, diagnostics);

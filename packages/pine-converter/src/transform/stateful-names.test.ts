@@ -110,6 +110,32 @@ describe("expressionHasStatefulPrimitive", () => {
             }),
         ).toBe(true);
         expect(expressionHasStatefulPrimitive(callOf(ident("nz"), [stateful]))).toBe(true);
+        // A value-form switch: stateful subject, stateful arm test, or stateful
+        // arm value each propagate.
+        expect(
+            expressionHasStatefulPrimitive({
+                kind: "switch-expression",
+                subject: stateful,
+                cases: [{ test: ident("a"), value: ident("b"), span: SPAN }],
+                span: SPAN,
+            }),
+        ).toBe(true);
+        expect(
+            expressionHasStatefulPrimitive({
+                kind: "switch-expression",
+                subject: null,
+                cases: [{ test: stateful, value: ident("b"), span: SPAN }],
+                span: SPAN,
+            }),
+        ).toBe(true);
+        expect(
+            expressionHasStatefulPrimitive({
+                kind: "switch-expression",
+                subject: null,
+                cases: [{ test: null, value: stateful, span: SPAN }],
+                span: SPAN,
+            }),
+        ).toBe(true);
     });
 
     it("returns false for leaf and stateless trees", () => {
@@ -121,6 +147,15 @@ describe("expressionHasStatefulPrimitive", () => {
                 kind: "member-access-expression",
                 head: null,
                 chain: ["ta"],
+                span: SPAN,
+            }),
+        ).toBe(false);
+        // A switch with no stateful primitive anywhere (subject, tests, values).
+        expect(
+            expressionHasStatefulPrimitive({
+                kind: "switch-expression",
+                subject: ident("sel"),
+                cases: [{ test: ident("a"), value: ident("b"), span: SPAN }],
                 span: SPAN,
             }),
         ).toBe(false);

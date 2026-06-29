@@ -62,6 +62,16 @@ describe("unparse", () => {
         expect(roundTrip("(x, y) => x + y")).toBe("(x, y) => (x + y)");
     });
 
+    it("emits a value-form switch with a subject", () => {
+        expect(roundTrip('switch sel\n    "A" => 1\n    "B" => 2')).toBe(
+            'switch sel\n    "A" => 1\n    "B" => 2',
+        );
+    });
+
+    it("emits a subject-less switch with a wildcard default arm", () => {
+        expect(roundTrip("switch\n    c => 1\n    => 2")).toBe("switch\n    c => 1\n    => 2");
+    });
+
     it("emits an unknown-expression as joined token text", () => {
         const node = parse(")");
         expect(node.kind).toBe("unknown-expression");

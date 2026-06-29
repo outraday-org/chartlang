@@ -64,8 +64,8 @@ hard-rejects and the recommended Pine rewrites.
 
 - **Code:** `pine-converter/parse/switch-expression-unsupported`
 - **Severity:** error
-- **Message:** A `switch` used as a value (e.g. `x = switch s ...`) is not yet supported.
-- **Suggested fix:** Rewrite it as a chained ternary, or assign the result inside each `switch` arm body (`switch s\n  "A" => x := ...`).
+- **Message:** A value-form `switch` arm body must be a single expression; a multi-statement block, a comma-separated list, or a `:=` assignment arm is not supported.
+- **Suggested fix:** Make each arm yield one expression (`"A" => ta.sma(close, 14)`), or use a statement-form `switch` that assigns into a `var` for multi-statement arms.
 
 ### udf-param-default-unsupported
 
@@ -632,6 +632,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** info
 - **Message:** `request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.
 - **Suggested fix:** Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol.
+
+### request-security-gaps-dropped
+
+- **Code:** `pine-converter/transform/request-security-gaps-dropped`
+- **Severity:** info
+- **Message:** The `gaps` parameter on `request.security` has no chartlang analogue and was dropped; chartlang security feeds are gap-filled by default.
+- **Suggested fix:** Remove the `gaps` argument; chartlang aligns the higher-timeframe feed onto every chart bar.
 
 ### request-security-lookahead-not-supported
 

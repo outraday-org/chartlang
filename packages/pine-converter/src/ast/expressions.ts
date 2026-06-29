@@ -407,8 +407,74 @@ export type UnknownExpression = WithSpan &
     }>;
 
 /**
+ * One arm of a value-form {@link SwitchExpression}: a `label/condition =>
+ * value` pair. `test` is the arm label (subject form) or boolean condition
+ * (subject-less form), or `null` for the wildcard default `=> value` arm.
+ * `value` is the single expression the arm yields — unlike a statement-form
+ * {@link SwitchCase} (whose `body` is a statement list), a value arm is exactly
+ * one expression, so the value is lifted out at parse time for the ternary
+ * lowering to read directly.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const arm: SwitchExpressionCase = {
+ *         test: {
+ *             kind: "literal-expression",
+ *             literalKind: "string",
+ *             value: '"SMA"',
+ *             span: { startLine: 2, startColumn: 5, endLine: 2, endColumn: 10 },
+ *         },
+ *         value: {
+ *             kind: "identifier-expression",
+ *             name: "sma",
+ *             span: { startLine: 2, startColumn: 14, endLine: 2, endColumn: 17 },
+ *         },
+ *         span: { startLine: 2, startColumn: 5, endLine: 2, endColumn: 17 },
+ *     };
+ *     void arm;
+ */
+export type SwitchExpressionCase = WithSpan &
+    Readonly<{
+        test: ExpressionNode | null;
+        value: ExpressionNode;
+    }>;
+
+/**
+ * A `switch` used in value position (`x = switch s ...`, the `cf_ma` helper in
+ * Pine indicators). `subject` is the switched value (`switch s` → its
+ * expression) or `null` for the subject-less boolean form (`switch` with
+ * `cond => value` arms). Lowered to a right-nested ternary chain that yields the
+ * first matching arm's value, the wildcard arm's value as the default, and
+ * `na` (numeric `Number.NaN`) when nothing matches and there is no default —
+ * reproducing Pine's value-`switch` semantics.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const e: SwitchExpression = {
+ *         kind: "switch-expression",
+ *         subject: {
+ *             kind: "identifier-expression",
+ *             name: "sel",
+ *             span: { startLine: 1, startColumn: 8, endLine: 1, endColumn: 11 },
+ *         },
+ *         cases: [],
+ *         span: { startLine: 1, startColumn: 1, endLine: 2, endColumn: 1 },
+ *     };
+ *     void e;
+ */
+export type SwitchExpression = WithSpan &
+    Readonly<{
+        kind: "switch-expression";
+        subject: ExpressionNode | null;
+        cases: readonly SwitchExpressionCase[];
+    }>;
+
+/**
  * Any Pine v6 expression node — the full operator / call / member / history
- * / ternary / tuple / lambda grammar produced by the Task 4 Pratt parser.
+ * / ternary / tuple / lambda / value-`switch` grammar produced by the Pratt
+ * parser.
  *
  * @since 0.1
  * @stable
@@ -434,4 +500,5 @@ export type ExpressionNode =
     | TupleExpression
     | ArrayLiteralExpression
     | LambdaExpression
+    | SwitchExpression
     | UnknownExpression;

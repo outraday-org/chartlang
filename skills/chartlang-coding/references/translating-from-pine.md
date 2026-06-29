@@ -205,7 +205,10 @@ carry a `symbol`:
 |---|---|---|
 | `request.security(syminfo.tickerid, "1D", close)` | `request.security({ interval: "1D" }).close` | Chart's own symbol ⇒ `symbol` **omitted** (byte-identical to the higher-timeframe-only case). |
 | `request.security("NASDAQ:AAPL", "1D", close)` | `request.security({ symbol: "NASDAQ:AAPL", interval: "1D" }).close` | A **literal** different symbol ⇒ `{ symbol, interval }` (multi-symbol). |
-| `request.security(someComputedTicker, "1D", close)` | _reject_ `request-security-not-mapped` | The symbol must be a compile-time literal (string literal / `input.symbol` / `input.enum`); a computed ticker can't lower. |
+| `sym = input.symbol("NASDAQ:QQQ")`<br>`tf = input.timeframe("D")`<br>`request.security(sym, tf, close)` | `request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).close` | A symbol/timeframe bound to an **`input.symbol`/`input.timeframe`** lowers to an `inputs.<name>` reference (so the value stays user-editable); the compiler resolves the feed through the input default. `input.timeframe` → `input.interval`. |
+| `tf = input.timeframe("")`<br>`request.security(syminfo.tickerid, tf, close)` | `request.security({ interval: inputs.tf as string }).close` | An **empty** `input.timeframe("")` default is the **chart timeframe** (`input.interval("")`) — the primary stream, not a rejected default. |
+| `request.security(syminfo.tickerid, "D", close, gaps=barmerge.gaps_off)` | `request.security({ interval: "1d" }).close` + info | The `gaps=` arg is **dropped** with `request-security-gaps-dropped` (info) — chartlang feeds are gap-filled by default. |
+| `request.security(someComputedTicker, "1D", close)` | _reject_ `request-security-not-mapped` | The symbol/timeframe must be a compile-time literal **or** an `input.symbol`/`input.timeframe`/`input.enum` value; a computed ticker (or an input of the wrong kind) can't lower. |
 | `[hi, lo] = request.security(syminfo.tickerid, "D", [high, low])` | `const hi = request.security({ interval: "1d" }).high`<br>`const lo = request.security({ interval: "1d" }).low` | **Tuple** form ⇒ one independent read per element, all sharing one feed; each name binds its own `const`. OHLCV → data form, `ta.*`/computed → callback form. A `_` element is dropped. |
 
 The expression form carries the symbol the same way:
@@ -367,8 +370,15 @@ Three things to keep in mind:
   untyped (`(a, b) => …` → annotate `(a: number, b: number)`), and a *stateful*
   helper that indexes a **param's history** (`ma[1]`) only inlines cleanly when
   the argument natively supports history (an OHLCV field) — applied to a derived
-  `ta.*` value it needs a hand-written `state.series`. A `switch`-expression body
-  (Pine's `cf_ma`) does not yet parse as a helper return value.
+  `ta.*` value it needs a hand-written `state.series`.
+- **A value-form `switch` converts** (Pine's `cf_ma`): `result = switch sel`
+  with `"SMA" => ta.sma(src, len)` arms lowers to a chained ternary
+  (`sel === "SMA" ? ta.sma(src, len).current : … : Number.NaN`) — the first
+  matching arm wins, a wildcard `=> v` arm is the default, and an unmatched
+  subject yields `na`. The subject-less boolean form (`switch\n cond => v`)
+  lowers each condition directly. Only a single-expression arm body converts; a
+  multi-statement / `:=`-assignment arm rejects (`switch-expression-unsupported`)
+  — rewrite it as a statement-form `switch` that assigns into a `var`.
 
 ## Inputs — dropdowns → `input.enum`, bare `input()`
 

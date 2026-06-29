@@ -1,0 +1,9 @@
+//@version=6
+indicator("Switch subjectless", overlay=false)
+threshold = input.int(50, "Threshold")
+level = input.int(60, "Level")
+score = switch
+    level > threshold => 1
+    level < threshold => -1
+    => 0
+plot(score)
