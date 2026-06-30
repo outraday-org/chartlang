@@ -552,6 +552,136 @@ describe("makeSecurityExprSeries fallbacks", () => {
     });
 });
 
+describe("makeSecurityExprSeries — finer secondary (lower-than-main interval)", () => {
+    afterEach(() => {
+        ACTIVE_RUNTIME_CONTEXT.current = null;
+    });
+
+    const HOUR = 3_600_000;
+    const DAY = 86_400_000;
+    const FINER_MAIN = "1D";
+    const FINER_SECONDARY = "1h";
+
+    function makeFinerCapabilities(): Capabilities {
+        return {
+            ...makeCapabilities(true, false),
+            intervals: [
+                { value: FINER_SECONDARY, label: "1 hour", group: "intraday" },
+                { value: FINER_MAIN, label: "1 day", group: "daily" },
+            ],
+        };
+    }
+
+    function makeFinerContext(): RuntimeContext {
+        const stream = createStreamState({ interval: FINER_MAIN, capacity: 64, symbol: "AAPL" });
+        const secondary = createStreamState({
+            interval: FINER_SECONDARY,
+            capacity: 64,
+            symbol: "AAPL",
+        });
+        return {
+            ...makeContext(),
+            stream,
+            capabilities: makeFinerCapabilities(),
+            barIndex: () => stream.ohlcv.close.length - 1,
+            secondaryStreams: new Map([[FINER_SECONDARY, secondary]]),
+        };
+    }
+
+    function finerManifest(slotId: string): ScriptManifest {
+        return {
+            ...manifestWithExpr(slotId),
+            requestedIntervals: [FINER_SECONDARY],
+            securityExpressions: [{ slotId, interval: FINER_SECONDARY, paramName: "bar" }],
+        };
+    }
+
+    function mountFinerRunner(ctx: RuntimeContext, slotId: string): SecurityExprRunner {
+        const built = buildSecurityExprRunners(finerManifest(slotId), ctx, 64);
+        ctx.securityExprRunners = built.bySlot;
+        ctx.securityExprRunnersByFeed = built.byFeed;
+        const runner = built.bySlot.get(slotId);
+        if (runner === undefined) throw new Error("runner not mounted");
+        return runner;
+    }
+
+    function pushSecondaryClose(ctx: RuntimeContext, time: number, close: number): void {
+        const stream = ctx.secondaryStreams.get(FINER_SECONDARY);
+        if (stream === undefined) throw new Error("missing secondary stream");
+        const bar: Bar = { ...htfBar(time, close), interval: FINER_SECONDARY };
+        appendSecondaryBar(stream, bar);
+        driveSecurityExpressions(ctx, FINER_SECONDARY, "close", bar);
+    }
+
+    it("samples the last CLOSED sub-bar at/before each main bar's close", () => {
+        const slot = "ltf#0";
+        const ctx = makeFinerContext();
+        const runner = mountFinerRunner(ctx, slot);
+        captureAndCatchUp(
+            runner,
+            emaCallback(slot),
+            ctx.secondaryStreams.get(FINER_SECONDARY) ?? runner.foldStream,
+        );
+
+        // Day 0 sub-bars (all open before DAY) then day 1 sub-bars. The 1D main
+        // bar that closes at DAY must read the LAST day-0 sub-bar (close 14),
+        // never the first (close 10).
+        const day0 = [
+            [0, 10],
+            [HOUR, 12],
+            [2 * HOUR, 11],
+            [3 * HOUR, 14],
+        ];
+        const day1 = [
+            [DAY, 16],
+            [DAY + HOUR, 15],
+        ];
+        const secondaryCloses = [...day0, ...day1];
+        for (const [time, close] of secondaryCloses) pushSecondaryClose(ctx, time, close);
+
+        // Two daily main bars: bar0 closed at DAY, bar1 in-progress.
+        pushMainClose(ctx, 0, 100);
+        pushMainClose(ctx, DAY, 200);
+
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const series = makeSecurityExprSeries(ctx, runner, FINER_SECONDARY, false);
+
+        const emaSeq = referenceEma(
+            secondaryCloses.map(([, close]) => close),
+            EMA_LENGTH,
+        );
+        // Head (in-progress final main bar) = EMA on the most recent sub-bar.
+        expect(series.current).toBeCloseTo(emaSeq[5], 10);
+        // One bar back (closed day 0) = EMA on the LAST day-0 sub-bar (index 3),
+        // not an earlier day-0 sub-bar (index 2) — the whole point of the finer
+        // branch (the old kernel would have returned the FIRST sub-bar).
+        expect(series[1]).toBeCloseTo(emaSeq[3], 10);
+        expect(series[1]).not.toBeCloseTo(emaSeq[2], 6);
+    });
+
+    it("treats an unparseable main interval as direction-unknown (coarser default, no throw)", () => {
+        const slot = "ltf#unparseable";
+        const ctx = makeFinerContext();
+        // An interval string `intervalToSeconds` cannot parse exercises the
+        // direction helper's parse-failure fallback (NOT finer) without throwing.
+        ctx.stream.bar.interval = "weird";
+        const runner = mountFinerRunner(ctx, slot);
+        captureAndCatchUp(
+            runner,
+            emaCallback(slot),
+            ctx.secondaryStreams.get(FINER_SECONDARY) ?? runner.foldStream,
+        );
+        pushSecondaryClose(ctx, 0, 10);
+        pushMainClose(ctx, 0, 100);
+
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        const series = makeSecurityExprSeries(ctx, runner, FINER_SECONDARY, false);
+
+        expect(ctx.emissions.diagnostics).toEqual([]);
+        expect(series.length).toBe(1);
+    });
+});
+
 describe("createSecurityExprRunner", () => {
     it("builds a fold stream and context on the declared interval", () => {
         const ctx = makeContext();

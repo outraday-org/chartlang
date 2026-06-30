@@ -10,6 +10,7 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
+import finer1dMain1h from "./__fixtures__/align-secondary-finer-1d-main-1h.json";
 import volume1d from "./__fixtures__/align-htf-series-1m-ltf-1d-htf-volume.json";
 import close1h from "./__fixtures__/align-htf-series-1m-ltf-1h-htf-close.json";
 import close4hNan from "./__fixtures__/align-htf-series-5m-ltf-4h-htf-close-nan.json";
@@ -74,4 +75,18 @@ describe("alignHtfSeriesToLtf — invinite goldens", () => {
             expectSeries(actual, expected);
         });
     }
+});
+
+describe("alignHtfSeriesToLtf — finer-secondary golden", () => {
+    it("matches 1D main / 1h secondary (last closed sub-bar per main close)", () => {
+        const fixture = finer1dMain1h as Fixture;
+        const secondary = fixture.htf.map((time) => makeBar(time));
+        const main = fixture.ltf.map((time) => makeBar(time));
+        const series = fixture.series.map(decode);
+        const expected = fixture.expected.map(decode);
+
+        const actual = alignHtfSeriesToLtf(secondary, series, main, true);
+
+        expectSeries(actual, expected);
+    });
 });

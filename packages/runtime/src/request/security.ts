@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { SecurityBar, Series } from "@invinite-org/chartlang-core";
-import { feedKey } from "@invinite-org/chartlang-core";
+import type { IntervalDescriptor, SecurityBar, Series } from "@invinite-org/chartlang-core";
+import { feedKey, intervalToSeconds } from "@invinite-org/chartlang-core";
 
 import type { RuntimeContext } from "../runtimeContext.js";
 import type { StreamState } from "../streamState.js";
@@ -82,19 +82,59 @@ function alignmentKey(slotId: string, feed: string, sourceKey: NumericSourceKey)
     return `${slotId}|${feed}|${sourceKey}`;
 }
 
+/**
+ * Resolve an interval value's duration in seconds, preferring the adapter's
+ * registered {@link IntervalDescriptor} (so an `intervalSeconds` override is
+ * honored) and falling back to a synthetic descriptor parsed from the bare
+ * string. Returns `undefined` for the empty (chart-tf) sentinel or any value
+ * `intervalToSeconds` cannot parse — callers treat `undefined` as "direction
+ * unknown" and keep the coarser/equal default.
+ */
+function intervalSecondsForValue(ctx: RuntimeContext, value: string): number | undefined {
+    if (value === "") return undefined;
+    const registered = ctx.capabilities.intervals.find((descriptor) => descriptor.value === value);
+    const descriptor: IntervalDescriptor = registered ?? { value, label: value, group: "" };
+    try {
+        return intervalToSeconds(descriptor);
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * `true` when the secondary interval is strictly FINER than the main interval,
+ * selecting the last-closed-sub-bar alignment branch.
+ *
+ * The MAIN interval is read at both `request.security` call sites from
+ * `ctx.stream.bar.interval` — the main {@link StreamState}'s live bar interval,
+ * the same source {@link makeMainPassthroughSecurityBar} reads — so no deeper
+ * threading from the runtime context is needed. The secondary interval is the
+ * call's own `interval` (data form) / `runner.interval` (expression form).
+ * Comparison reuses core's `intervalToSeconds`. Any unknown duration (empty
+ * sentinel, unparseable, or `intervalSeconds` throw) falls back to NOT finer, so
+ * coarser/equal alignment stays byte-identical.
+ */
+function secondaryIsFinerThanMain(ctx: RuntimeContext, secondaryInterval: string): boolean {
+    const mainSeconds = intervalSecondsForValue(ctx, ctx.stream.bar.interval);
+    const secondarySeconds = intervalSecondsForValue(ctx, secondaryInterval);
+    if (mainSeconds === undefined || secondarySeconds === undefined) return false;
+    return secondarySeconds < mainSeconds;
+}
+
 function alignedSeries(
     ctx: RuntimeContext,
     slotId: string,
     feed: string,
     sourceKey: NumericSourceKey,
     secondary: StreamState,
+    finer: boolean,
 ): ReadonlyArray<number> {
     const key = alignmentKey(slotId, feed, sourceKey);
     const existing = ctx.requestSecurityAlignments.get(key);
     if (existing !== undefined) return existing;
     const htfBars = ascendingBarsFor(ctx, secondary);
     const ltfBars = ascendingBarsFor(ctx, ctx.stream);
-    const aligned = getOrAlign(htfBars, seriesAscending(secondary, sourceKey), ltfBars);
+    const aligned = getOrAlign(htfBars, seriesAscending(secondary, sourceKey), ltfBars, finer);
     ctx.requestSecurityAlignments.set(key, aligned);
     return aligned;
 }
@@ -141,9 +181,10 @@ function makeAlignedNumberSeries(
     feed: string,
     sourceKey: NumericSourceKey,
     secondary: StreamState,
+    finer: boolean,
 ): Series<number> {
     return makeAlignedSeriesProxy(ctx, () =>
-        alignedSeries(ctx, slotId, feed, sourceKey, secondary),
+        alignedSeries(ctx, slotId, feed, sourceKey, secondary, finer),
     );
 }
 
@@ -154,9 +195,10 @@ function makeLiveSecurityBar(
     interval: string,
     secondary: StreamState,
 ): SecurityBar {
+    const finer = secondaryIsFinerThanMain(ctx, interval);
     const numeric = new Map<NumericSourceKey, Series<number>>();
     for (const key of NUMERIC_SOURCE_KEYS) {
-        numeric.set(key, makeAlignedNumberSeries(ctx, slotId, feed, key, secondary));
+        numeric.set(key, makeAlignedNumberSeries(ctx, slotId, feed, key, secondary, finer));
     }
     return Object.freeze({
         time: numeric.get("time") ?? makeSeries(Number.NaN),
@@ -440,6 +482,7 @@ export function makeSecurityExprSeries(
     }
 
     const secondary = resolveSecondaryOrDiagnose(ctx, runner.slotId, feed, runner.interval);
+    const finer = secondaryIsFinerThanMain(ctx, runner.interval);
     const series =
         secondary === undefined
             ? makeNanNumberSeries()
@@ -448,6 +491,7 @@ export function makeSecurityExprSeries(
                       ascendingBarsFor(ctx, secondary),
                       ascendingValues(runner.output),
                       ascendingBarsFor(ctx, ctx.stream),
+                      finer,
                   ),
               );
     cache?.set(cacheKey, series);

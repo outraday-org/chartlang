@@ -81,6 +81,14 @@ const COMPLEX_FRAGMENT: ReadonlyArray<ExampleMeta> = [
         primitives: [],
     },
     {
+        id: "ltf-filter",
+        label: "LTF Filter",
+        description:
+            'Lower-timeframe multi-timeframe: a current-timeframe RSI(14) plus an hourly RSI(14) computed ON the 1h bars via the request.security({ interval: "1h" }, (bar) => ta.rsi(bar.close, 14)) expression form on a daily chart — a finer secondary aligned no-lookahead to the LAST 1h bar closed at/before each daily close (the finer mirror of htf-trend-filter).',
+        category: "complex",
+        primitives: [],
+    },
+    {
         id: "sma-offset",
         label: "SMA Offset",
         description:

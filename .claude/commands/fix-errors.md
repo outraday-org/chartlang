@@ -19,7 +19,14 @@ You are a code-quality fixer. Your task is to make the chartlang workspace pass 
    - Lines like `path/to/file.ts(12,5): error TS2345: ...` (tsc)
    - Vitest failures, conformance diffs, gate scripts exiting non-zero (`adapters:gate`, `examples:sync`, `docs:check`, etc.)
 2. **If failures are pasted:** parse them into a deduplicated list of `{ filePath, line, column, message, source }` entries and which gate stage produced them. Skip Phase 1.3.
-3. **If nothing is pasted:** run `pnpm run check:content` once to collect all failures. Note the failing stage and every file path involved. Because the gate is ordered and fails fast, an early stage failure (e.g. `build` or `typecheck`) may hide later ones — expect to re-run after fixing the first failing stage.
+3. **If nothing is pasted:** run the gate **exactly once** in a way that captures the complete failure output *and* the exit code together, so a single run is fully authoritative. Use:
+
+   ```bash
+   pnpm run check:content > /tmp/gate.log 2>&1; echo "EXIT: $?"
+   ```
+
+   Then read `/tmp/gate.log` (e.g. `grep`/Read for the failing stage and file paths) to enumerate the failures. **Do not** pipe the run straight to `tail`/`head` — a pipe discards the gate's exit code and truncates the failure list, which is exactly what forces a wasteful second run. One run must yield both the failures and the pass/fail verdict. Note the failing stage and every file path involved. Because the gate is ordered and fails fast, an early stage failure (e.g. `build` or `typecheck`) may hide later ones — expect to re-run after fixing the first failing stage.
+   - **If this sourcing run already exits `0` (clean):** there is nothing to fix. Skip Phases 2–3 entirely and go straight to Phase 4 (commit, then `check:committed`). Do not re-run `check:content` to "confirm" — the captured exit code is authoritative.
 
 ### Phase 2: Fix
 
@@ -42,9 +49,11 @@ You are a code-quality fixer. Your task is to make the chartlang workspace pass 
 
 ### Phase 3: Verify the content gate
 
-1. Run `pnpm run check:content` to re-collect failures across the whole pipeline.
+Run this phase **only after applying fixes in Phase 2** — if the Phase 1 sourcing run was already clean, you are in Phase 4, not here.
+
+1. Run the gate once with the same capture-everything pattern — `pnpm run check:content > /tmp/gate.log 2>&1; echo "EXIT: $?"`, then read `/tmp/gate.log` — to re-collect failures across the whole pipeline and read the exit code from the same run.
 2. If any stage fails, return to Phase 2 with the new list.
-3. Repeat Phases 2–3 until `pnpm run check:content` exits cleanly.
+3. Repeat Phases 2–3 until `pnpm run check:content` exits cleanly. Each iteration is a single gate run — never re-run just to re-check the exit code.
 
 ### Phase 4: Commit, then verify the committed gate
 

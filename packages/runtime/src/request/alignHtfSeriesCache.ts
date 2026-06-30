@@ -11,6 +11,7 @@ import * as kernel from "./alignHtfSeriesToLtf.js";
 type CacheEntry = {
     readonly htfLength: number;
     readonly ltfLength: number;
+    readonly secondaryIsFinerThanMain: boolean;
     readonly aligned: ReadonlyArray<number>;
 };
 
@@ -29,6 +30,13 @@ const CACHE = new WeakMap<
  * caller reuses one bar-array identity across every source key). Appending to
  * either bar array invalidates the hit; WeakMap reachability evicts naturally.
  *
+ * `secondaryIsFinerThanMain` selects the alignment direction (see the kernel).
+ * Direction is a pure function of the (secondary interval, main interval) pair,
+ * hence stable per `(htfBars, ltfBars)` identity within a script — a coarser
+ * array can never alias a finer secondary. The flag is nonetheless validated on
+ * the stored entry so a mismatch is treated as a miss (defense-in-depth, same
+ * spirit as the length checks).
+ *
  * @since 0.5
  * @stable
  * @internal
@@ -40,6 +48,7 @@ export function getOrAlign(
     htfBars: ReadonlyArray<Bar>,
     htfSeries: ReadonlyArray<number>,
     ltfBars: ReadonlyArray<Bar>,
+    secondaryIsFinerThanMain = false,
 ): ReadonlyArray<number> {
     let byLtf = CACHE.get(htfBars);
     if (byLtf === undefined) {
@@ -56,15 +65,22 @@ export function getOrAlign(
     if (
         cached !== undefined &&
         cached.htfLength === htfBars.length &&
-        cached.ltfLength === ltfBars.length
+        cached.ltfLength === ltfBars.length &&
+        cached.secondaryIsFinerThanMain === secondaryIsFinerThanMain
     ) {
         return cached.aligned;
     }
 
-    const aligned = kernel.alignHtfSeriesToLtf(htfBars, htfSeries, ltfBars);
+    const aligned = kernel.alignHtfSeriesToLtf(
+        htfBars,
+        htfSeries,
+        ltfBars,
+        secondaryIsFinerThanMain,
+    );
     bySeries.set(htfSeries, {
         htfLength: htfBars.length,
         ltfLength: ltfBars.length,
+        secondaryIsFinerThanMain,
         aligned,
     });
     return aligned;

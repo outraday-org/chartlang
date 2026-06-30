@@ -3039,11 +3039,14 @@ function makeLowerTfSeries(ctx, slotId, interval) {
 }
 
 // ../runtime/dist/request/alignHtfSeriesToLtf.js
-function alignHtfSeriesToLtf(htf, htfSeries, ltf) {
+function alignHtfSeriesToLtf(htf, htfSeries, ltf, secondaryIsFinerThanMain2 = false) {
   const out = new Array(ltf.length);
   if (htf.length === 0 || ltf.length === 0) {
     out.fill(Number.NaN);
     return out;
+  }
+  if (secondaryIsFinerThanMain2) {
+    return alignSecondaryFinerThanMain(htf, htfSeries, ltf, out);
   }
   let htfCursor = 0;
   let lastIdx = -1;
@@ -3057,10 +3060,23 @@ function alignHtfSeriesToLtf(htf, htfSeries, ltf) {
   }
   return out;
 }
+function alignSecondaryFinerThanMain(secondary, secondarySeries, main, out) {
+  let secCursor = 0;
+  let lastIdx = -1;
+  for (let i = 0; i < main.length; i += 1) {
+    const bound = i + 1 < main.length ? main[i + 1].time : Number.POSITIVE_INFINITY;
+    while (secCursor < secondary.length && secondary[secCursor].time < bound) {
+      lastIdx = secCursor;
+      secCursor += 1;
+    }
+    out[i] = lastIdx >= 0 ? secondarySeries[lastIdx] : Number.NaN;
+  }
+  return out;
+}
 
 // ../runtime/dist/request/alignHtfSeriesCache.js
 var CACHE2 = /* @__PURE__ */ new WeakMap();
-function getOrAlign(htfBars, htfSeries, ltfBars) {
+function getOrAlign(htfBars, htfSeries, ltfBars, secondaryIsFinerThanMain2 = false) {
   let byLtf = CACHE2.get(htfBars);
   if (byLtf === void 0) {
     byLtf = /* @__PURE__ */ new WeakMap();
@@ -3072,13 +3088,14 @@ function getOrAlign(htfBars, htfSeries, ltfBars) {
     byLtf.set(ltfBars, bySeries);
   }
   const cached = bySeries.get(htfSeries);
-  if (cached !== void 0 && cached.htfLength === htfBars.length && cached.ltfLength === ltfBars.length) {
+  if (cached !== void 0 && cached.htfLength === htfBars.length && cached.ltfLength === ltfBars.length && cached.secondaryIsFinerThanMain === secondaryIsFinerThanMain2) {
     return cached.aligned;
   }
-  const aligned = alignHtfSeriesToLtf(htfBars, htfSeries, ltfBars);
+  const aligned = alignHtfSeriesToLtf(htfBars, htfSeries, ltfBars, secondaryIsFinerThanMain2);
   bySeries.set(htfSeries, {
     htfLength: htfBars.length,
     ltfLength: ltfBars.length,
+    secondaryIsFinerThanMain: secondaryIsFinerThanMain2,
     aligned
   });
   return aligned;
@@ -3378,14 +3395,32 @@ function seriesAscending(stream, sourceKey) {
 function alignmentKey(slotId, feed, sourceKey) {
   return `${slotId}|${feed}|${sourceKey}`;
 }
-function alignedSeries(ctx, slotId, feed, sourceKey, secondary) {
+function intervalSecondsForValue(ctx, value) {
+  if (value === "")
+    return void 0;
+  const registered = ctx.capabilities.intervals.find((descriptor2) => descriptor2.value === value);
+  const descriptor = registered ?? { value, label: value, group: "" };
+  try {
+    return intervalToSeconds(descriptor);
+  } catch {
+    return void 0;
+  }
+}
+function secondaryIsFinerThanMain(ctx, secondaryInterval) {
+  const mainSeconds = intervalSecondsForValue(ctx, ctx.stream.bar.interval);
+  const secondarySeconds = intervalSecondsForValue(ctx, secondaryInterval);
+  if (mainSeconds === void 0 || secondarySeconds === void 0)
+    return false;
+  return secondarySeconds < mainSeconds;
+}
+function alignedSeries(ctx, slotId, feed, sourceKey, secondary, finer) {
   const key = alignmentKey(slotId, feed, sourceKey);
   const existing = ctx.requestSecurityAlignments.get(key);
   if (existing !== void 0)
     return existing;
   const htfBars = ascendingBarsFor(ctx, secondary);
   const ltfBars = ascendingBarsFor(ctx, ctx.stream);
-  const aligned = getOrAlign(htfBars, seriesAscending(secondary, sourceKey), ltfBars);
+  const aligned = getOrAlign(htfBars, seriesAscending(secondary, sourceKey), ltfBars, finer);
   ctx.requestSecurityAlignments.set(key, aligned);
   return aligned;
 }
@@ -3414,13 +3449,14 @@ function makeAlignedSeriesProxy(ctx, produce) {
     }
   });
 }
-function makeAlignedNumberSeries(ctx, slotId, feed, sourceKey, secondary) {
-  return makeAlignedSeriesProxy(ctx, () => alignedSeries(ctx, slotId, feed, sourceKey, secondary));
+function makeAlignedNumberSeries(ctx, slotId, feed, sourceKey, secondary, finer) {
+  return makeAlignedSeriesProxy(ctx, () => alignedSeries(ctx, slotId, feed, sourceKey, secondary, finer));
 }
 function makeLiveSecurityBar(ctx, slotId, feed, interval, secondary) {
+  const finer = secondaryIsFinerThanMain(ctx, interval);
   const numeric = /* @__PURE__ */ new Map();
   for (const key of NUMERIC_SOURCE_KEYS) {
-    numeric.set(key, makeAlignedNumberSeries(ctx, slotId, feed, key, secondary));
+    numeric.set(key, makeAlignedNumberSeries(ctx, slotId, feed, key, secondary, finer));
   }
   return Object.freeze({
     time: numeric.get("time") ?? makeSeries(Number.NaN),
@@ -3521,7 +3557,8 @@ function makeSecurityExprSeries(ctx, runner, feed, isDifferentSymbol) {
     return nan;
   }
   const secondary = resolveSecondaryOrDiagnose(ctx, runner.slotId, feed, runner.interval);
-  const series = secondary === void 0 ? makeNanNumberSeries() : makeAlignedSeriesProxy(ctx, () => getOrAlign(ascendingBarsFor(ctx, secondary), ascendingValues(runner.output), ascendingBarsFor(ctx, ctx.stream)));
+  const finer = secondaryIsFinerThanMain(ctx, runner.interval);
+  const series = secondary === void 0 ? makeNanNumberSeries() : makeAlignedSeriesProxy(ctx, () => getOrAlign(ascendingBarsFor(ctx, secondary), ascendingValues(runner.output), ascendingBarsFor(ctx, ctx.stream), finer));
   cache?.set(cacheKey, series);
   return series;
 }

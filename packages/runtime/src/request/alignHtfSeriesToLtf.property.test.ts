@@ -105,3 +105,61 @@ describe("alignHtfSeriesToLtf — property invariants", () => {
         );
     });
 });
+
+/** Last secondary bar opened strictly before main bar `i`'s close. */
+function expectedFinerAt(
+    secondary: ReadonlyArray<Bar>,
+    series: ReadonlyArray<number>,
+    main: ReadonlyArray<Bar>,
+    i: number,
+): number {
+    const bound = i + 1 < main.length ? main[i + 1].time : Number.POSITIVE_INFINITY;
+    let idx = -1;
+    for (let k = 0; k < secondary.length; k += 1) {
+        if (secondary[k].time < bound) idx = k;
+    }
+    return idx >= 0 ? series[idx] : Number.NaN;
+}
+
+describe("alignHtfSeriesToLtf — finer-secondary property invariants", () => {
+    it("aligns every main bar to the last sub-bar that closed at/before its close", () => {
+        fc.assert(
+            fc.property(alignCase, ({ htf, htfSeries, ltf }) => {
+                const out = alignHtfSeriesToLtf(htf, htfSeries, ltf, true);
+                for (let i = 0; i < ltf.length; i += 1) {
+                    expect(sameNumber(out[i], expectedFinerAt(htf, htfSeries, ltf, i))).toBe(true);
+                }
+            }),
+        );
+    });
+
+    it("never repaints a closed main bar as later sub-bars arrive", () => {
+        fc.assert(
+            fc.property(
+                alignCase,
+                fc.integer({ min: 0, max: 30 }),
+                ({ htf, htfSeries, ltf }, p) => {
+                    const cut = Math.min(p, htf.length);
+                    const full = alignHtfSeriesToLtf(htf, htfSeries, ltf, true);
+                    const prefix = alignHtfSeriesToLtf(
+                        htf.slice(0, cut),
+                        htfSeries.slice(0, cut),
+                        ltf,
+                        true,
+                    );
+                    // A closed main bar (i < last) is frozen once the prefix already
+                    // holds every sub-bar opened before its close, i.e. the first
+                    // omitted sub-bar (if any) opens at/after that close. Its value
+                    // must then equal the full-stream value — no retroactive change.
+                    for (let i = 0; i + 1 < ltf.length; i += 1) {
+                        const bound = ltf[i + 1].time;
+                        const prefixHasAll = cut === htf.length || htf[cut].time >= bound;
+                        if (prefixHasAll) {
+                            expect(sameNumber(prefix[i], full[i])).toBe(true);
+                        }
+                    }
+                },
+            ),
+        );
+    });
+});

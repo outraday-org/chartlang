@@ -1,7 +1,7 @@
 # Runtime Request Kernels
 
 - Request kernels are pure functions over ascending `Bar` arrays; callers own stream-order invariants.
-- HTF alignment uses "most recent higher-timeframe value at or before main time".
+- Secondary alignment has two directions, selected by `alignHtfSeriesToLtf`'s `secondaryIsFinerThanMain` flag (threaded from `security.ts` by comparing `ctx.stream.bar.interval` vs the requested interval via core `intervalToSeconds`; `getOrAlign` keys the cache on it too). Coarser/equal (default `false`): "most recent secondary value at or before main OPEN time" (in-progress exposed). Finer (`true`, `alignSecondaryFinerThanMain`): "last secondary bar that closed at/before the main bar's CLOSE" via the next-main-open bound — non-repainting; the final in-progress main bar takes the running head.
 - LTF bucketing uses half-open containment `[main.time, nextMain.time)`, with the final bucket absorbing in-progress bars.
 - WeakMap caches key by array identity and must validate stored lengths before returning cached arrays.
 - Per-callsite request caches key by the composite `feedKey(symbol, interval)` (core's shared helper), not the bare interval: `requestSecurityAlignments` is `slotId|feedKey|sourceKey`, `requestSecurityExprSeries` is `slotId|feedKey`, and `secondaryStreams` lookups (`security.ts`, `securityExprRunner.ts`) use the feed key. `makeSecurityBar`/`makeSecurityExprSeries` receive the already-chart-symbol-resolved feed key from `requestNamespace` (a symbol-omitted / explicit-chart-symbol request collapses to the bare interval, byte-identical to the pre-multi-symbol baseline). `pushOnce`'s 4th positional is that feed key (per-feed diagnostic dedup); the diagnostic *message* still names the bare interval.
