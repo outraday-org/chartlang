@@ -7,11 +7,11 @@ import { describe, expect, it } from "vitest";
 import { createProgramForSource } from "../program.js";
 import { extractMaxLookback } from "./extractMaxLookback.js";
 
-function run(source: string) {
+function run(source: string, inputLoopBounds: ReadonlyMap<string, number | null> = new Map()) {
     const { sourceFile, checker } = createProgramForSource(source, {
         sourcePath: "demo.chart.ts",
     });
-    return extractMaxLookback(sourceFile, checker, "demo.chart.ts");
+    return extractMaxLookback(sourceFile, checker, "demo.chart.ts", sourceFile, inputLoopBounds);
 }
 
 describe("extractMaxLookback", () => {
@@ -86,6 +86,33 @@ for (let i = 0; i <= 4; i++) { const v = bar.close[i]; void v; }
 `);
         expect(result.maxLookback).toBe(4);
         expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("sizes an input-bound loop induction variable from input max", () => {
+        const result = run(
+            `
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+declare const inputs: Record<string, unknown>;
+for (let i = 0; i <= (inputs.tol as number); i++) { const v = bar.close[i]; void v; }
+`,
+            new Map([["tol", 20]]),
+        );
+        expect(result.maxLookback).toBe(20);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("falls back dynamically when an input-bound loop has no input max", () => {
+        const result = run(
+            `
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+declare const inputs: Record<string, unknown>;
+for (let i = 0; i <= (inputs.tol as number); i++) { const v = bar.close[i]; void v; }
+`,
+            new Map([["tol", null]]),
+        );
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
     });
 
     it("sizes a const numeric-literal index precisely (no warning)", () => {
@@ -597,6 +624,27 @@ void trend;
         // shared ring capacity. The `{ offset: 12 }` opts object is a render shift,
         // not a value-read, so it adds no depth.
         expect(result.maxLookback).toBe(200);
+    });
+
+    it("sizes secondary warmup from a function-expression request.security callback", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+import { request, ta } from "@invinite-org/chartlang-core";
+const trend = request.security({ interval: "1W" }, function (bar) { return ta.ema(bar.close, 123); });
+void trend;
+`);
+        expect(result.maxLookback).toBe(123);
+    });
+
+    it("ignores non-positive and non-finite secondary warmup lengths", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+import { request, ta } from "@invinite-org/chartlang-core";
+const zero = request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 0));
+const infinite = request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 1e400));
+void zero; void infinite;
+`);
+        expect(result.maxLookback).toBe(0);
     });
 
     it("caps a pathological request.security indicator length at the dynamic ceiling", () => {

@@ -5,6 +5,7 @@ import ts from "typescript";
 
 import {
     type BoundedForLoop,
+    type InputLoopBounds,
     boundedLoopVarId,
     parseBoundedForLoop,
     unwrapParens,
@@ -27,6 +28,8 @@ export type IndexBoundContext = Readonly<{
     constEnv: ReadonlyMap<string, number>;
     /** Checker used to avoid resolving loop variables through a shadowed name. */
     checker: ts.TypeChecker;
+    /** Integer input max bounds accepted in loop headers. */
+    inputLoopBounds?: InputLoopBounds;
 }>;
 
 /**
@@ -85,7 +88,7 @@ function evalInterval(expr: ts.Expression, node: ts.Node, ctx: IndexBoundContext
     }
 
     if (ts.isIdentifier(inner)) {
-        const loopInterval = resolveLoopVarInterval(inner, node, ctx.checker);
+        const loopInterval = resolveLoopVarInterval(inner, node, ctx);
         if (loopInterval !== null) return loopInterval;
         const constValue = ctx.constEnv.get(inner.text);
         return constValue === undefined ? null : finiteInterval(constValue, constValue);
@@ -169,8 +172,9 @@ function finiteInterval(lo: number, hi: number): Interval | null {
 function resolveLoopVarInterval(
     id: ts.Identifier,
     node: ts.Node,
-    checker: ts.TypeChecker,
+    ctx: IndexBoundContext,
 ): Interval | null {
+    const checker = ctx.checker;
     const idSymbol = checker.getSymbolAtLocation(id);
 
     let current: ts.Node | undefined = node;
@@ -182,7 +186,7 @@ function resolveLoopVarInterval(
                 // and not a nested binding that shadows the same text.
                 const loopSymbol = checker.getSymbolAtLocation(loopVarId);
                 if (!idSymbol || !loopSymbol || idSymbol !== loopSymbol) return null;
-                const loop = parseBoundedForLoop(current);
+                const loop = parseBoundedForLoop(current, ctx.inputLoopBounds);
                 if (loop === null) return null;
                 if (isLoopVarReassigned(current, loop.varName)) return null;
                 return loopVarInterval(loop);
@@ -199,6 +203,7 @@ function resolveLoopVarInterval(
  * cannot bound. `<` reaches `limit - 1`; `<=` reaches `limit`.
  */
 function loopVarInterval(loop: BoundedForLoop): Interval | null {
+    if (loop.limit === null) return null;
     if (loop.op === ts.SyntaxKind.LessThanToken) {
         return finiteInterval(loop.start, loop.limit - 1);
     }

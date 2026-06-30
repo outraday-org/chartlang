@@ -22,9 +22,10 @@ import {
 } from "../mapping/index.js";
 import type { MultiReturnTaMapping, PineDrawingConstructor } from "../mapping/index.js";
 import type { SecurityTupleAnnotation, SemanticResult } from "../semantic/index.js";
-import { inferQualifier } from "../semantic/index.js";
+import { BUILTIN_SYMBOLS, inferQualifier } from "../semantic/index.js";
 import { collectUdfBodyFacts } from "../semantic/statefulness.js";
 import { emitAlertCall } from "./alertCall.js";
+import { convertColorWith, isTranspColorForm } from "./colorConvert.js";
 import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js";
 import { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { ArraySlotInfo, EmitContext, MapSlotInfo } from "./emitContext.js";
@@ -33,10 +34,9 @@ import { forEachHistoryAccess } from "./exprEmit.js";
 import type { ScriptScaffold } from "./ir.js";
 import type { MapScan } from "./mapCollection.js";
 import { scanMaps } from "./mapCollection.js";
-import type { NameAllocator } from "./nameAllocator.js";
+import { type NameAllocator, isComputeContextName } from "./nameAllocator.js";
 import type { NumericArrayScan } from "./numericArray.js";
 import { scanNumericArrays } from "./numericArray.js";
-import { convertColorWith, isTranspColorForm } from "./colorConvert.js";
 import { emitHlineValue, emitPlotFamily, isPlotFamilyCall } from "./plotFamily.js";
 import { emitRequestSecurity, isRequestSecurityCall } from "./requestSecurity.js";
 import { appendComputeStatement, appendStateSlot } from "./scaffoldMutators.js";
@@ -302,6 +302,70 @@ function isColorValued(value: ExpressionNode): boolean {
     return false;
 }
 
+// The Pine binary operators whose result is a boolean (so a history-indexed
+// promotion of the value backs it with `state.boolSeries`, not the numeric
+// `state.series`).
+const BOOLEAN_BINARY_OPERATORS: ReadonlySet<string> = new Set([
+    "<",
+    ">",
+    "<=",
+    ">=",
+    "==",
+    "!=",
+    "and",
+    "or",
+]);
+
+// The boolean-returning `ta.*` crossings (the only boolean members of the
+// `ta.*` series surface). Mirrors `udfInline.ts`'s `BOOLEAN_TA`.
+const BOOLEAN_TA_CALLS: ReadonlySet<string> = new Set([
+    "ta.cross",
+    "ta.crossover",
+    "ta.crossunder",
+]);
+
+// Whether a value expression yields a BOOLEAN — a bool literal, a `not`, a
+// comparison / `and` / `or`, a boolean `ta.cross*`, or a ternary whose arms are
+// both boolean. Drives the element type of a HISTORY-PROMOTED `=`-decl /
+// direct-`ta.*` series slot (`state.boolSeries` vs the numeric `state.series`),
+// so a promoted bool local's per-bar `<slot>.value = <boolean>` write and its
+// `<slot>[n]` reads type-check. Conservative: any other shape is treated as
+// numeric (the pre-existing default), never mis-typed as bool.
+function booleanValued(value: ExpressionNode): boolean {
+    switch (value.kind) {
+        case "literal-expression":
+            return value.literalKind === "bool";
+        case "unary-expression":
+            return value.operator === "not";
+        case "paren-expression":
+            return booleanValued(value.expression);
+        case "binary-expression":
+            return BOOLEAN_BINARY_OPERATORS.has(value.operator);
+        case "ternary-expression":
+            return booleanValued(value.consequent) && booleanValued(value.alternate);
+        case "call-expression": {
+            const name = calleeName(value);
+            return name !== null && BOOLEAN_TA_CALLS.has(name);
+        }
+        default:
+            return false;
+    }
+}
+
+// History-indexed scalar series BUILTINS → the per-bar scalar source they read,
+// backed by a synthesized `state.series` slot so `<name>[n]` indexes the slot.
+// Today only `time` → `bar.time` (a scalar `Time`, unlike the natively-indexable
+// `bar.close` `PriceSeries`): OHLCV/aggregate reads index natively (no slot), and
+// the call-remapped scalars (`time_close` → `time.timeClose(...)`, `timenow` →
+// `time.now()`, `bar_index` → the bridge sentinel) are a documented gap.
+const SCALAR_BAR_SERIES_SOURCES: ReadonlyMap<string, string> = new Map([["time", "bar.time"]]);
+
+// The per-bar scalar source a history-indexed series builtin reads, or `null`
+// for a natively-indexable / non-builtin receiver.
+function scalarBarSeriesSource(name: string): string | null {
+    return SCALAR_BAR_SERIES_SOURCES.get(name) ?? null;
+}
+
 // Whether a scalar `var`/`varip` is a persistent COLOR (so it lowers to
 // `state.color`): a `color` type annotation, or a color-valued initializer.
 function colorScalar(decl: VariableDeclaration): boolean {
@@ -408,8 +472,23 @@ type HistorySeriesScan = {
     // promote `ma_1`, whose post-inline `ma_1[1]` would otherwise index a
     // `number`). Each carries the span of its first genuinely-dynamic offset (or
     // `null`) — the same `dynamic-series-index` contract as {@link TaSeriesPromotion}.
-    readonly promotedSeries: ReadonlyMap<string, { readonly dynamicSpan: SourceSpan | null }>;
+    readonly promotedSeries: ReadonlyMap<
+        string,
+        { readonly dynamicSpan: SourceSpan | null; readonly element: SeriesElement }
+    >;
+    // History-indexed SCALAR series BUILTINS (today only `time` → `bar.time`):
+    // the Pine name → the per-bar scalar source it remaps to. Each is backed by a
+    // synthesized `state.series` slot (declared + written `<slot>.value = <source>`
+    // at the top of `compute`), so `time[n]` indexes the slot instead of the
+    // non-indexable scalar `bar.time`.
+    readonly builtinSeries: ReadonlyMap<string, string>;
 };
+
+// The element type a history-promoted series slot carries — a NUMERIC
+// `state.series` or a BOOLEAN `state.boolSeries`. (A promoted `=`-decl is never
+// string-valued; the `string` history path is the `var string` scalar route in
+// `scanHistorySeries`.)
+type SeriesElement = "numeric" | "bool";
 
 // Whether a statement DECLARES a ta-derived series the converter promotes to a
 // `state.series` slot when it is history-indexed: an `=` assignment whose value
@@ -476,12 +555,22 @@ function scanHistorySeries(
     // promotion (A1) keys on (a series local read at `[n]` cannot stay a scalar).
     const historyIndexed = new Set<string>();
     const dynamicReceiverSpans = new Map<string, SourceSpan>();
+    const builtinSeries = new Map<string, string>();
     walkHistoryAccesses(analysis.script.body, (history, loopVars) => {
         if (history.receiver.kind !== "identifier-expression") {
             return;
         }
         const name = history.receiver.name;
         historyIndexed.add(name);
+        // A history-indexed scalar series BUILTIN (`time[1]`) that the user did
+        // NOT shadow: back it with a synthesized `state.series` slot. Guarded on
+        // the user symbol table so a user-declared `time` keeps its own lowering.
+        if (!analysis.rootScope.symbols.has(name)) {
+            const source = scalarBarSeriesSource(name);
+            if (source !== null) {
+                builtinSeries.set(name, source);
+            }
+        }
         if (isDynamic(history, loopVars) && !dynamicReceiverSpans.has(name)) {
             dynamicReceiverSpans.set(name, history.span);
         }
@@ -523,6 +612,7 @@ function scanHistorySeries(
         dynamicOffsetSpans,
         taSeries,
         promotedSeries,
+        builtinSeries,
     };
 }
 
@@ -554,8 +644,15 @@ function scanPromotedSeries(
     prior: PriorPromotions,
     historyIndexed: ReadonlySet<string>,
     dynamicReceiverSpans: ReadonlyMap<string, SourceSpan>,
-): Map<string, { dynamicSpan: SourceSpan | null }> {
-    const resolve = (name: string) => analysis.rootScope.symbols.get(name) ?? null;
+): Map<string, { dynamicSpan: SourceSpan | null; element: SeriesElement }> {
+    // Mirror `resolveSymbol`'s builtin fallback: a top-level `=`-decl whose value
+    // is rooted in a bare OHLCV/series builtin (`change_prct = (close - close[1]) /
+    // close[1] * 100`) must infer `series` so the history-indexed local promotes to
+    // a `state.series` slot. The `BUILTIN_SYMBOLS` fallback is load-bearing (it
+    // mirrors `resolveSymbol`): without it `close` resolves to `const` and the
+    // `[n]` read lands on a plain `number` (TS7053).
+    const resolve = (name: string) =>
+        analysis.rootScope.symbols.get(name) ?? BUILTIN_SYMBOLS.get(name) ?? null;
     const alreadyPromoted = (name: string): boolean =>
         owned.has(name) ||
         prior.candidates.has(name) ||
@@ -563,20 +660,21 @@ function scanPromotedSeries(
         prior.numeric.has(name) ||
         prior.boolSeries.has(name) ||
         prior.stringSeries.has(name);
-    const promoted = new Map<string, { dynamicSpan: SourceSpan | null }>();
-    const add = (name: string): void => {
+    const promoted = new Map<string, { dynamicSpan: SourceSpan | null; element: SeriesElement }>();
+    const add = (name: string, element: SeriesElement): void => {
         if (alreadyPromoted(name) || promoted.has(name)) {
             return;
         }
-        promoted.set(name, { dynamicSpan: dynamicReceiverSpans.get(name) ?? null });
+        promoted.set(name, { dynamicSpan: dynamicReceiverSpans.get(name) ?? null, element });
     };
-    // A1.
+    // A1. A boolean-valued decl (`pretrig = change_prct > x and y`) backs a
+    // `state.boolSeries` so its per-bar write + `[n]` reads type-check.
     for (const stmt of analysis.script.body) {
         if (stmt.kind !== "assignment" || stmt.operator !== "=" || !historyIndexed.has(stmt.name)) {
             continue;
         }
         if (inferQualifier(stmt.value, resolve) === "series") {
-            add(stmt.name);
+            add(stmt.name, booleanValued(stmt.value) ? "bool" : "numeric");
         }
     }
     // A2.
@@ -603,7 +701,9 @@ function scanPromotedSeries(
                     }
                     const symbol = analysis.rootScope.symbols.get(arg.name);
                     if (symbol !== undefined && symbol.qualifier === "series") {
-                        add(arg.name);
+                        // A stateful-UDF series argument is a numeric source
+                        // (`cf_slope(ma_1, …)`); bool args do not feed `[n]`.
+                        add(arg.name, "numeric");
                     }
                 }
             });
@@ -983,30 +1083,44 @@ function emitTaSeriesSlots(
     // `taSeries` and `promotedSeries` are disjoint (a promoted name is never a
     // direct-`ta.*` decl — `scanPromotedSeries` excludes them), and each map has
     // unique keys, so every name reaches `allocate` exactly once.
-    const allocate = (name: string, dynamicSpan: SourceSpan | null): void => {
+    const allocate = (
+        name: string,
+        dynamicSpan: SourceSpan | null,
+        element: SeriesElement,
+    ): void => {
         const slot = scaffold.names.allocateForSymbol(name);
         slots.set(name, slot);
         seriesNames.add(name);
         if (dynamicSpan !== null) {
             diagnostics.pushCode("dynamic-series-index", dynamicSpan);
         }
-        appendStateSlot(scaffold, { name: slot, initExpr: "state.series(Number.NaN)" });
+        const initExpr =
+            element === "bool" ? "state.boolSeries(false)" : "state.series(Number.NaN)";
+        appendStateSlot(scaffold, { name: slot, initExpr });
     };
     for (const [name, promotion] of scan.taSeries) {
-        allocate(name, promotion.dynamicSpan);
+        // A direct boolean `ta.cross*` decl backs a `state.boolSeries`.
+        allocate(
+            name,
+            promotion.dynamicSpan,
+            booleanValued(promotion.decl.value) ? "bool" : "numeric",
+        );
     }
     // Part A: the UDF-call / ternary `=`-decls (A1) and the stateful-UDF
-    // history-indexed simple-identifier arguments (A2). Same numeric
-    // `state.series` slot + read/write rewrites as the direct-`ta.*` promotion.
-    for (const [name, { dynamicSpan }] of scan.promotedSeries) {
-        allocate(name, dynamicSpan);
+    // history-indexed simple-identifier arguments (A2). Numeric or boolean
+    // `state.*Series` slot + read/write rewrites as the direct-`ta.*` promotion.
+    for (const [name, { dynamicSpan, element }] of scan.promotedSeries) {
+        allocate(name, dynamicSpan, element);
     }
 }
 
-// Read the recorded `input.int` literal default for a registered input name,
-// or `null`. Re-walks the top-level `input.int(N)` named declarations.
-function inputDefaults(analysis: SemanticResult): Map<string, number> {
-    const defaults = new Map<string, number>();
+type InputIntMetadata = Readonly<{ defaultValue: number; max: number | null }>;
+
+// Read the recorded `input.int` literal default and optional `maxval` for each
+// registered input name. Re-walks the top-level `input.int(N, maxval=M)` named
+// declarations.
+function inputIntMetadata(analysis: SemanticResult): Map<string, InputIntMetadata> {
+    const metadata = new Map<string, InputIntMetadata>();
     for (const stmt of analysis.script.body) {
         if (stmt.kind !== "variable-declaration" && stmt.kind !== "assignment") {
             continue;
@@ -1026,9 +1140,29 @@ function inputDefaults(analysis: SemanticResult): Map<string, number> {
         ) {
             continue;
         }
-        defaults.set(stmt.name, Number.parseInt(first.value.value, 10));
+        metadata.set(stmt.name, {
+            defaultValue: Number.parseInt(first.value.value, 10),
+            max: readNamedIntArg(value, "maxval"),
+        });
     }
-    return defaults;
+    return metadata;
+}
+
+function readNamedIntArg(
+    call: {
+        readonly args: readonly { readonly name: string | null; readonly value: ExpressionNode }[];
+    },
+    name: string,
+): number | null {
+    const arg = call.args.find((candidate) => candidate.name === name);
+    if (
+        arg === undefined ||
+        arg.value.kind !== "literal-expression" ||
+        arg.value.literalKind !== "int"
+    ) {
+        return null;
+    }
+    return Number.parseInt(arg.value.value, 10);
 }
 
 // Register a `state.array` slot per bounded numeric array, emit its
@@ -1095,7 +1229,7 @@ type Walk = {
     readonly diagnostics: DiagnosticCollector;
     readonly owned: ReadonlySet<string>;
     readonly arrayNames: ReadonlySet<string>;
-    readonly defaults: ReadonlyMap<string, number>;
+    readonly inputInts: ReadonlyMap<string, InputIntMetadata>;
     // Stateful UDFs (`stateful: true`), inline-expanded at each call site so each
     // gets an independent slot. Empty for any script without a stateful helper,
     // which keeps the inline dispatch a no-op (byte-identical to the legacy path).
@@ -1586,7 +1720,7 @@ export function transformOther(
     // declarations precede the scalar slots.
     const arraySlots = emitArraySlots(scaffold, diagnostics, arrayScan);
     const mapSlots = emitMapSlots(scaffold, diagnostics, mapScan);
-    const defaults = inputDefaults(analysis);
+    const inputInts = inputIntMetadata(analysis);
     const scan = scanHistorySeries(analysis, owned);
     // Every series-lowered scalar (numeric `state.series`, bool `state.boolSeries`,
     // string `state.stringSeries`) routes `[n]` reads to the bare slot via
@@ -1602,9 +1736,29 @@ export function transformOther(
     // slots so the `slots` map carries every name before the `EmitContext` reads
     // it. The slot decls are emitted here (init `Number.NaN`).
     emitTaSeriesSlots(scaffold, diagnostics, scan, slots, seriesNames);
+    // Synthesize a `state.series` slot for each history-indexed scalar series
+    // builtin (`time[1]`). The slot is declared here and written
+    // `<slot>.value = bar.time` at the top of `compute` (see `builtinSeriesWrites`
+    // below), so `time[n]` indexes the slot instead of the non-indexable
+    // `bar.time`. A fresh `allocate` name dodges the host `time` namespace.
+    const builtinSeriesSlots = new Map<string, string>();
+    const builtinSeriesWrites: string[] = [];
+    for (const [name, source] of scan.builtinSeries) {
+        const slot = scaffold.names.allocate(`${name}Series`);
+        builtinSeriesSlots.set(name, slot);
+        appendStateSlot(scaffold, { name: slot, initExpr: "state.series(Number.NaN)" });
+        builtinSeriesWrites.push(`${slot}.value = ${source};`);
+    }
     const inputNames = new Set(scaffold.inputs.map((input) => input.name));
     const inputCasts = new Map<string, string>();
+    const sourceInputs = new Set<string>();
     for (const input of scaffold.inputs) {
+        // A source input reads as `bar[inputs.<name>]` (a `PriceSeries`), so it
+        // takes no scalar cast — it is indexable + number-coercible on its own.
+        if (input.code.startsWith("input.source(")) {
+            sourceInputs.add(input.name);
+            continue;
+        }
         const cast = inputCastType(input.code);
         if (cast !== null) {
             inputCasts.set(input.name, cast);
@@ -1621,6 +1775,18 @@ export function transformOther(
             udfNames.add(stmt.name);
         }
     }
+    // A Pine variable whose name collides with a host `compute` param
+    // (`bgcolor = …` shadowing the `bgcolor(...)` builtin) is renamed to a fresh,
+    // host-avoiding local (`bgcolor2`) applied to its declaration AND every
+    // reference; the host call site keeps the `bgcolor` binding. `allocateForSymbol`
+    // is memoized + host-avoiding, so a `var`-slot collision resolves to the SAME
+    // name through `stateSlots`.
+    const renamedSymbols = new Map<string, string>();
+    for (const name of analysis.rootScope.symbols.keys()) {
+        if (isComputeContextName(name)) {
+            renamedSymbols.set(name, scaffold.names.allocateForSymbol(name));
+        }
+    }
     const ctx: EmitContext = {
         annotations: analysis.annotations,
         enumTypes: analysis.enumTypes,
@@ -1628,10 +1794,13 @@ export function transformOther(
         localNames: udfNames,
         stateSlots: slots,
         inputCasts,
+        sourceInputs,
         securityFeedInputs: collectSecurityFeedInputs(analysis.script),
         promotedInline,
         tupleFieldAliases: registerTupleFields(analysis, scaffold.names),
+        renamedSymbols,
         seriesSlots: seriesNames,
+        builtinSeriesSlots,
         arraySlots,
         arrayWarn: (code, span) => diagnostics.pushCode(code, span),
         mapSlots,
@@ -1663,13 +1832,19 @@ export function transformOther(
         diagnostics,
         owned,
         arrayNames: new Set(arraySlots.keys()),
-        defaults,
+        inputInts,
         statefulUdfs: collectStatefulUdfs(analysis),
     };
     // Pure UDFs are hoisted to the FRONT of the compute body (callee-before-
     // caller) before the source-order statement walk, so every reusable function
     // precedes its first call site.
     emitPureUdfs(analysis, scaffold, diagnostics, ctx, walk);
+    // Feed each synthesized builtin-series slot the current bar's scalar BEFORE
+    // the source-order body, so a `time[n]` read later in the bar sees a filled
+    // history ring (`<slot>.value = bar.time;`).
+    for (const write of builtinSeriesWrites) {
+        appendComputeStatement(scaffold, write);
+    }
     for (const statement of analysis.script.body) {
         for (const line of emitStatement(statement, ctx, walk)) {
             appendComputeStatement(scaffold, line);
@@ -1705,8 +1880,9 @@ function emitStatement(stmt: Statement, ctx: EmitContext, walk: Walk): readonly 
                 stmt,
                 ctx,
                 walk.diagnostics,
-                (name) => walk.defaults.get(name) ?? null,
+                (name) => walk.inputInts.get(name)?.defaultValue ?? null,
                 emitBody,
+                (name) => walk.inputInts.get(name)?.max ?? null,
             );
         case "switch-statement": {
             const rendered = emitSwitch(stmt, ctx, emitBody);
@@ -1769,15 +1945,19 @@ function emitDeclaration(
     // becomes the inlined result. No stateful UDF in the script ⇒ untouched path.
     // A typed `var string x = na` / `var bool b = na` would otherwise lower its
     // `na` init to `Number.NaN` (the numeric `naKind` default), making TS infer
-    // `number` so a later `x := "EMA"` fails (TS2322). Carry the Pine declared
-    // type into an explicit `T | null` annotation with a `null` na sentinel so
-    // the reads/writes type-check. Scoped to the `na`-init string/bool case;
-    // `int`/`float` already infer `number` from `Number.NaN` and compile.
+    // `number` so a later `x := "EMA"` fails (TS2322). Pine string `na` usage
+    // behaves like an empty string in the emitted code; bool keeps the existing
+    // null sentinel until the bool follow-up closes that identical narrowing gap.
+    // A name colliding with a host `compute` param is renamed at the declaration
+    // too (`let bgcolor2 = …`), matching the reference rewrite in `rewriteIdentifier`.
+    const lhs = ctx.renamedSymbols?.get(stmt.name) ?? stmt.name;
     if (stmt.initializer.kind === "na-expression") {
         const element = scalarElementType(stmt);
-        if (element === "string" || element === "bool") {
-            const tsType = element === "string" ? "string" : "boolean";
-            return [`let ${stmt.name}: ${tsType} | null = null;`];
+        if (element === "string") {
+            return [`let ${lhs} = "";`];
+        }
+        if (element === "bool") {
+            return [`let ${lhs}: boolean | null = null;`];
         }
     }
     // A stateful-UDF call in the value is inline-expanded: its arg temps + body
@@ -1788,7 +1968,7 @@ function emitDeclaration(
         walk.statefulUdfs.size === 0
             ? stmt.initializer
             : inlineStatefulCalls(stmt.initializer, ctx, inlineScopeOf(walk), prelude);
-    return [...prelude, `let ${stmt.name} = ${emitCallValue(initializer, ctx, walk)};`];
+    return [...prelude, `let ${lhs} = ${emitCallValue(initializer, ctx, walk)};`];
 }
 
 function emitAssignment(stmt: Assignment, ctx: EmitContext, walk: Walk): readonly string[] {
@@ -1815,7 +1995,9 @@ function emitAssignment(stmt: Assignment, ctx: EmitContext, walk: Walk): readonl
     }
     const annotation = walk.analysis.annotations.get(stmt)?.assignment;
     const keyword = annotation?.kind === "declaration" ? "let " : "";
-    return [...prelude, `${keyword}${stmt.name} ${operator} ${value};`];
+    // Apply the host-param rename to the assignment LHS (`bgcolor2 = …`).
+    const lhs = ctx.renamedSymbols?.get(stmt.name) ?? stmt.name;
+    return [...prelude, `${keyword}${lhs} ${operator} ${value};`];
 }
 
 // Render a value expression that MAY be a special call (request.security /

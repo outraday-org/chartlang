@@ -1,0 +1,6 @@
+//@version=6
+indicator("host-name collision")
+color bgcolor = na
+bgcolor := close > open ? color.green : color.red
+bgcolor(bgcolor)
+plot(close)

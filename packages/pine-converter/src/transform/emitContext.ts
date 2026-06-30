@@ -100,12 +100,29 @@ export type EmitContext = Readonly<{
      */
     inputCasts?: ReadonlyMap<string, string>;
     /**
+     * Input names declared as `input.source` (Pine `input(defval=close)` /
+     * `input.source`). Their value is a `SourceField` selector, so a read
+     * resolves against the bar (`bar[inputs.<name>]`) — an indexable,
+     * number-coercible `PriceSeries` — instead of a scalar `inputs.<name>` cast.
+     * Absent → no source inputs.
+     */
+    sourceInputs?: ReadonlySet<string>;
+    /**
      * Per-name replacement for a tuple-destructuring target — `macdLine` →
      * `macdLineResult.macd.current` — bound by a `[a, b, c] = ta.macd(...)`
      * statement (the result record is emitted once; each element reads a
      * `.current` scalar field). Absent (or no entry) → no rewrite.
      */
     tupleFieldAliases?: ReadonlyMap<string, string>;
+    /**
+     * Pine symbol name → its host-avoiding renamed local, for a variable whose
+     * name collides with a `compute` param (`bgcolor` → `bgcolor2`). Applied to
+     * the declaration / assignment LHS and every bare reference, so the user
+     * variable never shadows the still-live host binding (`bgcolor(...)` callee).
+     * A `var`-slot collision is handled by {@link stateSlots} (same renamed
+     * local), so this only carries the plain-`let` symbols. Absent → none.
+     */
+    renamedSymbols?: ReadonlyMap<string, string>;
     /**
      * Pine names of the `var`/`varip` scalars lowered to a series slot — a
      * history-indexed `state.series` (numeric), `state.boolSeries` (bool), or
@@ -117,6 +134,16 @@ export type EmitContext = Readonly<{
      * bool/string ones are not). Absent → no series slots.
      */
     seriesSlots?: ReadonlySet<string>;
+    /**
+     * History-indexed scalar series BUILTINS → their synthesized `state.series`
+     * slot local (today `time` → e.g. `timeSeries`). The builtin remaps to a
+     * scalar (`bar.time`) that cannot be `[n]`-indexed, so a `time[n]` read is
+     * rewritten onto the slot (`<slot>[n]`) which `transformOther` declares and
+     * feeds `<slot>.value = bar.time` each bar. A BARE `time` read is left to the
+     * generic `bar.time` remap (the slot is only consulted for the history form).
+     * Absent → no builtin series slots.
+     */
+    builtinSeriesSlots?: ReadonlyMap<string, string>;
     /**
      * Pine collection name → its chartlang `state.array` slot (local name +
      * literal capacity `K`), for a bounded numeric `var array<float|int>`
@@ -545,7 +572,22 @@ function rewriteIdentifier(name: string, ctx: EmitContext): string | null {
     if (tupleField !== undefined) {
         return tupleField;
     }
+    // A plain-`let` symbol renamed to dodge a host `compute` param
+    // (`bgcolor` → `bgcolor2`). A `var`-slot collision is already handled by the
+    // `stateSlots` branch above (its slot local is the same renamed name).
+    const renamed = ctx.renamedSymbols?.get(name);
+    if (renamed !== undefined) {
+        return renamed;
+    }
     if (ctx.inputNames.has(name)) {
+        // A `input.source` value is a `SourceField` (`"close"`, `"hl2"`, …) — a
+        // BAR FIELD selector, not a number. Resolve it against the bar
+        // (`bar[inputs.src]`) so it reads as the chosen `PriceSeries`: indexable
+        // (`src[1]`), number-coercible, and a valid `ta.*` source. (Pine's bare
+        // `input(defval=close)` / `input.source` is a series in Pine.)
+        if (ctx.sourceInputs?.has(name) === true) {
+            return `bar[inputs.${name} as SourceField]`;
+        }
         const cast = ctx.inputCasts?.get(name);
         return cast === undefined ? `inputs.${name}` : `(inputs.${name} as ${cast})`;
     }
@@ -558,11 +600,16 @@ function rewriteIdentifier(name: string, ctx: EmitContext): string | null {
 // scalar slot's `<slot>.value` or an OHLCV `bar.close`). A non-series-slot
 // receiver flows through `rewriteTree` unchanged.
 function seriesSlotReceiver(receiver: ExpressionNode, ctx: EmitContext): ExpressionNode | null {
-    if (
-        receiver.kind !== "identifier-expression" ||
-        ctx.seriesSlots === undefined ||
-        !ctx.seriesSlots.has(receiver.name)
-    ) {
+    if (receiver.kind !== "identifier-expression") {
+        return null;
+    }
+    // A history-indexed scalar series builtin (`time[n]`) reads through its
+    // synthesized slot local; the bare `time` value read stays `bar.time`.
+    const builtinSlot = ctx.builtinSeriesSlots?.get(receiver.name);
+    if (builtinSlot !== undefined) {
+        return { ...receiver, name: builtinSlot };
+    }
+    if (ctx.seriesSlots === undefined || !ctx.seriesSlots.has(receiver.name)) {
         return null;
     }
     const slot = ctx.stateSlots.get(receiver.name);

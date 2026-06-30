@@ -34,6 +34,22 @@ function stringLiteralValue(node: ExpressionNode): string | null {
         : null;
 }
 
+// Fold a string-literal-only `+` chain in `request.security`'s symbol position.
+// Any non-literal leaf returns null, preserving the existing computed-symbol
+// rejection path.
+function stringConcatLiteralValue(node: ExpressionNode): string | null {
+    const literal = stringLiteralValue(node);
+    if (literal !== null) {
+        return literal;
+    }
+    if (node.kind !== "binary-expression" || node.operator !== "+") {
+        return null;
+    }
+    const left = stringConcatLiteralValue(node.left);
+    const right = stringConcatLiteralValue(node.right);
+    return left === null || right === null ? null : `${left}${right}`;
+}
+
 /**
  * The `SecurityBar` field name a Pine source identifier maps to (a bare
  * `open`/`high`/`low`/`close`/`volume`/`hl2`/`hlc3`/`ohlc4`), or `null` for any
@@ -108,7 +124,7 @@ export type SecurityFeedAxis = "symbol" | "interval";
 export type SecurityFeedInputs = ReadonlyMap<string, SecurityFeedAxis>;
 
 // The feed axis a top-level binding's value declares, or `null` when the value
-// is not an `input.symbol` / `input.timeframe` call (Pine has no
+// is not an `input.symbol` / `input.string` / `input.timeframe` call (Pine has no
 // `input.interval` — that is the chartlang TARGET name).
 function feedAxisOfValue(value: ExpressionNode): SecurityFeedAxis | null {
     if (
@@ -121,7 +137,7 @@ function feedAxisOfValue(value: ExpressionNode): SecurityFeedAxis | null {
         return null;
     }
     const member = value.callee.chain[1];
-    if (member === "symbol") {
+    if (member === "symbol" || member === "string") {
         return "symbol";
     }
     if (member === "timeframe") {
@@ -131,12 +147,12 @@ function feedAxisOfValue(value: ExpressionNode): SecurityFeedAxis | null {
 }
 
 /**
- * Collect every top-level `name = input.symbol(...)` / `input.timeframe(...)`
- * declaration into a {@link SecurityFeedInputs} map (the input keeps its Pine
- * name as its chartlang `inputs.<name>` key). Both the variable-declaration
- * (`string tf = input.timeframe(...)`) and bare-assignment (`sym =
- * input.symbol(...)`) forms register; any other initializer is ignored. The
- * shared pre-pass the single-source and tuple feed resolvers both consult.
+ * Collect every top-level `name = input.symbol(...)` / `input.string(...)` /
+ * `input.timeframe(...)` declaration into a {@link SecurityFeedInputs} map (the
+ * input keeps its Pine name as its chartlang `inputs.<name>` key). Both the
+ * variable-declaration (`string tf = input.timeframe(...)`) and bare-assignment
+ * (`sym = input.symbol(...)`) forms register; any other initializer is ignored.
+ * The shared pre-pass the single-source and tuple feed resolvers both consult.
  *
  * @since 1.7
  * @stable
@@ -187,8 +203,9 @@ function inputFeedSource(
 
 // The chartlang opts `symbol` value source for a `request.security` symbol arg:
 // `null` for the chart's own symbol (`syminfo.tickerid`, omitted), a quoted
-// literal for a string symbol, an `inputs.<name>` ref for an `input.symbol`-bound
-// identifier, or `undefined` for any other (un-mappable) shape.
+// literal for a string symbol or literal-only string concat, an `inputs.<name>`
+// ref for an `input.symbol` / `input.string`-bound identifier, or `undefined`
+// for any other (un-mappable) shape.
 function resolveSymbolSource(
     symbol: ExpressionNode,
     inputs: SecurityFeedInputs,
@@ -199,6 +216,10 @@ function resolveSymbolSource(
     const literal = stringLiteralValue(symbol);
     if (literal !== null) {
         return JSON.stringify(literal);
+    }
+    const concatLiteral = stringConcatLiteralValue(symbol);
+    if (concatLiteral !== null) {
+        return JSON.stringify(concatLiteral);
     }
     return inputFeedSource(symbol, inputs, "symbol") ?? undefined;
 }

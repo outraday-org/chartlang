@@ -218,6 +218,7 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "time.minute", slot: false },
     { name: "time.second", slot: false },
     { name: "time.timestamp", slot: false },
+    { name: "time.now", slot: false },
     { name: "time.timeClose", slot: false },
     { name: "session.isOpen", slot: false },
     { name: "defineAlertCondition.signal", slot: false },

@@ -33,8 +33,9 @@ function isInt(value: number): boolean {
  * Build a frozen `time` namespace whose accessors do pure integer epoch math
  * (Howard Hinnant `civil_from_days`) — **no `Date`, no `Intl`** — so output is
  * byte-reproducible across hosts. The factory closes over the mount's default
- * timezone, the live bar interval (for {@link TimeNamespace.timeClose}), and a
- * `tz-dst-unsupported` reporter; the accessor bodies themselves are stateless.
+ * timezone, the live bar interval (for {@link TimeNamespace.timeClose}), the
+ * host clock (for {@link TimeNamespace.now}), and a `tz-dst-unsupported`
+ * reporter; the calendar accessor bodies themselves are stateless.
  *
  * v1 honours UTC + fixed-offset zones only. A DST-bearing IANA zone resolves to
  * UTC and invokes `onDstUnsupported(tz)` (once-per-tz dedup lives in the
@@ -45,12 +46,13 @@ function isInt(value: number): boolean {
  * @stable
  * @example
  *     // import { createTimeNamespace } from "@invinite-org/chartlang-runtime";
- *     // const time = createTimeNamespace(() => "UTC", () => 60_000, () => {});
+ *     // const time = createTimeNamespace(() => "UTC", () => 60_000, () => 0, () => {});
  *     // time.year(0); // 1970
  */
 export function createTimeNamespace(
     getDefaultTz: () => string,
     getIntervalMs: () => number,
+    getNow: () => number,
     onDstUnsupported: (tz: string) => void,
 ): TimeNamespace {
     function offsetFor(tz: string | undefined): number {
@@ -114,6 +116,7 @@ export function createTimeNamespace(
                 offsetMin * 60_000
             );
         },
+        now: () => getNow(),
         timeClose: (t, tz) => {
             // `tz` is accepted for surface symmetry; the close instant is
             // tz-invariant (start + interval). A DST tz still flags for
@@ -128,25 +131,27 @@ export function createTimeNamespace(
 /**
  * Install-time builder: bind {@link createTimeNamespace} to a mount's
  * {@link RuntimeContext}. The default timezone resolves from the live
- * `syminfo.timezone` view, the bar interval from `timeframe.inSeconds`, and the
+ * `syminfo.timezone` view, the bar interval from `timeframe.inSeconds`, the
+ * wall clock from the runner's host-injected `now`, and the
  * `tz-dst-unsupported` diagnostic dedupes once per distinct tz on
  * `ctx.diagnosedTzKeys`. `buildComputeContext` calls this per bar (like the
  * `state` / `request` / `runtime` namespaces, NOT a module constant like `ta`):
- * the returned namespace is a pure view bound to the mount's `RuntimeContext`,
- * so it is cheap to rebuild and is not relied upon to be identity-stable across
- * bars (the script receives a fresh `ctx` each bar).
+ * the returned namespace is a view bound to the mount's `RuntimeContext` plus
+ * clock provider, so it is cheap to rebuild and is not relied upon to be
+ * identity-stable across bars (the script receives a fresh `ctx` each bar).
  *
  * @since 1.5
  * @stable
  * @example
  *     // import { buildTimeNamespace } from "@invinite-org/chartlang-runtime";
- *     // const time = buildTimeNamespace(state.runtimeContext);
+ *     // const time = buildTimeNamespace(state.runtimeContext, () => 0);
  *     // void time.year;
  */
-export function buildTimeNamespace(ctx: RuntimeContext): TimeNamespace {
+export function buildTimeNamespace(ctx: RuntimeContext, getNow: () => number): TimeNamespace {
     return createTimeNamespace(
         () => ctx.views.syminfo.timezone,
         () => ctx.views.timeframe.inSeconds * 1000,
+        getNow,
         buildTzDstReporter(ctx),
     );
 }

@@ -8,6 +8,7 @@ import type { SourceSpan } from "../index.js";
 import { INPUT_DISPLAY_MAP, STRING_OPTIONS_ENUM_BUILDER, inputLookup } from "../mapping/index.js";
 import type { EnumTypeInfo, SemanticResult } from "../semantic/index.js";
 import { positionalArgs, spanKey } from "./callArgs.js";
+import { literalColorDefault } from "./colorConvert.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import { resolveEnumMemberValue, resolveEnumType } from "./enumMembers.js";
 import type { InputDeclarationIR, ScriptScaffold } from "./ir.js";
@@ -104,6 +105,10 @@ function literalDefault(node: ExpressionNode): string | null {
         (node.operand.literalKind === "int" || node.operand.literalKind === "float")
     ) {
         return `${node.operator}${node.operand.value}`;
+    }
+    const colorLiteral = literalColorDefault(node);
+    if (colorLiteral !== null) {
+        return colorLiteral;
     }
     return null;
 }

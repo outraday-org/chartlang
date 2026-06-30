@@ -31,6 +31,9 @@ time = Object.freeze({
     timestamp(_year: number, _month: number, _day: number, _hour?: number, _minute?: number, _second?: number, _tz?: string): Time {
         return sentinel("time.timestamp");
     },
+    now(): Time {
+        return sentinel("time.now");
+    },
     timeClose(_t: Time, _tz?: string): Time {
         return sentinel("time.timeClose");
     },

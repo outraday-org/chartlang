@@ -126,6 +126,12 @@ const CALENDAR_SESSION_STATEFUL_ADDITIONS: ReadonlyArray<
     { name: "session.isOpen", slot: false },
 ] as const);
 
+// `time.now` — the host-injected wall-clock accessor (Pine `timenow`). Like
+// the other `time.*` accessors it is a stateless `slot: false` registry entry
+// (a pure read of host-supplied wall-clock time, no callsite-id injection).
+const TIME_NOW_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
+    Object.freeze([{ name: "time.now", slot: false }] as const);
+
 const PHASE_2_TA_CARDINALITY = PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length;
 const PHASE_4_STATEFUL_CARDINALITY = 163;
 
@@ -166,7 +172,8 @@ describe("Phase 2 surface", () => {
                 STATE_MAP_STATEFUL_ADDITIONS.length +
                 STATE_NONNUMERIC_STATEFUL_ADDITIONS.length +
                 BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS.length +
-                CALENDAR_SESSION_STATEFUL_ADDITIONS.length,
+                CALENDAR_SESSION_STATEFUL_ADDITIONS.length +
+                TIME_NOW_STATEFUL_ADDITIONS.length,
         );
         for (const expected of [
             ...PHASE_5_STATEFUL_ADDITIONS,
@@ -179,6 +186,7 @@ describe("Phase 2 surface", () => {
             ...STATE_NONNUMERIC_STATEFUL_ADDITIONS,
             ...BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS,
             ...CALENDAR_SESSION_STATEFUL_ADDITIONS,
+            ...TIME_NOW_STATEFUL_ADDITIONS,
         ]) {
             expect(STATEFUL_PRIMITIVES).toContainEqual(expected);
         }
@@ -196,6 +204,7 @@ describe("Phase 2 surface", () => {
                 "runtime.log",
                 "ta.nz",
                 ...CALENDAR_SESSION_STATEFUL_ADDITIONS.map((e) => e.name),
+                ...TIME_NOW_STATEFUL_ADDITIONS.map((e) => e.name),
             ].sort(),
         );
     });

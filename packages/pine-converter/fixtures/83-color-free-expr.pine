@@ -1,0 +1,6 @@
+//@version=6
+indicator("color free expr")
+clr_green = color.rgb(13, 218, 116)
+dyn = close > open ? color.new(clr_green, 0) : color.new(color.red, 30)
+lbl = color.rgb(54, 58, 69, 40)
+plot(close, color = dyn)

@@ -12,10 +12,10 @@ import { substituteIterator } from "./controlFlow.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
 import { buildDrawingEmitContext, emitWithContext } from "./emitContext.js";
-import { emitStr } from "./strFormat.js";
 import { handleSlotLocalName } from "./handleSlot.js";
 import type { ScriptScaffold } from "./ir.js";
 import { appendComputeStatement, appendHandleSlot } from "./scaffoldMutators.js";
+import { emitStr } from "./strFormat.js";
 
 /**
  * One collected `draw.table` cell: the chartlang source strings for its

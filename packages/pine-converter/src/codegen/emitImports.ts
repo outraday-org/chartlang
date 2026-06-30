@@ -41,12 +41,13 @@ export function emitImports(scaffold: ScriptScaffold): string {
     // `math` and `color` are module-scope frozen namespaces (like `str`): a
     // top-level import only — neither is a `ComputeContext` field, so neither
     // joins the `compute` destructure. `color` rides in whenever a `color.*`
-    // member survives the Task-1 color lowering (`color.withAlpha`, a 3-arg
+    // member survives color lowering (`color.withAlpha`, a dynamic 3-arg
     // `color.rgb` passthrough, or a bare palette member). `syminfo` is the
     // inverse (destructure only, see `emitCompute.ts`).
     if (usage.math) specifiers.push("math");
     if (usage.color) specifiers.push("color");
     if (usage.drawingHandle) specifiers.push("type DrawingHandle");
+    if (usage.sourceField) specifiers.push("type SourceField");
 
     return `import { ${specifiers.join(", ")} } from "@invinite-org/chartlang-core";`;
 }

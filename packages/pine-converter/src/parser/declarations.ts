@@ -50,9 +50,10 @@ const STATEMENT_SYNC: ReadonlySet<TokenKind> = new Set<TokenKind>(["newline", "e
 /**
  * Parse the leading `//@version=N` directive when present. Reads the single
  * `version-directive` token emitted by the lexer (NOT `//@version=` + an
- * int), records `unsupported-pine-version` when `N !== 6`, and returns the
- * node — or `null` (with a `missing-version-directive` diagnostic) when the
- * stream does not start with a directive.
+ * int), records `pine-version-downlevel` for v5 and
+ * `unsupported-pine-version` for other non-v6 versions, and returns the node —
+ * or `null` (with a `missing-version-directive` diagnostic) when the stream
+ * does not start with a directive.
  *
  * @since 0.1
  * @stable
@@ -73,7 +74,9 @@ export function parseVersionDirective(ctx: ParserContext): VersionDirective | nu
     // The lexer only emits a `version-directive` token when its regex
     // matched `\d+`, so `versionNumber` is always present here.
     const version = token.versionNumber === undefined ? 0 : token.versionNumber;
-    if (version !== 6) {
+    if (version === 5) {
+        ctx.addDiagnostic(makeDiagnostic("pine-version-downlevel", token.span));
+    } else if (version !== 6) {
         ctx.addDiagnostic(makeDiagnostic("unsupported-pine-version", token.span));
     }
     ctx.cursor.match("newline");

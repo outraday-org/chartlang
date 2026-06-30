@@ -14,6 +14,7 @@ describe("time.year hot loop", () => {
             const time = createTimeNamespace(
                 () => "UTC",
                 () => 0,
+                () => 0,
                 () => {},
             );
             let sink = 0;

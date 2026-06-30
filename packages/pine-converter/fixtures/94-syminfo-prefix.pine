@@ -1,0 +1,4 @@
+//@version=6
+indicator("syminfo prefix exchange")
+tag = syminfo.prefix + ":" + syminfo.ticker
+plot(close, title=tag)

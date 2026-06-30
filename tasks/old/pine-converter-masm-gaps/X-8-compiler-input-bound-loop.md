@@ -114,18 +114,31 @@ pick the smaller-blast-radius one after inspecting the code:
 
 - **AST route (preferred if feasible):** `resolveIndexBound` already runs
   over the emitted TS AST, where the input is declared as
-  `const consolTolerance = input.int(4, { max: 20 })`. Resolve
-  `inputs.<name>` back to that declaration and read `max` from the
-  options object literal — **no manifest or core change needed**.
-- **Manifest route (only if the AST route is impractical):** surface the
-  input descriptor's `max` on the `ScriptManifest` / input-descriptor
-  type in `packages/core`, have the converter emit it, and have
-  `resolveIndexBound` read it. **This touches `packages/core` and
-  therefore needs its own `@invinite-org/chartlang-core` changeset** (add
-  it alongside compiler + pine-converter).
+  `const consolTolerance = input.int(4, { max: 20 })` (the converter
+  emits the options object as the **2nd positional arg** —
+  `inputs.ts:696`, e.g. `input.int(20, { title: …, min: 1, max: 200,
+  step: 1 })`, verified in `inputs.test.ts:49`). Resolve the loop
+  condition's `inputs.<name>` (or the local `const <name>` binding,
+  whichever the loop header actually references — verify which) back to
+  that declaration and read `max` from the options object literal — **no
+  manifest or core change needed**.
+- **Manifest route (alternative):** read the input descriptor's `max`
+  from `ScriptManifest.inputs[<name>]`. **No `packages/core` type change
+  is required** — `IntDescriptor`/`FloatDescriptor` already extend
+  `NumericInputOpts = { min?; max?; step? }` (`core/src/input/
+  inputDescriptor.ts`), and the compiler's generic `copyObjectLiteralFields`
+  (`extractInputs.ts:305`) **already** copies `{ max: 20 }` into
+  `descriptor.max` (there is no min/max-specific code — it serializes every
+  literal-valued option). So the field already exists and is already
+  populated; the only work is having `resolveIndexBound` / `loopBounds`
+  **read** it (today they consult only loop-header numeric literals +
+  lexical `const` numeric bindings — confirmed no path from inputs).
 
 Verify where the compiler obtains input descriptors and extend that
-path. State which route you took in the PR description.
+path. State which route you took in the PR description. **Neither route
+requires a `packages/core` change** — the AST route reads the emitted
+options literal and the manifest route reads an already-present
+descriptor field.
 
 ### 3. converter — emit the runtime loop (`packages/pine-converter`)
 
@@ -203,7 +216,7 @@ accept input bounds, sized from `maxval`) and
 
 ## Changeset
 
-`.changeset/compiler-input-bound-loop.md` — `@invinite-org/chartlang-compiler: minor`, `@invinite-org/chartlang-pine-converter: minor`. **If the manifest route in §2 is taken** (core input-descriptor type change), add `@invinite-org/chartlang-core: minor` to the same changeset.
+`.changeset/compiler-input-bound-loop.md` — `@invinite-org/chartlang-compiler: minor`, `@invinite-org/chartlang-pine-converter: minor`. **No `@invinite-org/chartlang-core` bump is needed** — §2 establishes that neither route changes a core type (the descriptor `max` field already exists and is already populated). Only add a core bump if implementation discovers an unavoidable core surface change, and justify it in the PR.
 
 ## Acceptance Criteria
 

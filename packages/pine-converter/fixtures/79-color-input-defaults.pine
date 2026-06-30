@@ -1,0 +1,6 @@
+//@version=6
+indicator("color input defaults")
+c_rgb   = input.color(color.rgb(13, 218, 116), "Up")
+c_alpha = input.color(color.new(color.red, 40), "Down")
+c_named = input.color(color.yellow, "Flat")
+plot(close, color = c_rgb)

@@ -21,6 +21,24 @@ const int = (value: string): ExpressionNode => ({
     value,
     span: SPAN,
 });
+const colorLiteral = (value: string): ExpressionNode => ({
+    kind: "literal-expression",
+    literalKind: "color",
+    value,
+    span: SPAN,
+});
+const member = (...chain: readonly string[]): ExpressionNode => ({
+    kind: "member-access-expression",
+    head: null,
+    chain,
+    span: SPAN,
+});
+const call = (callee: ExpressionNode, ...args: readonly ExpressionNode[]): ExpressionNode => ({
+    kind: "call-expression",
+    callee,
+    args: args.map((value) => ({ name: null, value, span: SPAN })),
+    span: SPAN,
+});
 const noAnnotations: ReadonlyMap<AstNode, SemanticAnnotation> = new Map();
 
 describe("emitExpr", () => {
@@ -155,6 +173,48 @@ describe("emitExpr", () => {
             span: SPAN,
         };
         expect(emitExpr(userCall, noAnnotations)).toBe("myFn(1, x)");
+    });
+
+    it("lowers color.new in free expressions with literal and dynamic bases", () => {
+        expect(
+            emitExpr(
+                call(member("color", "new"), member("color", "red"), int("30")),
+                noAnnotations,
+            ),
+        ).toBe('"#FF5252B3"');
+        expect(
+            emitExpr(call(member("color", "new"), ident("trendColor"), int("0")), noAnnotations),
+        ).toBe("color.withAlpha(trendColor, 1)");
+    });
+
+    it("lowers color.rgb in free expressions without changing dynamic 3-arg calls", () => {
+        expect(
+            emitExpr(call(member("color", "rgb"), int("54"), int("58"), int("69")), noAnnotations),
+        ).toBe('"#363A45"');
+        expect(
+            emitExpr(call(member("color", "rgb"), ident("r"), int("58"), int("69")), noAnnotations),
+        ).toBe("color.rgb(r, 58, 69)");
+    });
+
+    it("lowers 4-arg color.rgb in free expressions", () => {
+        expect(
+            emitExpr(
+                call(member("color", "rgb"), int("54"), int("58"), int("69"), int("40")),
+                noAnnotations,
+            ),
+        ).toBe('"#363A4599"');
+        expect(
+            emitExpr(
+                call(
+                    member("color", "rgb"),
+                    colorLiteral("#112233"),
+                    int("58"),
+                    int("69"),
+                    ident("t"),
+                ),
+                noAnnotations,
+            ),
+        ).toBe('color.withAlpha(color.rgb("#112233", 58, 69), (100 - t) / 100)');
     });
 
     it("emits unary `not` as `!` and arithmetic unary verbatim", () => {

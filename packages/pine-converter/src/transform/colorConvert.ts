@@ -91,9 +91,9 @@ export type ColorEmit = (node: ExpressionNode) => string;
  * whose components are all compile-time literals folds to a quoted `#RRGGBBAA`
  * string (the `transp` → alpha via {@link transpToAlphaHex}); a **dynamic**
  * base or transp emits `color.withAlpha(<base>, <alpha>)` with `alpha` in
- * `core`'s 0–1 range (`(100 - clamp(transp, 0, 100)) / 100`). A bare `color.*`
- * enum lowers to its hex; a 3-arg `color.rgb` and every other node lower
- * through `emit`.
+ * `core`'s 0–1 range (`(100 - clamp(transp, 0, 100)) / 100`). A 3-arg
+ * `color.rgb(r, g, b)` with literal RGB components folds to `#RRGGBB`; a
+ * dynamic 3-arg `color.rgb` and every other node lower through `emit`.
  *
  * @since 1.6
  * @stable
@@ -177,6 +177,42 @@ export function convertColor(node: ExpressionNode, annotations: AnnotationLookup
 }
 
 /**
+ * Fold a Pine colour expression that is valid in a compile-time literal
+ * context to a quoted chartlang `#RRGGBB` / `#RRGGBBAA` source string. Unlike
+ * {@link convertColorWith}, this returns `null` instead of emitting dynamic
+ * fallbacks when any component is not literal.
+ *
+ * @since 0.6
+ * @stable
+ * @example
+ *     import { literalColorDefault } from "./colorConvert.js";
+ *     const node = {
+ *         kind: "member-access-expression",
+ *         head: null,
+ *         chain: ["color", "yellow"],
+ *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 1 },
+ *     } as const;
+ *     literalColorDefault(node); // '"#FFEB3B"'
+ */
+export function literalColorDefault(node: ExpressionNode): string | null {
+    const enumHex = baseHex(node);
+    if (enumHex !== null) {
+        return JSON.stringify(enumHex);
+    }
+    if (node.kind !== "call-expression") {
+        return null;
+    }
+    const callee = dottedCallee(node);
+    if (callee === "color.new") {
+        return literalColorNewDefault(node);
+    }
+    if (callee === "color.rgb") {
+        return literalColorRgbDefault(node);
+    }
+    return null;
+}
+
+/**
  * Whether a node is a transparency-carrying colour form — a `color.new(base,
  * transp)` (a `transp` arg present) or a 4-arg `color.rgb(r, g, b, transp)`.
  * The plot / hline / table call sites raise `color-transp-approximated` on it.
@@ -223,21 +259,26 @@ function convertColorNew(call: CallExpression, emit: ColorEmit): string {
     return `color.withAlpha(${colorBaseSource(baseArg.value, emit)}, ${alphaSource(transpArg.value, emit)})`;
 }
 
-// Lower a 4-arg `color.rgb(r, g, b, transp)`, or `null` when there is no 4th
-// (transp) arg — a 3-arg `color.rgb(r, g, b)` passes through `emit` unchanged.
-// All-literal components fold to a `#RRGGBBAA` hex; any dynamic component emits
-// `color.withAlpha(color.rgb(r, g, b), <alpha>)`.
+// Lower a 3-arg `color.rgb(r, g, b)` or 4-arg `color.rgb(r, g, b, transp)`.
+// Literal RGB components fold to a `#RRGGBB` hex; all-literal 4-arg calls fold
+// to `#RRGGBBAA`; any dynamic 4-arg component emits `color.withAlpha(...)`.
 function convertColorRgb(call: CallExpression, emit: ColorEmit): string | null {
     const rArg = call.args[0];
     const gArg = call.args[1];
     const bArg = call.args[2];
     const transpArg = call.args[3];
-    if (rArg === undefined || gArg === undefined || bArg === undefined || transpArg === undefined) {
+    if (rArg === undefined || gArg === undefined || bArg === undefined) {
         return null;
     }
     const r = literalNonNegInt(rArg.value);
     const g = literalNonNegInt(gArg.value);
     const b = literalNonNegInt(bArg.value);
+    if (transpArg === undefined) {
+        if (r !== null && g !== null && b !== null) {
+            return JSON.stringify(`#${byteHex(r)}${byteHex(g)}${byteHex(b)}`);
+        }
+        return null;
+    }
     const transp = literalNonNegInt(transpArg.value);
     if (r !== null && g !== null && b !== null && transp !== null) {
         return JSON.stringify(
@@ -246,6 +287,42 @@ function convertColorRgb(call: CallExpression, emit: ColorEmit): string | null {
     }
     const base = `color.rgb(${emit(rArg.value)}, ${emit(gArg.value)}, ${emit(bArg.value)})`;
     return `color.withAlpha(${base}, ${alphaSource(transpArg.value, emit)})`;
+}
+
+function literalColorNewDefault(call: CallExpression): string | null {
+    const baseArg = call.args[0];
+    const transpArg = call.args[1];
+    if (baseArg === undefined || transpArg === undefined) {
+        return null;
+    }
+    const base = baseHex(baseArg.value);
+    const transp = literalNonNegInt(transpArg.value);
+    return base === null || transp === null
+        ? null
+        : JSON.stringify(`${base}${transpToAlphaHex(transp)}`);
+}
+
+function literalColorRgbDefault(call: CallExpression): string | null {
+    const rArg = call.args[0];
+    const gArg = call.args[1];
+    const bArg = call.args[2];
+    if (rArg === undefined || gArg === undefined || bArg === undefined) {
+        return null;
+    }
+    const r = literalNonNegInt(rArg.value);
+    const g = literalNonNegInt(gArg.value);
+    const b = literalNonNegInt(bArg.value);
+    if (r === null || g === null || b === null) {
+        return null;
+    }
+    const transpArg = call.args[3];
+    if (transpArg === undefined) {
+        return JSON.stringify(`#${byteHex(r)}${byteHex(g)}${byteHex(b)}`);
+    }
+    const transp = literalNonNegInt(transpArg.value);
+    return transp === null
+        ? null
+        : JSON.stringify(`#${byteHex(r)}${byteHex(g)}${byteHex(b)}${transpToAlphaHex(transp)}`);
 }
 
 // The `color.withAlpha` base source: a compile-time-known `#RRGGBB` base folds

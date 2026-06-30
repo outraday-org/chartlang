@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/request-security-not-mapped",
+        "severity": "error",
+        "message": "This `request.security(...)` shape is outside the v1 single-symbol intraday MTF subset.",
+        "span": {
+            "startLine": 4,
+            "startColumn": 12,
+            "endLine": 4,
+            "endColumn": 44
+        },
+        "suggestion": "Use `request.security(syminfo.tickerid, \"<timeframe>\", <ohlcv>)` with a string-literal timeframe."
+    }
+]

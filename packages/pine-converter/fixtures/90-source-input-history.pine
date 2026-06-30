@@ -1,0 +1,6 @@
+//@version=6
+indicator("source input series history")
+src = input.source(close, "Source")
+delta = src - src[1]
+plot(ta.sma(src, 14))
+plot(delta)

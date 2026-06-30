@@ -50,6 +50,14 @@ export function isRequestSecurityCall(call: CallExpression): boolean {
     return isRequestSecurity(call);
 }
 
+// A REJECTED `request.security` (out-of-subset symbol/timeframe, missing args)
+// emits this safe placeholder instead of the verbatim broken call, so the rest
+// of the file still type-checks; the loud `request-security-not-mapped` error
+// already flags the feed as unconvertible. `request.security` is series-qualified
+// (`qualifiers.ts`), so a history-indexed rejected feed (`earnings[1]`) is
+// slot-backed by the promotion pass and `<slot>[n]` still type-checks.
+const REJECTED_SECURITY_PLACEHOLDER = "Number.NaN /* unsupported request.security feed */";
+
 /**
  * Lower an MTF `request.security(<symbol>, "<timeframe>", <source>)` call. The
  * symbol arg decides the opts: `syminfo.tickerid` reads the chart's own symbol
@@ -60,9 +68,10 @@ export function isRequestSecurityCall(call: CallExpression): boolean {
  * compiler resolves it through the default). A present (cross-symbol) feed
  * pushes an info `request-security-different-symbol` so downstream tooling still
  * sees the cross-symbol read; any other symbol expression (a computed ticker, a
- * non-input identifier) is un-mappable and pushes `request-security-not-mapped`
- * returning `null`. The timeframe arg resolves the same three ways (literal /
- * empty `""` chart timeframe / `input.timeframe`-bound `inputs.<name>` ref).
+ * non-input identifier) is un-mappable and pushes `request-security-not-mapped`,
+ * emitting a safe `Number.NaN` PLACEHOLDER (not the verbatim broken call) so the
+ * rest of the file still type-checks. The timeframe arg resolves the same three
+ * ways (literal / empty `""` chart timeframe / `input.timeframe`-bound `inputs.<name>` ref).
  *
  * A bare OHLCV source lowers to the chartlang **data** form
  * `request.security(<opts>).<field>` (a `Series`); a `ta.*` / expression
@@ -73,8 +82,9 @@ export function isRequestSecurityCall(call: CallExpression): boolean {
  * A `lookahead` named arg pushes `request-security-lookahead-not-supported`; a
  * `gaps` named arg pushes the info `request-security-gaps-dropped` once per
  * script (chartlang feeds are gap-filled by default). An out-of-subset shape
- * (computed timeframe,
- * missing args) pushes `request-security-not-mapped` and returns `null`.
+ * (computed timeframe, missing args) pushes `request-security-not-mapped` and
+ * returns the `Number.NaN` placeholder. `null` is returned ONLY when `call` is
+ * not a `request.security` call at all (the caller then emits it generically).
  *
  * `callbackEmit`, when supplied (by the `other.ts` caller that holds the `Walk`),
  * builds the EXPRESSION-source callback body — it inline-expands stateful UDFs
@@ -142,7 +152,7 @@ export function emitRequestSecurity(
     const source = positional[2];
     if (symbol === undefined || timeframe === undefined || source === undefined) {
         diagnostics.pushCode("request-security-not-mapped", call.span);
-        return null;
+        return REJECTED_SECURITY_PLACEHOLDER;
     }
     // Resolve the symbol + timeframe into the opts via the shared resolver:
     // `syminfo.tickerid` → `symbol: null` (omit `symbol`, byte-identical to the
@@ -154,7 +164,7 @@ export function emitRequestSecurity(
     const feed = resolveSecurityFeed(symbol, timeframe, ctx.securityFeedInputs ?? new Map());
     if (feed === null) {
         diagnostics.pushCode("request-security-not-mapped", call.span);
-        return null;
+        return REJECTED_SECURITY_PLACEHOLDER;
     }
     if (feed.symbol !== null) {
         // A mappable cross-symbol read — emit the info so downstream tooling

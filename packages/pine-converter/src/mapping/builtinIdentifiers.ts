@@ -4,11 +4,12 @@
 /**
  * Pine built-in identifier → chartlang expression fragment. Maps the OHLCV
  * series, the synthetic-price aggregates, `time`, `bar_index`, and the bare
- * calendar reads (`dayofweek` / `time_close`) to their chartlang `bar.*` /
- * `time.*` / helper-call forms, plus the two `xloc.*` string sentinels the
- * coordinate resolver keys on. Bare `dayofweek` / `time_close` lower to the
- * no-arg accessor call (`time.dayofweek(bar.time)` /
- * `time.timeClose(bar.time)`); their explicit CALL forms are intercepted
+ * calendar reads (`dayofweek` / `time_close` / `timenow`) to their chartlang
+ * `bar.*` / `time.*` / helper-call forms, plus the two `xloc.*` string
+ * sentinels the coordinate resolver keys on. Bare `dayofweek` / `time_close`
+ * lower to the no-arg accessor call (`time.dayofweek(bar.time)` /
+ * `time.timeClose(bar.time)`); `timenow` lowers to the host-clock accessor
+ * (`time.now()`). Explicit CALL forms are intercepted
  * earlier by `BUILTIN_CALL_MAP` ({@link lowerBuiltinCall}) so they never
  * compose with these value fragments.
  *
@@ -47,6 +48,7 @@ export const BUILTIN_IDENTIFIER_MAP: ReadonlyMap<string, string> = new Map<strin
     // `BUILTIN_CALL_MAP` so they never compose with these value fragments.
     ["dayofweek", "time.dayofweek(bar.time)"],
     ["time_close", "time.timeClose(bar.time)"],
+    ["timenow", "time.now()"],
     ["bar_index", "__barIndexBridge()"],
     // String sentinels the coordinate resolver reads when an `xloc` argument
     // resolves to one of these built-ins; they never reach output verbatim.
@@ -69,4 +71,30 @@ export const BUILTIN_IDENTIFIER_MAP: ReadonlyMap<string, string> = new Map<strin
  */
 export function remapIdentifier(name: string): string | null {
     return BUILTIN_IDENTIFIER_MAP.get(name) ?? null;
+}
+
+// Pine `syminfo.<member>` → the chartlang `SymInfoView` field name when they
+// differ. Pine's `syminfo.prefix` (the chart symbol's exchange prefix, e.g.
+// `"NASDAQ"`) is chartlang's `syminfo.exchange`. Members that match by name
+// (`ticker`/`type`/`mintick`/`currency`/`basecurrency`/`timezone`/`session`) are
+// absent — they pass through verbatim. A member with no chartlang analogue
+// (`description`/`pointvalue`/`root`/…) is also absent and left verbatim (a
+// best-effort residual, like any other unmodelled builtin field).
+const SYMINFO_MEMBER_MAP: ReadonlyMap<string, string> = new Map<string, string>([
+    ["prefix", "exchange"],
+]);
+
+/**
+ * Resolve a Pine `syminfo.<member>` access to its chartlang `SymInfoView`
+ * field, or `null` when the member name already matches (or has no analogue).
+ *
+ * @since 0.5
+ * @stable
+ * @example
+ *     import { remapSyminfoMember } from "./builtinIdentifiers.js";
+ *     remapSyminfoMember("prefix"); // "exchange"
+ *     remapSyminfoMember("ticker"); // null
+ */
+export function remapSyminfoMember(member: string): string | null {
+    return SYMINFO_MEMBER_MAP.get(member) ?? null;
 }

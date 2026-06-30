@@ -12,6 +12,29 @@ import { parseVersionDirective } from "./declarations.js";
 const SPAN: SourceSpan = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 13 };
 
 describe("parseVersionDirective", () => {
+    it("branches diagnostics by supported version", () => {
+        const cases = [
+            {
+                source: "//@version=6\nindicator()\n",
+                expected: [],
+            },
+            {
+                source: "//@version=5\nindicator()\n",
+                expected: ["pine-converter/parse/pine-version-downlevel"],
+            },
+            {
+                source: "//@version=4\nindicator()\n",
+                expected: ["pine-converter/parse/unsupported-pine-version"],
+            },
+        ] as const;
+
+        for (const { source, expected } of cases) {
+            const ctx = createContext(lex(source).tokens);
+            parseVersionDirective(ctx);
+            expect(ctx.diagnostics.map((d) => d.code)).toEqual(expected);
+        }
+    });
+
     it("tolerates leading comment and blank lines before the directive", () => {
         const ctx = createContext(
             lex("// license\n// credit\n\n//@version=6\nindicator()\n").tokens,

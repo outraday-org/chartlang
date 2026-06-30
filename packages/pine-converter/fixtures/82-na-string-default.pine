@@ -1,0 +1,7 @@
+//@version=6
+indicator("na string default")
+var string msg = na
+if close > open
+    msg := "up"
+alert(msg)
+plot(close)

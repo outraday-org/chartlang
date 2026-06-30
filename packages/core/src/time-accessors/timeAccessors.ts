@@ -144,6 +144,21 @@ export const time = Object.freeze({
     },
 
     /**
+     * Host-injected wall-clock time as a UTC ms epoch. The runtime reads the
+     * active mount's `now` provider at call time; unlike the calendar accessors
+     * this is intentionally not a deterministic function of bar data.
+     *
+     * @since 1.7
+     * @stable
+     * @example
+     *     const fn: typeof time.now = time.now;
+     *     void fn;
+     */
+    now(): Time {
+        return sentinel("time.now");
+    },
+
+    /**
      * Close timestamp of the bar that starts at `t` — Pine's no-arg
      * `time_close()`. Equals `t + interval`, where the interval is the active
      * bar's `timeframe.inSeconds` the runtime reads internally (so this mirrors

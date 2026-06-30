@@ -1,0 +1,6 @@
+//@version=6
+indicator("rejected request.security placeholder")
+sym = "ESD:" + syminfo.ticker
+earnings = request.security(sym, "D", open)
+changed = earnings != earnings[1]
+plot(changed ? 1 : 0)

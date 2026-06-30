@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/parse/pine-version-downlevel",
+        "severity": "warning",
+        "message": "Pine v5 is converted on a best-effort basis through the v6 subset; un-modelled v5/v6 semantic differences may not be reflected.",
+        "span": {
+            "startLine": 1,
+            "startColumn": 1,
+            "endLine": 1,
+            "endColumn": 13
+        },
+        "suggestion": "Review the converted output, or migrate the source to `//@version=6`."
+    }
+]

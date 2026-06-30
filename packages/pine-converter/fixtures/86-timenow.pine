@@ -1,0 +1,4 @@
+//@version=6
+indicator("timenow")
+ms_left = time_close - timenow
+plot(ms_left)

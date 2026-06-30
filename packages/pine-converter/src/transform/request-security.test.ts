@@ -96,7 +96,7 @@ describe("emitRequestSecurity", () => {
 
     it("rejects a computed (non-literal) symbol as request-security-not-mapped", () => {
         const { source, codes } = emit('request.security(sym, "D", close)');
-        expect(source).toBeNull();
+        expect(source).toBe("Number.NaN /* unsupported request.security feed */");
         expect(codes).toContain("pine-converter/transform/request-security-not-mapped");
         expect(codes).not.toContain("pine-converter/transform/request-security-different-symbol");
     });
@@ -124,19 +124,19 @@ describe("emitRequestSecurity", () => {
 
     it("rejects a non-string-literal timeframe", () => {
         const { source, codes } = emit("request.security(syminfo.tickerid, tf, close)");
-        expect(source).toBeNull();
+        expect(source).toBe("Number.NaN /* unsupported request.security feed */");
         expect(codes).toContain("pine-converter/transform/request-security-not-mapped");
     });
 
     it("rejects an out-of-table timeframe", () => {
         const { source, codes } = emit('request.security(syminfo.tickerid, "13Z", close)');
-        expect(source).toBeNull();
+        expect(source).toBe("Number.NaN /* unsupported request.security feed */");
         expect(codes).toContain("pine-converter/transform/request-security-not-mapped");
     });
 
     it("rejects a call missing positional args", () => {
         const { source, codes } = emit("request.security(syminfo.tickerid)");
-        expect(source).toBeNull();
+        expect(source).toBe("Number.NaN /* unsupported request.security feed */");
         expect(codes).toContain("pine-converter/transform/request-security-not-mapped");
     });
 
@@ -201,7 +201,7 @@ describe("emitRequestSecurity", () => {
 
     it("rejects an input-bound symbol whose input is missing from the feed map", () => {
         const { source, codes } = emitWith("request.security(sym, period, close)", new Map());
-        expect(source).toBeNull();
+        expect(source).toBe("Number.NaN /* unsupported request.security feed */");
         expect(codes).toContain("pine-converter/transform/request-security-not-mapped");
     });
 });

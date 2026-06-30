@@ -6,11 +6,11 @@ import { describe, expect, it } from "vitest";
 import { createProgramForSource } from "../program.js";
 import { runForbiddenConstructs } from "./forbiddenConstructs.js";
 
-function run(source: string) {
+function run(source: string, inputLoopBounds: ReadonlyMap<string, number | null> = new Map()) {
     const { sourceFile } = createProgramForSource(source, {
         sourcePath: "demo.chart.ts",
     });
-    return runForbiddenConstructs(sourceFile, "demo.chart.ts");
+    return runForbiddenConstructs(sourceFile, "demo.chart.ts", inputLoopBounds);
 }
 
 describe("runForbiddenConstructs", () => {
@@ -29,6 +29,19 @@ let sum = 0;
 for (let i = 5; i > 0; i--) { sum = sum + i; }
 void sum;
 `);
+        expect(result).toHaveLength(0);
+    });
+
+    it("accepts an integer input-bound `for` loop", () => {
+        const result = run(
+            `
+declare const inputs: Record<string, unknown>;
+let sum = 0;
+for (let i = 0; i <= (inputs.tol as number); i++) { sum = sum + i; }
+void sum;
+`,
+            new Map([["tol", 20]]),
+        );
         expect(result).toHaveLength(0);
     });
 

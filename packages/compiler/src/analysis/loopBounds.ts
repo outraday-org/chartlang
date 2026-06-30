@@ -42,9 +42,27 @@ export type BoundedForLoop = Readonly<{
     start: number;
     /** The comparison operator token used in the condition. */
     op: ts.SyntaxKind;
-    /** The literal right-hand bound (`… i <op> <limit>; …`). */
-    limit: number;
+    /**
+     * The static right-hand upper bound. `null` means the loop is bounded by a
+     * recognised integer input that has no declared `max`, so lookback sizing
+     * must use the existing dynamic fallback.
+     */
+    limit: number | null;
+    /** The input name when the condition is bounded by `inputs.<name>`. */
+    inputName?: string;
 }>;
+
+/**
+ * Static loop upper bounds for integer inputs, keyed by `inputs.<name>`.
+ * `null` means the input is recognised but has no declared `max`.
+ *
+ * @since 1.8
+ * @stable
+ * @example
+ *     const bounds: InputLoopBounds = new Map([["length", 20]]);
+ *     void bounds;
+ */
+export type InputLoopBounds = ReadonlyMap<string, number | null>;
 
 /**
  * Parse a `ts.ForStatement` into its `BoundedForLoop` shape, or `null`
@@ -64,7 +82,10 @@ export type BoundedForLoop = Readonly<{
  *     const fn: typeof parseBoundedForLoop = parseBoundedForLoop;
  *     void fn;
  */
-export function parseBoundedForLoop(node: ts.ForStatement): BoundedForLoop | null {
+export function parseBoundedForLoop(
+    node: ts.ForStatement,
+    inputLoopBounds: InputLoopBounds = new Map(),
+): BoundedForLoop | null {
     const init = parseLoopInit(node);
     if (init === null) return null;
     const condition = node.condition;
@@ -72,17 +93,19 @@ export function parseBoundedForLoop(node: ts.ForStatement): BoundedForLoop | nul
     if (!condition || !incrementor) return null;
     if (!ts.isBinaryExpression(condition)) return null;
     if (!COMPARISON_OPS.has(condition.operatorToken.kind)) return null;
-    if (!ts.isNumericLiteral(condition.right)) return null;
     if (!ts.isIdentifier(condition.left)) return null;
     if (condition.left.text !== init.varId.text) return null;
     if (!ts.isPostfixUnaryExpression(incrementor)) return null;
     if (!ts.isIdentifier(incrementor.operand)) return null;
     if (incrementor.operand.text !== init.varId.text) return null;
+    const limit = parseLoopLimit(condition.right, inputLoopBounds);
+    if (limit === null) return null;
     return {
         varName: init.varId.text,
         start: Number(init.start.text),
         op: condition.operatorToken.kind,
-        limit: Number(condition.right.text),
+        limit: limit.value,
+        ...(limit.inputName === undefined ? {} : { inputName: limit.inputName }),
     };
 }
 
@@ -125,6 +148,23 @@ function parseLoopInit(
     return { varId: declaration.name, start };
 }
 
+function parseLoopLimit(
+    node: ts.Expression,
+    inputLoopBounds: InputLoopBounds,
+): Readonly<{ value: number | null; inputName?: string }> | null {
+    const inner = unwrapExpressionShell(node);
+    if (ts.isNumericLiteral(inner)) return { value: Number(inner.text) };
+    const inputName = readInputsAccessName(inner);
+    if (inputName === null || !inputLoopBounds.has(inputName)) return null;
+    return { value: inputLoopBounds.get(inputName) ?? null, inputName };
+}
+
+function readInputsAccessName(node: ts.Expression): string | null {
+    if (!ts.isPropertyAccessExpression(node)) return null;
+    if (!ts.isIdentifier(node.expression) || node.expression.text !== "inputs") return null;
+    return node.name.text;
+}
+
 /**
  * Unwrap any number of nested parentheses around an expression. The Pine
  * converter emits a historical bar offset as the parenthesised form
@@ -145,5 +185,13 @@ function parseLoopInit(
 export function unwrapParens(node: ts.Expression): ts.Expression {
     let current = node;
     while (ts.isParenthesizedExpression(current)) current = current.expression;
+    return current;
+}
+
+function unwrapExpressionShell(node: ts.Expression): ts.Expression {
+    let current = node;
+    while (ts.isParenthesizedExpression(current) || ts.isAsExpression(current)) {
+        current = current.expression;
+    }
     return current;
 }

@@ -170,12 +170,14 @@
   `src/time-accessors/` (deliberately separate from the host-only `Intl` folder
   `src/time/`, which stays unexported). Each accessor is a pure function of an
   explicit `Time` + optional `tz` (default `syminfo.timezone`, fallback
-  `"UTC"`); `time.dayofweek` follows Pine's `1=Sun..7=Sat` (not ISO). Their
-  registry entries are `slot: false` like `ta.nz` — no callsite-id injection,
-  but still flagged by `stateful-call-inside-loop`. `time.timeClose(t, tz?)`
-  (Pine's no-arg `time_close()`) is the one accessor that closes over per-bar
-  mount data: it returns `t + timeframe.inSeconds` (the runtime reads the
-  current bar's interval internally). The `program.ts` shim mirrors both
+  `"UTC"`); `time.dayofweek` follows Pine's `1=Sun..7=Sat` (not ISO). The
+  one exception is `time.now()`: it returns the host-injected wall clock and
+  is intentionally excluded from snapshots/goldens unless a test injects a
+  fixed clock. Their registry entries are `slot: false` like `ta.nz` — no
+  callsite-id injection, but still flagged by `stateful-call-inside-loop`.
+  `time.timeClose(t, tz?)` (Pine's no-arg `time_close()`) closes over
+  per-bar mount data: it returns `t + timeframe.inSeconds` (the runtime reads
+  the current bar's interval internally). The `program.ts` shim mirrors both
   namespaces in lockstep.
 
 - **`STATEFUL_PRIMITIVES` is additive within `apiVersion: 1`.** Appending an

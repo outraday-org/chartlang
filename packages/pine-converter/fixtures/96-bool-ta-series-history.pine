@@ -1,0 +1,4 @@
+//@version=6
+indicator("boolean ta-series history")
+x = ta.crossover(close, open)
+plot(x[1] ? 1 : 0)

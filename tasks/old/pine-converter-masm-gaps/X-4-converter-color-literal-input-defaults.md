@@ -29,7 +29,7 @@ clr_yellow = input.color(color.yellow, "Yellow", inline="2")
 The input-default literal check rejects both:
 
 ```ts
-// src/transform/inputs.ts (~line 81)
+// src/transform/inputs.ts (~line 90)
 function literalDefault(node): string | null {
     if (node.kind === "literal-expression") { /* hex/number/string/bool */ }
     if (node.kind === "unary-expression" && /* ± numeric */) { ... }
@@ -88,9 +88,18 @@ Keep the existing literal/unary branches unchanged.
 
 ### 2. Named-color resolution
 
-Resolve `color.<name>` against the same palette source the rest of the
-converter uses (verify there is a single named-color table; reuse it).
-Unknown names → `null`.
+Resolve `color.<name>` against the **converter's own** named-color table:
+`ENUM_VALUE_MAP` in `src/mapping/enums.ts` (e.g.
+`entry("color.yellow", "#FFEB3B")`, `color.gray → "#787B86"`), looked up
+via `enumLookup`. This is already what `baseHex` (`colorConvert.ts:13`)
+uses, so if you fold through `baseHex` / the `colorConvert.ts` helpers
+(§1) named-color resolution comes for free — do **not** reimplement it.
+⚠️ Do NOT resolve against core's `COLOR_PALETTE`
+(`packages/core/src/color/index.ts`): its hex values deliberately differ
+from the converter's TradingView palette (core `gray = #808080`,
+converter `gray = #787B86`), so using core here would emit wrong colors
+and diverge from the existing plot/hline/table color fixtures. Unknown
+names → `null`.
 
 ### 3. Golden fixture
 

@@ -21,7 +21,7 @@ None.
 MASM line 591: `string alert_msg = na`, later `alert_msg := '{...}'`
 and finally `alert(alert_msg, alert.freq_all)`.
 
-`na` lowering lives in `src/transform/exprEmit.ts` (`emitNa`, ~line 55):
+`na` lowering lives in `src/transform/exprEmit.ts` (`emitNa`, ~line 60):
 
 ```ts
 function emitNa(node, annotations): string {
@@ -33,11 +33,11 @@ function emitNa(node, annotations): string {
 ```
 
 The declaration-site type annotation is chosen in
-`src/transform/other.ts` (~line 1805), which **short-circuits before
+`src/transform/other.ts` (~line 1776), which **short-circuits before
 `emitNa`** for a `var`/`na` declaration:
 
 ```ts
-// other.ts ~1805
+// other.ts ~1776
 if (stmt.initializer.kind === "na-expression") {
     const element = scalarElementType(stmt);
     if (element === "string" || element === "bool") {
@@ -69,7 +69,7 @@ compiles. Numeric `na` (`Number.NaN`), handle `na` (`null`), and color
 
 ### 1. Emit `""` for string-typed `na`
 
-The type information lives at the declaration site (`other.ts` ~1805),
+The type information lives at the declaration site (`other.ts` ~1776),
 which already branches on `scalarElementType(stmt)` (`string` vs `bool`)
 and short-circuits before `emitNa`. Change **only the `string` arm** of
 that branch so a string-typed binding initialised to `na` emits:
@@ -79,9 +79,9 @@ return [`let ${stmt.name} = "";`];   // string only
 ```
 
 i.e. a plain `string` (no `| null`) seeded with `""`. The `emitNa`
-numeric fallback (`exprEmit.ts:55`) is **not** on the var-declaration
+numeric fallback (`exprEmit.ts:60`) is **not** on the var-declaration
 path and needs no change; leave it for inline `na` expressions
-(`Number.NaN`). Make the **single** change at `other.ts:1805`; do not
+(`Number.NaN`). Make the **single** change at `other.ts:1776`; do not
 also touch `emitNa`.
 
 ### 2. Bool `na` (sanity check, no scope creep)
@@ -124,7 +124,7 @@ binding emits `""` and that a numeric `var = na` still emits
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `src/transform/other.ts` | Modify | String `na` decl arm → `let x = ""` (`~line 1805`, string arm only) |
+| `src/transform/other.ts` | Modify | String `na` decl arm → `let x = ""` (`~line 1776`, string arm only) |
 | `src/transform/other.test.ts` | Modify | Coverage (string `""`; numeric/bool unchanged) |
 | `fixtures/NN-na-string-default.{pine,expected.chart.ts,expected.diagnostics.json}` | Create | Golden trio (must compile) |
 | `src/tests/golden.test.ts` | Modify | Bump fixture count assertion |

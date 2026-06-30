@@ -21,6 +21,7 @@ describe("time callable holes", () => {
         expect(() => time.timestamp(2024, 1, 2)).toThrow(
             "time.timestamp called outside an active script step",
         );
+        expect(() => time.now()).toThrow("time.now called outside an active script step");
         expect(() => time.timeClose(0)).toThrow(
             "time.timeClose called outside an active script step",
         );

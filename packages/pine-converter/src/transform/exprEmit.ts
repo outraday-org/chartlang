@@ -2,8 +2,15 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { ExpressionNode, HistoryAccessExpression, SwitchExpression } from "../ast/index.js";
-import { PINE_NA_COLOR, lowerBuiltinCall, remapIdentifier } from "../mapping/index.js";
+import {
+    PINE_NA_COLOR,
+    lowerBuiltinCall,
+    remapIdentifier,
+    remapSyminfoMember,
+} from "../mapping/index.js";
 import type { AstNode, EnumTypeInfo, SemanticAnnotation } from "../semantic/index.js";
+import { dottedCallee } from "./callArgs.js";
+import { convertColorWith } from "./colorConvert.js";
 import { resolveEnumMemberValue } from "./enumMembers.js";
 
 /**
@@ -210,6 +217,16 @@ export function emitExpr(
                 }
             }
             const emittedArgs = node.args.map((arg) => emitExpr(arg.value, annotations, enumTypes));
+            const genericCall = (): string => {
+                const callee = emitExpr(node.callee, annotations, enumTypes);
+                return `${callee}(${emittedArgs.join(", ")})`;
+            };
+            const calleeName = dottedCallee(node);
+            if (calleeName === "color.new" || calleeName === "color.rgb") {
+                return convertColorWith(node, (sub) =>
+                    sub === node ? genericCall() : emitExpr(sub, annotations, enumTypes),
+                );
+            }
             // A bare-rooted calendar built-in call (`time()`, `time_close()`,
             // `dayofweek(t)`) lowers via the call-form table BEFORE the generic
             // path — its callee would otherwise remap as a value fragment
@@ -230,14 +247,21 @@ export function emitExpr(
                     return `math.nz(${emittedArgs.join(", ")})`;
                 }
             }
-            const callee = emitExpr(node.callee, annotations, enumTypes);
-            return `${callee}(${emittedArgs.join(", ")})`;
+            return genericCall();
         }
         case "member-access-expression": {
             if (enumTypes !== undefined) {
                 const value = resolveEnumMemberValue(node, enumTypes);
                 if (value !== null) {
                     return JSON.stringify(value);
+                }
+            }
+            // Remap a `syminfo.<member>` whose chartlang field name differs
+            // (`syminfo.prefix` → `syminfo.exchange`).
+            if (node.head === null && node.chain.length === 2 && node.chain[0] === "syminfo") {
+                const mapped = remapSyminfoMember(node.chain[1]);
+                if (mapped !== null) {
+                    return `syminfo.${mapped}`;
                 }
             }
             return emitMemberChain(

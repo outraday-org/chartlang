@@ -92,6 +92,26 @@ Reuse the existing diagnostic key — do not add a new code. Confirm it
 fires once per free-expression approximation, consistent with the
 plot-arg behavior.
 
+**Constraint — `emitExpr` cannot push diagnostics directly.** Per
+`packages/pine-converter/CLAUDE.md`, `emitExpr` (`exprEmit.ts`) is a
+**pure function not threaded the `DiagnosticCollector`** — this is why
+`nz`'s advisory (`nz-scalar-assumed`) is raised at the **top-level
+`emitSpecialCall` site (`other.ts`)** where the collector is in scope,
+not inside `emitExpr`. A free-expression `color.new(...)` can appear
+nested deep in a ternary / assignment RHS, so you cannot raise
+`color-transp-approximated` from the `emitExpr` hook the way the
+plot/table sites (which hold the collector) do. Surface it via one of:
+(a) the top-level `emitSpecialCall` / `transformOther` site that already
+has the collector (the `nz-scalar-assumed` precedent), or (b) an
+optional structural sink threaded into the emit context (the
+`EmitContext.arrayWarn` / `mapWarn` precedent in CLAUDE.md). Do **not**
+assume `emitExpr` can call `ctx.addDiagnostic`. Pick the
+smaller-blast-radius mechanism and note it in the PR. If surfacing the
+diagnostic from the pure path proves disproportionately invasive, it is
+acceptable to defer the free-expression `color-transp-approximated`
+emission (the alpha is still preserved — the diagnostic is info-only)
+and document the deferral; the lowering itself must still land.
+
 ### 4. Golden fixtures + full corpus check
 
 Add the next-numbered fixture trio:

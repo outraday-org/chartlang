@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 
 import type { DiagnosticSeverity, SourceSpan } from "../index.js";
 import {
-    DIAGNOSTIC_CODE_ENTRIES,
     DIAGNOSTIC_CODES,
+    DIAGNOSTIC_CODE_ENTRIES,
     type ParserDiagnosticCode,
     makeDiagnostic,
 } from "./codes.js";
@@ -45,6 +45,7 @@ describe("DIAGNOSTIC_CODE_ENTRIES", () => {
     it("pins the per-task severities that downstream tooling depends on", () => {
         const expected: ReadonlyArray<readonly [ParserDiagnosticCode, DiagnosticSeverity]> = [
             ["unsupported-strategy", "error"],
+            ["pine-version-downlevel", "warning"],
             ["accidental-shadowing", "warning"],
             ["dynamic-handle-collection", "info"],
             ["cap-mismatch", "info"],

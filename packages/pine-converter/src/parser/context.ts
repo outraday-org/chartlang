@@ -3,7 +3,7 @@
 
 import type { Diagnostic } from "../index.js";
 import type { Token } from "../lexer/index.js";
-import { createCursor, type TokenCursor } from "./cursor.js";
+import { type TokenCursor, createCursor } from "./cursor.js";
 
 /**
  * Mutable parsing context threaded through the declaration and statement

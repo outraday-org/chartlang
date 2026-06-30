@@ -4,9 +4,9 @@
 import type { ComputeContext } from "@invinite-org/chartlang-core";
 
 import type { RunnerState } from "./createScriptRunner.js";
-import { alert, barcolor, bgcolor, draw, hline, plot, ta } from "./primitives.js";
 import { emitAlertCondition } from "./emit/alertConditionEmission.js";
 import { buildRuntimeNamespace } from "./emit/logEmission.js";
+import { alert, barcolor, bgcolor, draw, hline, plot, ta } from "./primitives.js";
 import { buildRequestNamespace } from "./request/index.js";
 import { buildStateNamespace } from "./state/index.js";
 import { buildSessionNamespace, buildTimeNamespace } from "./time-accessors/index.js";
@@ -43,7 +43,7 @@ export function buildComputeContext(state: RunnerState): ComputeContext {
         barstate: state.runtimeContext.views.barstate,
         syminfo: state.runtimeContext.views.syminfo,
         timeframe: state.runtimeContext.views.timeframe,
-        time: buildTimeNamespace(state.runtimeContext),
+        time: buildTimeNamespace(state.runtimeContext, state.now),
         session: buildSessionNamespace(state.runtimeContext),
         request: buildRequestNamespace(),
         runtime: buildRuntimeNamespace(state.runtimeContext),

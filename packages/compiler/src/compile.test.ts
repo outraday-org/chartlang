@@ -411,8 +411,8 @@ export default defineIndicator({
         // ComputeContext (Tasks 2/4), so the shim must mirror core's
         // `TimeNamespace` / `SessionNamespace` in lockstep. `transformAndAnalyse`
         // (analysis-only) does not type-check, so this guard — proving the
-        // shim's signatures match core, including the optional `tz` arg and
-        // `time.timeClose` — must go through `compile`. A successful return
+        // shim's signatures match core, including the optional `tz` arg,
+        // `time.timeClose`, and `time.now` — must go through `compile`. A successful return
         // already proves zero type diagnostics.
         const CALENDAR = `
 import { defineIndicator, session, syminfo, time } from "@invinite-org/chartlang-core";
@@ -423,8 +423,9 @@ export default defineIndicator({
         const dow = time.dayofweek(bar.time);
         const hh = time.hour(bar.time, syminfo.timezone);
         const close = time.timeClose(bar.time);
+        const live = time.now();
         const open = session.isOpen(bar.time, "0930-1600");
-        plot(open && dow >= 2 ? bar.close + hh + close : Number.NaN);
+        plot(open && dow >= 2 ? bar.close + hh + close + live : Number.NaN);
     },
 });
 `;

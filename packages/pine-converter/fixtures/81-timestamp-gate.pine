@@ -1,0 +1,4 @@
+//@version=6
+indicator("timestamp gate")
+in_window = time >= timestamp(2019, 1, 1, 0, 0) and time < timestamp(2027, 1, 1, 0, 0)
+plot(in_window ? close : na)

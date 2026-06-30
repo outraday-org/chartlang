@@ -56,11 +56,16 @@ describe("collectSecurityFeedInputs", () => {
         return collectSecurityFeedInputs(parseStatements(lex(src).tokens).script);
     }
 
-    it("classifies input.symbol (assignment) and input.timeframe (typed decl)", () => {
+    it("classifies input.symbol, input.string, and input.timeframe feed axes", () => {
         const sources = collect(
-            'sym = input.symbol("NASDAQ:QQQ")\nstring tf = input.timeframe("D")',
+            [
+                'sym = input.symbol("NASDAQ:QQQ")',
+                'dropdown = input.string("AMEX:SPY", options=["AMEX:SPY", "NASDAQ:QQQ"])',
+                'string tf = input.timeframe("D")',
+            ].join("\n"),
         );
         expect(sources.get("sym")).toBe("symbol");
+        expect(sources.get("dropdown")).toBe("symbol");
         expect(sources.get("tf")).toBe("interval");
     });
 
@@ -100,6 +105,23 @@ describe("resolveSecurityFeed", () => {
         });
     });
 
+    it("resolves input.string-bound dropdown symbols to inputs.<name> refs", () => {
+        const [symbol, tf] = args('request.security(sym, "D", close)');
+        const inputs: SecurityFeedInputs = new Map([["sym", "symbol"]]);
+        expect(resolveSecurityFeed(symbol, tf, inputs)).toEqual({
+            symbol: "inputs.sym as string",
+            interval: '"1d"',
+        });
+    });
+
+    it("folds a string-literal concat symbol to a single emit literal", () => {
+        const [symbol, tf] = args('request.security("ESD:" + "AAPL" + ";EARNINGS", "D", open)');
+        expect(resolveSecurityFeed(symbol, tf, NO_INPUTS)).toEqual({
+            symbol: '"ESD:AAPL;EARNINGS"',
+            interval: '"1d"',
+        });
+    });
+
     it("resolves an empty literal timeframe to the chart timeframe", () => {
         const [symbol, tf] = args('request.security(syminfo.tickerid, "", close)');
         expect(resolveSecurityFeed(symbol, tf, NO_INPUTS)).toEqual({
@@ -117,6 +139,16 @@ describe("resolveSecurityFeed", () => {
         const [symbol, tf] = args('request.security(period, "D", close)');
         const inputs: SecurityFeedInputs = new Map([["period", "interval"]]);
         expect(resolveSecurityFeed(symbol, tf, inputs)).toBeNull();
+    });
+
+    it("rejects non-literal string concat symbols", () => {
+        const [symbol, tf] = args('request.security(prefix + ";EARNINGS", "D", close)');
+        expect(resolveSecurityFeed(symbol, tf, NO_INPUTS)).toBeNull();
+    });
+
+    it("rejects non-plus binary expressions as symbols", () => {
+        const [symbol, tf] = args('request.security("NASDAQ:AAPL" == sym, "D", close)');
+        expect(resolveSecurityFeed(symbol, tf, NO_INPUTS)).toBeNull();
     });
 
     it("rejects a computed (non-input) timeframe", () => {

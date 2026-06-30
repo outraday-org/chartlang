@@ -1191,6 +1191,7 @@ declare module "@invinite-org/chartlang-core" {
             second?: number,
             tz?: string,
         ): Time;
+        now(): Time;
         timeClose(t: Time, tz?: string): Time;
     }>;
     export const time: TimeNamespace;

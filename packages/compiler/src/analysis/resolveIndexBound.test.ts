@@ -12,7 +12,10 @@ import { collectConstNumberEnv, resolveIndexUpperBound } from "./resolveIndexBou
  * source, building the lexical `const` environment at that use site (the
  * same wiring `extractMaxLookback` uses). `e` is a `declare`d series.
  */
-function resolveFirstIndex(body: string): number | null {
+function resolveFirstIndex(
+    body: string,
+    inputLoopBounds: ReadonlyMap<string, number | null> = new Map(),
+): number | null {
     const source = `
 declare const e: import("@invinite-org/chartlang-core").Series<number>;
 ${body}
@@ -33,7 +36,7 @@ ${body}
     if (!access) throw new Error("no element-access in source");
     const argument = access.argumentExpression;
     const constEnv = collectConstNumberEnv(argument, sourceFile);
-    return resolveIndexUpperBound(argument, access, { constEnv, checker });
+    return resolveIndexUpperBound(argument, access, { constEnv, checker, inputLoopBounds });
 }
 
 describe("resolveIndexUpperBound", () => {
@@ -55,6 +58,24 @@ describe("resolveIndexUpperBound", () => {
         expect(resolveFirstIndex("for (let i = 0; i <= 4; i++) { const v = e[i]; void v; }")).toBe(
             4,
         );
+    });
+
+    it("resolves an input-bound loop induction variable to the input max", () => {
+        expect(
+            resolveFirstIndex(
+                "declare const inputs: Record<string, unknown>; for (let i = 0; i <= (inputs.tol as number); i++) { const v = e[i]; void v; }",
+                new Map([["tol", 20]]),
+            ),
+        ).toBe(20);
+    });
+
+    it("refuses an input-bound loop induction variable when max is absent", () => {
+        expect(
+            resolveFirstIndex(
+                "declare const inputs: Record<string, unknown>; for (let i = 0; i <= (inputs.tol as number); i++) { const v = e[i]; void v; }",
+                new Map([["tol", null]]),
+            ),
+        ).toBeNull();
     });
 
     it("refuses a non-terminating `>` loop induction variable", () => {

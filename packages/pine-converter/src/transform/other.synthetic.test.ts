@@ -49,6 +49,7 @@ function analysisWith(
         annotations: new Map(),
         symbols,
         drawingSites,
+        rootScope: { symbols: new Map() },
     } as unknown as SemanticResult;
 }
 

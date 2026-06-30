@@ -1,0 +1,4 @@
+//@version=6
+indicator("bar-time history")
+gap = time - time[1]
+plot(gap)

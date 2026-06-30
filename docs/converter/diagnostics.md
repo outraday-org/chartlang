@@ -60,6 +60,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** A positional argument cannot follow a named argument.
 - **Suggested fix:** Move all positional arguments before the named ones.
 
+### pine-version-downlevel
+
+- **Code:** `pine-converter/parse/pine-version-downlevel`
+- **Severity:** warning
+- **Message:** Pine v5 is converted on a best-effort basis through the v6 subset; un-modelled v5/v6 semantic differences may not be reflected.
+- **Suggested fix:** Review the converted output, or migrate the source to `//@version=6`.
+
 ### switch-expression-unsupported
 
 - **Code:** `pine-converter/parse/switch-expression-unsupported`
@@ -464,6 +471,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** info
 - **Message:** A `for` loop with a stateful body was unrolled at convert time into one statement per iteration.
 - **Suggested fix:** No action needed; the unrolled copies reproduce the per-iteration call sites.
+
+### loop-bound-input-unbounded
+
+- **Code:** `pine-converter/transform/loop-bound-input-unbounded`
+- **Severity:** warning
+- **Message:** A runtime `for` loop is bounded by an `input.int` with no `maxval`; chartlang will size history buffers with the 5000-slot dynamic fallback.
+- **Suggested fix:** Set `maxval` on the `input.int` loop bound so chartlang can size the history buffer precisely.
 
 ### loop-bounds-not-literal-for-stateful-body
 

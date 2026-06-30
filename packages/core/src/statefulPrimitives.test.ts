@@ -215,6 +215,7 @@ const EXPECTED_SLOT_FALSE = [
     "time.dayofweek",
     "time.hour",
     "time.minute",
+    "time.now",
     "time.second",
     "time.timestamp",
     "time.timeClose",
@@ -421,6 +422,7 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
     "time.hour",
     "time.minute",
     "time.month",
+    "time.now",
     "time.second",
     "time.timeClose",
     "time.timestamp",
@@ -428,11 +430,11 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
 ];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 193 entries after the non-numeric state addition", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(193);
+    it("contains exactly 194 entries after the time.now addition", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(194);
     });
 
-    it("locks the apiVersion-1 registry to the exact 193-entry name set", () => {
+    it("locks the apiVersion-1 registry to the exact 194-entry name set", () => {
         const names = [...STATEFUL_PRIMITIVES].map((e) => e.name).sort();
         expect(names).toEqual(FROZEN_API_V1_NAMES);
     });
@@ -451,7 +453,7 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 179 slot: true entries and exactly 14 slot: false entries", () => {
+    it("has exactly 179 slot: true entries and exactly 15 slot: false entries", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
@@ -459,7 +461,7 @@ describe("STATEFUL_PRIMITIVES", () => {
             else falseCount += 1;
         }
         expect(trueCount).toBe(179);
-        expect(falseCount).toBe(14);
+        expect(falseCount).toBe(15);
     });
 
     it("is frozen", () => {

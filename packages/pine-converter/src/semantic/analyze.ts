@@ -96,6 +96,28 @@ function symbolKindOf(decl: VariableDeclaration): SymbolKind {
 // `na` directly stored into a handle variable lowers to `null`; otherwise it
 // is the numeric NaN sentinel. `na(x)` likewise: handle receiver → handle
 // kind, series receiver → numeric.
+// Whether a value expression is COLOR-valued — a `#RRGGBB[AA]` literal, a
+// `color.*` palette member / constructor, a parenthesised color, or a ternary
+// whose arms include a color. Lets an UNTYPED `c = cond ? color.x : na` decl /
+// assignment resolve its `na` arm to the transparent-color flavour (else it
+// defaults to numeric `NaN`, poisoning the value's type to `string | number`).
+function valueIsColor(expr: ExpressionNode): boolean {
+    switch (expr.kind) {
+        case "literal-expression":
+            return expr.literalKind === "color";
+        case "member-access-expression":
+            return expr.head === null && expr.chain[0] === "color";
+        case "call-expression":
+            return dottedName(expr.callee)?.startsWith("color.") === true;
+        case "paren-expression":
+            return valueIsColor(expr.expression);
+        case "ternary-expression":
+            return valueIsColor(expr.consequent) || valueIsColor(expr.alternate);
+        default:
+            return false;
+    }
+}
+
 function naKindOfReceiver(receiver: ExpressionNode, resolve: (n: string) => SymbolInfo | null) {
     const root = rootIdentifier(receiver);
     const symbol = root === null ? null : resolve(root);
@@ -286,7 +308,9 @@ function detectFutureBarIndex(state: WalkState, expr: ExpressionNode): void {
 function declareVariable(state: WalkState, scope: ScopeBuilder, decl: VariableDeclaration): void {
     const resolve = (name: string): SymbolInfo | null => resolveSymbol(scope, name);
     const handleType = handleTypeOf(decl);
-    const naContext: NaContext = handleType ?? (isColorTyped(decl.typeAnnotation) ? "color" : null);
+    const naContext: NaContext =
+        handleType ??
+        (isColorTyped(decl.typeAnnotation) || valueIsColor(decl.initializer) ? "color" : null);
     walkExpression(state, scope, decl.initializer, naContext);
     const symbol: SymbolInfo = {
         name: decl.name,
@@ -306,7 +330,10 @@ function declareVariable(state: WalkState, scope: ScopeBuilder, decl: VariableDe
 function walkAssignment(state: WalkState, scope: ScopeBuilder, assignment: Assignment): void {
     const existing = resolveSymbol(scope, assignment.name);
     const contextHandle: NaContext =
-        existing?.handleType ?? (isColorTyped(existing?.typeAnnotation ?? null) ? "color" : null);
+        existing?.handleType ??
+        (isColorTyped(existing?.typeAnnotation ?? null) || valueIsColor(assignment.value)
+            ? "color"
+            : null);
     walkExpression(state, scope, assignment.value, contextHandle);
 
     const shadows = isBoundInUserScopes(scope, assignment.name) ? existing : null;

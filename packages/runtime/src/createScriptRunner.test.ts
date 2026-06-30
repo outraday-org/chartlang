@@ -5,7 +5,7 @@ import { capabilities, mockCandleSource } from "@invinite-org/chartlang-adapter-
 import type { CandleEvent, Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { defineIndicator, input } from "@invinite-org/chartlang-core";
 import type { Bar, CompiledScriptObject, Series } from "@invinite-org/chartlang-core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createScriptRunner } from "./createScriptRunner.js";
 import { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext.js";
@@ -141,6 +141,49 @@ describe("createScriptRunner", () => {
         await runner.onBarClose(makeBar(0));
 
         expect(seen).toEqual(["DEMO:USD:"]);
+    });
+
+    it("exposes the injected host clock through time.now()", async () => {
+        let current = 123_456;
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: ({ time }) => {
+                seen.push(time.now());
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            now: () => current,
+        });
+
+        await runner.onBarClose(makeBar(0));
+        current = 789_000;
+        await runner.onBarClose(makeBar(1));
+
+        expect(seen).toEqual([123_456, 789_000]);
+        await runner.dispose();
+    });
+
+    it("defaults time.now() to Date.now when no host clock is injected", async () => {
+        const nowSpy = vi.spyOn(Date, "now").mockReturnValue(654_321);
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            compute: ({ time }) => {
+                seen.push(time.now());
+            },
+        });
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+
+        await runner.onBarClose(makeBar(0));
+
+        expect(seen).toEqual([654_321]);
+        await runner.dispose();
+        nowSpy.mockRestore();
     });
 
     it("resolves manifest inputs with mount-time overrides", async () => {

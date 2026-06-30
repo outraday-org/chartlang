@@ -945,6 +945,21 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             "Compute the higher-timeframe value inside the callback from `inputs`/OHLCV, or read it on the main timeframe instead of inside the `request.security` source.",
     },
+    "pine-version-downlevel": {
+        code: "pine-converter/parse/pine-version-downlevel",
+        severity: "warning",
+        defaultMessage:
+            "Pine v5 is converted on a best-effort basis through the v6 subset; un-modelled v5/v6 semantic differences may not be reflected.",
+        defaultSuggestion: "Review the converted output, or migrate the source to `//@version=6`.",
+    },
+    "loop-bound-input-unbounded": {
+        code: "pine-converter/transform/loop-bound-input-unbounded",
+        severity: "warning",
+        defaultMessage:
+            "A runtime `for` loop is bounded by an `input.int` with no `maxval`; chartlang will size history buffers with the 5000-slot dynamic fallback.",
+        defaultSuggestion:
+            "Set `maxval` on the `input.int` loop bound so chartlang can size the history buffer precisely.",
+    },
 } as const satisfies Record<string, DiagnosticCodeEntry>;
 
 /**

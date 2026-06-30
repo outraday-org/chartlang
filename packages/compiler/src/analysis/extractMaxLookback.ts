@@ -5,7 +5,7 @@ import ts from "typescript";
 
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
 import { resolveCalleeName } from "../transformers/resolveCallee.js";
-import { unwrapParens } from "./loopBounds.js";
+import { type InputLoopBounds, unwrapParens } from "./loopBounds.js";
 import { collectConstNumberEnv, resolveIndexUpperBound } from "./resolveIndexBound.js";
 
 const OHLCV_FIELDS = new Set(["close", "open", "high", "low", "volume", "time"]);
@@ -55,6 +55,7 @@ export function extractMaxLookback(
     checker: ts.TypeChecker,
     sourcePath: string,
     scope: ts.Node = sourceFile,
+    inputLoopBounds: InputLoopBounds = new Map(),
 ): ExtractMaxLookbackResult {
     let maxLookback = 0;
     const seriesCapacities: Record<string, number> = {};
@@ -102,7 +103,11 @@ export function extractMaxLookback(
             if (isSeriesShapedAccess(node, checker, seriesVarNames)) {
                 const argument = node.argumentExpression;
                 const constEnv = collectConstNumberEnv(argument, scope);
-                const bound = resolveIndexUpperBound(argument, node, { constEnv, checker });
+                const bound = resolveIndexUpperBound(argument, node, {
+                    constEnv,
+                    checker,
+                    inputLoopBounds,
+                });
                 if (bound !== null) {
                     if (bound > maxLookback) maxLookback = bound;
                 } else {

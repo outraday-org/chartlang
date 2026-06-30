@@ -40,9 +40,13 @@ export function joinQualifier(a: TypeQualifier, b: TypeQualifier): TypeQualifier
  */
 export type SymbolResolver = (name: string) => SymbolInfo | null;
 
-// `ta.*` always returns series; `input.*` returns input-qualified values.
+// `ta.*` always returns series; `request.security` is a series feed; `input.*`
+// returns input-qualified values.
 function memberCallQualifier(name: string): TypeQualifier | null {
     if (name.startsWith("ta.")) {
+        return "series";
+    }
+    if (name === "request.security") {
         return "series";
     }
     if (name.startsWith("input.") || name === "input") {

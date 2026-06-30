@@ -1,0 +1,4 @@
+//@version=5
+indicator("v5 downlevel", overlay=true)
+ma = ta.sma(close, 14)
+plot(ma)

@@ -57,7 +57,11 @@ function literalInt(node: ExpressionNode): number | null {
  *     const b: ResolvedBound = { value: 9, fromInputDefault: true };
  *     void b;
  */
-export type ResolvedBound = Readonly<{ value: number; fromInputDefault: boolean }>;
+export type ResolvedBound = Readonly<{
+    value: number;
+    fromInputDefault: boolean;
+    inputName?: string;
+}>;
 
 /**
  * Resolve a `for` bound expression to a compile-time integer. A literal /
@@ -88,7 +92,7 @@ export function resolveBound(
     if (node.kind === "identifier-expression") {
         const fromInput = inputDefault(node.name);
         if (fromInput !== null) {
-            return { value: fromInput, fromInputDefault: true };
+            return { value: fromInput, fromInputDefault: true, inputName: node.name };
         }
     }
     return null;
@@ -519,6 +523,7 @@ export function emitFor(
     diagnostics: DiagnosticCollector,
     inputDefault: (name: string) => number | null,
     emitBody: BodyEmitter,
+    inputMax: (name: string) => number | null = () => null,
 ): readonly string[] {
     const stateful = bodyHasStatefulPrimitive(stmt.body.body);
     const breaks = bodyHasBreakContinue(stmt.body.body);
@@ -548,6 +553,19 @@ export function emitFor(
     }
 
     if (!stateful) {
+        if (resolvable) {
+            const inputLoop = emitInputBoundLoop(
+                stmt,
+                from,
+                to,
+                step,
+                ctx,
+                diagnostics,
+                emitBody,
+                inputMax,
+            );
+            if (inputLoop !== null) return inputLoop;
+        }
         const literalLoop = emitLiteralLoop(stmt, ctx, emitBody);
         if (literalLoop !== null) {
             // A loop whose body lowered to nothing (e.g. it only built an
@@ -576,6 +594,37 @@ function forHeader(variable: string, from: number, to: number, step: number): st
             ? `${variable}${ascending ? "++" : "--"}`
             : `${variable} += ${ascending ? magnitude : -magnitude}`;
     return `for (let ${variable} = ${from}; ${variable} ${comparison} ${to}; ${update})`;
+}
+
+function emitInputBoundLoop(
+    stmt: ForStatement,
+    from: ResolvedBound,
+    to: ResolvedBound,
+    step: ResolvedBound,
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+    emitBody: BodyEmitter,
+    inputMax: (name: string) => number | null,
+): readonly string[] | null {
+    if (!to.fromInputDefault || from.fromInputDefault || step.fromInputDefault) return null;
+    // The input-bound runtime loop only emits an ASCENDING header
+    // (`i <= inputs.x; i++`), so it is sound only when the loop counts up. When
+    // the literal from-bound exceeds the input's DEFAULT, Pine would auto-count
+    // DOWN — fall back to the unroll-at-default path (which renders the real
+    // direction via the from-vs-to relation) rather than emit a permanently
+    // false ascending loop that silently runs zero iterations.
+    if (from.value > to.value) return null;
+    const toName = to.inputName;
+    /* v8 ignore next */
+    if (toName === undefined) return null;
+    if (inputMax(toName) === null) {
+        diagnostics.pushCode("loop-bound-input-unbounded", stmt.span);
+    }
+    const magnitude = Math.abs(step.value);
+    const update = magnitude === 1 ? `${stmt.variable}++` : `${stmt.variable} += ${magnitude}`;
+    const header = `for (let ${stmt.variable} = ${from.value}; ${stmt.variable} <= (inputs.${toName} as number); ${update})`;
+    const body = emitBody(stmt.body.body, loopChildContext(ctx, stmt.variable)).join(" ");
+    return body === "" ? [] : [`${header} { ${body} }`];
 }
 
 // The runtime `for (let i = a; i <= b; i += s)` header + rendered body for a

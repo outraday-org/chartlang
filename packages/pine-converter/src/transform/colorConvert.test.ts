@@ -11,6 +11,7 @@ import {
     convertColor,
     convertColorWith,
     isTranspColorForm,
+    literalColorDefault,
     transpToAlphaHex,
 } from "./colorConvert.js";
 import { emitExpr } from "./exprEmit.js";
@@ -139,10 +140,20 @@ describe("convertColor", () => {
         expect(convertColor(parseValue("close"), new Map())).toBe("bar.close");
     });
 
-    it("passes a 3-arg color.rgb(r, g, b) through unchanged (no transp arg)", () => {
+    it("folds a literal 3-arg color.rgb(r, g, b) to a #RRGGBB hex", () => {
         const node = parseValue("color.rgb(1, 2, 3)");
         expect(node.kind).toBe("call-expression");
-        expect(convertColor(node, new Map())).toBe("color.rgb(1, 2, 3)");
+        expect(convertColor(node, new Map())).toBe('"#010203"');
+    });
+
+    it("passes a dynamic 3-arg color.rgb(r, g, b) through unchanged", () => {
+        const node = parseValue("color.rgb(r, 2, 3)");
+        expect(node.kind).toBe("call-expression");
+        expect(convertColor(node, new Map())).toBe("color.rgb(r, 2, 3)");
+    });
+
+    it("passes a malformed color.rgb call through unchanged", () => {
+        expect(convertColor(parseValue("color.rgb(1, 2)"), new Map())).toBe("color.rgb(1, 2)");
     });
 
     it("handles a call with a non-member-access callee (dottedCallee null)", () => {
@@ -198,6 +209,29 @@ describe("convertColorWith — context-aware emit", () => {
 
     it("routes a non-colour fallback through the supplied emitter", () => {
         expect(convertColorWith(parseValue("len"), inputEmit)).toBe("inputs.len");
+    });
+});
+
+describe("literalColorDefault", () => {
+    it("rejects malformed color.new defaults", () => {
+        expect(literalColorDefault(parseValue("color.new(color.red)"))).toBeNull();
+    });
+
+    it("rejects dynamic color.new defaults", () => {
+        expect(literalColorDefault(parseValue("color.new(dynamicColor, 40)"))).toBeNull();
+        expect(literalColorDefault(parseValue("color.new(color.red, transp)"))).toBeNull();
+    });
+
+    it("rejects malformed color.rgb defaults", () => {
+        expect(literalColorDefault(parseValue("color.rgb(1, 2)"))).toBeNull();
+    });
+
+    it("rejects color.rgb defaults with dynamic transparency", () => {
+        expect(literalColorDefault(parseValue("color.rgb(1, 2, 3, transp)"))).toBeNull();
+    });
+
+    it("rejects unrecognized color calls in literal-default contexts", () => {
+        expect(literalColorDefault(parseValue("color.hsl(1, 2, 3)"))).toBeNull();
     });
 });
 

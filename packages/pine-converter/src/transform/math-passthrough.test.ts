@@ -4,11 +4,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { Declaration } from "../ast/script.js";
+import { emit } from "../codegen/index.js";
 import { lex } from "../lexer/index.js";
 import { MATH_PASSTHROUGH_MAP } from "../mapping/index.js";
 import { parseStatements } from "../parser/index.js";
 import { analyze } from "../semantic/index.js";
-import { emit } from "../codegen/index.js";
 import { transformDeclaration } from "./declaration.js";
 import { DiagnosticCollector } from "./diagnosticCollector.js";
 import { transformInputs } from "./inputs.js";

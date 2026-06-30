@@ -67,6 +67,27 @@ describe("transformInputs — per-kind mapping", () => {
         expect(single("col = input.color(#ff0000)").code).toBe('input.color("#ff0000")');
     });
 
+    it("folds compile-time color expressions in input.color defaults", () => {
+        expect(single("c = input.color(color.rgb(13, 218, 116))").code).toBe(
+            'input.color("#0DDA74")',
+        );
+        expect(single("c = input.color(color.rgb(13, 218, 116, 40))").code).toBe(
+            'input.color("#0DDA7499")',
+        );
+        expect(single("c = input.color(color.new(color.red, 40))").code).toBe(
+            'input.color("#FF525299")',
+        );
+        expect(single("c = input.color(color.yellow)").code).toBe('input.color("#FFEB3B")');
+    });
+
+    it("rejects an input.color default with a dynamic color argument", () => {
+        const { inputs, diagnostics } = runInputs(
+            "someVar = close\nc = input.color(color.rgb(someVar, 0, 0))",
+        );
+        expect(inputs).toHaveLength(0);
+        expect(diagnostics.has("pine-converter/transform/non-literal-input-default")).toBe(true);
+    });
+
     it("maps input.session straight through (string spec)", () => {
         expect(single('sess = input.session("0930-1600")').code).toBe('input.session("0930-1600")');
     });

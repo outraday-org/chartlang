@@ -26,9 +26,11 @@ sequence after it to avoid mapping-table merge churn).
 
 ```ts
 // runtime/src/createScriptRunner.ts
-now?: () => number   // (~line 187) arg
-const now = args.now ?? Date.now;  // (~line 312)
-state.now = now;     // (~line 336) — used ONLY for snapshot cadence today
+readonly now?: () => number          // (~line 204) public arg
+readonly now: () => number           // (~line 84) on the RunnerState type
+const now = args.now ?? Date.now;    // (~line 371)
+// stored as a shorthand `now,` in the RunnerState object literal (~line 406),
+// not a literal `state.now = now;` — used ONLY for snapshot cadence today
 ```
 
 - The `time.*` namespace is a core sentinel surface; runtime supplies
@@ -64,9 +66,12 @@ frozen `time` object (throwing `sentinel("time.now")`) and to the
 `TimeNamespace` type. Type/contract only — no behavior. Add the JSDoc
 block matching sibling accessors' shape (`@example` + stability marker),
 but set `@since` to the **next published version**, not the siblings'
-`@since 1.5` (this is net-new surface — check the current
-`packages/core` version and use the next minor). Note in `packages/core/CLAUDE.md` that `time.now()` is a
-host-injected, non-deterministic input excluded from snapshots.
+`@since 1.5` (this is net-new surface). `packages/core/package.json` is
+currently `1.6.0`, and this changeset bumps core a **minor**, so use
+**`@since 1.7`** (re-confirm against `package.json` at implementation
+time in case core has been published since). Note in
+`packages/core/CLAUDE.md` that `time.now()` is a host-injected,
+non-deterministic input excluded from snapshots.
 
 ### 2. runtime — wire the real closure (`packages/runtime`)
 
@@ -86,7 +91,12 @@ tick.
 
 ### 3. converter — map `timenow` (`packages/pine-converter`)
 
-- Add `timenow` to the builtin name set (`src/semantic/builtins.ts`).
+- Register `timenow` in `src/semantic/builtins.ts`. This file is NOT a
+  single name set — it is several `readonly string[]` arrays
+  (`SERIES_NAMES`, `CONST_NAMES`, `NAMESPACE_NAMES`, `PLOT_NAMES`) folded
+  into the `BUILTIN_SYMBOLS` `ReadonlyMap`. `timenow` is a bare series
+  value read, so add it to **`SERIES_NAMES`** (where `time` and
+  `time_close` already live, ~lines 38–39), mirroring those entries.
 - Add the mapping. `timenow` is a bare value read, so add to
   `BUILTIN_IDENTIFIER_MAP` (`src/mapping/builtinIdentifiers.ts`):
   ```ts

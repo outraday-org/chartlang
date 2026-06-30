@@ -139,6 +139,44 @@ describe("parseBoundedForLoop", () => {
         expect(parseBoundedForLoop(node)).toBeNull();
     });
 
+    it("accepts an integer input condition bound with a declared max", () => {
+        const loop = parseBoundedForLoop(
+            firstForStatement("for (let i = 0; i <= (inputs.tol as number); i++) {}"),
+            new Map([["tol", 20]]),
+        );
+        expect(loop).toEqual({
+            varName: "i",
+            start: 0,
+            op: ts.SyntaxKind.LessThanEqualsToken,
+            limit: 20,
+            inputName: "tol",
+        });
+    });
+
+    it("accepts an integer input condition bound without a declared max", () => {
+        const loop = parseBoundedForLoop(
+            firstForStatement("for (let i = 0; i <= inputs.tol; i++) {}"),
+            new Map([["tol", null]]),
+        );
+        expect(loop).toEqual({
+            varName: "i",
+            start: 0,
+            op: ts.SyntaxKind.LessThanEqualsToken,
+            limit: null,
+            inputName: "tol",
+        });
+    });
+
+    it("rejects an unknown input condition bound", () => {
+        const node = firstForStatement("for (let i = 0; i <= inputs.tol; i++) {}");
+        expect(parseBoundedForLoop(node, new Map([["other", 20]]))).toBeNull();
+    });
+
+    it("rejects a property-access condition bound that is not rooted at inputs", () => {
+        const node = firstForStatement("for (let i = 0; i <= config.tol; i++) {}");
+        expect(parseBoundedForLoop(node, new Map([["tol", 20]]))).toBeNull();
+    });
+
     it("rejects a non-identifier condition left side", () => {
         expect(parseBoundedForLoop(firstForStatement("for (let i = 0; 0 < 5; i++) {}"))).toBeNull();
     });

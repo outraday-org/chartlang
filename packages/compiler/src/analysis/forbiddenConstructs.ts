@@ -4,7 +4,7 @@
 import ts from "typescript";
 
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
-import { parseBoundedForLoop } from "./loopBounds.js";
+import { type InputLoopBounds, parseBoundedForLoop } from "./loopBounds.js";
 
 const HOSTILE_GLOBAL_NAMES = new Set([
     "fetch",
@@ -41,6 +41,7 @@ const HOSTILE_GLOBAL_NAMES = new Set([
 export function runForbiddenConstructs(
     sourceFile: ts.SourceFile,
     sourcePath: string,
+    inputLoopBounds: InputLoopBounds = new Map(),
 ): ReadonlyArray<CompileDiagnostic> {
     const diagnostics: CompileDiagnostic[] = [];
 
@@ -117,11 +118,11 @@ export function runForbiddenConstructs(
         } else if (ts.isForInStatement(node)) {
             emit(node, "unbounded-loop", "`for…in` loops are not allowed.");
         } else if (ts.isForStatement(node)) {
-            if (parseBoundedForLoop(node) === null) {
+            if (parseBoundedForLoop(node, inputLoopBounds) === null) {
                 emit(
                     node,
                     "unbounded-loop",
-                    "`for` loops must use literal numeric bounds: for (let i = <num>; i </<= <num>; i++).",
+                    "`for` loops must use literal numeric bounds or integer input bounds: for (let i = <num>; i </<= <num|inputs.name>; i++).",
                 );
             }
         } else if (ts.isCallExpression(node)) {

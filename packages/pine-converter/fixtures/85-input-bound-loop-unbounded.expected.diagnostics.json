@@ -1,0 +1,14 @@
+[
+    {
+        "code": "pine-converter/transform/loop-bound-input-unbounded",
+        "severity": "warning",
+        "message": "A runtime `for` loop is bounded by an `input.int` with no `maxval`; chartlang will size history buffers with the 5000-slot dynamic fallback.",
+        "span": {
+            "startLine": 6,
+            "startColumn": 1,
+            "endLine": 8,
+            "endColumn": 1
+        },
+        "suggestion": "Set `maxval` on the `input.int` loop bound so chartlang can size the history buffer precisely."
+    }
+]

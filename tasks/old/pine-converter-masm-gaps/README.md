@@ -79,7 +79,7 @@ documented in `packages/pine-converter/CLAUDE.md` and get **no task**.
 | **`time.now()` reuses the existing `args.now` seam** | `createScriptRunner` already injects `now: () => number` (defaults to `Date.now`), used today for snapshot cadence. Exposing it via the `time` sentinel pattern keeps determinism (now is a host input, never serialised). |
 | **`request.security` symbol scope = dropdown + literal-concat** | The runtime accepts any symbol string already; relaxing the converter's `input.symbol`-only guard to also accept `input.string` and fold literal `+` concatenation covers both MASM forms with converter-only changes. `ignore_invalid_symbol` stays a silent drop (no runtime contract). |
 | **Loop buffer sized from `input.maxval` (precise)** | The runtime already supports dynamic history indexing; the blocker is the compiler's literal-bound rule. Threading `input.int` `maxval` to size the ring buffer avoids the wasteful 5000-slot fallback. |
-| **One minimal golden fixture per gap** | MASM is not committed; each behavior change lands a small, targeted `NN-*.pine`/`.expected.chart.ts`/`.expected.diagnostics.json` trio. |
+| **One minimal golden fixture per gap** | MASM is not committed; each behavior change lands a small, targeted `NN-*.pine`/`.expected.chart.ts`/`.expected.diagnostics.json` trio. The corpus currently has **78** `.pine` fixtures (count asserted in `golden.test.ts:55`); each task uses the *current* next index for `NN` and bumps the count by the number it adds. Because the absolute `NN` and the count depend on execution order, resolve both at implementation time (Task 8 adds **two** fixtures; Task 5 adds one or two). |
 | **Diagnostic code strings are append-only** | Per `codes.ts` contract — new codes are appended, never reordered or renamed (stable public contract). |
 
 ## Dependency Graph
@@ -119,16 +119,16 @@ execution order (cheap/unblocking first, cross-package features last).
 |----------|------|---------|
 | Color folding helpers (`convertColorWith`, `convertColorNew`, `convertColorRgb`, `baseHex`, `transpToAlphaHex`) | `packages/pine-converter/src/transform/colorConvert.ts:137` | Tasks 4, 6 |
 | Core color API (`withAlpha`, `rgb`, `hsl`, named palette) | `packages/core/src/color/index.ts:23` | Tasks 4, 6 |
-| `literalDefault()` input-default checker | `packages/pine-converter/src/transform/inputs.ts:81` | Task 4 |
+| `literalDefault()` input-default checker | `packages/pine-converter/src/transform/inputs.ts:90` | Task 4 |
 | `time.timestamp` / sentinel pattern (already in core) | `packages/core/src/time-accessors/timeAccessors.ts:6,134` | Tasks 3, 7 |
 | Builtin maps (`BUILTIN_IDENTIFIER_MAP`, `BUILTIN_CALL_MAP`) | `packages/pine-converter/src/mapping/builtinIdentifiers.ts:34`, `builtinCalls.ts:38` | Tasks 3, 7 |
-| Host `now` injection seam | `packages/runtime/src/createScriptRunner.ts:187,312` | Task 7 |
-| `time` namespace factory/builder | `packages/runtime/src/time-accessors/timeAccessors.ts:50,147` | Task 7 |
+| Host `now` injection seam | `packages/runtime/src/createScriptRunner.ts:204,371,406` | Task 7 |
+| `time` namespace factory/builder | `packages/runtime/src/time-accessors/timeAccessors.ts:51,146` | Task 7 |
 | Security feed-input axis registry (`feedAxisOfValue`) + symbol resolver (`resolveSymbolSource`) | `packages/pine-converter/src/transform/securityShape.ts:113,192` | Task 5 |
 | Bounded-loop parser (single source of truth) | `packages/compiler/src/analysis/loopBounds.ts:67` | Task 8 |
 | Lookback / ring-buffer sizing | `packages/compiler/src/analysis/extractMaxLookback.ts:104`, `resolveIndexBound.ts:79` | Task 8 |
-| Loop emit (`emitFor`, `emitRuntimeForFromBounds`, `unroll`) | `packages/pine-converter/src/transform/controlFlow.ts:508,577,619` | Task 8 |
-| Golden harness + `UPDATE_FIXTURES=1` | `packages/pine-converter/src/tests/golden.test.ts:20,54` | all tasks |
+| Loop emit (`emitFor`, `emitRuntimeForFromBounds`, `unroll`) | `packages/pine-converter/src/transform/controlFlow.ts:516,608,627` | Task 8 |
+| Golden harness + `UPDATE_FIXTURES=1` | `packages/pine-converter/src/tests/golden.test.ts:22,55` | all tasks |
 
 ## Provenance
 

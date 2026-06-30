@@ -160,10 +160,15 @@
   precise `maxLookback`.** Every series index runs through
   `resolveIndexUpperBound` (`analysis/resolveIndexBound.ts`): a numeric
   literal, a bare bounded-loop induction variable (`series[i]` inside
-  `for (let i = 0; i < N; i++)` → `N − 1`; `<=` → `N`), and a lexically
-  visible `const` numeric-literal binding (`series[k]`) each size the ring
+  `for (let i = 0; i < N; i++)` → `N − 1`; `<=` → `N`), an integer
+  input-bound induction variable (`i <= (inputs.len as number)`) sized from
+  the input descriptor's `max`, and a lexically visible `const`
+  numeric-literal binding (`series[k]`) each size the ring
   buffer exactly, with **no** `dynamic-series-index` warning and **no**
-  `dynamicFallback`. The resolver **over-approximates and never under-sizes**:
+  `dynamicFallback`. An integer input bound with no descriptor `max` is still
+  accepted as a bounded loop but resolves to `null`, so the existing
+  `dynamic-series-index` + `dynamicFallback = 5000` path sizes the buffer. The
+  resolver **over-approximates and never under-sizes**:
   it returns `null` (keeping today's warn + `dynamicFallback = 5000`) for a
   non-terminating `>`/`>=` loop, a loop variable reassigned in the body
   beyond its `++`, a shadowed loop name that does not resolve to the loop's

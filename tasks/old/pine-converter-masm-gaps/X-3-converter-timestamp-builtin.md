@@ -63,11 +63,22 @@ matching the existing pattern for unsupported arities).
 
 ### 2. Verify the core signature cross-check
 
-The mapping tables verify targets against `@invinite-org/chartlang-core`
-(devDependency-only cross-check in `*.test.ts`). Add/extend the
-`builtinCalls.test.ts` assertion that `time.timestamp` exists on the
-core `TimeNamespace` type and accepts the emitted arity, mirroring the
-existing `time_close` cross-check test.
+Some mapping tables verify their targets against
+`@invinite-org/chartlang-core` (devDependency-only cross-check —
+`inputs.test.ts`, `taPassthrough.test.ts`, `drawingKinds.test.ts` import
+`input` / `ta` / `DRAWING_KINDS` and assert each target name is real;
+see `packages/pine-converter/CLAUDE.md` "core is a devDependency only").
+**`builtinCalls.test.ts` does NOT currently import core** — there is no
+existing `time_close` / `TimeNamespace` cross-check in that file to
+mirror; today it only asserts the emitted string (e.g.
+`time_close → time.timeClose(bar.time)`). Add a **net-new** core
+cross-check following the `inputs.test.ts` precedent: import
+`TimeNamespace` from `@invinite-org/chartlang-core` and assert
+`time.timestamp` exists on it and accepts a 3–7-arg arity. If wiring a
+core import into this file is awkward, it is acceptable to assert only
+the emitted-string mapping (§5) and skip the core cross-check (the core
+signature itself is already covered under
+`packages/core/src/time-accessors/`). State which you chose in the PR.
 
 ### 3. Pine `timestamp("tz", y, m, d, …)` overload (scope note)
 
@@ -107,7 +118,7 @@ Extend `builtinCalls.test.ts`: assert
 | File | Action | Purpose |
 |------|--------|---------|
 | `src/mapping/builtinCalls.ts` | Modify | Add `timestamp` row |
-| `src/mapping/builtinCalls.test.ts` | Modify | Mapping + core cross-check |
+| `src/mapping/builtinCalls.test.ts` | Modify | Mapping assertion (+ optional net-new core cross-check) |
 | `fixtures/NN-timestamp-gate.{pine,expected.chart.ts,expected.diagnostics.json}` | Create | Golden trio (compiles) |
 | `src/tests/golden.test.ts` | Modify | Bump fixture count assertion |
 | `packages/pine-converter/CLAUDE.md` | Modify | Note `timestamp` mapping + deferred tz-first overload |

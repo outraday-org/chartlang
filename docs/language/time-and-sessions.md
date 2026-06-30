@@ -33,13 +33,16 @@ compute({ bar, time, session }) {
 `time.timestamp(year, month, day, hour?, minute?, second?, tz?)` builds an
 epoch from calendar fields, and `time.timeClose(t)` returns the **close**
 timestamp of the bar that opens at `t` (Pine's no-arg `time_close()` =
-`t + the current bar's interval`).
+`t + the current bar's interval`). `time.now()` returns the host-injected
+wall-clock epoch at call time; tests and deterministic replays should inject a
+fixed clock when they depend on it.
 
 ## Do not use `Date` or `Intl`
 
 `Date` and `Intl` are **forbidden hostile globals** on the script path — they
-read the host clock / host ICU tables and break replay determinism. The
-compiler rejects `Date` (and pins `lib: ["lib.es2022.d.ts"]` so `Intl` is not
+read the host clock / host ICU tables and break replay determinism. Use
+`time.now()` for the explicit host-provided wall clock instead of `Date.now`.
+The compiler rejects `Date` (and pins `lib: ["lib.es2022.d.ts"]` so `Intl` is not
 even in scope). The host owns the epoch math; the script only ever names
 `bar.time` and the `time.*` / `session.*` accessors. See
 [Forbidden constructs](./forbidden-constructs.md).

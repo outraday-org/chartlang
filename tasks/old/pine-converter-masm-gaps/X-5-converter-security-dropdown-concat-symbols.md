@@ -14,7 +14,10 @@ daily `"D"` timeframe is already supported and is **not** the blocker.
 ## Prerequisites
 
 None. Builds on the already-landed input-symbol/interval-bound security
-work (sibling folder `tasks/trend-wizard-converter`, `X-4`).
+work (archived task folder
+`tasks/old/trend-wizard-converter/X-4-converter-input-bound-security.md`).
+That work has shipped in `securityShape.ts` regardless of the task's
+archived status.
 
 ## Current Behavior
 

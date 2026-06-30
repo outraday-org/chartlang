@@ -7,7 +7,17 @@ import { BUILTIN_SYMBOLS } from "./builtins.js";
 
 describe("BUILTIN_SYMBOLS", () => {
     it("seeds OHLCV refs as series", () => {
-        for (const name of ["open", "high", "low", "close", "volume", "bar_index", "time"]) {
+        for (const name of [
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "bar_index",
+            "time",
+            "time_close",
+            "timenow",
+        ]) {
             expect(BUILTIN_SYMBOLS.get(name)?.qualifier).toBe("series");
         }
     });
@@ -42,6 +52,7 @@ describe("BUILTIN_SYMBOLS", () => {
         for (const name of ["plot", "plotshape", "hline", "fill", "bgcolor", "barcolor"]) {
             expect(BUILTIN_SYMBOLS.get(name)?.qualifier).toBe("simple");
         }
+        expect(BUILTIN_SYMBOLS.get("timestamp")?.qualifier).toBe("simple");
     });
 
     it("marks every built-in with the builtin kind and no declaration span", () => {

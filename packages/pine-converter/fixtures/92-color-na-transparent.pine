@@ -1,0 +1,5 @@
+//@version=6
+indicator("color na transparent")
+c = close > open ? color.green : na
+bgcolor(c)
+plot(close)

@@ -1,0 +1,7 @@
+//@version=6
+indicator("security dropdown + concat")
+sym = input.string("AMEX:SPY", "Compare", options=["AMEX:SPY", "NASDAQ:QQQ"])
+comp = request.security(sym, "D", close, ignore_invalid_symbol=true)
+earn = request.security("ESD:" + "AAPL", "D", open)
+plot(comp)
+plot(earn)

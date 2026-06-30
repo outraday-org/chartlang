@@ -1,0 +1,5 @@
+//@version=6
+indicator("bool series promotion")
+spike = close > open * 1.05
+fresh = spike and not spike[1]
+plot(fresh ? 1 : 0)

@@ -109,12 +109,25 @@ describe("transformOther — control flow", () => {
         );
     });
 
-    it("unrolls a non-stateful input-bounded for (runtime loop would be rejected)", () => {
-        const src = "len = input.int(1)\nsum = 0.0\nfor i = 0 to len\n    sum := sum + i";
-        expect(stmts(src)).toEqual(["let sum = 0.0;", "sum = sum + 0;", "sum = sum + 1;"]);
-        expect(codes(src)).toContain(
+    it("emits a runtime loop for a non-stateful input-bounded for", () => {
+        const src =
+            "len = input.int(1, maxval=10)\nsum = 0.0\nfor i = 0 to len\n    sum := sum + i";
+        expect(stmts(src)).toEqual([
+            "let sum = 0.0;",
+            "for (let i = 0; i <= (inputs.len as number); i++) { sum = sum + i; }",
+        ]);
+        expect(codes(src)).not.toContain(
             "pine-converter/transform/loop-unroll-frozen-at-input-default",
         );
+    });
+
+    it("warns when a non-stateful input-bounded for has no maxval", () => {
+        const src = "len = input.int(1)\nsum = 0.0\nfor i = 0 to len\n    sum := sum + i";
+        expect(stmts(src)).toEqual([
+            "let sum = 0.0;",
+            "for (let i = 0; i <= (inputs.len as number); i++) { sum = sum + i; }",
+        ]);
+        expect(codes(src)).toContain("pine-converter/transform/loop-bound-input-unbounded");
     });
 
     it("lowers a subjected switch into a switch block", () => {
@@ -322,9 +335,10 @@ describe("transformOther — calendar built-in calls", () => {
         expect(stmts(src)[0]).toContain("/* TODO unmapped */");
     });
 
-    it("lowers a bare dayofweek/time_close value read to the no-arg accessor", () => {
+    it("lowers a bare dayofweek/time_close/timenow value read to the time accessor", () => {
         expect(stmts("dow = dayofweek\nplot(dow)")[0]).toBe("let dow = time.dayofweek(bar.time);");
         expect(stmts("ct = time_close\nplot(ct)")[0]).toBe("let ct = time.timeClose(bar.time);");
+        expect(stmts("live = timenow\nplot(live)")[0]).toBe("let live = time.now();");
     });
 });
 
@@ -510,16 +524,24 @@ describe("transformOther — series scalars (state.series)", () => {
         expect(slotted.has("v")).toBe(false);
     });
 
-    it("annotates a non-indexed na-init string/bool scalar as `T | null = null`", () => {
-        // A `var string`/`var bool` initialised to `na` but NEVER history-indexed
-        // gets no series slot — its `Number.NaN` default would make TS infer
-        // `number`, so a later `:= "EMA"` / `:= true` would fail. Carry the Pine
-        // type into a `T | null` annotation with a `null` sentinel instead.
+    it("seeds a non-indexed na-init string scalar with an empty string", () => {
+        // A `var string` initialised to `na` but NEVER history-indexed gets no
+        // series slot. Seed it with Pine's effective empty-string default so
+        // downstream string-typed calls do not see a `string | null` union.
         expect(stmts('var string mode = na\nmode := "EMA"\nplot(close)')).toContain(
-            "let mode: string | null = null;",
+            'let mode = "";',
         );
+    });
+
+    it("keeps non-indexed bool na as the existing null-union sentinel", () => {
         expect(stmts("var bool armed = na\narmed := close > open\nplot(close)")).toContain(
             "let armed: boolean | null = null;",
+        );
+    });
+
+    it("keeps numeric na declarations on the Number.NaN path", () => {
+        expect(stmts("var float prev = na\nprev := close\nplot(prev)")).toContain(
+            "let prev = Number.NaN;",
         );
     });
 
@@ -655,14 +677,24 @@ describe("transformOther — ta-series promotion (state.series)", () => {
         );
     });
 
-    it("does not promote a non-`ta.*` call, an input call, or a computed-callee call", () => {
-        // `input.int(...)` (callee not `ta.*`), `cc = 0` (non-call value), and
-        // `close[1].max(open)` (computed callee → no dotted name) all fail the
-        // ta-series gate; none becomes a `state.series` slot even if indexed.
+    it("does not promote an input call or a const non-call, but promotes a series-rooted indexed decl", () => {
+        // `input.int(...)` (input-qualified) and `cc = 0` (const) never promote;
+        // `q = close[1].max(open)` is OHLCV-rooted (series) and history-indexed
+        // (`q[1]`), so A1 promotes it to a `state.series` slot — without the slot
+        // the `q[1]` read would index a plain `number` (TS7053).
         const { scaffold } = run(
             "n = input.int(4)\ncc = 0\nq = close[1].max(open)\nplot(q[1])\nplot(n)\nplot(cc)",
         );
-        expect(scaffold.stateSlots).toEqual([]);
+        expect(scaffold.stateSlots).toEqual([{ name: "q", initExpr: "state.series(Number.NaN)" }]);
+    });
+
+    it("promotes a series-rooted decl whose value also names an unmodelled identifier", () => {
+        // `foo` is neither a user symbol nor a builtin, so the A1 resolver returns
+        // `null` (its `?? null` fallback) and `inferQualifier` treats it as `const`;
+        // joined with the series `close`, `v` is still series-qualified and, being
+        // history-indexed (`v[1]`), promotes to a `state.series` slot.
+        const { scaffold } = run("v = foo + close\nplot(v[1])");
+        expect(scaffold.stateSlots).toEqual([{ name: "v", initExpr: "state.series(Number.NaN)" }]);
     });
 });
 

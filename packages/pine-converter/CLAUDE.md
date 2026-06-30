@@ -59,6 +59,20 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   internal `__` token, and it NEVER reaches the generated `.chart.ts`
   (`usage.ts` keys its bridge-needed flag on `BAR_INDEX_SENTINEL`). yloc
   padding lowers to an inline `0.001` literal — no synthesized const.
+- **A Pine variable colliding with a host `compute(ctx)` param is RENAMED, not
+  left to shadow.** `COMPUTE_CONTEXT_NAMES` (`nameAllocator.ts`) is the canonical
+  host-param set (kept in lockstep with `emitCompute.ts`'s `destructureFields` —
+  `bar`/`ta`/`plot`/`hline`/`bgcolor`/`barcolor`/`alert`/`inputs`/`state`/
+  `request`/`time`/`session`/`syminfo`/`barstate`); `isComputeContextName`
+  exposes it. `allocateForSymbol` treats a host-param name as un-reclaimable (the
+  host binding stays live — a `bgcolor(...)` callee, the `inputs` object), so a
+  Pine `bgcolor` symbol takes a fresh `bgcolor2`. `transformOther` builds a
+  `renamedSymbols` map (one `allocateForSymbol` per colliding user symbol) wired
+  into `EmitContext`; `rewriteIdentifier` rewrites every reference and
+  `emitDeclaration`/`emitAssignment` rewrite the LHS, while the host call site
+  (`plotFamily`/`alertCall`, hardcoded callee) keeps the host name. A `var`-slot
+  collision needs no `renamedSymbols` entry — its slot local is the same
+  host-avoiding `allocateForSymbol` name via `stateSlots`.
 
 ### Lexer (`src/lexer/`)
 
@@ -188,6 +202,14 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   v1 routes every `nz` to `math.nz`; a series argument is the rarer hand-rewrite.
   `na(x)` is UNCHANGED — it keeps its context-aware inline predicate
   (`(x === null)` / `!Number.isFinite(x)`), never `math.na`.
+- **Free-expression `color.new(...)` / `color.rgb(...)` lowers in pure
+  `emitExpr.ts`, using `colorConvert.ts` as the single color-math source.**
+  Scoped styling positions (plot / hline / table / bgcolor / setter paths)
+  still call `convertColorWith` where they hold the `DiagnosticCollector`.
+  The nested expression hook cannot push `color-transp-approximated` directly;
+  top-level value calls continue to report it from `other.ts`, while deeply
+  nested free-expression lowering deliberately preserves valid output without
+  introducing a second diagnostic walk.
 - **Every Pine → chartlang name/enum decision routes through one table
   here — no transform re-derives a mapping.** `DRAWING_KIND_MAP`,
   `ENUM_VALUE_MAP`, `INPUT_MAP`, `TA_PASSTHROUGH_MAP`,
@@ -197,10 +219,10 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   row, never branch in a transform.
 - **Calendar built-in CALLS route through `BUILTIN_CALL_MAP`
   (`builtinCalls.ts`), distinct from the bare-value `BUILTIN_IDENTIFIER_MAP`.**
-  The bare value reads `dayofweek` / `time_close` lower to the no-arg accessor
-  via `BUILTIN_IDENTIFIER_MAP` (`time.dayofweek(bar.time)` /
-  `time.timeClose(bar.time)`); `time` stays `bar.time`. Their explicit CALL
-  forms (`dayofweek(t)`, `time()`, `time_close()`) MUST be intercepted by
+  The bare value reads `dayofweek` / `time_close` / `timenow` lower to accessor
+  forms via `BUILTIN_IDENTIFIER_MAP` (`time.dayofweek(bar.time)` /
+  `time.timeClose(bar.time)` / `time.now()`); `time` stays `bar.time`.
+  Their explicit CALL forms (`dayofweek(t)`, `time()`, `time_close()`) MUST be intercepted by
   `lowerBuiltinCall(name, emittedArgs)` BEFORE the generic `callee(args)` path
   — both in `emitExpr`'s `call-expression` case (the pure, nested path) and in
   `other.ts`'s `emitSpecialCall` (the top-level path, which additionally pushes
@@ -208,11 +230,16 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `time(timeframe)`). Without the interception the value-fragment remap would
   compose into `time.dayofweek(bar.time)(t)` / `bar.time()`. The mapped forms:
   `time()` → `bar.time`; `time_close()` → `time.timeClose(bar.time)`;
-  `dayofweek(t[, tz])` → `time.dayofweek(t[, tz])`. `input.session` is a plain
-  `INPUT_MAP` passthrough row (string default via `literalDefault`). When the
-  generated source names `time.*` / `session.*`, codegen's `scanUsage`
-  (`usage.ts`) force-includes `time` / `session` in BOTH the import list AND
-  the `compute` destructure (`emitImports.ts` / `emitCompute.ts`).
+  `dayofweek(t[, tz])` → `time.dayofweek(t[, tz])`;
+  `timestamp(y, m, d[, h[, min[, s[, tz]]]])` → `time.timestamp(...)` for
+  numeric-first arities 3-7. Pine's leading-timezone overload
+  (`timestamp("UTC", y, m, d, ...)`) is deliberately DEFERRED and returns
+  `null` for now because chartlang's `time.timestamp` expects `tz` last.
+  `input.session` is a plain `INPUT_MAP` passthrough row (string default via
+  `literalDefault`). When the generated source names `time.*` / `session.*`,
+  codegen's `scanUsage` (`usage.ts`) force-includes `time` / `session` in BOTH
+  the import list AND the `compute` destructure (`emitImports.ts` /
+  `emitCompute.ts`).
 - **`chartlang: null` is the REJECT marker, and `lookup(map, key)`
   collapses both "absent key" and "REJECT entry" to `null`.** Callers get
   a single "no usable target" signal; the diagnostics layer reads the
@@ -260,7 +287,11 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
   `version-directive` token always carries `versionNumber` (the lexer's
   regex requires `\d+`); the `=== undefined` guard in
   `parseVersionDirective` is type-safety only and is exercised by a
-  synthetic-token unit test, not reachable from real lexer output.
+  synthetic-token unit test, not reachable from real lexer output. Version
+  `6` is accepted silently; version `5` is accepted with the
+  `pine-version-downlevel` warning because the transform pipeline is
+  version-agnostic; every other version still emits
+  `unsupported-pine-version`.
 - **INDENT/DEDENT map to `BlockStatement` boundaries.** `parseBlock` opens
   on an `indent` and closes on the matching `dedent`; the lexer's
   indent/dedent balance invariant means a block always closes, so the
@@ -383,6 +414,37 @@ that has no byte-identical chartlang analogue.
   the silence is exactly the signal to slot-back the index, and Trend Wizard's
   31 TS7053 errors came from emitting `x[1]` on the `.current` SCALAR projection
   rather than on a slot.)
+  The slot-backing now also covers four receiver kinds beyond a user-declared
+  `var`/UDF-series local (all in `other.ts`): (1) a top-level `=`-decl ROOTED IN
+  AN OHLCV BUILTIN (`chg = (close - close[1]) / …`) — A1's resolver
+  (`scanPromotedSeries`) applies the `BUILTIN_SYMBOLS` fallback so `close`
+  infers `series`; (2) a BOOLEAN promoted decl / direct-`ta.cross*` series — the
+  promotion carries an element type (`booleanValued` ⇒ `state.boolSeries`, else
+  `state.series`), so the per-bar `<slot>.value = <boolean>` write type-checks;
+  (3) the SCALAR series builtin `time` (`SCALAR_BAR_SERIES_SOURCES`) — a
+  synthesized `state.series` slot is fed `<slot>.value = bar.time` at the top of
+  `compute` and `EmitContext.builtinSeriesSlots` rewrites `time[n]` → `<slot>[n]`
+  (a bare `time` stays `bar.time`); the call-remapped scalars
+  (`time_close`/`timenow`/`bar_index`) remain a documented gap; (4) a SOURCE
+  INPUT (`input.source` / bare `input(defval=close)`) — `EmitContext.sourceInputs`
+  emits `bar[inputs.<name> as SourceField]` (an indexable `PriceSeries`, pulling
+  a `type SourceField` import via `usage.sourceField`) instead of the old
+  `(inputs.<name> as number)` cast, so `src[1]` and `ta.*(src, …)` work.
+- **`request.security` is series-qualified, and a REJECTED feed emits a safe
+  placeholder.** `memberCallQualifier` (`qualifiers.ts`) maps `request.security`
+  → `series`, so a history-indexed feed local (`earnings[1]`) is slot-backed by
+  the promotion pass. `emitRequestSecurity` returns the `Number.NaN /* unsupported
+  request.security feed */` placeholder (NOT the verbatim broken call) for an
+  out-of-subset symbol/timeframe, keeping the loud `request-security-not-mapped`
+  error; it returns `null` ONLY when the call is not a `request.security` at all.
+- **An untyped color-valued decl resolves its `na` arm to the transparent
+  color.** `valueIsColor` (`analyze.ts`) gives a `c = cond ? color.x : na` decl /
+  assignment the `"color"` na-context even without a `color` type annotation, so
+  the `na` lowers to `#00000000` (not `Number.NaN`, which would poison the value
+  to `string | number`).
+- **Pine `syminfo.<member>` aliases route through `remapSyminfoMember`
+  (`builtinIdentifiers.ts`).** `syminfo.prefix` → `syminfo.exchange`; name-matched
+  members pass through verbatim; an unmodelled member is a best-effort residual.
 
 ### Parser / expressions (`src/parser/expressions.ts`, `unparse.ts`)
 
@@ -489,6 +551,10 @@ that has no byte-identical chartlang analogue.
   `SourceSpan`, the `lifetimes` `LifetimeMap` keyed by the shared
   `SymbolInfo` identity, `referencesBarIndex`/`referencesFutureBarIndex`,
   and the two drawing-classification views described next.
+- **Call-only built-ins still need semantic rows.** A bare-rooted callable
+  like `timestamp(...)` is lowered later by `BUILTIN_CALL_MAP`, but it must
+  also appear in `BUILTIN_SYMBOLS` as `simple` or analysis emits a spurious
+  `unknown-identifier` before transform/codegen.
 - **Drawing-camp classification is the load-bearing output, and it is
   deterministic.** `analyze` exposes BOTH `drawingSites: readonly
   DrawingCallSite[]` (source-order, what Tasks 10–14 iterate) AND
@@ -846,8 +912,10 @@ that has no byte-identical chartlang analogue.
   (incl. an unknown/`non-string` timeframe) → `non-literal-input-default`; an
   unrecognised `input.*` → `unknown-input-primitive`. Allowed defaults are
   compile-time literals PLUS a unary `+`/`-` on a numeric literal
-  (`input.int(-1)`). Literal `group`/`inline`/`tooltip` pass through as string
-  opts; Pine input `display.all` is recognized and omitted, `display.none` /
+  (`input.int(-1)`) and compile-time color forms (`color.<name>`,
+  `color.rgb(...)`, `color.new(...)`) folded through `colorConvert.ts`'s
+  converter palette helpers. Literal `group`/`inline`/`tooltip` pass through as
+  string opts; Pine input `display.all` is recognized and omitted, `display.none` /
   `display.status_line` / `display.data_window` lower to `"none"` /
   `"status-line"` / `"data-window"` via `INPUT_DISPLAY_MAP`; literal
   `confirm=true|false` passes through. Unmapped named args (`active`,
@@ -1374,8 +1442,10 @@ that has no byte-identical chartlang analogue.
     `color.rgb` dynamic base re-emits `color.rgb(r, g, b)`. (chartlang core has
     NO `color.new` — a `color.new` must NEVER reach the `emit` fallback.)
   - A bare `color.*` enum lowers through `enumLookup`; a 3-arg `color.rgb(r, g,
-    b)` and every other node fall through to `emit` (so `color.rgb` survives and
-    Task 2's `color`-import gating must cover any surviving `color.` member).
+    b)` with literal components folds to `#RRGGBB`; a dynamic 3-arg
+    `color.rgb` and every other node fall through to `emit` (so `color.rgb`
+    survives and Task 2's `color`-import gating must cover any surviving
+    `color.` member).
   - `isTranspColorForm(node)` (a 2-arg `color.new` or 4-arg `color.rgb`) is the
     predicate the plot/hline/table call sites raise `color-transp-approximated`
     (info) on. The linefill path keeps its own `linefill-color-transp-
@@ -1706,14 +1776,15 @@ that has no byte-identical chartlang analogue.
   = …`. The `MutableSlot<T>` API is `.value` get/set (NOT the drawing-handle
   slot's `.current()`/`.set()`). A plain `=` declaration → `let x = …`; a `=`
   the semantic pass flags `declaration` → `let`, a reassignment → bare `x = …`.
-- **A non-indexed `na`-init `string`/`bool` scalar carries a `T | null = null`
-  ANNOTATION (`emitDeclaration`, `other.ts`).** A `var string`/`var bool`
-  initialised to `na` that is NEVER history-indexed gets no series slot — its
-  default would be `Number.NaN`, making TS infer `number`, so a later `:= "EMA"`
-  / `:= true` fails (TS2322). Carry the Pine declared type into an explicit
-  `let x: string | null = null;` / `let x: boolean | null = null;` (the `null`
-  na sentinel) so the reads/writes type-check. Scoped to the `na`-init
-  string/bool case — `int`/`float` already infer `number` from `Number.NaN`.
+- **A non-indexed `na`-init `string` scalar seeds an empty string, while `bool`
+  keeps the null sentinel (`emitDeclaration`, `other.ts`).** A `var string`
+  initialised to `na` that is NEVER history-indexed gets no series slot, so it
+  emits `let x = "";` to match Pine's effective string-`na` runtime default and
+  keep later string-typed calls (`alert(x)`) from seeing a `string | null`
+  union. The adjacent `var bool x = na` case still emits
+  `let x: boolean | null = null;`; that identical narrowing gap is intentionally
+  left to the bool follow-up. Numeric `int`/`float` `na` declarations stay on
+  the `Number.NaN` path.
 - **A `var color` scalar lowers to `state.color` (`colorScalar`/`emitStateSlots`,
   T12).** A `var`/`varip` whose declared type is `color`, OR whose init is a
   color literal (`#RRGGBB(AA)`) / `color.*` palette member / `color.*(...)` call,
@@ -1866,19 +1937,29 @@ that has no byte-identical chartlang analogue.
   `Primitive`) MUST unroll (the compiler rejects a stateful call in any loop):
   each iteration renders with `substituteIterator` substituting the concrete
   index. A bound resolves to a compile-time int from a literal/unary-literal OR
-  an `input.int` default (`resolveBound` + the `inputDefaults` re-walk); an
-  input-derived bound ALSO raises `loop-unroll-frozen-at-input-default` (the
-  count is frozen at the default). A non-stateful body with a TRUE literal bound
-  emits a runtime `for`. **Pine auto-counts DOWN when `from > to`; the `by`
+  an `input.int` default (`resolveBound` + the `inputIntMetadata` re-walk).
+  Stateful loops still unroll at the resolved input default and raise
+  `loop-unroll-frozen-at-input-default` (the count is frozen at the default).
+  A non-stateful body with a TRUE literal bound emits a runtime `for`; a
+  non-stateful `for i = <literal> to <input.int>` with a literal `by` emits a
+  runtime `for` over `(inputs.<name> as number)` so the iteration count follows
+  the input. If that input has no `maxval`, emit
+  `loop-bound-input-unbounded` so the compiler's 5000-slot dynamic lookback
+  fallback is explicit. **The input-bound runtime loop is ASCENDING-ONLY:** it
+  emits only an `i <= inputs.<name>; i++` header, so it is taken only when the
+  literal from-bound is `<=` the input DEFAULT. When `from.value >
+  to.value(default)` Pine would auto-count DOWN, and a runtime ascending loop
+  can't express that, so `emitInputBoundLoop` returns `null` and the loop falls
+  back to the frozen unroll-at-default path (`loop-unroll-frozen-at-input-
+  default`), which renders the real direction via the from-vs-to relation rather
+  than emitting a permanently-false loop that silently runs zero iterations. **Pine auto-counts DOWN when `from > to`; the `by`
   value contributes only its MAGNITUDE (direction is the from-vs-to relation).**
   An ascending loop emits `for (let i = a; i <= b; i++ | i += mag)`; a
   descending loop emits `for (let i = a; i >= b; i-- | i += -mag)`. The unroll
   path mirrors this (ascending: `i <= to`; descending: `i >= to`; `stepDelta =
   ±|by|`), so a descending or `by`-stepped loop runs its real iteration set
   rather than zero. `step === 0` (or a non-literal `by`) is non-resolvable. A
-  non-stateful body with an
-  `input.int`/non-literal bound unrolls-when-resolvable (a runtime `for` with a
-  non-literal bound is compiler-forbidden) else rejects
+  non-stateful body with any other non-literal bound rejects
   `loop-bounds-not-literal-for-stateful-body`. A stateful body with a
   non-resolvable bound rejects the same. The SAME direction+magnitude unroll
   rule is mirrored in `tables.ts`'s `unrollLoop` (a non-literal/zero `by` →
@@ -1947,11 +2028,9 @@ that has no byte-identical chartlang analogue.
   `alert()` with no positional message returns `null` (generic fallback).
   Adding `frequency` to core `AlertOpts` is a deferred follow-up. Fixture
   `57-alert-message-freq` pins the lowering (two dropped freqs + a bare
-  `alert(message)`); it fires alerts DIRECTLY inside `if` blocks rather than via
-  MASM's `var string alert_msg = na` / `if not na(alert_msg)` engine, because a
-  non-numeric `var` mis-lowers to `let x = Number.NaN` today (the unfinished
-  **T12** `var string/bool` persistent-state gap) — out of scope for the alert
-  mapping. `fill`
+  `alert(message)`); MASM-style `var string alert_msg = na` now has its own
+  focused fixture (`82-na-string-default`) and is not part of alert-frequency
+  lowering. `fill`
   over two `hline`/`plot` handles lowers to `draw.fillBetween` (see the
   `emitFillBetweenBand`/`emitFill` invariants above); only an unresolved handle
   (`fill-handle-unresolved`) or a gradient/`fillgaps` form (narrowed
@@ -2014,8 +2093,9 @@ that has no byte-identical chartlang analogue.
   are chartlang EMIT-SOURCE STRINGS (a quoted literal or an `inputs.<name>`
   ref), spliced verbatim by `securityOpts`. SYMBOL: `syminfo.tickerid` →
   omit `symbol` (`{ interval }`, byte-identical to the single-symbol output); a
-  **string literal** (`"NASDAQ:AAPL"`) → `{ symbol: "...", interval }`; an
-  **identifier bound to an `input.symbol`** → `{ symbol: inputs.<name> as string,
+  **string literal** (`"NASDAQ:AAPL"`) or literal-only `+` concat
+  (`"ESD:" + "AAPL"`) → `{ symbol: "...", interval }`; an **identifier bound to
+  an `input.symbol` or `input.string`** → `{ symbol: inputs.<name> as string,
   interval }` (the cast: `compute`'s `inputs` is `Record<string, unknown>`, so an
   un-cast read fails the `RequestSecurityOpts` typecheck — the compiler's feed
   extractor unwraps the `as`/parens to resolve the default). A present
@@ -2228,12 +2308,12 @@ that has no byte-identical chartlang analogue.
   case-sensitive so bare `Math.abs` (capital `M`, the no-rewrap passthrough)
   never false-positives. The injected `syminfo.mintick` step on
   `math.roundToMintick(x, syminfo.mintick)` is what pulls BOTH `math`/`syminfo`
-  in at once. **`color` rides in whenever a `color.*` member SURVIVES the Task-1
-  colour lowering** — `color.withAlpha(...)` (dynamic base/transp), a 3-arg
+  in at once. **`color` rides in whenever a `color.*` member SURVIVES colour
+  lowering** — `color.withAlpha(...)` (dynamic base/transp), a dynamic 3-arg
   `color.rgb(...)` passthrough, or a bare palette member (`color.green`) emitted
   verbatim in a plain assignment. An all-literal colour folds to a quoted
-  `#RRGGBBAA` string with no `color.` token, so a hex-only script imports no
-  `color` (byte-compat — no spurious import).
+  `#RRGGBB` / `#RRGGBBAA` string with no `color.` token, so a hex-only script
+  imports no `color` (byte-compat — no spurious import).
 - **`emitMaxDrawings.ts` emits ALL FIVE buckets when any is set** (unset → `0`)
   — core's `DrawingCounts` is a total 5-bag budget, so a partial literal is a
   compile-time type error; omit the whole property only when no bucket is set.

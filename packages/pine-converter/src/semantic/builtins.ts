@@ -37,6 +37,7 @@ const SERIES_NAMES: readonly string[] = [
     "hlcc4",
     "time",
     "time_close",
+    "timenow",
     "bar_index",
 ];
 
@@ -195,6 +196,7 @@ export const BUILTIN_SYMBOLS: ReadonlyMap<string, SymbolInfo> = new Map<string, 
     ...CONST_NAMES.map((name) => builtin(name, "const")),
     ...NAMESPACE_NAMES.map((name) => builtin(name, "simple")),
     ...PLOT_NAMES.map((name) => builtin(name, "simple")),
+    builtin("timestamp", "simple"),
     builtin("na", "const"),
     builtin("chart.point", "simple"),
 ]);

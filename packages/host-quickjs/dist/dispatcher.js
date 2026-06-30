@@ -773,6 +773,20 @@ var time = Object.freeze({
     return sentinel3("time.timestamp");
   },
   /**
+   * Host-injected wall-clock time as a UTC ms epoch. The runtime reads the
+   * active mount's `now` provider at call time; unlike the calendar accessors
+   * this is intentionally not a deterministic function of bar data.
+   *
+   * @since 1.7
+   * @stable
+   * @example
+   *     const fn: typeof time.now = time.now;
+   *     void fn;
+   */
+  now() {
+    return sentinel3("time.now");
+  },
+  /**
    * Close timestamp of the bar that starts at `t` — Pine's no-arg
    * `time_close()`. Equals `t + interval`, where the interval is the active
    * bar's `timeframe.inSeconds` the runtime reads internally (so this mirrors
@@ -1414,6 +1428,7 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "time.minute", slot: false },
   { name: "time.second", slot: false },
   { name: "time.timestamp", slot: false },
+  { name: "time.now", slot: false },
   { name: "time.timeClose", slot: false },
   { name: "session.isOpen", slot: false },
   { name: "defineAlertCondition.signal", slot: false },
@@ -5378,6 +5393,157 @@ function resolvePane(requested, ctx, slotId) {
   return resolveNamedPane(requested, ctx, slotId);
 }
 
+// ../runtime/dist/emit/alertConditionEmission.js
+function diagnoseOnce(ctx, code, conditionId, message2) {
+  const key = `${code}|${conditionId}`;
+  const diagnosed = ctx.diagnosedAlertConditionKeys;
+  if (diagnosed?.has(key))
+    return;
+  diagnosed?.add(key);
+  pushDiagnostic(ctx.emissions, {
+    kind: "diagnostic",
+    severity: "warning",
+    code,
+    message: message2,
+    slotId: null,
+    bar: ctx.barIndex()
+  });
+}
+function emitAlertCondition(ctx, conditionId, fired) {
+  if (!ctx.capabilities.alertConditions) {
+    diagnoseOnce(ctx, "alert-conditions-not-supported", conditionId, "Adapter does not support alert conditions; signal dropped.");
+    return;
+  }
+  const condition = ctx.alertConditions?.get(conditionId);
+  if (condition === void 0) {
+    diagnoseOnce(ctx, "unknown-alert-condition", conditionId, `Alert condition "${conditionId}" is not declared in the script manifest.`);
+    return;
+  }
+  const emission = {
+    kind: "alert-condition",
+    conditionId,
+    title: condition.title,
+    description: condition.description,
+    defaultMessage: condition.defaultMessage,
+    fired,
+    bar: ctx.barIndex(),
+    time: ctx.stream.bar.time
+  };
+  pushAlertCondition(ctx.emissions, emission);
+}
+
+// ../runtime/dist/emit/runtimeError.js
+var RUNTIME_ERROR_SENTINEL = Symbol("runtime-error-halt");
+function makeRuntimeErrorHalt(message2) {
+  return Object.freeze({ sentinel: RUNTIME_ERROR_SENTINEL, message: message2 });
+}
+function isRuntimeErrorHalt(err) {
+  return typeof err === "object" && err !== null && "sentinel" in err && err.sentinel === RUNTIME_ERROR_SENTINEL && "message" in err && typeof err.message === "string";
+}
+
+// ../runtime/dist/emit/logEmission.js
+var MAX_LOGS_PER_STEP = 1e3;
+function isPlainObject2(v) {
+  if (typeof v !== "object" || v === null)
+    return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+}
+function isJsonValue(v) {
+  if (v === null)
+    return true;
+  const t = typeof v;
+  if (t === "boolean" || t === "string")
+    return true;
+  if (t === "number")
+    return Number.isFinite(v);
+  if (Array.isArray(v))
+    return v.every(isJsonValue);
+  if (!isPlainObject2(v))
+    return false;
+  for (const key of Object.keys(v)) {
+    let child;
+    try {
+      child = Reflect.get(v, key);
+    } catch {
+      return false;
+    }
+    if (!isJsonValue(child))
+      return false;
+  }
+  return true;
+}
+function snapshotJsonValue(value) {
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map((item) => snapshotJsonValue(item)));
+  }
+  if (isPlainObject2(value)) {
+    const entries = Object.entries(value).map(([key, item]) => [
+      key,
+      snapshotJsonValue(item)
+    ]);
+    return Object.freeze(Object.fromEntries(entries));
+  }
+  return value;
+}
+function snapshotMeta(meta) {
+  return snapshotJsonValue(meta);
+}
+function diagnoseLogBudget(ctx) {
+  if (ctx.logBudgetExceededDiagnosed)
+    return;
+  ctx.logBudgetExceededDiagnosed = true;
+  pushDiagnostic(ctx.emissions, {
+    kind: "diagnostic",
+    severity: "warning",
+    code: "runtime-log-budget-exceeded",
+    message: "runtime.log.* emitted more than 1000 messages in one compute step; later logs were dropped.",
+    slotId: null,
+    bar: ctx.barIndex()
+  });
+}
+function emitLog(ctx, level, message2, meta) {
+  if (!ctx.capabilities.logs)
+    return;
+  if (ctx.logBudget >= MAX_LOGS_PER_STEP) {
+    diagnoseLogBudget(ctx);
+    return;
+  }
+  if (meta !== void 0 && !isJsonValue(meta)) {
+    pushDiagnostic(ctx.emissions, {
+      kind: "diagnostic",
+      severity: "warning",
+      code: "malformed-log-meta",
+      message: "runtime.log.* meta must be JSON-serialisable.",
+      slotId: null,
+      bar: ctx.barIndex()
+    });
+    return;
+  }
+  const emission = {
+    kind: "log",
+    level,
+    message: message2,
+    ...meta === void 0 ? {} : { meta: snapshotMeta(meta) },
+    bar: ctx.barIndex(),
+    time: ctx.stream.bar.time
+  };
+  ctx.logBudget += 1;
+  pushLog(ctx.emissions, emission);
+}
+function buildRuntimeNamespace(ctx) {
+  return Object.freeze({
+    log: Object.freeze({
+      info: (message2, meta) => emitLog(ctx, "info", message2, meta),
+      warn: (message2, meta) => emitLog(ctx, "warn", message2, meta),
+      error: (message2, meta) => emitLog(ctx, "error", message2, meta)
+    }),
+    error: (message2) => {
+      throw makeRuntimeErrorHalt(message2);
+    }
+  });
+}
+
 // ../runtime/dist/ta/adl.js
 function getCtx3() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
@@ -6266,7 +6432,7 @@ function snapshotUnknown(value) {
   }
   return value;
 }
-function snapshotMeta(meta) {
+function snapshotMeta2(meta) {
   return snapshotUnknown(meta);
 }
 function alertImpl(ctx, slotId, message2, opts) {
@@ -6283,7 +6449,7 @@ function alertImpl(ctx, slotId, message2, opts) {
   }
   const channels = Array.from(ctx.capabilities.alerts);
   const bar = ctx.barIndex();
-  const meta = snapshotMeta(opts.meta ?? {});
+  const meta = snapshotMeta2(opts.meta ?? {});
   const emission = {
     kind: "alert",
     slotId,
@@ -6305,45 +6471,6 @@ function alert2(arg1, arg2, arg3) {
   if (!ctx)
     throw new Error(OUTSIDE_CTX_MESSAGE);
   alertImpl(ctx, arg1, arg2, arg3 ?? {});
-}
-
-// ../runtime/dist/emit/alertConditionEmission.js
-function diagnoseOnce(ctx, code, conditionId, message2) {
-  const key = `${code}|${conditionId}`;
-  const diagnosed = ctx.diagnosedAlertConditionKeys;
-  if (diagnosed?.has(key))
-    return;
-  diagnosed?.add(key);
-  pushDiagnostic(ctx.emissions, {
-    kind: "diagnostic",
-    severity: "warning",
-    code,
-    message: message2,
-    slotId: null,
-    bar: ctx.barIndex()
-  });
-}
-function emitAlertCondition(ctx, conditionId, fired) {
-  if (!ctx.capabilities.alertConditions) {
-    diagnoseOnce(ctx, "alert-conditions-not-supported", conditionId, "Adapter does not support alert conditions; signal dropped.");
-    return;
-  }
-  const condition = ctx.alertConditions?.get(conditionId);
-  if (condition === void 0) {
-    diagnoseOnce(ctx, "unknown-alert-condition", conditionId, `Alert condition "${conditionId}" is not declared in the script manifest.`);
-    return;
-  }
-  const emission = {
-    kind: "alert-condition",
-    conditionId,
-    title: condition.title,
-    description: condition.description,
-    defaultMessage: condition.defaultMessage,
-    fired,
-    bar: ctx.barIndex(),
-    time: ctx.stream.bar.time
-  };
-  pushAlertCondition(ctx.emissions, emission);
 }
 
 // ../runtime/dist/emit/applyPlotOverride.js
@@ -8006,118 +8133,6 @@ function hline2(arg1, arg2, arg3) {
     throw new Error(OUTSIDE_CTX_MESSAGE69);
   }
   hlineImpl(ctx, arg1, arg2, arg3 ?? {});
-}
-
-// ../runtime/dist/emit/runtimeError.js
-var RUNTIME_ERROR_SENTINEL = Symbol("runtime-error-halt");
-function makeRuntimeErrorHalt(message2) {
-  return Object.freeze({ sentinel: RUNTIME_ERROR_SENTINEL, message: message2 });
-}
-function isRuntimeErrorHalt(err) {
-  return typeof err === "object" && err !== null && "sentinel" in err && err.sentinel === RUNTIME_ERROR_SENTINEL && "message" in err && typeof err.message === "string";
-}
-
-// ../runtime/dist/emit/logEmission.js
-var MAX_LOGS_PER_STEP = 1e3;
-function isPlainObject2(v) {
-  if (typeof v !== "object" || v === null)
-    return false;
-  const proto = Object.getPrototypeOf(v);
-  return proto === Object.prototype || proto === null;
-}
-function isJsonValue(v) {
-  if (v === null)
-    return true;
-  const t = typeof v;
-  if (t === "boolean" || t === "string")
-    return true;
-  if (t === "number")
-    return Number.isFinite(v);
-  if (Array.isArray(v))
-    return v.every(isJsonValue);
-  if (!isPlainObject2(v))
-    return false;
-  for (const key of Object.keys(v)) {
-    let child;
-    try {
-      child = Reflect.get(v, key);
-    } catch {
-      return false;
-    }
-    if (!isJsonValue(child))
-      return false;
-  }
-  return true;
-}
-function snapshotJsonValue(value) {
-  if (Array.isArray(value)) {
-    return Object.freeze(value.map((item) => snapshotJsonValue(item)));
-  }
-  if (isPlainObject2(value)) {
-    const entries = Object.entries(value).map(([key, item]) => [
-      key,
-      snapshotJsonValue(item)
-    ]);
-    return Object.freeze(Object.fromEntries(entries));
-  }
-  return value;
-}
-function snapshotMeta2(meta) {
-  return snapshotJsonValue(meta);
-}
-function diagnoseLogBudget(ctx) {
-  if (ctx.logBudgetExceededDiagnosed)
-    return;
-  ctx.logBudgetExceededDiagnosed = true;
-  pushDiagnostic(ctx.emissions, {
-    kind: "diagnostic",
-    severity: "warning",
-    code: "runtime-log-budget-exceeded",
-    message: "runtime.log.* emitted more than 1000 messages in one compute step; later logs were dropped.",
-    slotId: null,
-    bar: ctx.barIndex()
-  });
-}
-function emitLog(ctx, level, message2, meta) {
-  if (!ctx.capabilities.logs)
-    return;
-  if (ctx.logBudget >= MAX_LOGS_PER_STEP) {
-    diagnoseLogBudget(ctx);
-    return;
-  }
-  if (meta !== void 0 && !isJsonValue(meta)) {
-    pushDiagnostic(ctx.emissions, {
-      kind: "diagnostic",
-      severity: "warning",
-      code: "malformed-log-meta",
-      message: "runtime.log.* meta must be JSON-serialisable.",
-      slotId: null,
-      bar: ctx.barIndex()
-    });
-    return;
-  }
-  const emission = {
-    kind: "log",
-    level,
-    message: message2,
-    ...meta === void 0 ? {} : { meta: snapshotMeta2(meta) },
-    bar: ctx.barIndex(),
-    time: ctx.stream.bar.time
-  };
-  ctx.logBudget += 1;
-  pushLog(ctx.emissions, emission);
-}
-function buildRuntimeNamespace(ctx) {
-  return Object.freeze({
-    log: Object.freeze({
-      info: (message2, meta) => emitLog(ctx, "info", message2, meta),
-      warn: (message2, meta) => emitLog(ctx, "warn", message2, meta),
-      error: (message2, meta) => emitLog(ctx, "error", message2, meta)
-    }),
-    error: (message2) => {
-      throw makeRuntimeErrorHalt(message2);
-    }
-  });
 }
 
 // ../runtime/dist/ta/lib/volume-profile/scaffold.js
@@ -16237,7 +16252,7 @@ function resolveTz(tz, getDefaultTz) {
 function isInt(value) {
   return Number.isInteger(value);
 }
-function createTimeNamespace(getDefaultTz, getIntervalMs, onDstUnsupported) {
+function createTimeNamespace(getDefaultTz, getIntervalMs, getNow, onDstUnsupported) {
   function offsetFor(tz) {
     const resolved = resolveTz(tz, getDefaultTz);
     const { offsetMin, dstUnsupported } = resolveOffsetMinutes(resolved);
@@ -16274,6 +16289,7 @@ function createTimeNamespace(getDefaultTz, getIntervalMs, onDstUnsupported) {
       }
       return daysFromCivil(year, month, day) * 864e5 + (hh * 3600 + mm * 60 + ss) * 1e3 - offsetMin * 6e4;
     },
+    now: () => getNow(),
     timeClose: (t, tz) => {
       offsetFor(tz);
       if (!Number.isFinite(t))
@@ -16282,8 +16298,8 @@ function createTimeNamespace(getDefaultTz, getIntervalMs, onDstUnsupported) {
     }
   });
 }
-function buildTimeNamespace(ctx) {
-  return createTimeNamespace(() => ctx.views.syminfo.timezone, () => ctx.views.timeframe.inSeconds * 1e3, buildTzDstReporter(ctx));
+function buildTimeNamespace(ctx, getNow) {
+  return createTimeNamespace(() => ctx.views.syminfo.timezone, () => ctx.views.timeframe.inSeconds * 1e3, getNow, buildTzDstReporter(ctx));
 }
 
 // ../runtime/dist/time-accessors/sessionAccessors.js
@@ -16329,7 +16345,7 @@ function buildComputeContext(state2) {
     barstate: state2.runtimeContext.views.barstate,
     syminfo: state2.runtimeContext.views.syminfo,
     timeframe: state2.runtimeContext.views.timeframe,
-    time: buildTimeNamespace(state2.runtimeContext),
+    time: buildTimeNamespace(state2.runtimeContext, state2.now),
     session: buildSessionNamespace(state2.runtimeContext),
     request: buildRequestNamespace(),
     runtime: buildRuntimeNamespace(state2.runtimeContext)

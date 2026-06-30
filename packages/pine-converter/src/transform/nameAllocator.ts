@@ -3,21 +3,50 @@
 
 import type { SemanticResult } from "../semantic/index.js";
 
-// The chartlang `compute(ctx)` destructure params (every name the generated
-// body might bind from the context) plus the always-present import binding.
-// Reserved so a synthesized name never shadows `bar`/`draw`/etc.
+// The chartlang `compute(ctx)` destructure params — every name the generated
+// body might bind from the `ComputeContext` (kept in lockstep with
+// `codegen/emitCompute.ts`'s `destructureFields`). Reserved so a synthesized
+// name never shadows `bar`/`draw`/etc., AND `allocateForSymbol` never reclaims
+// one for a translated Pine symbol: a host param is a LIVE binding (a callee
+// like `bgcolor(...)` / `plot(...)`, or a view like `syminfo`) that cannot be
+// rewritten away, so a Pine var named `bgcolor` must take a fresh `bgcolor2`.
 const COMPUTE_CONTEXT_NAMES: readonly string[] = [
     "bar",
     "draw",
     "ta",
     "plot",
     "hline",
+    "bgcolor",
+    "barcolor",
     "alert",
     "inputs",
     "state",
     "request",
+    "time",
+    "session",
+    "syminfo",
     "barstate",
 ];
+
+const COMPUTE_CONTEXT_NAME_SET: ReadonlySet<string> = new Set(COMPUTE_CONTEXT_NAMES);
+
+/**
+ * Whether `name` is a chartlang `compute(ctx)` destructure param — a host
+ * binding a translated Pine symbol must never collide with (a `bgcolor` /
+ * `plot` callee, `inputs`, `bar`, a `syminfo` view, …). A Pine variable with
+ * this name is renamed (`bgcolor` → `bgcolor2`) so its declaration / references
+ * never shadow the still-live host binding.
+ *
+ * @since 0.5
+ * @stable
+ * @example
+ *     import { isComputeContextName } from "./nameAllocator.js";
+ *     isComputeContextName("bgcolor"); // true
+ *     isComputeContextName("ma_slope"); // false
+ */
+export function isComputeContextName(name: string): boolean {
+    return COMPUTE_CONTEXT_NAME_SET.has(name);
+}
 
 // JavaScript/TypeScript reserved words a synthesized identifier must never
 // equal — emitting `const default = …` or `let class = …` is a syntax error.
@@ -244,7 +273,13 @@ export class NameAllocator {
         if (memoized !== undefined) {
             return memoized;
         }
-        const allocated = this.claim(sanitizeBase(pineName), (name) => this.taken.has(name));
+        // A seeded name is reclaimable EXCEPT a host `compute` param: that binding
+        // stays live (a `bgcolor(...)` callee, the `inputs` object, …), so a Pine
+        // symbol sharing its name must take a fresh suffix (`bgcolor` → `bgcolor2`).
+        const allocated = this.claim(
+            sanitizeBase(pineName),
+            (name) => this.taken.has(name) || COMPUTE_CONTEXT_NAME_SET.has(name),
+        );
         this.symbolNames.set(pineName, allocated);
         return allocated;
     }

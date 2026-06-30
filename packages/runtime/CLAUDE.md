@@ -44,13 +44,16 @@
   `RuntimeContext`, built in `buildComputeContext.ts`, NOT module-level
   constants like `ta`.**
   Both close over the mount's `RuntimeContext` (default tz from
-  `syminfo.timezone`, the shared `tz-dst-unsupported` dedup), so
-  `buildTimeNamespace(ctx)` / `buildSessionNamespace(ctx)`
+  `syminfo.timezone`, the shared `tz-dst-unsupported` dedup), and `time.now`
+  additionally closes over the runner's host-injected `state.now` clock, so
+  `buildTimeNamespace(ctx, state.now)` / `buildSessionNamespace(ctx)`
   (`time-accessors/`) are rebuilt PER BAR by `buildComputeContext` (like
-  the `state` / `request` / `runtime` namespaces). Each is a pure view
-  over the stable `RuntimeContext`, so the per-bar rebuild is cheap and
-  identity-stability across bars is NOT relied upon (the compiled script
-  receives a fresh `ctx` each bar). They are NOT re-exported from
+  the `state` / `request` / `runtime` namespaces). The calendar/session
+  accessors are pure views over the stable `RuntimeContext`; `time.now()` is
+  the deliberate host-variance accessor and is never serialized into
+  snapshots. The per-bar rebuild is cheap and identity-stability across bars
+  is NOT relied upon (the compiled script receives a fresh `ctx` each bar).
+  They are NOT re-exported from
   `primitives.ts` (the core sentinel `session` hole is no longer
   re-exported there). The `tz-dst-unsupported` diagnostic is deduped
   on `ctx.diagnosedTzKeys` via the SINGLE shared reporter

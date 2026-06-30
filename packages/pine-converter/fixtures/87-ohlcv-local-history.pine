@@ -1,0 +1,6 @@
+//@version=6
+indicator("ohlcv-rooted local history")
+chg = (close - close[1]) / close[1] * 100
+delta = chg - chg[1]
+plot(chg)
+plot(delta)

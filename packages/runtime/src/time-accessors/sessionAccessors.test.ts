@@ -122,7 +122,7 @@ describe("buildSessionNamespace — install + shared dedup", () => {
 
     it("shares the tz-dst-unsupported dedup with time.* (once per tz total)", () => {
         const diagnostics = harness([oneBar(at(10, 0))], 8, (_bar, ctx) => {
-            const time = buildTimeNamespace(ctx);
+            const time = buildTimeNamespace(ctx, () => 0);
             const session = buildSessionNamespace(ctx);
             // A DST read on the time path AND the session path for the SAME tz
             // must warn exactly once total (shared ctx.diagnosedTzKeys).

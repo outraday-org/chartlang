@@ -1,0 +1,10 @@
+//@version=6
+indicator("history-promoted value shapes")
+tern = close > open ? true : false
+parenb = (close > open)
+unot = not (close > open)
+memb = close[1]
+plot(tern[1] ? 1 : 0)
+plot(parenb[1] ? 1 : 0)
+plot(unot[1] ? 1 : 0)
+plot(memb[1])

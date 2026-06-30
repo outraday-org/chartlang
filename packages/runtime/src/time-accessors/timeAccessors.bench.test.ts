@@ -16,6 +16,7 @@ describe("time.year threshold", () => {
         const time = createTimeNamespace(
             () => "UTC",
             () => 0,
+            () => 0,
             () => {},
         );
         const start = performance.now();

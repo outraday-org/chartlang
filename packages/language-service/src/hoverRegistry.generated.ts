@@ -7984,6 +7984,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "1.5",
         "stability": "stable"
     },
+    "time.now": {
+        "fqn": "time.now",
+        "kind": "function",
+        "title": "time.now()",
+        "summary": "Host-injected wall-clock time as a UTC ms epoch. The runtime reads the\nactive mount's `now` provider at call time; unlike the calendar accessors\nthis is intentionally not a deterministic function of bar data.",
+        "examples": [
+            "const fn: typeof time.now = time.now;\nvoid fn;"
+        ],
+        "since": "1.7",
+        "stability": "stable"
+    },
     "time.second": {
         "fqn": "time.second",
         "kind": "function",

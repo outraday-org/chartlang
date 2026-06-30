@@ -4,8 +4,8 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it, vi } from "vitest";
 
-import { makeSymInfoView, makeTimeframeView } from "../views/index.js";
 import { harness } from "../ta/__fixtures__/runPrimitive.js";
+import { makeSymInfoView, makeTimeframeView } from "../views/index.js";
 import { buildTimeNamespace, createTimeNamespace } from "./timeAccessors.js";
 
 // 2024-01-02T13:45:30Z — a Tuesday.
@@ -14,6 +14,7 @@ const FIXTURE = Date.UTC(2024, 0, 2, 13, 45, 30);
 function utc() {
     return createTimeNamespace(
         () => "UTC",
+        () => 0,
         () => 0,
         () => {},
     );
@@ -56,12 +57,14 @@ describe("createTimeNamespace — tz resolution", () => {
         const fromDefault = createTimeNamespace(
             () => "+02:00",
             () => 0,
+            () => 0,
             () => {},
         );
         expect(fromDefault.hour(FIXTURE)).toBe(15); // 13:45Z + 2h
 
         const emptyDefault = createTimeNamespace(
             () => "",
+            () => 0,
             () => 0,
             () => {},
         );
@@ -81,6 +84,7 @@ describe("createTimeNamespace — tz resolution", () => {
         const onDst = vi.fn();
         const time = createTimeNamespace(
             () => "UTC",
+            () => 0,
             () => 0,
             onDst,
         );
@@ -128,6 +132,7 @@ describe("createTimeNamespace — timeClose", () => {
         const time = createTimeNamespace(
             () => "UTC",
             () => 60_000, // 1-minute interval in ms
+            () => 0,
             () => {},
         );
         expect(time.timeClose(FIXTURE)).toBe(FIXTURE + 60_000);
@@ -138,10 +143,26 @@ describe("createTimeNamespace — timeClose", () => {
         const time = createTimeNamespace(
             () => "UTC",
             () => 60_000,
+            () => 0,
             onDst,
         );
         expect(time.timeClose(FIXTURE, "Europe/London")).toBe(FIXTURE + 60_000);
         expect(onDst).toHaveBeenCalledWith("Europe/London");
+    });
+});
+
+describe("createTimeNamespace — now", () => {
+    it("reads the host clock getter at call time", () => {
+        let current = 123_456;
+        const time = createTimeNamespace(
+            () => "UTC",
+            () => 0,
+            () => current,
+            () => {},
+        );
+        expect(time.now()).toBe(123_456);
+        current = 789_000;
+        expect(time.now()).toBe(789_000);
     });
 });
 
@@ -162,7 +183,7 @@ describe("buildTimeNamespace — install + diagnostic dedup", () => {
     it("defaults tz from syminfo.timezone and dedupes the DST diagnostic", () => {
         const diagnostics = harness([oneBar(FIXTURE)], 8, (_bar, ctx) => {
             ctx.views.syminfo = makeSymInfoView({ timezone: "+02:00" }, new Set(["timezone"]));
-            const time = buildTimeNamespace(ctx);
+            const time = buildTimeNamespace(ctx, () => 0);
             // Default tz (+02:00) shifts the hour.
             expect(time.hour(FIXTURE)).toBe(15);
             // Two DST-zone reads → exactly one diagnostic for that tz.
@@ -189,9 +210,20 @@ describe("buildTimeNamespace — install + diagnostic dedup", () => {
                 label: "5 minutes",
                 group: "minute",
             });
-            const time = buildTimeNamespace(ctx);
+            const time = buildTimeNamespace(ctx, () => 0);
             return time.timeClose(FIXTURE);
         });
         expect(out[0]).toBe(FIXTURE + 5 * 60 * 1000);
+    });
+
+    it("reads now from the injected runner clock", () => {
+        let current = 1_700_000_000_000;
+        const out = harness([oneBar(FIXTURE), oneBar(FIXTURE + 60_000)], 8, (_bar, ctx) => {
+            const time = buildTimeNamespace(ctx, () => current);
+            const value = time.now();
+            current += 1;
+            return value;
+        });
+        expect(out).toEqual([1_700_000_000_000, 1_700_000_000_001]);
     });
 });

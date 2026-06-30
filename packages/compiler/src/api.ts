@@ -15,6 +15,7 @@ import type {
 import ts from "typescript";
 
 import type { DepGraph, DrawnScript } from "./analysis/extractDependencyGraph.js";
+import type { ExtractedDescriptor } from "./analysis/extractInputs.js";
 import {
     extractAlertConditions,
     extractCapabilities,
@@ -29,6 +30,7 @@ import {
     runStructuralChecks,
     validateLowerTfIntervals,
 } from "./analysis/index.js";
+import type { InputLoopBounds } from "./analysis/loopBounds.js";
 import { bundleModule, formatDependenciesAssignment, formatManifestAssignment } from "./bundle.js";
 import {
     type CompiledProducerArtefacts,
@@ -151,7 +153,9 @@ export function transformAndAnalyse(
     });
 
     const structural = runStructuralChecks(sourceFile, checker, sourcePath);
-    const forbidden = runForbiddenConstructs(sourceFile, sourcePath);
+    const fileInputs = extractInputs(sourceFile, checker, sourcePath);
+    const fileInputLoopBounds = inputLoopBoundsFromDescriptors(fileInputs.inputs);
+    const forbidden = runForbiddenConstructs(sourceFile, sourcePath, fileInputLoopBounds);
     const statefulInLoop = runStatefulCallInLoop(
         sourceFile,
         checker,
@@ -260,8 +264,13 @@ export function transformAndAnalyse(
     // File-level extractions (single-export back-compat path) — full source
     // walk so existing single-script manifests stay byte-identical.
     const fileCapabilities = extractCapabilities(sourceFile, checker, structural.kind);
-    const fileLookback = extractMaxLookback(sourceFile, checker, sourcePath);
-    const fileInputs = extractInputs(sourceFile, checker, sourcePath);
+    const fileLookback = extractMaxLookback(
+        sourceFile,
+        checker,
+        sourcePath,
+        sourceFile,
+        fileInputLoopBounds,
+    );
     const fileRequestAnalysis = extractRequestAnalysis(
         sourceFile,
         checker,
@@ -364,6 +373,18 @@ export function transformAndAnalyse(
     });
 }
 
+function inputLoopBoundsFromDescriptors(
+    inputs: Readonly<Record<string, ExtractedDescriptor>>,
+): InputLoopBounds {
+    const bounds = new Map<string, number | null>();
+    for (const [name, descriptor] of Object.entries(inputs)) {
+        if (descriptor.kind !== "int") continue;
+        const max = descriptor.max;
+        bounds.set(name, typeof max === "number" && Number.isFinite(max) ? max : null);
+    }
+    return bounds;
+}
+
 function buildDrawnManifest(
     drawn: DrawnScript,
     depGraph: DepGraph,
@@ -382,8 +403,9 @@ function buildDrawnManifest(
     const intervalDiagnostics: CompileDiagnostic[] = [];
     const scope = drawn.defineCall;
     const capabilities = extractCapabilities(sourceFile, checker, kind, scope);
-    const lookback = extractMaxLookback(sourceFile, checker, sourcePath, scope);
     const inputs = extractInputs(sourceFile, checker, sourcePath, scope);
+    const inputLoopBounds = inputLoopBoundsFromDescriptors(inputs.inputs);
+    const lookback = extractMaxLookback(sourceFile, checker, sourcePath, scope, inputLoopBounds);
     const requestAnalysis = extractRequestAnalysis(
         sourceFile,
         checker,

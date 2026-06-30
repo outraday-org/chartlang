@@ -16,6 +16,7 @@ const runtimeTime: TimeNamespace = {
     minute: () => 0,
     second: () => 0,
     timestamp: () => 0,
+    now: () => 0,
     timeClose: () => 0,
 };
 
@@ -39,5 +40,9 @@ describe("time namespace type surface", () => {
     it("timeClose returns a Time (bar close epoch)", () => {
         expectTypeOf(runtimeTime.timeClose(0)).toEqualTypeOf<Time>();
         expectTypeOf(runtimeTime.timeClose(0, "UTC")).toEqualTypeOf<Time>();
+    });
+
+    it("now returns the host wall-clock Time", () => {
+        expectTypeOf(runtimeTime.now()).toEqualTypeOf<Time>();
     });
 });

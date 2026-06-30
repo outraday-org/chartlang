@@ -211,7 +211,7 @@ export function CompileBar(props: CompileBarProps): ReactElement {
             </button>
             <span className={`compile-status ${state.kind === "error" || props.hasError ? "is-error" : ""}`}>
                 {props.hasError
-                    ? "Fix the rejected construct above before compiling — the converted output is partial."
+                    ? "Fix the rejected construct reported below before compiling — the converted output is partial."
                     : statusText(state)}
             </span>
         </div>

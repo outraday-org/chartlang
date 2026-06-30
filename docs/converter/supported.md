@@ -640,6 +640,7 @@ Pine's calendar built-ins lower onto chartlang's
 | `dayofweek(t)` / `dayofweek(t, tz)` | `time.dayofweek(t)` / `time.dayofweek(t, tz)` |
 | `time()` | `bar.time` (the no-arg current-bar open epoch) |
 | `time_close()` | `time.timeClose(bar.time)` (bar start + the current bar's interval) |
+| `timenow` | `time.now()` (host-injected wall-clock epoch) |
 
 `dayofweek` follows Pine's `1=Sunday .. 7=Saturday` convention. The
 timezone-resolved `time(timeframe)` and `time(timeframe, session)` membership

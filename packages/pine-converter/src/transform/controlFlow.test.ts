@@ -213,6 +213,129 @@ describe("emitFor — loop direction + step (non-stateful runtime loops)", () =>
         const out = runForBounds([breakStmt], intLit("6"), intLit("0"), intLit("2"));
         expect(out[0]).toContain("for (let i = 6; i >= 0; i += -2)");
     });
+
+    it("emits a runtime loop for a non-stateful input-bound upper limit", () => {
+        const diagnostics = new DiagnosticCollector();
+        const stmt: ForStatement = {
+            kind: "for-statement",
+            variable: "i",
+            from: intLit("0"),
+            to: ident("tol"),
+            step: null,
+            body: { kind: "block-statement", body: [enumStmt()], span: SPAN },
+            span: SPAN,
+        };
+        const out = emitFor(
+            stmt,
+            CTX,
+            diagnostics,
+            (name) => (name === "tol" ? 4 : null),
+            (stmts) => stmts.map((s) => s.kind),
+            (name) => (name === "tol" ? 20 : null),
+        );
+        expect(out).toEqual([
+            "for (let i = 0; i <= (inputs.tol as number); i++) { enum-declaration }",
+        ]);
+        expect(diagnostics.toArray()).toHaveLength(0);
+    });
+
+    it("warns when a runtime input-bound loop has no input max", () => {
+        const diagnostics = new DiagnosticCollector();
+        const stmt: ForStatement = {
+            kind: "for-statement",
+            variable: "i",
+            from: intLit("0"),
+            to: ident("tol"),
+            step: null,
+            body: { kind: "block-statement", body: [enumStmt()], span: SPAN },
+            span: SPAN,
+        };
+        const out = emitFor(
+            stmt,
+            CTX,
+            diagnostics,
+            (name) => (name === "tol" ? 4 : null),
+            (stmts) => stmts.map((s) => s.kind),
+        );
+        expect(out[0]).toContain("inputs.tol as number");
+        expect(diagnostics.toArray().map((d) => d.code)).toEqual([
+            "pine-converter/transform/loop-bound-input-unbounded",
+        ]);
+    });
+
+    it("emits a stepped runtime loop for a non-stateful input-bound upper limit", () => {
+        const diagnostics = new DiagnosticCollector();
+        const stmt: ForStatement = {
+            kind: "for-statement",
+            variable: "i",
+            from: intLit("0"),
+            to: ident("tol"),
+            step: intLit("2"),
+            body: { kind: "block-statement", body: [enumStmt()], span: SPAN },
+            span: SPAN,
+        };
+        const out = emitFor(
+            stmt,
+            CTX,
+            diagnostics,
+            (name) => (name === "tol" ? 4 : null),
+            (stmts) => stmts.map((s) => s.kind),
+            (name) => (name === "tol" ? 20 : null),
+        );
+        expect(out[0]).toContain("i += 2");
+        expect(diagnostics.toArray()).toHaveLength(0);
+    });
+
+    it("falls back to a frozen unroll when the literal from-bound exceeds the input default (descending)", () => {
+        const diagnostics = new DiagnosticCollector();
+        const stmt: ForStatement = {
+            kind: "for-statement",
+            variable: "i",
+            from: intLit("10"),
+            to: ident("tol"),
+            step: null,
+            body: { kind: "block-statement", body: [enumStmt()], span: SPAN },
+            span: SPAN,
+        };
+        const out = emitFor(
+            stmt,
+            CTX,
+            diagnostics,
+            (name) => (name === "tol" ? 4 : null),
+            (stmts) => stmts.map((s) => s.kind),
+            (name) => (name === "tol" ? 20 : null),
+        );
+        // 10 down to 4 (the frozen default) → 7 unrolled iterations, NOT an
+        // ascending `i <= inputs.tol` loop that would run zero times.
+        expect(out).toHaveLength(7);
+        expect(out.every((line) => line === "enum-declaration")).toBe(true);
+        expect(diagnostics.toArray().map((d) => d.code)).toEqual([
+            "pine-converter/transform/loop-unroll-frozen-at-input-default",
+        ]);
+    });
+
+    it("drops an input-bound runtime loop whose rendered body is empty", () => {
+        const diagnostics = new DiagnosticCollector();
+        const stmt: ForStatement = {
+            kind: "for-statement",
+            variable: "i",
+            from: intLit("0"),
+            to: ident("tol"),
+            step: null,
+            body: { kind: "block-statement", body: [enumStmt()], span: SPAN },
+            span: SPAN,
+        };
+        const out = emitFor(
+            stmt,
+            CTX,
+            diagnostics,
+            (name) => (name === "tol" ? 4 : null),
+            () => [],
+            (name) => (name === "tol" ? 20 : null),
+        );
+        expect(out).toEqual([]);
+        expect(diagnostics.toArray()).toHaveLength(0);
+    });
 });
 
 describe("emitFor — break/continue body classification", () => {
@@ -311,6 +434,7 @@ describe("resolveBound", () => {
         expect(resolveBound(ident("len"), (name) => (name === "len" ? 5 : null))).toEqual({
             value: 5,
             fromInputDefault: true,
+            inputName: "len",
         });
     });
 

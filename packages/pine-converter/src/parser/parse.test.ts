@@ -57,10 +57,16 @@ describe("parseStatements — declarations", () => {
         expect(result.script.declaration?.kind).toBe("indicator-declaration");
     });
 
-    it("emits unsupported-pine-version when the directive is not v6", () => {
+    it("emits pine-version-downlevel for a v5 directive", () => {
         const result = parse('//@version=5\nindicator("hi")\n');
-        expect(codes(result)).toContain("pine-converter/parse/unsupported-pine-version");
+        expect(codes(result)).toEqual(["pine-converter/parse/pine-version-downlevel"]);
         expect(result.script.version?.version).toBe(5);
+    });
+
+    it("emits unsupported-pine-version when the directive is neither v5 nor v6", () => {
+        const result = parse('//@version=4\nindicator("hi")\n');
+        expect(codes(result)).toEqual(["pine-converter/parse/unsupported-pine-version"]);
+        expect(result.script.version?.version).toBe(4);
     });
 
     it("recovers from a declaration missing its opening paren", () => {

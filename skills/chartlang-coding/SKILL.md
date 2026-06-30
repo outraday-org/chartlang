@@ -308,8 +308,9 @@ Highlights of the surface:
   hour/minute/second(t, tz?)` return the calendar field; `time.timestamp(
   y, mo, d, hh?, mm?, ss?, tz?)` builds an epoch; `time.timeClose(t, tz?)`
   is the bar-close instant (Pine `time_close()` = bar start + interval);
-  `session.isOpen(t, spec, tz?)` tests membership in an `"HH:MM-HH:MM"`
-  window. **`dayofweek` is Pine's `1=Sun .. 7=Sat`** (Mon–Fri is `dow >= 2
+  `time.now()` is the explicit host-injected wall-clock epoch; `session.isOpen(
+  t, spec, tz?)` tests membership in an `"HH:MM-HH:MM"` window.
+  **`dayofweek` is Pine's `1=Sun .. 7=Sat`** (Mon–Fri is `dow >= 2
   && dow <= 6`), NOT ISO. The optional `tz` defaults to `syminfo.timezone`
   (fallback `"UTC"`); **v1 resolves UTC + fixed-offset only** — a real
   DST zone falls back to UTC with a one-time `tz-dst-unsupported` warning

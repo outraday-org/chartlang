@@ -1,0 +1,8 @@
+//@version=6
+indicator("input-bound loop")
+tol = input.int(4, "Tolerance", maxval=20)
+count = 0.0
+ma = ta.sma(close, 5)
+for i = 0 to tol
+    count := count + ma[i]
+plot(count)
