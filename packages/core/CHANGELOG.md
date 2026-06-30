@@ -1,5 +1,12 @@
 # @invinite-org/chartlang-core
 
+## 1.7.0
+
+### Minor Changes
+
+- d542f99: Add shared input presentation metadata fields to core descriptors/builders and compiler manifest extraction.
+- fb6f60a: Resolve `input.externalSeries` descriptors to runtime numeric series, add runner external feed APIs, expose load-time/live external-series feeds through adapter-kit, worker host, and QuickJS host, and add conformance coverage for feed history plus live replacement.
+
 ## 1.6.0
 
 ### Minor Changes

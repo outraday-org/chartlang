@@ -1,5 +1,19 @@
 # @invinite-org/chartlang-runtime
 
+## 1.7.0
+
+### Minor Changes
+
+- fb6f60a: Resolve `input.externalSeries` descriptors to runtime numeric series, add runner external feed APIs, expose load-time/live external-series feeds through adapter-kit, worker host, and QuickJS host, and add conformance coverage for feed history plus live replacement.
+
+### Patch Changes
+
+- Updated dependencies [d542f99]
+- Updated dependencies [d542f99]
+- Updated dependencies [fb6f60a]
+  - @invinite-org/chartlang-adapter-kit@1.8.0
+  - @invinite-org/chartlang-core@1.7.0
+
 ## 1.6.0
 
 ### Minor Changes

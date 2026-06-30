@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-language-service",
-    "version": "1.5.0",
+    "version": "1.5.1",
     "type": "module",
     "license": "MIT",
     "description": "Headless editor intelligence — hover, completions, diagnostics, signature help",

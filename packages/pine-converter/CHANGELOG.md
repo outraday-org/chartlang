@@ -1,5 +1,16 @@
 # @invinite-org/chartlang-pine-converter
 
+## 0.6.0
+
+### Minor Changes
+
+- d542f99: Preserve Pine input metadata fields during conversion.
+- d542f99: Support native Pine `input.enum(EnumType.member, ...)` lowering with enum-member expression rewriting, and replace the old `input-enum-rejected` diagnostic with `input-enum-default-not-member` for malformed enum defaults.
+
+### Patch Changes
+
+- d542f99: Parse native Pine enum declarations and register enum type symbols for converter semantic analysis.
+
 ## 0.5.0
 
 ### Minor Changes
