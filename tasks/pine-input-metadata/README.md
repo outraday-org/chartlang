@@ -133,7 +133,7 @@ Each task depends only on lower-numbered tasks.
 |------------------------|-------------|------------|
 | `Common<K, T>` base + per-kind descriptors | `packages/core/src/input/inputDescriptor.ts` | Task 1 extends with `CommonInputOpts` |
 | `input.*` builders | `packages/core/src/input/input.ts` | Task 1 widens each opts type |
-| `copyObjectLiteralFields` / `readLiteral` | `packages/compiler/src/analysis/extractInputs.ts` | Generic serialisation — no change, relied on by Task 1 |
+| `copyObjectLiteralFields` / `readLiteral` | `packages/compiler/src/analysis/extractInputs.ts` | Generic serialisation for normal inputs; Task 1 also extends `serialiseExternalSeries` for metadata |
 | `program.ts` ambient core shim | `packages/compiler/src/program.ts` | Task 1 mirrors new fields |
 | `buildOptions` / `warnUnmappedInputArg` / `enumTitleOpt` / `resolveOptionsEnum` | `packages/pine-converter/src/transform/inputs.ts` | Tasks 2 + 4 |
 | `parseKeywordStatement` / `recoverCompound` / `parseBlock` | `packages/pine-converter/src/parser/statements.ts` | Task 3 adds `enum` arm |

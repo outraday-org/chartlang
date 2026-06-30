@@ -120,9 +120,11 @@ output only if unresolved. Add a fixture witness.
   `pine-converter/transform/`) and its assertions. The code is referenced in
   `src/transform/inputs.ts` (the reject arm being replaced),
   `src/transform/input-rejects.test.ts`, and
-  `src/transform/inline-input.test.ts` — **there is no
-  `parse-udt-reject.test.ts`**; update those two transform test files. (Do
-  not touch `CHANGELOG.md`'s historical mention.) Removing a code is
+  `src/transform/inline-input.test.ts`; update those transform test files. A
+  `src/parser/parse-udt-reject.test.ts` file exists, but it covers `type` /
+  `method` / `import` parser rejects and is not an `input-enum-rejected`
+  assertion site unless a local grep proves otherwise. (Do not touch
+  `CHANGELOG.md`'s historical mention.) Removing a code is
   acceptable here — it was a "not supported" marker, now superseded; note it
   in the changeset and CLAUDE.md as a behavior change. If downstream tooling
   pins it, prefer retiring it to an unused-but-registered entry — pick
@@ -147,8 +149,11 @@ output only if unresolved. Add a fixture witness.
 ### 7. Docs + skill
 
 - `docs/converter/supported.md`: move `input.enum` from rejected → supported.
-- `docs/converter/rejects.md` / `diagnostics.md`: drop `input-enum-rejected`,
-  add `input-enum-default-not-member`.
+- `docs/converter/rejects.md`: drop `input-enum-rejected`, add
+  `input-enum-default-not-member` where relevant.
+- Regenerate `docs/converter/diagnostics.md` with
+  `pnpm converter:docs:generate`; do not hand-edit it (`docs/CLAUDE.md` marks
+  it generated).
 - `packages/pine-converter/CLAUDE.md` "Transform: inputs": replace the
   "`input.enum` STAYS rejected via `input-enum-rejected`" wording with the
   native-enum lowering description (keep the bridge distinction explicit).
@@ -166,9 +171,10 @@ output only if unresolved. Add a fixture witness.
 | `packages/pine-converter/src/diagnostics/codes.ts` | Modify | Add `input-enum-default-not-member`; remove `input-enum-rejected` |
 | `packages/pine-converter/fixtures/77-native-enum-input.*` | Create | Golden witness |
 | `packages/pine-converter/src/tests/golden.test.ts` | Modify | Bump corpus-size assertion `toBe(77)` → `toBe(78)` |
-| `packages/pine-converter/src/transform/input-rejects.test.ts`, `inline-input.test.ts` | Modify | Drop `input-enum-rejected` assertions (no `parse-udt-reject.test.ts` exists) |
+| `packages/pine-converter/src/transform/input-rejects.test.ts`, `inline-input.test.ts` | Modify | Drop `input-enum-rejected` assertions |
 | `packages/pine-converter/CLAUDE.md` | Modify | Native-enum invariant |
-| `docs/converter/supported.md`, `rejects.md`, `diagnostics.md` | Modify | Doc the support |
+| `docs/converter/supported.md`, `rejects.md` | Modify | Doc the support |
+| `docs/converter/diagnostics.md` | Regenerate | Generated via `pnpm converter:docs:generate`; do not hand-edit |
 | `skills/chartlang-coding/references/translating-from-pine.md` | Modify | Enum row |
 | `.changeset/converter-native-enum.md` | Create | Changeset |
 
@@ -179,6 +185,7 @@ output only if unresolved. Add a fixture witness.
 - `pnpm test` (coverage 100% on pine-converter; `codes.test.ts` namespace +
   coverage-grep pass after the code add/remove)
 - `pnpm skills:gate`
+- `pnpm converter:docs:check`
 - Converter golden + `fixtures-compile` suites green
 
 ## Changeset

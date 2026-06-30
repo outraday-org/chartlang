@@ -88,6 +88,10 @@ included like any other (they carry the metadata via Task 1).
 Export `groupInputs` + the three types alongside the existing `InputKind`
 re-export. Keep the README public-surface list in sync.
 
+Add JSDoc with `@example`, `@since 1.8`, and `@stable` to every exported type
+and function in `groupInputs.ts`; `pnpm docs:check` scans package source
+exports, not the README.
+
 ### 3. Tests (`packages/adapter-kit/src/groupInputs.test.ts`)
 
 - Ordered grouping: three inputs in groups `A`, `A`, `B` → two sections

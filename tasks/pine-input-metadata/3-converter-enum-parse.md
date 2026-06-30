@@ -18,11 +18,12 @@ execution order linear).
 ## Current Behavior
 
 `parseKeywordStatement` (`packages/pine-converter/src/parser/statements.ts:682`)
-has no `enum` arm. Since `enum` is not in the lexer keyword set, an `enum
-Signal` line is lexed as identifiers and falls through to `unexpected-token`
-+ `recoverLine`, discarding the declaration and leaving every
-`Signal.member` reference as `unknown-identifier`. `input.enum(...)` is then
-hard-rejected by the transform (`input-enum-rejected`).
+has no `enum` arm, and `packages/pine-converter/src/lexer/keywords.ts` does
+not include `enum`, so an `enum Signal` line is currently lexed as
+identifiers and falls through to `unexpected-token` + `recoverLine`,
+discarding the declaration and leaving every `Signal.member` reference as
+`unknown-identifier`. `input.enum(...)` is then hard-rejected by the transform
+(`input-enum-rejected`).
 
 ## Desired Behavior
 
@@ -66,10 +67,11 @@ export type EnumDeclaration = Readonly<{
 Add `EnumDeclaration` to the `Statement` union. The AST module is
 coverage-excluded (declarations only).
 
-### 2. Parser (`packages/pine-converter/src/parser/statements.ts`)
+### 2. Lexer + parser (`packages/pine-converter/src/lexer/keywords.ts`, `parser/statements.ts`)
 
-Add an `enum` arm to `parseKeywordStatement` calling a new
-`parseEnumDeclaration(ctx, start)`:
+Add `"enum"` to `PINE_V6_KEYWORDS` and cover it in the keyword tests so the
+parser can reach `parseKeywordStatement`. Then add an `enum` arm to
+`parseKeywordStatement` calling a new `parseEnumDeclaration(ctx, start)`:
 
 - After `enum`, expect an `identifier` (the type name) — missing →
   `expected-token` + `recoverCompound`, return `null`.
@@ -126,9 +128,11 @@ grep for statement-`kind` switches after the union change.
   default is the first declared field).
 - Register enum types in a **pre-pass** so forward references resolve
   (mirror `registerUserFunctions` hoisting). `analyze` registers the symbol
-  keyed by the declaration span (the `symbols` map) and exposes a lookup the
-  transform can read by enum-type name (e.g. extend the root scope so
-  `Signal` resolves to the `enum-type` symbol).
+  keyed by the declaration span (the `symbols` map), extends the root scope so
+  `Signal` resolves to the `enum-type` symbol, and adds an explicit
+  `enumTypes: ReadonlyMap<string, EnumTypeInfo>` (or equivalent named type) to
+  `SemanticResult` so Task 4 can transform `input.enum` and `EnumType.member`
+  without walking scope internals.
 - A `Signal.member` member-access where `Signal` is a registered enum type
   must NOT raise `unknown-identifier`; an unknown member on a known enum →
   `unknown-enum-member` (new error) at the reference. A duplicate enum-type
@@ -165,12 +169,15 @@ Append (no reorder), namespaced correctly:
 | File | Action | Purpose |
 |------|--------|---------|
 | `packages/pine-converter/src/ast/statements.ts` | Modify | `EnumDeclaration` + `EnumMember` + union member |
+| `packages/pine-converter/src/lexer/keywords.ts` | Modify | Add `enum` to the Pine keyword set |
+| `packages/pine-converter/src/lexer/*.test.ts` | Modify | Keyword coverage for `enum` |
 | `packages/pine-converter/src/parser/statements.ts` | Modify | `enum` arm + `parseEnumDeclaration` |
-| `packages/pine-converter/src/semantic/analyze.ts` (+ `types.ts`, pre-pass module) | Modify | `enum-type` symbol + hoisting + member resolution |
+| `packages/pine-converter/src/semantic/analyze.ts` (+ `types.ts`, pre-pass module) | Modify | `enum-type` symbol + hoisting + member resolution + `SemanticResult.enumTypes` lookup |
 | `packages/pine-converter/src/transform/other.ts` | Modify | No-op `enum-declaration` arm in `emitStatement` + the other statement switches in this file |
 | `packages/pine-converter/src/transform/{controlFlow,declaration,inputs,udfInline}.ts` | Modify | No-op `enum-declaration` arm in each exhaustive statement switch |
 | `packages/pine-converter/src/semantic/{statefulness,drawingCamp}.ts` | Modify | No-op `enum-declaration` arm in each statement walker |
 | `packages/pine-converter/src/diagnostics/codes.ts` | Modify | 2 new codes |
+| `docs/converter/diagnostics.md` | Regenerate | Generated via `pnpm converter:docs:generate` after adding codes |
 | `packages/pine-converter/src/parser/parseEnum.test.ts` | Create | Parser coverage |
 | `packages/pine-converter/src/semantic/enumType.test.ts` | Create | Semantic coverage |
 | `packages/pine-converter/CLAUDE.md` | Modify | Document the `enum` parse + `enum-type` symbol invariant |
@@ -181,6 +188,7 @@ Append (no reorder), namespaced correctly:
 - `pnpm typecheck`
 - `pnpm lint`
 - `pnpm test` (coverage 100% on parser/semantic/codes touched files)
+- `pnpm converter:docs:check`
 
 ## Changeset
 
@@ -192,10 +200,14 @@ enum lowering lands in Task 4).
 
 - A native `enum Name` declaration parses to an `EnumDeclaration` with
   ordered members + per-member value resolution (title-or-name).
+- `enum` is lexed as a keyword, and `SemanticResult` exposes an enum-type
+  lookup for Task 4.
 - Forward/backward `EnumType.member` references resolve; unknown members →
   `unknown-enum-member`; malformed members → `unsupported-enum-member`; the
   parser never throws.
 - All exhaustive statement walkers handle `enum-declaration`; `compute` emit
   is a no-op.
 - New codes registered; `codes.test.ts` namespace + coverage-grep pass.
+- `docs/converter/diagnostics.md` regenerated from the diagnostic registry;
+  `converter:docs:check` green.
 - 100% coverage on touched files; CLAUDE.md updated; changeset committed.

@@ -143,8 +143,11 @@ Regenerate / update the affected expected outputs:
 ### 7. Docs
 
 Update `docs/converter/supported.md` (inputs section: list the now-mapped
-args) and `docs/converter/rejects.md` / `diagnostics.md` (narrow the
-`input-arg-not-mapped` description). Update
+args) and `docs/converter/rejects.md` (narrow the
+`input-arg-not-mapped` description). If the diagnostic registry text in
+`packages/pine-converter/src/diagnostics/codes.ts` changes, regenerate
+`docs/converter/diagnostics.md` with `pnpm converter:docs:generate`; do not
+hand-edit it (`docs/CLAUDE.md` marks it generated). Update
 `skills/chartlang-coding/references/translating-from-pine.md` input row.
 
 ## Files to Create / Modify
@@ -159,7 +162,8 @@ args) and `docs/converter/rejects.md` / `diagnostics.md` (narrow the
 | `packages/pine-converter/fixtures/76-input-metadata-full.*` | Create | New witness fixture |
 | `packages/pine-converter/src/tests/golden.test.ts` | Modify | Bump corpus-size assertion `toBe(76)` → `toBe(77)` (fixtures auto-discovered) |
 | `packages/pine-converter/CLAUDE.md` | Modify | Update inputs + residual-diagnostics invariants |
-| `docs/converter/supported.md`, `rejects.md`, `diagnostics.md` | Modify | Doc the mapping |
+| `docs/converter/supported.md`, `rejects.md` | Modify | Doc the mapping |
+| `docs/converter/diagnostics.md` | Regenerate if diagnostic registry text changes | Generated via `pnpm converter:docs:generate`; do not hand-edit |
 | `skills/chartlang-coding/references/translating-from-pine.md` | Modify | Input row |
 | `.changeset/converter-input-metadata-passthrough.md` | Create | Changeset |
 
@@ -169,6 +173,7 @@ args) and `docs/converter/rejects.md` / `diagnostics.md` (narrow the
 - `pnpm lint`
 - `pnpm test` (coverage 100% on pine-converter; `inputs.ts` is fully covered)
 - `pnpm skills:gate`
+- `pnpm converter:docs:check`
 - Converter golden + `fixtures-compile` suites green
 
 ## Changeset
