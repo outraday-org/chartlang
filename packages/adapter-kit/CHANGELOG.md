@@ -1,5 +1,18 @@
 # @invinite-org/chartlang-adapter-kit
 
+## 1.8.0
+
+### Minor Changes
+
+- d542f99: Add `groupInputs()` for rendering grouped and inline input settings from manifests.
+- fb6f60a: Resolve `input.externalSeries` descriptors to runtime numeric series, add runner external feed APIs, expose load-time/live external-series feeds through adapter-kit, worker host, and QuickJS host, and add conformance coverage for feed history plus live replacement.
+
+### Patch Changes
+
+- Updated dependencies [d542f99]
+- Updated dependencies [fb6f60a]
+  - @invinite-org/chartlang-core@1.7.0
+
 ## 1.7.0
 
 ### Minor Changes
